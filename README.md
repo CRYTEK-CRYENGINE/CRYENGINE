@@ -11,8 +11,6 @@ Extract the archive and move the SDK directory to the **Code** folder and rename
 
 To compile the engine the provided WAF has to be used. See [here](http://docs.cryengine.com/display/CEPROG/Getting+Started+with+WAF) for more information.
 
-
-
 # Terminology
 Development takes place primarily in the "main" branch. The stabilisation branch is used for fixing bugs in the run-up to release, and the release branch provides stable snapshots of the engine.
 
