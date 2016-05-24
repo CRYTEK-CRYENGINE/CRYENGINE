@@ -20,7 +20,7 @@
 #include <queue>
 #include <memory>
 #include "INetContextListener.h"
-#include "Socket/NetAddress.h"
+#include <CryNetwork/NetAddress.h>
 #include "INetworkMember.h"
 #include "Streams/ArithStream.h"
 #include "SessionID.h"
@@ -53,9 +53,6 @@ class CSyncedFilePak;
 class CNetContext :
 	public INetworkMember,
 	public INetContext,
-#if NETWORK_HOST_MIGRATION
-	public IHostMigrationEventListener,
-#endif
 	public CDefaultStreamAllocator
 {
 public:
@@ -115,20 +112,6 @@ public:
 	virtual void            Resaltify(SNetObjectID& id);
 	// ~INetContext
 
-#if NETWORK_HOST_MIGRATION
-	// IHostMigrationEventListener
-	virtual EHostMigrationReturn OnInitiate(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual EHostMigrationReturn OnDisconnectClient(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual EHostMigrationReturn OnDemoteToClient(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual EHostMigrationReturn OnPromoteToServer(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual EHostMigrationReturn OnReconnectClient(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual EHostMigrationReturn OnFinalise(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual void                 OnComplete(SHostMigrationInfo& hostMigrationInfo);
-	virtual EHostMigrationReturn OnTerminate(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual EHostMigrationReturn OnReset(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	// ~IHostMigrationEventListener
-#endif
-
 	// pseudo INetContextListener
 	void            Die();
 	void            OnObjectEvent(SNetObjectEvent* pEvent);
@@ -160,9 +143,6 @@ public:
 	NetworkAspectType         DeclaredAspects() const             { return m_declaredAspects; }
 	NetworkAspectType         TimestampedAspects() const          { return m_timestampedAspects; }
 	NetworkAspectType         DisabledCompressionAspects() const  { return m_disabledCompressionAspects; }
-
-	bool                      StoreAndChangeContext();
-	bool                      RestoreSavedContext(CNetContextState* pSavedContext);
 
 #ifndef OLD_VOICE_SYSTEM_DEPRECATED
 	CVoiceContext* GetVoiceContextImpl() { return m_pVoiceContext; }

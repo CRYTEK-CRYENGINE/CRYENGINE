@@ -4,7 +4,6 @@
 #include "DriverD3D.h"
 #include <Cry3DEngine/I3DEngine.h>
 #include "D3DPostProcess.h"
-#include "D3DLightPropagationVolume.h"
 #include "../Common/Textures/TextureManager.h"
 #include "../Common/Textures/TextureHelpers.h"
 #include "../Common/RendElements/FlareSoftOcclusionQuery.h"
@@ -371,8 +370,6 @@ void CDeferredShading::ReleaseData()
 			m_vecGIClipVolumes[iThread][nRecurseLevel].clear();
 		}
 	}
-
-	LPVManager.Cleanup();
 
 	m_shadowPoolAlloc.SetUse(0);
 	stl::free_container(m_shadowPoolAlloc);
@@ -2832,141 +2829,6 @@ rd->m_nStencilMaskRef = nPrevStencilMaskRef;
 	PROFILE_LABEL_POP("DEFERRED_SHADING");
 }
 
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-bool CDeferredShading::GIPass()
-{
-	CD3D9Renderer* const __restrict rd = gcpRendD3D;
-
-	bool bGIIsRendered = false;
-
-	const bool bNeedStencilCull = !m_vecGIClipVolumes[m_nThreadID][m_nRecurseLevel].empty();
-
-	// apply GI
-	if (LPVManager.IsGIRenderable() && CRenderer::CV_r_LightPropagationVolumes)
-	{
-		PROFILE_LABEL_SCOPE("GI");
-
-		if (CRenderer::CV_r_DeferredShadingScissor)
-			rd->EF_Scissor(false, 0, 0, 0, 0);
-		if (CRenderer::CV_r_DeferredShadingDepthBoundsTest)
-			rd->SetDepthBoundTest(0.0f, 1.0f, false); // stencil pre-passes are rop bound, using depth bounds increases even more rop cost
-
-		int nStoredStencilRef = rd->m_nStencilMaskRef;
-		// refresh stencil based on visareas and clip volumes
-		if (bNeedStencilCull)
-		{
-			TArray<SClipShape>& vecGIVolumes = m_vecGIClipVolumes[m_nThreadID][m_nRecurseLevel];
-			const size_t nVolumes = min((size_t)vecGIVolumes.size(), size_t(STENC_MAX_REF >> 1));
-
-			// reset stencil to value equal to number of volumes as we're going to incr/decr
-			const uint8 nRefMaskBase = static_cast<uint8>(nVolumes + 1);  //+ 1, we start at 1. 0 is reserved for MSAAed areas.
-			rd->EF_ClearTargetsImmediately(FRT_CLEAR_STENCIL, Clr_Unused.r, nRefMaskBase);
-			rd->m_nStencilMaskRef = nRefMaskBase;
-
-			// Render Clip Volumes to cull GI in indoors
-			for (size_t iVolume = 0; iVolume < nVolumes; ++iVolume)
-			{
-				SClipShape& rClipShape = vecGIVolumes[iVolume];
-
-				CRenderMesh* pRenderMesh = (CRenderMesh*)rClipShape.pShape;
-				if (!pRenderMesh)
-					continue;
-
-				// TODO: add visibility culling
-				//if(pRenderMesh->GetDistance(rCamera) > LPVManager.GetDistance)
-				//	continue;
-
-				pRenderMesh->CheckUpdate(pRenderMesh->_GetVertexFormat(), 0);
-				size_t nOffsV = 0;
-				size_t nOffsI = 0;
-				D3DVertexBuffer* pCheckArbitraryShapeVB = (D3DVertexBuffer*)pRenderMesh->_GetD3DVB(VSF_GENERAL, &nOffsV);
-				D3DIndexBuffer* pCheckArbitraryShapeIB = (D3DIndexBuffer*)pRenderMesh->_GetD3DIB(&nOffsI);
-				if (!pCheckArbitraryShapeVB || !pCheckArbitraryShapeIB)
-					continue;
-
-				rd->m_RP.m_TI[rd->m_RP.m_nProcessThreadID].m_matView->Push();
-				Matrix44 mLocalTransposed;
-				mLocalTransposed = rClipShape.mxTransform.GetTransposed();
-
-				rd->m_RP.m_TI[rd->m_RP.m_nProcessThreadID].m_matView->MultMatrixLocal(&mLocalTransposed);
-
-				const int arbitraryShapeVBSize = pRenderMesh->_GetNumVerts();
-				const int arbitraryShapeIBSize = pRenderMesh->_GetNumInds();
-				const int vdescsize = pRenderMesh->GetStreamStride(VSF_GENERAL);
-				const EVertexFormat eVF = pRenderMesh->_GetVertexFormat();
-
-				uint32 nPasses = 0;
-				CShader* pSH(CShaderMan::s_ShaderShadowMaskGen);
-				static CCryNameTSCRC StencilCullTechName = "DeferredShadowPass";
-				pSH->FXSetTechnique(StencilCullTechName);
-				pSH->FXBegin(&nPasses, 0);
-
-				pSH->FXBeginPass(CD3D9Renderer::DS_SHADOW_CULL_PASS);
-
-				if (!FAILED(rd->FX_SetVertexDeclaration(0, eVF)))
-				{
-					rd->FX_SetVStream(0, pCheckArbitraryShapeVB, nOffsV, vdescsize);
-					rd->FX_SetIStream(pCheckArbitraryShapeIB, nOffsI, (sizeof(vtx_idx) == 2 ? Index16 : Index32));
-
-					rd->D3DSetCull(eCULL_None);
-
-					rd->FX_SetStencilState(
-					  FSS_STENCIL_TWOSIDED | STENC_FUNC(FSS_STENCFUNC_ALWAYS) | STENC_CCW_FUNC(FSS_STENCFUNC_ALWAYS) |
-					  STENCOP_FAIL(FSS_STENCOP_KEEP) | STENCOP_CCW_FAIL(FSS_STENCOP_KEEP) |
-					  STENCOP_ZFAIL(FSS_STENCOP_INCR) | STENCOP_CCW_ZFAIL(FSS_STENCOP_DECR) |
-					  STENCOP_PASS(FSS_STENCOP_KEEP) | STENCOP_CCW_PASS(FSS_STENCOP_KEEP),
-					  nRefMaskBase, 0xFF, 0xFF);
-
-					//Disable color writes
-					int newState = rd->m_RP.m_CurState;
-					newState |= GS_COLMASK_NONE;
-
-					//setup depth test
-					newState &= ~GS_NODEPTHTEST;
-					newState &= ~GS_DEPTHWRITE;
-					newState &= ~GS_DEPTHFUNC_MASK;
-					//setup stencil
-					newState |= GS_DEPTHFUNC_LEQUAL;
-					newState |= GS_STENCIL;
-
-					rd->FX_SetState(newState);
-
-					rd->FX_Commit();
-
-					rd->FX_DrawIndexedPrimitive(eptTriangleList, 0, 0, arbitraryShapeVBSize, 0, arbitraryShapeIBSize);
-
-					++rd->m_nStencilMaskRef;
-				}
-				pSH->FXEndPass();
-				pSH->FXEnd();
-				rd->m_RP.m_TI[rd->m_RP.m_nProcessThreadID].m_matView->Pop();
-			}
-
-			// set up zero reference
-			nStoredStencilRef = rd->m_nStencilMaskRef + 1; //max value currently in stencil + 1
-			rd->m_nStencilMaskRef = nRefMaskBase;
-			rd->FX_StencilTestCurRef(true, false);
-		}
-		else
-			rd->SetState(rd->m_RP.m_CurState & ~GS_STENCIL);
-
-		// Main rendering of GI
-		LPVManager.RenderGI();
-		bGIIsRendered = true;
-
-		if (bNeedStencilCull)
-		{
-			rd->m_nStencilMaskRef = nStoredStencilRef;
-			rd->FX_StencilTestCurRef(false);
-		}
-
-		rd->SetDepthBoundTest(0.f, 1.f, false);
-	}
-
-	return bGIIsRendered;
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -3791,8 +3653,6 @@ void CDeferredShading::Render(CRenderView* pRenderView)
 	auto& rDeferredCubemaps = pRenderView->GetLightsArray(eDLT_DeferredCubemap);
 	auto& rDeferredAmbientLights = pRenderView->GetLightsArray(eDLT_DeferredAmbientLight);
 
-	const bool bRenderLPVs = LPVManager.IsRenderable();
-
 #ifdef SUPPORTS_MSAA
 	if (rd->m_RP.m_MSAAData.Type)
 	{
@@ -3892,21 +3752,6 @@ void CDeferredShading::Render(CRenderView* pRenderView)
 			DeferredLights(rDeferredAmbientLights, false);
 
 		ApplySSReflections();  // TODO: Try to merge with another pass
-	}
-
-	SpecularAccEnableMRT(false);
-
-	if (bOutdoorVisible && bRenderLPVs)
-	{
-		if (GIPass())
-			m_nLightsProcessedCount++;
-	}
-
-	// apply lighting from LPVs
-	if (bRenderLPVs && CRenderer::CV_r_LightPropagationVolumes)
-	{
-		LPVManager.Render();
-		m_nLightsProcessedCount++;
 	}
 
 	SpecularAccEnableMRT(true);

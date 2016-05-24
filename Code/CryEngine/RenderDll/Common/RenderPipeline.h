@@ -138,8 +138,6 @@ struct SRendItem
 	static void mfSortByLight(SRendItem* First, int Num, bool bSort, const bool bIgnoreRePtr, bool bSortDecals);
 	// Special sorting for ZPass (compromise between depth and batching)
 	static void mfSortForZPass(SRendItem* First, int Num);
-	// Special sorting for reflective shadow maps
-	static void mfSortForReflectiveShadowMap(SRendItem* First, int Num);
 };
 
 // Helper function to be used in logging
@@ -950,47 +948,6 @@ struct SCompareItem_Decal
 			return a.SortVal < b.SortVal;
 
 		return objSortA_High < objSortB_High;
-	}
-};
-
-///////////////////////////////////////////////////////////////////////////////
-struct SCompareItem_ReflectiveShadowMap
-{
-	bool operator()(const SRendItem& a, const SRendItem& b) const
-	{
-		// Decal objects should be rendered last
-		int nDecalA = (a.ObjSort & FOB_DECAL_MASK);
-		int nDecalB = (b.ObjSort & FOB_DECAL_MASK);
-		if ((nDecalA == 0) != (nDecalB == 0))         // Sort by decal flag
-			return nDecalA < nDecalB;
-
-		if (nDecalA && nDecalB)
-		{
-			// decal sorting
-			uint32 objSortA_Low(a.ObjSort & 0xFFFF);
-			uint32 objSortA_High(a.ObjSort & ~0xFFFF);
-			uint32 objSortB_Low(b.ObjSort & 0xFFFF);
-			uint32 objSortB_High(b.ObjSort & ~0xFFFF);
-
-			if (objSortA_Low != objSortB_Low)
-				return objSortA_Low < objSortB_Low;
-
-			if (a.SortVal != b.SortVal)
-				return a.SortVal < b.SortVal;
-
-			return objSortA_High < objSortB_High;
-		}
-		else
-		{
-			// usual sorting
-			if (a.SortVal != b.SortVal)         // Sort by shaders
-				return a.SortVal < b.SortVal;
-
-			if (a.pElem != b.pElem)               // Sort by geometry
-				return a.pElem < b.pElem;
-
-			return a.ObjSort < b.ObjSort;
-		}
 	}
 };
 

@@ -7,7 +7,6 @@
 #include "CustomMemoryHeap.h"
 #include "GeneralMemoryHeap.h"
 #include "PageMappingHeap.h"
-#include <CryCore/Platform/LevelHeap.h>
 #include "DefragAllocator.h"
 
 #if CRY_PLATFORM_WINDOWS

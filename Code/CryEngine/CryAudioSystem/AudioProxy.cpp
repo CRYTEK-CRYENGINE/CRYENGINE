@@ -347,7 +347,7 @@ void CAudioProxy::Reset()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioProxy::PlayFile(char const* const _szFile, SAudioCallBackInfo const& _callBackInfo /*= SAudioCallBackInfo::GetEmptyObject()*/)
+void CAudioProxy::PlayFile(SAudioPlayFileInfo const& playFileInfo, SAudioCallBackInfo const& callBackInfo /* = SAudioCallBackInfo::GetEmptyObject() */)
 {
 	if ((m_flags & eAudioProxyFlags_WaitingForId) == 0)
 	{
@@ -355,12 +355,11 @@ void CAudioProxy::PlayFile(char const* const _szFile, SAudioCallBackInfo const& 
 
 		SAudioRequest request;
 		request.audioObjectId = m_audioObjectId;
-		request.flags = _callBackInfo.requestFlags;
-
-		SAudioObjectRequestData<eAudioObjectRequestType_PlayFile> requestData(_szFile);
-		request.pOwner = (_callBackInfo.pObjectToNotify != nullptr) ? _callBackInfo.pObjectToNotify : this;
-		request.pUserData = _callBackInfo.pUserData;
-		request.pUserDataOwner = _callBackInfo.pUserDataOwner;
+		request.flags = callBackInfo.requestFlags;
+		SAudioObjectRequestData<eAudioObjectRequestType_PlayFile> requestData(playFileInfo.szFile, playFileInfo.bLocalized, playFileInfo.usedTriggerForPlayback);
+		request.pOwner = (callBackInfo.pObjectToNotify != nullptr) ? callBackInfo.pObjectToNotify : this;
+		request.pUserData = callBackInfo.pUserData;
+		request.pUserDataOwner = callBackInfo.pUserDataOwner;
 		request.pData = &requestData;
 
 		gEnv->pAudioSystem->PushRequest(request);
@@ -368,11 +367,13 @@ void CAudioProxy::PlayFile(char const* const _szFile, SAudioCallBackInfo const& 
 	else
 	{
 		SQueuedAudioCommand queuedCommand = SQueuedAudioCommand(eQueuedAudioCommandType_PlayFile);
-		queuedCommand.pOwnerOverride = _callBackInfo.pObjectToNotify;
-		queuedCommand.pUserData = _callBackInfo.pUserData;
-		queuedCommand.pUserDataOwner = _callBackInfo.pUserDataOwner;
-		queuedCommand.requestFlags = _callBackInfo.requestFlags;
-		queuedCommand.stringValue = _szFile;
+		queuedCommand.pOwnerOverride = callBackInfo.pObjectToNotify;
+		queuedCommand.pUserData = callBackInfo.pUserData;
+		queuedCommand.pUserDataOwner = callBackInfo.pUserDataOwner;
+		queuedCommand.requestFlags = callBackInfo.requestFlags;
+		queuedCommand.stringValue = playFileInfo.szFile;
+		queuedCommand.audioTriggerId = playFileInfo.usedTriggerForPlayback;
+		queuedCommand.floatValue = (playFileInfo.bLocalized) ? 1.0f : 0.0f;
 		TryAddQueuedCommand(queuedCommand);
 	}
 }
@@ -415,7 +416,8 @@ void CAudioProxy::ExecuteQueuedCommands()
 			case eQueuedAudioCommandType_PlayFile:
 				{
 					SAudioCallBackInfo const callbackInfo(command.pOwnerOverride, command.pUserData, command.pUserDataOwner, command.requestFlags);
-					PlayFile(command.stringValue.c_str(), callbackInfo);
+					SAudioPlayFileInfo const playbackInfo(command.stringValue.c_str(), (command.floatValue != 0.0f) ? true : false, command.audioTriggerId);
+					PlayFile(playbackInfo, callbackInfo);
 				}
 				break;
 			case eQueuedAudioCommandType_StopFile:

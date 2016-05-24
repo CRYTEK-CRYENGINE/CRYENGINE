@@ -9,34 +9,35 @@
 #include <ACETypes.h>
 #include "AudioControlsEditorPlugin.h"
 #include "ImplementationManager.h"
+#include <CrySerialization/StringList.h>
 
 namespace ACE
 {
 
-const string g_sDefaultGroup = "default";
-
 CATLControl::CATLControl()
-	: m_sName("")
-	, m_nID(ACE_INVALID_ID)
-	, m_eType(eACEControlType_RTPC)
-	, m_sScope("")
-	, m_bAutoLoad(true)
+	: m_id(ACE_INVALID_ID)
+	, m_type(eACEControlType_RTPC)
+	, m_name("")
+	, m_scope(0)
 	, m_pParent(nullptr)
-	, m_pModel(nullptr)
+	, m_bAutoLoad(true)
 	, m_bModified(false)
+	, m_pModel(nullptr)
 {
 }
 
-CATLControl::CATLControl(const string& sControlName, CID nID, EACEControlType eType, CATLControlsModel* pModel)
-	: m_sName(sControlName)
-	, m_nID(nID)
-	, m_eType(eType)
-	, m_sScope("")
-	, m_bAutoLoad(true)
+CATLControl::CATLControl(const string& controlName, CID nID, EACEControlType eType, CATLControlsModel* pModel)
+	: m_id(nID)
+	, m_type(eType)
+	, m_name("")
+	, m_scope(0)
 	, m_pParent(nullptr)
-	, m_pModel(pModel)
+	, m_bAutoLoad(true)
 	, m_bModified(false)
+	, m_pModel(pModel)
 {
+	SetName(controlName);
+	m_scope = pModel->GetGlobalScope();
 }
 
 CATLControl::~CATLControl()
@@ -46,67 +47,65 @@ CATLControl::~CATLControl()
 
 CID CATLControl::GetId() const
 {
-	return m_nID;
+	return m_id;
 }
 
 EACEControlType CATLControl::GetType() const
 {
-	return m_eType;
+	return m_type;
 }
 
 string CATLControl::GetName() const
 {
-	return m_sName;
+	return m_name;
 }
 
 void CATLControl::SetId(CID id)
 {
-	if (id != m_nID)
+	if (id != m_id)
 	{
 		SignalControlAboutToBeModified();
-		m_nID = id;
+		m_id = id;
 		SignalControlModified();
 	}
 }
 
 void CATLControl::SetType(EACEControlType type)
 {
-	if (type != m_eType)
+	if (type != m_type)
 	{
 		SignalControlAboutToBeModified();
-		m_eType = type;
+		m_type = type;
 		SignalControlModified();
 	}
 }
 
 void CATLControl::SetName(const string& name)
 {
-	if (name != m_sName)
+	if (name != m_name)
 	{
 		SignalControlAboutToBeModified();
-		m_sName = name;
+		m_name = m_pModel->GenerateUniqueName(this, name);
 		SignalControlModified();
 	}
 }
 
-string CATLControl::GetScope() const
+Scope CATLControl::GetScope() const
 {
-	return m_sScope;
+	return m_scope;
 }
 
-void CATLControl::SetScope(const string& sScope)
+void CATLControl::SetScope(Scope scope)
 {
-	if (m_sScope != sScope)
+	if (m_scope != scope)
 	{
-		SignalControlAboutToBeModified();
-		m_sScope = sScope;
-		SignalControlModified();
+		if (m_pModel->IsChangeValid(this, GetName(), scope))
+		{
+			SignalControlAboutToBeModified();
+			m_scope = scope;
+			SignalControlModified();
+		}
 	}
-}
-
-bool CATLControl::HasScope() const
-{
-	return !m_sScope.empty();
 }
 
 bool CATLControl::IsAutoLoad() const
@@ -120,26 +119,6 @@ void CATLControl::SetAutoLoad(bool bAutoLoad)
 	{
 		SignalControlAboutToBeModified();
 		m_bAutoLoad = bAutoLoad;
-		SignalControlModified();
-	}
-}
-
-int CATLControl::GetGroupForPlatform(const string& platform) const
-{
-	auto it = m_groupPerPlatform.find(platform);
-	if (it == m_groupPerPlatform.end())
-	{
-		return 0;
-	}
-	return it->second;
-}
-
-void CATLControl::SetGroupForPlatform(const string& platform, int connectionGroupId)
-{
-	if (m_groupPerPlatform[platform] != connectionGroupId)
-	{
-		SignalControlAboutToBeModified();
-		m_groupPerPlatform[platform] = connectionGroupId;
 		SignalControlModified();
 	}
 }
@@ -158,7 +137,7 @@ ConnectionPtr CATLControl::GetConnectionAt(int index)
 	return nullptr;
 }
 
-ConnectionPtr CATLControl::GetConnection(CID id, const string& group)
+ConnectionPtr CATLControl::GetConnection(CID id)
 {
 	if (id >= 0)
 	{
@@ -166,7 +145,7 @@ ConnectionPtr CATLControl::GetConnection(CID id, const string& group)
 		for (int i = 0; i < size; ++i)
 		{
 			ConnectionPtr pConnection = m_connectedControls[i];
-			if (pConnection && pConnection->GetID() == id && pConnection->GetGroup() == group)
+			if (pConnection && pConnection->GetID() == id)
 			{
 				return pConnection;
 			}
@@ -175,9 +154,9 @@ ConnectionPtr CATLControl::GetConnection(CID id, const string& group)
 	return nullptr;
 }
 
-ConnectionPtr CATLControl::GetConnection(IAudioSystemItem* m_pAudioSystemControl, const string& group /*= ""*/)
+ConnectionPtr CATLControl::GetConnection(IAudioSystemItem* pAudioSystemControl)
 {
-	return GetConnection(m_pAudioSystemControl->GetId(), group);
+	return GetConnection(pAudioSystemControl->GetId());
 }
 
 void CATLControl::AddConnection(ConnectionPtr pConnection)
@@ -309,26 +288,90 @@ void CATLControl::ReloadConnections()
 	IAudioSystemEditor* pAudioSystemImpl = CAudioControlsEditorPlugin::GetImplementationManger()->GetImplementation();
 	if (pAudioSystemImpl)
 	{
-		TConnectionPerGroup::iterator it = m_connectionNodes.begin();
-		TConnectionPerGroup::iterator end = m_connectionNodes.end();
-		for (; it != end; ++it)
+		std::map<int, XMLNodeList> connectionNodes;
+		std::swap(connectionNodes, m_connectionNodes);
+		for (auto& connectionPair : connectionNodes)
 		{
-			TXMLNodeList& nodeList = it->second;
-			const size_t size = nodeList.size();
-			for (size_t i = 0; i < size; ++i)
+			for (auto& connection : connectionPair.second)
 			{
-				ConnectionPtr pConnection = pAudioSystemImpl->CreateConnectionFromXMLNode(nodeList[i].xmlNode, m_eType);
-				if (pConnection)
+				LoadConnectionFromXML(connection.xmlNode, connectionPair.first);
+			}
+		}
+	}
+}
+
+void CATLControl::LoadConnectionFromXML(XmlNodeRef xmlNode, int platformIndex)
+{
+	IAudioSystemEditor* pAudioSystemImpl = CAudioControlsEditorPlugin::GetImplementationManger()->GetImplementation();
+	if (pAudioSystemImpl)
+	{
+		ConnectionPtr pConnection = pAudioSystemImpl->CreateConnectionFromXMLNode(xmlNode, GetType());
+		if (pConnection)
+		{
+			if (GetType() == eACEControlType_Preload)
+			{
+				// The connection could already exist but using a different platform
+				ConnectionPtr pPreviousConnection = GetConnection(pConnection->GetID());
+				if (pPreviousConnection == nullptr)
 				{
+					if (platformIndex != -1)
+					{
+						pConnection->ClearPlatforms();
+					}
 					AddConnection(pConnection);
-					nodeList[i].bValid = true;
 				}
 				else
 				{
-					nodeList[i].bValid = false;
+					pConnection = pPreviousConnection;
+				}
+				if (platformIndex != -1)
+				{
+					pConnection->EnableForPlatform(platformIndex, true);
 				}
 			}
+			else
+			{
+				AddConnection(pConnection);
+			}
 		}
+		AddRawXMLConnection(xmlNode, pConnection != nullptr, platformIndex);
+	}
+}
+
+void CATLControl::Serialize(Serialization::IArchive& ar)
+{
+	// Name
+	string newName = m_name;
+	ar(newName, "name", "Name");
+
+	// Scope
+	Serialization::StringList scopeList;
+	ScopeInfoList scopeInfoList;
+	m_pModel->GetScopeInfoList(scopeInfoList);
+	for (auto& scope : scopeInfoList)
+	{
+		scopeList.push_back(scope.name);
+	}
+	Serialization::StringListValue selectedScope(scopeList, m_pModel->GetScopeInfo(m_scope).name);
+	Scope newScope = m_scope;
+	if (m_type != eACEControlType_State)
+	{
+		ar(selectedScope, "scope", "Scope");
+		newScope = m_pModel->GetScope(scopeList[selectedScope.index()]);
+	}
+
+	// Auto Load
+	bool bAutoLoad = m_bAutoLoad;
+	if (m_type == eACEControlType_Preload)
+	{
+		ar(bAutoLoad, "auto_load", "Auto Load");
+	}
+
+	if (ar.isInput())
+	{
+		SetName(newName);
+		SetScope(newScope);
+		SetAutoLoad(bAutoLoad);
 	}
 }
 
@@ -339,6 +382,16 @@ void CATLControl::SetParent(CATLControl* pParent)
 	{
 		SetScope(pParent->GetScope());
 	}
+}
+
+void CATLControl::AddRawXMLConnection(XmlNodeRef xmlNode, bool bValid, int platformIndex /*= -1*/)
+{
+	m_connectionNodes[platformIndex].push_back(SRawConnectionData(xmlNode, bValid));
+}
+
+XMLNodeList& CATLControl::GetRawXMLConnections(int platformIndex /*= -1*/)
+{
+	return m_connectionNodes[platformIndex];
 }
 
 }

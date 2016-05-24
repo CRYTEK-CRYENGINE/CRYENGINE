@@ -1,0 +1,184 @@
+The cppcheck team, in alphabetical order:
+
+Abhishek Bharadwaj
+Ahti Legonkov
+Akhilesh Nema
+Akio Idehara
+Albert Aribaud
+Aleksandr Pikalev
+Aleksey Palazhchenko
+Alexander Mai
+Alexey Zhikhartsev
+Ameen Ali
+Andreas Bießmann
+Andrei Karas
+Andrew C. Martin
+Andy Maloney
+Aneesh Azhakesan S
+Ankita Gupta
+Antti Tuppurainen
+Anurag Garg
+Armin Müller
+Arpit Chaudhary
+August Sodora
+Baris Demiray
+Benjamin Bannier
+Benjamin Goose
+Benjamin Kramer
+Benjamin Wolsey
+Bill Egert
+booga
+Boris Egorov
+Carlo Marcelo Arenas Belon
+Cary R
+Changkyoon Kim
+Christian Ehrlicher
+Chuck Larson
+Daniel Marjamäki
+Debrard Sebastien
+Deepak Gupta
+dencat
+Diego de las Heras
+Dirk Jagdmann
+Dmitry Marakasov
+Dmitry-Me
+Dmitriy
+Duraffort
+Edoardo Prezioso
+Elbert Pol
+Emmanuel Blot
+Eric Sesterhenn
+Erik Hovland
+Erik Lax
+Ettl Martin
+Evgeny Mandrikov
+Felipe Pena
+Felix Geyer
+Frank Zingsheim
+fu7mu4
+Galimov Albert
+gaurav kaushik
+Gerhard Zlabinger
+Gianfranco Costamagna
+Gianluca Scacco
+Goran Džaferi
+Graham Whitted
+Greg Hewgill
+Guillaume Miossec
+Gustav Palmqvist
+Günther Makulik
+Heinrich Schuchardt
+Henrik Nilsson
+He Yuqi
+Hoang Tuan Su
+Jakub Melka
+Jan Hellwig
+Jay Sigbrandt
+Jens Bäckman
+János Maros
+Johan Samuelson
+John Smits
+Jonathan Neuschäfer
+Jonathan Thackray
+Jose Roquette
+Joshua Beck
+Joshua Rogers
+Julian Santander
+Jussi Lehtola
+Kamil Dudka
+Kartik Bajaj
+Kevin Christian
+Kimmo Varis
+Konrad Windszus
+Kumar Ashwani
+larudwer
+Lauri Nurmi
+Lau bakman
+Leandro Lisboa Penz
+Lena Herscheid
+Lieven de Cock
+lioncash
+Lucas Manuel Rodriguez
+Luis Díaz Más
+Luxon Jean-Pierre
+Malcolm Parsons
+Marc-Antoine Perennou
+Marek Zmysłowski
+Mark de Wever
+Markus Elfring
+Martin Ettl
+Martin Exner
+Massimo Paladin
+Mateusz Pusz
+Mathias De Maré
+Matthias Krüger
+Miika-Petteri Matikainen
+Mika Attila
+Mohit Mate
+Monika Lukow
+Moritz Barsnick
+Moritz Lipp
+Moshe Kaplan
+ms
+Nguyen Duong Tuan
+Ni2c2k
+Nicolás Alvarez
+Nicolas Le Cam
+Nilesh Kumar
+OGAWA KenIchi
+Oliver Stoeneberg
+Pavel Bibergal
+Pavel Roschin
+Pete Johns
+Peter Pentchev
+Philipp Kloke
+Pierre Schweitzer
+Pino Toscano
+Pranav Khanna
+Raphael Geissert
+Reijo Tomperi
+Richard Quirk
+Robert Habrich
+Robert Morin
+Roberto Martelloni
+Robert Reif
+rofl0r
+Roman Zaytsev Borisovich
+root
+Ryan Pavlik
+Samir Aguiar
+Sam Truscott
+Samuel Degrande
+Sandeep Dutta
+Sebastian Matuschka
+Sébastien Debrard
+Simon Kagstrom
+Simon Martin
+Simon Shanks
+Slava Semushin
+Stefan Beller
+Stefan Naewe
+Stefan Weil
+Steve Duan
+Steven Myint
+Thomas Arnhold
+Thomas Jarosch
+Thomas Otto
+Thomas Sondergaard
+Tim Gerundt
+Tobias Weibel
+Toralf Förster
+Troshin V.S.
+Valerii Lashmanov
+WenChung Chiu
+Vesa Pikki
+Ville Skyttä
+XhmikosR
+Xuecheng Zhang
+Zachary Blair
+Zhao Qifa
+Zhiyuan Zhang
+Дмитрий Старцев
+
+GUI graphics courtesy of Tango Desktop Project:
+http://tango.freedesktop.org

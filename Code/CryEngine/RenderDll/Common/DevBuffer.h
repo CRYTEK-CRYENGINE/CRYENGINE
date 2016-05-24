@@ -431,7 +431,7 @@ public:
 	}
 };
 
-// WrappedDX11Buffer Flags
+// CGpuBuffer Flags
 #define DX11BUF_DYNAMIC            BIT(0)
 #define DX11BUF_STRUCTURED         BIT(1)
 #define DX11BUF_BIND_VERTEX_BUFFER BIT(2)

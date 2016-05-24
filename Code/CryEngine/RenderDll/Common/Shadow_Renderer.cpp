@@ -59,14 +59,8 @@ void ShadowMapFrustum::SortRenderItemsForFrustumAsync(int side, SRendItem* pFirs
 		// If any render items on this frustum side, update shadow gen side mask
 		CryInterlockedExchangeOr((volatile LONG*)&nShadowGenMask, (1 << side));
 	}
-	if (bReflectiveShadowMap)
-	{
-		SRendItem::mfSortForReflectiveShadowMap(pFirst, nNumRendItems);
-	}
-	else
-	{
-		SRendItem::mfSortByLight(pFirst, nNumRendItems, true, false, false);
-	}
+
+	SRendItem::mfSortByLight(pFirst, nNumRendItems, true, false, false);
 }
 
 //////////////////////////////////////////////////////////////////////////

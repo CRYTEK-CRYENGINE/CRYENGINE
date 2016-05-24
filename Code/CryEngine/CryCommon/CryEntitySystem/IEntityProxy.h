@@ -227,12 +227,12 @@ struct SEntityPhysicalizeParams
 	{
 		enum EAreaType
 		{
-			AREA_SPHERE,       //!< Physical area will be sphere.
-			AREA_BOX,          //!< Physical area will be box.
-			AREA_GEOMETRY,     //!< Physical area will use geometry from the specified slot.
-			AREA_SHAPE,        //!< Physical area will points to specify 2D shape.
-			AREA_CYLINDER,     //!< Physical area will be a cylinder.
-			AREA_SPLINE,       //!< Physical area will be a spline-tube.
+			AREA_SPHERE,            //!< Physical area will be sphere.
+			AREA_BOX,               //!< Physical area will be box.
+			AREA_GEOMETRY,          //!< Physical area will use geometry from the specified slot.
+			AREA_SHAPE,             //!< Physical area will points to specify 2D shape.
+			AREA_CYLINDER,          //!< Physical area will be a cylinder.
+			AREA_SPLINE,            //!< Physical area will be a spline-tube.
 		};
 
 		EAreaType areaType;
@@ -361,7 +361,7 @@ struct IEntityAudioProxy : public IEntityProxy
 	virtual bool               RemoveAuxAudioProxy(AudioProxyId const audioProxyId) = 0;
 	virtual void               SetAuxAudioProxyOffset(Matrix34 const& offset, AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID) = 0;
 	virtual Matrix34 const&    GetAuxAudioProxyOffset(AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID) = 0;
-	virtual void               PlayFile(char const* const _szFile, AudioProxyId const _audioProxyId = DEFAULT_AUDIO_PROXY_ID, SAudioCallBackInfo const& _callBackInfo = SAudioCallBackInfo::GetEmptyObject()) = 0;
+	virtual bool               PlayFile(SAudioPlayFileInfo const& _playbackInfo, AudioProxyId const _audioProxyId = DEFAULT_AUDIO_PROXY_ID, SAudioCallBackInfo const& _callBackInfo = SAudioCallBackInfo::GetEmptyObject()) = 0;
 	virtual void               StopFile(char const* const _szFile, AudioProxyId const _audioProxyId = DEFAULT_AUDIO_PROXY_ID) = 0;
 	virtual bool               ExecuteTrigger(AudioControlId const audioTriggerId, AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID, SAudioCallBackInfo const& callBackInfo = SAudioCallBackInfo::GetEmptyObject()) = 0;
 	virtual void               StopTrigger(AudioControlId const audioTriggerId, AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID) = 0;
@@ -587,11 +587,11 @@ DECLARE_COMPONENT_POINTERS(IEntityRenderProxy);
 //! Type of an area managed by IEntityAreaProxy.
 enum EEntityAreaType
 {
-	ENTITY_AREA_TYPE_SHAPE,           //!< Area type is a closed set of points forming shape.
-	ENTITY_AREA_TYPE_BOX,             //!< Area type is a oriented bounding box.
-	ENTITY_AREA_TYPE_SPHERE,          //!< Area type is a sphere.
-	ENTITY_AREA_TYPE_GRAVITYVOLUME,   //!< Area type is a volume around a bezier curve.
-	ENTITY_AREA_TYPE_SOLID            //!< Area type is a solid which can have any geometry figure.
+	ENTITY_AREA_TYPE_SHAPE,          //!< Area type is a closed set of points forming shape.
+	ENTITY_AREA_TYPE_BOX,            //!< Area type is a oriented bounding box.
+	ENTITY_AREA_TYPE_SPHERE,         //!< Area type is a sphere.
+	ENTITY_AREA_TYPE_GRAVITYVOLUME,  //!< Area type is a volume around a bezier curve.
+	ENTITY_AREA_TYPE_SOLID           //!< Area type is a solid which can have any geometry figure.
 };
 
 //! Area proxy allow for entity to host an area trigger.
@@ -746,9 +746,7 @@ DECLARE_COMPONENT_POINTERS(IEntityAreaProxy);
 
 //! Boids proxy allow entity to host flocks of birds or fishes.
 struct IEntityBoidsProxy : public IEntityProxy
-{
-
-};
+{};
 
 DECLARE_COMPONENT_POINTERS(IEntityBoidsProxy);
 

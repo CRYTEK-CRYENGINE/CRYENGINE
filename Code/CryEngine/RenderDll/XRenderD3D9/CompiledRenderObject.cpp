@@ -6,6 +6,7 @@
 #include "DriverD3D.h"
 #include "D3DPostProcess.h"  // CMotionBlur::GetPrevObjToWorldMat
 #include "Common/Include_HLSL_CPP_Shared.h"
+#include "Common/ComputeSkinningStorage.h"
 
 //////////////////////////////////////////////////////////////////////////
 #include "GraphicsPipeline/ShadowMap.h"
@@ -286,17 +287,29 @@ void CCompiledRenderObject::CompilePerInstanceExtraResources(CRenderObject* pRen
 	if (SSkinningData* pSkinningData = pRenderObject->m_data.m_pSkinningData)
 	{
 		CD3D9Renderer::SCharacterInstanceCB* const pCurSkinningData = alias_cast<CD3D9Renderer::SCharacterInstanceCB*>(pSkinningData->pCharInstCB);
-		m_perInstanceExtraResources->SetConstantBuffer(eConstantBufferShaderSlot_SkinQuat, pCurSkinningData->m_buffer, shaderStages);
 
-		if (pSkinningData->pPreviousSkinningRenderData)
+		ICVar* cvar_gd = gEnv->pConsole->GetCVar("r_ComputeSkinning");
+		bool bDoComputeDeformation = (cvar_gd && cvar_gd->GetIVal()) && (pSkinningData->nHWSkinningFlags & eHWS_DC_deformation_Skinning);
+		if (bDoComputeDeformation)
 		{
-			CD3D9Renderer::SCharacterInstanceCB* const pPrevSkinningData = alias_cast<CD3D9Renderer::SCharacterInstanceCB*>(pSkinningData->pPreviousSkinningRenderData->pCharInstCB);
-			m_perInstanceExtraResources->SetConstantBuffer(eConstantBufferShaderSlot_SkinQuatPrev, pPrevSkinningData->m_buffer, shaderStages);
+			CRenderMesh* pRenderMesh = static_cast<CRenderMesh*>(pSkinningData->pRenderMesh);
+			CRenderMesh::CSSkinOutputMap::iterator it = pRenderMesh->m_outVerticesUAV.find(pSkinningData->pCustomTag);
+			if (it != pRenderMesh->m_outVerticesUAV.end())
+				m_perInstanceExtraResources->SetBuffer(EReservedTextureSlot_ComputeSkinVerts, *gcpRendD3D->GetComputeSkinningStorage()->GetResource(it->second.skinnedUAVHandle), shaderStages);
 		}
-
-		if (m_pExtraSkinWeights && (m_pExtraSkinWeights->m_flags & DX11BUF_BIND_SRV) != 0) // TODO: m_pExtraSkinWeights is passed a pointer-to-default-constructed-buffer when it should be passed nullptr. Need to check for BIND_SRV flag to check that Create() was called on the buffer.
+		else
 		{
-			m_perInstanceExtraResources->SetBuffer(EReservedTextureSlot_SkinExtraWeights, *m_pExtraSkinWeights, shaderStages);
+			m_perInstanceExtraResources->SetConstantBuffer(eConstantBufferShaderSlot_SkinQuat, pCurSkinningData->boneTransformsBuffer, shaderStages);
+			if (pSkinningData->pPreviousSkinningRenderData)
+			{
+				CD3D9Renderer::SCharacterInstanceCB* const pPrevSkinningData = alias_cast<CD3D9Renderer::SCharacterInstanceCB*>(pSkinningData->pPreviousSkinningRenderData->pCharInstCB);
+				m_perInstanceExtraResources->SetConstantBuffer(eConstantBufferShaderSlot_SkinQuatPrev, pPrevSkinningData->boneTransformsBuffer, shaderStages);
+			}
+
+			if (m_pExtraSkinWeights && (m_pExtraSkinWeights->m_flags & DX11BUF_BIND_SRV) != 0) // TODO: m_pExtraSkinWeights is passed a pointer-to-default-constructed-buffer when it should be passed nullptr. Need to check for BIND_SRV flag to check that Create() was called on the buffer.
+			{
+				m_perInstanceExtraResources->SetBuffer(EReservedTextureSlot_SkinExtraWeights, *m_pExtraSkinWeights, shaderStages);
+			}
 		}
 	}
 
@@ -415,7 +428,7 @@ bool CCompiledRenderObject::Compile(CRenderObject* pRenderObject, float realTime
 	psoDescription.objectRuntimeMask |= g_HWSR_MaskBit[HWSR_PER_INSTANCE_CB_TEMP];  // Enable flag to use special per instance constant buffer
 	if (m_InstancingCBs.size() != 0)
 	{
-		psoDescription.objectRuntimeMask |= g_HWSR_MaskBit[HWSR_ENVIRONMENT_CUBEMAP];  // Enable flag to use static instancing
+		psoDescription.objectRuntimeMask |= g_HWSR_MaskBit[HWSR_ENVIRONMENT_CUBEMAP]; // Enable flag to use static instancing
 	}
 
 	// Issue the barriers on the core command-list, which executes directly before the Draw()s in multi-threaded jobs

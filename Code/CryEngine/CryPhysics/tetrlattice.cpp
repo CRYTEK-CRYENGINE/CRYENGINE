@@ -85,8 +85,10 @@ CTetrLattice::CTetrLattice(CTetrLattice *src, int bCopyData)
 		memcpy(m_pVtx = new Vec3[m_nVtx=src->m_nVtx], src->m_pVtx, src->m_nVtx*sizeof(m_pVtx[0]));
 		memcpy(m_pVtxFlags = new int[m_nVtx], src->m_pVtxFlags, m_nVtx*sizeof(m_pVtxFlags[0]));
 		memcpy(m_pTetr = new STetrahedron[m_nTetr=src->m_nTetr], src->m_pTetr, src->m_nTetr*sizeof(m_pTetr[0]));
-		memcpy(m_pGridTet0 = new int[m_szGrid.GetVolume()+1], src->m_pGridTet0, (m_szGrid.GetVolume()+1)*sizeof(m_pGridTet0[0]));
-		memcpy(m_pGrid = new int[m_pGridTet0[m_szGrid.GetVolume()]], src->m_pGrid, m_pGridTet0[m_szGrid.GetVolume()]*sizeof(m_pGrid[0]));
+		if (src->m_pGrid) {
+			memcpy(m_pGridTet0 = new int[m_szGrid.GetVolume()+1], src->m_pGridTet0, (m_szGrid.GetVolume()+1)*sizeof(m_pGridTet0[0]));
+			memcpy(m_pGrid = new int[m_pGridTet0[m_szGrid.GetVolume()]], src->m_pGrid, m_pGridTet0[m_szGrid.GetVolume()]*sizeof(m_pGrid[0]));
+		}
 		m_nRemovedTets = src->m_nRemovedTets;
 	}
 }

@@ -258,8 +258,8 @@ void CStatObj::FillRenderObject(const SRendParams& rParams, IRenderNode* pRender
 		pOD->m_fTempVars[0] = rParams.pTerrainTexInfo->fTexOffsetX;
 		pOD->m_fTempVars[1] = rParams.pTerrainTexInfo->fTexOffsetY;
 		pOD->m_fTempVars[2] = rParams.pTerrainTexInfo->fTexScale;
-		pOD->m_fTempVars[3] = rParams.pTerrainTexInfo->fTerrainMinZ - passInfo.GetCamera().GetPosition().z;
-		pOD->m_fTempVars[4] = rParams.pTerrainTexInfo->fTerrainMaxZ - passInfo.GetCamera().GetPosition().z;
+		pOD->m_fTempVars[3] = 0;
+		pOD->m_fTempVars[4] = 0;
 	}
 
 	if (rParams.nCustomData || rParams.nCustomFlags)

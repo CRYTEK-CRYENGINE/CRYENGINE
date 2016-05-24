@@ -24,9 +24,10 @@
 #include "TargetSelection/TargetTrackManager.h"
 #include "BehaviorTree/BehaviorTreeNodes_Helicopter.h"
 #include <CryString/CryName.h>
-#include "ICryMannequin.h"
 #include <CryGame/IGameFramework.h>
 #include "BehaviorTreeManager.h"
+
+#include <../CryAction/ICryMannequin.h>
 
 namespace
 {

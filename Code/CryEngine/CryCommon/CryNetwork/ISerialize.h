@@ -510,10 +510,7 @@ public:
 	{
 		static SSerializeString defaultSerializeString;
 
-		{
-			ScopedSwitchToGlobalHeap useGlobalHeap;
-			defaultSerializeString.set_string(defaultValue);
-		}
+		defaultSerializeString.set_string(defaultValue);
 
 		SSerializeString& serializeString = SetSharedSerializeString(value);
 		m_pSerialize->ValueWithDefault(szName, serializeString, defaultSerializeString);
@@ -925,8 +922,6 @@ public:
 
 	SSerializeString& SetSharedSerializeString(const string& str)
 	{
-		ScopedSwitchToGlobalHeap useGlobalHeap;
-
 		static SSerializeString serializeString;
 		serializeString.set_string(str);
 		return serializeString;
@@ -935,8 +930,6 @@ public:
 #if !defined(RESOURCE_COMPILER)
 	SSerializeString& SetSharedSerializeString(const CryStringLocal& str)
 	{
-		ScopedSwitchToGlobalHeap useGlobalHeap;
-
 		static SSerializeString serializeString;
 		serializeString.set_string(str);
 		return serializeString;
@@ -946,8 +939,6 @@ public:
 	template<size_t S>
 	SSerializeString& SetSharedSerializeString(const CryFixedStringT<S>& str)
 	{
-		ScopedSwitchToGlobalHeap useGlobalHeap;
-
 		static SSerializeString serializeString;
 		serializeString.set_string(str);
 		return serializeString;

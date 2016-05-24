@@ -15,6 +15,7 @@
 
 #include "FlowPrefabNodes.h"
 
+#include <CryAction/ICustomEvents.h>
 #include "CustomEvents/CustomEventsManager.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -38,6 +39,7 @@ void CFlowNode_PrefabEventSource::GetConfiguration(SFlowNodeConfig& config)
 		InputPortConfig<string>("PrefabName",   _HELP("Prefab name")),
 		InputPortConfig<string>("InstanceName", _HELP("Prefab instance name")),
 		InputPortConfig<string>("EventName",    _HELP("Name of event associated to this prefab")),
+		InputPortConfig<int>("EventType",       ePrefabEventType_Out,                             _HELP("Name of event associated to this prefab"), nullptr, _UICONFIG("enum_int:InOut=0,In=1,Out=2") ),
 		InputPortConfig_AnyType("FireEvent",    _HELP("Fires associated event")),
 		InputPortConfig<int>("EventId",         0,                                                _HELP("Event id storage")),
 		InputPortConfig<int>("EventIndex",      -1,                                               _HELP("Event id storage")),

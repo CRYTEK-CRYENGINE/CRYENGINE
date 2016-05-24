@@ -298,16 +298,7 @@ void CAnimPostFXNode::Animate(SAnimContext& animContext)
 		assert(pTrack);
 		size_t paramIndex = (size_t)m_tracks[i]->GetParameterType().GetType() - eAnimParamType_User;
 		assert(paramIndex < m_pDescription->m_nodeParams.size());
-
-		if (pTrack->GetFlags() & IAnimTrack::eAnimTrackFlags_Disabled)
-		{
-			continue;
-		}
-
-		if (pTrack->IsMasked(animContext.trackMask))
-		{
-			continue;
-		}
+		bool useDefaultValue = (pTrack->GetFlags() & IAnimTrack::eAnimTrackFlags_Disabled) || pTrack->IsMasked(animContext.trackMask);
 
 		EAnimValue valueType = m_pDescription->m_nodeParams[paramIndex].valueType;
 		const TMovieSystemValue value = pTrack->GetValue(animContext.time);
@@ -315,30 +306,53 @@ void CAnimPostFXNode::Animate(SAnimContext& animContext)
 		// sorry: quick & dirty solution for c2 shipping - custom type handling for shadows - make this properly after shipping
 		if (GetType() == eAnimNodeType_ShadowSetup && valueType == eAnimValue_Bool)
 		{
-			const bool val = boost::get<bool>(value);
+			bool val(false);
+			if (useDefaultValue)
+				m_pDescription->m_controlParams[paramIndex]->GetDefault(val);
+			else
+				val = boost::get<bool>(value);
+
 			gEnv->p3DEngine->SetShadowsGSMCache(val);
 		}
 		else if (valueType == eAnimValue_Float)
 		{
-			const float val = boost::get<float>(value);
+			float val(0.0f);
+			if (useDefaultValue)
+				m_pDescription->m_controlParams[paramIndex]->GetDefault(val);
+			else
+				val = boost::get<float>(value);
+
 			gEnv->p3DEngine->SetPostEffectParam(m_pDescription->m_controlParams[paramIndex]->m_name.c_str(), val);
 		}
 		else if (valueType == eAnimValue_Bool)
 		{
-			const bool val = boost::get<bool>(value);
+			bool val(false);
+			if (useDefaultValue)
+				m_pDescription->m_controlParams[paramIndex]->GetDefault(val);
+			else
+				val = boost::get<bool>(value);
+
 			gEnv->p3DEngine->SetPostEffectParam(m_pDescription->m_controlParams[paramIndex]->m_name.c_str(), (val ? 1.f : 0.f));
 		}
 		else if (valueType == eAnimValue_Vector4)
 		{
-			const Vec4 val = boost::get<Vec4>(value);
+			Vec4 val(0.0f, 0.0f, 0.0f, 0.0f);
+			if (useDefaultValue)
+				m_pDescription->m_controlParams[paramIndex]->GetDefault(val);
+			else
+				val = boost::get<Vec4>(value);
+
 			gEnv->p3DEngine->SetPostEffectParamVec4(m_pDescription->m_controlParams[paramIndex]->m_name.c_str(), val);
 		}
 	}
 }
 
-void CAnimPostFXNode::OnReset()
+void CAnimPostFXNode::Activate(bool activate)
 {
-	CAnimNode::OnReset();
+	CAnimNode::Activate(activate);
+
+	if (activate)
+		return;
 
 	// Reset each postFX param to its default.
 	for (size_t i = 0; i < m_tracks.size(); ++i)

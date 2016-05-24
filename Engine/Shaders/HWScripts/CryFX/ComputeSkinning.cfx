@@ -1,0 +1,323 @@
+// CRYENGINE Source Code File
+// Copyright 2001-2016 Crytek GmbH. All rights reserved.
+
+#include "ComputeSkinningUtils.cfi"
+
+float Script : STANDARDSGLOBAL
+	<
+	string Script =
+	"NoPreview;"
+	"ShaderType = Compute;"
+	"LocalConstants;"
+	>;
+
+// skinning structures
+struct GDSkinVertexIn
+{
+	float3 pos;
+	uint morphDeltaOffset;
+	float4 qtangent;
+	float2 uv;  
+	uint triOffset;
+	uint triCount;
+};
+
+struct GDSkinning
+{
+	// packed as 8:24
+	uint weightIndex;
+};
+
+struct GDSkinningMap
+{
+	uint offset;
+	uint count;
+};
+
+// check ORBIS
+struct GDIndices
+{
+	uint ind;
+};
+
+// morph structures
+struct GDActiveMorphs
+{
+	uint morphIndex;
+	float weight;
+};
+
+struct GDMorphsDeltas
+{
+	float3 delta; float pad;
+};
+
+struct GDMorphsBitfield
+{
+	uint mask;
+	uint zoom;
+};
+
+// tangents structures
+struct GDTriangleNB
+{float3 normal;
+	float3 tangent;
+};
+
+// animation bones
+#define MAX_BONES 768
+cbuffer CB_SkinQuat_Cur : register(b9)
+{
+	float2x4 _g_SkinQuat_Cur[MAX_BONES];
+};
+cbuffer CB_SkinQuat_Prev : register(b10)
+{
+	float2x4 _g_SkinQuat_Prev[MAX_BONES];
+};
+
+#define THREADS_X 64
+float4 g_DeformDispatchParams;
+
+// skinning output
+RWStructuredBuffer<CSSkinVertexOut>				g_vertexOut:register(u0);
+
+RWStructuredBuffer<GDTriangleNB>					g_tangentsOut:register(u1);
+
+// skinning input
+StructuredBuffer<GDSkinVertexIn>					g_vertexIn:register(t0);
+StructuredBuffer<GDSkinning>							g_skinning:register(t1);
+StructuredBuffer<GDSkinningMap>						g_skinningMap:register(t2); // TODO: this can't be moved inside the CSSkinVertexIn structure due to how the CPU code handles it
+
+// morphs input
+StructuredBuffer<GDMorphsDeltas>					g_vertexDeltas:register(t3);
+StructuredBuffer<GDMorphsBitfield>				g_vertexMorphsBitfield:register(t4);
+StructuredBuffer<GDActiveMorphs>					g_activeMorphs:register(t5);
+
+// tangents input
+// TODO: check indices size on Orbis
+StructuredBuffer<GDIndices>								g_indices:register(t6);
+StructuredBuffer<GDIndices>								g_sharedTriIndices:register(t7);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+// dispatch parameters inside g_DeformDispatchParams
+// x - number of vertices
+[numthreads(THREADS_X, 1, 1)]
+void VertexTangentsCS(
+	uint3 Gid  : SV_GroupID, 
+	uint3 DTid : SV_DispatchThreadID, 
+	uint3 GTid : SV_GroupThreadID, 
+	uint  GI	 : SV_GroupIndex)
+{
+	static uint numVertices = (uint)g_DeformDispatchParams.x;
+	uint vidx = Gid.x*THREADS_X+GTid.x;
+	if(vidx >= numVertices)
+		return;
+
+	float3 t = float3(0.0f, 0.0f, 0.0f);
+	float3 n = float3(0.0f, 0.0f, 0.0f);
+
+	GDSkinVertexIn vertexIn = g_vertexIn[vidx];
+	for (uint i=0; i<vertexIn.triCount; ++i)
+	{
+		uint tidx = g_sharedTriIndices[vertexIn.triOffset+i].ind;
+
+		t += g_tangentsOut[tidx].tangent;
+		n += g_tangentsOut[tidx].normal;
+	}
+	
+ 	//n = normalize(n);
+ 	t = normalize(t);
+
+	g_vertexOut[vidx].qtangent.w = -1;
+ 	g_vertexOut[vidx].tangent = (t - n * (n*t));
+ 	g_vertexOut[vidx].bitangent = cross(t, n);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+// dispatch parameters inside g_DeformDispatchParams
+// x - number of triangles
+[numthreads(THREADS_X, 1, 1)]
+void TriangleTangentsCS(
+	uint3 Gid  : SV_GroupID, 
+	uint3 DTid : SV_DispatchThreadID, 
+	uint3 GTid : SV_GroupThreadID, 
+	uint  GI	 : SV_GroupIndex)
+{
+	static uint numTriangles = (uint)g_DeformDispatchParams.x;
+	uint tidx = Gid.x*THREADS_X+GTid.x;
+	if(tidx >= numTriangles)
+		return;
+
+ 	uint vidx0 = g_indices[tidx*3+0].ind;
+ 	uint vidx1 = g_indices[tidx*3+1].ind;
+ 	uint vidx2 = g_indices[tidx*3+2].ind;
+
+	CSSkinVertexOut vertexOut0 = g_vertexOut[vidx0];
+	CSSkinVertexOut vertexOut1 = g_vertexOut[vidx1];
+	CSSkinVertexOut vertexOut2 = g_vertexOut[vidx2];
+
+	float3 e1 = vertexOut1.pos - vertexOut0.pos;
+	float3 e2 = vertexOut2.pos - vertexOut0.pos;
+
+	float2 uv1 = vertexOut1.uv - vertexOut0.uv;
+	float2 uv2 = vertexOut2.uv - vertexOut0.uv;
+
+	float rcp = 1.0f / (uv1.x * uv2.y - uv1.y * uv2.x);
+
+	g_tangentsOut[tidx].tangent.x = (uv2.y * e1.x - uv2.x * e2.x) * rcp;
+	g_tangentsOut[tidx].tangent.y = (uv2.y * e1.y - uv2.x * e2.y) * rcp;
+	g_tangentsOut[tidx].tangent.z = (uv2.y * e1.z - uv2.x * e2.z) * rcp;
+
+	g_tangentsOut[tidx].normal = cross(e1, e2);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+// 27:5
+groupshared uint  sh_maskBitIndices[MAX_BONES];
+groupshared float sh_weights[MAX_BONES];
+
+float3 applySkinning(DualQuat dualQuat, float3 pos)
+{
+	return transform_dq_vec(dualQuat, pos);
+}
+
+float3 applyMorphs(uint vidx, uint morphIndex, uint morphDeltaOffset, bool apply = true)
+{
+	const uint maskIndex = (sh_maskBitIndices[morphIndex] >> 5);
+	const uint bitIndex  = (sh_maskBitIndices[morphIndex] & 0x1F);
+	const GDMorphsBitfield bf = g_vertexMorphsBitfield[vidx + maskIndex];
+	
+	const uint bidx = 1u << bitIndex;
+	const uint test = (bf.mask & (bidx - 0));
+	const uint mask = (bf.mask & (bidx - 1));
+	
+	float3 accumPos = float3(0,0,0);
+	if (test && apply)
+	{
+		const uint offset = morphDeltaOffset + bf.zoom + countbits(mask);
+		accumPos += g_vertexDeltas[offset].delta * sh_weights[morphIndex];
+	}
+
+	return accumPos;
+}
+
+float3 applyActiveMorphs(uint vidx, float3 pos, uint morphDeltaOffset)
+{
+	static uint nam = (uint)g_DeformDispatchParams.y;
+	for (uint k=0; k<nam; k+=1)
+	{
+		pos += applyMorphs(vidx, k, morphDeltaOffset);
+	}
+
+	return pos;
+}
+
+// usually morphs are applied in a corrective fashion which means they should be applied pre-skinning.
+// in case they were author post skinning, use PRE_MORPHS 0
+#define PRE_MORPH 1
+
+// this is needed in case TangentsTechnique is not executed, so a value should be passed the same way 
+// as with g_DeformDispatchParams to control that
+// #define SKIN_TANGENTS
+
+// dispatch parameters inside g_DeformDispatchParams
+// x - number of vertices
+// y - number of active morphs per frame
+// z - number of total morphs
+// w - number of morph mask size
+[numthreads(THREADS_X, 1, 1)]
+void DeformCS(
+	uint3 Gid  : SV_GroupID, 
+	uint3 DTid : SV_DispatchThreadID, 
+	uint3 GTid : SV_GroupThreadID, 
+	uint  GI	 : SV_GroupIndex)
+{
+	static uint numVertices			= (uint)g_DeformDispatchParams.x;
+	static uint numActiveMorphs = (uint)g_DeformDispatchParams.y;
+	static uint numMorphMasks   = (uint)g_DeformDispatchParams.w;
+	
+	for (uint k=GTid.x; k<numActiveMorphs; k+=THREADS_X)
+	{
+		const uint morphIndex = g_activeMorphs[k].morphIndex;
+		const uint maskIndex = (numVertices * (morphIndex >> 5));
+		const uint bitIndex = (morphIndex & 31);
+
+		sh_maskBitIndices[k] = (maskIndex << 5) + (bitIndex);
+		sh_weights[k] = g_activeMorphs[k].weight;
+	}
+
+	GroupMemoryBarrier();
+
+	uint vidx = Gid.x*THREADS_X+GTid.x;
+	if(vidx >= numVertices)
+		return;
+
+	DualQuat dualQuat;
+	dualQuat.rotation = dualQuat.translation = float4(0.0f, 0.0f, 0.0f, 0.0f);
+
+	uint offset = g_skinningMap[vidx].offset;
+	uint count  = g_skinningMap[vidx].count;
+	for (uint i=0; i<count; ++i)
+	{
+		const GDSkinning skinning = g_skinning[offset + i];
+
+		const float weight = (skinning.weightIndex * (1.0f / 0xFF000000));
+		const uint index   = (skinning.weightIndex & 0x00FFFFFF);
+
+		dualQuat.rotation			+= _g_SkinQuat_Cur[index][0]*weight;
+		dualQuat.translation	+= _g_SkinQuat_Cur[index][1]*weight;
+	}
+
+	const float length = rsqrt(dot(dualQuat.rotation, dualQuat.rotation));
+	dualQuat.rotation *= length;
+	dualQuat.translation *= length;
+
+#if SKIN_TANGENTS
+	float reflection = sign(qtangent.w);
+	float4 q = transform_quat_quat(dualQuat.rotation, qtangent);
+	float3x3 tangentFrame = quat_to_mat(float4(-q.xyz, q.w));
+
+	qtangent.w = reflection;
+	tangentFrame[2] *= qtangent.w;
+#endif
+
+	GDSkinVertexIn vertexIn = g_vertexIn[vidx];
+	float3 pos = vertexIn.pos;
+
+#if PRE_MORPH
+	pos = applyActiveMorphs(vidx, pos, vertexIn.morphDeltaOffset);
+	pos = applySkinning(dualQuat, pos);
+#elif
+	pos = applySkinning(dualQuat, pos);
+	pos = applyActiveMorphs(vidx, pos, vertexIn.morphDeltaOffset);
+#endif
+
+	// output
+	g_vertexOut[vidx].pos = pos;
+	g_vertexOut[vidx].qtangent = vertexIn.qtangent;
+	g_vertexOut[vidx].uv = vertexIn.uv;
+}
+
+technique DeformTechnique
+{
+	pass p0
+	{
+		ComputeShader = DeformCS();
+	}
+};
+
+technique TangentsTechnique
+{
+	pass p0
+	{
+		ComputeShader = TriangleTangentsCS();
+	}
+
+	pass p1
+	{
+		ComputeShader = VertexTangentsCS();
+	}
+};

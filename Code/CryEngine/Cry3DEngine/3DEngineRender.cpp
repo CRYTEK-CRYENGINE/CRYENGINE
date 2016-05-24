@@ -29,7 +29,6 @@
 #include "CloudsManager.h"
 #include "MatMan.h"
 #include "VolumeObjectRenderNode.h"
-#include "GlobalIllumination.h"
 #include <CryString/CryPath.h>
 #include <CryMemory/ILocalMemoryUsage.h>
 #include <CryCore/BitFiddling.h>
@@ -2383,8 +2382,10 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 	m_pRenderer->EF_Query(EFQ_AAMode, sAAMode);
 	AppendString(szFlagsEnd, sAAMode);
 
-	if (m_pGlobalIlluminationManager && m_pGlobalIlluminationManager->IsEnabled())
-		AppendString(szFlagsEnd, "GI");
+#if defined(FEATURE_SVO_GI)
+	if (GetCVars()->e_svoTI_Apply)
+		AppendString(szFlagsEnd, "SVOGI");
+#endif
 
 	if (IsAreaActivationInUse())
 		AppendString(szFlagsEnd, "LA");
@@ -2794,26 +2795,6 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 		}
 		else
 		{
-
-	#if TRACK_LEVEL_HEAP_USAGE
-			{
-				bool usingLevelHeap;
-				size_t lvlAllocs, lvlSize;
-				bool leaked = CryGetIMemoryManager()->GetLevelHeapViolationState(usingLevelHeap, lvlAllocs, lvlSize);
-				if (usingLevelHeap)
-				{
-					if (leaked)
-					{
-						DrawTextRightAligned(fTextPosX, fTextPosY += fTextStepY, 1.3f, Col_Red, "Level Heap Leaked (%i allocs, totalling %iKB)", (int) lvlAllocs, (int) (lvlSize / 1024));
-					}
-					else
-					{
-						DrawTextRightAligned(fTextPosX, fTextPosY += fTextStepY, 1.3f, Col_Green, "Level Heap Healthy");
-					}
-				}
-			}
-	#endif
-
 	#ifndef _RELEASE
 			// Checkpoint loading information
 			if (!gEnv->bMultiplayer)
@@ -3365,7 +3346,6 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 		DRAW_OBJ_STATS(eERType_VolumeObject);
 		DRAW_OBJ_STATS(eERType_Rope);
 		DRAW_OBJ_STATS(eERType_PrismObject);
-		DRAW_OBJ_STATS(eERType_LightPropagationVolume);
 		DRAW_OBJ_STATS(eERType_RenderProxy);
 		DRAW_OBJ_STATS(eERType_GameEffect);
 		DRAW_OBJ_STATS(eERType_BreakableGlass);

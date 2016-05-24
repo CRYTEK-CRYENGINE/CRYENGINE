@@ -143,7 +143,6 @@ void LocalizeString( string &out, const char *text, const char *arg1, const char
 //////////////////////////////////////////////////////////////////////////
 const char * LocalizeString( const char *text, const char *arg1, const char *arg2, const char *arg3, const char *arg4 )
 {
-	ScopedSwitchToGlobalHeap globalHeap;
 	static string charstr;
 	LocalizeString( charstr, text, arg1, arg2, arg3, arg4 );
 
@@ -159,7 +158,6 @@ const char* LocalizeNumber(const int number)
 {
 	ILocalizationManager* pLocMgr = gEnv->pSystem->GetLocalizationManager();
 
-	ScopedSwitchToGlobalHeap globalHeap;
 	static string charstr;
 	pLocMgr->LocalizeNumber(number, charstr);
 
@@ -182,7 +180,6 @@ const char* LocalizeNumber(const float number, int decimals)
 {
 	ILocalizationManager* pLocMgr = gEnv->pSystem->GetLocalizationManager();
 
-	ScopedSwitchToGlobalHeap globalHeap;
 	static string charstr;
 	pLocMgr->LocalizeNumber(number, decimals, charstr);
 

@@ -51,7 +51,7 @@ static bool FindFirstMesh(CMesh*& pMesh, CNodeCGF*& pGFXNode, CContentCGF* pCont
 }
 }
 
-bool CryCHRLoader::BeginLoadCHRRenderMesh(CDefaultSkeleton* pSkel, EStreamTaskPriority estp)
+bool CryCHRLoader::BeginLoadCHRRenderMesh(CDefaultSkeleton* pSkel, const DynArray<CCharInstance*>& pCharInstances, EStreamTaskPriority estp)
 {
 	using namespace CryCHRLoader_LoadNewCHR_Helpers;
 
@@ -85,6 +85,7 @@ bool CryCHRLoader::BeginLoadCHRRenderMesh(CDefaultSkeleton* pSkel, EStreamTaskPr
 		lodName += 'm';
 
 	m_pModelSkel = pSkel;
+	m_RefByInstances = pCharInstances;
 
 	StreamReadParams params;
 	params.nFlags = 0;//IStreamEngine::FLAGS_NO_SYNC_CALLBACK;

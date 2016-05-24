@@ -242,11 +242,7 @@ void CEntityPoolManager::Reset()
 
 	m_pRootSID = XmlNodeRef();
 
-	{
-		// Make sure any default allocations made by the queue end up on the global heap
-		ScopedSwitchToGlobalHeap useGlobalHeap;
-		stl::free_container(m_PrepareRequestQueue);
-	}
+	stl::free_container(m_PrepareRequestQueue);
 
 	m_uFramePrepareRequests = 0;
 }

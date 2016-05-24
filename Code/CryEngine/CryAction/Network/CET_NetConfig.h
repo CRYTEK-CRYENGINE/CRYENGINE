@@ -7,7 +7,6 @@
 
 void AddEstablishedContext(IContextEstablisher* pEst, EContextViewState state, int token);
 void AddDeclareWitness(IContextEstablisher* pEst, EContextViewState state);
-void AddPopulateRebroadcaster(IContextEstablisher* pEst, EContextViewState state);
 void AddDelegateAuthorityToClientActor(IContextEstablisher* pEst, EContextViewState state);
 void AddClearPlayerIds(IContextEstablisher* pEst, EContextViewState state);
 

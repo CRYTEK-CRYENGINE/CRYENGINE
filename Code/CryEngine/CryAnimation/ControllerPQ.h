@@ -305,8 +305,8 @@ public:
 
 private:
 
-	CKeyTimesInformation(const CKeyTimesInformation<TKeyTime, TEncoder>&); //= delete;
-	void operator=(const CKeyTimesInformation<TKeyTime, TEncoder>&);       //= delete;
+	CKeyTimesInformation(const CKeyTimesInformation<TKeyTime, TEncoder>&);  //= delete;
+	void operator=(const CKeyTimesInformation<TKeyTime, TEncoder>&);        //= delete;
 
 	enum
 	{
@@ -396,86 +396,11 @@ typedef CKeyTimesInformationStartStop<uint8, ByteStartStopEncoder>    ByteSSKeyT
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // TODO: Move these functions to an utility header
-inline uint8 GetFirstLowBitInternal(uint8 word)
-{
-	uint8 c(0);
+#if CRY_PLATFORM_WINDOWS
 
-	if (word & 1)
-		return 0;
-
-	uint8 b;
-	do
-	{
-		word = word >> 1;
-		b = word & 1;
-		++c;
-	}
-	while (!b && c < 8);
-
-	return c;
-}
-
-inline uint8 GetFirstHighBitInternal(uint8 word)
-{
-
-	uint8 c(0);
-
-	if (word & 0x80)
-		return 7;
-
-	uint8 b;
-	do
-	{
-		word = word << 1;
-		b = word & 0x80;
-		++c;
-	}
-	while (!b && c < 8);
-
-	if (c == 8)
-		return c;
-	else
-		return 7 - c;
-}
-
-#ifdef DO_ASM
-
-inline uint16 GetFirstLowBit(uint16 _word)
-{
-	uint16 res = 16;
-
-	__asm
-	{
-		mov ax, res
-		mov bx, _word
-		bsf ax, bx
-		mov res, ax
-	}
-
-	return res;
-}
-
-inline uint16 GetFirstHighBit(uint16 _word)
-{
-	uint16 res = 16;
-
-	__asm
-	{
-		mov ax, res
-		mov bx, _word
-		bsr ax, bx
-		mov res, ax
-	}
-	return res;
-}
-
-#else // DO_ASM
-
-	#if CRY_PLATFORM_WINDOWS
-
-		#include <intrin.h>
-		#pragma intrinsic(_BitScanForward)
-		#pragma intrinsic(_BitScanReverse)
+	#include <intrin.h>
+	#pragma intrinsic(_BitScanForward)
+	#pragma intrinsic(_BitScanReverse)
 
 inline uint16 GetFirstLowBit(uint16 word)
 {
@@ -497,7 +422,7 @@ inline uint16 GetFirstHighBit(uint16 word)
 	return 16;
 }
 
-	#else // CRY_PLATFORM_WINDOWS
+#else   // CRY_PLATFORM_WINDOWS
 
 inline uint16 GetFirstLowBitTest(uint16 word)
 {
@@ -569,8 +494,7 @@ inline uint16 GetFirstHighBit(uint16 word)
 	return res;
 }
 
-	#endif // CRY_PLATFORM_WINDOWS
-#endif   // DO_ASM
+#endif   // CRY_PLATFORM_WINDOWS
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class CKeyTimesInformationBitSet : public IKeyTimesInformation
@@ -643,7 +567,7 @@ public:
 			return m_lastKey;
 		}
 		m_lastTime = realtime;
-		uint32 numKey = (uint32)GetHeader()->m_Size;//m_arrKeys.size();
+		uint32 numKey = (uint32)GetHeader()->m_Size;  //m_arrKeys.size();
 
 		f32 keytime_start = (float)GetHeader()->m_Start;
 		f32 keytime_end = (float)GetHeader()->m_End;
@@ -818,8 +742,6 @@ public:
 	virtual size_t SizeOfPosController() = 0;
 };
 
-typedef /*_smart_ptr<ITrackPositionStorage>*/ ITrackPositionStorage* TrackPositionStoragePtr; // TODO: Remove
-
 class ITrackRotationStorage : public IControllerRelocatableChain
 {
 public:
@@ -832,7 +754,7 @@ public:
 	virtual size_t SizeOfRotController() = 0;
 };
 
-template<class TData, class TStorage, class TBase> // TODO: TBase and TData can be easily derived from TStorage.
+template<class TData, class TStorage, class TBase>                                              // TODO: TBase and TData can be easily derived from TStorage.
 class CTrackDataStorageInt : public TBase
 {
 public:
@@ -924,8 +846,8 @@ public:
 
 private:
 
-	CTrackDataStorageInt(const CTrackDataStorageInt<TData, TStorage, TBase>&); //= delete;
-	void operator=(const CTrackDataStorageInt<TData, TStorage, TBase>&);       //= delete;
+	CTrackDataStorageInt(const CTrackDataStorageInt<TData, TStorage, TBase>&);   //= delete;
+	void operator=(const CTrackDataStorageInt<TData, TStorage, TBase>&);         //= delete;
 
 	enum
 	{
@@ -942,7 +864,7 @@ private:
 };
 
 template<class TData, class TStorage, class TBase>
-class CTrackDataStorage : public CTrackDataStorageInt<TData, TStorage, TBase> // TODO: This class doesn't really introduce any functionality, it should probably be removed.
+class CTrackDataStorage : public CTrackDataStorageInt<TData, TStorage, TBase>    // TODO: This class doesn't really introduce any functionality, it should probably be removed.
 {
 public:
 
@@ -1039,14 +961,9 @@ public:
 
 	virtual void GetValueFromKey(uint32 key, Vec3& val);
 
-	virtual void SetPositionStorage(TrackPositionStoragePtr& ptr)
+	virtual void SetPositionStorage(ITrackPositionStorage* ptr)
 	{
 		m_pData = ptr;
-	}
-
-	virtual TrackPositionStoragePtr& GetPositionStorage() // TODO: Shouldn't return a mutable reference to the internal pointer. // TODO: Why is this virtual?
-	{
-		return m_pData;
 	}
 
 	virtual uint32 GetFormat()
@@ -1061,7 +978,7 @@ public:
 
 protected:
 
-	TrackPositionStoragePtr m_pData;
+	ITrackPositionStorage* m_pData;
 };
 
 class IRotationController : public ITrackInformation
@@ -1093,11 +1010,6 @@ public:
 		m_pData = ptr;
 	}
 
-	virtual ITrackRotationStorage*& GetRotationStorage() // TODO: Shouldn't return a mutable reference to the internal pointer. // TODO: Why is this virtual?
-	{
-		return m_pData;
-	}
-
 	virtual uint32 GetFormat()
 	{
 		return m_pData->GetFormat();
@@ -1112,9 +1024,6 @@ protected:
 
 	ITrackRotationStorage* m_pData;
 };
-
-typedef IRotationController* RotationControllerPtr; // TODO: Remove
-typedef IPositionController* PositionControllerPtr; // TODO: Remove
 
 struct Vec3Lerp
 {
@@ -1132,7 +1041,7 @@ struct QuatLerp
 	}
 };
 
-template<class TData, class TInterpolator, class TBase> // TODO: TData and TBase can be easily derived from TInterpolator.
+template<class TData, class TInterpolator, class TBase>   // TODO: TData and TBase can be easily derived from TInterpolator.
 class CAdvancedTrackInformation : public TBase
 {
 public:
@@ -1213,41 +1122,25 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 
 	// TODO: Would be nice to introduce some ownership semantics on the Set*Controller methods instead of using a raw pointer (all of these are a raw pointer typedef at the time of writing).
-	void SetRotationController(RotationControllerPtr& ptr)
+	void SetRotationController(IRotationController* ptr)
 	{
 		m_pRotationController = ptr;
 	}
 
-	void SetPositionController(PositionControllerPtr& ptr)
+	void SetPositionController(IPositionController* ptr)
 	{
 		m_pPositionController = ptr;
 	}
 
-	void SetScaleController(PositionControllerPtr& ptr)
+	void SetScaleController(IPositionController* ptr)
 	{
 		m_pScaleController = ptr;
 	}
 
-	// TODO: These getters allow clients of this class to modify the address of internal pointers (such cases should probably by handled exclusively by the setter methods).
-	RotationControllerPtr& GetRotationController()
-	{
-		return m_pRotationController;
-	}
-
-	PositionControllerPtr& GetPositionController()
-	{
-		return m_pPositionController;
-	}
-
-	PositionControllerPtr& GetScaleController()
-	{
-		return m_pScaleController;
-	}
-
 private:
-	RotationControllerPtr m_pRotationController;
-	PositionControllerPtr m_pPositionController;
-	PositionControllerPtr m_pScaleController;
+	IRotationController* m_pRotationController;
+	IPositionController* m_pPositionController;
+	IPositionController* m_pScaleController;
 };
 
 TYPEDEF_AUTOPTR(CController);

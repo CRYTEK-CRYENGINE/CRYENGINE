@@ -286,7 +286,9 @@
 			"CGF/ChunkFileReaders.h",
 			"CGF/ChunkFileReaders.cpp",
 			"CGF/ChunkFileWriters.h",
-			"CGF/ChunkFileWriters.cpp"
+			"CGF/ChunkFileWriters.cpp",
+			"CGF/VClothSaver.h",
+			"CGF/VClothSaver.cpp"
 		],
 		"Brush":
 		[
@@ -319,13 +321,6 @@
 			"FogVolumeRenderNode.cpp",
 			"FogVolumeRenderNode_Jobs.cpp",
 			"FogVolumeRenderNode.h"
-		],
-		"Effects/LightPropagationVolumes":
-		[
-			"GlobalIllumination.cpp",
-			"LPVRenderNode.cpp",
-			"GlobalIllumination.h",
-			"LPVRenderNode.h"
 		],
 		"RenderNodes":
 		[

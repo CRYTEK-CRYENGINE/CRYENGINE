@@ -1,12 +1,228 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
-
-#ifndef __ICRYSTATS_H__
-#define __ICRYSTATS_H__
-
 #pragma once
 
-#include <CryLobby/ICryLobby.h>       // <> required for Interfuscator
-#include <CryLobby/ICryMatchMaking.h> // <> required for Interfuscator
+#include "CommonICryLobby.h"
+
+#define CRYLOBBY_USER_NAME_LENGTH        32
+#define CRYLOBBY_USER_GUID_STRING_LENGTH 40
+
+struct SCryUserID : public CMultiThreadRefCount
+{
+	virtual bool                                              operator==(const SCryUserID& other) const = 0;
+	virtual bool                                              operator<(const SCryUserID& other) const = 0;
+
+	virtual CryFixedStringT<CRYLOBBY_USER_GUID_STRING_LENGTH> GetGUIDAsString() const
+	{
+		return CryFixedStringT<CRYLOBBY_USER_GUID_STRING_LENGTH>("");
+	}
+};
+
+struct CryUserID
+{
+	CryUserID() : userID()
+	{}
+
+	CryUserID(SCryUserID* ptr) : userID(ptr)
+	{}
+
+	const SCryUserID* get() const
+	{
+		return userID.get();
+	}
+
+	bool operator!=(const CryUserID& other) const
+	{
+		return !(*this == other);
+	}
+
+	bool operator==(const CryUserID& other) const
+	{
+		if (other.IsValid() && IsValid())
+		{
+			return ((*other.userID) == (*userID));
+		}
+		if ((!other.IsValid()) && (!IsValid()))
+		{
+			return true;
+		}
+		return false;
+	}
+
+	bool operator<(const CryUserID& other) const
+	{
+		// In the case where one is invalid, the invalid one is considered less than the valid one
+		if (other.IsValid())
+		{
+			if (IsValid())
+			{
+				return (*userID) < (*other.userID);
+			}
+			else
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool IsValid() const
+	{
+		return (userID.get() != NULL);
+	}
+
+	_smart_ptr<SCryUserID> userID;
+};
+
+const CryUserID CryUserInvalidID = NULL;
+
+#if USE_STEAM
+class CLobbyString : public string
+{
+public:
+	CLobbyString() : string() {}
+	CLobbyString(uint32 n) : string() { char buff[32]; cry_sprintf(buff, "%u", n); assign(buff); }
+	CLobbyString(string s) : string(s) {}
+	CLobbyString(uint16 n) : string() { char buff[32]; cry_sprintf(buff, "%u", n); assign(buff); }
+	CLobbyString(int n) : string() { char buff[32]; cry_sprintf(buff, "%i", n); assign(buff); }
+	bool operator==(const CLobbyString& other) { return compare(other) == 0; }
+	bool operator==(CLobbyString& other) { return compare(other) == 0; }
+	CLobbyString(const CLobbyString& s) : string(s) {}
+private:
+	CLobbyString(const char* p) {}
+};
+typedef CLobbyString CryLobbyUserDataID;
+#else
+typedef uint32       CryLobbyUserDataID;
+#endif
+
+enum ECryLobbyUserDataType
+{
+	eCLUDT_Int64,
+	eCLUDT_Int32,
+	eCLUDT_Int16,
+	eCLUDT_Int8,
+	eCLUDT_Float64,
+	eCLUDT_Float32,
+	eCLUDT_Int64NoEndianSwap
+};
+
+struct SCryLobbyUserData
+{
+	CryLobbyUserDataID    m_id;
+	ECryLobbyUserDataType m_type;
+
+	SCryLobbyUserData()
+	{
+		m_id = CryLobbyUserDataID();
+		m_type = eCLUDT_Int64;
+		m_int64 = 0;
+	}
+
+	union
+	{
+		int64 m_int64;
+		f64   m_f64;
+		int32 m_int32;
+		f32   m_f32;
+		int16 m_int16;
+		int8  m_int8;
+	};
+
+	const SCryLobbyUserData& operator=(const SCryLobbyUserData& src)
+	{
+		m_id = src.m_id;
+		m_type = src.m_type;
+
+		switch (m_type)
+		{
+		case eCLUDT_Int64:
+			m_int64 = src.m_int64;
+			break;
+		case eCLUDT_Int32:
+			m_int32 = src.m_int32;
+			break;
+		case eCLUDT_Int16:
+			m_int16 = src.m_int16;
+			break;
+		case eCLUDT_Int8:
+			m_int8 = src.m_int8;
+			break;
+		case eCLUDT_Float64:
+			m_f64 = src.m_f64;
+			break;
+		case eCLUDT_Float32:
+			m_f32 = src.m_f32;
+			break;
+		case eCLUDT_Int64NoEndianSwap:
+			m_int64 = src.m_int64;
+			break;
+		default:
+			CryLog("Unhandled ECryLobbyUserDataType %d", m_type);
+			break;
+		}
+
+		return *this;
+	};
+
+	bool operator==(const SCryLobbyUserData& other)
+	{
+		if ((m_id == other.m_id) && (m_type == other.m_type))
+		{
+			switch (m_type)
+			{
+			case eCLUDT_Int64:
+				return m_int64 == other.m_int64;
+			case eCLUDT_Int32:
+				return m_int32 == other.m_int32;
+			case eCLUDT_Int16:
+				return m_int16 == other.m_int16;
+			case eCLUDT_Int8:
+				return m_int8 == other.m_int8;
+			case eCLUDT_Float64:
+				return m_f64 == other.m_f64;
+			case eCLUDT_Float32:
+				return m_f32 == other.m_f32;
+			case eCLUDT_Int64NoEndianSwap:
+				return m_int64 == other.m_int64;
+			default:
+				CryLog("Unhandled ECryLobbyUserDataType %d", m_type);
+				return false;
+			}
+		}
+
+		return false;
+	}
+
+	bool operator!=(const SCryLobbyUserData& other)
+	{
+		if ((m_id == other.m_id) && (m_type == other.m_type))
+		{
+			switch (m_type)
+			{
+			case eCLUDT_Int64:
+				return m_int64 != other.m_int64;
+			case eCLUDT_Int32:
+				return m_int32 != other.m_int32;
+			case eCLUDT_Int16:
+				return m_int16 != other.m_int16;
+			case eCLUDT_Int8:
+				return m_int8 != other.m_int8;
+			case eCLUDT_Float64:
+				return m_f64 != other.m_f64;
+			case eCLUDT_Float32:
+				return m_f32 != other.m_f32;
+			case eCLUDT_Int64NoEndianSwap:
+				return m_int64 != other.m_int64;
+			default:
+				CryLog("Unhandled ECryLobbyUserDataType %d", m_type);
+				return true;
+			}
+		}
+
+		return true;
+	}
+};
+
 
 typedef uint32 CryStatsLeaderBoardID;
 
@@ -62,25 +278,32 @@ struct SCryStatsLeaderBoardReadResult
 //! \param taskID	   Task ID allocated when the function was executed
 //! \param error		 Error code    eCLE_Success if the function succeeded or an error that occurred while processing the function
 //! \param pArg			 Pointer to application-specified data
-typedef void (* CryStatsCallback)(CryLobbyTaskID taskID, ECryLobbyError error, void* pArg);
+typedef void(*CryStatsCallback)(CryLobbyTaskID taskID, ECryLobbyError error, void* pArg);
 
 //! \param taskID	   Task ID allocated when the function was executed
 //! \param error		 Error code    eCLE_Success if the function succeeded or an error that occurred while processing the function
 //! \param pResult	 If error is eCLE_Success a pointer to a SCryStatsLeaderBoardReadResult which contains the information read from the leaderboard.
 //! \param pArg			 Pointer to application-specified data
-typedef void (* CryStatsReadLeaderBoardCallback)(CryLobbyTaskID taskID, ECryLobbyError error, SCryStatsLeaderBoardReadResult* pResult, void* pArg);
+typedef void(*CryStatsReadLeaderBoardCallback)(CryLobbyTaskID taskID, ECryLobbyError error, SCryStatsLeaderBoardReadResult* pResult, void* pArg);
 
 //! \param taskID	   Task ID allocated when the function was executed
 //! \param error		 Error code    eCLE_Success if the function succeeded or an error that occurred while processing the function
 //! \param pData		 Pointer to an array of SCryLobbyUserData that will match the data registered and contain the last data written.
 //! \param numData	 The number of SCryLobbyUserData returned.
 //! \param pArg			 Pointer to application-specified data
-typedef void (* CryStatsReadUserDataCallback)(CryLobbyTaskID taskID, ECryLobbyError error, SCryLobbyUserData* pData, uint32 numData, void* pArg);
+typedef void(*CryStatsReadUserDataCallback)(CryLobbyTaskID taskID, ECryLobbyError error, SCryLobbyUserData* pData, uint32 numData, void* pArg);
+
+enum ECryLobbyLeaderboardType
+{
+	eCLLT_P2P,
+	eCLLT_Dedicated,
+	eCLLT_Num
+};
 
 struct ICryStats
 {
 	// <interfuscator:shuffle>
-	virtual ~ICryStats(){}
+	virtual ~ICryStats() {}
 
 	//! This function must be called before any other leaderboard functions.
 	//! It defines the applications custom data used for it's leaderboards.
@@ -214,5 +437,3 @@ struct ICryStats
 
 	// </interfuscator:shuffle>
 };
-
-#endif // __ICRYSTATS_H__

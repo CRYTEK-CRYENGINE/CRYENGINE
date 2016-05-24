@@ -67,32 +67,6 @@ void AddDeclareWitness(IContextEstablisher* pEst, EContextViewState state)
 }
 
 /*
- * Add rebroadcaster connection
- */
-
-class CCET_PopulateRebroadcaster : public CCET_Base
-{
-public:
-	const char*                 GetName() { return "PopulateRebroadcaster"; }
-
-	EContextEstablishTaskResult OnStep(SContextEstablishState& state)
-	{
-		CGameServerNub* pNub = CCryAction::GetCryAction()->GetGameServerNub();
-		if (pNub != NULL)
-		{
-			gEnv->pNetwork->AddRebroadcasterConnection(state.pSender, pNub->GetChannelId(state.pSender));
-			return eCETR_Ok;
-		}
-		return eCETR_Failed;
-	}
-};
-
-void AddPopulateRebroadcaster(IContextEstablisher* pEst, EContextViewState state)
-{
-	pEst->AddTask(state, new CCET_PopulateRebroadcaster());
-}
-
-/*
  * Delegate authority to player
  */
 

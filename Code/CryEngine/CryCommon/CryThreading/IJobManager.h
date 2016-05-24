@@ -1256,7 +1256,6 @@ ILINE JobManager::CProdConsQueue<TJobType, Size>::CProdConsQueue() : m_Initializ
 template<class TJobType, unsigned int Size>
 ILINE void JobManager::CProdConsQueue<TJobType, Size >::Init(const uint32 cPacketSize)
 {
-	ScopedSwitchToGlobalHeap heapSwitch;
 	assert((cPacketSize & 15) == 0);
 	m_AddPacketDataOffset = cPacketSize;
 	m_PullIncrement = m_AddPacketDataOffset + sizeof(SAddPacketData);

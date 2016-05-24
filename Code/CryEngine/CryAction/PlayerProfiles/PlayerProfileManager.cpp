@@ -692,8 +692,6 @@ bool CPlayerProfileManager::SaveProfile(const char* userId, IPlayerProfileManage
 
 	result = ePOR_Success;
 
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	// notify game systems that the profile is about to be saved
 	const int listenerSize = m_listeners.size();
 	for (int i = 0; i < listenerSize; i++)
@@ -740,8 +738,6 @@ bool CPlayerProfileManager::SaveInactiveProfile(const char* userId, const char* 
 	}
 
 	result = ePOR_Success;
-
-	ScopedSwitchToGlobalHeap useGlobalHeap;
 
 	// notify game systems that the profile is about to be saved
 	const int listenerSize = m_listeners.size();
@@ -1427,7 +1423,7 @@ bool CPlayerProfileManager::RegisterOnlineAttributes()
 {
 	LOADING_TIME_PROFILE_SECTION;
 	ECryLobbyError error = eCLE_ServiceNotSupported;
-	ICryStats* stats = gEnv->pNetwork->GetLobby()->GetLobbyService(eCLS_Online)->GetStats();
+	ICryStats* stats = gEnv->pLobby ? gEnv->pLobby->GetStats() : nullptr;
 
 	IOnlineAttributesListener::EState currentState = IOnlineAttributesListener::eOAS_None;
 	GetOnlineAttributesState(IOnlineAttributesListener::eOAE_Register, currentState);
@@ -1615,8 +1611,7 @@ void CPlayerProfileManager::LoadOnlineAttributes(IPlayerProfile* pProfile)
 	{
 		if (m_registered && m_pReadingProfile == NULL)
 		{
-			ICryLobbyService* pLobbyService = gEnv->pNetwork->GetLobby()->GetLobbyService(eCLS_Online);
-			ICryStats* pStats = pLobbyService ? pLobbyService->GetStats() : NULL;
+			ICryStats* pStats = gEnv->pLobby ? gEnv->pLobby->GetStats() : nullptr;
 			if (pStats)
 			{
 				m_pReadingProfile = pProfile;
@@ -1679,7 +1674,7 @@ void CPlayerProfileManager::SaveOnlineAttributes(IPlayerProfile* pProfile)
 			ApplyChecksums(m_onlineData, m_onlineDataCount);
 
 			//upload results
-			ICryStats* pStats = gEnv->pNetwork->GetLobby()->GetLobbyService(eCLS_Online)->GetStats();
+			ICryStats* pStats = gEnv->pLobby ? gEnv->pLobby->GetStats() : nullptr;
 			if (pStats && pStats->GetLeaderboardType() == eCLLT_P2P)
 			{
 				ECryLobbyError error = pStats->StatsWriteUserData(GetExclusiveControllerDeviceIndex(), m_onlineData, m_onlineDataCount, NULL, CPlayerProfileManager::WriteUserDataCallback, this);
@@ -1694,10 +1689,7 @@ void CPlayerProfileManager::ClearOnlineAttributes()
 	// network cleanup
 	if (m_lobbyTaskId != CryLobbyInvalidTaskID)
 	{
-		ICryLobby* pLobby = gEnv ? gEnv->pNetwork->GetLobby() : NULL;
-		ICryLobbyService* pLobbyService = pLobby ? pLobby->GetLobbyService(eCLS_Online) : NULL;
-		ICryStats* pStats = pLobbyService ? pLobbyService->GetStats() : NULL;
-
+		ICryStats* pStats = gEnv->pLobby ? gEnv->pLobby->GetStats() : nullptr;
 		if (pStats)
 		{
 			pStats->CancelTask(m_lobbyTaskId);

@@ -45,12 +45,12 @@ public:
 		{
 			if (!IsPortActive(pActInfo, eInPort_Get))
 				return;
-#if CRY_PLATFORM_WINDOWS
-			ActivateOutput(pActInfo, eOutPort_Pc, GetPortAny(pActInfo, eInPort_Get));
-#elif CRY_PLATFORM_ORBIS
+#if CRY_PLATFORM_ORBIS
 			ActivateOutput(pActInfo, eOutPort_PS4, GetPortAny(pActInfo, eInPort_Get));
 #elif CRY_PLATFORM_DURANGO
 			ActivateOutput(pActInfo, eOutPort_XboxOne, GetPortAny(pActInfo, eInPort_Get));
+#else
+			ActivateOutput(pActInfo, eOutPort_Pc, GetPortAny(pActInfo, eInPort_Get));
 #endif
 		}
 	}

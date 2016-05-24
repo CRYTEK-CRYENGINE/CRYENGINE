@@ -1,7 +1,7 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
-
+#ifndef RESOURCE_COMPILER
 #include "GlobalAnimationHeader.h"
 #include "Controller.h"
 #include "ControllerPQLog.h"
@@ -45,7 +45,7 @@ struct GlobalAnimationHeaderCAFStreamContent : public IStreamCallback
 	uint32 ParseChunkHeaders(IChunkFile* pChunkFile, bool& bLoadOldChunksOut, bool& bLoadInPlaceOut, size_t& nUsefulSizeOut);
 	bool   ParseChunkRange(IChunkFile* pChunkFile, uint32 min, uint32 max, bool bLoadOldChunks, char*& pStorage, IControllerRelocatableChain*& pRelocateHead);
 	bool   ReadMotionParameters(IChunkFile::ChunkDesc* pChunkDesc);
-	bool   ReadController(IChunkFile::ChunkDesc* pChunkDesc, bool bLoadOldChunks, char*& pStorage, IControllerRelocatableChain*& pRelocateHead);
+	bool   ReadController(IChunkFile::ChunkDesc* pChunkDesc, bool bLoadUncompressedChunks, char*& pStorage, IControllerRelocatableChain*& pRelocateHead);
 	bool   ReadTiming(IChunkFile::ChunkDesc* pChunkDesc);
 	uint32 FlagsSanityFilter(uint32 flags);
 
@@ -312,3 +312,4 @@ inline bool raw_movable<GlobalAnimationHeaderCAF>(GlobalAnimationHeaderCAF const
 {
 	return true;
 }
+#endif

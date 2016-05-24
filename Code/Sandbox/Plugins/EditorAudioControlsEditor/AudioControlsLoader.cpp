@@ -16,6 +16,9 @@
 #include "QAudioControlTreeWidget.h"
 #include "QATLControlsTreeModel.h"
 #include "IEditor.h"
+#include <ConfigurationManager.h>
+#include <QMessageBox>
+#include "AudioControlsEditorPlugin.h"
 
 using namespace PathUtil;
 
@@ -24,7 +27,6 @@ namespace ACE
 const string CAudioControlsLoader::ms_controlsPath = AUDIO_SYSTEM_DATA_ROOT CRY_NATIVE_PATH_SEPSTR "ace" CRY_NATIVE_PATH_SEPSTR;
 const string CAudioControlsLoader::ms_levelsFolder = "levels" CRY_NATIVE_PATH_SEPSTR;
 const string CAudioControlsLoader::ms_controlsLevelsFolder = "levels" CRY_NATIVE_PATH_SEPSTR;
-const string CAudioControlsLoader::ms_configFilePath = AUDIO_SYSTEM_DATA_ROOT CRY_NATIVE_PATH_SEPSTR "ace" CRY_NATIVE_PATH_SEPSTR "config.xml";
 
 EACEControlType TagToType(const string& tag)
 {
@@ -59,6 +61,7 @@ CAudioControlsLoader::CAudioControlsLoader(CATLControlsModel* pATLModel, QATLTre
 	: m_pModel(pATLModel)
 	, m_pLayout(pLayoutModel)
 	, m_pAudioSystemImpl(pAudioSystemImpl)
+	, m_errorCodeMask(EErrorCode::eErrorCode_NoError)
 {}
 
 void CAudioControlsLoader::LoadAll()
@@ -70,7 +73,6 @@ void CAudioControlsLoader::LoadAll()
 void CAudioControlsLoader::LoadControls()
 {
 	const CUndoSuspend suspendUndo;
-	LoadSettings();
 
 	// load the global controls
 	LoadAllLibrariesInFolder(ms_controlsPath, "");
@@ -105,44 +107,6 @@ void CAudioControlsLoader::LoadControls()
 	CreateDefaultControls();
 }
 
-void CAudioControlsLoader::LoadSettings()
-{
-	XmlNodeRef root = GetISystem()->LoadXmlFromFile(ms_configFilePath);
-	if (root)
-	{
-		string tag = root->getTag();
-		if (tag.compare("ACBConfig") == 0)
-		{
-			int size = root->getChildCount();
-			for (int i = 0; i < size; ++i)
-			{
-				XmlNodeRef child = root->getChild(i);
-				if (child)
-				{
-					string group = child->getAttr("name");
-					if (group.compare("") != 0)
-					{
-						m_pModel->AddConnectionGroup(group);
-					}
-				}
-			}
-		}
-	}
-	else
-	{
-		// hard code some groups if the config.xml file is missing.
-		m_pModel->AddConnectionGroup(g_sDefaultGroup);
-		m_pModel->AddConnectionGroup("High");
-		m_pModel->AddConnectionGroup("Low");
-
-		m_pModel->AddPlatform("PC");
-		m_pModel->AddPlatform("PS4");
-		m_pModel->AddPlatform("Xbox");
-		m_pModel->AddPlatform("Mac");
-		m_pModel->AddPlatform("Linux");
-	}
-}
-
 void CAudioControlsLoader::LoadAllLibrariesInFolder(const string& folderPath, const string& level)
 {
 	string path = folderPath;
@@ -172,8 +136,11 @@ void CAudioControlsLoader::LoadAllLibrariesInFolder(const string& folderPath, co
 					{
 						file = root->getAttr("atl_name");
 					}
+
+					int atlVersion = 1;
+					root->getAttr("atl_version", atlVersion);
 					RemoveExtension(file);
-					LoadControlsLibrary(root, folderPath, level, file);
+					LoadControlsLibrary(root, folderPath, level, file, atlVersion);
 				}
 			}
 			else
@@ -229,9 +196,9 @@ QStandardItem* CAudioControlsLoader::AddUniqueFolderPath(QStandardItem* pParent,
 	return pParent;
 }
 
-void CAudioControlsLoader::LoadControlsLibrary(XmlNodeRef pRoot, const string& sFilepath, const string& sLevel, const string& sFilename)
+void CAudioControlsLoader::LoadControlsLibrary(XmlNodeRef pRoot, const string& filepath, const string& level, const string& filename, uint version)
 {
-	QStandardItem* pRootFolder = AddUniqueFolderPath(m_pLayout->ControlsRootItem(), QtUtil::ToQString(sFilename));
+	QStandardItem* pRootFolder = AddUniqueFolderPath(m_pLayout->ControlsRootItem(), QtUtil::ToQString(filename));
 	if (pRootFolder && pRoot)
 	{
 		const int nControlTypeCount = pRoot->getChildCount();
@@ -246,10 +213,11 @@ void CAudioControlsLoader::LoadControlsLibrary(XmlNodeRef pRoot, const string& s
 				}
 				else
 				{
+					Scope scope = level.empty() ? m_pModel->GetGlobalScope() : m_pModel->GetScope(level);
 					const int nControlCount = pNode->getChildCount();
 					for (int j = 0; j < nControlCount; ++j)
 					{
-						LoadControl(pNode->getChild(j), pRootFolder, sLevel);
+						LoadControl(pNode->getChild(j), pRootFolder, scope, version);
 					}
 				}
 			}
@@ -257,7 +225,7 @@ void CAudioControlsLoader::LoadControlsLibrary(XmlNodeRef pRoot, const string& s
 	}
 }
 
-CATLControl* CAudioControlsLoader::LoadControl(XmlNodeRef pNode, QStandardItem* pFolder, const string& sScope)
+CATLControl* CAudioControlsLoader::LoadControl(XmlNodeRef pNode, QStandardItem* pFolder, Scope scope, uint version)
 {
 	CATLControl* pControl = nullptr;
 	if (pNode)
@@ -283,7 +251,7 @@ CATLControl* CAudioControlsLoader::LoadControl(XmlNodeRef pNode, QStandardItem* 
 						const int nStateCount = pNode->getChildCount();
 						for (int i = 0; i < nStateCount; ++i)
 						{
-							CATLControl* pStateControl = LoadControl(pNode->getChild(i), pItem, sScope);
+							CATLControl* pStateControl = LoadControl(pNode->getChild(i), pItem, scope, version);
 							if (pStateControl)
 							{
 								pStateControl->SetParent(pControl);
@@ -293,12 +261,12 @@ CATLControl* CAudioControlsLoader::LoadControl(XmlNodeRef pNode, QStandardItem* 
 					}
 					break;
 				case eACEControlType_Preload:
-					LoadPreloadConnections(pNode, pControl);
+					LoadPreloadConnections(pNode, pControl, pItem, version);
 					break;
 				default:
 					LoadConnections(pNode, pControl);
 				}
-				pControl->SetScope(sScope);
+				pControl->SetScope(scope);
 			}
 		}
 	}
@@ -355,43 +323,43 @@ void CAudioControlsLoader::CreateDefaultControls()
 	QStandardItem* pFolder = AddFolder(m_pLayout->ControlsRootItem(), "default_controls");
 	if (pFolder)
 	{
-		CATLControl* pControl = m_pModel->FindControl("get_focus", eACEControlType_Trigger, "");
+		CATLControl* pControl = m_pModel->FindControl("get_focus", eACEControlType_Trigger, m_pModel->GetGlobalScope());
 		if (pControl == nullptr)
 		{
 			AddControl(m_pModel->CreateControl("get_focus", eACEControlType_Trigger), pFolder);
 		}
 
-		pControl = m_pModel->FindControl("lose_focus", eACEControlType_Trigger, "");
+		pControl = m_pModel->FindControl("lose_focus", eACEControlType_Trigger, m_pModel->GetGlobalScope());
 		if (pControl == nullptr)
 		{
 			AddControl(m_pModel->CreateControl("lose_focus", eACEControlType_Trigger), pFolder);
 		}
 
-		pControl = m_pModel->FindControl("mute_all", eACEControlType_Trigger, "");
+		pControl = m_pModel->FindControl("mute_all", eACEControlType_Trigger, m_pModel->GetGlobalScope());
 		if (pControl == nullptr)
 		{
 			AddControl(m_pModel->CreateControl("mute_all", eACEControlType_Trigger), pFolder);
 		}
 
-		pControl = m_pModel->FindControl("unmute_all", eACEControlType_Trigger, "");
+		pControl = m_pModel->FindControl("unmute_all", eACEControlType_Trigger, m_pModel->GetGlobalScope());
 		if (pControl == nullptr)
 		{
 			AddControl(m_pModel->CreateControl("unmute_all", eACEControlType_Trigger), pFolder);
 		}
 
-		pControl = m_pModel->FindControl("do_nothing", eACEControlType_Trigger, "");
+		pControl = m_pModel->FindControl("do_nothing", eACEControlType_Trigger, m_pModel->GetGlobalScope());
 		if (pControl == nullptr)
 		{
 			AddControl(m_pModel->CreateControl("do_nothing", eACEControlType_Trigger), pFolder);
 		}
 
-		pControl = m_pModel->FindControl("object_speed", eACEControlType_RTPC, "");
+		pControl = m_pModel->FindControl("object_speed", eACEControlType_RTPC, m_pModel->GetGlobalScope());
 		if (pControl == nullptr)
 		{
 			AddControl(m_pModel->CreateControl("object_speed", eACEControlType_RTPC), pFolder);
 		}
 
-		pControl = m_pModel->FindControl("object_doppler", eACEControlType_RTPC, "");
+		pControl = m_pModel->FindControl("object_doppler", eACEControlType_RTPC, m_pModel->GetGlobalScope());
 		if (pControl == nullptr)
 		{
 			AddControl(m_pModel->CreateControl("object_doppler", eACEControlType_RTPC), pFolder);
@@ -418,7 +386,7 @@ void CAudioControlsLoader::CreateDefaultControls()
 
 void CAudioControlsLoader::CreateDefaultSwitch(QStandardItem* pFolder, const char* szExternalName, const char* szInternalName, const std::vector<const char*>& states)
 {
-	CATLControl* pControl = m_pModel->FindControl(szExternalName, eACEControlType_Switch, "");
+	CATLControl* pControl = m_pModel->FindControl(szExternalName, eACEControlType_Switch, m_pModel->GetGlobalScope());
 	QStandardItem* pSwitch = nullptr;
 	if (pControl)
 	{
@@ -437,7 +405,7 @@ void CAudioControlsLoader::CreateDefaultSwitch(QStandardItem* pFolder, const cha
 	{
 		for (auto szStateName : states)
 		{
-			CATLControl* pChild = m_pModel->FindControl(szStateName, eACEControlType_State, "", pControl);
+			CATLControl* pChild = m_pModel->FindControl(szStateName, eACEControlType_State, m_pModel->GetGlobalScope(), pControl);
 			if (pChild == nullptr)
 			{
 				pChild = m_pModel->CreateControl(szStateName, eACEControlType_State, pControl);
@@ -448,7 +416,7 @@ void CAudioControlsLoader::CreateDefaultSwitch(QStandardItem* pFolder, const cha
 				pValueNode->setAttr("atl_name", szStateName);
 				pRequestNode->addChild(pValueNode);
 
-				pChild->m_connectionNodes[ACE::g_sDefaultGroup].push_back(SRawConnectionData(pRequestNode, false));
+				pChild->AddRawXMLConnection(pRequestNode, false);
 				AddControl(pChild, pSwitch);
 			}
 		}
@@ -463,21 +431,12 @@ void CAudioControlsLoader::LoadConnections(XmlNodeRef pRoot, CATLControl* pContr
 		for (int i = 0; i < nSize; ++i)
 		{
 			XmlNodeRef pNode = pRoot->getChild(i);
-			const string sTag = pNode->getTag();
-			if (m_pAudioSystemImpl)
-			{
-				ConnectionPtr pConnection = m_pAudioSystemImpl->CreateConnectionFromXMLNode(pNode, pControl->GetType());
-				if (pConnection)
-				{
-					pControl->AddConnection(pConnection);
-				}
-				pControl->m_connectionNodes[ACE::g_sDefaultGroup].push_back(SRawConnectionData(pNode, pConnection != nullptr));
-			}
+			pControl->LoadConnectionFromXML(pNode);
 		}
 	}
 }
 
-void CAudioControlsLoader::LoadPreloadConnections(XmlNodeRef pNode, CATLControl* pControl)
+void CAudioControlsLoader::LoadPreloadConnections(XmlNodeRef pNode, CATLControl* pControl, QStandardItem* pItem, uint version)
 {
 	if (pControl)
 	{
@@ -491,53 +450,45 @@ void CAudioControlsLoader::LoadPreloadConnections(XmlNodeRef pNode, CATLControl*
 			pControl->SetAutoLoad(false);
 		}
 
-		// Read all the platform definitions for this control
-		// <ATLPlatforms>
-		XmlNodeRef pPlatformsGroup = pNode->findChild("ATLPlatforms");
-		if (pPlatformsGroup)
-		{
-			const int nNumPlatforms = pPlatformsGroup->getChildCount();
-			for (int i = 0; i < nNumPlatforms; ++i)
-			{
-				XmlNodeRef pPlatformNode = pPlatformsGroup->getChild(i);
-				const string sPlatformName = pPlatformNode->getAttr("atl_name");
-				const string sGroupName = pPlatformNode->getAttr("atl_config_group_name");
-				m_pModel->AddPlatform(sPlatformName);
-
-				const int nGroupID = m_pModel->GetConnectionGroupId(sGroupName);
-				if (nGroupID >= 0)
-				{
-					pControl->SetGroupForPlatform(sPlatformName, nGroupID);
-				}
-			}
-		}
-
 		// Read the connection information for each of the platform groups
-		const int nNumChildren = pNode->getChildCount();
-		for (int i = 0; i < nNumChildren; ++i)
+		const std::vector<dll_string>& platforms = GetIEditor()->GetConfigurationManager()->GetPlatformNames();
+		const int numChildren = pNode->getChildCount();
+		for (int i = 0; i < numChildren; ++i)
 		{
-			// <ATLConfigGroup>
+			// Skip unused data from previous format
 			XmlNodeRef pGroupNode = pNode->getChild(i);
-			const string sTag = pGroupNode->getTag();
-			if (sTag.compare("ATLConfigGroup") != 0)
+			const string tag = pGroupNode->getTag();
+			if (version == 1 && tag.compare("ATLConfigGroup") != 0)
 			{
 				continue;
 			}
-			const string sGroupName = pGroupNode->getAttr("atl_name");
 
-			const int nNumConnections = pGroupNode->getChildCount();
-			for (int j = 0; j < nNumConnections; ++j)
+			// Get the index for that platform name
+			int platformIndex = -1;
+			const string platformName = pGroupNode->getAttr("atl_name");
+			const size_t size = platforms.size();
+			for (size_t j = 0; j < size; ++j)
+			{
+				if (strcmp(platformName.c_str(), platforms[j].c_str()) == 0)
+				{
+					platformIndex = j;
+					break;
+				}
+			}
+
+			if (platformIndex == -1)
+			{
+				m_errorCodeMask |= static_cast<uint>(EErrorCode::eErrorCode_UnkownPlatform);
+				pItem->setData(true, eDataRole_Modified);
+			}
+
+			const int numConnections = pGroupNode->getChildCount();
+			for (int j = 0; j < numConnections; ++j)
 			{
 				XmlNodeRef pConnectionNode = pGroupNode->getChild(j);
 				if (pConnectionNode && m_pAudioSystemImpl)
 				{
-					ConnectionPtr pAudioConnection = m_pAudioSystemImpl->CreateConnectionFromXMLNode(pConnectionNode, pControl->GetType());
-					if (pAudioConnection)
-					{
-						pAudioConnection->SetGroup(sGroupName);
-						pControl->AddConnection(pAudioConnection);
-					}
-					pControl->m_connectionNodes[sGroupName].push_back(SRawConnectionData(pConnectionNode, pAudioConnection != nullptr));
+					pControl->LoadConnectionFromXML(pConnectionNode, platformIndex);
 				}
 			}
 		}

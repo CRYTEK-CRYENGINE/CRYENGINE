@@ -664,8 +664,6 @@ void CSimpleHttpServerInternal::OnConnectionAccepted(IStreamSocketPtr pStreamSoc
 	}
 	else
 	{
-		ScopedSwitchToGlobalHeap globalHeap;
-
 		// allocate new connection
 		m_connections.push_back(HttpConnection(GetNewConnectionID()));
 

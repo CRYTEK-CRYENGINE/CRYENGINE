@@ -394,7 +394,7 @@ bool SPostEffectsUtils::CreateRenderTarget(const char* szTexName, CTexture*& pTe
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool SPostEffectsUtils::ShBeginPass(CShader* pShader, const CCryNameTSCRC& TechName, uint32 nFlags)
+bool SPostEffectsUtils::ShBeginPass(CShader* pShader, const CCryNameTSCRC& TechName, uint32 nFlags, const uint32 pass)
 {
 	assert(pShader);
 
@@ -403,7 +403,10 @@ bool SPostEffectsUtils::ShBeginPass(CShader* pShader, const CCryNameTSCRC& TechN
 	uint32 nPasses;
 	m_pCurrShader->FXSetTechnique(TechName);
 	m_pCurrShader->FXBegin(&nPasses, nFlags);
-	return m_pCurrShader->FXBeginPass(0);
+	if (pass > nPasses)
+		return false;
+
+	return m_pCurrShader->FXBeginPass(pass);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

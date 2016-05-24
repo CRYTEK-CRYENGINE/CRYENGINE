@@ -13,19 +13,19 @@
 #include "RemoteConsole.h"
 
 #ifdef USE_REMOTE_CONSOLE
-	#include <CryGame/IGame.h>
-	#include <CryGame/IGameFramework.h>
-	#include "ILevelSystem.h"
-	#if 0 // currently no stroboscope support
-		#include "Stroboscope/Stroboscope.h"
-		#include "ThreadInfo.h"
-	#endif
+#include <CryGame/IGame.h>
+#include <CryGame/IGameFramework.h>
+#include <../CryAction/ILevelSystem.h>
+#if 0                         // currently no stroboscope support
+#include "Stroboscope/Stroboscope.h"
+#include "ThreadInfo.h"
+#endif
 
-	#define DEFAULT_PORT       4600
-	#define DEFAULT_BUFFER     4096
-	#define MAX_BIND_ATTEMPTS  8 // it will try to connect using ports from DEFAULT_PORT to DEFAULT_PORT + MAX_BIND_ATTEMPTS - 1
-	#define SERVER_THREAD_NAME "RemoteConsoleServer"
-	#define CLIENT_THREAD_NAME "RemoteConsoleClient"
+#define DEFAULT_PORT 4600
+#define DEFAULT_BUFFER 4096
+#define MAX_BIND_ATTEMPTS 8   // it will try to connect using ports from DEFAULT_PORT to DEFAULT_PORT + MAX_BIND_ATTEMPTS - 1
+#define SERVER_THREAD_NAME "RemoteConsoleServer"
+#define CLIENT_THREAD_NAME "RemoteConsoleClient"
 #endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -150,7 +150,7 @@ void CRemoteConsole::Update()
 			for (TListener::Notifier notifier(m_listener); notifier.IsValid(); notifier.Next())
 				notifier->OnGameplayCommand(((SStringEvent<eCET_GameplayEvent>*)pEvent)->GetData());
 			break;
-	#if 0 // currently no stroboscope support
+#if 0                // currently no stroboscope support
 		case eCET_Strobo_GetThreads:
 			SendThreadData();
 			break;
@@ -159,7 +159,7 @@ void CRemoteConsole::Update()
 			break;
 		default:
 			assert(false); // NOT SUPPORTED FOR THE SERVER!!!
-	#endif
+#endif
 		}
 		delete *it;
 	}
@@ -186,7 +186,7 @@ void CRemoteConsole::UnregisterListener(IRemoteConsoleListener* pListener)
 #if 0 // currently no stroboscope support
 void CRemoteConsole::SendThreadData()
 {
-	#if defined(USE_REMOTE_CONSOLE) && defined(ENABLE_PROFILING_CODE)
+#if defined(USE_REMOTE_CONSOLE) && defined(ENABLE_PROFILING_CODE)
 	SThreadInfo::TThreadInfo info;
 	SThreadInfo::GetCurrentThreads(info);
 	for (SThreadInfo::TThreadInfo::iterator it = info.begin(), end = info.end(); it != end; ++it)
@@ -196,12 +196,12 @@ void CRemoteConsole::SendThreadData()
 		m_pServer->AddEvent(new SStringEvent<eCET_Strobo_ThreadAdd>(tmp));
 	}
 	m_pServer->AddEvent(new SNoDataEvent<eCET_Strobo_ThreadDone>());
-	#endif
+#endif
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
-	#if defined(USE_REMOTE_CONSOLE) && defined(ENABLE_PROFILING_CODE)
-template<EConsoleEventType T>
+#if defined(USE_REMOTE_CONSOLE) && defined(ENABLE_PROFILING_CODE)
+template <EConsoleEventType T>
 void SendStroboscopeEvent(SRemoteServer* pServer, const char* format, ...)
 {
 	va_list args;
@@ -211,11 +211,11 @@ void SendStroboscopeEvent(SRemoteServer* pServer, const char* format, ...)
 	va_end(args);
 	pServer->AddEvent(new SStringEvent<T>(tmp));
 }
-	#endif
+#endif
 
 void CRemoteConsole::SendStroboscopeResult()
 {
-	#if defined(USE_REMOTE_CONSOLE) && defined(ENABLE_PROFILING_CODE)
+#if defined(USE_REMOTE_CONSOLE) && defined(ENABLE_PROFILING_CODE)
 	SStrobosopeResult res = CStroboscope::GetInst()->GetResult();
 	if (res.Valid)
 	{
@@ -254,9 +254,9 @@ void CRemoteConsole::SendStroboscopeResult()
 		SendStroboscopeEvent<eCET_Strobo_FrameInfoAdd>(m_pServer, "%i %i", res.StartFrame, res.EndFrame);
 		for (SStrobosopeResult::TFrameTime::const_iterator it = res.FrameTime.begin(), end = res.FrameTime.end(); it != end; ++it)
 			SendStroboscopeEvent<eCET_Strobo_FrameInfoAdd>(m_pServer, "%i %.6f", it->first, it->second);
-	}
+		}
 	m_pServer->AddEvent(new SNoDataEvent<eCET_Strobo_ResultDone>());
-	#endif
+#endif
 }
 #endif //#if 0 // currently no stroboscope support
 
@@ -328,14 +328,14 @@ void SRemoteServer::ThreadEntry()
 	CRYSOCKLEN_T iAddrSize;
 	CRYSOCKADDR_IN local, client;
 
-	#ifdef CRY_PLATFORM_WINAPI
+#ifdef CRY_PLATFORM_WINAPI
 	WSADATA wsd;
 	if (WSAStartup(MAKEWORD(2, 2), &wsd) != 0)
 	{
 		gEnv->pLog->LogError("[RemoteKeyboard] Failed to load Winsock!\n");
 		return;
 	}
-	#endif
+#endif
 
 	m_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 	if (m_socket == CRY_SOCKET_ERROR)
@@ -345,7 +345,7 @@ void SRemoteServer::ThreadEntry()
 	}
 
 	local.sin_addr.s_addr = htonl(INADDR_ANY);
-	local.sin_family = AF_INET;
+	local.sin_family      = AF_INET;
 
 	bool bindOk = false;
 	for (uint32 i = 0; i < MAX_BIND_ATTEMPTS; ++i)
@@ -381,7 +381,7 @@ void SRemoteServer::ThreadEntry()
 	while (m_bAcceptClients)
 	{
 		iAddrSize = sizeof(client);
-		sClient = CrySock::accept(m_socket, (CRYSOCKADDR*)&client, &iAddrSize);
+		sClient   = CrySock::accept(m_socket, (CRYSOCKADDR*)&client, &iAddrSize);
 		if (!m_bAcceptClients || sClient == CRY_INVALID_SOCKET)
 		{
 			break;
@@ -454,7 +454,7 @@ bool SRemoteServer::WriteBuffer(SRemoteClient* pClient, char* buffer, int& size)
 bool SRemoteServer::ReadBuffer(const char* buffer, int data)
 {
 	IRemoteEvent* pEvent = SRemoteEventFactory::GetInst()->CreateEventFromBuffer(buffer, data);
-	const bool res = pEvent != NULL;
+	const bool res       = pEvent != NULL;
 	if (pEvent)
 	{
 		if (pEvent->GetType() != eCET_Noop)
@@ -502,7 +502,7 @@ void SRemoteClient::SignalStopWork()
 void SRemoteClient::ThreadEntry()
 {
 	char szBuff[DEFAULT_BUFFER];
-	int size;
+	int  size;
 	SNoDataEvent<eCET_Req> reqEvt;
 
 	std::vector<string> autoCompleteList;
@@ -579,7 +579,7 @@ bool SRemoteClient::SendPackage(const char* buffer, int size)
 		if (ret <= 0 || ret == CRY_SOCKET_ERROR)
 			return false;
 		left -= ret;
-		idx += ret;
+		idx  += ret;
 	}
 	return true;
 }
@@ -597,10 +597,10 @@ void SRemoteClient::FillAutoCompleteList(std::vector<string>& list)
 	}
 	for (int i = 0, end = gEnv->pGame->GetIGameFramework()->GetILevelSystem()->GetLevelCount(); i < end; ++i)
 	{
-		ILevelInfo* pLevel = gEnv->pGame->GetIGameFramework()->GetILevelSystem()->GetLevelInfo(i);
-		string item = "map ";
+		ILevelInfo* pLevel    = gEnv->pGame->GetIGameFramework()->GetILevelSystem()->GetLevelInfo(i);
+		string item           = "map ";
 		const char* levelName = pLevel->GetName();
-		int start = 0;
+		int start             = 0;
 		for (int k = 0, kend = strlen(levelName); k < kend; ++k)
 		{
 			if ((levelName[k] == '\\' || levelName[k] == '/') && k + 1 < kend)
@@ -614,8 +614,8 @@ void SRemoteClient::FillAutoCompleteList(std::vector<string>& list)
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////// Event factory ///////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
-	#define REGISTER_EVENT_NODATA(evt) RegisterEvent(new SNoDataEvent<evt>());
-	#define REGISTER_EVENT_STRING(evt) RegisterEvent(new SStringEvent<evt>(""));
+#define REGISTER_EVENT_NODATA(evt) RegisterEvent(new SNoDataEvent<evt>());
+#define REGISTER_EVENT_STRING(evt) RegisterEvent(new SStringEvent<evt>(""));
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 SRemoteEventFactory::SRemoteEventFactory()
@@ -665,7 +665,7 @@ IRemoteEvent* SRemoteEventFactory::CreateEventFromBuffer(const char* buffer, int
 {
 	if (size > 1 && buffer[size - 1] == '\0')
 	{
-		EConsoleEventType type = EConsoleEventType(buffer[0] - '0');
+		EConsoleEventType type         = EConsoleEventType(buffer[0] - '0');
 		TPrototypes::const_iterator it = m_prototypes.find(type);
 		if (it != m_prototypes.end())
 		{

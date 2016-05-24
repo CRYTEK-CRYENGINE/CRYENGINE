@@ -253,7 +253,6 @@ struct CompressionPolicyFactory : public CompressionPolicyFactoryBase
 
 	static ICompressionPolicyPtr Create(uint32 key)
 	{
-		ScopedSwitchToGlobalHeap useGlobalHeap;
 		return new CCompressionPolicy<T>(key);
 	}
 };

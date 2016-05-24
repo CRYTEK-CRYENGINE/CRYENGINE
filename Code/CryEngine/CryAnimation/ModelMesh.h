@@ -93,6 +93,7 @@ private:
 	void                    PrepareMesh(CMesh* pMesh);
 	void                    PrepareRenderChunks(CMesh& mesh, DynArray<RChunk>& renderChunks);
 	_smart_ptr<IRenderMesh> CreateRenderMesh(CMesh* pMesh, const char* szFilePath, int nLod, bool bCreateDeviceMesh);
+	void                    CreateMorphsBuffer(CMesh* pMesh);
 
 public:
 	//////////////////////////////////////////////////////////////////////////

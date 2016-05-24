@@ -42,8 +42,6 @@
 #include <CrySystem/ITextModeConsole.h>
 #include "Http/AutoConfigDownloader.h"
 
-#include "Lobby/ICryLobbyPrivate.h"
-#include <CryLobby/ICryMatchMaking.h>
 #include "NetProfile.h"
 
 #include "Cryptography/StreamCipher.h"
@@ -58,7 +56,7 @@
 	#include "PsApi.h"
 #endif
 
-#include "Lobby/ICryMatchMakingPrivate.h"
+#include <CryLobby/CommonICryMatchMaking.h>
 #include <CryThreading/IThreadManager.h>
 
 #include <CrySystem/Profilers/FrameProfiler/FrameProfiler_JobSystem.h>
@@ -160,8 +158,6 @@ public:
 	// Start accepting work on thread
 	virtual void ThreadEntry()
 	{
-		ScopedSwitchToGlobalHeap useGlobalHeap;
-
 		while (Get()->UpdateTick(true) && gEnv && gEnv->pSystem && !gEnv->pSystem->IsQuitting())
 		{
 		}
@@ -668,7 +664,6 @@ void CNetwork::SetMultithreadingMode(ENetwork_Multithreading_Mode threadingMode)
 		//Threading is currently disabled - start and set prio
 		if (m_multithreadedMode == NETWORK_MT_OFF)
 		{
-			ScopedSwitchToGlobalHeap globalHeap;
 			m_pThread.reset(new CNetworkThread());
 
 			if (!gEnv->pThreadManager->SpawnThread(m_pThread.get(), "Network"))
@@ -716,7 +711,7 @@ void CNetwork::LobbyTimerCallback(NetTimerId id, void* pUserData, CTimeValue tim
 
 	if (gEnv->pLobby)
 	{
-		((ICryLobbyPrivate*)gEnv->pLobby)->Tick(false);
+		gEnv->pLobby->Tick(false);
 	}
 
 	pNetwork->m_lobbyTimer = TIMER.ADDTIMER(g_time + pNetwork->m_lobbyTimerInterval, LobbyTimerCallback, pNetwork, "LobbyTimer");
@@ -760,23 +755,6 @@ INetNub* CNetwork::CreateNub(const char* address, IGameNub* pGameNub,
 		delete pNub;
 		return NULL;
 	}
-
-#if NETWORK_REBROADCASTER
-	CCryRebroadcaster* pRebroadcaster = NULL;
-	CCryLobby* pLobby = (CCryLobby*)CCryLobby::GetLobby();
-	if (pLobby)
-	{
-		pRebroadcaster = pLobby->GetRebroadcaster();
-	}
-
-	if (pRebroadcaster != NULL)
-	{
-		// Rebroadcaster uses the first nub created (game server nub on the server and game client nub on subsequent clients)
-		// This is necessary as these nubs are the only nubs that can have external communication (the game client nub that's
-		// created on the server is for local datagrams only and will silently consume non-local traffic).
-		pRebroadcaster->SetNetNub(pNub);
-	}
-#endif
 
 	AddMember(pNub);
 	CNetwork::Get()->WakeThread();
@@ -1528,16 +1506,11 @@ CNetwork::eTickReturnState CNetwork::DoMainTick(bool mt)
 		if (!mt)
 			waitTime = 0;
 #endif // !USE_ACCURATE_NET_TIMERS
-		ICryLobby* const pLobby = gEnv->pLobby;
-		if (pLobby)
+		ICryMatchMakingPrivate* pMMPrivate = gEnv->pLobby ? gEnv->pLobby->GetMatchMakingPrivate() : nullptr;
+		if (pMMPrivate)
 		{
-			ICryMatchMakingPrivate* pMatchmakingPriv8 = (ICryMatchMakingPrivate*)pLobby->GetMatchMaking();
-			if (pMatchmakingPriv8)
-			{
-				pMatchmakingPriv8->LobbyAddrIDTick();
-			}
+			pMMPrivate->LobbyAddrIDTick();
 		}
-
 		m_mutex.Unlock();
 	}
 	else
@@ -2091,81 +2064,18 @@ bool CNetwork::ConvertAddr(const TNetAddress& addrIn, CRYSOCKADDR* pSockAddr, in
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// Rebroadcaster
-bool CNetwork::IsRebroadcasterEnabled(void) const
-{
-	bool enabled = false;
-
-#if NETWORK_REBROADCASTER
-	CCryRebroadcaster* pRebroadcaster = NULL;
-	CCryLobby* pLobby = (CCryLobby*)CCryLobby::GetLobby();
-	if (pLobby)
-	{
-		pRebroadcaster = pLobby->GetRebroadcaster();
-	}
-
-	if (pRebroadcaster)
-	{
-		enabled = pRebroadcaster->IsEnabled();
-	}
-#endif
-
-	return enabled;
-}
-
-void CNetwork::AddRebroadcasterConnection(INetChannel* pChannel, TNetChannelID channelID)
-{
-#if NETWORK_REBROADCASTER
-	CCryRebroadcaster* pRebroadcaster = NULL;
-	CCryLobby* pLobby = (CCryLobby*)CCryLobby::GetLobby();
-	if (pLobby)
-	{
-		pRebroadcaster = pLobby->GetRebroadcaster();
-	}
-
-	if (pRebroadcaster)
-	{
-		pRebroadcaster->AddConnection(pChannel, channelID);
-	}
-#endif
-}
-/////////////////////////////////////////////////////////////////////////////
-
-/////////////////////////////////////////////////////////////////////////////
 // Host Migration
 void CNetwork::EnableHostMigration(bool bEnabled)
 {
-#if NETWORK_HOST_MIGRATION
-	if (gEnv->pLobby)
-	{
-		((ICryLobbyPrivate*)gEnv->pLobby)->GetCVars().netAutoMigrateHost = (bEnabled) ? 1 : 0;
-	}
-#endif
 }
 
 bool CNetwork::IsHostMigrationEnabled(void)
 {
-	bool enabled = false;
-#if NETWORK_HOST_MIGRATION
-	if (gEnv->pLobby)
-	{
-		enabled = (((ICryLobbyPrivate*)gEnv->pLobby)->GetCVars().netAutoMigrateHost != 0);
-	}
-#endif
-	return enabled;
+	return false;
 }
 
 void CNetwork::TerminateHostMigration(CrySessionHandle gh)
 {
-	ICryLobby* pLobby = GetLobby();
-	if (pLobby)
-	{
-		ICryMatchMaking* pMatchMaking = pLobby->GetMatchMaking();
-		if (pMatchMaking)
-		{
-			pMatchMaking->TerminateHostMigration(gh);
-		}
-	}
 }
 
 void CNetwork::AddHostMigrationEventListener(IHostMigrationEventListener* pListener, const char* pWho, EListenerPriorityType priority)

@@ -218,13 +218,6 @@ enum ECGParam
 	ECGP_PB_TexelDensityColor,
 	ECGP_PB_TexelsPerMeterInfo,
 
-	ECGP_Matr_PB_GIGridMatrix,
-	ECGP_Matr_PB_GIInvGridMatrix,
-	ECGP_PB_GIGridSize,
-	ECGP_PB_GIInvGridSize,
-	ECGP_PB_GIGridSpaceCamPos,
-	ECGP_PB_GIAttenuation,
-	ECGP_PB_GIGridCenter,
 	ECGP_PB_WaterRipplesLookupParams,
 	ECGP_PB_SkinningExtraWeights,
 
@@ -642,6 +635,7 @@ enum ECGTexture : uint8
 
 	ECGT_TerrainNormMap,
 	ECGT_TerrainBaseMap,
+	ECGT_TerrainElevMap,
 
 	ECGT_WindGrid,
 

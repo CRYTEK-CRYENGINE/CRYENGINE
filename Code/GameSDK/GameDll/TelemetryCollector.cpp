@@ -910,6 +910,11 @@ void CTelemetryCollector::UpdateClientName()
 
 bool CTelemetryCollector::InitService()
 {
+	if (!gEnv->pNetwork->GetLobby())
+	{
+		return false;
+	}
+
 	// for debugging
 	ICryLobbyService*		pLobbyService = gEnv->pNetwork->GetLobby()->GetLobbyService();
 
@@ -1333,7 +1338,6 @@ bool CTelemetryCollector::SubmitTelemetryProducer(
 		void									*inCallbackData,
 		TTelemetrySubmitFlags inFlags)
 {
-	ScopedSwitchToGlobalHeap globalHeapSwitch;
 	char				postHeader[k_maxHttpHeaderSize];
 	inFlags |= k_tf_chunked;	// Telemetry producers must be chunked
 	if ((inFlags & k_tf_isStream) && (inFlags & k_tf_md5Digest))
@@ -2464,7 +2468,6 @@ bool CTelemetryCollector::SubmitFromMemory(
 	const int				inDataLength,
 	TTelemetrySubmitFlags	inFlags)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
 	bool				success=false;
 	bool				shouldSubmit=ShouldSubmitTelemetry();
 
@@ -2653,15 +2656,13 @@ void CTelemetryCollector::SetNewSessionId( bool includeMatchDetails )
 	int	lobbyVersion=GameLobbyData::GetVersion();
 
 	string newId;
+
+	int patchId=0;
+	if (CDataPatchDownloader *pDP=g_pGame->GetDataPatchDownloader())
 	{
-		ScopedSwitchToGlobalHeap globalHeap;
-		int												patchId=0;
-		if (CDataPatchDownloader *pDP=g_pGame->GetDataPatchDownloader())
-		{
-			patchId=pDP->GetPatchId();
-		}
-		newId.Format("%s_mb%d_mv%d_pat%d_%s%s",hostNameStr.c_str(),g_pGameCVars->g_MatchmakingBlock,g_pGameCVars->g_MatchmakingVersion,patchId,rotationStr.c_str(),timeStr.c_str());
+		patchId=pDP->GetPatchId();
 	}
+	newId.Format("%s_mb%d_mv%d_pat%d_%s%s",hostNameStr.c_str(),g_pGameCVars->g_MatchmakingBlock,g_pGameCVars->g_MatchmakingVersion,patchId,rotationStr.c_str(),timeStr.c_str());
 
 	SetSessionId(newId);
 }

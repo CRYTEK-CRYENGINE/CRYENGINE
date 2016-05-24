@@ -8,81 +8,6 @@
 	#include "GImageInfoXRender.h"
 	#include "GTextureXRender.h"
 
-class CryGImageInfo_SystemEventListener : public ISystemEventListener
-{
-	// ISystemEventListener interface
-public:
-	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR /*wparam*/, UINT_PTR /*lparam*/)
-	{
-		switch (event)
-		{
-		case ESYSTEM_EVENT_SWITCHING_TO_LEVEL_HEAP:
-			m_globalHeap = false;
-			break;
-		case ESYSTEM_EVENT_SWITCHING_TO_GLOBAL_HEAP:
-			m_globalHeap = true;
-			break;
-		default:
-			break;
-		}
-	}
-
-public:
-	static void Register()
-	{
-		static bool s_registered = false;
-		if (!s_registered)
-		{
-			gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(&ms_inst);
-			s_registered = true;
-		}
-	}
-
-	static CryGImageInfo_SystemEventListener& GetAccess()
-	{
-		return ms_inst;
-	}
-
-public:
-	bool IsGlobalHeap() const
-	{
-		return m_globalHeap;
-	}
-
-private:
-	static CryGImageInfo_SystemEventListener ms_inst;
-
-private:
-	CryGImageInfo_SystemEventListener()
-		: m_globalHeap(true)
-	{
-	}
-
-	virtual ~CryGImageInfo_SystemEventListener()
-	{
-	}
-
-private:
-	bool m_globalHeap;
-};
-
-CryGImageInfo_SystemEventListener CryGImageInfo_SystemEventListener::ms_inst;
-
-void RegisterCryGImageInfoSystemEventListener()
-{
-	CryGImageInfo_SystemEventListener::Register();
-}
-
-//////////////////////////////////////////////////////////////////////////
-
-CryGImageInfoBase::CryGImageInfoBase()
-	: m_createdInGlobalHeap(CryGImageInfo_SystemEventListener::GetAccess().IsGlobalHeap())
-{
-}
-
-	#define COND_SWITCH                m_createdInGlobalHeap && !CryGImageInfo_SystemEventListener::GetAccess().IsGlobalHeap()
-	#define COND_SWITCH_TO_GLOBAL_HEAP CondScopedSwitchToGlobalHeap globalHeap(COND_SWITCH);
-
 //////////////////////////////////////////////////////////////////////////
 
 GImageInfoXRender::GImageInfoXRender(GImage* pImage)
@@ -138,14 +63,10 @@ GImage* GImageInfoXRender::GetImage() const
 
 GTexture* GImageInfoXRender::GetTexture(GRenderer* pRenderer)
 {
-	COND_SWITCH_TO_GLOBAL_HEAP;
-
 	if (!m_pTex)
 	{
 		if (m_pImg)
 		{
-			MEMSTAT_COND_CONTEXT(COND_SWITCH, EMemStatContextTypes::MSC_Other, 0, "SF fragmenting texture?");
-
 			GPtr<GTexture> pTex = *pRenderer->CreateTexture();
 			if (pTex && pTex->InitTexture(m_pImg))
 			{
@@ -211,14 +132,10 @@ GImage* GImageInfoFileXRender::GetImage() const
 
 GTexture* GImageInfoFileXRender::GetTexture(GRenderer* pRenderer)
 {
-	COND_SWITCH_TO_GLOBAL_HEAP;
-
 	if (!m_pTex)
 	{
 		if (m_imgFilePath.c_str() && m_imgFilePath.c_str()[0] != '\0')
 		{
-			MEMSTAT_COND_CONTEXT(COND_SWITCH, EMemStatContextTypes::MSC_Other, 0, "SF fragmenting texture?");
-
 			GPtr<GTexture> pTex = *pRenderer->CreateTexture();
 			if (pTex && ((GTextureXRenderBase*)pTex.GetPtr())->InitTextureFromFile(m_imgFilePath)) // InitTextureFromFile() no longer part of GTexture interface! :( TODO: find better way to avoid cast
 				m_pTex = pTex;
@@ -289,8 +206,6 @@ GImage* GImageInfoTextureXRender::GetImage() const
 
 GTexture* GImageInfoTextureXRender::GetTexture(GRenderer* pRenderer)
 {
-	COND_SWITCH_TO_GLOBAL_HEAP;
-
 	if (!m_pTex)
 	{
 		if (m_texId > 0)
@@ -358,8 +273,6 @@ GImage* GImageInfoILMISrcXRender::GetImage() const
 
 GTexture* GImageInfoILMISrcXRender::GetTexture(GRenderer* pRenderer)
 {
-	COND_SWITCH_TO_GLOBAL_HEAP;
-
 	if (!m_pTex)
 	{
 		if (m_pSrc)
@@ -370,8 +283,6 @@ GTexture* GImageInfoILMISrcXRender::GetTexture(GRenderer* pRenderer)
 				GImageBase img(fmt == IFlashLoadMovieImage::eFmt_ARGB_8888 ? GImage::Image_ARGB_8888 : GImage::Image_RGB_888,
 				               m_pSrc->GetWidth(), m_pSrc->GetHeight(), m_pSrc->GetPitch());
 				img.pData = (UByte*) m_pSrc->GetPtr();
-
-				MEMSTAT_COND_CONTEXT(COND_SWITCH, EMemStatContextTypes::MSC_Other, 0, "SF fragmenting texture?");
 
 				GPtr<GTexture> pTex = *pRenderer->CreateTexture();
 				if (pTex && pTex->InitTexture(&img))

@@ -14,7 +14,6 @@
 // Defines
 #define	FEMC_CACHE_LIST_FILENAME			"scripts/gamerules/frontendmodelcache.xml"
 #define FEMC_FILE_ACCESS_LOG					0
-#define FEMC_USE_LEVEL_HEAP						1
 
 #ifndef _RELEASE
 	#define FEMC_LOG_CACHE_TIME					1
@@ -33,10 +32,6 @@ bool										CFrontEndModelCache::s_bNeed3dFrontEndAssets = false;
 //--------------------------------------------------------------------------------------------------
 CFrontEndModelCache::CFrontEndModelCache()
 {
-#if FEMC_USE_LEVEL_HEAP
-	SwitchToLevelHeap();
-#endif // #if FEMC_USE_LEVEL_HEAP
-
 	FE_LOG("Front End model cache creation");
 	INDENT_LOG_DURING_SCOPE();
 
@@ -222,10 +217,6 @@ CFrontEndModelCache::CFrontEndModelCache()
 	}
 
 	FE_LOG("Done caching items for front end");
-
-#if FEMC_USE_LEVEL_HEAP
-	SwitchToGlobalHeap();
-#endif // #if FEMC_USE_LEVEL_HEAP
 }//-------------------------------------------------------------------------------------------------
 
 //--------------------------------------------------------------------------------------------------
@@ -409,22 +400,4 @@ void CFrontEndModelCache::ReleaseSupportForFrontEnd3dModels()
 		gEnv->pCharacterManager->ClearResources(false);
 		gEnv->pSystem->GetISystemEventDispatcher()->OnSystemEvent( ESYSTEM_EVENT_3D_POST_RENDERING_END,0,0 );
 	}
-}//-------------------------------------------------------------------------------------------------
-
-//--------------------------------------------------------------------------------------------------
-// Name: SwitchToLevelHeap
-// Desc: Switches to level heap
-//--------------------------------------------------------------------------------------------------
-void CFrontEndModelCache::SwitchToLevelHeap()
-{
-	m_prevHeap = CryGetIMemoryManager()->LocalSwitchToLevelHeap();
-}//-------------------------------------------------------------------------------------------------
-
-//--------------------------------------------------------------------------------------------------
-// Name: SwitchToGlobalHeap
-// Desc: Switches to global heap
-//--------------------------------------------------------------------------------------------------
-void CFrontEndModelCache::SwitchToGlobalHeap()
-{
-	CryGetIMemoryManager()->LocalSwitchToHeap(m_prevHeap);
 }//-------------------------------------------------------------------------------------------------

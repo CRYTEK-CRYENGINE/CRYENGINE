@@ -9,7 +9,7 @@
 #if ENABLE_DISTRIBUTED_LOGGER
 
 	#include "Socket/IDatagramSocket.h"
-	#include "Socket/NetAddress.h"
+	#include "Socket/NetResolver.h"
 
 class CDistributedLogger : public ILogCallback, public IDatagramListener
 {

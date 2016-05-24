@@ -235,7 +235,7 @@ class CXConsole;
 class CSystem : public ISystem, public ILoadConfigurationEntrySink, public ISystemEventListener, public IWindowMessageHandler
 {
 public:
-	CSystem();
+	CSystem(const SSystemInitParams& startupParams);
 	~CSystem();
 	bool        IsUIFrameworkMode() override { return m_bUIFrameworkMode; }
 
@@ -253,7 +253,7 @@ public:
 	///////////////////////////////////////////////////////////////////////////
 	//! @name ISystem implementation
 	//@{
-	virtual bool                      Init(const SSystemInitParams& startupParams);
+	virtual bool                      Init();
 	virtual void                      Release() override;
 
 	virtual SSystemGlobalEnvironment* GetGlobalEnvironment() override { return &m_env; }
@@ -311,6 +311,7 @@ public:
 	virtual int                  GetApplicationInstance() override;
 	virtual sUpdateTimes&        GetCurrentUpdateTimeStats() override;
 	virtual const sUpdateTimes*  GetUpdateTimeStats(uint32&, uint32&) override;
+	virtual void                 FillRandomMT(uint32* pOutWords, uint32 numWords) override;
 
 	IGame*                       GetIGame() override            { return m_env.pGame; }
 	INetwork*                    GetINetwork() override         { return m_env.pNetwork; }
@@ -510,7 +511,7 @@ public:
 
 	void         SetVersionInfo(const char* const szVersion);
 
-	virtual bool InitializeEngineModule(const char* dllName, const char* moduleClassName, const SSystemInitParams& initParams, bool bQuitIfNotFound) override;
+	virtual bool InitializeEngineModule(const char* dllName, const char* moduleClassName, bool bQuitIfNotFound) override;
 	virtual bool UnloadEngineModule(const char* dllName, const char* moduleClassName) override;
 
 #if CRY_PLATFORM_WINDOWS
@@ -541,33 +542,32 @@ private:
 	//! @name Initialization routines
 	//@{
 
-	bool InitNetwork(const SSystemInitParams& startupParams);
-	bool InitOnline(const SSystemInitParams& startupParams);
-	bool InitLobby(const SSystemInitParams& startupParams);
-	bool InitInput(const SSystemInitParams& startupParams);
+	bool InitNetwork();
+	bool InitOnline();
+	bool InitInput();
 
 	bool InitConsole();
-	bool InitRenderer(WIN_HINSTANCE hinst, WIN_HWND hwnd, const SSystemInitParams& initParams);
-	bool InitPhysics(const SSystemInitParams& initParams);
-	bool InitPhysicsRenderer(const SSystemInitParams& initParams);
+	bool InitRenderer(WIN_HINSTANCE hinst, WIN_HWND hwnd);
+	bool InitPhysics();
+	bool InitPhysicsRenderer();
 
-	bool InitFont(const SSystemInitParams& initParams);
+	bool InitFont();
 	bool InitFlash();
-	bool InitAISystem(const SSystemInitParams& initParams);
-	bool InitScriptSystem(const SSystemInitParams& initParams);
+	bool InitAISystem();
+	bool InitScriptSystem();
 	bool InitFileSystem(const IGameStartup* pGameStartup);
 	void LoadPatchPaks();
 	bool InitFileSystem_LoadEngineFolders();
 	bool InitStreamEngine();
-	bool Init3DEngine(const SSystemInitParams& initParams);
-	bool InitAnimationSystem(const SSystemInitParams& initParams);
-	bool InitMovieSystem(const SSystemInitParams& initParams);
-	bool InitEntitySystem(const SSystemInitParams& initParams);
-	bool InitDynamicResponseSystem(const SSystemInitParams& initParams);
-	bool InitLiveCreate(const SSystemInitParams& initParams);
-	bool InitMonoBridge(const SSystemInitParams& initParams);
-	bool OpenRenderLibrary(int type, const SSystemInitParams& initParams);
-	bool OpenRenderLibrary(const char* t_rend, const SSystemInitParams& initParams);
+	bool Init3DEngine();
+	bool InitAnimationSystem();
+	bool InitMovieSystem();
+	bool InitEntitySystem();
+	bool InitDynamicResponseSystem();
+	bool InitLiveCreate();
+	bool InitMonoBridge();
+	bool OpenRenderLibrary(int type);
+	bool OpenRenderLibrary(const char* t_rend);
 	bool CloseRenderLibrary();
 
 	//@}
@@ -583,7 +583,7 @@ private:
 	//////////////////////////////////////////////////////////////////////////
 	// Helper functions.
 	//////////////////////////////////////////////////////////////////////////
-	void        CreateRendererVars(const SSystemInitParams& startupParams);
+	void        CreateRendererVars();
 	void        CreateSystemVars();
 	void        CreateAudioVars();
 	void        RenderStats();
@@ -923,6 +923,10 @@ private: // ------------------------------------------------------
 
 	int    sys_ProfileLevelLoading, sys_ProfileLevelLoadingDump;
 
+	// MT random generator
+	CryCriticalSection m_mtLock;
+	CMTRand_int32*     m_pMtState;
+
 public:
 	//! Pointer to the download manager
 	CDownloadManager* m_pDownloadManager;
@@ -1054,6 +1058,9 @@ protected: // -------------------------------------------------------------
 
 	std::vector<IWindowMessageHandler*> m_windowMessageHandlers;
 	CImeManager*                        m_pImeManager;
+
+	// Keeping a copy of startup params for deferred module loading (see CryLobby).
+	const SSystemInitParams m_startupParams;
 };
 
 /*extern static */ bool QueryModuleMemoryInfo(SCryEngineStatsModuleInfo& moduleInfo, int index);

@@ -81,7 +81,6 @@ public:
 
 	bool   bHWPCFCompare;
 	bool   bUseHWShadowMap;
-	bool   bReflectiveShadowMap;  // for RSMs
 
 	bool   bNormalizedDepth;
 
@@ -170,7 +169,6 @@ public:
 		, bIsMGPUCopy(false)
 		, bHWPCFCompare(false)
 		, bUseHWShadowMap(false)
-		, bReflectiveShadowMap(false)
 		, bNormalizedDepth(false)
 		, nShadowPoolUpdateRate(0)
 		, fWidthS(0)

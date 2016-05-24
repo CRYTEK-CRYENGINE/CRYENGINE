@@ -20,7 +20,9 @@ struct IVertexAnimation
 {
 	virtual ~IVertexAnimation() {}
 
-	virtual void SetFrameWeightByName(const ISkin* pISkin, const char* name, float weight) = 0;
+	virtual void OverrideFrameWeightByName(const ISkin* pISkin, const char* name, float weight) = 0;
+	virtual bool OverridenFrameWeights() = 0;
+	virtual void OverrideFrameWeights(bool val) = 0;
 	virtual void ClearAllFramesWeight() = 0;
 };
 

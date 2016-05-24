@@ -23,6 +23,9 @@
 
 #include "CryCharAnimationParams.h"
 
+// maximum number of LODs per one geometric model (CryGeometry)
+enum {g_nMaxGeomLodLevels = 6};
+
 //! Flags used by ICharacterInstance::SetFlags and GetFlags.
 enum ECharRenderFlags
 {
@@ -375,7 +378,7 @@ struct IDefaultSkeleton
 
 	// All render-meshes will be removed from the CDefaultSkeleton-class.
 	// The following functions will become deprecated.
-	virtual const phys_geometry* GetJointPhysGeom(uint32 jointIndex) const = 0;  //!< just for statistics of physics proxies.
+	virtual const phys_geometry* GetJointPhysGeom(uint32 jointIndex) const = 0;                 //!< just for statistics of physics proxies.
 	virtual int32                GetLimbDefinitionIdx(LimbIKDefinitionHandle handle) const = 0;
 	virtual void                 PrecacheMesh(bool bFullUpdate, int nRoundId, int nLod) = 0;
 	virtual IRenderMesh*         GetIRenderMesh() const = 0;
@@ -570,8 +573,8 @@ struct ICharacterInstance : IMeshObj
 	// </interfuscator:shuffle>
 
 #ifdef EDITOR_PCDEBUGCODE
-	virtual uint32 GetResetMode() const = 0;    // Will be obsolete when CharEdit is removed.
-	virtual void   SetResetMode(uint32 rm) = 0; // Will be obsolete when CharEdit is removed.
+	virtual uint32 GetResetMode() const = 0;                                             // Will be obsolete when CharEdit is removed.
+	virtual void   SetResetMode(uint32 rm) = 0;                                          // Will be obsolete when CharEdit is removed.
 	virtual f32    GetAverageFrameTime() const = 0;
 	virtual void   SetCharEditMode(uint32 m) = 0;
 	virtual uint32 GetCharEditMode() const = 0;
@@ -585,7 +588,7 @@ struct ICharacterInstance : IMeshObj
 	void SpawnSkeletonEffect(int animID, const char* animName, const char* effectName, const char* boneName, const Vec3& offset, const Vec3& dir, const QuatTS& entityLoc);
 };
 
-#include <CryAnimation/IAnimationPoseModifier.h> // <> required for Interfuscator
+#include <CryAnimation/IAnimationPoseModifier.h>                                                    // <> required for Interfuscator
 
 struct ISkeletonAnim
 {
@@ -879,8 +882,8 @@ struct IAnimationSet
 #ifdef EDITOR_PCDEBUGCODE
 	virtual void        GetSubAnimations(DynArray<int>& animIdsOut, int animId) const = 0;
 	virtual int         GetNumFacialAnimations() const = 0;
-	virtual const char* GetFacialAnimationPathByName(const char* szName) const = 0; //!< \return 0 if name not found.
-	virtual const char* GetFacialAnimationName(int index) const = 0;                //!< \return 0 on invalid index.
+	virtual const char* GetFacialAnimationPathByName(const char* szName) const = 0;                                                              //!< \return 0 if name not found.
+	virtual const char* GetFacialAnimationName(int index) const = 0;                                                                             //!< \return 0 on invalid index.
 	virtual int32       GetGlobalIDByName(const char* szAnimationName) const = 0;
 	virtual int32       GetGlobalIDByAnimID(int nAnimationId) const = 0;
 	virtual const char* GetAnimationStatus(int nAnimationId) const = 0;

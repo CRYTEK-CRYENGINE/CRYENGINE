@@ -12,7 +12,6 @@
 #include "ClipVolume.h"
 #include "ClipVolumeManager.h"
 #include "ShadowCache.h"
-#include "LPVRenderNode.h"
 
 #pragma warning(disable: 4244)
 
@@ -290,7 +289,7 @@ int CLightEntity::UpdateGSMLightSourceDynamicShadowFrustum(int nDynamicLodCount,
 	{
 		float fFOV = (m_light).m_fLightFrustumAngle * 2;
 		bool bDoGSM = (fGSMBoxSize < m_light.m_fRadius * 0.01f && fGSMBoxSize < fDistToLight * 0.5f * (fFOV / 90.f) && fDistToLight < m_light.m_fRadius)
-		              && ((m_light.m_Flags & DLF_SUN) || Get3DEngine()->GetShadowsCascadeCount(&m_light) > 1) && ((m_light.m_Flags & DLF_REFLECTIVE_SHADOWMAP) == 0);
+		              && ((m_light.m_Flags & DLF_SUN) || Get3DEngine()->GetShadowsCascadeCount(&m_light) > 1);
 
 		if (bDoGSM)
 		{
@@ -457,9 +456,6 @@ int CLightEntity::UpdateGSMLightSourceNearestShadowFrustum(int nFrustumIndex, co
 bool CLightEntity::ProcessFrustum(int nLod, float fGSMBoxSize, float fDistanceFromView, PodArray<SPlaneObject>& lstCastersHull, const SRenderingPassInfo& passInfo)
 {
 	ShadowMapFrustum* pFr = m_pShadowMapInfo->pGSM[nLod];
-
-	if (m_light.m_Flags & DLF_REFLECTIVE_SHADOWMAP)
-		pFr->bReflectiveShadowMap = true;
 
 	// make shadow map frustum for receiving (include all objects into frustum)
 	assert(pFr);
@@ -1346,23 +1342,8 @@ void CLightEntity::InitShadowFrustum_PROJECTOR(ShadowMapFrustum* pFr, int dwAllo
 
 	const int nFrameId = passInfo.GetMainFrameID();
 
-	// cache for RSM
-	if (pFr->bReflectiveShadowMap && GetCVars()->e_GICache > 0 && pFr->nUpdateFrameId >= 0)
-	{
-		if (nFrameId - pFr->nUpdateFrameId < GetCVars()->e_GICache)
-		{
-			for (int i = 0; i < MAX_GPU_NUM; i++)
-				pFr->nInvalidatedFrustMask[i] = 0;
-			return;
-		}
-	}
-
 	float fShadowUpdate = (float)(m_light.m_nShadowUpdateRatio * GetCVars()->e_ShadowsUpdateViewDistRatio);
 	const float fShadowUpdateScale = (1 << DL_SHADOW_UPDATE_SHIFT) * (1 << DL_SHADOW_UPDATE_SHIFT);  // e_ShadowsUpdateViewDistRatio is also fixed point, 256 == 1.0f
-
-	// rely on RequestUpdate for RSM caching
-	if (pFr->bReflectiveShadowMap)
-		pFr->RequestUpdate();
 
 	// construct camera from projector
 	Matrix34 entMat = ((ILightSource*)m_light.m_pOwner)->GetMatrix();
@@ -1390,15 +1371,7 @@ void CLightEntity::InitShadowFrustum_PROJECTOR(ShadowMapFrustum* pFr, int dwAllo
 	pFr->fFarDist = m_light.m_fRadius;
 
 	// set texture size
-	uint32 nTexSize;
-	if (!(m_light.m_Flags & DLF_REFLECTIVE_SHADOWMAP))
-		nTexSize = GetCVars()->e_ShadowsMaxTexRes;
-	else
-	{
-		pFr->fNearDist = m_light.m_fProjectorNearPlane;
-		assert(0);
-		nTexSize = 64;
-	}
+	uint32 nTexSize = GetCVars()->e_ShadowsMaxTexRes;
 
 	if (pFr->bOmniDirectionalShadow)
 		nTexSize = GetCVars()->e_ShadowsMaxTexRes / 2;
@@ -1733,17 +1706,10 @@ void CLightEntity::FillFrustumCastersList_PROJECTOR(ShadowMapFrustum* pFr, int d
 		FrustCam.SetMatrix(mat);
 		FrustCam.SetFrustum(pFr->nTexSize, pFr->nTexSize, pFr->fFOV * (gf_PI / 180.0f), pFr->fNearDist, pFr->fFarDist);
 
-		bool bNeedUpdate = true;
-		if (pFr->bReflectiveShadowMap)
-			bNeedUpdate = pFr->isUpdateRequested(0);
+		m_pObjManager->MakeShadowCastersList((CVisArea*)GetEntityVisArea(), GetBBox(),
+			                                    dwAllowedTypes, 0xFFFFFFFF, pFr->vLightSrcRelPos + GetBBox().GetCenter(), &m_light, pFr, NULL, passInfo);
 
-		if (bNeedUpdate)
-		{
-			m_pObjManager->MakeShadowCastersList((CVisArea*)GetEntityVisArea(), GetBBox(),
-			                                     dwAllowedTypes, 0xFFFFFFFF, pFr->vLightSrcRelPos + GetBBox().GetCenter(), &m_light, pFr, NULL, passInfo);
-
-			DetectCastersListChanges(pFr, passInfo);
-		}
+		DetectCastersListChanges(pFr, passInfo);
 
 		pFr->aabbCasters.Reset(); // fix: should i .Reset() pFr->aabbCasters ?
 	}
@@ -1861,7 +1827,7 @@ void CLightEntity::GetMemoryUsage(ICrySizer* pSizer) const
 
 void CLightEntity::UpdateCastShadowFlag(float fDistance, const SRenderingPassInfo& passInfo)
 {
-	if (!(m_light.m_Flags & (DLF_SUN | DLF_REFLECTIVE_SHADOWMAP)))
+	if (!(m_light.m_Flags & DLF_SUN))
 	{
 		if (fDistance > m_fWSMaxViewDist * GetFloatCVar(e_ShadowsCastViewDistRatioLights) || !passInfo.RenderShadows())
 			m_light.m_Flags &= ~DLF_CASTSHADOW_MAPS;
@@ -1952,7 +1918,7 @@ void CLightEntity::Render(const SRendParams& rParams, const SRenderingPassInfo& 
 	int nMaxReqursion = (m_light.m_Flags & DLF_THIS_AREA_ONLY) ? 2 : 3;
 	if (!m_pObjManager || !m_pVisAreaManager || !m_pVisAreaManager->IsEntityVisAreaVisible(this, nMaxReqursion, &m_light, passInfo))
 	{
-		if (m_light.m_Flags & (DLF_SUN | DLF_REFLECTIVE_SHADOWMAP) && m_pVisAreaManager && m_pVisAreaManager->m_bSunIsNeeded)
+		if (m_light.m_Flags & DLF_SUN && m_pVisAreaManager && m_pVisAreaManager->m_bSunIsNeeded)
 		{
 			// sun may be used in indoor even if outdoor is not visible
 		}
@@ -2035,9 +2001,6 @@ void CLightEntity::Render(const SRendParams& rParams, const SRenderingPassInfo& 
 	GetRenderer()->EF_UpdateDLight(&m_light);
 
 	bool bAdded = false;
-
-	if (m_light.m_Flags & DLF_ALLOW_LPV)
-		bAdded |= CLPVRenderNode::TryInsertLightIntoVolumes(m_light);
 
 	//3dengine side - lightID assigning
 	m_light.m_Id = int16(Get3DEngine()->GetDynamicLightSources()->Count() + passInfo.GetIRenderView()->GetLightsCount(eDLT_DeferredLight));

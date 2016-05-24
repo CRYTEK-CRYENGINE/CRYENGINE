@@ -678,7 +678,7 @@ void ResourceParticleParams::ComputeEnvironmentFlags()
 	                      + (TextureTiling.nAnimFramesCount <= 1) * OS_ANIM_BLEND
 	                      + (bDrawNear || bDrawOnTop) * FOB_SOFT_PARTICLE
 	                      + bDrawNear * FOB_ALLOW_TESSELLATION
-	                      + !fDiffuseLighting * (OS_ENVIRONMENT_CUBEMAP | FOB_GLOBAL_ILLUMINATION | FOB_INSHADOW)
+	                      + !fDiffuseLighting * (OS_ENVIRONMENT_CUBEMAP | FOB_INSHADOW)
 	                      + HasVariableVertexCount() * (FOB_MOTION_BLUR | FOB_OCTAGONAL | FOB_POINT_SPRITE)
 	                      );
 

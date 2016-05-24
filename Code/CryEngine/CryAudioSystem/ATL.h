@@ -56,6 +56,8 @@ private:
 	EAudioRequestStatus PlayFile(
 	  CATLAudioObject* const _pAudioObject,
 	  char const* const _szFile,
+	  AudioControlId const _triggerId,
+	  bool const _bLocalized,
 	  void* const _pOwner,
 	  void* const _pUserData,
 	  void* const _pUserDataOwner);
@@ -117,6 +119,8 @@ private:
 	AudioObjectId const       m_globalAudioObjectId;
 
 	AudioTriggerInstanceId    m_triggerInstanceIDCounter;
+
+	CATLTrigger const*        m_pDefaultStandaloneFileTrigger;
 
 	// Components
 	CAudioStandaloneFileManager m_audioStandaloneFileMgr;

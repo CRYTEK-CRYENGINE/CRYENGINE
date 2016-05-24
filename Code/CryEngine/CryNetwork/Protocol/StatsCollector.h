@@ -16,7 +16,7 @@
 
 #include <CrySystem/TimeValue.h>
 #include "Config.h"
-#include "Socket/NetAddress.h"
+#include <CryNetwork/NetAddress.h>
 
 #if STATS_COLLECTOR
 

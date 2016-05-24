@@ -851,19 +851,8 @@ void CDecalManager::Render(const SRenderingPassInfo& passInfo)
 						Vec3 vSize(pDecal->m_fWSSize, pDecal->m_fWSSize, pDecal->m_fWSSize);
 						AABB aabb(pDecal->m_vWSPos - vSize, pDecal->m_vWSPos + vSize);
 
-						uint32 nDLMask = 0;
-
-						if (!pDecal->m_bDeferred)
-						{
-							IRenderNode* pRN = pDecal->m_ownerInfo.pRenderNode;
-							if (COctreeNode* pNode = (COctreeNode*)(pRN ? pRN->m_pOcNode : NULL))
-								nDLMask = Get3DEngine()->BuildLightMask(aabb, pNode->GetAffectingLights(passInfo), (CVisArea*)pRN->GetEntityVisArea(), (pRN->GetRndFlags() & ERF_OUTDOORONLY) != 0, passInfo);
-							else
-								nDLMask = Get3DEngine()->BuildLightMask(aabb, passInfo);
-						}
-
 						float fDistFading = SATURATE((1.f - fDist / fMaxViewDist) * DIST_FADING_FACTOR);
-						pDecal->Render(fCurrTime, bAfterWater, nDLMask, fDistFading, fDist, passInfo);
+						pDecal->Render(fCurrTime, bAfterWater, fDistFading, fDist, passInfo);
 
 						if (GetCVars()->e_Decals > 1)
 						{

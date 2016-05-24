@@ -396,20 +396,12 @@ void CWeaponSystem::OnLoadingStart(ILevelInfo *pLevel)
 	{
 		if (pPatcher->NeedsWeaponSystemReload())
 		{
-			ScopedSwitchToGlobalHeap ghs;
 			Reload();			// allows patches to be applied (if any) takes about 1.2 sec on xbox release build
 			pPatcher->DoneWeaponSystemReload();
 		}
 	}
 
 	CRY_ASSERT(m_linkedProjectiles.size() == 0);
-
-#if SHARED_STRING_TRACK_LEVEL_HEAP_LEAKS
-	if (!gEnv->IsEditor())
-	{
-		ItemString::TrackLevelHeapAllocs(true);
-	}
-#endif
 }
 
 //------------------------------------------------------------------------
@@ -430,14 +422,6 @@ void CWeaponSystem::OnUnloadComplete(ILevelInfo* pLevel)
 	}
 
 	CRY_ASSERT(m_linkedProjectiles.size() == 0);
-
-#if SHARED_STRING_TRACK_LEVEL_HEAP_LEAKS
-	if (!gEnv->IsEditor())
-	{
-		ItemString::DumpLevelHeapLeakedStrings();
-		ItemString::TrackLevelHeapAllocs(false);
-	}
-#endif
 }
 
 //------------------------------------------------------------------------

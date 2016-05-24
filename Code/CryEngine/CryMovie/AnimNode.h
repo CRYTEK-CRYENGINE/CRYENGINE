@@ -10,23 +10,21 @@
 #include <CryMovie/IMovieSystem.h>
 #include "Movie.h"
 
-struct SSoundInfo
+struct SAudioInfo
 {
-	SSoundInfo()
-		: nSoundKeyStart(-1)
-		, nSoundKeyStop(-1)
-	{
-		Reset();
-	}
+	SAudioInfo()
+		: audioKeyStart(-1)
+		, audioKeyStop(-1)
+	{}
 
 	void Reset()
 	{
-		nSoundKeyStart = -1;
-		nSoundKeyStop = -1;
+		audioKeyStart = -1;
+		audioKeyStop = -1;
 	}
 
-	int nSoundKeyStart;
-	int nSoundKeyStop;
+	int audioKeyStart;
+	int audioKeyStop;
 };
 
 /*!

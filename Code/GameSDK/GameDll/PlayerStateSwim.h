@@ -12,7 +12,6 @@ class CPlayerStateSwim
 public:
 	static void SetParamsFromXml(const IItemParamsNode* pParams) 
 	{
-		ScopedSwitchToGlobalHeap useGlobalHeap;
 		GetSwimParams().SetParamsFromXml( pParams );
 	}
 

@@ -22,7 +22,7 @@ RigidBody::RigidBody()
 	offsfb.zero();
 	Fcollision.zero(); Tcollision.zero();
 	Eunproj = 0;
-	integrator = 0;
+	flags = 0;
 }
 
 void RigidBody::Create(const Vec3 &center,const Vec3 &Ibody0,const quaternionf &q0, float volume,float mass, 
@@ -110,7 +110,7 @@ void RigidBody::Step(float dt)
 
 	float E0 = 0;
 	Quat dq;
-	if (!integrator)
+	if (!(flags & rb_RK4))
 		dq = w_dt(w,dt);
 	else {
 		E0 = L*w;
@@ -128,16 +128,18 @@ void RigidBody::Step(float dt)
 		w = Iinv*L;
 	}
 	float E1 = L*w;
-	if (E1*integrator > 0.001f)
+	if (E1*(flags & rb_RK4) > 0.001f)
 		w *= E0/E1;
 }
 
 void RigidBody::GetContactMatrix(const Vec3 &r, Matrix33 &K)
 {
-	Matrix33 rmtx,rmtx1;
-	((crossproduct_matrix(r,rmtx))*=Iinv) *= crossproduct_matrix(r,rmtx1);
-	K -= rmtx;
-	K(0,0)+=Minv; K(1,1)+=Minv; K(2,2)+=Minv;
+	if (!(flags & rb_articulated)) {
+		Matrix33 rx; crossproduct_matrix(r,rx);
+		K -= rx*Iinv*rx;
+		K(0,0)+=Minv; K(1,1)+=Minv; K(2,2)+=Minv;
+	} else 
+		((ArticulatedBody*)this)->GetContactMatrix(r,K);
 }
 
 
@@ -157,12 +159,6 @@ struct contact_helper {
 	short iCount;
 	short iCountDst;
 	float Pn;
-};
-struct body_helper {
-	Vec3 v,w;
-	float Minv,M;
-	Matrix33 Iinv;
-	Vec3 L;
 };
 struct contact_sandwich {
 	int iMiddle;
@@ -465,6 +461,14 @@ void DisablePreCG()
 	g_bUsePreCG = false;
 }
 
+inline void ApplyImpulse(body_helper *pbody, const Vec3& dP, const Vec3& dL, int iCaller)
+{
+	if (pbody->M>=0.0f) {
+		pbody->v += dP*pbody->Minv; pbody->w += pbody->Iinv*dL; pbody->L += dL;
+	} else
+		(*(ArticulatedBody**)&pbody->Iinv)->ApplyImpulse(dP,dL,g_RBdata[iCaller]->Bodies,iCaller);
+}
+
 
 #undef g_nContacts
 #undef g_ContactsRB
@@ -592,12 +596,22 @@ int InvokeContactSolverMC(contact_helper *pContactsRB,contact_helper_constraint 
 				if (bContactBounced) {
 					if (g_ContactsRB[i].flags & contact_use_C)
 						dP = g_ContactsC[i].C*dP;
-					if (!(g_ContactsRB[i].flags & contact_angular)) {
-						hbody0->v += dP*hbody0->Minv; hbody0->w += hbody0->Iinv*(dp=r0^dP); hbody0->L += dp;
-						hbody1->v -= dP*hbody1->Minv; hbody1->w -= hbody1->Iinv*(dp=r1^dP);	hbody1->L -= dp;
-					}	else {
-						hbody0->w += hbody0->Iinv*dP; hbody0->L += dP;
-						hbody1->w -= hbody1->Iinv*dP; hbody1->L -= dP;
+					if (hbody0->M+hbody1->M>0) {
+						if (!(g_ContactsRB[i].flags & contact_angular)) {
+							hbody0->v += dP*hbody0->Minv; hbody0->w += hbody0->Iinv*(dp=r0^dP); hbody0->L += dp;
+							hbody1->v -= dP*hbody1->Minv; hbody1->w -= hbody1->Iinv*(dp=r1^dP);	hbody1->L -= dp;
+						}	else {
+							hbody0->w += hbody0->Iinv*dP; hbody0->L += dP;
+							hbody1->w -= hbody1->Iinv*dP; hbody1->L -= dP;
+						}
+					} else {
+						if (!(g_ContactsRB[i].flags & contact_angular)) {
+							ApplyImpulse(hbody0, dP,r0^dP, iCaller);
+							ApplyImpulse(hbody1,-dP,dP^r1, iCaller);
+						}	else {
+							ApplyImpulse(hbody0, Vec3(ZERO),dP, iCaller);
+							ApplyImpulse(hbody1, Vec3(ZERO),-dP, iCaller);
+						}
 					}
 					g_ContactsRB[g_ContactsRB[i].iCountDst].iCount++;
 					bBounced++;	nBounces++;
@@ -688,11 +702,6 @@ int InvokeContactSolver(float time_interval, SolverSettings *pss, float Ebefore,
 	Matrix33 Ctmp;
 	buddy_info *pbuddy0,*pbuddy1;
 __solver_step++;
-	if (nContactsOut>65536) {
-		nBodies = nContactsOut>>16; bBounced = nContactsOut & 0xFFFF;
-		nContactsOut = g_nContacts;
-		goto got_solver_results;
-	}
 	nContactsOut = g_nContacts;
 
 	for(i=nConstraints=nBodies=0; i<g_nContacts; i++) {
@@ -797,12 +806,7 @@ __solver_step++;
 		}
 	}
 	nMaxIters = max(pss->nMinMCiters*g_nContacts, pss->nMaxMCiters);
-
 	g_nBodies = nBodies;
-	for(i=0;i<nBodies;i++) {
-		g_pBodies[i]->bProcessed[iCaller] = 0; 
-		g_pBodies[i]->Eunproj = 0;
-	}
 
 	if (g_bUsePreCG && g_nContacts<16) {
 		FRAME_PROFILER( "PreCG",GetISystem(),PROFILE_PHYSICS );
@@ -900,6 +904,8 @@ __solver_step++;
 					g_pBodies[i]->v = g_pBodies[i]->P*g_pBodies[i]->Minv; g_pBodies[i]->w = g_pBodies[i]->Iinv*g_pBodies[i]->L;
 				}
 				g_pBodies[i]->Fcollision *= rtime_interval; g_pBodies[i]->Tcollision *= rtime_interval;
+				g_pBodies[i]->bProcessed[iCaller] = 0; 
+				g_pBodies[i]->Eunproj = 0;
 			}
 			for(i=0;i<g_nContacts;i++) {
 				//g_pContacts[i]->vrel = g_pContacts[i]->vreq-g_ContactsCG[i].r;
@@ -923,25 +929,32 @@ __solver_step++;
 			((char*)&g_pContacts[i]->iCount-(char*)g_pContacts[i])))->bProcessed;
 		g_ContactsRB[i].Pn = 0;
 	}
+	int nArtic = 0;
 	for(i=0;i<nBodies;i++) {
 		g_pBodies[i]->Fcollision = g_pBodies[i]->P; g_pBodies[i]->Tcollision = g_Bodies[i].L = g_pBodies[i]->L;
 		g_Bodies[i].v = g_pBodies[i]->v; g_Bodies[i].w = g_pBodies[i]->w;
-		g_Bodies[i].Minv = g_pBodies[i]->Minv; g_Bodies[i].Iinv = g_pBodies[i]->Iinv; g_Bodies[i].M = g_pBodies[i]->M;
+		if (!(g_pBodies[i]->flags & rb_articulated)) {
+			g_Bodies[i].Minv = g_pBodies[i]->Minv; g_Bodies[i].Iinv = g_pBodies[i]->Iinv; g_Bodies[i].M = g_pBodies[i]->M;
+		} else {
+			g_Bodies[i].M=-1e20f; g_Bodies[i].Minv=0.0f;
+			*((ArticulatedBody**)&g_Bodies[i].Iinv) = (ArticulatedBody*)g_pBodies[i];
+			nArtic++;
+		}
 	}
 
 	bBounced = InvokeContactSolverMC(g_ContactsRB,g_ContactsC,g_Bodies, g_nContacts,nBodies, Ebefore, nMaxIters,e,pss->minSeparationSpeed);
-	got_solver_results:
 
 	for(i=0; i<nBodies; i++) {
 		g_pBodies[i]->P = (g_pBodies[i]->v=g_Bodies[i].v)*g_pBodies[i]->M; 
 		g_pBodies[i]->L = g_pBodies[i]->q*(g_pBodies[i]->Ibody*(!g_pBodies[i]->q*(g_pBodies[i]->w = g_Bodies[i].w)));
+		g_pBodies[i]->bProcessed[iCaller] = 0; 
+		g_pBodies[i]->Eunproj = 0;
 	}
 	for(i=0; i<g_nContacts; i++)
 		g_pContacts[i]->Pspare = g_ContactsRB[i].Pspare;
 
-
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////
-	if (bBounced && pss->nMaxLCPCGiters>0 && bNeedLCPCG && g_nContacts<pss->maxLCPCGContacts) { 
+	if (bBounced && pss->nMaxLCPCGiters>0 && bNeedLCPCG && g_nContacts<pss->maxLCPCGContacts && !nArtic) { 
 	// use several iterations of CG solver, solving only for non-separating contacts
 		unsigned int iClass;
 		int cgiter,bStateChanged,n1dofContacts,n2dofContacts,nAngContacts,nFric0Contacts,nFricInfContacts,
@@ -960,14 +973,14 @@ __solver_step++;
 			if (g_pContacts[i]->flags & contact_rope) {
 				g_ContactsC[i].C.SetRow(0,g_pContacts[i]->n);
 				g_ContactsC[i].C.SetRow(1,g_pContacts[i]->vreq);
-				g_pContacts[i]->n(1,0,0);
+				g_pContacts[i]->n.Set(1,0,0);
 				for(iop=0,dp.zero(); iop<2; iop++) {
 					body0 = g_pContacts[i]->pbody[iop]; r0 = g_pContacts[i]->pt[iop]-body0->pos;
 					dp.x += g_ContactsC[i].C.GetRow(iop)*(body0->v + (body0->w^r0));
 				} for(iop=0,prope=(rope_solver_vtx*)g_pContacts[i]->pBounceCount; iop<g_pContacts[i]->iCount; iop++)
 					dp.x += prope[iop].v*(prope[iop].pbody->v + (prope[iop].pbody->w^prope[iop].r));
 				g_ContactsRB[i].r0 = -dp;
-				vreq(g_pContacts[i]->friction,0,0);
+				vreq.Set(g_pContacts[i]->friction,0,0);
 				g_ContactsC[i].Kinv.SetZero();
 				g_ContactsC[i].Kinv(0,0) = g_pContacts[i]->nloc.y;//K(0,1);
 				if (g_ContactsRB[i].Pn*g_ContactsRB[i].K(1,0) > g_ContactsRB[i].K(2,0))
@@ -995,7 +1008,7 @@ __solver_step++;
 				if (g_pContacts[i]->flags & contact_constraint_1dof)
 					g_ContactsRB[i].r0 = (dp -= g_pContacts[i]->n*(dp*g_pContacts[i]->n));
 				else if (g_pContacts[i]->flags&contact_constraint_2dof || !(g_pContacts[i]->flags&contact_constraint_3dof || g_pContacts[i]->Pspare>0)) {
-					g_ContactsRB[i].r0(g_pContacts[i]->n*dp,0,0); vreq(g_pContacts[i]->n*vreq,0,0);
+					g_ContactsRB[i].r0.Set(g_pContacts[i]->n*dp,0,0); vreq.Set(g_pContacts[i]->n*vreq,0,0);
 					dp = g_pContacts[i]->n*g_ContactsRB[i].r0.x;
 					g_ContactsC[i].Kinv.SetZero();
 					g_ContactsC[i].Kinv(0,0) = 1.0f/(g_pContacts[i]->n*g_ContactsRB[i].K*g_pContacts[i]->n);

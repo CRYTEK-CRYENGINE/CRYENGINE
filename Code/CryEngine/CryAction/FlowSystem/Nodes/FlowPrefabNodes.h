@@ -30,6 +30,7 @@ public:
 		EIP_PrefabName = 0,
 		EIP_InstanceName,
 		EIP_EventName,
+		EIP_EventType,
 		EIP_FireEvent,
 		EIP_EventId,
 		EIP_EventIndex,

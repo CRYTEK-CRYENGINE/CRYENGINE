@@ -9,6 +9,13 @@ from waflib import Logs
 def build(bld):
 	additional_defines = []
 
+	# Oculus can only be built using VS 2015.
+	# This is a limitation of the Oculus code.
+	has_oculus = ('MSVC_VERSION' in bld.env and bld.env['MSVC_VERSION'] == '14.0')
+	oculus_dependency = []
+	if has_oculus:
+		oculus_dependency = [ 'oculus' ]
+
 	if not os.path.isdir(Path('Code/SDKs/NVAPI')):
 		Logs.warn('[WARNING] NVAPI SDK not found, excluding from the build.')
 		additional_defines += ['EXCLUDE_NV_API']
@@ -31,7 +38,7 @@ def build(bld):
 		win_file_list   = 'mesh_baker.waf_files',
 		win_lib         = [ 'dxguid', 'd3d11', 'd3d10', 'd3dcompiler', 'Ole32', 'Gdi32', 'wininet', 'Shell32' ],			
 		win_linkflags   = [ '/NODEFAULTLIB:libcmt.lib' ], ## AMD AGS static lib references this
-		win_use_module  = [ 'oculus' ],
+		win_use_module  = oculus_dependency,
 
 		durango_file_list  = [ 'durango_renderer.waf_files', 'mesh_baker.waf_files' ],
 		durango_lib        = [ 'ws2_32', 'SmartGlassInterop', 'd3dcompiler', 'dxguid', 'xg_x', 'uuid', 'kernelx' ],
@@ -65,7 +72,7 @@ def build(bld):
 		win_lib          = [ 'opengl32', 'winmm', 'Ole32', 'Gdi32', 'wininet', 'Shell32', 'libHLSLcc'  ],
 		win_libpath      = [ Path('Code/Tools/HLSLCrossCompiler/lib/win64') ],
 		win_linkflags    = [ '/NODEFAULTLIB:libcmt.lib' ], ## AMD AGS static lib references this
-		win_use_module   = [ 'oculus' ],
+		win_use_module   = oculus_dependency,
 
 		darwin_file_list = 'mesh_baker.waf_files',
 		darwin_includes  = [ Path('Code/SDKs/SDL2/include/SDL'), Path('Code/SDKs/SDL2/include/mac'), Path('Code/Tools/HLSLCrossCompiler/include') ],
@@ -110,7 +117,7 @@ def build(bld):
 			win_includes     = [ Path('Code/Tools/LibTIFF'), Path('Code/CryEngine/RenderDll/XRenderD3D9/DX12/Includes') ],
 			win_lib          = [ 'dxguid', 'd3d12', 'dxgi', 'd3dcompiler', 'Ole32', 'Gdi32', 'wininet', 'Shell32' ],
 			win_linkflags    = [ '/NODEFAULTLIB:libcmt.lib' ], ## AMD AGS static lib references this
-			win_use_module   = [ 'oculus' ],
+			win_use_module   = oculus_dependency,
 			
 			# additional_settings = Settings( files = '../Common/lzss.cpp', disable_pch = True )
 		)

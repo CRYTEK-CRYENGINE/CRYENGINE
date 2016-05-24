@@ -177,12 +177,12 @@ if (OPTION_ENABLE_BROFILER)
 endif()
 
 
-#if (OPTION_GAME_PROJECT STREQUAL "BenchmarkVR")
+if (OPTION_GAME_PROJECT STREQUAL "BenchmarkVR")
 	add_subdirectory(Code/Game_Skyharbor/BenchmarkFramework)
 	add_subdirectory(Code/Game_Skyharbor/GameDll)
 	set_solution_folder("Projects" BenchmarkFramework)
 	set_solution_folder("Projects" CryGameSkyharbor)
-#endif()
+endif()
 
 # CryEngine
 add_subdirectory(Code/CryEngine/Cry3DEngine)

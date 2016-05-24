@@ -25,7 +25,7 @@ else:
 # TODO: This should be moved to a global configuration file at some point
 QT_ROOT = 'Code/SDKs/Qt'
 QT_MAJOR_VERSION = "5"
-QT_MINOR_VERSION = "5"
+QT_MINOR_VERSION = "6"
 
 qt_modules = [
 	'Core', 

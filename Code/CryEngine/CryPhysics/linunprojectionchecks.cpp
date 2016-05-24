@@ -1631,6 +1631,15 @@ int box_capsule_lin_unprojection(unprojection_mode *pmode, const box *pbox,int i
 	int bContact0,bContact1,bContact2;
 	sphere sph;
 	pcontact->t = 0;
+	#define check_cap(prim,pprim,iend) \
+		sph.center = pcaps->center+pcaps->axis*pcaps->hh*(iend*2-3); sph.r = pcaps->r;	pmode->dir.zero(); \
+		if (bContact##iend = prim##_sphere_lin_unprojection(pmode, pprim,iFeature1, &sph,-1, &capcont,parea))	\
+			if (capcont.n*pcaps->axis*(iend*2-3)>0) {	\
+				pmode->dir = pcaps->axis*(iend*2-1); \
+				if (bContact##iend = prim##_sphere_lin_unprojection(pmode, pprim,iFeature1, &sph,-1, &capcont,parea) && (!pcontact->t || capcont.t<pcontact->t))	\
+					*pcontact = capcont, dir_best = pmode->dir;	\
+			}	else if (bContact##iend = capcont.t>pcontact->t)	\
+				*pcontact = capcont, dir_best = pmode->dir;
 
 	if (pmode->dir.len2()==0) {
 		Vec3 dir_best(ZERO);
@@ -1640,14 +1649,8 @@ int box_capsule_lin_unprojection(unprojection_mode *pmode, const box *pbox,int i
 		else
 			pcontact->t = 0;
 		tcyl = pcontact->t;
-		sph.center = pcaps->center-pcaps->axis*pcaps->hh; sph.r = pcaps->r;	pmode->dir.zero();
-		if ((bContact1 = box_sphere_lin_unprojection(pmode, pbox,iFeature1, &sph,-1, &capcont,parea)) && 
-			  (capcont.t>pcontact->t || capcont.n*pcaps->axis>0))
-			*pcontact = capcont, dir_best = pmode->dir;
-		sph.center = pcaps->center+pcaps->axis*pcaps->hh;	pmode->dir.zero();
-		if ((bContact2 = box_sphere_lin_unprojection(pmode, pbox,iFeature1, &sph,-1, &capcont,parea)) && 
-				(capcont.t>pcontact->t || capcont.n*pcaps->axis<0))
-			*pcontact = capcont, dir_best = pmode->dir;
+		check_cap(box,pbox,1)
+		check_cap(box,pbox,2)
 		pmode->dir = dir_best;
 	}	else {
 		bContact0 = box_cylinder_lin_unprojection(pmode, pbox,iFeature1, pcaps,0x43, pcontact,parea);
@@ -2133,7 +2136,7 @@ int cyl_cyl_lin_unprojection(unprojection_mode *pmode, const cylinder *pcyl1,int
 			t1.set((dp^pcyl1->axis)*axisx, (real)1);//sina);
 			//pcontact->t = tmax.x*t0.y;
 			pcontact->pt = pcyl2->center + pcyl2->axis*t1.x;//val();
-			pcontact->n = axisx*sgnnz(axisx*(pcyl2->center-pcyl1->center));
+			pcontact->n = axisx*sgnnz(axisx*dp);
 			pcontact->pt -= pcontact->n*pcyl2->r;
 			pcontact->iFeature[0] = pcontact->iFeature[1] = 0x40;
 			break;
@@ -2272,16 +2275,8 @@ int cylinder_capsule_lin_unprojection(unprojection_mode *pmode, const cylinder *
 		if (bContact0 = cyl_cyl_lin_unprojection(pmode, pcyl,iFeature1, pcaps,0x43, pcontact,parea))
 			dir_best = pmode->dir;
 		tcyl = pcontact->t;
-		sph.center = pcaps->center-pcaps->axis*pcaps->hh; sph.r = pcaps->r;	pmode->dir.zero();
-		if ((bContact1 = cylinder_sphere_lin_unprojection(pmode, pcyl,iFeature1, &sph,-1, &capcont,parea)) && 
-			  (capcont.t>pcontact->t || capcont.n*pcaps->axis>0))
-			*pcontact = capcont, dir_best = pmode->dir;
-		else bContact1=0;
-		sph.center = pcaps->center+pcaps->axis*pcaps->hh;	pmode->dir.zero();
-		if ((bContact2 = cylinder_sphere_lin_unprojection(pmode, pcyl,iFeature1, &sph,-1, &capcont,parea)) && 
-				(capcont.t>pcontact->t || capcont.n*pcaps->axis<0))
-			*pcontact = capcont, dir_best = pmode->dir;
-		else bContact2=0;
+		check_cap(cylinder,pcyl,1)
+		check_cap(cylinder,pcyl,2)
 		pmode->dir = dir_best;
 	}	else {
 		bContact0 = cyl_cyl_lin_unprojection(pmode, pcyl,iFeature1, pcaps,0x43, pcontact,parea);

@@ -7,6 +7,9 @@
 
 using namespace CryAudio::Impl;
 
+extern FmodSwitchToIndexMap g_switchToIndex;
+extern AudioParameterToIndexMap g_parameterToIndex;
+
 //////////////////////////////////////////////////////////////////////////
 CAudioObject_fmod::CAudioObject_fmod(AudioObjectId const _id)
 	: m_id(_id)

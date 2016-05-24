@@ -146,7 +146,6 @@ void Console::Init()
 	DefineConstIntCVar(ca_AllowMultipleEffectsOfSameName, 1, VF_CHEAT, "Allow a skeleton animation to spawn more than one instance of an effect with the same name on the same instance.");
 	DefineConstIntCVar(ca_UseAssetDefinedLod, 0, VF_CHEAT, "Lowers render LODs for characters with respect to \"consoles_lod0\" UDP. Requires characters to be reloaded.");
 	DefineConstIntCVar(ca_Validate, 0, VF_CHEAT, "if set to 1, will run validation on animation data");
-
 #if USE_FACIAL_ANIMATION_FRAMERATE_LIMITING
 	DefineConstIntCVar(ca_FacialAnimationFramerate, 20, VF_CHEAT, "Update facial system at a maximum framerate of n. This framerate falls off linearly to zero with the distance.");
 #endif
@@ -224,7 +223,7 @@ void Console::Init()
 	DefineConstIntCVar(ca_DrawCloth, 1, VF_CHEAT, "bitfield: 2 shows particles, 4 shows proxies, 6 shows both");
 	DefineConstIntCVar(ca_ClothBlending, 1, VF_CHEAT, "if this is 0 blending with animation is disabled");
 	DefineConstIntCVar(ca_ClothBypassSimulation, 0, VF_CHEAT, "if this is 0 actual cloth simulation is disabled (wrap skinning still works)");
-	DefineConstIntCVar(ca_ClothMaxChars, 10, VF_CHEAT, "max characters with cloth on screen");
+	DefineConstIntCVar(ca_ClothMaxChars, 20, VF_CHEAT, "max characters with cloth on screen");
 
 }
 

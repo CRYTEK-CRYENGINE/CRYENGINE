@@ -56,52 +56,6 @@ struct SSerialisePerformanceMetrics : public INetChannel::SPerformanceMetrics
 };
 #endif // NEW_BANDWIDTH_MANAGEMENT
 
-#if NETWORK_REBROADCASTER
-struct SRebroadcasterPopulateMessage
-{
-	SRebroadcasterPopulateMessage() { msg.Reset(); }
-	SRebroadcasterPopulateMessage(const SRebroadcasterConnection& connection) { msg = connection; }
-
-	void SerializeWith(TSerialize ser)
-	{
-		ser.ValueChar("name", msg.name, REBROADCASTER_CHANNEL_NAME_SIZE);
-		ser.Value("chid", msg.channelID);
-	}
-
-	SRebroadcasterConnection msg;
-};
-
-struct SRebroadcasterDeleteMessage
-{
-	SRebroadcasterDeleteMessage() : channelID(0) {};
-	SRebroadcasterDeleteMessage(TNetChannelID id) : channelID(id) {};
-
-	void SerializeWith(TSerialize ser)
-	{
-		ser.Value("chid", channelID);
-	}
-
-	TNetChannelID channelID;
-};
-
-struct SRebroadcasterUpdateMessage
-{
-	SRebroadcasterUpdateMessage() : fromID(0), toID(0), state(0) {}
-	SRebroadcasterUpdateMessage(TNetChannelID from, TNetChannelID to, uint8 status) : fromID(from), toID(to), state(status) {}
-
-	void SerializeWith(TSerialize ser)
-	{
-		ser.Value("frid", fromID);
-		ser.Value("toid", toID);
-		ser.Value("stat", state);
-	}
-
-	TNetChannelID fromID;
-	TNetChannelID toID;
-	uint8         state;
-};
-#endif // NETWORK_REBROADCASTER
-
 class CNetChannel : public CNetMessageSinkHelper<CNetChannel, INetChannel>, public INubMember, public ICTPEndpointListener
 {
 public:
@@ -114,7 +68,6 @@ public:
 	virtual void               SetChannelMask(ChannelMaskType newMask) { m_channelMask = newMask; }
 	virtual void               SetClient(INetContext* pNetContext);
 	virtual void               SetServer(INetContext* pNetContext);
-	virtual void               SetPeer(INetContext* pNetContext);
 	virtual void               Disconnect(EDisconnectionCause cause, const char* fmt, ...);
 	virtual void               SendMsg(INetMessage*);
 	virtual bool               AddSendable(INetSendablePtr pSendable, int numAfterHandle, const SSendableHandle* afterHandle, SSendableHandle* handle);
@@ -322,12 +275,6 @@ public:
 
 	NET_DECLARE_IMMEDIATE_MESSAGE(Ping);
 	NET_DECLARE_IMMEDIATE_MESSAGE(Pong);
-
-#if NETWORK_REBROADCASTER
-	NET_DECLARE_SIMPLE_IMMEDIATE_MESSAGE(RebroadcasterPopulate, SRebroadcasterPopulateMessage);
-	NET_DECLARE_SIMPLE_IMMEDIATE_MESSAGE(RebroadcasterDelete, SRebroadcasterDeleteMessage);
-	NET_DECLARE_SIMPLE_IMMEDIATE_MESSAGE(RebroadcasterUpdate, SRebroadcasterUpdateMessage);
-#endif
 
 	CNetwork*          GetNetwork() { return (CNetwork*)gEnv->pNetwork; }
 

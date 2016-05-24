@@ -981,9 +981,9 @@ bool ConeTraceBrick_SSR(const float3 vRayStartPos,  Ray r, const float _fDistanc
 		r.startpoint += r.direction*.1;
 		fDistance = fDistanceIn + length(r.startpoint - vRayStartPos); 
 
-		for(int s=0; s<64; s++)
+		for(int s=0; s<100; s++)
 		{
-			float fVoxSize = (1 + (fDistM*2.5 + fDistance) * .5) / 7;
+			float fVoxSize = (1 + (fDistM + fDistance) * .5) / 7;
 
 			r.startpoint += r.direction*fVoxSize*fStepSize;
 
@@ -999,6 +999,9 @@ bool ConeTraceBrick_SSR(const float3 vRayStartPos,  Ray r, const float _fDistanc
         vTC0 /= vTC0.w;
         vTC0.xy = vTC0.xy*0.5f+0.5f;
         vTC0.y = 1-vTC0.y;
+
+				if (vTC0.x < 0 || vTC0.x>1 || vTC0.y < 0 || vTC0.y>1 || vTC0.z < 0 || vTC0.z>1)
+					break;
 
 				// read depth
 				float fScrDepth = GetLinearDepth(tex2Dlod(sceneDepthMapSampler, float4(vTC0.xy, 0, 0)).x) * PS_NearFarClipDist.y;

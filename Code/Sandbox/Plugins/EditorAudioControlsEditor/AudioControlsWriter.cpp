@@ -11,6 +11,7 @@
 #include <IAudioSystemEditor.h>
 #include <IAudioSystemItem.h>
 #include "QtUtil.h"
+#include <ConfigurationManager.h>
 
 #include <QModelIndex>
 #include <QStandardItemModel>
@@ -22,7 +23,7 @@ namespace ACE
 
 const string CAudioControlsWriter::ms_sControlsPath = AUDIO_SYSTEM_DATA_ROOT CRY_NATIVE_PATH_SEPSTR "ace" CRY_NATIVE_PATH_SEPSTR;
 const string CAudioControlsWriter::ms_sLevelsFolder = "levels" CRY_NATIVE_PATH_SEPSTR;
-const uint CAudioControlsWriter::ms_currentFileVersion = 1;
+const uint CAudioControlsWriter::ms_currentFileVersion = 2;
 
 string TypeToTag(EACEControlType eType)
 {
@@ -98,7 +99,7 @@ void CAudioControlsWriter::WriteLibrary(const string& sLibraryName, QModelIndex 
 		// If empty, force it to write an empty library at the root
 		if (library.empty())
 		{
-			library[""].bDirty = true;
+			library[m_pATLModel->GetGlobalScope()].bDirty = true;
 		}
 
 		TLibraryStorage::const_iterator it = library.begin();
@@ -106,8 +107,8 @@ void CAudioControlsWriter::WriteLibrary(const string& sLibraryName, QModelIndex 
 		for (; it != end; ++it)
 		{
 			string sLibraryPath;
-			const string sScope = it->first;
-			if (sScope.empty())
+			const Scope scope = it->first;
+			if (scope == m_pATLModel->GetGlobalScope())
 			{
 				// no scope, file at the root level
 				sLibraryPath = ms_sControlsPath + sLibraryName;
@@ -115,7 +116,7 @@ void CAudioControlsWriter::WriteLibrary(const string& sLibraryName, QModelIndex 
 			else
 			{
 				// with scope, inside level folder
-				sLibraryPath = ms_sControlsPath + ms_sLevelsFolder + sScope + CRY_NATIVE_PATH_SEPSTR + sLibraryName;
+				sLibraryPath = ms_sControlsPath + ms_sLevelsFolder + m_pATLModel->GetScopeInfo(scope).name + CRY_NATIVE_PATH_SEPSTR + sLibraryName;
 			}
 
 			m_foundLibraryPaths.insert(sLibraryPath.MakeLower() + ".xml");
@@ -253,14 +254,14 @@ void CAudioControlsWriter::WriteControlToXML(XmlNodeRef pNode, CATLControl* pCon
 		{
 			pChildNode->setAttr("atl_type", "AutoLoad");
 		}
-		WritePlatformsToXML(pChildNode, pControl);
-		uint nNumGroups = m_pATLModel->GetConnectionGroupCount();
-		for (uint i = 0; i < nNumGroups; ++i)
+
+		const std::vector<dll_string>& platforms = GetIEditor()->GetConfigurationManager()->GetPlatformNames();
+		const size_t count = platforms.size();
+		for (size_t i = 0; i < count; ++i)
 		{
-			XmlNodeRef pGroupNode = pChildNode->createNode("ATLConfigGroup");
-			string sGroupName = m_pATLModel->GetConnectionGroupAt(i);
-			pGroupNode->setAttr("atl_name", sGroupName);
-			WriteConnectionsToXML(pGroupNode, pControl, sGroupName);
+			XmlNodeRef pGroupNode = pChildNode->createNode("ATLPlatform");
+			pGroupNode->setAttr("atl_name", platforms[i].c_str());
+			WriteConnectionsToXML(pGroupNode, pControl, i);
 			if (pGroupNode->getChildCount() > 0)
 			{
 				pChildNode->addChild(pGroupNode);
@@ -269,27 +270,24 @@ void CAudioControlsWriter::WriteControlToXML(XmlNodeRef pNode, CATLControl* pCon
 	}
 	else
 	{
-		WriteConnectionsToXML(pChildNode, pControl, g_sDefaultGroup);
+		WriteConnectionsToXML(pChildNode, pControl);
 	}
 
 	pNode->addChild(pChildNode);
 }
 
-void CAudioControlsWriter::WriteConnectionsToXML(XmlNodeRef pNode, CATLControl* pControl, const string& sGroup)
+void CAudioControlsWriter::WriteConnectionsToXML(XmlNodeRef pNode, CATLControl* pControl, const int platformIndex)
 {
 	if (pControl && m_pAudioSystemImpl)
 	{
-		TXMLNodeList defaultNodes;
-		TXMLNodeList& otherNodes = stl::find_in_map_ref(pControl->m_connectionNodes, sGroup, defaultNodes);
+		XMLNodeList& otherNodes = pControl->GetRawXMLConnections(platformIndex);
 
-		TXMLNodeList::const_iterator end = std::remove_if(otherNodes.begin(), otherNodes.end(), [](const SRawConnectionData& node) { return node.bValid; });
+		XMLNodeList::const_iterator end = std::remove_if(otherNodes.begin(), otherNodes.end(), [](const SRawConnectionData& node) { return node.bValid; });
 		otherNodes.erase(end, otherNodes.end());
 
-		TXMLNodeList::const_iterator it = otherNodes.begin();
-		end = otherNodes.end();
-		for (; it != end; ++it)
+		for (auto& node : otherNodes)
 		{
-			pNode->addChild(it->xmlNode);
+			pNode->addChild(node.xmlNode);
 		}
 
 		const int size = pControl->GetConnectionCount();
@@ -298,33 +296,18 @@ void CAudioControlsWriter::WriteConnectionsToXML(XmlNodeRef pNode, CATLControl* 
 			ConnectionPtr pConnection = pControl->GetConnectionAt(i);
 			if (pConnection)
 			{
-				if (pConnection->GetGroup() == sGroup)
+				if (pControl->GetType() != eACEControlType_Preload || pConnection->IsPlatformEnabled(platformIndex))
 				{
 					XmlNodeRef pChild = m_pAudioSystemImpl->CreateXMLNodeFromConnection(pConnection, pControl->GetType());
 					if (pChild)
 					{
 						pNode->addChild(pChild);
-						pControl->m_connectionNodes[sGroup].push_back(SRawConnectionData(pChild, true));
+						pControl->AddRawXMLConnection(pChild, true, platformIndex);
 					}
 				}
 			}
 		}
 	}
-}
-
-void CAudioControlsWriter::WritePlatformsToXML(XmlNodeRef pNode, CATLControl* pControl)
-{
-	XmlNodeRef pPlatformsNode = pNode->createNode("ATLPlatforms");
-	uint nNumPlatforms = m_pATLModel->GetPlatformCount();
-	for (uint j = 0; j < nNumPlatforms; ++j)
-	{
-		XmlNodeRef pPlatform = pPlatformsNode->createNode("Platform");
-		string sPlatformName = m_pATLModel->GetPlatformAt(j);
-		pPlatform->setAttr("atl_name", sPlatformName);
-		pPlatform->setAttr("atl_config_group_name", m_pATLModel->GetConnectionGroupAt(pControl->GetGroupForPlatform(sPlatformName)));
-		pPlatformsNode->addChild(pPlatform);
-	}
-	pNode->addChild(pPlatformsNode);
 }
 
 void CAudioControlsWriter::CheckOutFile(const string& filepath)

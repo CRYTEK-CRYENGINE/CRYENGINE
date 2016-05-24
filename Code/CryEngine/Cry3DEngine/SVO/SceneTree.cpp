@@ -2470,8 +2470,8 @@ static int32 SAnalyticalOccluder_Compare(const void* v1, const void* v2)
 {
 	I3DEngine::SAnalyticalOccluder* p[2] = { (I3DEngine::SAnalyticalOccluder*)v1, (I3DEngine::SAnalyticalOccluder*)v2 };
 
-	float d0 = p[0]->v0.GetSquaredDistance(gEnv->pSystem->GetViewCamera().GetPosition());
-	float d1 = p[1]->v1.GetSquaredDistance(gEnv->pSystem->GetViewCamera().GetPosition());
+	float d0 = p[0]->c.GetSquaredDistance(gEnv->pSystem->GetViewCamera().GetPosition());
+	float d1 = p[1]->c.GetSquaredDistance(gEnv->pSystem->GetViewCamera().GetPosition());
 
 	if (d0 > d1)
 		return 1;
@@ -2515,27 +2515,52 @@ void CSvoEnv::CollectAnalyticalOccluders()
 
 			// make a sphere, box or capsule from geom entity (for now only capsule is supported)
 			if (CStatObj* pStatObj = (CStatObj*)pRN->GetEntityStatObj(0, 0, &matParent, true))
-				if (strstr(pRN->GetName(), "_TI"))
+				if (strstr(pRN->GetName(), "_TI_AO"))
 				{
 					bool bSphere = strstr(pStatObj->GetFilePath(), "sphere") != NULL;
 					bool bCube = strstr(pStatObj->GetFilePath(), "cube") != NULL;
 
-					if (bSphere || bCube)
+					if (bCube)
+					{
+						Vec3 vCenter = pStatObj->GetAABB().GetCenter();
+						Vec3 vX = Vec3(1, 0, 0);
+						Vec3 vY = Vec3(0, 1, 0);
+						Vec3 vZ = Vec3(0, 0, 1);
+
+						vCenter = matParent.TransformPoint(vCenter);
+						vX = matParent.TransformVector(vX);
+						vY = matParent.TransformVector(vY);
+						vZ = matParent.TransformVector(vZ);
+
+						I3DEngine::SAnalyticalOccluder obb;
+
+						obb.v0 = vX.GetNormalized();
+						obb.e0 = vX.GetLength();
+						obb.v1 = vY.GetNormalized();
+						obb.e1 = vY.GetLength();
+						obb.v2 = vZ.GetNormalized();
+						obb.e2 = vZ.GetLength();
+						obb.c = vCenter;
+						obb.type = (float)I3DEngine::SAnalyticalOccluder::eOBB;
+
+						m_AnalyticalOccluders.Add(obb);
+					}
+					else if (bSphere)
 					{
 						I3DEngine::SAnalyticalOccluder capsule;
 						capsule.type = (float)I3DEngine::SAnalyticalOccluder::eCapsule;
 
 						Vec3 vCenter = pStatObj->GetAABB().GetCenter();
-						Vec3 vUp = Vec3(0, 0, 1);
-						Vec3 vSide = Vec3(1, 0, 0);
+						Vec3 vZ = Vec3(0, 0, 1);
+						Vec3 vX = Vec3(1, 0, 0);
 
 						vCenter = matParent.TransformPoint(vCenter);
-						vUp = matParent.TransformVector(vUp);
-						vSide = matParent.TransformVector(vSide);
+						vZ = matParent.TransformVector(vZ);
+						vX = matParent.TransformVector(vX);
 
-						capsule.v0 = vCenter + vUp;
-						capsule.v1 = vCenter - vUp;
-						capsule.radius = vSide.GetLength();
+						capsule.v0 = vCenter + vZ;
+						capsule.v1 = vCenter - vZ;
+						capsule.radius = vX.GetLength();
 
 						m_AnalyticalOccluders.Add(capsule);
 					}
@@ -2580,8 +2605,15 @@ void CSvoEnv::CollectAnalyticalOccluders()
 							for (int i = 0; i < MAX_BONES; i++)
 							{
 								int nJointID = pCharacter->GetIDefaultSkeleton().GetJointIDByName(m_arrOccluderBoneNames[i]);
-								Matrix34A tm34 = matParent * Matrix34(pSkeletonPose->GetAbsJointByID(nJointID));
-								arrBonePos[i] = tm34.GetTranslation();
+								if (nJointID >= 0)
+								{
+									Matrix34A tm34 = matParent * Matrix34(pSkeletonPose->GetAbsJointByID(nJointID));
+									arrBonePos[i] = tm34.GetTranslation();
+								}
+								else
+								{
+									arrBonePos[i].zero();
+								}
 							}
 
 							I3DEngine::SAnalyticalOccluder capsule;
@@ -2714,6 +2746,21 @@ void CSvoEnv::CollectAnalyticalOccluders()
 			}
 		}
 
+		// remove invalid objects
+		for (int n = 0; n < m_AnalyticalOccluders.Count(); n++)
+		{
+			if (m_AnalyticalOccluders[n].v0.IsZero() || m_AnalyticalOccluders[n].v1.IsZero())
+			{
+				m_AnalyticalOccluders.DeleteFastUnsorted(n);
+				n--;
+				continue;
+			}
+			
+			if (m_AnalyticalOccluders[n].type == (float)I3DEngine::SAnalyticalOccluder::eCapsule)
+				m_AnalyticalOccluders[n].c = (m_AnalyticalOccluders[n].v0 + m_AnalyticalOccluders[n].v1) * 0.5f;
+		}
+
+		// sort by importance
 		if (m_AnalyticalOccluders.Count() > 1)
 			qsort(m_AnalyticalOccluders.GetElements(), m_AnalyticalOccluders.Count(), sizeof(m_AnalyticalOccluders[0]), SAnalyticalOccluder_Compare);
 	}
@@ -2726,15 +2773,15 @@ void CSvoEnv::InitOccluderBoneNames()
 	ZeroStruct(m_arrOccluderBoneNames);
 
 	if (sscanf(szBoneNames, "%s %s %s %s %s %s %s %s",
-	           m_arrOccluderBoneNames[0], m_arrOccluderBoneNames[1], m_arrOccluderBoneNames[2], m_arrOccluderBoneNames[3], m_arrOccluderBoneNames[5], m_arrOccluderBoneNames[7], m_arrOccluderBoneNames[9], m_arrOccluderBoneNames[11]))
+		m_arrOccluderBoneNames[0], m_arrOccluderBoneNames[1], m_arrOccluderBoneNames[2], m_arrOccluderBoneNames[3], m_arrOccluderBoneNames[5], m_arrOccluderBoneNames[7], m_arrOccluderBoneNames[9], m_arrOccluderBoneNames[11]))
 	{
 		if (sscanf(szBoneNames, "%s %s %s %s %s %s %s %s",
-		           m_arrOccluderBoneNames[0], m_arrOccluderBoneNames[1], m_arrOccluderBoneNames[2], m_arrOccluderBoneNames[4], m_arrOccluderBoneNames[6], m_arrOccluderBoneNames[8], m_arrOccluderBoneNames[10], m_arrOccluderBoneNames[12]))
+			m_arrOccluderBoneNames[0], m_arrOccluderBoneNames[1], m_arrOccluderBoneNames[2], m_arrOccluderBoneNames[4], m_arrOccluderBoneNames[6], m_arrOccluderBoneNames[8], m_arrOccluderBoneNames[10], m_arrOccluderBoneNames[12]))
 		{
 			// restore spaces
 			for (int i = 0; i < sizeof(m_arrOccluderBoneNames); i++)
 			{
-				if (((char*)&m_arrOccluderBoneNames[0])[i] == '_')
+				if (((char*)&m_arrOccluderBoneNames[0])[i] == '#')
 					((char*)&m_arrOccluderBoneNames[0])[i] = ' ';
 			}
 
@@ -2742,7 +2789,26 @@ void CSvoEnv::InitOccluderBoneNames()
 			for (int i = 0; i < MAX_BONES; i++)
 			{
 				if (char* p = strstr(m_arrOccluderBoneNames[i], "*"))
-					*p = (i & 1) ? 'R' : 'L';
+				{
+					const char * pInsert = (i & 1) ? "Right" : "Left";
+
+					memmove(p + strlen(pInsert), p + 1, strlen(p + 1));
+
+					memcpy(p, pInsert, strlen(pInsert));
+				}
+			}
+
+			// replace '$'
+			for (int i = 0; i < MAX_BONES; i++)
+			{
+				if (char* p = strstr(m_arrOccluderBoneNames[i], "$"))
+				{
+					const char * pInsert = (i & 1) ? "R" : "L";
+
+					memmove(p + strlen(pInsert), p + 1, strlen(p + 1));
+
+					memcpy(p, pInsert, strlen(pInsert));
+				}
 			}
 		}
 	}

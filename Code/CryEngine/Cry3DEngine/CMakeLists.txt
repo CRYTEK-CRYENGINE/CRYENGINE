@@ -110,15 +110,6 @@ set (SourceGroup_Effects_FogVolumes
 source_group("Effects\\FogVolumes" FILES ${SourceGroup_Effects_FogVolumes})
 
 
-set (SourceGroup_Effects_LightPropagationVolumes
-	GlobalIllumination.cpp
-	GlobalIllumination.h
-	LPVRenderNode.cpp
-	LPVRenderNode.h
-)
-source_group("Effects\\LightPropagationVolumes" FILES ${SourceGroup_Effects_LightPropagationVolumes})
-
-
 set (SourceGroup_Effects_Optics
 	OpticsManager.cpp
 	OpticsManager.h
@@ -433,7 +424,7 @@ enable_unity_build( "Cry3DEngine_main_1_uber.cpp" Cry3DEngine_main_1_uber_cpp )
 set(Cry3DEngine_main_2_uber_cpp ${SourceGroup_Brush} ${SourceGroup_CFG} ${SourceGroup_CVars} ${SourceGroup_Effects_Clounds} ${SourceGroup_MeshCompiler}  )
 enable_unity_build( "Cry3DEngine_main_2_uber.cpp" Cry3DEngine_main_2_uber_cpp )
 
-set(Cry3DEngine_main_3_uber_cpp ${SourceGroup_Effects_Decals} ${SourceGroup_Effects_FogVolumes} ${SourceGroup_Effects_LightPropagationVolumes} ${SourceGroup_Effects_Optics} ${SourceGroup_GeomCache} ${SourceGroup_RenderNodes} ${SourceGroup_RenderNodes_Roads} ${SourceGroup_RenderNodes_Ropes} ${SourceGroup_SVO}  )
+set(Cry3DEngine_main_3_uber_cpp ${SourceGroup_Effects_Decals} ${SourceGroup_Effects_FogVolumes} ${SourceGroup_Effects_Optics} ${SourceGroup_GeomCache} ${SourceGroup_RenderNodes} ${SourceGroup_RenderNodes_Roads} ${SourceGroup_RenderNodes_Ropes} ${SourceGroup_SVO}  )
 enable_unity_build( "Cry3DEngine_main_3_uber.cpp" Cry3DEngine_main_3_uber_cpp )
 
 set(Cry3DEngine_objects_uber_cpp ${SourceGroup_ObjectManager} ${SourceGroup_ObjectsTree} ${SourceGroup_StatObj}  )

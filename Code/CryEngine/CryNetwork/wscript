@@ -20,6 +20,3 @@ def build(bld):
 
 		durango_lib     = 'Ws2_32'
 	)
-
-	# Recursive into all sub projects
-	bld.recurse( 'Lobby' )

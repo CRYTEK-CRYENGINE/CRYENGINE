@@ -90,40 +90,17 @@ void CObjManager::RenderDecalAndRoad(IRenderNode* pEnt, PodArray<CDLight*>* pAff
 	DrawParams.fDistance = fEntDistance;
 	DrawParams.AmbientColor = vAmbColor;
 	DrawParams.pRenderNode = pEnt;
-
-	// set lights bit mask
-	if (bSunOnly)
-	{
-		DrawParams.nDLightMask = 1;
-	}
-	else if (pAffectingLights)
-	{
-		//DrawParams.restLightInfo.refPoint = m_p3DEngine->GetEntityRegisterPoint( pEnt );
-		DrawParams.nDLightMask = m_p3DEngine->BuildLightMask(objBox, pAffectingLights, pVisArea, (nRndFlags & ERF_OUTDOORONLY) != 0, passInfo);//, &DrawParams.restLightInfo);
-	}
-
 	DrawParams.nAfterWater = IsAfterWater(objBox.GetCenter(), vCamPos, passInfo) ? 1 : 0;
 
 	// draw bbox
 	if (GetCVars()->e_BBoxes)// && eERType != eERType_Light)
 	{
-		RenderObjectDebugInfo(pEnt, fEntDistance, DrawParams.nDLightMask, passInfo);
+		RenderObjectDebugInfo(pEnt, fEntDistance, passInfo);
 	}
 
 	DrawParams.dwFObjFlags |= FOB_TRANS_MASK;
 
 	DrawParams.m_pVisArea = pVisArea;
-
-	if (GetCVars()->e_DebugLights && (nRndFlags & ERF_SELECTED) && eERType != eERType_Light)
-	{
-		int nLightCount = 0;
-		for (int i = 0; i < 32; i++)
-			if (DrawParams.nDLightMask & (1 << i))
-				nLightCount++;
-
-		if (nLightCount >= GetCVars()->e_DebugLights)
-			GetRenderer()->DrawLabel(objBox.GetCenter(), 2, "%d lights", nLightCount);
-	}
 
 	DrawParams.nMaterialLayers = pEnt->GetMaterialLayers();
 
@@ -157,14 +134,8 @@ void CObjManager::RenderVegetation(CVegetation* pEnt, PodArray<CDLight*>* pAffec
 		                                   pEnt->m_pOcNode->m_pVisArea != NULL, eoot_OBJECT, passInfo))
 			return;
 
-	uint32 nDynLMMask = 0;
-	if (bSunOnly)
-		nDynLMMask = 1;
-	else if (pAffectingLights)
-		nDynLMMask = m_p3DEngine->BuildLightMask(objBox, pAffectingLights, NULL, true, passInfo);
-
 	const CLodValue lodValue = pEnt->ComputeLod(pEnt->m_pTempData->userData.nWantedLod, passInfo);
-	pEnt->Render(passInfo, lodValue, pTerrainTexInfo, nDynLMMask);
+	pEnt->Render(passInfo, lodValue, pTerrainTexInfo);
 }
 
 void CObjManager::RenderObject(IRenderNode* pEnt, PodArray<CDLight*>* pAffectingLights,
@@ -211,7 +182,6 @@ void CObjManager::RenderObject(IRenderNode* pEnt, PodArray<CDLight*>* pAffecting
 		if (!passInfo.RenderWaterVolumes()) return;
 		break;
 	case eERType_Light:
-	case eERType_LightPropagationVolume:
 		if (!GetCVars()->e_DynamicLights || !passInfo.RenderEntities()) return;
 		break;
 	case eERType_Road:
@@ -313,16 +283,6 @@ void CObjManager::RenderObject(IRenderNode* pEnt, PodArray<CDLight*>* pAffecting
 		DrawParams.nTextureID = nCubemapTexId;
 	}
 
-	// set lights bit mask
-	if (bSunOnly)
-	{
-		DrawParams.nDLightMask = 1;
-	}
-	else if (pAffectingLights)
-	{
-		DrawParams.nDLightMask = m_p3DEngine->BuildLightMask(objBox, pAffectingLights, pVisArea, (nRndFlags & ERF_OUTDOORONLY) != 0, passInfo);
-	}
-
 	if (pCVars->e_Dissolve && eERType != eERType_Light && passInfo.IsGeneralPass())
 	{
 		if (DrawParams.nDissolveRef = GetDissolveRef(fEntDistance, pEnt->m_fWSMaxViewDist))
@@ -342,7 +302,7 @@ void CObjManager::RenderObject(IRenderNode* pEnt, PodArray<CDLight*>* pAffecting
 #if !defined(_RELEASE)
 	if (pCVars->e_BBoxes)// && eERType != eERType_Light)
 	{
-		RenderObjectDebugInfo(pEnt, fEntDistance, DrawParams.nDLightMask, passInfo);
+		RenderObjectDebugInfo(pEnt, fEntDistance, passInfo);
 	}
 #endif
 
@@ -357,19 +317,6 @@ void CObjManager::RenderObject(IRenderNode* pEnt, PodArray<CDLight*>* pAffecting
 	if (pEnt->m_pTempData && pEnt->m_pTempData->userData.m_pClipVolume)
 		DrawParams.nClipVolumeStencilRef = pEnt->m_pTempData->userData.m_pClipVolume->GetStencilRef();
 
-#if !defined(_RELEASE)
-	if (pCVars->e_DebugLights && (nRndFlags & ERF_SELECTED) && eERType != eERType_Light)
-	{
-		int nLightCount = 0;
-		for (int i = 0; i < 32; i++)
-			if (DrawParams.nDLightMask & (1 << i))
-				nLightCount++;
-
-		if (nLightCount >= pCVars->e_DebugLights)
-			GetRenderer()->DrawLabel(objBox.GetCenter(), 2, "%d lights", nLightCount);
-	}
-#endif
-
 	DrawParams.nMaterialLayers = pEnt->GetMaterialLayers();
 	DrawParams.lodValue = pEnt->ComputeLod(pEnt->m_pTempData->userData.nWantedLod, passInfo);
 
@@ -383,7 +330,7 @@ void CObjManager::RenderAllObjectDebugInfo()
 	{
 		SObjManRenderDebugInfo& rRenderDebugInfo = m_arrRenderDebugInfo[i];
 		if (rRenderDebugInfo.pEnt)
-			RenderObjectDebugInfo_Impl(rRenderDebugInfo.pEnt, rRenderDebugInfo.fEntDistance, rRenderDebugInfo.nDLightMask);
+			RenderObjectDebugInfo_Impl(rRenderDebugInfo.pEnt, rRenderDebugInfo.fEntDistance);
 	}
 	m_arrRenderDebugInfo.resize(0);
 }
@@ -401,7 +348,7 @@ void CObjManager::RemoveFromRenderAllObjectDebugInfo(IRenderNode* pEnt)
 	}
 }
 
-void CObjManager::RenderObjectDebugInfo_Impl(IRenderNode* pEnt, float fEntDistance, int nDLightMask)
+void CObjManager::RenderObjectDebugInfo_Impl(IRenderNode* pEnt, float fEntDistance)
 {
 
 	if (GetCVars()->e_BBoxes > 0)
@@ -416,9 +363,7 @@ void CObjManager::RenderObjectDebugInfo_Impl(IRenderNode* pEnt, float fEntDistan
 			string sLabel = pEnt->GetDebugString();
 			if (sLabel.empty())
 			{
-				sLabel.Format("%s/%s %d/%d",
-				              pEnt->GetName(), pEnt->GetEntityClassName(),
-				              nDLightMask, 0);
+				sLabel.Format("%s/%s", pEnt->GetName(), pEnt->GetEntityClassName());
 			}
 			GetRenderer()->DrawLabelEx(pEnt->GetBBox().GetCenter(), fFontSize, (float*)&color, true, true, "%s", sLabel.c_str());
 		}

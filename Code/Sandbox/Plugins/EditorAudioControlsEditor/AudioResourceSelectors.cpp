@@ -28,7 +28,7 @@ dll_string ShowSelectDialog(const SResourceSelectorContext& context, const char*
 
 	char* szLevelName;
 	GetIEditor()->GetGame()->GetIGameFramework()->GetEditorLevel(&szLevelName, nullptr);
-	dialog.SetScope(szLevelName);
+	dialog.SetScope(pModel->GetScope(szLevelName));
 	return dialog.ChooseItem(szPreviousValue);
 }
 

@@ -11,7 +11,7 @@
 class QVBoxLayout;
 class QFrame;
 class QPropertyTree;
-class QTreeView;
+class QAdvancedTreeView;
 
 namespace ACE
 {
@@ -21,19 +21,19 @@ class QConnectionModel;
 class QConnectionsWidget : public QWidget
 {
 public:
-	QConnectionsWidget(QWidget* pParent = nullptr, const string& group = "");
+	QConnectionsWidget(QWidget* pParent = nullptr);
+	void Init();
 	void SetControl(CATLControl* pControl);
-	void Init(const string& group);
+	void Reload();
 
 private:
 	bool eventFilter(QObject* pObject, QEvent* pEvent) override;
 	void RemoveSelectedConnection();
 
-	string            m_group;
-	CATLControl*      m_pControl;
-	QFrame*           m_pConnectionPropertiesFrame;
-	QPropertyTree*    m_pConnectionProperties;
-	QConnectionModel* m_pConnectionModel;
-	QTreeView*        m_pConnectionsView;
+	CATLControl*       m_pControl;
+	QFrame*            m_pConnectionPropertiesFrame;
+	QPropertyTree*     m_pConnectionProperties;
+	QConnectionModel*  m_pConnectionModel;
+	QAdvancedTreeView* m_pConnectionsView;
 };
 }

@@ -164,16 +164,7 @@ bool CContextViewStateManager::ValidateStateTransition(EContextViewState from, E
 {
 	if (to == eCVS_Initial)
 		return true;
-
-	if (!IsMigrating())
-	{
-		return int(to) == int(from) + 1;
-	}
-	else
-	{
-		//-- Host migration can skip states, the single state increment test is not valid
-		return true;
-	}
+	return int(to) == int(from) + 1;
 }
 
 bool CContextViewStateManager::MaybeEnterState()

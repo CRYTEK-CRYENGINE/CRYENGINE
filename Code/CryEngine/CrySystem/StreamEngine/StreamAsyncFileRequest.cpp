@@ -81,7 +81,6 @@ private:
 
 void* CAsyncIOFileRequest::operator new(size_t sz)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
 	return CryModuleMemalign(sz, alignof(CAsyncIOFileRequest));
 }
 

@@ -14,6 +14,7 @@ CATLControlsModel::CATLControlsModel()
 	: m_bSuppressMessages(false)
 {
 	ClearDirtyFlags();
+	m_scopeMap[GetGlobalScope()] = SScopeInfo("global", false);
 }
 
 CATLControlsModel::~CATLControlsModel()
@@ -89,17 +90,18 @@ CATLControl* CATLControlsModel::GetControlByID(CID id) const
 	return nullptr;
 }
 
-bool CATLControlsModel::IsNameValid(const string& name, EACEControlType type, const string& scope, const CATLControl* const pParent) const
+bool CATLControlsModel::IsChangeValid(const CATLControl* const pControlToChange, const string& newName, Scope newScope) const
 {
-	const size_t size = m_controls.size();
-	for (size_t i = 0; i < size; ++i)
+	const EACEControlType type = pControlToChange->GetType();
+	const CATLControl* const pParent = pControlToChange->GetParent();
+	const bool bIsGlobal = newScope == GetGlobalScope();
+	for (auto pControl : m_controls)
 	{
-		ATLControlPtr pControl = m_controls[i];
-		if (pControl)
+		if (pControl.get() != pControlToChange)
 		{
-			if ((pControl->GetType() == type &&
-			     (pControl->GetName().compareNoCase(name) == 0)) &&
-			    (pControl->GetScope() == "" || pControl->GetScope() == scope) &&
+			if (pControl->GetType() == type &&
+			    (pControl->GetName().compareNoCase(newName) == 0) &&
+			    (bIsGlobal || pControl->GetScope() == GetGlobalScope() || pControl->GetScope() == newScope) &&
 			    (pControl->GetParent() == pParent))
 			{
 				return false;
@@ -109,133 +111,67 @@ bool CATLControlsModel::IsNameValid(const string& name, EACEControlType type, co
 	return true;
 }
 
-string CATLControlsModel::GenerateUniqueName(const string& sRootName, EACEControlType eType, const string& sScope, const CATLControl* const pParent) const
+string CATLControlsModel::GenerateUniqueName(const CATLControl* const pControlToChange, const string& newName) const
 {
-	string sFinalName = sRootName;
-	int nNumber = 1;
-	while (!IsNameValid(sFinalName, eType, sScope, pParent))
+	string finalName = newName;
+	int number = 1;
+	while (!IsChangeValid(pControlToChange, finalName, pControlToChange->GetScope()))
 	{
-		sFinalName = sRootName + "_" + CryStringUtils::toString(nNumber);
-		++nNumber;
+		finalName = newName + "_" + CryStringUtils::toString(number);
+		++number;
 	}
 
-	return sFinalName;
+	return finalName;
+}
+
+void CATLControlsModel::ClearScopes()
+{
+	m_scopeMap.clear();
+
+	// The global scope must always exist
+	m_scopeMap[GetGlobalScope()] = SScopeInfo("global", false);
 }
 
 void CATLControlsModel::AddScope(const string& name, bool bLocalOnly)
 {
 	string scopeName = name;
-	scopeName.MakeLower();
-	const size_t size = m_scopes.size();
-	for (int i = 0; i < size; ++i)
-	{
-		if (m_scopes[i].name == scopeName)
-		{
-			return;
-		}
-	}
-	m_scopes.push_back(SControlScope(scopeName, bLocalOnly));
-}
-
-void CATLControlsModel::ClearScopes()
-{
-	m_scopes.clear();
+	m_scopeMap[CCrc32::Compute(scopeName.MakeLower())] = SScopeInfo(scopeName, bLocalOnly);
 }
 
 bool CATLControlsModel::ScopeExists(const string& name) const
 {
 	string scopeName = name;
+	return m_scopeMap.find(CCrc32::Compute(scopeName.MakeLower())) != m_scopeMap.end();
+}
+
+void CATLControlsModel::GetScopeInfoList(ScopeInfoList& scopeList) const
+{
+	stl::map_to_vector(m_scopeMap, scopeList);
+}
+
+Scope CATLControlsModel::GetGlobalScope() const
+{
+	static const Scope globalScopeId = CCrc32::Compute("global");
+	return globalScopeId;
+}
+
+Scope CATLControlsModel::GetScope(const string& name) const
+{
+	string scopeName = name;
 	scopeName.MakeLower();
-	const size_t size = m_scopes.size();
-	for (int i = 0; i < size; ++i)
-	{
-		if (m_scopes[i].name == name)
-		{
-			return true;
-		}
-	}
-	return false;
+	return CCrc32::Compute(scopeName);
 }
 
-int CATLControlsModel::GetScopeCount() const
+SScopeInfo CATLControlsModel::GetScopeInfo(Scope id) const
 {
-	return m_scopes.size();
-}
-
-SControlScope CATLControlsModel::GetScopeAt(int index) const
-{
-	if (index < m_scopes.size())
-	{
-		return m_scopes[index];
-	}
-	return SControlScope();
-}
-
-string CATLControlsModel::GetPlatformAt(uint index)
-{
-	if (index < m_platforms.size())
-	{
-		return m_platforms[index];
-	}
-	return "";
-}
-
-uint CATLControlsModel::GetPlatformCount()
-{
-	return m_platforms.size();
-}
-
-void CATLControlsModel::AddPlatform(const string& name)
-{
-	string lowercaseName = CryStringUtils::toLower(name);
-	if (std::find(m_platforms.begin(), m_platforms.end(), lowercaseName) == m_platforms.end())
-	{
-		m_platforms.push_back(lowercaseName);
-	}
+	return stl::find_in_map(m_scopeMap, id, SScopeInfo());
 }
 
 void CATLControlsModel::Clear()
 {
 	m_controls.clear();
-	m_scopes.clear();
-	m_platforms.clear();
-	m_connectionGroups.clear();
+	ClearScopes();
 	ClearDirtyFlags();
-}
-
-void CATLControlsModel::AddConnectionGroup(const string& name)
-{
-	if (std::find(m_connectionGroups.begin(), m_connectionGroups.end(), name) == m_connectionGroups.end())
-	{
-		m_connectionGroups.push_back(name);
-	}
-}
-
-int CATLControlsModel::GetConnectionGroupId(const string& name)
-{
-	size_t size = m_connectionGroups.size();
-	for (int i = 0; i < size; ++i)
-	{
-		if (m_connectionGroups[i].compare(name) == 0)
-		{
-			return i;
-		}
-	}
-	return -1;
-}
-
-int CATLControlsModel::GetConnectionGroupCount() const
-{
-	return m_connectionGroups.size();
-}
-
-string CATLControlsModel::GetConnectionGroupAt(int index) const
-{
-	if (index < m_connectionGroups.size())
-	{
-		return m_connectionGroups[index];
-	}
-	return "";
 }
 
 void CATLControlsModel::AddListener(IATLControlModelListener* pListener)
@@ -340,7 +276,7 @@ void CATLControlsModel::ClearDirtyFlags()
 	}
 }
 
-CATLControl* CATLControlsModel::FindControl(const string& sControlName, EACEControlType eType, const string& sScope, CATLControl* pParent) const
+CATLControl* CATLControlsModel::FindControl(const string& sControlName, EACEControlType eType, Scope scope, CATLControl* pParent) const
 {
 	if (pParent)
 	{
@@ -351,7 +287,7 @@ CATLControl* CATLControlsModel::FindControl(const string& sControlName, EACECont
 			if (pControl &&
 			    pControl->GetName() == sControlName &&
 			    pControl->GetType() == eType &&
-			    pControl->GetScope() == sScope)
+			    pControl->GetScope() == scope)
 			{
 				return pControl;
 			}
@@ -366,7 +302,7 @@ CATLControl* CATLControlsModel::FindControl(const string& sControlName, EACECont
 			if (pControl &&
 			    pControl->GetName() == sControlName &&
 			    pControl->GetType() == eType &&
-			    pControl->GetScope() == sScope)
+			    pControl->GetScope() == scope)
 			{
 				return pControl;
 			}

@@ -7,6 +7,7 @@
 #include <CryMath/GeomQuery.h>
 #include "RenderMesh.h"
 #include "PostProcess/PostEffects.h"
+#include "ComputeSkinningStorage.h"
 #include <CryMath/QTangent.h>
 #include <CryThreading/IJobManager_JobDelegator.h>
 
@@ -301,7 +302,7 @@ int32 CRenderMesh::m_cSizeVF[eVF_Max] =
 	sizeof(SVF_C4B_T2S),
 
 	sizeof(SVF_P2F_T4F_C4F),
-	0, //sizeof(SVF_P2F_T4F_T4F_C4F)
+	0,                     //sizeof(SVF_P2F_T4F_T4F_C4F)
 
 	sizeof(SVF_P2S_N4B_C4B_T1F),
 	sizeof(SVF_P3F_C4B_T2S),
@@ -311,12 +312,12 @@ int32 CRenderMesh::m_cSizeVF[eVF_Max] =
 int32 CRenderMesh::m_cSizeStream[VSF_NUM] =
 {
 	-1,
-	sizeof(SPipTangents),        // VSF_TANGENTS
-	sizeof(SPipQTangents),       // VSF_QTANGENTS
-	sizeof(SVF_W4B_I4S),         // VSF_HWSKIN_INFO
-	sizeof(SVF_P3F),             // VSF_VERTEX_VELOCITY
+	sizeof(SPipTangents),  // VSF_TANGENTS
+	sizeof(SPipQTangents), // VSF_QTANGENTS
+	sizeof(SVF_W4B_I4S),   // VSF_HWSKIN_INFO
+	sizeof(SVF_P3F),       // VSF_VELOCITY
 #if ENABLE_NORMALSTREAM_SUPPORT
-	sizeof(SPipNormal),          // VSF_NORMALS
+	sizeof(SPipNormal),    // VSF_NORMALS
 #endif
 };
 
@@ -328,69 +329,69 @@ SBufInfoTable CRenderMesh::m_cBufInfoTable[eVF_Max] =
 	{
 		-1, -1, -1
 	},
-	{    //eVF_P3F_C4B_T2F
+	{                      //eVF_P3F_C4B_T2F
 		OOFS(SVF_P3F_C4B_T2F, st),
 		OOFS(SVF_P3F_C4B_T2F, color.dcolor),
 		-1
 	},
-	{    //eVF_P3S_C4B_T2S
+	{                      //eVF_P3S_C4B_T2S
 		OOFS(SVF_P3S_C4B_T2S, st),
 		OOFS(SVF_P3S_C4B_T2S, color.dcolor),
 		-1
 	},
-	{    //eVF_P3S_N4B_C4B_T2S
+	{                      //eVF_P3S_N4B_C4B_T2S
 		OOFS(SVF_P3S_N4B_C4B_T2S, st),
 		OOFS(SVF_P3S_N4B_C4B_T2S, color.dcolor),
 		OOFS(SVF_P3S_N4B_C4B_T2S, normal)
 	},
-	{   // eVF_P3F_C4B_T4B_N3F2
+	{                      // eVF_P3F_C4B_T4B_N3F2
 		-1,
 		OOFS(SVF_P3F_C4B_T4B_N3F2, color.dcolor),
 		-1
 	},
-	{   // eVF_TP3F_C4B_T2F
+	{                      // eVF_TP3F_C4B_T2F
 		OOFS(SVF_TP3F_C4B_T2F, st),
 		OOFS(SVF_TP3F_C4B_T2F, color.dcolor),
 		-1
 	},
-	{   // eVF_TP3F_T2F_T3F
+	{                      // eVF_TP3F_T2F_T3F
 		OOFS(SVF_TP3F_T2F_T3F, st0),
 		-1,
 		-1
 	},
-	{   // eVF_P3F_T3F
+	{                      // eVF_P3F_T3F
 		OOFS(SVF_P3F_T3F, st),
 		-1,
 		-1
 	},
-	{   // eVF_P3F_T2F_T3F
+	{                      // eVF_P3F_T2F_T3F
 		OOFS(SVF_P3F_T2F_T3F, st0),
 		-1,
 		-1
 	},
-	{ -1, -1, -1 },// eVF_T2F
-	{ -1, -1, -1 },// eVF_W4B_I4B
-	{ -1, -1, -1 },// eVF_C4B_C4B
-	{ -1, -1, -1 },// eVF_P3F_P3F_I4B
+	{ -1, -1, -1 },          // eVF_T2F
+	{ -1, -1, -1 },          // eVF_W4B_I4B
+	{ -1, -1, -1 },          // eVF_C4B_C4B
+	{ -1, -1, -1 },          // eVF_P3F_P3F_I4B
 
-	{ // eVF_P3F, NOTE: aliasing position here because shaders always request texcoord and color.
+	{                      // eVF_P3F, NOTE: aliasing position here because shaders always request texcoord and color.
 		OOFS(SVF_P3F, xyz),
 		OOFS(SVF_P3F, xyz),
 		-1
 	},
-	{   // eVF_C4B_T2S
+	{                      // eVF_C4B_T2S
 		OOFS(SVF_C4B_T2S, st),
 		OOFS(SVF_C4B_T2S, color.dcolor),
 		-1
 	},
-	{ -1, -1, -1 },// eVF_P2F_T4F_C4F
-	{ -1, -1, -1 },// eVF_P2F_T4F_T4F_C4F
-	{   // eVF_P2S_N4B_C4B_T1F
+	{ -1, -1, -1 },        // eVF_P2F_T4F_C4F
+	{ -1, -1, -1 },        // eVF_P2F_T4F_T4F_C4F
+	{                      // eVF_P2S_N4B_C4B_T1F
 		OOFS(SVF_P2S_N4B_C4B_T1F, z),
 		OOFS(SVF_P2S_N4B_C4B_T1F, color.dcolor),
 		OOFS(SVF_P2S_N4B_C4B_T1F, normal)
 	},
-	{   // eVF_P3F_C4B_T2S
+	{                      // eVF_P3F_C4B_T2S
 		OOFS(SVF_P3F_C4B_T2S, st),
 		OOFS(SVF_P3F_C4B_T2S, color.dcolor),
 		-1
@@ -456,6 +457,11 @@ CRenderMesh::CRenderMesh()
 #if !defined(_RELEASE) && defined(RM_CATCH_EXCESSIVE_LOCKS)
 	m_lockTime = 0.f;
 #endif
+
+	m_pExtraBoneMapping = 0;
+	m_sType = "";
+
+	m_nMorphs = 0;
 }
 
 CRenderMesh::CRenderMesh(const char* szType, const char* szSourceName, bool bLock)
@@ -474,7 +480,7 @@ CRenderMesh::CRenderMesh(const char* szType, const char* szSourceName, bool bLoc
 	m_sType = szType;
 	m_sSource = szSourceName;
 
-	m_vBoxMin = m_vBoxMax = Vec3(0, 0, 0); //used for hw occlusion test
+	m_vBoxMin = m_vBoxMax = Vec3(0, 0, 0);          //used for hw occlusion test
 	m_nVerts = 0;
 	m_nInds = 0;
 	m_eVF = eVF_P3F_C4B_T2F;
@@ -519,6 +525,9 @@ CRenderMesh::CRenderMesh(const char* szType, const char* szSourceName, bool bLoc
 	{
 		LockForThreadAccess();
 	}
+
+	m_pExtraBoneMapping = 0;
+	m_nMorphs = 0;
 }
 
 void CRenderMesh::Cleanup()
@@ -570,6 +579,29 @@ void CRenderMesh::Cleanup()
 			CryLogAlways("remapped bone indices with refcount '%u' still around for '%s 0x%p\n", m_RemappedBoneIndices[i].refcount, m_sSource.c_str(), this);
 		if (m_RemappedBoneIndices[i].buffer != ~0u)
 			gRenDev->m_DevBufMan.Destroy(m_RemappedBoneIndices[i].buffer);
+	}
+
+	if (m_sType == "Character")
+	{
+		// clean all inputs
+		//    gRenDev->m_pGDHeap->ReleaseResource(GD_VERTEX_IN_SRV, m_skinBindPoseVerticesSRVHandle);
+		//    gRenDev->m_pGDHeap->ReleaseResource(GD_SKINNING_SRV, m_skinBoneInfluencesSRVHandle);
+		//    gRenDev->m_pGDHeap->ReleaseResource(GD_SKINNING_MAP_SRV, m_skinBoneInfluencesMapSRVHandle);
+		//    gRenDev->m_pGDHeap->ReleaseResource(GD_INDICES_SRV, m_skinIndicesSRVHandle);
+		//    gRenDev->m_pGDHeap->ReleaseResource(GD_TRIANGLE_ADJACENCY_INDICES_SRV, m_skinTriangleAdjacencySRVHandle);
+		//    gRenDev->m_pGDHeap->ReleaseResource(GD_MORPHS_DELTA_SRV, m_vertexDeltasSRVHandle);
+		//    gRenDev->m_pGDHeap->ReleaseResource(GD_MORPHS_BITFIELD_SRV, m_vertexMorphsBitfieldSRVHandle);
+
+		// clean all outputs
+		// This can't be dont like this since it will destroy all instanced render meshes.
+		// The management of the outputs (m_outVerticesUAV) should be moved outside render mesh
+
+		//    for (auto it=m_outVerticesUAV.begin(); it!=m_outVerticesUAV.end(); ++it)
+		//    {
+		//      gRenDev->m_pGDHeap->ReleaseResource(GD_VERTEX_OUT_UAV, (*it).second.skinnedUAVHandle);
+		//      gRenDev->m_pGDHeap->ReleaseResource(GD_TRIANGLE_NT_UAV, (*it).second.tangentsUAVHandle);
+		//    }
+		//m_outVerticesUAV.clear();
 	}
 }
 
@@ -665,10 +697,10 @@ void* CRenderMesh::LockVB(int nStream, uint32 nFlags, int nOffset, int nVerts, i
 #endif
 	const int threadId = gRenDev->m_RP.m_nFillThreadID;
 
-	if (!CanRender()) // if allocation failure suffered, don't lock anything anymore
+	if (!CanRender())            // if allocation failure suffered, don't lock anything anymore
 		return NULL;
 
-	SREC_AUTO_LOCK(m_sResLock);//need lock as resource must not be updated concurrently
+	SREC_AUTO_LOCK(m_sResLock); //need lock as resource must not be updated concurrently
 	SMeshStream* MS = GetVertexStream(nStream, nFlags);
 
 #if defined(USE_VBIB_PUSH_DOWN)
@@ -819,13 +851,13 @@ vtx_idx* CRenderMesh::LockIB(uint32 nFlags, int nOffset, int nInds)
 			__debugbreak();
 	}
 #endif
-	if (!CanRender()) // if allocation failure suffered, don't lock anything anymore
+	if (!CanRender())            // if allocation failure suffered, don't lock anything anymore
 		return NULL;
 
 	const int threadId = gRenDev->m_RP.m_nFillThreadID;
 
 	int nFrame = gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nFillThreadID].m_nFrameUpdateID;
-	SREC_AUTO_LOCK(m_sResLock);//need lock as resource must not be updated concurrently
+	SREC_AUTO_LOCK(m_sResLock); //need lock as resource must not be updated concurrently
 
 #if defined(USE_VBIB_PUSH_DOWN)
 	m_VBIBFramePushID = gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nFillThreadID].m_nFrameUpdateID;
@@ -1350,7 +1382,9 @@ size_t CRenderMesh::SetMesh_Int(CMesh& mesh, int nSecColorsSetOffset, uint32 fla
 	//////////////////////////////////////////////////////////////////////////
 	if (mesh.m_pBoneMapping)
 	{
-		SetSkinningDataCharacter(mesh, mesh.m_pBoneMapping, mesh.m_pExtraBoneMapping);
+		if (flags & FSM_USE_DEFORMGEOMETRY_PIPELINE)
+			m_nFlags |= FSM_USE_DEFORMGEOMETRY_PIPELINE;
+		SetSkinningDataCharacter(mesh, flags, mesh.m_pBoneMapping, mesh.m_pExtraBoneMapping);
 	}
 
 	// Create device buffers immediately in non-multithreaded mode
@@ -1440,7 +1474,7 @@ void CRenderMesh::SetSkinningDataVegetation(struct SMeshBoneMapping_uint8* pBone
 	CreateRemappedBoneIndicesPair(~0u, m_ChunksSkinned);
 }
 
-void CRenderMesh::SetSkinningDataCharacter(CMesh& mesh, struct SMeshBoneMapping_uint16* pBoneMapping, struct SMeshBoneMapping_uint16* pExtraBoneMapping)
+void CRenderMesh::SetSkinningDataCharacter(CMesh& mesh, uint32 flags, struct SMeshBoneMapping_uint16* pBoneMapping, struct SMeshBoneMapping_uint16* pExtraBoneMapping)
 {
 	MEMORY_SCOPE_CHECK_HEAP();
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMeshType, 0, this->GetTypeName());
@@ -1529,7 +1563,142 @@ void CRenderMesh::SetSkinningDataCharacter(CMesh& mesh, struct SMeshBoneMapping_
 
 	m_extraBonesBuffer.Create(pExtraBones.size(), sizeof(SVF_W4B_I4S), DXGI_FORMAT_UNKNOWN, DX11BUF_STRUCTURED | DX11BUF_BIND_SRV, &pExtraBones[0]);
 
-	CreateRemappedBoneIndicesPair(~0u, m_Chunks);
+	ICVar* cvar_gd = gEnv->pConsole->GetCVar("r_ComputeSkinning");
+	bool bCreateCSBuffers = (flags & FSM_USE_DEFORMGEOMETRY_PIPELINE) && (cvar_gd && cvar_gd->GetIVal()) && m_sType == "Character";
+
+	if (bCreateCSBuffers)
+	{
+		if (pExtraBoneMapping)
+		{
+			m_pExtraBoneMapping = new SMeshBoneMapping_uint16[m_nVerts];
+			memcpy(m_pExtraBoneMapping, pExtraBoneMapping, sizeof(SMeshBoneMapping_uint16) * m_nVerts);
+		}
+
+		ComputeSkinningCreateMorphsBuffer(mesh);
+		ComputeSkinningCreateBindPoseBuffers(mesh);
+	}
+}
+
+void CRenderMesh::ComputeSkinningCreateMorphsBuffer(CMesh& mesh)
+{
+	m_nMorphs = mesh.m_numMorphs;
+	if (mesh.m_vertexDeltas.size() && !m_vertexDeltasSRVHandle.buffer)
+		m_vertexDeltasSRVHandle = gRenDev->GetComputeSkinningStorage()->CreateResource(NULL, this->GetSourceName(), compute_skinning::eType_MorphsDeltaSrv, mesh.m_vertexDeltas.size(), &mesh.m_vertexDeltas[0]);
+	if (mesh.m_vertexMorphsBitfield.size() && !m_vertexMorphsBitfieldSRVHandle.buffer)
+		m_vertexMorphsBitfieldSRVHandle = gRenDev->GetComputeSkinningStorage()->CreateResource(NULL, this->GetSourceName(), compute_skinning::eType_MorphsBitFieldSrv, mesh.m_vertexMorphsBitfield.size(), &mesh.m_vertexMorphsBitfield[0]);
+}
+
+void CRenderMesh::ComputeSkinningCreateBindPoseBuffers(CMesh& mesh)
+{
+	if (!m_nVerts || !m_nInds)
+		return;
+
+	std::vector<uint32> buckets(m_nVerts, 0);
+	std::vector<uint32> bucketsCounter(m_nVerts, 0);
+	std::vector<uint32> workBuckets(m_nVerts, 0);
+
+	for (uint32 i = 0; i < m_nInds; ++i)
+		++buckets[mesh.m_pIndices[i]];
+
+	bucketsCounter[0] = 0;
+	for (uint32 i = 1; i < m_nVerts; ++i)
+		bucketsCounter[i] = bucketsCounter[i - 1] + buckets[i - 1];
+
+	std::vector<uint32> adjTriangles;
+	adjTriangles.resize(m_nInds);
+
+	int32 k = 0;
+	for (uint32 i = 0; i < m_nInds; i += 3)
+	{
+		uint32 idx0 = mesh.m_pIndices[i + 0];
+		uint32 idx1 = mesh.m_pIndices[i + 1];
+		uint32 idx2 = mesh.m_pIndices[i + 2];
+
+		adjTriangles[bucketsCounter[idx0] + workBuckets[idx0]++] = k;
+		adjTriangles[bucketsCounter[idx1] + workBuckets[idx1]++] = k;
+		adjTriangles[bucketsCounter[idx2] + workBuckets[idx2]++] = k;
+		k++;
+	}
+
+	bool haveDeltaMorphs = mesh.m_verticesDeltaOffsets.size() > 0;
+
+	// filling up arrays of CSSkinVertexIn
+	std::vector<compute_skinning::SSkinVertexIn> vertices;
+	vertices.resize(m_nVerts);
+	uint32 count = 0;
+	for (int32 i = 0; i < m_nVerts; ++i)
+	{
+		vertices[i].pos = mesh.m_pPositions[i];
+		vertices[i].qtangent = mesh.m_pQTangents[i].GetQ();
+		vertices[i].uv = mesh.m_pTexCoord[i].GetUV();
+		vertices[i].morphDeltaOffset = haveDeltaMorphs ? mesh.m_verticesDeltaOffsets[i] : 0;
+		vertices[i].triOffset = count;
+		vertices[i].triCount = buckets[i];
+
+		count += buckets[i];
+	}
+
+	if (!m_skinBindPoseVerticesSRVHandle.buffer)
+		m_skinBindPoseVerticesSRVHandle = gRenDev->GetComputeSkinningStorage()->CreateResource(NULL, this->GetSourceName(), compute_skinning::eType_VertexInSrv, m_nVerts, &vertices[0]);
+	if (!m_skinIndicesSRVHandle.buffer)
+		m_skinIndicesSRVHandle = gRenDev->GetComputeSkinningStorage()->CreateResource(NULL, this->GetSourceName(), compute_skinning::eType_IndicesSrv, m_nInds, mesh.m_pIndices);
+	if (!m_skinTriangleAdjacencySRVHandle.buffer && adjTriangles.size())
+		m_skinTriangleAdjacencySRVHandle = gRenDev->GetComputeSkinningStorage()->CreateResource(NULL, this->GetSourceName(), compute_skinning::eType_TriangleAdjacencyIndicesSrv, adjTriangles.size(), &adjTriangles[0]);
+}
+
+void CRenderMesh::ComputeSkinningCreateSkinningBuffers(const SVF_W4B_I4S* pBoneMapping, const SMeshBoneMapping_uint16* pExtraBoneMapping)
+{
+	MEMORY_SCOPE_CHECK_HEAP();
+
+	// read remapped stream
+	std::vector<compute_skinning::SSkinning> skinningVector;
+	std::vector<compute_skinning::SSkinningMap> skinningVectorMap;
+
+	uint offset = 0;
+	skinningVector.reserve(m_nVerts * 8);
+	for (uint32 i = 0; i < m_nVerts; ++i)
+	{
+		uint count = 0;
+		for (uint32 j = 0; j < 4; ++j)
+		{
+			const uint16 index = pBoneMapping[i].indices[j];
+			const uint8 weight = pBoneMapping[i].weights.bcolor[j];
+			if (weight > 0)
+			{
+				skinningVector.push_back(compute_skinning::SSkinning());
+				skinningVector.back().weightIndex = (weight << 24 | index);
+
+				++count;
+			}
+		}
+
+		// this stream is not remapped
+		if (pExtraBoneMapping)
+		{
+			for (uint32 j = 0; j < 4; ++j)
+			{
+				const uint16 index = pExtraBoneMapping[i].boneIds[j];
+				const uint8 weight = pExtraBoneMapping[i].weights[j];
+				if (weight > 0)
+				{
+					skinningVector.push_back(compute_skinning::SSkinning());
+					skinningVector.back().weightIndex = (weight << 24 | index);
+					++count;
+				}
+			}
+		}
+
+		skinningVectorMap.push_back(compute_skinning::SSkinningMap());
+		skinningVectorMap.back().offset = offset;
+		skinningVectorMap.back().count = count;
+
+		offset += count;
+	}
+
+	if (skinningVector.size() && !m_skinBoneInfluencesSRVHandle.buffer)
+		m_skinBoneInfluencesSRVHandle = gRenDev->GetComputeSkinningStorage()->CreateResource(NULL, this->GetSourceName(), compute_skinning::eType_SkinningSrv, skinningVector.size(), &skinningVector[0]);
+	if (skinningVectorMap.size() && !m_skinBoneInfluencesMapSRVHandle.buffer)
+		m_skinBoneInfluencesMapSRVHandle = gRenDev->GetComputeSkinningStorage()->CreateResource(NULL, this->GetSourceName(), compute_skinning::eType_SkinningMapSrv, skinningVectorMap.size(), &skinningVectorMap[0]);
 }
 
 uint CRenderMesh::GetSkinningWeightCount() const
@@ -1709,7 +1878,7 @@ void CRenderMesh::CreateChunksSkinned()
 			CRendElement* pNext = rNewMat.pRE->m_NextGlobal;
 			CRendElement* pPrev = rNewMat.pRE->m_PrevGlobal;
 			*(CREMeshImpl*)rNewMat.pRE = *re;
-			if (rNewMat.pRE->m_pChunk) // affects the source mesh!! will only work correctly if the source is deleted after copying
+			if (rNewMat.pRE->m_pChunk)  // affects the source mesh!! will only work correctly if the source is deleted after copying
 				rNewMat.pRE->m_pChunk = &rNewMat;
 			rNewMat.pRE->m_NextGlobal = pNext;
 			rNewMat.pRE->m_PrevGlobal = pPrev;
@@ -1890,7 +2059,7 @@ void CRenderMesh::SetChunk(int nIndex, CRenderChunk& inChunk)
 	// update chunk RE
 	if (pRenderChunk->pRE)
 		AssignChunk(pRenderChunk, (CREMeshImpl*) pRenderChunk->pRE);
-	assert(!pRenderChunk->pRE || pRenderChunk->pRE->m_pChunk->nFirstIndexId < 60000);  // TODO: do we need to compare with 60000 if vertex indices are 32-bit?
+	assert(!pRenderChunk->pRE || pRenderChunk->pRE->m_pChunk->nFirstIndexId < 60000);      // TODO: do we need to compare with 60000 if vertex indices are 32-bit?
 	assert(pRenderChunk->nFirstIndexId + pRenderChunk->nNumIndices <= m_nInds);
 }
 
@@ -2348,7 +2517,7 @@ void CRenderMesh::BuildAdjacency(const VertexFormat* pVerts, unsigned int nVerts
 			for (int i0 = arrFirstConnectedTriangle[iMasterVertex0]; i0 < arrFirstConnectedTriangle[iMasterVertex0 + 1]; ++i0)
 			{
 				int iOtherTriangle = arrConnectedTriangles[i0];
-				if (iOtherTriangle >= it) // we are going to stick to this other triangle only if it's index is less than ours
+				if (iOtherTriangle >= it)    // we are going to stick to this other triangle only if it's index is less than ours
 					continue;
 				const vtx_idx* pOtherTrg = &pIndexBuffer[iOtherTriangle * 3];
 				int iRecode0 = -1;
@@ -2375,7 +2544,7 @@ void CRenderMesh::BuildAdjacency(const VertexFormat* pVerts, unsigned int nVerts
 		}
 	}
 }
-#endif //#ifdef MESH_TESSELLATION_RENDERER
+#endif                          //#ifdef MESH_TESSELLATION_RENDERER
 
 bool CRenderMesh::RT_CheckUpdate(CRenderMesh* pVContainer, EVertexFormat eVF, uint32 nStreamMask, bool bTessellation, bool stall)
 {
@@ -2388,7 +2557,7 @@ bool CRenderMesh::RT_CheckUpdate(CRenderMesh* pVContainer, EVertexFormat eVF, ui
 	int nFrame = rd->m_RP.m_TI[nThreadID].m_nFrameUpdateID;
 	bool bSkinned = (m_nFlags & (FRM_SKINNED | FRM_SKINNEDNEXTDRAW)) != 0;
 
-	if (nStreamMask & 0x80000000) // Disable skinning in instancing mode
+	if (nStreamMask & 0x80000000)    // Disable skinning in instancing mode
 		bSkinned = false;
 
 	m_nFlags &= ~FRM_SKINNEDNEXTDRAW;
@@ -2473,7 +2642,7 @@ bool CRenderMesh::RT_CheckUpdate(CRenderMesh* pVContainer, EVertexFormat eVF, ui
 				}
 			}
 		}
-	}//if (m_pVertexContainer || m_nVerts > 2)
+	}                                                           //if (m_pVertexContainer || m_nVerts > 2)
 
 	m_IBStream.m_nFrameAccess = nFrame;
 	const bool bIndUpdateNeeded = (m_IBStream.m_pUpdateData != NULL) && (m_IBStream.m_nFrameRequest > m_IBStream.m_nFrameUpdate);
@@ -2553,11 +2722,38 @@ bool CRenderMesh::RT_CheckUpdate(CRenderMesh* pVContainer, EVertexFormat eVF, ui
 			stream.refcount = rBoneIndexStreamRequest.refcount;
 			gRenDev->m_DevBufMan.UpdateBuffer(stream.buffer, rBoneIndexStreamRequest.pStream, pVContainer->GetVerticesCount() * pVContainer->GetStreamStride(VSF_HWSKIN_INFO));
 			pVContainer->m_RemappedBoneIndices.push_back(stream);
+
+			ICVar* cvar_gd = gEnv->pConsole->GetCVar("r_ComputeSkinning");
+			if (cvar_gd && cvar_gd->GetIVal() && m_sType == "Character" && (pVContainer->m_nFlags & FSM_USE_DEFORMGEOMETRY_PIPELINE))
+				pVContainer->ComputeSkinningCreateSkinningBuffers(rBoneIndexStreamRequest.pStream, rBoneIndexStreamRequest.pExtraStream);
 		}
 
 		delete[] rBoneIndexStreamRequest.pStream;
+		if (rBoneIndexStreamRequest.pExtraStream)
+			delete[] rBoneIndexStreamRequest.pExtraStream;
 	}
 	pVContainer->m_CreatedBoneIndices[threadId].clear();
+
+	ICVar* cvar_gd = gEnv->pConsole->GetCVar("r_ComputeSkinning");
+	if (cvar_gd && cvar_gd->GetIVal() && m_sType == "Character")
+	{
+		for (size_t i = 0; i < pVContainer->m_skinnedOutputRequest[threadId].size(); ++i)
+		{
+			const void* tag = pVContainer->m_skinnedOutputRequest[threadId][i];
+			auto it = pVContainer->m_outVerticesUAV.find(tag);
+			if (it == pVContainer->m_outVerticesUAV.end())
+			{
+				CSOutputs outs;
+
+				outs.skinnedUAVHandle = gRenDev->GetComputeSkinningStorage()->CreateResource(tag, this->GetSourceName(), compute_skinning::eType_VertexOutUav, pVContainer->GetVerticesCount(), NULL);
+				outs.tangentsUAVHandle = gRenDev->GetComputeSkinningStorage()->CreateResource(tag, this->GetSourceName(), compute_skinning::eType_TriangleNtUav, pVContainer->GetIndicesCount() / 3, NULL);
+
+				if (outs.skinnedUAVHandle.buffer && outs.tangentsUAVHandle.buffer)
+					pVContainer->m_outVerticesUAV[tag] = outs;
+			}
+		}
+		pVContainer->m_skinnedOutputRequest[threadId].clear();
+	}
 
 	return true;
 }
@@ -3005,7 +3201,7 @@ void CRenderMesh::AddRenderElements(IMaterial* pIMatInfo, CRenderObject* pObj, c
 			else
 				gRenDev->EF_AddEf_NotVirtual(pREs->Get(0), shaderItem, pObj, passInfo, nList, nAW);
 		}
-	} //i
+	}                                      //i
 }
 
 void CRenderMesh::AddRE(IMaterial* pMaterial, CRenderObject* obj, IShader* ef, const SRenderingPassInfo& passInfo, int nList, int nAW)
@@ -3186,7 +3382,7 @@ int CRenderMesh::GetTextureMemoryUsage(const IMaterial* pMaterial, ICrySizer* pS
 			if (!pTexture)
 				continue;
 
-			if (used.find(pTexture) != used.end()) // Already used in size calculation.
+			if (used.find(pTexture) != used.end())    // Already used in size calculation.
 				continue;
 			used.insert(pTexture);
 
@@ -4343,13 +4539,19 @@ void CRenderMesh::CreateRemappedBoneIndicesPair(const uint pairGuid, const TRend
 	UnlockStream(VSF_HWSKIN_INFO);
 	UnlockIndexStream();
 
-	m_CreatedBoneIndices[threadId].push_back(SBoneIndexStreamRequest(pairGuid, remappedIndices));
+	m_CreatedBoneIndices[threadId].push_back(SBoneIndexStreamRequest(pairGuid, remappedIndices, m_pExtraBoneMapping));
 	RelinkTail(m_Modified[threadId], m_MeshModifiedList[threadId]);
 }
 
-void CRenderMesh::CreateRemappedBoneIndicesPair(const DynArray<JointIdType>& arrRemapTable, const uint pairGuid)
+void CRenderMesh::CreateRemappedBoneIndicesPair(const DynArray<JointIdType>& arrRemapTable, const uint pairGuid, const void* tag)
 {
 	SREC_AUTO_LOCK(m_sResLock);
+
+	ICVar* cvar_gd = gEnv->pConsole->GetCVar("r_ComputeSkinning");
+	if (cvar_gd && cvar_gd->GetIVal() && m_sType == "Character")
+		CreateSkinnedOutput(tag);
+
+	const int threadId = gRenDev->m_RP.m_nFillThreadID;
 	// check already created remapped bone indices
 	for (size_t i = 0, end = m_RemappedBoneIndices.size(); i < end; ++i)
 	{
@@ -4361,7 +4563,6 @@ void CRenderMesh::CreateRemappedBoneIndicesPair(const DynArray<JointIdType>& arr
 	}
 
 	// check already currently in flight remapped bone indices
-	const int threadId = gRenDev->m_RP.m_nFillThreadID;
 	for (size_t i = 0, end = m_CreatedBoneIndices[threadId].size(); i < end; ++i)
 	{
 		if (m_CreatedBoneIndices[threadId][i].guid == pairGuid)
@@ -4396,6 +4597,7 @@ void CRenderMesh::CreateRemappedBoneIndicesPair(const DynArray<JointIdType>& arr
 				remappedIndices[vIdx].indices[l] = arrRemapTable[pIndicesWeights[vIdx].indices[l]];
 			}
 #else
+
 			// Sokov: The code below doesn't look really safe/logical:
 			// 1) Calling CreateRemappedBoneIndicesPair() assumes that bones are used,
 			// so why to check m_bUsesBones here? Do we have cases when some chunks use bones
@@ -4424,8 +4626,28 @@ void CRenderMesh::CreateRemappedBoneIndicesPair(const DynArray<JointIdType>& arr
 	UnlockStream(VSF_HWSKIN_INFO);
 	UnlockIndexStream();
 
-	m_CreatedBoneIndices[threadId].push_back(SBoneIndexStreamRequest(pairGuid, remappedIndices));
+	m_CreatedBoneIndices[threadId].push_back(SBoneIndexStreamRequest(pairGuid, remappedIndices, m_pExtraBoneMapping));
 	RelinkTail(m_Modified[threadId], m_MeshModifiedList[threadId]);
+}
+
+void CRenderMesh::CreateSkinnedOutput(const void* tag)
+{
+	const int threadId = gRenDev->m_RP.m_nFillThreadID;
+
+	auto it = m_outVerticesUAV.find(tag);
+	if (it == m_outVerticesUAV.end())
+	{
+		for (size_t i = 0, end = m_skinnedOutputRequest[threadId].size(); i < end; ++i)
+		{
+			if (m_skinnedOutputRequest[threadId][i] == tag)
+			{
+				return;
+			}
+		}
+
+		m_skinnedOutputRequest[threadId].push_back(tag);
+		RelinkTail(m_Modified[threadId], m_MeshModifiedList[threadId]);
+	}
 }
 
 void CRenderMesh::ReleaseRemappedBoneIndicesPair(const uint pairGuid)

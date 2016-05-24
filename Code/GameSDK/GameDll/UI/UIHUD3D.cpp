@@ -17,6 +17,8 @@
 #include <Cry3DEngine/IMaterial.h>
 
 #include "UIManager.h"
+#include "UI/HUD/HUDEventDispatcher.h"
+
 #include "Game.h"
 #include "GameCVars.h"
 #include "Actor.h"
@@ -406,6 +408,8 @@ void CUIHUD3D::SpawnHudEntities()
 	}
 
 	OnVisCVarChange( NULL );
+
+	CHUDEventDispatcher::CallEvent(SHUDEvent(eHUDEvent_OnHUDLoadDone));
 }
 
 ////////////////////////////////////////////////////////////////////////////

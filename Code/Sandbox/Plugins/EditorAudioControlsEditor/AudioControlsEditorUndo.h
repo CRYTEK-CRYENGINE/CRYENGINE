@@ -104,9 +104,8 @@ protected:
 
 	CID                        m_id;
 	string                     m_name;
-	string                     m_scope;
+	Scope                      m_scope;
 	bool                       m_bAutoLoad;
-	std::map<string, int>      m_groupPerPlatform;
 	std::vector<ConnectionPtr> m_connectedControls;
 };
 

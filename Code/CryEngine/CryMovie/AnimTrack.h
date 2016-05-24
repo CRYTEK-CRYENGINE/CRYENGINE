@@ -81,6 +81,9 @@ public:
 	/** Assign active time range for this track.
 	 */
 	virtual void SetTimeRange(TRange<SAnimTime> timeRange) override { m_timeRange = timeRange; }
+	
+	//! Serialize unique parameters for this track.
+	virtual void Serialize(Serialization::IArchive& ar) override {}
 
 	/** Serialize this animation track to XML.
 	    Do not override this method, prefer to override SerializeKey.

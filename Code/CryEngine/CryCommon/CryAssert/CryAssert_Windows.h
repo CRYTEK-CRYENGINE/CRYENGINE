@@ -225,9 +225,9 @@ static INT_PTR CALLBACK DlgProc(HWND _hDlg, UINT _uiMsg, WPARAM _wParam, LPARAM 
 				EndDialog(_hDlg, 0);
 				break;
 			}
-			if (gEnv && gEnv->pSystem && gEnv->pSystem->GetISystemEventDispatcher())
+			if (gEnv && gEnv->pInput)
 			{
-				gEnv->pSystem->GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_CHANGE_FOCUS, 0, 0, true);
+				gEnv->pInput->ClearKeyState();
 			}
 		}
 		break;

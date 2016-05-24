@@ -116,7 +116,7 @@ void ApplyGI(inout float3 specularAcc, inout float3 diffuseAcc, float3 diffuseFo
 	else if(nIntegrMode == 1) // GI replaces diffuse of env probes and adjusts specular
 	{
 		float3 diffuseIrradiance = TexGiDiffuse.SampleLevel( TrilinearClampSamplerState, pixelUV, 0 );
-		specularAcc *= lerp(min( 2.f, GetLuminance(diffuseIrradiance) / (GetLuminance(diffuseAcc + diffuseForwAcc) + 0.001)), 1.f, saturate(surfGloss * GetLuminance(surfSpecCol) * ForwGiIntegrationMode.x));
+		specularAcc *= lerp(min( 2.f, GetLuminance(diffuseIrradiance) / (GetLuminance(diffuseAcc + diffuseForwAcc) + 0.001)), 1.f, saturate(surfGloss * GetLuminance(surfSpecCol) * ForwGiIntegrationMode.x)) * ForwGiIntegrationMode.z;
 		diffuseAcc = diffuseIrradiance;
 	}
 	else if(nIntegrMode == 2) // Full GI mode

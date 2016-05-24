@@ -28,7 +28,7 @@ public:
 		ClearModel();
 	}
 
-	bool        BeginLoadCHRRenderMesh(CDefaultSkeleton* pSkel, EStreamTaskPriority estp);
+	bool        BeginLoadCHRRenderMesh(CDefaultSkeleton* pSkel, const DynArray<CCharInstance*>& pCharInstances, EStreamTaskPriority estp);
 	bool        BeginLoadSkinRenderMesh(CSkin* pSkin, int nRenderLod, EStreamTaskPriority estp);
 	void        AbortLoad();
 
@@ -67,9 +67,10 @@ private:
 	void                    ClearModel();
 
 private:
-	CDefaultSkeleton*       m_pModelSkel;
-	CSkin*                  m_pModelSkin;
-	IReadStreamPtr          m_pStream;
-	DynArray<RChunk>        m_arrNewRenderChunks;
-	_smart_ptr<IRenderMesh> m_pNewRenderMesh;
+	CDefaultSkeleton*        m_pModelSkel;
+	CSkin*                   m_pModelSkin;
+	IReadStreamPtr           m_pStream;
+	DynArray<RChunk>         m_arrNewRenderChunks;
+	_smart_ptr<IRenderMesh>  m_pNewRenderMesh;
+	DynArray<CCharInstance*> m_RefByInstances;
 };

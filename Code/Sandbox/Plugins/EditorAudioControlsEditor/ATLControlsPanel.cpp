@@ -815,13 +815,13 @@ void CATLControlsPanel::ItemModified(QStandardItem* pItem)
 			{
 				if (QtUtil::ToString(pItem->text()) != pControl->GetName())
 				{
-					sName = m_pATLModel->GenerateUniqueName(sName, pControl->GetType(), pControl->GetScope(), pControl->GetParent());
 					pControl->SetName(sName);
+					m_pTreeModel->blockSignals(true);
+					pItem->setText(QtUtil::ToQString(pControl->GetName()));
+					m_pTreeModel->blockSignals(false);
 				}
 			}
-			m_pTreeModel->blockSignals(true);
-			pItem->setText(QtUtil::ToQString(sName));
-			m_pTreeModel->blockSignals(false);
+
 		}
 		m_pTreeModel->SetItemAsDirty(pItem);
 	}

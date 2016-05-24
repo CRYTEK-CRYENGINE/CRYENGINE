@@ -67,27 +67,10 @@ struct SServerPublicAddress
 // implements CContextView in a way that acts like a client
 class CClientContextView :
 	public CNetMessageSinkHelper<CClientContextView, CContextView, CLIENTVIEW_MIN_NUM_MESSAGES + CCV_NUM_EXTRA_MESSAGES>
-#if NETWORK_HOST_MIGRATION
-	, public IHostMigrationEventListener
-#endif
 {
 public:
 	CClientContextView(CNetChannel*, CNetContext*);
 	virtual ~CClientContextView();
-
-#if NETWORK_HOST_MIGRATION
-	// IHostMigrationEventListener
-	virtual EHostMigrationReturn OnInitiate(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual EHostMigrationReturn OnDisconnectClient(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual EHostMigrationReturn OnDemoteToClient(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual EHostMigrationReturn OnPromoteToServer(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual EHostMigrationReturn OnReconnectClient(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual EHostMigrationReturn OnFinalise(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual EHostMigrationReturn OnTerminate(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual void                 OnComplete(SHostMigrationInfo& hostMigrationInfo);
-	virtual EHostMigrationReturn OnReset(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	// ~IHostMigrationEventListener
-#endif
 
 #if ENABLE_SESSION_IDS
 	NET_DECLARE_IMMEDIATE_MESSAGE(InitSessionData);

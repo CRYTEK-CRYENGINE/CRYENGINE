@@ -3859,7 +3859,6 @@ void CMergedMeshesManager::Init()
 	if (!s_MergedMeshPool)
 	{
 		AUTO_LOCK(s_MergedMeshPoolLock);
-		ScopedSwitchToGlobalHeap heaper;
 		size_t memsize = (Cry3DEngineBase::GetCVars()->e_MergedMeshesPool + 4096) * 1024; // include 2mb buffer size for overhead and large peaks
 		if (memsize && (s_MergedMeshPool = gEnv->pSystem->GetIMemoryManager()->CreateGeneralExpandingMemoryHeap(
 		                  memsize, 0, "MERGEDMESH_POOL")) == NULL)

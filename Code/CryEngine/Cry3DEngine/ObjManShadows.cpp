@@ -111,30 +111,12 @@ void CObjManager::MakeShadowCastersList(CVisArea* pArea, const AABB& aabbReceive
 			}
 		}
 
-		bool bNeedRenderTerrain = (GetTerrain() && GetCVars()->e_GsmCastFromTerrain && (pLight->m_Flags & DLF_SUN) != 0)
-		                          || (pLight->m_Flags & DLF_REFLECTIVE_SHADOWMAP) != 0;
+		bool bNeedRenderTerrain = (GetTerrain() && Get3DEngine()->m_bSunShadowsFromTerrain && (pLight->m_Flags & DLF_SUN) != 0);
 
 		if (bNeedRenderTerrain && passInfo.RenderTerrain() && Get3DEngine()->m_bShowTerrainSurface)
 		{
 			// find all caster sectors
-			GetTerrain()->IntersectWithShadowFrustum(&lstCastingNodes, pFr, GetDefSID(), passInfo);
-
-			// make list of entities
-			for (int s = 0; s < lstCastingNodes.Count(); s++)
-			{
-				CTerrainNode* pNode = (CTerrainNode*)lstCastingNodes[s];
-
-				if (pLight->m_Flags & DLF_SUN)
-				{
-					if (pNode->m_nGSMFrameId == passInfo.GetFrameID())
-						continue;
-
-					if (bNeedRenderTerrain && pFr->FrustumPlanes[0].IsAABBVisible_EH(pNode->GetBBoxVirtual()) == CULL_INCLUSION)
-						pNode->m_nGSMFrameId = passInfo.GetFrameID();   // mark as completely present in some LOD
-				}
-
-				pFr->castersList.Add(pNode);
-			}
+			GetTerrain()->IntersectWithShadowFrustum(&pFr->castersList, pFr, GetDefSID(), passInfo);
 		}
 	}
 
@@ -234,18 +216,6 @@ uint64 CObjManager::GetShadowFrustumsList(PodArray<CDLight*>* pAffectingLights, 
 
 	const int MAX_MASKED_GSM_LODS_NUM = 4;
 
-	int nExtendedFrustumInUse = 0;
-
-	// check for RSM presence
-	if (GetCVars()->e_GI)
-	{
-		if (passInfo.RenderTerrain() && Get3DEngine()->m_bShowTerrainSurface)
-			for (int i = 0; i < pAffectingLights->Count(); i++)
-				if (CDLight* pLight = pAffectingLights->GetAt(0))
-					if ((pLight->m_Flags & DLF_REFLECTIVE_SHADOWMAP) && (pLight->m_Id >= 0))
-						nExtendedFrustumInUse = 1;
-	}
-
 	// calculate frustums list id
 	uint64 nCastersListId = 0;
 	int32 nSunID = 0;
@@ -291,9 +261,8 @@ uint64 CObjManager::GetShadowFrustumsList(PodArray<CDLight*>* pAffectingLights, 
 		}
 	assert(nSunID == 0);
 
-	if (!nExtendedFrustumInUse)
-		if (!nCastersListId)
-			return 0;
+	if (!nCastersListId)
+		return 0;
 
 	assert(nCastersListId);
 	return nCastersListId;

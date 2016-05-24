@@ -130,8 +130,11 @@ TMovieSystemValue CCompoundSplineTrack::GetValue(SAnimTime time) const
 			float angles[3] = { 0.0f, 0.0f, 0.0f };
 			for (int i = 0; i < m_nDimensions; ++i)
 			{
-				TMovieSystemValue value = m_subTracks[i]->GetValue(time);
-				angles[i] = boost::get<float>(value);
+				if (m_subTracks[i]->HasKeys())
+				{
+					TMovieSystemValue value = m_subTracks[i]->GetValue(time);
+					angles[i] = boost::get<float>(value);
+				}
 			}
 			return TMovieSystemValue(Quat::CreateRotationXYZ(Ang3(DEG2RAD(angles[0]), DEG2RAD(angles[1]), DEG2RAD(angles[2]))));
 		}
@@ -307,7 +310,7 @@ void CCompoundSplineTrack::RemoveKey(int num)
 
 void CCompoundSplineTrack::ClearKeys()
 {
-	for (uint i = 0; i < MAX_SUBTRACKS; ++i)
+	for (uint i = 0; i < m_nDimensions; ++i)
 	{
 		m_subTracks[i]->ClearKeys();
 	}

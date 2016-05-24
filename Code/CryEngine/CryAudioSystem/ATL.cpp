@@ -51,6 +51,7 @@ CAudioTranslationLayer::CAudioTranslationLayer()
 	: m_pGlobalAudioObject(nullptr)
 	, m_globalAudioObjectId(GLOBAL_AUDIO_OBJECT_ID)
 	, m_triggerInstanceIDCounter(1)
+	, m_pDefaultStandaloneFileTrigger(nullptr)
 	, m_audioStandaloneFileMgr()
 	, m_audioEventMgr()
 	, m_audioObjectMgr(m_audioEventMgr, m_audioStandaloneFileMgr)
@@ -911,10 +912,10 @@ EAudioRequestStatus CAudioTranslationLayer::ProcessAudioCallbackManagerRequest(C
 			if (pAudioStandaloneFile != nullptr)
 			{
 				m_audioObjectMgr.GetStartedStandaloneFileRequestData(pAudioStandaloneFile, request);
-				pAudioStandaloneFile->m_state = eAudioStandaloneFileState_Playing;
+				pAudioStandaloneFile->m_state = (pRequestData->bSuccess) ? eAudioStandaloneFileState_Playing : eAudioStandaloneFileState_None;
 			}
 
-			result = eAudioRequestStatus_Success;
+			result = (pRequestData->bSuccess) ? eAudioRequestStatus_Success : eAudioRequestStatus_Failure;
 
 			break;
 		}
@@ -1027,6 +1028,8 @@ EAudioRequestStatus CAudioTranslationLayer::ProcessAudioObjectRequest(CAudioRequ
 					result = PlayFile(
 					  pObject,
 					  pRequestData->file.c_str(),
+					  pRequestData->usedAudioTriggerId,
+					  pRequestData->bLocalized,
 					  request.pOwner,
 					  request.pUserData,
 					  request.pUserDataOwner);
@@ -1322,6 +1325,7 @@ void CAudioTranslationLayer::ReleaseImpl()
 	// During audio middleware shutdown we do not allow for any new requests originating from the "dying" audio middleware!
 	m_flags |= eAudioInternalStates_AudioMiddlewareShuttingDown;
 
+	m_pImpl->ResetAudioObject(m_pGlobalAudioObject->GetImplDataPtr());
 	m_pImpl->DeleteAudioObject(m_pGlobalAudioObject->GetImplDataPtr());
 	m_pGlobalAudioObject->SetImplDataPtr(nullptr);
 
@@ -1349,6 +1353,8 @@ void CAudioTranslationLayer::ReleaseImpl()
 EAudioRequestStatus CAudioTranslationLayer::PlayFile(
   CATLAudioObject* const _pAudioObject,
   char const* const _szFile,
+  AudioControlId const _triggerId,
+  bool const _bLocalized,
   void* const _pOwner,
   void* const _pUserData,
   void* const _pUserDataOwner)
@@ -1364,6 +1370,39 @@ EAudioRequestStatus CAudioTranslationLayer::PlayFile(
 		fileInfo.pAudioObject = _pAudioObject->GetImplDataPtr();
 		fileInfo.pImplData = pStandaloneFile->m_pImplData;
 		fileInfo.szFileName = _szFile;
+		fileInfo.bLocalized = _bLocalized;
+
+		if (!m_pDefaultStandaloneFileTrigger)
+		{
+			ICVar* const pCVar = gEnv->pConsole->GetCVar("s_DefaultStandaloneFilesAudioTrigger");
+			string const defaultTriggerName = (pCVar) ? pCVar->GetString() : "";
+			m_pDefaultStandaloneFileTrigger = stl::find_in_map(m_triggers, static_cast<AudioControlId const>(AudioStringToId(defaultTriggerName)), nullptr);
+		}
+
+		CATLTrigger const* pAudioTrigger = (_triggerId == INVALID_AUDIO_CONTROL_ID) ? m_pDefaultStandaloneFileTrigger : stl::find_in_map(m_triggers, _triggerId, nullptr);
+
+		if (pAudioTrigger != nullptr)
+		{
+			size_t const numAudioTriggers = pAudioTrigger->m_implPtrs.size();
+			if (numAudioTriggers == 1)
+			{
+				fileInfo.pUsedAudioTrigger = pAudioTrigger->m_implPtrs[0]->m_pImplData;
+			}
+			else if (numAudioTriggers == 0)
+			{
+				g_audioLogger.Log(eAudioLogType_Warning, " PlayFile \"%s\": The given AudioTrigger with ID '%u' did not contain any connected ImplementationTrigger", _szFile, _triggerId);
+			}
+			else
+			{
+				fileInfo.pUsedAudioTrigger = pAudioTrigger->m_implPtrs[0]->m_pImplData;
+				g_audioLogger.Log(eAudioLogType_Warning, " PlayFile \"%s\": The given AudioTrigger with ID '%u' did contain more than one ImplementationTrigger", _szFile, _triggerId);
+			}
+		}
+		else
+		{
+			g_audioLogger.Log(eAudioLogType_Warning, " PlayFile \"%s\": The given AudioTrigger with ID '%u' did not exist", _szFile, _triggerId);
+		}
+
 		EAudioRequestStatus const tempStatus = m_pImpl->PlayFile(&fileInfo);
 
 		if (tempStatus == eAudioRequestStatus_Success || tempStatus == eAudioRequestStatus_Pending)
@@ -1500,10 +1539,8 @@ EAudioRequestStatus CAudioTranslationLayer::PrepUnprepTriggerAsync(
 		{
 			nTriggerImplFlags = iPlace->second.flags;
 		}
-
 		EAudioSubsystem const eReceiver = pTriggerImpl->GetReceiver();
 		CATLEvent* const pEvent = m_audioEventMgr.GetEvent(eReceiver);
-
 		EAudioRequestStatus ePrepUnprepResult = eAudioRequestStatus_Failure;
 
 		switch (eReceiver)

@@ -39,8 +39,8 @@
 #include "Network/BreakReplicator.h"
 #include "Network/ObjectSelector.h"
 
-#include <CryLobby/ICryLobby.h>
-#include <CryLobby/ICryMatchMaking.h>
+#include <CryLobby/CommonICryLobby.h>
+#include <CryLobby/CommonICryMatchMaking.h>
 #include <CrySystem/Scaleform/IFlashUI.h>
 
 CActionGame* CActionGame::s_this = 0;

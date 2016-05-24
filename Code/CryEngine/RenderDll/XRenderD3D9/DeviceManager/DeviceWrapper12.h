@@ -59,6 +59,7 @@ enum EReservedTextureSlot
 	EReservedTextureSlot_SkinExtraWeights = 14,
 	EReservedTextureSlot_AdjacencyInfo    = 15,
 	EReservedTextureSlot_PatchID          = 15,
+	EReservedTextureSlot_ComputeSkinVerts = 16,
 	EReservedTextureSlot_TerrainBaseMap   = 29,
 };
 
@@ -80,7 +81,7 @@ DEFINE_ENUM_FLAG_OPERATORS(EShaderStage)
 #define SHADERSTAGE_FROM_SHADERCLASS(SHADERCLASS) ::EShaderStage(BIT(SHADERCLASS))
 
 enum { InlineConstantsShaderSlot = eConstantBufferShaderSlot_PerInstance };
-const int ResourceSetBufferCount = 2;
+const int ResourceSetBufferCount = 3;
 
 typedef int                                      ShaderSlot;
 typedef std::bitset<EResourceLayoutSlot_Max + 1> UsedBindSlotSet;
@@ -479,9 +480,9 @@ class CDeviceCopyCommandList : public CDeviceCommandList
 public:
 	enum ECopyType
 	{
-		eCT_GraphicsResources, // RenderTarget && DepthStencil && SwapChain -> Direct
-		eCT_GenericResources,  // ShaderResource && UnorderedAccess -> Compute
-		eCT_OffCardResources   // everything crossing PCIe -> XDMA
+		eCT_GraphicsResources,                           // RenderTarget && DepthStencil && SwapChain -> Direct
+		eCT_GenericResources,                            // ShaderResource && UnorderedAccess -> Compute
+		eCT_OffCardResources                             // everything crossing PCIe -> XDMA
 	};
 
 	static ECopyType DetermineCopyType(ECopyType eCurrent, D3DResource* pResource);

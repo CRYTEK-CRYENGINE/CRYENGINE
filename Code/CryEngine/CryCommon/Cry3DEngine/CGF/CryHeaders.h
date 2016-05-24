@@ -41,16 +41,17 @@ enum ChunkTypes
 	ChunkType_Controller,
 	ChunkType_Timing,
 	ChunkType_BoneMesh,
-	ChunkType_BoneLightBinding, //!< Obsolete. describes the lights binded to bones.
-	ChunkType_MeshMorphTarget,  //!< Describes a morph target of a mesh chunk.
-	ChunkType_BoneInitialPos,   //!< Describes the initial position (4x3 matrix) of each bone; just an array of 4x3 matrices.
-	ChunkType_SourceInfo,       //!< Describes the source from which the cgf was exported: source max file, machine and user.
-	ChunkType_MtlName,          //!< Material name.
-	ChunkType_ExportFlags,      //!< Special export flags.
-	ChunkType_DataStream,       //!< Stream data.
-	ChunkType_MeshSubsets,      //!< Array of mesh subsets.
-	ChunkType_MeshPhysicsData,  //!< Physicalized mesh data.
-	ChunkType_ImportSettings,   //!< Settings used to import the asset, in JSON format.
+	ChunkType_BoneLightBinding,                    //!< Obsolete. describes the lights binded to bones.
+	ChunkType_MeshMorphTarget,                     //!< Describes a morph target of a mesh chunk.
+	ChunkType_BoneInitialPos,                      //!< Describes the initial position (4x3 matrix) of each bone; just an array of 4x3 matrices.
+	ChunkType_SourceInfo,                          //!< Describes the source from which the cgf was exported: source max file, machine and user.
+	ChunkType_MtlName,                             //!< Material name.
+	ChunkType_ExportFlags,                         //!< Special export flags.
+	ChunkType_DataStream,                          //!< Stream data.
+	ChunkType_MeshSubsets,                         //!< Array of mesh subsets.
+	ChunkType_MeshPhysicsData,                     //!< Physicalized mesh data.
+	ChunkType_ImportSettings,                      //!< Settings used to import the asset, in JSON format.
+	ChunkType_VCloth,                              //!< Describes per-mesh data for VCloth animation system.
 
 	// These are the new compiled chunks for characters.
 	ChunkType_CompiledBones = 0x2000,  //!< Was 0xACDC0000 in chunk files with versions <= 0x745.
@@ -355,7 +356,7 @@ struct TIMING_CHUNK_DESC_0919
 
 struct SPEED_CHUNK_DESC_2
 {
-	enum {VERSION = 0x0922};
+	enum { VERSION = 0x0922 };
 
 	float  Speed;
 	float  Distance;
@@ -421,15 +422,15 @@ struct MotionParams905
 
 struct CHUNK_MOTION_PARAMETERS
 {
-	enum {VERSION = 0x0925};
+	enum { VERSION = 0x0925 };
 
 	MotionParams905 mp;
 };
 
 struct CHUNK_GAHCAF_INFO
 {
-	enum {VERSION = 0x0971};
-	enum {FILEPATH_SIZE = 256};
+	enum { VERSION = 0x0971 };
+	enum { FILEPATH_SIZE = 256 };
 
 	uint32 m_Flags;
 	char   m_FilePath[FILEPATH_SIZE];
@@ -471,10 +472,10 @@ struct CHUNK_GAHAIM_INFO
 		int16 v0, v1, v2, v3;
 	};
 
-	enum {VERSION = 0x0970};
-	enum {XGRID = 17};
-	enum {YGRID = 9};
-	enum {FILEPATH_SIZE = 256};
+	enum { VERSION = 0x0970 };
+	enum { XGRID = 17 };
+	enum { YGRID = 9 };
+	enum { FILEPATH_SIZE = 256 };
 
 	uint32         m_Flags;
 	char           m_FilePath[FILEPATH_SIZE];
@@ -500,14 +501,14 @@ struct CHUNK_GAHAIM_INFO
 #define MTL_NAME_CHUNK_DESC_0800_MAX_SUB_MATERIALS (32)
 struct MTL_NAME_CHUNK_DESC_0800
 {
-	enum {VERSION = 0x0800};
+	enum { VERSION = 0x0800 };
 	enum EFlags
 	{
-		FLAG_MULTI_MATERIAL = 0x0001,  //!< Have sub materials info.
-		FLAG_SUB_MATERIAL   = 0x0002,  //!< This is sub material.
-		FLAG_SH_COEFFS      = 0x0004,  //!< This material should get spherical harmonics coefficients computed.
-		FLAG_SH_2SIDED      = 0x0008,  //!< This material will be used as 2 sided in the sh precomputation.
-		FLAG_SH_AMBIENT     = 0x0010,  //!< This material will get an ambient sh term(to not shadow it entirely).
+		FLAG_MULTI_MATERIAL = 0x0001, //!< Have sub materials info.
+		FLAG_SUB_MATERIAL   = 0x0002, //!< This is sub material.
+		FLAG_SH_COEFFS      = 0x0004, //!< This material should get spherical harmonics coefficients computed.
+		FLAG_SH_2SIDED      = 0x0008, //!< This material will be used as 2 sided in the sh precomputation.
+		FLAG_SH_AMBIENT     = 0x0010, //!< This material will get an ambient sh term(to not shadow it entirely).
 	};
 
 	int   nFlags; //!< See EFlags.
@@ -525,7 +526,7 @@ struct MTL_NAME_CHUNK_DESC_0800
 
 struct MTL_NAME_CHUNK_DESC_0802
 {
-	enum {VERSION = 0x0802};
+	enum { VERSION = 0x0802 };
 
 	char name[128];  //!< Material/shader name.
 	int  nSubMaterials;
@@ -550,8 +551,8 @@ struct MESH_CHUNK_DESC_0745
 	//! NODE_CHUNK_DESC(!) chunk format was changed and cannot be read
 	//! by them (old CLoaderCGF::LoadNodeChunk() didn't check.
 	//! NODE_CHUNK_DESC's version number).
-	enum {VERSION = 0x0745};
-	enum {COMPATIBLE_OLD_VERSION = 0x0744};
+	enum { VERSION = 0x0745 };
+	enum { COMPATIBLE_OLD_VERSION = 0x0744 };
 
 	enum EFlags1
 	{
@@ -582,8 +583,8 @@ struct MESH_CHUNK_DESC_0801
 	//! NODE_CHUNK_DESC(!) chunk format was changed and cannot be read
 	//! by them (old CLoaderCGF::LoadNodeChunk() didn't check
 	//! NODE_CHUNK_DESC's version number).
-	enum {VERSION = 0x0801};
-	enum {COMPATIBLE_OLD_VERSION = 0x0800};
+	enum { VERSION = 0x0801 };
+	enum { COMPATIBLE_OLD_VERSION = 0x0800 };
 
 	enum EFlags
 	{
@@ -624,7 +625,7 @@ struct MESH_CHUNK_DESC_0801
 //! Stream chunk contains data about a mesh data stream (positions, normals, etc...).
 struct STREAM_DATA_CHUNK_DESC_0800
 {
-	enum {VERSION = 0x0800};
+	enum { VERSION = 0x0800 };
 
 	enum EFlags {};  //!< Not implemented.
 
@@ -644,7 +645,7 @@ struct STREAM_DATA_CHUNK_DESC_0800
 //! Each subset holds an info about material id, indices ranges etc.
 struct MESH_SUBSETS_CHUNK_DESC_0800
 {
-	enum {VERSION = 0x0800};
+	enum { VERSION = 0x0800 };
 
 	enum EFlags
 	{
@@ -701,7 +702,7 @@ struct MESH_SUBSETS_CHUNK_DESC_0800
 //! Each subset holds an info about material id, indices ranges etc...
 struct MESH_PHYSICS_DATA_CHUNK_DESC_0800
 {
-	enum {VERSION = 0x0800};
+	enum { VERSION = 0x0800 };
 
 	int nDataSize;  //!< Size of physical data at the end of the chunk.
 	int nFlags;
@@ -718,7 +719,7 @@ struct MESH_PHYSICS_DATA_CHUNK_DESC_0800
 
 struct VERTANIM_CHUNK_DESC_0744
 {
-	enum {VERSION = 0x0744};
+	enum { VERSION = 0x0744 };
 
 	int GeomID;       //!< ID of the related mesh chunk.
 	int nKeys;        //!< Number of keys.
@@ -734,7 +735,7 @@ typedef VERTANIM_CHUNK_DESC_0744 VERTANIM_CHUNK_DESC;
 //! Bone Anim Chunk Header.
 struct BONEANIM_CHUNK_DESC_0290
 {
-	enum {VERSION = 0x0290};
+	enum { VERSION = 0x0290 };
 
 	int nBones;
 
@@ -746,7 +747,7 @@ struct BONEANIM_CHUNK_DESC_0290
 //! It's followed by numEntities packed \0-terminated strings, the list terminated by double-\0.
 struct BONENAMELIST_CHUNK_DESC_0745
 {
-	enum {VERSION = 0x0745};
+	enum { VERSION = 0x0745 };
 
 	int numEntities;
 	AUTO_STRUCT_INFO;
@@ -754,7 +755,7 @@ struct BONENAMELIST_CHUNK_DESC_0745
 
 struct COMPILED_BONE_CHUNK_DESC_0800
 {
-	enum {VERSION = 0x0800};
+	enum { VERSION = 0x0800 };
 
 	char reserved[32];
 	AUTO_STRUCT_INFO;
@@ -762,7 +763,7 @@ struct COMPILED_BONE_CHUNK_DESC_0800
 
 struct COMPILED_PHYSICALBONE_CHUNK_DESC_0800
 {
-	enum {VERSION = 0x0800};
+	enum { VERSION = 0x0800 };
 
 	char reserved[32];
 	AUTO_STRUCT_INFO;
@@ -770,7 +771,7 @@ struct COMPILED_PHYSICALBONE_CHUNK_DESC_0800
 
 struct COMPILED_PHYSICALPROXY_CHUNK_DESC_0800
 {
-	enum {VERSION = 0x0800};
+	enum { VERSION = 0x0800 };
 
 	uint32 numPhysicalProxies;
 	AUTO_STRUCT_INFO;
@@ -778,7 +779,7 @@ struct COMPILED_PHYSICALPROXY_CHUNK_DESC_0800
 
 struct COMPILED_MORPHTARGETS_CHUNK_DESC_0800
 {
-	enum {VERSION = 0x0800, VERSION1 = 0x801};
+	enum { VERSION = 0x0800, VERSION1 = 0x801 };
 
 	uint32 numMorphTargets;
 	AUTO_STRUCT_INFO;
@@ -786,14 +787,14 @@ struct COMPILED_MORPHTARGETS_CHUNK_DESC_0800
 
 struct COMPILED_INTFACES_CHUNK_DESC_0800
 {
-	enum {VERSION = 0x0800};
+	enum { VERSION = 0x0800 };
 
 	AUTO_STRUCT_INFO;
 };
 
 struct COMPILED_INTSKINVERTICES_CHUNK_DESC_0800
 {
-	enum {VERSION = 0x0800};
+	enum { VERSION = 0x0800 };
 
 	char reserved[32];
 	AUTO_STRUCT_INFO;
@@ -801,14 +802,14 @@ struct COMPILED_INTSKINVERTICES_CHUNK_DESC_0800
 
 struct COMPILED_EXT2INTMAP_CHUNK_DESC_0800
 {
-	enum {VERSION = 0x0800};
+	enum { VERSION = 0x0800 };
 
 	AUTO_STRUCT_INFO;
 };
 
 struct COMPILED_BONEBOXES_CHUNK_DESC_0800
 {
-	enum {VERSION = 0x0800, VERSION1 = 0x801};
+	enum { VERSION = 0x0800, VERSION1 = 0x801 };
 
 	AUTO_STRUCT_INFO;
 };
@@ -1059,7 +1060,7 @@ struct CONTROLLER_CHUNK_DESC_0833
 
 struct CONTROLLER_CHUNK_DESC_0905
 {
-	enum {VERSION = 0x0905};
+	enum { VERSION = 0x0905 };
 
 	uint32 numKeyPos;
 	uint32 numKeyRot;
@@ -1076,8 +1077,8 @@ struct NODE_CHUNK_DESC_0824
 	//! Versions 0x0823 and 0x0824 have exactly same layout.
 	//! The only difference between 0x0823 and 0x0824 is that some members.
 	//! are now named _obsoleteXXX_ and are not filled/used in 0x0824.
-	enum {VERSION = 0x0824};
-	enum {COMPATIBLE_OLD_VERSION = 0x0823};
+	enum { VERSION = 0x0824 };
+	enum { COMPATIBLE_OLD_VERSION = 0x0823 };
 
 	char  name[64];
 
@@ -1117,7 +1118,7 @@ enum HelperTypes
 
 struct HELPER_CHUNK_DESC_0744
 {
-	enum {VERSION = 0x0744};
+	enum { VERSION = 0x0744 };
 
 	HelperTypes type; //!< One of the HelperTypes values.
 	Vec3        size; //!< Size in local x,y,z axises (for dummy only).
@@ -1135,7 +1136,7 @@ typedef HELPER_CHUNK_DESC_0744 HELPER_CHUNK_DESC;
 //! The string is after the array because of future alignment considerations; it may be padded with 0s.
 struct MESHMORPHTARGET_CHUNK_DESC_0001
 {
-	enum {VERSION = 0x0001};
+	enum { VERSION = 0x0001 };
 	uint32 nChunkIdMesh;     //!< The chunk id of the mesh chunk (ChunkType_Mesh) for which this morph target is.
 	uint32 numMorphVertices; //!< Number of MORPHED vertices.
 
@@ -1176,7 +1177,7 @@ struct SMeshPhysicalProxyHeader
 //! This structure is followed by.
 struct BONEINITIALPOS_CHUNK_DESC_0001
 {
-	enum {VERSION = 0x0001};
+	enum { VERSION = 0x0001 };
 	//! The chunk id of the mesh chunk (ChunkType_Mesh) with bone info for which these bone initial positions are applicable.
 	//! There might be some unused bones here as well. There must be the same number of bones as in the other chunks - they're placed
 	//! in BoneId order.
@@ -1205,7 +1206,7 @@ struct SBoneInitPosMatrix
 //////////////////////////////////////////////////////////////////////////
 struct EXPORT_FLAGS_CHUNK_DESC
 {
-	enum {VERSION = 0x0001};
+	enum { VERSION = 0x0001 };
 	enum EFlags
 	{
 		MERGE_ALL_NODES          = 0x0001,
@@ -1213,6 +1214,7 @@ struct EXPORT_FLAGS_CHUNK_DESC
 		USE_CUSTOM_NORMALS       = 0x0004,
 		WANT_F32_VERTICES        = 0x0008,
 		EIGHT_WEIGHTS_PER_VERTEX = 0x0010,
+		MAKE_VCLOTH              = 0x0020
 	};
 	enum ESrcFlags
 	{
@@ -1234,7 +1236,7 @@ struct EXPORT_FLAGS_CHUNK_DESC
 
 struct BREAKABLE_PHYSICS_CHUNK_DESC
 {
-	enum {VERSION = 0x0001};
+	enum { VERSION = 0x0001 };
 
 	unsigned int granularity;
 	int          nMode;
@@ -1247,7 +1249,7 @@ struct BREAKABLE_PHYSICS_CHUNK_DESC
 
 struct FOLIAGE_INFO_CHUNK_DESC
 {
-	enum {VERSION = 0x0001};
+	enum { VERSION = 0x0001 };
 
 	int nSpines;
 	int nSpineVtx;
@@ -1268,6 +1270,29 @@ struct FOLIAGE_SPINE_SUB_CHUNK
 	char          _paddingB_[2];
 
 	AUTO_STRUCT_INFO;
+};
+
+// Header of a VCloth chunk.
+struct VCLOTH_CHUNK
+{
+	enum { VERSION = 0x0001 };
+
+	uint32 vertexCount;
+	uint32 bendTrianglePairCount;
+	uint32 bendTriangleCount;
+	uint32 lraNotAttachedOrderedIdxCount;
+	uint32 linkCount[3];
+
+	AUTO_STRUCT_INFO;
+
+	// The payload data follows immediately after this header and consists of the following arrays (in this order):
+	//
+	// SVClothChunkVertex      vertices[vertexCount];
+	// SVClothBendTriangle     triangles[bendTriangleCount];
+	// SVClothBendTrianglePair trianglePairs[bendTrianglePairCount];
+	// SVClothLraNotAttachedOrderedIdx m_lraNotAttachedOrderedIdx[lraNotAttachedOrderedIdxCount];
+	// SVClothLink             m_links [linkCount];
+
 };
 
 #endif

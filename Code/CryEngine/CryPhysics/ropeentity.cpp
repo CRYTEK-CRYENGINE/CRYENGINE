@@ -324,6 +324,7 @@ int CRopeEntity::SetParams(pe_params *_params, int bThreadSafe)
 					memset(m_vtx1 = new rope_vtx[m_nVtxAlloc], 0, m_nVtxAlloc*sizeof(rope_vtx));
 					for(i=0;i<=params->nSegments;i++)	{
 						m_vtx[i].pt=m_vtx[i].pt0 = m_segs[i].pt;
+						MARK_UNUSED m_vtx[i].ncontact;
 						m_segs[i].iVtx0 = i;
 					}
 					m_nVtx=m_nVtx0 = params->nSegments+1;
@@ -354,8 +355,7 @@ int CRopeEntity::SetParams(pe_params *_params, int bThreadSafe)
 			m_pTiedTo[i] = params->pEntTiedTo[i]==WORLD_ENTITY ? &g_StaticPhysicalEntity : 
 										 (params->pEntTiedTo[i] ? ((CPhysicalPlaceholder*)params->pEntTiedTo[i])->GetEntity() : 0);
 			if (m_pTiedTo[i]!=pPrevTied && pPrevTied)	{
-				if (pPrevTied->GetType()==PE_ROPE)
-					pPrevTied->RemoveCollider(this);
+				pPrevTied->RemoveCollider(this);
 				if (!(m_flags & pef_disabled)) {
 					if ((unsigned int)pPrevTied->m_iSimClass<7u)
 						pPrevTied->Awake();

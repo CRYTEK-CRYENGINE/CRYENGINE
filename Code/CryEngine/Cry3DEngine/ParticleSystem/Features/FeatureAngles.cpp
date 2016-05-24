@@ -49,6 +49,12 @@ public:
 		ar(m_randomAngle, "RandomAngle", "Random Angle");
 		ar(m_initialSpin, "InitialSpin", "Initial Spin");
 		ar(m_randomSpin, "RandomSpin", "Random Spin");
+
+		if (ar.isInput() && GetVersion(ar) < 8)
+		{
+			m_initialAngle = -m_initialAngle;
+			m_initialSpin = -m_initialSpin;
+		}
 	}
 
 	virtual void InitParticles(const SUpdateContext& context) override
@@ -58,7 +64,7 @@ public:
 		CParticleContainer& container = context.m_container;
 
 		IOFStream angles = container.GetIOFStream(EPDT_Angle2D);
-		const float initAngle = m_initialAngle.Get();
+		const float initAngle = -m_initialAngle.Get();
 		const float randAngle = m_randomAngle.Get();
 		CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
 		{
@@ -71,7 +77,7 @@ public:
 		if (container.HasData(EPDT_Spin2D))
 		{
 			IOFStream spins = container.GetIOFStream(EPDT_Spin2D);
-			const float initSpin = m_initialSpin.Get();
+			const float initSpin = -m_initialSpin.Get();
 			const float randSpin = m_randomSpin.Get();
 			CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
 			{

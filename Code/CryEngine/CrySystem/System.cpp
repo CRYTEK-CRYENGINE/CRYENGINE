@@ -102,7 +102,8 @@ WATERMARKDATA(_m);
 
 #include "HMDManager.h"
 
-#include <ILevelSystem.h>
+#include <../CryAction/ILevelSystem.h>
+#include <../CryAction/IViewSystem.h>
 
 #include <CryCore/CrtDebugStats.h>
 
@@ -121,8 +122,6 @@ CMTSafeHeap* g_pPakHeap = 0;// = &g_pakHeap;
 
 //////////////////////////////////////////////////////////////////////////
 #include "Validator.h"
-
-#include "IViewSystem.h"
 
 #if CRY_PLATFORM_ANDROID
 namespace
@@ -196,10 +195,12 @@ struct SCVarsWhitelistConfigSink : public ILoadConfigurationEntrySink
 /////////////////////////////////////////////////////////////////////////////////
 // System Implementation.
 //////////////////////////////////////////////////////////////////////////
-CSystem::CSystem()
+CSystem::CSystem(const SSystemInitParams& startupParams)
+	:
 #if defined(SYS_ENV_AS_STRUCT)
-	: m_env(gEnv)
+	m_env(gEnv),
 #endif
+	m_startupParams(startupParams)
 {
 	m_systemGlobalState = ESYSTEM_GLOBAL_STATE_UNKNOWN;
 	m_iHeight = 0;
@@ -285,6 +286,7 @@ CSystem::CSystem()
 	m_sysNoUpdate = NULL;
 	m_pMemoryManager = NULL;
 	m_pProcess = NULL;
+	m_pMtState = NULL;
 
 	m_pValidator = NULL;
 	m_pCmdLine = NULL;
@@ -1132,7 +1134,6 @@ void CSystem::CreatePhysicsThread()
 {
 	if (!m_PhysThread)
 	{
-		ScopedSwitchToGlobalHeap globalHeap;
 		m_PhysThread = new CPhysicsThreadTask;
 		if (!gEnv->pThreadManager->SpawnThread(m_PhysThread, "Physics"))
 		{
@@ -2086,15 +2087,11 @@ bool CSystem::Update(int updateFlags, int nPauseMode)
 		if ((cur_time - it->first) < a_second)
 			break;
 
-	{
-		ScopedSwitchToGlobalHeap globalHeap;
+	if (it != m_updateTimes.begin())
+		m_updateTimes.erase(m_updateTimes.begin(), it);
 
-		if (it != m_updateTimes.begin())
-			m_updateTimes.erase(m_updateTimes.begin(), it);
-
-		float updateTime = (cur_time - updateStart).GetMilliSeconds();
-		m_updateTimes.push_back(std::make_pair(cur_time, updateTime));
-	}
+	float updateTime = (cur_time - updateStart).GetMilliSeconds();
+	m_updateTimes.push_back(std::make_pair(cur_time, updateTime));
 
 	UpdateUpdateTimes();
 
@@ -2749,6 +2746,25 @@ const sUpdateTimes* CSystem::GetUpdateTimeStats(uint32& index, uint32& num)
 	index = m_UpdateTimesIdx;
 	num = NUM_UPDATE_TIMES;
 	return m_UpdateTimes;
+}
+
+void CSystem::FillRandomMT(uint32* pOutWords, uint32 numWords)
+{
+	AUTO_LOCK(m_mtLock);
+	if (!m_pMtState)
+	{
+		struct TicksTime
+		{
+			int64 ticks;
+			time_t tm;
+		};
+
+		TicksTime tt = { CryGetTicks(), time(nullptr) };
+		m_pMtState = new CMTRand_int32(reinterpret_cast<uint32*>(&tt), sizeof(tt) / sizeof(uint32));
+	}
+
+	for (uint32 i = 0; i < numWords; ++i)
+		pOutWords[i] = m_pMtState->GenerateUint32();
 }
 
 void CSystem::UpdateUpdateTimes()

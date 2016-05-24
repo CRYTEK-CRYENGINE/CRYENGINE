@@ -108,13 +108,6 @@ enum
 	TO_SCENE_NORMALMAP,
 	TO_SCENE_NORMALMAP_MS,
 
-	TO_LPV_R,
-	TO_LPV_G,
-	TO_LPV_B,
-	TO_RSM_NORMAL,
-	TO_RSM_COLOR,
-	TO_RSM_DEPTH,
-
 	TO_SCENE_DIFFUSE_ACC,
 	TO_SCENE_SPECULAR_ACC,
 	TO_SCENE_DIFFUSE_ACC_MS,
@@ -2241,7 +2234,6 @@ public:
 
 		if (i == nTexStatesSize)
 		{
-			ScopedSwitchToGlobalHeap useGlobalHeap;
 			s_TexStates.push_back(TS);
 			s_TexStates[i].PostCreate();
 		}
@@ -2328,14 +2320,6 @@ public:
 
 	static CTexture* s_ptexHeightMapAO[2];
 	static CTexture* s_ptexHeightMapAODepth[2];
-
-	// Render targets for Light Propagation Volumes
-	static CTexture* s_ptexLPV_RTs[3];                // Currently bound LPV during rendering (used for auto-binding in shaders)
-
-	// Render targets for Reflective Shadow Maps (used for auto-binding in shaders)
-	static CTexture*           s_ptexRSMFlux;
-	static CTexture*           s_ptexRSMNormals;
-	static CTexture*           s_ptexRSMDepth;
 
 	static CTexture*           s_ptexBackBuffer;              // back buffer copy
 	static CTexture*           s_ptexModelHudBuffer;          // used by Menu3DModelRenderer to postprocess render models

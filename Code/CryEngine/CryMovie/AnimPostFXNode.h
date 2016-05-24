@@ -23,7 +23,7 @@ public:
 	virtual unsigned int   GetParamCount() const override;
 	virtual CAnimParamType GetParamType(unsigned int nIndex) const override;
 	virtual void           CreateDefaultTracks() override;
-	virtual void           OnReset() override;
+	virtual void           Activate(bool activate) override;
 	virtual void           Animate(SAnimContext& animContext) override;
 
 protected:

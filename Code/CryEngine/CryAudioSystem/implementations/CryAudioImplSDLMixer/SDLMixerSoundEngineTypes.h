@@ -5,10 +5,10 @@
 #include <IAudioSystemImplementation.h>
 #include <STLSoundAllocator.h>
 
-namespace SDLMixer
+namespace SdlMixer
 {
-typedef uint TSampleID;
-typedef uint TListenerID;
+typedef uint SampleId;
+typedef uint ListenerId;
 }
 
 namespace CryAudio
@@ -16,54 +16,54 @@ namespace CryAudio
 namespace Impl
 {
 
-typedef std::set<int, std::less<int>, STLSoundAllocator<int>> TChannelSet;
+typedef std::vector<int, STLSoundAllocator<int>> ChannelList;
 
-struct SATLTriggerImplData_sdlmixer final : public IAudioTrigger
+struct SAtlTriggerImplData_sdlmixer final : public IAudioTrigger
 {
-	explicit SATLTriggerImplData_sdlmixer()
-		: nSampleID(0)
-		, fAttenuationMinDistance(0)
-		, fAttenuationMaxDistance(100)
-		, nVolume(128)
-		, nLoopCount(1)
+	explicit SAtlTriggerImplData_sdlmixer()
+		: sampleId(0)
+		, attenuationMinDistance(0.0f)
+		, attenuationMaxDistance(100.0f)
+		, volume(128)
+		, loopCount(1)
 		, bPanningEnabled(true)
 		, bStartEvent(true)
 	{}
 
-	SDLMixer::TSampleID nSampleID;
-	float               fAttenuationMinDistance;
-	float               fAttenuationMaxDistance;
-	int                 nVolume;
-	int                 nLoopCount;
-	bool                bPanningEnabled;
-	bool                bStartEvent;
+	SdlMixer::SampleId sampleId;
+	float              attenuationMinDistance;
+	float              attenuationMaxDistance;
+	int                volume;
+	int                loopCount;
+	bool               bPanningEnabled;
+	bool               bStartEvent;
 };
 
-struct SATLRtpcImplData_sdlmixer final : public IAudioRtpc
+struct SAtlRtpcImplData_sdlmixer final : public IAudioRtpc
 {
 	// Empty implementation so that the engine has something
 	// to refer to since RTPCs are not currently supported by
 	// the SDL Mixer implementation
 };
 
-struct SATLSwitchStateImplData_sdlmixer final : public IAudioSwitchState
+struct SAtlSwitchStateImplData_sdlmixer final : public IAudioSwitchState
 {
 	// Empty implementation so that the engine has something
 	// to refer to since switches are not currently supported by
 	// the SDL Mixer implementation
 };
 
-struct SATLEnvironmentImplData_sdlmixer final : public IAudioEnvironment
+struct SAtlEnvironmentImplData_sdlmixer final : public IAudioEnvironment
 {
 	// Empty implementation so that the engine has something
 	// to refer to since environments are not currently supported by
 	// the SDL Mixer implementation
 };
 
-struct SATLEventData_sdlmixer final : public IAudioEvent
+struct SAtlEventData_sdlmixer final : public IAudioEvent
 {
-	explicit SATLEventData_sdlmixer(AudioEventId const nPassedID)
-		: nEventID(nPassedID)
+	explicit SAtlEventData_sdlmixer(AudioEventId const passedId)
+		: eventId(passedId)
 		, pStaticData(nullptr)
 	{}
 
@@ -72,44 +72,66 @@ struct SATLEventData_sdlmixer final : public IAudioEvent
 		channels.clear();
 		pStaticData = nullptr;
 	}
-	const AudioEventId                  nEventID;
-	TChannelSet                         channels;
-	const SATLTriggerImplData_sdlmixer* pStaticData;
+	const AudioEventId                  eventId;
+	ChannelList                         channels;
+	const SAtlTriggerImplData_sdlmixer* pStaticData;
 };
-typedef std::set<SATLEventData_sdlmixer*, std::less<SATLEventData_sdlmixer*>, STLSoundAllocator<SATLEventData_sdlmixer*>> TEventInstanceSet;
 
-struct SATLAudioObjectData_sdlmixer final : public IAudioObject
+class CAudioStandaloneFile_sdlmixer final : public IAudioStandaloneFile
 {
-	SATLAudioObjectData_sdlmixer(AudioObjectId nID, bool bIsGlobal)
-		: nObjectID(nID)
+public:
+	CAudioStandaloneFile_sdlmixer() : fileId(INVALID_AUDIO_STANDALONE_FILE_ID), fileInstanceId(INVALID_AUDIO_STANDALONE_FILE_ID) {}
+
+	void Reset()
+	{
+		fileId = INVALID_AUDIO_STANDALONE_FILE_ID;
+		fileInstanceId = INVALID_AUDIO_STANDALONE_FILE_ID;
+		channels.clear();
+		fileName.clear();
+	}
+
+	AudioStandaloneFileId                       fileId;         // ID unique to the file, only needed for the 'finished' request
+	AudioStandaloneFileId                       fileInstanceId; // ID unique to the file instance, only needed for the 'finished' request
+	CryFixedStringT<MAX_AUDIO_FILE_PATH_LENGTH> fileName;
+	ChannelList channels;
+};
+
+typedef std::vector<SAtlEventData_sdlmixer*, STLSoundAllocator<SAtlEventData_sdlmixer*>>               EventInstanceList;
+typedef std::vector<CAudioStandaloneFile_sdlmixer*, STLSoundAllocator<CAudioStandaloneFile_sdlmixer*>> StandAloneFileInstanceList;
+
+struct SAtlAudioObjectData_sdlmixer final : public IAudioObject
+{
+	SAtlAudioObjectData_sdlmixer(AudioObjectId id, bool bIsGlobal)
+		: audioObjectId(id)
 		, bGlobal(bIsGlobal)
 		, bPositionChanged(false) {}
 
-	const AudioObjectId        nObjectID;
+	const AudioObjectId        audioObjectId;
 	CAudioObjectTransformation position;
-	TEventInstanceSet          events;
+	EventInstanceList          events;
+	StandAloneFileInstanceList standaloneFiles;
 	bool                       bGlobal;
 	bool                       bPositionChanged;
 };
 
-struct SATLListenerData_sdlmixer final : public IAudioListener
+struct SAtlListenerData_sdlmixer final : public IAudioListener
 {
-	explicit SATLListenerData_sdlmixer(const SDLMixer::TListenerID nID)
-		: nListenerID(nID)
+	explicit SAtlListenerData_sdlmixer(const SdlMixer::ListenerId id)
+		: listenerId(id)
 	{}
 
-	const SDLMixer::TListenerID nListenerID;
+	const SdlMixer::ListenerId listenerId;
 };
 
-struct SATLAudioFileEntryData_sdlmixer final : public IAudioFileEntry
+struct SAtlAudioFileEntryData_sdlmixer final : public IAudioFileEntry
 {
-	SATLAudioFileEntryData_sdlmixer()
+	SAtlAudioFileEntryData_sdlmixer()
 	{}
 
-	SDLMixer::TSampleID nSampleID;
+	SdlMixer::SampleId sampleId;
 };
 
-struct SATLAudioStandaloneFile_sdlmixer final : public IAudioStandaloneFile
+struct SAtlAudioStandaloneFile_sdlmixer final : public IAudioStandaloneFile
 {
 	// Empty implementation so that the engine has something
 	// to refer to since support for standalone audio files

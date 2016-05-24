@@ -139,15 +139,19 @@ struct SAudioStandaloneFileInfo
 		: pAudioObject(nullptr)
 		, pImplData(nullptr)
 		, szFileName(nullptr)
+		, pUsedAudioTrigger(nullptr)
 		, fileId(INVALID_AUDIO_STANDALONE_FILE_ID)
 		, fileInstanceId(INVALID_AUDIO_STANDALONE_FILE_ID)
+		, bLocalized(true)
 	{}
 
-	IAudioObject*         pAudioObject;     // pointer to the memory location of the associated audio object
-	IAudioStandaloneFile* pImplData;        // pointer to the implementation-specific data needed for this AudioStandaloneFile
-	char const*           szFileName;       // file name
-	AudioStandaloneFileId fileId;           // ID unique to the file
-	AudioStandaloneFileId fileInstanceId;   // ID unique to the file instance
+	IAudioObject*         pAudioObject;      // pointer to the memory location of the associated audio object
+	IAudioStandaloneFile* pImplData;         // pointer to the implementation-specific data needed for this AudioStandaloneFile
+	char const*           szFileName;        // file name
+	const IAudioTrigger*  pUsedAudioTrigger; // the audioTrigger that should be used for the playback
+	AudioStandaloneFileId fileId;            // ID unique to the file
+	AudioStandaloneFileId fileInstanceId;    // ID unique to the file instance
+	bool                  bLocalized;        // is the asset localized
 };
 
 /**

@@ -86,7 +86,6 @@ protected:
 	virtual void ExitState(EContextViewState state) = 0;
 	virtual void OnNeedToSendStateInformation(bool urgent) = 0;
 	virtual void OnViewStateDisconnect(const char* message) = 0;
-	virtual bool IsMigrating() const = 0;
 
 	bool         HasPendingStateChange(bool ignoreLocks)
 	{

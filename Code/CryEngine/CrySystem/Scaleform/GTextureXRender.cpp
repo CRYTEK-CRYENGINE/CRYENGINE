@@ -318,11 +318,7 @@ bool GTextureXRender::InitTextureInternal(ETEX_Format texFmt, int32 width, int32
 
 bool GTextureXRender::InitDynamicTexture(int width, int height, GImage::ImageFormat format, int mipmaps, UInt usage)
 {
-	// Currently only used for font cache texture. Enforce global heap usage. In the game that
-	// is given automatically since the menu first creates this. However, chainloading doesn't
-	// and the texture ends up in the level heap resulting in "false positives" being reported.
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
+	// Currently only used for font cache texture.
 	if (Usage_Update == usage)
 	{
 		IRenderer* pRenderer(m_pRendererXRender->GetXRender());

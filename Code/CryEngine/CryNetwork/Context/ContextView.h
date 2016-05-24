@@ -164,7 +164,6 @@ public:
 
 	virtual bool                           IsClient() const { return false; }
 	virtual bool                           IsServer() const { return false; }
-	virtual bool                           IsPeer() const   { return false; }
 
 	void                                   NetDump(ENetDumpType type, INetDumpLogger& logger);
 
@@ -202,11 +201,6 @@ public:
 
 	// set an aspect profile
 	void SetAspectProfile(SNetObjectID objectID, NetworkAspectType aspect, uint8 profile);
-
-	bool ChangeBindLocksDuringMigration();
-	void BackupStateDuringMigration();
-	void RestoreStateDuringMigration();
-	void ClearStateDuringMigration();
 
 	// INetContextListener
 	virtual void            OnObjectEvent(CNetContextState* pState, SNetObjectEvent* pEvent);
@@ -315,7 +309,6 @@ protected:
 	virtual void ExitState(EContextViewState state);
 	virtual void OnNeedToSendStateInformation(bool urgently);
 	virtual void OnViewStateDisconnect(const char* message);
-	virtual bool IsMigrating() const;
 	// ~CContextViewStateManager
 
 	static const char* GetStateName(EContextViewState state);
@@ -514,7 +507,6 @@ protected:
 	SObjects            m_objects;
 	SObjectsEx          m_objectsEx;
 	CNetObjectBindLocks m_objectLocks;
-	static SObjects     m_HostMigrationObjects;
 
 	void ChangedObject(SNetObjectID id, uint32 flags, NetworkAspectType dirtyAspects);
 
@@ -528,8 +520,6 @@ private:
 	void GC_Lazy_StateSink(_smart_ptr<CNetContextState> ) {}
 
 	CHistory*                           m_history[eH_NUM_HISTORIES];
-
-	static _smart_ptr<CNetContextState> m_BackupContextStateDuringMigration;
 
 	CNetChannel*                        m_pParent;
 	CNetContext*                        m_pContext;

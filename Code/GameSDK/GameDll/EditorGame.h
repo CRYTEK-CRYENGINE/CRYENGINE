@@ -68,6 +68,7 @@ private:
 	void InitUIEnums(IGameToEditorInterface* pGTE);
 	void InitGlobalFileEnums(IGameToEditorInterface* pGTE);
 	void InitActionEnums(IGameToEditorInterface* pGTE);
+	void InitHUDEventEnums(IGameToEditorInterface* pGTE);
 	void InitEntityClassesEnums(IGameToEditorInterface* pGTE);
 	void InitLevelTypesEnums(IGameToEditorInterface* pGTE);
 	void InitEntityArchetypeEnums(IGameToEditorInterface* pGTE, const char* levelFolder = NULL, const char* levelName = NULL);

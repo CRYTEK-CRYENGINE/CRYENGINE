@@ -1,11 +1,6 @@
 <RCC>
     <qresource prefix="/">
         <file>Icons/Bank.ico</file>
-        <file>Icons/Config_Blue.ico</file>
-        <file>Icons/Config_Green.ico</file>
-        <file>Icons/Config_Purple.ico</file>
-        <file>Icons/Config_Red.ico</file>
-        <file>Icons/Config_Yellow.ico</file>
         <file>Icons/Environment.ico</file>
         <file>Icons/Folder.ico</file>
         <file>Icons/Property.ico</file>

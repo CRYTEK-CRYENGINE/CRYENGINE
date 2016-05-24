@@ -1,11 +1,6 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __scenenode_h__
-#define __scenenode_h__
-
-#if _MSC_VER > 1000
-	#pragma once
-#endif
+#pragma once
 
 #include "AnimNode.h"
 
@@ -46,7 +41,6 @@ private:
 	void         ApplyCameraKey(SCameraKey& key, SAnimContext& animContext);
 	void         ApplyEventKey(SEventKey& key, SAnimContext& animContext);
 	void         ApplyConsoleKey(SConsoleKey& key, SAnimContext& animContext);
-	void         ApplyAudioKey(char const* const sTriggerName, bool const bPlay = true);
 	void         ApplySequenceKey(IAnimTrack* pTrack, int nPrevKey, int nCurrKey, SSequenceKey& key, SAnimContext& animContext);
 
 	void         ApplyGotoKey(CGotoTrack* poGotoTrack, SAnimContext& animContext);
@@ -72,12 +66,6 @@ private:
 	int                     m_nLastGotoKey;
 	int                     m_lastCaptureKey;
 	bool                    m_bLastCapturingEnded;
-
 	EntityId                m_currentCameraEntityId;
-
-	std::vector<SSoundInfo> m_soundInfo;
-
 	ICVar*                  m_cvar_t_FixedStep;
 };
-
-#endif

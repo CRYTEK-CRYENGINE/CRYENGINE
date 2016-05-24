@@ -101,6 +101,8 @@ private:
 class CAudioObjectManager
 {
 public:
+	typedef std::unordered_map<AudioObjectId const, CATLAudioObject* const, std::hash<AudioObjectId>, std::equal_to<AudioObjectId>, STLSoundAllocator<std::pair<AudioObjectId const, CATLAudioObject* const>>>
+		RegisteredAudioObjectsMap;
 
 	explicit CAudioObjectManager(CAudioEventManager& _audioEventMgr, CAudioStandaloneFileManager& _audioStandaloneFileMgr);
 	virtual ~CAudioObjectManager();
@@ -123,9 +125,6 @@ public:
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 
-	typedef std::map<AudioObjectId, CATLAudioObject*, std::less<AudioObjectId>, STLSoundAllocator<std::pair<AudioObjectId, CATLAudioObject*>>>
-	  RegisteredAudioObjectsMap;
-
 	bool                             ReserveId(AudioObjectId& audioObjectId, char const* const szAudioObjectName);
 	void                             SetDebugNameStore(CATLDebugNameStore* const pDebugNameStore);
 	size_t                           GetNumAudioObjects() const;
@@ -135,14 +134,10 @@ public:
 	void                             DrawDebugInfo(IRenderAuxGeom& auxGeom, float posX, float posY) const;
 
 private:
-
 	CATLDebugNameStore* m_pDebugNameStore;
-#else //INCLUDE_AUDIO_PRODUCTION_CODE
-private:
-
-	typedef std::map<AudioObjectId, CATLAudioObject*, std::less<AudioObjectId>, STLSoundAllocator<std::pair<AudioObjectId, CATLAudioObject*>>>
-	  RegisteredAudioObjectsMap;
 #endif //INCLUDE_AUDIO_PRODUCTION_CODE
+
+private:
 
 	static float s_controlsUpdateInterval;
 
@@ -252,7 +247,7 @@ private:
 	void                                     ParseAudioTriggers(XmlNodeRef const pXMLTriggerRoot, EAudioDataScope const dataScope);
 	void                                     ParseAudioSwitches(XmlNodeRef const pXMLSwitchRoot, EAudioDataScope const dataScope);
 	void                                     ParseAudioRtpcs(XmlNodeRef const pXMLRtpcRoot, EAudioDataScope const dataScope);
-	void                                     ParseAudioPreloads(XmlNodeRef const pPreloadDataRoot, EAudioDataScope const dataScope, char const* const szFolderName);
+	void                                     ParseAudioPreloads(XmlNodeRef const pPreloadDataRoot, EAudioDataScope const dataScope, char const* const szFolderName, uint const version);
 	void                                     ParseAudioEnvironments(XmlNodeRef const pAudioEnvironmentRoot, EAudioDataScope const dataScope);
 
 	CryAudio::Impl::IAudioTrigger const*     NewInternalAudioTrigger(XmlNodeRef const pXMLTriggerRoot);

@@ -1769,7 +1769,6 @@ FILE* CCryPak::FOpen(const char* pName, const char* szMode, unsigned nInputFlags
 			continue;
 		if (nFile == m_arrOpenFiles.size())
 		{
-			ScopedSwitchToGlobalHeap globalHeap;
 			m_arrOpenFiles.resize(nFile + 1);
 		}
 		if (pFileData != NULL && (nInputFlags & FOPEN_HINT_DIRECT_OPERATION) && !pFileData->m_pZip->IsInMemory())
@@ -3528,32 +3527,8 @@ void CCryPakFindData::GetMemoryUsage(ICrySizer* pSizer) const
 	pSizer->AddObject(m_mapFiles);
 }
 
-bool CCryPak::MakeDir(const char* szPathIn, bool bGamePathMapping)
+bool CCryPak::MakeDir(const char* szPath, bool bGamePathMapping)
 {
-	stack_string pathStr = szPathIn;
-	// Determine if there is a period ('.') after the last slash to determine if the path contains a file.
-	// This used to be a strchr on the whole path which could contain a period in a path, such as network domain paths (domain.user).
-	bool bPathContainsFile = false;
-	size_t findDotFromPos = pathStr.rfind(g_cNativeSlash);
-	if (findDotFromPos == stack_string::npos)
-	{
-		findDotFromPos = pathStr.rfind(g_cNonNativeSlash);
-		if (findDotFromPos == stack_string::npos)
-		{
-			findDotFromPos = 0;
-		}
-	}
-	size_t dotPos = pathStr.find('.', findDotFromPos);
-	if (dotPos != stack_string::npos)
-	{
-		pathStr = PathUtil::GetPath(stack_string(szPathIn));
-	}
-	else
-	{
-		pathStr = szPathIn;
-	}
-
-	const char* szPath = pathStr;
 	if (0 == szPath[0])
 	{
 		return true;

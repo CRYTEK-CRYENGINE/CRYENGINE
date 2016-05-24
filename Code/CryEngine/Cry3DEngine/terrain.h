@@ -509,11 +509,10 @@ public:
 	void HighlightTerrain(int x1, int y1, int x2, int y2, int nSID = GetDefSID());
 	bool CanPaintSurfaceType(int x, int y, int r, uint16 usGlobalSurfaceType);
 	void GetVisibleSectorsInAABB(PodArray<struct CTerrainNode*>& lstBoxSectors, const AABB& boxBox);
-	void RegisterLightMaskInSectors(CDLight* pLight, int nSID, const SRenderingPassInfo& passInfo);
 	void LoadSurfaceTypesFromXML(XmlNodeRef pDoc, int nSID);
 	void UpdateSurfaceTypes(int nSID);
 	bool RenderArea(Vec3 vPos, float fRadius, _smart_ptr<IRenderMesh>& arrLightRenderMeshs, CRenderObject* pObj, IMaterial* pMaterial, const char* szComment, float* pCustomData, Plane* planes, const SRenderingPassInfo& passInfo);
-	void IntersectWithShadowFrustum(PodArray<CTerrainNode*>* plstResult, ShadowMapFrustum* pFrustum, int nSID, const SRenderingPassInfo& passInfo);
+	void IntersectWithShadowFrustum(PodArray<IShadowCaster*>* plstResult, ShadowMapFrustum* pFrustum, int nSID, const SRenderingPassInfo& passInfo);
 	void IntersectWithBox(const AABB& aabbBox, PodArray<CTerrainNode*>* plstResult, int nSID);
 	void MarkAllSectorsAsUncompiled(int nSID);
 	void BuildErrorsTableForArea(float* pLodErrors, int nMaxLods, int X1, int Y1, int X2, int Y2, float* pTerrainBlock,
@@ -593,9 +592,6 @@ public:
 		return m_pTerrainEf;
 	}
 
-	void   SetSunLightMask(uint32 nSunLightMask) { m_nSunLightMask = nSunLightMask; }
-	uint32 GetSunLightMask()                     { return m_nSunLightMask; }
-
 	int m_nWhiteTexId;
 	int m_nBlackTexId;
 
@@ -608,7 +604,7 @@ public:
 	CTerrainNode*                 FindMinNodeContainingBox(const AABB& someBox, int nSID);
 	int                           FindMinNodesContainingBox(const AABB& someBox, PodArray<CTerrainNode*>& arrNodes);
 	int                           GetTerrainLightmapTexId(Vec4& vTexGenInfo, int nSID);
-	void                          GetAtlasTexId(int& nTex0, int& nTex1, int nSID);
+	void GetAtlasTexId(int& nTex0, int& nTex1, int& nTex2, int nSID);
 
 	_smart_ptr<IRenderMesh>       MakeAreaRenderMesh(const Vec3& vPos, float fRadius, IMaterial* pMat, const char* szLSourceName, Plane* planes);
 
@@ -706,7 +702,6 @@ protected: // ------------------------------------------------------------------
 	_smart_ptr<IMaterial>            m_pImposterEf;
 
 	float                            m_fOceanWaterLevel;
-	uint32                           m_nSunLightMask;
 
 	PodArray<struct CTerrainNode*>   m_lstVisSectors;
 	PodArray<struct CTerrainNode*>   m_lstUpdatedSectors;
@@ -727,7 +722,7 @@ protected: // ------------------------------------------------------------------
 	PodArray<CTerrainNode*>   m_lstActiveTextureNodes;
 	PodArray<CTerrainNode*>   m_lstActiveProcObjNodes;
 
-	CTextureCache             m_texCache[2];
+	CTextureCache m_texCache[3]; // RGB, Normal and Height
 
 	EEndian                   m_eEndianOfTexture;
 
@@ -738,6 +733,8 @@ protected: // ------------------------------------------------------------------
 #if defined(FEATURE_SVO_GI)
 	PodArray<ColorB>* m_pTerrainRgbLowResSystemCopy;
 #endif
+
+	_smart_ptr<IRenderMesh> m_pSharedRenderMesh;
 
 public:
 	bool    SetCompiledData(byte* pData, int nDataSize, std::vector<struct IStatObj*>** ppStatObjTable, std::vector<IMaterial*>** ppMatTable, bool bHotUpdate, SHotUpdateInfo* pExportInfo, int nSID, Vec3 vSegmentOrigin);

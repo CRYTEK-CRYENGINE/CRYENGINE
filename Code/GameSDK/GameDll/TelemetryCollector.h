@@ -23,6 +23,7 @@ History:
 
 #include "ITelemetryCollector.h"
 #include "ILevelSystem.h"
+#include <CryLobby/ICryLobby.h>
 #include <CryLobby/ICryTCPService.h>
 #include <CryNetwork/INetwork.h>
 #include "DownloadMgr.h"

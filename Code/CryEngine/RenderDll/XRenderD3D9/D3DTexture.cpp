@@ -4197,8 +4197,6 @@ void CTexture::CreateSystemTargets()
 {
 	if (!gcpRendD3D->m_bSystemTargetsInit)
 	{
-		ScopedSwitchToGlobalHeap useGlobalHeap;
-
 		gcpRendD3D->m_bSystemTargetsInit = 1;
 
 		ETEX_Format eTF = (gcpRendD3D->m_RP.m_bUseHDR && gcpRendD3D->m_nHDRType == 1) ? eTF_R16G16B16A16F : eTF_R8G8B8A8;

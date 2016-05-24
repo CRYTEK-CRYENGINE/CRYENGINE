@@ -72,7 +72,7 @@ static inline void AddEf_HandleOldRTMask(CRenderObject* obj)
 {
 	const uint64 objFlags = obj->m_ObjFlags;
 	obj->m_nRTMask = 0;
-	if (objFlags & (FOB_NEAREST | FOB_DECAL_TEXGEN_2D | FOB_DISSOLVE | FOB_GLOBAL_ILLUMINATION | FOB_SOFT_PARTICLE))
+	if (objFlags & (FOB_NEAREST | FOB_DECAL_TEXGEN_2D | FOB_DISSOLVE | FOB_SOFT_PARTICLE))
 	{
 		if (objFlags & FOB_DECAL_TEXGEN_2D)
 			obj->m_nRTMask |= g_HWSR_MaskBit[HWSR_DECAL_TEXGEN_2D];
@@ -82,9 +82,6 @@ static inline void AddEf_HandleOldRTMask(CRenderObject* obj)
 
 		if (objFlags & FOB_DISSOLVE)
 			obj->m_nRTMask |= g_HWSR_MaskBit[HWSR_DISSOLVE];
-
-		if (objFlags & FOB_GLOBAL_ILLUMINATION)
-			obj->m_nRTMask |= g_HWSR_MaskBit[HWSR_GLOBAL_ILLUMINATION];
 
 		if (CRenderer::CV_r_ParticlesSoftIsec && (objFlags & FOB_SOFT_PARTICLE))
 			obj->m_nRTMask |= g_HWSR_MaskBit[HWSR_SOFT_PARTICLE];
@@ -279,9 +276,6 @@ void CRenderer::EF_AddEf_NotVirtual(CRendElementBase* re, SShaderItem& SH, CRend
 	// TODO: specify correct render list and additional flags directly in the engine once non-material decal rendering support is removed!
 	if ((ObjDecalFlag || (nShaderFlags & EF_DECAL)))
 	{
-		//if (passInfo.IsShadowPass() && (!m_RP.m_pCurShadowFrustumFillThread || !m_RP.m_pCurShadowFrustumFillThread->bReflectiveShadowMap))
-		//	return;
-
 		// BK: Drop decals that are refractive (and cloaked!). They look bad if forced into refractive pass,
 		// and break if they're in the decal pass
 		if (nShaderFlags & (EF_REFRACTIVE | EF_FORCEREFRACTIONUPDATE) || nCloakRenderedMask)
@@ -910,12 +904,6 @@ void SRendItem::mfSortByLight(SRendItem* First, int Num, bool bSort, const bool 
 				std::sort(First, First + Num, SCompareRendItem());
 		}
 	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-void SRendItem::mfSortForReflectiveShadowMap(SRendItem* pFirst, int Num)
-{
-	std::sort(pFirst, pFirst + Num, SCompareItem_ReflectiveShadowMap());
 }
 
 //////////////////////////////////////////////////////////////////////////

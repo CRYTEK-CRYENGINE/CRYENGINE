@@ -356,7 +356,6 @@ public:
 
 	void GetConfiguration(SFlowNodeConfig &config)
 	{
-		ScopedSwitchToGlobalHeap useGlobalHeap;
 		static const SInputPortConfig in_config[] =
 		{
 			InputPortConfig_Void		("Save", _HELP("Trigger to save game")),

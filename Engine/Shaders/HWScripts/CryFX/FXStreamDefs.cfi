@@ -9,12 +9,12 @@
 
 // ==== Additional streams ==================================
 
-#define IN_TANG_STREAM                              \
-#if !%_RT_SKELETON_SSD && !%_RT_SKELETON_SSD_LINEAR \
-          float4 Tangent  : TANGENT;                \
-          float4 Binormal : BINORMAL;               \
-#else                                               \
-          float4 Tangent  : TANGENT;                \
+#define IN_TANG_STREAM                                                               \
+#if !%_RT_SKELETON_SSD && !%_RT_SKELETON_SSD_LINEAR && !%_RT_COMPUTE_SKINNING        \
+          float4 Tangent  : TANGENT;                                                 \
+          float4 Binormal : BINORMAL;                                                \
+#else                                                                                \
+          float4 Tangent  : TANGENT;                                                 \
 #endif
 
 

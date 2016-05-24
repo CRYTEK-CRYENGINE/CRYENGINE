@@ -43,28 +43,11 @@ struct SSetNicknameParams
 // implement CContextView in a way that acts like a server
 typedef CNetMessageSinkHelper<CServerContextView, CContextView, 80 + ((NUM_ASPECTS - 8)*3)> TServerContextViewParent;
 class CServerContextView : public TServerContextViewParent
-#if NETWORK_HOST_MIGRATION
-	                         , public IHostMigrationEventListener
-#endif
 {
 	friend class CPerformBreakSimpleServer;
 public:
 	CServerContextView(CNetChannel*, CNetContext*);
 	~CServerContextView();
-
-#if NETWORK_HOST_MIGRATION
-	// IHostMigrationEventListener
-	virtual EHostMigrationReturn OnInitiate(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual EHostMigrationReturn OnDisconnectClient(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual EHostMigrationReturn OnDemoteToClient(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual EHostMigrationReturn OnPromoteToServer(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual EHostMigrationReturn OnReconnectClient(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual EHostMigrationReturn OnFinalise(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual void                 OnComplete(SHostMigrationInfo& hostMigrationInfo);
-	virtual EHostMigrationReturn OnTerminate(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	virtual EHostMigrationReturn OnReset(SHostMigrationInfo& hostMigrationInfo, HMStateType& state);
-	// ~IHostMigrationEventListener
-#endif
 
 	virtual void        BindObject(SNetObjectID nID);
 	virtual void        UnbindObject(SNetObjectID nID);

@@ -206,7 +206,7 @@ struct CDeviceResourceSet_DX11 : CDeviceResourceSet
 	}
 
 	virtual void Build() final;
-	  
+
 	void         Clear();
 
 	// set via reflection from shader
@@ -299,7 +299,10 @@ void CDeviceResourceSet_DX11::Build()
 		for (EHWShaderClass shaderClass = eHWSC_Vertex; shaderClass != eHWSC_Num; shaderClass = EHWShaderClass(shaderClass + 1))
 		{
 			if (it.second.shaderStages & SHADERSTAGE_FROM_SHADERCLASS(shaderClass))
+			{
+				CRY_ASSERT(numCompiledBuffers[shaderClass] < ResourceSetBufferCount);
 				compiledBuffers[shaderClass][numCompiledBuffers[shaderClass]++] = compiledBuffer;
+			}
 		}
 
 		m_bValid &= (compiledBuffer.pSrv != nullptr) || (it.second.resource.m_flags & DX11BUF_NULL_RESOURCE); // If an intentional null resource was passed, the ResourceSet remains valid.

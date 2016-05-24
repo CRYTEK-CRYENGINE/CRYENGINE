@@ -927,6 +927,30 @@ int CPhysArea::GetStatus(pe_status *_status) const
 		status->pLockUpdate = &m_lockRef;
 		status->pSurface = m_pSurface;
 
+		if (!is_unused(status->ptClosest)) {
+			Vec3 ptloc = ((status->ptClosest-m_offset)*m_R)*m_rscale, ptres[2]={ ptloc,ortx };
+			int i;
+			if (m_pGeom) {
+				geom_world_data gwd; 
+				m_pGeom->FindClosestPoint(&gwd,i,i,ptloc,ptloc,ptres);
+				contact cnt;
+				box bbox; m_pGeom->GetBBox(&bbox);
+				float r = (bbox.size.x+bbox.size.y+bbox.size.z)*0.03f;
+				((CGeometry*)m_pGeom)->UnprojectSphere(ptres[0],r,r,&cnt);
+				ptres[1] = cnt.n;
+			}	else if (m_ptSpline) {
+				Vec3 p0,p1,p2,v0,v1,v2;
+				float tClosest,mindist = FindSplineClosestPt(ptloc, i,tClosest);
+				p0 = m_ptSpline[max(0,i-1)]; p1 = m_ptSpline[i]; p2 = m_ptSpline[min(m_npt-1,i+1)];
+				v2 = (p0+p2)*0.5f-p1; v1 = p1-p0; v0 = (p0+p1)*0.5f;
+				ptres[0] = (v2*tClosest+v1)*tClosest+v0;
+				ptres[1] = (v2*max(0.01f,min(1.99f,2*tClosest))+v1).normalized()*(2-inrange(i+tClosest,0.001f,m_npt-0.001f));
+			}
+			status->ptClosest = m_R*ptres[0]*m_scale+m_offset;
+			status->dirClosest = m_R*ptres[1];
+			return 1;
+		}
+
 		bool bUniformForce = m_bUniform && (m_rsize.IsZero() || m_rfalloff0 == 0.f);
 		bool bContained = m_pWorld->m_pGlobalArea == this || (!m_pGeom && !m_npt) || is_unused(status->ctr);
 		Vec3 ptClosest = is_unused(status->ctr) ? Vec3(ZERO) : status->ctr;
@@ -1345,6 +1369,8 @@ void CPhysArea::Update(float dt)
 
 void CPhysArea::DrawHelperInformation(IPhysRenderer *pRenderer, int flags)
 {	
+	if (m_bDeleted)
+		return;
 	//ReadLock lock(m_lockUpdate);
 	if (flags & pe_helper_bbox) {
 		int i,j;

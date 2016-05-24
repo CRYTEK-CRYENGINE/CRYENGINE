@@ -60,8 +60,6 @@ public:
 	GSystemInitWrapper()
 		: m_pGFxMemInterface(0)
 	{
-		ScopedSwitchToGlobalHeap globalHeap;
-
 		size_t staticPoolSize = CFlashPlayer::GetStaticPoolSize();
 		if (staticPoolSize)
 		{
@@ -171,7 +169,6 @@ CSharedFlashPlayerResources::CSharedFlashPlayerResources()
 	#endif
 {
 	LOADING_TIME_PROFILE_SECTION;
-	ScopedSwitchToGlobalHeap globalHeap;
 
 	gEnv->pLog->Log("Using Scaleform GFx " GFC_FX_VERSION_STRING);
 	m_pGSystemInit = new GSystemInitWrapper();
@@ -179,8 +176,6 @@ CSharedFlashPlayerResources::CSharedFlashPlayerResources()
 	m_pLoader = new GFxLoader2();
 	m_pRenderer = new GRendererXRender();
 	m_pMeshCacheResetThread = new MeshCacheResetThread();
-
-	RegisterCryGImageInfoSystemEventListener();
 
 	#if defined(USE_GFX_IME)
 	m_pImeHelper = new GImeHelper();

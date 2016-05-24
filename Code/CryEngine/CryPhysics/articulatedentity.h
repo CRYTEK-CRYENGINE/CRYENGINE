@@ -21,12 +21,15 @@ struct featherstone_data {
 	float qinv_sT[3][6];
 	float qinv_sT_Ia[3][6];
 	CRY_ALIGN(16) float Iinv[6][6];
+	int useTree;
+	int iparent;
+	int jointSize;
+	Matrix33 *pM0inv;
 };
 
 enum joint_flags_aux { joint_rotate_pivot=010000000 };
 
-
-struct ae_joint {
+struct ae_joint : ArticulatedBody {
 	ae_joint() {
 		memset(this,0,sizeof(*this));
 		iParent=-2; idbody=-1;
@@ -69,26 +72,20 @@ struct ae_joint {
 	Vec3 pivot[2];
 
 	int iStartPart,nParts;
-	int iParent;
-	int nChildren,nChildrenTree;
 	int iLevel;
 	masktype selfCollMask;
-	entity_contact *pContact,*pContactEnd;
-//	entity_contact *pdummy0,pdummy1;
+	struct entity_contact *pContact;
 	int bAwake;
 	int bQuat0Changed;
 	int bHasExtContacts;
 	
 	int idbody;
-	RigidBody body;
 	Vec3 dv_body,dw_body;
-	Vec3 Pext,Lext;
 	Vec3 Pimpact,Limpact;
-	int nActiveAngles,nPotentialAngles;
+	int nActiveAngles;
 	Vec3 rotaxes[3];
 	Matrix33 I;
 
-	featherstone_data *fs;
 	char *fsbuf;
 };
 
@@ -159,16 +156,17 @@ class CArticulatedEntity : public CRigidEntity {
 
 	int StepJoint(int idx, float time_interval,int &bBounced, int bFlying, int iCaller);
 	void JointListUpdated();
-	Vec3 StepFeatherstone(float time_interval, int bBounced, Matrix33 &M0host);
+	void StepFeatherstone(float time_interval, int bBounced, Matrix33 &M0host);
 	int CalcBodyZa(int idx, float time_interval, vectornf &Za_change);
-	int CalcBodyIa(int idx, matrixf& Ia_change);
+	int CalcBodyIa(int idx, matrixf& Ia_change, int bIncludeLimits=1);
 	void CalcBodiesIinv(int bLockLimits);
-	int CollectPendingImpulses(int idx,int &bNotZero);
-	void PropagateImpulses(const Vec3 &dv,int bLockLimits=0);
+	int CollectPendingImpulses(int idx,int &bNotZero,int bBounce=1);
+	void PropagateImpulses(const Vec3 &dv,int bLockLimits=0,int bApplyVel=1,const Vec3 &dw=Vec3(ZERO));
 	void CalcVelocityChanges(float time_interval, const Vec3 &dv,const Vec3 &dw);
 	void GetJointTorqueResponseMatrix(int idx, Matrix33 &K);
 	void UpdatePosition(int bGridLocked);
 	void UpdateJointDyn();
+	void AssignContactsToJoints();
 	int UpdateHistory(int bStepDone) {
 		if (bStepDone) {
 			m_posHist[0]=m_posHist[1];m_posHist[1]=m_pos; m_qHist[0]=m_qHist[1];m_qHist[1]=m_qrot;
@@ -186,6 +184,7 @@ class CArticulatedEntity : public CRigidEntity {
 
 	int IsChildOf(int idx, int iParent) { return isnonneg(iParent) & isneg(iParent-idx) & isneg(idx-iParent-m_joints[iParent].nChildrenTree-1); }
 	entity_contact *CreateConstraintContact(int idx);
+	void AllocFSData();
 
 	ae_part_info *m_infos;
 	ae_joint *m_joints;
@@ -205,7 +204,7 @@ class CArticulatedEntity : public CRigidEntity {
 	Vec3 m_velHost;
 	Vec3 m_rootImpulse;
 	int m_bCheckCollisions;
-	int m_bCollisionResp;
+	int m_bFeatherstone;
 	int m_bExertImpulse;
 	int m_iSimType,m_iSimTypeLyingMode;
 	int m_iSimTypeCur;
@@ -230,6 +229,7 @@ class CArticulatedEntity : public CRigidEntity {
 	Vec3 m_posHist[2];
 	quaternionf m_qHist[2];
 	float m_rhistTime;
+	int m_bContactsAssigned;
 
 	mutable volatile int m_lockJoints;
 

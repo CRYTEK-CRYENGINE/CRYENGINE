@@ -27,7 +27,7 @@ void CAttachmentSKIN::ReleaseSoftwareRenderMeshes()
 uint32 CAttachmentSKIN::Immediate_AddBinding(IAttachmentObject* pIAttachmentObject, ISkin* pISkin, uint32 nLoadingFlags)
 {
 	if (pIAttachmentObject == 0)
-		return 0; //no attachment objects
+		return 0;                                                     //no attachment objects
 
 	if (pISkin == 0)
 		CryFatalError("CryAnimation: if you create the binding for a Skin-Attachment, then you have to pass the pointer to an ISkin as well");
@@ -40,8 +40,8 @@ uint32 CAttachmentSKIN::Immediate_AddBinding(IAttachmentObject* pIAttachmentObje
 	if (m_pModelSkin != pCSkinModel)
 	{
 		ReleaseModelSkin();
-		g_pCharacterManager->RegisterInstanceSkin(pCSkinModel, this); //register this CAttachmentSKIN instance in CSkin.
-		m_pModelSkin = pCSkinModel;                                   //increase the Ref-Counter
+		g_pCharacterManager->RegisterInstanceSkin(pCSkinModel, this);  //register this CAttachmentSKIN instance in CSkin.
+		m_pModelSkin = pCSkinModel;                                    //increase the Ref-Counter
 	}
 
 	CCharInstance* pInstanceSkel = m_pAttachmentManager->m_pSkelInstance;
@@ -107,7 +107,7 @@ uint32 CAttachmentSKIN::Immediate_AddBinding(IAttachmentObject* pIAttachmentObje
 			IRenderMesh* pRenderMesh = pModelMesh->m_pIRenderMesh;
 			if (!pRenderMesh)
 				continue;
-			pRenderMesh->CreateRemappedBoneIndicesPair(m_arrRemapTable, pDefaultSkeleton->GetGuid());
+			pRenderMesh->CreateRemappedBoneIndicesPair(m_arrRemapTable, pDefaultSkeleton->GetGuid(), this);
 		}
 	}
 
@@ -202,7 +202,7 @@ void CAttachmentSKIN::UpdateRemapTable()
 		if (nID >= 0)
 			m_arrRemapTable[js] = nID;
 		else
-			CryFatalError("ModelError: data-corruption when executing UpdateRemapTable for SKEL (%s) and SKIN (%s) ", pSkelFilePath, pSkinFilePath); //a fail in this case is virtually impossible, because the SKINs are alread attached
+			CryFatalError("ModelError: data-corruption when executing UpdateRemapTable for SKEL (%s) and SKIN (%s) ", pSkelFilePath, pSkinFilePath);   //a fail in this case is virtually impossible, because the SKINs are alread attached
 	}
 
 	// Patch the remapping
@@ -212,7 +212,7 @@ void CAttachmentSKIN::UpdateRemapTable()
 		IRenderMesh* pRenderMesh = pModelMesh->m_pIRenderMesh;
 		if (!pRenderMesh)
 			continue;
-		pRenderMesh->CreateRemappedBoneIndicesPair(m_arrRemapTable, pDefaultSkeleton->GetGuid());
+		pRenderMesh->CreateRemappedBoneIndicesPair(m_arrRemapTable, pDefaultSkeleton->GetGuid(), this);
 	}
 }
 
@@ -355,7 +355,7 @@ void CAttachmentSKIN::GetMemoryUsage(ICrySizer* pSizer) const
 
 _smart_ptr<IRenderMesh> CAttachmentSKIN::CreateVertexAnimationRenderMesh(uint lod, uint id)
 {
-	m_pRenderMeshsSW[id] = NULL; // smart pointer release
+	m_pRenderMeshsSW[id] = NULL;   // smart pointer release
 
 	if ((m_AttFlags & FLAGS_ATTACH_SW_SKINNING) == 0)
 		return _smart_ptr<IRenderMesh>(NULL);
@@ -420,7 +420,7 @@ _smart_ptr<IRenderMesh> CAttachmentSKIN::CreateVertexAnimationRenderMesh(uint lo
 
 #ifndef _RELEASE
 	m_vertexAnimation.m_vertexAnimationStats.sCharInstanceName = m_pAttachmentManager->m_pSkelInstance->GetFilePath();
-	m_vertexAnimation.m_vertexAnimationStats.sAttachmentName = "";//m_Name; TODO fix
+	m_vertexAnimation.m_vertexAnimationStats.sAttachmentName = "";   //m_Name; TODO fix
 	m_vertexAnimation.m_vertexAnimationStats.pCharInstance = m_pAttachmentManager->m_pSkelInstance;
 #endif
 	return m_pRenderMeshsSW[id];
@@ -465,10 +465,10 @@ void CAttachmentSKIN::DrawAttachment(SRendParams& RendParams, const SRenderingPa
 	if (nDesiredRenderLOD >= numLODs)
 	{
 		if (m_AttFlags & FLAGS_ATTACH_RENDER_ONLY_EXISTING_LOD)
-			return;                        //early exit, if LOD-file doesn't exist
-		nDesiredRenderLOD = numLODs - 1; //render the last existing LOD-file
+			return;                                                                                  //early exit, if LOD-file doesn't exist
+		nDesiredRenderLOD = numLODs - 1;                                                           //render the last existing LOD-file
 	}
-	int nRenderLOD = m_pModelSkin->SelectNearestLoadedLOD(nDesiredRenderLOD);  //we can render only loaded LODs
+	int nRenderLOD = m_pModelSkin->SelectNearestLoadedLOD(nDesiredRenderLOD);                      //we can render only loaded LODs
 
 	m_pModelSkin->m_arrModelMeshes[nRenderLOD].m_stream.nFrameId = passInfo.GetMainFrameID();
 
@@ -479,9 +479,9 @@ void CAttachmentSKIN::DrawAttachment(SRendParams& RendParams, const SRenderingPa
 	Matrix34 FinalMat34 = rWorldMat34;
 	RendParams.pMatrix = &FinalMat34;
 	RendParams.pInstance = this;
-	RendParams.pMaterial = (IMaterial*)m_pIAttachmentObject->GetReplacementMaterial(nRenderLOD); //the Replacement-Material has priority
+	RendParams.pMaterial = (IMaterial*)m_pIAttachmentObject->GetReplacementMaterial(nRenderLOD);   //the Replacement-Material has priority
 	if (RendParams.pMaterial == 0)
-		RendParams.pMaterial = (IMaterial*)m_pModelSkin->GetIMaterial(nRenderLOD); //as a fall back take the Base-Material from the model
+		RendParams.pMaterial = (IMaterial*)m_pModelSkin->GetIMaterial(nRenderLOD);                   //as a fall back take the Base-Material from the model
 
 	bool bNewFrame = false;
 	if (m_vertexAnimation.m_skinningPoolID != gEnv->pRenderer->EF_GetSkinningPoolID())
@@ -553,7 +553,7 @@ void CAttachmentSKIN::DrawAttachment(SRendParams& RendParams, const SRenderingPa
 	else if (RendParams.nCustomFlags & COB_POST_3D_RENDER)
 	{
 		memcpy(&pD->m_fTempVars[5], &RendParams.fCustomData[0], sizeof(float) * 4);
-		pObj->m_fAlpha = 1.0f; // Use the alpha in the post effect instead of here
+		pObj->m_fAlpha = 1.0f;     // Use the alpha in the post effect instead of here
 		pD->m_fTempVars[9] = RendParams.fAlpha;
 	}
 	pObj->m_DissolveRef = RendParams.nDissolveRef;
@@ -575,37 +575,57 @@ void CAttachmentSKIN::DrawAttachment(SRendParams& RendParams, const SRenderingPa
 	}
 
 	// get skinning data
-	const bool swSkin = (nRenderLOD == 0) && ShouldSwSkin() && (Console::GetInst().ca_vaEnable != 0);
+	ICVar* cvar_gdMorphs = gEnv->pConsole->GetCVar("r_ComputeSkinningMorphs");
+	ICVar* cvar_gd = gEnv->pConsole->GetCVar("r_ComputeSkinning");
+	bool bUseGPUComputeDeformation = (nRenderLOD == 0) && (cvar_gd && cvar_gd->GetIVal()) && m_AttFlags & FLAGS_ATTACH_DC_DEFORMATION_SKINNING;
+	bool bUseCPUDeformation = !bUseGPUComputeDeformation && (nRenderLOD == 0) && ShouldSwSkin() && (Console::GetInst().ca_vaEnable != 0);
 
-	IF (!swSkin, 1)
+	IF (!bUseCPUDeformation, 1)
 		pObj->m_ObjFlags |= FOB_SKINNED;
 
-	if (swSkin && bNewFrame)
+	if (bNewFrame)
 	{
-		if (Console::GetInst().ca_vaBlendEnable && m_vertexAnimation.GetFrameStates().size())
+		bool bUpdateActiveMorphs = (bUseGPUComputeDeformation && (cvar_gdMorphs && cvar_gdMorphs->GetIVal())) || (bUseCPUDeformation);
+		if (bUpdateActiveMorphs && Console::GetInst().ca_vaBlendEnable && m_vertexAnimation.GetFrameStates().size())
 		{
 			m_vertexAnimation.UpdateFrameWeightsFromPose(m_pAttachmentManager->m_pSkelInstance->m_SkeletonPose.GetPoseData());
 			CullVertexFrames(passInfo, pObj->m_fDistance);
 		}
 	}
 
-	pD->m_pSkinningData = GetVertexTransformationData(swSkin, nRenderLOD);
+	pD->m_pSkinningData = GetVertexTransformationData(bUseCPUDeformation, nRenderLOD);
 
 	Vec3 skinOffset = m_pModelSkin->m_arrModelMeshes[nRenderLOD].m_vRenderMeshOffset;
 	pD->m_pSkinningData->vecPrecisionOffset[0] = skinOffset.x;
 	pD->m_pSkinningData->vecPrecisionOffset[1] = skinOffset.y;
 	pD->m_pSkinningData->vecPrecisionOffset[2] = skinOffset.z;
 
+	IRenderMesh* pRenderMesh = m_pModelSkin->GetIRenderMesh(nRenderLOD);
+
+	if (pRenderMesh && bUseGPUComputeDeformation && bNewFrame)
+	{
+		pObj->m_pCurrMaterial = RendParams.pMaterial;
+		if (pObj->m_pCurrMaterial == 0)
+			pObj->m_pCurrMaterial = m_pModelSkin->GetIMaterial(0);
+
+		pD->m_pSkinningData->nHWSkinningFlags |= eHWS_DC_deformation_Skinning;
+		if (m_AttFlags & FLAGS_ATTACH_DC_DEFORMATION_PREMORPHS)
+			pD->m_pSkinningData->nHWSkinningFlags |= eHWS_DC_Deformation_PreMorphs;
+		if (m_AttFlags & FLAGS_ATTACH_DC_DEFORMATION_TANGENTS)
+			pD->m_pSkinningData->nHWSkinningFlags |= eHWS_DC_Deformation_Tangents;
+
+		g_pIRenderer->EF_EnqueueComputeSkinningData(pD->m_pSkinningData);
+
+		pRenderMesh->Render(pObj, passInfo);
+		return;
+	}
+
 	if (ShouldSkinLinear())
 		pD->m_pSkinningData->nHWSkinningFlags |= eHWS_SkinnedLinear;
 
-	m_pModelSkin->m_arrModelMeshes[nRenderLOD].m_stream.nFrameId = passInfo.GetMainFrameID();
-
-	SVertexAnimationJob* pVertexAnimation = static_cast<SVertexAnimationJob*>(pD->m_pSkinningData->pCustomData);
-
-	IRenderMesh* pRenderMesh = m_pModelSkin->GetIRenderMesh(nRenderLOD);
-	if (swSkin && pRenderMesh)
+	if (bUseCPUDeformation && pRenderMesh)
 	{
+		SVertexAnimationJob* pVertexAnimation = static_cast<SVertexAnimationJob*>(pD->m_pSkinningData->pCustomData);
 		uint iCurrentRenderMeshID = m_vertexAnimation.m_RenderMeshId & 1;
 
 		if (bNewFrame)
@@ -798,7 +818,7 @@ void CAttachmentSKIN::TriggerMeshStreaming(uint32 nDesiredRenderLOD, const SRend
 	if (numLODs == 0)
 		return;
 	if (m_AttFlags & FLAGS_ATTACH_HIDE_ATTACHMENT)
-		return;  //mesh not visible
+		return;                          //mesh not visible
 	if (nDesiredRenderLOD >= numLODs)
 	{
 		if (m_AttFlags & FLAGS_ATTACH_RENDER_ONLY_EXISTING_LOD)
@@ -858,8 +878,48 @@ SSkinningData* CAttachmentSKIN::GetVertexTransformationData(bool bVertexAnimatio
 
 		nCustomDataSize = sizeof(SVertexAnimationJob) + commandBufferLength;
 	}
+	else
+	{
+		ICVar* cvar_gd = gEnv->pConsole->GetCVar("r_ComputeSkinning");
+		ICVar* cvar_gdMorphs = gEnv->pConsole->GetCVar("r_ComputeSkinningMorphs");
+
+		bool bUpdateActiveMorphs = (cvar_gd && cvar_gd->GetIVal()) &&
+		                           (cvar_gdMorphs && cvar_gdMorphs->GetIVal()) &&
+		                           (m_AttFlags & FLAGS_ATTACH_DC_DEFORMATION_SKINNING) &&
+		                           (m_AttFlags & FLAGS_ATTACH_DC_DEFORMATION_PREMORPHS);
+
+		if (bUpdateActiveMorphs)
+		{
+			const bool bAllowCulling = Console::GetInst().ca_vaProfile != 1;
+			const bool bDebugCulling = Console::GetInst().ca_vaBlendCullingDebug && gEnv->pRenderer->EF_GetSkinningPoolID() % 2;
+
+			SSkinningData* sd = pMaster->arrSkinningRendererData[nList].pSkinningData;
+
+			uint32 numActiveMorphs = 0;
+			DynArray<SVertexFrameState>& frameStates = m_vertexAnimation.GetFrameStates();
+			const uint frameCount = uint(frameStates.size());
+			for (uint i = 0; i < frameCount; ++i)
+			{
+				const SVertexFrameState& frameState = frameStates[i];
+
+				const bool bCullFrame = bAllowCulling && (frameState.flags == VA_FRAME_CULLED);
+				const bool bUseFrame = frameState.weight > 0.0f && !bCullFrame;
+
+				if (bUseFrame || bDebugCulling)
+				{
+					sd->pActiveMorphs[numActiveMorphs].morphIndex = frameState.frameIndex;
+					sd->pActiveMorphs[numActiveMorphs].weight = frameState.weight;
+
+					++numActiveMorphs;
+				}
+			}
+			sd->nNumActiveMorphs = numActiveMorphs;
+		}
+	}
 
 	SSkinningData* pSkinningData = gEnv->pRenderer->EF_CreateRemappedSkinningData(nNumBones, pMaster->arrSkinningRendererData[nList].pSkinningData, nCustomDataSize, pMaster->m_pDefaultSkeleton->GetGuid());
+	pSkinningData->pCustomTag = this;
+	pSkinningData->pRenderMesh = m_pModelSkin->GetIRenderMesh(nRenderLOD);
 	if (nCustomDataSize)
 	{
 		SVertexAnimationJob* pVertexAnimation = new(pSkinningData->pCustomData)SVertexAnimationJob();
@@ -1130,14 +1190,14 @@ void CAttachmentSKIN::SoftwareSkinningDQ_VS_Emulator(CModelMesh* pModelMesh, Mat
 	if (pQTangents == 0)
 		return;
 	int32 nSkinningStride;
-	uint8* pSkinningInfo = pModelMesh->m_pIRenderMesh->GetHWSkinPtr(nSkinningStride, FSL_READ);        //pointer to weights and bone-id
+	uint8* pSkinningInfo = pModelMesh->m_pIRenderMesh->GetHWSkinPtr(nSkinningStride, FSL_READ);     //pointer to weights and bone-id
 	if (pSkinningInfo == 0)
 		return;
 
-	DualQuat arrRemapSkinQuat[MAX_JOINT_AMOUNT];  //dual quaternions for skinning
+	DualQuat arrRemapSkinQuat[MAX_JOINT_AMOUNT];                                                //dual quaternions for skinning
 	for (size_t b = 0; b < m_arrRemapTable.size(); ++b)
 	{
-		const uint16 sidx = m_arrRemapTable[b]; //is array can be different for every skin-attachment
+		const uint16 sidx = m_arrRemapTable[b];                                                     //is array can be different for every skin-attachment
 		arrRemapSkinQuat[b] = pSkinningTransformations[sidx];
 	}
 
@@ -1193,17 +1253,17 @@ void CAttachmentSKIN::SoftwareSkinningDQ_VS_Emulator(CModelMesh* pModelMesh, Mat
 			f32 l = 1.0f / wquat.nq.GetLength();
 			wquat.nq *= l;
 			wquat.dq *= l;
-			g_arrExtSkinnedStream[e] = rRenderMat34 * (wquat * hwPosition);  //transform position by dual-quaternion
+			g_arrExtSkinnedStream[e] = rRenderMat34 * (wquat * hwPosition);       //transform position by dual-quaternion
 
 			Quat QTangent = hwQTangent.GetQ();
 			assert(QTangent.IsUnit());
 
 			g_arrQTangents[e] = wquat.nq * QTangent;
 			if (g_arrQTangents[e].w < 0.0f)
-				g_arrQTangents[e] = -g_arrQTangents[e]; //make it positive
+				g_arrQTangents[e] = -g_arrQTangents[e];                         //make it positive
 			f32 flip = QTangent.w < 0 ? -1.0f : 1.0f;
 			if (flip < 0)
-				g_arrQTangents[e] = -g_arrQTangents[e]; //make it negative
+				g_arrQTangents[e] = -g_arrQTangents[e];                         //make it negative
 		}
 	}
 	g_YLine += 0x10;

@@ -14,7 +14,6 @@
 			"D3DHDRRender.cpp",
 			"D3DHWShader.cpp",
 			"D3DHWShaderCompiling.cpp",
-			"D3DLightPropagationVolume.cpp",
 			"D3DLog.cpp",
 			"D3DMemReplayDevice.cpp",
 			"D3DOcclQuery.cpp",
@@ -115,7 +114,6 @@
 			"D3DDebug.h",
 			"D3DDeferredShading.h",
 			"D3DHWShader.h",
-			"D3DLightPropagationVolume.h",
 			"D3DOculus.h",
 			"D3DOpenVR.h",
 			"D3DPostProcess.h",
@@ -188,7 +186,6 @@
   "CryRenderer_render_elements_uber_0.cpp": {
     "Common/RendElements": [
       "../Common/RendElements/CREBreakableGlass.cpp",
-      "../Common/RendElements/CRELightPropagationVolume.cpp",
       "CRELensOpticsD3D.cpp",
       "../Common/RendElements/CREBeam.cpp",
       "../Common/RendElements/CREClientPoly.cpp",
@@ -318,7 +315,9 @@
 			"../Common/RenderMesh_Render.cpp",
 			"../Common/RenderMesh_SetMesh.cpp",
 			"../Common/RenderMesh.cpp",
-			"../Common/RenderMesh.h"
+			"../Common/RenderMesh.h",
+			"../Common/ComputeSkinningStorage.cpp",
+			"../Common/ComputeSkinningStorage.h"
 		],
 		"Common/Shaders":
 		[
@@ -483,7 +482,9 @@
       "GraphicsPipeline/SunShafts.h",
 			"GraphicsPipeline/SunShafts.cpp",
 			"GraphicsPipeline/ToneMapping.h",
-			"GraphicsPipeline/ToneMapping.cpp"
+			"GraphicsPipeline/ToneMapping.cpp",
+			"GraphicsPipeline/ComputeSkinning.h",
+			"GraphicsPipeline/ComputeSkinning.cpp"
 		]
 	},
 	"NoUberFile":

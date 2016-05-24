@@ -198,8 +198,6 @@ public:
 		if (!InputEntityIsLocalPlayer(pActInfo))
 			return;
 
-		ScopedSwitchToGlobalHeap globalHeap;
-
 		switch (event)
 		{
 		case eFE_Initialize:

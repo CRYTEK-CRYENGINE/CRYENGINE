@@ -697,7 +697,7 @@ struct SParticleShaderData
 	SParticleShaderData()
 	{
 		m_expansion[0] = m_expansion[1] = 1;
-		m_curvature = 1;
+		m_curvature = 0.0f;
 		m_textureFrequency = 1.0f;
 
 		m_tileSize[0] = m_tileSize[1] = 1;

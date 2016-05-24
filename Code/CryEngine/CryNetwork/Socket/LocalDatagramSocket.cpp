@@ -14,7 +14,7 @@ bool CLocalDatagramSocket::Init(TLocalNetAddress addr)
 {
 	NET_ASSERT(0 == m_addr);
 	m_addr = addr;
-	ScopedSwitchToGlobalHeap globalHeap;
+
 	if (!m_pManager)
 		m_pManager = new CManager();
 	return m_pManager->Register(this);
@@ -150,8 +150,6 @@ CLocalDatagramSocket* CLocalDatagramSocket::CManager::GetSocket(TLocalNetAddress
 
 CLocalDatagramSocket::SPacket* CLocalDatagramSocket::CManager::AllocPacket()
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	SPacket* pPacket;
 	if (m_freePackets.empty())
 		pPacket = new SPacket;

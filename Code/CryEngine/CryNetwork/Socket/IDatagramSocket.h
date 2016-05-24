@@ -3,7 +3,7 @@
 #pragma once
 
 #include <CryCore/Containers/CryListenerSet.h>
-#include "NetAddress.h"
+#include <CryNetwork/NetAddress.h>
 #include <CrySystem/TimeValue.h>
 
 #include "SocketError.h"

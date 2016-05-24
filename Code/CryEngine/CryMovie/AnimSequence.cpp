@@ -19,6 +19,7 @@
 #include "AnimGeomCacheNode.h"
 #include "ShadowsSetupNode.h"
 #include "AnimEnvironmentNode.h"
+#include "AudioNode.h"
 
 #include <CryScriptSystem/IScriptSystem.h>
 
@@ -222,6 +223,10 @@ IAnimNode* CAnimSequence::CreateNodeInternal(EAnimNodeType nodeType, uint32 nNod
 #endif
 	case eAnimNodeType_Environment:
 		pAnimNode = new CAnimEnvironmentNode(nNodeId);
+		break;
+
+	case eAnimNodeType_Audio:
+		pAnimNode = new CAudioNode(nNodeId);
 		break;
 	}
 

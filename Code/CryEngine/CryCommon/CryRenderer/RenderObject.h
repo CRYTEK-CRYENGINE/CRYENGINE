@@ -4,6 +4,7 @@
 
 #include <CryRenderer/IShader.h>
 #include <CryRenderer/IRenderer.h>
+#include <CryRenderer/IComputeSkinning.h>
 
 struct IRenderNode;
 class CCompiledRenderObject;
@@ -21,7 +22,7 @@ enum ERenderObjectFlags : uint64
 	FOB_MESH_SUBSET_INDICES         = BIT64(5),
 	FOB_SELECTED                    = BIT64(6),
 	FOB_RENDERER_IDENDITY_OBJECT    = BIT64(7),
-	FOB_GLOBAL_ILLUMINATION         = BIT64(8),
+	// UNUSED												= BIT64(8),
 	FOB_NO_FOG                      = BIT64(9),
 	FOB_DECAL                       = BIT64(10),
 	FOB_OCTAGONAL                   = BIT64(11),
@@ -50,7 +51,7 @@ enum ERenderObjectFlags : uint64
 
 	FOB_TRANS_MASK                  = (FOB_TRANS_ROTATE | FOB_TRANS_SCALE | FOB_TRANS_TRANSLATE),
 	FOB_DECAL_MASK                  = (FOB_DECAL | FOB_DECAL_TEXGEN_2D),
-	FOB_PARTICLE_MASK               = (FOB_SOFT_PARTICLE | FOB_NO_FOG | FOB_GLOBAL_ILLUMINATION | FOB_INSHADOW | FOB_NEAREST | FOB_MOTION_BLUR | FOB_LIGHTVOLUME | FOB_ALLOW_TESSELLATION | FOB_IN_DOORS | FOB_AFTER_WATER),
+	FOB_PARTICLE_MASK               = (FOB_SOFT_PARTICLE | FOB_NO_FOG | FOB_INSHADOW | FOB_NEAREST | FOB_MOTION_BLUR | FOB_LIGHTVOLUME | FOB_ALLOW_TESSELLATION | FOB_IN_DOORS | FOB_AFTER_WATER),
 
 	// WARNING: FOB_MASK_AFFECTS_MERGING must start from 0x10000/bit 16 (important for instancing).
 	FOB_MASK_AFFECTS_MERGING_GEOM = (FOB_ZPREPASS | FOB_SKINNED | FOB_BENDED | FOB_DYNAMIC_OBJECT | FOB_ALLOW_TESSELLATION | FOB_NEAREST),
@@ -87,20 +88,25 @@ enum ERenderObjectCustomFlags : uint16
 //////////////////////////////////////////////////////////////////////////
 struct SSkinningData
 {
-	uint32                 nNumBones;
-	uint32                 nHWSkinningFlags;
-	DualQuat*              pBoneQuatsS;
-	JointIdType*           pRemapTable;
-	JobManager::SJobState* pAsyncJobs;
-	JobManager::SJobState* pAsyncDataJobs;
-	SSkinningData*         pPreviousSkinningRenderData;  // used for motion blur
-	uint32                 remapGUID;
-	void*                  pCharInstCB;             // used if per char instance cbs are available in renderdll (d3d11+);
-	                                                // members below are for Software Skinning
-	void*                  pCustomData;             // client specific data, used for example for sw-skinning on animation side
-	SSkinningData**        pMasterSkinningDataList; // used by the SkinningData for a Character Instance, contains a list of all Skin Instances which need SW-Skinning
-	SSkinningData*         pNextSkinningData;       // List to the next element which needs SW-Skinning
-	float                  vecPrecisionOffset[3];   // Special precision offset correction when 16bit precision floats used
+	uint32                           nNumBones;
+	uint32                           nHWSkinningFlags;
+	DualQuat*                        pBoneQuatsS;
+	compute_skinning::SActiveMorphs* pActiveMorphs;
+	uint32                           nNumActiveMorphs;
+	JointIdType*                     pRemapTable;
+	JobManager::SJobState*           pAsyncJobs;
+	JobManager::SJobState*           pAsyncDataJobs;
+	SSkinningData*                   pPreviousSkinningRenderData; // used for motion blur
+	void*                            pCustomTag;                  //!< Used as a key for instancing with compute skinning SRV.
+	uint32                           remapGUID;
+	void*                            pCharInstCB;             // used if per char instance cbs are available in renderdll (d3d11+);
+	                                                          // members below are for Software Skinning
+	void*                            pCustomData;             // client specific data, used for example for sw-skinning on animation side
+	SSkinningData**                  pMasterSkinningDataList; // used by the SkinningData for a Character Instance, contains a list of all Skin Instances which need SW-Skinning
+	SSkinningData*                   pNextSkinningData;       // List to the next element which needs SW-Skinning
+	float                            vecPrecisionOffset[3];   // Special precision offset correction when 16bit precision floats used
+
+	IRenderMesh*                     pRenderMesh;
 };
 
 struct SVegetationBending
@@ -129,10 +135,10 @@ struct SRenderObjData
 
 	SSkinningData*                m_pSkinningData;
 
-	float                         m_fTempVars[10]; // Different useful vars (ObjVal component in shaders)
+	float                         m_fTempVars[10];           // Different useful vars (ObjVal component in shaders)
 
-	SVegetationBending            m_bending; // Bending data, can be union with m_fTempVars
-	                                         // using a pointer, the client code has to ensure that the data stays valid
+	SVegetationBending            m_bending;                 // Bending data, can be union with m_fTempVars
+	                                                         // using a pointer, the client code has to ensure that the data stays valid
 	const DynArray<SShaderParam>* m_pShaderParams;
 
 	// Optional Terrain Sector Information
@@ -144,11 +150,11 @@ struct SRenderObjData
 	uint32                            m_nVisionParams;
 	uint32                            m_nHUDSilhouetteParams;
 
-	uint32                            m_pLayerEffectParams; // only used for layer effects
+	uint32                            m_pLayerEffectParams;  // only used for layer effects
 
 	hidemask                          m_nSubObjHideMask;
 
-	const struct SParticleShaderData* m_pParticleShaderData;    // specific data from the Particle Render Function to the shaders
+	const struct SParticleShaderData* m_pParticleShaderData;  // specific data from the Particle Render Function to the shaders
 
 	uint16                            m_FogVolumeContribIdx;
 
@@ -167,6 +173,7 @@ struct SRenderObjData
 	uint8  m_nCustomData;
 
 	uint8  m_nVisionScale;
+	int32  m_nLastDeformedFrameId;
 
 	SRenderObjData()
 	{
@@ -188,6 +195,7 @@ struct SRenderObjData
 		m_nCustomData = 0;
 		m_nCustomFlags = 0;
 		m_nHUDSilhouetteParams = m_nVisionParams = 0;
+		m_nLastDeformedFrameId = 0;
 		m_pShaderParams = NULL;
 		m_pTerrainSectorTextureInfo = 0;
 		m_fMaxViewDistance = 100000.f;
@@ -229,50 +237,50 @@ public:
 
 public:
 	//////////////////////////////////////////////////////////////////////////
-	SInstanceInfo m_II;                                 //!< Per instance data
+	SInstanceInfo m_II;                //!< Per instance data
 
-	uint64 m_ObjFlags;                                  //!< Combination of FOB_ flags.
+	uint64 m_ObjFlags;                 //!< Combination of FOB_ flags.
 	uint32 m_Id;
 
-	float m_fAlpha;                                     //!< Object alpha.
-	float m_fDistance;                                  //!< Distance to the object.
+	float m_fAlpha;                    //!< Object alpha.
+	float m_fDistance;                 //!< Distance to the object.
 
 	union
 	{
-		float  m_fSort;                                   //!< Custom sort value.
+		float  m_fSort;                  //!< Custom sort value.
 		uint16 m_nSort;
 	};
 
-	uint32 m_nRTMask;                                   //!< Shader runtime modification flags
-	uint16 m_nMDV;                                      //!< Vertex modifier flags for Shader.
-	uint16 m_nRenderQuality;                            //!< 65535 - full quality, 0 - lowest quality, used by CStatObj
-	int16 m_nTextureID;                                 //!< Custom texture id.
+	uint32 m_nRTMask;                  //!< Shader runtime modification flags
+	uint16 m_nMDV;                     //!< Vertex modifier flags for Shader.
+	uint16 m_nRenderQuality;           //!< 65535 - full quality, 0 - lowest quality, used by CStatObj
+	int16 m_nTextureID;                //!< Custom texture id.
 
 	union
 	{
 		uint8 m_breakableGlassSubFragIndex;
 		uint8 m_ParticleObjFlags;
 	};
-	uint8 m_nClipVolumeStencilRef;                        //!< Per instance vis area stencil reference ID
-	uint8 m_DissolveRef;                                  //!< Dissolve value
-	uint8 m_RState;                                       //!< Render state used for object
+	uint8 m_nClipVolumeStencilRef;     //!< Per instance vis area stencil reference ID
+	uint8 m_DissolveRef;               //!< Dissolve value
+	uint8 m_RState;                    //!< Render state used for object
 
-	uint32 m_nMaterialLayers;                             //!< Which mtl layers active and how much to blend them
+	uint32 m_nMaterialLayers;          //!< Which mtl layers active and how much to blend them
 
-	IRenderNode* m_pRenderNode;                           //!< Will define instance id.
-	IMaterial* m_pCurrMaterial;                           //!< Parent material used for render object.
-	CRendElementBase* m_pRE;                              //!< RenderElement used by this CRenderObject
+	IRenderNode* m_pRenderNode;         //!< Will define instance id.
+	IMaterial* m_pCurrMaterial;         //!< Parent material used for render object.
+	CRendElementBase* m_pRE;            //!< RenderElement used by this CRenderObject
 
 	// Linked list of compiled objects, one per mesh subset (Chunk).
 	CCompiledRenderObject* m_pCompiledObject;
 
 	// Common flags
-	uint32 m_bWasDeleted         : 1;                      //!< Object was deleted and in unusable state
-	uint32 m_bPermanent          : 1;                      //!< Object is permanent and persistent across multiple frames
-	uint32 m_bInstanceDataDirty  : 1;                      //!< Object per instance data dirty and needs to be recompiled, (When only the instance data need recompilation)
-	uint32 m_bAllCompiledValid   : 1;                      //!< Set to true when compiled successfully.
+	uint32 m_bWasDeleted        : 1;   //!< Object was deleted and in unusable state
+	uint32 m_bPermanent         : 1;   //!< Object is permanent and persistent across multiple frames
+	uint32 m_bInstanceDataDirty : 1;   //!< Object per instance data dirty and needs to be recompiled, (When only the instance data need recompilation)
+	uint32 m_bAllCompiledValid  : 1;   //!< Set to true when compiled successfully.
 
-	volatile uint32 m_passReadyMask;                       //!< For Persistent Render Objects, This render object will be submitted for filling once for every not ready pass (should be 32 bit for atomic operation to work on it)
+	volatile uint32 m_passReadyMask;   //!< For Persistent Render Objects, This render object will be submitted for filling once for every not ready pass (should be 32 bit for atomic operation to work on it)
 
 	//! Embedded SRenderObjData, optional data carried by CRenderObject
 	SRenderObjData m_data;

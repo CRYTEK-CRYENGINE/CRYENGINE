@@ -415,6 +415,11 @@ bool CLoaderCGF::LoadChunks(bool bJustGeometry)
 				if (!LoadFoliageInfoChunk(pChunkDesc))
 					return false;
 				break;
+
+			case ChunkType_VCloth:
+				if (!LoadVClothChunk(pChunkDesc))
+					return false;
+				break;
 			}
 		}
 		else
@@ -659,7 +664,7 @@ bool CLoaderCGF::ReadBoneHierarchy(IChunkFile::ChunkDesc* pChunkDesc)
 	}
 
 	m_pBoneAnimRawData = pChunk + 1;
-	m_pBoneAnimRawDataEnd = ((const char*) pChunk) + pChunkDesc->size;
+	m_pBoneAnimRawDataEnd = ((const char*)pChunk) + pChunkDesc->size;
 
 	BONE_ENTITY* const pBones = (BONE_ENTITY*)m_pBoneAnimRawData;
 
@@ -679,8 +684,8 @@ bool CLoaderCGF::ReadBoneHierarchy(IChunkFile::ChunkDesc* pChunkDesc)
 	   {
 	   if (pBones[i].ParentID == -1)
 	   {
-	    m_LastError = "The skeleton has multiple roots. Only single-rooted skeletons are supported in this version.");
-	    return false;
+	   m_LastError = "The skeleton has multiple roots. Only single-rooted skeletons are supported in this version.");
+	   return false;
 	   }
 	   }
 	 */
@@ -1164,11 +1169,6 @@ bool CLoaderCGF::ReadCompiledMorphTargets(IChunkFile::ChunkDesc* pChunkDesc)
 		const uint8* rawdata = ((const uint8*)pChunkDesc->data) + sizeof(chunk);
 
 		CSkinningInfo* const pSkinningInfo = m_pCGF->GetSkinningInfo();
-		if (pChunkDesc->chunkVersion == chunk.VERSION1)
-		{
-			pSkinningInfo->m_bRotatedMorphTargets = true;
-		}
-
 		for (uint32 i = 0; i < chunk.numMorphTargets; ++i)
 		{
 			MorphTargetsPtr pSm = new MorphTargets;
@@ -1283,40 +1283,9 @@ bool CLoaderCGF::ReadCompiledBonesBoxes(IChunkFile::ChunkDesc* pChunkDesc)
 	if (pChunkDesc->chunkVersion == COMPILED_BONEBOXES_CHUNK_DESC_0800::VERSION ||
 	    pChunkDesc->chunkVersion == COMPILED_BONEBOXES_CHUNK_DESC_0800::VERSION1)
 	{
-		CSkinningInfo* const pSkinningInfo = m_pCGF->GetSkinningInfo();
-
-		if (pChunkDesc->chunkVersion == COMPILED_BONEBOXES_CHUNK_DESC_0800::VERSION1)
-		{
-			pSkinningInfo->m_bProperBBoxes = false;
-			if (pSkinningInfo->m_arrCollisions.empty())
-			{
-				pSkinningInfo->m_bProperBBoxes = true;
-			}
-			else
-			{
-				// CHECK FOR AT LEAST 1 EMPTY
-				for (int n = 0; n < pSkinningInfo->m_arrCollisions.size(); ++n)
-				{
-					const bool bValid = !pSkinningInfo->m_arrCollisions[n].m_aABB.IsReset();
-					if (bValid)
-					{
-						pSkinningInfo->m_bProperBBoxes = true;
-						break;
-					}
-				}
-			}
-
-			/* Ivo: this warning is not needed. It happens always if a character has no physics-proxy, and many simple characters don't have one
-			   if (!pSkinningInfo->m_bProperBBoxes)
-			   {
-			   CryWarning(VALIDATOR_MODULE_3DENGINE,VALIDATOR_WARNING,"%s: Invalid bones bounds", m_filename);
-			   }*/
-
-			pSkinningInfo->m_bProperBBoxes = false;
-		}
-
 		char* pSrc = (char*)pChunkDesc->data;
 
+		CSkinningInfo* const pSkinningInfo = m_pCGF->GetSkinningInfo();
 		pSkinningInfo->m_arrCollisions.push_back(MeshCollisionInfo());
 		MeshCollisionInfo& info = pSkinningInfo->m_arrCollisions[pSkinningInfo->m_arrCollisions.size() - 1];
 
@@ -1533,7 +1502,7 @@ bool SplitIntoRBatches(
 		}
 	}
 
-	arrSubsets.resize(arrBatches.size());         //subsets of the mesh as they appear in video-mem
+	arrSubsets.resize(arrBatches.size());           //subsets of the mesh as they appear in video-mem
 	for (uint32 m = 0; m < arrBatches.size(); m++)
 	{
 		uint32 mat = arrBatches[m].MaterialID;
@@ -1748,14 +1717,14 @@ bool CLoaderCGF::ProcessSkinning()
 	   //-----------------------------------------------------------------
 	   for (uint32 i=0; i<numIntVertices; ++i)
 	   {
-	    pMesh->m_pColor0[i].r = (pMesh->m_pColor0[i].r>0x80) ? 0xff : 0x00;
-	    pMesh->m_pColor0[i].g = (pMesh->m_pColor0[i].g>0x80) ? 0xff : 0x00;
-	    pMesh->m_pColor0[i].b = (pMesh->m_pColor0[i].b>0x80) ? 0xff : 0x00;
-	    pMesh->m_pColor0[i].a = 0;
-	    //calculate the index (this is the only value we need in the vertex-shader)
-	    if (pMesh->m_pColor0[i].r) pMesh->m_pColor0[i].a|=1;
-	    if (pMesh->m_pColor0[i].g) pMesh->m_pColor0[i].a|=2;
-	    if (pMesh->m_pColor0[i].b) pMesh->m_pColor0[i].a|=4;
+	   pMesh->m_pColor0[i].r = (pMesh->m_pColor0[i].r>0x80) ? 0xff : 0x00;
+	   pMesh->m_pColor0[i].g = (pMesh->m_pColor0[i].g>0x80) ? 0xff : 0x00;
+	   pMesh->m_pColor0[i].b = (pMesh->m_pColor0[i].b>0x80) ? 0xff : 0x00;
+	   pMesh->m_pColor0[i].a = 0;
+	   //calculate the index (this is the only value we need in the vertex-shader)
+	   if (pMesh->m_pColor0[i].r) pMesh->m_pColor0[i].a|=1;
+	   if (pMesh->m_pColor0[i].g) pMesh->m_pColor0[i].a|=2;
+	   if (pMesh->m_pColor0[i].b) pMesh->m_pColor0[i].a|=4;
 	   }
 	   }
 	   ----------------------------------------------------------------------------- */
@@ -2359,6 +2328,11 @@ bool CLoaderCGF::LoadExportFlagsChunk(IChunkFile::ChunkDesc* pChunkDesc)
 	else
 		pExportInfo->b8WeightsPerVertex = false;
 
+	if (chunk.flags & EXPORT_FLAGS_CHUNK_DESC::MAKE_VCLOTH)
+		pExportInfo->bMakeVCloth = true;
+	else
+		pExportInfo->bMakeVCloth = false;
+
 	return true;
 }
 
@@ -2600,7 +2574,7 @@ bool CLoaderCGF::LoadGeomChunk(CNodeCGF* pNode, IChunkFile::ChunkDesc* pChunkDes
 		const int maxLinkCount =
 		  m_pCGF->GetExportInfo()->b8WeightsPerVertex
 		  ? 8
-		  : ((m_maxWeightsPerVertex <= 8) ? m_maxWeightsPerVertex : 8);  // CMesh doesn't support more than 8 weights
+		  : ((m_maxWeightsPerVertex <= 8) ? m_maxWeightsPerVertex : 8);      // CMesh doesn't support more than 8 weights
 
 		const bool bSwapEndianness = pChunkDesc->bSwapEndian;
 		pChunkDesc->bSwapEndian = false;
@@ -2644,7 +2618,7 @@ bool CLoaderCGF::LoadGeomChunk(CNodeCGF* pNode, IChunkFile::ChunkDesc* pChunkDes
 			CryVertex* p;
 			StepData(p, pMeshChunkData, chunk->nVerts, bSwapEndianness);
 
-			err = mesh.SetPositions(&p->p.x, chunk->nVerts, sizeof(*p), VERTEX_SCALE);  // VERTEX_SCALE - to convert from centimeters to meters
+			err = mesh.SetPositions(&p->p.x, chunk->nVerts, sizeof(*p), VERTEX_SCALE);       // VERTEX_SCALE - to convert from centimeters to meters
 			if (!err)
 			{
 				err = mesh.SetNormals(&p->n.x, chunk->nVerts, sizeof(*p));
@@ -3783,6 +3757,84 @@ bool CLoaderCGF::LoadFoliageInfoChunk(IChunkFile::ChunkDesc* pChunkDesc)
 	return true;
 }
 
+bool CLoaderCGF::LoadVClothChunk(IChunkFile::ChunkDesc* pChunkDesc)
+{
+	if (pChunkDesc->chunkVersion != VCLOTH_CHUNK::VERSION)
+	{
+		m_LastError.Format("Unknown version of FoliageInfo chunk");
+		return false;
+	}
+
+	SVClothInfoCGF* const pVClothInfo = m_pCGF->GetVClothInfo();
+
+	const char* pCursor = (const char*)pChunkDesc->data;
+
+	VCLOTH_CHUNK* const pChunk = (VCLOTH_CHUNK*)pCursor;
+	const bool bSwapEndian = pChunkDesc->bSwapEndian;
+	SwapEndian(*pChunk, bSwapEndian);
+	pChunkDesc->bSwapEndian = false;
+
+	// Read vertices.
+	{
+		pCursor += sizeof(VCLOTH_CHUNK);
+		SVClothChunkVertex* const pChunkVertices = (SVClothChunkVertex*)pCursor;
+		SwapEndian(pChunkVertices, pChunk->vertexCount, bSwapEndian);
+
+		pVClothInfo->m_vertices.resize(pChunk->vertexCount);
+		for (uint32 vid = 0; vid < pChunk->vertexCount; ++vid)
+		{
+			const SVClothChunkVertex& chunkVertex = pChunkVertices[vid];
+			SVClothVertex& vertex = pVClothInfo->m_vertices[vid];
+
+			vertex.attributes = chunkVertex.attributes;
+		}
+	}
+
+	// Read triangles.
+	{
+		pCursor += sizeof(SVClothChunkVertex) * pChunk->vertexCount;
+		SVClothBendTriangle* const pTriangles = (SVClothBendTriangle*)pCursor;
+		SwapEndian(pTriangles, pChunk->bendTriangleCount, bSwapEndian);
+
+		pVClothInfo->m_triangles.assign(pTriangles, pTriangles + pChunk->bendTriangleCount);
+	}
+
+	// Read triangle pairs.
+	{
+		pCursor += sizeof(SVClothBendTriangle) * pChunk->bendTriangleCount;
+		SVClothBendTrianglePair* const pTrianglePairs = (SVClothBendTrianglePair*)pCursor;
+		SwapEndian(pTrianglePairs, pChunk->bendTrianglePairCount, bSwapEndian);
+
+		pVClothInfo->m_trianglePairs.assign(pTrianglePairs, pTrianglePairs + pChunk->bendTrianglePairCount);
+	}
+
+	// Read lraNotAttachedOrderedIdx.
+	{
+		pCursor += sizeof(SVClothBendTrianglePair) * pChunk->bendTrianglePairCount;
+		SVClothLraNotAttachedOrderedIdx* const pLraNotAttachedOrderedIdx = (SVClothLraNotAttachedOrderedIdx*)pCursor;
+		SwapEndian(pLraNotAttachedOrderedIdx, pChunk->lraNotAttachedOrderedIdxCount, bSwapEndian);
+
+		pVClothInfo->m_lraNotAttachedOrderedIdx.assign(pLraNotAttachedOrderedIdx, pLraNotAttachedOrderedIdx + pChunk->lraNotAttachedOrderedIdxCount);
+	}
+
+	// Read links.
+	{
+		pCursor += sizeof(SVClothLraNotAttachedOrderedIdx) * pChunk->lraNotAttachedOrderedIdxCount;
+
+		for (int lid = 0; lid < eVClothLink_COUNT; ++lid)
+		{
+			SVClothLink* const pLinks = (SVClothLink*)pCursor;
+			SwapEndian(pLinks, pChunk->linkCount[lid], bSwapEndian);
+
+			pVClothInfo->m_links[lid].assign(pLinks, pLinks + pChunk->linkCount[lid]);
+
+			pCursor += sizeof(SVClothLink) * pChunk->linkCount[lid];
+		}
+	}
+
+	return true;
+}
+
 //////////////////////////////////////////////////////////////////////////
 CMaterialCGF* CLoaderCGF::LoadMaterialFromChunk(int nChunkId)
 {
@@ -3954,7 +4006,7 @@ CMaterialCGF* CLoaderCGF::LoadMaterialNameChunk(IChunkFile::ChunkDesc* pChunkDes
 		pMtlCGF->nPhysicalizeType = chunk.nPhysicalizeType;
 		if ((unsigned int)pMtlCGF->nPhysicalizeType <= (PHYS_GEOM_TYPE_DEFAULT_PROXY - PHYS_GEOM_TYPE_DEFAULT))
 		{
-			pMtlCGF->nPhysicalizeType += PHYS_GEOM_TYPE_DEFAULT; // fixup if was exported with PHYS_GEOM_TYPE_DEFAULT==0
+			pMtlCGF->nPhysicalizeType += PHYS_GEOM_TYPE_DEFAULT;   // fixup if was exported with PHYS_GEOM_TYPE_DEFAULT==0
 		}
 
 		if (pMtlCGF->nPhysicalizeType != PHYS_GEOM_TYPE_NONE &&

@@ -207,7 +207,7 @@ bool CSoftwareMesh::Create(IRenderMesh& renderMesh, const DynArray<RChunk>& rend
 		return false;
 
 	int32 indicesWeightsStride;
-	uint8* pIndicesWeights = renderMesh.GetHWSkinPtr(indicesWeightsStride, FSL_READ, 0, false); //pointer to weights and bone-id
+	uint8* pIndicesWeights = renderMesh.GetHWSkinPtr(indicesWeightsStride, FSL_READ, 0, false);       //pointer to weights and bone-id
 	if (pIndicesWeights == 0)
 		return false;
 
@@ -296,6 +296,7 @@ bool CSoftwareVertexFrames::Create(const CSkinningInfo& skinningInfo, const Vec3
 	if (!frameCount)
 		return false;
 
+	m_numVertexDeltas = 0;
 	m_frames.resize(frameCount);
 	for (uint i = 0; i < frameCount; ++i)
 	{
@@ -316,19 +317,18 @@ bool CSoftwareVertexFrames::Create(const CSkinningInfo& skinningInfo, const Vec3
 		frame.vertices.resize(vertexCount);
 		for (uint j = 0; j < vertexCount; j++)
 		{
-			frame.vertices[j].index = skinningInfo.m_arrMorphTargets[i]->m_arrExtMorph[j].nVertexId;
-			frame.vertices[j].position = skinningInfo.m_arrMorphTargets[i]->m_arrExtMorph[j].ptVertex + positionOffset;
+			SSoftwareVertexFrameFormat& vf = frame.vertices[j];
+
+			vf.index = skinningInfo.m_arrMorphTargets[i]->m_arrExtMorph[j].nVertexId;
+			vf.position = skinningInfo.m_arrMorphTargets[i]->m_arrExtMorph[j].ptVertex + positionOffset;
 
 			const float lengthSquared = frame.vertices[j].position.GetLengthSquared();
 			maxLengthSquared = lengthSquared > maxLengthSquared ? lengthSquared : maxLengthSquared;
+
+			++m_numVertexDeltas;
 		}
 		frame.vertexMaxLength = sqrt(maxLengthSquared);
 	}
-	return true;
-}
-
-bool CSoftwareVertexFrames::Analyze()
-{
 	return true;
 }
 

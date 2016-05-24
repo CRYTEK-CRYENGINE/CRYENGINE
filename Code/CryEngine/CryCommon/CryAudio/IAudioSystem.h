@@ -528,16 +528,18 @@ struct SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportS
 {
 	explicit SAudioCallbackManagerRequestData(
 	  AudioStandaloneFileId const _audioStandaloneFileInstanceId,
-	  char const* const _szFile)
+	  char const* const _szFile, bool _bSuccess)
 		: SAudioCallbackManagerRequestDataBase(eAudioCallbackManagerRequestType_ReportStartedFile)
 		, audioStandaloneFileInstanceId(_audioStandaloneFileInstanceId)
 		, szFile(_szFile)
+		, bSuccess(_bSuccess)
 	{}
 
 	virtual ~SAudioCallbackManagerRequestData() {}
 
 	AudioStandaloneFileId const audioStandaloneFileInstanceId;
 	char const* const           szFile;
+	bool const                  bSuccess;
 
 	DELETE_DEFAULT_CONSTRUCTOR(SAudioCallbackManagerRequestData);
 	PREVENT_OBJECT_COPY(SAudioCallbackManagerRequestData);
@@ -661,16 +663,22 @@ struct SAudioObjectRequestData<eAudioObjectRequestType_PlayFile> : public SAudio
 	SAudioObjectRequestData()
 		: SAudioObjectRequestDataBase(eAudioObjectRequestType_PlayFile)
 		, szFile(nullptr)
+		, bLocalized(true)
+		, usedAudioTriggerId(INVALID_AUDIO_CONTROL_ID)
 	{}
 
-	explicit SAudioObjectRequestData(char const* const _szFile)
+	explicit SAudioObjectRequestData(char const* const _szFile, bool _bLocalized, AudioControlId _usedAudioTriggerId)
 		: SAudioObjectRequestDataBase(eAudioObjectRequestType_PlayFile)
 		, szFile(_szFile)
+		, bLocalized(_bLocalized)
+		, usedAudioTriggerId(_usedAudioTriggerId)
 	{}
 
 	virtual ~SAudioObjectRequestData() {}
 
-	char const* szFile;
+	char const*    szFile;
+	bool           bLocalized;
+	AudioControlId usedAudioTriggerId;
 
 	PREVENT_OBJECT_COPY(SAudioObjectRequestData);
 };
@@ -904,8 +912,8 @@ struct IAudioProxy
 	virtual void          Initialize(char const* const szObjectName, bool const bInitAsync = true) = 0;
 	virtual void          Release() = 0;
 	virtual void          Reset() = 0;
-	virtual void          PlayFile(char const* const _szFile, SAudioCallBackInfo const& _callBackInfo = SAudioCallBackInfo::GetEmptyObject()) = 0;
-	virtual void          StopFile(char const* const _szFile) = 0;
+	virtual void          PlayFile(SAudioPlayFileInfo const& _playbackInfo, SAudioCallBackInfo const& _callBackInfo = SAudioCallBackInfo::GetEmptyObject()) = 0;
+	virtual void          StopFile(char const* const szFile) = 0;
 	virtual void          ExecuteTrigger(AudioControlId const audioTriggerId, SAudioCallBackInfo const& callBackInfo = SAudioCallBackInfo::GetEmptyObject()) = 0;
 	virtual void          StopTrigger(AudioControlId const audioTriggerId) = 0;
 	virtual void          SetSwitchState(AudioControlId const audioSwitchId, AudioSwitchStateId const audioStateId) = 0;

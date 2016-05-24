@@ -7,11 +7,11 @@
     "CryCore":[
       {
         "Platform":[
-          "CryPlatform/IPlatformOS.h",
-          "CryPlatform/AppleSpecific.h",
-          "CryPlatform/iOSSpecific.h",
-          "CryPlatform/MacSpecific.h",
-          "CryPlatform/CryPlatform.Darwin.h"
+          "CryCore/Platform/IPlatformOS.h",
+          "CryCore/Platform/AppleSpecific.h",
+          "CryCore/Platform/iOSSpecific.h",
+          "CryCore/Platform/MacSpecific.h",
+          "CryCore/Platform/CryPlatform.Darwin.h"
         ]
       }
     ]

@@ -913,11 +913,28 @@ public:
 	//! Geometric mean value calculated from the areas of this mesh faces.
 	float m_geometricMeanFaceArea;
 
+	// morph deltas (referenced by m_verticesDeltaOffsets)
+	DynArray<Vec4> m_vertexDeltas;
+
+	// map of all morphs per vertex
+	// TODO: this is CSMorphsBitfield
+	DynArray<uint64> m_vertexMorphsBitfield;
+
+	// number of total morphs
+	uint32 m_numMorphs;
+
+	// per vertex offsets into m_vertexDeltas
+	DynArray<uint32> m_verticesDeltaOffsets;
+
 	//////////////////////////////////////////////////////////////////////////
 	void GetMemoryUsage(class ICrySizer* pSizer) const
 	{
 		pSizer->AddObject(this, sizeof(*this));
 		pSizer->AddObject(m_subsets);
+		pSizer->AddObject(m_vertexDeltas);
+		pSizer->AddObject(m_vertexMorphsBitfield);
+		pSizer->AddObject(m_numMorphs);
+		pSizer->AddObject(m_verticesDeltaOffsets);
 
 		for (int stream = 0; stream < LAST_STREAM; stream++)
 		{
@@ -958,6 +975,7 @@ public:
 
 		m_texMappingDensity = 0.0f;
 		m_geometricMeanFaceArea = 0.0f;
+		m_numMorphs = 0;
 	}
 
 	virtual ~CMesh()
@@ -1267,6 +1285,11 @@ public:
 		m_subsets = mesh.m_subsets;
 		m_texMappingDensity = mesh.m_texMappingDensity;
 		m_geometricMeanFaceArea = mesh.m_geometricMeanFaceArea;
+
+		m_vertexDeltas = mesh.m_vertexDeltas;
+		m_vertexMorphsBitfield = mesh.m_vertexMorphsBitfield;
+		m_numMorphs = mesh.m_numMorphs;
+		m_verticesDeltaOffsets = mesh.m_verticesDeltaOffsets;
 	}
 
 	bool CompareStreams(const CMesh& mesh) const
@@ -1790,7 +1813,8 @@ public:
 			fGeometricTotal += logf(areas[i]);
 		}
 
-		m_geometricMeanFaceArea = expf(fGeometricTotal / areasCount);
+		// Cannot use expf(), because junk bits in xmm0 sometimes raise an "invalid floating operation"  (msvc 19.00.23026).
+		m_geometricMeanFaceArea = (float)exp((double)fGeometricTotal / areasCount);
 
 		assert(m_geometricMeanFaceArea > 0.0f);
 

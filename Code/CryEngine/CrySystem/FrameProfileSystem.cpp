@@ -455,7 +455,6 @@ void CFrameProfileSystem::Reset()
 void CFrameProfileSystem::AddFrameProfiler(CFrameProfiler* pProfiler)
 {
 	CryAutoCriticalSection lock(m_profilersLock);
-	ScopedSwitchToGlobalHeap useGlobalHeap;
 
 	assert(pProfiler);
 	if (!pProfiler)
@@ -521,8 +520,6 @@ void CFrameProfileSystem::SProfilerThreads::Reset()
 	m_aThreadStacks[0].pProfilerSection = 0;
 	if (!m_pReservedProfilers)
 	{
-		ScopedSwitchToGlobalHeap useGlobalHeap;
-
 		// Allocate reserved profilers;
 		for (int i = 0; i < nMAX_THREADED_PROFILERS; i++)
 		{
@@ -1552,8 +1549,6 @@ void CFrameProfileSystem::SetSubsystemFilter(const char* szFilterName)
 //////////////////////////////////////////////////////////////////////////
 void CFrameProfileSystem::AddPeaksListener(IFrameProfilePeakCallback* pPeakCallback)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	// Only add one time.
 	stl::push_back_unique(m_peakCallbacks, pPeakCallback);
 }
@@ -1654,8 +1649,6 @@ void CFrameProfileSystem::UpdateInputSystemStatus()
 {
 	if (gEnv->pInput)
 	{
-		ScopedSwitchToGlobalHeap globalHeap;
-
 		// Remove ourself from the system
 		if (gEnv->pInput->GetExclusiveListener() == this)
 			gEnv->pInput->SetExclusiveListener(0);

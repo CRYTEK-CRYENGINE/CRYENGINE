@@ -30,7 +30,7 @@ vert2fragZ Common_ZPassVS(app2vertGBuffer IN_common)
 #endif
 
 #if %TEMP_TERRAIN
-  float4 HPosition = Pos_VS_Terrain(0.001f, g_VS_ViewProjZeroMatr, vertPassPos);
+  float4 HPosition = Pos_VS_Terrain(0.0005f, g_VS_ViewProjZeroMatr, vertPassPos);
 #else  
   float4 HPosition = Pos_VS_General(g_VS_ViewProjZeroMatr, vertPassPos);  
 #endif
@@ -161,8 +161,11 @@ vert2fragZ Common_ZPassVS(app2vertGBuffer IN_common)
 		float4 blendColInfo = Get_SPI_BlendWithTerrainColInfo();
 		OUT.terrainParams0.xy = float2(blendColInfo.zz*vPos.yx+blendColInfo.xy);
 		
-		// Allow normal map only on distance for now becasue of DXT compression and only for sectors in editing state
-		OUT.terrainParams0.z = saturate(length(g_VS_WorldViewPos.xyz - vPos.xyz) / 512.f - 1.f);
+		// Allow normal map only on distance or only for mesh-instanced sectros
+		if (blendColInfo.w<0)
+			OUT.terrainParams0.z = 1;
+		else
+			OUT.terrainParams0.z = saturate(length(g_VS_WorldViewPos.xyz - vPos.xyz) / 512.f - 1.f);
 
     // Detail layers
     #if %_RT_ALPHABLEND

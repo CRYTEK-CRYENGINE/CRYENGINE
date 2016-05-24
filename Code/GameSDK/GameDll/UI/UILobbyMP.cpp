@@ -22,7 +22,6 @@
 #include <CryCore/Platform/IPlatformOS.h>
 #include <CryLobby/ICryLobby.h>
 #include <CryLobby/ICryReward.h>
-#include <CryLobby/ICryStats.h>
 #include <CryLobby/ICryFriends.h>
 #include <CryLobby/ICryVoice.h>
 #include "Network/Squad/SquadManager.h"

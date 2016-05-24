@@ -9,7 +9,6 @@ namespace CryAudio
 {
 namespace Impl
 {
-
 class CAudioSystemImpl_sdlmixer final : public IAudioImpl
 {
 public:
@@ -33,15 +32,15 @@ public:
 	virtual EAudioRequestStatus      UnregisterAudioObject(IAudioObject* const pAudioObject) override;
 	virtual EAudioRequestStatus      ResetAudioObject(IAudioObject* const pAudioObject) override;
 	virtual EAudioRequestStatus      UpdateAudioObject(IAudioObject* const pAudioObject) override;
-	virtual EAudioRequestStatus      PlayFile(SAudioStandaloneFileInfo* const _pAudioStandaloneFileInfo) override;
-	virtual EAudioRequestStatus      StopFile(SAudioStandaloneFileInfo* const _pAudioStandaloneFileInfo) override;
+	virtual EAudioRequestStatus      PlayFile(SAudioStandaloneFileInfo* const pAudioStandaloneFileInfo) override;
+	virtual EAudioRequestStatus      StopFile(SAudioStandaloneFileInfo* const pAudioStandaloneFileInfo) override;
 	virtual EAudioRequestStatus      PrepareTriggerSync(IAudioObject* const pAudioObject, IAudioTrigger const* const pAudioTrigger) override;
 	virtual EAudioRequestStatus      UnprepareTriggerSync(IAudioObject* const pAudioObject, IAudioTrigger const* const pAudioTrigger) override;
 	virtual EAudioRequestStatus      PrepareTriggerAsync(IAudioObject* const pAudioObject, IAudioTrigger const* const pAudioTrigger, IAudioEvent* const pAudioEvent) override;
 	virtual EAudioRequestStatus      UnprepareTriggerAsync(IAudioObject* const pAudioObject, IAudioTrigger const* const pAudioTrigger, IAudioEvent* const pAudioEvent) override;
 	virtual EAudioRequestStatus      ActivateTrigger(IAudioObject* const pAudioObject, IAudioTrigger const* const pAudioTrigger, IAudioEvent* const pAudioEvent) override;
 	virtual EAudioRequestStatus      StopEvent(IAudioObject* const pAudioObject, IAudioEvent const* const pAudioEvent) override;
-	virtual EAudioRequestStatus      StopAllEvents(IAudioObject* const _pAudioObject) override;
+	virtual EAudioRequestStatus      StopAllEvents(IAudioObject* const pAudioObject) override;
 	virtual EAudioRequestStatus      Set3DAttributes(IAudioObject* const pAudioObject, SAudioObject3DAttributes const& attributes) override;
 	virtual EAudioRequestStatus      SetEnvironment(IAudioObject* const pAudioObject, IAudioEnvironment const* const pAudioEnvironment, float const amount) override;
 	virtual EAudioRequestStatus      SetRtpc(IAudioObject* const pAudioObject, IAudioRtpc const* const pAudioRtpc, float const value) override;
@@ -63,16 +62,16 @@ public:
 	virtual void                     DeleteAudioEnvironment(IAudioEnvironment const* const pOldAudioEnvironment) override;
 	virtual IAudioObject*            NewGlobalAudioObject(AudioObjectId const audioObjectID) override;
 	virtual IAudioObject*            NewAudioObject(AudioObjectId const audioObjectID) override;
-	virtual void                     DeleteAudioObject(IAudioObject* const pOldAudioObject) override;
+	virtual void                     DeleteAudioObject(IAudioObject const* const pOldAudioObject) override;
 	virtual IAudioListener*          NewDefaultAudioListener(AudioObjectId const audioObjectId) override;
 	virtual IAudioListener*          NewAudioListener(AudioObjectId const audioObjectId) override;
 	virtual void                     DeleteAudioListener(IAudioListener* const pOldListenerData) override;
 	virtual IAudioEvent*             NewAudioEvent(AudioEventId const audioEventID) override;
-	virtual void                     DeleteAudioEvent(IAudioEvent* const pOldAudioEvent) override;
+	virtual void                     DeleteAudioEvent(IAudioEvent const* const pOldAudioEvent) override;
 	virtual void                     ResetAudioEvent(IAudioEvent* const pAudioEvent) override;
 	virtual IAudioStandaloneFile*    NewAudioStandaloneFile() override;
-	virtual void                     DeleteAudioStandaloneFile(IAudioStandaloneFile const* const _pOldAudioStandaloneFile) override;
-	virtual void                     ResetAudioStandaloneFile(IAudioStandaloneFile* const _pAudioStandaloneFile) override;
+	virtual void                     DeleteAudioStandaloneFile(IAudioStandaloneFile const* const pOldAudioStandaloneFile) override;
+	virtual void                     ResetAudioStandaloneFile(IAudioStandaloneFile* const pAudioStandaloneFile) override;
 	virtual void                     GamepadConnected(TAudioGamepadUniqueID const deviceUniqueID) override;
 	virtual void                     GamepadDisconnected(TAudioGamepadUniqueID const deviceUniqueID) override;
 	virtual void                     SetLanguage(char const* const szLanguage) override;
@@ -98,12 +97,15 @@ private:
 	static char const* const s_szSDLEventLoopCountTag;
 	static char const* const s_szSDLEventIdTag;
 
-	string                   m_sGameFolder;
-	size_t                   m_nMemoryAlignment;
+	string                   m_gameFolder;
+	size_t                   m_memoryAlignment;
+	string                   m_language;
+
+	ICVar*                   m_pCVarFileExtension;
 
 #if defined(INCLUDE_SDLMIXER_IMPL_PRODUCTION_CODE)
 	std::map<AudioObjectId, string>             m_idToName;
-	CryFixedStringT<MAX_AUDIO_FILE_PATH_LENGTH> m_sFullImplString;
+	CryFixedStringT<MAX_AUDIO_FILE_PATH_LENGTH> m_fullImplString;
 #endif // INCLUDE_SDLMIXER_IMPL_PRODUCTION_CODE
 
 };

@@ -17,6 +17,7 @@
 #include "SunShafts.h"
 #include "ToneMapping.h"
 #include "PostAA.h"
+#include "ComputeSkinning.h"
 #include "Common/TypedConstantBuffer.h"
 #include "Common/Textures/TextureHelpers.h"
 #include "Common/Include_HLSL_CPP_Shared.h"
@@ -58,8 +59,9 @@ void CStandardGraphicsPipeline::Init()
 		m_pDefaultInstanceExtraResources->SetConstantBuffer(eConstantBufferShaderSlot_SkinQuat, CDeviceBufferManager::CreateNullConstantBuffer(), shaderStages);
 		m_pDefaultInstanceExtraResources->SetConstantBuffer(eConstantBufferShaderSlot_SkinQuatPrev, CDeviceBufferManager::CreateNullConstantBuffer(), shaderStages);
 		m_pDefaultInstanceExtraResources->SetBuffer(EReservedTextureSlot_SkinExtraWeights, nullBuffer, shaderStages);
-		m_pDefaultInstanceExtraResources->SetBuffer(EReservedTextureSlot_AdjacencyInfo, nullBuffer, shaderStages); // shares shader slot with EReservedTextureSlot_PatchID
-		m_pDefaultInstanceExtraResources->Build();                                                                 // This needs to be a valid resource-set since it's shared by all CompiledRenderObject that don't need a unique instance
+		m_pDefaultInstanceExtraResources->SetBuffer(EReservedTextureSlot_AdjacencyInfo, nullBuffer, shaderStages);             // shares shader slot with EReservedTextureSlot_PatchID
+		m_pDefaultInstanceExtraResources->SetBuffer(EReservedTextureSlot_ComputeSkinVerts, nullBuffer, shaderStages);          // shares shader slot with EReservedTextureSlot_PatchID
+		m_pDefaultInstanceExtraResources->Build();                                                                             // This needs to be a valid resource-set since it's shared by all CompiledRenderObject that don't need a unique instance
 	}
 
 	// Register scene stages that make use of the global PSO cache
@@ -79,6 +81,7 @@ void CStandardGraphicsPipeline::Init()
 	RegisterStage<CToneMappingStage>(m_pToneMappingStage, eStage_ToneMapping);
 	RegisterStage<CSunShaftsStage>(m_pSunShaftsStage, eStage_Sunshafts);
 	RegisterStage<CPostAAStage>(m_pPostAAStage, eStage_PostAA);
+	RegisterStage<CComputeSkinningStage>(m_pComputeSkinningStage, eStage_ComputeSkinning);
 
 	m_bInitialized = true;
 }
@@ -400,14 +403,14 @@ std::array<int, EFSS_MAX> CStandardGraphicsPipeline::GetDefaultMaterialSamplers(
 	std::array<int, EFSS_MAX> result =
 	{
 		{
-			gcpRendD3D->m_nMaterialAnisoHighSampler,                                                           // EFSS_ANISO_HIGH
-			gcpRendD3D->m_nMaterialAnisoLowSampler,                                                            // EFSS_ANISO_LOW
-			CTexture::GetTexState(STexState(FILTER_TRILINEAR, TADDR_WRAP, TADDR_WRAP, TADDR_WRAP, 0x0)),       // EFSS_TRILINEAR
-			CTexture::GetTexState(STexState(FILTER_BILINEAR, TADDR_WRAP, TADDR_WRAP, TADDR_WRAP, 0x0)),        // EFSS_BILINEAR
-			CTexture::GetTexState(STexState(FILTER_TRILINEAR, TADDR_CLAMP, TADDR_CLAMP, TADDR_CLAMP, 0x0)),    // EFSS_TRILINEAR_CLAMP
-			CTexture::GetTexState(STexState(FILTER_BILINEAR, TADDR_CLAMP, TADDR_CLAMP, TADDR_CLAMP, 0x0)),     // EFSS_BILINEAR_CLAMP
-			gcpRendD3D->m_nMaterialAnisoSamplerBorder,                                                         // EFSS_ANISO_HIGH_BORDER
-			CTexture::GetTexState(STexState(FILTER_TRILINEAR, TADDR_BORDER, TADDR_BORDER, TADDR_BORDER, 0x0)), // EFSS_TRILINEAR_BORDER
+			gcpRendD3D->m_nMaterialAnisoHighSampler,                                                             // EFSS_ANISO_HIGH
+			gcpRendD3D->m_nMaterialAnisoLowSampler,                                                              // EFSS_ANISO_LOW
+			CTexture::GetTexState(STexState(FILTER_TRILINEAR, TADDR_WRAP, TADDR_WRAP, TADDR_WRAP, 0x0)),         // EFSS_TRILINEAR
+			CTexture::GetTexState(STexState(FILTER_BILINEAR, TADDR_WRAP, TADDR_WRAP, TADDR_WRAP, 0x0)),          // EFSS_BILINEAR
+			CTexture::GetTexState(STexState(FILTER_TRILINEAR, TADDR_CLAMP, TADDR_CLAMP, TADDR_CLAMP, 0x0)),      // EFSS_TRILINEAR_CLAMP
+			CTexture::GetTexState(STexState(FILTER_BILINEAR, TADDR_CLAMP, TADDR_CLAMP, TADDR_CLAMP, 0x0)),       // EFSS_BILINEAR_CLAMP
+			gcpRendD3D->m_nMaterialAnisoSamplerBorder,                                                           // EFSS_ANISO_HIGH_BORDER
+			CTexture::GetTexState(STexState(FILTER_TRILINEAR, TADDR_BORDER, TADDR_BORDER, TADDR_BORDER, 0x0)),   // EFSS_TRILINEAR_BORDER
 		}
 	};
 
@@ -568,6 +571,7 @@ void CStandardGraphicsPipeline::Execute()
 
 	SwitchToLegacyPipeline();
 	pRenderer->FX_DeferredRainPreprocess();
+	m_pComputeSkinningStage->Execute(m_pCurrentRenderView);
 	SwitchFromLegacyPipeline();
 
 	gcpRendD3D->GetS3DRend().TryInjectHmdCameraAsync(pMainRenderView);

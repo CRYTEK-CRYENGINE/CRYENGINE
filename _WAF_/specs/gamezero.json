@@ -71,7 +71,7 @@
 	"win_release_defines"                   : "PURE_CLIENT",
 	"win_release_monolithic_build"          : "True",
 
-	"durango_modules"                       : [ "DurangoLauncher", "CryRenderD3D11", "ESraLibCore" ],
+	"durango_modules"                       : [ "DurangoLauncher", "CryRenderD3D11" ],
 	"durango_performance_monolithic_build"  : "True",
 	"durango_release_monolithic_build"      : "True",
 

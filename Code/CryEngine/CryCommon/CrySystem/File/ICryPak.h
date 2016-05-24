@@ -627,6 +627,8 @@ struct IResourceList : public _reference_target_t
 	// </interfuscator:shuffle>
 };
 
+#include <CryString/CryPath.h>
+
 //! Everybody should use fxopen instead of fopen so it will work both on PC and XBox.
 inline FILE* fxopen(const char* file, const char* mode, bool bGameRelativePath = false)
 {
@@ -662,7 +664,7 @@ inline FILE* fxopen(const char* file, const char* mode, bool bGameRelativePath =
 		if (bWriteAccess)
 		{
 			// Make sure folder is created.
-			gEnv->pCryPak->MakeDir(szAdjustedPath);
+			gEnv->pCryPak->MakeDir(PathUtil::GetParentDirectory(szAdjustedPath).c_str());
 		}
 #endif
 		return fopen(szAdjustedPath, mode);
@@ -871,7 +873,6 @@ private:
 #if !defined(RESOURCE_COMPILER)
 
 // Include File helpers.
-	#include <CryString/CryPath.h>
 	#include "CryFile.h"
 
 //! Helper class that can be used to recusrively scan the directory.

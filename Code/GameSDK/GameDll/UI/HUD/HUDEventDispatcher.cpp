@@ -514,6 +514,22 @@ static THUDEventLookup s_eventLookUpTable[] = {
 	return eHUDEvent_None;
 }
 
+string CHUDEventDispatcher::GetEventName(EHUDEventType inputEvent)
+{
+#if !defined(DEDICATED_SERVER)
+	const size_t regdEventCount = sizeof(s_eventLookUpTable)/sizeof(THUDEventLookup);
+	for (size_t i = 0; i<regdEventCount; ++i)
+	{
+		const THUDEventLookup& eventInfo = s_eventLookUpTable[i];
+		if(eventInfo.value == inputEvent)
+		{
+			return eventInfo.key;
+		}
+	}
+#endif
+	return string("");
+}
+
 /*static*/ void CHUDEventDispatcher::CheckRegisteredEvents( void )
 {
 #if !defined(DEDICATED_SERVER)

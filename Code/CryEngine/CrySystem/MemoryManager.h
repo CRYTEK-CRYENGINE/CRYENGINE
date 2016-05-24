@@ -37,17 +37,6 @@ public:
 	virtual bool                     GetProcessMemInfo(SProcessMemInfo& minfo);
 	virtual void                     FakeAllocation(long size);
 
-	virtual void                     InitialiseLevelHeap();
-
-	virtual void                     SwitchToLevelHeap();
-	virtual void                     SwitchToGlobalHeap();
-
-	virtual int                      LocalSwitchToGlobalHeap();
-	virtual int                      LocalSwitchToLevelHeap();
-	virtual void                     LocalSwitchToHeap(int heap);
-
-	virtual bool                     GetLevelHeapViolationState(bool& usingLevelHeap, size_t& numAllocs, size_t& allocSize);
-
 	virtual HeapHandle               TraceDefineHeap(const char* heapName, size_t size, const void* pBase);
 	virtual void                     TraceHeapAlloc(HeapHandle heap, void* mem, size_t size, size_t blockSize, const char* sUsage, const char* sNameHint = 0);
 	virtual void                     TraceHeapFree(HeapHandle heap, void* mem, size_t blockSize);

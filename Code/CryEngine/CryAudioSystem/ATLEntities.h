@@ -35,6 +35,7 @@ struct SATLXMLTags
 	static char const* const szATLPreloadRequestTag;
 	static char const* const szATLEnvironmentRequestTag;
 
+	static char const* const szATLVersionAttribute;
 	static char const* const szATLNameAttribute;
 	static char const* const szATLInternalNameAttribute;
 	static char const* const szATLTypeAttribute;

@@ -316,20 +316,22 @@ public:
 	};
 	struct SCharacterInstanceCB
 	{
-		CConstantBuffer*                 m_buffer;
+		CConstantBuffer*                 boneTransformsBuffer;
+		// contains only the bone ids and the weighs [0-100] of the bones that move a morph for a particular frame
+		CGpuBuffer                       activeMorphsBuffer;
 		SSkinningData*                   m_pSD;
 		util::list<SCharacterInstanceCB> list;
 		bool                             updated;
 
 		SCharacterInstanceCB()
-			: m_buffer()
+			: boneTransformsBuffer()
 			, m_pSD()
 			, list()
 			, updated()
 		{
 		}
 
-		~SCharacterInstanceCB() { SAFE_RELEASE(m_buffer); list.erase(); }
+		~SCharacterInstanceCB() { SAFE_RELEASE(boneTransformsBuffer); list.erase(); }
 	};
 	struct SRenderTargetStack
 	{
@@ -1208,6 +1210,7 @@ public:
 
 	void OldPipeline_ProcessRenderList(CRenderView::RenderItems& renderItems, int nums, int nume, int nList, void (* RenderFunc)(), bool bLighting, uint32 nBatchFilter = FB_GENERAL, uint32 nBatchExcludeFilter = 0);
 	void OldPipeline_ProcessBatchesList(CRenderView::RenderItems& renderItems, int nums, int nume, uint32 nBatchFilter, uint32 nBatchExcludeFilter = 0);
+	void FX_ProcessCharDeformation(CRenderView* pRenderView);
 
 	void FX_WaterVolumesCaustics(CRenderView* pRenderView);
 	void FX_WaterVolumesCausticsPreprocess(N3DEngineCommon::SCausticInfo& causticInfo);
@@ -1282,21 +1285,21 @@ public:
 
 	virtual gpu_pfx2::IManager*              GetGpuParticleManager() override;
 
+	const std::vector<SSkinningData*>&       GetComputeSkinningDataListRT() const;
 private:
-	void         HandleDisplayPropertyChanges();
+	void                                     HandleDisplayPropertyChanges();
 
-	bool         CaptureFrameBufferToFile(const char* pFilePath, CTexture* pRenderTarget = 0);
+	bool                                     CaptureFrameBufferToFile(const char* pFilePath, CTexture* pRenderTarget = 0);
 	// Store local pointers to CVars used for capturing
-	void         CaptureFrameBuffer();
+	void                                     CaptureFrameBuffer();
 	// Resolve supersampled back buffer
-	void         ResolveSupersampledBackbuffer();
+	void                                     ResolveSupersampledBackbuffer();
 	// Scale back buffer contents to match viewport
-	void         ScaleBackbufferToViewport();
-	virtual void EnablePipelineProfiler(bool bEnable) override;
+	void                                     ScaleBackbufferToViewport();
+	virtual void                             EnablePipelineProfiler(bool bEnable) override;
 
 	// Called before starting drawing new frame
 	virtual void ClearPerFrameData() override;
-
 #if CRY_PLATFORM_WINDOWS
 public:
 	// Called to inspect window messages sent to this renderer's windows
@@ -1539,7 +1542,7 @@ private:
 		epsOccluded     = 1 << 0,
 		epsNonExclusive = 1 << 1,
 	};
-	DWORD            m_dwPresentStatus;      // Indicate present status
+	DWORD            m_dwPresentStatus; // Indicate present status
 
 	DWORD            m_dwCreateFlags;      // Indicate sw or hw vertex processing
 	DWORD            m_dwWindowStyle;      // Saved window style for mode switches
@@ -1554,8 +1557,8 @@ private:
 	//==================================================================
 
 #if CRY_PLATFORM_WINDOWS
-	uint m_nConnectedMonitors; // The number of monitors currently connected to the system
-	bool m_bDisplayChanged;    // Dirty-flag set when the number of monitors in the system changes
+	uint m_nConnectedMonitors;  // The number of monitors currently connected to the system
+	bool m_bDisplayChanged;     // Dirty-flag set when the number of monitors in the system changes
 #endif
 
 #if defined(ENABLE_PROFILING_CODE)

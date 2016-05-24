@@ -63,7 +63,6 @@ public:
 
 	~CNameTableR()
 	{
-		ScopedSwitchToGlobalHeap globalHeapScope;
 		for (NameMap::iterator it = m_nameMap.begin(); it != m_nameMap.end(); ++it)
 		{
 			free(it->second);
@@ -82,7 +81,6 @@ public:
 	SNameEntryR* GetEntry(const char* str)
 	{
 		CheckThread();
-		ScopedSwitchToGlobalHeap globalHeapScope;
 		SNameEntryR* pEntry = stl::find_in_map(m_nameMap, str, 0);
 		if (!pEntry)
 		{
@@ -108,7 +106,6 @@ public:
 	void Release(SNameEntryR* pEntry)
 	{
 		CheckThread();
-		ScopedSwitchToGlobalHeap globalHeapScope;
 		assert(pEntry);
 		m_nameMap.erase(pEntry->GetStr());
 		free(pEntry);
@@ -220,7 +217,6 @@ private:
 
 	static CNameTableR* GetNameTable()
 	{
-		ScopedSwitchToGlobalHeap globalHeapScope;
 		// Note: can not use a 'static CNameTable sTable' here, because that
 		// implies a static destruction order dependency - the name table is
 		// accessed from static destructor calls.

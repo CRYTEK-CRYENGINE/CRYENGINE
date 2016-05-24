@@ -245,14 +245,6 @@ CNetCVars::CNetCVars()
 
 	REGISTER_COMMAND_DEV_ONLY("net_dump_object_state", DumpObjectState, 0, "");
 
-#if NETWORK_REBROADCASTER
-	REGISTER_COMMAND("net_rebroadcaster", RebroadcasterCmd, 0, "net_rebroadcaster on/off - enables/disables the rebroadcaster\n"
-	                                                           "net_rebroadcaster debug on/off - enables/disables debug info\n"
-	                                                           "net_rebroadcaster <from channel id> <to channel id> on/off - enables/disables individual connections\n"
-	                                                           "net_rebroadcaster - displays status");
-	REGISTER_INT("net_enable_rebroadcaster", 1, VF_DUMPTODISK, "enables/disables rebroadcaster");
-#endif
-
 #if ENABLE_DEBUG_KIT
 	REGISTER_COMMAND_DEV_ONLY("net_stall", Stall, VF_NULL, "stall the network thread for a time (default 1 second, but can be passed in as a parameter");
 #endif
@@ -324,110 +316,6 @@ void CNetCVars::SetCDKey(IConsoleCmdArgs* pArgs)
 		CNetwork::Get()->SetCDKey("");
 	}
 }
-
-//------------------------------------------------------------------------
-#if NETWORK_REBROADCASTER
-void CNetCVars::RebroadcasterCmd(IConsoleCmdArgs* pArgs)
-{
-	CryFixedStringT<128> temp;
-	int argCount = pArgs->GetArgCount();
-	CCryRebroadcaster* pRebroadcaster = NULL;
-	CCryLobby* pLobby = (CCryLobby*)CCryLobby::GetLobby();
-	if (pLobby)
-	{
-		pRebroadcaster = pLobby->GetRebroadcaster();
-	}
-
-	// Console text colouring:
-	// $0 = black | $1 = white  | $2 = blue    | $3 = green  | $4 = red
-	// $5 = cyan  | $6 = yellow | $7 = magenta | $8 = orange | %9 = grey
-
-	if (argCount == 1)
-	{
-		// The command with no arguments simply logs the rebroadcaster status
-		if (pRebroadcaster)
-		{
-			pRebroadcaster->ShowMesh();
-		}
-
-		CryLog("  $3net_rebroadcaster $2from $5to $6status $1- where status is enable/disable, for a single connection");
-	}
-	else if (argCount == 2)
-	{
-		// Enable or disable the rebroadcaster
-		bool enable = false;
-		temp = pArgs->GetArg(1);
-
-		if (temp.compareNoCase("disable") == 0 || temp.compareNoCase("off") == 0 || temp.compareNoCase("0") == 0 || temp.compareNoCase("n") == 0)
-		{
-			enable = false;
-		}
-		else if (temp.compareNoCase("enable") == 0 || temp.compareNoCase("on") == 0 || temp.compareNoCase("1") == 0 || temp.compareNoCase("y") == 0)
-		{
-			enable = true;
-		}
-
-		gEnv->pConsole->GetCVar("net_enable_rebroadcaster")->Set(enable ? 1 : 0);
-
-		temp.Format("CryNetwork rebroadcaster %s", (enable) ? "$3enabled" : "$4disabled");
-		CryLog(temp);
-	}
-	else if (argCount == 3)
-	{
-		temp = pArgs->GetArg(1);
-
-		if (temp.compareNoCase("debug") == 0)
-		{
-			// Enable/disable debug info
-			temp = pArgs->GetArg(2);
-			bool enable = false;
-
-			if (temp.compareNoCase("disable") == 0 || temp.compareNoCase("off") == 0 || temp.compareNoCase("0") == 0 || temp.compareNoCase("n") == 0)
-			{
-				enable = false;
-			}
-			else if (temp.compareNoCase("enable") == 0 || temp.compareNoCase("on") == 0 || temp.compareNoCase("1") == 0 || temp.compareNoCase("y") == 0)
-			{
-				enable = true;
-			}
-
-			if (pRebroadcaster)
-			{
-				pRebroadcaster->DebugMode(enable);
-			}
-
-			temp.Format("CryNetwork rebroadcaster debug info is %s", (enable) ? "$3enabled" : "$4disabled");
-			CryLog(temp);
-		}
-	}
-	else if (argCount == 4)
-	{
-		// Set the status of an individual connection
-		temp = pArgs->GetArg(1);
-		uint32 fromChannelID = atoi(temp.c_str());
-		temp = pArgs->GetArg(2);
-		uint32 toChannelID = atoi(temp.c_str());
-
-		ERebroadcasterConnectionStatus status = eRCS_Unknown;
-		temp = pArgs->GetArg(3);
-		status = eRCS_Unknown;
-
-		if (temp.compareNoCase("disable") == 0 || temp.compareNoCase("off") == 0 || temp.compareNoCase("0") == 0 || temp.compareNoCase("n") == 0)
-		{
-			status = eRCS_Disabled;
-		}
-		else if (temp.compareNoCase("enable") == 0 || temp.compareNoCase("on") == 0 || temp.compareNoCase("1") == 0 || temp.compareNoCase("y") == 0)
-		{
-			status = eRCS_Enabled;
-		}
-
-		if (pRebroadcaster)
-		{
-			pRebroadcaster->SetStatus(fromChannelID, toChannelID, status, true);
-		}
-	}
-}
-#endif
 
 //------------------------------------------------------------------------
 #if ENABLE_DEBUG_KIT

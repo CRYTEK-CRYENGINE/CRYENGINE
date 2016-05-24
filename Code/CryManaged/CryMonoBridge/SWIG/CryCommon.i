@@ -12,6 +12,7 @@
 #include <CryAISystem/IPathfinder.h>
 #include <CryAction/IMaterialEffects.h>
 #include <CryCore/CryTypeInfo.h>
+#include <CryLobby/ICryStats.h>
 %}
 
 %feature("nspace", 1);
@@ -238,7 +239,6 @@ SMART_PTR_TEMPLATE(CPriorityPulseState)
 SMART_PTR_TEMPLATE(IAttachmentSkin)
 SMART_PTR_TEMPLATE(IBreakDescriptionInfo)
 SMART_PTR_TEMPLATE(ICharacterInstance)
-SMART_PTR_TEMPLATE(ICryTCPService)
 SMART_PTR_TEMPLATE(IDialogScriptIterator)
 SMART_PTR_TEMPLATE(INetBreakagePlayback)
 SMART_PTR_TEMPLATE(INetBreakageSimplePlayback)
@@ -255,7 +255,6 @@ SMART_PTR_TEMPLATE(IWriteXMLSource)
 SMART_PTR_TEMPLATE(SCrySessionID)
 SMART_PTR_TEMPLATE(SCryUserID)
 SMART_PTR_TEMPLATE(SMFXResourceList)
-SMART_PTR_TEMPLATE(STCPServiceData)
 SMART_PTR_TEMPLATE(IParticleEffectIterator)
 
 //%include <std_vector.i>

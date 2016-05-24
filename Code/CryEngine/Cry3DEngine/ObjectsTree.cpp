@@ -11,7 +11,6 @@
 #include "VisAreas.h"
 #include <CryAnimation/ICryAnimation.h>
 #include "LightEntity.h"
-#include "LPVRenderNode.h"
 #include "WaterVolumeRenderNode.h"
 #include "DistanceCloudRenderNode.h"
 #include "MergedMeshRenderNode.h"
@@ -670,7 +669,7 @@ void COctreeNode::FillShadowCastersList(bool bNodeCompletellyInFrustum, CDLight*
 {
 	if (GetCVars()->e_Objects)
 	{
-		if (!pFr->bReflectiveShadowMap && m_renderFlags & ERF_CASTSHADOWMAPS)
+		if (m_renderFlags & ERF_CASTSHADOWMAPS)
 		{
 			FRAME_PROFILER("COctreeNode::FillShadowMapCastersList", GetSystem(), PROFILE_3DENGINE);
 
@@ -684,12 +683,6 @@ void COctreeNode::FillShadowCastersList(bool bNodeCompletellyInFrustum, CDLight*
 			params.nRenderNodeFlags = nRenderNodeFlags;
 
 			FillShadowMapCastersList(params, bNodeCompletellyInFrustum);
-		}
-		else if (pFr->bReflectiveShadowMap)
-		{
-			FRAME_PROFILER("COctreeNode::FillIndirectLightingCastersList", GetSystem(), PROFILE_3DENGINE);
-
-			FillIndirectLightingCastersList(pLight, pFr, passInfo);
 		}
 	}
 }
@@ -810,101 +803,6 @@ void COctreeNode::FillShadowMapCastersList(const ShadowMapFrustumParams& params,
 				m_arrChilds[i]->FillShadowMapCastersList(params, bNodeCompletellyInFrustum);
 		}
 	}
-}
-
-void COctreeNode::FillIndirectLightingCastersList(const CDLight* pLight, ShadowMapFrustum* pFr, const SRenderingPassInfo& passInfo)
-{
-	FUNCTION_PROFILER_3DENGINE;
-
-	assert(pFr->bReflectiveShadowMap);
-	assert(GetCVars()->e_GI > 0);
-
-	if (!IsCompiled())
-		CompileObjects();
-
-	bool bUnused = false;
-	if (!pFr->IntersectAABB(m_objectsBox, &bUnused))
-		return;
-
-	PrefetchLine(&m_arrObjects, 0);
-	PrefetchLine(m_arrObjects[0].m_pFirstNode, 0);
-
-	const Vec3 vCamPos = passInfo.GetCamera().GetPosition();
-
-	const float fRadius = pLight->m_fRadius * tanf(pLight->m_fLightFrustumAngle * (gf_PI / 180.0f) * 2.f);
-	const float fGsmMinDist = max(0.f, fRadius * 1.5f * GetCVars()->e_ShadowsCastViewDistRatio);
-	const float fMinRadius = fRadius / pFr->nTexSize * 8.f;   // EightTexelsSizeInMeters
-
-	if (GetCVars()->e_ShadowsCastViewDistRatio)
-	{
-		float fNodeDistance = sqrt_tpl(Distance::Point_AABBSq(vCamPos, m_objectsBox));
-		fNodeDistance = max(fNodeDistance, fGsmMinDist);
-		if (fNodeDistance > m_fObjectsMaxViewDist * GetCVars()->e_ShadowsCastViewDistRatio)
-			return;
-	}
-
-	PrefetchLine(&m_arrChilds[0]->m_nLightMaskFrameId, 0);
-
-	for (int l = 0; l < eRNListType_ListsNum; l++)
-	{
-		for (IRenderNode* pObj = m_arrObjects[l].m_pFirstNode; pObj; pObj = pObj->m_pNext)
-		{
-			const EERType rType = pObj->GetRenderNodeType();
-
-			// fill indirect lighting casters list
-			if (rType == eERType_Light || rType == eERType_Cloud ||
-			    rType == eERType_FogVolume || rType == eERType_WaterVolume ||
-			    rType == eERType_WaterWave || rType == eERType_DistanceCloud ||
-			    rType == eERType_VolumeObject ||
-			    rType == eERType_Rope || rType == eERType_LightPropagationVolume ||
-			    rType == eERType_ParticleEmitter ||
-			    rType == eERType_PrismObject || //rType == eERType_RenderProxy ||
-			    rType == eERType_GameEffect)    // || rType == eERType_Decal
-			{
-				continue;
-			}
-
-			// ignore the object that is less than 8 pixels
-			if (pObj->m_fWSMaxViewDist < fMinShadowCasterViewDist)
-				continue;
-
-			const AABB& objAABB = pObj->GetBBox();
-
-			const float fObjRadius = objAABB.GetRadius();
-
-			// ignore the object that is less than 8 pixels
-			if (fObjRadius < fMinRadius)
-				continue;
-
-			const Vec3 vObjCenter = objAABB.GetCenter();
-
-			const float fDistanceSq = Distance::Point_PointSq(vCamPos, vObjCenter);
-			const float fMaxCastDist = pObj->m_fWSMaxViewDist * GetCVars()->e_ShadowsCastViewDistRatio;
-
-			if (fDistanceSq > sqr(fMaxCastDist + fObjRadius))
-				continue;
-
-			//This allows IntersectSphere not to branch on the presence of the bool ptr, and doesn't cost us anything.
-			if (!pFr->IntersectSphere(Sphere(vObjCenter, fObjRadius), &bUnused))
-				continue;
-
-			// ignore characters
-			if (pObj->GetEntityCharacter(0))
-				continue;
-
-			if (pObj->CanExecuteRenderAsJob())
-			{
-				pFr->jobExecutedCastersList.Add(pObj);
-			}
-			else
-				pFr->castersList.Add(pObj);
-
-		}
-	}
-
-	for (int i = 0; i < 8; i++)
-		if (m_arrChilds[i])
-			m_arrChilds[i]->FillIndirectLightingCastersList(pLight, pFr, passInfo);
 }
 
 void COctreeNode::MarkAsUncompiled(const IRenderNode* pRenderNode)
@@ -1087,15 +985,8 @@ void COctreeNode::UnregisterEngineObjectsInArea(const SHotUpdateInfo* pExportInf
 				    eType == eERType_WaterVolume ||
 				    eType == eERType_Road ||
 				    eType == eERType_DistanceCloud ||
-				    eType == eERType_WaterWave ||
-				    eType == eERType_LightPropagationVolume)
+				    eType == eERType_WaterWave)
 				{
-					if (eType == eERType_LightPropagationVolume)
-						if (CLPVRenderNode* pIrr = (CLPVRenderNode*)pObj)
-							if (pIrr->m_pRE)
-								if (pIrr->m_pRE->GetFlags() & CRELightPropagationVolume::efGIVolume)
-									continue;
-
 					Get3DEngine()->UnRegisterEntityAsJob(pObj);
 					arrUnregisteredObjects.Add(pObj);
 					SetCompiled(false);

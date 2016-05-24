@@ -70,8 +70,6 @@ namespace
 		// Start accepting work on thread
 		virtual void ThreadEntry()
 		{
-			ScopedSwitchToGlobalHeap useGlobalHeap;
-
 			while (!m_bQuit)
 			{
 				if (CStatsAgentPipe::PipeOpen())

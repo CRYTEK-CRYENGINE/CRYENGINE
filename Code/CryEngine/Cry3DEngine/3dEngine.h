@@ -703,8 +703,6 @@ public:
 	virtual void RenderScene(const int nRenderFlags, const SRenderingPassInfo& passInfo);
 	virtual void DebugDraw_UpdateDebugNode();
 
-	uint32       BuildLightMask(const AABB& objBox, const SRenderingPassInfo& passInfo);
-	uint32       BuildLightMask(const AABB& objBox, PodArray<CDLight*>* pAffectingLights, CVisArea* pObjArea, bool bObjOutdoorOnly, const SRenderingPassInfo& passInfo, SRestLightingInfo* pRestLightingInfo = NULL);
 	void         DebugDraw_Draw();
 	bool         IsOutdoorVisible();
 	void         RenderSkyBox(IMaterial* pMat, const SRenderingPassInfo& passInfo);
@@ -831,6 +829,7 @@ public:
 	float                 m_fSunClipPlaneRange;
 	float                 m_fSunClipPlaneRangeShift;
 	bool                  m_bSunShadows;
+	bool                  m_bSunShadowsFromTerrain;
 
 	int                   m_nCloudShadowTexId;
 
@@ -916,7 +915,6 @@ public:
 	// Fog Materials
 	_smart_ptr<IMaterial> m_pMatFogVolEllipsoid;
 	_smart_ptr<IMaterial> m_pMatFogVolBox;
-	_smart_ptr<IMaterial> m_pMatLPV;
 
 	_smart_ptr<IShader>   m_pFarTreeSprites;
 
@@ -930,7 +928,6 @@ public:
 
 		m_pMatFogVolEllipsoid = 0;
 		m_pMatFogVolBox = 0;
-		m_pMatLPV = 0;
 	}
 
 	// Render elements
@@ -1282,7 +1279,6 @@ private:
 	class CTimeOfDay*                 m_pTimeOfDay;
 
 	ICVar*                            m_pLightQuality;
-	class CGlobalIlluminationManager* m_pGlobalIlluminationManager;
 
 	// FPS for savelevelstats
 

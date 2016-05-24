@@ -23,7 +23,7 @@
 #include <CryEntitySystem/IEntitySystem.h>
 #include "Network.h"
 #include <CryMemory/STLGlobalAllocator.h>
-#include "Lobby/ICryMatchMakingPrivate.h"
+#include <CryLobby/CommonICryMatchMaking.h>
 
 static const float STATS_UPDATE_INTERVAL_NUB = 0.25f;
 static const float KESTIMEOUT = 30.0f;
@@ -285,7 +285,7 @@ CNetNub::~CNetNub()
 	{
 		m_pSocketMain->UnregisterListener(this);
 		ISocketIOManager* pSocketIOManager = &CNetwork::Get()->GetInternalSocketIOManager();
-		if (m_pLobby->GetLobbyServiceType() == eCLS_Online)
+		if (m_pLobby && m_pLobby->GetLobbyServiceType() == eCLS_Online)
 		{
 			pSocketIOManager = &CNetwork::Get()->GetExternalSocketIOManager();
 		}
@@ -467,11 +467,11 @@ bool CNetNub::ConnectTo(const char* address, const char* connectionString)
 		}
 	}
 
-	if (session != CrySessionInvalidHandle && pLobby && pLobby->GetMatchMaking())
+	ICryMatchMakingPrivate* pMMPrivate = pLobby ? pLobby->GetMatchMakingPrivate() : nullptr;
+	if (session != CrySessionInvalidHandle && pMMPrivate)
 	{
-		ICryMatchMakingPrivate* pMatchMakingPriv8 = (ICryMatchMakingPrivate*)pLobby->GetMatchMaking();
 		TNetAddressVec tmp;
-		tmp.push_back(pMatchMakingPriv8->GetHostAddressFromSessionHandle(session));
+		tmp.push_back(pMMPrivate->GetHostAddressFromSessionHandle(session));
 		DoConnectTo(tmp, session, connectionString, conlk);
 		return true;
 	}
@@ -692,18 +692,12 @@ bool CNetNub::SendPendingConnect(SPendingConnection& pc)
 		{
 			NetWarning("Connection to %s timed out", RESOLVER.ToString(pc.to).c_str());
 			TO_GAME(&CNetNub::GC_FailedActiveConnect, this, eDC_Timeout, string().Format("Connection attempt to %s timed out", RESOLVER.ToString(pc.to).c_str()), CNubKeepAliveLock(this));
-#if USE_CRY_MATCHMAKING
-			ICryMatchMakingPrivate* pMatchMaking = NULL;
-			if (m_pLobby)
+			ICryMatchMakingPrivate* pMMPrivate = m_pLobby ? m_pLobby->GetMatchMakingPrivate() : nullptr;
+			if (pMMPrivate)
 			{
-				pMatchMaking = (ICryMatchMakingPrivate*)m_pLobby->GetMatchMaking();
-				if (pMatchMaking)
-				{
-					CryLog("CNetNub::SendPendingConnect calling SessionDisconnectRemoteConnection");
-					pMatchMaking->SessionDisconnectRemoteConnectionFromNub(pc.session, eDC_Timeout);
-				}
+				CryLog("CNetNub::SendPendingConnect calling SessionDisconnectRemoteConnection");
+				pMMPrivate->SessionDisconnectRemoteConnectionFromNub(pc.session, eDC_Timeout);
 			}
-#endif              // USE_CRY_MATCHMAKING
 			return false; // staying in this state too long
 		}
 
@@ -847,18 +841,11 @@ bool CNetNub::Init(CNetwork* pNetwork)
 	flags |= eSF_BigBuffer;
 
 	ISocketIOManager* pSocketIOManager = &CNetwork::Get()->GetInternalSocketIOManager();
-	if (m_pLobby)
+	ICryMatchMakingPrivate* pMMPrivate = m_pLobby ? m_pLobby->GetMatchMakingPrivate() : nullptr;
+	if (pMMPrivate && pMMPrivate->GetLobbyServiceTypeForNubSession() == eCLS_Online)
 	{
-		ICryMatchMakingPrivate* pMatchMaking = (ICryMatchMakingPrivate*)m_pLobby->GetMatchMaking();
-
-		if (pMatchMaking)
-		{
-			if (pMatchMaking->GetLobbyServiceTypeForNubSession() == eCLS_Online)
-			{
-				flags |= eSF_Online;
-				pSocketIOManager = &CNetwork::Get()->GetExternalSocketIOManager();
-			}
-		}
+		flags |= eSF_Online;
+		pSocketIOManager = &CNetwork::Get()->GetExternalSocketIOManager();
 	}
 
 	m_pSocketMain = pSocketIOManager->CreateDatagramSocket(m_addr, flags);
@@ -930,105 +917,7 @@ bool CNetNub::SendTo(const uint8* pData, size_t nSize, const TNetAddress& to)
 	//  return false;
 
 	ESocketError se = eSE_Ok;
-
-#if NETWORK_REBROADCASTER
-	// Can we talk to this destination directly?
-	TNetChannelID fromChannelID = 0;
-	TNetChannelID toChannelID = 0;
-	TNetChannelID routeChannelID = 0;
-	CCryRebroadcaster* pRebroadcaster = NULL;
-	CCryLobby* pLobby = (CCryLobby*)CCryLobby::GetLobby();
-	if (pLobby)
-	{
-		pRebroadcaster = pLobby->GetRebroadcaster();
-	}
-
-	if (pRebroadcaster)
-	{
-		fromChannelID = pRebroadcaster->GetLocalChannelID();
-		toChannelID = pRebroadcaster->GetChannelIDForAddress(to);
-		routeChannelID = pRebroadcaster->FindRoute(fromChannelID, toChannelID);
-	}
-
-	if (CNetwork::Get()->IsRebroadcasterEnabled() && fromChannelID != 0 && toChannelID != 0)
-	{
-		if (routeChannelID == 0)
-		{
-			// If the routeChannelID is 0, it means the destination is effectively unreachable.
-			if ((gEnv->bHostMigrating && gEnv->bMultiplayer))
-			{
-				// There's a host migration event in progress; ignore this packet
-				return true;
-			}
-			else
-			{
-				se = eSE_Unrecoverable;
-			}
-		}
-	}
-
-	if (routeChannelID != toChannelID)
-	{
-		if (se != eSE_Unrecoverable)
-		{
-			if (Frame_HeaderToID[pData[0]] == eH_Rebroadcaster)
-			{
-				// This is a rebroadcaster packet en-route, so bump the hop count
-				SRebroadcasterFrameHeader* pHeader = reinterpret_cast<SRebroadcasterFrameHeader*>(const_cast<uint8*>(pData));
-				++pHeader->hopCount;
-			}
-			else
-			{
-				// Make sure there's enough space in the packet buffer to prepend a rebroadcaster frame header
-				STATIC_CHECK(RESERVED_PACKET_BYTES >= sizeof(SRebroadcasterFrameHeader), INSUFFICIENT_RESERVED_PACKET_BYTES);
-
-				// Can't send directly so wrap in a rebroadcaster frame
-				SRebroadcasterFrameHeader* pHeader = reinterpret_cast<SRebroadcasterFrameHeader*>(&m_rebroadcasterPacketBuffer);
-				pHeader->frameHeaderID = Frame_IDToHeader[eH_Rebroadcaster]; // Frame header id signifying a rebroadcaster packet
-				pHeader->hopCount = 1;
-				pHeader->sourceID = fromChannelID;    // where the packet is originally from
-				pHeader->destinationID = toChannelID; // where the packet should ultimately end up
-
-				// Prevent potential buffer overrun
-				size_t copySize = nSize < (sizeof(m_rebroadcasterPacketBuffer) - sizeof(SRebroadcasterFrameHeader)) ? nSize : 0;
-				if (copySize > 0)
-				{
-					memcpy(m_rebroadcasterPacketBuffer + sizeof(SRebroadcasterFrameHeader), pData, nSize);
-					nSize += sizeof(SRebroadcasterFrameHeader);
-				}
-				else
-				{
-					NetWarning("Rebroadcaster: packet too large to reroute - discarding");
-					return true;
-				}
-			}
-
-			TNetAddress rerouteTo;
-			if (pRebroadcaster && pRebroadcaster->GetAddressForChannelID(routeChannelID, rerouteTo))
-			{
-				se = m_pSocketMain->Send(m_rebroadcasterPacketBuffer, nSize, rerouteTo);
-
-	#if NETWORK_REBROADCASTER_LOG
-				static CTimeValue lastUpdate(0.0f);
-				if (g_time - lastUpdate > 0.5f)
-				{
-					NetQuickLog(false, 5, "Rebroadcaster: packet rerouted on machine %i: originally from %i to %i; routing via %i", fromChannelID, fromChannelID, toChannelID, routeChannelID);
-					lastUpdate = g_time;
-				}
-	#endif
-			}
-			else
-			{
-				NetWarning("Rebroadcaster: *WARNING* unable to determine address for channel id %i in CNetNub::SendTo() - packet discarded", routeChannelID);
-			}
-
-		}
-	}
-	else
-#endif
-	{
-		se = m_pSocketMain->Send(pData, nSize, to);
-	}
+	se = m_pSocketMain->Send(pData, nSize, to);
 
 	if (se != eSE_Ok)
 	{
@@ -1147,92 +1036,6 @@ void CNetNub::OnPacket(const TNetAddress& from, const uint8* pData, uint32 nLeng
 			ProcessAlreadyConnecting(from, pData, nLength);
 			processed = true;
 			break;
-#if NETWORK_REBROADCASTER
-		case eH_Rebroadcaster:
-			{
-				// Intercept rebroadcaster header and redirect as appropriate
-				const SRebroadcasterFrameHeader* pHeader = reinterpret_cast<const SRebroadcasterFrameHeader*>(pData);
-				CCryRebroadcaster* pRebroadcaster = NULL;
-				CCryLobby* pLobby = (CCryLobby*)CCryLobby::GetLobby();
-				if (pLobby)
-				{
-					pRebroadcaster = pLobby->GetRebroadcaster();
-				}
-
-				TNetChannelID localChannelID;
-				if (pRebroadcaster)
-				{
-					localChannelID = pRebroadcaster->GetLocalChannelID();
-				}
-
-				if (pHeader->destinationID != localChannelID)
-				{
-					if (CNetwork::Get()->IsRebroadcasterEnabled())
-					{
-						// This packet still needs forwarding
-						TNetChannelID routeChannelID = 0;
-						if (pRebroadcaster)
-						{
-							routeChannelID = pRebroadcaster->FindRoute(localChannelID, pHeader->destinationID);
-						}
-
-						if (routeChannelID != 0)
-						{
-							TNetAddress to;
-							if (pRebroadcaster && pRebroadcaster->GetAddressForChannelID(routeChannelID, to))
-							{
-								SendTo(pData, nLength, to);
-
-	#if NETWORK_REBROADCASTER_LOG
-								static CTimeValue lastUpdate(0.0f);
-								if (g_time - lastUpdate > 0.5f)
-								{
-									NetQuickLog(false, 5, "Rebroadcaster: packet rerouted on machine %i: originally from %i to %i; routing %s %i", localChannelID, pHeader->sourceID, pHeader->destinationID, ((routeChannelID == pHeader->destinationID) ? "to" : "via"), routeChannelID);
-									lastUpdate = g_time;
-								}
-	#endif
-							}
-							else
-							{
-								NetWarning("Rebroadcaster: *WARNING* unable to determine address for channel id %i in CNetNub::OnPacket() (forwarding) - packet discarded", routeChannelID);
-							}
-						}
-					}
-
-					// If the packet can't be routed on for some reason, simply consume it here
-				}
-				else
-				{
-					// Fudge the 'from' address to look like it came directly from the source
-					TNetAddress source;
-					if (pRebroadcaster && pRebroadcaster->GetAddressForChannelID(pHeader->sourceID, source))
-					{
-	#if NETWORK_REBROADCASTER_LOG
-						static CTimeValue lastUpdate(0.0f);
-						if (g_time - lastUpdate > 0.5f)
-						{
-							NetQuickLog(false, 5, "Rebroadcaster: packet arrived on machine %i after %i hops: originally from %i", pHeader->destinationID, pHeader->hopCount, pHeader->sourceID);
-							lastUpdate = g_time;
-						}
-	#endif
-
-						// Strip the rebroadcaster header
-						pData += sizeof(SRebroadcasterFrameHeader);
-						nLength -= sizeof(SRebroadcasterFrameHeader);
-
-						OnPacket(source, pData, nLength);
-					}
-					else
-					{
-						NetWarning("Rebroadcaster: *WARNING* unable to determine address for channel id %i in CNetNub::OnPacket() (forwarding) - packet discarded", pHeader->sourceID);
-					}
-
-				}
-
-				processed = true;
-			}
-			break;
-#endif
 		}
 
 	if (!processed)
@@ -1293,43 +1096,6 @@ void CNetNub::ProcessDisconnect(const TNetAddress& from, const uint8* pData, uin
 	CNetChannel* pNetChannel = GetChannelForIP(from, 0);
 	uint8 cause = eDC_Unknown;
 	string reason;
-
-#if NETWORK_REBROADCASTER
-	if (pNetChannel)
-	{
-		CCryRebroadcaster* pRebroadcaster = NULL;
-		CCryLobby* pLobby = (CCryLobby*)CCryLobby::GetLobby();
-		if (pLobby)
-		{
-			pRebroadcaster = pLobby->GetRebroadcaster();
-		}
-
-		if (pRebroadcaster)
-		{
-			pRebroadcaster->DeleteConnection(pNetChannel, true, gEnv->bServer);
-		}
-	}
-#endif
-
-#if NETWORK_HOST_MIGRATION
-	// Call matchmaking here as this triggers off the host migration process.
-	// If this is not done before CNetChannel::Die() then host migration will
-	// fail as the client will be disconnected before his state can be cached.
-	if (pNetChannel)
-	{
-		bool autoMigrate = m_pNetwork->IsHostMigrationEnabled();
-		if (autoMigrate)
-		{
-			ICryMatchMakingPrivate* pMatchmaking = (ICryMatchMakingPrivate*)m_pLobby->GetMatchMaking();
-			if (pMatchmaking)
-			{
-				CryLog("CNetNub::ProcessDisconnect calling SessionDisconnectRemoteConnection");
-
-				pMatchmaking->SessionDisconnectRemoteConnectionFromNub(pNetChannel->GetSession(), (EDisconnectionCause)pData[1]);
-			}
-		}
-	}
-#endif
 
 	if (nSize < 2)
 	{
@@ -1442,22 +1208,6 @@ void CNetNub::DisconnectChannel(EDisconnectionCause cause, const TNetAddress* pF
 		pChannel = GetChannelForIP(*pFrom, 0);
 	}
 
-#if NETWORK_REBROADCASTER
-	if (pChannel)
-	{
-		CCryRebroadcaster* pRebroadcaster = NULL;
-		CCryLobby* pLobby = (CCryLobby*)CCryLobby::GetLobby();
-		if (pLobby)
-		{
-			pRebroadcaster = pLobby->GetRebroadcaster();
-		}
-
-		if (pRebroadcaster)
-		{
-			pRebroadcaster->DeleteConnection(pChannel, false, gEnv->bServer);
-		}
-	}
-#endif
 	if (pChannel)
 	{
 		pChannel->Destroy(cause, reason);
@@ -1486,51 +1236,44 @@ void CNetNub::DisconnectChannel(EDisconnectionCause cause, const TNetAddress* pF
 
 void CNetNub::DisconnectChannel(EDisconnectionCause cause, CrySessionHandle session, const char* pReason)
 {
-#if USE_CRY_MATCHMAKING
 	SCOPED_GLOBAL_LOCK;
 
-	ICryMatchMakingPrivate* pMatchMaking = (ICryMatchMakingPrivate*)m_pLobby->GetMatchMaking();
-
-	if (pMatchMaking)
+	ICryMatchMakingPrivate* pMMPrivate = m_pLobby ? m_pLobby->GetMatchMakingPrivate() : nullptr;
+	if (pMMPrivate)
 	{
-		uint32 id = pMatchMaking->GetChannelIDFromGameSessionHandle(session);
+		uint32 id = pMMPrivate->GetChannelIDFromGameSessionHandle(session);
 
 		for (TChannelMap::const_iterator iter = m_channels.begin(); iter != m_channels.end(); ++iter)
 		{
 			CNetChannel* pChannel = iter->second->GetNetChannel();
 
-			if (pMatchMaking->GetChannelIDFromGameSessionHandle(pChannel->GetSession()) == id)
+			if (pMMPrivate->GetChannelIDFromGameSessionHandle(pChannel->GetSession()) == id)
 			{
 				DisconnectChannel(cause, &iter->first, pChannel, pReason);
 			}
 		}
 	}
-#endif // USE_CRY_MATCHMAKING
 }
 
 INetChannel* CNetNub::GetChannelFromSessionHandle(CrySessionHandle session)
 {
-#if USE_CRY_MATCHMAKING
 	SCOPED_GLOBAL_LOCK;
 
-	ICryMatchMakingPrivate* pMatchMaking = (ICryMatchMakingPrivate*)m_pLobby->GetMatchMaking();
-
-	if (pMatchMaking)
+	ICryMatchMakingPrivate* pMMPrivate = m_pLobby ? m_pLobby->GetMatchMakingPrivate() : nullptr;
+	if (pMMPrivate)
 	{
-		uint32 id = pMatchMaking->GetChannelIDFromGameSessionHandle(session);
+		uint32 id = pMMPrivate->GetChannelIDFromGameSessionHandle(session);
 
 		for (TChannelMap::const_iterator iter = m_channels.begin(); iter != m_channels.end(); ++iter)
 		{
 			CNetChannel* pChannel = iter->second->GetNetChannel();
 
-			if (pMatchMaking->GetChannelIDFromGameSessionHandle(pChannel->GetSession()) == id)
+			if (pMMPrivate->GetChannelIDFromGameSessionHandle(pChannel->GetSession()) == id)
 			{
 				return pChannel;
 			}
 		}
 	}
-#endif // USE_CRY_MATCHMAKING
-
 	return NULL;
 }
 
@@ -1633,17 +1376,11 @@ void CNetNub::ProcessLanQuery(const TNetAddress& from)
 
 void CNetNub::LobbySafeDisconnect(CNetChannel* pChannel, EDisconnectionCause cause, const char* reason)
 {
-#if USE_CRY_MATCHMAKING
-	if (m_pLobby)
+	ICryMatchMakingPrivate* pMMPrivate = m_pLobby ? m_pLobby->GetMatchMakingPrivate() : nullptr;
+	if (pMMPrivate)
 	{
-		ICryMatchMaking* pMatchMaking = m_pLobby->GetMatchMaking();
-		if (pMatchMaking)
-		{
-			return;   // dont process the disconnect event, leave it for the lobby to deal with
-		}
+		return;   // dont process the disconnect event, leave it for the lobby to deal with
 	}
-#endif // USE_CRY_MATCHMAKING
-
 	pChannel->Disconnect(cause, reason);
 }
 
@@ -1946,10 +1683,7 @@ void CNetNub::ProcessSetup(const TNetAddress& from, const uint8* pData, uint32 n
 
 	SendKeyExchange0(from, iterCon->second, doNotRegenerate);
 
-#if USE_CRY_MATCHMAKING
-	ICryMatchMaking* pMatchMaking = m_pLobby->GetMatchMaking();
-
-	if (pMatchMaking && gEnv->bMultiplayer)
+	if (gEnv->bMultiplayer && m_pLobby && m_pLobby->GetMatchMaking())
 	{
 		// m_disconnectMap can sometimes still hold this address if client disconnects and connect again quickly and some of the disconnect packets got lost.
 		// If this happens this client will be disconnected straight away as we think it should have been disconnected.
@@ -1960,7 +1694,7 @@ void CNetNub::ProcessSetup(const TNetAddress& from, const uint8* pData, uint32 n
 
 		CRY_ASSERT_MESSAGE(session != CrySessionInvalidHandle, "Incoming connection with no session");
 
-		if (session == CrySessionInvalidHandle || !((ICryMatchMakingPrivate*)pMatchMaking)->IsNetAddressInLobbyConnection(from))
+		if (session == CrySessionInvalidHandle || !m_pLobby->GetMatchMakingPrivate()->IsNetAddressInLobbyConnection(from))
 		{
 			if (session != CrySessionInvalidHandle)
 			{
@@ -1969,7 +1703,6 @@ void CNetNub::ProcessSetup(const TNetAddress& from, const uint8* pData, uint32 n
 			AddDisconnectEntry(from, session, eDC_ProtocolError, "Invalid session");
 		}
 	}
-#endif // USE_CRY_MATCHMAKING
 
 	iterCon->second.connectionString = connectionString;
 	iterCon->second.kes = eKES_SentKeyExchange;
@@ -2028,8 +1761,6 @@ void CNetNub::GC_CreateChannel(CNetChannel* pNetChannel, string connectionString
 	// see CSystem::Update -> CNetwork::SyncWithGame
 	//SCOPED_GLOBAL_LOCK; - no need to lock
 
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	TConnectingMap::iterator iterCon = m_connectingMap.find(pNetChannel->GetIP());
 	bool fromRequest = iterCon != m_connectingMap.end();
 
@@ -2055,12 +1786,9 @@ void CNetNub::GC_CreateChannel(CNetChannel* pNetChannel, string connectionString
 		}
 	}
 
-#if USE_CRY_MATCHMAKING
-	ICryMatchMakingPrivate* pMatchMaking = (ICryMatchMakingPrivate*)m_pLobby->GetMatchMaking();
-
-	if (pMatchMaking && gEnv->bMultiplayer)
+	if (gEnv->bMultiplayer && m_pLobby && m_pLobby->GetMatchMaking())
 	{
-		if (!pMatchMaking->IsNetAddressInLobbyConnection(pNetChannel->GetIP()))
+		if (!m_pLobby->GetMatchMakingPrivate()->IsNetAddressInLobbyConnection(pNetChannel->GetIP()))
 		{
 			CryLogAlways("Canary : Duplicate Channel ID - Work around");
 
@@ -2075,7 +1803,6 @@ void CNetNub::GC_CreateChannel(CNetChannel* pNetChannel, string connectionString
 			return;
 		}
 	}
-#endif
 
 	SCreateChannelResult res = m_pGameNub->CreateChannel(pNetChannel, connectionString.empty() ? NULL : connectionString.c_str());
 	if (!res.pChannel)
@@ -2086,21 +1813,6 @@ void CNetNub::GC_CreateChannel(CNetChannel* pNetChannel, string connectionString
 		delete pNetChannel;
 		return;
 	}
-
-#if NETWORK_REBROADCASTER
-	if (reinterpret_cast<INetChannel*>(res.pChannel) == pNetChannel)
-	{
-		// This is a rebroadcaster channel
-		res.pChannel = NULL;
-	}
-
-	if (!gEnv->bServer)
-	{
-		// Pure clients need to associate the INetChannel* with the address stored
-		// in the rebroadcaster mesh (different on each client)
-		CNetwork::Get()->AddRebroadcasterConnection(pNetChannel, 0);
-	}
-#endif
 
 	pNetChannel->Init(this, res.pChannel);
 
@@ -2148,17 +1860,13 @@ void CNetNub::SendConnecting(const TNetAddress& to, SConnecting& con)
 
 void CNetNub::AddDisconnectEntry(const TNetAddress& ip, CrySessionHandle session, EDisconnectionCause cause, const char* reason)
 {
-#if USE_CRY_MATCHMAKING
-	ICryMatchMakingPrivate* pMatchmaking = (ICryMatchMakingPrivate*)m_pLobby->GetMatchMaking();
-
 	// If we are using CCryMatchMaking then it is responsible for the connections so don't send nub disconnects just inform matchmaking.
-	if (pMatchmaking)
+	if (m_pLobby && m_pLobby->GetMatchMaking())
 	{
 		CryLog("CNetNub::AddDisconnectEntry calling SessionDisconnectRemoteConnection reason %s", reason ? reason : "no reason");
-		pMatchmaking->SessionDisconnectRemoteConnectionFromNub(session, cause);
+		m_pLobby->GetMatchMakingPrivate()->SessionDisconnectRemoteConnectionFromNub(session, cause);
 	}
 	else
-#endif // USE_CRY_MATCHMAKING
 	{
 		SDisconnect dc;
 		dc.when = g_time;

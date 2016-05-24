@@ -88,7 +88,6 @@
           "CryCore/Platform/CryAtlMfc.h",
           "CryCore/Platform/CryDLMalloc.h",
           "CryCore/Platform/CryLibrary.h",
-          "CryCore/Platform/LevelHeap.h",
           "CryCore/Platform/platform.h",
           "CryCore/Platform/platform_impl.inl",
           "CryCore/Platform/WindowsUtils.h",
@@ -479,12 +478,12 @@
       "CryRenderer/IColorGradingController.h",
       "CryRenderer/IGpuParticles.h",
       "CryRenderer/IGpuPhysics.h",
+      "CryRenderer/IComputeSkinning.h",
       {
         "RenderElements":[
           "CryRenderer/RenderElements/CREBreakableGlass.h",
           "CryRenderer/RenderElements/CREBreakableGlassConfig.h",
           "CryRenderer/RenderElements/CREBreakableGlassHelpers.h",
-          "CryRenderer/RenderElements/CRELightPropagationVolume.h",
           "CryRenderer/RenderElements/CREBaseCloud.h",
           "CryRenderer/RenderElements/CREFarTreeSprites.h",
           "CryRenderer/RenderElements/CREFogVolume.h",
@@ -557,9 +556,9 @@
       "CryNetwork/INetwork.h",
       "CryNetwork/INetworkService.h",
       "CryNetwork/INotificationNetwork.h",
-      "CryNetwork/INetworkingState.h",
       "CryNetwork/IServiceNetwork.h",
       "CryNetwork/NetHelpers.h",
+      "CryNetwork/NetAddress.h",
       "CryNetwork/CrySocks.h",
       "CryNetwork/IRemoteControl.h",
       "CryNetwork/IRemoteCommand.h",
@@ -567,18 +566,10 @@
       "CryNetwork/ISimpleHttpServer.h"
     ],
     "CryLobby":[
-      "CryLobby/ICryLobby.h",
-      "CryLobby/CryLobbyPacket.h",
-      "CryLobby/ICryLobbyUI.h",
-      "CryLobby/CryLobbyEvent.h",
-      "CryLobby/ICryFriends.h",
-      "CryLobby/ICryFriendsManagement.h",
-      "CryLobby/ICryReward.h",
-      "CryLobby/ICrySignIn.h",
+      "CryLobby/CommonICryLobby.h",
+      "CryLobby/CryLobbyEventCallback.h",
       "CryLobby/ICryStats.h",
-      "CryLobby/ICryTCPService.h",
-      "CryLobby/ICryVoice.h",
-      "CryLobby/ICryMatchMaking.h"
+      "CryLobby/CommonICryMatchMaking.h"
     ],
     "CryInput":[
       "CryInput/IInput.h",

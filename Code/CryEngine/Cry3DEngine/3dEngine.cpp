@@ -53,8 +53,6 @@
 #include "RopeRenderNode.h"
 #include "RenderMeshMerger.h"
 #include "PhysCallbacks.h"
-#include "LPVRenderNode.h"
-#include "GlobalIllumination.h"
 #include "DeferredCollisionEvent.h"
 #include "MergedMeshRenderNode.h"
 #include "BreakableGlassRenderNode.h"
@@ -242,6 +240,7 @@ C3DEngine::C3DEngine(ISystem* pSystem)
 	m_nOceanRenderFlags = 0;
 
 	m_bSunShadows = m_bShowTerrainSurface = true;
+	m_bSunShadowsFromTerrain = false;
 	m_nSunAdditionalCascades = 0;
 	m_CachedShadowsBounds.Reset();
 	m_nCachedShadowsUpdateStrategy = ShadowMapFrustum::ShadowCacheData::eFullUpdate;
@@ -389,8 +388,6 @@ C3DEngine::C3DEngine(ISystem* pSystem)
 	m_eShadowMode = ESM_NORMAL;
 	m_pSegmentsManager = 0;
 	m_bSegmentOperationInProgress = false;
-
-	m_pGlobalIlluminationManager = NULL;
 
 	ClearDebugFPSInfo();
 
@@ -1248,11 +1245,6 @@ void C3DEngine::UpdateRenderingCamera(const char* szCallerName, const SRendering
 	}
 
 	/////////////////////////////////////////////////////////////////////////////
-	// update all system which depend on the 3dengine camera
-	if (m_pGlobalIlluminationManager)
-		m_pGlobalIlluminationManager->UpdatePosition(passInfo);
-
-	/////////////////////////////////////////////////////////////////////////////
 	// Update Foliage
 	float dt = GetTimer()->GetFrameTime();
 	CStatObjFoliage* pFoliage, * pFoliageNext;
@@ -1713,7 +1705,6 @@ bool C3DEngine::IsTessellationAllowedForShadowMap(const SRenderingPassInfo& pass
 	case SRenderingPassInfo::SHADOW_MAP_LOCAL:
 		return GetCVars()->e_ShadowsTessellateDLights != 0;
 	case SRenderingPassInfo::SHADOW_MAP_NONE:
-	case SRenderingPassInfo::SHADOW_MAP_REFLECTIVE:
 	default:
 		return false;
 	}
@@ -2916,11 +2907,6 @@ IRenderNode* C3DEngine::CreateRenderNode(EERType type)
 			IVolumeObjectRenderNode* pRenderNode = new CVolumeObjectRenderNode();
 			return pRenderNode;
 		}
-	case eERType_LightPropagationVolume:
-		{
-			ILPVRenderNode* pRenderNode = new CLPVRenderNode();
-			return pRenderNode;
-		}
 #if !defined(EXCLUDE_DOCUMENTATION_PURPOSE)
 	case eERType_PrismObject:
 		{
@@ -3119,25 +3105,29 @@ void C3DEngine::UpdateWindGridJobEntry(Vec3 vPos)
 	{
 		SOptimizedOutdoorWindArea WA = windArea;
 		WA.point[1].x = (WA.point[0].x + WA.point[1].x) * 0.5f;
-		WA.point[2] = WA.point[5];
+		WA.point[2] = WA.point[4];
+		WA.windSpeed[2] = WA.windSpeed[4];
 		WA.point[3].y = (WA.point[0].y + WA.point[3].y) * 0.5f;
 		UpdateWindGridArea(rWindGrid, WA, windBox);
 
 		WA = windArea;
 		WA.point[0].x = (WA.point[0].x + WA.point[1].x) * 0.5f;
-		WA.point[3] = WA.point[5];
+		WA.point[3] = WA.point[4];
+		WA.windSpeed[3] = WA.windSpeed[4];
 		WA.point[2].y = (WA.point[1].y + WA.point[2].y) * 0.5f;
 		UpdateWindGridArea(rWindGrid, WA, windBox);
 
 		WA = windArea;
 		WA.point[3].x = (WA.point[3].x + WA.point[2].x) * 0.5f;
-		WA.point[0] = WA.point[5];
+		WA.point[0] = WA.point[4];
+		WA.windSpeed[0] = WA.windSpeed[4];
 		WA.point[1].y = (WA.point[1].y + WA.point[2].y) * 0.5f;
 		UpdateWindGridArea(rWindGrid, WA, windBox);
 
 		WA = windArea;
 		WA.point[2].x = (WA.point[3].x + WA.point[2].x) * 0.5f;
-		WA.point[1] = WA.point[5];
+		WA.point[1] = WA.point[4];
+		WA.windSpeed[1] = WA.windSpeed[4];
 		WA.point[0].y = (WA.point[0].y + WA.point[3].y) * 0.5f;
 		UpdateWindGridArea(rWindGrid, WA, windBox);
 	}
@@ -4670,7 +4660,8 @@ void C3DEngine::ObjectsTreeMarkAsUncompiled(const IRenderNode* pRenderNode)
 			curNode->MarkAsUncompiled(pRenderNode);
 	}
 
-	GetVisAreaManager()->MarkAllSectorsAsUncompiled(pRenderNode);
+	if(GetVisAreaManager())
+		GetVisAreaManager()->MarkAllSectorsAsUncompiled(pRenderNode);
 }
 
 void C3DEngine::OnObjectModified(IRenderNode* pRenderNode, uint dwFlags)

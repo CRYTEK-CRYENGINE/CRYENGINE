@@ -36,7 +36,6 @@ class CPlayerStateLedge
 public:
 	static void SetParamsFromXml(const IItemParamsNode* pParams) 
 	{
-		ScopedSwitchToGlobalHeap useGlobalHeap;
 		GetLedgeGrabbingParams().SetParamsFromXml( pParams );
 	}
 

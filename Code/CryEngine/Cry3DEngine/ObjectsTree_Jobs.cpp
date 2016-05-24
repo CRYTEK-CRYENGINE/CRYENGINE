@@ -38,7 +38,6 @@
 #include "RoadRenderNode.h"
 #include "WaterVolumeRenderNode.h"
 #include "DistanceCloudRenderNode.h"
-#include "LPVRenderNode.h"
 
 #include <CryThreading/IJobManager_JobDelegator.h>
 DECLARE_JOB("OctreeNodeRender", TRenderContentJob, COctreeNode::RenderContentJobEntry);
@@ -999,12 +998,12 @@ bool CObjManager::IsAfterWater(const Vec3& vPos, const Vec3& vCamPos, const SRen
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CObjManager::RenderObjectDebugInfo(IRenderNode* pEnt, float fEntDistance, int nDLightMask, const SRenderingPassInfo& passInfo)
+void CObjManager::RenderObjectDebugInfo(IRenderNode* pEnt, float fEntDistance, const SRenderingPassInfo& passInfo)
 {
 	if (!passInfo.IsGeneralPass())
 		return;
 
-	m_arrRenderDebugInfo.push_back(SObjManRenderDebugInfo(pEnt, fEntDistance, nDLightMask));
+	m_arrRenderDebugInfo.push_back(SObjManRenderDebugInfo(pEnt, fEntDistance));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1079,15 +1078,9 @@ void CObjManager::RenderBrush(CBrush* pEnt, PodArray<CDLight*>* pAffectingLights
 	if (!pEnt || !pEnt->m_pTempData)
 		return;
 
-	uint32 nDynLMMask = 0;
-	if (bSunOnly)
-		nDynLMMask = 1;
-	else if (pAffectingLights)
-		nDynLMMask = m_p3DEngine->BuildLightMask(objBox, pAffectingLights, pVisArea, (pEnt->m_dwRndFlags & ERF_OUTDOORONLY) != 0, passInfo);
-
 	//////////////////////////////////////////////////////////////////////////
 	const CLodValue lodValue = pEnt->ComputeLod(pEnt->m_pTempData->userData.nWantedLod, passInfo);
-	pEnt->Render(lodValue, passInfo, pTerrainTexInfo, nDynLMMask, pAffectingLights);
+	pEnt->Render(lodValue, passInfo, pTerrainTexInfo, pAffectingLights);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1901,39 +1894,6 @@ Vec3 CRopeRenderNode::GetPos(bool bWorldOnly) const
 
 ///////////////////////////////////////////////////////////////////////////////
 IMaterial* CRopeRenderNode::GetMaterial(Vec3* pHitPos) const
-{
-	return m_pMaterial;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-void CLPVRenderNode::FillBBox(AABB& aabb)
-{
-	aabb = CLPVRenderNode::GetBBox();
-}
-
-///////////////////////////////////////////////////////////////////////////////
-EERType CLPVRenderNode::GetRenderNodeType()
-{
-	return eERType_LightPropagationVolume;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-float CLPVRenderNode::GetMaxViewDist()
-{
-	if (GetMinSpecFromRenderNodeFlags(m_dwRndFlags) == CONFIG_DETAIL_SPEC)
-		return max(GetCVars()->e_ViewDistMin, CLPVRenderNode::GetBBox().GetRadius() * GetCVars()->e_ViewDistRatioDetail * GetViewDistRatioNormilized());
-	return max(GetCVars()->e_ViewDistMin, CLPVRenderNode::GetBBox().GetRadius() * GetCVars()->e_ViewDistRatio * GetViewDistRatioNormilized());
-}
-
-///////////////////////////////////////////////////////////////////////////////
-Vec3 CLPVRenderNode::GetPos(bool bWorldOnly) const
-{
-	return m_pos;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-IMaterial* CLPVRenderNode::GetMaterial(Vec3* pHitPos) const
 {
 	return m_pMaterial;
 }

@@ -11,17 +11,17 @@
 #include <CryExtension/ClassWeaver.h>
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
-	#include <IViewSystem.h>
-	#include <CryGame/IGameFramework.h>
-	#include <CryEntitySystem/IEntitySystem.h>
+#include <../CryAction/IViewSystem.h>
+#include <CryGame/IGameFramework.h>
+#include <CryEntitySystem/IEntitySystem.h>
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
 #if CRY_PLATFORM_DURANGO
-	#include <apu.h>
+#include <apu.h>
 #endif // CRY_PLATFORM_DURANGO
 
 // Define global objects.
-CAudioCVars g_audioCVars;
+CAudioCVars  g_audioCVars;
 CAudioLogger g_audioLogger;
 CSoundAllocator g_audioMemoryPoolPrimary;
 CTimeValue g_lastMainThreadFrameStartTime;
@@ -29,7 +29,7 @@ CTimeValue g_lastMainThreadFrameStartTime;
 #define MAX_MODULE_NAME_LENGTH 256
 
 //////////////////////////////////////////////////////////////////////////
-class CSystemEventListner_Sound : public ISystemEventListener
+class CSystemEventListner_Sound:public ISystemEventListener
 {
 public:
 
@@ -38,68 +38,68 @@ public:
 		switch (event)
 		{
 		case ESYSTEM_EVENT_LEVEL_LOAD_START:
-			{
-				g_audioMemoryPoolPrimary.Cleanup();
-				break;
-			}
+		{
+			g_audioMemoryPoolPrimary.Cleanup();
+			break;
+		}
 		case ESYSTEM_EVENT_LEVEL_POST_UNLOAD:
-			{
-				g_audioMemoryPoolPrimary.Cleanup();
-				break;
-			}
+		{
+			g_audioMemoryPoolPrimary.Cleanup();
+			break;
+		}
 		case ESYSTEM_EVENT_RANDOM_SEED:
-			{
-				cry_random_seed(gEnv->bNoRandomSeed ? 0 : (uint32)wparam);
-				break;
-			}
+		{
+			cry_random_seed(gEnv->bNoRandomSeed ? 0 : (uint32)wparam);
+			break;
+		}
 		case ESYSTEM_EVENT_ACTIVATE:
+		{
+			// When Alt+Tabbing out of the application while it's in fullscreen mode
+			// ESYSTEM_EVENT_ACTIVATE is sent instead of ESYSTEM_EVENT_CHANGE_FOCUS.
+
+			// wparam != 0 is active, wparam == 0 is inactive
+			// lparam != 0 is minimized, lparam == 0 is not minimized
+
+			if (wparam == 0 || lparam != 0)
 			{
-				// When Alt+Tabbing out of the application while it's in fullscreen mode
-				// ESYSTEM_EVENT_ACTIVATE is sent instead of ESYSTEM_EVENT_CHANGE_FOCUS.
-
-				// wparam != 0 is active, wparam == 0 is inactive
-				// lparam != 0 is minimized, lparam == 0 is not minimized
-
-				if (wparam == 0 || lparam != 0)
+				//lost focus
+				if (gEnv->pAudioSystem != nullptr)
 				{
-					//lost focus
-					if (gEnv->pAudioSystem != nullptr)
-					{
-						gEnv->pAudioSystem->PushRequest(m_loseFocusRequest);
-					}
+					gEnv->pAudioSystem->PushRequest(m_loseFocusRequest);
 				}
-				else
-				{
-					// got focus
-					if (gEnv->pAudioSystem != nullptr)
-					{
-						gEnv->pAudioSystem->PushRequest(m_getFocusRequest);
-					}
-				}
-
-				break;
 			}
+			else
+			{
+				// got focus
+				if (gEnv->pAudioSystem != nullptr)
+				{
+					gEnv->pAudioSystem->PushRequest(m_getFocusRequest);
+				}
+			}
+
+			break;
+		}
 		case ESYSTEM_EVENT_CHANGE_FOCUS:
+		{
+			// wparam != 0 is focused, wparam == 0 is not focused
+			if (wparam == 0)
 			{
-				// wparam != 0 is focused, wparam == 0 is not focused
-				if (wparam == 0)
+				// lost focus
+				if (gEnv->pAudioSystem != nullptr)
 				{
-					// lost focus
-					if (gEnv->pAudioSystem != nullptr)
-					{
-						gEnv->pAudioSystem->PushRequest(m_loseFocusRequest);
-					}
+					gEnv->pAudioSystem->PushRequest(m_loseFocusRequest);
 				}
-				else
-				{
-					// got focus
-					if (gEnv->pAudioSystem != nullptr)
-					{
-						gEnv->pAudioSystem->PushRequest(m_getFocusRequest);
-					}
-				}
-				break;
 			}
+			else
+			{
+				// got focus
+				if (gEnv->pAudioSystem != nullptr)
+				{
+					gEnv->pAudioSystem->PushRequest(m_getFocusRequest);
+				}
+			}
+			break;
+		}
 		}
 	}
 
@@ -110,8 +110,8 @@ public:
 		{
 			m_loseFocusRequest.flags = eAudioRequestFlags_PriorityHigh;
 			m_loseFocusRequest.pData = &m_loseFocusRequestData;
-			m_getFocusRequest.flags = eAudioRequestFlags_PriorityHigh;
-			m_getFocusRequest.pData = &m_getFocusRequestData;
+			m_getFocusRequest.flags  = eAudioRequestFlags_PriorityHigh;
+			m_getFocusRequest.pData  = &m_getFocusRequestData;
 		}
 	}
 
@@ -143,7 +143,7 @@ bool CreateAudioSystem(SSystemGlobalEnvironment& env)
 		}
 
 		env.pAudioSystem = static_cast<IAudioSystem*>(pAudioSystem);
-		bSuccess = env.pAudioSystem->Initialize();
+		bSuccess         = env.pAudioSystem->Initialize();
 	}
 	else
 	{
@@ -188,13 +188,13 @@ void AddPhysicalBlock(long size)
 }
 
 //////////////////////////////////////////////////////////////////////////
-class CEngineModule_CryAudioSystem : public IEngineModule
+class CEngineModule_CryAudioSystem:public IEngineModule
 {
 	CRYINTERFACE_SIMPLE(IEngineModule)
 	CRYGENERATE_SINGLETONCLASS(CEngineModule_CryAudioSystem, "EngineModule_CryAudioSystem", 0xec73cf4362ca4a7f, 0x8b451076dc6fdb8b)
 
-	virtual const char* GetName() override { return "CryAudioSystem"; }
-	virtual const char* GetCategory() override { return "CryEngine"; }
+	virtual const char* GetName() override {return "CryAudioSystem"; }
+	virtual const char* GetCategory() override {return "CryEngine"; }
 
 	//////////////////////////////////////////////////////////////////////////
 	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override
@@ -203,7 +203,7 @@ class CEngineModule_CryAudioSystem : public IEngineModule
 
 		// initialize memory pools
 		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "ATL Memory Pool");
-		size_t const primaryPoolSize = g_audioCVars.m_audioPrimaryPoolSize << 10;
+		size_t const primaryPoolSize    = g_audioCVars.m_audioPrimaryPoolSize << 10;
 		uint8* const pPrimaryPoolMemory = new uint8[primaryPoolSize];
 		g_audioMemoryPoolPrimary.InitMem(primaryPoolSize, pPrimaryPoolMemory, "Audio Primary Memory Pool");
 
@@ -217,11 +217,11 @@ class CEngineModule_CryAudioSystem : public IEngineModule
 			{
 				CryFatalError("<Audio>: AudioSystem failed to allocate APU heap! (%d byte)", g_audioCVars.m_fileCacheManagerSize << 10);
 			}
-#endif // CRY_PLATFORM_DURANGO
+#endif      // CRY_PLATFORM_DURANGO
 
 			s_currentModuleName = m_pAudioImplNameCVar->GetString();
 
-			if (env.pSystem->InitializeEngineModule(s_currentModuleName.c_str(), s_currentModuleName.c_str(), initParams, false))
+			if (env.pSystem->InitializeEngineModule(s_currentModuleName.c_str(), s_currentModuleName.c_str(), false))
 			{
 				PrepareAudioSystem(env.pAudioSystem);
 			}
@@ -261,7 +261,7 @@ class CEngineModule_CryAudioSystem : public IEngineModule
 
 		// First try to load and initialize the new engine module.
 		// This will release the currently running implementation but only if the library loaded successfully.
-		if (gEnv->pSystem->InitializeEngineModule(s_currentModuleName.c_str(), s_currentModuleName.c_str(), systemInitParams, false))
+		if (gEnv->pSystem->InitializeEngineModule(s_currentModuleName.c_str(), s_currentModuleName.c_str(), false))
 		{
 			SAudioRequest request;
 			request.flags = eAudioRequestFlags_PriorityHigh | eAudioRequestFlags_ExecuteBlocking;
@@ -320,7 +320,7 @@ class CEngineModule_CryAudioSystem : public IEngineModule
 
 						if (pActiveView != nullptr)
 						{
-							EntityId const id = pActiveView->GetLinkedId();
+							EntityId const id       = pActiveView->GetLinkedId();
 							IEntity const* pIEntity = gEnv->pEntitySystem->GetEntity(id);
 
 							if (pIEntity != nullptr)
@@ -360,7 +360,7 @@ class CEngineModule_CryAudioSystem : public IEngineModule
 
 		// In any case send the event as we always loaded some implementation (either the proper or the NULL one).
 		GetISystem()->GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_AUDIO_IMPLEMENTATION_LOADED, 0, 0);
-#endif // INCLUDE_AUDIO_PRODUCTION_CODE
+#endif  // INCLUDE_AUDIO_PRODUCTION_CODE
 	}
 
 private:
@@ -377,10 +377,10 @@ CEngineModule_CryAudioSystem::CEngineModule_CryAudioSystem()
 {
 	// Register audio cvars
 	m_pAudioImplNameCVar = REGISTER_STRING_CB("s_AudioImplName", "CryAudioImplSDLMixer", 0,
-	                                          "Holds the name of the audio implementation library to be used.\n"
-	                                          "Usage: s_AudioImplName <name of the library without extension>\n"
-	                                          "Default: CryAudioImplSDLMixer\n",
-	                                          CEngineModule_CryAudioSystem::OnAudioImplChanged);
+		"Holds the name of the audio implementation library to be used.\n"
+		"Usage: s_AudioImplName <name of the library without extension>\n"
+		"Default: CryAudioImplSDLMixer\n",
+		CEngineModule_CryAudioSystem::OnAudioImplChanged);
 
 	g_audioCVars.RegisterVariables();
 }

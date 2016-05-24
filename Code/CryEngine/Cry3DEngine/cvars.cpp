@@ -360,8 +360,8 @@ void CVars::Init()
 	                   "Maximum cascade number to render tessellated shadows (0 = no tessellation for sun shadows)");
 	DefineConstIntCVar(e_ShadowsTessellateDLights, 0, VF_NULL,
 	                   "Disable/enable tessellation for local lights shadows");
-	REGISTER_CVAR(e_GsmCastFromTerrain, e_GsmCastFromTerrainDefault, VF_NULL,
-	              "Cast shadows from terrain");
+	REGISTER_CVAR(e_GsmCastFromTerrain, 1, VF_NULL,
+	              "Allows sun shadows from terrain to be activated in editor level settings");
 	DefineConstIntCVar(e_ShadowsFrustums, 0, VF_CHEAT,
 	                   "Debug");
 	DefineConstIntCVar(e_ShadowsDebug, 0, VF_CHEAT,
@@ -448,7 +448,11 @@ void CVars::Init()
 	DefineConstFloatCVar(e_TerrainOcclusionCullingStepSizeDelta, VF_CHEAT,
 	                     "Step size scale on every next step (for version 1)");
 	REGISTER_CVAR(e_TerrainOcclusionCullingMaxDist, 200.f, VF_NULL,
-	              "Max length of ray (for version 1)");
+		"Max length of ray (for version 1)");
+	REGISTER_CVAR(e_TerrainMeshInstancingMinLod, 3, VF_NULL,
+		"Mesh instancing is used for distant terrain sectors and for shadow map generation");
+	REGISTER_CVAR(e_TerrainMeshInstancingShadowBias, 0.35f, VF_NULL,
+		"During shadow map generation render distant terrain sectors little lower for less problems with terrain self-shadowing");
 	REGISTER_CVAR(e_StreamPredictionUpdateTimeSlice, 0.4f, VF_NULL,
 	              "Maximum amount of time to spend for scene streaming priority update in milliseconds");
 	REGISTER_CVAR(e_StreamAutoMipFactorSpeedThreshold, 0.f, VF_NULL,
@@ -1062,38 +1066,9 @@ void CVars::Init()
 
 	REGISTER_CVAR(e_GI, 0, VF_CVARGRP_IGNOREINREALVAL,
 	              "Enable/disable global illumination. Default: 1 - enabled");
-	DefineConstIntCVar(e_GISecondaryOcclusion, 0, VF_NULL,
-	                   "Enable/disable secondary occlusion for global illumination. Default: 0 - disabled");
-	DefineConstIntCVar(e_GIGlossyReflections, 0, VF_NULL,
-	                   "Enable/disable reflective mode for global illumination. Default: 0 - disabled");
-	REGISTER_CVAR(e_GINumCascades, 1, VF_NULL,
-	              "Sets number of cascades for global illumination. Default: 1");
-	DefineConstFloatCVar(e_GICascadesRatio, VF_NULL,
-	                     "Sets slope of cascades for global illumination. Default: 2.f");
-	REGISTER_CVAR(e_GIAmount, e_GIAmountDefault, VF_NULL,
-	              "Multiplier for brightness of the global illumination. Default: 25.0 times brighter (temporary)");
-	DefineConstFloatCVar(e_GIMaxDistance, VF_NULL,
-	                     "Maximum distance of global illumination in meters.\n"
-	                     "The less the distance the better the quality. Default: 50. Max: 150");
-
-	DefineConstIntCVar(e_GIIterations, 10, VF_NULL,
-	                   "Maximum number of propagation iterations global illumination\n"
-	                   "The less number of propagation iterations the shorter the light propagation distance. Default: 6. Max: 32");
-
-	DefineConstFloatCVar(e_GIOffset, VF_NULL,
-	                     "Offset of GI in front of camera in percents[0;1]. Default: 0.4 Min: 0 Max: 1");
-
-	REGISTER_CVAR(e_GIPropagationAmp, e_GIPropagationAmpDefault, VF_NULL,
-	              "Light amplification during each propagation iteration. Default: 3.3 Min: 1 Max: 5");
 
 	REGISTER_CVAR(e_RenderMeshCollisionTolerance, 0.3f, VF_NULL,
 	              "Min distance between physics-proxy and rendermesh before collision is considered a hole");
-
-	DefineConstFloatCVar(e_GIBlendRatio, VF_NULL,
-	                     "Ratio of overlapped region between nested cascades. 0.25 means 25% overlapping. Default: 0.25 Min: .1 Max: 2");
-
-	REGISTER_CVAR(e_GICache, 7, VF_NULL,
-	              "Sparse temporal caching for RSM rendering. Measured in framed per generation. Default: 7 Min: 0 (disabled)");
 
 	DefineConstIntCVar(e_PrepareDeformableObjectsAtLoadTime, 0, VF_CHEAT,
 	                   "Enable to Prepare deformable objects at load time instead on demand, prevents peaks but increases memory usage");

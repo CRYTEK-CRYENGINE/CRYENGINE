@@ -7,24 +7,24 @@
 #include <CrySystem/File/CryFile.h>
 #include <CryString/CryPath.h>
 
-namespace SDLMixer
+namespace SdlMixer
 {
-inline const TSampleID GetIDFromString(const string& sName)
+inline const SampleId GetIDFromString(const string& sName)
 {
 	return CCrc32::ComputeLowercase(sName.c_str());
 }
 
-inline const TSampleID GetIDFromFilePath(const string& sFilePath)
+inline const SampleId GetIDFromFilePath(const string& sFilePath)
 {
 	return GetIDFromString(PathUtil::GetFile(sFilePath));
 }
 
-inline void GetDistanceAngleToObject(const CAudioObjectTransformation& listener, const CAudioObjectTransformation& object, float& out_nDistance, float& out_nAngle)
+inline void GetDistanceAngleToObject(const CAudioObjectTransformation& listener, const CAudioObjectTransformation& object, float& out_distance, float& out_angle)
 {
 	const Vec3 listenerToObject = object.GetPosition() - listener.GetPosition();
 
 	// Distance
-	out_nDistance = listenerToObject.len();
+	out_distance = listenerToObject.len();
 
 	// Angle
 	// Project point to plane formed by the listeners position/direction
@@ -33,6 +33,6 @@ inline void GetDistanceAngleToObject(const CAudioObjectTransformation& listener,
 
 	// Get angle between listener position and projected point
 	const Vec3 listenerDir = listener.GetForward().GetNormalizedFast();
-	out_nAngle = RAD2DEG(asin(objectDir.Cross(listenerDir).Dot(n)));
+	out_angle = RAD2DEG(asin(objectDir.Cross(listenerDir).Dot(n)));
 }
 }

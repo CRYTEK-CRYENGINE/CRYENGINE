@@ -253,7 +253,6 @@ set (SourceGroup_Common_h_RenderElements
 	CREFogVolume.h
 	CREGameEffect.h
 	CREImposter.h
-	CRELightPropagationVolume.h
 	CREMesh.h
 	CREOcclusionQuery.h
 	CREParticle.h

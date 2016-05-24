@@ -185,9 +185,9 @@ void CAudioStandaloneFileManager::ReleaseStandaloneFile(CATLStandaloneFile* cons
 
 		pStandaloneFile->Clear();
 
+		m_pImpl->ResetAudioStandaloneFile(pStandaloneFile->m_pImplData);
 		if (m_audioStandaloneFilePool.m_reserved.size() < m_audioStandaloneFilePool.m_reserveSize)
 		{
-			m_pImpl->ResetAudioStandaloneFile(pStandaloneFile->m_pImplData);
 			m_audioStandaloneFilePool.m_reserved.push_back(pStandaloneFile);
 		}
 		else
@@ -411,12 +411,11 @@ void CAudioEventManager::ReleaseImplInstance(CATLEvent* const pOldEvent)
 	if (pOldEvent != nullptr)
 	{
 		pOldEvent->Clear();
+		m_pImpl->ResetAudioEvent(pOldEvent->m_pImplData);
 
 		if (m_audioEventPool.m_reserved.size() < m_audioEventPool.m_reserveSize)
 		{
 			// can return the instance to the reserved pool
-			m_pImpl->ResetAudioEvent(pOldEvent->m_pImplData);
-
 			m_audioEventPool.m_reserved.push_back(pOldEvent);
 		}
 		else
@@ -595,9 +594,10 @@ void CAudioObjectManager::Update(float const deltaTime, SAudioObject3DAttributes
 	m_timeSinceLastControlsUpdate += deltaTime;
 	bool const bUpdateControls = m_timeSinceLastControlsUpdate > s_controlsUpdateInterval;
 
-	for (auto const& audioObjectPair : m_registeredAudioObjects)
+	RegisteredAudioObjectsMap::const_iterator iterEnd = m_registeredAudioObjects.cend();
+	for (RegisteredAudioObjectsMap::iterator iter = m_registeredAudioObjects.begin(); iter != iterEnd; )
 	{
-		CATLAudioObject* const pAudioObject = audioObjectPair.second;
+		CATLAudioObject* const pAudioObject = iter->second;
 
 		SAudioObject3DAttributes const& attributes = pAudioObject->Get3DAttributes();
 		float const distance = (attributes.transformation.GetPosition() - listenerAttributes.transformation.GetPosition()).GetLength();
@@ -633,6 +633,17 @@ void CAudioObjectManager::Update(float const deltaTime, SAudioObject3DAttributes
 
 			m_pImpl->UpdateAudioObject(pAudioObject->GetImplDataPtr());
 		}
+		else
+		{
+			if (pAudioObject->CanBeReleased())
+			{
+				m_registeredAudioObjects.erase(iter++);
+				iterEnd = m_registeredAudioObjects.cend();
+				ReleaseInstance(pAudioObject);
+				continue;
+			}
+		}
+		++iter;
 	}
 
 	if (bUpdateControls)
@@ -737,11 +748,6 @@ bool CAudioObjectManager::ReleaseId(AudioObjectId const audioObjectId)
 	if (pAudioObject != nullptr)
 	{
 		pAudioObject->RemoveFlag(eAudioObjectFlags_DoNotRelease);
-
-		if (pAudioObject->CanRelease())
-		{
-			bSuccess = ReleaseInstance(pAudioObject);
-		}
 	}
 
 	return bSuccess;
@@ -799,11 +805,6 @@ void CAudioObjectManager::ReportFinishedEvent(CATLEvent* const pEvent, bool cons
 		if (pAudioObject != nullptr)
 		{
 			pAudioObject->ReportFinishedEvent(pEvent, bSuccess);
-
-			if (pAudioObject->CanRelease())
-			{
-				ReleaseInstance(pAudioObject);
-			}
 		}
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 		else
@@ -860,11 +861,6 @@ void CAudioObjectManager::ReportFinishedStandaloneFile(CATLStandaloneFile* const
 		if (pAudioObject != nullptr)
 		{
 			pAudioObject->ReportFinishedStandaloneFile(_pStandaloneFile);
-
-			if (pAudioObject->CanRelease())
-			{
-				ReleaseInstance(pAudioObject);
-			}
 		}
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 		else
@@ -891,11 +887,6 @@ void CAudioObjectManager::ReportObstructionRay(AudioObjectId const audioObjectId
 	if (pAudioObject != nullptr)
 	{
 		pAudioObject->ReportPhysicsRayProcessed(rayId);
-
-		if (pAudioObject->CanRelease())
-		{
-			ReleaseInstance(pAudioObject);
-		}
 	}
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 	else
@@ -942,32 +933,27 @@ CATLAudioObject* CAudioObjectManager::GetInstance()
 //////////////////////////////////////////////////////////////////////////
 bool CAudioObjectManager::ReleaseInstance(CATLAudioObject* const pOldObject)
 {
+	CRY_ASSERT(pOldObject);
 	bool bSuccess = false;
-
-	if (pOldObject != nullptr)
-	{
-		AudioObjectId const nObjectID = pOldObject->GetId();
-		m_registeredAudioObjects.erase(nObjectID);
-
+	
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
-		m_pDebugNameStore->RemoveAudioObject(nObjectID);
-		pOldObject->CheckBeforeRemoval(m_pDebugNameStore);
+	m_pDebugNameStore->RemoveAudioObject(static_cast<AudioObjectId const>(pOldObject->GetId()));
+	pOldObject->CheckBeforeRemoval(m_pDebugNameStore);
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
-		pOldObject->Clear();
-		bSuccess = (m_pImpl->UnregisterAudioObject(pOldObject->GetImplDataPtr()) == eAudioRequestStatus_Success);
+	pOldObject->Clear();
+	bSuccess = (m_pImpl->UnregisterAudioObject(pOldObject->GetImplDataPtr()) == eAudioRequestStatus_Success);
 
-		if (m_audioObjectPool.m_reserved.size() < m_audioObjectPool.m_reserveSize)
-		{
-			// can return the instance to the reserved pool
-			m_pImpl->ResetAudioObject(pOldObject->GetImplDataPtr());
-			m_audioObjectPool.m_reserved.push_back(pOldObject);
-		}
-		else
-		{
-			// the reserve pool is full, can return the instance to the implementation to dispose
-			m_pImpl->DeleteAudioObject(pOldObject->GetImplDataPtr());
-			POOL_FREE(pOldObject);
-		}
+	m_pImpl->ResetAudioObject(pOldObject->GetImplDataPtr());
+	if (m_audioObjectPool.m_reserved.size() < m_audioObjectPool.m_reserveSize)
+	{
+		// can return the instance to the reserved pool
+		m_audioObjectPool.m_reserved.push_back(pOldObject);
+	}
+	else
+	{
+		// the reserve pool is full, can return the instance to the implementation to dispose
+		m_pImpl->DeleteAudioObject(pOldObject->GetImplDataPtr());
+		POOL_FREE(pOldObject);
 	}
 
 	return bSuccess;
@@ -976,31 +962,13 @@ bool CAudioObjectManager::ReleaseInstance(CATLAudioObject* const pOldObject)
 //////////////////////////////////////////////////////////////////////////
 void CAudioObjectManager::ReleasePendingRays()
 {
-	if (!m_registeredAudioObjects.empty())
+	for (auto const& audioObjectPair : m_registeredAudioObjects)
 	{
-		TAudioObjectPool::TPointerContainer objectsToRelease;
+		CATLAudioObject* const pAudioObject = audioObjectPair.second;
 
-		for (auto const& audioObjectPair : m_registeredAudioObjects)
+		if (pAudioObject != nullptr)
 		{
-			CATLAudioObject* const pAudioObject = audioObjectPair.second;
-
-			if (pAudioObject != nullptr)
-			{
-				pAudioObject->ReleasePendingRays();
-
-				if (pAudioObject->CanRelease())
-				{
-					objectsToRelease.push_back(pAudioObject);
-				}
-			}
-		}
-
-		if (!objectsToRelease.empty())
-		{
-			for (auto const pAudioObject : objectsToRelease)
-			{
-				ReleaseInstance(pAudioObject);
-			}
+			pAudioObject->ReleasePendingRays();
 		}
 	}
 }
@@ -1456,6 +1424,9 @@ void CATLXMLProcessor::ParsePreloadsData(char const* const szFolderPath, EAudioD
 				{
 					if (_stricmp(pATLConfigRoot->getTag(), SATLXMLTags::szRootNodeTag) == 0)
 					{
+
+						uint versionNumber = 1;
+						pATLConfigRoot->getAttr(SATLXMLTags::szATLVersionAttribute, versionNumber);
 						size_t const numChildren = static_cast<size_t>(pATLConfigRoot->getChildCount());
 
 						for (size_t i = 0; i < numChildren; ++i)
@@ -1473,11 +1444,11 @@ void CATLXMLProcessor::ParsePreloadsData(char const* const szFolderPath, EAudioD
 									if (rootFolderPath.npos != lastSlashIndex)
 									{
 										CryFixedStringT<MAX_AUDIO_FILE_PATH_LENGTH> const folderName(rootFolderPath.substr(lastSlashIndex + 1, rootFolderPath.size()));
-										ParseAudioPreloads(pAudioConfigNode, dataScope, folderName.c_str());
+										ParseAudioPreloads(pAudioConfigNode, dataScope, folderName.c_str(), versionNumber);
 									}
 									else
 									{
-										ParseAudioPreloads(pAudioConfigNode, dataScope, nullptr);
+										ParseAudioPreloads(pAudioConfigNode, dataScope, nullptr, versionNumber);
 									}
 								}
 								else if (_stricmp(szAudioConfigNodeTag, SATLXMLTags::szTriggersNodeTag) == 0 ||
@@ -1623,121 +1594,143 @@ void CATLXMLProcessor::ClearControlsData(EAudioDataScope const dataScope)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CATLXMLProcessor::ParseAudioPreloads(XmlNodeRef const pPreloadDataRoot, EAudioDataScope const dataScope, char const* const szFolderName)
+void CATLXMLProcessor::ParseAudioPreloads(XmlNodeRef const pPreloadDataRoot, EAudioDataScope const dataScope, char const* const szFolderName, uint const version)
 {
 	LOADING_TIME_PROFILE_SECTION;
 
-	size_t const nPreloadRequestCount = static_cast<size_t>(pPreloadDataRoot->getChildCount());
+	size_t const preloadRequestCount = static_cast<size_t>(pPreloadDataRoot->getChildCount());
 
-	for (size_t i = 0; i < nPreloadRequestCount; ++i)
+	for (size_t i = 0; i < preloadRequestCount; ++i)
 	{
 		XmlNodeRef const pPreloadRequestNode(pPreloadDataRoot->getChild(i));
 
 		if (pPreloadRequestNode && _stricmp(pPreloadRequestNode->getTag(), SATLXMLTags::szATLPreloadRequestTag) == 0)
 		{
-			AudioPreloadRequestId nAudioPreloadRequestID = SATLInternalControlIDs::globalPreloadRequestId;
-			char const* sAudioPreloadRequestName = "global_atl_preloads";
+			AudioPreloadRequestId audioPreloadRequestID = SATLInternalControlIDs::globalPreloadRequestId;
+			char const* szAudioPreloadRequestName = "global_atl_preloads";
 			bool const bAutoLoad = (_stricmp(pPreloadRequestNode->getAttr(SATLXMLTags::szATLTypeAttribute), SATLXMLTags::szATLDataLoadType) == 0);
 
 			if (!bAutoLoad)
 			{
-				sAudioPreloadRequestName = pPreloadRequestNode->getAttr(SATLXMLTags::szATLNameAttribute);
-				nAudioPreloadRequestID = static_cast<AudioPreloadRequestId const>(AudioStringToId(sAudioPreloadRequestName));
+				szAudioPreloadRequestName = pPreloadRequestNode->getAttr(SATLXMLTags::szATLNameAttribute);
+				audioPreloadRequestID = static_cast<AudioPreloadRequestId>(AudioStringToId(szAudioPreloadRequestName));
 			}
 			else if (dataScope == eAudioDataScope_LevelSpecific)
 			{
-				sAudioPreloadRequestName = szFolderName;
-				nAudioPreloadRequestID = static_cast<AudioPreloadRequestId const>(AudioStringToId(sAudioPreloadRequestName));
+				szAudioPreloadRequestName = szFolderName;
+				audioPreloadRequestID = static_cast<AudioPreloadRequestId>(AudioStringToId(szAudioPreloadRequestName));
 			}
 
-			if (nAudioPreloadRequestID != INVALID_AUDIO_PRELOAD_REQUEST_ID)
+			if (audioPreloadRequestID != INVALID_AUDIO_PRELOAD_REQUEST_ID)
 			{
-				size_t const nPreloadRequestChidrenCount = static_cast<size_t>(pPreloadRequestNode->getChildCount());
-
-				if (nPreloadRequestChidrenCount > 1)
+				XmlNodeRef pFileListParentNode = nullptr;
+				if (version >= 2)
 				{
-					// We need to have at least two children: ATLPlatforms and at least one ATLConfigGroup
-					XmlNodeRef const pPlatformsNode(pPreloadRequestNode->getChild(0));
-					char const* sATLConfigGroupName = nullptr;
+					size_t const platformCount = pPreloadRequestNode->getChildCount();
 
-					if (pPlatformsNode && _stricmp(pPlatformsNode->getTag(), SATLXMLTags::szATLPlatformsTag) == 0)
+					for (size_t j = 0; j < platformCount; ++j)
 					{
-						size_t const nPlatformCount = pPlatformsNode->getChildCount();
+						XmlNodeRef const pPlatformNode(pPreloadRequestNode->getChild(j));
 
-						for (size_t j = 0; j < nPlatformCount; ++j)
+						if (pPlatformNode && _stricmp(pPlatformNode->getAttr(SATLXMLTags::szATLNameAttribute), SATLXMLTags::szPlatform) == 0)
 						{
-							XmlNodeRef const pPlatformNode(pPlatformsNode->getChild(j));
+							pFileListParentNode = pPlatformNode;
+							break;
+						}
+					}
+				}
+				else
+				{
+					size_t const preloadRequestChidrenCount = static_cast<size_t>(pPreloadRequestNode->getChildCount());
 
-							if (pPlatformNode && _stricmp(pPlatformNode->getAttr(SATLXMLTags::szATLNameAttribute), SATLXMLTags::szPlatform) == 0)
+					if (preloadRequestChidrenCount > 1)
+					{
+						// We need to have at least two children: ATLPlatforms and at least one ATLConfigGroup
+						XmlNodeRef const pPlatformsNode(pPreloadRequestNode->getChild(0));
+						char const* szATLConfigGroupName = nullptr;
+
+						if (pPlatformsNode && _stricmp(pPlatformsNode->getTag(), SATLXMLTags::szATLPlatformsTag) == 0)
+						{
+							size_t const platformCount = pPlatformsNode->getChildCount();
+
+							for (size_t j = 0; j < platformCount; ++j)
 							{
-								sATLConfigGroupName = pPlatformNode->getAttr(SATLXMLTags::szATLConfigGroupAttribute);
-								break;
+								XmlNodeRef const pPlatformNode(pPlatformsNode->getChild(j));
+
+								if (pPlatformNode && _stricmp(pPlatformNode->getAttr(SATLXMLTags::szATLNameAttribute), SATLXMLTags::szPlatform) == 0)
+								{
+									szATLConfigGroupName = pPlatformNode->getAttr(SATLXMLTags::szATLConfigGroupAttribute);
+									break;
+								}
+							}
+						}
+
+						if (szATLConfigGroupName != nullptr)
+						{
+							for (size_t j = 1; j < preloadRequestChidrenCount; ++j)
+							{
+								XmlNodeRef const pConfigGroupNode(pPreloadRequestNode->getChild(j));
+								if (_stricmp(pConfigGroupNode->getAttr(SATLXMLTags::szATLNameAttribute), szATLConfigGroupName) == 0)
+								{
+									pFileListParentNode = pConfigGroupNode;
+									break;
+								}
 							}
 						}
 					}
+				}
 
-					if (sATLConfigGroupName != nullptr)
+				if (pFileListParentNode)
+				{
+					// Found the config group corresponding to the specified platform.
+					size_t const fileCount = static_cast<size_t>(pFileListParentNode->getChildCount());
+
+					CATLPreloadRequest::FileEntryIds cFileEntryIDs;
+					cFileEntryIDs.reserve(fileCount);
+
+					for (size_t k = 0; k < fileCount; ++k)
 					{
-						for (size_t j = 1; j < nPreloadRequestChidrenCount; ++j)
+						AudioFileEntryId const id = m_fileCacheMgr.TryAddFileCacheEntry(pFileListParentNode->getChild(k), dataScope, bAutoLoad);
+
+						if (id != INVALID_AUDIO_FILE_ENTRY_ID)
 						{
-							XmlNodeRef const pConfigGroupNode(pPreloadRequestNode->getChild(j));
+							cFileEntryIDs.push_back(id);
+						}
+						else
+						{
+							g_audioLogger.Log(eAudioLogType_Warning, "Preload request \"%s\" could not create file entry from tag \"%s\"!", szAudioPreloadRequestName, pFileListParentNode->getChild(k)->getTag());
+						}
+					}
 
-							if (pConfigGroupNode && _stricmp(pConfigGroupNode->getAttr(SATLXMLTags::szATLNameAttribute), sATLConfigGroupName) == 0)
-							{
-								// Found the config group corresponding to the specified platform.
-								size_t const nFileCount = static_cast<size_t>(pConfigGroupNode->getChildCount());
+					CATLPreloadRequest* pPreloadRequest = stl::find_in_map(m_preloadRequests, audioPreloadRequestID, nullptr);
 
-								CATLPreloadRequest::FileEntryIds cFileEntryIDs;
-								cFileEntryIDs.reserve(nFileCount);
+					if (pPreloadRequest == nullptr)
+					{
+						POOL_NEW(CATLPreloadRequest, pPreloadRequest)(audioPreloadRequestID, dataScope, bAutoLoad, cFileEntryIDs);
 
-								for (size_t k = 0; k < nFileCount; ++k)
-								{
-									AudioFileEntryId const nID = m_fileCacheMgr.TryAddFileCacheEntry(pConfigGroupNode->getChild(k), dataScope, bAutoLoad);
-
-									if (nID != INVALID_AUDIO_FILE_ENTRY_ID)
-									{
-										cFileEntryIDs.push_back(nID);
-									}
-									else
-									{
-										g_audioLogger.Log(eAudioLogType_Warning, "Preload request \"%s\" could not create file entry from tag \"%s\"!", sAudioPreloadRequestName, pConfigGroupNode->getChild(k)->getTag());
-									}
-								}
-
-								CATLPreloadRequest* pPreloadRequest = stl::find_in_map(m_preloadRequests, nAudioPreloadRequestID, nullptr);
-
-								if (pPreloadRequest == nullptr)
-								{
-									POOL_NEW(CATLPreloadRequest, pPreloadRequest)(nAudioPreloadRequestID, dataScope, bAutoLoad, cFileEntryIDs);
-
-									if (pPreloadRequest != nullptr)
-									{
-										m_preloadRequests[nAudioPreloadRequestID] = pPreloadRequest;
+						if (pPreloadRequest != nullptr)
+						{
+							m_preloadRequests[audioPreloadRequestID] = pPreloadRequest;
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
-										m_pDebugNameStore->AddAudioPreloadRequest(nAudioPreloadRequestID, sAudioPreloadRequestName);
-#endif              // INCLUDE_AUDIO_PRODUCTION_CODE
-									}
-									else
-									{
-										CryFatalError("<Audio>: Failed to allocate CATLPreloadRequest");
-									}
-								}
-								else
-								{
-									// Add to existing preload request.
-									pPreloadRequest->m_fileEntryIds.insert(pPreloadRequest->m_fileEntryIds.end(), cFileEntryIDs.begin(), cFileEntryIDs.end());
-								}
-
-								break;// no need to look through the rest of the ConfigGroups
-							}
+							m_pDebugNameStore->AddAudioPreloadRequest(audioPreloadRequestID, szAudioPreloadRequestName);
+#endif                // INCLUDE_AUDIO_PRODUCTION_CODE
 						}
+						else
+						{
+							CryFatalError("<Audio>: Failed to allocate CATLPreloadRequest");
+						}
+					}
+					else
+					{
+						// Add to existing preload request.
+						pPreloadRequest->m_fileEntryIds.insert(pPreloadRequest->m_fileEntryIds.end(), cFileEntryIDs.begin(), cFileEntryIDs.end());
 					}
 				}
 			}
 			else
 			{
-				g_audioLogger.Log(eAudioLogType_Error, "Preload request \"%s\" already exists! Skipping this entry!", sAudioPreloadRequestName);
+				g_audioLogger.Log(eAudioLogType_Error, "Preload request \"%s\" already exists! Skipping this entry!", szAudioPreloadRequestName);
 			}
 		}
 	}
@@ -1826,6 +1819,8 @@ void CATLXMLProcessor::ParseAudioEnvironments(XmlNodeRef const pAudioEnvironment
 					}
 				}
 
+				cImplPtrs.shrink_to_fit();
+
 				if (!cImplPtrs.empty())
 				{
 					POOL_NEW_CREATE(CATLAudioEnvironment, pNewEnvironment)(nATLEnvironmentID, dataScope, cImplPtrs);
@@ -1906,6 +1901,8 @@ void CATLXMLProcessor::ParseAudioTriggers(XmlNodeRef const pXMLTriggerRoot, EAud
 						}
 					}
 				}
+
+				cImplPtrs.shrink_to_fit();
 
 				POOL_NEW_CREATE(CATLTrigger, pNewTrigger)(nATLTriggerID, dataScope, cImplPtrs, maxRadius);
 
@@ -2058,6 +2055,7 @@ void CATLXMLProcessor::ParseAudioRtpcs(XmlNodeRef const pXMLRtpcRoot, EAudioData
 						}
 					}
 				}
+				cImplPtrs.shrink_to_fit();
 
 				POOL_NEW_CREATE(CATLRtpc, pNewRtpc)(nATLRtpcID, dataScope, cImplPtrs);
 
@@ -2380,8 +2378,8 @@ bool CAudioObjectManager::ReserveId(AudioObjectId& audioObjectId, char const* co
 		}
 		else
 		{
+			m_registeredAudioObjects.erase(static_cast<AudioObjectId const>(pNewObject->GetId()));
 			ReleaseInstance(pNewObject);
-
 			bSuccess = false;
 		}
 	}

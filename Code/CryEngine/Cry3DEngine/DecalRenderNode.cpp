@@ -459,7 +459,7 @@ void CDecalRenderNode::Render(const SRendParams& rParam, const SRenderingPassInf
 			pDecal->m_vAmbient.y = rParam.AmbientColor.g;
 			pDecal->m_vAmbient.z = rParam.AmbientColor.b;
 			bool bAfterWater = CObjManager::IsAfterWater(pDecal->m_vWSPos, passInfo.GetCamera().GetPosition(), passInfo, waterLevel);
-			pDecal->Render(0, bAfterWater, rParam.nDLightMask, fDistFading, rParam.fDistance, passInfo);
+			pDecal->Render(0, bAfterWater, fDistFading, rParam.fDistance, passInfo);
 		}
 	}
 

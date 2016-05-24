@@ -50,8 +50,12 @@ REGISTER_CVAR_AUTO(float, e_svoTI_MinReflectance, 0.2f, VF_NULL, "Controls light
 REGISTER_CVAR_AUTO(int, e_svoTI_ObjectsLod, 1, VF_NULL, "Mesh LOD used for voxelization\nChanges are visible only after re-voxelization (click <Update geometry> or restart)");
 REGISTER_CVAR_AUTO(int, e_svoTI_AnalyticalOccluders, 0, VF_NULL, "Use simplified approximation of character sceleton for indirect shadows");
 
-REGISTER_CVAR_AUTO_STRING(e_svoTI_AnalyticalOccludersBoneNames, "Bip01_Head Bip01_Neck Bip01_Spine Bip01_*_Calf Bip01_*_Foot Bip01_*_Toe0 Bip01_*_ForeTwist1 Bip01_*_Finger20",
-                          VF_NULL, "Names of bones used to construct occlusion capsules for characters (Names must be separated by space, order is important, spaces in names must be replaced by underscore, '*' means 'R' or 'L')");
+REGISTER_CVAR_AUTO_STRING(e_svoTI_AnalyticalOccludersBoneNames, "Bip01#Head Bip01#Neck Bip01#Spine Bip01#$#Calf Bip01#$#Foot Bip01#$#Toe0 Bip01#$#ForeTwist1 Bip01#$#Finger20", VF_NULL, 
+									 "Names of bones used to construct occlusion capsules for characters\n"
+									 "Names must be separated by spaces, order is important\n"
+									 "Spaces in names must be replaced by '#'\n"
+									 "'$' means 'R' and 'L'\n"
+									 "'*' means 'Right' and 'Left'");
 
 #ifdef CVAR_CPP
 m_arrVars.Clear();

@@ -344,13 +344,6 @@ static SParamDB sParams[] =
 	SParamDB(PARAM(PB_TexelDensityColor,                     ECGP_PB_TexelDensityColor),                     0),
 	SParamDB(PARAM(PB_TexelsPerMeterInfo,                    ECGP_PB_TexelsPerMeterInfo),                    0),
 
-	SParamDB(PARAM(PB_GIGridMatrix,                          ECGP_Matr_PB_GIGridMatrix),                     0),
-	SParamDB(PARAM(PB_GIInvGridMatrix,                       ECGP_Matr_PB_GIInvGridMatrix),                  0),
-	SParamDB(PARAM(PB_GIGridSize,                            ECGP_PB_GIGridSize),                            0),
-	SParamDB(PARAM(PB_GIInvGridSize,                         ECGP_PB_GIInvGridSize),                         0),
-	SParamDB(PARAM(PB_GIGridSpaceCamPos,                     ECGP_PB_GIGridSpaceCamPos),                     0),
-	SParamDB(PARAM(PB_GIAttenuation,                         ECGP_PB_GIAttenuation),                         0),
-	SParamDB(PARAM(PB_GIGridCenter,                          ECGP_PB_GIGridCenter),                          0),
 	SParamDB(PARAM(PB_WaterRipplesLookupParams,              ECGP_PB_WaterRipplesLookupParams),              0),
 	SParamDB(PARAM(PB_SkinningExtraWeights,                  ECGP_PB_SkinningExtraWeights),                  0),
 
@@ -792,6 +785,7 @@ static STextureDB sTextures[] =
 	STextureDB(PARAM(TS_RainOcclusion,                ECGT_RainOcclusion),                0),
 	STextureDB(PARAM(TS_TerrainNormMap,               ECGT_TerrainNormMap),               0),
 	STextureDB(PARAM(TS_TerrainBaseMap,               ECGT_TerrainBaseMap),               0),
+	STextureDB(PARAM(TS_TerrainElevMap,								ECGT_TerrainElevMap),								0),
 	STextureDB(PARAM(TS_WindGrid,                     ECGT_WindGrid),                     0),
 
 	STextureDB()

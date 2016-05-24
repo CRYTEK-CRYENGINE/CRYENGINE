@@ -40,19 +40,10 @@ struct CryGUID
 
 	static CryGUID Create()
 	{
-		uint64 lopart = 0;
-		uint64 hipart = 0;
-		while (lopart == 0 || hipart == 0)
-		{
-			const uint32 a = cry_random_uint32();
-			const uint32 b = cry_random_uint32();
-			const uint32 c = cry_random_uint32();
-			const uint32 d = cry_random_uint32();
-			lopart = (uint64)a | ((uint64)b << 32);
-			hipart = (uint64)c | ((uint64)d << 32);
-		}
-
-		return Construct(lopart, hipart);
+		CryGUID guid;
+		gEnv->pSystem->FillRandomMT(reinterpret_cast<uint32*>(&guid), sizeof(guid) / sizeof(uint32));
+		MEMORY_RW_REORDERING_BARRIER;
+		return guid;
 	}
 
 	static CryGUID Null()

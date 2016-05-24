@@ -74,6 +74,8 @@ private:
 
 	bool          LoadFoliageInfoChunk(IChunkFile::ChunkDesc* pChunkDesc);
 
+	bool LoadVClothChunk(IChunkFile::ChunkDesc* pChunkDesc);
+
 	CMaterialCGF* LoadMaterialFromChunk(int nChunkId);
 
 	CMaterialCGF* LoadMaterialNameChunk(IChunkFile::ChunkDesc* pChunkDesc);

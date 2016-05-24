@@ -21,6 +21,7 @@
 #define	flowTex               detailTex  
 
 // GBuffer per pass textures.
+#define	TERRAIN_ELEV_MAP      Texture2D   terrainElevTex      : register(t26)                                   = TS_TerrainElevMap;
 #define WIND_GRID_MAP         Texture2D   windGridTex         : register(t27)                                   = TS_WindGrid;  
 #define	TERRAIN_NORM_MAP      Texture2D   terrainNormTex      : register(t28)                                   = TS_TerrainNormMap;
 #define	TERRAIN_BASE_MAP      Texture2D   terrainBaseTex      : register(t29)                                   = TS_TerrainBaseMap;

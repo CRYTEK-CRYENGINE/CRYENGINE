@@ -6,31 +6,51 @@
 #include "ACETypes.h"
 #include <CrySerialization/IArchive.h>
 #include <CrySerialization/STL.h>
+#include <CrySystem/ISystem.h>
 
 namespace ACE
 {
-class IAudioSystemItem;
 class IAudioConnection
 {
 public:
-	IAudioConnection(CID nID)
-		: m_nID(nID)
-		, m_sGroup("default")
-	{}
+	IAudioConnection(CID id)
+		: m_id(id)
+	{
+		m_configurationsMask = std::numeric_limits<uint>::max();
+	}
 
 	virtual ~IAudioConnection() {}
 
-	CID           GetID() const                          { return m_nID; }
+	CID          GetID() const                          { return m_id; }
+	virtual bool HasProperties()                        { return false; }
+	virtual void Serialize(Serialization::IArchive& ar) {};
 
-	const string& GetGroup() const                       { return m_sGroup; }
-	void          SetGroup(const string& group)          { m_sGroup = group; }
+	//
+	void EnableForPlatform(const uint platformIndex, bool bEnable)
+	{
+		if (bEnable)
+		{
+			m_configurationsMask |= 1 << platformIndex;
+		}
+		else
+		{
+			m_configurationsMask &= ~(1 << platformIndex);
 
-	virtual bool  HasProperties()                        { return false; }
+		}
+	}
 
-	virtual void  Serialize(Serialization::IArchive& ar) {};
+	bool IsPlatformEnabled(const uint platformIndex)
+	{
+		return (m_configurationsMask & (1 << platformIndex)) > 0;
+	}
+
+	void ClearPlatforms()
+	{
+		m_configurationsMask = 0;
+	}
 
 private:
-	CID    m_nID;
-	string m_sGroup;
+	CID  m_id;
+	uint m_configurationsMask;
 };
 }

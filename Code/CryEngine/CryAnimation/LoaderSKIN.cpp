@@ -142,7 +142,7 @@ void CryCHRLoader::EndStreamSkinSync(IReadStream* pStream)
 
 				if (guid > 0)
 				{
-					pRenderMesh->CreateRemappedBoneIndicesPair(pAttachmentSkin->m_arrRemapTable, guid);
+					pRenderMesh->CreateRemappedBoneIndicesPair(pAttachmentSkin->m_arrRemapTable, guid, pAttachmentSkin);
 				}
 
 				pAttachmentSkin->m_pAttachmentManager->RequestMergeCharacterAttachments();
@@ -160,7 +160,7 @@ void CryCHRLoader::EndStreamSkinSync(IReadStream* pStream)
 						IRenderMesh* pVCSimRenderMesh = pAttachmentVCloth->m_pSimSkin->GetIRenderMesh(0);
 						if (pVCSimRenderMesh && (pVCSimRenderMesh == pRenderMesh))
 						{
-							pVCSimRenderMesh->CreateRemappedBoneIndicesPair(pAttachmentVCloth->m_arrSimRemapTable, guid);
+							pVCSimRenderMesh->CreateRemappedBoneIndicesPair(pAttachmentVCloth->m_arrSimRemapTable, guid, pAttachmentVCloth);
 						}
 					}
 
@@ -169,7 +169,7 @@ void CryCHRLoader::EndStreamSkinSync(IReadStream* pStream)
 						IRenderMesh* pVCRenderMesh = pAttachmentVCloth->m_pRenderSkin->GetIRenderMesh(0);
 						if (pVCRenderMesh && (pVCRenderMesh == pRenderMesh))
 						{
-							pVCRenderMesh->CreateRemappedBoneIndicesPair(pAttachmentVCloth->m_arrRemapTable, guid);
+							pVCRenderMesh->CreateRemappedBoneIndicesPair(pAttachmentVCloth->m_arrRemapTable, guid, pAttachmentVCloth);
 						}
 					}
 
@@ -506,6 +506,78 @@ bool CSkin::LoadNewSKIN(const char* szFilePath, uint32 nLoadingFlags)
 		lodCount++;                                   //count all available and valid LODs
 		if (baseLOD >= ml)  { baseLOD = ml; break;  } //this is the real base lod
 	}
+
+	if (lodCount > 0)
+	{
+		bool isVCloth = cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_vertices.size()>0;
+
+		// fill vcloth data
+		if (isVCloth)
+		{
+			m_VClothData.m_lra.resize(cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_vertices.size());
+			m_VClothData.m_listBendTriangles.resize(cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_triangles.size());
+			m_VClothData.m_listBendTrianglePairs.resize(cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_trianglePairs.size());
+			m_VClothData.m_lraNotAttachedOrderedIdx.resize(cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_lraNotAttachedOrderedIdx.size());
+
+			{
+				auto itLra = m_VClothData.m_lra.begin();
+				for (auto it = cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_vertices.begin(); it != cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_vertices.end(); it++, itLra++)
+				{
+					itLra->lraDist = it->attributes.lraDist;
+					itLra->lraIdx = it->attributes.lraIdx;
+					itLra->lraNextParent = it->attributes.lraNextParent;
+				}
+			}
+
+			{
+				auto itLBT = m_VClothData.m_listBendTriangles.begin();
+				for (auto it = cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_triangles.begin(); it != cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_triangles.end(); it++, itLBT++)
+				{
+					itLBT->p0 = it->p0;
+					itLBT->p1 = it->p1;
+					itLBT->p2 = it->p2;
+				}
+			}
+
+			{
+				auto itLBTP = m_VClothData.m_listBendTrianglePairs.begin();
+				for (auto it = cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_trianglePairs.begin(); it != cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_trianglePairs.end(); it++, itLBTP++)
+				{
+					itLBTP->phi0 = it->angle;
+					itLBTP->p0 = it->p0;
+					itLBTP->p1 = it->p1;
+					itLBTP->p2 = it->p2;
+					itLBTP->p3 = it->p3;
+					itLBTP->idxNormal0 = it->idxNormal0;
+					itLBTP->idxNormal1 = it->idxNormal1;
+				}
+			}
+
+			{
+				auto itL = m_VClothData.m_lraNotAttachedOrderedIdx.begin();
+				for (auto it = cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_lraNotAttachedOrderedIdx.begin(); it != cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_lraNotAttachedOrderedIdx.end(); it++, itL++)
+				{
+					*itL = it->lraNotAttachedOrderedIdx;
+				}
+			}
+
+			// Links
+			{
+				for (int i = 0; i < eVClothLink_COUNT; i++)
+				{
+					m_VClothData.m_links[i].resize(cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_links[i].size());
+					auto itL = m_VClothData.m_links[i].begin();
+					for (auto it = cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_links[i].begin(); it != cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_links[i].end(); it++, itL++)
+					{
+						itL->i1 = it->i1;
+						itL->i2 = it->i2;
+						itL->lenSqr = it->lenSqr;
+					}
+				}
+			}
+		}
+	}
+
 	if (lodCount == 0)
 	{
 		g_pISystem->Warning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_ERROR, VALIDATOR_FLAG_FILE, szFileName, "CryAnimation (%s): Failed to load SKIN: No LODs found.", __FUNCTION__);

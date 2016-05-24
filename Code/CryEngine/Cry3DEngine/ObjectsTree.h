@@ -365,7 +365,6 @@ public:
 	void                CheckInitAffectingLights(const SRenderingPassInfo& passInfo);
 	void                FillShadowCastersList(bool bNodeCompletellyInFrustum, CDLight* pLight, struct ShadowMapFrustum* pFr, PodArray<SPlaneObject>* pShadowHull, uint32 nRenderNodeFlags, const SRenderingPassInfo& passInfo);
 	void                FillShadowMapCastersList(const ShadowMapFrustumParams& params, bool bNodeCompletellyInFrustum);
-	void                FillIndirectLightingCastersList(const CDLight* pLight, struct ShadowMapFrustum* pFr, const SRenderingPassInfo& passInfo);
 	void                ActivateObjectsLayer(uint16 nLayerId, bool bActivate, bool bPhys, IGeneralMemoryHeap* pHeap, const AABB& layerBox);
 	void                GetLayerMemoryUsage(uint16 nLayerId, ICrySizer* pSizer, int* pNumBrushes, int* pNumDecals);
 

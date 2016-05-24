@@ -282,7 +282,6 @@ void CCompressionManager::StreamToBuffer(ChunkID chunk, uint8 profile, CNetInput
 
 ICompressionPolicyPtr CCompressionManager::CreateRangedInt(int nMax, uint32 key)
 {
-	ScopedSwitchToGlobalHeap scope;
 	CRangedIntPolicy pol;
 	pol.SetValues(0, nMax);
 	return new CCompressionPolicy<CRangedIntPolicy>(key, pol);

@@ -258,11 +258,6 @@ public:
 #endif
 	void NC_BroadcastSimpleEvent(ENetObjectEvent event);
 	void NC_RequestRemoteUpdate(EntityId, NetworkAspectType);
-#if NETWORK_HOST_MIGRATION
-	void CleanUnusedObjects();
-	void ServerTakeObjectOwnership();
-	void ClientUpdateObjectOwnership();
-#endif
 
 private:
 	// an event subscription

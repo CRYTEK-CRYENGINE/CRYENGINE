@@ -10,7 +10,6 @@
 	#include <vector>
 	#include <list>
 	#include <memory>
-	#include "Socket/NetAddress.h"
 	#include "Context/SessionID.h"
 	#include <CryNetwork/INetwork.h>
 	#include "DebugOutput.h"

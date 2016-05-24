@@ -351,7 +351,6 @@ public:
 		size_t key = ~0u;
 		IF (m_partition + 1 >= m_capacity, 0)
 		{
-			ScopedSwitchToGlobalHeap heap_switch;
 			size_t old_capacity = m_capacity;
 			m_capacity += TableSize;
 			if ((m_capacity >> TableShift) > MaxTables)

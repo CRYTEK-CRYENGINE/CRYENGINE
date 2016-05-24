@@ -265,6 +265,14 @@ IAnimTrack* CAnimNode::CreateTrackInternal(const CAnimParamType& paramType, EAni
 		pTrack = new CAudioFileTrack;
 		break;
 
+	case eAnimParamType_AudioParameter:
+		pTrack = new CAudioParameterTrack;
+		break;
+
+	case eAnimParamType_AudioSwitch:
+		pTrack = new CAudioSwitchTrack;
+		break;
+
 	case eAnimParamType_DynamicResponseSignal:
 		pTrack = new CDynamicResponseSignalTrack;
 		break;
@@ -284,11 +292,7 @@ IAnimTrack* CAnimNode::CreateTrackInternal(const CAnimParamType& paramType, EAni
 	case eAnimParamType_Console:
 		pTrack = new CConsoleTrack;
 		break;
-	/*
-	   case eAnimParamType_Music:
-	    pTrack = new CMusicTrack;
-	    break;
-	 */
+
 	case eAnimParamType_LookAt:
 		pTrack = new CLookAtTrack;
 		break;

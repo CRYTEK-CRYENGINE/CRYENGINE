@@ -10,7 +10,6 @@
 			"HWScripts/CryFX/DeferredCaustics.cfx",
 			"HWScripts/CryFX/DeferredRain.cfx",
 			"HWScripts/CryFX/DeferredShading.cfx",
-			"HWScripts/CryFX/LightPropagationVolumes.cfx",
 			"HWScripts/CryFX/VolumeLighting.cfi"
 		],
 		"CryFX/Effects/Atmospheric":
@@ -115,7 +114,6 @@
 			"HWScripts/CryFX/FXConstantDefs.cfi",
 			"HWScripts/CryFX/FXSamplerDefs.cfi",
 			"HWScripts/CryFX/FXStreamDefs.cfi",
-			"HWScripts/CryFX/LightPropagationVolumes.cfi",			
 			"HWScripts/CryFX/LightVolumes.cfi",
 			"HWScripts/CryFX/MeshBaker.cfi",			
 			"HWScripts/CryFX/ModificatorTC.cfi",
@@ -151,7 +149,9 @@
 			"HWScripts/CryFX/OcclusionTest.cfx",
 			"HWScripts/CryFX/ReferenceImage.cfx",
 			"HWScripts/CryFX/Scaleform.cfx",
-			"HWScripts/CryFX/SoftOcclusionQuery.cfx"
+			"HWScripts/CryFX/SoftOcclusionQuery.cfx",
+			"HWScripts/CryFX/ComputeSkinning.cfx",
+			"HWScripts/CryFX/ComputeSkinningUtils.cfi"
 		],
 		"CryFX/Particles":
 		[	

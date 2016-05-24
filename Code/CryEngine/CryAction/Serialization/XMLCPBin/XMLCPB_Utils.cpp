@@ -306,7 +306,6 @@ void CDebugUtils::SetLastFileNameSaved(const char* pFileName)
 {
 	Create();
 
-	ScopedSwitchToGlobalHeap useGlobalHeap;
 	s_pThis->m_lastFileNameSaved = pFileName;
 }
 

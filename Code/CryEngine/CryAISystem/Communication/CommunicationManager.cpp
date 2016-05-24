@@ -579,7 +579,6 @@ void CCommunicationManager::Reset()
 	m_variablesDeclaration = Variables::Declarations();
 	{
 		// Use global heap, as SelectionVariables use a deque, which allocates during (re)construction
-		ScopedSwitchToGlobalHeap GlobalHeap;
 		stl::reconstruct(m_variables);
 	}
 

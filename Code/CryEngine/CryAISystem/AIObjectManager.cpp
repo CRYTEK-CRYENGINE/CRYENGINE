@@ -13,8 +13,6 @@
 #include "ObjectContainer.h"
 #include "./TargetSelection/TargetTrackManager.h"
 
-#include "IActorSystem.h"
-
 //////////////////////////////////////////////////////////////////////////
 //	SAIObjectCreationHelper - helper for serializing AI objects
 //	(used for both normal and bookmark serialization)
@@ -681,8 +679,6 @@ void CAIObjectManager::OnPoolDefinitionsLoaded(size_t num)
 	STATIC_CHECK(sizeof(TPooledAIObject) >= sizeof(CLeader), Change_TPooledAIObject_To_CLeader);
 	STATIC_CHECK(sizeof(TPooledAIObject) >= sizeof(CAIPlayer), Change_TPooledAIObject_To_CAIPlayer);
 	STATIC_CHECK(sizeof(TPooledAIObject) >= sizeof(CAIFlyingVehicle), Change_TPooledAIObject_To_CAIFlyingVehicle);
-
-	ScopedSwitchToGlobalHeap useGlobalHeap;
 
 	m_pPoolAllocator = new stl::TPoolAllocator<TPooledAIObject>(stl::FHeap().PageSize(num));
 	m_PoolBucketSize = num;

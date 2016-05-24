@@ -257,7 +257,7 @@ CLodValue CVegetation::ComputeLod(int wantedLod, const SRenderingPassInfo& passI
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CVegetation::Render(const SRenderingPassInfo& passInfo, const CLodValue& lodValue, SSectorTextureSet* pTerrainTexInfo, uint32 nDynLMMask) const
+void CVegetation::Render(const SRenderingPassInfo& passInfo, const CLodValue& lodValue, SSectorTextureSet* pTerrainTexInfo) const
 {
 	FUNCTION_PROFILER_3DENGINE;
 
@@ -454,7 +454,7 @@ void CVegetation::Render(const SRenderingPassInfo& passInfo, const CLodValue& lo
 	if (m_pDeformable) m_pDeformable->RenderInternalDeform(pRenderObject, lodValue.LodA(), GetBBox(), passInfo);
 
 	if (GetCVars()->e_BBoxes)
-		GetObjManager()->RenderObjectDebugInfo((IRenderNode*)this, pRenderObject->m_fDistance, 0, passInfo);
+		GetObjManager()->RenderObjectDebugInfo((IRenderNode*)this, pRenderObject->m_fDistance, passInfo);
 }
 
 //////////////////////////////////////////////////////////////////////////

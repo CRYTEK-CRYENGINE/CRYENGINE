@@ -44,7 +44,7 @@ string CreateDisplayName(const char* format, ...)
 	return result;
 }
 
-#if !defined (_RELEASE)
+#if !defined (_RELEASE) || defined(ENABLE_UISTACK_DEBUGGING)
 void RenderDebugInfo();
 #endif
 #ifdef ENABLE_UISTACK_DEBUGGING
@@ -329,6 +329,9 @@ void CFlashUI::Update(float fDeltaTime)
 		gEnv->pScaleformHelper->AmpAdvanceFrame();
 	}
 
+#endif
+
+#if !defined (_RELEASE) || defined(ENABLE_UISTACK_DEBUGGING)
 	// debug info
 	if (CV_gfx_debugdraw > 0)
 	{

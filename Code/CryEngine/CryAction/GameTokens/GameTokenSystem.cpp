@@ -640,35 +640,30 @@ bool CGameTokenSystem::_InternalLoadLibrary(const char* filename, const char* ta
 //////////////////////////////////////////////////////////////////////////
 void CGameTokenSystem::SerializeSaveLevelToLevel(const char** ppGameTokensList, uint32 numTokensToSave)
 {
-	{
-		ScopedSwitchToGlobalHeap globalHeap;
-		m_levelToLevelSave = gEnv->pSystem->CreateXmlNode("GameTokensLevelToLevel");
-	}
+	m_levelToLevelSave = gEnv->pSystem->CreateXmlNode("GameTokensLevelToLevel");
 
 	IXmlSerializer* pSerializer = gEnv->pSystem->GetXmlUtils()->CreateXmlSerializer();
 	ISerialize* pSer = pSerializer->GetWriter(m_levelToLevelSave);
 	TSerialize ser = TSerialize(pSer);
 
+	uint32 numTokensSaved = 0;
+	for (uint32 i = 0; i < numTokensToSave; ++i)
 	{
-		ScopedSwitchToGlobalHeap globalHeap;
-		uint32 numTokensSaved = 0;
-		for (uint32 i = 0; i < numTokensToSave; ++i)
+		const char* pName = ppGameTokensList[i];
+		CGameToken* pToken = GetToken(pName);
+		if (pToken)
 		{
-			const char* pName = ppGameTokensList[i];
-			CGameToken* pToken = GetToken(pName);
-			if (pToken)
-			{
-				numTokensSaved++;
-				ser.BeginGroup("Token");
-				ser.Value("name", pToken->m_name);
-				pToken->m_value.Serialize(ser);
-				ser.EndGroup();
-			}
-			else
-				CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "GameTokenSystem. GameToken %s was not found when trying to serialize (save) level to level", pName ? pName : "<NULL>");
+			numTokensSaved++;
+			ser.BeginGroup("Token");
+			ser.Value("name", pToken->m_name);
+			pToken->m_value.Serialize(ser);
+			ser.EndGroup();
 		}
-		ser.Value("numTokens", numTokensSaved);
+		else
+			CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "GameTokenSystem. GameToken %s was not found when trying to serialize (save) level to level", pName ? pName : "<NULL>");
 	}
+	ser.Value("numTokens", numTokensSaved);
+
 	pSerializer->Release();
 }
 
@@ -682,23 +677,21 @@ void CGameTokenSystem::SerializeReadLevelToLevel()
 	ISerialize* pSer = pSerializer->GetReader(m_levelToLevelSave);
 	TSerialize ser = TSerialize(pSer);
 
+	uint32 numTokens = 0;
+	ser.Value("numTokens", numTokens);
+	for (uint32 i = 0; i < numTokens; i++)
 	{
-		ScopedSwitchToGlobalHeap globalHeap;
-		uint32 numTokens = 0;
-		ser.Value("numTokens", numTokens);
-		for (uint32 i = 0; i < numTokens; i++)
-		{
-			ser.BeginGroup("Token");
-			string tokenName;
-			ser.Value("name", tokenName);
-			CGameToken* pToken = GetToken(tokenName.c_str());
-			if (pToken)
-				pToken->m_value.Serialize(ser);
-			else
-				CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "GameTokenSystem. GameToken '%s' was not found when trying to serialize (read) level to level", tokenName.c_str());
-			ser.EndGroup();
-		}
+		ser.BeginGroup("Token");
+		string tokenName;
+		ser.Value("name", tokenName);
+		CGameToken* pToken = GetToken(tokenName.c_str());
+		if (pToken)
+			pToken->m_value.Serialize(ser);
+		else
+			CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "GameTokenSystem. GameToken '%s' was not found when trying to serialize (read) level to level", tokenName.c_str());
+		ser.EndGroup();
 	}
+
 	pSerializer->Release();
 	m_levelToLevelSave = NULL; // this frees it
 }

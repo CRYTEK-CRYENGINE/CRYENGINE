@@ -56,7 +56,7 @@ public:
 	const char*          GetName(void) const final;
 	virtual CLodValue    ComputeLod(int wantedLod, const SRenderingPassInfo& passInfo) final;
 	virtual void         Render(const SRendParams& RendParams, const SRenderingPassInfo& passInfo) final { assert(0); }
-	void                 Render(const SRenderingPassInfo& passInfo, const CLodValue& lodValue, SSectorTextureSet* pTerrainTexInfo, uint32 nDynLMMask) const;
+	void                 Render(const SRenderingPassInfo& passInfo, const CLodValue& lodValue, SSectorTextureSet* pTerrainTexInfo) const;
 	IPhysicalEntity*     GetPhysics(void) const final                                                    { return m_pPhysEnt; }
 	IRenderMesh*         GetRenderMesh(int nLod) final;
 	void                 SetPhysics(IPhysicalEntity* pPhysEnt) final                                     { m_pPhysEnt = pPhysEnt; }

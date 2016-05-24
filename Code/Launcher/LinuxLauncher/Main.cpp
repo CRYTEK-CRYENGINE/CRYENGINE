@@ -188,14 +188,14 @@ static void SignalHandler(int sig, siginfo_t* info, void* secret)
 		ftrace = stderr;
 
 	// Log symbol dump first
-	fprintf(ftrace,"# Strack Trace with Symbols:\n");
+	fprintf(ftrace,"# Stack Trace with Symbols:\n");
 	fflush(ftrace);
 
 	trace_size = backtrace(trace, 32);
 	backtrace_symbols_fd(trace,trace_size,fileno(ftrace));
 
 	// Log demangled Stack trace
-	fprintf(ftrace,"\n# Strack Trace Demangled (note: Some System libraries cannot be demangled correctly:\n");
+	fprintf(ftrace,"\n# Stack trace demangled (note: some system libraries can not be demangled correctly:\n");
 
 	// close file since the following ouput is sent there from the shell
 	if (ftrace != stderr) fclose(ftrace);

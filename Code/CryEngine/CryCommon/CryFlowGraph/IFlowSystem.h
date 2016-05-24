@@ -776,21 +776,18 @@ struct SOutputPortConfig
 template<class T>
 ILINE SOutputPortConfig OutputPortConfig(const char* name, const char* description = NULL, const char* humanName = NULL)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
 	SOutputPortConfig result = { name, humanName, description, boost::mpl::find<TFlowSystemDataTypes, T>::type::pos::value };
 	return result;
 }
 
 ILINE SOutputPortConfig OutputPortConfig_AnyType(const char* name, const char* description = NULL, const char* humanName = NULL)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
 	SOutputPortConfig result = { name, humanName, description, eFDT_Any };
 	return result;
 }
 
 ILINE SOutputPortConfig OutputPortConfig_Void(const char* name, const char* description = NULL, const char* humanName = NULL)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
 	SOutputPortConfig result = { name, humanName, description, eFDT_Void };
 	return result;
 }
@@ -798,7 +795,6 @@ ILINE SOutputPortConfig OutputPortConfig_Void(const char* name, const char* desc
 template<class T>
 ILINE SInputPortConfig InputPortConfig(const char* name, const char* description = NULL, const char* humanName = NULL, const char* sUIConfig = NULL)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
 	SInputPortConfig result = { name, humanName, description, sUIConfig, TFlowInputData::CreateDefaultInitialized<T>(true) };
 	return result;
 }
@@ -806,21 +802,18 @@ ILINE SInputPortConfig InputPortConfig(const char* name, const char* description
 template<class T, class ValueT>
 ILINE SInputPortConfig InputPortConfig(const char* name, const ValueT& value, const char* description = NULL, const char* humanName = NULL, const char* sUIConfig = NULL)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
 	SInputPortConfig result = { name, humanName, description, sUIConfig, TFlowInputData(T(value), true) };
 	return result;
 }
 
 ILINE SInputPortConfig InputPortConfig_AnyType(const char* name, const char* description = NULL, const char* humanName = NULL, const char* sUIConfig = NULL)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
 	SInputPortConfig result = { name, humanName, description, sUIConfig, TFlowInputData(0, false) };
 	return result;
 }
 
 ILINE SInputPortConfig InputPortConfig_Void(const char* name, const char* description = NULL, const char* humanName = NULL, const char* sUIConfig = NULL)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
 	SInputPortConfig result = { name, humanName, description, sUIConfig, TFlowInputData(SFlowSystemVoid(), false) };
 	return result;
 }

@@ -1,7 +1,7 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
-
+#ifndef RESOURCE_COMPILER
 #include "GlobalAnimationHeader.h"
 #include <CryString/NameCRCHelper.h>
 #include <CryMemory/PoolAllocator.h>
@@ -276,3 +276,4 @@ public:
 	string m_Status;  //if this Para-Group is ok, then this string is empty
 
 };
+#endif

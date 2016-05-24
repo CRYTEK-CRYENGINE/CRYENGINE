@@ -26,7 +26,6 @@
       "IDebugCallStack.cpp",
       "JiraClient.cpp",
       "AsyncPakManager.cpp",
-      "LevelHeap.cpp",
       "Log.cpp",
       "MemReplay.cpp",
       "BootProfiler.cpp"

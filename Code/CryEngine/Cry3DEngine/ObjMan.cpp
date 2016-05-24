@@ -757,7 +757,6 @@ bool CObjManager::GetStaticObjectBBox(int nType, Vec3& vBoxMin, Vec3& vBoxMax, i
 
 void CObjManager::AddDecalToRenderer(float fDistance,
                                      IMaterial* pMat,
-                                     const int nDynLMask,
                                      const uint8 sortPrio,
                                      Vec3 right,
                                      Vec3 up,
@@ -1237,7 +1236,7 @@ bool CObjManager::AddOrCreatePersistentRenderObject(SRenderNodeTempData* pTempDa
 			if (previousMask & passMask) // Object drawn once and can be used to fast add it.
 			{
 				if (GetCVars()->e_BBoxes && pTempData && pTempData->userData.pOwnerNode)
-					GetObjManager()->RenderObjectDebugInfo(pTempData->userData.pOwnerNode, pRenderObject->m_fDistance, 0, passInfo);
+					GetObjManager()->RenderObjectDebugInfo(pTempData->userData.pOwnerNode, pRenderObject->m_fDistance, passInfo);
 
 				return true;
 			}
@@ -1263,7 +1262,7 @@ bool CObjManager::AddOrCreatePersistentRenderObject(SRenderNodeTempData* pTempDa
 					if (previousMask & passMask) // Object drawn once and can be used to fast add it.
 					{
 						if (GetCVars()->e_BBoxes && pTempData && pTempData->userData.pOwnerNode)
-							GetObjManager()->RenderObjectDebugInfo(pTempData->userData.pOwnerNode, pRenderObject->m_fDistance, 0, passInfo);
+							GetObjManager()->RenderObjectDebugInfo(pTempData->userData.pOwnerNode, pRenderObject->m_fDistance, passInfo);
 
 						return true;
 					}

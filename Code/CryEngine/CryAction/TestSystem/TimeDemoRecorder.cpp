@@ -585,12 +585,8 @@ void CTimeDemoRecorder::Record(bool bEnable)
 		gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnEvent, onEventSubscriptions);
 
 		// Start recording.
-		{
-			ScopedSwitchToGlobalHeap globalHeap;
-
-			m_records.clear();
-			m_records.reserve(1000);
-		}
+		m_records.clear();
+		m_records.reserve(1000);
 
 		m_currentFrameInputEvents.clear();
 		m_currentFrameEntityEvents.clear();
@@ -938,8 +934,6 @@ void CTimeDemoRecorder::Save(const char* filename)
 //////////////////////////////////////////////////////////////////////////
 void CTimeDemoRecorder::AddFrameRecord(const FrameRecord& rec)
 {
-	ScopedSwitchToGlobalHeap globalHeap;
-
 	m_records.push_back(rec);
 }
 
@@ -987,12 +981,8 @@ bool CTimeDemoRecorder::Load(const char* filename)
 	m_recordedDemoTime = hdr.totalTime;
 	m_totalDemoTime = m_recordedDemoTime;
 
-	{
-		ScopedSwitchToGlobalHeap globalHeap;
-
-		m_file = filename;
-		m_records.reserve(hdr.numFrames);
-	}
+	m_file = filename;
+	m_records.reserve(hdr.numFrames);
 
 	m_fileVersion = hdr.version;
 
@@ -1909,23 +1899,19 @@ void CTimeDemoRecorder::StartSession()
 		}
 	}
 
+	if (!m_pTimeDemoInfo)
 	{
-		ScopedSwitchToGlobalHeap useGlobalHeap;
+		m_pTimeDemoInfo = new STimeDemoInfo();
+		m_pTimeDemoInfo->pFrames = 0;
+	}
 
-		if (!m_pTimeDemoInfo)
-		{
-			m_pTimeDemoInfo = new STimeDemoInfo();
-			m_pTimeDemoInfo->pFrames = 0;
-		}
-
-		int size = GetNumberOfFrames();
-		if (m_pTimeDemoInfo && m_pTimeDemoInfo->nFrameCount != size)
-		{
-			delete[]m_pTimeDemoInfo->pFrames;
-			STimeDemoInfo* pTD = m_pTimeDemoInfo;
-			pTD->nFrameCount = size;
-			pTD->pFrames = new STimeDemoFrameInfo[pTD->nFrameCount];
-		}
+	int size = GetNumberOfFrames();
+	if (m_pTimeDemoInfo && m_pTimeDemoInfo->nFrameCount != size)
+	{
+		delete[]m_pTimeDemoInfo->pFrames;
+		STimeDemoInfo* pTD = m_pTimeDemoInfo;
+		pTD->nFrameCount = size;
+		pTD->pFrames = new STimeDemoFrameInfo[pTD->nFrameCount];
 	}
 
 	//////////////////////////////////////////////////////////////////////////

@@ -10,11 +10,11 @@
 
 #include "StdAfx.h"
 #include "DriverD3D.h"
-#include "D3DLightPropagationVolume.h"
 #include "D3DPostProcess.h"
 #include <Cry3DEngine/I3DEngine.h>
 #include <CryEntitySystem/IEntityRenderState.h>
 #include "../Common/ReverseDepth.h"
+#include "../Common/ComputeSkinningStorage.h"
 
 #if defined(FEATURE_SVO_GI)
 	#include "D3D_SVO.h"
@@ -1911,7 +1911,6 @@ SDepthTexture* CD3D9Renderer::FX_GetDepthSurface(int nWidth, int nHeight, bool b
 
 SDepthTexture* CD3D9Renderer::FX_CreateDepthSurface(int nWidth, int nHeight, bool bAA)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
 	CDeviceTexture* pZTexture;
 	HRESULT hr;
 
@@ -2617,10 +2616,27 @@ void CD3D9Renderer::FX_DrawBatchSkinned(CShader* pSh, SShaderPass* pPass, SSkinn
 	rRP.m_RendNumGroup = 0;
 	rRP.m_FlagsShader_RT &= ~g_HWSR_MaskBit[HWSR_VERTEX_VELOCITY];
 
-	if (pSkinningData->nHWSkinningFlags & eHWS_SkinnedLinear)
-		rRP.m_FlagsShader_RT |= (g_HWSR_MaskBit[HWSR_SKELETON_SSD_LINEAR]);
+	ICVar* cvar_gd = gEnv->pConsole->GetCVar("r_ComputeSkinning");
+	bool bDoComputeDeformation = (cvar_gd && cvar_gd->GetIVal()) && (pSkinningData->nHWSkinningFlags & eHWS_DC_deformation_Skinning);
+
+	// here we decide if we go compute or vertex skinning
+	// problem is once the rRP.m_FlagsShader_RT gets vertex skinning removed, if the UAV is not available in the below rendering loop,
+	// the mesh won't get drawn. There is need for another way to do this
+	if (bDoComputeDeformation)
+	{
+		rRP.m_FlagsShader_RT |= (g_HWSR_MaskBit[HWSR_COMPUTE_SKINNING]);
+		if (pSkinningData->nHWSkinningFlags & eHWS_SkinnedLinear)
+			rRP.m_FlagsShader_RT &= ~(g_HWSR_MaskBit[HWSR_SKELETON_SSD_LINEAR]);
+		else
+			rRP.m_FlagsShader_RT &= ~(g_HWSR_MaskBit[HWSR_SKELETON_SSD]);
+	}
 	else
-		rRP.m_FlagsShader_RT |= (g_HWSR_MaskBit[HWSR_SKELETON_SSD]);
+	{
+		if (pSkinningData->nHWSkinningFlags & eHWS_SkinnedLinear)
+			rRP.m_FlagsShader_RT |= (g_HWSR_MaskBit[HWSR_SKELETON_SSD_LINEAR]);
+		else
+			rRP.m_FlagsShader_RT |= (g_HWSR_MaskBit[HWSR_SKELETON_SSD]);
+	}
 
 	CHWShader_D3D* pCurHS, * pCurDS;
 	bool bTessEnabled = FX_SetTessellationShaders(pCurHS, pCurDS, pPass);
@@ -2694,36 +2710,68 @@ void CD3D9Renderer::FX_DrawBatchSkinned(CShader* pSh, SShaderPass* pPass, SSkinn
 		if (pOD)
 		{
 			SSkinningData* const pSkinningData = pOD->m_pSkinningData;
-			if (!pRE->BindRemappedSkinningData(pSkinningData->remapGUID))
+			if (pSkinningData)
 			{
-				continue;
-			}
+				bool bUseOldPipeline = true;
+				CGpuBuffer* skinnedUAVBuffer = NULL;
+				if (bDoComputeDeformation)
+				{
+					// at this point rRP.m_FlagsShader_RT has the vertex skinning reset so if the UAV is not available
+					// the mesh will be skipped. This has to be done in a different way and also changed the way streams
+					// are binded for compute vs vertex
+					auto it = pRE->m_pRenderMesh->m_outVerticesUAV.find(pSkinningData->pCustomTag);
+					if (it != pRE->m_pRenderMesh->m_outVerticesUAV.end())
+					{
+						skinnedUAVBuffer = gRenDev->GetComputeSkinningStorage()->GetResource((*it).second.skinnedUAVHandle);
+						if (skinnedUAVBuffer)
+							bUseOldPipeline = false;
+					}
+				}
 
-			pBuffer[0] = alias_cast<SCharacterInstanceCB*>(pSkinningData->pCharInstCB)->m_buffer;
+				if (!bUseOldPipeline)
+				{
+					m_DevMan.BindSRV(CDeviceManager::TYPE_VS, skinnedUAVBuffer->GetSRV(), 16);
+					if (rRP.m_pRE)
+						rRP.m_pRE->mfDraw(pSh, pPass);
+					else
+						FX_DrawIndexedMesh(eptTriangleList);
 
-			// get previous data for motion blur if available
-			if (pSkinningData->pPreviousSkinningRenderData)
-			{
-				pBuffer[1] = alias_cast<SCharacterInstanceCB*>(pSkinningData->pPreviousSkinningRenderData->pCharInstCB)->m_buffer;
+					m_DevMan.BindSRV(CDeviceManager::TYPE_VS, NULL, 16);
+				}
+				else
+				{
+					if (!pRE->BindRemappedSkinningData(pSkinningData->remapGUID))
+					{
+						continue;
+					}
+
+					pBuffer[0] = alias_cast<SCharacterInstanceCB*>(pSkinningData->pCharInstCB)->boneTransformsBuffer;
+
+					// get previous data for motion blur if available
+					if (pSkinningData->pPreviousSkinningRenderData)
+					{
+						pBuffer[1] = alias_cast<SCharacterInstanceCB*>(pSkinningData->pPreviousSkinningRenderData->pCharInstCB)->boneTransformsBuffer;
+					}
+
+#ifndef _RELEASE
+					rRP.m_PS[nThreadID].m_NumRendSkinnedObjects++;
+#endif
+
+					m_DevMan.BindConstantBuffer(CDeviceManager::TYPE_VS, pBuffer[0], 9);
+					m_DevMan.BindConstantBuffer(CDeviceManager::TYPE_VS, pBuffer[1], 10);
+					{
+						DETAILED_PROFILE_MARKER("DrawSkinned");
+						if (rRP.m_pRE)
+							rRP.m_pRE->mfDraw(pSh, pPass);
+						else
+							FX_DrawIndexedMesh(eptTriangleList);
+					}
+				}
 			}
 		}
 		else
 		{
 			continue;
-		}
-
-#ifndef _RELEASE
-		rRP.m_PS[nThreadID].m_NumRendSkinnedObjects++;
-#endif
-
-		m_DevMan.BindConstantBuffer(CDeviceManager::TYPE_VS, pBuffer[0], 9);
-		m_DevMan.BindConstantBuffer(CDeviceManager::TYPE_VS, pBuffer[1], 10);
-		{
-			DETAILED_PROFILE_MARKER("DrawSkinned");
-			if (rRP.m_pRE)
-				rRP.m_pRE->mfDraw(pSh, pPass);
-			else
-				FX_DrawIndexedMesh(eptTriangleList);
 		}
 	}
 
@@ -4177,12 +4225,6 @@ void CD3D9Renderer::FX_FlushShader_General()
 		else if (ef->m_Flags2 & EF2_ALPHABLENDSHADOWS)
 			rd->FX_SetupShadowsForTransp();
 
-		if (!(objFlags & FOB_REQUIRES_RESOLVE))
-		{
-			if ((objFlags & FOB_GLOBAL_ILLUMINATION) && LPVManager.IsGIRenderable())
-				rRP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_GLOBAL_ILLUMINATION];
-		}
-
 		if (rRP.m_pCurObject->m_RState & OS_ENVIRONMENT_CUBEMAP)
 			rRP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_ENVIRONMENT_CUBEMAP];
 
@@ -4311,9 +4353,9 @@ void CD3D9Renderer::FX_FlushShader_ShadowGen()
 
 	// RSMs
 #if defined(FEATURE_SVO_GI)
-	if (shadowInfo.m_pCurShadowFrustum->m_Flags & DLF_REFLECTIVE_SHADOWMAP || CSvoRenderer::GetRsmColorMap(*shadowInfo.m_pCurShadowFrustum))
+	if (CSvoRenderer::GetRsmColorMap(*shadowInfo.m_pCurShadowFrustum))
 #else
-	if (shadowInfo.m_pCurShadowFrustum->m_Flags & DLF_REFLECTIVE_SHADOWMAP)
+	if (false)
 #endif
 	{
 		rd->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE4];
@@ -4357,9 +4399,7 @@ void CD3D9Renderer::FX_FlushShader_ShadowGen()
 
 	//rd->EF_ApplyQuality();
 
-	const bool bRSMs = shadowInfo.m_pCurShadowFrustum && shadowInfo.m_pCurShadowFrustum->bReflectiveShadowMap;
-
-	if ((rRP.m_ObjFlags & FOB_BENDED) && !bRSMs)
+	if (rRP.m_ObjFlags & FOB_BENDED)
 		rRP.m_FlagsShader_MDV |= MDV_BENDING;
 	rRP.m_FlagsShader_RT |= rRP.m_pCurObject->m_nRTMask;
 	if (rRP.m_RIs[0].Num() <= 1 && !(rRP.m_ObjFlags & FOB_TRANS_MASK))

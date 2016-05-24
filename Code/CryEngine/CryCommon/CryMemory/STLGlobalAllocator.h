@@ -64,7 +64,6 @@ public:
 	pointer allocate(size_type n = 1, const void* hint = 0)
 	{
 		(void)hint;
-		ScopedSwitchToGlobalHeap useGlobalHeap;
 		return static_cast<pointer>(CryModuleMalloc(n * sizeof(T)));
 	}
 

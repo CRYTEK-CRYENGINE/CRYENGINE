@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include <ATLEntityData.h>
+#include <atomic>
 
-class CAudioObjectData_fmod;
-class CAudioEventData_fmod;
+#include <ATLEntityData.h>
+#include "AudioEventData_fmod.h"
 
 namespace CryAudio
 {
@@ -179,17 +179,50 @@ public:
 
 class CAudioStandaloneFile_fmod final : public IAudioStandaloneFile
 {
+public:
+	CAudioStandaloneFile_fmod()
+		: fileId(INVALID_AUDIO_STANDALONE_FILE_ID)
+		, fileInstanceId(INVALID_AUDIO_STANDALONE_FILE_ID)
+		, programmerSoundEvent(INVALID_AUDIO_EVENT_ID)
+		, pLowLevelSystem(nullptr)
+		, pLowLevelSound(nullptr)
+		, bWaitingForData(false)
+		, bHasFinished(false)
+		, bShouldBeStreamed(false)
+	{}
+	~CAudioStandaloneFile_fmod()
+	{}
+
+	void Reset()
+	{
+		fileId = INVALID_AUDIO_STANDALONE_FILE_ID;
+		fileInstanceId = INVALID_AUDIO_STANDALONE_FILE_ID;
+		fileName.clear();
+		programmerSoundEvent.Reset();
+		pLowLevelSound = nullptr;
+		bWaitingForData = false;
+		bHasFinished = false;
+		bShouldBeStreamed = false;
+	}
+
+	AudioStandaloneFileId                       fileId;               // ID unique to the file, only needed for the 'finished' request
+	AudioStandaloneFileId                       fileInstanceId;       // ID unique to the file instance, only needed for the 'finished' request
+	CryFixedStringT<MAX_AUDIO_FILE_PATH_LENGTH> fileName;
+	CAudioEvent_fmod                            programmerSoundEvent; //the fmod event containing the programmer sound that is used for playing the file
+	FMOD::Sound*                                pLowLevelSound;
+	FMOD::System*                               pLowLevelSystem;
+	std::atomic<bool>                           bWaitingForData;
+	std::atomic<bool>                           bHasFinished;
+	bool bShouldBeStreamed;
 };
 
-typedef std::map<CAudioParameter_fmod const* const, int> AudioParameterToIndexMap;
-extern AudioParameterToIndexMap g_parameterToIndex;
-
-typedef std::map<CAudioSwitchState_fmod const* const, int> FmodSwitchToIndexMap;
-extern FmodSwitchToIndexMap g_switchToIndex;
-
 class CAudioObject_fmod;
-class CAudioEvent_fmod;
-typedef std::vector<CAudioObject_fmod*> AudioObjects;
-typedef std::vector<CAudioEvent_fmod*>  AudioEvents;
+
+typedef std::vector<CAudioObject_fmod*, STLSoundAllocator<CAudioObject_fmod*>>                                                                                                     AudioObjects;
+typedef std::vector<CAudioEvent_fmod*, STLSoundAllocator<CAudioEvent_fmod*>>                                                                                                       AudioEvents;
+typedef std::vector<CAudioStandaloneFile_fmod*, STLSoundAllocator<CAudioStandaloneFile_fmod*>>                                                                                     StandaloneFiles;
+
+typedef std::map<CAudioParameter_fmod const* const, int, std::less<CAudioParameter_fmod const* const>, STLSoundAllocator<std::pair<CAudioParameter_fmod const* const, int>>>       AudioParameterToIndexMap;
+typedef std::map<CAudioSwitchState_fmod const* const, int, std::less<CAudioSwitchState_fmod const* const>, STLSoundAllocator<std::pair<CAudioSwitchState_fmod const* const, int>>> FmodSwitchToIndexMap;
 }
 }

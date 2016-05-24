@@ -346,10 +346,20 @@ bool CParticleEmitter::UpdateStreamableComponents(float fImportance, const Matri
 	for (TComponentId componentId = 0; componentId < numComponents; ++componentId)
 	{
 		CParticleComponent* pComponent = m_pEffect->GetCComponent(componentId);
-		IMaterial* pMaterial = pComponent->GetComponentParams().m_pMaterial;
+		const SComponentParams& params = pComponent->GetComponentParams();
+
+		IMaterial* pMaterial = params.m_pMaterial;
 		CMatInfo* pMatInfo = reinterpret_cast<CMatInfo*>(pMaterial);
 		if (pMatInfo)
 			pMatInfo->PrecacheMaterial(fEntDistance, nullptr, bFullUpdate);
+
+		IMeshObj* pMesh = params.m_pMesh;
+		if (pMesh)
+		{
+			CStatObj* pStatObj = static_cast<CStatObj*>(pMesh);
+			IMaterial* pMaterial = pStatObj->GetMaterial();
+			m_pObjManager->PrecacheStatObj(pStatObj, nLod, objMatrix, pMaterial, fImportance, fEntDistance, bFullUpdate, false);
+		}
 	}
 
 	return true;

@@ -404,52 +404,135 @@ float GetSegmentToSegmentDistance(Segment S1, Segment S2)
 	return length(dP);   // return the closest distance
 }
 
+struct OBB
+{
+	float4 ue[3];
+	float4 c;
+};
+
+//Computes the square distance between point p and OBB b 
+float SqDistPointOBB(float3 p, OBB b) 
+{
+	float3 v = p - b.c.xyz;
+	float sqDist = 0.0f;
+	for (int i = 0; i < 3; i++)
+	{
+		float d = dot(v, b.ue[i].xyz);
+		float excess = 0.0f;
+
+		if (d < -b.ue[i].w)
+			excess = d + b.ue[i].w;
+		else if (d > b.ue[i].w)
+			excess = d - b.ue[i].w;
+
+		sqDist += excess * excess;
+	}
+	return sqDist;
+}
+
 struct SAnalyticalOccluder
 {
 	float4 P0;
 	float4 P1;
+	float4 P2;
+	float4 C;
 };
 
-float4 SVO_AnalyticalOccluders[64];
+#define SVO_MAX_ANALYTICAL_OCCLUDERS 64
 
-void ProcessAnalyticalOccluders(Ray r, inout float4 vC)
+float4 SVO_AnalyticalOccluders[SVO_MAX_ANALYTICAL_OCCLUDERS*4];
+
+void ProcessAnalyticalOccluders(Ray r, inout float4 vC, float fDirectionality)
 {
 	float fOccl = 0;
 
-	for(int n=0; n<32; n++)
+	const float fDistM = length(r.startpoint.xyz - PS_WorldViewPos.xyz);
+
+	float fRayLen = 4.f;
+
+	for(int n=0; n<SVO_MAX_ANALYTICAL_OCCLUDERS; n++)
 	{
 		SAnalyticalOccluder oc;
-		oc.P0 = SVO_AnalyticalOccluders[n*2+0];
-		oc.P1 = SVO_AnalyticalOccluders[n*2+1];
+		oc.P0 = SVO_AnalyticalOccluders[n * 4 + 0];
+		oc.P1 = SVO_AnalyticalOccluders[n * 4 + 1];
+		oc.P2 = SVO_AnalyticalOccluders[n * 4 + 2];
+		oc.C  = SVO_AnalyticalOccluders[n * 4 + 3];
 
-		if(oc.P0.w)
+		if (!oc.P0.w)
+			break;
+
+		float fOrigDist = 1000;
+		float fRayDist = 1000;
+		float fRadius = 0;
+		float3 vSegDir = 0;
+
+		if(oc.C.w == 0) // capsule
 		{
-			Segment s0;
-
 			float3 startpoint = r.startpoint + r.direction*oc.P0.w*.125;
 
+			Segment s0;
 			s0.P0 = startpoint;
-			s0.P1 = startpoint + r.direction * 4.f;
+			s0.P1 = startpoint + r.direction * fRayLen;
 
 			Segment s1;
 			s1.P0 = oc.P0.xyz;
 			s1.P1 = oc.P1.xyz;
 
-			float fDist = GetSegmentToSegmentDistance( s0, s1 );
+			fRayDist = GetSegmentToSegmentDistance( s0, s1 );
 
 			s0.P0 = startpoint;
 			s0.P1 = startpoint + r.direction * 0.001f;
 
 			float3 dP;
-			float fSegDist = GetPointToSegmentDistance( startpoint, s1, dP );
+			fOrigDist = GetPointToSegmentDistance( startpoint, s1, dP );
 
-			float3 vSegDir = normalize(dP);
-			float fSegLen = length(oc.P0.xyz - oc.P1.xyz);
+			vSegDir = normalize(dP);
 
-			fOccl = max(fOccl, (1 - pow(max(0, fDist - oc.P0.w*.9f) / (oc.P0.w + fSegDist/2), 1)) * saturate(1 - fSegDist/6.f) * saturate(.5 + dot(vSegDir, r.direction)));
+			fRadius = oc.P0.w;
 		}
-		else
-			break;
+		else if (oc.C.w == 1.f) // obb
+		{
+			OBB obb;
+			obb.ue[0] = oc.P0;
+			obb.ue[1] = oc.P1;
+			obb.ue[2] = oc.P2;
+			obb.ue[1].xyz *= -1;
+
+			obb.c = oc.C;
+
+			fOrigDist = sqrt(SqDistPointOBB(r.startpoint, obb));
+
+			fRayDist = fOrigDist;
+			float3 vMinPoint = r.startpoint;
+			float fStepSize = fRayLen;
+
+			for (float t = 0, steps = 0; (t < fRayLen) && (steps<16) && fStepSize; t += fStepSize, steps++)
+			{
+				float3 vTestPoint = r.startpoint + r.direction * t;
+
+				float fD = sqrt(SqDistPointOBB(vTestPoint, obb));
+
+				if (fD < fRayDist)
+				{
+					fRayDist = fD;
+					vMinPoint = vTestPoint;
+				}
+
+				fStepSize = min(fD, fStepSize);
+			}
+
+			vSegDir = normalize(vMinPoint - r.startpoint);
+
+			fRadius = 0;
+		}
+
+		float fO = 1.f - max(0, fRayDist - fRadius*.9f) / (fRadius + fOrigDist);// / saturate(1 - pow(fDirectionality, 8.f) + 0.01);
+		fO *= saturate(1 - fOrigDist / fRayLen) * saturate(.5 + dot(vSegDir, r.direction));
+
+		float fLerp = saturate((fDirectionality* 1.25 - .6) / (1 - .6));
+		fO = max(saturate(1 - fOrigDist) * (1- fLerp), fO * fLerp);
+
+		fOccl = max(fOccl, fO);
 	}
 
 	vC = lerp(vC, float4(0,0,0,1), fOccl);
@@ -609,10 +692,10 @@ float GetBlendMin(float2 tcDiff, float3 vAverReflectance, float fAverSmoothness,
 
 	if (!IsDiffuseMode())
 	{
-		float fDistTCRat = IsDiffuseMode() ? 0 : saturate(length(tcDiff) / .02f);
+		float fDistTCRat = IsDiffuseMode() ? 0 : saturate(length(tcDiff) / .05f);
 
 		// reduce ghosting for mirrors
-		fMinBlend = saturate(max(fMinBlend + fDistTCRat, 0.7 * saturate(GetLuminance(vAverReflectance*fAverSmoothness))));
+		fMinBlend = saturate(max((1-(1-fMinBlend)*.7f) + fDistTCRat*(1.f - fMinBlend), 0.7 * saturate(GetLuminance(vAverReflectance*fAverSmoothness))));
 	}
 
 	return fMinBlend;
@@ -751,8 +834,9 @@ pixoutMRT DemosaicPS(vtxOutWPOS IN)
 		r.direction = normalize(vALD0.xyz);
 		r.startpoint = vPos0;
 		float4 vC = 0;
-		ProcessAnalyticalOccluders(r, vC);	
-		float fDot = saturate(dot(r.direction, vNor0)) * saturate(length(vALD0.xyz) / vALD0.w);
+		float fDirectionality = saturate(length(vALD0.xyz) / vALD0.w);
+		ProcessAnalyticalOccluders(r, vC, IsDiffuseMode() ? fDirectionality : pow(fAverSmoothness, .5));
+		float fDot = saturate(dot(r.direction, vNor0)) * fDirectionality;
 		OUT.Specular  *= 1 - vC.w * fDot;
 		OUT.Specular1 *= 1 - vC.w * fDot;
 	}
@@ -2127,10 +2211,10 @@ pixoutMRT UpScalePS(vtxOutWPOS IN)
 	}
 
 #if !%_RT_SAMPLE5
-	if (IsDiffuseMode())
-		OUT.Diffuse.xyz += max(0, SvoParamsCommon.z * vSkyColorTop.z);
+	if (SvoParamsCommon.z > 0)
+		OUT.Diffuse.xyz += SvoParamsCommon.z * vSkyColorTop.z;
 	else
-		OUT.Diffuse.xyz += max(0, -SvoParamsCommon.z * vSkyColorTop.z) * 0.15f;
+		OUT.Diffuse.xyz += -SvoParamsCommon.z * vSkyColorTop.z * 0.15f;
 #endif
 
 	OUT.Diffuse.w = fDepthC;

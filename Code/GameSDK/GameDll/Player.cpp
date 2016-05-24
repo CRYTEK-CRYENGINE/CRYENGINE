@@ -917,7 +917,7 @@ bool CPlayer::Init(IGameObject * pGameObject)
 		uint16 channelId = GetChannelId();
 
 		CGameLobby *pGameLobby = g_pGame->GetGameLobby();
-		if(channelId)
+		if(pGameLobby && channelId)
 		{
 			pGameLobby->OnPlayerSpawned(channelId);
 		}

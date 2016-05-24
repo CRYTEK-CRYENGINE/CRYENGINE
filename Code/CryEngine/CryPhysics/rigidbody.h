@@ -7,6 +7,8 @@
 struct entity_contact;
 const int MAX_CONTACTS = 9984;
 
+enum rbflags { rb_RK4=0x1, rb_articulated=0x10 };
+
 class RigidBody {
 public:
 	RigidBody();
@@ -26,17 +28,37 @@ public:
 
 	float M,Minv; // mass, 1.0/mass (0 for static objects)
 	float V; // volume
+	struct ArticulatedBody *pArtic; // optional articulated body host
 	Diag33 Ibody; // diagonalized inertia tensor (aligned with body's axes of inertia)
 	Diag33 Ibody_inv; // { 1/Ibody.ii }
 	quaternionf qfb; // frame->body rotation
 	Vec3 offsfb; // frame->body offset
-	int integrator; // 0 - explicit Euler, otherwise Runge-Kutta
+	int flags;
 
 	Matrix33 Iinv; // I^-1(t)
 
 	Vec3 Fcollision,Tcollision;
 	short bProcessed[MAX_PHYS_THREADS-((MAX_PHYS_THREADS-1)>>31)];
 	float Eunproj;
+};
+
+struct body_helper {
+	Vec3 v,w;
+	float Minv,M;
+	Matrix33 Iinv;
+	Vec3 L;
+};
+
+struct ArticulatedBody {
+	RigidBody body;
+	int iParent;
+	int nChildren,nChildrenTree;
+	int nPotentialAngles;
+	struct featherstone_data *fs;
+	Vec3 Pext,Lext;
+
+	void GetContactMatrix(const Vec3& r, Matrix33 &K);
+	void ApplyImpulse(const Vec3& dP, const Vec3& dL, body_helper *bodies, int iCaller);
 };
 
 enum contactflags { contact_count_mask=0x3F, contact_new=0x40, contact_2b_verified=0x80, contact_2b_verified_log2=7, 

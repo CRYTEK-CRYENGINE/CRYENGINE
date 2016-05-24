@@ -230,6 +230,13 @@ void CAudioCVars::RegisterVariables()
 	                 "otherwise, the AudioSwitch is set on the GlobalAudioObject\n"
 	                 "Usage: s_SetSwitchState SurfaceType concrete 601 or s_SetSwitchState weather rain\n");
 
+	REGISTER_STRING("s_DefaultStandaloneFilesAudioTrigger", "do_nothing", 0,
+	                "The name of the ATL AudioTrigger which is used for playing back standalone files, when you call 'PlayFile' without specifying\n"
+	                "an override audioTriggerId that should be used instead.\n"
+	                "Usage: s_DefaultStandaloneFilesAudioTrigger audio_trigger_name.\n"
+	                "If you change this CVar to be empty, the control will not be created automatically.\n"
+	                "Default: \"do_nothing\" \n");
+
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 	REGISTER_CVAR2("s_IgnoreWindowFocus", &m_ignoreWindowFocus, 0, VF_DEV_ONLY,
 	               "If set to 1, the sound system will continue playing when the Editor or Game window loses focus.\n"

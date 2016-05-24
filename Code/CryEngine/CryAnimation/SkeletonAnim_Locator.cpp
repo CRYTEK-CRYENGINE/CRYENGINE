@@ -250,13 +250,6 @@ void CSkeletonAnim::ParseLayer0(const CAnimation& rAnim, AnimInfo* pAInfo, uint3
 		const f32 totdur = rCAF.GetTotalDuration();
 		const f32 fRealTimeNew = pAInfo[acounter].m_fAnimTime * totdur;
 		const f32 fRealTimeOld = pAInfo[acounter].m_fAnimTimePrev * totdur;
-#if CRYANIMATION_REPEAT_MOTION
-		if (rAnim.m_DynFlags[idx] & CA_REPEAT)
-		{
-			fRealTimeOld = fRealTimeNew - fDeltaTime * rAnim.m_fPlaybackScale;
-			pAInfo[acounter].m_fAnimTimePrev = fRealTimeOld / totdur;
-		}
-#endif
 		f32 fAnimDelta = fRealTimeNew - fRealTimeOld;
 		if (pAInfo[acounter].m_nEOC)
 			fAnimDelta = totdur - fRealTimeOld + fRealTimeNew;
@@ -337,13 +330,6 @@ void CSkeletonAnim::ParseLayer0(const CAnimation& rAnim, AnimInfo* pAInfo, uint3
 			const f32 totdur = rCAF.GetTotalDuration();
 			const f32 fRealTimeNew = pAInfo[acounter].m_fAnimTime * totdur;
 			const f32 fRealTimeOld = pAInfo[acounter].m_fAnimTimePrev * totdur;
-#if CRYANIMATION_REPEAT_MOTION
-			if (rAnim.m_DynFlags[idx] & CA_REPEAT)
-			{
-				fRealTimeOld = fRealTimeNew - fDeltaTime * rAnim.m_fPlaybackScale;
-				pAInfo[acounter].m_fAnimTimePrev = fRealTimeOld / totdur;
-			}
-#endif
 			f32 fAnimDelta = fRealTimeNew - fRealTimeOld;
 			if (pAInfo[acounter].m_nEOC)
 				fAnimDelta = totdur - fRealTimeOld + fRealTimeNew;

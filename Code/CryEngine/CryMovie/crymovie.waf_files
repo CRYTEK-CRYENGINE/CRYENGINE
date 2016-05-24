@@ -80,7 +80,9 @@
 			"ShadowsSetupNode.h",
 			"ShadowsSetupNode.cpp",
 			"AnimGeomCacheNode.h",
-			"AnimGeomCacheNode.cpp"
+			"AnimGeomCacheNode.cpp",
+			"AudioNode.h",
+			"AudioNode.cpp"
 		]
 	}
 }

@@ -30,7 +30,8 @@
 			<SunShadowsAdditionalCascadeMinSpec type="Int" value="0"/>
 			<SunShadowsClipPlaneRange type="Float" value="256.0f"/>
 			<SunShadowsClipPlaneRangeShift type="Float" value="0.0f"/>
-			<UseLayersActivation type="BOOL" value="0"/>
+      <SunShadowsFromTerrain type="BOOL" value="0"/>
+      <UseLayersActivation type="BOOL" value="0"/>
 			<SunLinkedToTOD type="BOOL" value="1"/>
 		</EnvState>
 

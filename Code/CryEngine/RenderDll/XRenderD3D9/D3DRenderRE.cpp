@@ -2110,14 +2110,6 @@ bool CREParticle::mfDraw(CShader* ef, SShaderPass* shaderPass)
 	return true;
 }
 
-bool CRELightPropagationVolume::mfDraw(CShader* ef, SShaderPass* sfm)
-{
-	static ICVar* pGI = iConsole->GetCVar("e_gi");
-	if (pGI->GetIVal() != 0)
-		Evaluate();
-	return true;
-}
-
 bool CREGameEffect::mfDraw(CShader* ef, SShaderPass* sfm)
 {
 	CRY_ASSERT_MESSAGE(gRenDev->m_pRT->IsRenderThread(), "Trying to render from wrong thread");

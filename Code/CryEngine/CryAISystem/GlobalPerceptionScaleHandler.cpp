@@ -97,7 +97,6 @@ bool CGlobalPerceptionScaleHandler::IsObjectAffected(const IAIObject* pAIObject)
 
 void CGlobalPerceptionScaleHandler::RegisterListener(IAIGlobalPerceptionListener* plistener)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
 	m_listenersList.Add(plistener);
 }
 

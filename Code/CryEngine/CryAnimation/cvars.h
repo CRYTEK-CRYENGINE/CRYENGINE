@@ -190,7 +190,7 @@ struct CRY_ALIGN(128) Console
 	DeclareConstIntCVar(ca_DrawCloth, 1);
 	DeclareConstIntCVar(ca_ClothBlending, 1);
 	DeclareConstIntCVar(ca_ClothBypassSimulation, 0);
-	DeclareConstIntCVar(ca_ClothMaxChars, 10);
+	DeclareConstIntCVar(ca_ClothMaxChars, 20);
 	bool DrawPose(const char mode);
 
 private:

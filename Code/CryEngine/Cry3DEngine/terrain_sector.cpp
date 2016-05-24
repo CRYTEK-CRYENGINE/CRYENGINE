@@ -69,28 +69,3 @@ int CTerrainNode::GetSecIndex()
 	int nSectorsTableSize = CTerrain::GetSectorsTableSize(m_nSID) >> m_nTreeLevel;
 	return (m_nOriginX / nSectorSize) * nSectorsTableSize + (m_nOriginY / nSectorSize);
 }
-
-void CTerrainNode::CheckInitAffectingLights(const SRenderingPassInfo& passInfo)
-{
-	m_lstAffectingLights.Clear();
-	PodArray<CDLight*>* pSceneLights = Get3DEngine()->GetDynamicLightSources();
-	if (pSceneLights->Count() && (pSceneLights->GetAt(0)->m_Flags & DLF_SUN) && (pSceneLights->GetAt(0)->m_pOwner == Get3DEngine()->GetSunEntity()))
-		m_lstAffectingLights.Add(pSceneLights->GetAt(0));
-
-	m_nLightMaskFrameId = passInfo.GetFrameID() + passInfo.GetRecursiveLevel();
-
-}
-
-PodArray<CDLight*>* CTerrainNode::GetAffectingLights(const SRenderingPassInfo& passInfo)
-{
-	CheckInitAffectingLights(passInfo);
-
-	return &m_lstAffectingLights;
-}
-
-void CTerrainNode::AddLightSource(CDLight* pSource, const SRenderingPassInfo& passInfo)
-{
-	CheckInitAffectingLights(passInfo);
-
-	m_lstAffectingLights.Add(pSource);
-}

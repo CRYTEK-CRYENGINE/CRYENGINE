@@ -138,7 +138,7 @@ extern "C"
 	{
 		CSystem* pSystem = NULL;
 
-		pSystem = new CSystem;
+		pSystem = new CSystem(startupParams);
 		ModuleInitISystem(pSystem, "CrySystem");
 #if CRY_PLATFORM_DURANGO
 	#if !defined(_LIB)
@@ -160,7 +160,7 @@ extern "C"
 #elif CRY_PLATFORM_DURANGO && defined(ENABLE_PROFILING_CODE)
 		DurangoDebugCallStack::InstallExceptionHandler();
 #endif
-		if (!pSystem->Init(startupParams))
+		if (!pSystem->Init())
 		{
 			delete pSystem;
 

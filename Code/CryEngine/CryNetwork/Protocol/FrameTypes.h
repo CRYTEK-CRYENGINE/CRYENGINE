@@ -34,7 +34,6 @@ enum EHeaders
 	eH_KeepAliveReply,
 	eH_BackOff,
 	eH_AlreadyConnecting,
-	eH_Rebroadcaster,   // packet might need immediate forwarding
 	eH_Fragmentation,
 	eH_DediServerScheduler, // Expected on dedicated server scheduler socket only, CServerDefence is listener
 	// following must be last

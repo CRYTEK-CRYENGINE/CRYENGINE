@@ -1538,7 +1538,7 @@ bool CSvoRenderer::SetShaderParameters(float*& pSrc, uint32 paramType, UFloat4* 
 			}
 
 			sData[0].f[1] = pSR->IsActive() ? fModeFin : -1.f;
-			sData[0].f[2] = (float)pSR->e_svoDVR;
+			sData[0].f[2] = pSR->e_svoDVR ? (float)pSR->e_svoDVR : ((pSR->m_texInfo.bSvoReady && pSR->e_svoTI_NumberOfBounces) ? pSR->e_svoTI_SpecularAmplifier : 0);
 			sData[0].f[3] = pSR->e_svoTI_SkyColorMultiplier;
 			break;
 		}

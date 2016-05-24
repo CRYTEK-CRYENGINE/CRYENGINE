@@ -26,13 +26,15 @@ struct SVertexFrameState
 	const SSoftwareVertexFrame* pFrame;
 	float                       weight;
 	uint32                      flags;
-	uint32                      sourceIndex;
+	uint32                      jointIndex;
+	uint32                      frameIndex;
 
 	SVertexFrameState() :
 		pFrame(NULL),
 		weight(0.0f),
 		flags(0),
-		sourceIndex(-1)
+		jointIndex(-1),
+		frameIndex(-1)
 	{
 	}
 };
@@ -117,9 +119,11 @@ public:
 	~CVertexAnimation();
 
 public:
-	void                         SetFrameWeight(const SSoftwareVertexFrame& frame, float weight);
-	void                         SetFrameWeightByIndex(const CSkin* pSkin, uint index, float weight);
-	void                         SetFrameWeightByName(const ISkin* pISkin, const char* name, float weight);
+	void                         OverrideFrameWeight(const SSoftwareVertexFrame& frame, float weight);
+	void                         OverrideFrameWeightByIndex(const CSkin* pSkin, uint index, float weight);
+	void                         OverrideFrameWeightByName(const ISkin* pISkin, const char* name, float weight);
+	bool                         OverridenFrameWeights()        { return m_overridenWeights; };
+	void                         OverrideFrameWeights(bool val) { m_overridenWeights = val; };
 	void                         ClearAllFramesWeight();
 
 	void                         SetSkinData(const SVertexSkinData& skinData) { m_skinData = skinData; }
@@ -140,6 +144,8 @@ private:
 private:
 	DynArray<SVertexFrameState> m_frameStates;
 	DynArray<RecTangents>       m_recTangents;
+
+	bool                        m_overridenWeights;
 
 	SVertexSkinData             m_skinData;
 

@@ -188,8 +188,6 @@ AllocateConstIntCVar(CRendererCVars, CV_r_CBufferUseNativeDepth);
 float CRendererCVars::CV_r_DeferredShadingLightLodRatio;
 float CRendererCVars::CV_r_DeferredShadingLightStencilRatio;
 
-AllocateConstIntCVar(CRendererCVars, CV_r_LightPropagationVolumes);
-
 int CRendererCVars::CV_r_HDRRendering;
 AllocateConstIntCVar(CRendererCVars, CV_r_HDRDebug);
 int CRendererCVars::CV_r_HDRBloom;
@@ -1250,11 +1248,6 @@ void CRendererCVars::InitCVars()
 
 	REGISTER_CVAR3("r_DeferredShadingAmbientSClear", CV_r_DeferredShadingAmbientSClear, 1, VF_NULL,
 	               "Clear stencil buffer after ambient pass (prevents artifacts on Nvidia hw)\n");
-
-	DefineConstIntCVar3("r_LightPropagationVolumes", CV_r_LightPropagationVolumes, 1, VF_CHEAT,
-	                    "Toggles Light Propagation Volumes.\n"
-	                    "Usage: r_LightPropagationVolumes [0/1]\n"
-	                    "Default is 1 (on)");
 
 	REGISTER_CVAR3_CB("r_HDRRendering", CV_r_HDRRendering, 1, VF_DUMPTODISK,
 	                  "Toggles HDR rendering.\n"
@@ -3243,6 +3236,12 @@ void CRendererCVars::InitCVars()
 #ifndef CONSOLE_CONST_CVAR_MODE
 	CV_r_reloadshaders = 0;
 #endif
+
+	// compute skinning cvars
+	DefineConstIntCVar(r_ComputeSkinning, 1, VF_NULL, "Activate skinning via compute shaders");
+	DefineConstIntCVar(r_ComputeSkinningMorphs, 1, VF_NULL, "Apply morphs before skinning");
+	DefineConstIntCVar(r_ComputeSkinningTangents, 1, VF_NULL, "Calculate new tangents after skinning is computed");
+	DefineConstIntCVar(r_ComputeSkinningDebugDraw, 0, VF_NULL, "Enable debug draw mode for geometry deformation");
 
 	//////////////////////////////////////////////////////////////////////////
 	InitExternalCVars();

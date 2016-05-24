@@ -43,8 +43,6 @@ public:
 	// Start accepting work on thread
 	virtual void ThreadEntry()
 	{
-		ScopedSwitchToGlobalHeap globalHeapSwitch;
-
 		NetFastMutex& commMtx = CNetwork::Get()->GetCommMutex();
 		uint32 lastSeenGlobalLockCount = 0;
 
@@ -112,7 +110,6 @@ public:
 	void QueueAction(const detail::SAction& action)
 	{
 		SCOPED_COMM_LOCK;
-		ScopedSwitchToGlobalHeap globalHeapSwitch;
 		m_actions.push_back(action);
 	}
 

@@ -7509,8 +7509,6 @@ bool CScriptBind_Entity::ParseLightParams(IScriptTable* pLightTable, CDLight& li
 		light.m_Flags |= DLF_VOLUMETRIC_FOG;
 	if (chain.GetValue("volumetric_fog_only", flag) && flag)
 		light.m_Flags |= DLF_VOLUMETRIC_FOG_ONLY;
-	if (chain.GetValue("irradiance_volumes", flag) && flag)
-		light.m_Flags |= DLF_ALLOW_LPV;
 	Vec3 color;
 	if (chain.GetValue("diffuse_color", color))
 		light.SetLightColor(ColorF(color.x, color.y, color.z, 1.0f));

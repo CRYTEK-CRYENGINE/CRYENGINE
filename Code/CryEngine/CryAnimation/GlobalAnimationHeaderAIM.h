@@ -1,7 +1,7 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
-
+#ifndef RESOURCE_COMPILER
 #include "GlobalAnimationHeader.h"
 #include "Controller.h"
 #include "ControllerPQLog.h"
@@ -234,3 +234,4 @@ struct VExampleInit
 	uint32 AnnotateExamples(uint32 numPoses, QuadIndices* arrQuat);
 	Vec3d  PolarCoordinate(const Quatd& q);
 };
+#endif

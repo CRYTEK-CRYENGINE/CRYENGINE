@@ -13,7 +13,6 @@
 #endif
 
 #include "MemReplay.h"
-#include <CryCore/Platform/LevelHeap.h>
 #include "MemoryManager.h"
 
 volatile bool g_replayCleanedUp = false;
@@ -29,7 +28,6 @@ void* DanglingPointerDetectorTransformNull(void* ptr)               { return ptr
 #endif
 
 const bool bProfileMemManager = 0;
-static CLevelHeap s_levelHeap;
 
 #ifdef CRYMM_SUPPORT_DEADLIST
 namespace
@@ -111,127 +109,6 @@ static void DeadListPush(void* p, size_t sz)
 
 #endif
 
-#if USE_LEVEL_HEAP
-static volatile long s_levelHeapActive;
-static size_t s_levelHeapViolationNumAllocs;
-static size_t s_levelHeapViolationAllocSize;
-TLS_DECLARE(int, s_levelHeapLocalTLS);
-TLS_DEFINE(int, s_levelHeapLocalTLS);
-
-	#if defined(USE_GLOBAL_BUCKET_ALLOCATOR)
-extern void BucketAllocatorReplayRegisterAddressRange(const char* name);
-	#endif //defined(USE_GLOBAL_BUCKET_ALLOCATOR)
-
-enum
-{
-	ActiveHeap_Default = 0,
-	ActiveHeap_Global,
-	ActiveHeap_Level,
-};
-
-static bool IsLevelHeapActive()
-{
-	int threadLocalHeap = TLS_GET(int, s_levelHeapLocalTLS);
-	return (threadLocalHeap == ActiveHeap_Default && s_levelHeapActive) || (threadLocalHeap == ActiveHeap_Level);
-}
-
-void CCryMemoryManager::InitialiseLevelHeap()
-{
-	if (CLevelHeap::CanBeUsed())
-	{
-		s_levelHeap.Initialise();
-
-	#if CAPTURE_REPLAY_LOG
-		s_levelHeap.ReplayRegisterAddressRanges();
-	#endif
-	}
-
-	#if CAPTURE_REPLAY_LOG && defined(USE_GLOBAL_BUCKET_ALLOCATOR)
-	BucketAllocatorReplayRegisterAddressRange("Global Buckets");
-	#endif
-}
-
-void CCryMemoryManager::SwitchToLevelHeap()
-{
-	if (s_levelHeap.IsValid())
-	{
-		s_levelHeapActive = 1;
-
-		CryCleanup();
-	}
-}
-
-void CCryMemoryManager::SwitchToGlobalHeap()
-{
-	if (s_levelHeap.IsValid())
-	{
-		s_levelHeapActive = 0;
-		s_levelHeap.Cleanup();
-
-	#if TRACK_LEVEL_HEAP_USAGE
-		s_levelHeap.GetState(s_levelHeapViolationNumAllocs, s_levelHeapViolationAllocSize);
-	#endif
-	}
-}
-
-int CCryMemoryManager::LocalSwitchToGlobalHeap()
-{
-	int old = TLS_GET(int, s_levelHeapLocalTLS);
-	TLS_SET(s_levelHeapLocalTLS, ActiveHeap_Global);
-	return old;
-}
-
-int CCryMemoryManager::LocalSwitchToLevelHeap()
-{
-	int newHeap = s_levelHeap.IsValid() ? ActiveHeap_Level : ActiveHeap_Global;
-	int old = TLS_GET(int, s_levelHeapLocalTLS);
-	TLS_SET(s_levelHeapLocalTLS, newHeap);
-	return old;
-}
-
-void CCryMemoryManager::LocalSwitchToHeap(int heap)
-{
-	TLS_SET(s_levelHeapLocalTLS, heap);
-}
-
-bool CCryMemoryManager::GetLevelHeapViolationState(bool& usingLevelHeap, size_t& numAllocs, size_t& allocSize)
-{
-	usingLevelHeap = s_levelHeap.IsValid();
-
-	#if TRACK_LEVEL_HEAP_USAGE
-	numAllocs = s_levelHeapViolationNumAllocs;
-	allocSize = s_levelHeapViolationAllocSize;
-	#else
-	numAllocs = 0;
-	allocSize = 0;
-	#endif
-
-	return numAllocs > 0;
-}
-
-#endif //USE_LEVEL_HEAP
-
-#if !USE_LEVEL_HEAP
-void CCryMemoryManager::InitialiseLevelHeap()       {}
-void CCryMemoryManager::SwitchToLevelHeap()         {}
-void CCryMemoryManager::SwitchToGlobalHeap()        {}
-int  CCryMemoryManager::LocalSwitchToGlobalHeap()   { return 0; }
-int  CCryMemoryManager::LocalSwitchToLevelHeap()    { return 0; }
-void CCryMemoryManager::LocalSwitchToHeap(int heap) {}
-bool CCryMemoryManager::GetLevelHeapViolationState(bool& usingLevelHeap, size_t& numAllocs, size_t& allocSize)
-{
-	usingLevelHeap = false;
-	numAllocs = 0;
-	allocSize = 0;
-	return false;
-}
-
-#endif
-
-#if !USE_LEVEL_HEAP
-static bool IsLevelHeapActive() { return false; }
-#endif // !USE_LEVEL_HEAP
-
 //////////////////////////////////////////////////////////////////////////
 // Some globals for fast profiling.
 //////////////////////////////////////////////////////////////////////////
@@ -277,36 +154,26 @@ CRYMEMORYMANAGER_API void* CryMalloc(size_t size, size_t& allocated, size_t alig
 	uint8* p;
 	size_t sizePlus = size;
 
-	if (IsLevelHeapActive())
+	if (!alignment || g_GlobPageBucketAllocator.CanGuaranteeAlignment(sizePlus, alignment))
 	{
 		if (alignment)
-			p = (uint8*) s_levelHeap.Memalign(alignment, sizePlus);
+			p = (uint8*)g_GlobPageBucketAllocator.allocate(sizePlus, alignment);
 		else
-			p = (uint8*) s_levelHeap.Malloc(sizePlus);
+			p = (uint8*)g_GlobPageBucketAllocator.alloc(sizePlus);
 	}
 	else
 	{
-		if (!alignment || g_GlobPageBucketAllocator.CanGuaranteeAlignment(sizePlus, alignment))
-		{
-			if (alignment)
-				p = (uint8*)g_GlobPageBucketAllocator.allocate(sizePlus, alignment);
-			else
-				p = (uint8*)g_GlobPageBucketAllocator.alloc(sizePlus);
-		}
-		else
-		{
-			alignment = max(alignment, (size_t)16);
+		alignment = max(alignment, (size_t)16);
 
-			// emulate alignment
-			sizePlus += alignment;
-			p = (uint8*) CrySystemCrtMalloc(sizePlus);
+		// emulate alignment
+		sizePlus += alignment;
+		p = (uint8*) CrySystemCrtMalloc(sizePlus);
 
-			if (alignment && p)
-			{
-				uint32 offset = (uint32)(alignment - ((UINT_PTR)p & (alignment - 1)));
-				p += offset;
-				reinterpret_cast<uint32*>(p)[-1] = offset;
-			}
+		if (alignment && p)
+		{
+			uint32 offset = (uint32)(alignment - ((UINT_PTR)p & (alignment - 1)));
+			p += offset;
+			reinterpret_cast<uint32*>(p)[-1] = offset;
 		}
 	}
 
@@ -348,11 +215,6 @@ CRYMEMORYMANAGER_API size_t CryGetMemSize(void* memblock, size_t sourceSize)
 #ifdef DANGLING_POINTER_DETECTOR
 	memblock = DanglingPointerDetectorTransformNull(memblock);
 #endif
-#if USE_LEVEL_HEAP
-	if (s_levelHeap.IsInAddressRange(memblock))
-		return s_levelHeap.UsableSize(memblock);
-	else
-#endif
 	return g_GlobPageBucketAllocator.getSize(memblock);
 }
 
@@ -376,24 +238,17 @@ CRYMEMORYMANAGER_API void* CryRealloc(void* memblock, size_t size, size_t& alloc
 		np = CryMalloc(size, allocated, alignment);
 
 		// get old size
-		if (s_levelHeap.IsInAddressRange(memblock))
+		if (g_GlobPageBucketAllocator.IsInAddressRange(memblock))
 		{
-			oldsize = s_levelHeap.UsableSize(memblock);
+			oldsize = g_GlobPageBucketAllocator.getSize(memblock);
 		}
 		else
 		{
-			if (g_GlobPageBucketAllocator.IsInAddressRange(memblock))
-			{
-				oldsize = g_GlobPageBucketAllocator.getSize(memblock);
-			}
-			else
-			{
-				uint8* pb = static_cast<uint8*>(memblock);
-				int adj = 0;
-				if (alignment)
-					adj = reinterpret_cast<uint32*>(pb)[-1];
-				oldsize = CrySystemCrtSize(pb - adj) - adj;
-			}
+			uint8* pb = static_cast<uint8*>(memblock);
+			int adj = 0;
+			if (alignment)
+				adj = reinterpret_cast<uint32*>(pb)[-1];
+			oldsize = CrySystemCrtSize(pb - adj) - adj;
 		}
 
 		if (!np && size)
@@ -421,17 +276,10 @@ static void CryFreeReal(void* p)
 
 	if (p != NULL)
 	{
-		if (s_levelHeap.IsInAddressRange(p))
-		{
-			s_levelHeap.Free(p);
-		}
+		if (g_GlobPageBucketAllocator.IsInAddressRange(p))
+			g_GlobPageBucketAllocator.deallocate(p);
 		else
-		{
-			if (g_GlobPageBucketAllocator.IsInAddressRange(p))
-				g_GlobPageBucketAllocator.deallocate(p);
-			else
-				free(p);
-		}
+			free(p);
 	}
 }
 #endif
@@ -455,32 +303,24 @@ size_t CryFree(void* p, size_t alignment)
 		{
 			MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
 
-			if (s_levelHeap.IsInAddressRange(p))
+			if (g_GlobPageBucketAllocator.IsInAddressRange(p))
 			{
-				size = s_levelHeap.UsableSize(p);
+				size = g_GlobPageBucketAllocator.getSizeEx(p);
 				DeadListPush(p, size);
 			}
 			else
 			{
-				if (g_GlobPageBucketAllocator.IsInAddressRange(p))
+				if (alignment)
 				{
-					size = g_GlobPageBucketAllocator.getSizeEx(p);
-					DeadListPush(p, size);
+					uint8* pb = static_cast<uint8*>(p);
+					pb -= reinterpret_cast<uint32*>(pb)[-1];
+					size = CrySystemCrtSize(pb);
+					DeadListPush(pb, size);
 				}
 				else
 				{
-					if (alignment)
-					{
-						uint8* pb = static_cast<uint8*>(p);
-						pb -= reinterpret_cast<uint32*>(pb)[-1];
-						size = CrySystemCrtSize(pb);
-						DeadListPush(pb, size);
-					}
-					else
-					{
-						size = CrySystemCrtSize(p);
-						DeadListPush(p, size);
-					}
+					size = CrySystemCrtSize(p);
+					DeadListPush(p, size);
 				}
 			}
 
@@ -502,29 +342,21 @@ size_t CryFree(void* p, size_t alignment)
 	{
 		MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
 
-		if (s_levelHeap.IsInAddressRange(p))
+		if (g_GlobPageBucketAllocator.IsInAddressRange(p))
 		{
-			size = s_levelHeap.UsableSize(p);
-			s_levelHeap.Free(p);
+			size = g_GlobPageBucketAllocator.deallocate(p);
 		}
 		else
 		{
-			if (g_GlobPageBucketAllocator.IsInAddressRange(p))
+			if (alignment)
 			{
-				size = g_GlobPageBucketAllocator.deallocate(p);
+				uint8* pb = static_cast<uint8*>(p);
+				pb -= reinterpret_cast<uint32*>(pb)[-1];
+				size = CrySystemCrtFree(pb);
 			}
 			else
 			{
-				if (alignment)
-				{
-					uint8* pb = static_cast<uint8*>(p);
-					pb -= reinterpret_cast<uint32*>(pb)[-1];
-					size = CrySystemCrtFree(pb);
-				}
-				else
-				{
-					size = CrySystemCrtFree(p);
-				}
+				size = CrySystemCrtFree(p);
 			}
 		}
 
@@ -581,9 +413,6 @@ CRYMEMORYMANAGER_API void CryCleanup()
 void EnableDynamicBucketCleanups(bool enable)
 {
 	g_GlobPageBucketAllocator.EnableExpandCleanups(enable);
-	#if USE_LEVEL_HEAP
-	s_levelHeap.EnableExpandCleanups(enable);
-	#endif
 }
 void BucketAllocatorReplayRegisterAddressRange(const char* name)
 {

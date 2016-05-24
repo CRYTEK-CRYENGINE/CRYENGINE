@@ -30,7 +30,7 @@ private slots:
 	void ItemDoubleClicked(const QModelIndex& modelIndex);
 
 public:
-	void        SetScope(string sScope);
+	void        SetScope(Scope scope);
 	const char* ChooseItem(const char* currentValue);
 	QSize       sizeHint() const override;
 
@@ -48,7 +48,7 @@ private:
 	// Filtering
 	QString                 m_sFilter;
 	EACEControlType         m_eType;
-	string                  m_sScope;
+	Scope                   m_scope;
 
 	static string           ms_controlName;
 	QAudioControlsTreeView* m_pControlTree;

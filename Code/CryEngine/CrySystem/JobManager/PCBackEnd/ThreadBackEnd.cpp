@@ -221,6 +221,9 @@ void JobManager::ThreadBackEnd::CThreadBackEndWorkerThread::SignalStopWork()
 inline CFrameProfiler* GetFrameProfilerForName(const char* name)
 {
 	static std::vector<std::pair<const char*, CFrameProfiler*>> s_profilers;
+	static CryCriticalSection profilersLock;
+	AUTO_LOCK(profilersLock);
+	
 	s_profilers.reserve(256);
 	for (auto& p : s_profilers)
 	{

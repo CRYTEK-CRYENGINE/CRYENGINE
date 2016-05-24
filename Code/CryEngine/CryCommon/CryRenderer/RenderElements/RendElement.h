@@ -36,7 +36,6 @@ enum EDataType
 	eDATA_WaterVolume,
 	eDATA_WaterOcean,
 	eDATA_VolumeObject,
-	eDATA_LightPropagationVolume,
 	eDATA_PrismObject,        //!< Normally this would be #if !defined(EXCLUDE_DOCUMENTATION_PURPOSE) but we keep it to get consistent numbers for serialization.
 	eDATA_DeferredShading,
 	eDATA_GameEffect,
@@ -224,7 +223,6 @@ public:
 #include "CREWaterVolume.h"
 #include "CREWaterOcean.h"
 #include "CREVolumeObject.h"
-#include "CRELightPropagationVolume.h"
 #include "CREGameEffect.h"
 #include "CREBreakableGlass.h"
 #include <Cry3DEngine/CREGeomCache.h>

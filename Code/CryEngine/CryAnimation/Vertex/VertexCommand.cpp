@@ -351,7 +351,9 @@ void VertexCommandSkin::ExecuteInternal(VertexCommandSkin& command, CVertexData&
 	PREFAST_SUPPRESS_WARNING(6255)
 	DualQuat * pTransformations = (DualQuat*)alloca(command.transformationCount * sizeof(DualQuat));
 	for (uint i = 0; i < command.transformationCount; ++i)
+	{
 		pTransformations[i] = command.pTransformations[command.pTransformationRemapTable[i]];
+	}
 
 	const uint vertexCount = vertexData.GetVertexCount();
 	strided_pointer<Vec3> pPositions = vertexData.GetPositions();
@@ -407,7 +409,7 @@ void VertexCommandSkin::ExecuteInternal(VertexCommandSkin& command, CVertexData&
 		newPos = dq * pPositionsSource[i];
 
 		pPositions[i] = newPos;
-		pTangents[i] = SPipTangents(qtangent, flip);
+		pTangents[i] = SPipTangents(qtangent, (int16)flip);
 
 		if ((TEMPLATE_FLAGS & VELOCITY_VECTOR) != 0)
 		{
@@ -674,7 +676,7 @@ void VertexCommandSkin::ExecuteInternal(VertexCommandSkin& command, CVertexData&
 		__m128 _pos = _mm_loadu_ps(p1);
 		_pos = _mm_and_ps(_pos, _xyzMask);
 
-		__m128 _tangent = _mm_load_ps((float*)&command.pVertexQTangents[i]);
+		__m128 _tangent = (command.pVertexQTangents.data) ? _mm_load_ps((float*)&command.pVertexQTangents[i]) : _mm_setr_ps(0.f, 0.f, 1.f, 1.f);
 
 		__m128 _flip = _mm_cmplt_ps(_tangent, _zero);
 		const __m128 _flip2 = _mm_or_ps(_mm_and_ps(_flip, _minus1), _mm_andnot_ps(_flip, _1));

@@ -25,16 +25,16 @@
 #include <CrySerialization/IArchive.h>
 #include <CrySerialization/STL.h>
 #include <QPropertyTree/QPropertyTree.h>
+#include <QAdvancedTreeView.h>
 
 namespace ACE
 {
 
-QConnectionsWidget::QConnectionsWidget(QWidget* pParent, const string& group)
+QConnectionsWidget::QConnectionsWidget(QWidget* pParent)
 	: QWidget(pParent)
-	, m_group(group)
 	, m_pControl(nullptr)
 	, m_pConnectionModel(new QConnectionModel())
-	, m_pConnectionsView(new QTreeView())
+	, m_pConnectionsView(new QAdvancedTreeView())
 {
 	resize(326, 450);
 	setSizePolicy(QSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed));
@@ -90,11 +90,17 @@ QConnectionsWidget::QConnectionsWidget(QWidget* pParent, const string& group)
 	pVerticalLayout->addWidget(m_pConnectionProperties);
 	pHorizontalLayout->addWidget(m_pConnectionsView);
 	pHorizontalLayout->addWidget(m_pConnectionPropertiesFrame);
+
+	// Hide all the columns except "Name" and "Path"
+	const int count = m_pConnectionModel->columnCount(QModelIndex());
+	for (int i = 2; i < count; ++i)
+	{
+		m_pConnectionsView->SetColumnVisible(i, false);
+	}
 }
 
-void QConnectionsWidget::Init(const string& group)
+void QConnectionsWidget::Init()
 {
-	m_group = group;
 	connect(m_pConnectionsView->selectionModel(), &QItemSelectionModel::selectionChanged, [&]()
 		{
 			ConnectionPtr pConnection;
@@ -192,10 +198,16 @@ void QConnectionsWidget::SetControl(CATLControl* pControl)
 	if (m_pControl != pControl)
 	{
 		m_pControl = pControl;
-		m_pConnectionModel->Init(pControl, m_group);
-		m_pConnectionsView->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-		m_pConnectionProperties->detach();
-		m_pConnectionPropertiesFrame->setHidden(true);
+		Reload();
 	}
 }
+
+void QConnectionsWidget::Reload()
+{
+	m_pConnectionModel->Init(m_pControl);
+	m_pConnectionsView->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+	m_pConnectionProperties->detach();
+	m_pConnectionPropertiesFrame->setHidden(true);
+}
+
 }

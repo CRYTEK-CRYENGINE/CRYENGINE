@@ -1664,22 +1664,12 @@ void SWheeledVehicleEntityNetSerialize::Serialize( TSerialize ser, int nSusp )
 {
 	assert(nSusp <= NMAXWHEELS);
 	
-#if 0
-	// There is little reason to serialise the wheel speeds,
-	// which saves a large amount of bandwidth
-
-	ser.BeginGroup("wheels");
-	for (int i=0; i<nSusp; i++)
-	{
-		ser.Value( numbered_tag("suspension",i), pSusp[i].w, 'pSus');
+	if (ser.GetSerializationTarget()!=eST_Network) {
+		ser.BeginGroup("wheels");
+		for (int i=0; i<nSusp; i++)
+			ser.Value(numbered_tag("suspension",i), pSusp[i].curlen);
+		ser.EndGroup();
 	}
-	for (int i=nSusp; i<NMAXWHEELS; i++)
-	{
-		float virtualSuspW = 0;
-		ser.Value(numbered_tag("suspension",i), virtualSuspW, 'pSus');
-	}
-	ser.EndGroup();
-#endif
 
 	ser.Value("pedal", pedal, 'pPed');
 	ser.Value("steer", steer, 'pStr');
@@ -1725,11 +1715,9 @@ int CWheeledVehicleEntity::SetStateFromSnapshot(TSerialize ser, int flags)
 		m_wengine = helper.wengine;
 		m_iCurGear = helper.curGear;
 #if USE_IMPROVED_RIGID_ENTITY_SYNCHRONISATION
-		if (!m_hasAuthority)
+		if (!m_hasAuthority || ser.GetSerializationTarget()!=eST_Network)
 #endif
-		{
 			Action( &ad, 0 );
-		}
 	}
 
 	return CRigidEntity::SetStateFromSnapshot( ser, flags );

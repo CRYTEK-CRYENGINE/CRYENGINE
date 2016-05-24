@@ -846,7 +846,6 @@ void CParticleManager::UpdateEngineData()
 	m_RenderFlags.SetState(GetCVars()->e_ParticlesAnimBlend - 1, OS_ANIM_BLEND);
 	m_RenderFlags.SetState(GetCVars()->e_ParticlesMotionBlur - 1, FOB_MOTION_BLUR);
 	m_RenderFlags.SetState(GetCVars()->e_ParticlesShadows - 1, FOB_INSHADOW);
-	m_RenderFlags.SetState(GetCVars()->e_ParticlesGI - 1, FOB_GLOBAL_ILLUMINATION);
 	m_RenderFlags.SetState(GetCVars()->e_ParticlesSoftIntersect - 1, FOB_SOFT_PARTICLE);
 
 	if (GetRenderer())

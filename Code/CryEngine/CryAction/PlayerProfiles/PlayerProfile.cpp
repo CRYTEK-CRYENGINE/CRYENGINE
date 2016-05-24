@@ -178,7 +178,7 @@ bool CPlayerProfile::SetAttribute(const char* name, const TFlowInputData& value)
 {
 	if (IsDefault())
 		return false;
-	ScopedSwitchToGlobalHeap globalHeap;
+
 	m_attributeMap[name] = value;
 	return true;
 }

@@ -6,11 +6,11 @@
     "CryCore":[
       {
         "Platform":[
-          "CryPlatform/CryPlatform.Linux.h",
-          "CryPlatform/Linux32Specific.h",
-          "CryPlatform/Linux64Specific.h",
-          "CryPlatform/Linux_Win32Wrapper.h",
-          "CryPlatform/LinuxSpecific.h"
+          "CryCore/Platform/CryPlatform.Linux.h",
+          "CryCore/Platform/Linux32Specific.h",
+          "CryCore/Platform/Linux64Specific.h",
+          "CryCore/Platform/Linux_Win32Wrapper.h",
+          "CryCore/Platform/LinuxSpecific.h"
         ]
       }
     ]

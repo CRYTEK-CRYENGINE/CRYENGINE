@@ -15,6 +15,15 @@ typedef uint32 TCustomEventId;
 //! Invalid event id.
 static const TCustomEventId CUSTOMEVENTID_INVALID = 0;
 
+//! Enum to limit the ways the event can be used to avoid overpopulating flowgraph inputs and outputs.
+enum EPrefabEventType
+{
+	ePrefabEventType_InOut = 0,
+	ePrefabEventType_In,
+	ePrefabEventType_Out,
+};
+
+
 //! Custom event listener.
 struct ICustomEventListener
 {

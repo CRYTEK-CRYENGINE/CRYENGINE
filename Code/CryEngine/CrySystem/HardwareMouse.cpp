@@ -131,6 +131,13 @@ CHardwareMouse::~CHardwareMouse()
 
 void CHardwareMouse::ShowHardwareMouse(bool bShow)
 {
+	// Only manage mouse visibility if the application actually has focus.
+	// We don't want to mess around with the cursor otherwise
+	if (!m_bFocus)
+	{
+		return;
+	}
+
 	if (m_debugHardwareMouse)
 	{
 		CryLogAlways("HM: ShowHardwareMouse = %d", bShow);
@@ -145,14 +152,11 @@ void CHardwareMouse::ShowHardwareMouse(bool bShow)
 		GetHardwareMousePosition(&m_fCursorX, &m_fCursorY);
 	}
 
-	const bool bConfine = !bShow || IsFullscreen();
-	ConfineCursor(bConfine);
-
 	IInput* const pInput = gEnv->pInput;
 	if (pInput)
 	{
 		pInput->ShowCursor((bShow && !m_hide) || (m_allowConfine == false));
-		gEnv->pInput->SetExclusiveMode(eIDT_Mouse, false);
+		pInput->SetExclusiveMode(eIDT_Mouse, false);
 	}
 
 	m_calledShowHWMouse = true;
@@ -165,7 +169,7 @@ void CHardwareMouse::ConfineCursor(bool confine)
 	if (m_debugHardwareMouse)
 		CryLogAlways("HM: ConfineCursor = %d", confine);
 
-	if (!gEnv || gEnv->pRenderer == NULL || m_allowConfine == false)
+	if (!gEnv || gEnv->pRenderer == NULL || m_allowConfine == false || !m_bFocus)
 		return;
 
 #if CRY_PLATFORM_WINDOWS
@@ -332,48 +336,59 @@ bool CHardwareMouse::OnInputEvent(const SInputEvent& rInputEvent)
 	return false;
 }
 
+void CHardwareMouse::HandleFocusEvent(bool bFocus)
+{
+	//gEnv->pLog->Log("Change focus - %d", bFocus);
+
+	if (bFocus)
+	{
+		// set focus first so the calls below work
+		m_bFocus = true;
+
+		ShowHardwareMouse(m_iReferenceCounter >= 1);
+		EvaluateCursorConfinement();
+	}
+	else
+	{
+		// always, always show and release the mouse confinement when we lose focus
+		ShowHardwareMouse(true);
+		ConfineCursor(false);
+
+		// first release, then lose focus, so calls above work
+		m_bFocus = false;
+	}
+}
+
 //-----------------------------------------------------------------------------------------------------
 void CHardwareMouse::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
 {
+	// if we are in editor then we wait for ESYSTEM_EVENT_GAMEWINDOW_ACTIVATE instead because we care for more
+	// fine grained focus notifications to determine mouse visibility and capture
 	if (event == ESYSTEM_EVENT_ACTIVATE || event == ESYSTEM_EVENT_CHANGE_FOCUS)
 	{
-		//gEnv->pLog->Log("Change focus - %d", wparam);
-		m_bFocus = wparam != 0;
-
-		if (m_bFocus)
+		if (!gEnv->IsEditor())
 		{
-			if (!gEnv->IsEditing() && m_recapture)
-			{
-				m_recapture = false;
-				DecrementCounter();
-			}
-
-			if (IsFullscreen() || gEnv->IsEditorGameMode() || m_iReferenceCounter == 0)
-				ConfineCursor(true);
+			bool bFocus = (wparam != 0);
+			HandleFocusEvent(bFocus);
 		}
-		else
-		{
-			if (!gEnv->IsEditing() && m_iReferenceCounter == 0)
-			{
-				m_recapture = true;
-				IncrementCounter();
-			}
-		}
+	}
+	// only makes sense for editor (or engine clients that support many windows)
+	else if (event == ESYSTEM_EVENT_GAMEWINDOW_ACTIVATE)
+	{
+		bool bFocus = (wparam != 0);
+		HandleFocusEvent(bFocus);
 	}
 	else if (event == ESYSTEM_EVENT_MOVE)
 	{
-		if (IsFullscreen() || m_iReferenceCounter == 0)
-			ConfineCursor(true);
+		EvaluateCursorConfinement();
 	}
 	else if (event == ESYSTEM_EVENT_RESIZE)
 	{
-		if (IsFullscreen() || m_iReferenceCounter == 0)
-			ConfineCursor(true);
+		EvaluateCursorConfinement();
 	}
 	else if (event == ESYSTEM_EVENT_TOGGLE_FULLSCREEN)
 	{
-		if (wparam || m_iReferenceCounter == 0)
-			ConfineCursor(true);
+		EvaluateCursorConfinement();
 	}
 }
 
@@ -464,9 +479,10 @@ void CHardwareMouse::IncrementCounter()
 		CryLogAlways("HM: IncrementCounter = %d", m_iReferenceCounter);
 	CRY_ASSERT(m_iReferenceCounter >= 0);
 
-	if (1 == m_iReferenceCounter)
+	if (m_iReferenceCounter == 1)
 	{
 		ShowHardwareMouse(true);
+		EvaluateCursorConfinement();
 	}
 }
 
@@ -480,9 +496,10 @@ void CHardwareMouse::DecrementCounter()
 		CryLogAlways("HM: DecrementCounter = %d", m_iReferenceCounter);
 	CRY_ASSERT(m_iReferenceCounter >= 0);
 
-	if (0 == m_iReferenceCounter)
+	if (m_iReferenceCounter == 0)
 	{
 		ShowHardwareMouse(false);
+		EvaluateCursorConfinement();
 	}
 }
 
@@ -717,7 +734,6 @@ void CHardwareMouse::Reset(bool bVisibleByDefault)
 	m_fIncX = 0.0f;
 	m_fIncY = 0.0f;
 	m_bFocus = true;
-	m_recapture = false;
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -836,4 +852,11 @@ void CHardwareMouse::DestroyCursor()
 	}
 	m_nCurIDCCursorId = 0;
 #endif
+}
+
+void CHardwareMouse::EvaluateCursorConfinement()
+{
+	bool bConfine = IsFullscreen() || gEnv->IsEditorGameMode() || m_iReferenceCounter == 0;
+
+	ConfineCursor(bConfine);
 }

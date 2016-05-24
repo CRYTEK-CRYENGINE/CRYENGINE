@@ -1473,7 +1473,7 @@ struct CArticulatedEntitySerializer : CRigidEntitySerializer {
 		DECLARE_PROC("Host", &CArticulatedEntitySerializer::SerializeHost)
 		DECLARE_MEMBER("HostPivot", ft_vector, m_posHostPivot)
 		DECLARE_MEMBER("CheckCollisions", ft_int, m_bCheckCollisions)
-		DECLARE_MEMBER("CollisionResponse", ft_int, m_bCollisionResp)
+		DECLARE_MEMBER("Featherstone", ft_int, m_bFeatherstone)
 		DECLARE_MEMBER("ExertImpulse", ft_int, m_bExertImpulse)
 		DECLARE_MEMBER("SimType", ft_int, m_iSimType)
 		DECLARE_MEMBER("LyingSymType", ft_int, m_iSimTypeLyingMode)

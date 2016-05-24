@@ -14,6 +14,15 @@
 struct IAudioProxy;
 class CImplementationManager;
 
+namespace ACE
+{
+enum EErrorCode
+{
+	eErrorCode_NoError        = 0,
+	eErrorCode_UnkownPlatform = BIT(0),
+};
+}
+
 //------------------------------------------------------------------
 class CAudioControlsEditorPlugin : public IPlugin, public ISystemEventListener
 {
@@ -37,6 +46,7 @@ public:
 	static ACE::IAudioSystemEditor* GetAudioSystemEditorImpl();
 	static void                     ExecuteTrigger(const string& sTriggerName);
 	static void                     StopTriggerExecution();
+	static uint                     GetLoadingErrorMask() { return ms_loadingErrorMask; }
 
 private:
 	///////////////////////////////////////////////////////////////////////////
@@ -51,4 +61,5 @@ private:
 	static AudioControlId         ms_nAudioTriggerID;
 
 	static CImplementationManager ms_implementationManager;
+	static uint                   ms_loadingErrorMask;
 };

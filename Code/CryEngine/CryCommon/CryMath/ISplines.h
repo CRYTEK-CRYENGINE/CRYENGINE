@@ -486,10 +486,8 @@ public:
 						case ETangentType::Step:
 						case ETangentType::Zero:
 							Zero(key.dd);
-							break;
-						case ETangentType::Linear:
-							key.dd = next->value - key.value;
-							break;
+							// key.flags.outTangentType = ETangentType::Auto;
+							key.flags.outTangentType = ETangentType::Smooth;
 						}
 				}
 

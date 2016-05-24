@@ -5,21 +5,18 @@
 /editor.cfg
 /.bootstrap*.*
 
-# Ignore bin folders
-/bin/*
-/BinTemp/*
+/[Bb]in*/
+/[Ll]og[Bb]ackups
+/[Uu]ser*/
+_WAF_/user_settings.options
 
-# Ignore auto generated cmake and waf solutions
+
 /Solutions/*
 
 # Temp files
-/user/*
-/user(1)/*
-/user(2)/*
 *.log
 *.dmp
 /TestResults/*
-/LogBackups/*
 *.pyo
 *.pyc
 

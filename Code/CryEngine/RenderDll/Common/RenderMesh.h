@@ -19,6 +19,8 @@
 #include <CryCore/Containers/VectorSet.h>
 #include <CryMath/GeomQuery.h>
 
+#include "ComputeSkinningStorage.h"
+
 // Enable the below to get fatal error is some holds a rendermesh buffer lock for longer than 1 second
 //#define RM_CATCH_EXCESSIVE_LOCKS
 
@@ -145,11 +147,16 @@ private:
 
 	struct SBoneIndexStreamRequest
 	{
-		SBoneIndexStreamRequest(uint32 _guid, SVF_W4B_I4S* _pStream) : pStream(_pStream), guid(_guid), refcount(1) {}
+		SBoneIndexStreamRequest(uint32 _guid, SVF_W4B_I4S* _pStream, SMeshBoneMapping_uint16* _pExtraStream) :
+			pStream(_pStream),
+			pExtraStream(_pExtraStream),
+			guid(_guid), refcount(1)
+		{}
 
-		SVF_W4B_I4S* pStream;
-		uint32       guid;
-		uint32       refcount;
+		SVF_W4B_I4S*             pStream;
+		SMeshBoneMapping_uint16* pExtraStream;
+		uint32                   guid;
+		uint32                   refcount;
 	};
 
 	std::vector<SBoneIndexStream>        m_RemappedBoneIndices;
@@ -164,7 +171,7 @@ private:
 	Vec3*                                m_pCachePos; // float positions (cached)
 	int                    m_nFrameRequestCachePos;
 
-	Vec2*                  m_pCacheUVs; // float UVs (cached)
+	Vec2*                  m_pCacheUVs;         // float UVs (cached)
 	int                    m_nFrameRequestCacheUVs;
 
 	CRenderMesh*           m_pVertexContainer;
@@ -183,10 +190,10 @@ private:
 
 	ERenderPrimitiveType m_nPrimetiveType;
 	ERenderMeshType      m_eType;
-	uint16               m_nFlags         : 8;              // FRM_
-	int16                m_nLod           : 4;              // used for LOD debug visualization
+	uint16               m_nFlags         : 8; // FRM_
+	int16                m_nLod           : 4; // used for LOD debug visualization
 	bool                 m_keepSysMesh    : 1;
-	bool                 m_nFlagsCachePos : 1;              // only checked for FSL_WRITE, which can be represented as a single bit
+	bool                 m_nFlagsCachePos : 1; // only checked for FSL_WRITE, which can be represented as a single bit
 	bool                 m_nFlagsCacheUVs : 1;
 
 public:
@@ -369,7 +376,7 @@ public:
 	virtual void          CreateChunksSkinned() final;
 	virtual void          CopyTo(IRenderMesh* pDst, int nAppendVtx = 0, bool bDynamic = false, bool fullCopy = true) final;
 	virtual void          SetSkinningDataVegetation(struct SMeshBoneMapping_uint8* pBoneMapping) final;
-	virtual void          SetSkinningDataCharacter(CMesh& mesh, struct SMeshBoneMapping_uint16* pBoneMapping, struct SMeshBoneMapping_uint16* pExtraBoneMapping) final;
+	virtual void          SetSkinningDataCharacter(CMesh& mesh, uint32 flags, struct SMeshBoneMapping_uint16* pBoneMapping, struct SMeshBoneMapping_uint16* pExtraBoneMapping) final;
 	// Creates an indexed mesh from this render mesh (accepts an optional pointer to an IIndexedMesh object that should be used)
 	virtual IIndexedMesh* GetIndexedMesh(IIndexedMesh* pIdxMesh = 0) final;
 	virtual int           GetRenderChunksCount(IMaterial* pMat, int& nRenderTrisCount) final;
@@ -450,7 +457,8 @@ public:
 
 	virtual volatile int* SetAsyncUpdateState() final;
 	void                  CreateRemappedBoneIndicesPair(const uint pairGuid, const TRenderChunkArray& Chunks);
-	virtual void          CreateRemappedBoneIndicesPair(const DynArray<JointIdType>& arrRemapTable, const uint pairGuid) final;
+	virtual void          CreateRemappedBoneIndicesPair(const DynArray<JointIdType>& arrRemapTable, const uint pairGuid, const void* tag) final;
+	virtual void          CreateSkinnedOutput(const void* tag) final;
 	virtual void          ReleaseRemappedBoneIndicesPair(const uint pairGuid) final;
 
 	virtual void          OffsetPosition(const Vec3& delta) final { m_vBoxMin += delta; m_vBoxMax += delta; }
@@ -481,9 +489,9 @@ public:
 	static CryCriticalSection m_sLinkLock;
 
 	// intrusive list entries - a mesh can be in multiple lists at the same time
-	util::list<CRenderMesh> m_Chain;          // mesh will either be in the mesh list or garbage mesh list
-	util::list<CRenderMesh> m_Dirty[2];       // if linked, mesh has volatile data (data read back from vram)
-	util::list<CRenderMesh> m_Modified[2];    // if linked, mesh has modified data (to be uploaded to vram)
+	util::list<CRenderMesh> m_Chain;       // mesh will either be in the mesh list or garbage mesh list
+	util::list<CRenderMesh> m_Dirty[2];    // if linked, mesh has volatile data (data read back from vram)
+	util::list<CRenderMesh> m_Modified[2]; // if linked, mesh has modified data (to be uploaded to vram)
 
 	// The static list heads, corresponds to the entries above
 	static util::list<CRenderMesh> m_MeshList;
@@ -506,8 +514,8 @@ public:
 	uint32 m_nLastRenderFrameID;
 	uint32 m_nLastSubsetGCRenderFrameID;
 
-	string m_sType;                           //!< pointer to the type name in the constructor call
-	string m_sSource;                         //!< pointer to the source  name in the constructor call
+	string m_sType;                        //!< pointer to the type name in the constructor call
+	string m_sSource;                      //!< pointer to the source  name in the constructor call
 
 	// For debugging purposes to catch longstanding data accesses
 #if !defined(_RELEASE) && defined(RM_CATCH_EXCESSIVE_LOCKS)
@@ -524,10 +532,39 @@ public:
 	CryCriticalSection m_getTrisForPositionLock;
 #endif
 
-	CGpuBuffer m_extraBonesBuffer;
 #ifdef MESH_TESSELLATION_RENDERER
-	CGpuBuffer m_adjBuffer; // buffer containing adjacency information to fix displacement seams
+	CGpuBuffer m_adjBuffer;                // buffer containing adjacency information to fix displacement seams
 #endif
+
+	CGpuBuffer m_extraBonesBuffer;
+
+	// shared inputs
+	compute_skinning::SResourceHandle m_skinBoneInfluencesSRVHandle;
+	compute_skinning::SResourceHandle m_skinBoneInfluencesMapSRVHandle;
+	compute_skinning::SResourceHandle m_skinBindPoseVerticesSRVHandle;
+	compute_skinning::SResourceHandle m_skinIndicesSRVHandle;
+	compute_skinning::SResourceHandle m_skinTriangleAdjacencySRVHandle;
+	compute_skinning::SResourceHandle m_vertexDeltasSRVHandle;
+	compute_skinning::SResourceHandle m_vertexMorphsBitfieldSRVHandle;
+
+	// instanced output buffer with key being a pointer to a AttachmentSkin object which
+	// is unique per skeleton
+	struct CSOutputs
+	{
+		compute_skinning::SResourceHandle skinnedUAVHandle;
+		compute_skinning::SResourceHandle tangentsUAVHandle;
+	};
+
+	typedef std::unordered_map<const void*, CSOutputs> CSSkinOutputMap;
+	CSSkinOutputMap          m_outVerticesUAV;
+
+	std::vector<const void*> m_skinnedOutputRequest[2];
+	uint32                   m_nMorphs;
+
+	void ComputeSkinningCreateSkinningBuffers(const SVF_W4B_I4S* pBoneMapping, const SMeshBoneMapping_uint16* pExtraBoneMapping);
+	void ComputeSkinningCreateBindPoseBuffers(CMesh& mesh);
+	void ComputeSkinningCreateMorphsBuffer(CMesh& mesh);
+	SMeshBoneMapping_uint16* m_pExtraBoneMapping;
 
 	static void Initialize();
 	static void ShutDown();

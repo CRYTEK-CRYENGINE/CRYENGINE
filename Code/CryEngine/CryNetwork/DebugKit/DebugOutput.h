@@ -4,7 +4,7 @@
 
 #include <deque>
 #include "Context/SessionID.h"
-#include "Socket/NetAddress.h"
+#include "Socket/NetResolver.h"
 
 class CDebugOutput
 {

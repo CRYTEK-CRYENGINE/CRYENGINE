@@ -30,10 +30,27 @@ SGraphicsPipelineStateDescription::SGraphicsPipelineStateDescription(
 		SRenderObjData* pOD = pObj->GetObjData();
 		if (pOD && (pSkinningData = pOD->m_pSkinningData))
 		{
-			if (pSkinningData->nHWSkinningFlags & eHWS_SkinnedLinear)
-				objectRuntimeMask |= (g_HWSR_MaskBit[HWSR_SKELETON_SSD_LINEAR]);
+			ICVar* cvar_gd = gEnv->pConsole->GetCVar("r_ComputeSkinning");
+			bool bDoComputeDeformation = (cvar_gd && cvar_gd->GetIVal()) && (pSkinningData->nHWSkinningFlags & eHWS_DC_deformation_Skinning);
+
+			// here we decide if we go compute or vertex skinning
+			// problem is once the rRP.m_FlagsShader_RT gets vertex skinning removed, if the UAV is not available in the below rendering loop,
+			// the mesh won't get drawn. There is need for another way to do this
+			if (bDoComputeDeformation)
+			{
+				objectRuntimeMask |= (g_HWSR_MaskBit[HWSR_COMPUTE_SKINNING]);
+				if (pSkinningData->nHWSkinningFlags & eHWS_SkinnedLinear)
+					objectRuntimeMask &= ~(g_HWSR_MaskBit[HWSR_SKELETON_SSD_LINEAR]);
+				else
+					objectRuntimeMask &= ~(g_HWSR_MaskBit[HWSR_SKELETON_SSD]);
+			}
 			else
-				objectRuntimeMask |= (g_HWSR_MaskBit[HWSR_SKELETON_SSD]);
+			{
+				if (pSkinningData->nHWSkinningFlags & eHWS_SkinnedLinear)
+					objectRuntimeMask |= (g_HWSR_MaskBit[HWSR_SKELETON_SSD_LINEAR]);
+				else
+					objectRuntimeMask |= (g_HWSR_MaskBit[HWSR_SKELETON_SSD]);
+			}
 		}
 	}
 }

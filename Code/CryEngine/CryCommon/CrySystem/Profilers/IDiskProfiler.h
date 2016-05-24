@@ -72,8 +72,6 @@ public:
 	{
 		if (pProfiler && pProfiler->IsEnabled())
 		{
-			ScopedSwitchToGlobalHeap globalHeap;
-
 			m_pStatistics = new SDiskProfileStatistics;
 			m_pStatistics->m_threadId = CryGetCurrentThreadId();
 			m_pStatistics->m_beginIOTime = gEnv->pTimer->GetAsyncCurTime();

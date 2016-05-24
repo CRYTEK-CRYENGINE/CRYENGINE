@@ -2,7 +2,12 @@
 
 #pragma once
 
+#include <CrySystem/IStreamEngine.h>
+#include "Controller.h"
+#include "ControllerPQ.h"
 #include "ControllerOpt.h"
+
+class CControllerOptNonVirtual;
 
 struct CInternalDatabaseInfo : public IStreamCallback, public IControllerRelocatableChain
 {

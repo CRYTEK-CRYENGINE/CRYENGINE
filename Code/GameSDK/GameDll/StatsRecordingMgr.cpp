@@ -1783,7 +1783,6 @@ void CTelemetryCopierThread::ThreadEntry()
 	m_runTime=gEnv->pTimer->GetAsyncCurTime();
 #endif
 
-	ScopedSwitchToGlobalHeap globalHeapSwitch;
 	GetISystem()->GetXmlUtils()->SetStatsOwnerThread(CryGetCurrentThreadId());
 	m_pOutProducer = new CTelemetryCopier(m_pInProducer);
 #ifndef _RELEASE

@@ -800,7 +800,6 @@ void CDownloadMgr::PurgeLocalizedResourceByName(
 CDownloadableResourcePtr CDownloadMgr::FindLocalizedResourceByName(
 	const char									*inResourceName)
 {
-	ScopedSwitchToGlobalHeap		useGlobalHeap;
 	CDownloadableResourcePtr		templateResource=FindResourceByName(inResourceName);
 	CDownloadableResourcePtr		result=NULL;
 

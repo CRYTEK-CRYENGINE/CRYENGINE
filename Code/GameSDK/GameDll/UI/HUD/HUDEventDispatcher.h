@@ -575,6 +575,7 @@ namespace CHUDEventDispatcher
 	void					RemoveHUDEventListener(const IHUDEventListener* listener);
 	void					CallEvent(const SHUDEvent& event);
 	EHUDEventType	GetEvent(const char* eventName);
+	string        GetEventName(EHUDEventType inputEvent);
 
 	void          CheckRegisteredEvents( void );
 

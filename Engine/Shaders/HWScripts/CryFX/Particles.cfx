@@ -11,7 +11,6 @@
 #include "ParticleVT.cfi"
 #include "ModificatorVT.cfi"
 #include "ShadeLib.cfi"
-#include "LightPropagationVolumes.cfi"
 #include "LightVolumes.cfi"
 #include "ParticlesShadowPass.cfi"
 

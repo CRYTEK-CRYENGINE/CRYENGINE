@@ -39,7 +39,7 @@ struct SPostEffectsUtils
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	// Begins render pass utility - for post process stuff only pass 0 assumed to be used
-	static bool ShBeginPass(CShader* pShader, const CCryNameTSCRC& TechName, uint32 nFlags = 0);
+	static bool ShBeginPass(CShader* pShader, const CCryNameTSCRC& TechName, uint32 nFlags = 0, const uint32 pass = 0);
 
 	// Ends render pass utility
 	static void ShEndPass();

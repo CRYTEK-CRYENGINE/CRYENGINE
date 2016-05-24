@@ -464,7 +464,6 @@ private:
 
 	ILINE static TPool* CreatePoolOnGlobalHeap(size_t nSize, size_t nAlign = 0)
 	{
-		ScopedSwitchToGlobalHeap globalHeap;
 		return StaticAllocator().CreatePool(nSize, nAlign);
 	}
 };

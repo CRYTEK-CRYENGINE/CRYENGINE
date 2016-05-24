@@ -432,7 +432,6 @@ ColorB JobManager::CJobManager::GenerateColorBasedOnName(const char* name)
 
 const JobManager::TJobHandle JobManager::CJobManager::GetJobHandle(const char* cpJobName, const uint32 cStrLen, JobManager::Invoker pInvoker)
 {
-	ScopedSwitchToGlobalHeap heapSwitch;
 	static JobManager::SJobStringHandle cFailedLookup = { "", 0 };
 	JobManager::SJobStringHandle cLookup = { cpJobName, cStrLen };
 	bool bJobIdSet = false;
@@ -879,7 +878,6 @@ struct SThreadProflingRenderData
 
 void JobManager::CJobManager::Update(int nJobSystemProfiler)
 {
-	ScopedSwitchToGlobalHeap heapSwitch;
 #if 0 // integrate into profiler after fixing it's memory issues
 	float fColorGreen[4] = { 0, 1, 0, 1 };
 	float fColorRed[4] = { 1, 0, 0, 1 };
@@ -1408,8 +1406,6 @@ void JobManager::CJobManager::Update(int nJobSystemProfiler)
 void JobManager::CJobManager::SetFrameStartTime(const CTimeValue& rFrameStartTime)
 {
 #if defined(JOBMANAGER_SUPPORT_PROFILING)
-	ScopedSwitchToGlobalHeap heapSwitch;
-
 	if (!m_bJobSystemProfilerPaused)
 		++m_profilingData.nFrameIdx;
 
@@ -1476,7 +1472,6 @@ void JobManager::CJobManager::PopProfilingMarker()
 ColorB JobManager::CJobManager::GetRegionColor(SMarker::TMarkerString marker)
 {
 #if defined(JOBMANAGER_SUPPORT_PROFILING)
-	ScopedSwitchToGlobalHeap heapSwitch;
 	if (m_RegionColors.find(marker) == m_RegionColors.end())
 	{
 		m_RegionColors[marker] = GenerateColorBasedOnName(marker.c_str());

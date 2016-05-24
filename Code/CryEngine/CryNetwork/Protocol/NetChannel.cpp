@@ -15,7 +15,6 @@
 #include <CrySystem/ITimer.h>
 #include "Context/ClientContextView.h"
 #include "Context/ServerContextView.h"
-#include "Context/PeerContextView.h"
 #include <CryString/StringUtils.h>
 #include "FixedSizeArena.h"
 #include "Context/SyncedFileSet.h"
@@ -139,14 +138,6 @@ void CNetChannel::SetServer(INetContext* pNetContext)
 	m_fastLookupId = CNetwork::Get()->RegisterForFastLookup(this);
 }
 
-void CNetChannel::SetPeer(INetContext* pNetContext)
-{
-	SCOPED_GLOBAL_LOCK;
-	CRY_ASSERT_MESSAGE(!m_pContextView, "Error: setting the channel type twice.");
-	CRY_ASSERT_MESSAGE(pNetContext, "Must set a context to make a peer.");
-	m_pContextView = new CPeerContextView(this, (CNetContext*)pNetContext);
-}
-
 void CNetChannel::PerformRegularCleanup()
 {
 	m_ctpEndpoint.PerformRegularCleanup();
@@ -222,10 +213,6 @@ void CNetChannel::GetBandwidthStatistics(uint32 channelIndex, SBandwidthStats* c
 		if (m_pContextView->IsServer())
 		{
 			type = 'S';
-		}
-		if (m_pContextView->IsPeer())
-		{
-			type = 'P';
 		}
 	}
 
@@ -750,58 +737,6 @@ NET_IMPLEMENT_IMMEDIATE_MESSAGE(CNetChannel, Pong, eNRT_UnreliableUnordered, 0)
 	return true;
 }
 
-#if NETWORK_REBROADCASTER
-NET_IMPLEMENT_SIMPLE_IMMEDIATE_MESSAGE(CNetChannel, RebroadcasterPopulate, eNRT_ReliableOrdered, eMPF_NoSendDelay)
-{
-	CCryRebroadcaster* pRebroadcaster = NULL;
-	CCryLobby* pLobby = (CCryLobby*)CCryLobby::GetLobby();
-	if (pLobby)
-	{
-		pRebroadcaster = pLobby->GetRebroadcaster();
-	}
-
-	if (pRebroadcaster)
-	{
-		pRebroadcaster->AddConnection(param.msg);
-	}
-	return true;
-}
-
-NET_IMPLEMENT_SIMPLE_IMMEDIATE_MESSAGE(CNetChannel, RebroadcasterDelete, eNRT_ReliableOrdered, eMPF_NoSendDelay)
-{
-	CCryRebroadcaster* pRebroadcaster = NULL;
-	CCryLobby* pLobby = (CCryLobby*)CCryLobby::GetLobby();
-	if (pLobby)
-	{
-		pRebroadcaster = pLobby->GetRebroadcaster();
-	}
-
-	if (pRebroadcaster)
-	{
-		pRebroadcaster->DeleteConnection(param.channelID, true, false);
-	}
-
-	return true;
-}
-
-NET_IMPLEMENT_SIMPLE_IMMEDIATE_MESSAGE(CNetChannel, RebroadcasterUpdate, eNRT_ReliableOrdered, eMPF_NoSendDelay)
-{
-	CCryRebroadcaster* pRebroadcaster = NULL;
-	CCryLobby* pLobby = (CCryLobby*)CCryLobby::GetLobby();
-	if (pLobby)
-	{
-		pRebroadcaster = pLobby->GetRebroadcaster();
-	}
-
-	if (pRebroadcaster)
-	{
-		pRebroadcaster->SetStatus(param.fromID, param.toID, static_cast<ERebroadcasterConnectionStatus>(param.state), false);
-	}
-
-	return true;
-}
-#endif // NETWORK_REBROADCASTER
-
 CTimeValue CNetChannel::GetInactivityTimeout(bool backingOff)
 {
 	CTimeValue inactivityTimeout = 30.0f;
@@ -912,9 +847,7 @@ void CNetChannel::UpdateTimer(CTimeValue time, bool forceUpdate)
 
 void CNetChannel::Init(CNetNub* pNub, IGameChannel* pGameChannel)
 {
-#if !NETWORK_REBROADCASTER
 	NET_ASSERT(!m_pGameChannel);
-#endif
 	m_pNub = pNub;
 	m_pGameChannel = pGameChannel;
 
@@ -1219,24 +1152,16 @@ void CNetChannel::Destroy(EDisconnectionCause cause, string msg)
 	if (!m_bDead)
 	{
 		MMM_REGION(m_pMMM);
-		bool isPeer = (m_pContextView != NULL) ? m_pContextView->IsPeer() : false;
 
 		m_bDead = true;
-
-		if (!isPeer)
-		{
-			DisconnectGame(cause, msg);
-		}
+		DisconnectGame(cause, msg);
 
 		if (m_pContextView)
 		{
 			m_pContextView->Die();
 		}
 
-		if (!isPeer)
-		{
-			TO_GAME(&CNetChannel::GC_DeleteGameChannel, this, CDontDieLock(this));
-		}
+		TO_GAME(&CNetChannel::GC_DeleteGameChannel, this, CDontDieLock(this));
 
 		m_ctpEndpoint.EmptyMessages();
 		m_bConnectionEstablished = false;

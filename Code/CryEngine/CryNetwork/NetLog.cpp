@@ -268,7 +268,6 @@ static void RecordNetLog(uint32 sev, float timeout, const char* fmt, va_list arg
 	if ((sev & eNLS_Secret) == 0)
 	{
 		SCOPED_GLOBAL_LOG_LOCK;
-		ScopedSwitchToGlobalHeap useGlobalHeap;
 		g_backlog.CyclePush(string().Format("[%s] %s", rec.tstamp, rec.msg));
 	}
 

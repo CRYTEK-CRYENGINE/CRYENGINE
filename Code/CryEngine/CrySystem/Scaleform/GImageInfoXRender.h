@@ -20,10 +20,7 @@ class ITexture;
 class CryGImageInfoBase : public GImageInfoBase
 {
 public:
-	CryGImageInfoBase();
-
-protected:
-	const bool m_createdInGlobalHeap;
+	CryGImageInfoBase() {}
 };
 
 class GImageInfoXRender : public CryGImageInfoBase
@@ -134,8 +131,6 @@ private:
 	IFlashLoadMovieImage* m_pSrc;
 	GPtr<GTexture>        m_pTex;
 };
-
-void RegisterCryGImageInfoSystemEventListener();
 
 #endif // #ifdef INCLUDE_SCALEFORM_SDK
 

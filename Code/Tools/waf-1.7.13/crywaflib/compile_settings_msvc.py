@@ -63,6 +63,9 @@ def load_msvc_common_settings(conf):
 	v['cstlib_PATTERN']      = '%s.lib'
 	v['cxxstlib_PATTERN']    = '%s.lib'
 	
+	v['STATIC_CODE_ANALYZE_cflags'] = ['/analyze']
+	v['STATIC_CODE_ANALYZE_cxxflags'] = ['/analyze']
+	
 	# Set common compiler flags	
 	COMMON_COMPILER_FLAGS = [
 		'/nologo',		# Suppress Copyright and version number message

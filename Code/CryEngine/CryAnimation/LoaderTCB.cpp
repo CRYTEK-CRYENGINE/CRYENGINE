@@ -426,14 +426,14 @@ bool CLoaderTCB::ReadController(IChunkFile::ChunkDesc* pChunkDesc)
 		_smart_ptr<IKeyTimesInformation> pPosTimeKeys;
 		//		KeyTimesInformationPtr pSclTimeKeys;
 
-		RotationControllerPtr pRotation;
-		PositionControllerPtr pPosition;
+		IRotationController* pRotation;
+		IPositionController* pPosition;
 		//		PositionControllerPtr pScale;
 
 		if (pCtrlChunk->numRotationKeys)
 		{
 			// we have a rotation info
-			pRotation = RotationControllerPtr(new RotationTrackInformation);
+			pRotation = new RotationTrackInformation;
 
 			ITrackRotationStorage* pStorage = ControllerHelper::GetRotationControllerPtr(pCtrlChunk->RotationFormat);
 			if (!pStorage)
@@ -456,9 +456,9 @@ bool CLoaderTCB::ReadController(IChunkFile::ChunkDesc* pChunkDesc)
 
 		if (pCtrlChunk->numPositionKeys)
 		{
-			pPosition = PositionControllerPtr(new PositionTrackInformation);
+			pPosition = new PositionTrackInformation;
 
-			TrackPositionStoragePtr pStorage = ControllerHelper::GetPositionControllerPtr(pCtrlChunk->PositionFormat);
+			ITrackPositionStorage* pStorage = ControllerHelper::GetPositionControllerPtr(pCtrlChunk->PositionFormat);
 			if (!pStorage)
 				return false;
 

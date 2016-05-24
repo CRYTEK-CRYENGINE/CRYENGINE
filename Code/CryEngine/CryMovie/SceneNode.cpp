@@ -11,7 +11,6 @@
 #include "AnimCameraNode.h"
 #include "Movie.h"
 
-#include <CryAudio/IAudioSystem.h>
 #include <CrySystem/IConsole.h>
 
 #define s_nodeParamsInitialized s_nodeParamsInitializedScene
@@ -68,7 +67,7 @@ void CAnimSceneNode::Initialize()
 	if (!s_nodeParamsInitialized)
 	{
 		s_nodeParamsInitialized = true;
-		s_nodeParams.reserve(11);
+		s_nodeParams.reserve(9);
 		AddSupportedParam("Camera", eAnimParamType_Camera, eAnimValue_Unknown);
 		AddSupportedParam("Event", eAnimParamType_Event, eAnimValue_Unknown);
 		AddSupportedParam("Sequence", eAnimParamType_Sequence, eAnimValue_Unknown);
@@ -185,7 +184,6 @@ void CAnimSceneNode::Animate(SAnimContext& animContext)
 
 	PrecacheDynamic(animContext.time);
 
-	size_t nNumAudioTracks = 0;
 	int trackCount = NumTracks();
 
 	for (int paramIndex = 0; paramIndex < trackCount; paramIndex++)
@@ -229,69 +227,6 @@ void CAnimSceneNode::Animate(SAnimContext& animContext)
 			pGotoTrack = (CGotoTrack*)pTrack;
 			break;
 
-		case eAnimParamType_AudioTrigger:
-			{
-				++nNumAudioTracks;
-
-				if (nNumAudioTracks > m_soundInfo.size())
-				{
-					m_soundInfo.resize(nNumAudioTracks);
-				}
-
-				bool const bMute = gEnv->IsEditor() && (pTrack->GetFlags() & IAnimTrack::eAnimTrackFlags_Muted);
-
-				if (!animContext.bResetting && !bMute && animContext.time > SAnimTime(0))
-				{
-					SAudioTriggerKey audioTriggerKey;
-					int const audioTriggerKeyIndex = static_cast<CAudioTriggerTrack*>(pTrack)->GetActiveKey(animContext.time, &audioTriggerKey);
-					SSoundInfo& soundInfo = m_soundInfo[nNumAudioTracks - 1];
-
-					if (audioTriggerKeyIndex >= 0)
-					{
-						const SAnimTime audioTriggerKeyTime = (animContext.time - audioTriggerKey.m_time);
-
-						if (soundInfo.nSoundKeyStart < audioTriggerKeyIndex)
-						{
-							ApplyAudioKey(audioTriggerKey.m_startTrigger);
-						}
-
-						if (soundInfo.nSoundKeyStart > audioTriggerKeyIndex)
-						{
-							soundInfo.nSoundKeyStop = audioTriggerKeyIndex;
-						}
-
-						soundInfo.nSoundKeyStart = audioTriggerKeyIndex;
-
-						if (audioTriggerKeyTime >= audioTriggerKey.m_duration)
-						{
-							if (soundInfo.nSoundKeyStop < audioTriggerKeyIndex)
-							{
-								soundInfo.nSoundKeyStop = audioTriggerKeyIndex;
-
-								if (audioTriggerKey.m_stopTrigger[0] != '\0')
-								{
-									ApplyAudioKey(audioTriggerKey.m_stopTrigger);
-								}
-								else
-								{
-									ApplyAudioKey(audioTriggerKey.m_startTrigger, false);
-								}
-							}
-						}
-						else
-						{
-							soundInfo.nSoundKeyStop = -1;
-						}
-					}
-					else
-					{
-						soundInfo.nSoundKeyStart = -1;
-						soundInfo.nSoundKeyStop = -1;
-					}
-				}
-
-				break;
-			}
 		case eAnimParamType_TimeWarp:
 			{
 				const TMovieSystemValue value = pTrack->GetValue(animContext.time);
@@ -860,31 +795,6 @@ void CAnimSceneNode::ApplyCameraKey(SCameraKey& key, SAnimContext& animContext)
 void CAnimSceneNode::ApplyEventKey(SEventKey& key, SAnimContext& animContext)
 {
 	gEnv->pMovieSystem->SendGlobalEvent("Event_" + key.m_event);
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CAnimSceneNode::ApplyAudioKey(char const* const sTriggerName, bool const bPlay /* = true */)
-{
-	AudioControlId nAudioTriggerID = INVALID_AUDIO_CONTROL_ID;
-
-	if (gEnv->pAudioSystem->GetAudioTriggerId(sTriggerName, nAudioTriggerID))
-	{
-		SAudioRequest oRequest;
-		oRequest.flags = eAudioRequestFlags_PriorityHigh;
-
-		if (bPlay)
-		{
-			SAudioObjectRequestData<eAudioObjectRequestType_ExecuteTrigger> oRequestData(nAudioTriggerID, 0.0f);
-			oRequest.pData = &oRequestData;
-			gEnv->pAudioSystem->PushRequest(oRequest);
-		}
-		else
-		{
-			SAudioObjectRequestData<eAudioObjectRequestType_StopTrigger> oRequestData(nAudioTriggerID);
-			oRequest.pData = &oRequestData;
-			gEnv->pAudioSystem->PushRequest(oRequest);
-		}
-	}
 }
 
 void CAnimSceneNode::ApplySequenceKey(IAnimTrack* pTrack, int nPrevKey, int nCurrKey, SSequenceKey& key, SAnimContext& animContext)

@@ -185,6 +185,11 @@ half3 GetTerrainNormal(Texture2D tex, float2 terrainTC)
 	terrainNor.z = sqrt(saturate(1.h - (terrainNor.x * terrainNor.x + terrainNor.y * terrainNor.y))); 
 	return terrainNor; 
 }
+float GetTerrainElevation(Texture2D tex, float2 terrainTC)
+{
+	half4 terrainElev = GetTexture2D(tex, ssMaterialBilinearClamp, terrainTC);
+	return terrainElev.x;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Gradient maps
@@ -666,6 +671,12 @@ half3 GetTerrainNormal(sampler2D s, float2 terrainTC)
 	terrainNor.xy = (terrainNor.xy - 0.5h) * 2.h;
 	terrainNor.z = sqrt( saturate( 1.h - (terrainNor.x * terrainNor.x + terrainNor.y * terrainNor.y) ) );
 	return terrainNor;
+}
+
+half3 GetTerrainElevation(sampler2D s, float2 terrainTC)
+{
+	half4 terrainElev = tex2D(s, terrainTC);
+	return terrainElev.x;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

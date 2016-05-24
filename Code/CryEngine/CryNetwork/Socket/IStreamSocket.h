@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "NetAddress.h"
+#include <CryNetwork/NetAddress.h>
 #include <CrySystem/TimeValue.h>
 #include "ISocketIOManager.h"
 

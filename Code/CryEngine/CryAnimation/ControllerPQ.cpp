@@ -147,7 +147,7 @@ IKeyTimesInformation* GetKeyTimesControllerPtr(uint32 format, void* pData, size_
 	return 0;
 }
 
-} // namespace ControllerHelper
+}                                                                                // namespace ControllerHelper
 
 #if 0 // Currently unused, and needs support for modifiable controllers
 void CCompressedController::UnCompress()

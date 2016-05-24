@@ -310,7 +310,7 @@ public:
 	void                                            SetDopplerTracking(bool const bEnable);
 	void                                            SetVelocityTracking(bool const bEnable);
 	void                                            UpdateControls(float const deltaTime, CryAudio::Impl::SAudioObject3DAttributes const& listenerAttributes);
-	bool                                            CanRelease() const;
+	bool                                            CanBeReleased() const;
 	AudioEnumFlagsType                              GetFlags() const { return m_flags; }
 	void                                            SetFlag(EAudioObjectFlags const flag);
 	void                                            RemoveFlag(EAudioObjectFlags const flag);

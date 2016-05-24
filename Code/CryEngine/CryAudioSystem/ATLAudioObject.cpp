@@ -986,12 +986,12 @@ void CATLAudioObject::UpdateControls(float const deltaTime, SAudioObject3DAttrib
 }
 
 ///////////////////////////////////////////////////////////////////////////
-bool CATLAudioObject::CanRelease() const
+bool CATLAudioObject::CanBeReleased() const
 {
-	return m_activeEvents.empty() &&
+	return (m_flags & eAudioObjectFlags_DoNotRelease) == 0 &&
+	       m_activeEvents.empty() &&
 	       m_activeStandaloneFiles.empty() &&
-	       !m_propagationProcessor.HasPendingRays() &&
-	       !(m_flags & eAudioObjectFlags_DoNotRelease);
+	       !m_propagationProcessor.HasPendingRays();
 }
 
 ///////////////////////////////////////////////////////////////////////////

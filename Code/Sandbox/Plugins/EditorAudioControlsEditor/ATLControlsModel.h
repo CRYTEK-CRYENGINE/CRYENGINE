@@ -5,21 +5,10 @@
 #include <CryString/CryString.h>
 #include "AudioControl.h"
 #include <IAudioConnection.h>
+#include "ACETypes.h"
 
 namespace ACE
 {
-// available levels where the controls can be stored
-struct SControlScope
-{
-	SControlScope() {}
-	SControlScope(const string& _name, bool _bOnlyLocal) : name(_name), bOnlyLocal(_bOnlyLocal) {}
-	string name;
-
-	// if true, there is a level in the game audio
-	// data that doesn't exist in the global list
-	// of levels for your project
-	bool bOnlyLocal;
-};
 
 struct IATLControlModelListener
 {
@@ -45,29 +34,20 @@ public:
 	void         RemoveControl(CID id);
 
 	CATLControl* GetControlByID(CID id) const;
-	CATLControl* FindControl(const string& sControlName, EACEControlType eType, const string& sScope, CATLControl* pParent = nullptr) const;
-
-	// Platforms
-	string GetPlatformAt(uint index);
-	void   AddPlatform(const string& name);
-	uint   GetPlatformCount();
-
-	// Connection Groups
-	void   AddConnectionGroup(const string& name);
-	int    GetConnectionGroupId(const string& name);
-	int    GetConnectionGroupCount() const;
-	string GetConnectionGroupAt(int index) const;
+	CATLControl* FindControl(const string& sControlName, EACEControlType eType, Scope scope, CATLControl* pParent = nullptr) const;
 
 	// Scope
-	void          AddScope(const string& name, bool bLocalOnly = false);
-	void          ClearScopes();
-	int           GetScopeCount() const;
-	SControlScope GetScopeAt(int index) const;
-	bool          ScopeExists(const string& name) const;
+	void       ClearScopes();
+	Scope      GetGlobalScope() const;
+	void       AddScope(const string& name, bool bLocalOnly = false);
+	bool       ScopeExists(const string& name) const;
+	Scope      GetScope(const string& name) const;
+	SScopeInfo GetScopeInfo(Scope id) const;
+	void       GetScopeInfoList(ScopeInfoList& scopeList) const;
 
 	// Helper functions
-	bool   IsNameValid(const string& name, EACEControlType type, const string& scope, const CATLControl* const pParent = nullptr) const;
-	string GenerateUniqueName(const string& sRootName, EACEControlType eType, const string& sScope, const CATLControl* const pParent = nullptr) const;
+	bool   IsChangeValid(const CATLControl* const pControlToChange, const string& newName, Scope newScope) const;
+	string GenerateUniqueName(const CATLControl* const pControlToChange, const string& newName) const;
 	void   ClearAllConnections();
 	void   ReloadAllConnections();
 
@@ -90,11 +70,9 @@ private:
 	std::shared_ptr<CATLControl> TakeControl(CID nID);
 	void                         InsertControl(std::shared_ptr<CATLControl> pControl);
 
-	static CID                                m_nextId;
+	static CID m_nextId;
 	std::vector<std::shared_ptr<CATLControl>> m_controls;
-	std::vector<string>                       m_platforms;
-	std::vector<SControlScope>                m_scopes;
-	std::vector<string>                       m_connectionGroups;
+	std::map<Scope, SScopeInfo>               m_scopeMap;
 
 	std::vector<IATLControlModelListener*>    m_listeners;
 	bool m_bSuppressMessages;

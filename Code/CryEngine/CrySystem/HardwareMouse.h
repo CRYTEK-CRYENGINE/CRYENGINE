@@ -83,6 +83,10 @@ private:
 	void        ShowHardwareMouse(bool bShow);
 	static bool IsFullscreen();
 	void        DestroyCursor();
+	//! evaluate cursor confine state from current reference counting
+	void        EvaluateCursorConfinement();
+	//! respond to focus-in, focus-out events
+	void        HandleFocusEvent(bool bFocus);
 
 	typedef std::list<IHardwareMouseEventListener*> TListHardwareMouseEventListeners;
 	TListHardwareMouseEventListeners m_listHardwareMouseEventListeners;
@@ -95,7 +99,6 @@ private:
 	float                            m_fIncX;
 	float                            m_fIncY;
 	bool                             m_bFocus;
-	bool                             m_recapture;
 	const bool                       m_allowConfine;
 
 	string                           m_curCursorPath;

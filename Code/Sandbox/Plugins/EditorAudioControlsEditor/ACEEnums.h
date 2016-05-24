@@ -6,6 +6,7 @@ enum EItemType
 {
 	eItemType_Folder = 0,
 	eItemType_AudioControl,
+	eItemType_Root,
 	eItemType_Invalid,
 };
 

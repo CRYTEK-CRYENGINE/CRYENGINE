@@ -1,16 +1,23 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
-#include "QATLControlsTreeModel.h"
-#include "AudioControl.h"
-#include "QAudioControlTreeWidget.h"
-#include "IEditor.h"
-#include "AudioControlsEditorUndo.h"
-#include "IAudioSystemEditor.h"
+#include "IAudioSystemItem.h"
+#include "AudioControlsEditorPlugin.h"
+#include "AudioSystemModel.h"
 
 #include <QtUtil.h>
 #include <QStandardItem>
 #include <QMessageBox>
+
+#include "AudioControl.h"
+#include "AudioControlsEditorPlugin.h"
+#include "AudioControlsEditorUndo.h"
+#include "AudioSystemModel.h"
+#include "IAudioSystemEditor.h"
+#include "IAudioSystemItem.h"
+#include "IEditor.h"
+#include "QATLControlsTreeModel.h"
+#include "QAudioControlTreeWidget.h"
 
 namespace ACE
 {
@@ -256,11 +263,10 @@ QStandardItem* QATLTreeModel::ControlsRootItem()
 			if (pControlsParent)
 			{
 				invisibleRootItem()->insertRow(0, pControlsParent);
-				pControlsParent->setData(eItemType_Folder, eDataRole_Type);
 				pControlsParent->setData(ACE_INVALID_ID, eDataRole_Id);
-				pControlsParent->setFlags(Qt::ItemIsEnabled);
-				pControlsParent->setData(eItemType_Invalid, eDataRole_Type);
+				pControlsParent->setData(eItemType_Root, eDataRole_Type);
 				pControlsParent->setData(false, eDataRole_Modified);
+				pControlsParent->setFlags(Qt::ItemIsEnabled | Qt::ItemIsDropEnabled);
 
 				QFont boldFont;
 				boldFont.setBold(true);
@@ -275,8 +281,7 @@ QStandardItem* QATLTreeModel::ControlsRootItem()
 
 CATLControl* QATLTreeModel::CreateControl(EACEControlType eControlType, const string& sName, CATLControl* pParent)
 {
-	string sFinalName = m_pControlsModel->GenerateUniqueName(sName, eControlType, pParent ? pParent->GetScope() : "", pParent);
-	return m_pControlsModel->CreateControl(sFinalName, eControlType, pParent);
+	return m_pControlsModel->CreateControl(sName, eControlType, pParent);
 }
 
 bool QATLTreeModel::dropMimeData(const QMimeData* pData, Qt::DropAction action, int row, int column, const QModelIndex& parent)
@@ -312,7 +317,6 @@ bool QATLTreeModel::dropMimeData(const QMimeData* pData, Qt::DropAction action, 
 							for (int i = 0; i < size; ++i)
 							{
 								QStandardItem* pItem = pTargetItem->child(i);
-								QString aaaaa = pItem->text();
 								if (pItem && (pItem->data(eDataRole_Type) == eItemType_Folder) && (QString::compare(droppedFolderName, pItem->text(), Qt::CaseInsensitive) == 0))
 								{
 									QMessageBox messageBox;
@@ -356,6 +360,7 @@ bool QATLTreeModel::IsValidParent(const QModelIndex& parent, const EACEControlTy
 			return pControl->GetType() == eACEControlType_Switch;
 		}
 	}
+
 	return false;
 }
 
@@ -369,10 +374,10 @@ bool QATLTreeModel::canDropMimeData(const QMimeData* pData, Qt::DropAction actio
 	const IAudioSystemEditor* const pAudioSystem = CAudioControlsEditorPlugin::GetAudioSystemEditorImpl();
 	if (pAudioSystem)
 	{
-		const QString format = QAudioSystemModel::ms_szMimeType;
-		if (pData->hasFormat(format))
+		const QString audioMiddlewareFormat = QAudioSystemModel::ms_szMimeType;
+		if (pData->hasFormat(audioMiddlewareFormat))
 		{
-			QByteArray encoded = pData->data(format);
+			QByteArray encoded = pData->data(audioMiddlewareFormat);
 			QDataStream stream(&encoded, QIODevice::ReadOnly);
 			while (!stream.atEnd())
 			{
@@ -391,6 +396,28 @@ bool QATLTreeModel::canDropMimeData(const QMimeData* pData, Qt::DropAction actio
 				}
 			}
 		}
+		else if (parent.data(eDataRole_Type) == eItemType_Root)
+		{
+			// If dropping at the root, only allow folders
+			const QString format = "application/x-qabstractitemmodeldatalist";
+			if (pData->hasFormat(format))
+			{
+				QByteArray encoded = pData->data(format);
+				QDataStream stream(&encoded, QIODevice::ReadOnly);
+				while (!stream.atEnd())
+				{
+					int row, col;
+					QMap<int, QVariant> roleDataMap;
+					stream >> row >> col >> roleDataMap;
+					if (!roleDataMap.isEmpty())
+					{
+						return roleDataMap[eDataRole_Type] == eItemType_Folder;
+					}
+				}
+			}
+			return false;
+		}
+
 	}
 	return QStandardItemModel::canDropMimeData(pData, action, row, column, parent);
 }

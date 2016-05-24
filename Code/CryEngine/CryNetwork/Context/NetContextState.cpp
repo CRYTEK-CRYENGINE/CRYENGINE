@@ -9,7 +9,6 @@
 #include "UpdateAspectDataContext.h"
 #include "AutoFreeHandle.h"
 #include "Config.h"
-#include "Lobby/ICryMatchMakingPrivate.h"
 
 #include <CryGame/IGameFramework.h>       // LOCAL_PLAYER_ENTITY_ID
 #include <CryEntitySystem/IEntitySystem.h>
@@ -27,23 +26,6 @@ CNetContextState::CNetContextState(CNetContext* pContext, int token, CNetContext
 {
 	MMM_REGION(m_pMMM);
 
-#if NETWORK_HOST_MIGRATION
-	bool migrating = false;
-
-	ICryLobby* pLobby = CNetwork::Get()->GetLobby();
-	if (pLobby)
-	{
-		ICryMatchMakingPrivate* pMatchMaking = static_cast<ICryMatchMakingPrivate*>(pLobby->GetMatchMaking());
-		if (pMatchMaking)
-		{
-			if (pMatchMaking->IsNubSessionMigrating())
-			{
-				migrating = true;
-			}
-		}
-	}
-#endif
-
 	m_pNetIDs.reset(new TNetIDMap);
 	m_pLoggedBreakage.reset(new TNetIntBreakDescriptionList);
 
@@ -60,56 +42,18 @@ CNetContextState::CNetContextState(CNetContext* pContext, int token, CNetContext
 	m_localPhysicsTime = m_pGameContext ? m_pGameContext->GetPhysicsTime() : 0.0f;
 	m_spawnedObjectId = 0;
 
-	if (pPrev)
+	if (pPrev && pPrev->m_vObjects.size())
 	{
-#if NETWORK_HOST_MIGRATION
-		if (migrating)
+		m_vObjects.resize(pPrev->m_vObjects.size());
+		if (m_multiplayer)
 		{
-			*m_pNetIDs.get() = *pPrev->m_pNetIDs.get();
-
-			if (pPrev->m_vObjects.size())
-			{
-				m_spawnedObjectId = pPrev->m_spawnedObjectId;
-				m_vObjects = pPrev->m_vObjects;
-				m_vObjectsEx = pPrev->m_vObjectsEx; // We're definitely multiplayer so no need to test
-
-				for (size_t i = 0; i < m_vObjectsEx.size(); i++)
-				{
-					for (int j = 0; j < NumAspects; j++)
-					{
-						m_vObjectsEx[i].vAspectData[j] = MMM().InvalidHdl;
-						m_vObjectsEx[i].vRemoteAspectData[j] = MMM().InvalidHdl;
-					}
-				}
-			}
+			m_vObjectsEx.resize(pPrev->m_vObjectsEx.size());
 		}
-		else
-#endif
+		for (size_t i = 0; i < m_vObjects.size(); i++)
 		{
-			if (pPrev->m_vObjects.size())
-			{
-				m_vObjects.resize(pPrev->m_vObjects.size());
-				if (m_multiplayer)
-				{
-					m_vObjectsEx.resize(pPrev->m_vObjectsEx.size());
-				}
-				for (size_t i = 0; i < m_vObjects.size(); i++)
-				{
-					m_vObjects[i].salt = pPrev->m_vObjects[i].salt + 2;
-					AddToFreeObjects(static_cast<uint16>(i));
-				}
-			}
+			m_vObjects[i].salt = pPrev->m_vObjects[i].salt + 2;
+			AddToFreeObjects(static_cast<uint16>(i));
 		}
-
-#if NETWORK_HOST_MIGRATION
-		// If we're changing context because of a host migration, we need to copy the list of removed static entities
-		// so that we can tell any clients who join after this point
-		if (migrating)
-		{
-			m_removedStaticEntities = pPrev->m_removedStaticEntities;
-			m_established = pPrev->m_established;
-		}
-#endif
 	}
 
 	extern void DownloadConfig();
@@ -207,7 +151,6 @@ void CNetContextState::ChangeSubscription(INetContextListenerPtr pListener, INet
 unsigned CNetContextState::ChangeSubscription(TSubscriptions& subscriptions, INetContextListenerPtr pListener, unsigned events)
 {
 	ASSERT_GLOBAL_LOCK;
-	ScopedSwitchToGlobalHeap useGlobalHeap;
 	for (TSubscriptions::iterator iter = subscriptions.begin(); iter != subscriptions.end(); ++iter)
 	{
 		if (iter->pListener == pListener)
@@ -308,10 +251,6 @@ void CNetContextState::SendRemoveStaticEntitiesTo(INetContextListenerPtr pListen
 void CNetContextState::SendBindEventsTo(INetContextListenerPtr pListener, bool alsoAuth)
 {
 	if (!m_pContext)
-	{
-		return;
-	}
-	if ((gEnv->bHostMigrating && gEnv->bMultiplayer))
 	{
 		return;
 	}
@@ -1544,11 +1483,6 @@ void CNetContextState::RebindObject(SNetObjectID netId, EntityId userId)
 
 void CNetContextState::UnbindStaticObject(EntityId id)
 {
-#if NETWORK_HOST_MIGRATION
-	// Add to the removed list so that we still have a valid list if we host migrate
-	stl::push_back_unique(m_removedStaticEntities, id);
-#endif
-
 	SNetObjectID netID = GetNetID(id);
 	if (netID)
 	{
@@ -1620,13 +1554,6 @@ bool CNetContextState::UnbindObject(SNetObjectID netID, uint32 flags)
 	event.id = netID;
 	event.userID = userId;
 	Broadcast(&event);
-
-#if NETWORK_HOST_MIGRATION
-	if (obj.spawnType == eST_Static)
-	{
-		stl::push_back_unique(m_removedStaticEntities, userId);
-	}
-#endif
 
 	if (flags & eUOF_CallGame)
 	{
@@ -2961,115 +2888,6 @@ void CNetContextState::NC_RequestRemoteUpdate(EntityId id, NetworkAspectType asp
 	MarkObjectChanged(event.id, aspects);
 }
 
-#if NETWORK_HOST_MIGRATION
-void CNetContextState::CleanUnusedObjects()
-{
-	if ((gEnv->bHostMigrating && gEnv->bMultiplayer))
-	{
-		ClearFreeObjects();
-
-		for (size_t netID = 0; netID < m_vObjects.size(); netID++)
-		{
-			if (!m_vObjects[netID].bAllocated)
-			{
-				AddToFreeObjects(netID);
-			}
-		}
-	}
-}
-
-void CNetContextState::ServerTakeObjectOwnership()
-{
-	CRY_ASSERT(gEnv->bServer);
-	if (gEnv->bServer)
-	{
-	#if ENABLE_DEBUG_KIT
-		NetLog("CNetContextState::ServerTakeObjectOwnership: bHostMigrating=%d, bServer=%d", (gEnv->bHostMigrating && gEnv->bMultiplayer), gEnv->bServer);
-	#endif
-
-		if ((gEnv->bHostMigrating && gEnv->bMultiplayer))
-		{
-			CleanUnusedObjects();
-
-			for (size_t netID = 0; netID < m_vObjects.size(); netID++)
-			{
-				SContextObject& obj = m_vObjects[netID];
-
-				if (obj.bAllocated && !obj.bOwned)
-				{
-					SNetObjectID realNetID = GetNetID(obj.userID);
-
-					if (!realNetID || !GetContextObject(realNetID).main || IsDead())
-					{
-						continue;
-					}
-
-					obj.bOwned = true;
-					obj.pController = NULL;
-
-					UpdateAuthority(realNetID, false, false);
-				}
-			}
-		}
-	}
-}
-
-void CNetContextState::ClientUpdateObjectOwnership()
-{
-	if (!gEnv->bServer)
-	{
-	#if ENABLE_DEBUG_KIT
-		NetLog("CNetContextState::ClientUpdateObjectOwnership: bHostMigrating=%d, bServer=%d", (gEnv->bHostMigrating && gEnv->bMultiplayer), gEnv->bServer);
-	#endif
-
-		if ((gEnv->bHostMigrating && gEnv->bMultiplayer))
-		{
-			CleanUnusedObjects();
-
-			//-- There is only one subscription at this point, and it is the new server, not the old one.
-	#if ENABLE_DEBUG_KIT
-			NetLog("CNetContextState::ClientUpdateObjectOwnership: m_subscriptions.size() = %d", m_subscriptions.size());
-	#endif
-			INetContextListenerPtr pController = m_subscriptions[0].pListener;
-
-			for (size_t netID = 0; netID < m_vObjects.size(); netID++)
-			{
-				SContextObject& obj = m_vObjects[netID];
-
-				if (obj.bAllocated)
-				{
-					if (obj.bControlled)
-					{
-						//-- Client already controls this object
-	#if ENABLE_DEBUG_KIT
-						CryLog("[OWNERSHIP] Replace %s controller: %s -> none",
-						       obj.GetName(),
-						       obj.pController ? obj.pController->GetName().c_str() : "none");
-	#endif
-						obj.pController = NULL;
-					}
-					else
-					{
-						//-- external controller, so we need to update the controller to the new server
-	#if ENABLE_DEBUG_KIT
-						CryLog("[OWNERSHIP] Replace %s controller: %s -> %s",
-						       obj.GetName(),
-						       obj.pController ? obj.pController->GetName().c_str() : "none",
-						       pController ? pController->GetName().c_str() : "none");
-	#endif
-						obj.pController = NULL;
-						obj.pController = pController;
-					}
-
-					SNetObjectID realNetID = GetNetID(obj.userID);
-
-				}
-			}
-		}
-	}
-}
-#endif
-
 /*
  * Debug support routines go here
  */
@@ -3244,55 +3062,6 @@ void CNetContextState::NetDump(ENetDumpType type)
 			}
 		}
 		break;
-
-#if ENABLE_HOST_MIGRATION_STATE_CHECK
-	case eNDT_HostMigrationStateCheck:
-		{
-			ICryLobby* pLobby = CNetwork::Get()->GetLobby();
-
-			if (pLobby)
-			{
-				ICryMatchMakingPrivate* pMatchMaking = static_cast<ICryMatchMakingPrivate*>(pLobby->GetMatchMaking());
-
-				if (pMatchMaking)
-				{
-					for (TNetIDMap::const_iterator iterNetIDs = m_pNetIDs->begin(); iterNetIDs != m_pNetIDs->end(); ++iterNetIDs)
-					{
-						IEntity* pEntity = gEnv->pEntitySystem->GetEntity(iterNetIDs->first);
-						const char* name = pEntity ? pEntity->GetName() : "<<no name>>";
-						SContextObjectRef obj = GetContextObject(iterNetIDs->second);
-						SHostMigrationStateCheckData data;
-
-						data.type = eHMSCDT_NID;
-						data.nid.id = iterNetIDs->second.id;
-						data.nid.salt = iterNetIDs->second.salt;
-						cry_strcpy(data.nid.name, name);
-
-						if (obj.main && obj.xtra)
-						{
-							data.nid.allocated = obj.main->bAllocated;
-							data.nid.controlled = obj.main->bControlled;
-							data.nid.spawnType = obj.main->spawnType;
-							data.nid.owned = obj.main->bOwned;
-							data.nid.aspectsEnabled = obj.xtra->nAspectsEnabled;
-						}
-						else
-						{
-							data.nid.allocated = false;
-							data.nid.controlled = false;
-							data.nid.spawnType = eST_NUM_SPAWN_TYPES;
-							data.nid.owned = false;
-							data.nid.aspectsEnabled = 0;
-						}
-
-						pMatchMaking->HostMigrationStateCheckAddDataItem(&data);
-					}
-				}
-			}
-		}
-
-		break;
-#endif
 	}
 	NetLog("[NetDump] End");
 }

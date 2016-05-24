@@ -541,10 +541,11 @@ struct IAudioImpl
 
 	/**
 	 * Free the memory and potentially other resources used by the supplied IAudioObject instance
+	 * Remark: ResetAudioObject is always called before this method is called.
 	 * @param pOldAudioObject - pointer to the object implementing IAudioObject to be discarded
 	 * @see NewAudioObject, NewGlobalAudioObject
 	 */
-	virtual void DeleteAudioObject(IAudioObject* const pOldAudioObject) = 0;
+	virtual void DeleteAudioObject(IAudioObject const* const pOldAudioObject) = 0;
 
 	/**
 	 * Create an object implementing IAudioListener that stores all of the data needed by the AudioImplementation
@@ -585,10 +586,11 @@ struct IAudioImpl
 
 	/**
 	 * Free the memory and potentially other resources used by the supplied IAudioEvent instance
+	 * Remark: ResetAudioEvent is always called before this method is called.
 	 * @param pOldEventData - pointer to the object implementing IAudioEvent to be discarded
 	 * @see NewAudioEvent, ResetAudioEvent
 	 */
-	virtual void DeleteAudioEvent(IAudioEvent* const pOldAudioEvent) = 0;
+	virtual void DeleteAudioEvent(IAudioEvent const* const pOldAudioEvent) = 0;
 
 	/**
 	 * Reset all the members of an IAudioEvent instance without releasing the memory, so that the

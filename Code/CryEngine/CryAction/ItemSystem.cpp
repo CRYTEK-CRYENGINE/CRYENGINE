@@ -1429,7 +1429,6 @@ void CItemSystem::SerializePlayerLTLInfo(bool bReading)
 
 	if (!bReading)
 	{
-		ScopedSwitchToGlobalHeap globalHeap;
 		m_playerLevelToLevelSave = gEnv->pSystem->CreateXmlNode("Inventory");
 	}
 
@@ -1446,7 +1445,6 @@ void CItemSystem::SerializePlayerLTLInfo(bool bReading)
 	TSerialize ser = TSerialize(pSer);
 	if (pActor)
 	{
-		ScopedSwitchToGlobalHeap globalHeap;
 		pActor->SerializeLevelToLevel(ser);
 	}
 	pSerializer->Release();

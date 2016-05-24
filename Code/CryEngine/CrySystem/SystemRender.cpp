@@ -39,7 +39,7 @@
 #include <CrySystem/ITextModeConsole.h>
 #include "HardwareMouse.h"
 #include <CryEntitySystem/IEntitySystem.h> // <> required for Interfuscator
-#include "IActorSystem.h"
+#include <CryGame/IGame.h>
 #include "NullImplementation/NULLRenderAuxGeom.h"
 
 #include "MiniGUI/MiniGUI.h"
@@ -54,7 +54,7 @@ extern CMTSafeHeap* g_pPakHeap;
 extern int CryMemoryGetAllocatedSize();
 
 /////////////////////////////////////////////////////////////////////////////////
-void CSystem::CreateRendererVars(const SSystemInitParams& startupParams)
+void CSystem::CreateRendererVars()
 {
 	int iFullScreenDefault = 1;
 	int iDisplayInfoDefault = 0;
@@ -107,12 +107,12 @@ void CSystem::CreateRendererVars(const SSystemInitParams& startupParams)
 #else
 	const char* p_r_DriverDef = "DX9";              // required to be deactivated for final release
 #endif
-	if (startupParams.pCvarsDefault)
+	if (m_startupParams.pCvarsDefault)
 	{
 		// hack to customize the default value of r_Driver
-		SCvarsDefault* pCvarsDefault = startupParams.pCvarsDefault;
+		SCvarsDefault* pCvarsDefault = m_startupParams.pCvarsDefault;
 		if (pCvarsDefault->sz_r_DriverDef && pCvarsDefault->sz_r_DriverDef[0])
-			p_r_DriverDef = startupParams.pCvarsDefault->sz_r_DriverDef;
+			p_r_DriverDef = m_startupParams.pCvarsDefault->sz_r_DriverDef;
 	}
 
 	m_rDriver = REGISTER_STRING("r_Driver", p_r_DriverDef, VF_DUMPTODISK,
@@ -222,37 +222,33 @@ void CSystem::RenderEnd(bool bRenderStats)
 		if (m_env.pGame)
 			m_env.pGame->RenderGameWarnings();
 
-		{
-			// keep debug allocations out of level heap
-			ScopedSwitchToGlobalHeap globalHeap;
 
 #if !defined(_RELEASE) && !CRY_PLATFORM_DURANGO
-			if (bRenderStats)
-				RenderPhysicsHelpers();
+		if (bRenderStats)
+			RenderPhysicsHelpers();
 #endif
 
 #if !defined (_RELEASE)
-			// Flush render data and swap buffers.
-			m_env.pRenderer->RenderDebug(bRenderStats);
+		// Flush render data and swap buffers.
+		m_env.pRenderer->RenderDebug(bRenderStats);
 #endif
 
-			RenderJobStats();
+		RenderJobStats();
 
 #if defined(USE_PERFHUD)
-			if (m_pPerfHUD)
-				m_pPerfHUD->Draw();
-			if (m_pMiniGUI)
-				m_pMiniGUI->Draw();
+		if (m_pPerfHUD)
+			m_pPerfHUD->Draw();
+		if (m_pMiniGUI)
+			m_pMiniGUI->Draw();
 #endif
 
-			if (bRenderStats)
-			{
-				RenderStatistics();
-			}
-
-			if (IConsole* pConsole = GetIConsole())
-				pConsole->Draw();
+		if (bRenderStats)
+		{
+			RenderStatistics();
 		}
+
+		if (IConsole* pConsole = GetIConsole())
+			pConsole->Draw();
 
 		m_env.pRenderer->ForceGC(); // XXX Rename this
 		m_env.pRenderer->EndFrame();
@@ -276,7 +272,6 @@ void CSystem::RenderEnd(bool bRenderStats)
 void CSystem::RenderPhysicsHelpers()
 {
 #if !defined (_RELEASE)
-	ScopedSwitchToGlobalHeap globalHeap;
 	if (gEnv->pPhysicalWorld)
 	{
 		char str[128];
@@ -589,8 +584,6 @@ void CSystem::DisplayErrorMessage(const char* acMessage,
                                   const float* pfColor,
                                   bool bHardError)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	SErrorMessage message;
 	message.m_Message = acMessage;
 	if (pfColor)

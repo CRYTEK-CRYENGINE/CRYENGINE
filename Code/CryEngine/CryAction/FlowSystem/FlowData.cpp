@@ -114,7 +114,6 @@ void CFlowData::DoGetConfiguration(SFlowNodeConfig& config) const
 	m_pImpl->GetConfiguration(config);
 	if (config.nFlags & EFLN_TARGET_ENTITY)
 	{
-		ScopedSwitchToGlobalHeap globalHeap;
 		static SInputPortConfig* inputs = new SInputPortConfig[MAX_INPUT_PORTS];
 
 		SInputPortConfig* pInput = inputs;

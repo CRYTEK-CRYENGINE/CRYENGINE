@@ -188,6 +188,22 @@ struct SAudioCallBackInfo
 	AudioEnumFlagsType const         requestFlags;
 };
 
+struct SAudioPlayFileInfo
+{
+	SAudioPlayFileInfo(
+	  char const* const _szFile
+	  , bool const _bLocalized = true
+	  , AudioControlId const _usedPlaybackTrigger = INVALID_AUDIO_CONTROL_ID)
+		: szFile(_szFile)
+		, bLocalized(_bLocalized)
+		, usedTriggerForPlayback(_usedPlaybackTrigger)
+	{}
+
+	char const* const    szFile;
+	bool const           bLocalized;
+	AudioControlId const usedTriggerForPlayback;
+};
+
 struct SAudioRequest
 {
 	SAudioRequest()

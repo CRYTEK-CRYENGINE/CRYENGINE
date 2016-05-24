@@ -72,7 +72,7 @@ string D3DDebug_GetLastMessage();
 //////////////////////////////////////////////////////////////////////////
 CRenderer* gRenDev = NULL;
 
-int CRenderer::m_iGeomInstancingThreshold = 0;    // 0 means not set yet
+int CRenderer::m_iGeomInstancingThreshold = 0;      // 0 means not set yet
 
 #define RENDERER_DEFAULT_FONT "Fonts/default.xml"
 
@@ -171,7 +171,7 @@ void CRenderer::InitRenderer()
 
 	m_nGPU = 1;
 
-	m_cClearColor = ColorF(0, 0, 0, 128.0f / 255.0f);    // 128 is default GBuffer value
+	m_cClearColor = ColorF(0, 0, 0, 128.0f / 255.0f);  // 128 is default GBuffer value
 	m_LogFile = NULL;
 	m_pDefaultFont = NULL;
 	m_TexGenID = 1;
@@ -382,7 +382,7 @@ void CRenderer::PostInit()
 		bool bIntroMoviesDuringInit = pIntroMoviesDuringInit ? pIntroMoviesDuringInit->GetIVal() != 0 : false;
 
 		// Create system resources while in fast load phase
-		if (bIntroMoviesDuringInit == false) // don't create resources here when we have a movies during init, else we get concurrent device context access
+		if (bIntroMoviesDuringInit == false)    // don't create resources here when we have a movies during init, else we get concurrent device context access
 			gEnv->pRenderer->InitSystemResources(FRR_SYSTEM_RESOURCES);
 	}
 
@@ -391,7 +391,7 @@ void CRenderer::PostInit()
 //////////////////////////////////////////////////////////////////////////
 
 #define INTRO_MOVIES_PAK "_fastload/IntroMovies.pak"
-#define USE_INTRO_MOVIES 1 // Change this if your title uses this pak, otherwise "normal" Movies.pak is assumed
+#define USE_INTRO_MOVIES 1               // Change this if your title uses this pak, otherwise "normal" Movies.pak is assumed
 
 void CRenderer::StartRenderIntroMovies()
 {
@@ -784,7 +784,7 @@ void CRenderer::FlushTextMessages(CTextMessages& messages, bool reset)
 
 		if (!(nDrawFlags & eDrawText_2D))
 		{
-			float fDist = 1; //GetDistance(pTextInfo->pos,GetCamera().GetPosition());
+			float fDist = 1;   //GetDistance(pTextInfo->pos,GetCamera().GetPosition());
 
 			float K = GetCamera().GetFarPlane() / fDist;
 			if (fDist > GetCamera().GetFarPlane() * 0.5)
@@ -1901,14 +1901,11 @@ CRendElementBase* CRenderer::EF_CreateRE(EDataType edt)
 	case eDATA_VolumeObject:
 		re = new CREVolumeObject;
 		break;
-	case eDATA_LightPropagationVolume:
-		re = new CRELightPropagationVolume;
-		break;
 #if !defined(EXCLUDE_DOCUMENTATION_PURPOSE)
 	case eDATA_PrismObject:
 		re = new CREPrismObject;
 		break;
-#endif // EXCLUDE_DOCUMENTATION_PURPOSE
+#endif  // EXCLUDE_DOCUMENTATION_PURPOSE
 
 	case eDATA_GameEffect:
 		re = new CREGameEffect;
@@ -2477,7 +2474,7 @@ ERenderQuality CRenderer::EF_GetRenderQuality() const
 
 #if CRY_PLATFORM_WINDOWS && CRY_PLATFORM_64BIT
 	#pragma warning( push )           //AMD Port
-	#pragma warning( disable : 4312 )     // 'type cast' : conversion from 'int' to 'void *' of greater size
+	#pragma warning( disable : 4312 ) // 'type cast' : conversion from 'int' to 'void *' of greater size
 #endif
 
 int CRenderer::RT_CurThreadList()
@@ -2838,7 +2835,7 @@ void CRenderer::EF_QueryImpl(ERenderQueryTypes eQuery, void* pInOut0, uint32 nIn
 				IDefragAllocatorStats allocStats = m_DevMan.GetTexturePoolStats();
 				stats->nCurrentPoolSize = allocStats.nInUseSize;
 #else
-				stats->nCurrentPoolSize = CTexture::s_pPoolMgr->GetReservedSize();  // s_nStatsStreamPoolInUseMem;
+				stats->nCurrentPoolSize = CTexture::s_pPoolMgr->GetReservedSize();    // s_nStatsStreamPoolInUseMem;
 #endif
 				stats->nStreamedTexturesSize = CTexture::s_nStatsStreamPoolInUseMem;
 
@@ -4173,13 +4170,13 @@ void S3DEngineCommon::UpdateRainOccInfo(int nThreadID)
 	const uint32 numGPUs = gRenDev->GetActiveGPUCount();
 	for (uint32 i = 0; i < numGPUs; ++i)
 		bProcessedAll &= m_RainOccluders.m_bProcessed[i];
-	const bool bUpdateOcc = bProcessedAll; // there is no field called bForecedUpdate in RainOccluders - m_RainOccluders.bForceUpdate || bProcessedAll;
+	const bool bUpdateOcc = bProcessedAll;                 // there is no field called bForecedUpdate in RainOccluders - m_RainOccluders.bForceUpdate || bProcessedAll;
 	if (bUpdateOcc)
 		m_RainOccluders.Release();
 
 	const Vec3 vCamPos = gRenDev->GetRCamera().vOrigin;
 	bool bDisableOcclusion = m_RainInfo.bDisableOcclusion;
-	static bool bOldDisableOcclusion = true;  // set to true to allow update at first run
+	static bool bOldDisableOcclusion = true;               // set to true to allow update at first run
 
 	if (CRenderer::CV_r_rain == 2 && !bDisableOcclusion)
 	{
@@ -4194,7 +4191,7 @@ void S3DEngineCommon::UpdateRainOccInfo(int nThreadID)
 			// Snow takes priority since occlusion has a much stronger impact on it.
 			Vec3 vWorldPos = bSnowEnabled ? m_SnowInfo.m_vWorldPos : m_RainInfo.vWorldPos;
 			float fRadius = bSnowEnabled ? m_SnowInfo.m_fRadius : m_RainInfo.fRadius;
-			float fViewerArea = bSnowEnabled ? 128.f : 32.f; // Snow requires further view distance, otherwise obvious "unoccluded" snow regions become visible.
+			float fViewerArea = bSnowEnabled ? 128.f : 32.f;   // Snow requires further view distance, otherwise obvious "unoccluded" snow regions become visible.
 			float fOccArea = fViewerArea;
 
 			// Rain volume BB
@@ -4223,7 +4220,7 @@ void S3DEngineCommon::UpdateRainOccInfo(int nThreadID)
 			const AABB& oldAreaBounds = m_RainInfo.areaAABB;
 			if (!oldAreaBounds.min.IsEquivalent(bbArea.min)
 			    || !oldAreaBounds.max.IsEquivalent(bbArea.max)
-			    || fOldRadius != fRadius //m_RainInfo.fRadius
+			    || fOldRadius != fRadius      //m_RainInfo.fRadius
 			    || bOldDisableOcclusion != bDisableOcclusion
 			    || fOccTreshold != CRenderer::CV_r_rainOccluderSizeTreshold)
 			{
@@ -4425,9 +4422,9 @@ float CRenderer::GetGPUFrameTime()
 	return 0.f;
 #else
 	int nThr = m_pRT->GetThreadList();
-	float fGPUidle = m_fTimeGPUIdlePercent[nThr] * 0.01f;    // normalise %
-	float fGPUload = 1.0f - fGPUidle;                        // normalised non-idle time
-	float fGPUtime = (m_fTimeProcessedGPU[nThr] * fGPUload); //GPU time in seconds
+	float fGPUidle = m_fTimeGPUIdlePercent[nThr] * 0.01f;        // normalise %
+	float fGPUload = 1.0f - fGPUidle;                            // normalised non-idle time
+	float fGPUtime = (m_fTimeProcessedGPU[nThr] * fGPUload);     //GPU time in seconds
 	return fGPUtime;
 #endif
 }
@@ -4482,7 +4479,7 @@ void CRenderer::UpdateRenderingModesInfo()
 		return;
 	}
 
-	m_nNightVisionMode = (pNightVision->IsActive() && (CV_r_NightVision == 2) || (CV_r_NightVision == 3)) && gRenDev->IsHDRModeEnabled(); // check only for HDR version
+	m_nNightVisionMode = (pNightVision->IsActive() && (CV_r_NightVision == 2) || (CV_r_NightVision == 3)) && gRenDev->IsHDRModeEnabled();             // check only for HDR version
 
 	if (!m_nNightVisionMode && pThermalVision->GetTransitionEffectState())
 		m_nThermalVisionMode = 0;
@@ -4657,12 +4654,13 @@ void CRenderer::RT_UpdateLightVolumes()
 //////////////////////////////////////////////////////////////////////////
 SSkinningData* CRenderer::EF_CreateSkinningData(uint32 nNumBones, bool bNeedJobSyncVar)
 {
-	int nList = m_nPoolIndex % 3;
+	int nList = m_nPoolIndex % m_computeSkinningData.size();
 
 	uint32 nNeededSize = Align(sizeof(SSkinningData), 16);
 	nNeededSize += Align(bNeedJobSyncVar ? sizeof(JobManager::SJobState) : 0, 16);
 	nNeededSize += Align(bNeedJobSyncVar ? sizeof(JobManager::SJobState) : 0, 16);
 	nNeededSize += Align(nNumBones * sizeof(DualQuat), 16);
+	nNeededSize += Align(nNumBones * sizeof(compute_skinning::SActiveMorphs), 16);
 
 	byte* pData = m_SkinningDataPool[nList].Allocate(nNeededSize);
 
@@ -4684,8 +4682,14 @@ SSkinningData* CRenderer::EF_CreateSkinningData(uint32 nNumBones, bool bNeedJobS
 	pSkinningRenderData->pBoneQuatsS = alias_cast<DualQuat*>(pData);
 	pData += Align(nNumBones * sizeof(DualQuat), 16);
 
+	pSkinningRenderData->pActiveMorphs = alias_cast<compute_skinning::SActiveMorphs*>(pData);
+	pData += Align(nNumBones * sizeof(compute_skinning::SActiveMorphs), 16);
+
 	pSkinningRenderData->pRemapTable = NULL;
 	pSkinningRenderData->pCustomData = NULL;
+	pSkinningRenderData->pCustomTag = NULL;
+
+	pSkinningRenderData->nNumActiveMorphs = 0;
 	pSkinningRenderData->nNumBones = nNumBones;
 	pSkinningRenderData->nHWSkinningFlags = 0;
 	pSkinningRenderData->pPreviousSkinningRenderData = NULL;
@@ -4701,9 +4705,9 @@ SSkinningData* CRenderer::EF_CreateSkinningData(uint32 nNumBones, bool bNeedJobS
 SSkinningData* CRenderer::EF_CreateRemappedSkinningData(uint32 nNumBones, SSkinningData* pSourceSkinningData, uint32 nCustomDataSize, uint32 pairGuid)
 {
 	assert(pSourceSkinningData);
-	assert(pSourceSkinningData->nNumBones >= nNumBones);  // don't try to remap more bones than exist
+	assert(pSourceSkinningData->nNumBones >= nNumBones);    // don't try to remap more bones than exist
 
-	int nList = m_nPoolIndex % 3;
+	int nList = m_nPoolIndex % m_computeSkinningData.size();
 
 	uint32 nNeededSize = Align(sizeof(SSkinningData), 16);
 	nNeededSize += Align(nCustomDataSize, 16);
@@ -4719,13 +4723,17 @@ SSkinningData* CRenderer::EF_CreateRemappedSkinningData(uint32 nNumBones, SSkinn
 	pData += nCustomDataSize ? Align(nCustomDataSize, 16) : 0;
 
 	pSkinningRenderData->nNumBones = nNumBones;
+	pSkinningRenderData->nNumActiveMorphs = pSourceSkinningData->nNumActiveMorphs;
 	pSkinningRenderData->nHWSkinningFlags = 0;
 	pSkinningRenderData->pPreviousSkinningRenderData = NULL;
+	pSkinningRenderData->pCustomTag = pSourceSkinningData->pCustomTag;
 
 	// use actual bone information from original skinning data
 	pSkinningRenderData->pBoneQuatsS = pSourceSkinningData->pBoneQuatsS;
+	pSkinningRenderData->pActiveMorphs = pSourceSkinningData->pActiveMorphs;
 	pSkinningRenderData->pAsyncJobs = pSourceSkinningData->pAsyncJobs;
 	pSkinningRenderData->pAsyncDataJobs = pSourceSkinningData->pAsyncDataJobs;
+	pSkinningRenderData->pRenderMesh = pSourceSkinningData->pRenderMesh;
 
 	pSkinningRenderData->pCharInstCB = pSourceSkinningData->pCharInstCB;
 
@@ -4734,6 +4742,17 @@ SSkinningData* CRenderer::EF_CreateRemappedSkinningData(uint32 nNumBones, SSkinn
 	pSkinningRenderData->pMasterSkinningDataList = &pSourceSkinningData->pNextSkinningData;
 
 	return pSkinningRenderData;
+}
+
+void CRenderer::EF_EnqueueComputeSkinningData(SSkinningData* pData)
+{
+	int nList = m_nPoolIndex % m_computeSkinningData.size();
+	m_computeSkinningData[nList].push_back(pData);
+}
+
+compute_skinning::CStorage* CRenderer::GetComputeSkinningStorage() const
+{
+	return m_pComputeSkinningStorage;
 }
 
 void CRenderer::RT_SetSkinningPoolId(uint32 poolId)
@@ -4752,7 +4771,8 @@ int CRenderer::GetTexturesStreamPoolSize()
 void CRenderer::ClearSkinningDataPool()
 {
 	m_pRT->RC_PushSkinningPoolId(++m_nPoolIndex);
-	m_SkinningDataPool[m_nPoolIndex % 3].ClearPool();
+	m_SkinningDataPool[m_nPoolIndex % m_computeSkinningData.size()].ClearPool();
+	m_computeSkinningData[m_nPoolIndex % m_computeSkinningData.size()].resize(0);
 	FX_ClearCharInstCB(m_nPoolIndex);
 }
 

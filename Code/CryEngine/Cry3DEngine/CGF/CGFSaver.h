@@ -81,6 +81,8 @@ public:
 
 	int SaveFoliage();
 
+	int SaveVCloth(bool bSwapEndian);
+
 	#if defined(RESOURCE_COMPILER)
 	int SaveTiming(CInternalSkinningInfo* pSkinningInfo);
 	#endif

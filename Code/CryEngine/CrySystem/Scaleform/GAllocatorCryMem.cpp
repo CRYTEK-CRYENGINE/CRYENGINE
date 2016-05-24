@@ -42,8 +42,6 @@ void GSysAllocCryMem::GetInfo(Info* i) const
 
 void* GSysAllocCryMem::Alloc(UPInt size, UPInt align)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	const size_t granularity = m_pHeap->GetGranularity();
 	size = (size + granularity - 1) & ~(granularity - 1);
 
@@ -167,8 +165,6 @@ GSysAllocStaticCryMem::GSysAllocStaticCryMem(size_t poolSize)
 	, m_size(poolSize)
 	, m_arenas()
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	m_pMem = malloc(m_size);
 	if (m_pMem)
 	{

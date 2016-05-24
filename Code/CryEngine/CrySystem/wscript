@@ -5,6 +5,13 @@ from waflib import Logs
 
 def build(bld):
 
+	# Oculus can only be built using VS 2015.
+	# This is a limitation of the Oculus code.
+	has_oculus = ('MSVC_VERSION' in bld.env and bld.env['MSVC_VERSION'] == '14.0')
+	oculus_dependency = []
+	if has_oculus:
+		oculus_dependency = [ 'oculus' ]
+
 	# If Scaleform SDK is available, compile the integration code into CrySystem
 	scaleform_file_list = []
 	if os.path.isdir(Path('Code/SDKs/Scaleform')):
@@ -20,7 +27,7 @@ def build(bld):
 		linux_file_list   = ['platformos.waf_files', 'crysystem_posix.waf_files'],
 		darwin_file_list  = ['platformos.waf_files', 'crysystem_posix.waf_files'],
 		android_file_list = ['platformos.waf_files', 'crysystem_posix.waf_files'],
-		orbis_file_list   = ['crysystem_sce.waf_files', 'crysystem_sce.waf_files', 'crysystem_posix.waf_files',  'crysystem_orbis.waf_files'],
+		orbis_file_list   = ['crysystem_sce.waf_files', 'crysystem_posix.waf_files',  'crysystem_orbis.waf_files'],
 
 		pch  = 'StdAfx.cpp',
 
@@ -36,7 +43,7 @@ def build(bld):
 			'yasli',
 			'tomcrypt'
 		],
-		win_use_module = [ 'oculus' ],		
+		win_use_module = oculus_dependency,
 
 		durango_cxxflags  = [ '/EHsc',  '/ZW' ], 
 

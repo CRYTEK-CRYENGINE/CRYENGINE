@@ -21,6 +21,7 @@ class CSunShaftsStage;
 class CPostAAStage;
 class CRenderCamera;
 class CCamera;
+class CComputeSkinningStage;
 
 enum EStandardGraphicsPipelineStage
 {
@@ -39,7 +40,8 @@ enum EStandardGraphicsPipelineStage
 	eStage_Bloom,
 	eStage_ToneMapping,
 	eStage_Sunshafts,
-	eStage_PostAA
+	eStage_PostAA,
+	eStage_ComputeSkinning,
 };
 
 class CStandardGraphicsPipeline : public CGraphicsPipeline
@@ -112,6 +114,7 @@ public:
 
 	CRenderView*              GetCurrentRenderView() const             { return m_pCurrentRenderView; };
 	CShadowMapStage*          GetShadowStage() const                   { return m_pShadowMapStage; }
+	CComputeSkinningStage*    GetComputeSkinningStage() const          { return m_pComputeSkinningStage;  }
 
 public:
 	static void ApplyShaderQuality(CDeviceGraphicsPSODesc& psoDesc, const SShaderProfile& shaderProfile);
@@ -131,6 +134,7 @@ private:
 	CSunShaftsStage*              m_pSunShaftsStage;
 	CToneMappingStage*            m_pToneMappingStage;
 	CPostAAStage*                 m_pPostAAStage;
+	CComputeSkinningStage*        m_pComputeSkinningStage;
 
 	CConstantBufferPtr            m_pPerViewConstantBuffer;
 	CDeviceResourceSetPtr         m_pDefaultMaterialResources;

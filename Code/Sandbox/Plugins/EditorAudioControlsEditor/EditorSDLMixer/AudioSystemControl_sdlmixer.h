@@ -7,16 +7,15 @@
 
 namespace ACE
 {
-enum ESDLMixerTypes
+enum ESdlMixerTypes
 {
-	eSDLMixerTypes_Invalid    = 0,
-	eSDLMixerTypes_Event      = 1,
-	eSDLMixerTypes_SampleFile = 2,
+	eSdlMixerTypes_Invalid    = 0,
+	eSdlMixerTypes_Event      = 1,
+	eSdlMixerTypes_SampleFile = 2,
 };
 
-class IAudioSystemControl_sdlmixer : public IAudioSystemItem
+class IAudioSystemControl_sdlmixer final : public IAudioSystemItem
 {
-
 public:
 	IAudioSystemControl_sdlmixer() {}
 	IAudioSystemControl_sdlmixer(const string& name, CID id, ItemType type);

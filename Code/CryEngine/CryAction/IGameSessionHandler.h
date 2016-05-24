@@ -15,6 +15,8 @@
 #ifndef __I_GAME_SESSION_HANDLER_H__
 #define __I_GAME_SESSION_HANDLER_H__
 
+#include <CryLobby/CommonICryLobby.h>
+
 struct SGameStartParams;
 
 struct IGameSessionHandler

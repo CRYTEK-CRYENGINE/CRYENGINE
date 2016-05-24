@@ -20,12 +20,6 @@
 #include <CrySystem/ISystem.h>
 #include <CryCore/StlUtils.h>
 
-#if !defined(_RELEASE)
-	#define SHARED_STRING_TRACK_LEVEL_HEAP_LEAKS	1
-#else
-	#define SHARED_STRING_TRACK_LEVEL_HEAP_LEAKS	0
-#endif
-
 namespace SharedString
 {
 	// Name entry header, immediately after this header in memory starts actual string data.
@@ -34,9 +28,6 @@ namespace SharedString
 		int nRefCount;		// Reference count of this string.
 		int nLength;			// Current length of string.
 		int nAllocSize;		// Size of memory allocated at the end of this class.
-#if SHARED_STRING_TRACK_LEVEL_HEAP_LEAKS
-		bool allocatedOnLevelHeap;
-#endif
 
 		// Here in memory starts character buffer of size nAllocSize.
 		//char data[nAllocSize]
@@ -52,9 +43,6 @@ namespace SharedString
 	public:
 		CNameTable() 
 		{
-#if SHARED_STRING_TRACK_LEVEL_HEAP_LEAKS
-			m_trackLevelHeapAllocs = false;
-#endif
 		}
 
 		~CNameTable()
@@ -81,9 +69,7 @@ namespace SharedString
 				pEntry->nRefCount = 0;
 				pEntry->nLength = nLen;
 				pEntry->nAllocSize = allocLen;
-#if SHARED_STRING_TRACK_LEVEL_HEAP_LEAKS
-				pEntry->allocatedOnLevelHeap = (m_trackLevelHeapAllocs);
-#endif
+
 				// Copy string to the end of name entry.
 				memcpy( pEntry->GetStr(),str,nLen+1 );
 
@@ -113,34 +99,9 @@ namespace SharedString
 			}
 		}
 
-#if SHARED_STRING_TRACK_LEVEL_HEAP_LEAKS
-		void TrackLevelHeapAllocs(bool trackAllocs)
-		{
-			m_trackLevelHeapAllocs = trackAllocs;
-		}
-
-		void DumpLevelHeapLeakedStrings()
-		{
-			NameMap::const_iterator iter = m_nameMap.begin();
-			NameMap::const_iterator iterEnd = m_nameMap.end();
-			while (iter != iterEnd)
-			{
-				if (iter->second->allocatedOnLevelHeap)
-				{
-					CRY_ASSERT_TRACE(false, ("Level allocated SharedString leaking '%s'", iter->first));
-					CryLogAlways("Level allocated SharedString leaking '%s' : Ref count: '%d'", iter->first, iter->second->nRefCount);
-				}
-				++iter;
-			}
-		}
-#endif
-
 	private:
 		typedef std::unordered_map<const char*, SNameEntry*, stl::hash_strcmp<const char*>, stl::hash_strcmp<const char*>> NameMap;
 		NameMap m_nameMap;
-#if SHARED_STRING_TRACK_LEVEL_HEAP_LEAKS
-		bool	m_trackLevelHeapAllocs;
-#endif
 	};
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -184,18 +145,6 @@ namespace SharedString
 		{
 			GetNameTable()->Dump();
 		}
-
-#if SHARED_STRING_TRACK_LEVEL_HEAP_LEAKS
-		static void TrackLevelHeapAllocs(bool trackAllocs)
-		{
-			GetNameTable()->TrackLevelHeapAllocs(trackAllocs);
-		}
-
-		static void DumpLevelHeapLeakedStrings()
-		{
-			GetNameTable()->DumpLevelHeapLeakedStrings();
-		}
-#endif
 
 		void GetMemoryUsage( ICrySizer *pSizer ) const 
 		{

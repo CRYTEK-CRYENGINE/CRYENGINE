@@ -65,6 +65,7 @@ enum EAnimNodeType
 	eAnimNodeType_GeomCache       = 0x19,
 	eAnimNodeType_Environment,
 	eAnimNodeType_ScreenDropsSetup,
+	eAnimNodeType_Audio,
 	eAnimNodeType_Num
 };
 
@@ -100,8 +101,10 @@ enum EAnimParamType
 	eAnimParamType_Visibility      = 5,
 	eAnimParamType_Camera          = 6,
 	eAnimParamType_Animation       = 7,
+	eAnimParamType_AudioSwitch     = 9,
 	eAnimParamType_AudioTrigger    = 10,
 	eAnimParamType_AudioFile       = 11,
+	eAnimParamType_AudioParameter  = 12,
 	eAnimParamType_Sequence        = 13,
 	eAnimParamType_Expression      = 14,
 	eAnimParamType_Console         = 17,
@@ -534,6 +537,9 @@ struct IAnimTrack : public _i_reference_target_t
 
 	//! Assign active time range for this track.
 	virtual void SetTimeRange(TRange<SAnimTime> timeRange) = 0;
+
+	//! Serialize unique parameters for this track.
+	virtual void Serialize(Serialization::IArchive& ar) = 0;
 
 	//! Serialize this animation track to XML.
 	virtual bool Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEmptyTracks = true) = 0;

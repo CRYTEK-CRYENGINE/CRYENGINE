@@ -994,7 +994,7 @@ void CParticleEmitter::Render(SRendParams const& RenParams, const SRenderingPass
 	else
 	{
 		// Emitter in preview window, etc
-		PartParams.m_nRenObjFlags.SetState(-1, FOB_GLOBAL_ILLUMINATION | FOB_INSHADOW | FOB_SOFT_PARTICLE | FOB_MOTION_BLUR);
+		PartParams.m_nRenObjFlags.SetState(-1, FOB_INSHADOW | FOB_SOFT_PARTICLE | FOB_MOTION_BLUR);
 	}
 
 	if (!PartParams.m_nDeferredLightVolumeId)
@@ -1003,9 +1003,6 @@ void CParticleEmitter::Render(SRendParams const& RenParams, const SRenderingPass
 		PartParams.m_nRenObjFlags.SetState(-1, FOB_IN_DOORS | FOB_INSHADOW);
 	if (RenParams.dwFObjFlags & FOB_NEAREST)
 		PartParams.m_nRenObjFlags.SetState(-1, FOB_SOFT_PARTICLE);
-
-	if (RenParams.m_pVisArea) //&& RenParams.m_pVisArea->IsIgnoringGI()) - ignore GI not used in most vis areas unfortunately, disable GI for any particle inside a vis area
-		PartParams.m_nRenObjFlags.SetState(-1, FOB_GLOBAL_ILLUMINATION);
 
 	if (passInfo.IsAuxWindow())
 	{

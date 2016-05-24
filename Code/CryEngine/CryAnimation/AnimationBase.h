@@ -15,11 +15,6 @@
 
 #define STORE_ANIMATION_NAMES
 
-// Is CRYANIMATION_REPEAT_MOTION is set: When an animation gets started with
-// CA_REPEAT_LAST_KEY and the end of the animation is reached, motion extraction
-// will also keep repeating the final motion
-#define CRYANIMATION_REPEAT_MOTION() 0
-
 ILINE void g_LogToFile(const char* szFormat, ...) PRINTF_PARAMS(1, 2);
 
 class CharacterManager;

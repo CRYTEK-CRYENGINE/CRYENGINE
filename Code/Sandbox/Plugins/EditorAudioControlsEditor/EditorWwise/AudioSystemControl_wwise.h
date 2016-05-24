@@ -20,7 +20,7 @@ enum EWwiseItemTypes
 	eWwiseItemTypes_StateGroup  = BIT(7),
 };
 
-class IAudioSystemControl_wwise : public IAudioSystemItem
+class IAudioSystemControl_wwise final : public IAudioSystemItem
 {
 public:
 	IAudioSystemControl_wwise() {}

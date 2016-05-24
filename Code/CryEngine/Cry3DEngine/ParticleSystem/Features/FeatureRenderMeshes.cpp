@@ -41,7 +41,7 @@ public:
 
 	CFeatureRenderMeshes()
 		: m_scale(1.0f, 1.0f, 1.0f)
-		, m_sizeMode(ESizeMode::Size)
+		, m_sizeMode(ESizeMode::Scale)
 		, m_originMode(EOriginMode::Origin)
 		, m_piecesMode(EPiecesMode::RandomPiece)
 		, m_piecePlacement(EPiecePlacement::Standard)

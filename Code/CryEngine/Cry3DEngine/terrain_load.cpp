@@ -31,7 +31,6 @@ CTerrain::CTerrain(const STerrainInfo& TerrainInfo)
 	//	ZeroStruct(m_TerrainTextureLayer);
 	//	m_ucpDiffTexTmpBuffer = 0;
 	m_pTerrainEf = 0;
-	m_nSunLightMask = 0;
 	//	ZeroStruct(m_SSurfaceType); // staic
 	m_pOcean = 0;
 	m_eEndianOfTexture = eLittleEndian;
@@ -516,15 +515,18 @@ bool CTerrain::OpenTerrainTextureFile(SCommonFileHeader& hdrDiffTexHdr, STerrain
 		}
 	}
 
+	int nSectorHeightMapTextureDim = m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[1].nSectorSizePixels;
+
 	delete[] ucpDiffTexTmpBuffer;
-	ucpDiffTexTmpBuffer = new uint8[m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[0].nSectorSizeBytes + m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[1].nSectorSizeBytes];
+	ucpDiffTexTmpBuffer = new uint8[m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[0].nSectorSizeBytes + m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[1].nSectorSizeBytes + sizeof(float)*nSectorHeightMapTextureDim*nSectorHeightMapTextureDim];
 
 	gEnv->pCryPak->FClose(fpDiffTexFile);
 	fpDiffTexFile = 0;
 
 	// init texture pools
-	m_texCache[0].InitPool(ucpDiffTexTmpBuffer, m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[0].nSectorSizePixels, m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[0].eTexFormat);
-	m_texCache[1].InitPool(ucpDiffTexTmpBuffer, m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[1].nSectorSizePixels, m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[1].eTexFormat);
+	m_texCache[0].InitPool(0, m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[0].nSectorSizePixels, m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[0].eTexFormat);
+	m_texCache[1].InitPool(0, m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[1].nSectorSizePixels, m_arrBaseTexInfos[nSID].m_TerrainTextureLayer[1].eTexFormat);
+	m_texCache[2].InitPool(0, nSectorHeightMapTextureDim, eTF_R32F);
 
 	return true;
 }

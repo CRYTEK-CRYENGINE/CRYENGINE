@@ -58,6 +58,3 @@
 #include <CryAnimation/ICryAnimation.h>
 #include "AnimationBase.h"
 #include <CrySystem/Profilers/FrameProfiler/FrameProfiler_JobSystem.h>  // to be removed
-
-// maximum number of LODs per one geometric model (CryGeometry)
-enum {g_nMaxGeomLodLevels = 6};

@@ -282,7 +282,7 @@ void CDialogLineSet::Serialize(Serialization::IArchive& ar)
 	ar(m_lineId, "lineID", "lineID");
 	ar(m_priority, "priority", "Priority");
 	ar(m_lastPickedLine, "lastPicked", 0);
-	ar(m_flags, "flags", "+Flags");  //bitmask editor widget?
+	ar(m_flags, "flags", "+Flags");    //bitmask editor widget?
 	ar(m_lines, "lineVariations", "+Lines");
 
 #if !defined(_RELEASE)
@@ -304,40 +304,22 @@ void CDialogLineSet::Serialize(Serialization::IArchive& ar)
 //--------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------
 CDialogLine::CDialogLine()
-{
-}
+{}
 
 //--------------------------------------------------------------------------------------------------
 void CDialogLine::Serialize(Serialization::IArchive& ar)
 {
 	ar(m_text, "text", "^Text");
-	if (ar.isInput() || ar.isEdit())
-	{
-		ar(m_audioStartTrigger, "audioStartTrigger", "AudioStartTrigger");
-		ar(m_audioStopTrigger, "audioStopTrigger", "AudioStopTrigger");
-		ar(m_lipsyncAnimation, "lipsyncAnim", "LipsyncAnim");
+	ar(m_audioStartTrigger, "audioStartTrigger", "AudioStartTrigger");
+	ar(m_audioStopTrigger, "audioStopTrigger", "AudioStopTrigger");
+	ar(m_lipsyncAnimation, "lipsyncAnim", "LipsyncAnim");
+	ar(m_standaloneFile, "standaloneFile", "standaloneFile");
 
-		if (ar.isEdit())
-		{
-			if (m_text.empty() && m_audioStopTrigger.empty() && m_audioStartTrigger.empty())
-			{
-				ar.warning(m_text, "DialogLine without any data found");
-			}
-		}
-	}
-	else
+	if (ar.isEdit())
 	{
-		if (!m_audioStartTrigger.empty())  //optimization: dont write default values to file
+		if (m_text.empty() && m_audioStopTrigger.empty() && m_audioStartTrigger.empty() && m_standaloneFile.empty())
 		{
-			ar(m_audioStartTrigger, "audioStartTrigger", "AudioStartTrigger");
-		}
-		if (!m_audioStopTrigger.empty())
-		{
-			ar(m_audioStopTrigger, "audioStopTrigger", "AudioStopTrigger");
-		}
-		if (!m_lipsyncAnimation.empty())
-		{
-			ar(m_lipsyncAnimation, "lipsyncAnim", "LipsyncAnim");
+			ar.warning(m_text, "DialogLine without any data found");
 		}
 	}
 }

@@ -498,6 +498,263 @@ public:
 	}
 };
 
+class CFlowNode_SendHUDEvent : public CFlowBaseNode<eNCT_Instanced>
+{
+	enum eInputs
+	{
+		EIP_Trigger = 0,
+		EIP_Event
+	};
+
+	enum eOutputs
+	{
+		EOP_Sent = 0,
+		EOP_Event
+	};
+
+public:
+	CFlowNode_SendHUDEvent(SActivationInfo* pActInfo ) {}
+
+	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo) override
+	{
+		return new CFlowNode_SendHUDEvent(pActInfo);
+	}
+
+	virtual void GetConfiguration(SFlowNodeConfig& config) override
+	{
+		static const SInputPortConfig in_ports[] = 
+		{
+			InputPortConfig_Void		("Trigger", _HELP("")),
+			InputPortConfig<string>	("Event", "", "Event to send", 0, _UICONFIG("enum_global:hud_events")),
+			{0}
+		};
+
+		static const SOutputPortConfig out_ports[] = 
+		{
+			OutputPortConfig<EntityId> ("Sent", _HELP("Outputs the entityId of the sender, if successful")),
+			OutputPortConfig<string>	 ("EventName", "Name of the event, that just got sent"),
+			{0}
+		};
+
+		config.nFlags |= EFLN_TARGET_ENTITY;
+		config.pInputPorts = in_ports;
+		config.pOutputPorts = out_ports;
+		config.sDescription = _HELP("Send a HUD Event");
+		config.SetCategory(EFLN_APPROVED);
+	}
+
+	virtual void GetMemoryUsage(ICrySizer* s) const override
+	{
+		s->Add(*this);
+	}
+
+	virtual void ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo) override
+	{
+		if (eFE_Activate == event)
+		{
+			if (IsPortActive(pActInfo, EIP_Trigger))
+			{
+				string inputEvent = GetPortString(pActInfo, EIP_Event);
+				if (inputEvent.length() > 0)
+				{
+					EHUDEventType hudEventType = CHUDEventDispatcher::GetEvent(inputEvent);
+					if (hudEventType > eHUDEvent_None && hudEventType < eHUDEvent_LAST)
+					{
+						SHUDEvent hudEvent(hudEventType);
+						EntityId entityId = INVALID_ENTITYID;
+
+						if (pActInfo->pEntity)
+						{
+							entityId = pActInfo->pEntity->GetId();
+							hudEvent.AddData(SHUDEventData((int)entityId));
+						}
+
+						CHUDEventDispatcher::CallEvent(hudEvent);
+						ActivateOutput(pActInfo, EOP_Sent, entityId);
+						ActivateOutput(pActInfo, EOP_Event, inputEvent);
+					}
+				}
+			}
+		}
+	}
+};
+
+class CFlowNode_HUDEventListener : public CFlowBaseNode<eNCT_Instanced>, IHUDEventListener
+{
+private:
+	SActivationInfo m_pActInfo;
+
+	enum eInputs
+	{
+		EIP_Enable = 0,
+		EIP_Disable,
+		EIP_Event,
+		EIP_ClassName,
+		EIP_CustomClass
+	};
+
+	enum eOutputs
+	{
+		EOP_EventFired = 0,
+		EOP_EventName,
+		EOP_EventParameter
+	};
+
+public:
+	CFlowNode_HUDEventListener(SActivationInfo* pActInfo) 
+	{
+		m_pActInfo = *pActInfo;
+	}
+
+	virtual IFlowNodePtr Clone(SActivationInfo *pActInfo) override
+	{
+		return new CFlowNode_HUDEventListener(pActInfo);
+	}
+
+	virtual ~CFlowNode_HUDEventListener()
+	{
+		CHUDEventDispatcher::RemoveHUDEventListener(this);
+	}
+
+	virtual void GetMemoryUsage(ICrySizer* s) const override
+	{
+		s->Add(*this);
+	}
+
+	virtual void GetConfiguration(SFlowNodeConfig& config) override
+	{
+		static const SInputPortConfig in_ports[] = 
+		{
+			InputPortConfig_Void		("Enable", _HELP("")),
+			InputPortConfig_Void		("Disable", _HELP("")),
+			InputPortConfig<string>	("Event", "", "Event to listen for", 0,  _UICONFIG("enum_global:hud_events")),
+			InputPortConfig<string>	("Class", "AllClasses", "Class you want to filter on. For custom classes, use CustomClasses input", 0,  _UICONFIG("enum_global:entity_classes")),
+			InputPortConfig<string>	("CustomClasses", "Optional: Add classes you want to filter the entities on (comma separated)"),
+			{0}
+		};
+
+		static const SOutputPortConfig out_ports[] = 
+		{
+			OutputPortConfig<EntityId>("Fired", _HELP("Outputs the entityId of the sender")),
+			OutputPortConfig<string>	("EventName", "Name of the event"),
+			OutputPortConfig<string>	("Parameter", "Comma separated string"),
+			{0}
+		};
+
+		config.pInputPorts = in_ports;
+		config.pOutputPorts = out_ports;
+		config.sDescription = _HELP("Listen to a specific HUD Event");
+		config.SetCategory(EFLN_APPROVED);
+	}
+
+	virtual void ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo) override
+	{
+		if (event == eFE_Initialize)
+		{
+			m_pActInfo = *pActInfo;
+		}
+
+		if (eFE_Activate == event)
+		{
+			if (IsPortActive(pActInfo, EIP_Enable))
+			{
+				string outputEvent = GetPortString(pActInfo, EIP_Event);
+				if (outputEvent.length() > 0)
+				{
+					CHUDEventDispatcher::AddHUDEventListener(this, outputEvent);
+				}
+			}
+			else if (IsPortActive(pActInfo, EIP_Disable))
+			{
+				CHUDEventDispatcher::RemoveHUDEventListener(this);
+			}
+		}
+	}
+
+	virtual void OnHUDEvent(const SHUDEvent& event) override
+	{
+		const EntityId entityId = event.GetDataSize() > 0 ? event.GetData(0).GetInt() : INVALID_ENTITYID;
+		const IEntity* pEntity = gEnv->pEntitySystem->GetEntity(entityId);
+		const char* szEntityClassName = pEntity ? pEntity->GetClass()->GetName() : "";
+
+		if (IsClassAllowed(szEntityClassName))
+		{
+			string outputParameter = "";
+			for(unsigned int i = 0; i < event.GetDataSize(); i++)
+			{
+				if (i > 0)
+				{
+					outputParameter.append(",");
+				}
+
+				string addParam = "";
+
+				switch(event.GetData(i).m_type)
+				{
+				case SHUDEventData::eSEDT_bool:
+					event.GetData(i).GetBool() ? addParam.append("1") : addParam.append("0");
+					break;
+				case SHUDEventData::eSEDT_int:
+					addParam.Format("%i", event.GetData(i).GetInt());
+					break;
+				case SHUDEventData::eSEDT_float:
+					addParam.Format("%f", event.GetData(i).GetFloat());
+					break;
+				case SHUDEventData::eSEDT_undef:
+				default:
+					CryWarning(VALIDATOR_MODULE_FLOWGRAPH, VALIDATOR_WARNING, "[CFlowNode_HUDEventListener] HudEvent data unknown.");
+					break;
+				}
+				outputParameter.append(addParam);
+			}
+
+			ActivateOutput(&m_pActInfo, EOP_EventFired, entityId);
+			ActivateOutput(&m_pActInfo, EOP_EventName, CHUDEventDispatcher::GetEventName(event.eventType));
+			ActivateOutput(&m_pActInfo, EOP_EventParameter, outputParameter);
+		}
+	}
+
+	bool IsClassAllowed(const char* szClassName)
+	{
+		const char* szClassFilter = GetPortString(&m_pActInfo, EIP_ClassName).c_str();
+		if(!strcmp(szClassFilter, "AllClasses") || !strcmp(szClassFilter, szClassName))
+		{
+			return true;
+		}
+		else if(strcmp(szClassFilter, "CustomClasses") == 0)
+		{
+			std::vector<string> customClassList;
+			string customClasses = GetPortString(&m_pActInfo, EIP_CustomClass);
+			SplitStringList(customClassList, customClasses.c_str(), ",");
+
+			for (unsigned int i = 0; i < customClassList.size(); i++)
+			{
+				if(!strcmp(szClassName, customClassList[i]))
+					return true;
+			}
+		}
+		return false;
+	}
+
+	void SplitStringList(std::vector<string>& result, const char* szFullString, const char* szDelimiter)
+	{
+		result.clear();
+
+		const char* ptr = szFullString;
+		for(; *ptr; ++ptr)
+		{
+			if(*ptr == szDelimiter[0])
+			{
+				result.push_back(string(szFullString, ptr));
+				szFullString = ptr + 1;
+			}
+		}
+		result.push_back(string(szFullString, ptr));
+	}
+};
+
+REGISTER_FLOW_NODE("HUD:SendHUDEvent", CFlowNode_SendHUDEvent);
+REGISTER_FLOW_NODE("HUD:HUDEventListener", CFlowNode_HUDEventListener);
 REGISTER_FLOW_NODE("HUD:MissionStateListener",	CFlowNode_MissionStateListener);
 REGISTER_FLOW_NODE("HUD:EntityTrackedListener",	CFlowNode_EntityTrackedListener);
 REGISTER_FLOW_NODE("HUD:BattleAreaListener",	CFlowNode_BattleAreaListener);

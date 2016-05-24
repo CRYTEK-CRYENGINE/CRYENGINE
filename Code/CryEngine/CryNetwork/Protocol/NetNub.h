@@ -22,8 +22,8 @@
 #include "NetTimer.h"
 #include <vector>
 #include "Config.h"
-#include <CryLobby/ICryLobby.h>
-#include <CryLobby/ICryMatchMaking.h>
+#include <CryLobby/CommonICryLobby.h>
+#include <CryLobby/CommonICryMatchMaking.h>
 
 class CNetChannel;
 class CNetwork;
@@ -317,10 +317,6 @@ private:
 	int                   m_connectingLocks;
 	int                   m_keepAliveLocks;
 	CryCriticalSection    m_lockChannels;
-
-#if NETWORK_REBROADCASTER
-	uint8 m_rebroadcasterPacketBuffer[MAX_UDP_PACKET_SIZE];
-#endif
 
 	bool SendPendingConnect(SPendingConnection& pc);
 	void SendConnecting(const TNetAddress& to, SConnecting& con);

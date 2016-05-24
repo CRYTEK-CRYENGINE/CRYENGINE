@@ -162,27 +162,6 @@ struct IMemoryManager
 	//! Used to add memory block size allocated directly from the crt or OS to the memory manager statistics.
 	virtual void FakeAllocation(long size) = 0;
 
-	//! Initialise the level heap.
-	virtual void InitialiseLevelHeap() = 0;
-
-	//! Switch the default heap to the level heap.
-	virtual void SwitchToLevelHeap() = 0;
-
-	//! Switch the default heap to the global heap.
-	virtual void SwitchToGlobalHeap() = 0;
-
-	//! Enable the global heap for this thread only. Returns previous heap selection, which must be passed to LocalSwitchToHeap.
-	virtual int LocalSwitchToGlobalHeap() = 0;
-
-	//! Enable the level heap for this thread only. Returns previous heap selection, which must be passed to LocalSwitchToHeap.
-	virtual int LocalSwitchToLevelHeap() = 0;
-
-	//! Switch to a specific heap for this thread only. Usually used to undo a previous LocalSwitchToGlobalHeap.
-	virtual void LocalSwitchToHeap(int heap) = 0;
-
-	//! Fetch the violation status of the level heap.
-	virtual bool GetLevelHeapViolationState(bool& usingLevelHeap, size_t& numAllocs, size_t& allocSize) = 0;
-
 	//////////////////////////////////////////////////////////////////////////
 	//! Heap Tracing API.
 	virtual HeapHandle TraceDefineHeap(const char* heapName, size_t size, const void* pBase) = 0;
@@ -462,90 +441,6 @@ size_t CryCrtSize(void* p);
 #if !defined(NOT_USE_CRY_MEMORY_MANAGER)
 	#include "CryMemoryAllocator.h"
 #endif
-
-//////////////////////////////////////////////////////////////////////////
-class ScopedSwitchToGlobalHeap
-{
-#if USE_LEVEL_HEAP
-public:
-	ILINE ScopedSwitchToGlobalHeap()
-		: m_old(CryGetIMemoryManager()->LocalSwitchToGlobalHeap())
-	{
-	}
-
-	ILINE ~ScopedSwitchToGlobalHeap()
-	{
-		CryGetIMemoryManager()->LocalSwitchToHeap(m_old);
-	}
-
-private:
-	ScopedSwitchToGlobalHeap(const ScopedSwitchToGlobalHeap&);
-	ScopedSwitchToGlobalHeap& operator=(const ScopedSwitchToGlobalHeap&);
-
-private:
-	int m_old;
-#else
-public:
-	ILINE ScopedSwitchToGlobalHeap() {}
-#endif
-};
-
-class CondScopedSwitchToGlobalHeap
-{
-#if USE_LEVEL_HEAP
-public:
-	ILINE CondScopedSwitchToGlobalHeap(bool cond)
-		: m_old(0)
-		, m_cond(cond)
-	{
-		IF (cond, 0)
-			m_old = CryGetIMemoryManager()->LocalSwitchToGlobalHeap();
-	}
-
-	ILINE ~CondScopedSwitchToGlobalHeap()
-	{
-		IF (m_cond, 0)
-			CryGetIMemoryManager()->LocalSwitchToHeap(m_old);
-	}
-
-private:
-	CondScopedSwitchToGlobalHeap(const CondScopedSwitchToGlobalHeap&);
-	CondScopedSwitchToGlobalHeap& operator=(const CondScopedSwitchToGlobalHeap&);
-
-private:
-	int  m_old;
-	bool m_cond;
-#else
-public:
-	ILINE CondScopedSwitchToGlobalHeap(bool) {}
-#endif
-};
-
-class ScopedSwitchToLevelHeap
-{
-#if USE_LEVEL_HEAP
-public:
-	ILINE ScopedSwitchToLevelHeap()
-		: m_old(CryGetIMemoryManager()->LocalSwitchToLevelHeap())
-	{
-	}
-
-	ILINE ~ScopedSwitchToLevelHeap()
-	{
-		CryGetIMemoryManager()->LocalSwitchToHeap(m_old);
-	}
-
-private:
-	ScopedSwitchToLevelHeap(const ScopedSwitchToLevelHeap&);
-	ScopedSwitchToLevelHeap& operator=(const ScopedSwitchToLevelHeap&);
-
-private:
-	int m_old;
-#else
-public:
-	ILINE ScopedSwitchToLevelHeap() {}
-#endif
-};
 
 //! These utility functions should be used for allocating objects with specific alignment requirements on the heap.
 //! \note On MSVC before 2013, only zero to three argument are supported, because C++11 support is not complete.

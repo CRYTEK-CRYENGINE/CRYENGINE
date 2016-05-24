@@ -5,6 +5,7 @@
 #ifndef __tracks_h__
 	#define __tracks_h__
 
+	#include "AnimSplineTrack.h"
 	#include <CryMovie/AnimKey.h>
 
 class CCameraTrack : public TAnimTrack<SCameraKey>
@@ -87,7 +88,7 @@ public:
 	}
 };
 
-class CAudioTriggerTrack : public TAnimTrack<SAudioTriggerKey>
+class CAudioTriggerTrack final : public TAnimTrack<SAudioTriggerKey>
 {
 public:
 	virtual CAnimParamType GetParameterType() const override { return eAnimParamType_AudioTrigger; }
@@ -99,13 +100,10 @@ public:
 	{
 		if (bLoading)
 		{
-			const char* pStartTrigger = keyNode->getAttr("StartTrigger");
-			cry_strcpy(key.m_startTrigger, pStartTrigger, sizeof(key.m_startTrigger));
-			key.m_startTrigger[sizeof(key.m_startTrigger) - 1] = 0;
-
-			const char* pStopTrigegr = keyNode->getAttr("StopTrigger");
-			cry_strcpy(key.m_stopTrigger, pStopTrigegr, sizeof(key.m_stopTrigger));
-			key.m_stopTrigger[sizeof(key.m_stopTrigger) - 1] = 0;
+			key.m_startTriggerName = keyNode->getAttr("startTrigger");
+			key.m_stopTriggerName = keyNode->getAttr("stopTrigger");
+			gEnv->pAudioSystem->GetAudioTriggerId(key.m_startTriggerName, key.m_startTriggerId);
+			gEnv->pAudioSystem->GetAudioTriggerId(key.m_stopTriggerName, key.m_stopTriggerId);
 
 			int32 durationTicks;
 			if (!keyNode->getAttr("durationTicks", durationTicks))
@@ -125,14 +123,22 @@ public:
 		}
 		else
 		{
-			keyNode->setAttr("StartTrigger", key.m_startTrigger);
-			keyNode->setAttr("StopTrigger", key.m_stopTrigger);
+			if (!key.m_startTriggerName.empty())
+			{
+				keyNode->setAttr("startTrigger", key.m_startTriggerName.c_str());
+			}
+
+			if (!key.m_stopTriggerName.empty())
+			{
+				keyNode->setAttr("stopTrigger", key.m_stopTriggerName.c_str());
+			}
+
 			keyNode->setAttr("durationTicks", key.m_duration.GetTicks());
 		}
 	}
 };
 
-class CAudioFileTrack : public TAnimTrack<SAudioFileKey>
+class CAudioFileTrack final : public TAnimTrack<SAudioFileKey>
 {
 public:
 	virtual CAnimParamType GetParameterType() const override { return eAnimParamType_AudioFile; }
@@ -141,18 +147,104 @@ public:
 	{
 		if (bLoading)
 		{
-			const char* szAudioFile = keyNode->getAttr("file");
-			cry_strcpy(key.m_audioFile, szAudioFile, sizeof(key.m_audioFile));
-			key.m_audioFile[sizeof(key.m_audioFile) - 1] = 0;
+			keyNode->getAttr("isLocalized", key.m_bIsLocalized);
+			key.m_audioFile = keyNode->getAttr("file");
 		}
 		else
 		{
-			keyNode->setAttr("file", key.m_audioFile);
+			bool bIsLocalized = key.m_bIsLocalized;
+			string audioFilePath = key.m_audioFile;
+
+			if (bIsLocalized)
+			{
+				const char* szLanguage = gEnv->pSystem->GetLocalizationManager()->GetLanguage();
+				int pathLength = audioFilePath.find(szLanguage);
+				if (pathLength > 0)
+				{
+					audioFilePath = audioFilePath.substr(pathLength + strlen(szLanguage) + 1, audioFilePath.length() - (pathLength + strlen(szLanguage)));
+				}
+			}
+
+			keyNode->setAttr("isLocalized", bIsLocalized);
+			keyNode->setAttr("file", audioFilePath);
+		}
+
+		if (!PathUtil::GetFileName(key.m_audioFile).empty())
+		{
+			int pathLength = key.m_audioFile.find(PathUtil::GetGameFolder());
+			const string tempFilePath = (pathLength == -1) ? PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR + key.m_audioFile : key.m_audioFile;
+
+			SAudioFileData audioData;
+			gEnv->pAudioSystem->GetAudioFileData(tempFilePath.c_str(), audioData);
+			key.m_duration = audioData.duration;
 		}
 	}
 };
 
-class CDynamicResponseSignalTrack : public TAnimTrack<SDynamicResponseSignalKey>
+class CAudioSwitchTrack final : public TAnimTrack<SAudioSwitchKey>
+{
+public:
+	virtual CAnimParamType GetParameterType() const override { return eAnimParamType_AudioSwitch; }
+
+	virtual void           SerializeKey(SAudioSwitchKey& key, XmlNodeRef& keyNode, bool bLoading) override
+	{
+		if (bLoading)
+		{
+			key.m_audioSwitchName = keyNode->getAttr("switch_name");
+			key.m_audioSwitchStateName = keyNode->getAttr("switch_state");
+			gEnv->pAudioSystem->GetAudioSwitchId(key.m_audioSwitchName, key.m_audioSwitchId);
+			gEnv->pAudioSystem->GetAudioSwitchStateId(key.m_audioSwitchId, key.m_audioSwitchStateName, key.m_audioSwitchStateId);
+		}
+		else
+		{
+			keyNode->setAttr("switch_name", key.m_audioSwitchName);
+			keyNode->setAttr("switch_state", key.m_audioSwitchStateName);
+		}
+	}
+};
+
+class CAudioParameterTrack final : public CAnimSplineTrack
+{
+public:
+	CAudioParameterTrack()
+	: CAnimSplineTrack(eAnimParamType_Float)
+	, m_audioParameterId(INVALID_AUDIO_CONTROL_ID)
+	{}
+
+	virtual CAnimParamType GetParameterType() const override { return eAnimParamType_AudioParameter; }
+
+	virtual void Serialize(Serialization::IArchive& ar) override
+	{
+		ar(Serialization::AudioRTPC(m_audioParameterName), "AudioParameterName", "Parameter Name");
+
+		if (ar.isInput())
+		{
+			gEnv->pAudioSystem->GetAudioRtpcId(m_audioParameterName.c_str(), m_audioParameterId);
+		}
+	}
+
+	virtual bool Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEmptyTracks) override
+	{
+		bool bResult = CAnimSplineTrack::Serialize(xmlNode, bLoading, bLoadEmptyTracks);
+
+		if (bLoading)
+		{
+			m_audioParameterName = xmlNode->getAttr("AudioParameterName");
+			gEnv->pAudioSystem->GetAudioRtpcId(m_audioParameterName, m_audioParameterId);
+		}
+		else
+		{
+			xmlNode->setAttr("AudioParameterName", m_audioParameterName);
+		}
+
+		return bResult;
+	}
+
+	string m_audioParameterName;
+	AudioControlId m_audioParameterId;
+};
+
+class CDynamicResponseSignalTrack final : public TAnimTrack<SDynamicResponseSignalKey>
 {
 public:
 	virtual CAnimParamType GetParameterType() const override { return eAnimParamType_DynamicResponseSignal; }
@@ -161,17 +253,9 @@ public:
 	{
 		if (bLoading)
 		{
-			const char* pSignalName = keyNode->getAttr("signalName");
-			cry_strcpy(key.m_signalName, pSignalName, sizeof(key.m_signalName));
-			key.m_signalName[sizeof(key.m_signalName) - 1] = 0;
-
-			const char* pContextVariableName = keyNode->getAttr("contextVariableName");
-			cry_strcpy(key.m_contextVariableName, pContextVariableName, sizeof(key.m_contextVariableName));
-			key.m_contextVariableName[sizeof(key.m_contextVariableName) - 1] = 0;
-
-			const char* pContextVariableValue = keyNode->getAttr("contextVariableValue");
-			cry_strcpy(key.m_contextVariableValue, pContextVariableValue, sizeof(key.m_contextVariableValue));
-			key.m_contextVariableValue[sizeof(key.m_contextVariableValue) - 1] = 0;
+			key.m_signalName = keyNode->getAttr("signalName");
+			key.m_contextVariableName = keyNode->getAttr("contextVariableName");
+			key.m_contextVariableValue = keyNode->getAttr("contextVariableValue");
 		}
 		else
 		{

@@ -422,7 +422,6 @@ IUIElement* CFlashUIElement::GetInstance(uint instanceID)
 			return *it;
 	}
 
-	ScopedSwitchToGlobalHeap useGlobalHeap;
 	CFlashUIElement* pNewElement = new CFlashUIElement(m_pFlashUI, this, instanceID);
 
 	if (!SUIElementSerializer::Serialize(pNewElement, m_baseInfo, true))
@@ -779,7 +778,6 @@ IFlashPlayerBootStrapper* CFlashUIElement::InitBootStrapper()
 	{
 		if (!m_pBootStrapper)
 		{
-			ScopedSwitchToGlobalHeap useGlobalHeap;
 			m_pBootStrapper = gEnv->pScaleformHelper ? gEnv->pScaleformHelper->CreateFlashPlayerBootStrapper() : nullptr;
 			if (m_pBootStrapper)
 			{

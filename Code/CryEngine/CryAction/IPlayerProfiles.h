@@ -7,6 +7,7 @@
 	#pragma once
 #endif
 
+#include <CryLobby/ICryStats.h>
 #include <CryFlowGraph/IFlowSystem.h>
 
 struct IPlayerProfile;

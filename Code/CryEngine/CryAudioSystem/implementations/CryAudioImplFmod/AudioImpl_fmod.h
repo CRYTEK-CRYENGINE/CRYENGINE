@@ -61,12 +61,12 @@ public:
 	virtual void                     DeleteAudioEnvironment(IAudioEnvironment const* const pOldAudioEnvironment) override;
 	virtual IAudioObject*            NewGlobalAudioObject(AudioObjectId const audioObjectID) override;
 	virtual IAudioObject*            NewAudioObject(AudioObjectId const audioObjectID) override;
-	virtual void                     DeleteAudioObject(IAudioObject* const pOldAudioObject) override;
+	virtual void                     DeleteAudioObject(IAudioObject const* const pOldAudioObject) override;
 	virtual IAudioListener*          NewDefaultAudioListener(AudioObjectId const audioObjectId) override;
 	virtual IAudioListener*          NewAudioListener(AudioObjectId const audioObjectId) override;
 	virtual void                     DeleteAudioListener(IAudioListener* const pOldListenerData) override;
 	virtual IAudioEvent*             NewAudioEvent(AudioEventId const audioEventID) override;
-	virtual void                     DeleteAudioEvent(IAudioEvent* const pOldAudioEvent) override;
+	virtual void                     DeleteAudioEvent(IAudioEvent const* const pOldAudioEvent) override;
 	virtual void                     ResetAudioEvent(IAudioEvent* const pAudioEvent) override;
 	virtual IAudioStandaloneFile*    NewAudioStandaloneFile() override;
 	virtual void                     DeleteAudioStandaloneFile(IAudioStandaloneFile const* const _pOldAudioStandaloneFile) override;
@@ -109,14 +109,16 @@ private:
 	AudioObjectId m_globalAudioObjectID;
 	AudioObjects  m_registeredAudioObjects;
 	AudioEvents   m_pendingAudioEvents;
+	StandaloneFiles m_pendingStandaloneFiles;
 
-	CryFixedStringT<MAX_AUDIO_FILE_PATH_LENGTH> m_regularSoundBankFolder;
-	CryFixedStringT<MAX_AUDIO_FILE_PATH_LENGTH> m_localizedSoundBankFolder;
+	CryFixedStringT<MAX_AUDIO_FILE_PATH_LENGTH>    m_regularSoundBankFolder;
+	CryFixedStringT<MAX_AUDIO_FILE_PATH_LENGTH>    m_localizedSoundBankFolder;
 
-	FMOD::Studio::System*                       m_pSystem;
-	FMOD::System*                               m_pLowLevelSystem;
-	FMOD::Studio::Bank*                         m_pMasterBank;
-	FMOD::Studio::Bank*                         m_pStringsBank;
+	FMOD::Studio::System*                          m_pSystem;
+	FMOD::System*                                  m_pLowLevelSystem;
+	FMOD::Studio::Bank*                            m_pMasterBank;
+	FMOD::Studio::Bank*                            m_pStringsBank;
+	CryFixedStringT<MAX_AUDIO_CONTROL_NAME_LENGTH> m_language;
 
 #if defined(INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
 	CryFixedStringT<MAX_AUDIO_MISC_STRING_LENGTH> m_fullImplString;

@@ -221,7 +221,6 @@ extern "C"
 		return _LuaRealloc(ptr, nsize);
 #else
 		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_LUA, 0, "Lua");
-		ScopedSwitchToGlobalHeap toGlobalHeap;
 
 		if (g_dumpStackOnAlloc)
 			DumpCallStack(g_LStack);
@@ -1169,15 +1168,11 @@ void CScriptSystem::DumpLoadedScripts()
 //////////////////////////////////////////////////////////////////////
 void CScriptSystem::AddFileToList(const char* sName)
 {
-	ScopedSwitchToGlobalHeap globalHeap;
-
 	m_dqLoadedFiles.insert(sName);
 }
 
 void CScriptSystem::RemoveFileFromList(const ScriptFileListItor& itor)
 {
-	ScopedSwitchToGlobalHeap globalHeap;
-
 	m_dqLoadedFiles.erase(itor);
 }
 

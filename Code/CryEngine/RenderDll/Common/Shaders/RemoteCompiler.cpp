@@ -24,8 +24,6 @@ CShaderSrv::CShaderSrv()
 
 void CShaderSrv::Init()
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 #ifdef _MSC_VER
 	WSADATA Data;
 	if (WSAStartup(MAKEWORD(2, 0), &Data))

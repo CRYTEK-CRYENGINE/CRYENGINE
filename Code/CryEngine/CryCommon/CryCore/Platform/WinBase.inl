@@ -2617,10 +2617,7 @@ FILE* CFileHandleCache::OpenFile(uint32 nCachePos, const char* sName, const char
 		CloseFile(nCachePos);
 	}
 
-	{
-		ScopedSwitchToGlobalHeap useGlobalHeap;
-		rEntry.m_pHandle = CryFileSystem::fopen(sName, op);
-	}
+	rEntry.m_pHandle = CryFileSystem::fopen(sName, op);
 
 	/*if ( errno == EMFILE )
 	   {
@@ -2672,7 +2669,6 @@ FILE* CFileHandleCache::OpenFile(uint32 nCachePos, const char* sName, const char
 
 void CFileHandleCache::ReOpenFile(uint32 nCachePos)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
 	SCacheEntry& rEntry = m_Cache[nCachePos];
 	CryStackStringT<char, sizeof(rEntry.m_mode)> mode = rEntry.m_mode;
 	rEntry.m_pHandle = CryFileSystem::fopen(rEntry.m_filename, mode.c_str());

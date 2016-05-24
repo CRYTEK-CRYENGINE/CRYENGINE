@@ -363,31 +363,37 @@ void CEntityAudioProxy::Serialize(TSerialize ser)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntityAudioProxy::PlayFile(
-  char const* const _szFile,
-  AudioProxyId const _audioProxyId /*= DEFAULT_AUDIO_PROXY_ID*/,
-  SAudioCallBackInfo const& _callBackInfo /*= SAudioCallBackInfo::GetEmptyObject()*/)
+bool CEntityAudioProxy::PlayFile(SAudioPlayFileInfo const& playbackInfo, AudioProxyId const audioProxyId /* = DEFAULT_AUDIO_PROXY_ID */, SAudioCallBackInfo const& callBackInfo /* = SAudioCallBackInfo::GetEmptyObject() */)
 {
 	if (m_pEntity != nullptr)
 	{
-		if (_audioProxyId != INVALID_AUDIO_PROXY_ID)
+		if (audioProxyId != INVALID_AUDIO_PROXY_ID)
 		{
-			TAudioProxyPair const& audioProxyPair = GetAuxAudioProxyPair(_audioProxyId);
+			TAudioProxyPair const& audioProxyPair = GetAuxAudioProxyPair(audioProxyId);
 
 			if (audioProxyPair.first != INVALID_AUDIO_PROXY_ID)
 			{
-				(SPlayFile(_szFile, _callBackInfo))(audioProxyPair);
+				(SPlayFile(playbackInfo, callBackInfo))(audioProxyPair);
+				return true;
 			}
+#if defined(INCLUDE_ENTITYSYSTEM_PRODUCTION_CODE)
+			else
+			{
+				gEnv->pSystem->Warning(VALIDATOR_MODULE_ENTITYSYSTEM, VALIDATOR_WARNING, VALIDATOR_FLAG_AUDIO, 0, "<Audio> Could not find AuxAudioProxy with id '%u' on entity '%s' to PlayFile '%s'", audioProxyId, m_pEntity->GetEntityTextDescription(), playbackInfo.szFile);
+			}
+#endif  // INCLUDE_ENTITYSYSTEM_PRODUCTION_CODE
 		}
 		else
 		{
-			std::for_each(m_mapAuxAudioProxies.begin(), m_mapAuxAudioProxies.end(), SPlayFile(_szFile, _callBackInfo));
+			std::for_each(m_mapAuxAudioProxies.begin(), m_mapAuxAudioProxies.end(), SPlayFile(playbackInfo, callBackInfo));
+			return !m_mapAuxAudioProxies.empty();
 		}
 	}
 	else
 	{
 		gEnv->pSystem->Warning(VALIDATOR_MODULE_ENTITYSYSTEM, VALIDATOR_WARNING, VALIDATOR_FLAG_AUDIO, 0, "<Audio> Trying to play an audio file on an EntityAudioProxy without a valid entity!");
 	}
+	return false;
 }
 
 //////////////////////////////////////////////////////////////////////////

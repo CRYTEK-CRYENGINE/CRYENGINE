@@ -17,7 +17,6 @@
 	#include "SaveReaderWriter_CryPak.h"
 	#include <CrySystem/File/ICryPak.h>
 
-	#include <CryLobby/ICryLobby.h>
 	#include <CryNetwork/CrySocks.h>
 
 	#include "../ZipDir.h"

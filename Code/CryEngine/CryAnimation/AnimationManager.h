@@ -1,7 +1,7 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
-
+#ifndef RESOURCE_COMPILER
 #include "GlobalAnimationHeaderLMG.h"
 #include "GlobalAnimationHeaderCAF.h"
 #include "GlobalAnimationHeaderAIM.h"
@@ -175,3 +175,4 @@ public:
 
 private:
 };
+#endif

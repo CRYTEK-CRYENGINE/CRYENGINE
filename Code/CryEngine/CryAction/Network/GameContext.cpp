@@ -623,7 +623,6 @@ bool CGameContext::InitChannelEstablishmentTasks(IContextEstablisher* pEst, INet
 		if (gEnv->IsEditor())
 			AddWaitValue(pEst, eCVS_PostSpawnEntities, &m_bAllowSendClientConnect, true, "WaitForAllowSendClientConnect", 20.0f);
 		AddOnClientConnect(pEst, eCVS_PostSpawnEntities, isReset);
-		AddPopulateRebroadcaster(pEst, eCVS_PostSpawnEntities);
 		AddOnClientEnteredGame(pEst, eCVS_InGame, isReset);
 		if (pServerChannel->IsOnHold())
 			AddClearOnHold(pEst, eCVS_InGame);

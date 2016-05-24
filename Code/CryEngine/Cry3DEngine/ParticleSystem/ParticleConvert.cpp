@@ -795,7 +795,7 @@ PParticleEffect CParticleSystem::ConvertEffect(const ::IParticleEffect* pOldEffe
 	ConvertSubEffects(*pNewEffect, *pOldEffect);
 
 	gEnv->pLog->Log(" - Saving as \"%s\":", newName.c_str());
-	gEnv->pCryPak->MakeDir(newName);
+	gEnv->pCryPak->MakeDir(PathUtil::GetParentDirectory(newName).c_str());
 	Serialization::SaveJsonFile(newName, *pNewEffect);
 
 	return pNewEffect;

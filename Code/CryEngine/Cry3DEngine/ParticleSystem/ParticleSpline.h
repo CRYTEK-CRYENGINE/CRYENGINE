@@ -79,9 +79,10 @@ private:
 	};
 
 	// Key array allocated via Resize. coeff0 and coeff1 are absent for final key
-	size_t     m_numKeys;
-	SplineKey* m_keys;
-	Range      m_valueRange;
+	size_t                     m_numKeys;
+	SplineKey*                 m_keys;
+	std::vector<spline::Flags> m_keyFlags;
+	Range                      m_valueRange;
 };
 
 // Automatically creates a global Serialize() for Type, which invokes Type.Serialize

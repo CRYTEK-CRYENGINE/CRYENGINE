@@ -52,8 +52,6 @@
 #include "RopeRenderNode.h"
 #include "RenderMeshMerger.h"
 #include "PhysCallbacks.h"
-#include "LPVRenderNode.h"
-#include "GlobalIllumination.h"
 #include "DeferredCollisionEvent.h"
 #include "MergedMeshRenderNode.h"
 #include "BreakableGlassRenderNode.h"
@@ -79,84 +77,6 @@ struct C3DEngine__Cmp_DLightAmount
 void SortLightAmount(DLightAmount* pBegin, DLightAmount* pEnd)
 {
 	std::sort(pBegin, pEnd, C3DEngine__Cmp_DLightAmount());
-}
-
-///////////////////////////////////////////////////////////////////////////////
-uint32 C3DEngine::BuildLightMask(const AABB& objBox, PodArray<CDLight*>* pAffectingLights, CVisArea* pObjArea, bool bObjOutdoorOnly, const SRenderingPassInfo& passInfo, SRestLightingInfo* pRestLightingInfo)
-{
-	FUNCTION_PROFILER_3DENGINE;
-
-	PREFAST_SUPPRESS_WARNING(6255)
-	DLightAmount * lstLightInfos = (DLightAmount*)alloca(pAffectingLights->Count() * sizeof(DLightAmount));
-	uint32 nNumLightInfos = 0;
-
-	uint32 nDLightMask = 0;
-
-	// make list of affecting light sources
-	for (int i = 0; i < pAffectingLights->Count(); i++)
-	{
-		CDLight* pLight = pAffectingLights->GetAt(i);
-		ILightSource* pLightOwner = pLight->m_pOwner;
-		CVisArea* pLightArea = (CVisArea*)pLightOwner->GetEntityVisArea();
-
-		uint32 nLightFlags = pLight->m_Flags;
-
-		bool bThisAreaOnlyLight = (nLightFlags & DLF_THIS_AREA_ONLY) != 0;
-
-		assert(pLight->m_Id >= 0 || !GetCVars()->e_DynamicLightsConsistentSortOrder);
-		assert(pLightOwner);
-
-		if (pLightArea && bThisAreaOnlyLight && pObjArea != pLightArea)
-			if (!pObjArea || !pObjArea->IsPortal())
-				continue;
-		// different areas
-
-		if (nLightFlags & DLF_INDOOR_ONLY && bObjOutdoorOnly)
-			continue; // indoor-only light is not affecting outdoor-only objects
-
-		// calculate amount of light for object
-		if (float fLightAmount = GetLightAmount(pLight, objBox))
-		{
-			// check sphere/bbox intersection
-			if (!Overlap::Sphere_AABB(Sphere(pLight->m_Origin, pLight->m_fRadius), objBox))
-				continue;
-
-			Get3DEngine()->CheckAddLight(pLight, passInfo);
-
-			DLightAmount& la = lstLightInfos[nNumLightInfos++];
-			la.pLight = pLight;
-			la.fAmount = fLightAmount;
-		}
-	}
-
-	if (!nNumLightInfos)
-		return 0; // no light sources found
-
-	SortLightAmount(lstLightInfos, lstLightInfos + nNumLightInfos);
-
-	// limit number of effective light sources
-	int nMaxNum = min(GetCVars()->e_DynamicLightsMaxEntityLights, (int)nNumLightInfos);
-	for (int n = 0; n < nMaxNum; n++)
-		nDLightMask |= (1 << lstLightInfos[n].pLight->m_Id);
-
-	// accumulate information about rest of the lights
-	if (pRestLightingInfo)
-	{
-		for (int n = nMaxNum; n < (int)nNumLightInfos; n++)
-		{
-			DLightAmount& la = lstLightInfos[n];
-
-			float fDist = Distance::Point_Point(la.pLight->m_Origin, pRestLightingInfo->refPoint);
-			float fLightAttenuation = (la.pLight->m_Flags & DLF_DIRECTIONAL) ? 1.f : 1.f - (fDist) / (la.pLight->m_fRadius);
-			if (fLightAttenuation > 0)
-			{
-				pRestLightingInfo->averCol += la.pLight->m_Color * fLightAttenuation;
-				pRestLightingInfo->averDir += (la.pLight->m_Origin - pRestLightingInfo->refPoint).GetNormalized() * fLightAttenuation;
-			}
-		}
-	}
-
-	return nDLightMask;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -274,14 +194,14 @@ void C3DEngine::RenderRenderNode_ShadowPass(IShadowCaster* pShadowCaster, const 
 		{
 			CVegetation* pVegetation = static_cast<CVegetation*>(pRenderNode);
 			const CLodValue lodValue = pVegetation->ComputeLod(wantedLod, passInfo);
-			pVegetation->Render(passInfo, lodValue, NULL, 0);
+			pVegetation->Render(passInfo, lodValue, NULL);
 		}
 		break;
 	case eERType_Brush:
 		{
 			CBrush* pBrush = static_cast<CBrush*>(pRenderNode);
 			const CLodValue lodValue = pBrush->ComputeLod(wantedLod, passInfo);
-			pBrush->Render(lodValue, passInfo, NULL, 0, NULL);
+			pBrush->Render(lodValue, passInfo, NULL, NULL);
 		}
 		break;
 	default:

@@ -355,8 +355,6 @@ public:
 	CCryActionPhysicQueues& GetPhysicQueues();
 	bool                    IsGameSessionMigrating();
 
-	void                    SwitchToLevelHeap(const char* acLevelName);
-
 	void                    StartNetworkStallTicker(bool includeMinimalUpdate);
 	void                    StopNetworkStallTicker();
 	void                    GoToSegment(int x, int y);
@@ -467,7 +465,6 @@ private:
 	bool                          m_forcedpause;
 
 	bool                          m_levelPrecachingDone;
-	bool                          m_usingLevelHeap;
 
 	static CCryAction*            m_pThis;
 

@@ -16,7 +16,6 @@
 #include <CrySystem/File/IResourceManager.h>
 
 //==================================================================================
-
 bool CShader::FXSetTechnique(const CCryNameTSCRC& Name)
 {
 	assert(gRenDev->m_pRT->IsRenderThread());
@@ -411,7 +410,6 @@ void CRenderer::RefreshSystemShaders()
 	gRenDev->m_cEF.mfRefreshSystemShader("ShadowBlur", CShaderMan::s_ShaderShadowBlur);
 	gRenDev->m_cEF.mfRefreshSystemShader("Stereo", CShaderMan::s_ShaderStereo);
 	gRenDev->m_cEF.mfRefreshSystemShader("Sunshafts", CShaderMan::s_shPostSunShafts);
-	gRenDev->m_cEF.mfRefreshSystemShader("LightPropagationVolumes", CShaderMan::s_ShaderLPV);
 	gRenDev->m_cEF.mfRefreshSystemShader("Clouds", CShaderMan::s_ShaderClouds);
 }
 

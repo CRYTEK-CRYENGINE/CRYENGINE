@@ -8,7 +8,6 @@
 #endif
 
 #include <IPlayerProfiles.h>
-#include <CryLobby/ICryStats.h>
 #include <CryCore/CryCrc32.h>
 
 class CPlayerProfile;

@@ -625,14 +625,12 @@ inline void free_container(T& t)
 template<class T, class A>
 inline void free_container(std::deque<T, A>& t)
 {
-	ScopedSwitchToGlobalHeap GlobalHeap;
 	reconstruct(t);
 }
 
 template<class K, class D, class H, class P, class A>
 inline void free_container(std::unordered_map<K, D, H, P, A>& t)
 {
-	ScopedSwitchToGlobalHeap GlobalHeap;
 	reconstruct(t);
 }
 

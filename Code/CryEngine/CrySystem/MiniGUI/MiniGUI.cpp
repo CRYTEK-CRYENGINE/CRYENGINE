@@ -268,8 +268,6 @@ SMetrics& CMiniGUI::Metrics()
 //////////////////////////////////////////////////////////////////////////
 IMiniCtrl* CMiniGUI::CreateCtrl(IMiniCtrl* pParentCtrl, int nCtrlID, EMiniCtrlType type, int nCtrlFlags, const Rect& rc, const char* title)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	CMiniCtrl* pCtrl = 0;
 	// Test code.
 	switch (type)

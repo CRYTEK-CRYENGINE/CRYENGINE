@@ -49,7 +49,7 @@ uint32 GlobalAnimationHeaderCAF::LoadCAF()
 			CommitContent(content);
 
 			//---> file loaded successfully
-			m_FilePathDBACRC32 = 0;  //if 0, then this is a streamable CAF file
+			m_FilePathDBACRC32 = 0;    //if 0, then this is a streamable CAF file
 			ControllerInit();
 #ifndef _RELEASE
 			if (Console::GetInst().ca_DebugAnimUsageOnFileAccess)
@@ -612,7 +612,7 @@ bool GlobalAnimationHeaderCAFStreamContent::ReadMotionParameters(IChunkFile::Chu
 		SwapEndian(*pChunk, pChunkDesc->bSwapEndian);
 		pChunkDesc->bSwapEndian = false;
 		m_nFlags = FlagsSanityFilter(pChunk->AnimFlags) | (m_nFlags & (CA_ASSET_REQUESTED));
-		m_FilePathDBACRC32 = 0;  //if 0, then this is a streamable CAF file
+		m_FilePathDBACRC32 = 0;      //if 0, then this is a streamable CAF file
 
 		m_StartLocation = pChunk->StartPosition;
 		return true;
@@ -633,7 +633,7 @@ bool GlobalAnimationHeaderCAFStreamContent::ReadMotionParameters(IChunkFile::Chu
 		// assets dont have the CREATED flag set...
 		m_nFlags |= CA_ASSET_CREATED;
 
-		m_FilePathDBACRC32 = 0;  //if 0, then this is a streamable CAF file
+		m_FilePathDBACRC32 = 0;        //if 0, then this is a streamable CAF file
 		uint32 nCompression = pChunk->mp.m_nCompression;
 		int32 nStartKey = pChunk->mp.m_nStart;
 		int32 nEndKey = pChunk->mp.m_nEnd;
@@ -654,7 +654,7 @@ bool GlobalAnimationHeaderCAFStreamContent::ReadMotionParameters(IChunkFile::Chu
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool GlobalAnimationHeaderCAFStreamContent::ReadController(IChunkFile::ChunkDesc* pChunkDesc, bool bLoadOldChunks, char*& pStorage, IControllerRelocatableChain*& pRelocateHead)
+bool GlobalAnimationHeaderCAFStreamContent::ReadController(IChunkFile::ChunkDesc* pChunkDesc, bool bLoadUncompressedChunks, char*& pStorage, IControllerRelocatableChain*& pRelocateHead)
 {
 
 	if (pChunkDesc->chunkVersion == CONTROLLER_CHUNK_DESC_0826::VERSION)
@@ -665,42 +665,46 @@ bool GlobalAnimationHeaderCAFStreamContent::ReadController(IChunkFile::ChunkDesc
 
 	if (pChunkDesc->chunkVersion == CONTROLLER_CHUNK_DESC_0827::VERSION)
 	{
-		if (bLoadOldChunks)
+		if (!bLoadUncompressedChunks)
 		{
-			//	CryFatalError("CONTROLLER_CHUNK_DESC_0827" );
-			CONTROLLER_CHUNK_DESC_0827* pCtrlChunk = (CONTROLLER_CHUNK_DESC_0827*)pChunkDesc->data;
-			const bool bSwapEndianness = pChunkDesc->bSwapEndian;
-			SwapEndian(*pCtrlChunk, bSwapEndianness);
-			pChunkDesc->bSwapEndian = false;
-
-			size_t numKeys = pCtrlChunk->numKeys;
-
-			CryKeyPQLog* pCryKey = (CryKeyPQLog*)(pCtrlChunk + 1);
-			SwapEndian(pCryKey, numKeys, bSwapEndianness);
-
-			CControllerPQLog* pController = new CControllerPQLog;
-			pController->m_nControllerId = pCtrlChunk->nControllerId;
-
-			pController->m_arrKeys.resize(numKeys);
-			pController->m_arrTimes.resize(numKeys);
-
-			const int startTime = (numKeys > 0) ? pCryKey[0].nTime : 0;
-			for (size_t i = 0; i < numKeys; ++i)
-			{
-				pController->m_arrTimes[i] = (pCryKey[i].nTime - startTime) / TICKS_CONVERT;
-				pController->m_arrKeys[i].position = pCryKey[i].vPos / 100.0f;
-				pController->m_arrKeys[i].rotationLog = pCryKey[i].vRotLog;
-				pController->m_arrKeys[i].scale = Vec3(1.0f);
-			}
-			m_arrController.push_back(pController);
+			return true;
 		}
+
+		auto pData = static_cast<char*>(pChunkDesc->data);
+
+		const auto pCtrlChunk = reinterpret_cast<CONTROLLER_CHUNK_DESC_0827*>(pData);
+		pData += sizeof(CONTROLLER_CHUNK_DESC_0827);
+
+		const bool bSwapEndianness = pChunkDesc->bSwapEndian;
+		SwapEndian(*pCtrlChunk, bSwapEndianness);
+		pChunkDesc->bSwapEndian = false;
+
+		const auto pCryKey = reinterpret_cast<CryKeyPQLog*>(pData);
+		SwapEndian(pCryKey, pCtrlChunk->numKeys, bSwapEndianness);
+
+		_smart_ptr<CControllerPQLog> pController = new CControllerPQLog;
+
+		pController->m_nControllerId = pCtrlChunk->nControllerId;
+		pController->m_arrKeys.resize(pCtrlChunk->numKeys);
+		pController->m_arrTimes.resize(pCtrlChunk->numKeys);
+
+		const int startTime = (pCtrlChunk->numKeys > 0) ? pCryKey[0].nTime : 0;
+		for (size_t i = 0; i < pCtrlChunk->numKeys; ++i)
+		{
+			pController->m_arrTimes[i] = (pCryKey[i].nTime - startTime) / TICKS_CONVERT;
+			pController->m_arrKeys[i].position = pCryKey[i].vPos / 100.0f;
+			pController->m_arrKeys[i].rotationLog = pCryKey[i].vRotLog;
+			pController->m_arrKeys[i].scale = Vec3(1.0f);
+		}
+
+		m_arrController.push_back(pController);
 
 		return true;
 	}
 
 	if (pChunkDesc->chunkVersion == CONTROLLER_CHUNK_DESC_0833::VERSION)
 	{
-		if (bLoadOldChunks)
+		if (bLoadUncompressedChunks)
 		{
 			const auto pCtrlChunk = static_cast<CONTROLLER_CHUNK_DESC_0833*>(pChunkDesc->data);
 			const bool bSwapEndianness = pChunkDesc->bSwapEndian;
@@ -738,134 +742,118 @@ bool GlobalAnimationHeaderCAFStreamContent::ReadController(IChunkFile::ChunkDesc
 		return true;
 	}
 
-	//--------------------------------------------------------------
-
 	if (pChunkDesc->chunkVersion == CONTROLLER_CHUNK_DESC_0829::VERSION)
 	{
-		if (bLoadOldChunks)
+		if (bLoadUncompressedChunks)
+		{
 			return true;
+		}
 
 		if (pChunkDesc->bSwapEndian)
-			CryFatalError("%s: data are stored in non-native endian format", __FUNCTION__);
-
-		CONTROLLER_CHUNK_DESC_0829* pCtrlChunk = (CONTROLLER_CHUNK_DESC_0829*)pChunkDesc->data;
-
-		CController* pController = new CController;
-		pController->m_nControllerId = pCtrlChunk->nControllerId;
-		m_arrController.push_back(pController);
-
-		char* pData = (char*)(pCtrlChunk + 1);
-
-		_smart_ptr<IKeyTimesInformation> pRotTimeKeys;
-		_smart_ptr<IKeyTimesInformation> pPosTimeKeys;
-
-		RotationControllerPtr pRotation;
-		PositionControllerPtr pPosition;
-
-		uint32 trackAlignment = pCtrlChunk->TracksAligned ? 4 : 1;
-
-		if (pCtrlChunk->numRotationKeys)
 		{
-			// we have a rotation info
+			CryFatalError("%s: data are stored in non-native endian format", __FUNCTION__);
+		}
 
-			pRotation = RotationControllerPtr(new RotationTrackInformation);
+		auto pData = static_cast<char*>(pChunkDesc->data); // TODO: make const
 
-			size_t rawRotationSize = ControllerHelper::GetRotationFormatSizeOf(pCtrlChunk->RotationFormat) * pCtrlChunk->numRotationKeys;
+		const auto pCtrlChunk = reinterpret_cast<const CONTROLLER_CHUNK_DESC_0829*>(pData);
+		pData += sizeof(CONTROLLER_CHUNK_DESC_0829);
 
+		auto consumeData = [&pData, &pStorage, &pCtrlChunk](const size_t bytesCount) -> char*
+		{
 			if (pStorage)
-				memcpy(pStorage, pData, rawRotationSize);
+			{
+				memcpy(pStorage, pData, bytesCount);
+			}
 
-			ITrackRotationStorage* pTrackRotStorage = ControllerHelper::GetRotationControllerPtr(pCtrlChunk->RotationFormat, pStorage ? pStorage : pData, pCtrlChunk->numRotationKeys);
+			char* out = pStorage ? pStorage : pData;
+
+			const uint32 trackAlignment = pCtrlChunk->TracksAligned ? 4 : 1;
+			pData += Align(bytesCount, trackAlignment);
+			if (pStorage)
+			{
+				pStorage += Align(bytesCount, 4);
+			}
+
+			return out;
+		};
+
+		std::unique_ptr<IRotationController> pRotation = nullptr;
+		if (pCtrlChunk->numRotationKeys > 0)
+		{
+			const size_t rotationDataSize = ControllerHelper::GetRotationFormatSizeOf(pCtrlChunk->RotationFormat) * pCtrlChunk->numRotationKeys;
+
+			ITrackRotationStorage* pTrackRotStorage = ControllerHelper::GetRotationControllerPtr(pCtrlChunk->RotationFormat, consumeData(rotationDataSize), pCtrlChunk->numRotationKeys);
 			if (!pTrackRotStorage)
+			{
 				return false;
-
-			pData += Align(rawRotationSize, trackAlignment);
-			if (pStorage)
-				pStorage += Align(rawRotationSize, 4);
-
-			pRotation->SetRotationStorage(pTrackRotStorage);
+			}
 
 			pTrackRotStorage->LinkTo(pRelocateHead);
 			pRelocateHead = pTrackRotStorage;
 
-			size_t rawTimeSize = ControllerHelper::GetKeyTimesFormatSizeOf(pCtrlChunk->RotationTimeFormat) * pCtrlChunk->numRotationKeys;
+			const size_t timeDataSize = ControllerHelper::GetKeyTimesFormatSizeOf(pCtrlChunk->RotationTimeFormat) * pCtrlChunk->numRotationKeys;
 
-			if (pStorage)
-				memcpy(pStorage, pData, rawTimeSize);
-
-			pRotTimeKeys = ControllerHelper::GetKeyTimesControllerPtr(pCtrlChunk->RotationTimeFormat, pStorage ? pStorage : pData, pCtrlChunk->numRotationKeys);
+			_smart_ptr<IKeyTimesInformation> pRotTimeKeys = ControllerHelper::GetKeyTimesControllerPtr(pCtrlChunk->RotationTimeFormat, consumeData(timeDataSize), pCtrlChunk->numRotationKeys);
 			if (!pRotTimeKeys)
+			{
 				return false;
+			}
 
-			pData += Align(rawTimeSize, trackAlignment);
-			if (pStorage)
-				pStorage += Align(rawTimeSize, 4);
-
-			pRotation->SetKeyTimesInformation(pRotTimeKeys);
-
-			IControllerRelocatableChain* pRotTimeKeysReloc = pRotTimeKeys->GetRelocateChain();
-			if (pRotTimeKeysReloc)
+			if (IControllerRelocatableChain* pRotTimeKeysReloc = pRotTimeKeys->GetRelocateChain())
 			{
 				pRotTimeKeysReloc->LinkTo(pRelocateHead);
 				pRelocateHead = pRotTimeKeysReloc;
 			}
 
-			pController->SetRotationController(pRotation);
+			pRotation.reset(new RotationTrackInformation);
+			pRotation->SetRotationStorage(pTrackRotStorage);
+			pRotation->SetKeyTimesInformation(pRotTimeKeys);
 		}
 
-		if (pCtrlChunk->numPositionKeys)
+		std::unique_ptr<IPositionController> pPosition = nullptr;
+		if (pCtrlChunk->numPositionKeys > 0)
 		{
-			pPosition = PositionControllerPtr(new PositionTrackInformation);
+			const size_t positionDataSize = ControllerHelper::GetPositionsFormatSizeOf(pCtrlChunk->PositionFormat) * pCtrlChunk->numPositionKeys;
 
-			size_t posSize = ControllerHelper::GetPositionsFormatSizeOf(pCtrlChunk->PositionFormat) * pCtrlChunk->numPositionKeys;
-
-			if (pStorage)
-				memcpy(pStorage, pData, posSize);
-
-			TrackPositionStoragePtr pTrackPosStorage = ControllerHelper::GetPositionControllerPtr(pCtrlChunk->PositionFormat, pStorage ? pStorage : pData, pCtrlChunk->numPositionKeys);
+			ITrackPositionStorage* pTrackPosStorage = ControllerHelper::GetPositionControllerPtr(pCtrlChunk->PositionFormat, consumeData(positionDataSize), pCtrlChunk->numPositionKeys);
 			if (!pTrackPosStorage)
+			{
 				return false;
-
-			pData += Align(posSize, trackAlignment);
-			if (pStorage)
-				pStorage += Align(posSize, 4);
-
-			pPosition->SetPositionStorage(pTrackPosStorage);
+			}
 
 			pTrackPosStorage->LinkTo(pRelocateHead);
 			pRelocateHead = pTrackPosStorage;
 
+			_smart_ptr<IKeyTimesInformation> pPosTimeKeys = nullptr;
 			if (pCtrlChunk->PositionKeysInfo == CONTROLLER_CHUNK_DESC_0829::eKeyTimeRotation)
 			{
-				pPosition->SetKeyTimesInformation(pRotTimeKeys);
+				pPosTimeKeys = pRotation->GetKeyTimesInformation();
 			}
 			else
 			{
-				size_t keySize = ControllerHelper::GetKeyTimesFormatSizeOf(pCtrlChunk->PositionTimeFormat) * pCtrlChunk->numPositionKeys;
+				const size_t timeDataSize = ControllerHelper::GetKeyTimesFormatSizeOf(pCtrlChunk->PositionTimeFormat) * pCtrlChunk->numPositionKeys;
 
-				if (pStorage)
-					memcpy(pStorage, pData, keySize);
+				pPosTimeKeys = ControllerHelper::GetKeyTimesControllerPtr(pCtrlChunk->PositionTimeFormat, consumeData(timeDataSize), pCtrlChunk->numPositionKeys);
 
-				// load from chunk
-				pPosTimeKeys = ControllerHelper::GetKeyTimesControllerPtr(pCtrlChunk->PositionTimeFormat, pStorage ? pStorage : pData, pCtrlChunk->numPositionKeys);
-
-				pData += Align(keySize, trackAlignment);
-				if (pStorage)
-					pStorage += Align(keySize, 4);
-
-				pPosition->SetKeyTimesInformation(pPosTimeKeys);
-
-				IControllerRelocatableChain* pPosTimeKeysReloc = pPosTimeKeys->GetRelocateChain();
-				if (pPosTimeKeysReloc)
+				if (IControllerRelocatableChain* pPosTimeKeysReloc = pPosTimeKeys->GetRelocateChain())
 				{
 					pPosTimeKeysReloc->LinkTo(pRelocateHead);
 					pRelocateHead = pPosTimeKeysReloc;
 				}
 			}
 
-			pController->SetPositionController(pPosition);
+			pPosition.reset(new PositionTrackInformation);
+			pPosition->SetPositionStorage(pTrackPosStorage);
+			pPosition->SetKeyTimesInformation(pPosTimeKeys);
 		}
 
+		_smart_ptr<CController> pController = new CController;
+		pController->m_nControllerId = pCtrlChunk->nControllerId;
+		pController->SetRotationController(pRotation.release());
+		pController->SetPositionController(pPosition.release());
+
+		m_arrController.push_back(pController);
 		return true;
 	}
 
@@ -877,7 +865,7 @@ bool GlobalAnimationHeaderCAFStreamContent::ReadController(IChunkFile::ChunkDesc
 
 	if (pChunkDesc->chunkVersion == CONTROLLER_CHUNK_DESC_0832::VERSION)
 	{
-		if (bLoadOldChunks)
+		if (bLoadUncompressedChunks)
 			return true;
 
 		if (pChunkDesc->bSwapEndian)
@@ -913,7 +901,7 @@ bool GlobalAnimationHeaderCAFStreamContent::ReadController(IChunkFile::ChunkDesc
 		{
 			const size_t rotationStorageSize = ControllerHelper::GetRotationFormatSizeOf(controllerChunk.rotationFormat) * controllerChunk.numRotationKeys;
 
-			pTrackRotStorage = ControllerHelper::GetRotationControllerPtr(controllerChunk.rotationFormat, consumeData(rotationStorageSize), controllerChunk.numRotationKeys); // TODO: rename to construct
+			pTrackRotStorage = ControllerHelper::GetRotationControllerPtr(controllerChunk.rotationFormat, consumeData(rotationStorageSize), controllerChunk.numRotationKeys);     // TODO: rename to construct
 			if (!pTrackRotStorage)
 			{
 				return false;
@@ -1124,7 +1112,7 @@ bool GlobalAnimationHeaderCAF::Export2HTR(const char* szAnimationName, const cha
 	//fetch animation
 	std::vector<DynArray<QuatT>> arrAnimation;
 	f32 fFrames = m_fTotalDuration * ANIMATION_30Hz;
-	uint32 nFrames = uint32(fFrames + 1.5f); //roundup
+	uint32 nFrames = uint32(fFrames + 1.5f);                              //roundup
 	f32 timestep = 1.0f / f32(nFrames - 1);
 
 	arrAnimation.resize(numJoints);
@@ -1209,7 +1197,7 @@ bool GlobalAnimationHeaderCAF::SaveHTR(const char* szAnimationName, const char* 
 
 	g_pIPak->FPrintf(fExport, "NumFrames %d		#integer\n", numFrames);
 
-	int32 nFrameRate = 30; // ivo are you reading framrate from Vicon? //Xiaomao: make sure if we need to fix it.
+	int32 nFrameRate = 30;                             // ivo are you reading framrate from Vicon? //Xiaomao: make sure if we need to fix it.
 	g_pIPak->FPrintf(fExport, "DataFrameRate %d		#integer, data frame rate in this file\n", nFrameRate);
 	g_pIPak->FPrintf(fExport, "EulerRotationOrder ZYX\n");
 
@@ -1219,7 +1207,7 @@ bool GlobalAnimationHeaderCAF::SaveHTR(const char* szAnimationName, const char* 
 	g_pIPak->FPrintf(fExport, "RotationUnits Degrees\n");
 	g_pIPak->FPrintf(fExport, "GlobalAxisofGravity Y\n");
 	g_pIPak->FPrintf(fExport, "BoneLengthAxis Y\n");
-	g_pIPak->FPrintf(fExport, "ScaleFactor 1.00\n"); // ivo see previous note
+	g_pIPak->FPrintf(fExport, "ScaleFactor 1.00\n");  // ivo see previous note
 	g_pIPak->FPrintf(fExport, "[SegmentNames&Hierarchy]\n");
 	g_pIPak->FPrintf(fExport, "#CHILD	PARENT\n");
 
@@ -1229,7 +1217,7 @@ bool GlobalAnimationHeaderCAF::SaveHTR(const char* szAnimationName, const char* 
 	{
 		const char* pBonename = jointNameArray[v];
 
-		ChangeBoneName(pBonename, newName); //replace " " with "_"
+		ChangeBoneName(pBonename, newName);             //replace " " with "_"
 		const char* pParentBonename = jointParentArray[v];
 		if (string(jointParentArray[v]) != string("INVALID"))
 		{
@@ -1242,7 +1230,7 @@ bool GlobalAnimationHeaderCAF::SaveHTR(const char* szAnimationName, const char* 
 			parentName = newNameParent;
 		g_pIPak->FPrintf(fExport, "%s %s\n", newName, parentName.c_str());
 
-	} //v
+	}                                                //v
 
 	g_pIPak->FPrintf(fExport, "[BasePosition]\n");
 	g_pIPak->FPrintf(fExport, "#SegmentName Tx, Ty, Tz, Rx, Ry, Rz, BoneLength\n");
@@ -1319,7 +1307,7 @@ bool GlobalAnimationHeaderCAF::SaveICAF(const char* szAnimationName, const char*
 	ChunkFile::IChunkFileWriter* const pWriter = p3DE->CreateChunkFileWriter(I3DEngine::eChunkFileFormat_0x745, gEnv->pCryPak, saveName.c_str());
 	if (!pWriter)
 	{
-		return false; //fail
+		return false;                                         //fail
 	}
 
 	pWriter->SetAlignment(4);
@@ -1327,7 +1315,7 @@ bool GlobalAnimationHeaderCAF::SaveICAF(const char* szAnimationName, const char*
 	while (pWriter->StartPass())
 	{
 		const uint32 numBipedJoints = arrAnimation.size();
-		const size_t numKeys = arrAnimation[0].size();//m_frameCount / m_SamplingRatio;
+		const size_t numKeys = arrAnimation[0].size();        //m_frameCount / m_SamplingRatio;
 		int chunkId = 0;
 
 		//-------------------------------------
@@ -1381,9 +1369,9 @@ bool GlobalAnimationHeaderCAF::SaveICAF(const char* szAnimationName, const char*
 void GlobalAnimationHeaderCAF::ConnectCAFandDBA()
 {
 	if (m_FilePathDBACRC32 == 0)
-		return; //its a normal CAF file
+		return;                                    //its a normal CAF file
 	if (m_nControllers)
-		return; //this CAF belongs to a DBA and its already connected
+		return;                                    //this CAF belongs to a DBA and its already connected
 
 	size_t numDBA_Files = g_AnimationManager.m_arrGlobalHeaderDBA.size();
 	for (uint32 d = 0; d < numDBA_Files; d++)
@@ -1393,7 +1381,7 @@ void GlobalAnimationHeaderCAF::ConnectCAFandDBA()
 			continue;
 		if (m_FilePathDBACRC32 != pGlobalHeaderDBA.m_FilePathDBACRC32)
 			continue;
-		pGlobalHeaderDBA.m_nLastUsedTimeDelta = 0; //DBA in use. Reset unload count-down
+		pGlobalHeaderDBA.m_nLastUsedTimeDelta = 0;   //DBA in use. Reset unload count-down
 		break;
 	}
 }
@@ -1402,7 +1390,7 @@ void GlobalAnimationHeaderCAF::ConnectCAFandDBA()
 
 size_t GlobalAnimationHeaderCAF::SizeOfCAF(const bool bForceControllerCalcu) const
 {
-	size_t nSize = 0; //sizeof(*this)
+	size_t nSize = 0;                              //sizeof(*this)
 
 	size_t nTemp00 = m_FilePath.capacity();
 	nSize += nTemp00;

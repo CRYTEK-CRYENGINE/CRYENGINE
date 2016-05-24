@@ -236,9 +236,9 @@ IAudioObject* CAudioImpl_null::NewAudioObject(AudioObjectId const audioObjectID)
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CAudioImpl_null::DeleteAudioObject(IAudioObject* const pOldObject)
+void CAudioImpl_null::DeleteAudioObject(IAudioObject const* const pOldObject)
 {
-	POOL_FREE(pOldObject);
+	POOL_FREE_CONST(pOldObject);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -269,9 +269,9 @@ IAudioEvent* CAudioImpl_null::NewAudioEvent(AudioEventId const audioEventID)
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CAudioImpl_null::DeleteAudioEvent(IAudioEvent* const pOldEventImpl)
+void CAudioImpl_null::DeleteAudioEvent(IAudioEvent const* const pOldEventImpl)
 {
-	POOL_FREE(pOldEventImpl);
+	POOL_FREE_CONST(pOldEventImpl);
 }
 
 ///////////////////////////////////////////////////////////////////////////

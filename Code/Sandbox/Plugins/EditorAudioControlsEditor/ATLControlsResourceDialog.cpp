@@ -212,8 +212,8 @@ bool ATLControlsDialog::IsValid(const QModelIndex index)
 			const CATLControl* pControl = m_pATLModel->GetControlByID(index.data(eDataRole_Id).toUInt());
 			if (pControl)
 			{
-				string sControlScope = pControl->GetScope();
-				if (pControl->GetType() == m_eType && (sControlScope.empty() || sControlScope.compareNoCase(m_sScope) == 0))
+				const Scope scope = pControl->GetScope();
+				if (pControl->GetType() == m_eType && (scope == m_pATLModel->GetGlobalScope() || scope == m_scope))
 				{
 					return true;
 				}
@@ -230,9 +230,9 @@ QSize ATLControlsDialog::sizeHint() const
 	return QSize(400, 900);
 }
 
-void ATLControlsDialog::SetScope(string sScope)
+void ATLControlsDialog::SetScope(Scope scope)
 {
-	m_sScope = sScope;
+	m_scope = scope;
 	ApplyFilter();
 }
 
@@ -255,8 +255,8 @@ QModelIndex ATLControlsDialog::FindItem(const string& sControlName)
 						CATLControl* pControl = m_pATLModel->GetControlByID(id);
 						if (pControl && pControl->GetType() == m_eType)
 						{
-							string scope = pControl->GetScope();
-							if (scope.empty() || scope == m_sScope)
+							const Scope scope = pControl->GetScope();
+							if (scope == m_pATLModel->GetGlobalScope() || scope == m_scope)
 							{
 								return m_pProxyModel->mapFromSource(index);
 							}

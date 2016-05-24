@@ -1770,7 +1770,7 @@ void CD3D9Renderer::FX_DeferredShadowMaskGen(CRenderView* pRenderView, const TAr
 
 bool CD3D9Renderer::FX_DeferredShadows(CRenderView* pRenderView, SRenderLight* pLight, int maskRTWidth, int maskRTHeight)
 {
-	if (!pLight || (pLight->m_Flags & DLF_CASTSHADOW_MAPS) == 0 || (pLight->m_Flags & DLF_REFLECTIVE_SHADOWMAP) != 0)
+	if (!pLight || (pLight->m_Flags & DLF_CASTSHADOW_MAPS) == 0)
 		return false;
 
 	const int nThreadID = m_RP.m_nProcessThreadID;

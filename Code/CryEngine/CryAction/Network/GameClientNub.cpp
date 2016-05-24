@@ -28,7 +28,7 @@ void CGameClientNub::Release()
 
 SCreateChannelResult CGameClientNub::CreateChannel(INetChannel* pChannel, const char* pRequest)
 {
-	if (pRequest && !gEnv->pNetwork->IsRebroadcasterEnabled())
+	if (pRequest)
 	{
 		GameWarning("CGameClientNub::CreateChannel: pRequest is non-null, it should not be");
 		CRY_ASSERT(false);
@@ -39,21 +39,11 @@ SCreateChannelResult CGameClientNub::CreateChannel(INetChannel* pChannel, const 
 
 	if (m_pClientChannel)
 	{
-		if (gEnv->pNetwork->IsRebroadcasterEnabled())
-		{
-			// A client channel has already been set up so this must be a rebroadcaster (peer to peer) channel
-			pChannel->SetPeer(m_pGameContext->GetNetContext());
-			SCreateChannelResult res(reinterpret_cast<IGameChannel*>(pChannel));
-			return res;
-		}
-		else
-		{
-			GameWarning("CGameClientNub::CreateChannel: m_pClientChannel is non-null, it should not be");
-			CRY_ASSERT(false);
-			SCreateChannelResult res(eDC_GameError);
-			cry_strcpy(res.errorMsg, "CGameClientNub::CreateChannel: m_pClientChannel is non-null, it should not be");
-			return res;
-		}
+		GameWarning("CGameClientNub::CreateChannel: m_pClientChannel is non-null, it should not be");
+		CRY_ASSERT(false);
+		SCreateChannelResult res(eDC_GameError);
+		cry_strcpy(res.errorMsg, "CGameClientNub::CreateChannel: m_pClientChannel is non-null, it should not be");
+		return res;
 	}
 
 	if (CCryAction::GetCryAction()->IsGameSessionMigrating())

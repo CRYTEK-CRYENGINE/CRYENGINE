@@ -139,7 +139,6 @@ public:
 	CXConsoleVariableString(CXConsole* pConsole, const char* sName, const char* szDefault, int nFlags, const char* help)
 		: CXConsoleVariableBase(pConsole, sName, nFlags, help)
 	{
-		ScopedSwitchToGlobalHeap useGlobalHeap;
 		m_sValue = szDefault;
 	}
 
@@ -161,7 +160,6 @@ public:
 		{
 			m_nFlags |= VF_MODIFIED;
 			{
-				ScopedSwitchToGlobalHeap useGlobalHeap;
 				m_sValue = s;
 			}
 
@@ -611,7 +609,6 @@ public:
 		{
 			m_nFlags |= VF_MODIFIED;
 			{
-				ScopedSwitchToGlobalHeap useGlobalHeap;
 				m_sValue = s;
 				m_userPtr = m_sValue.c_str();
 			}

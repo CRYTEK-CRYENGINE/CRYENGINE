@@ -45,6 +45,7 @@ char const* const SATLXMLTags::szATLPreloadRequestTag = "ATLPreloadRequest";
 char const* const SATLXMLTags::szATLEnvironmentRequestTag = "ATLEnvironmentRequest";
 
 char const* const SATLXMLTags::szATLNameAttribute = "atl_name";
+char const* const SATLXMLTags::szATLVersionAttribute = "atl_version";
 char const* const SATLXMLTags::szATLInternalNameAttribute = "atl_internal_name";
 char const* const SATLXMLTags::szATLTypeAttribute = "atl_type";
 char const* const SATLXMLTags::szATLConfigGroupAttribute = "atl_config_group_name";

@@ -133,7 +133,7 @@ void CTextureCache::InitPool(byte* pData, int nDim, ETEX_Format eTexFormat)
 		sPoolTextureName.Format("$TERRAIN_TEX_POOL_%p", this);
 
 		m_nPoolTexId = GetRenderer()->DownLoadToVideoMemory(NULL, nPoolTexDim, nPoolTexDim, eTexFormat, eTexFormat, 0, false, FILTER_NONE, 0,
-		                                                    sPoolTextureName, FT_USAGE_ALLOWREADSRGB, GetPlatformEndian(), NULL, false);
+		                                                    sPoolTextureName, (eTexFormat == eTF_R32F) ? 0 : FT_USAGE_ALLOWREADSRGB, GetPlatformEndian(), NULL, false);
 
 		if (m_nPoolTexId <= 0)
 		{

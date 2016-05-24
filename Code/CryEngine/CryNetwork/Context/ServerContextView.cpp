@@ -677,18 +677,11 @@ CServerContextView::CServerContextView(CNetChannel* pChannel, CNetContext* pCont
 #endif
 
 	Init(pChannel, pContext, &config);
-
-#if NETWORK_HOST_MIGRATION
-	CNetwork::Get()->AddHostMigrationEventListener(this, "CServerContextView", ELPT_Engine);
-#endif
 }
 
 CServerContextView::~CServerContextView()
 {
 	MMM_REGION(m_pMMM);
-#if NETWORK_HOST_MIGRATION
-	CNetwork::Get()->RemoveHostMigrationEventListener(this);
-#endif
 	m_pBreakSegmentStreams.reset();
 	m_pValidatedPredictions.reset();
 	m_pPendingUnbinds.reset();
@@ -900,9 +893,6 @@ bool CServerContextView::EnterState(EContextViewState state)
 		FinishLocalState();
 		break;
 	case eCVS_Begin:
-#if NETWORK_HOST_MIGRATION
-		ContextState()->ServerTakeObjectOwnership();
-#endif
 		FinishLocalState();
 #ifdef __WITH_PB__
 		m_clientHasPunkBuster = false;
@@ -1988,84 +1978,3 @@ void CServerContextView::RemoveStaticEntity(EntityId id)
 
 	Parent()->NetAddSendable(new CRemoveStaticObjectMessage(CClientContextView::RemoveStaticObject, id), 0, NULL, NULL);
 }
-
-#if NETWORK_HOST_MIGRATION
-// IHostMigrationEventListener
-IHostMigrationEventListener::EHostMigrationReturn CServerContextView::OnInitiate(SHostMigrationInfo& hostMigrationInfo, HMStateType& state)
-{
-	if (!hostMigrationInfo.ShouldMigrateNub())
-	{
-		return IHostMigrationEventListener::Listener_Done;
-	}
-
-	if (!IsPastOrInState(eCVS_InGame))
-	{
-		CryLogAlways("[Host Migration]Not in game - unable to proceed with host migration!");
-		return IHostMigrationEventListener::Listener_Terminate;
-	}
-
-	return IHostMigrationEventListener::Listener_Done;
-}
-
-IHostMigrationEventListener::EHostMigrationReturn CServerContextView::OnDisconnectClient(SHostMigrationInfo& hostMigrationInfo, HMStateType& state)
-{
-	return IHostMigrationEventListener::Listener_Done;
-}
-
-IHostMigrationEventListener::EHostMigrationReturn CServerContextView::OnDemoteToClient(SHostMigrationInfo& hostMigrationInfo, HMStateType& state)
-{
-	return IHostMigrationEventListener::Listener_Done;
-}
-
-IHostMigrationEventListener::EHostMigrationReturn CServerContextView::OnPromoteToServer(SHostMigrationInfo& hostMigrationInfo, HMStateType& state)
-{
-	return IHostMigrationEventListener::Listener_Done;
-}
-
-IHostMigrationEventListener::EHostMigrationReturn CServerContextView::OnReconnectClient(SHostMigrationInfo& hostMigrationInfo, HMStateType& state)
-{
-	return IHostMigrationEventListener::Listener_Done;
-}
-
-IHostMigrationEventListener::EHostMigrationReturn CServerContextView::OnFinalise(SHostMigrationInfo& hostMigrationInfo, HMStateType& state)
-{
-	if (!hostMigrationInfo.ShouldMigrateNub())
-	{
-		return IHostMigrationEventListener::Listener_Done;
-	}
-
-	if (IsMigrating() && (GetLocalState() < eCVS_InGame))
-	{
-		return IHostMigrationEventListener::Listener_Wait;
-	}
-
-	return IHostMigrationEventListener::Listener_Done;
-}
-
-IHostMigrationEventListener::EHostMigrationReturn CServerContextView::OnTerminate(SHostMigrationInfo& hostMigrationInfo, HMStateType& state)
-{
-	if (!hostMigrationInfo.ShouldMigrateNub())
-	{
-		return IHostMigrationEventListener::Listener_Done;
-	}
-
-	ClearStateDuringMigration();
-	return IHostMigrationEventListener::Listener_Done;
-}
-
-IHostMigrationEventListener::EHostMigrationReturn CServerContextView::OnReset(SHostMigrationInfo& hostMigrationInfo, HMStateType& state)
-{
-	return IHostMigrationEventListener::Listener_Done;
-}
-
-void CServerContextView::OnComplete(SHostMigrationInfo& hostMigrationInfo)
-{
-	if (!hostMigrationInfo.ShouldMigrateNub())
-	{
-		return;
-	}
-
-	ClearStateDuringMigration();
-}
-// ~IHostMigrationEventListener
-#endif

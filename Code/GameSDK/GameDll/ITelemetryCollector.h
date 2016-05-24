@@ -40,11 +40,6 @@ struct ITelemetryProducer
 												int					inBufferSize,
 												int					*pOutWritten)=0;
 
-	void* operator new (size_t sz)
-	{
-		ScopedSwitchToGlobalHeap useGlobalHeap;
-		return ::operator new(sz);
-	}
 };
 
 typedef void (*TTelemetryMemBufferDisposalCallback)(void *inUserData);

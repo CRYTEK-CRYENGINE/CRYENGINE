@@ -36,12 +36,10 @@ class GlobalHeapSysAllocator
 public:
 	static void* SysAlloc(size_t nSize)
 	{
-		ScopedSwitchToGlobalHeap useGlobalHeap;
 		return malloc(nSize);
 	}
 	static void SysDealloc(void* ptr)
 	{
-		ScopedSwitchToGlobalHeap useGlobalHeap;
 		free(ptr);
 	}
 };

@@ -583,11 +583,13 @@ struct IDialogLine
 	virtual const string& GetStartAudioTrigger() const = 0;
 	virtual const string& GetEndAudioTrigger() const = 0;
 	virtual const string& GetLipsyncAnimation() const = 0;
+	virtual const string& GetStandaloneFile() const = 0;
 	virtual void          SetText(const string& text) = 0;
 	virtual void          SetStartAudioTrigger(const string& trigger) = 0;
 	virtual void          SetEndAudioTrigger(const string& trigger) = 0;
 	virtual void          Serialize(Serialization::IArchive& ar) = 0;
 	virtual void          SetLipsyncAnimation(const string& lipsyncAnimation) = 0;
+	virtual void          SetStandaloneFile(const string& standAlonefile) = 0;
 };
 
 //////////////////////////////////////////////////////////////////////////

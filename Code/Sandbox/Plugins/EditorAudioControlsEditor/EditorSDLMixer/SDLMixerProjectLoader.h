@@ -9,10 +9,10 @@ namespace ACE
 {
 class CAudioSystemEditor_sdlmixer;
 
-class CSDLMixerProjectLoader
+class CSdlMixerProjectLoader
 {
 public:
-	CSDLMixerProjectLoader(const string& sAssetsPath, CAudioSystemEditor_sdlmixer* pAudioSystemImpl);
+	CSdlMixerProjectLoader(const string& sAssetsPath, CAudioSystemEditor_sdlmixer* pAudioSystemImpl);
 	CAudioSystemEditor_sdlmixer* m_pAudioSystemImpl;
 };
 }

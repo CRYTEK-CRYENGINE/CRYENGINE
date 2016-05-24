@@ -7,8 +7,6 @@
 
 	#include "Network.h"
 
-	#include "Lobby/ICryMatchMakingPrivate.h"
-
 CSocketIOManagerLobbyIDAddr::CSocketIOManagerLobbyIDAddr() : CSocketIOManager(eSIOMC_NoBuffering)
 {
 }
@@ -29,16 +27,11 @@ bool CSocketIOManagerLobbyIDAddr::PollWait(uint32 waitTime)
 	bool haveData = false;
 	m_recvSize = 0;
 
-	ICryLobby* const pLobby = gEnv->pLobby;
-	if (pLobby)
+	ICryMatchMakingPrivate* pMMPrivate = gEnv->pLobby ? gEnv->pLobby->GetMatchMakingPrivate() : nullptr;
+	if (pMMPrivate)
 	{
-		ICryMatchMakingPrivate* pMatchmakingPriv8 = (ICryMatchMakingPrivate*)pLobby->GetMatchMaking();
-		if (pMatchmakingPriv8)
-		{
-			haveData = pMatchmakingPriv8->LobbyAddrIDHasPendingData();
-		}
+		haveData = pMMPrivate->LobbyAddrIDHasPendingData();
 	}
-
 	return haveData;
 }
 
@@ -65,14 +58,10 @@ void CSocketIOManagerLobbyIDAddr::RecvPacket(void* privateRef, uint8* recvBuffer
 
 int CSocketIOManagerLobbyIDAddr::PollWork(bool& performedWork)
 {
-	ICryLobby* const pLobby = gEnv->pLobby;
-	if (pLobby)
+	ICryMatchMakingPrivate* pMMPrivate = gEnv->pLobby ? gEnv->pLobby->GetMatchMakingPrivate() : nullptr;
+	if (pMMPrivate)
 	{
-		ICryMatchMakingPrivate* pMatchmakingPriv8 = (ICryMatchMakingPrivate*)pLobby->GetMatchMaking();
-		if (pMatchmakingPriv8)
-		{
-			pMatchmakingPriv8->LobbyAddrIDRecv(RecvPacket, this);
-		}
+		pMMPrivate->LobbyAddrIDRecv(RecvPacket, this);
 	}
 
 	return eSM_COMPLETEDIO;

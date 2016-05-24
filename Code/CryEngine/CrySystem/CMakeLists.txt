@@ -136,7 +136,6 @@ source_group("Mac" FILES ${SourceGroup_Mac})
 set (SourceGroup_MemoryManager
 	CryMemoryManager.cpp
 	CryMemoryManager_sce.h
-	CryMemoryManager_sce.h
 	CustomMemoryHeap.cpp
 	CustomMemoryHeap.h
 	DefragAllocator.cpp
@@ -246,36 +245,6 @@ set (SourceGroup_Root
 	StdAfx.cpp
 	StdAfx.h
 )
-
-
-set (SourceGroup_Scaleform
-	Scaleform/ConfigScaleform.cpp
-	Scaleform/ConfigScaleform.h
-	Scaleform/FlashPlayerInstance.cpp
-	Scaleform/FlashPlayerInstance.h
-	Scaleform/GAllocatorCryMem.cpp
-	Scaleform/GAllocatorCryMem.h
-	Scaleform/GFileCryPak.cpp
-	Scaleform/GFileCryPak.h
-	Scaleform/GFxVideoSoundCrySound.cpp
-	Scaleform/GFxVideoSoundCrySound.h
-	Scaleform/GFxVideoWrapper.cpp
-	Scaleform/GFxVideoWrapper.h
-	Scaleform/GImageInfoXRender.cpp
-	Scaleform/GImageInfoXRender.h
-	Scaleform/GImeHelper.cpp
-	Scaleform/GImeHelper.h
-	Scaleform/GMemorySTLAlloc.h
-	Scaleform/GRendererXRender.cpp
-	Scaleform/GRendererXRender.h
-	Scaleform/GTextureXRender.cpp
-	Scaleform/GTextureXRender.h
-	Scaleform/SharedResources.cpp
-	Scaleform/SharedResources.h
-	Scaleform/SharedStates.cpp
-	Scaleform/SharedStates.h
-)
-source_group("Scaleform" FILES ${SourceGroup_Scaleform})
 
 
 set (SourceGroup_Serialization
@@ -585,7 +554,7 @@ enable_unity_build( "CrySystem_uber_3.cpp" CrySystem_uber_3_cpp )
 set(CrySystem_uber_4_cpp ${SourceGroup_HTTPDownloader} ${SourceGroup_Localization} ${SourceGroup_Profiler} ${SourceGroup_Windows}  )
 enable_unity_build( "CrySystem_uber_4.cpp" CrySystem_uber_4_cpp )
 
-set(CrySystem_uber_5_cpp ${SourceGroup_Scaleform} ${SourceGroup_TestSystem}  )
+set(CrySystem_uber_5_cpp ${SourceGroup_TestSystem}  )
 enable_unity_build( "CrySystem_uber_5.cpp" CrySystem_uber_5_cpp )
 
 set(CrySystem_uber_6_cpp ${SourceGroup_ExtensionSystem} ${SourceGroup_ExtensionSystem_TestCases} ${SourceGroup_MiniGUI} ${SourceGroup_NullImplementation} ${SourceGroup_Threading}  )
@@ -625,8 +594,6 @@ include_directories( ${SDK_DIR}/Scaleform/Include )
 include_directories( ${SDK_DIR}/pdcurses )
 include_directories( ${SDK_DIR}/Steamworks/public )
 include_directories( ${SDK_DIR}/zlib-1.2.8 )
-include_directories( ${SDK_DIR}/expat-2.1.0/lib )
-include_directories( ${SDK_DIR}/lz4/lib )
 include_directories( ${SDK_DIR}/OculusSDK/LibOVR/Include )
 include_directories( ${SDK_DIR}/OSVR/include )
 

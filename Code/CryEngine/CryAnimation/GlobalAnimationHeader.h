@@ -2,6 +2,7 @@
 
 #pragma once
 
+#ifndef RESOURCE_COMPILER
 struct GlobalAnimationHeader
 {
 	GlobalAnimationHeader()
@@ -66,3 +67,4 @@ inline void GlobalAnimationHeader::SetFilePath(const string& name)
 	m_FilePath = name;
 	m_FilePathCRC32 = CCrc32::ComputeLowercase(name.c_str());
 }
+#endif

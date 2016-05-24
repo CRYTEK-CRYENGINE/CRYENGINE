@@ -536,7 +536,6 @@ void CWaterVolume::Render()
 			// Create texture if required
 			if (!CTexture::IsTextureExist(CTexture::s_ptexWaterVolumeTemp[frameID]))
 			{
-				ScopedSwitchToGlobalHeap globalHeap;
 				if (!CTexture::s_ptexWaterVolumeTemp[frameID]->Create2DTexture(64, 64, 1,
 				                                                               FT_DONT_RELEASE | FT_NOMIPS | FT_STAGE_UPLOAD,
 				                                                               0, eTF_R32G32B32A32F, eTF_R32G32B32A32F))

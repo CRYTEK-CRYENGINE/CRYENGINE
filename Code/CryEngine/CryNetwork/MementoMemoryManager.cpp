@@ -850,8 +850,6 @@ CMementoMemoryManager::~CMementoMemoryManager()
 
 CMementoMemoryManager::Hdl CMementoMemoryManager::AllocHdl(size_t sz, void* callerOverride)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	MMM_ASSERT_GLOBAL_LOCK();
 
 	PREVENT_ZERO_ALLOCS(sz);
@@ -871,8 +869,6 @@ CMementoMemoryManager::Hdl CMementoMemoryManager::AllocHdl(size_t sz, void* call
 
 CMementoMemoryManager::Hdl CMementoMemoryManager::CloneHdl(Hdl hdl)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	MMM_ASSERT_GLOBAL_LOCK();
 
 	Hdl out = AllocHdl(GetHdlSize(hdl), UP_STACK_PTR);
@@ -884,8 +880,6 @@ CMementoMemoryManager::Hdl CMementoMemoryManager::CloneHdl(Hdl hdl)
 
 void CMementoMemoryManager::ResizeHdl(Hdl hdl, size_t sz)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	MMM_ASSERT_GLOBAL_LOCK();
 
 	PREVENT_ZERO_ALLOCS(sz);
@@ -907,8 +901,6 @@ void CMementoMemoryManager::ResizeHdl(Hdl hdl, size_t sz)
 
 void CMementoMemoryManager::FreeHdl(Hdl hdl)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	MMM_ASSERT_GLOBAL_LOCK();
 
 	size_t size = GetHdlSize(hdl);
@@ -931,8 +923,6 @@ void CMementoMemoryManager::FreeHdl(Hdl hdl)
 
 void* CMementoMemoryManager::AllocPtr(size_t sz, void* callerOverride)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	MMM_ASSERT_GLOBAL_LOCK();
 
 	PREVENT_ZERO_ALLOCS(sz);
@@ -952,8 +942,6 @@ void* CMementoMemoryManager::AllocPtr(size_t sz, void* callerOverride)
 
 void CMementoMemoryManager::FreePtr(void* p, size_t sz)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	MMM_ASSERT_GLOBAL_LOCK();
 
 	PREVENT_ZERO_ALLOCS(sz);

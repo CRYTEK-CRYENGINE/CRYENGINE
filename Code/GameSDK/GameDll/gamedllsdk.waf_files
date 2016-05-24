@@ -999,11 +999,9 @@
       ],
       "Multiplayer/Network":[
          "Network/GameNetworkUtils.cpp",
-         "Network/MatchMakingUtils.cpp",
          "Network/GameNetworkDefines.h",
          "Network/GameNetworkUtils.h",
-         "Network/LobbyTaskQueue.h",
-         "Network/MatchMakingUtils.h"
+         "Network/LobbyTaskQueue.h"
       ],
       "Multiplayer/Network/DownloadMgr":[
          "DownloadMgr.cpp",
@@ -1134,7 +1132,6 @@
          "FlowWeaponCustomizationNodes.cpp",
          "Nodes/ModelToHudFlowNodes.cpp",
          "Nodes/FlowHudEventsNodes.cpp",
-         "Nodes/XboxOneLiveTestNodes.cpp",
          "Nodes/FlowNodesAIActionSequence.cpp",
          "Nodes/AINodes.h",
          "Nodes/ColorGradientNode.h",

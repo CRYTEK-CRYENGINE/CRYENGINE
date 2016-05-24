@@ -87,6 +87,7 @@ private:
 		AudioProxyId       speechAuxProxy;
 		AudioControlId     startTriggerID;
 		AudioControlId     stopTriggerID;
+		string             standaloneFile;
 
 		uint32             endingConditions; //EEndingConditions
 		DRS::LipSyncID     lipsyncId;
@@ -101,7 +102,7 @@ private:
 
 	void        UpdateAudioProxyPosition(IEntity* pEntity, const SSpeakInfo& newSpeakerInfo);
 	void        ReleaseSpeakerAudioProxy(SSpeakInfo& speakerInfo, bool stopTrigger);
-	static void OnAudioTriggerFinished(SAudioRequestInfo const* const pAudioRequestInfo);
+	static void OnAudioCallback(SAudioRequestInfo const* const pAudioRequestInfo);
 
 	void        InformListener(const DRS::IResponseActor* pSpeaker, const CHashedString& lineID, DRS::ISpeakerManager::IListener::eLineEvent event, const CDialogLine* pLine);
 	void        SetNumActiveSpeaker(int newAmountOfSpeaker);

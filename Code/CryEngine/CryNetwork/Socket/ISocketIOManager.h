@@ -5,7 +5,8 @@
 
 #pragma once
 
-#include "NetAddress.h"
+#include <CryNetwork/NetAddress.h>
+#include <CryMemory/STLGlobalAllocator.h>
 #include "Config.h"
 #include "SocketError.h"
 #include "IDatagramSocket.h"

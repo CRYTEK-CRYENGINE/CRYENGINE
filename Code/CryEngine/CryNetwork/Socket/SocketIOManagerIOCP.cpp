@@ -7,8 +7,6 @@
 
 	#include "Network.h"
 
-	#include "Lobby/ICryMatchMakingPrivate.h"
-
 	#if CRY_PLATFORM_WINDOWS
 		#include <mswsock.h>
 	#endif

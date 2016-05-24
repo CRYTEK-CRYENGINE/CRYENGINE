@@ -14,7 +14,7 @@ using namespace PathUtil;
 
 namespace ACE
 {
-CSDLMixerProjectLoader::CSDLMixerProjectLoader(const string& sAssetsPath, CAudioSystemEditor_sdlmixer* pAudioSystemImpl)
+CSdlMixerProjectLoader::CSdlMixerProjectLoader(const string& sAssetsPath, CAudioSystemEditor_sdlmixer* pAudioSystemImpl)
 	: m_pAudioSystemImpl(pAudioSystemImpl)
 {
 	_finddata_t fd;
@@ -32,7 +32,7 @@ CSDLMixerProjectLoader::CSDLMixerProjectLoader(const string& sAssetsPath, CAudio
 				    name.find(".mp3") != string::npos)
 				{
 					// Create the event with the same name as the file
-					m_pAudioSystemImpl->CreateControl(SControlDef(name, eSDLMixerTypes_Event));
+					m_pAudioSystemImpl->CreateControl(SControlDef(name, eSdlMixerTypes_Event));
 				}
 			}
 		}

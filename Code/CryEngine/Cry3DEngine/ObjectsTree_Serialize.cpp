@@ -8,7 +8,6 @@
 #include "WaterVolumeRenderNode.h"
 #include "DistanceCloudRenderNode.h"
 #include "WaterWaveRenderNode.h"
-#include "LPVRenderNode.h"
 #include "MergedMeshRenderNode.h"
 #include "MergedMeshGeometry.h"
 #include "VisAreas.h"
@@ -198,14 +197,6 @@ struct SWaterWaveChunk : public SRenderNodeChunk
 	f32 m_fCurrSpeed;
 	f32 m_fCurrHeight;
 
-	AUTO_STRUCT_INFO_LOCAL;
-};
-
-struct SLightPropagationVolumeChunk : public SRenderNodeChunk
-{
-	Matrix34 m_WorldMatrix;
-	float    m_fDensity;
-	uint32   m_bIsSpecular;
 	AUTO_STRUCT_INFO_LOCAL;
 };
 
@@ -437,16 +428,6 @@ int COctreeNode::GetSingleObjectFileDataSize(IRenderNode* pObj, const SHotUpdate
 		nBlockSize += sizeof(SWaterWaveChunk);
 
 		nBlockSize += (pSerParams->m_pVertices.size()) * sizeof(Vec3);
-	}
-	else if (eType == eERType_LightPropagationVolume)
-	{
-		CLPVRenderNode* pLPVNode((CLPVRenderNode*)pRenderNode);
-		if (pLPVNode && pLPVNode->m_pRE
-		    && !(pLPVNode->m_pRE->GetFlags() & CRELightPropagationVolume::efGIVolume))
-		{
-			nBlockSize += sizeof(eType);
-			nBlockSize += sizeof(SLightPropagationVolumeChunk);
-		}
 	}
 	// align to 4
 	while (UINT_PTR(nBlockSize) & 3)
@@ -743,22 +724,6 @@ void COctreeNode::SaveSingleObject(byte*& pPtr, int& nDatanSize, IRenderNode* pE
 		{
 			Vec3 vPos(pSerData->m_pVertices[i] + segmentOffset);
 			AddToPtr(pPtr, nDatanSize, vPos, eEndian);
-		}
-	}
-	else if (eERType_LightPropagationVolume == eType)
-	{
-		CLPVRenderNode* pObj((CLPVRenderNode*)pEnt);
-		if (pObj && pObj->m_pRE && !(pObj->m_pRE->GetFlags() & CRELightPropagationVolume::efGIVolume))    // check if it's not a GI special volume
-		{
-			AddToPtr(pPtr, nDatanSize, eType, eEndian);
-
-			SLightPropagationVolumeChunk chunk;
-			CopyCommonData(&chunk, pObj, segmentOffset);
-			pObj->GetMatrix(chunk.m_WorldMatrix);
-			chunk.m_WorldMatrix.SetTranslation(chunk.m_WorldMatrix.GetTranslation() + segmentOffset);
-			chunk.m_fDensity = pObj->GetDensity();
-			chunk.m_bIsSpecular = pObj->IsSpecularEnabled() ? 1 : 0;
-			AddToPtr(pPtr, nDatanSize, chunk, eEndian);
 		}
 	}
 
@@ -1359,36 +1324,6 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 		pObj->OffsetPosition(segmentOffset);
 
 		//Get3DEngine()->RegisterEntity( pObj );
-	}
-	else if (eERType_LightPropagationVolume == eType)
-	{
-		SLightPropagationVolumeChunk* pChunk(StepData<SLightPropagationVolumeChunk>(pPtr, eEndian));
-
-		if (CheckSkipLoadObject(eType, pChunk->m_dwRndFlags, eLoadMode) || !CheckRenderFlagsMinSpec(pChunk->m_dwRndFlags))
-			return;
-
-		if (Get3DEngine()->IsLayerSkipped(pChunk->m_nLayerId))
-			return;
-
-		CLPVRenderNode* pObj(new CLPVRenderNode());
-		pRN = pObj;
-
-		// common node data
-		LoadCommonData(pChunk, pObj, pLayerVisibility);
-		pObj->EnableSpecular(pChunk->m_bIsSpecular != 0);
-		pObj->SetDensity(pChunk->m_fDensity);
-		pObj->SetMatrix(pChunk->m_WorldMatrix);
-
-		//each LPV has two settings: FillSetting and RenderSetting
-		//GI LPVs have the fill setting updated every frame, but non-GI LPV only have their setting set once here (in the above SetMatrix() call)
-		//one of these settings is not initialized, causing flickering in the launcher (no flickering in Editor because only the launcher swaps
-		//render thread and fill thread)
-		//To prevent this flickering, the setting is duplicated here so that both settings are initialized
-		pObj->m_pRE->DuplicateFillSettingToOtherSettings();
-
-		pObj->OffsetPosition(segmentOffset);
-
-		Get3DEngine()->RegisterEntity(pObj, nSID, nSID);
 	}
 	else
 		assert(!"Unsupported object type");

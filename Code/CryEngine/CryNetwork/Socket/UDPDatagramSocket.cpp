@@ -9,8 +9,7 @@
 	#include "Protocol/PacketRateCalculator.h"
 #endif
 
-#include "Lobby/ICryMatchMakingPrivate.h"
-#include "Lobby/CryLobby.h"
+#include <CryLobby/CommonICryMatchMaking.h>
 #include <CryNetwork/CrySocks.h>
 
 #if CRY_PLATFORM_ORBIS
@@ -934,10 +933,10 @@ uint8 CUDPDatagramSocket::FindBufferIndex(const TNetAddress& from, TFragPacketId
 
 void CUDPDatagramSocket::SocketSend(const uint8* pBuffer, size_t nLength, const TNetAddress& to)
 {
-	if (boost::get<const LobbyIdAddr>(&to) && gEnv->pLobby && gEnv->pLobby->GetMatchMaking())
+	ICryMatchMakingPrivate* pMMPrivate = gEnv->pLobby ? gEnv->pLobby->GetMatchMakingPrivate() : nullptr;
+	if (boost::get<const LobbyIdAddr>(&to) && pMMPrivate)
 	{
-		ICryMatchMakingPrivate* pMatchmakingPriv8 = (ICryMatchMakingPrivate*)gEnv->pLobby->GetMatchMaking();
-		pMatchmakingPriv8->LobbyAddrIDSend(pBuffer, nLength, to);
+		pMMPrivate->LobbyAddrIDSend(pBuffer, nLength, to);
 #if NET_MINI_PROFILE || NET_PROFILE_ENABLE
 		CSocketIOManager* pSockIO = (CSocketIOManager*)m_pSockIO;
 		pSockIO->RecordPacketSendStatistics(pBuffer, nLength);     // Lobby Sends don't hit the io manager for Send - this ensures they still record the stats

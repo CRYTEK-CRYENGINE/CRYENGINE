@@ -320,7 +320,7 @@ bool GlobalAnimationHeaderAIM::ReadController(IChunkFile::ChunkDesc* pChunkDesc,
 
 			const uint32 trackAlignment = pCtrlChunk->TracksAligned ? 4 : 1;
 
-			RotationControllerPtr pRotation = nullptr;
+			IRotationController* pRotation = nullptr;
 			if (pCtrlChunk->numRotationKeys > 0)
 			{
 				ITrackRotationStorage* pStorage = ControllerHelper::GetRotationControllerPtr(pCtrlChunk->RotationFormat);
@@ -345,12 +345,12 @@ bool GlobalAnimationHeaderAIM::ReadController(IChunkFile::ChunkDesc* pChunkDesc,
 				}
 #endif         //_RELEASE
 
-				pRotation = RotationControllerPtr(new RotationTrackInformation);
+				pRotation = new RotationTrackInformation;
 				pRotation->SetRotationStorage(pStorage);
 				pRotation->SetKeyTimesInformation(pRotTimeKeys);
 			}
 
-			PositionControllerPtr pPosition = nullptr;
+			IPositionController* pPosition = nullptr;
 			if (pCtrlChunk->numPositionKeys > 0)
 			{
 				ITrackPositionStorage* pStorage = ControllerHelper::GetPositionControllerPtr(pCtrlChunk->PositionFormat);
@@ -383,7 +383,7 @@ bool GlobalAnimationHeaderAIM::ReadController(IChunkFile::ChunkDesc* pChunkDesc,
 #endif           //_RELEASE
 				}
 
-				pPosition = PositionControllerPtr(new PositionTrackInformation);
+				pPosition = new PositionTrackInformation;
 				pPosition->SetPositionStorage(pStorage);
 				pPosition->SetKeyTimesInformation(pPosTimeKeys);
 			}

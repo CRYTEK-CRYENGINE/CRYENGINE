@@ -26,6 +26,7 @@ void CShadowMapStage::Init()
 		const EShaderStage shaderStages = EShaderStage_Vertex | EShaderStage_Hull | EShaderStage_Domain | EShaderStage_Pixel;
 		m_pPerPassResourceSetTemplate->SetTexture(EPerPassTexture_WindGrid, nullptr, SResourceView::DefaultView, shaderStages);
 		m_pPerPassResourceSetTemplate->SetTexture(EPerPassTexture_TerrainBaseMap, nullptr, SResourceView::DefaultViewSRGB, shaderStages);
+		m_pPerPassResourceSetTemplate->SetTexture(EPerPassTexture_TerrainElevMap, nullptr, SResourceView::DefaultView, shaderStages);
 		m_pPerPassResourceSetTemplate->SetTexture(EPerPassTexture_DissolveNoise, nullptr, SResourceView::DefaultView, shaderStages);
 		m_pPerPassResourceSetTemplate->SetConstantBuffer(eConstantBufferShaderSlot_PerPass, nullptr, shaderStages);
 		m_pPerPassResourceSetTemplate->SetConstantBuffer(eConstantBufferShaderSlot_PerView, nullptr, shaderStages);
@@ -664,11 +665,12 @@ void CShadowMapStage::CShadowMapPass::PrepareResources()
 
 	// update per pass textures
 	{
-		int nTerrainTex0 = 0, nTerrainTex1 = 0;
-		gEnv->p3DEngine->GetITerrain()->GetAtlasTexId(nTerrainTex0, nTerrainTex1);
+		int nTerrainTex0 = 0, nTerrainTex1 = 0, nTerrainTex2 = 0;
+		gEnv->p3DEngine->GetITerrain()->GetAtlasTexId(nTerrainTex0, nTerrainTex1, nTerrainTex2);
 
 		m_pPerPassResources->SetTexture(EPerPassTexture_WindGrid, CTexture::s_ptexWindGrid, SResourceView::DefaultView, shaderStages);
 		m_pPerPassResources->SetTexture(EPerPassTexture_TerrainBaseMap, CTexture::GetByID(nTerrainTex0), SResourceView::DefaultViewSRGB, shaderStages);
+		m_pPerPassResources->SetTexture(EPerPassTexture_TerrainElevMap, CTexture::GetByID(nTerrainTex2), SResourceView::DefaultView, shaderStages);
 		m_pPerPassResources->SetTexture(EPerPassTexture_DissolveNoise, CTexture::s_ptexDissolveNoiseMap, SResourceView::DefaultView, shaderStages);
 	}
 

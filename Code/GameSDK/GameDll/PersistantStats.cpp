@@ -931,7 +931,6 @@ void GetClientScoreInfo( CGameRules* pGameRules, int &position, int &points, Ent
 //---------------------------------------
 void CPersistantStats::SaveTelemetryInternal(const char* filenameNoExt, const SSessionStats* pSessionStats, uint32 flags, bool description, bool toDisk)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
 #ifndef _RELEASE
 	#define DescriptionXML(description, pos, descBuffer, name, type, mapName, testValue) \
 		if(description) \

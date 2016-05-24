@@ -23,7 +23,7 @@
 #include "Protocol/StatsCollector.h"
 #include "Protocol/FrameTypes.h"
 #include "Errors.h"
-#include "Socket/NetAddress.h"
+#include "Socket/NetResolver.h"
 #include "INetworkPrivate.h"
 #include "INetworkMember.h"
 #include <CryNetwork/NetHelpers.h>
@@ -152,58 +152,6 @@ enum EDebugBandwidthMode
 const char* GetTimestampString();
 
 extern CTimeValue g_time;
-
-#if NETWORK_REBROADCASTER
-// Used by the rebroadcaster to redirect packets
-// A destinationID of 0 means the packet has reached it's intended destination
-struct SRebroadcasterFrameHeader
-{
-	uint8         frameHeaderID;
-	uint8         hopCount;
-	uint16        padding;
-	TNetChannelID sourceID;
-	TNetChannelID destinationID;
-};
-
-	#define MAXIMUM_NUMBER_OF_CONNECTIONS   32
-	#define REBROADCASTER_CHANNEL_NAME_SIZE (16)
-struct SRebroadcasterConnection
-{
-	SRebroadcasterConnection() { Reset(); }
-
-	void Reset(void)
-	{
-		memset(name, 0, sizeof(name));
-		channelID = 0;
-	}
-
-	char          name[REBROADCASTER_CHANNEL_NAME_SIZE];
-	TNetChannelID channelID;
-};
-
-struct SRebroadcasterEntry
-{
-	SRebroadcasterEntry(void) { Reset(); }
-
-	void Reset(void)
-	{
-		pChannel = NULL;
-		connection.Reset();
-		memset(status, 0xff, sizeof(status));
-	}
-
-	INetChannel*             pChannel;
-	SRebroadcasterConnection connection;
-	uint8                    status[MAXIMUM_NUMBER_OF_CONNECTIONS / 8];
-};
-
-enum ERebroadcasterConnectionStatus
-{
-	eRCS_Disabled = 0,
-	eRCS_Enabled,
-	eRCS_Unknown
-};
-#endif // NETWORK_REBROADCASTER
 
 #if defined(_RELEASE)
 	#define ASSERT_MUTEX_LOCKED(mtx)
@@ -392,20 +340,6 @@ public:
 	virtual void                   NpEndFunction();
 	virtual bool                   NpIsInitialised();
 	virtual SNetProfileStackEntry* NpGetNullProfile();
-
-	/////////////////////////////////////////////////////////////////////////////
-	// Rebroadcaster
-
-	// IsRebroadcasterEnabled
-	// Informs the caller if the rebroadcaster is enabled or not
-	virtual bool IsRebroadcasterEnabled(void) const;
-
-	// AddRebroadcasterConnection
-	// Adds a connection to the rebroadcaster mesh
-	// pChannel		- pointer to the channel being added
-	// channelID	- game side channel ID associated with pChannel (if known)
-	virtual void AddRebroadcasterConnection(INetChannel* pChannel, TNetChannelID channelID);
-	/////////////////////////////////////////////////////////////////////////////
 
 	/////////////////////////////////////////////////////////////////////////////
 	// Host Migration

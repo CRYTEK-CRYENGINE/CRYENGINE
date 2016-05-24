@@ -95,7 +95,7 @@ vert2FragGeneral SkinDS( HS_CONSTANT_DATA_OUTPUT hsConstData, float3 vBaryCoords
 #endif
 	float4 vScreenProj = HPosToScreenTC(output.HPosition);
 #if %WRINKLE_BLENDING
-	#if (%_RT_SKELETON_SSD || %_RT_SKELETON_SSD_LINEAR) && %_RT_VERTEX_VELOCITY
+	#if (%_RT_SKELETON_SSD || %_RT_SKELETON_SSD_LINEAR || %_RT_COMPUTE_SKINNING) && %_RT_VERTEX_VELOCITY
 		vScreenProj.z = EvalVec(TrianglePatch[0].screenProj, TrianglePatch[1].screenProj, TrianglePatch[2].screenProj, vBaryCoords).z;
 	#endif
 #endif

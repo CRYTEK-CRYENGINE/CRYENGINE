@@ -27,6 +27,7 @@
 ///////////////////////////////////////////////////////////////////////////
 SAudioRequestDataInternal* ConvertToInternal(SAudioRequestDataBase const* const pExternalData)
 {
+	CRY_ASSERT(pExternalData != nullptr);
 	SAudioRequestDataInternal* pResult = nullptr;
 	EAudioRequestType const requestType = pExternalData->type;
 
@@ -158,6 +159,7 @@ SAudioRequestDataInternal* ConvertToInternal(SAudioRequestDataBase const* const 
 ////////////////////////////////////////////////////////////////////////////
 SAudioRequestDataInternal* AllocateForInternal(SAudioRequestDataInternal const* const pRequestDataInternal)
 {
+	CRY_ASSERT(pRequestDataInternal);
 	SAudioRequestDataInternal* pResult = nullptr;
 	EAudioRequestType const requestType = pRequestDataInternal->type;
 

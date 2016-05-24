@@ -34,8 +34,6 @@ CCodeCheckpointMgr::~CCodeCheckpointMgr()
 /// Used by code checkpoints to register themselves with the manager.
 void CCodeCheckpointMgr::RegisterCheckpoint(CCodeCheckpoint* pCheckpoint)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	CRY_ASSERT(pCheckpoint);
 	CRY_ASSERT(pCheckpoint->Name() != NULL);
 	CRY_ASSERT(pCheckpoint->HitCount() == 0);

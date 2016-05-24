@@ -115,11 +115,6 @@ CTexture* CTexture::s_ptexWindGrid;
 CTexture* CTexture::s_ptexSceneSpecularESRAM;
 #endif
 
-CTexture* CTexture::s_ptexLPV_RTs[3] = { NULL, NULL, NULL };
-CTexture* CTexture::s_ptexRSMFlux = NULL;
-CTexture* CTexture::s_ptexRSMNormals = NULL;
-CTexture* CTexture::s_ptexRSMDepth = NULL;
-
 // Post-process related textures
 CTexture* CTexture::s_ptexBackBuffer;
 CTexture* CTexture::s_ptexModelHudBuffer;
@@ -2609,13 +2604,6 @@ void CTexture::ReleaseSystemTextures(bool bFinalRelease)
 	//SAFE_RELEASE_FORCE(s_ptexHitAreaRT[0]);
 	//SAFE_RELEASE_FORCE(s_ptexHitAreaRT[1]);
 
-	SAFE_RELEASE_FORCE(s_ptexLPV_RTs[0]);
-	SAFE_RELEASE_FORCE(s_ptexLPV_RTs[1]);
-	SAFE_RELEASE_FORCE(s_ptexLPV_RTs[2]);
-	SAFE_RELEASE_FORCE(s_ptexRSMNormals);
-	SAFE_RELEASE_FORCE(s_ptexRSMFlux);
-	SAFE_RELEASE_FORCE(s_ptexRSMDepth);
-
 	SAFE_RELEASE_FORCE(s_ptexVolumetricFog);
 	SAFE_RELEASE_FORCE(s_ptexVolumetricFogDensityColor);
 	SAFE_RELEASE_FORCE(s_ptexVolumetricFogDensity);
@@ -2715,8 +2703,6 @@ void CTexture::LoadDefaultSystemTextures()
 
 	if (!m_bLoadedSystem)
 	{
-		ScopedSwitchToGlobalHeap useGlobalHeap;
-
 		m_bLoadedSystem = true;
 
 		// Textures loaded directly from file
@@ -2900,7 +2886,6 @@ void CTexture::LoadDefaultSystemTextures()
 			if (!s_ptexZTarget)
 			{
 				//for d3d10 we cannot free it during level transition, therefore allocate once and keep it
-				ScopedSwitchToGlobalHeap globalHeapScope;
 				s_ptexZTarget = CTexture::CreateTextureObject("$ZTarget", 0, 0, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_RENDERTARGET, eTF_Unknown);
 			}
 
@@ -2951,14 +2936,6 @@ void CTexture::LoadDefaultSystemTextures()
 		s_ShaderTemplatesInitialized = true;
 
 		s_pTexNULL = new CTexture(FT_DONT_RELEASE);
-
-		// LPV textures init
-		s_ptexLPV_RTs[0] = CTexture::CreateTextureObject("$LPV_Red_RT", 0, 0, 1, eTT_2D, nRTFlags, eTF_Unknown, TO_LPV_R);
-		s_ptexLPV_RTs[1] = CTexture::CreateTextureObject("$LPV_Green_RT", 0, 0, 1, eTT_2D, nRTFlags, eTF_Unknown, TO_LPV_G);
-		s_ptexLPV_RTs[2] = CTexture::CreateTextureObject("$LPV_Blue_RT", 0, 0, 1, eTT_2D, nRTFlags, eTF_Unknown, TO_LPV_B);
-		s_ptexRSMNormals = CTexture::CreateTextureObject("$RSM_Normals_RT", 0, 0, 1, eTT_2D, nRTFlags, eTF_Unknown, TO_RSM_NORMAL);
-		s_ptexRSMFlux = CTexture::CreateTextureObject("$RSM_Flux_RT", 0, 0, 1, eTT_2D, nRTFlags, eTF_Unknown, TO_RSM_COLOR);
-		s_ptexRSMDepth = CTexture::CreateTextureObject("$RSM_Depth_RT", 0, 0, 1, eTT_2D, nRTFlags, eTF_Unknown, TO_RSM_DEPTH);
 
 		s_ptexVolumetricFog = CTexture::CreateTextureObject("$VolumetricInscattering", 0, 0, 0, eTT_3D, FT_NOMIPS | FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_UNORDERED_ACCESS, eTF_Unknown);
 		s_ptexVolumetricFogDensityColor = CTexture::CreateTextureObject("$DensityColorVolume", 0, 0, 0, eTT_3D, FT_NOMIPS | FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_RENDERTARGET | FT_USAGE_UNORDERED_ACCESS, eTF_Unknown);

@@ -9,7 +9,7 @@
 // Description:
 //    Handles audio on the entity.
 //////////////////////////////////////////////////////////////////////////
-struct CEntityAudioProxy : public IEntityAudioProxy
+struct CEntityAudioProxy final : public IEntityAudioProxy
 {
 public:
 
@@ -17,47 +17,47 @@ public:
 	virtual ~CEntityAudioProxy();
 
 	// IComponent
-	virtual void ProcessEvent(SEntityEvent& event);
-	virtual void Initialize(SComponentInitializer const& init);
+	virtual void ProcessEvent(SEntityEvent& event) override;
+	virtual void Initialize(SComponentInitializer const& init) override;
 	// ~IComponent
 
 	// IEntityProxy
-	virtual EEntityProxy GetType() { return ENTITY_PROXY_AUDIO; }
-	virtual void         Release();
-	virtual void         Done();
-	virtual void         Update(SEntityUpdateContext& ctx)                   {}
-	virtual bool         Init(IEntity* pEntity, SEntitySpawnParams& params)  { return true; }
-	virtual void         Reload(IEntity* pEntity, SEntitySpawnParams& params);
-	virtual void         SerializeXML(XmlNodeRef& entityNode, bool bLoading) {}
-	virtual void         Serialize(TSerialize ser);
-	virtual bool         NeedSerialize()                                     { return false; }
-	virtual bool         GetSignature(TSerialize signature);
-	virtual void         GetMemoryUsage(ICrySizer* pSizer) const             { pSizer->AddObject(this, sizeof(*this)); }
+	virtual EEntityProxy GetType() override { return ENTITY_PROXY_AUDIO; }
+	virtual void         Release() override;
+	virtual void         Done() override;
+	virtual void         Update(SEntityUpdateContext& ctx) override                   {}
+	virtual bool         Init(IEntity* pEntity, SEntitySpawnParams& params) override  { return true; }
+	virtual void         Reload(IEntity* pEntity, SEntitySpawnParams& params) override;
+	virtual void         SerializeXML(XmlNodeRef& entityNode, bool bLoading) override {}
+	virtual void         Serialize(TSerialize ser) override;
+	virtual bool         NeedSerialize() override                                     { return false; }
+	virtual bool         GetSignature(TSerialize signature) override;
+	virtual void         GetMemoryUsage(ICrySizer* pSizer) const override             { pSizer->AddObject(this, sizeof(*this)); }
 	// ~IEntityProxy
 
 	// IEntityAudioProxy
-	virtual void               SetFadeDistance(float const fadeDistance)                       { m_fadeDistance = fadeDistance; }
-	virtual float              GetFadeDistance() const                                         { return m_fadeDistance; }
-	virtual void               SetEnvironmentFadeDistance(float const environmentFadeDistance) { m_environmentFadeDistance = environmentFadeDistance; }
-	virtual float              GetEnvironmentFadeDistance() const                              { return m_environmentFadeDistance; }
-	virtual void               SetEnvironmentId(AudioEnvironmentId const environmentId)        { m_audioEnvironmentId = environmentId; }
-	virtual AudioEnvironmentId GetEnvironmentID() const                                        { return m_audioEnvironmentId; }
-	virtual AudioProxyId       CreateAuxAudioProxy();
-	virtual bool               RemoveAuxAudioProxy(AudioProxyId const audioProxyId);
-	virtual void               SetAuxAudioProxyOffset(Matrix34 const& offset, AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID);
-	virtual Matrix34 const&    GetAuxAudioProxyOffset(AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID);
-	virtual void               PlayFile(char const* const _szFile, AudioProxyId const _audioProxyId = DEFAULT_AUDIO_PROXY_ID, SAudioCallBackInfo const& _callBackInfo = SAudioCallBackInfo::GetEmptyObject());
-	virtual void               StopFile(char const* const _szFile, AudioProxyId const _audioProxyId = DEFAULT_AUDIO_PROXY_ID);
-	virtual bool               ExecuteTrigger(AudioControlId const audioTriggerId, AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID, SAudioCallBackInfo const& callBackInfo = SAudioCallBackInfo::GetEmptyObject());
-	virtual void               StopTrigger(AudioControlId const audioTriggerId, AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID);
-	virtual void               SetSwitchState(AudioControlId const audioSwitchId, AudioSwitchStateId const audioStateId, AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID);
-	virtual void               SetRtpcValue(AudioControlId const audioRtpcId, float const value, AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID);
-	virtual void               SetObstructionCalcType(EAudioOcclusionType const occlusionType, AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID);
-	virtual void               SetEnvironmentAmount(AudioEnvironmentId const audioEnvironmentId, float const amount, AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID);
-	virtual void               SetCurrentEnvironments(AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID);
-	virtual void               AuxAudioProxiesMoveWithEntity(bool const bCanMoveWithEntity);
-	virtual void               AddAsListenerToAuxAudioProxy(AudioProxyId const audioProxyId, void (* func)(SAudioRequestInfo const* const), EAudioRequestType requestType = eAudioRequestType_AudioAllRequests, AudioEnumFlagsType specificRequestMask = ALL_AUDIO_REQUEST_SPECIFIC_TYPE_FLAGS);
-	virtual void               RemoveAsListenerFromAuxAudioProxy(AudioProxyId const audioProxyId, void (* func)(SAudioRequestInfo const* const));
+	virtual void               SetFadeDistance(float const fadeDistance) override                       { m_fadeDistance = fadeDistance; }
+	virtual float              GetFadeDistance() const override                                         { return m_fadeDistance; }
+	virtual void               SetEnvironmentFadeDistance(float const environmentFadeDistance) override { m_environmentFadeDistance = environmentFadeDistance; }
+	virtual float              GetEnvironmentFadeDistance() const override                              { return m_environmentFadeDistance; }
+	virtual void               SetEnvironmentId(AudioEnvironmentId const environmentId) override        { m_audioEnvironmentId = environmentId; }
+	virtual AudioEnvironmentId GetEnvironmentID() const override                                        { return m_audioEnvironmentId; }
+	virtual AudioProxyId       CreateAuxAudioProxy() override;
+	virtual bool               RemoveAuxAudioProxy(AudioProxyId const audioProxyId) override;
+	virtual void               SetAuxAudioProxyOffset(Matrix34 const& offset, AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID) override;
+	virtual Matrix34 const&    GetAuxAudioProxyOffset(AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID) override;
+	virtual bool               PlayFile(SAudioPlayFileInfo const& playbackInfo, AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID, SAudioCallBackInfo const& callBackInfo = SAudioCallBackInfo::GetEmptyObject()) override;
+	virtual void               StopFile(char const* const _szFile, AudioProxyId const _audioProxyId = DEFAULT_AUDIO_PROXY_ID) override;
+	virtual bool               ExecuteTrigger(AudioControlId const audioTriggerId, AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID, SAudioCallBackInfo const& callBackInfo = SAudioCallBackInfo::GetEmptyObject()) override;
+	virtual void               StopTrigger(AudioControlId const audioTriggerId, AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID) override;
+	virtual void               SetSwitchState(AudioControlId const audioSwitchId, AudioSwitchStateId const audioStateId, AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID) override;
+	virtual void               SetRtpcValue(AudioControlId const audioRtpcId, float const value, AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID) override;
+	virtual void               SetObstructionCalcType(EAudioOcclusionType const occlusionType, AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID) override;
+	virtual void               SetEnvironmentAmount(AudioEnvironmentId const audioEnvironmentId, float const amount, AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID) override;
+	virtual void               SetCurrentEnvironments(AudioProxyId const audioProxyId = DEFAULT_AUDIO_PROXY_ID) override;
+	virtual void               AuxAudioProxiesMoveWithEntity(bool const bCanMoveWithEntity) override;
+	virtual void               AddAsListenerToAuxAudioProxy(AudioProxyId const audioProxyId, void (* func)(SAudioRequestInfo const* const), EAudioRequestType requestType = eAudioRequestType_AudioAllRequests, AudioEnumFlagsType specificRequestMask = ALL_AUDIO_REQUEST_SPECIFIC_TYPE_FLAGS) override;
+	virtual void               RemoveAsListenerFromAuxAudioProxy(AudioProxyId const audioProxyId, void (* func)(SAudioRequestInfo const* const)) override;
 	// ~IEntityAudioProxy
 
 private:
@@ -135,19 +135,19 @@ private:
 
 	struct SPlayFile
 	{
-		SPlayFile(char const* const _szFile, SAudioCallBackInfo const& _callBackInfo = SAudioCallBackInfo::GetEmptyObject())
-			: szFile(_szFile)
+		SPlayFile(SAudioPlayFileInfo const& _playbackInfo, SAudioCallBackInfo const& _callBackInfo)
+			: playbackInfo(_playbackInfo)
 			, callBackInfo(_callBackInfo)
 		{}
 
 		inline void operator()(TAudioProxyPair const& pair)
 		{
-			pair.second.pIAudioProxy->PlayFile(szFile, callBackInfo);
+			pair.second.pIAudioProxy->PlayFile(playbackInfo, callBackInfo);
 		}
 
 	private:
 
-		char const* const         szFile;
+		SAudioPlayFileInfo const& playbackInfo;
 		SAudioCallBackInfo const& callBackInfo;
 	};
 

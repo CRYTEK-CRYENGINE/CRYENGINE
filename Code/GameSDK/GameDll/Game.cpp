@@ -49,7 +49,6 @@
 #include <IPlayerProfiles.h>
 #include <CryLobby/ICryLobbyUI.h>
 #include <CrySystem/ILocalizationManager.h>
-#include <CryEntitySystem/IEntityPoolManager.h>
 #include <CrySystem/File/IResourceManager.h>
 #include <CryAction/ICustomActions.h>
 
@@ -200,9 +199,8 @@
 
 #define PRODUCT_VERSION_MAX_STRING_LENGTH (256)
 
-#if CRY_PLATFORM_DURANGO
+#if CRY_PLATFORM_DURANGO 
 #include "XboxOneLive/XboxLiveGameEvents.h"
-#include "Network/MatchMakingUtils.h"
 #endif
 
 #ifndef _LIB
@@ -231,8 +229,6 @@ CTacticalPointLanguageExtender g_tacticalPointLanguageExtender;
 
 static CRevertibleConfigLoader s_gameModeCVars(96, 5120);	// 5k - needs to hold enough room for patched cvars as well as multiplayer.cfg
 static CRevertibleConfigLoader s_levelCVars(20, 1024);
-
-static bool s_usingGlobalHeap = true;
 
 static void OnChangedStereoRenderDevice(ICVar*	pStereoRenderDevice);
 
@@ -933,8 +929,6 @@ bool CGame::Init(IGameFramework *pFramework)
 
 		gEnv->pNetwork->SetMultithreadingMode(INetwork::NETWORK_MT_PRIORITY_NORMAL);
 
-		gEnv->pNetwork->GetLobby()->SetUserPacketEnd(eGUPD_End);
-
 #if CRY_PLATFORM_WINDOWS
 		if (gEnv->IsDedicated())
 		{
@@ -946,43 +940,55 @@ bool CGame::Init(IGameFramework *pFramework)
 			}
 		}
 #endif
-#if !defined(_RELEASE) || defined(PERFORMANCE_BUILD) || defined(IS_EAAS)
-		if ( !(g_pGameCVars && (g_pGameCVars->g_useOnlineServiceForDedicated) && gEnv->IsDedicated()))
+
+		if (!gEnv->pSystem->InitializeEngineModule("CryLobby", "EngineModule_CryLobby", false))
 		{
-			error = gEnv->pNetwork->GetLobby()->Initialise(eCLS_LAN, features, CGameBrowser::ConfigurationCallback, CGameBrowser::InitialiseCallback, this);
-			CRY_ASSERT_MESSAGE( error == eCLE_Success, "Failed to initialize LAN lobby service" );
+			CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "Error creating Lobby System!");
 		}
+
+		auto pLobby = gEnv->pNetwork->GetLobby();
+		if (pLobby)
+		{
+			pLobby->SetUserPacketEnd(eGUPD_End);
+
+#if !defined(_RELEASE) || defined(PERFORMANCE_BUILD) || defined(IS_EAAS)
+			if (!(g_pGameCVars && (g_pGameCVars->g_useOnlineServiceForDedicated) && gEnv->IsDedicated()))
+			{
+				error = pLobby->Initialise(eCLS_LAN, features, CGameBrowser::ConfigurationCallback, CGameBrowser::InitialiseCallback, this);
+				CRY_ASSERT_MESSAGE(error == eCLE_Success, "Failed to initialize LAN lobby service");
+			}
 #endif // #if !defined(_RELEASE) || defined(PERFORMANCE_BUILD) || defined(IS_EAAS)
 
-		if(!gEnv->IsDedicated())
-		{
-			error = gEnv->pNetwork->GetLobby()->Initialise(eCLS_Online, features, CGameBrowser::ConfigurationCallback, CGameBrowser::InitialiseCallback, this);
-		}
-		else
-		{
-			CryLog("Online lobby currently not supported for dedicated sever. Not initialized");
-		}
-
-		//CRY_ASSERT_MESSAGE( error == eCLE_Success, "Failed to initialize online lobby service" );
-		CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_COMMENT, "Online Lobby not supported in the default SDK.");
-		m_pSquadManager = new CSquadManager();		// MUST be done before game browser is constructed
-
-		m_pGameBrowser = new CGameBrowser();
-
-		//Set the matchmaking version based on the build version if g_matchmakingversion is a default value
-		if (!gEnv->IsEditor() && g_pGameCVars->g_MatchmakingVersion <= 1)
-		{
-			const int internalBuildVersion = gEnv->pSystem->GetBuildVersion().v[0];
-			CryLog("BuildVersion %d", internalBuildVersion);
-			if (internalBuildVersion != 1)
+			if (!gEnv->IsDedicated())
 			{
-				g_pGameCVars->g_MatchmakingVersion = internalBuildVersion;
+				error = pLobby->Initialise(eCLS_Online, features, CGameBrowser::ConfigurationCallback, CGameBrowser::InitialiseCallback, this);
 			}
-		}
+			else
+			{
+				CryLog("Online lobby currently not supported for dedicated sever. Not initialized");
+			}
 
-		CGameBrowser::InitLobbyServiceType();
-		
-		m_pGameLobbyManager = new CGameLobbyManager();
+			//CRY_ASSERT_MESSAGE( error == eCLE_Success, "Failed to initialize online lobby service" );
+			CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_COMMENT, "Online Lobby not supported in the default SDK.");
+			m_pSquadManager = new CSquadManager();		// MUST be done before game browser is constructed
+
+			m_pGameBrowser = new CGameBrowser();
+
+			//Set the matchmaking version based on the build version if g_matchmakingversion is a default value
+			if (!gEnv->IsEditor() && g_pGameCVars->g_MatchmakingVersion <= 1)
+			{
+				const int internalBuildVersion = gEnv->pSystem->GetBuildVersion().v[0];
+				CryLog("BuildVersion %d", internalBuildVersion);
+				if (internalBuildVersion != 1)
+				{
+					g_pGameCVars->g_MatchmakingVersion = internalBuildVersion;
+				}
+			}
+
+			CGameBrowser::InitLobbyServiceType();
+
+			m_pGameLobbyManager = new CGameLobbyManager();
+		}
 	}
 
 	m_pGameAchievements = new CGameAchievements;	//Should be after GameLobbyManager
@@ -1417,7 +1423,7 @@ void CGame::InitGameType(bool multiplayer, bool fromInit /*= false*/)
 		}
 #endif
 
-		if (!gEnv->IsDedicated())
+		if (!gEnv->IsDedicated() && gEnv->pNetwork->GetLobby())
 		{
 			// Late initialise voice service if playing multiplayer (and not a dedicated server)
 			gEnv->pNetwork->GetLobby()->Initialise(eCLS_Online, eCLSO_Voice, CGameBrowser::ConfigurationCallback, NULL, NULL);
@@ -1450,12 +1456,12 @@ void CGame::InitGameType(bool multiplayer, bool fromInit /*= false*/)
 	{
 		gEnv->pNetwork->SetMultithreadingMode(INetwork::NETWORK_MT_PRIORITY_NORMAL);
 		// Early terminate voice service if playing single player (attempt to save memory)
-		gEnv->pNetwork->GetLobby()->Terminate(eCLS_Online, eCLSO_Voice, NULL, NULL);
+		if (gEnv->pNetwork->GetLobby())
+		{
+			gEnv->pNetwork->GetLobby()->Terminate(eCLS_Online, eCLSO_Voice, NULL, NULL);
+		}
 	}
 #endif
-
-	// Toggle entity pooling system, only used for singleplayer
-	gEnv->pEntitySystem->GetIEntityPoolManager()->Enable(!multiplayer);
 
 	// Switch CryNetwork to the correct threading mode
 	gEnv->bMultiplayer=multiplayer;
@@ -1691,7 +1697,7 @@ void CGame::InitGameType(bool multiplayer, bool fromInit /*= false*/)
 			CRY_ASSERT( m_pMatchMakingTelemetry == NULL );
 
 			//LAN mode won't produce useful results for matchmaking telemetry
-			if( gEnv->pNetwork->GetLobby()->GetLobbyServiceType() == eCLS_Online )
+			if( gEnv->pNetwork->GetLobby() && gEnv->pNetwork->GetLobby()->GetLobbyServiceType() == eCLS_Online )
 			{
 				m_pMatchMakingTelemetry = new CMatchmakingTelemetry();
 			}
@@ -3222,8 +3228,6 @@ void CGame::OnPostUpdate(float fDeltaTime)
 
 void CGame::OnSaveGame(ISaveGame* pSaveGame)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	CPlayer *pPlayer = static_cast<CPlayer*>(GetIGameFramework()->GetClientActor());
 	GetGameRules()->PlayerPosForRespawn(pPlayer, true);
 
@@ -4027,8 +4031,6 @@ void CGame::LoadMappedLevelNames( const char* xmlPath )
 
 IGameStateRecorder* CGame::CreateGameStateRecorder(IGameplayListener* pL)
 {
-	ScopedSwitchToGlobalHeap globalHeap;
-
 	CGameStateRecorder* pGSP = new CGameStateRecorder();
 	
 	if(pGSP)
@@ -4255,39 +4257,35 @@ void CGame::UploadSessionTelemetry(void)
 
 		m_telemetryCollector->SubmitFromMemory("playtime.xml",str.c_str(),str.length(),CTelemetryCollector::k_tf_none);
 		
+		CryFixedStringT<255> localFileName;
+
+		if (m_performanceBuffer)
 		{
-			ScopedSwitchToGlobalHeap globalHeap;
-
-			CryFixedStringT<255> localFileName;
-
-			if (m_performanceBuffer)
-			{
-				m_performanceBuffer->SubmitToServer("frametimes.log");
-				localFileName.Format("%%USER%%/MiscTelemetry/%s_frametimes.log", m_telemetryCollector->GetSessionId().c_str() );
-				m_performanceBuffer->DumpToFile(localFileName.c_str());
-				m_performanceBuffer->Reset();
-			}
-			if (m_bandwidthBuffer)
-			{
-				m_bandwidthBuffer->SubmitToServer("bandwidth.log");
-				localFileName.Format("%%USER%%/MiscTelemetry/%s_bandwidth.log", m_telemetryCollector->GetSessionId().c_str() );
-				m_bandwidthBuffer->DumpToFile(localFileName.c_str());
-				m_bandwidthBuffer->Reset();
-			}
-			if (m_memoryTrackingBuffer)
-			{
-				m_memoryTrackingBuffer->SubmitToServer("memory.log");
-				localFileName.Format("%%USER%%/MiscTelemetry/%s_memory.log", m_telemetryCollector->GetSessionId().c_str() );
-				m_memoryTrackingBuffer->DumpToFile(localFileName.c_str());
-				m_memoryTrackingBuffer->Reset();
-			}
-			if(m_soundTrackingBuffer)
-			{
-				m_soundTrackingBuffer->SubmitToServer("sound.log");
-				localFileName.Format("%%USER%%/MiscTelemetry/%s_sound.log", m_telemetryCollector->GetSessionId().c_str() );
-				m_soundTrackingBuffer->DumpToFile(localFileName.c_str());
-				m_soundTrackingBuffer->Reset();
-			}
+			m_performanceBuffer->SubmitToServer("frametimes.log");
+			localFileName.Format("%%USER%%/MiscTelemetry/%s_frametimes.log", m_telemetryCollector->GetSessionId().c_str() );
+			m_performanceBuffer->DumpToFile(localFileName.c_str());
+			m_performanceBuffer->Reset();
+		}
+		if (m_bandwidthBuffer)
+		{
+			m_bandwidthBuffer->SubmitToServer("bandwidth.log");
+			localFileName.Format("%%USER%%/MiscTelemetry/%s_bandwidth.log", m_telemetryCollector->GetSessionId().c_str() );
+			m_bandwidthBuffer->DumpToFile(localFileName.c_str());
+			m_bandwidthBuffer->Reset();
+		}
+		if (m_memoryTrackingBuffer)
+		{
+			m_memoryTrackingBuffer->SubmitToServer("memory.log");
+			localFileName.Format("%%USER%%/MiscTelemetry/%s_memory.log", m_telemetryCollector->GetSessionId().c_str() );
+			m_memoryTrackingBuffer->DumpToFile(localFileName.c_str());
+			m_memoryTrackingBuffer->Reset();
+		}
+		if(m_soundTrackingBuffer)
+		{
+			m_soundTrackingBuffer->SubmitToServer("sound.log");
+			localFileName.Format("%%USER%%/MiscTelemetry/%s_sound.log", m_telemetryCollector->GetSessionId().c_str() );
+			m_soundTrackingBuffer->DumpToFile(localFileName.c_str());
+			m_soundTrackingBuffer->Reset();
 		}
 
 		//Make summarystats.xml - one row for all the summary stats we output
@@ -4867,16 +4865,6 @@ void CGame::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
 {
 	switch (event)
 	{
-		case ESYSTEM_EVENT_SWITCHING_TO_LEVEL_HEAP:
-		{
-			assert (s_usingGlobalHeap);
-			s_usingGlobalHeap = false;
-			CryLog ("Switched to level heap!");
-			INDENT_LOG_DURING_SCOPE();
-			CFrontEndModelCache::Allow3dFrontEndAssets(false,true);
-		}
-		break;
-
 		case ESYSTEM_EVENT_LEVEL_LOAD_PREPARE:
 		{
 			CryLog ("Preparing to load level!");
@@ -4969,22 +4957,10 @@ void CGame::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
 				m_pParameterGameEffect->Reset();
 			}
 			SAFE_DELETE(m_pRecordingSystem);
-			if (s_usingGlobalHeap)
-			{
-				CFrontEndModelCache::Allow3dFrontEndAssets(true,false);
-			}
-		}
-		break;
-
-		case ESYSTEM_EVENT_SWITCHED_TO_GLOBAL_HEAP:
-		{
-			assert (!s_usingGlobalHeap);
-			s_usingGlobalHeap = true;
-			CryLog ("Switched to global heap!");
-			INDENT_LOG_DURING_SCOPE();
 			CFrontEndModelCache::Allow3dFrontEndAssets(true,false);
 		}
 		break;
+
 		case ESYSTEM_EVENT_TIME_OF_DAY_SET:
 		{
 			CGameRules* const pGameRules = GetGameRules();
@@ -5029,15 +5005,6 @@ void CGame::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
 				}
 			}
 			break;
-
-#if defined(SUPPORT_DURANGO_LEGACY_MULTIPLAYER)
-		case ESYSTEM_EVENT_ACTIVATION_EVENT:
-			{
-				// Always need to call this to ensure hookup of global even callbacks.
-				MatchmakingUtils::OnActivated( 0 );
-			}
-			break;
-#endif
 
 		case ESYSTEM_EVENT_USER_CHANGED:
 

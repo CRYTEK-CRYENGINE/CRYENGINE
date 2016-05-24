@@ -33,10 +33,10 @@
 #include <CryAISystem/ICommunicationManager.h>
 #include "Turret/Turret/Turret.h"
 #include "Environment/DoorPanel.h"
+#include "UI/HUD/HUDEventDispatcher.h"
+#include "Environment/LedgeManager.h"
 
 #include <IForceFeedbackSystem.h>
-
-#include "Environment/LedgeManager.h"
 
 #define EDITOR_SERVER_PORT 0xed17
 
@@ -451,6 +451,7 @@ void CEditorGame::InitUIEnums(IGameToEditorInterface* pGTE)
 	InitEntityArchetypeEnums(pGTE);
 	InitForceFeedbackEnums(pGTE);
 	InitActionInputEnums(pGTE);
+	InitHUDEventEnums(pGTE);
 	InitReadabilityEnums(pGTE);
 	InitLedgeTypeEnums(pGTE);
 	InitSmartMineTypeEnums(pGTE);
@@ -814,6 +815,19 @@ void CEditorGame::InitActionInputEnums( IGameToEditorInterface* pGTE )
 			pGTE->SetUIEnums("input_actions", actionList.m_allActionNames, actionList.m_nameCount);
 		}
 	}
+}
+
+void CEditorGame::InitHUDEventEnums(IGameToEditorInterface* pGTE)
+{
+	const char** szNameValueStrings = new const char*[eHUDEvent_LAST];
+	int curEntryIndex = 0;
+	for (int i = 0; i < eHUDEvent_LAST; ++i)
+	{
+		const char* szEventName = CHUDEventDispatcher::GetEventName((EHUDEventType)i);
+		szNameValueStrings[curEntryIndex++] = szEventName;
+	}
+	pGTE->SetUIEnums("hud_events", szNameValueStrings, eHUDEvent_LAST);
+	delete[] szNameValueStrings;
 }
 
 void CEditorGame::InitReadabilityEnums( IGameToEditorInterface* pGTE )

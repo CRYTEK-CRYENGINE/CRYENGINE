@@ -937,7 +937,6 @@ unsigned int CFFont::GetEffectId(const char* pEffectName) const
 
 bool CFFont::InitTexture()
 {
-	ScopedSwitchToGlobalHeap globalHeap;
 	m_texID = gEnv->pRenderer->FontCreateTexture(m_pFontTexture->GetWidth(), m_pFontTexture->GetHeight(), (uint8*)m_pFontTexture->GetBuffer(), eTF_A8);
 	return m_texID >= 0;
 }

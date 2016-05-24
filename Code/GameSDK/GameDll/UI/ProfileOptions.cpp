@@ -242,8 +242,6 @@ void CProfileOptions::AddOption(const char* name, const char* value, const char*
 	if(!value)
 		return;
 
-	ScopedSwitchToGlobalHeap globalHeap;
-
 	COption* pOption = NULL;
 	CryFixedStringT<64> tmpName(name);
 	CryFixedStringT<64> compareName("SysSpec");
@@ -377,8 +375,6 @@ void CProfileOptions::SetOptionValue(const char* command, const char* param, boo
     return;
   }
 
-	ScopedSwitchToGlobalHeap globalHeap;
-
   std::vector<COption*>::const_iterator it = m_allOptions.begin();
   std::vector<COption*>::const_iterator end = m_allOptions.end();
   for(; it!=end; ++it)
@@ -429,8 +425,6 @@ void CProfileOptions::InitializeFromCVar()
 	{
 		return;
 	}
-
-	ScopedSwitchToGlobalHeap globalHeap;
 
 	std::vector<COption*>::const_iterator it = m_allOptions.begin();
 	std::vector<COption*>::const_iterator end = m_allOptions.end();

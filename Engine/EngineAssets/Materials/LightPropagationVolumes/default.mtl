@@ -1,3 +1,0 @@
-<Material Diffuse="1,1,1" Emissive="0,0,0" GenMask="0" MtlFlags="2048" Opacity="1" Shader="LightPropagationVolumes.LPVApply" Shininess="10" Specular="0,0,0" SurfaceType="" >
- <Textures />
-</Material>

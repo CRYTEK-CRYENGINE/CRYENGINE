@@ -328,18 +328,6 @@ enum ESystemEvent
 	//! End 3D post rendering.
 	ESYSTEM_EVENT_3D_POST_RENDERING_END,
 
-	//! Called before switching to level memory heap.
-	ESYSTEM_EVENT_SWITCHING_TO_LEVEL_HEAP,
-
-	//! Called after switching to level memory heap.
-	ESYSTEM_EVENT_SWITCHED_TO_LEVEL_HEAP,
-
-	//! Called before switching to global memory heap.
-	ESYSTEM_EVENT_SWITCHING_TO_GLOBAL_HEAP,
-
-	//! Called after switching to global memory heap.
-	ESYSTEM_EVENT_SWITCHED_TO_GLOBAL_HEAP,
-
 	//! Sent after precaching of the streaming system has been done.
 	ESYSTEM_EVENT_LEVEL_PRECACHE_END,
 
@@ -459,6 +447,11 @@ enum ESystemEvent
 
 	//! Sent if the CrySystem module initialized successfully.
 	ESYSTEM_EVENT_CRYSYSTEM_INIT_DONE,
+
+	//! Sent if the window containing the running game loses focus, but application itself still has focus
+	//! This is needed because some sub-systems still want to work even without focus on main application
+	//! while others would prefer to suspend their operation
+	ESYSTEM_EVENT_GAMEWINDOW_ACTIVATE,
 };
 
 //! User defined callback, which can be passed to ISystem.
@@ -1192,6 +1185,9 @@ struct ISystem
 
 	virtual bool IsUIFrameworkMode() { return false; }
 
+	//! Fills the output array by random numbers using CMTRand_int32 generator
+	virtual void FillRandomMT(uint32* pOutWords, uint32 numWords) = 0;
+
 	// Return the related subsystem interface.
 
 	virtual IZLibCompressor*       GetIZLibCompressor() = 0;
@@ -1532,7 +1528,7 @@ struct ISystem
 
 	//! Loads a dynamic library, creates and initializes an instance of the module class
 	//! \note HintEaaS is used to load EaaS release configuration, it's ignored in all other configurations; pass true if the sourcecode for the module is available to EaaS users.
-	virtual bool InitializeEngineModule(const char* dllName, const char* moduleClassName, const SSystemInitParams& initParams, bool bQuitIfNotFound) = 0;
+	virtual bool InitializeEngineModule(const char* dllName, const char* moduleClassName, bool bQuitIfNotFound) = 0;
 
 	//! Unloads a dynamic library as well as the corresponding instance of the module class
 	virtual bool UnloadEngineModule(const char* dllName, const char* moduleClassName) = 0;

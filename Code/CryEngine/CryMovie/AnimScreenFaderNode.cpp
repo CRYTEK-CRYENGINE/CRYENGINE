@@ -218,10 +218,7 @@ void CAnimScreenFaderNode::OnReset()
 
 void CAnimScreenFaderNode::Activate(bool bActivate)
 {
-	if (bActivate)
-	{
-		m_bActive = false;
-	}
+	m_bActive = false;
 
 	if (m_texPrecached == false)
 	{
@@ -283,7 +280,7 @@ void CAnimScreenFaderNode::Render()
 		{
 			CScreenFaderTrack* pTrack = static_cast<CScreenFaderTrack*>(GetTrackForParameter(eAnimParamType_ScreenFader, paramIndex));
 
-			if (!pTrack)
+			if (!pTrack || (pTrack->GetFlags() & IAnimTrack::eAnimTrackFlags_Disabled) != 0)
 			{
 				continue;
 			}

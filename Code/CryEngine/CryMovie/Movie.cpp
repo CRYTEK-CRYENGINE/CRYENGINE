@@ -22,6 +22,7 @@
 #include "CommentNode.h"
 #include "LayerNode.h"
 #include "ShadowsSetupNode.h"
+#include "AudioNode.h"
 
 #include <CryCore/StlUtils.h>
 
@@ -33,7 +34,7 @@
 #include <CryGame/IGameFramework.h>
 #include <CryGame/IGame.h>
 #include <CryMovie/AnimKey_impl.h>
-#include "IViewSystem.h"
+#include <../CryAction/IViewSystem.h>
 
 int CMovieSystem::m_mov_NoCutscenes = 0;
 float CMovieSystem::m_mov_cameraPrecacheTime = 1.f;
@@ -110,6 +111,7 @@ void RegisterNodeTypes()
 	REGISTER_NODE_TYPE(Alembic, "Alembic")
 	REGISTER_NODE_TYPE(GeomCache, "Geom Cache")
 	REGISTER_NODE_TYPE(Environment, "Environment")
+	REGISTER_NODE_TYPE(Audio, "Audio");
 }
 
 // If you get an assert in this function, it means two param types have the same enum value.
@@ -125,6 +127,8 @@ void RegisterParamTypes()
 	REGISTER_PARAM_TYPE(Animation)
 	REGISTER_PARAM_TYPE(AudioTrigger)
 	REGISTER_PARAM_TYPE(AudioFile)
+	REGISTER_PARAM_TYPE(AudioParameter)
+	REGISTER_PARAM_TYPE(AudioSwitch)
 	REGISTER_PARAM_TYPE(DynamicResponseSignal)
 	REGISTER_PARAM_TYPE(Sequence)
 	REGISTER_PARAM_TYPE(Expression)

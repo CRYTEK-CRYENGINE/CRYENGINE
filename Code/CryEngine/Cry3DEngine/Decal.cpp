@@ -65,7 +65,7 @@ Vec3 CDecal::GetWorldPosition()
 	return vPos;
 }
 
-void CDecal::Render(const float fCurTime, int nAfterWater, uint32 nDLMask, float fDistanceFading, float fDistance, const SRenderingPassInfo& passInfo)
+void CDecal::Render(const float fCurTime, int nAfterWater, float fDistanceFading, float fDistance, const SRenderingPassInfo& passInfo)
 {
 	FUNCTION_PROFILER_3DENGINE;
 
@@ -341,7 +341,7 @@ void CDecal::Render(const float fCurTime, int nAfterWater, uint32 nDLMask, float
 			uCol.dcolor = 0xffffffff;
 			uCol.bcolor[3] = fastround_positive(fAlpha * 255);
 
-			GetObjManager()->AddDecalToRenderer(fDistance, m_pMaterial, nDLMask, m_sortPrio, vRight * fSizeK, vUp * fSizeK, uCol,
+			GetObjManager()->AddDecalToRenderer(fDistance, m_pMaterial, m_sortPrio, vRight * fSizeK, vUp * fSizeK, uCol,
 			                                    OS_ALPHA_BLEND, m_vAmbient, vPos, nAfterWater, passInfo,
 			                                    m_ownerInfo.pRenderNode->GetRenderNodeType() == eERType_Vegetation ? (CVegetation*) m_ownerInfo.pRenderNode : 0);
 		}
@@ -354,7 +354,7 @@ void CDecal::Render(const float fCurTime, int nAfterWater, uint32 nDLMask, float
 			uCol.dcolor = 0;
 			uCol.bcolor[3] = fastround_positive(fAlpha * 255);
 
-			GetObjManager()->AddDecalToRenderer(fDistance, m_pMaterial, nDLMask, m_sortPrio, m_vRight * m_fSize * fSizeK,
+			GetObjManager()->AddDecalToRenderer(fDistance, m_pMaterial, m_sortPrio, m_vRight * m_fSize * fSizeK,
 			                                    m_vUp * m_fSize * fSizeK, uCol, OS_ALPHA_BLEND, m_vAmbient, m_vPos, nAfterWater, passInfo,
 			                                    NULL);
 		}
@@ -362,7 +362,7 @@ void CDecal::Render(const float fCurTime, int nAfterWater, uint32 nDLMask, float
 
 	case eDecalType_WS_OnTheGround:
 		{
-			RenderBigDecalOnTerrain(fAlpha, fSizeK, nDLMask, passInfo);
+			RenderBigDecalOnTerrain(fAlpha, fSizeK, passInfo);
 		}
 		break;
 	}
@@ -376,7 +376,7 @@ void CDecal::FreeRenderData()
 	m_ownerInfo.pRenderNode = 0;
 }
 
-void CDecal::RenderBigDecalOnTerrain(float fAlpha, float fScale, uint32 nDLMask, const SRenderingPassInfo& passInfo)
+void CDecal::RenderBigDecalOnTerrain(float fAlpha, float fScale, const SRenderingPassInfo& passInfo)
 {
 	float fRadius = m_fSize * fScale;
 

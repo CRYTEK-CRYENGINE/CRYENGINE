@@ -7,6 +7,7 @@
 #include "Vertex/VertexAnimation.h"
 #include "ModelSkin.h"
 #include "SkeletonPose.h"
+#include "AttachmentVClothPreProcess.h"
 
 class CCharInstance;
 class CClothProxies;
@@ -208,34 +209,17 @@ struct SClothInfo
 
 struct SPrimitive;
 
-struct SContact
-{
-	Vector4 n, pt;
-	int     particleIdx;
-	float   depth;
-
-	SContact()
-	{
-		n.zero();
-		pt.zero();
-		particleIdx = -1;
-		depth = 0.f;
-	}
-};
-
 struct SParticleCold
 {
-	Vector4   prevPos;
-	Vector4   oldPos;
-	Vector4   skinnedPos;
-	SContact* pContact;
-	int       permIdx;
-	int       bAttached;
+	Vector4 prevPos;
+	Vector4 oldPos;
+	Vector4 skinnedPos;
+	int     permIdx;
+	int     bAttached;
 
 	SParticleCold()
 	{
 		prevPos.zero();
-		pContact = NULL;
 		bAttached = 0;
 		skinnedPos.zero();
 		permIdx = -1;
@@ -246,31 +230,31 @@ struct SParticleCold
 struct SParticleHot
 {
 	Vector4 pos;
-	float   alpha; // for blending with animation
+
+	float   alpha;          //!< for blending with animation; == 0 if unconstrained .. == 1.0 if attached
+	float   factorAttached; //!< == 0 if attached .. == 1.0 if unconstrained; i.e. 1.0f-alpha
 	int     timer;
 
-	SParticleHot()
+	bool    collisionExist;  //!< set to true, if a collision occurs
+	Vector4 collisionNormal; //!< stores collision normal for damping in tangential direction
+
+	// long range attachments
+	int   lraIdx;        //!< index of closest constraint / attached vtx
+	float lraDist;       //!< distance to closest constraint
+	int   lraNextParent; //!< index of next parent on path to closest constraint
+
+	SParticleHot() : collisionExist(false), timer(0), alpha(0), lraIdx(-1), lraDist(0), lraNextParent(-1), collisionNormal(ZERO), pos(ZERO)
 	{
-		pos.zero();
-		timer = 0;
-		alpha = 0;
 	}
-};
-
-struct SLink
-{
-	int   i1, i2;
-	float lenSqr, weight1, weight2;
-	bool  skip;
-
-	SLink() : i1(0), i2(0), lenSqr(0.0f), weight1(0.f), weight2(0.f), skip(false) {}
 };
 
 struct SCollidable
 {
 	Matrix3 R, oldR;
+	QuatT   qLerp; //!< interpolation [R,oldR & translation] for substeps
+
 	Vector4 offset, oldOffset;
-	f32     cr, ca;
+	f32     cr, cx, cy, cz; //!< lozenge definition
 
 	SCollidable()
 		: R(IDENTITY)
@@ -278,7 +262,9 @@ struct SCollidable
 		, offset(ZERO)
 		, oldOffset(ZERO)
 		, cr(0.0f)
-		, ca(0.0f)
+		, cx(0.0f)
+		, cy(0.0f)
+		, cz(0.0f)
 	{
 	}
 };
@@ -296,15 +282,17 @@ public:
 		, m_links(nullptr)
 		, m_gravity(0, 0, -9.8f)
 		, m_time(0.0f)
+		, m_dt(0.0f)
+		, m_dtPrev(-1)
+		, m_dtNormalize(100.0f) // i.e. normalize substep to 1/dt with dt = 0.01
 		, m_steps(0)
-		, m_maxSteps(3)
-		, m_idx0(-1)
-		, m_lastqHost(IDENTITY)
-		, m_contacts(nullptr)
-		, m_nContacts(0)
-		, m_bBlendSimMesh(false)
+		, m_normalizedTimePrev(0)
+		, m_doSkinningForNSteps(0)
+		, m_fadeInOutPhysicsDirection(0)
+		, m_fadeTimeActual(0) // physical fade time
+		, m_bUseDijkstraForLRA(true)
+		, m_bIsInitialized(false)
 	{
-		m_color = ColorB(cry_random(0, 127), cry_random(0, 127), cry_random(0, 127));
 	}
 
 	~CClothSimulator()
@@ -312,79 +300,164 @@ public:
 		SAFE_DELETE_ARRAY(m_particlesHot);
 		SAFE_DELETE_ARRAY(m_particlesCold);
 		SAFE_DELETE_ARRAY(m_links);
-		SAFE_DELETE_ARRAY(m_contacts);
 	}
 
-	bool  AddGeometry(phys_geometry* pgeom);
-	int   SetParams(const SVClothParams& params, float* weights);
-	void  SetSkinnedPositions(const Vector4* points);
-	void  GetVertices(Vector4* pWorldCoords);
+	/**
+	 * Disable simulation totally, e.g., if camera is far away.
+	 */
+	void                 EnableSimulation(bool enable = true)   { m_config.disableSimulation = !enable; }
+	bool                 IsSimulationEnabled() const            { return !m_config.disableSimulation; }
 
-	int   Awake(int bAwake = 1, int iSource = 0);
+	const SVClothParams& GetParams() const                      { return m_config; };
+	void                 SetParams(const SVClothParams& params) { m_config = params; };
+	int                  SetParams(const SVClothParams& params, float* weights);
 
-	void  StartStep(float time_interval, const QuatT& loacation);
-	float GetMaxTimeStep(float time_interval);
-	int   Step(float animBlend);
+	void                 StartStep(float time_interval, const QuatT& location);
+	int                  Step();
 
-	void  DrawHelperInformation();
-	void  SwitchToBlendSimMesh();
-	bool  IsBlendSimMeshOn();
-	const CAttachmentManager* m_pAttachmentManager;
+	bool                 AddGeometry(phys_geometry* pgeom);
+	void                 SetSkinnedPositions(const Vector4* points);
+	void                 GetVertices(Vector4* pWorldCoords) const;
+	void                 GetVerticesFaded(Vector4* pWorldCoords);
 
-	SVClothParams             m_config;
+	/**
+	 * Laplace-filter for input-positions, using the default mesh-edges.
+	 */
+	void LaplaceFilterPositions(Vector4* positions, float intensity);
+
+	/**
+	 * Enable skinning/physics according to camera distance.
+	 */
+	void HandleCameraDistance();
+	void SetInitialized(bool initialized = true) { m_bIsInitialized = initialized; }
+	bool IsInitialized() const                   { return m_bIsInitialized; }
+
+	// fading/blending between skinning and simulation
+	bool IsFading() const { return (m_fadeTimeActual > 0.0f) || (m_fadeInOutPhysicsDirection != 0); }
+	void DecreaseFadeInOutTimer(float dt);
+
+	void DrawHelperInformation();
+
+	void SetAttachmentManager(const CAttachmentManager* am) { m_pAttachmentManager = am; }
+
+	/**
+	 * Get metadata from skin.
+	 */
+	bool GetMetaData(mesh_data* pMesh, CSkin* pSimSkin);
+
+	/**
+	 * Generate metadata on the fly.
+	 */
+	void GenerateMetaData(mesh_data* pMesh, CSkin* pSimSkin, float* weights);
+
 private:
-	void AddContact(int i, const Vector4& n, const Vector4& pt, int permIdx);
+
 	void PrepareEdge(SLink& link);
 	void SolveEdge(const SLink& link, float stretch);
-	void DetectCollisions();
-	void RigidBodyDamping();
+	void DampEdge(const SLink& link, f32 damping);
+	void DampTangential();
+	void DampPositionBasedDynamics();
+	void PositionsIntegrate();
+	void PositionsPullToSkinnedPositions();
+
+	/**
+	 * Set skinning positions; e.g. to reduce strong simulation forces when simulation is enabled/faded in.
+	 */
+	void PositionsSetToSkinned(bool projectToProxySurface = true, bool setPosOld = true);
+	void PositionsSetAttachedToSkinnedInterpolated(float t01);
+
+	/**
+	 * Moves particle-positions 'm_particlesHot[i].pos' lying inside proxy to proxies surface; using time-interpolation if t01 is set.
+	 */
+	void PositionsProjectToProxySurface(f32 t01 = 1.0f);
+	void BendByTriangleAngleDetermineNormals();
+	void BendByTriangleAngleSolve(float kBend);
+
+	/**
+	 * Determine actual, lerped quaternions for colliders
+	 */
+	void UpdateCollidablesLerp(f32 t01 = 1.0f);
+	void LongRangeAttachmentsSolve();
+
+	/**
+	 * Check distance to camera.
+	 * @return True, if distance to camera is les than value; false, otherwise.
+	 */
+	bool CheckCameraDistanceLessThan(float dist) const;
+	/**
+	 * Check framerate.
+	 * @return True, if framerate is less than m_config.forceSkinningFpsThreshold; false otherwise.
+	 */
+	bool CheckForceSkinningByFpsThreshold();
+	bool CheckForceSkinning();
+
+	/**
+	 * Detect rewind from end to start of animation.
+	 */
+	bool CheckAnimationRewind();
+	void DoForceSkinning();
+	void DoAnimationRewind();
+
+	// fading
+	bool IsFadingOut() const { return (m_fadeTimeActual > 0.0f) && (m_fadeInOutPhysicsDirection == -1); }
+	bool IsFadingIn()  const { return (m_fadeTimeActual > 0.0f) && (m_fadeInOutPhysicsDirection == 1); }
+	void InitFadeInOutPhysics();
+	void EnableFadeOutPhysics();
+	void EnableFadeInPhysics();
+
+	void DebugOutput(float stepTime01);
 
 private:
 
-	int                      m_nVtx;          // the number of particles
-	int                      m_nEdges;        // the number of links between particles
-	SParticleCold*           m_particlesCold; // the simulation particles
-	SParticleHot*            m_particlesHot;  // the simulation particles
-	SLink*                   m_links;         // the structural links between particles
-	Vector4                  m_gravity;       // the gravity vector
-	float                    m_time;          // time accumulator over frames (used to determine the number of sub-steps)
-	int                      m_steps;
-	int                      m_maxSteps;
-	int                      m_idx0;            // an attached point chosen as the origin of axes
-	Quat                     m_lastqHost;       // the last orientation of the part cloth is attached to
-	std::vector<SCollidable> m_permCollidables; // list of contact parts (no collision with the world)
-	std::vector<SLink>       m_shearLinks;      // shear and bend links
-	std::vector<SLink>       m_bendLinks;
-	ColorB                   m_color;
+	bool                      m_bIsInitialized;
+	bool                      m_bUseDijkstraForLRA; //!< defaults to true; if set to false euklidean distances are used, which does not work very well, since in strange poses particles are pulled through the body (e.g. in case of bending down)
+	ColorB                    m_color;
 
-	// contact information list
-	SContact* m_contacts;
-	int       m_nContacts;
+	SVClothParams             m_config;
+	const CAttachmentManager* m_pAttachmentManager;
 
-	bool      m_bBlendSimMesh;
+	int                       m_nVtx;          //!< the number of particles
+	int                       m_nEdges;        //!< the number of links between particles
+	SParticleCold*            m_particlesCold; //!< the simulation particles
+	SParticleHot*             m_particlesHot;  //!< the simulation particles
+
+	SLink*                    m_links;        //!< the structural links between particles / stretch links
+	std::vector<SLink>        m_shearLinks;   //!< shear links
+	std::vector<SLink>        m_bendLinks;    //!< bend links
+	Vector4                   m_gravity;      //!< the gravity vector
+	float                     m_time;         //!< time accumulator over frames (used to determine the number of sub-steps)
+	float                     m_timeInterval; //!< time interval to be simulated for last frame
+	float                     m_dt;           //!< dt of actual substep
+	float                     m_dtPrev;       //!< dt of previous substep - needed to determine the velocity by posPrev within position based approach
+	float                     m_dtNormalize;  //!< normalization factor for dt to convert constants in suitable range
+	float                     m_normalizedTimePrev;
+	int                       m_steps;
+
+	std::vector<SCollidable>  m_permCollidables; //!< list of collision proxies (no collision with the world)
+
+	float                     m_fadeTimeActual;            //!< actual fade time
+	int                       m_fadeInOutPhysicsDirection; //!< -1 fade out, 1 fade in
+	int                       m_doSkinningForNSteps;       //!< use skinning if any position change has occured, to keep simulation stable
+
+	Vec3                      m_externalDeltaTranslation; //!< delta translation of locator per timestep; is used to determine external influence according to velocity
+	Vec3                      m_permCollidables0Old;      //!< to determine above m_externalDeltaTranslation per step
+	QuatT                     m_location;                 //!< global location / not used in the moment
+
+	// Long Range Attachments
+	std::vector<int> m_lraNotAttachedOrderedIdx; //!< not attached particles: ordered by distance to constraints
+
+	// Bending by triangle angles, not springs
+	std::vector<SBendTrianglePair> m_listBendTrianglePairs; //!< triangle pairs sharing an edge
+	std::vector<SBendTriangle>     m_listBendTriangles;     //!< triangles which are used for bending
+
+	// Laplace container
+	std::vector<Vec3>  m_listLaplacePosSum;
+	std::vector<float> m_listLaplaceN;
+
+	// DebugDraw collidables substep interpolation
+	int                m_debugCollidableSubsteppingId;
+	std::vector<QuatT> m_debugCollidableSubsteppingQuatT; //!< for debug rendering of interpolated proxies
 };
-
-ILINE void CClothSimulator::AddContact(int i, const Vector4& n, const Vector4& pt, int permIdx)
-{
-	float depth = (pt - m_particlesHot[i].pos) * n;
-	SContact* pContact = NULL;
-	if (m_particlesCold[i].pContact)
-	{
-		if (depth <= m_particlesCold[i].pContact->depth)
-			return;
-		pContact = m_particlesCold[i].pContact;
-	}
-	else
-	{
-		pContact = &m_contacts[m_nContacts++];
-		m_particlesCold[i].pContact = pContact;
-	}
-	m_particlesCold[i].permIdx = permIdx;
-	pContact->depth = depth;
-	pContact->n = n;
-	pContact->pt = pt;
-	pContact->particleIdx = i;
-}
 
 ILINE void CClothSimulator::PrepareEdge(SLink& link)
 {
@@ -397,27 +470,46 @@ ILINE void CClothSimulator::PrepareEdge(SLink& link)
 	float m2Inv = n2 ? 1.f : 0.f;
 	float mu = 1.0f / (m1Inv + m2Inv);
 	float stretch = 1.f;
-	if (m_config.stiffnessGradient != 0.f)
-	{
-		stretch = 1.f - (m_particlesHot[link.i1].alpha + m_particlesHot[link.i2].alpha) * 0.5f;
-		if (stretch != 1.f)
-			stretch = min(1.f, m_config.stiffnessGradient * stretch);
-	}
 	link.weight1 = m1Inv * mu * stretch;
 	link.weight2 = m2Inv * mu * stretch;
 }
 
 ILINE void CClothSimulator::SolveEdge(const SLink& link, float stretch)
 {
-	if (link.skip)
-		return;
+	if (link.skip) return;
 	Vector4& v1 = m_particlesHot[link.i1].pos;
 	Vector4& v2 = m_particlesHot[link.i2].pos;
 	Vector4 delta = v1 - v2;
+
 	const float lenSqr = delta.len2();
 	delta *= stretch * (lenSqr - link.lenSqr) / (lenSqr + link.lenSqr);
-	v1 -= link.weight1 * delta;
-	v2 += link.weight2 * delta;
+
+	if (!m_particlesCold[link.i1].bAttached) v1 -= link.weight1 * delta * m_dt;
+	if (!m_particlesCold[link.i2].bAttached) v2 += link.weight2 * delta * m_dt;
+
+}
+
+ILINE void CClothSimulator::DampEdge(const SLink& link, f32 damping)
+{
+	if (link.skip) return;
+
+	Vector4& p1 = m_particlesHot[link.i1].pos;
+	Vector4& p2 = m_particlesHot[link.i2].pos;
+	Vector4 delta = p2 - p1;
+
+	Vector4 vel1 = m_particlesHot[link.i1].pos - m_particlesCold[link.i1].prevPos;
+	Vector4 vel2 = m_particlesHot[link.i2].pos - m_particlesCold[link.i2].prevPos;
+	Vector4 dv = (vel2 - vel1) / m_dtPrev; // relative velocity
+
+	// fast determination of dvn for damping (without sqrt), see 'Physically Based Deformable Models in Computer Graphics', Nealen et al
+	Vector4 dvn = (dv.dot(delta) / delta.dot(delta)) * delta;
+
+	// damp velocity by changing prevPos
+	if (!m_particlesCold[link.i1].bAttached) m_particlesCold[link.i1].prevPos -= damping * dvn * m_dt;
+	if (!m_particlesCold[link.i2].bAttached) m_particlesCold[link.i2].prevPos += damping * dvn * m_dt;
+	// possible variation: change posHot, since prevPos is not used within collision/stiffness loop
+	//if (!m_particlesCold[link.i1].bAttached) m_particlesHot[link.i1].pos += damping * dvn;
+	//if (!m_particlesCold[link.i2].bAttached) m_particlesHot[link.i2].pos -= damping * dvn;
 }
 
 class CClothPiece
@@ -434,14 +526,12 @@ public:
 	CClothPiece()
 	{
 		m_pCharInstance = NULL;
-		m_animBlend = 0.f;
 		m_pVClothAttachment = NULL;
 		m_bHidden = false;
 		m_numLods = 0;
 		m_clothGeom = NULL;
 		//	m_bSingleThreaded = false;
 		m_lastVisible = false;
-		m_hideCounter = 0;
 		m_bAlwaysVisible = false;
 		m_currentLod = 0;
 		m_buffers = NULL;
@@ -468,6 +558,7 @@ public:
 
 	void                 SetClothParams(const SVClothParams& params);
 	const SVClothParams& GetClothParams();
+	CClothSimulator&     GetSimulator() { return m_simulator; }
 
 private:
 
@@ -484,15 +575,11 @@ private:
 
 	CAttachmentVCLOTH* m_pVClothAttachment;
 	CClothSimulator    m_simulator;
-	SVClothParams      m_clothParams;
 
 	// structure containing all sim mesh related data and working buffers
 	SClothGeometry* m_clothGeom;
 	SBuffers*       m_buffers;
 	int             m_poolIdx;
-
-	// used for blending with animation
-	float m_animBlend;
 
 	// used for hiding the cloth (mainly in the editor)
 	bool m_bHidden;
@@ -508,7 +595,6 @@ private:
 
 	// for easing in and out
 	bool m_lastVisible;
-	int  m_hideCounter;
 
 	// flags that the cloth is always simulated
 	bool m_bAlwaysVisible;
@@ -547,7 +633,6 @@ ILINE Vector4 CClothPiece::SkinByTriangle(int i, strided_pointer<Vec3>& pVtx, in
 ILINE void CClothPiece::SetBlendWeight(float weight)
 {
 	weight = max(0.f, min(1.f, weight));
-	m_animBlend = Console::GetInst().ca_ClothBlending == 0 ? 0.f : weight;
 }
 
 class CAttachmentVCLOTH : public IAttachmentSkin, public SAttachmentBase
@@ -580,9 +665,9 @@ public:
 
 	virtual const char*        GetName() const override                               { return m_strSocketName; };
 	virtual uint32             GetNameCRC() const override                            { return m_nSocketCRC32; }
-	virtual uint32             ReName(const char* strSocketName, uint32 crc) override { m_strSocketName.clear();  m_strSocketName = strSocketName; m_nSocketCRC32 = crc;  return 1; };
+	virtual uint32             ReName(const char* strSocketName, uint32 crc) override { m_strSocketName.clear(); m_strSocketName = strSocketName; m_nSocketCRC32 = crc; return 1; };
 
-	virtual uint32             GetFlags() const override                              { return m_AttFlags; }
+	virtual uint32             GetFlags() const override                              { return m_AttFlags | FLAGS_ATTACH_MERGED_FOR_SHADOWS; } // disable merging for vcloth shadows
 	virtual void               SetFlags(uint32 flags) override                        { m_AttFlags = flags; }
 
 	void                       ReleaseRenderRemapTablePair();
@@ -609,13 +694,16 @@ public:
 	virtual const QuatT& GetAttAbsoluteDefault() const override          { return g_IdentityQuatT; };
 	virtual const QuatT& GetAttRelativeDefault() const override          { return g_IdentityQuatT; };
 
-	virtual const QuatT& GetAttModelRelative() const override            { return g_IdentityQuatT;  };//this is relative to the animated bone
+	virtual const QuatT& GetAttModelRelative() const override            { return g_IdentityQuatT; };//this is relative to the animated bone
 	virtual const QuatTS GetAttWorldAbsolute() const override;
 	virtual const QuatT& GetAdditionalTransformation() const override    { return g_IdentityQuatT; }
 	virtual void         UpdateAttModelRelative() override;
 
-	virtual uint32       GetJointID() const override     { return -1; };
-	virtual void         AlignJointAttachment() override {};
+	virtual uint32       GetJointID() const override                                                                      { return -1; };
+	virtual void         AlignJointAttachment() override                                                                  {};
+
+	virtual void         SetVClothParams(const SVClothParams& params) override                                            { AddClothParams(params); }
+	virtual void         PostUpdateSimulationParams(bool bAttachmentSortingRequired, const char* pJointName = 0) override {};
 
 	virtual void         Serialize(TSerialize ser) override;
 	virtual size_t       SizeOfThis() const override;
@@ -650,8 +738,8 @@ public:
 
 	int                       GetGuid() const;
 
-	DynArray<JointIdType>   m_arrRemapTable;    // maps skin's bone indices to skeleton's bone indices
-	DynArray<JointIdType>   m_arrSimRemapTable; // maps skin's bone indices to skeleton's bone indices
+	DynArray<JointIdType>   m_arrRemapTable;    //!< maps skin's bone indices to skeleton's bone indices
+	DynArray<JointIdType>   m_arrSimRemapTable; //!< maps skin's bone indices to skeleton's bone indices
 	_smart_ptr<CSkin>       m_pRenderSkin;
 	_smart_ptr<CSkin>       m_pSimSkin;
 	_smart_ptr<IRenderMesh> m_pRenderMeshsSW[2];

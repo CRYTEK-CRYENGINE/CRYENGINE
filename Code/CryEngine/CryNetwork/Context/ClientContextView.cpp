@@ -21,8 +21,6 @@
 #include "VoiceContext.h"
 #include "SyncedFileSet.h"
 
-#include "Lobby/ICryMatchMakingPrivate.h"
-
 #if ENABLE_DEBUG_KIT
 	#pragma warning(disable:4355)
 	#include <CryEntitySystem/IEntitySystem.h>
@@ -234,16 +232,10 @@ CClientContextView::CClientContextView(CNetChannel* pNetChannel, CNetContext* pN
 	};
 
 	Init(pNetChannel, pNetContext, &config);
-#if NETWORK_HOST_MIGRATION
-	CNetwork::Get()->AddHostMigrationEventListener(this, "CClientContextView", ELPT_Engine);
-#endif
 }
 
 CClientContextView::~CClientContextView()
 {
-#if NETWORK_HOST_MIGRATION
-	CNetwork::Get()->RemoveHostMigrationEventListener(this);
-#endif
 }
 
 void CClientContextView::DefineProtocol(IProtocolBuilder* pBuilder)
@@ -322,7 +314,7 @@ void CClientContextView::EstablishedContext()
 	//	if (ContextState())
 	//		ContextState()->EstablishedContext(this);
 
-	if (!IsLocal() && !IsMigrating())
+	if (!IsLocal())
 		SendEstablishedMessage();
 }
 
@@ -373,34 +365,10 @@ bool CClientContextView::EnterState(EContextViewState state)
 			  0, NULL, NULL);
 #endif
 			bool bShouldChangeContext = true;
-#if NETWORK_HOST_MIGRATION
-			CrySessionHandle gh = CrySessionInvalidHandle;
-			ICryLobby* pLobby = CNetwork::Get()->GetLobby();
-			if (pLobby)
-			{
-				ICryMatchMakingPrivate* pMatchMaking = static_cast<ICryMatchMakingPrivate*>(pLobby->GetMatchMaking());
-				if (pMatchMaking)
-				{
-					bShouldChangeContext = !pMatchMaking->IsNubSessionMigrating();
-				}
-			}
-
-			ContextState()->ClientUpdateObjectOwnership();
-#endif
 
 			if (bShouldChangeContext)
 			{
 				Context()->ChangeContext();
-			}
-			else
-			{
-				Context()->StoreAndChangeContext();
-#if NETWORK_HOST_MIGRATION
-
-				if (!ChangeBindLocksDuringMigration())
-					return false;
-
-#endif
 			}
 			TO_GAME(&CClientContextView::ContinueEnterState, this);
 			LockStateChanges("ContinueEnterState");
@@ -1637,85 +1605,4 @@ void CClientContextView::EndWorldUpdate(SNetObjectID obj)
 	#endif
 	}
 }
-#endif
-
-#if NETWORK_HOST_MIGRATION
-// IHostMigrationEventListener
-IHostMigrationEventListener::EHostMigrationReturn CClientContextView::OnInitiate(SHostMigrationInfo& hostMigrationInfo, HMStateType& state)
-{
-	if (!hostMigrationInfo.ShouldMigrateNub())
-	{
-		return IHostMigrationEventListener::Listener_Done;
-	}
-
-	if (!IsPastOrInState(eCVS_InGame))
-	{
-		CryLogAlways("[Host Migration]Not in game - unable to proceed with host migration!");
-		return IHostMigrationEventListener::Listener_Terminate;
-	}
-
-	BackupStateDuringMigration();
-	return IHostMigrationEventListener::Listener_Done;
-}
-
-IHostMigrationEventListener::EHostMigrationReturn CClientContextView::OnDisconnectClient(SHostMigrationInfo& hostMigrationInfo, HMStateType& state)
-{
-	return IHostMigrationEventListener::Listener_Done;
-}
-
-IHostMigrationEventListener::EHostMigrationReturn CClientContextView::OnDemoteToClient(SHostMigrationInfo& hostMigrationInfo, HMStateType& state)
-{
-	return IHostMigrationEventListener::Listener_Done;
-}
-
-IHostMigrationEventListener::EHostMigrationReturn CClientContextView::OnPromoteToServer(SHostMigrationInfo& hostMigrationInfo, HMStateType& state)
-{
-	return IHostMigrationEventListener::Listener_Done;
-}
-
-IHostMigrationEventListener::EHostMigrationReturn CClientContextView::OnReconnectClient(SHostMigrationInfo& hostMigrationInfo, HMStateType& state)
-{
-	return IHostMigrationEventListener::Listener_Done;
-}
-
-IHostMigrationEventListener::EHostMigrationReturn CClientContextView::OnFinalise(SHostMigrationInfo& hostMigrationInfo, HMStateType& state)
-{
-	if (!hostMigrationInfo.ShouldMigrateNub())
-	{
-		return IHostMigrationEventListener::Listener_Done;
-	}
-
-	if (GetLocalState() < eCVS_InGame)
-	{
-		return IHostMigrationEventListener::Listener_Wait;
-	}
-	return IHostMigrationEventListener::Listener_Done;
-}
-
-IHostMigrationEventListener::EHostMigrationReturn CClientContextView::OnTerminate(SHostMigrationInfo& hostMigrationInfo, HMStateType& state)
-{
-	if (!hostMigrationInfo.ShouldMigrateNub())
-	{
-		return IHostMigrationEventListener::Listener_Done;
-	}
-
-	ClearStateDuringMigration();
-	return IHostMigrationEventListener::Listener_Done;
-}
-
-IHostMigrationEventListener::EHostMigrationReturn CClientContextView::OnReset(SHostMigrationInfo& hostMigrationInfo, HMStateType& state)
-{
-	return IHostMigrationEventListener::Listener_Done;
-}
-
-void CClientContextView::OnComplete(SHostMigrationInfo& hostMigrationInfo)
-{
-	if (!hostMigrationInfo.ShouldMigrateNub())
-	{
-		return;
-	}
-
-	ClearStateDuringMigration();
-}
-// ~IHostMigrationEventListener
 #endif

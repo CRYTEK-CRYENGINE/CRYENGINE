@@ -207,7 +207,6 @@ CUndoControlModified::CUndoControlModified(CID id) : m_id(id)
 			m_name = pControl->GetName();
 			m_scope = pControl->GetScope();
 			m_bAutoLoad = pControl->IsAutoLoad();
-			m_groupPerPlatform = pControl->m_groupPerPlatform;
 			m_connectedControls = pControl->m_connectedControls;
 		}
 	}
@@ -233,9 +232,8 @@ void CUndoControlModified::SwapData()
 		if (pControl)
 		{
 			string name = pControl->GetName();
-			string scope = pControl->GetScope();
+			Scope scope = pControl->GetScope();
 			bool bAutoLoad = pControl->IsAutoLoad();
-			std::map<string, int> groupPerPlatform = pControl->m_groupPerPlatform;
 
 			std::vector<ConnectionPtr> connectedControls;
 			const size_t size = pControl->GetConnectionCount();
@@ -248,7 +246,6 @@ void CUndoControlModified::SwapData()
 			pControl->SetName(m_name);
 			pControl->SetScope(m_scope);
 			pControl->SetAutoLoad(m_bAutoLoad);
-			pControl->m_groupPerPlatform = m_groupPerPlatform;
 
 			for (ConnectionPtr& c : m_connectedControls)
 			{
@@ -259,7 +256,6 @@ void CUndoControlModified::SwapData()
 			m_name = name;
 			m_scope = scope;
 			m_bAutoLoad = bAutoLoad;
-			m_groupPerPlatform = groupPerPlatform;
 			m_connectedControls = connectedControls;
 		}
 	}

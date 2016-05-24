@@ -127,12 +127,6 @@ struct SContextViewObject
 #endif
 	}
 
-	enum eConstants
-	{
-		eC_HOSTMIGRATION_ID   = 0xffff,
-		eC_HOSTMIGRATION_SALT = 0xffff
-	};
-
 #ifdef _DEBUG
 	std::map<string, int> lockers;
 #endif

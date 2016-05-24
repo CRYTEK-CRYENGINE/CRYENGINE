@@ -41,26 +41,4 @@ inline QIcon GetSoundBankIcon()
 {
 	return QIcon(":Icons/Preload.ico");
 }
-
-inline QIcon GetGroupIcon(int group)
-{
-	const int numberOfGroups = 4;
-	group = group % numberOfGroups;
-	switch (group)
-	{
-	case 0:
-		return QIcon(":Icons/Config_Red.ico");
-		break;
-	case 1:
-		return QIcon(":Icons/Config_Blue.ico");
-		break;
-	case 2:
-		return QIcon(":Icons/Config_Green.ico");
-		break;
-	case 3:
-		return QIcon(":Icons/Config_Purple.ico");
-		break;
-	}
-	return QIcon(":Icons/Config_Red.ico");
-}
 }

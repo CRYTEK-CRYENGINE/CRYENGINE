@@ -632,8 +632,6 @@ bool CXConsole::CVarNameLess(const std::pair<const char*, ICVar*>& lhs, const st
 //////////////////////////////////////////////////////////////////////////
 void CXConsole::LoadConfigVar(const char* sVariable, const char* sValue)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	ICVar* pCVar = GetCVar(sVariable);
 	if (pCVar)
 	{
@@ -1594,8 +1592,6 @@ const char* CXConsole::GetHistoryElement(const bool bUpOrDown)
 //////////////////////////////////////////////////////////////////////////
 void CXConsole::Draw()
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	//ShowConsole(true);
 	if (!m_pSystem || !m_nTempScrollMax)
 		return;
@@ -2190,15 +2186,12 @@ void CXConsole::ExecuteString(const char* command, const bool bSilentMode, const
 	}
 	else
 	{
-		ScopedSwitchToGlobalHeap globalHeap;
 		m_deferredCommands.push_back(SDeferredCommand(str.c_str(), bSilentMode));
 	}
 }
 
 void CXConsole::SplitCommands(const char* line, std::list<string>& split)
 {
-	ScopedSwitchToGlobalHeap globalHeap;
-
 	const char* start = line;
 	string working;
 
@@ -2274,44 +2267,40 @@ void CXConsole::ExecuteStringInternal(const char* command, const bool bFromConso
 	{
 		string::size_type nPos;
 
-		{
-			ScopedSwitchToGlobalHeap globalHeap;
-
-			sTemp = lineCommands.front();
-			sCommand = lineCommands.front();
-			sLineCommand = sCommand;
-			lineCommands.pop_front();
+		sTemp = lineCommands.front();
+		sCommand = lineCommands.front();
+		sLineCommand = sCommand;
+		lineCommands.pop_front();
 
 #ifdef __WITH_PB__
-			// If this is a PB command, PbConsoleCommand will return true
-			if (m_pNetwork)
-				if (m_pNetwork->PbConsoleCommand(sCommand.c_str(), sTemp.length()))
-					return;
+		// If this is a PB command, PbConsoleCommand will return true
+		if (m_pNetwork)
+			if (m_pNetwork->PbConsoleCommand(sCommand.c_str(), sTemp.length()))
+				return;
 #endif
 
-			if (!bSilentMode)
-				if (GetStatus())
-					AddLine(sTemp);
+		if (!bSilentMode)
+			if (GetStatus())
+				AddLine(sTemp);
 
-			nPos = sTemp.find_first_of('=');
+		nPos = sTemp.find_first_of('=');
 
-			if (nPos != string::npos)
-				sCommand = sTemp.substr(0, nPos);
-			else if ((nPos = sTemp.find_first_of(' ')) != string::npos)
-				sCommand = sTemp.substr(0, nPos);
-			else
-				sCommand = sTemp;
+		if (nPos != string::npos)
+			sCommand = sTemp.substr(0, nPos);
+		else if ((nPos = sTemp.find_first_of(' ')) != string::npos)
+			sCommand = sTemp.substr(0, nPos);
+		else
+			sCommand = sTemp;
 
-			sCommand.Trim();
+		sCommand.Trim();
 
-			//////////////////////////////////////////
-			// Search for CVars
-			if (sCommand.length() > 1 && sCommand[0] == '?')
-			{
-				sTemp = sCommand.substr(1);
-				FindVar(sTemp.c_str());
-				continue;
-			}
+		//////////////////////////////////////////
+		// Search for CVars
+		if (sCommand.length() > 1 && sCommand[0] == '?')
+		{
+			sTemp = sCommand.substr(1);
+			FindVar(sTemp.c_str());
+			continue;
 		}
 
 		//////////////////////////////////////////
@@ -2324,10 +2313,7 @@ void CXConsole::ExecuteStringInternal(const char* command, const bool bFromConso
 				if (itrCmd->second.m_nFlags & VF_BLOCKFRAME)
 					m_blockCounter++;
 
-				{
-					ScopedSwitchToGlobalHeap globalHeap;
-					sTemp = sLineCommand;
-				}
+				sTemp = sLineCommand;
 				ExecuteCommand((itrCmd->second), sTemp);
 
 				continue;
@@ -2473,61 +2459,55 @@ void CXConsole::ExecuteCommand(CConsoleCommand& cmd, string& str, bool bIgnoreDe
 	INDENT_LOG_DURING_SCOPE();
 
 	std::vector<string> args;
-	size_t t;
+	size_t t = 1;
 
+	const char* start = str.c_str();
+	const char* commandLine = start;
+	while (char ch = *commandLine++)
 	{
-		ScopedSwitchToGlobalHeap globalHeap;
-
-		t = 1;
-
-		const char* start = str.c_str();
-		const char* commandLine = start;
-		while (char ch = *commandLine++)
+		switch (ch)
 		{
-			switch (ch)
+		case '\'':
+		case '\"':
 			{
-			case '\'':
-			case '\"':
-				{
-					while ((*commandLine++ != ch) && *commandLine)
-						;
-					args.push_back(string(start + 1, commandLine - 1));
-					start = commandLine;
-					break;
-				}
-			case ' ':
+				while ((*commandLine++ != ch) && *commandLine)
+					;
+				args.push_back(string(start + 1, commandLine - 1));
 				start = commandLine;
 				break;
-			default:
-				{
-					if ((*commandLine == ' ') || !*commandLine)
-					{
-						args.push_back(string(start, commandLine));
-						start = commandLine + 1;
-					}
-				}
-				break;
 			}
-		}
-
-		if (args.size() >= 2 && args[1] == "?")
-		{
-			DisplayHelp(cmd.m_sHelp, cmd.m_sName.c_str());
-			return;
-		}
-
-		if (((cmd.m_nFlags & (VF_CHEAT | VF_CHEAT_NOCHECK | VF_CHEAT_ALWAYS_CHECK)) != 0) && !(gEnv->IsEditor()))
-		{
-#if LOG_CVAR_INFRACTIONS
-			gEnv->pLog->LogError("[CVARS]: [EXECUTE] command %s is marked [VF_CHEAT]", cmd.m_sName.c_str());
-	#if LOG_CVAR_INFRACTIONS_CALLSTACK
-			gEnv->pSystem->debug_LogCallStack();
-	#endif // LOG_CVAR_INFRACTIONS_CALLSTACK
-#endif   // LOG_CVAR_INFRACTIONS
-			if (!(gEnv->IsEditor()) && !(m_pSystem->IsDevMode()) && !bIgnoreDevMode)
+		case ' ':
+			start = commandLine;
+			break;
+		default:
 			{
-				return;
+				if ((*commandLine == ' ') || !*commandLine)
+				{
+					args.push_back(string(start, commandLine));
+					start = commandLine + 1;
+				}
 			}
+			break;
+		}
+	}
+
+	if (args.size() >= 2 && args[1] == "?")
+	{
+		DisplayHelp(cmd.m_sHelp, cmd.m_sName.c_str());
+		return;
+	}
+
+	if (((cmd.m_nFlags & (VF_CHEAT | VF_CHEAT_NOCHECK | VF_CHEAT_ALWAYS_CHECK)) != 0) && !(gEnv->IsEditor()))
+	{
+#if LOG_CVAR_INFRACTIONS
+		gEnv->pLog->LogError("[CVARS]: [EXECUTE] command %s is marked [VF_CHEAT]", cmd.m_sName.c_str());
+#if LOG_CVAR_INFRACTIONS_CALLSTACK
+		gEnv->pSystem->debug_LogCallStack();
+#endif // LOG_CVAR_INFRACTIONS_CALLSTACK
+#endif   // LOG_CVAR_INFRACTIONS
+		if (!(gEnv->IsEditor()) && !(m_pSystem->IsDevMode()) && !bIgnoreDevMode)
+		{
+			return;
 		}
 	}
 
@@ -2541,8 +2521,6 @@ void CXConsole::ExecuteCommand(CConsoleCommand& cmd, string& str, bool bIgnoreDe
 
 	string buf;
 	{
-		ScopedSwitchToGlobalHeap globalHeap;
-
 		// only do this for commands with script implementation
 		for (;; )
 		{
@@ -2666,8 +2644,6 @@ void CXConsole::ResetAutoCompletion()
 //////////////////////////////////////////////////////////////////////////
 const char* CXConsole::ProcessCompletion(const char* szInputBuffer)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	m_sInputBuffer = szInputBuffer;
 
 	int offset = (szInputBuffer[0] == '\\' ? 1 : 0);    // legacy support
@@ -2941,29 +2917,24 @@ void CXConsole::PrintLinePlus(const char* s)
 //////////////////////////////////////////////////////////////////////////
 void CXConsole::AddLine(const char* inputStr)
 {
-	string str;
+	string str = inputStr;
 
+	// strip trailing \n or \r.
+	if (!str.empty() && (str[str.size() - 1] == '\n' || str[str.size() - 1] == '\r'))
+		str.resize(str.size() - 1);
+
+	string::size_type nPos;
+	while ((nPos = str.find('\n')) != string::npos)
 	{
-		ScopedSwitchToGlobalHeap useGlobalHeap;
-		str = inputStr;
-
-		// strip trailing \n or \r.
-		if (!str.empty() && (str[str.size() - 1] == '\n' || str[str.size() - 1] == '\r'))
-			str.resize(str.size() - 1);
-
-		string::size_type nPos;
-		while ((nPos = str.find('\n')) != string::npos)
-		{
-			str.replace(nPos, 1, 1, ' ');
-		}
-
-		while ((nPos = str.find('\r')) != string::npos)
-		{
-			str.replace(nPos, 1, 1, ' ');
-		}
-
-		m_dqConsoleBuffer.push_back(str);
+		str.replace(nPos, 1, 1, ' ');
 	}
+
+	while ((nPos = str.find('\r')) != string::npos)
+	{
+		str.replace(nPos, 1, 1, ' ');
+	}
+
+	m_dqConsoleBuffer.push_back(str);
 
 	int nBufferSize = con_line_buffer_size;
 
@@ -3046,8 +3017,6 @@ void CXConsole::AddOutputPrintSink(IOutputPrintSink* inpSink)
 {
 	assert(inpSink);
 
-	ScopedSwitchToGlobalHeap globalHeap;
-
 	m_OutputSinks.push_back(inpSink);
 }
 
@@ -3080,34 +3049,30 @@ void CXConsole::AddLinePlus(const char* inputStr)
 {
 	string str, tmpStr;
 
-	{
-		ScopedSwitchToGlobalHeap useGlobalHeap;
+	if (!m_dqConsoleBuffer.size())
+		return;
 
-		if (!m_dqConsoleBuffer.size())
-			return;
+	str = inputStr;
 
-		str = inputStr;
+	// strip trailing \n or \r.
+	if (!str.empty() && (str[str.size() - 1] == '\n' || str[str.size() - 1] == '\r'))
+		str.resize(str.size() - 1);
 
-		// strip trailing \n or \r.
-		if (!str.empty() && (str[str.size() - 1] == '\n' || str[str.size() - 1] == '\r'))
-			str.resize(str.size() - 1);
+	string::size_type nPos;
+	while ((nPos = str.find('\n')) != string::npos)
+		str.replace(nPos, 1, 1, ' ');
 
-		string::size_type nPos;
-		while ((nPos = str.find('\n')) != string::npos)
-			str.replace(nPos, 1, 1, ' ');
+	while ((nPos = str.find('\r')) != string::npos)
+		str.replace(nPos, 1, 1, ' ');
 
-		while ((nPos = str.find('\r')) != string::npos)
-			str.replace(nPos, 1, 1, ' ');
+	tmpStr = m_dqConsoleBuffer.back();// += str;
 
-		tmpStr = m_dqConsoleBuffer.back();// += str;
+	m_dqConsoleBuffer.pop_back();
 
-		m_dqConsoleBuffer.pop_back();
-
-		if (tmpStr.size() < 256)
-			m_dqConsoleBuffer.push_back(tmpStr + str);
-		else
-			m_dqConsoleBuffer.push_back(tmpStr);
-	}
+	if (tmpStr.size() < 256)
+		m_dqConsoleBuffer.push_back(tmpStr + str);
+	else
+		m_dqConsoleBuffer.push_back(tmpStr);
 
 	// tell everyone who is interested (e.g. dedicated server printout)
 	{
@@ -3121,8 +3086,6 @@ void CXConsole::AddLinePlus(const char* inputStr)
 //////////////////////////////////////////////////////////////////////////
 void CXConsole::AddInputChar(const uint32 c)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	// Convert UCS code-point into UTF-8 string
 	char utf8_buf[5];
 	Unicode::Convert(utf8_buf, c);
@@ -3197,8 +3160,6 @@ void CXConsole::RemoveInputChar(bool bBackSpace)
 //////////////////////////////////////////////////////////////////////////
 void CXConsole::AddCommandToHistory(const char* szCommand)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
-
 	assert(szCommand);
 
 	m_nHistoryPos = -1;

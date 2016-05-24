@@ -82,6 +82,7 @@ void CParticleSpline::FromSpline(const ISplineEvaluator& source)
 			source.GetKey(i, key);
 			m_keys[i].time = key.time;
 			m_keys[i].value = key.value[0];
+			m_keyFlags[i] = key.flags;
 			m_valueRange |= m_keys[i].value;
 		}
 		for (size_t i = 0; i < subNKeys; ++i)
@@ -134,6 +135,8 @@ void CParticleSpline::Resize(size_t size)
 	size_t allocSize = size > 0 ? (size - 1) * sizeof(SplineKey) + sizeof(SplineKeyBase) : 0;
 
 	m_keys = (SplineKey*) realloc(m_keys, allocSize);
+
+	m_keyFlags.resize(size);
 }
 
 void CParticleSpline::GetKey(int i, KeyType& key) const
@@ -147,24 +150,16 @@ void CParticleSpline::GetKey(int i, KeyType& key) const
 	key.ds[0] = key.dd[0] = 0.0f;
 	key.flags = 0;
 	if (i > 0)
-	{
-		// In slope.
+	{	// In slope.
 		key.ds[0] = EndSlope(i - 1);
-		key.flags.inTangentType = spline::ETangentType::Custom;
 	}
-	else
-		//	key.flags.inTangentType = spline::ETangentType::Auto;
-		key.flags.inTangentType = spline::ETangentType::Smooth;
-
 	if (i < GetKeyCount() - 1)
 	{
 		// Out slope.
 		key.dd[0] = StartSlope(i);
-		key.flags.outTangentType = spline::ETangentType::Custom;
 	}
-	else
-		//	key.flags.outTangentType = spline::ETangentType::Auto;
-		key.flags.outTangentType = spline::ETangentType::Smooth;
+
+	key.flags = m_keyFlags[i];
 }
 
 float CParticleSpline::DefaultSlope(size_t keyIdx) const

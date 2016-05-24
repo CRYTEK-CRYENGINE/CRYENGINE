@@ -370,6 +370,12 @@
     <None Include="CryFX\SoftOcclusionQuery.cfx">
       <Filter>CryFX\Misc</Filter>
     </None>
+    <None Include="CryFX\GeomDeformation.cfx">
+      <Filter>CryFX\Misc</Filter>
+    </None>
+    <None Include="CryFX\GeomDeformationUtils.cfi">
+      <Filter>CryFX\Misc</Filter>
+    </None>
     <None Include="CryFX\Water.cfx">
       <Filter>CryFX\Effects\Water</Filter>
     </None>

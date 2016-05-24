@@ -45,9 +45,9 @@ class CSoftwareVertexFrames :
 {
 public:
 	bool                        Create(const CSkinningInfo& skinningInfo, const Vec3& positionOffset);
-	bool                        Analyze();
 
 	uint                        GetCount() const                       { return uint(m_frames.size()); }
+	uint                        GetVertexDeltasCount() const           { return m_numVertexDeltas; }
 
 	const SSoftwareVertexFrame* GetFrames() const                      { return &m_frames[0]; }
 
@@ -56,6 +56,7 @@ public:
 
 private:
 	DynArray<SSoftwareVertexFrame> m_frames;
+	uint                           m_numVertexDeltas;
 };
 
 class CSoftwareMesh

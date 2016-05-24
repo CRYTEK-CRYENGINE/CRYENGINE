@@ -115,7 +115,7 @@ void CClipVolumeManager::UnregisterRenderNode(IRenderNode* pRenderNode)
 
 bool CClipVolumeManager::IsClipVolumeRequired(IRenderNode* pRenderNode) const
 {
-	const uint32 NoClipVolumeLights = DLF_SUN | DLF_REFLECTIVE_SHADOWMAP | DLF_ATTACH_TO_SUN;
+	const uint32 NoClipVolumeLights = DLF_SUN | DLF_ATTACH_TO_SUN;
 
 	const bool bForwardObject = (pRenderNode->m_nInternalFlags & IRenderNode::REQUIRES_FORWARD_RENDERING) != 0;
 	const EERType ertype = pRenderNode->GetRenderNodeType();

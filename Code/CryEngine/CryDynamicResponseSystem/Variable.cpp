@@ -27,7 +27,7 @@ CVariableCollection* IVariableUsingBase::GetCurrentCollection(CResponseInstance*
 {
 	if (m_collectionName == CVariableCollection::s_localCollectionName)  //local variable collection
 	{
-		CResponseActor* pCurrentActor = pResponseInstance->GetCurrentActor();
+		CResponseActor* const pCurrentActor = pResponseInstance->GetCurrentActor();
 #if defined(DRS_COLLECT_DEBUG_DATA)
 		s_lastTestedObjectName = pCurrentActor->GetName().GetText();
 #endif

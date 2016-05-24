@@ -11,6 +11,7 @@
 #include "objcnt.h"
 #include "NetCVars.h"
 #include "Socket/ISocketIOManager.h"
+#include "Socket/NetResolver.h"
 
 struct INetworkPrivate : public INetwork
 {

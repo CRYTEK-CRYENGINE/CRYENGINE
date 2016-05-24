@@ -34,7 +34,6 @@ public:
 		bool bReturn = node->haveAttr(name);
 		if (bReturn)
 		{
-			ScopedSwitchToGlobalHeap GlobalHeap;
 			value = node->getAttr(name);
 		}
 		g_pXmlStrCmp = pPrevCmpFunc;

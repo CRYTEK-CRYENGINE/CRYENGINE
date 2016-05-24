@@ -357,7 +357,6 @@ void CD3D9Renderer::MakeSprites(TArray<SSpriteGenInfo>& SGI, const SRenderingPas
 	CV_r_usezpass = 0;
 
 	rParms.dwFObjFlags |= FOB_TRANS_MASK;
-	rParms.nDLightMask = 1;
 	rParms.fRenderQuality = 0.0f;
 	rParms.pRenderNode = (struct IRenderNode*)(intptr_t)-1; // avoid random skipping of rendering
 
@@ -1187,7 +1186,7 @@ void CD3D9Renderer::DrawObjSprites(PodArray<SVegetationSpriteInfo>* pList, SSpri
 					pTerrTex->Apply(3, nTerrainTexState);
 
 					static CCryNameR SpritesOutdoorAOVertInfoName("SpritesOutdoorAOVertInfo");
-					const Vec4 cSPVal(pTexInfo->fTexOffsetX, pTexInfo->fTexOffsetY, pTexInfo->fTexScale, pTexInfo->fTerrainMinZ);
+					const Vec4 cSPVal(pTexInfo->fTexOffsetX, pTexInfo->fTexOffsetY, pTexInfo->fTexScale, 0);
 					m_cEF.s_ShaderTreeSprites->FXSetVSFloat(SpritesOutdoorAOVertInfoName, &cSPVal, 1);
 				}
 				else

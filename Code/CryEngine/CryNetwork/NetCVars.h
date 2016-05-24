@@ -250,9 +250,6 @@ private:
 	static void DumpBlockingRMIs(IConsoleCmdArgs*);
 	static void Stall(IConsoleCmdArgs*);
 	static void SetCDKey(IConsoleCmdArgs*);
-#if NETWORK_REBROADCASTER
-	static void RebroadcasterCmd(IConsoleCmdArgs* pArgs);
-#endif
 
 #if NEW_BANDWIDTH_MANAGEMENT
 	static void GetChannelPerformanceMetrics(IConsoleCmdArgs* pArguments);

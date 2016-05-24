@@ -8,6 +8,7 @@
 #include <CrySystem/XML/IXml.h>
 #include <QModelIndex>
 #include <CrySystem/ISystem.h>
+#include "ACETypes.h"
 
 class QStandardItemModel;
 
@@ -31,7 +32,7 @@ struct SLibraryScope
 	bool       bDirty;
 };
 
-typedef std::map<string, SLibraryScope> TLibraryStorage;
+typedef std::map<Scope, SLibraryScope> TLibraryStorage;
 
 class CAudioControlsWriter
 {
@@ -42,8 +43,7 @@ private:
 	void WriteLibrary(const string& sLibraryName, QModelIndex root);
 	void WriteItem(QModelIndex index, const string& sPath, TLibraryStorage& library, bool bParentModified);
 	void WriteControlToXML(XmlNodeRef pNode, CATLControl* pControl, const string& sPath);
-	void WriteConnectionsToXML(XmlNodeRef pNode, CATLControl* pControl, const string& sGroup);
-	void WritePlatformsToXML(XmlNodeRef pNode, CATLControl* pControl);
+	void WriteConnectionsToXML(XmlNodeRef pNode, CATLControl* pControl, const int platformIndex = -1);
 	bool IsItemModified(QModelIndex index) const;
 	void WriteEditorData(const QModelIndex& parentIndex, XmlNodeRef pParentNode) const;
 

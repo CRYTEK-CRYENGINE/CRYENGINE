@@ -84,9 +84,13 @@ void CConditionsCollection::SConditionInfo::Serialize(Serialization::IArchive& a
 #if !defined(_RELEASE)
 	if (ar.getFilter() & CResponseManager::eSH_EvaluateResponses)
 	{
-		CryDRS::SSignal tempSignal(CHashedString::GetEmpty(), static_cast<CResponseActor*>(s_pActorForEvaluation), nullptr);
-		CResponseInstance tempResponseInstance(tempSignal, nullptr);
-		bool bCurrentlyMet = m_pCondition->IsMet(&tempResponseInstance);
+		bool bCurrentlyMet = false;
+		if (s_pActorForEvaluation)
+		{
+			CryDRS::SSignal tempSignal(CHashedString::GetEmpty(), static_cast<CResponseActor*>(s_pActorForEvaluation), nullptr);
+			CResponseInstance tempResponseInstance(tempSignal, nullptr);
+			bCurrentlyMet = m_pCondition->IsMet(&tempResponseInstance);
+		}
 		ar(bCurrentlyMet, "currentlyMet", "^^Currently met");
 	}
 #endif

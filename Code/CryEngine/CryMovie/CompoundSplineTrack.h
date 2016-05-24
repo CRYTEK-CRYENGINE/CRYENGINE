@@ -1,7 +1,5 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __CompoundSplineTrack_h__
-#define __CompoundSplineTrack_h__
 #pragma once
 
 #define MAX_SUBTRACKS 4
@@ -51,6 +49,8 @@ public:
 
 	virtual void SetTimeRange(TRange<SAnimTime> timeRange) override;
 
+	virtual void Serialize(Serialization::IArchive& ar) override {}
+
 	virtual bool Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEmptyTracks = true) override;
 
 	virtual bool SerializeKeys(XmlNodeRef& xmlNode, bool bLoading, std::vector<SAnimTime>& keys, const SAnimTime time = SAnimTime(0)) override;
@@ -83,5 +83,3 @@ protected:
 	float PreferShortestRotPath(float degree, float degree0) const;
 	int   GetSubTrackIndex(int& key) const;
 };
-
-#endif //__CompoundSplineTrack_h__

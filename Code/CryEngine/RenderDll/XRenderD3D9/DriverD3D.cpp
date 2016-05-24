@@ -7831,3 +7831,9 @@ void CD3D9Renderer::PushVolumetricCloudBlocker(const Vec3& pos, const Vec3& para
 		m_pVolumetricCloudMan->PushCloudBlocker(pos, param, flag);
 	}
 }
+
+const std::vector<SSkinningData*>& CD3D9Renderer::GetComputeSkinningDataListRT() const
+{
+	unsigned poolId = (m_nPoolIndexRT) % 3;
+	return m_computeSkinningData[poolId];
+}

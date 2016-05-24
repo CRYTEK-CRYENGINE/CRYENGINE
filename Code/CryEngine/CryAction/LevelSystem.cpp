@@ -699,8 +699,6 @@ bool CLevelInfo::ReadInfo()
 
 			if ((gameTypesNode != 0) && (gameTypesNode->getChildCount() > 0))
 			{
-				// I can't be certain from looking at the code that these aren't used outside of a level, so better put them on the global heap
-				ScopedSwitchToGlobalHeap useGlobalHeap;
 				m_gameTypes.clear();
 
 				for (int i = 0; i < gameTypesNode->getChildCount(); i++)
@@ -1609,13 +1607,21 @@ void CLevelSystem::PrepareNextLevel(const char* levelName)
 		gEnv->pScriptSystem->ForceGarbageCollection();
 	}
 
-	// swap to the level heap
-	CCryAction::GetCryAction()->SwitchToLevelHeap(levelName);
+#if CAPTURE_REPLAY_LOG
+	static int loadCount = 0;
+	if (levelName)
+	{
+		CryGetIMemReplay()->AddLabelFmt("?loadStart%d_%s", loadCount++, levelName);
+	}
+	else
+	{
+		CryGetIMemReplay()->AddLabelFmt("?loadStart%d", loadCount++);
+	}
+#endif
 
 	// Open pak file for a new level.
 	pLevelInfo->OpenLevelPak();
 
-	// switched to level heap, so now imm start the loading screen (renderer will be reinitialized in the levelheap)
 	gEnv->pSystem->GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_LEVEL_LOAD_START_LOADINGSCREEN, (UINT_PTR)pLevelInfo, 0);
 	gEnv->pSystem->SetSystemGlobalState(ESYSTEM_GLOBAL_STATE_LEVEL_LOAD_START_PREPARE);
 
@@ -2230,10 +2236,8 @@ void CLevelSystem::UnLoadLevel()
 		int flags = FRR_DELETED_MESHES | FRR_FLUSH_TEXTURESTREAMING | FRR_OBJECTS | FRR_RENDERELEMENTS | FRR_RP_BUFFERS | FRR_POST_EFFECTS;
 
 		// Always keep the system resources around in the editor.
-		//#ifdef SHUTDOWN_RENDERER_BETWEEN_LEVELS
 		if (!gEnv->IsEditor())
 			flags |= FRR_SYSTEM_RESOURCES;
-		//#endif
 
 		pRenderer->FreeResources(flags);
 		CryComment("done");

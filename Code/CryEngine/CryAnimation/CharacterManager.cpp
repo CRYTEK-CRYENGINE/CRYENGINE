@@ -266,7 +266,7 @@ void CharacterManager::PreloadModelsCGA()
 			filename = sFilenameInResource;
 			uint32 nFileOnDisk = gEnv->pCryPak->IsFileExist(filename);
 			assert(nFileOnDisk);
-			CDefaultSkeleton* pSkelTemp = 0; //temp-pointer to access the refcounter, without calling the destructor
+			CDefaultSkeleton* pSkelTemp = 0;    //temp-pointer to access the refcounter, without calling the destructor
 			if (nFileOnDisk)
 			{
 				LoadAnimationImageFile("animations/animations.img", "animations/DirectionalBlends.img");
@@ -353,7 +353,7 @@ ICharacterInstance* CharacterManager::CreateInstance(const char* szFilePath, uin
 {
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Characters");
 	if (szFilePath == 0)
-		return (NULL);  // to prevent a crash in the frequent case the designers will mess
+		return (NULL);                                                      // to prevent a crash in the frequent case the designers will mess
 
 	stack_string strFilePath = szFilePath;
 	CryStringUtils::UnifyFilePath(strFilePath);
@@ -371,20 +371,20 @@ ICharacterInstance* CharacterManager::CreateInstance(const char* szFilePath, uin
 
 #ifdef EDITOR_PCDEBUGCODE
 	if (isSKIN)
-		return CreateSKELInstance(strFilePath.c_str(), nLoadingFlags);   //Load SKIN and install it as a SKEL file (this is only needed in CharEdit-Mode to preview the model)
+		return CreateSKELInstance(strFilePath.c_str(), nLoadingFlags);       //Load SKIN and install it as a SKEL file (this is only needed in CharEdit-Mode to preview the model)
 #endif
 
 	if (isSKEL)
-		return CreateSKELInstance(strFilePath.c_str(), nLoadingFlags);   //Loading SKEL file.
+		return CreateSKELInstance(strFilePath.c_str(), nLoadingFlags);       //Loading SKEL file.
 
 	if (isCGA)
-		return CreateCGAInstance(strFilePath.c_str(), nLoadingFlags);   //Loading CGA file.
+		return CreateCGAInstance(strFilePath.c_str(), nLoadingFlags);        //Loading CGA file.
 
 	if (isCDF)
-		return LoadCharacterDefinition(strFilePath.c_str(), nLoadingFlags);   //Loading CDF file.
+		return LoadCharacterDefinition(strFilePath.c_str(), nLoadingFlags);  //Loading CDF file.
 
 	g_pILog->LogError("CryAnimation: no valid character file-format a SKEL-Instance: %s", strFilePath.c_str());
-	return 0; //if it ends here, then we have no valid file-format
+	return 0;                                                             //if it ends here, then we have no valid file-format
 }
 
 ICharacterInstance* CharacterManager::CreateSKELInstance(const char* strFilePath, uint32 nLoadingFlags)
@@ -393,9 +393,9 @@ ICharacterInstance* CharacterManager::CreateSKELInstance(const char* strFilePath
 	CDefaultSkeleton* pModelSKEL = CheckIfModelSKELLoaded(strFilePath, nLoadingFlags);
 	if (pModelSKEL == 0)
 	{
-		pModelSKEL = FetchModelSKEL(strFilePath, nLoadingFlags); //SKIN not in memory, so load it
+		pModelSKEL = FetchModelSKEL(strFilePath, nLoadingFlags);               //SKIN not in memory, so load it
 		if (pModelSKEL == 0)
-			return NULL; // the model has not been loaded
+			return NULL;                                                      // the model has not been loaded
 	}
 	else
 	{
@@ -422,7 +422,7 @@ ISkin* CharacterManager::LoadModelSKIN(const char* szFilePath, uint32 nLoadingFl
 {
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Characters");
 	if (szFilePath == 0)
-		return 0;   //to prevent a crash in the frequent case the designers will mess bad filenames
+		return 0;                                                                           //to prevent a crash in the frequent case the designers will mess bad filenames
 
 #if !CRY_PLATFORM_DESKTOP
 	//there is no char-edit on consoles
@@ -442,7 +442,7 @@ ISkin* CharacterManager::LoadModelSKIN(const char* szFilePath, uint32 nLoadingFl
 	}
 
 	g_pILog->LogError("CryAnimation: no valid character file-format to create a skin-attachment: %s", strFilePath.c_str());
-	return 0; //if it ends here, then we have no valid file-format
+	return 0;                                                                             //if it ends here, then we have no valid file-format
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -451,7 +451,7 @@ IDefaultSkeleton* CharacterManager::LoadModelSKEL(const char* szFilePath, uint32
 {
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Characters");
 	if (szFilePath == 0)
-		return 0;   //to prevent a crash in the frequent case the designers will mess bad filenames
+		return 0;                                                                           //to prevent a crash in the frequent case the designers will mess bad filenames
 
 #if !CRY_PLATFORM_DESKTOP
 	//there is no char-edit on consoles
@@ -466,12 +466,12 @@ IDefaultSkeleton* CharacterManager::LoadModelSKEL(const char* szFilePath, uint32
 	if (isSKEL)
 	{
 		LOADING_TIME_PROFILE_SECTION(g_pISystem);
-		CDefaultSkeleton* pModelSKEL = FetchModelSKEL(strFilePath.c_str(), nLoadingFlags); //SKEL not in memory, so load it
-		return pModelSKEL;                                                                 //SKIN not in memory, so load it
+		CDefaultSkeleton* pModelSKEL = FetchModelSKEL(strFilePath.c_str(), nLoadingFlags);  //SKEL not in memory, so load it
+		return pModelSKEL;                                                                  //SKIN not in memory, so load it
 	}
 
 	g_pILog->LogError("CryAnimation: no valid character file-format to create a skin-attachment: %s", strFilePath.c_str());
-	return 0; //if it ends here, then we have no valid file-format
+	return 0;                                                                             //if it ends here, then we have no valid file-format
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -486,7 +486,7 @@ CDefaultSkeleton* CharacterManager::CheckIfModelSKELLoaded(const string& strFile
 			const char* strFilePath2 = m_arrModelCacheSKEL[m].m_pDefaultSkeleton->GetModelFilePath();
 			bool IsIdentical = stricmp(strFilePath1, strFilePath2) == 0;
 			if (IsIdentical)
-				return m_arrModelCacheSKEL[m].m_pDefaultSkeleton; //model already loaded
+				return m_arrModelCacheSKEL[m].m_pDefaultSkeleton;                               //model already loaded
 		}
 	}
 	else
@@ -499,7 +499,7 @@ CDefaultSkeleton* CharacterManager::CheckIfModelSKELLoaded(const string& strFile
 			const char* strFilePath2 = m_arrModelCacheSKEL_CharEdit[m].m_pDefaultSkeleton->GetModelFilePath();
 			bool IsIdentical = stricmp(strFilePath1, strFilePath2) == 0;
 			if (IsIdentical)
-				return m_arrModelCacheSKEL_CharEdit[m].m_pDefaultSkeleton; //model already loaded
+				return m_arrModelCacheSKEL_CharEdit[m].m_pDefaultSkeleton;                      //model already loaded
 		}
 #endif
 	}
@@ -516,7 +516,7 @@ CDefaultSkeleton* CharacterManager::CheckIfModelExtSKELCreated(const uint64 nCRC
 		{
 			uint64 crc64 = m_arrModelCacheSKEL[m].m_pDefaultSkeleton->GetModelFilePathCRC64();
 			if (nCRC64 == crc64)
-				return m_arrModelCacheSKEL[m].m_pDefaultSkeleton; //model already loaded
+				return m_arrModelCacheSKEL[m].m_pDefaultSkeleton;                               //model already loaded
 		}
 	}
 	else
@@ -527,7 +527,7 @@ CDefaultSkeleton* CharacterManager::CheckIfModelExtSKELCreated(const uint64 nCRC
 		{
 			uint64 crc64 = m_arrModelCacheSKEL_CharEdit[m].m_pDefaultSkeleton->GetModelFilePathCRC64();
 			if (nCRC64 == crc64)
-				return m_arrModelCacheSKEL_CharEdit[m].m_pDefaultSkeleton; //model already loaded
+				return m_arrModelCacheSKEL_CharEdit[m].m_pDefaultSkeleton;                      //model already loaded
 		}
 #endif
 	}
@@ -544,7 +544,7 @@ CSkin* CharacterManager::CheckIfModelSKINLoaded(const string& strFilePath, uint3
 		{
 			const char* strBodyFilePath = m_arrModelCacheSKIN[m].m_pDefaultSkinning->GetModelFilePath();
 			if (strFilePath.compareNoCase(strBodyFilePath) == 0)
-				return m_arrModelCacheSKIN[m].m_pDefaultSkinning; //model already loaded
+				return m_arrModelCacheSKIN[m].m_pDefaultSkinning;                               //model already loaded
 		}
 	}
 	else
@@ -555,7 +555,7 @@ CSkin* CharacterManager::CheckIfModelSKINLoaded(const string& strFilePath, uint3
 		{
 			const char* strBodyFilePath = m_arrModelCacheSKIN_CharEdit[m].m_pDefaultSkinning->GetModelFilePath();
 			if (strFilePath.compareNoCase(strBodyFilePath) == 0)
-				return m_arrModelCacheSKIN_CharEdit[m].m_pDefaultSkinning; //model already loaded
+				return m_arrModelCacheSKIN_CharEdit[m].m_pDefaultSkinning;                      //model already loaded
 		}
 #endif
 	}
@@ -614,7 +614,7 @@ CDefaultSkeleton* CharacterManager::FetchModelSKEL(const char* szFilePath, uint3
 		RegisterModelSKEL(pModelSKEL, nLoadingFlags);
 		return pModelSKEL;
 	}
-	return 0;  //some error
+	return 0;     //some error
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -641,19 +641,19 @@ CSkin* CharacterManager::FetchModelSKIN(const char* szFilePath, uint32 nLoadingF
 	if (pModelSKIN)
 		return pModelSKIN;
 
-	pModelSKIN = new CSkin(szFilePath, nLoadingFlags); // Wrap the model in a smart pointer to guard against early-exit memory leaks due to a bad asset
+	pModelSKIN = new CSkin(szFilePath, nLoadingFlags);    // Wrap the model in a smart pointer to guard against early-exit memory leaks due to a bad asset
 	if (pModelSKIN)
 	{
 		bool IsLoaded = pModelSKIN->LoadNewSKIN(szFilePath, nLoadingFlags);
 		if (IsLoaded == 0)
 		{
 			delete pModelSKIN;
-			return 0; //loading error
+			return 0;                                      //loading error
 		}
 		RegisterModelSKIN(pModelSKIN, nLoadingFlags);
 		return pModelSKIN;
 	}
-	return 0;  //some error
+	return 0;                                          //some error
 }
 
 bool CharacterManager::LoadAndLockResources(const char* szFilePath, uint32 nLoadingFlags)
@@ -680,7 +680,7 @@ bool CharacterManager::LoadAndLockResources(const char* szFilePath, uint32 nLoad
 			pModelSKEL->SetKeepInMemory(true);
 			return true;
 		}
-		return false; //fail
+		return false;                                                         //fail
 	}
 
 	const bool isCGA = stricmp(strFileExt, CRY_ANIM_GEOMETRY_FILE_EXT) == 0;
@@ -692,7 +692,7 @@ bool CharacterManager::LoadAndLockResources(const char* szFilePath, uint32 nLoad
 			pModelSKEL->SetKeepInMemory(true);
 			return true;
 		}
-		return false; //fail
+		return false;                                                         //fail
 	}
 
 	const bool isSKIN = stricmp(strFileExt, CRY_SKIN_FILE_EXT) == 0;
@@ -704,7 +704,7 @@ bool CharacterManager::LoadAndLockResources(const char* szFilePath, uint32 nLoad
 			pModelSKIN->SetKeepInMemory(true);
 			return true;
 		}
-		return false; //fail
+		return false;                                                         //fail
 	}
 
 	const bool isCDF = stricmp(strFileExt, CRY_CHARACTER_DEFINITION_FILE_EXT) == 0;
@@ -712,16 +712,16 @@ bool CharacterManager::LoadAndLockResources(const char* szFilePath, uint32 nLoad
 	{
 		int32 cdfId = GetOrLoadCDFId(strFilePath);
 		if (cdfId == INVALID_CDF_ID)
-			return false; //fail
+			return false;                                                       //fail
 
-		m_arrCacheForCDF[cdfId].m_nKeepInMemory = true; //always lock in memory
+		m_arrCacheForCDF[cdfId].m_nKeepInMemory = true;                         //always lock in memory
 		const char* strBaseModelFilePath = m_arrCacheForCDF[cdfId].m_strBaseModelFilePath.c_str();
 		CDefaultSkeleton* pBaseModelSKEL = FetchModelSKEL(strBaseModelFilePath, nLoadingFlags);
 		if (pBaseModelSKEL)
 		{
 			pBaseModelSKEL->SetKeepInMemory(true);
 			bool bKeep = false;
-			int nKeepInMemory = m_arrCacheForCDF[cdfId].m_nKeepModelsInMemory; //by default we keep all model-headers in memory
+			int nKeepInMemory = m_arrCacheForCDF[cdfId].m_nKeepModelsInMemory;  //by default we keep all model-headers in memory
 			if (nKeepInMemory)
 				bKeep = true;
 
@@ -1130,6 +1130,7 @@ SClothGeometry* CharacterManager::LoadVClothGeometry(const CAttachmentVCLOTH& pA
 	// look for welded vertices and prune them
 	int nWelded = 0;
 	std::vector<Vec3> unweldedVerts;
+	unweldedVerts.reserve(ret.nVtx);
 	if (!ret.weldMap)
 		ret.weldMap = new vtx_idx[ret.nVtx];
 	// TODO: faster welded vertices detector - this is O(n^2)
@@ -1164,6 +1165,7 @@ SClothGeometry* CharacterManager::LoadVClothGeometry(const CAttachmentVCLOTH& pA
 
 	// create the physics geometry (CTriMesh)
 	IGeometry* pSimPhysMesh = g_pIPhysicalWorld->GetGeomManager()->CreateMesh(&unweldedVerts[0], unweldedIndices, 0, 0, nSimIndices / 3, 0);
+
 	delete[] unweldedIndices;
 
 	// register phys geometry
@@ -1339,6 +1341,7 @@ SClothGeometry* CharacterManager::LoadVClothGeometry(const CAttachmentVCLOTH& pA
 
 	// allocate working buffers
 	ret.AllocateBuffer();
+
 	return &ret;
 }
 
@@ -1483,9 +1486,9 @@ void CharacterManager::CleanupModelCache(bool bForceCleanup)
 
 	uint32 numSKEL1 = m_arrModelCacheSKEL.size();
 	for (uint32 i = 0; i < numSKEL1; i++)
-		m_arrModelCacheSKEL[i].m_pDefaultSkeleton->SetKeepInMemory(true); // Make sure nothing gets deleted.
+		m_arrModelCacheSKEL[i].m_pDefaultSkeleton->SetKeepInMemory(true);   // Make sure nothing gets deleted.
 
-	int32 numSKEL2 = m_arrModelCacheSKEL.size();  // Clean all instances.
+	int32 numSKEL2 = m_arrModelCacheSKEL.size();                            // Clean all instances.
 	for (int32 s = (numSKEL2 - 1); s > -1; s--)
 	{
 		int numInstances = m_arrModelCacheSKEL[s].m_RefByInstances.size();
@@ -1495,11 +1498,11 @@ void CharacterManager::CleanupModelCache(bool bForceCleanup)
 			delete m_arrModelCacheSKEL[s].m_RefByInstances[i];
 	}
 
-	uint32 numSKEL3 = m_arrModelCacheSKEL.size(); //count backwards, because the array is decreased after each delete.
+	uint32 numSKEL3 = m_arrModelCacheSKEL.size();                           //count backwards, because the array is decreased after each delete.
 	for (int32 i = (numSKEL3 - 1); i > -1; i--)
 		m_arrModelCacheSKEL[i].m_pDefaultSkeleton->DeleteIfNotReferenced(); //even if locked in memory
 
-	uint32 numSKEL4 = m_arrModelCacheSKEL.size(); //if we still have instances, then something went wrong
+	uint32 numSKEL4 = m_arrModelCacheSKEL.size();                           //if we still have instances, then something went wrong
 	if (numSKEL4)
 	{
 		for (uint32 i = 0; i < numSKEL4; i++)
@@ -1511,9 +1514,9 @@ void CharacterManager::CleanupModelCache(bool bForceCleanup)
 
 	uint32 numSKIN1 = m_arrModelCacheSKIN.size();
 	for (uint32 i = 0; i < numSKIN1; i++)
-		m_arrModelCacheSKIN[i].m_pDefaultSkinning->SetKeepInMemory(true); // Make sure nothing gets deleted.
+		m_arrModelCacheSKIN[i].m_pDefaultSkinning->SetKeepInMemory(true);   // Make sure nothing gets deleted.
 
-	int32 numSKIN2 = m_arrModelCacheSKIN.size();  // Clean all instances.
+	int32 numSKIN2 = m_arrModelCacheSKIN.size();                            // Clean all instances.
 	for (int32 s = (numSKIN2 - 1); s > -1; s--)
 	{
 		int numInstances = m_arrModelCacheSKIN[s].m_RefByInstances.size();
@@ -1529,11 +1532,11 @@ void CharacterManager::CleanupModelCache(bool bForceCleanup)
 			delete m_arrModelCacheSKIN[s].m_RefByInstancesVCloth[i];
 	}
 
-	uint32 numSKIN3 = m_arrModelCacheSKIN.size(); //count backwards, because the array is decreased after each delete.
+	uint32 numSKIN3 = m_arrModelCacheSKIN.size();                           //count backwards, because the array is decreased after each delete.
 	for (int32 i = (numSKIN3 - 1); i > -1; i--)
 		m_arrModelCacheSKIN[i].m_pDefaultSkinning->DeleteIfNotReferenced(); //even if locked in memory
 
-	uint32 numSKIN4 = m_arrModelCacheSKIN.size();  //if we still have instances, then something went wrong
+	uint32 numSKIN4 = m_arrModelCacheSKIN.size();                           //if we still have instances, then something went wrong
 	if (numSKIN4)
 	{
 		for (uint32 i = 0; i < numSKIN4; i++)
@@ -1570,7 +1573,7 @@ f32 CharacterManager::GetAverageFrameTime(f32 sec, f32 FrameTime, f32 fTimeScale
 	uint32 FrameAmount = 1;
 	if (LastAverageFrameTime)
 	{
-		FrameAmount = uint32(sec / LastAverageFrameTime * fTimeScale + 0.5f); //average the frame-times for a certain time-period (sec)
+		FrameAmount = uint32(sec / LastAverageFrameTime * fTimeScale + 0.5f);         //average the frame-times for a certain time-period (sec)
 		if (FrameAmount > numFT)  FrameAmount = numFT;
 		if (FrameAmount < 1)  FrameAmount = 1;
 	}
@@ -1697,7 +1700,7 @@ void CharacterManager::Update(bool bPaused)
 #endif
 		DebugModelCache(1, m_arrModelCacheSKEL, m_arrModelCacheSKIN);
 #ifndef _RELEASE
-		Console::GetInst().ca_DebugModelCache &= 0x17; //disable logging to console
+		Console::GetInst().ca_DebugModelCache &= 0x17;   //disable logging to console
 #endif
 	}
 	if (Console::GetInst().ca_ReloadAllCHRPARAMS)
@@ -1788,6 +1791,25 @@ void CharacterManager::UpdateStreaming(int nFullUpdateRoundId, int nFastUpdateRo
 
 void CharacterManager::UpdateStreaming_SKEL(std::vector<CDefaultSkeletonReferences>& skels, uint32 nRenderFrameId, const uint32* nRoundIds)
 {
+	// Since CHR is not meant to be rendered, geom deformation stops the loading and the pollution of the render pipeline
+
+	/* In case this will change in the future, one has to request a skinning output once the render mesh gets streamed.
+	   The following code does that and should be placed inside CryCHRLoader::EndStreamSkel() after the render mesh is created
+
+	   ICVar* cvar_gd = gEnv->pConsole->GetCVar("r_ComputeSkinning");
+	   bool bDoSkinnedOutput = cvar_gd && cvar_gd->GetIVal();
+	   if (bDoSkinnedOutput && m_pNewRenderMesh)
+	   {
+	    for (size_t i=0; i<m_RefByInstances.size(); ++i)
+	    {
+	      m_pNewRenderMesh->CreateSkinnedOutput(m_RefByInstances[i]);
+	    }
+	   }
+	 */
+	ICVar* cvar_gd = gEnv->pConsole->GetCVar("r_ComputeSkinning");
+	if (cvar_gd && cvar_gd->GetIVal())
+		return;
+
 	for (std::vector<CDefaultSkeletonReferences>::iterator it = skels.begin(), itEnd = skels.end(); it != itEnd; ++it)
 	{
 		CDefaultSkeleton* pSkel = it->m_pDefaultSkeleton;
@@ -1819,7 +1841,7 @@ void CharacterManager::UpdateStreaming_SKEL(std::vector<CDefaultSkeletonReferenc
 							estp = estpNormal;
 
 						si.pStreamer = new CryCHRLoader;
-						si.pStreamer->BeginLoadCHRRenderMesh(pSkel, estp);
+						si.pStreamer->BeginLoadCHRRenderMesh(pSkel, it->m_RefByInstances, estp);
 					}
 				}
 				else if (pSkelMesh->m_pIRenderMesh)
@@ -2443,7 +2465,7 @@ void CharacterManager::DatabaseUnloading()
 			GlobalAnimationHeaderCAF& rGAH = g_AnimationManager.m_arrGlobalCAF[i];
 			if (rGAH.m_FilePathDBACRC32 != nDBACRC32)
 				continue;
-			rGAH.m_nControllers = 0;  //just mark as unloaded
+			rGAH.m_nControllers = 0;    //just mark as unloaded
 		}
 	}
 
@@ -2885,7 +2907,7 @@ ICharacterInstance* CharacterManager::LoadCharacterDefinition(const string pathn
 			return NULL;
 		}
 
-		PREFAST_ASSUME(pCharInstance); // caught above
+		PREFAST_ASSUME(pCharInstance);        // caught above
 
 		if (m_arrCacheForCDF[cdfId].m_pBaseModelMaterial)
 			pCharInstance->SetIMaterial_Instance(m_arrCacheForCDF[cdfId].m_pBaseModelMaterial);
@@ -2899,7 +2921,7 @@ ICharacterInstance* CharacterManager::LoadCharacterDefinition(const string pathn
 				pDefaultSkeleton->SetKeepInMemory(false);
 		}
 
-		pCharInstance->SetFilePath(pathname);   //store the CDF-pathname inside the instance
+		pCharInstance->SetFilePath(pathname); //store the CDF-pathname inside the instance
 
 		SkelExtension(pCharInstance, pFilepathSKEL, cdfId, nLoadingFlags);
 
@@ -2996,7 +3018,7 @@ uint32 CharacterManager::CompatibilityTest(CDefaultSkeleton* pCDefaultSkeleton, 
 	{
 		const uint32 sHash = pCSkinModel->m_arrModelJoints[js].m_nJointCRC32Lower;
 		const int32 jid = pCDefaultSkeleton->GetJointIDByCRC32(sHash);
-		NotMatchingNames += jid == -1;  //Bone-names of SLAVE-skeleton don't match with bone-names of MASTER-skeleton
+		NotMatchingNames += jid == -1;         //Bone-names of SLAVE-skeleton don't match with bone-names of MASTER-skeleton
 	}
 	return NotMatchingNames;
 }
@@ -3009,9 +3031,9 @@ static struct
 		const char*    m_strJointName;
 		uint32         m_nJointCRC32Lower; // case insensitive CRC32 of joint-name. Used to match joint name in skeleton/skin files, but NOT controller names in CAF.
 		uint32         m_nCRC32Parent;
-		int32          m_idxParent;     //index of parent-joint. if the idx==-1 then this joint is the root. Usually this values are > 0
-		int32          m_idxNext;       //sibling of this joint
-		int32          m_idxFirst;      //first child of this joint
+		int32          m_idxParent;        //index of parent-joint. if the idx==-1 then this joint is the root. Usually this values are > 0
+		int32          m_idxNext;          //sibling of this joint
+		int32          m_idxFirst;         //first child of this joint
 		f32            m_fMass;
 		CryBonePhysics m_PhysInfo;
 	};
@@ -3315,7 +3337,7 @@ void CharacterManager::LoadAnimationImageFile(const char* filenameCAF, const cha
 
 	m_InitializedByIMG = 1;
 
-	g_pI3DEngine = g_pISystem->GetI3DEngine(); // TODO: Why is this initialization perfomed here?
+	g_pI3DEngine = g_pISystem->GetI3DEngine();   // TODO: Why is this initialization perfomed here?
 
 	LoadAnimationImageFileCAF(filenameCAF);
 	LoadAnimationImageFileAIM(filenameAIM);
@@ -3350,7 +3372,7 @@ bool CharacterManager::LoadAnimationImageFileCAF(const char* filenameCAF)
 		CryFatalError("CryAnimation: the list with GlobalCAFs is already initialized");
 	}
 
-	const uint32 numChunk = pChunkFile->NumChunks(); //the max amount of CAF files is precomputed in the RC
+	const uint32 numChunk = pChunkFile->NumChunks();   //the max amount of CAF files is precomputed in the RC
 	g_AnimationManager.m_arrGlobalCAF.reserve(numChunk + APX_NUM_OF_CGA_ANIMATIONS);
 	g_AnimationManager.m_arrGlobalCAF.resize(numChunk);
 
@@ -3389,12 +3411,12 @@ bool CharacterManager::LoadAnimationImageFileCAF(const char* filenameCAF)
 
 		GlobalAnimationHeaderCAF& rCAF = g_AnimationManager.m_arrGlobalCAF[i];
 		rCAF.SetFlags(pChunk->m_Flags & nValidFlags);
-		rCAF.m_FilePathDBACRC32 = pChunk->m_FilePathDBACRC32; // TODO: investigate this
+		rCAF.m_FilePathDBACRC32 = pChunk->m_FilePathDBACRC32;                        // TODO: investigate this
 		rCAF.SetFilePath(pChunk->m_FilePath);
 		rCAF.m_fStartSec = pChunk->m_fStartSec;
 		rCAF.m_fEndSec = pChunk->m_fEndSec;
 		rCAF.m_fTotalDuration = pChunk->m_fTotalDuration;
-		rCAF.m_StartLocation = pChunk->m_StartLocation; // asset-feature: the original location of the animation in world-space
+		rCAF.m_StartLocation = pChunk->m_StartLocation;                            // asset-feature: the original location of the animation in world-space
 		rCAF.m_nControllers = 0;
 		rCAF.m_nControllers2 = pChunk->m_nControllers;
 
@@ -3405,7 +3427,7 @@ bool CharacterManager::LoadAnimationImageFileCAF(const char* filenameCAF)
 			CryFatalError("CryAnimation: m_arrController ready initialized. possible mem-leak");
 		}
 
-		g_AnimationManager.m_animSearchHelper.AddAnimation(pChunk->m_FilePath, i); // TODO: investigate this, looks like a duplicated feature
+		g_AnimationManager.m_animSearchHelper.AddAnimation(pChunk->m_FilePath, i);  // TODO: investigate this, looks like a duplicated feature
 		m_AnimationManager.m_AnimationMapCAF.InsertValue(rCAF.GetFilePathCRC32(), i);
 
 		rCAF.OnAssetCreated();
@@ -3434,7 +3456,7 @@ bool CharacterManager::LoadAnimationImageFileAIM(const char* filenameAIM)
 	_smart_ptr<IChunkFile> pChunkFile = g_pI3DEngine->CreateChunkFile(true);
 	if (!pChunkFile->Read(strPath))
 	{
-		pChunkFile->GetLastError(); // TODO: Is it necessary to call this method here?
+		pChunkFile->GetLastError();                                                                         // TODO: Is it necessary to call this method here?
 		return false;
 	}
 
@@ -3448,12 +3470,12 @@ bool CharacterManager::LoadAnimationImageFileAIM(const char* filenameAIM)
 		{
 			// TODO: Issue w warning.
 			g_AnimationManager.m_arrGlobalAIM.clear();
-			return false; // TODO: Should this even be an unrecoverable case? We can't we simply ignore unknown chunk types?
+			return false;                                                                                     // TODO: Should this even be an unrecoverable case? We can't we simply ignore unknown chunk types?
 		}
 
 		if (pChunkDesc->bSwapEndian)
 		{
-			CryFatalError("%s: data are stored in non-native endian format", __FUNCTION__); // TODO: Replace fatal error with graceful asset validation.
+			CryFatalError("%s: data are stored in non-native endian format", __FUNCTION__);                    // TODO: Replace fatal error with graceful asset validation.
 		}
 
 		const CHUNK_GAHAIM_INFO* const pChunk = (const CHUNK_GAHAIM_INFO*)pChunkDesc->data;
@@ -3482,7 +3504,7 @@ bool CharacterManager::LoadAnimationImageFileAIM(const char* filenameAIM)
 
 		assert(rAIM.GetFilePathCRC32() == pChunk->m_FilePathCRC32);
 
-		assert(rAIM.m_MiddleAimPoseRot.IsValid()); // TODO: Replace asserts with graceful asset validation
+		assert(rAIM.m_MiddleAimPoseRot.IsValid());                                                          // TODO: Replace asserts with graceful asset validation
 		assert(rAIM.m_MiddleAimPose.IsValid());
 
 		for (uint32 v = 0; v < (CHUNK_GAHAIM_INFO::XGRID * CHUNK_GAHAIM_INFO::YGRID); ++v)
@@ -3519,7 +3541,7 @@ bool CharacterManager::LoadAnimationImageFileAIM(const char* filenameAIM)
 			{
 				const Vec3 pos = *(Vec3*)(pAimPoseMem);
 				pAimPoseMem += sizeof(Vec3);
-				assert(pos.IsValid()); // TODO: Replace asserts with graceful asset validation
+				assert(pos.IsValid());  // TODO: Replace asserts with graceful asset validation
 
 				rAIM.m_arrAimIKPosesAIM[a].m_arrPosition[p] = pos;
 			}
@@ -3528,7 +3550,7 @@ bool CharacterManager::LoadAnimationImageFileAIM(const char* filenameAIM)
 		rAIM.OnAssetCreated();
 	}
 
-	m_InitializedByIMG |= 4; // TODO: Get rid of this hack (there's a special case somewhere around which expects an undocumented 0x02 flag).
+	m_InitializedByIMG |= 4;        // TODO: Get rid of this hack (there's a special case somewhere around which expects an undocumented 0x02 flag).
 	return true;
 }
 
@@ -3705,7 +3727,7 @@ bool CharacterManager::StreamKeepCDFResident(const char* szFilePath, int nLod, i
 
 				const bool isCDF = (0 == stricmp(fileExt, CRY_CHARACTER_DEFINITION_FILE_EXT));
 				const bool isCGF = (0 == stricmp(fileExt, CRY_GEOMETRY_FILE_EXT));
-				const bool isCHR = (0 == stricmp(fileExt, CRY_SKEL_FILE_EXT)); //will not make sense in then future, because you can't see anything
+				const bool isCHR = (0 == stricmp(fileExt, CRY_SKEL_FILE_EXT));      //will not make sense in then future, because you can't see anything
 
 				if (isCHR)
 				{
@@ -3883,7 +3905,7 @@ void CharacterManager::DeleteDebugInstances()
 {
 	uint32 numDebugInstances = m_arrCharacterBase.size();
 	for (uint32 i = 0; i < numDebugInstances; i++)
-		m_arrCharacterBase[i].m_pInst = 0; //_smart_ptr  > decrease refcount and release model
+		m_arrCharacterBase[i].m_pInst = 0;                                  //_smart_ptr  > decrease refcount and release model
 }
 
 void CharacterManager::RenderDebugInstances(const SRenderingPassInfo& passInfo)
@@ -3898,7 +3920,7 @@ void CharacterManager::RenderDebugInstances(const SRenderingPassInfo& passInfo)
 			continue;
 		m_arrCharacterBase[i].m_AmbientColor.a = 0;
 
-		ICharacterInstance* pExampleInst = m_arrCharacterBase[i].m_pInst; //_smart_ptr  > decrease refcount and release model
+		ICharacterInstance* pExampleInst = m_arrCharacterBase[i].m_pInst;    //_smart_ptr  > decrease refcount and release model
 
 		qts.q = m_arrCharacterBase[i].m_GridLocation.q;
 		qts.t = m_arrCharacterBase[i].m_GridLocation.t;
@@ -3912,7 +3934,6 @@ void CharacterManager::RenderDebugInstances(const SRenderingPassInfo& passInfo)
 		rp.AmbientColor.g = m_arrCharacterBase[i].m_AmbientColor.g;
 		rp.AmbientColor.b = m_arrCharacterBase[i].m_AmbientColor.b;
 		rp.AmbientColor.a = 1;
-		rp.nDLightMask = 7;
 		rp.dwFObjFlags = 0;
 		rp.dwFObjFlags |= FOB_TRANS_MASK;
 		rp.pMatrix = &rEntityMat;

@@ -8,7 +8,7 @@ typedef uint64 masktype;
 #define getmask(i) ((uint64)1<<(i))
 const int NMASKBITS = 64;
 
-enum constr_info_flags { constraint_limited_1axis=1, constraint_limited_2axes=2, constraint_rope=4, constraint_broken=0x10000 };
+enum constr_info_flags { constraint_limited_1axis=1, constraint_limited_2axes=2, constraint_rope=4, constraint_area=8, constraint_broken=0x10000 };
 
 struct constraint_info {
 	int id;
@@ -157,7 +157,7 @@ class CRigidEntity : public CPhysicalEntity {
 	virtual void DrawHelperInformation(IPhysRenderer *pRenderer, int flags);
 	virtual void GetMemoryStatistics(ICrySizer *pSizer) const;
 
-	int RegisterConstraint(const Vec3 &pt0,const Vec3 &pt1, int ipart0, CPhysicalEntity *pBuddy,int ipart1, int flags,int flagsInfo=0);
+	int RegisterConstraint(const Vec3 &pt0,const Vec3 &pt1, int ipart0, CPhysicalEntity *pBuddy,int ipart1, int flags,int flagsInfo=0, CPhysicalEntity* pConstraintEnt=0);
 	int RemoveConstraint(int iConstraint);
 	virtual void BreakableConstraintsUpdated();
 	entity_contact *RegisterContactPoint(int idx, const Vec3 &pt, const geom_contact *pcontacts, int iPrim0,int iFeature0, 

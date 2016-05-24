@@ -399,7 +399,6 @@ void CReadStream::ExecuteSyncCallback_CBLocked()
 
 void* CReadStream::operator new(size_t sz)
 {
-	ScopedSwitchToGlobalHeap useGlobalHeap;
 	return CryModuleMemalign(sz, alignof(CReadStream));
 }
 

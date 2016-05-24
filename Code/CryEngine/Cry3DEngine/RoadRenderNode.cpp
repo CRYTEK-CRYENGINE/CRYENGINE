@@ -479,8 +479,8 @@ void CRoadRenderNode::Render(const SRendParams& RendParams, const SRenderingPass
 		pOD->m_fTempVars[0] = RendParams.pTerrainTexInfo->fTexOffsetX;
 		pOD->m_fTempVars[1] = RendParams.pTerrainTexInfo->fTexOffsetY;
 		pOD->m_fTempVars[2] = RendParams.pTerrainTexInfo->fTexScale;
-		pOD->m_fTempVars[3] = RendParams.pTerrainTexInfo->fTerrainMinZ;
-		pOD->m_fTempVars[4] = RendParams.pTerrainTexInfo->fTerrainMaxZ;
+		pOD->m_fTempVars[3] = 0;
+		pOD->m_fTempVars[4] = 0;
 	}
 
 	if (m_pRenderMesh)

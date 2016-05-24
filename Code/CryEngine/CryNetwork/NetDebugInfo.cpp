@@ -180,7 +180,6 @@ CNetDebugInfo* CNetDebugInfo::Get()
 {
 	if (!s_pInstance)
 	{
-		ScopedSwitchToGlobalHeap useGlobalHeap;
 		s_pInstance = new CNetDebugInfo();
 	}
 

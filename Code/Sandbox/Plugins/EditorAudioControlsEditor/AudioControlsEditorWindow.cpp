@@ -110,6 +110,12 @@ CAudioControlsEditorWindow::CAudioControlsEditorWindow()
 		pSplitter->addWidget(m_pAudioSystemPanel);
 		setCentralWidget(pSplitter);
 	}
+
+	const uint errorCodeMask = CAudioControlsEditorPlugin::GetLoadingErrorMask();
+	if (errorCodeMask & EErrorCode::eErrorCode_UnkownPlatform)
+	{
+		QMessageBox::warning(this, tr("Audio Controls Editor"), tr("Audio Preloads reference an unknown platform.\nSaving will permanently erase this data."));
+	}
 }
 
 CAudioControlsEditorWindow::~CAudioControlsEditorWindow()

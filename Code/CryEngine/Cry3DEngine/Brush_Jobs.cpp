@@ -23,7 +23,7 @@
 #include "terrain.h"
 
 ///////////////////////////////////////////////////////////////////////////////
-void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInfo, SSectorTextureSet* pTerrainTexInfo, uint32 nDynLMMask, PodArray<CDLight*>* pAffectingLights)
+void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInfo, SSectorTextureSet* pTerrainTexInfo, PodArray<CDLight*>* pAffectingLights)
 {
 	FUNCTION_PROFILER_3DENGINE;
 	CVars* pCVars = GetCVars();
@@ -156,7 +156,7 @@ void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInf
 			pObj->m_ObjFlags &= ~FOB_ALLOW_TESSELLATION;
 
 		if (pCVars->e_BBoxes)
-			GetObjManager()->RenderObjectDebugInfo((IRenderNode*)this, pObj->m_fDistance, 0, passInfo);
+			GetObjManager()->RenderObjectDebugInfo((IRenderNode*)this, pObj->m_fDistance, passInfo);
 
 		if (lodValue.LodA() <= 0 && Cry3DEngineBase::GetCVars()->e_MergedMeshes != 0 && m_pDeform && m_pDeform->HasDeformableData())
 		{

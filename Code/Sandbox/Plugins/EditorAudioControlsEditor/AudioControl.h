@@ -6,26 +6,26 @@
 #include <IAudioConnection.h>
 #include <ACETypes.h>
 #include <CrySystem/XML/IXml.h>
+#include "ACETypes.h"
+#include <CrySerialization/Forward.h>
 
 namespace ACE
 {
-extern const string g_sDefaultGroup;
 
 class CATLControlsModel;
+class IAudioSystemItem;
 
 struct SRawConnectionData
 {
 	SRawConnectionData(XmlNodeRef node, bool bIsValid)
 		: xmlNode(node)
 		, bValid(bIsValid) {}
-	XmlNodeRef xmlNode;
 
-	// indicates if the connection is valid for the currently loaded middle-ware
-	bool bValid;
+	XmlNodeRef xmlNode;
+	bool       bValid; // indicates if the connection is valid for the currently loaded middle-ware
 };
 
-typedef std::vector<SRawConnectionData> TXMLNodeList;
-typedef std::map<string, TXMLNodeList>  TConnectionPerGroup;
+typedef std::vector<SRawConnectionData> XMLNodeList;
 
 class CATLControl
 {
@@ -35,7 +35,7 @@ class CATLControl
 
 public:
 	CATLControl();
-	CATLControl(const string& sControlName, CID nID, EACEControlType eType, CATLControlsModel* pModel);
+	CATLControl(const string& controlName, CID nID, EACEControlType eType, CATLControlsModel* pModel);
 	~CATLControl();
 
 	CID             GetId() const;
@@ -45,9 +45,8 @@ public:
 	string          GetName() const;
 	void            SetName(const string& name);
 
-	bool            HasScope() const;
-	string          GetScope() const;
-	void            SetScope(const string& sScope);
+	Scope           GetScope() const;
+	void            SetScope(Scope scope);
 
 	bool            IsAutoLoad() const;
 	void            SetAutoLoad(bool bAutoLoad);
@@ -60,43 +59,44 @@ public:
 	void            AddChild(CATLControl* pChildControl)    { m_children.push_back(pChildControl); }
 	void            RemoveChild(CATLControl* pChildControl) { m_children.erase(std::remove(m_children.begin(), m_children.end(), pChildControl), m_children.end()); }
 
-	// Controls can group connection according to a platform
-	// This is used primarily for the Preload Requests
-	int           GetGroupForPlatform(const string& platform) const;
-	void          SetGroupForPlatform(const string& platform, int connectionGroupId);
+	size_t          GetConnectionCount();
+	void            AddConnection(ConnectionPtr pConnection);
+	void            RemoveConnection(ConnectionPtr pConnection);
+	void            RemoveConnection(IAudioSystemItem* pAudioSystemControl);
+	void            ClearConnections();
+	ConnectionPtr   GetConnectionAt(int index);
+	ConnectionPtr   GetConnection(CID id);
+	ConnectionPtr   GetConnection(IAudioSystemItem* pAudioSystemControl);
+	void            ReloadConnections();
+	void            LoadConnectionFromXML(XmlNodeRef xmlNode, int platformIndex = -1);
 
-	size_t        GetConnectionCount();
-	void          AddConnection(ConnectionPtr pConnection);
-	void          RemoveConnection(ConnectionPtr pConnection);
-	void          RemoveConnection(IAudioSystemItem* pAudioSystemControl);
-	void          ClearConnections();
-	ConnectionPtr GetConnectionAt(int index);
-	ConnectionPtr GetConnection(CID id, const string& group = g_sDefaultGroup);
-	ConnectionPtr GetConnection(IAudioSystemItem* m_pAudioSystemControl, const string& group = g_sDefaultGroup);
-	void          ReloadConnections();
+	void            SignalControlAboutToBeModified();
+	void            SignalControlModified();
+	void            SignalConnectionAdded(IAudioSystemItem* pMiddlewareControl);
+	void            SignalConnectionRemoved(IAudioSystemItem* pMiddlewareControl);
 
-	void          SignalControlAboutToBeModified();
-	void          SignalControlModified();
-	void          SignalConnectionAdded(IAudioSystemItem* pMiddlewareControl);
-	void          SignalConnectionRemoved(IAudioSystemItem* pMiddlewareControl);
+	void            Serialize(Serialization::IArchive& ar);
 
 private:
 	void SetId(CID id);
 	void SetType(EACEControlType type);
-	CID                        m_nID;
-	EACEControlType            m_eType;
-	string                     m_sName;
-	string                     m_sScope;
-	std::map<string, int>      m_groupPerPlatform;
+
+	CID                        m_id;
+	EACEControlType            m_type;
+	string                     m_name;
+	Scope                      m_scope;
 	std::vector<ConnectionPtr> m_connectedControls;
 	std::vector<CATLControl*>  m_children;
 	CATLControl*               m_pParent;
 	bool                       m_bAutoLoad;
 	bool                       m_bModified;
 
+	CATLControlsModel*         m_pModel;
+
 	// All the raw connection nodes. Used for reloading the data when switching middleware.
-	TConnectionPerGroup m_connectionNodes;
-	CATLControlsModel*  m_pModel;
+	void         AddRawXMLConnection(XmlNodeRef xmlNode, bool bValid, int platformIndex = -1);
+	XMLNodeList& GetRawXMLConnections(int platformIndex = -1);
+	std::map<int, XMLNodeList> m_connectionNodes;
 };
 
 typedef std::shared_ptr<CATLControl> ATLControlPtr;

@@ -242,8 +242,6 @@ bool CTerrainUpdateDispatcher::AddJob(CTerrainNode* pNode, bool executeAsJob, co
 
 		if (executeAsJob)
 		{
-			ScopedSwitchToGlobalHeap useGlobalHeap;
-
 			TBuildIndicesJob jobIndice(passInfo);
 			jobIndice.SetClassInstance(pNode);
 			jobIndice.RegisterJobState(&pUpdateTerrainTempData->m_JobStateBuildIndices);
@@ -405,6 +403,40 @@ void CTerrainNode::DrawArray(const SRenderingPassInfo& passInfo)
 {
 	if (!Get3DEngine()->CheckAndCreateRenderNodeTempData(&m_pTempData, this, passInfo))
 		return;
+
+	// Use mesh instancing for distant low-lod sectors and during shadow map generation
+	if(passInfo.IsShadowPass() || (m_nTreeLevel >= GetCVars()->e_TerrainMeshInstancingMinLod))
+	{
+		SetupTexturing(false, passInfo);
+
+		IRenderMesh * pRenderMesh = GetSharedRenderMesh();
+
+		CRenderObject* pTerrainRenderObject = 0;
+
+		CLodValue dymmyLod(3, 0, 3);
+		if (!GetObjManager()->AddOrCreatePersistentRenderObject(m_pTempData, pTerrainRenderObject, &dymmyLod, passInfo))
+		{
+			pTerrainRenderObject->m_pRenderNode = 0;
+			pTerrainRenderObject->m_II.m_AmbColor = Get3DEngine()->GetSkyColor();
+			pTerrainRenderObject->m_fDistance = m_arrfDistance[passInfo.GetRecursiveLevel()];
+
+			Vec3 vScale = GetBBox().GetSize();
+			vScale.z = 1.f;
+			pTerrainRenderObject->m_II.m_Matrix.SetIdentity();
+			pTerrainRenderObject->m_II.m_Matrix.SetScale(vScale, Vec3(m_nOriginX, m_nOriginY, 0));
+			pTerrainRenderObject->m_ObjFlags |= FOB_TRANS_TRANSLATE | FOB_TRANS_SCALE;
+
+			pTerrainRenderObject->m_nTextureID = -(int)m_nTexSet.nSlot0 - 1;
+			pTerrainRenderObject->m_data.m_pTerrainSectorTextureInfo = &m_nTexSet;
+			pTerrainRenderObject->m_data.m_fMaxViewDistance = min(-0.01f, -GetCVars()->e_TerrainMeshInstancingShadowBias * powf(2.f, (float)m_nTreeLevel));
+
+			pRenderMesh->SetCustomTexID(m_nTexSet.nTex0);
+
+			pRenderMesh->AddRenderElements(GetTerrain()->m_pTerrainEf, pTerrainRenderObject, passInfo, EFSLIST_GENERAL, 1);
+		}
+
+		return;
+	}
 
 	_smart_ptr<IRenderMesh>& pRenderMesh = GetLeafData()->m_pRenderMesh;
 
@@ -901,8 +933,12 @@ bool CTerrainNode::RenderSector(const SRenderingPassInfo& passInfo)
 			}
 		}
 	}
+	else
+	{
+		assert(!"Shadow-gen is not supposed to be rendered this way");
+	}
 
-	_smart_ptr<IRenderMesh>& pRenderMesh = GetLeafData()->m_pRenderMesh;
+	IRenderMesh * pRenderMesh = (m_nTreeLevel >= GetCVars()->e_TerrainMeshInstancingMinLod) ? GetSharedRenderMesh() : GetLeafData()->m_pRenderMesh;
 
 	bool bDetailLayersReady = passInfo.IsShadowPass() ||
 	                          !m_lstSurfaceTypeInfo.Count() ||
@@ -921,7 +957,7 @@ bool CTerrainNode::RenderSector(const SRenderingPassInfo& passInfo)
 
 	if (pRenderMesh && GetCVars()->e_TerrainDrawThisSectorOnly < 2 && bDetailLayersReady)
 	{
-		if (passInfo.GetRecursiveLevel() || (m_cCurrGeomMML == m_cNewGeomMML && !bNeighbourChanged) ||
+		if (passInfo.GetRecursiveLevel() || (m_cCurrGeomMML == m_cNewGeomMML && !bNeighbourChanged) || m_nTreeLevel >= GetCVars()->e_TerrainMeshInstancingMinLod ||
 		    (passInfo.IsCachedShadowPass() && passInfo.GetShadowMapType() == SRenderingPassInfo::SHADOW_MAP_CACHED_MGPU_COPY))
 		{
 			DrawArray(passInfo);
@@ -935,6 +971,7 @@ bool CTerrainNode::RenderSector(const SRenderingPassInfo& passInfo)
 
 	return false;
 }
+
 void CTerrainNode::RenderSectorUpdate_Finish(const SRenderingPassInfo& passInfo)
 {
 	assert(m_pUpdateTerrainTempData != NULL);
@@ -1437,4 +1474,74 @@ void CTerrainUpdateDispatcher::RemoveJob(CTerrainNode* pNode)
 		m_queuedJobs.Delete(index);
 		return;
 	}
+}
+
+void AddIndexShared(int _x, int _y, PodArray<vtx_idx> & arrIndices, int nSectorSize)
+{
+	int _step = 1;
+
+	vtx_idx id = _x / _step * (nSectorSize / _step + 1) + _y / _step;
+
+	arrIndices.Add(id);
+}
+
+// Build single render mesh (with safety borders) to be re-used for multiple sectors
+_smart_ptr<IRenderMesh> CTerrainNode::GetSharedRenderMesh()
+{
+	if (m_pTerrain->m_pSharedRenderMesh)
+		return m_pTerrain->m_pSharedRenderMesh;
+
+	int nDim = 32;
+	int nBorder = 1;
+
+	SVF_P2S_N4B_C4B_T1F vert;
+	ZeroStruct(vert);
+	PodArray<SVF_P2S_N4B_C4B_T1F> arrVertices;
+
+	for (int x = -nBorder; x <= (nDim + nBorder); x++)
+	{
+		for (int y = -nBorder; y <= (nDim + nBorder); y++)
+		{
+			vert.xy = CryHalf2(SATURATE(float(x)/float(nDim)), SATURATE(float(y) / float(nDim)));
+
+			if(x<0 || y<0 || x>nDim || y>nDim)
+				vert.z = -0.1f;
+			else
+				vert.z = 0.f;
+
+			arrVertices.Add(vert);
+		}
+	}
+
+	PodArray<vtx_idx> arrIndices;
+
+	int nDimEx = nDim + nBorder * 2;
+
+	for (int x = 0; x < nDimEx; x++)
+	{
+		for (int y = 0; y < nDimEx; y++)
+		{
+			AddIndexShared(x + 1, y + 0, arrIndices, nDimEx);
+			AddIndexShared(x + 1, y + 1, arrIndices, nDimEx);
+			AddIndexShared(x + 0, y + 0, arrIndices, nDimEx);
+
+			AddIndexShared(x + 0, y + 0, arrIndices, nDimEx);
+			AddIndexShared(x + 1, y + 1, arrIndices, nDimEx);
+			AddIndexShared(x + 0, y + 1, arrIndices, nDimEx);
+		}
+	}
+
+	m_pTerrain->m_pSharedRenderMesh = GetRenderer()->CreateRenderMeshInitialized(
+		arrVertices.GetElements(),
+		arrVertices.Count(),
+		eVF_P2S_N4B_C4B_T1F,
+		arrIndices.GetElements(),
+		arrIndices.Count(),
+		prtTriangleList,
+		"TerrainSectorSharedRenderMesh", "TerrainSectorSharedRenderMesh",
+		eRMT_Static);
+
+	m_pTerrain->m_pSharedRenderMesh->SetChunk(NULL, 0, arrVertices.Count(), 0, arrIndices.Count(), 1.0f, 0);
+
+	return m_pTerrain->m_pSharedRenderMesh;
 }

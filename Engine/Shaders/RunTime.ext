@@ -200,16 +200,6 @@ Property
 
 Property
 {
-  Name = %_RT_GLOBAL_ILLUMINATION
-  Mask = 0x80
-  Precache = ParticleVS
-  Precache = ParticleHS
-  Precache = ParticleDS
-  Precache = ParticlePS
-}
-
-Property
-{
   Name = %_RT_ALPHATEST
   Mask = 0x100
   Precache = ShadowGenVS
@@ -1136,6 +1126,35 @@ Property
   Precache = WaterFogVolume_PS
   Precache = DemosaicDiffusePS
   Precache = ConeTraceDiffusePS
+}
+
+Property
+{
+	Name = %_RT_COMPUTE_SKINNING
+		Mask = 0x20000000000000
+		Precache = GeneralVS
+		Precache = ClothVS
+		Precache = SkinVS 
+		Precache = HairVS	
+		Precache = EyeVS
+		Precache = GlassVS
+		Precache = VegetationVS    
+		Precache = ShadowVS
+		Precache = ShadowGenVS
+		Precache = ZVS
+		Precache = DetailVS
+		Precache = GlowVS
+		Precache = MotionBlurVS
+		Precache = FurVS
+		Precache = SoftAlphaTestPassVS
+		Precache = CausticsVS
+		Precache = CustomRenderVS
+		Precache = EffectLayerVS
+		Precache = CloakVS
+		Precache = MethaGenVS
+		Precache = DebugPassVS
+		Precache = CloakVS
+		Precache = DynamicOverlay
 }
 
 Property

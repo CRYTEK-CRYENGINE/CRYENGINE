@@ -252,7 +252,7 @@ void ShadowCache::AddTerrainCastersToFrustum(ShadowMapFrustum* pFr, const SRende
 {
 	FUNCTION_PROFILER_3DENGINE;
 
-	if ((GetCVars()->e_GsmCastFromTerrain || pFr->m_eFrustumType == ShadowMapFrustum::e_HeightMapAO) && !pFr->bIsMGPUCopy)
+	if ((Get3DEngine()->m_bSunShadowsFromTerrain || pFr->m_eFrustumType == ShadowMapFrustum::e_HeightMapAO) && !pFr->bIsMGPUCopy)
 	{
 		PodArray<CTerrainNode*> lstTerrainNodes;
 		GetTerrain()->IntersectWithBox(pFr->aabbCasters, &lstTerrainNodes, GetDefSID());

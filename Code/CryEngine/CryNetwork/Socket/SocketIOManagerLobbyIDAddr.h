@@ -5,8 +5,6 @@
 
 #pragma once
 
-#include <CryLobby/ICryLobby.h>
-
 #if USE_LOBBYIDADDR
 	#define HAS_SOCKETIOMANAGER_LOBBYIDADDR
 #endif // USE_LOBBYIDADDR

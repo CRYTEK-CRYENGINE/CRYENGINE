@@ -1051,8 +1051,10 @@ IPhysicalEntity* CPhysicalWorld::CreatePhysicalEntity(pe_type type, float lifeTi
 	if (params)
 		res->SetParams(params, iForeignData==0x5AFE || get_iCaller()<MAX_PHYS_THREADS);
 
-	if (!m_lockStep && lifeTime==0) {
-		WriteLockCond lock1(m_lockCaller[MAX_PHYS_THREADS], !IsPODThread(this) && m_nEnts+1>m_nEntsAlloc-1);
+	int isPOD = IsPODThread(this);
+	if (!m_lockStep && (isPOD || !m_lockTPR) && lifeTime==0) {
+		WriteLockCond lock1(m_lockCaller[MAX_PHYS_THREADS], !isPOD && m_nEnts+1>m_nEntsAlloc-1);
+		WriteLockCond lock2(m_lockTPR, !isPOD && m_nEnts+1>m_nEntsAlloc-1);
 		WriteLock lock(m_lockStep);
 		res->m_flags &= ~0x80000000u;
 		RepositionEntity(res,2);
@@ -1162,7 +1164,7 @@ int CPhysicalWorld::DestroyPhysicalEntity(IPhysicalEntity* _pent,int mode,int bT
 				((CPhysicalEntity*)ppc)->m_iForeignData = -1;
 			}
 		} else
-			((CPhysArea*)ppc)->m_bDeleted = 1;
+			((CPhysArea*)ppc)->m_bDeleted = mode!=2;
 	mode &= 3;
 
 	//if (m_lockStep & (bThreadSafe^1))
@@ -1176,6 +1178,7 @@ int CPhysicalWorld::DestroyPhysicalEntity(IPhysicalEntity* _pent,int mode,int bT
 		QueueData(mode);
 		return 1;
 	}
+	WriteLockCond lock0(m_lockCaller[MAX_PHYS_THREADS], m_vars.bMultithreaded && !bThreadSafe && !IsPODThread(this));
 	WriteLockCond lock(m_lockStep, m_vars.bMultithreaded && !bThreadSafe && !IsPODThread(this));
 
 	if (ppc->m_iSimClass==5) {
@@ -2018,7 +2021,7 @@ void CPhysicalWorld::ProcessNextEntityIsland(float time_interval, int ipass, int
 				groupTimeStep = min(groupTimeStep, pent->GetMaxTimeStep(time_interval));
 			for(pent=m_pTmpEntList1[i],bStepValid=1,phead=0; pent; pent=pent_next) {
 				pent_next=pent->m_next_coll;
-				if (pent->m_iSimClass<3)
+				if (pent->m_iSimClass<3 || pent->GetType()==PE_ARTICULATED)
 					bStepValid &= (phead=pent)->Step(groupTimeStep);
 				pent->m_bMoved = 1;
 			}
@@ -2414,8 +2417,8 @@ void CPhysicalWorld::TimeStep(float time_interval, int flags)
 										pentlist[i]->m_flags &= ~bSkipFlagged;
 										ptail->m_next_coll1 = pentlist[i]; ptail = pentlist[i]; ptail->m_next_coll1 = 0;
 										ptail->m_next_coll = 0;
-										ptail->m_iGroup = nGroups; ptail->m_bMoved = 1;
 										if ((iter | ipass)==0) ptail->StartStep(time_interval);
+										ptail->m_iGroup = nGroups; ptail->m_bMoved = 1;
 										m_pGroupMass[nGroups] += 1.0f/(m=ptail->GetMassInv());
 										if (pentmax->GetMassInv()>m)
 											pentmax = ptail;
@@ -2507,6 +2510,7 @@ void CPhysicalWorld::TimeStep(float time_interval, int flags)
 		m_updateTimes[3] = m_timePhysics;
 	}
 
+	m_bWorldStep = 3;
 	if (!m_vars.bSingleStepMode || m_vars.bDoStep) {
 		if (flags & ent_independent) {
 			m_pCurEnt = m_pTypedEntsPerm[4];

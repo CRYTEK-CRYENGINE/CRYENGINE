@@ -88,7 +88,6 @@ set (SourceGroup_Common_RendElements
 	../Common/RendElements/CREGeomCache.cpp
 	../Common/RendElements/CREHDRProcess.cpp
 	../Common/RendElements/CREImposter.cpp
-	../Common/RendElements/CRELightPropagationVolume.cpp
 	../Common/RendElements/CREMesh.cpp
 	../Common/RendElements/CREOclusionQuery.cpp
 	../Common/RendElements/CREParticle.cpp
@@ -805,7 +804,6 @@ set (SourceGroup_HeaderFiles
 	D3DDebug.h
 	D3DDeferredShading.h
 	D3DHWShader.h
-	D3DLightPropagationVolume.h
 	D3DMemReplayDevice.h
 	D3DOculus.h
 	D3DOpenVR.h
@@ -891,7 +889,6 @@ set (SourceGroup_SourceFiles
 	D3DHDRRender.cpp
 	D3DHWShader.cpp
 	D3DHWShaderCompiling.cpp
-	D3DLightPropagationVolume.cpp
 	D3DLog.cpp
 	D3DMemReplayDevice.cpp
 	D3DMeshBaker.cpp

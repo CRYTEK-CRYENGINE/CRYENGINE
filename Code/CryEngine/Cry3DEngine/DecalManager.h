@@ -96,9 +96,9 @@ public:
 		FreeRenderData();
 	}
 
-	void        Render(const float fFrameTime, int nAfterWater, uint32 nDLMask, float fDistanceFading, float fDiatance, const SRenderingPassInfo& passInfo);
+	void        Render(const float fFrameTime, int nAfterWater, float fDistanceFading, float fDiatance, const SRenderingPassInfo& passInfo);
 	int         Update(bool& active, const float fFrameTime);
-	void        RenderBigDecalOnTerrain(float fAlpha, float fScale, uint32 nDLMask, const SRenderingPassInfo& passInfo);
+	void        RenderBigDecalOnTerrain(float fAlpha, float fScale, const SRenderingPassInfo& passInfo);
 	void        FreeRenderData();
 	static void ResetStaticData();
 	bool        IsBigDecalUsed() const { return m_pRenderMesh != 0; }

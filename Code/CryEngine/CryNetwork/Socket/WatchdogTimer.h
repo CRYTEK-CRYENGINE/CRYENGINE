@@ -10,7 +10,7 @@
 //////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "NetAddress.h"
+#include <CryNetwork/NetAddress.h>
 #include <CryNetwork/CrySocks.h>
 
 extern volatile uint32 g_watchdogTimerGlobalLockCount;
