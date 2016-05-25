@@ -85,7 +85,7 @@ void CPlayerMovementController::Reset()
 
 	m_targetStance = STANCE_NULL;
 
-	if(!GetISystem()->IsSerializingFile() == 1)
+	if(GetISystem()->IsSerializingFile() != 1)
 		UpdateMovementState( m_currentMovementState );
 
 	m_lookTarget.zero();

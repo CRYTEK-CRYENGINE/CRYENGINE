@@ -708,7 +708,7 @@ struct Case
 		m_conditionString = conditionString;
 #endif
 
-		if (!xml->getChildCount() == 1)
+		if (xml->getChildCount() != 1)
 		{
 			gEnv->pLog->LogError("Priority case must have exactly one child.");
 			return LoadFailure;
