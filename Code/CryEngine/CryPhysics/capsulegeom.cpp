@@ -195,7 +195,7 @@ float CCapsuleGeom::CalculateBuoyancy(const plane *pplane, const geom_world_data
 		dist = (pplane->origin-center)*pplane->n;
 		Vcap = (2.0f*g_PI/3)*cube(r)*isnonneg(dist);
 		ccap = (center+axis*(r*(3.0f/8)))*Vcap; 
-		if (fabs_tpl(dist)<r*0.999f) {q
+		if (fabs_tpl(dist)<r*0.999f) {
 			if (fabs_tpl(dist)>r*sina*0.999f) {
 				Vslice = g_PI*((2.0f/3)*cube(r)-r*r*fabs_tpl(dist)+(1.0f/3)*cube(fabs_tpl(dist));
 				cslice = center+axis*(dist/cosa*Vslice);
