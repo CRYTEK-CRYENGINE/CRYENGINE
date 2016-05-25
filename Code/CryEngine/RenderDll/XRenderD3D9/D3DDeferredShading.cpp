@@ -788,7 +788,7 @@ bool CDeferredShading::DeferredDecalPass(const SDeferredDecal& rDecal, uint32 in
 		nStates &= ~GS_NODEPTHTEST;
 		//newState |= GS_NODEPTHTEST;
 		nStates |= GS_DEPTHWRITE;
-		nStates |= ((~(0xF)) << GS_COLMASK_SHIFT) & GS_COLMASK_MASK;
+		nStates |= ((~(0xFU)) << GS_COLMASK_SHIFT) & GS_COLMASK_MASK;
 		nStates |= GS_WIREFRAME;
 	}
 	else if (CRenderer::CV_r_deferredDecalsDebug == 1)

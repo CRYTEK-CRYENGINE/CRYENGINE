@@ -22,7 +22,7 @@ struct CRY_ALIGN(4) pe_gridthunk {
 #pragma pack(pop)
 
 class CPhysicalEntity;
-const int NO_GRID_REG = -1<<14;
+const int NO_GRID_REG = -1U<<14;
 const int GRID_REG_PENDING = NO_GRID_REG+1;
 
 class CPhysicalPlaceholder : public IPhysicalEntity {

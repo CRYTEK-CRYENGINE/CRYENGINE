@@ -31,7 +31,7 @@ struct SGraphicsPipelineStateDescription
 
 	bool operator==(const SGraphicsPipelineStateDescription& other) const
 	{
-		return 0 == memcmp(this, &other, sizeof(this));
+		return 0 == memcmp(this, &other, sizeof(*this));
 	}
 };
 
@@ -55,7 +55,7 @@ struct SComputePipelineStateDescription
 
 	bool operator==(const SComputePipelineStateDescription& other) const
 	{
-		return 0 == memcmp(this, &other, sizeof(this));
+		return 0 == memcmp(this, &other, sizeof(*this));
 	}
 };
 

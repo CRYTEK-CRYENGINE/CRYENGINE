@@ -130,7 +130,7 @@ int CCapsuleGeom::FindClosestPoint(geom_world_data *pgwd, int &iPrim,int &iFeatu
 	ptresi[1].zero();
 	for(i=0;i<=bLine;i++)	{
 		pt = ptdst[i]-center;
-		if (fabsf(pt*axis)<hh) { // the closest point lies on capsule side
+		if (fabs_tpl(pt*axis)<hh) { // the closest point lies on capsule side
 			pt -= axis*(axis*pt);
 			ptresi[i] = ptdst[i]-pt+pt.normalized()*r;
 			continue;
@@ -195,7 +195,7 @@ float CCapsuleGeom::CalculateBuoyancy(const plane *pplane, const geom_world_data
 		dist = (pplane->origin-center)*pplane->n;
 		Vcap = (2.0f*g_PI/3)*cube(r)*isnonneg(dist);
 		ccap = (center+axis*(r*(3.0f/8)))*Vcap; 
-		if (fabs_tpl(dist)<r*0.999f) {
+		if (fabs_tpl(dist)<r*0.999f) {q
 			if (fabs_tpl(dist)>r*sina*0.999f) {
 				Vslice = g_PI*((2.0f/3)*cube(r)-r*r*fabs_tpl(dist)+(1.0f/3)*cube(fabs_tpl(dist));
 				cslice = center+axis*(dist/cosa*Vslice);

@@ -21,11 +21,11 @@ class CEngineModule_CryAudioImplSDLMixer : public IEngineModule
 	CRYGENERATE_SINGLETONCLASS(CEngineModule_CryAudioImplSDLMixer, "CryAudioImplSDLMixer", 0x8030c0d1905b4031, 0xa3785a8b53125f3f)
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual const char* GetName() { return "CryAudioImplSDLMixer"; }
-	virtual const char* GetCategory() { return "CryAudio"; }
+	virtual const char* GetName() override { return "CryAudioImplSDLMixer"; }
+	virtual const char* GetCategory() override { return "CryAudio"; }
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams)
+	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override
 	{
 		// Initialize memory pools.
 		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "SDL Mixer Audio Implementation Memory Pool Primary");

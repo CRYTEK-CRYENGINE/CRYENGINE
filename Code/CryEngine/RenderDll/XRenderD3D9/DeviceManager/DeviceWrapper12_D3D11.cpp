@@ -1062,7 +1062,8 @@ std::vector<CDeviceGraphicsCommandListUPtr> CDeviceObjectFactory::AcquireGraphic
 	// TODO: implement deferred contexts
 	__debugbreak();
 
-	return std::move(std::vector<CDeviceGraphicsCommandListUPtr>(size_t(listCount)));
+//	return std::move(std::vector<CDeviceGraphicsCommandListUPtr>(size_t(listCount)));
+	return std::vector<CDeviceGraphicsCommandListUPtr>(size_t(listCount));
 }
 
 void CDeviceObjectFactory::ForfeitGraphicsCommandList(CDeviceGraphicsCommandListUPtr pCommandList)
