@@ -1,5 +1,5 @@
 # CRYENGINE
-This repository houses the source code for the CRYENGINE game development platform.
+This repository houses the engine source code for the CRYENGINE game development platform.
 
 Instructions on getting started with git can be found [here](http://docs.cryengine.com/display/CEPROG/Getting+Started+with+git), along with details on working with launcher projects and git source code.
 
