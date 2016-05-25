@@ -219,17 +219,23 @@ bool CActionMapManager::InitActionMaps(const char* filename)
 			XmlNodeRef platform = platformsNode->findChild(GetISystem()->GetPlatformOS()->GetPlatformName());
 			if (platform)
 			{
-				BYTE devices(eAID_KeyboardMouse | eAID_XboxPad | eAID_PS4Pad | eAID_OculusTouch);
-
-				if (!strcmp(platform->getAttr("keyboard"), "0"))      devices &= ~eAID_KeyboardMouse;
-				if (!strcmp(platform->getAttr("xboxpad"), "0"))       devices &= ~eAID_XboxPad;
-				if (!strcmp(platform->getAttr("ps4pad"), "0"))        devices &= ~eAID_PS4Pad;
-				if (!strcmp(platform->getAttr("oculustouch"), "0"))   devices &= ~eAID_OculusTouch;
-
-				if (devices & eAID_KeyboardMouse) AddInputDeviceMapping(eAID_KeyboardMouse, "keyboard");
-				if (devices & eAID_XboxPad)       AddInputDeviceMapping(eAID_XboxPad, "xboxpad");
-				if (devices & eAID_PS4Pad)        AddInputDeviceMapping(eAID_PS4Pad, "ps4pad");
-				if (devices & eAID_OculusTouch)   AddInputDeviceMapping(eAID_OculusTouch, "oculustouch");
+				if (!platform->haveAttr("keyboard"))
++					CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_WARNING, "CActionMapManager::InitActionMaps:  Platform '%s' tag does not contain attribute keyboard, device will not be mapped", GetISystem()->GetPlatformOS()->GetPlatformName());
++				if (!platform->haveAttr("xboxpad"))
++					CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_WARNING, "CActionMapManager::InitActionMaps:  Platform '%s' tag does not contain attribute xboxpad, device will not be mapped", GetISystem()->GetPlatformOS()->GetPlatformName());
++				if (!platform->haveAttr("ps4pad"))
++					CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_WARNING, "CActionMapManager::InitActionMaps:  Platform '%s' tag does not contain attribute ps4pad, device will not be mapped", GetISystem()->GetPlatformOS()->GetPlatformName());
++				if (!platform->haveAttr("oculustouch"))
++					CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_WARNING, "CActionMapManager::InitActionMaps:  Platform '%s' tag does not contain attribute oculustouch, device will not be mapped", GetISystem()->GetPlatformOS()->GetPlatformName());
++
++				if (strcmp(platform->getAttr("keyboard"), "1"))
++					AddInputDeviceMapping(eAID_KeyboardMouse, "keyboard");
++				if (strcmp(platform->getAttr("xboxpad"), "1"))
++					AddInputDeviceMapping(eAID_XboxPad, "xboxpad");
++				if (strcmp(platform->getAttr("ps4pad"), "1"))
++					AddInputDeviceMapping(eAID_PS4Pad, "ps4pad");
++				if (strcmp(platform->getAttr("oculustouch"), "1"))
++					AddInputDeviceMapping(eAID_OculusTouch, "oculustouch");
 
 				SetLoadFromXMLPath(filename);
 				if (LoadFromXML(rootNode))
