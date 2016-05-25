@@ -9,6 +9,9 @@
 /bin/*
 /BinTemp/*
 
+# Ignore Code/SDKs now it's not a submodule
+Code/SDKs/*
+
 # Ignore auto generated cmake and waf solutions
 /Solutions/*
 
