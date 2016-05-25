@@ -40,10 +40,10 @@ if (FormationManager) then
 	FormationManager:OnInit();
 end
 
--- SETTING UP THE PLAYER ASSESMENT MULTIPLIER
+-- SETTING UP THE PLAYER ASSESSMENT MULTIPLIER
 -- should be in the range [0,1] BUT can be bigger - forcing something be very important (grenades)
--- if multiplayer is more than 1, object will not be ignored with "igoreall" goal
-AI.SetAssesmentMultiplier(AIOBJECT_PLAYER,1.0);	-- let's make squadmqtes prefferd enemies
+-- if multiplayer is more than 1, object will not be ignored with "ignoreall" goal
+AI.SetAssesmentMultiplier(AIOBJECT_PLAYER,1.0);	-- let's make squadmates preferred enemies
 AI.SetAssesmentMultiplier(AIOBJECT_ATTRIBUTE,1.0);
 AI.SetAssesmentMultiplier(AIOBJECT_RPG, 100); -- grenade is very important
 
@@ -54,7 +54,7 @@ AICombatClasses = {};
 --this will reset all existing combat classes
 AI.AddCombatClass();	
 
---	ATTENTION!!! DON'T make the scale multiplyer 0 unlees you really need this class to be ignored
+--	ATTENTION!!! DON'T make the scale multiplier 0 unlees you really need this class to be ignored
 AICombatClasses.Player = 0;
 AICombatClasses.PlayerRPG = 1;
 AICombatClasses.Infantry = 2;
