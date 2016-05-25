@@ -91,21 +91,21 @@ function AI_Utils:CanThrowGrenade(entity, smokeOnly)
 			return 0;
 		end
 	end
-	local genadesWeaponId = entity.inventory:GetGrenadeWeaponByClass("AIGrenades");
+	local grenadesWeaponId = entity.inventory:GetGrenadeWeaponByClass("AIGrenades");
 	
 	if(smokeOnly) then
-		genadesWeaponId = entity.inventory:GetGrenadeWeaponByClass("AISmokeGrenades");
-		if (genadesWeaponId==nil) then
+		grenadesWeaponId = entity.inventory:GetGrenadeWeaponByClass("AISmokeGrenades");
+		if (grenadesWeaponId==nil) then
 --			System.Log(">>NO GRENADES!");
 			return 0;
 		end
 	else
-		if (genadesWeaponId==nil) then
-			genadesWeaponId = entity.inventory:GetGrenadeWeaponByClass("AIFlashbangs");
-			if (genadesWeaponId==nil) then
+		if (grenadesWeaponId==nil) then
+			grenadesWeaponId = entity.inventory:GetGrenadeWeaponByClass("AIFlashbangs");
+			if (grenadesWeaponId==nil) then
 				return 0;
---				genadesWeaponId = entity.inventory:GetGrenadeWeaponByClass("AISmokeGrenades");
---				if (genadesWeaponId==nil) then
+--				grenadesWeaponId = entity.inventory:GetGrenadeWeaponByClass("AISmokeGrenades");
+--				if (grenadesWeaponId==nil) then
 		--			System.Log(">>NO GRENADES!");
 --					return 0;
 --				end
@@ -113,12 +113,12 @@ function AI_Utils:CanThrowGrenade(entity, smokeOnly)
 		end	
 	end
 		
-	local genadesWeapon = System.GetEntity(genadesWeaponId);
-	if (genadesWeapon==nil) then
+	local grenadesWeapon = System.GetEntity(grenadesWeaponId);
+	if (grenadesWeapon==nil) then
 --		System.Log(">>NO WEAPON!");
 		return 0;
 	end
-	if (genadesWeapon.weapon:GetAmmoCount() <= 0) then
+	if (grenadesWeapon.weapon:GetAmmoCount() <= 0) then
 --		System.Log(">>NO AMMO!");
 		return 0;
 	end
@@ -155,16 +155,16 @@ function AI_Utils:CanThrowSmokeGrenade(entity)
 		return 0;
 	end
 
-	local genadesWeaponId = entity.inventory:GetGrenadeWeaponByClass("AISmokeGrenades");
-	if (genadesWeaponId==nil) then
+	local grenadesWeaponId = entity.inventory:GetGrenadeWeaponByClass("AISmokeGrenades");
+	if (grenadesWeaponId==nil) then
 		return 0;
 	end
-	local genadesWeapon = System.GetEntity(genadesWeaponId);
-	if (genadesWeapon==nil) then
+	local grenadesWeapon = System.GetEntity(grenadesWeaponId);
+	if (grenadesWeapon==nil) then
 --		System.Log(">>NO WEAPON!");
 		return 0;
 	end
-	if (genadesWeapon.weapon:GetAmmoCount() <= 0) then
+	if (grenadesWeapon.weapon:GetAmmoCount() <= 0) then
 --		System.Log(">>NO AMMO!");
 		return 0;
 	end

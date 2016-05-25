@@ -25,7 +25,7 @@ CreateAIBehavior("GruntBase", "AIBaseBehavior",
 		AI.SetBehaviorVariable(entity.id, "SeenTargetsLastKnownPosition", false)
 	end,
 
-	-- This function will be called with a delay in order to suppress oscilcations.
+	-- This function will be called with a delay in order to suppress oscillations.
 	OnTargetHidden = function(behavior, entity)
 		AI.SetBehaviorVariable(entity.id, "TargetHidden", true)
 		entity.targetHiddenTimer = nil
