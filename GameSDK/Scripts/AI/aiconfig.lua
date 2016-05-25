@@ -54,7 +54,7 @@ AICombatClasses = {};
 --this will reset all existing combat classes
 AI.AddCombatClass();	
 
---	ATTENTION!!! DON'T make the scale multiplier 0 unlees you really need this class to be ignored
+--	ATTENTION!!! DON'T make the scale multiplier 0 unless you really need this class to be ignored
 AICombatClasses.Player = 0;
 AICombatClasses.PlayerRPG = 1;
 AICombatClasses.Infantry = 2;
