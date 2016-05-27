@@ -4862,7 +4862,7 @@ SShaderTexSlots* CShaderManBin::GetTextureSlots(CParserBin& Parser, SShaderBin* 
 					if (priority == (PRIORITY_REFERENCED | PRIORITY_HASUINAME) && priority == namePriority[slot])
 					{
 						CryWarning(VALIDATOR_MODULE_RENDERER, VALIDATOR_ERROR, "Encountered two samplers with UINames referenced for same slot in shader '%s': '%s' and '%s'\n",
-						           ef->GetName(), pSlot->m_Name, it->m_szUIName);
+						           ef->GetName(), pSlot->m_Name.c_str(), it->m_szUIName.c_str());
 						assert(0);
 					}
 					// override if we have a higher priority
@@ -4929,7 +4929,7 @@ SShaderTexSlots* CShaderManBin::GetTextureSlots(CParserBin& Parser, SShaderBin* 
 					if (priority == (PRIORITY_REFERENCED | PRIORITY_HASUINAME) && priority == namePriority[slot])
 					{
 						CryWarning(VALIDATOR_MODULE_RENDERER, VALIDATOR_ERROR, "Encountered two samplers with UINames referenced for same slot in shader '%s': '%s' and '%s'\n",
-						           ef->GetName(), pSlot->m_Name, it->m_szUIName);
+						           ef->GetName(), pSlot->m_Name.c_str(), it->m_szUIName.c_str());
 						assert(0);
 					}
 					// override if we have a higher priority
