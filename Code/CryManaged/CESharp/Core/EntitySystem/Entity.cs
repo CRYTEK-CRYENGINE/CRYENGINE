@@ -65,6 +65,7 @@ namespace CryEngine.EntitySystem
 		public string Name { get { return BaseEntity.GetName (); } } ///< Name of the wrapped IEntity.
 		public IMaterial Material { get { return BaseEntity.GetMaterial(); } set { BaseEntity.SetMaterial (value); } } ///< Material of the wrapped IEntity.
 		public bool Exists { get { return BaseEntity != null; } } ///< Determines whether the IEntity object still exists.
+		public Matrix34 Transform {	get { return BaseEntity.GetLocalTM (); } set { BaseEntity.SetLocalTM (value); } } ///< Entities local transform matrix. 
 
 		public IEntity BaseEntity
 		{
@@ -195,7 +196,7 @@ namespace CryEngine.EntitySystem
 		/// <param name="material">Material.</param>
 		public static Entity Instantiate(Vec3 pos, Quat rot, float scale = 1.0f, string model = null, string material = null)
 		{
-			return Instantiate<Entity> (pos, rot);
+			return Instantiate<Entity> (pos, rot, scale, model, material);
 		}
 
 		/// <summary>
@@ -248,7 +249,7 @@ namespace CryEngine.EntitySystem
 		/// <param name="mx">Mx.</param>
 		public void SetTM(int slot, Matrix34 mx)
 		{
-			BaseEntity.SetSlotLocalTM(slot, mx);	
+			BaseEntity.SetSlotLocalTM(slot, mx);
 		}
 
 		/// <summary>

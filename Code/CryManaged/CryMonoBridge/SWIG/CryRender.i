@@ -66,6 +66,11 @@
 	GlobalPINVOKE.IRenderer_UpdateTextureInVideoMemory__SWIG_0(swigCPtr, tnum, pNewdata, posx, posy, w, h, (byte)eTFSrc, posz, sizez);
 	pinnedArray.Free();
   }
+  public Vec2 ProjectToScreen(Vec3 pos)
+  {
+	var res = ProjectToScreen(pos.x, pos.y, pos.z);
+	return new Vec2(res.x, res.y);
+  }
 %}
 %include "../../../../CryEngine/CryCommon/CryRenderer/IRenderer.h"
 %extend IRenderer {
@@ -75,7 +80,7 @@ public:
 	{
 		float ox, oy, oz;
 		if ($self->ProjectToScreen(ptx, pty, ptz, &ox, &oy, &oz))
-			return Vec3(ox, oy, oz);
+			return Vec3(ox, oy, oz) / 100.0f;
 		return Vec3();
 	}
 }

@@ -13,6 +13,7 @@
 #include <Cry3DEngine/I3DEngine.h>
 #include <CryParticleSystem/IParticles.h>
 #include <CryEntitySystem/IEntity.h>
+#include <Cry3DEngine/ITimeOfDay.h>
 %}
 %ignore ITimeOfDay::NetSerialize;
 %ignore I3DEngine::SerializeState;
@@ -23,6 +24,7 @@
 %template(IStatObjPtr) _smart_ptr<IStatObj>;
 %template(IReadStreamPtr) _smart_ptr<IReadStream>;
 %template(IRenderMeshPtr) _smart_ptr<IRenderMesh>;
+%include "../../../../CryEngine/CryCommon/Cry3DEngine/ITimeOfDay.h"
 %import "../../../../CryEngine/CryCommon/Cry3DEngine/CGF/CryHeaders.h"
 %include "../../../../CryEngine/CryCommon/Cry3DEngine/IMaterial.h"
 %include "../../../../CryEngine/CryCommon/CryRenderer/IRenderMesh.h"

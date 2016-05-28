@@ -91,7 +91,18 @@
 	public static Vec2 operator -(Vec2 a, Vec2 b) { return op_Minus(a, b); }
 	public static Vec2 operator *(Vec2 v, float f) { return v.op_Multiply(f); }
 	public static Vec2 operator /(Vec2 v, float f) { return v.op_Divide(f); }
+	public static Vec2 operator *(float f, Vec2 v) { return v.op_Multiply(f); }
+	public static Vec2 operator /(float f, Vec2 v) { return v.op_Divide(f); }
 	public static Vec2 operator -(Vec2 v) { return v.op_Minus(); }
+
+	public static Vec2 Zero { get { return new Vec2(0, 0); } }
+	public static Vec2 One { get{ return new Vec2 (1, 1);} }
+	public static Vec2 Up { get{ return new Vec2 (0, 1);} }
+	public static Vec2 Down { get{ return new Vec2 (0, -1);} }
+	public static Vec2 Forward { get{ return new Vec2 (1, 0);} }
+
+	public Vec2 Normalized { get { return GetNormalized (); } }
+	public float Magnitude { get { return GetLength (); } }
 %}
 %extend Vec2_tpl<f32>{
 	static Vec2_tpl<f32> op_Minus(Vec2_tpl<f32> a, Vec2_tpl<f32> b) { return a - b; }
@@ -105,6 +116,8 @@
 	public static Vec3 operator -(Vec3 a, Vec3 b) { return op_Minus(a, b); }
 	public static Vec3 operator *(Vec3 v, float f) { return v.op_Multiply(f); }
 	public static Vec3 operator /(Vec3 v, float f) { return v.op_Divide(f); }
+	public static Vec3 operator *(float f, Vec3 v) { return v.op_Multiply(f); }
+	public static Vec3 operator /(float f, Vec3 v) { return v.op_Divide(f); }
 	public static Vec3 operator -(Vec3 v) { return v.op_Minus(); }
 	public static Vec3 operator *(Vec3 v, Quat q) { return op_MultiplyVQ(v, q); }
 	public static Vec3 operator *(Quat q, Vec3 v) { return op_MultiplyQV(q, v); }
@@ -113,10 +126,13 @@
 	public static Vec3 Zero { get { return new Vec3(0, 0, 0); } }
 	public static Vec3 One { get{ return new Vec3 (1, 1, 1);} }
 	public static Vec3 Up { get{ return new Vec3 (0, 0, 1);} }
+	public static Vec3 Down { get{ return new Vec3 (0, 0, -1);} }
+	public static Vec3 Left { get{ return new Vec3 (-1, 0, 0);} }
+	public static Vec3 Right { get{ return new Vec3 (1, 0, 0);} }
 	public static Vec3 Forward { get{ return new Vec3 (0, 1, 0);} }
 
-	public Vec3 Normalized { get { return normalized (); } }
-	public float Magnitude { get { return len (); } }
+	public Vec3 Normalized { get { return GetNormalized (); } }
+	public float Magnitude { get { return GetLength (); } }
 %}
 %extend Vec3_tpl<f32>{
 	static Vec3_tpl<f32> op_Minus(Vec3_tpl<f32> a, Vec3_tpl<f32> b) { return a - b; }
@@ -169,6 +185,7 @@ public:
 	public static Matrix34 operator *(Matrix34 a, Matrix34 b) { return op_MultiplyMM(a, b); }
 	public static Vec3 operator *(Matrix34 a, Vec3 b) { return op_MultiplyMV(a, b); }
 	public static Matrix34 operator *(Matrix34 a, float b) { return op_MultiplyMF(a, b); }
+	public Vec3 Position { get{ return GetTranslation ();} }
 %}
 %extend Matrix34_tpl<f32>{
 	static Matrix34_tpl<f32> op_MultiplyMM(Matrix34_tpl<f32> a, Matrix34_tpl<f32> b) { return a * b; }
@@ -195,7 +212,7 @@ public:
 	public static Quat operator /(Quat a, float f) { return op_DivideQF(a, f); }
 	
 	public static Quat Identity { get { return Quat.CreateIdentity(); } }
-	public Vec3 ForwardDirection { get { return new Vec3(GetFwdX(), GetFwdY(), GetFwdZ()); } }
+	public Vec3 Forward { get { return new Vec3(GetFwdX(), GetFwdY(), GetFwdZ()); } }
 %}
 %extend Quat_tpl<f32>{
 	static Quat_tpl<f32> op_Plus(Quat_tpl<f32> a, Quat_tpl<f32> b) { return a + b; }

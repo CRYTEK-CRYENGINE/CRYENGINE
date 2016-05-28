@@ -65,3 +65,18 @@ struct IMonoRuntime
 	virtual EMonoLogLevel   GetLogLevel() = 0;
 	virtual IMonoLibraryIt* GetLibraryIterator() = 0;
 };
+
+struct IMonoEntityPropertyHandler : IEntityPropertyHandler
+{
+	virtual ~IMonoEntityPropertyHandler() {}
+
+	virtual IEntityPropertyHandler::SPropertyInfo* GetMonoPropertyInfo(int index) const = 0;
+	virtual bool GetPropertyInfo(int index, IEntityPropertyHandler::SPropertyInfo& info) const
+	{
+		const IEntityPropertyHandler::SPropertyInfo* pProperty = GetMonoPropertyInfo(index);
+		if (!pProperty)
+			return false;
+		info = *pProperty;
+		return true;
+	}
+};

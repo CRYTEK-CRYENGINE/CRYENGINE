@@ -80,44 +80,24 @@ namespace CryEngine
 	}
 
 	/// <summary>
-	/// Automatically updated frametime. Can be used to normalize variable changes by current FPS.
+	/// Automatically updates delta time between frames. Can be used to normalize variable changes by current FPS.
 	/// </summary>
 	public static class FrameTime
 	{
-		private static float _frameTime;
+		private static float _deltaTime;
 
 		/// <summary>
 		/// Gets the last calculated frametime in seconds.
 		/// </summary>
 		/// <returns>The last.</returns>
-		public static float Current { get { return _frameTime; } }
+		public static float Delta { get { return _deltaTime; } }
 
 		/// <summary>
 		/// Retrieves the last frametime from engine. Called internally.
 		/// </summary>
 		public static void Update()
 		{			
-			_frameTime = Env.Timer.GetFrameTime();
-		}
-
-		/// <summary>
-		/// Normalizes a value.
-		/// </summary>
-		/// <returns>Returning argument multiplied with frametime.</returns>
-		/// <param name="value">Absolute value.</param>
-		public static float Normalize(float value)
-		{
-			return value * _frameTime;
-		}
-
-		/// <summary>
-		/// Normalizes a Vector.
-		/// </summary>
-		/// <returns>Returning argument multiplied with frametime.</returns>
-		/// <param name="value">Absolute value.</param>
-		public static Vec3 Normalize(Vec3 value)
-		{
-			return value * _frameTime;
+			_deltaTime = Env.Timer.GetFrameTime();
 		}
 	}
 }

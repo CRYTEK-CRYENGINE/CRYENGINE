@@ -60,6 +60,7 @@ enum EInputDeviceType
 	eIDT_Keyboard,
 	eIDT_Mouse,
 	eIDT_Joystick,
+	eIDT_EyeTracker,
 	eIDT_Gamepad,
 	eIDT_MotionController,
 	eIDT_Unknown = 0xff,
@@ -108,7 +109,8 @@ inline bool   operator>(const char* str, const TKeyName& n)  { return n > str; }
 #define KI_XINPUT_BASE   512
 #define KI_ORBIS_BASE    1024
 #define KI_MOTION_BASE   2048
-#define KI_SYS_BASE      4096
+#define KI_EYETRACKER_BASE 4096
+#define KI_SYS_BASE      8192
 
 enum EKeyId
 {
@@ -344,6 +346,10 @@ enum EKeyId
 	eKI_Motion_OculusTouch_FirstTriggerIndex = eKI_Motion_OculusTouch_L1,
 	eKI_Motion_OculusTouch_LastTriggerIndex  = eKI_Motion_OculusTouch_R2,
 
+	// Eye Tracker
+	eKI_EyeTracker_X = KI_EYETRACKER_BASE,
+	eKI_EyeTracker_Y,	
+	
 	// OpenVR
 	eKI_Motion_OpenVR_System = KI_MOTION_BASE + eKI_Motion_OculusTouch_NUM_SYMBOLS,
 	eKI_Motion_OpenVR_ApplicationMenu,
@@ -1052,6 +1058,15 @@ struct IKinectInput
 	// </interfuscator:shuffle>
 };
 
+struct IEyeTrackerInput
+{
+	// <interfuscator:shuffle>
+	virtual ~IEyeTrackerInput() {};
+
+	virtual bool Init() = 0;
+	virtual void Update() = 0;
+};
+
 //////////////////////////////////////////////////////////////////////////
 struct IKinectInputListener
 {
@@ -1321,6 +1336,10 @@ struct IInput
 	//////////////////////////////////////////////////////////////////////////
 	// SDL
 	virtual bool GrabInput(bool bGrab) = 0;
+
+	//! Allows for Sandbox to intercept and modify events prior to system wide sending.
+	//! \return True if the event is supposed to be broadcasted.
+	bool (*OnFilterInputEvent)(SInputEvent*);
 
 	// </interfuscator:shuffle>
 };

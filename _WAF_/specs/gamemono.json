@@ -7,7 +7,7 @@
 	"game_projects"                         : "GameMono",
 
 	"module_extensions"                     : ["scaleform"],
-	"win_module_extensions"                 : ["audio_fmod", "brofiler", "openvr", "osvr"],
+	"win_module_extensions"                 : ["audio_fmod", "brofiler", "openvr", "osvr", "eyex"],
 
 	"modules" :
 	[

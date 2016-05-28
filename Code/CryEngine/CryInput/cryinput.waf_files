@@ -21,6 +21,10 @@
     ],
     "TrackIR":[
       "NaturalPointInputNULL.h"
+    ],
+    "EyeTracker":[
+      "EyeTrackerInput.cpp",
+      "EyeTrackerInput.h"
     ]
   }
 }

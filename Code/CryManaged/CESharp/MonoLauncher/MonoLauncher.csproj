@@ -6,7 +6,7 @@
     <ProjectTypeGuids>{E7562513-36BA-4D11-A927-975E5375ED10};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <ProjectGuid>{7BD337C0-36D4-4048-93D2-08D613023978}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>CryEngine.MonoLauncher</RootNamespace>
+    <RootNamespace>CryEngine.Launcher</RootNamespace>
     <AssemblyName>CryEngine.Launcher</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
   </PropertyGroup>
@@ -23,7 +23,7 @@
     <Optimize>false</Optimize>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
-    <OutputPath>..\..\..\..\bin\win_x64</OutputPath>
+    <OutputPath>..\..\..\..\bin\win_x64_release</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <Optimize>true</Optimize>
     <DebugType>pdbonly</DebugType>
@@ -47,7 +47,7 @@
     <Optimize>false</Optimize>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
-    <OutputPath>..\..\..\..\bin\win_x86</OutputPath>
+    <OutputPath>..\..\..\..\bin\win_x86_release</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <Optimize>true</Optimize>
     <PlatformTarget>x86</PlatformTarget>

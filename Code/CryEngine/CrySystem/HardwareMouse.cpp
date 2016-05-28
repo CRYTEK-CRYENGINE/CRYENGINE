@@ -155,7 +155,7 @@ void CHardwareMouse::ShowHardwareMouse(bool bShow)
 	IInput* const pInput = gEnv->pInput;
 	if (pInput)
 	{
-		pInput->ShowCursor((bShow && !m_hide) || (m_allowConfine == false));
+		pInput->ShowCursor(m_shouldUseSystemCursor && ((bShow && !m_hide) || (m_allowConfine == false)));
 		pInput->SetExclusiveMode(eIDT_Mouse, false);
 	}
 
@@ -745,7 +745,7 @@ void CHardwareMouse::Update()
 	{
 		if (gEnv->pInput)
 		{
-			gEnv->pInput->ShowCursor(m_shouldUseSystemCursor);
+			gEnv->pInput->ShowCursor(m_shouldUseSystemCursor && ((m_iReferenceCounter > 0 && !m_hide) || (m_allowConfine == false)));
 		}
 		m_usingSystemCursor = m_shouldUseSystemCursor;
 	}
@@ -793,7 +793,7 @@ void CHardwareMouse::Hide(bool hide)
 	m_hide = hide;
 	if (m_calledShowHWMouse && gEnv->pInput)
 	{
-		gEnv->pInput->ShowCursor((m_iReferenceCounter > 0 && !m_hide) || (m_allowConfine == false));
+		gEnv->pInput->ShowCursor(m_shouldUseSystemCursor && ((m_iReferenceCounter > 0 && !m_hide) || (m_allowConfine == false)));
 	}
 }
 

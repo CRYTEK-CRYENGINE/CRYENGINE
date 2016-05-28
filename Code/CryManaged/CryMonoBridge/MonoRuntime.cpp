@@ -269,7 +269,7 @@ void CMonoRuntime::LoadGame()
 	// Make sure debugger is connected.
 	CrySleep(100);
 
-	m_gameLibrary->RunMethod("CryEngine.MonoLauncher.App:Initialize()");
+	m_gameLibrary->RunMethod("CryEngine.Launcher.Launcher:Initialize()");
 
 	// DBG
 	gEnv->pLog->Log("[Mono] Loaded Libraries:");

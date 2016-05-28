@@ -2,22 +2,33 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
-using System.Reflection;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
-using CryEngine.Common;
-using CryEngine.Resources;
-using CryEngine.FlowSystem;
-using CryEngine.Components;
 using System.Text;
+using CryEngine.Common;
+using CryEngine.Components;
+using CryEngine.FlowSystem;
+using CryEngine.Resources;
 
-namespace CryEngine.MonoLauncher
-{
-	class AddIn : MarshalByRefObject 
+namespace CryEngine.Launcher
+{	
+	[DebuggerDisplay("CryEngineAddin({Url})")]
+	internal class AddIn : MarshalByRefObject 
 	{
 		private Assembly _assembly;
 		private ICryEngineAddIn _addIn;
+		private Type _addinType;
+		private bool _isInitialized = false;
+		private bool _isRunning = false;
+		private string _url;
+
+		public bool IsInitialized { get { return _isInitialized; } }
+		public bool IsRunning { get { return _isRunning; } }
+		public string Url { get { return _url; } }
 
 		public static AddIn CreateInDomain(AppDomain domain)
 		{
@@ -31,19 +42,28 @@ namespace CryEngine.MonoLauncher
 
 		public bool LoadAssembly(string url) 
 		{
-			var symbolStore = File.Exists (url + ".mdb") ? File.ReadAllBytes (url + ".mdb") : null;
+			Log.Info<Launcher> ("LoadAssembly: {0}", url);
+			_url = url;
+			
+			byte[] symbolStore = File.Exists (url + ".mdb") ? File.ReadAllBytes (url + ".mdb") : null;
 			_assembly = AppDomain.CurrentDomain.Load(File.ReadAllBytes(url), symbolStore);
 			_addIn = null;
 
-			var addInInterface = _assembly.GetTypes().FirstOrDefault(x => x.GetInterfaces().Contains(typeof(ICryEngineAddIn)));
-			if(addInInterface != null)
-				_addIn = (ICryEngineAddIn)Activator.CreateInstance (addInInterface);
+			_addinType = _assembly.GetTypes().FirstOrDefault(x => x.GetInterfaces().Contains(typeof(ICryEngineAddIn)));
+			if(_addinType != null)
+				_addIn = (ICryEngineAddIn)Activator.CreateInstance (_addinType);
 			return _addIn != null;
 		}
 
 		public void Initialize(InterDomainHandler handler)
 		{
+			if (_isInitialized)
+				return;
+			
+			Log.Info<Launcher> ("Init Assembly: {0}", _url);
+
 			_addIn.Initialize (handler);
+			_isInitialized = true;
 		}
 
 		public void OnFlowNodeSignal(FlowNode node, PropertyInfo signal)
@@ -51,13 +71,37 @@ namespace CryEngine.MonoLauncher
 			_addIn.OnFlowNodeSignal (node, signal);
 		}
 
+		public void StartGame()
+		{
+			if (_isRunning)
+				return;
+
+			_addIn.StartGame ();
+			_isRunning = true;
+		}
+
+		public void EndGame()
+		{
+			if (!_isRunning)
+				return;
+
+			_addIn.EndGame ();
+			_isRunning = false;
+		}
+
 		public void Shutdown ()
 		{
+			if (!_isInitialized)
+				return;
+			
+			Log.Info<Launcher> ("Shutdown Assembly: {0}", _url);
+
 			_addIn.Shutdown ();
+			_isInitialized = false;
 		}
 	}
 
-	public class AddInManager : IMonoListener
+	internal class AddInManager : IMonoListener
 	{
 		public static event EventHandler AppUnloaded;
 
@@ -68,6 +112,7 @@ namespace CryEngine.MonoLauncher
 		private Dictionary<string, AddIn> _addInByName;
 		private List<KeyValuePair<FlowNode, PropertyInfo>> _nodesToRun = new List<KeyValuePair<FlowNode, PropertyInfo>>();
 		private bool _addInsLoaded = false;
+		private bool _addinsRunning = false;
 		private bool _notifyUnload = false;
 		private bool _notifyUnloaded = false;
 
@@ -96,6 +141,7 @@ namespace CryEngine.MonoLauncher
 			_assemblyWatcher.Changed += OnAssemblyChanged;
 			_assemblyWatcher.EnableRaisingEvents = true;
 
+			LoadAddins ();
 			Global.gEnv.pMonoRuntime.RegisterListener(this);
 			FlowNode.OnSignal += OnFlowNodeSignal;
 		}
@@ -116,8 +162,12 @@ namespace CryEngine.MonoLauncher
 
 		public void UnloadApplication()
 		{
-			if (_hostDomain != null) 
+			StopAddins ();
+			Log.Info<Launcher> ("Unload Application");
+
+			if (_hostDomain != null)
 			{
+				InterDomainHandler.EntityCache.Clear ();
 				var assemblyUrls = _addInByName.Keys.ToList ();
 
 				// Shutdown Core last.
@@ -127,8 +177,14 @@ namespace CryEngine.MonoLauncher
 
 				foreach (var url in assemblyUrls) 
 				{
-					if (_addInByName[url] != null)
+					if (_addInByName [url] != null) {
+						try{
 						_addInByName [url].Shutdown ();
+						}
+						catch(Exception ex) {
+							Log.Exception (ex);
+						}
+					}
 					_addInByName [url] = null;
 				}
 
@@ -141,6 +197,109 @@ namespace CryEngine.MonoLauncher
 			}
 		}
 
+		public void StopApplication()
+		{
+			StopAddins ();
+		}
+
+		private void LoadAddins()
+		{
+			Log.Info<Launcher> ("Load addins");
+
+			string searchDir = Global.gEnv.pMonoRuntime.GetProjectDllDir ();
+			if (String.IsNullOrEmpty (searchDir)) {
+				StringBuilder sb = new StringBuilder (256);
+				Global.CryGetExecutableFolder (sb, 256);
+				searchDir = sb.ToString ();
+			} else {
+				searchDir = Path.Combine (Environment.CurrentDirectory, searchDir);
+			}
+			_hostDomain = AppDomain.CreateDomain ("CryEngineMonoApp", AppDomain.CurrentDomain.Evidence, Environment.CurrentDirectory, searchDir, false);
+			_hostDomain.AssemblyResolve += LoadFromExecutingFolder;
+
+			var assemblyUrls = _addInByName.Keys.ToList ();
+
+			// Initialize Core first.
+			var core = assemblyUrls.SingleOrDefault(x => x.Contains("CryEngine.Core"));
+			assemblyUrls.Remove(core);
+			assemblyUrls.Insert (0, core);
+
+			foreach (var url in assemblyUrls) 
+			{
+				if (!File.Exists(url))
+				{
+					_addInByName.Remove(url);
+					continue;
+				}
+				var addIn = AddIn.CreateInDomain (_hostDomain);
+				if (addIn.LoadAssembly (url)) 
+					_addInByName [url] = addIn;
+			}
+			foreach (AddIn addin in _addInByName.Values) 
+			{
+				if (addin != null) 
+				{
+					try
+					{
+						if(!addin.IsInitialized)
+							addin.Initialize(InterDomainHandler);
+					}
+					catch(Exception ex)
+					{
+						Log.Exception<Launcher> (ex, "Could not initialize Addin: {0}", addin.Url);
+					}
+				}
+			}
+			_addInsLoaded = true;
+		}
+
+		private void StartAddins()
+		{
+			if (!_addInsLoaded)
+				return;
+
+			Global.gEnv.pLog.Log ("[Launcher] Start addins");
+			
+			foreach (AddIn addin in _addInByName.Values) {
+				if (addin != null) {
+					try
+					{
+						if(!addin.IsRunning)
+							addin.StartGame ();
+					}
+					catch(Exception ex)
+					{
+						Log.Exception<Launcher> (ex, "Could not start Addin: {0}", addin.Url);
+					}
+				}
+			}
+			_addinsRunning = true;
+			BootTime = DateTime.MaxValue;
+		}
+
+		private void StopAddins()
+		{
+			if (!_addInsLoaded || !_addinsRunning)
+				return;
+
+			Global.gEnv.pLog.Log ("[Launcher] Stop addins");
+
+			foreach (AddIn addin in _addInByName.Values) {
+				if (addin != null) {
+					try
+					{
+						if(addin.IsRunning)
+							addin.EndGame ();
+					}
+					catch(Exception ex)
+					{
+						Log.Exception<Launcher> (ex, "Could not stop Addin: {0}", addin.Url);
+					}
+				}
+			}
+			_addinsRunning = false;
+		}
+
 		private void AddAssembly(string url)
 		{
 			UnloadApplication ();
@@ -148,62 +307,17 @@ namespace CryEngine.MonoLauncher
 
 			// In case we are in Sandbox, we should leave loading to GameStarted event.
 			if (!Env.IsSandbox)
-				BootTime = DateTime.Now.AddSeconds (1.0f);
+				BootTime = DateTime.Now.AddSeconds (0.1f);
 		}
 
 		public override void OnUpdate (int updateFlags, int nPauseMode)
 		{
+			if (!_addInsLoaded)
+				LoadAddins ();
+			
 			// Load AddIns if there are.
-			if (BootTime < DateTime.Now) 
-			{
-				string searchDir = Global.gEnv.pMonoRuntime.GetProjectDllDir ();
-				if (String.IsNullOrEmpty (searchDir)) {
-					StringBuilder sb = new StringBuilder (256);
-					Global.CryGetExecutableFolder (sb, 256);
-					searchDir = sb.ToString ();
-				} else {
-					searchDir = Path.Combine (Environment.CurrentDirectory, searchDir);
-				}
-				_hostDomain = AppDomain.CreateDomain ("CryEngineMonoApp", AppDomain.CurrentDomain.Evidence, Environment.CurrentDirectory, searchDir, false);
-				_hostDomain.AssemblyResolve += LoadFromExecutingFolder;
-
-				var assemblyUrls = _addInByName.Keys.ToList ();
-
-				// Initialize Core first.
-				var core = assemblyUrls.SingleOrDefault(x => x.Contains("CryEngine.Core"));
-				assemblyUrls.Remove(core);
-				assemblyUrls.Insert (0, core);
-
-				foreach (var url in assemblyUrls) 
-				{
-					if (!File.Exists(url))
-					{
-						_addInByName.Remove(url);
-						continue;
-					}
-					var addIn = AddIn.CreateInDomain (_hostDomain);
-					if (addIn.LoadAssembly (url)) 
-						_addInByName [url] = addIn;
-				}
-				foreach (AddIn addin in _addInByName.Values) 
-				{
-					if (addin != null) 
-					{
-						try
-						{
-							addin.Initialize (InterDomainHandler);
-						}
-						catch(Exception ex)
-						{
-							Debug.Log (ex.ToString ());
-							throw ex;
-						}
-					}
-				}
-				
-				BootTime = DateTime.MaxValue;
-				_addInsLoaded = true;
-			}
+			if (BootTime < DateTime.Now && !_addinsRunning)
+				StartAddins ();
 
 			// Process Run Scene nodes if there are.
 			if (_addInsLoaded && _nodesToRun.Count > 0)  

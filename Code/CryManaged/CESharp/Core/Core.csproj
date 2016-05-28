@@ -110,6 +110,14 @@
     <Compile Include="UI\Components\SplitBarCtrl.cs" />
     <Compile Include="Components\Camera.cs" />
     <Compile Include="Components\Application.cs" />
+    <Compile Include="EntitySystem\Attributes.cs" />
+    <Compile Include="EntitySystem\EntityClassRegistry.cs" />
+    <Compile Include="EntitySystem\EntityFramework.cs" />
+    <Compile Include="EntitySystem\EntityUpdateListener.cs" />
+    <Compile Include="EntitySystem\EntitySystemSink.cs" />
+    <Compile Include="EntitySystem\EntityPropertyConverter.cs" />
+    <Compile Include="EntitySystem\BaseEntity.cs" />
+    <Compile Include="EntitySystem\EntityPropertyHandler.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

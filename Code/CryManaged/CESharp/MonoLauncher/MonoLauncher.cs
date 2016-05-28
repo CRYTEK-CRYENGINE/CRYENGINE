@@ -11,7 +11,7 @@ using System.ServiceModel;
 using System.Reflection;
 using CryEngine.FlowSystem;
 
-namespace CryEngine.MonoLauncher
+namespace CryEngine.Launcher
 {
 	/// <summary>
 	/// Stores CRYENGINE state for restoration after an application run.
@@ -32,17 +32,16 @@ namespace CryEngine.MonoLauncher
 	}
 
 	/// <summary>
-	/// Entry Point to Mono world, called from CryMonoBridge on CryEngine startup.
 	/// </summary>
-    public class App
+    public class Launcher
     {
 		private	static AddInManager _addInManager;
 		private static EngineState EngineState = new EngineState();
 		private static bool _appRunningInEditor = false;
 
 		public static void Initialize()
-		{
-			Debug.Log ("Launcher Initializing...");
+		{			
+			Log.Info<Launcher> ("Initializing...");
 			RegisterFlowNodes ();
 			_addInManager = new AddInManager ();
 
@@ -67,14 +66,14 @@ namespace CryEngine.MonoLauncher
 		{
 			EngineState.Load ();
 			_appRunningInEditor = false;
-			_addInManager.UnloadApplication ();
+			_addInManager.StopApplication ();
 		}
 
 		public static void Shutdown()
 		{
 			SystemHandler.Destroy ();
 
-			Debug.Log("Launcher Shutdown...");
+			Log.Info<Launcher> ("Shutdown...");
 			_addInManager.Deinitialize ();
 		}
 

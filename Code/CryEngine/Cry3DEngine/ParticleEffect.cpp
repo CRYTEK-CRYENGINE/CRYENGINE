@@ -1243,6 +1243,8 @@ bool CParticleEffect::IsTemporary() const
 CParticleEffect::~CParticleEffect()
 {
 	UnloadResources();
+	for (auto& child : m_children)
+		child.m_parent = nullptr;
 	delete m_pParticleParams;
 }
 

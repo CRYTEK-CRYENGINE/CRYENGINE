@@ -113,7 +113,8 @@ public:
 	virtual void                ClearBlockingInputs();
 	virtual bool                ShouldBlockInputEventPosting(const EKeyId keyId, const EInputDeviceType deviceType, const uint8 deviceIndex) const;
 
-	virtual IKinectInput*       GetKinectInput()       { return m_pKinectInput; }
+	virtual IKinectInput*       GetKinectInput() { return m_pKinectInput; }
+	virtual IEyeTrackerInput*   GetEyeTrackerInput() { return m_pEyeTrackerInput; }
 
 	virtual INaturalPointInput* GetNaturalPointInput() { return m_pNaturalPointInput; }
 
@@ -134,6 +135,7 @@ private:
 	bool SendEventToListeners(const SUnicodeEvent& event);
 	void AddEventToHoldSymbols(const SInputEvent& event);
 	void RemoveDeviceHoldSymbols(EInputDeviceType deviceType, uint8 deviceIndex);
+	static bool OnFilterInputEventDummy(SInputEvent* pInput);
 
 	// listener functionality
 	typedef std::list<IInputEventListener*> TInputEventListeners;
@@ -175,6 +177,8 @@ private:
 	CKinectInputNULL* m_pKinectInput;
 	#endif
 #endif
+
+	IEyeTrackerInput* m_pEyeTrackerInput;
 
 	TNaturalPointInput* m_pNaturalPointInput;
 

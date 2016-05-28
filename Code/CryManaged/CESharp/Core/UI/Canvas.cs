@@ -314,9 +314,9 @@ namespace CryEngine.UI
 			if (!Active)
 				return;
 
-			if ((e.KeyPressed (EKeyId.eKI_Tab) && Input.ShiftDown) || e.KeyPressed (EKeyId.eKI_XI_DPadUp))
+			if ((e.KeyPressed (EKeyId.eKI_Tab) && Input.ShiftDown) || e.KeyPressed (EKeyId.eKI_XI_DPadUp) || e.KeyPressed(EKeyId.eKI_XI_DPadLeft))
 				FocusPreviousComponent ();
-			else if (e.KeyPressed (EKeyId.eKI_Tab) || e.KeyPressed (EKeyId.eKI_XI_DPadDown))
+			else if (e.KeyPressed (EKeyId.eKI_Tab) || e.KeyPressed (EKeyId.eKI_XI_DPadDown) || e.KeyPressed(EKeyId.eKI_XI_DPadRight))
 				FocusNextComponent ();
 			else if(CurrentFocus != null)
 				CurrentFocus.InvokeOnKey (e);

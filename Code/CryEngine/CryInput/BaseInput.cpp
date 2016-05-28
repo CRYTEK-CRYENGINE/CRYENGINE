@@ -17,6 +17,7 @@
 #include "BaseInput.h"
 #include "InputDevice.h"
 #include "InputCVars.h"
+#include "EyeTrackerInput.h"
 #include <CryString/UnicodeFunctions.h>
 
 bool compareInputListener(const IInputEventListener* pListenerA, const IInputEventListener* pListenerB)
@@ -43,6 +44,7 @@ CBaseInput::CBaseInput()
 	, m_platformFlags(0)
 	, m_forceFeedbackDeviceIndex(EFF_INVALID_DEVICE_INDEX)
 	, m_pKinectInput(0)
+	, m_pEyeTrackerInput(0)
 	, m_pNaturalPointInput(0)
 	, m_touchListeners(1)
 {
@@ -51,6 +53,13 @@ CBaseInput::CBaseInput()
 	g_pInputCVars = m_pCVars;
 
 	m_holdSymbols.reserve(64);
+
+	OnFilterInputEvent = OnFilterInputEventDummy;
+}
+
+bool CBaseInput::OnFilterInputEventDummy(SInputEvent* pInput)
+{
+	return true;
 }
 
 CBaseInput::~CBaseInput()
@@ -62,6 +71,7 @@ CBaseInput::~CBaseInput()
 	g_pInputCVars = NULL;
 
 	SAFE_DELETE(m_pKinectInput);
+	SAFE_DELETE(m_pEyeTrackerInput);
 	SAFE_DELETE(m_pNaturalPointInput);
 }
 
@@ -78,11 +88,15 @@ bool CBaseInput::Init()
 	m_pKinectInput = new CKinectInputNULL();
 	#endif
 #endif // CRY_PLATFORM_DURANGO
-	m_pNaturalPointInput = new TNaturalPointInput;
-
 	m_pKinectInput->Init();
 
+	m_pNaturalPointInput = new TNaturalPointInput;
 	m_pNaturalPointInput->Init();
+
+#ifdef USE_EYETRACKER
+	m_pEyeTrackerInput = new CEyeTrackerInput();
+	m_pEyeTrackerInput->Init();
+#endif //USE_EYETRACKER
 
 	return true;
 }
@@ -126,6 +140,13 @@ void CBaseInput::Update(bool bFocus)
 	{
 		m_pKinectInput->Update();
 	}
+
+#ifdef USE_EYETRACKER
+	if (m_pEyeTrackerInput)
+	{
+		m_pEyeTrackerInput->Update();
+	}
+#endif //USE_EYETRACKER
 
 	if (m_pNaturalPointInput)
 	{

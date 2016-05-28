@@ -62,6 +62,8 @@ namespace CryEngine.Resources
 		{
 			try
 			{
+				if (!System.IO.File.Exists(path))
+					throw new System.IO.FileNotFoundException("Cannot load image with path: " + path);
 				_path = path;
 				_rawImage = new Bitmap(path);
 
@@ -82,13 +84,13 @@ namespace CryEngine.Resources
 				System.Runtime.InteropServices.Marshal.Copy(rgbValues, 0, ptr, bytes);
 				_rawImage.UnlockBits(bmpData);*/
 
-				Debug.Log("Loaded '" + path + "' (" + Width + "x" + Height + ")");
+				Log.Info ("Loaded '" + path + "' (" + Width + "x" + Height + ")");
+				Texture = new Texture(Width, Height, _rawImage.GetPixels(), filtered);
 			}
 			catch(Exception ex)
 			{
-				Debug.Log (ex.Message);
+				Log.Exception (ex);
 			}
-			Texture = new Texture(Width, Height, _rawImage.GetPixels(), filtered);
 		}
 
 		/// <summary>

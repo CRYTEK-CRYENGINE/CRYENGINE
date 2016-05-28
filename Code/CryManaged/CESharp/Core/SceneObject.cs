@@ -270,13 +270,13 @@ namespace CryEngine
 			for (int i = 0; i < depth; i++)
 				spaces += "  ";
 			
-			Debug.Log (spaces + Name + " {");
+			Log.Info (spaces + Name + " {");
 			foreach (var c in Components)
-				Debug.Log (spaces + "  [" + c.GetType().Name + "]");
+				Log.Info (spaces + "  [" + c.GetType().Name + "]");
 
 			foreach (var t in Transform)
 				t.Owner.PrintScene (depth+1);
-			Debug.Log (spaces + "}");
+			Log.Info (spaces + "}");
 		}
 
 		/// <summary>
