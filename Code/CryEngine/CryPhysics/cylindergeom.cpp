@@ -337,7 +337,7 @@ int CCylinderGeom::UnprojectSphere(Vec3 center,float r,float rsep, contact *pcon
 	Vec3 dc = center-m_cyl.center;
 	float axdist2,capdist,r2=sqr(m_cyl.r);
 	axdist2 = max((dc^m_cyl.axis).len2(),r2);
-	capdist = max(0.0f,fabsf(dc*m_cyl.axis)-m_cyl.hh);
+	capdist = max(0.0f,fabs_tpl(dc*m_cyl.axis)-m_cyl.hh);
 	if (sqr_signed(axdist2+r2+sqr(capdist)-sqr(rsep)) > axdist2*r2*4)
 		return 0;
 
