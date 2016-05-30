@@ -428,7 +428,6 @@ public:
 					ActivateOutput(pActInfo, HITPOINT, hit.pt);
 					ActivateOutput(pActInfo, NORMAL, hit.n);
 					ActivateOutput(pActInfo, SURFTYPE, (int)hit.surface_idx);
-					ActivateOutput(pActInfo, HIT_ENTITY, pEntity ? pEntity->GetId() : 0);
 					
 					if (pEntity = gEnv->pEntitySystem->GetEntityFromPhysics(hit.pCollider))
 					{
