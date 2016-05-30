@@ -8,6 +8,49 @@
 #include <CryAISystem/IAgent.h>
 #include <CryAISystem/IAIObject.h>
 
+enum EObjectTypes
+{
+	All = 0,
+	Terrain,
+	Rigid,
+	Static,
+	Water,
+	Living,
+	Independent,
+};
+
+int GetObjectTypes(IFlowNode::SActivationInfo *activationInfo, int nPort)
+{
+	int type = ent_all | ent_water; //ent_all doesn't include ent_water
+
+	switch (GetPortInt(activationInfo, nPort))
+	{
+	case All:
+		type = ent_all | ent_water;
+		break;
+	case Terrain:
+		type = ent_terrain;
+		break;
+	case Rigid:
+		type = ent_rigid;
+		break;
+	case Static:
+		type = ent_static;
+		break;
+	case Water:
+		type = ent_water;
+		break;
+	case Living:
+		type = ent_living;
+		break;
+	case Independent:
+		type = ent_independent;
+		break;
+	}
+
+	return type;
+}
+
 class CFlowNode_Dynamics : public CFlowBaseNode<eNCT_Singleton>
 {
 public:
@@ -309,6 +352,7 @@ public:
 		MAXLENGTH,
 		POS,
 		TRANSFORM_DIRECTION,
+		OBJECT_TYPE,
 	};
 	enum EOutPorts
 	{
@@ -335,6 +379,7 @@ public:
 			InputPortConfig<float>("maxLength",    10.0f,             _HELP("Maximum length of Raycast")),
 			InputPortConfig<Vec3>("position",      Vec3(0,            0,                                                        0),  _HELP("Ray start position, relative to entity")),
 			InputPortConfig<bool>("transformDir",  true,              _HELP("Direction is transformed by entity orientation.")),
+			InputPortConfig<int>("objectType", All, _HELP("Which object types should cause a hit"), "objectType", _UICONFIG("enum_int: All=0, Terrain=1, Rigid=2, Static=3, Water=4, Living=5, Independent=6")),
 			{ 0 }
 		};
 		static const SOutputPortConfig out_config[] = {
@@ -370,14 +415,13 @@ public:
 				int numHits = pWorld->RayWorldIntersection(
 				  pEntity->GetPos() + GetPortVec3(pActInfo, POS),
 				  direction * GetPortFloat(pActInfo, MAXLENGTH),
-				  ent_all,
+				  GetObjectTypes(pActInfo, OBJECT_TYPE),
 				  rwi_stop_at_pierceable | rwi_colltype_any,
 				  &hit, 1,
 				  &pSkip, 1);
 
 				if (numHits)
 				{
-					pEntity = (IEntity*)hit.pCollider->GetForeignData(PHYS_FOREIGN_ID_ENTITY);
 					ActivateOutput(pActInfo, HIT, (bool)true);
 					ActivateOutput(pActInfo, DIROUT, direction);
 					ActivateOutput(pActInfo, DISTANCE, hit.dist);
@@ -385,6 +429,11 @@ public:
 					ActivateOutput(pActInfo, NORMAL, hit.n);
 					ActivateOutput(pActInfo, SURFTYPE, (int)hit.surface_idx);
 					ActivateOutput(pActInfo, HIT_ENTITY, pEntity ? pEntity->GetId() : 0);
+					
+					if (pEntity = gEnv->pEntitySystem->GetEntityFromPhysics(hit.pCollider))
+					{
+						ActivateOutput(pActInfo, HIT_ENTITY, pEntity ? pEntity->GetId() : 0);
+					}
 				}
 				else
 					ActivateOutput(pActInfo, NOHIT, false);
@@ -403,6 +452,7 @@ public:
 		GO = 0,
 		POS,
 		MAXLENGTH,
+		OBJECT_TYPE,
 	};
 	enum EOutPorts
 	{
@@ -429,6 +479,7 @@ public:
 			InputPortConfig<SFlowSystemVoid>("go", SFlowSystemVoid(), _HELP("Perform Raycast")),
 			InputPortConfig<Vec3>("offset",        Vec3(0,            0,                                  0),_HELP("Ray start position, relative to camera")),
 			InputPortConfig<float>("maxLength",    10.0f,             _HELP("Maximum length of Raycast")),
+			InputPortConfig<int>("objectType", 0, _HELP("Which object types should cause a hit"), "objectType", _UICONFIG("enum_int: All=0, Terrain=1, Rigid=2, Static=3, Water=4, Living=5, Independent=6")),
 			{ 0 }
 		};
 		static const SOutputPortConfig out_config[] = {
@@ -454,38 +505,39 @@ public:
 	{
 		if (event == eFE_Activate && IsPortActive(pActInfo, GO))
 		{
-			IEntity* pEntity = pActInfo->pEntity;
-			// if (pEntity)
+			ray_hit hit;
+			CCamera& cam = GetISystem()->GetViewCamera();
+			Vec3 pos = cam.GetPosition() + cam.GetViewdir();
+			Vec3 direction = cam.GetViewdir();
+			IPhysicalWorld* pWorld = gEnv->pPhysicalWorld;
+			//IPhysicalEntity *pSkip = 0; // pEntity->GetPhysics();
+			int numHits = pWorld->RayWorldIntersection(
+			  pos + GetPortVec3(pActInfo, POS),
+			  direction * GetPortFloat(pActInfo, MAXLENGTH),
+			  GetObjectTypes(pActInfo, OBJECT_TYPE),
+			  rwi_stop_at_pierceable | rwi_colltype_any,
+			  &hit, 1
+			  /* ,&pSkip, 1 */);
+			if (numHits)
 			{
-				ray_hit hit;
-				CCamera& cam = GetISystem()->GetViewCamera();
-				Vec3 pos = cam.GetPosition() + cam.GetViewdir();
-				Vec3 direction = cam.GetViewdir();
-				IPhysicalWorld* pWorld = gEnv->pPhysicalWorld;
-				//				IPhysicalEntity *pSkip = 0; // pEntity->GetPhysics();
-				int numHits = pWorld->RayWorldIntersection(
-				  pos + GetPortVec3(pActInfo, POS),
-				  direction * GetPortFloat(pActInfo, MAXLENGTH),
-				  ent_all,
-				  rwi_stop_at_pierceable | rwi_colltype_any,
-				  &hit, 1
-				  /* ,&pSkip, 1 */);
-				if (numHits)
+				IEntity* pEntity = (IEntity*)hit.pCollider->GetForeignData(PHYS_FOREIGN_ID_ENTITY);
+				ActivateOutput(pActInfo, HIT, (bool)true);
+				ActivateOutput(pActInfo, DIROUT, direction);
+				ActivateOutput(pActInfo, DISTANCE, hit.dist);
+				ActivateOutput(pActInfo, HITPOINT, hit.pt);
+				ActivateOutput(pActInfo, NORMAL, hit.n);
+				ActivateOutput(pActInfo, SURFTYPE, (int)hit.surface_idx);
+				ActivateOutput(pActInfo, PARTID, hit.partid);
+				ActivateOutput(pActInfo, HIT_ENTITY_PHID, gEnv->pPhysicalWorld->GetPhysicalEntityId(hit.pCollider));
+				
+				if (IEntity* pEntity = gEnv->pEntitySystem->GetEntityFromPhysics(hit.pCollider))
 				{
-					pEntity = (IEntity*)hit.pCollider->GetForeignData(PHYS_FOREIGN_ID_ENTITY);
-					ActivateOutput(pActInfo, HIT, (bool)true);
-					ActivateOutput(pActInfo, DIROUT, direction);
-					ActivateOutput(pActInfo, DISTANCE, hit.dist);
-					ActivateOutput(pActInfo, HITPOINT, hit.pt);
-					ActivateOutput(pActInfo, NORMAL, hit.n);
-					ActivateOutput(pActInfo, SURFTYPE, (int)hit.surface_idx);
-					ActivateOutput(pActInfo, PARTID, hit.partid);
 					ActivateOutput(pActInfo, HIT_ENTITY, pEntity ? pEntity->GetId() : 0);
-					ActivateOutput(pActInfo, HIT_ENTITY_PHID, gEnv->pPhysicalWorld->GetPhysicalEntityId(hit.pCollider));
 				}
-				else
-					ActivateOutput(pActInfo, NOHIT, false);
 			}
+			else
+				ActivateOutput(pActInfo, NOHIT, false);
+		
 		}
 	}
 };
