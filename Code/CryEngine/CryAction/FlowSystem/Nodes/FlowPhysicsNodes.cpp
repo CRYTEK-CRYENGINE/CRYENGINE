@@ -520,7 +520,6 @@ public:
 			  /* ,&pSkip, 1 */);
 			if (numHits)
 			{
-				IEntity* pEntity = (IEntity*)hit.pCollider->GetForeignData(PHYS_FOREIGN_ID_ENTITY);
 				ActivateOutput(pActInfo, HIT, (bool)true);
 				ActivateOutput(pActInfo, DIROUT, direction);
 				ActivateOutput(pActInfo, DISTANCE, hit.dist);
