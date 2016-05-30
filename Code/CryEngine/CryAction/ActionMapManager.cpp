@@ -219,17 +219,19 @@ bool CActionMapManager::InitActionMaps(const char* filename)
 			XmlNodeRef platform = platformsNode->findChild(GetISystem()->GetPlatformOS()->GetPlatformName());
 			if (platform)
 			{
-				BYTE devices(eAID_KeyboardMouse | eAID_XboxPad | eAID_PS4Pad | eAID_OculusTouch);
+				BYTE devices(eAID_KeyboardMouse | eAID_XboxPad | eAID_PS4Pad | eAID_OculusTouch| eAID_MotionController);
 
 				if (!strcmp(platform->getAttr("keyboard"), "0"))      devices &= ~eAID_KeyboardMouse;
 				if (!strcmp(platform->getAttr("xboxpad"), "0"))       devices &= ~eAID_XboxPad;
 				if (!strcmp(platform->getAttr("ps4pad"), "0"))        devices &= ~eAID_PS4Pad;
 				if (!strcmp(platform->getAttr("oculustouch"), "0"))   devices &= ~eAID_OculusTouch;
+				if (!strcmp(platform->getAttr("openvr"), "0"))        devices &= eAID_MotionController;
 
 				if (devices & eAID_KeyboardMouse) AddInputDeviceMapping(eAID_KeyboardMouse, "keyboard");
 				if (devices & eAID_XboxPad)       AddInputDeviceMapping(eAID_XboxPad, "xboxpad");
 				if (devices & eAID_PS4Pad)        AddInputDeviceMapping(eAID_PS4Pad, "ps4pad");
 				if (devices & eAID_OculusTouch)   AddInputDeviceMapping(eAID_OculusTouch, "oculustouch");
+				if (devices&eAID_MotionController)AddInputDeviceMapping(eAID_MotionController, "openvr");
 
 				SetLoadFromXMLPath(filename);
 				if (LoadFromXML(rootNode))

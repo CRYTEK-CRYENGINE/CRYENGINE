@@ -359,7 +359,11 @@ enum EKeyId
 	eKI_Motion_OpenVR_Trigger,
 	eKI_Motion_OpenVR_TriggerBtn,
 	eKI_Motion_OpenVR_TouchPadBtn,
-
+	eKI_Motion_OpenVR_DPad_Left,//Add touchPad Button
+	eKI_Motion_OpenVR_DPad_Right,
+	eKI_Motion_OpenVR_DPad_Up,
+	eKI_Motion_OpenVR_DPad_Down,
+	
 	eKI_Motion_OpenVR_NUM_SYMBOLS = eKI_Motion_OpenVR_TouchPadBtn - eKI_Motion_OpenVR_System + 1,
 
 	// Normal inputs should be added above

@@ -116,6 +116,7 @@ enum EActionInputDevice
 	eAID_XboxPad       = BIT(1),
 	eAID_PS4Pad        = BIT(2),
 	eAID_OculusTouch   = BIT(3),
+	eAID_MotionController = BIT(4),
 };
 
 struct SActionInputDeviceData
