@@ -479,7 +479,7 @@ public:
 			InputPortConfig<SFlowSystemVoid>("go", SFlowSystemVoid(), _HELP("Perform Raycast")),
 			InputPortConfig<Vec3>("offset",        Vec3(0,            0,                                  0),_HELP("Ray start position, relative to camera")),
 			InputPortConfig<float>("maxLength",    10.0f,             _HELP("Maximum length of Raycast")),
-			InputPortConfig<int>("objectType", 0, _HELP("Which object types should cause a hit"), "objectType", _UICONFIG("enum_int: All=0, Terrain=1, Rigid=2, Static=3, Water=4, Living=5, Independent=6")),
+			InputPortConfig<int>("objectType", All, _HELP("Which object types should cause a hit"), "objectType", _UICONFIG("enum_int: All=0, Terrain=1, Rigid=2, Static=3, Water=4, Living=5, Independent=6")),
 			{ 0 }
 		};
 		static const SOutputPortConfig out_config[] = {
