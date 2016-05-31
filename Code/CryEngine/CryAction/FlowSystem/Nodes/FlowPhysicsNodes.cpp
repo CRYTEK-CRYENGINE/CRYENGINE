@@ -431,7 +431,7 @@ public:
 					
 					if (pEntity = gEnv->pEntitySystem->GetEntityFromPhysics(hit.pCollider))
 					{
-						ActivateOutput(pActInfo, HIT_ENTITY, pEntity ? pEntity->GetId() : 0);
+						ActivateOutput(pActInfo, HIT_ENTITY, pEntity->GetId());
 					}
 				}
 				else
@@ -530,7 +530,7 @@ public:
 				
 				if (IEntity* pEntity = gEnv->pEntitySystem->GetEntityFromPhysics(hit.pCollider))
 				{
-					ActivateOutput(pActInfo, HIT_ENTITY, pEntity ? pEntity->GetId() : 0);
+					ActivateOutput(pActInfo, HIT_ENTITY, pEntity->GetId());
 				}
 			}
 			else
