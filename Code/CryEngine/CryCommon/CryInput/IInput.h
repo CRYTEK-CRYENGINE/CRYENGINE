@@ -364,7 +364,7 @@ enum EKeyId
 	eKI_Motion_OpenVR_DPad_Up,
 	eKI_Motion_OpenVR_DPad_Down,
 	
-	eKI_Motion_OpenVR_NUM_SYMBOLS = eKI_Motion_OpenVR_TouchPadBtn - eKI_Motion_OpenVR_System + 1,
+	eKI_Motion_OpenVR_NUM_SYMBOLS = eKI_Motion_OpenVR_DPad_Down - eKI_Motion_OpenVR_System + 1,
 
 	// Normal inputs should be added above
 	// eKI_SYS_Commit and below will be ignored by input blocking functionality
