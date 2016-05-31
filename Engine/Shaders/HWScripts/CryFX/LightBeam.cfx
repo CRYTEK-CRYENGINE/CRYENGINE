@@ -319,6 +319,8 @@ v2f_box BeamSamplingVS(a2v IN)
 float _texLookupShadow(float2 vLookup, float depth, float farPlane, float fJitterScale)
 {
 	float	result = 0.0f;
+
+	vLookup.y = 1.0f - vLookup.y;
 	vLookup.xy = vLookup.yx * shadowCoords.zw + shadowCoords.xy; // note: yx swizzle
 	
 	const float fShadowJitterScale = fJitterScale;

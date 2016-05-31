@@ -29,7 +29,6 @@ struct SLinkRecord
 struct SFlightLinkDesc
 {
 	SFlightLinkDesc(int i1, int i2) : index1(i1), index2(i2) {}
-	SFlightLinkDesc() {}
 	int index1, index2;
 	AUTO_STRUCT_INFO;
 };

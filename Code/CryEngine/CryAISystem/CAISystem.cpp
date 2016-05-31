@@ -6156,7 +6156,6 @@ float CAISystem::ProcessBalancedDamage(IEntity* pShooterEntity, IEntity* pTarget
 				{
 					if (vehicleAIObject->CastToCAIActor())
 					{
-						pShooterEntity = pVehicleEnt;
 						pShooterActor = pShooterAI->CastToCAIActor();
 					}
 				}

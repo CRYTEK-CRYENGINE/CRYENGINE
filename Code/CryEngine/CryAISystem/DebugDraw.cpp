@@ -1723,7 +1723,7 @@ void CAISystem::DebugDrawDistanceLUT()
 struct SSlopeTriangle
 {
 	SSlopeTriangle(const Triangle& tri, float slope) : triangle(tri), slope(slope) {}
-	SSlopeTriangle() {}
+	SSlopeTriangle() : triangle(Vec3(ZERO), Vec3(ZERO), Vec3(ZERO)), slope(0.0f) {}
 	Triangle triangle;
 	float    slope;
 };
@@ -2791,6 +2791,7 @@ void CAISystem::DebugDrawAgent(CAIObject* pAgentObj) const
 		{
 			if (enabledStats & GoalPipe)
 			{
+				// cppcheck-suppress constStatement
 				int lineCount = 1;
 				const string& pipeDebugName = pPipe->GetDebugName();
 				text = pipeDebugName.empty() ? pPipe->GetNameAsString() : pipeDebugName;
@@ -2885,6 +2886,7 @@ void CAISystem::DebugDrawAgent(CAIObject* pAgentObj) const
 	// FireMode
 	if (pPipeUser && (enabledStats & Firemode))
 	{
+		// cppcheck-suppress constStatement
 		EAimState aimState = pPipeUser->GetAimState();
 		EFireMode fireMode = pPipeUser->GetFireMode();
 
@@ -3238,6 +3240,7 @@ void CAISystem::DebugDrawAgent(CAIObject* pAgentObj) const
 	stack_string rfname = gAIEnv.CVars.DrawRefPoints;
 	if (rfname != "")
 	{
+		// cppcheck-suppress constStatement
 		int group = atoi(rfname);
 		if (rfname == "all" || rfname == pAgent->GetName() || ((rfname == "0" || group > 0) && group == pAgent->GetGroupId()))
 		{

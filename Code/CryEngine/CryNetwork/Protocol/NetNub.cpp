@@ -720,6 +720,7 @@ bool CNetNub::SendPendingConnect(SPendingConnection& pc)
 
 		size_t cslen = pc.connectionString.length();
 
+		// cppcheck-suppress allocaCalled
 		PREFAST_SUPPRESS_WARNING(6255) uint8 * pBuffer = (uint8*) alloca(1 + (VERSION_SIZE)*sizeof(uint32) + 2 * sizeof(uint32) + sizeof(CrySessionHandle) + cslen);
 
 		uint32 cur_size = 0;

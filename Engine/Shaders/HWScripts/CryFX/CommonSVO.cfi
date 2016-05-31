@@ -1163,33 +1163,35 @@ bool ConeTraceBrick(const float3 vRayStartPos, inout Ray r, const float _fDistan
 
 			//if(vRGBD.a > fAlphaRefMin && vRGBD.a > 0 && vRGBD.a <= fAlphaRefMax)
 			{
-				if(bUseLighting)
+				if (bUseLighting)
 				{
 					float fDot = 1;//bAirOnlyMode ? 1 : pow(saturate(VOX_TI_BACK_LIGHT_SCALE + (1.f-VOX_TI_BACK_LIGHT_SCALE)*dot( (vNORA.xyz-0.5f)*2.f, -r.direction )), .7);
 
-					vRgbOut.xyz += vRGBD.xyz * vRGBD.a * saturate(1-vRgbOut.a) * fOverDist * fDot * saturate(fDistance / fVoxSize);
+					vRgbOut.xyz += vRGBD.xyz * vRGBD.a * saturate(1 - vRgbOut.a) * fOverDist * fDot * saturate(fDistance / fVoxSize);
 
-					if(!bAirOnlyMode)
-						vNormal.xyz = /*vNORA.a*/(vNORA.xyz-0.5f)*2.f*saturate(1-vRgbOut.a) + vNormal.xyz*vRgbOut.a;
+					if (!bAirOnlyMode)
+						vNormal.xyz = /*vNORA.a*/(vNORA.xyz - 0.5f)*2.f*saturate(1 - vRgbOut.a) + vNormal.xyz*vRgbOut.a;
 				}
 
 #if !%_RT_SAMPLE5 && %_PS
-				if(!bUseLighting)
-					vRgbOut.xyz += vRGBD.a * saturate(1 - vRgbOut.a) * saturate(fDistance / 2.5f) * max(0, - SvoParamsCommon.z) * g_PS_FogColor.z; // near range AO
+				if (!bUseLighting)
+					vRgbOut.xyz += vRGBD.a * saturate(1 - vRgbOut.a) * saturate(fDistance / 2.5f) * max(0, -SvoParamsCommon.z) * g_PS_FogColor.z; // near range AO
 #endif
 
 #if %_PS && %_RT_POINT_LIGHT
-				// replace worst slot
-				const float fNewW = vRGBD.w*saturate(1-vRgbOut.a);
-				if(vBestHitPosOpa[0].w <= vBestHitPosOpa[1].w)
+				if(fDistance > fVoxSize * 0.5f)
 				{
-					if(fNewW > vBestHitPosOpa[0].w && fDistance>fVoxSize)
+					// replace worst slot
+					const float fNewW = vRGBD.w*saturate(1 - vRgbOut.a);
+					if (fNewW > vBestHitPosOpa[0].w)
+					{
+						vBestHitPosOpa[1] = vBestHitPosOpa[0];
 						vBestHitPosOpa[0] = float4(r.startpoint, fNewW);
-				}
-				else
-				{
-					if(fNewW > vBestHitPosOpa[1].w && fDistance>fVoxSize)
+					}
+					else if (fNewW > vBestHitPosOpa[1].w)
+					{
 						vBestHitPosOpa[1] = float4(r.startpoint, fNewW);
+					}
 				}
 #endif
 
@@ -1635,12 +1637,14 @@ float4 ConeTraceTree(Ray rayForTree, const float fLodRatio, out float4 vPos0, ou
 #if %_PS && %_RT_POINT_LIGHT
 	for(int p=0; p<BEST_POINTS_NUM; p++)
 	{
-		if(vBestHitPosOpa[p].w)
+		if (vBestHitPosOpa[p].w)
 		{
-			float4 vRGB=0;
-			ProcessTiledLights( vRGB, vBestHitPosOpa[p].xyz, rayForTree.direction, VOX_MIN_VOX_SIZE + length(vBestHitPosOpa[p].xyz - vRayStartPos)/8 );
+			float4 vRGB = 0;
+			ProcessTiledLights(vRGB, vBestHitPosOpa[p].xyz, rayForTree.direction, VOX_MIN_VOX_SIZE + length(vBestHitPosOpa[p].xyz - vRayStartPos) / 8);
 			vRgbOut.xyz += vRGB.xyz * vBestHitPosOpa[p].w * SvoParamsInject.x;
 		}
+		else
+			break;
 	}
 #endif
 

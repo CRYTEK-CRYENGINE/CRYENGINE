@@ -545,7 +545,7 @@ void ProcessAnalyticalOccluders(Ray r, inout float4 vC, float fDirectionality)
 			fRadius = 0;
 		}
 
-		float fO = 1.f - max(0, fRayDist - fRadius * .99) / (fRadius * 0.5 + fOrigDist * SvoParamsMisc3.y + 0.001);
+		float fO = 1.f - max(0, fRayDist - fRadius * .85) / (fRadius * 0.5 + fOrigDist * SvoParamsMisc3.y + 0.001);
 		if(fOrigDist>0)
 			fO *= saturate(1 - fOrigDist / fRayLen) * saturate(.5 + dot(vSegDir, r.direction));
 

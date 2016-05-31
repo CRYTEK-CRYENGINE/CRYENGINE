@@ -167,7 +167,9 @@ private:
 	void AddNewDLCApplied(const int index);
 	bool IsNewDLC(const int index) const;
 
-	bool IsEntitlementSet( int entitlementIndex, bool presale ) const;
+	bool IsPresaleEntitlementSet(int entitlementIndex) const;
+	bool IsDLCEntitlementSet(int entitlementIndex) const;
+	bool IsEntitlementSet( const char* pTag) const;
 	int SetEntitlement( int entitlementIndex, bool presale );
 
 private:

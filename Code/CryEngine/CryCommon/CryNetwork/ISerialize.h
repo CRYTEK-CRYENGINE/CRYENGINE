@@ -29,8 +29,8 @@ struct SNetObjectID
 	{
 		return id == InvalidId;
 	}
-	typedef uint16 (SNetObjectID::* unknown_bool_type);
-	ILINE operator unknown_bool_type() const
+	typedef uint16 SNetObjectID::* safe_bool_idiom_type;
+	ILINE operator safe_bool_idiom_type() const
 	{
 		return !!(*this) ? &SNetObjectID::id : NULL;
 	}

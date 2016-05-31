@@ -860,7 +860,6 @@ public:
 
 	struct SDebugFakeDamageInd
 	{
-		SDebugFakeDamageInd() {}
 		SDebugFakeDamageInd(const Vec3& pos, float t) : p(pos), t(t), tmax(t) {}
 		std::vector<Vec3> verts;
 		Vec3              p;

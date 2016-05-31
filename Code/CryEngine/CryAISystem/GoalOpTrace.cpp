@@ -115,7 +115,7 @@ COPTrace::COPTrace(const COPTrace& rhs)
 	, m_accumulatedFailureTime(0.0f)
 	, m_actorTargetRequester(eTATR_None)
 	, m_pendingActorTargetRequester(eTATR_None)
-	//CStrongRef<CAIObject> m_refNavTarget;
+	, m_refNavTarget()
 	, m_stopOnAnimationStart(rhs.m_stopOnAnimationStart)
 {
 	++s_instanceCount;

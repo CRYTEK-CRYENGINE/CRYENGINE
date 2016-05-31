@@ -402,6 +402,7 @@ void CObjectContainer::Serialize(TSerialize ser)
 		totalSerialised++;
 
 		// Simple back-and-forth test, should be valid at this point
+		// cppcheck-suppress assertWithSideEffect
 		assert(GetWeakRef(object).IsValid());
 
 		if (bReading)

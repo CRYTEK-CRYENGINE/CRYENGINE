@@ -525,7 +525,7 @@ bool CWeapon::NetSerialize( TSerialize ser, EEntityAspects aspect, uint8 profile
 
 		CActor *owner = GetOwnerActor();
 
-		SNetWeaponReloadData data;
+		SNetWeaponReloadData data = {0};
 		if(ser.IsWriting())
 		{
 			data.m_reload = GetReloadState();
@@ -593,7 +593,7 @@ bool CWeapon::NetSerialize( TSerialize ser, EEntityAspects aspect, uint8 profile
 	{
 		NET_PROFILE_SCOPE("WeaponStream", ser.IsReading());
 
-		SNetWeaponData data;
+		SNetWeaponData data = {0};
 		
 		if(ser.IsWriting())
 		{

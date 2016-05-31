@@ -123,7 +123,7 @@ int SSessionStats::GetStat(const char* name, EMapPersistantStats stat) const
 }
 
 //---------------------------------------
-const SSessionStats::SMap::MapNameToCount& SSessionStats::GetStat(EMapPersistantStats stat) const
+const SSessionStats::SMap::MapNameToCount& SSessionStats::GetStatMap(EMapPersistantStats stat) const
 {
 	CRY_ASSERT(stat >= 0 && stat < CRY_ARRAY_COUNT(m_mapStats));
 	return m_mapStats[stat].m_map;
@@ -695,7 +695,7 @@ float SSessionStats::GetStatStrings(const char* name, EMapPersistantStats stat, 
 //----------------------------------------------------------
 float SSessionStats::GetStatStrings( EMapPersistantStats stat, CryFixedStringT<64>& valueString )
 {
-	const SMap::MapNameToCount& statsMap = GetStat(stat);
+	const SMap::MapNameToCount& statsMap = GetStatMap(stat);
 
 	int statValue = 0;
 

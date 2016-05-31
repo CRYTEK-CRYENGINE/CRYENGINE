@@ -63,6 +63,15 @@ class OpenListMonitor
 		++sNumSamples;
 	}
 public:
+	OpenListMonitor()
+		: sMin(std::numeric_limits<float>::max())
+		, sMax(std::numeric_limits<float>::min())
+		, sAvg(0.0f)
+		, sNumSamples(0)
+		, sMinFrames(std::numeric_limits<float>::max())
+		, sMaxFrames(std::numeric_limits<float>::min())
+		, sAvgFrames(0.0f)
+	{}
 	void NodePushed(unsigned int nodeIndex)
 	{
 		// NOTE Mai 22, 2007: <pvl> we could filter incoming nodes here if we're
