@@ -7,7 +7,7 @@
 
    -------------------------------------------------------------------------
    History:
-   - 7:9:2004   17:42 : Created by Márcio Martins
+   - 7:9:2004   17:42 : Created by MÃ¡rcio Martins
    - 15:9:2010  12:30 : Revised by Dean Claassen
 
 *************************************************************************/
@@ -225,7 +225,7 @@ bool CActionMapManager::InitActionMaps(const char* filename)
 				if (!strcmp(platform->getAttr("xboxpad"), "0"))       devices &= ~eAID_XboxPad;
 				if (!strcmp(platform->getAttr("ps4pad"), "0"))        devices &= ~eAID_PS4Pad;
 				if (!strcmp(platform->getAttr("oculustouch"), "0"))   devices &= ~eAID_OculusTouch;
-				if (!strcmp(platform->getAttr("openvr"), "0"))        devices &= eAID_MotionController;
+				if (!strcmp(platform->getAttr("openvr"), "0"))        devices &= ~eAID_MotionController;
 
 				if (devices & eAID_KeyboardMouse) AddInputDeviceMapping(eAID_KeyboardMouse, "keyboard");
 				if (devices & eAID_XboxPad)       AddInputDeviceMapping(eAID_XboxPad, "xboxpad");
