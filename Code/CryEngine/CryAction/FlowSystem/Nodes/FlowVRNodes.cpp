@@ -453,10 +453,10 @@ public:
 			OutputPortConfig<bool>("Button_Grip",     _HELP("Is grip button pressed?")),
 			OutputPortConfig<bool>("Button_Trigger",  _HELP("Is trigger pressed?")),
 			OutputPortConfig<bool>("Button_TouchPad", _HELP("Is touch pad pressed?")),
-			OutputPortConfig<bool>("Button_DPadLeft", _HELP("Is touch pad left pressed?")),
-			OutputPortConfig<bool>("Button_DPadRight", _HELP("Is touch pad right pressed?")),
-			OutputPortConfig<bool>("Button_DPadUp", _HELP("Is touch pad up pressed?")),
-			OutputPortConfig<bool>("Button_DPadDown", _HELP("Is touch pad down pressed?")),
+			OutputPortConfig<bool>("Button_DPadLeft", _HELP("Is DPad Left pressed?")),
+			OutputPortConfig<bool>("Button_DPadRight", _HELP("Is DPad Right pressed?")),
+			OutputPortConfig<bool>("Button_DPadUp", _HELP("Is DPad Up pressed?")),
+			OutputPortConfig<bool>("Button_DPadDown", _HELP("Is DPad Down pressed?")),
 
 			OutputPortConfig<float>("Trigger",        _HELP("Trigger analog value")),
 
