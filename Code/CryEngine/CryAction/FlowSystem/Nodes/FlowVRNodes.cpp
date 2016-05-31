@@ -446,21 +446,21 @@ public:
 			{ 0 }
 		};
 		static const SOutputPortConfig out_config[] = {
-			OutputPortConfig<bool>("Connected",       _HELP("Is Controller connected?")),
+			OutputPortConfig<bool>("Connected",         _HELP("Is Controller connected?")),
 
-			OutputPortConfig<bool>("Button_System",   _HELP("Is system button pressed?")),
-			OutputPortConfig<bool>("Button_AppMenu",  _HELP("Is application menu button pressed?")),
-			OutputPortConfig<bool>("Button_Grip",     _HELP("Is grip button pressed?")),
-			OutputPortConfig<bool>("Button_Trigger",  _HELP("Is trigger pressed?")),
-			OutputPortConfig<bool>("Button_TouchPad", _HELP("Is touch pad pressed?")),
-			OutputPortConfig<bool>("Button_DPadLeft", _HELP("Is DPad Left pressed?")),
-			OutputPortConfig<bool>("Button_DPadRight", _HELP("Is DPad Right pressed?")),
-			OutputPortConfig<bool>("Button_DPadUp", _HELP("Is DPad Up pressed?")),
-			OutputPortConfig<bool>("Button_DPadDown", _HELP("Is DPad Down pressed?")),
+			OutputPortConfig<bool>("Button_System",     _HELP("Is system button pressed?")),
+			OutputPortConfig<bool>("Button_AppMenu",    _HELP("Is application menu button pressed?")),
+			OutputPortConfig<bool>("Button_Grip",       _HELP("Is grip button pressed?")),
+			OutputPortConfig<bool>("Button_Trigger",    _HELP("Is trigger pressed?")),
+			OutputPortConfig<bool>("Button_TouchPad",   _HELP("Is touch pad pressed?")),
+			OutputPortConfig<bool>("Button_DPadLeft",   _HELP("Is touch pad Left pressed?")),
+			OutputPortConfig<bool>("Button_DPadRight",  _HELP("Is touch pad Right pressed?")),
+			OutputPortConfig<bool>("Button_DPadUp",     _HELP("Is touch pad Up pressed?")),
+			OutputPortConfig<bool>("Button_DPadDown",   _HELP("Is touch pad Down pressed?")),
 
-			OutputPortConfig<float>("Trigger",        _HELP("Trigger analog value")),
+			OutputPortConfig<float>("Trigger",          _HELP("Trigger analog value")),
 
-			OutputPortConfig<Vec3>("TouchPad",        _HELP("Touch pad analog value")),
+			OutputPortConfig<Vec3>("TouchPad",          _HELP("Touch pad analog value")),
 
 			{ 0 }
 		};
