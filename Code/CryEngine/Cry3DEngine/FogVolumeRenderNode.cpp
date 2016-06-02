@@ -139,7 +139,7 @@ CFogVolumeRenderNode::CFogVolumeRenderNode()
 
 	for (int i = 0; i < RT_COMMAND_BUF_COUNT; ++i)
 	{
-		if ((CREFogVolume*)GetRenderer())
+		if (GetRenderer())
 			m_pFogVolumeRenderElement[i] = (CREFogVolume*)GetRenderer()->EF_CreateRE(eDATA_FogVolume);
 		else
 			m_pFogVolumeRenderElement[i] = nullptr;
