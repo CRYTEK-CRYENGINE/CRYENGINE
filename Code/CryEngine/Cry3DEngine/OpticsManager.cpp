@@ -15,7 +15,9 @@ void COpticsManager::Reset()
 
 IOpticsElementBase* COpticsManager::Create(EFlareType type) const
 {
-	return gEnv->pRenderer->CreateOptics(type);
+	if (gEnv->pRenderer)
+		return gEnv->pRenderer->CreateOptics(type);
+	return nullptr;
 }
 
 IOpticsElementBase* COpticsManager::ParseOpticsRecursively(IOpticsElementBase* pParentOptics, XmlNodeRef& node) const

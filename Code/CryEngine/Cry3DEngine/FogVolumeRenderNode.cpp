@@ -139,7 +139,10 @@ CFogVolumeRenderNode::CFogVolumeRenderNode()
 
 	for (int i = 0; i < RT_COMMAND_BUF_COUNT; ++i)
 	{
-		m_pFogVolumeRenderElement[i] = (CREFogVolume*) GetRenderer()->EF_CreateRE(eDATA_FogVolume);
+		if ((CREFogVolume*)GetRenderer())
+			m_pFogVolumeRenderElement[i] = (CREFogVolume*)GetRenderer()->EF_CreateRE(eDATA_FogVolume);
+		else
+			m_pFogVolumeRenderElement[i] = nullptr;
 	}
 
 	m_pMatFogVolEllipsoid = Get3DEngine()->m_pMatFogVolEllipsoid;
