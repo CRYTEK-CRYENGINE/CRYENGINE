@@ -52,9 +52,10 @@ void CToneMappingStage::Execute()
 
 	pRenderer->GetGraphicsPipeline().SwitchFromLegacyPipeline();
 
-	int featureMask = ((int)bSunShafts << 1) | ((int)bColorGrading << 2) | ((int)bBloomEnabled << 3) | ((int)bFXAAEnabled << 4);
+	const int featureMask = ((int)bSunShafts << 1) | ((int)bColorGrading << 2) | ((int)bBloomEnabled << 3) | ((int)bFXAAEnabled << 4) |
+		((CRenderer::CV_r_HDREyeAdaptationMode & 0xf) << 5) | ((CRenderer::CV_r_HDRDebug & 0xf) << 9);
 
-	if (m_passToneMapping.InputChanged(featureMask, pSunShaftsTex->GetTextureID(), CRenderer::CV_r_HDREyeAdaptationMode, CRenderer::CV_r_HDRDebug))
+	if (m_passToneMapping.InputChanged(featureMask, pSunShaftsTex->GetTextureID(), CTexture::s_ptexCurLumTexture->GetTextureID()))
 	{
 		uint64 rtMask = 0;
 		if (CRenderer::CV_r_HDREyeAdaptationMode == 2)

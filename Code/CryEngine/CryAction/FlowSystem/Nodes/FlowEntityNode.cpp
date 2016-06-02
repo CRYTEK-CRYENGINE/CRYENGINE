@@ -1544,8 +1544,6 @@ public:
 		CFlowEntityNodeBase::ProcessEvent(event, pActInfo);
 
 		IEntity* pEntity = GetEntity();
-		if (!pEntity)
-			return;
 
 		switch (event)
 		{
@@ -1576,7 +1574,7 @@ public:
 					m_referenceVector.Normalize();
 				}
 
-				if (IsPortActive(pActInfo, IN_START))
+				if (pEntity && IsPortActive(pActInfo, IN_START))
 				{
 					pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, true);
 					const float blendSpeed = GetPortFloat(pActInfo, IN_BLENDSPEED);
@@ -1602,17 +1600,19 @@ public:
 
 		case eFE_Update:
 			{
-				if (m_bIsBlending)
+				if (pEntity)
 				{
-					BlendToTarget(pActInfo);
-				}
-				else
-				{
-					SnapToTarget(pActInfo);
-				}
+					if (m_bIsBlending)
+					{
+						BlendToTarget(pActInfo);
+					}
+					else
+					{
+						SnapToTarget(pActInfo);
+					}
 
-				ActivateOutput(pActInfo, OUT_CURRENT, Vec3(RAD2DEG(Ang3(pEntity->GetRotation()))));
-				break;
+					ActivateOutput(pActInfo, OUT_CURRENT, Vec3(RAD2DEG(Ang3(pEntity->GetRotation()))));
+				}
 			}
 		}
 	}

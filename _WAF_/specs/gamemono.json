@@ -56,6 +56,7 @@
 		"CryAudioImplSDLMixer",
 		"CryAudioImplWwise",
 		"CryAudioImplFmod",
+		"CryAudioImplPortAudio",
 		
 		"CryRenderOpenGL",
 		"CryRenderD3D11",
@@ -64,7 +65,7 @@
 		"CryScaleformHelper"
 	],
 
-	"win_modules"                           : ["WindowsLauncher", "CryRenderD3D11", "CryRenderD3D12", "CryRenderOpenGL", "CryAudioImplSDLMixer", "CryAudioImplFmod", "oculus"],
+	"win_modules"                           : ["WindowsLauncher", "CryRenderD3D11", "CryRenderD3D12", "CryRenderOpenGL", "CryAudioImplSDLMixer", "CryAudioImplFmod", "CryAudioImplPortAudio", "oculus"],
 	"win_debug_modules"                     : ["DedicatedLauncher", "CryLiveCreate", "GameStream"],
 	"win_profile_modules"                   : ["DedicatedLauncher", "CryLiveCreate", "GameStream"],
 

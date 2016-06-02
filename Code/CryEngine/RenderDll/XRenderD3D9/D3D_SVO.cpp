@@ -655,6 +655,7 @@ void CSvoRenderer::TropospherePass()
 		GetGBuffer(0)->Apply(14, m_nTexStatePoint);
 		GetGBuffer(1)->Apply(5, m_nTexStatePoint);
 		GetGBuffer(2)->Apply(7, m_nTexStatePoint);
+		
 		rd->FX_Commit();
 
 		SD3DPostEffectsUtils::DrawFullScreenTriWPOS(CTexture::s_ptexCurrentSceneDiffuseAccMap->GetWidth(), CTexture::s_ptexCurrentSceneDiffuseAccMap->GetHeight());
@@ -1089,6 +1090,8 @@ void CSvoRenderer::DemosaicPass(SSvoTargetsSet* pTS)
 			pTS->pRT_ALD_DEM_MAX_1->Apply(3, m_nTexStateLinear);
 
 			//CTexture::s_ptexSceneSpecularAccMap->Apply(15, m_nTexStateLinear);
+
+			rd->FX_Commit();
 
 			SD3DPostEffectsUtils::DrawFullScreenTriWPOS(CTexture::s_ptexCurrentSceneDiffuseAccMap->GetWidth(), CTexture::s_ptexCurrentSceneDiffuseAccMap->GetHeight());
 
@@ -1885,6 +1888,8 @@ void CSvoRenderer::UpScalePass(SSvoTargetsSet* pTS)
 		static CCryNameR paramNamePrev("g_mViewProjPrev");
 		m_pShader->FXSetPSFloat(paramNamePrev, alias_cast<Vec4*>(&m_matViewProjPrev), 4);
 	}
+
+	rd->FX_Commit();
 
 	SD3DPostEffectsUtils::DrawFullScreenTriWPOS(CTexture::s_ptexCurrentSceneDiffuseAccMap->GetWidth(), CTexture::s_ptexCurrentSceneDiffuseAccMap->GetHeight());
 

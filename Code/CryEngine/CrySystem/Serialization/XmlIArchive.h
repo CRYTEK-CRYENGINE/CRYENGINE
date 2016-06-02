@@ -37,6 +37,8 @@ public:
 	bool operator()(const SStruct& ser, const char* name = "", const char* label = 0) override;
 	bool operator()(SBlackBox& ser, const char* name = "", const char* label = 0) override;
 	bool operator()(IContainer& ser, const char* name = "", const char* label = 0) override;
+
+	void validatorMessage(bool error, const void* handle, const TypeID& type, const char* message) override;
 	// ~IArchive
 
 	using IArchive::operator();

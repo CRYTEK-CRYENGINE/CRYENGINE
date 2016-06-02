@@ -1600,6 +1600,7 @@ inline UINT64 UpdateSubresources(
 
 		Desc.Width = pDstBox->right - pDstBox->left;
 		Desc.Height = pDstBox->bottom - pDstBox->top;
+		Desc.DepthOrArraySize = pDstBox->back - pDstBox->front;
 	}
 
 	pDevice->GetCopyableFootprints(&Desc, FirstSubresource, NumSubresources, IntermediateOffset, Layouts, NumRows, RowSizesInBytes, &RequiredSize);
