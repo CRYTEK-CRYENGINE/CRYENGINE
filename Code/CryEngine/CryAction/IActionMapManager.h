@@ -8,7 +8,7 @@
 
    -------------------------------------------------------------------------
    History:
-   - 8:9:2004   10:20 : Created by Márcio Martins
+   - 8:9:2004   10:20 : Created by MÃ¡rcio Martins
    - 15:9:2010  12:30 : Revised by Dean Claassen
 
 *************************************************************************/
@@ -111,11 +111,12 @@ enum EActionFilterType
 
 enum EActionInputDevice
 {
-	eAID_Unknown       = 0,
-	eAID_KeyboardMouse = BIT(0),
-	eAID_XboxPad       = BIT(1),
-	eAID_PS4Pad        = BIT(2),
-	eAID_OculusTouch   = BIT(3),
+	eAID_Unknown           = 0,
+	eAID_KeyboardMouse     = BIT(0),
+	eAID_XboxPad           = BIT(1),
+	eAID_PS4Pad            = BIT(2),
+	eAID_OculusTouch       = BIT(3),
+	eAID_MotionController  = BIT(4),
 };
 
 struct SActionInputDeviceData

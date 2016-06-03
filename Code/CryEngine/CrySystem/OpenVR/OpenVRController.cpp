@@ -35,6 +35,10 @@ bool Controller::Init()
 	MAPSYMBOL(eKI_Motion_OpenVR_Trigger, vr::k_EButton_SteamVR_Trigger, "openvr_trigger", SInputSymbol::Trigger);
 	MAPSYMBOL(eKI_Motion_OpenVR_TriggerBtn, vr::k_EButton_SteamVR_Trigger | OPENVR_SPECIAL, "openvr_trigger_btn", SInputSymbol::Button);
 	MAPSYMBOL(eKI_Motion_OpenVR_TouchPadBtn, vr::k_EButton_SteamVR_Touchpad, "openvr_touch_btn", SInputSymbol::Button);
+	MAPSYMBOL(eKI_Motion_OpenVR_DPad_Left, vr::k_EButton_DPad_Left, "openvr_dpad_left", SInputSymbol::Button);
+	MAPSYMBOL(eKI_Motion_OpenVR_DPad_Right, vr::k_EButton_DPad_Right, "openvr_dpad_right", SInputSymbol::Button);
+	MAPSYMBOL(eKI_Motion_OpenVR_DPad_Up, vr::k_EButton_DPad_Up, "openvr_dpad_up", SInputSymbol::Button);
+	MAPSYMBOL(eKI_Motion_OpenVR_DPad_Down, vr::k_EButton_DPad_Down, "openvr_dpad_down", SInputSymbol::Button);
 	return true;
 }
 
@@ -99,7 +103,11 @@ void Controller::Update(vr::TrackedDeviceIndex_t controllerId, HmdTrackingState 
 		PostButtonIfChanged(index, eKI_Motion_OpenVR_Grip);
 		PostButtonIfChanged(index, eKI_Motion_OpenVR_TriggerBtn);
 		PostButtonIfChanged(index, eKI_Motion_OpenVR_TouchPadBtn);
-
+		PostButtonIfChanged(index, eKI_Motion_OpenVR_DPad_Left);
+		PostButtonIfChanged(index, eKI_Motion_OpenVR_DPad_Right);
+		PostButtonIfChanged(index, eKI_Motion_OpenVR_DPad_Up);
+		PostButtonIfChanged(index, eKI_Motion_OpenVR_DPad_Down);
+		
 		// send trigger event (if necessary)
 		if (m_state[index].trigger != m_previousState[index].trigger)
 		{
@@ -199,7 +207,18 @@ void Controller::DebugDraw(float& xPosLabel, float& yPosLabel) const
 	pRenderer->Draw2dLabel(xPosData, y, 1.3f, fColorDataBt, false, "Pad:%s", IsButtonPressed(eHmdController_OpenVR_1, eKI_Motion_OpenVR_TouchPadBtn) ? "Pressed" : "Released");
 	pRenderer->Draw2dLabel(xPosData + controllerWidth, y, 1.3f, fColorDataBt, false, "Bt Pad:%s", IsButtonPressed(eHmdController_OpenVR_2, eKI_Motion_OpenVR_TouchPadBtn) ? "Pressed" : "Released");
 	y += yDelta;
-
+	pRenderer->Draw2dLabel(xPosData, y, 1.3f, fColorDataBt, false, "DPad Left:%s", IsButtonPressed(eHmdController_OpenVR_1, eKI_Motion_OpenVR_DPad_Left) ? "Pressed" : "Released");
+	pRenderer->Draw2dLabel(xPosData + controllerWidth, y, 1.3f, fColorDataBt, false, "Bt DPad Left:%s", IsButtonPressed(eHmdController_OpenVR_2, eKI_Motion_OpenVR_DPad_Left) ? "Pressed" : "Released");
+	y += yDelta;
+	pRenderer->Draw2dLabel(xPosData, y, 1.3f, fColorDataBt, false, "DPad Right:%s", IsButtonPressed(eHmdController_OpenVR_1, eKI_Motion_OpenVR_DPad_Right) ? "Pressed" : "Released");
+	pRenderer->Draw2dLabel(xPosData + controllerWidth, y, 1.3f, fColorDataBt, false, "Bt DPad Right:%s", IsButtonPressed(eHmdController_OpenVR_2, eKI_Motion_OpenVR_DPad_Right) ? "Pressed" : "Released");
+	y += yDelta;
+	pRenderer->Draw2dLabel(xPosData, y, 1.3f, fColorDataBt, false, "DPad Up:%s", IsButtonPressed(eHmdController_OpenVR_1, eKI_Motion_OpenVR_DPad_Up) ? "Pressed" : "Released");
+	pRenderer->Draw2dLabel(xPosData + controllerWidth, y, 1.3f, fColorDataBt, false, "Bt DPad Up:%s", IsButtonPressed(eHmdController_OpenVR_2, eKI_Motion_OpenVR_DPad_Up) ? "Pressed" : "Released");
+	y += yDelta;
+	pRenderer->Draw2dLabel(xPosData, y, 1.3f, fColorDataBt, false, "DPad Down:%s", IsButtonPressed(eHmdController_OpenVR_1, eKI_Motion_OpenVR_DPad_Down) ? "Pressed" : "Released");
+	pRenderer->Draw2dLabel(xPosData + controllerWidth, y, 1.3f, fColorDataBt, false, "Bt DPad Down:%s", IsButtonPressed(eHmdController_OpenVR_2, eKI_Motion_OpenVR_DPad_Down) ? "Pressed" : "Released");
+	y += yDelta;
 	pRenderer->Draw2dLabel(xPosData, y, 1.3f, fColorDataTr, false, "Trigger:%.2f", GetTriggerValue(eHmdController_OpenVR_1, eKI_Motion_OpenVR_Trigger));
 	pRenderer->Draw2dLabel(xPosData + controllerWidth, y, 1.3f, fColorDataTr, false, "Trigger:%.2f", GetTriggerValue(eHmdController_OpenVR_2, eKI_Motion_OpenVR_Trigger));
 	y += yDelta;

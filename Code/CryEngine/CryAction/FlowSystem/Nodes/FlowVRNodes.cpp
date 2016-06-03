@@ -413,13 +413,17 @@ class COpenVRController : public CFlowBaseNode<eNCT_Singleton>
 		EOP_ButtonGrip,
 		EOP_ButtonTrigger,
 		EOP_ButtonPad,
+		EOP_ButtonDpadLeft,
+		EOP_ButtonDpadRight,
+		EOP_ButtonDpadUp,
+		EOP_ButtonDpadDown,
 
 		EOP_Trigger,
 
 		EOP_Pad,
 
 		EFirst_bool  = EOP_Connected,
-		ELast_bool   = EOP_ButtonPad,
+		ELast_bool   = EOP_ButtonDpadDown,
 		EFirst_float = EOP_Trigger,
 		ELast_float  = EOP_Pad,
 	};
@@ -442,17 +446,21 @@ public:
 			{ 0 }
 		};
 		static const SOutputPortConfig out_config[] = {
-			OutputPortConfig<bool>("Connected",       _HELP("Is Controller connected?")),
+			OutputPortConfig<bool>("Connected",         _HELP("Is Controller connected?")),
 
-			OutputPortConfig<bool>("Button_System",   _HELP("Is system button pressed?")),
-			OutputPortConfig<bool>("Button_AppMenu",  _HELP("Is application menu button pressed?")),
-			OutputPortConfig<bool>("Button_Grip",     _HELP("Is grip button pressed?")),
-			OutputPortConfig<bool>("Button_Trigger",  _HELP("Is trigger pressed?")),
-			OutputPortConfig<bool>("Button_TouchPad", _HELP("Is touch pad pressed?")),
+			OutputPortConfig<bool>("Button_System",     _HELP("Is system button pressed?")),
+			OutputPortConfig<bool>("Button_AppMenu",    _HELP("Is application menu button pressed?")),
+			OutputPortConfig<bool>("Button_Grip",       _HELP("Is grip button pressed?")),
+			OutputPortConfig<bool>("Button_Trigger",    _HELP("Is trigger pressed?")),
+			OutputPortConfig<bool>("Button_TouchPad",   _HELP("Is touch pad pressed?")),
+			OutputPortConfig<bool>("Button_DPadLeft",   _HELP("Is touch pad Left pressed?")),
+			OutputPortConfig<bool>("Button_DPadRight",  _HELP("Is touch pad Right pressed?")),
+			OutputPortConfig<bool>("Button_DPadUp",     _HELP("Is touch pad Up pressed?")),
+			OutputPortConfig<bool>("Button_DPadDown",   _HELP("Is touch pad Down pressed?")),
 
-			OutputPortConfig<float>("Trigger",        _HELP("Trigger analog value")),
+			OutputPortConfig<float>("Trigger",          _HELP("Trigger analog value")),
 
-			OutputPortConfig<Vec3>("TouchPad",        _HELP("Touch pad analog value")),
+			OutputPortConfig<Vec3>("TouchPad",          _HELP("Touch pad analog value")),
 
 			{ 0 }
 		};
@@ -517,6 +525,11 @@ public:
 							ActivateOutput(pActInfo, EOP_ButtonGrip, pController->IsButtonPressed(controller, eKI_Motion_OpenVR_Grip));
 							ActivateOutput(pActInfo, EOP_ButtonTrigger, pController->IsButtonPressed(controller, eKI_Motion_OpenVR_TriggerBtn));
 							ActivateOutput(pActInfo, EOP_ButtonPad, pController->IsButtonPressed(controller, eKI_Motion_OpenVR_TouchPad_X));
+							ActivateOutput(pActInfo, EOP_ButtonDpadLeft, pController->IsButtonPressed(controller, eKI_Motion_OpenVR_DPad_Left));
+							ActivateOutput(pActInfo, EOP_ButtonDpadRight, pController->IsButtonPressed(controller, eKI_Motion_OpenVR_DPad_Right));
+							ActivateOutput(pActInfo, EOP_ButtonDpadUp, pController->IsButtonPressed(controller, eKI_Motion_OpenVR_DPad_Up));
+							ActivateOutput(pActInfo, EOP_ButtonDpadDown, pController->IsButtonPressed(controller, eKI_Motion_OpenVR_DPad_Down));
+
 
 							ActivateOutput(pActInfo, EOP_Trigger, pController->GetTriggerValue(controller, eKI_Motion_OpenVR_Trigger));
 
