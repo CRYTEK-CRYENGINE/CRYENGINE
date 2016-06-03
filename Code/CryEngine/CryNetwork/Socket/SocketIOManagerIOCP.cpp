@@ -21,6 +21,8 @@ CSocketIOManagerIOCP::TIORequestAllocator* CSocketIOManagerIOCP::m_pAllocator = 
 	#endif
 
 CSocketIOManagerIOCP::CSocketIOManagerIOCP() : CSocketIOManager(eSIOMC_SupportsBackoff | eSIOMC_NoBuffering)
+	, m_recursionDepth(0)
+	, m_cio({0})
 	#if LOCK_NETWORK_FREQUENCY
 	, m_userMessageFrameID(0)
 	#endif // LOCK_NETWORK_FREQUENCY
@@ -129,7 +131,7 @@ int CSocketIOManagerIOCP::PollWork(bool& performedWork)
 
 	{
 		SCOPED_GLOBAL_LOCK;
-		performedWork |= true;
+		performedWork = true;
 		g_systemBranchCounters.iocpForceSync++;
 		retval = PollInnerLoop(retval);
 		NET_ASSERT(m_completedIO.empty());

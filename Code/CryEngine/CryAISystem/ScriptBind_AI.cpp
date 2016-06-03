@@ -41,7 +41,7 @@
 #include "SelectionTree/SelectionTreeManager.h"
 #include "Group/GroupManager.h"
 #include "TargetSelection/TargetTrackManager.h"
-#include "AIBubblesSystem/IAIBubblesSystem.h"
+#include "AIBubblesSystem/AIBubblesSystem.h"
 #include "Sequence/SequenceManager.h"
 #include <CryAISystem/IBlackBoard.h>
 #include <CryAISystem/IFactionMap.h>

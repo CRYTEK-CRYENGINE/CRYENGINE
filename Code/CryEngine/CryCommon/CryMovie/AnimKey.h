@@ -803,9 +803,12 @@ struct SCaptureKey : public STrackDurationKey
 			m_timeStep = (1.0f / m_frameRate);
 		}
 
-		string folder = m_folder;
-		ar(Serialization::ResourceFolderPath(folder, m_folder), "folder", "Folder");
-		cry_strcpy(m_folder, folder.c_str(), folder.length());
+		string tempFolder = m_folder;
+		size_t pathLength = tempFolder.find(PathUtil::GetGameFolder());
+		string captureFolder = (pathLength == string::npos) ? PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR + m_folder : m_folder;
+
+		ar(Serialization::ResourceFolderPath(captureFolder, ""), "folder", "Folder");
+		cry_strcpy(m_folder, captureFolder.c_str(), captureFolder.length());
 
 		ar(m_captureFormat, "format", "Format");
 		ar(m_bOnce, "once", "Once");

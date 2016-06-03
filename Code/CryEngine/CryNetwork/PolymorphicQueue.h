@@ -125,6 +125,7 @@ template<class B>
 CPolymorphicQueue<B>::CPolymorphicQueue()
 {
 	m_pCurBlock = 0;
+	m_flushBlock = 0;
 #if CHECKING_POLYMORPHIC_QUEUE
 	m_user = 0;
 #endif

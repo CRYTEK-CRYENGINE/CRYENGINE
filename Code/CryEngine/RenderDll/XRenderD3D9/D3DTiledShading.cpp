@@ -1048,6 +1048,20 @@ void CTiledShading::UnbindForwardShadingResources(CDeviceManager::SHADER_TYPE sh
 
 	D3DSamplerState* pNullSamplers[1] = { NULL };
 	rd->m_DevMan.BindSampler(shaderType, pNullSamplers, 14, 1);
+
+	// reset sampler state cache because we accessed states directly
+	if(shaderType == CDeviceManager::TYPE_VS)
+		CTexture::s_TexStateIDs[eHWSC_Vertex][14] = -1;
+	else if (shaderType == CDeviceManager::TYPE_PS)
+		CTexture::s_TexStateIDs[eHWSC_Pixel][14] = -1;
+	else if (shaderType == CDeviceManager::TYPE_GS)
+		CTexture::s_TexStateIDs[eHWSC_Geometry][14] = -1;
+	else if (shaderType == CDeviceManager::TYPE_DS)
+		CTexture::s_TexStateIDs[eHWSC_Domain][14] = -1;
+	else if (shaderType == CDeviceManager::TYPE_HS)
+		CTexture::s_TexStateIDs[eHWSC_Hull][14] = -1;
+	else if (shaderType == CDeviceManager::TYPE_CS)
+		CTexture::s_TexStateIDs[eHWSC_Compute][14] = -1;
 }
 
 struct STiledLightShadeInfo* CTiledShading::GetTiledLightShadeInfo()

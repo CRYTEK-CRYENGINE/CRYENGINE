@@ -37,17 +37,18 @@ bool GenericPlanner::IsUpdateNeeded() const
 	return m_plan.HasBlocks() || m_pathfinderRequestQueued;
 }
 
-void GenericPlanner::StartWorkingOnRequest(const MovementRequest& request, const MovementUpdateContext& context)
+void GenericPlanner::StartWorkingOnRequest(const MovementRequestID& requestId, const MovementRequest& request, const MovementUpdateContext& context)
 {
 	m_amountOfFailedReplanning = 0;
 	m_pendingPathReplanningDueToPreviousNavMeshChanges = false;
-	StartWorkingOnRequest_Internal(request, context);
+	StartWorkingOnRequest_Internal(requestId, request, context);
 }
 
-void GenericPlanner::StartWorkingOnRequest_Internal(const MovementRequest& request, const MovementUpdateContext& context)
+void GenericPlanner::StartWorkingOnRequest_Internal(const MovementRequestID& requestId, const MovementRequest& request, const MovementUpdateContext& context)
 {
 	assert(IsReadyForNewRequest());
 
+	m_requestId = requestId;
 	m_request = request;
 
 	if (request.type == MovementRequest::MoveTo)
@@ -164,7 +165,7 @@ IPlanner::Status GenericPlanner::Update(const MovementUpdateContext& context)
 				if (IsReadyForNewRequest())
 				{
 					context.actor.Log("Movement plan couldn't be finished due to path-invalidation from NavMesh changes, re-planning.");
-					StartWorkingOnRequest(m_request, context);
+					StartWorkingOnRequest(m_requestId, m_request, context);
 				}
 			}
 		}
@@ -239,7 +240,7 @@ void GenericPlanner::CheckOnPathfinder(const MovementUpdateContext& context, OUT
 		if (state == FoundPath)
 			ProducePlan(context);
 		else
-			status.SetPathfinderFailed();
+			status.SetPathfinderFailed(m_requestId);
 	}
 }
 
@@ -251,7 +252,7 @@ void GenericPlanner::ExecuteCurrentPlan(const MovementUpdateContext& context, OU
 
 		if (s == Plan::Finished)
 		{
-			status.SetRequestSatisfied();
+			status.SetRequestSatisfied(m_plan.GetRequestId());
 			m_plan.Clear(context.actor);
 		}
 		else if (s == Plan::CantBeFinished)
@@ -262,7 +263,7 @@ void GenericPlanner::ExecuteCurrentPlan(const MovementUpdateContext& context, OU
 			++m_amountOfFailedReplanning;
 			if (m_request.style.IsMovingAlongDesignedPath())
 			{
-				status.SetMovingAlongPathFailed();
+				status.SetMovingAlongPathFailed(m_plan.GetRequestId());
 			}
 			else if (IsReadyForNewRequest())
 			{
@@ -270,11 +271,11 @@ void GenericPlanner::ExecuteCurrentPlan(const MovementUpdateContext& context, OU
 				{
 					context.actor.Log("Movement plan couldn't be finished, re-planning.");
 					const MovementRequest replanRequest = m_request;
-					StartWorkingOnRequest_Internal(replanRequest, context);
+					StartWorkingOnRequest_Internal(m_requestId, replanRequest, context);
 				}
 				else
 				{
-					status.SetReachedMaxAllowedReplans();
+					status.SetReachedMaxAllowedReplans(m_plan.GetRequestId());
 				}
 			}
 		}
@@ -296,6 +297,7 @@ void GenericPlanner::ProducePlan(const MovementUpdateContext& context)
 	assert(m_plan.InterruptibleNow());
 
 	m_plan.Clear(context.actor);
+	m_plan.SetRequestId(m_requestId);
 
 	switch (m_request.type)
 	{

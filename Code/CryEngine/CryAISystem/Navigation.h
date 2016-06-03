@@ -124,9 +124,6 @@ struct CutEdgeIdx
 		idx1 = i1;
 		idx2 = i2;
 	}
-
-	// default ctor to allow std::vector::resize(0)
-	CutEdgeIdx() {}
 };
 
 typedef std::vector<CutEdgeIdx> NewCutsVector;

@@ -712,6 +712,8 @@ private:
 		uint8 counterOut;
 		bool  used;
 
+		// All members are expected to be uninitialized if !used
+		// cppcheck-suppress uninitMemberVar
 		SConnection() : used(false) {}
 	};
 

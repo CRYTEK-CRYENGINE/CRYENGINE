@@ -7,7 +7,7 @@
 #include "MovementHelpers.h"
 #include "Navigation/NavigationSystem/NavigationSystem.h"
 #include "PipeUser.h"
-#include "AIBubblesSystem/IAIBubblesSystem.h"
+#include "AIBubblesSystem/AIBubblesSystem.h"
 
 namespace Movement
 {

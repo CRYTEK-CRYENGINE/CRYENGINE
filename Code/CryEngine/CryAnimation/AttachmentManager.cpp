@@ -1069,7 +1069,8 @@ int CAttachmentManager::UpdatePhysicalizedAttachment(int idx, IPhysicalEntity* p
 		int id = (pIAttachment->GetFlags() & FLAGS_ATTACH_ID_MASK) >> idbit;
 		pp.partid = m_pSkelInstance->m_pDefaultSkeleton->GetJointCount() + id;
 		pp.pMtx3x4 = &mtx;
-		pp.bRecalcBBox = !m_pSkelInstance || !m_pSkelInstance->m_SkeletonPose.m_physics.GetModelJointPointer(idx)->m_PhysInfo.pPhysGeom;
+		const CDefaultSkeleton::SJoint* pJoint = m_pSkelInstance->m_SkeletonPose.m_physics.GetModelJointPointer(iJoint);
+		pp.bRecalcBBox = !pJoint->m_PhysInfo.pPhysGeom;
 		pent->SetParams(&pp);
 	}
 	return changed;

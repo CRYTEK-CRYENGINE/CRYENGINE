@@ -49,7 +49,7 @@ public:
 	const PathHolderPath&                     GetPath() const { return m_path; }
 	inline typename PathHolderPath::size_type Size() const    { return m_path.size(); }
 
-	void                                      PullPathOnNavigationMesh(const NavigationMeshID meshID, uint16 iteration, MNM::WayTriangleData* way, const size_t maxLenght)
+	void                                      PullPathOnNavigationMesh(const NavigationMeshID meshID, uint16 iteration, const MNM::WayTriangleData* way, const size_t maxLenght)
 	{
 		FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
 

@@ -288,6 +288,7 @@ struct PathFollowerParams
 		use2D(true),
 		isVehicle(false),
 		isAllowedToShortcut(true),
+		snapEndPointToGround(true),
 		navCapMask(IAISystem::NAV_UNSET),
 		passRadius(0.5f)
 	{}
@@ -308,6 +309,7 @@ struct PathFollowerParams
 	bool  use2D;         //!< Follow in 2 or 3D.
 	bool  isVehicle;
 	bool  isAllowedToShortcut;
+	bool  snapEndPointToGround; //!< try to make sure, that the path ends on the ground
 
 	// TODO: Add to serialize...
 	//! The navigation capabilities of the agent.

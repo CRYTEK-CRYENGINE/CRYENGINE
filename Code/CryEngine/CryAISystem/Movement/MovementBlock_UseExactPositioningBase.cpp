@@ -5,7 +5,7 @@
 #include "MovementActor.h"
 #include <CryAISystem/MovementUpdateContext.h>
 #include "PipeUser.h"
-#include "AIBubblesSystem/IAIBubblesSystem.h"
+#include "AIBubblesSystem/AIBubblesSystem.h"
 
 namespace Movement
 {

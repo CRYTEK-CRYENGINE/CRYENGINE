@@ -238,19 +238,22 @@ MovementRequestID MovementSystem::GenerateUniqueMovementRequestID()
 
 void MovementSystem::FinishRequest(
   MovementActor& actor,
+  const MovementRequestID requestId, // pass requestId by value to make a copy to be sure, that it is not changed due to the callback
   MovementRequestResult::Result resultID,
   MovementRequestResult::FailureReason failureReason)
 {
-	MovementRequestID activeRequestID = 0;
-	MovementRequest::Callback& callback = GetActiveRequest(actor, &activeRequestID).callback;
-
-	if (callback)
+	Requests::iterator itRequest = std::find_if(m_requests.begin(), m_requests.end(), RequestMatchesIdPredicate(requestId));
+	if (itRequest != m_requests.end())
 	{
-		MovementRequestResult result(activeRequestID, resultID, failureReason);
-		callback(result); // Caution! The user callback code might invalidate iterators.
+		MovementRequest::Callback& callback = itRequest->second.callback;
+		if (callback)
+		{
+			MovementRequestResult result(requestId, resultID, failureReason);
+			callback(result); // Caution! The user callback code might invalidate iterators.
+		}
 	}
 
-	CleanUpAfterFinishedRequest(actor, activeRequestID);
+	CleanUpAfterFinishedRequest(actor, requestId);
 }
 
 void MovementSystem::CleanUpAfterFinishedRequest(MovementActor& actor, MovementRequestID activeRequestID)
@@ -267,7 +270,10 @@ void MovementSystem::CleanUpAfterFinishedRequest(MovementActor& actor, MovementR
 		actor.requestQueue.erase(itActorRequest);
 	}
 
-	actor.requestIdCurrentlyInPlanner = 0;
+	if (actor.requestIdCurrentlyInPlanner == activeRequestID)
+	{
+		actor.requestIdCurrentlyInPlanner = 0;
+	}
 }
 
 MovementRequest& MovementSystem::GetActiveRequest(MovementActor& actor, MovementRequestID* outRequestID)
@@ -384,12 +390,13 @@ void MovementSystem::StartWorkingOnNewRequestIfPossible(const MovementUpdateCont
 
 	if (!requestQueue.empty())
 	{
-		const MovementRequestID frontRequestID = requestQueue.front();
-		IPlanner& planner = context.planner;
+		MovementRequestID frontRequestID;
+		MovementRequest& request = GetActiveRequest(actor, OUT & frontRequestID);
 
+		IPlanner& planner = context.planner;
 		if (!IsPlannerWorkingOnRequestID(actor, frontRequestID) && planner.IsReadyForNewRequest())
 		{
-			planner.StartWorkingOnRequest(GetActiveRequest(actor), context);
+			planner.StartWorkingOnRequest(frontRequestID, request, context);
 			actor.requestIdCurrentlyInPlanner = frontRequestID;
 		}
 	}
@@ -400,7 +407,7 @@ void MovementSystem::UpdatePlannerAndDealWithResult(const MovementUpdateContext&
 	using namespace Movement;
 
 	IPlanner& planner = context.planner;
-	const IPlanner::Status& status = planner.Update(context);
+	const IPlanner::Status status = planner.Update(context);
 
 	// The front request could have been canceled and removed but
 	// the planner is still executing a plan that was produced to
@@ -415,13 +422,13 @@ void MovementSystem::UpdatePlannerAndDealWithResult(const MovementUpdateContext&
 	if (!requestQueue.empty() && IsPlannerWorkingOnRequestID(actor, requestQueue.front()))
 	{
 		if (status.HasPathfinderFailed())
-			FinishRequest(actor, MovementRequestResult::Failure, MovementRequestResult::CouldNotFindPathToRequestedDestination);
+			FinishRequest(actor, status.GetRequestId(), MovementRequestResult::Failure, MovementRequestResult::CouldNotFindPathToRequestedDestination);
 		else if (status.HasMovingAlongPathFailed())
-			FinishRequest(actor, MovementRequestResult::Failure, MovementRequestResult::CouldNotMoveAlongDesignerDesignedPath);
+			FinishRequest(actor, status.GetRequestId(), MovementRequestResult::Failure, MovementRequestResult::CouldNotMoveAlongDesignerDesignedPath);
 		else if (status.HasReachedTheMaximumNumberOfReplansAllowed())
-			FinishRequest(actor, MovementRequestResult::Failure, MovementRequestResult::FailedToProduceSuccessfulPlanAfterMaximumNumberOfAttempts);
+			FinishRequest(actor, status.GetRequestId(), MovementRequestResult::Failure, MovementRequestResult::FailedToProduceSuccessfulPlanAfterMaximumNumberOfAttempts);
 		else if (status.HasRequestBeenSatisfied())
-			FinishRequest(actor, MovementRequestResult::Success);
+			FinishRequest(actor, status.GetRequestId(), MovementRequestResult::Success);
 	}
 }
 

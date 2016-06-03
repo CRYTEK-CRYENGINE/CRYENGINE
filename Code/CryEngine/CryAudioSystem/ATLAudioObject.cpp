@@ -428,11 +428,11 @@ CATLAudioObject::CPropagationProcessor::CPropagationProcessor(AudioObjectId cons
 	, m_transformation(transformation)
 	, m_currentListenerDistance(0.0f)
 	, m_occlusionType(eAudioOcclusionType_None)
-	, m_originalOcclusionType(eAudioOcclusionType_None)
 	, m_occlusionTypeWhenAdaptive(eAudioOcclusionType_None)
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 	, m_rayDebugInfos(s_numConcurrentRaysHigh)
 	, m_timeSinceLastUpdateMS(0.0f)
+	, m_originalOcclusionType(eAudioOcclusionType_None)
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 {
 	if (s_raySamplePositionsLow.empty())

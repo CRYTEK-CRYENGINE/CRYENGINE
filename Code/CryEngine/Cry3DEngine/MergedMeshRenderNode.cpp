@@ -5172,4 +5172,30 @@ bool CMergedMeshesManager::GetCompiledData(uint32 index, byte* pData, int nSize,
 	return true;
 }
 
+void CMergedMeshRenderNode::FillBBox(AABB& aabb)
+{
+	aabb = CMergedMeshRenderNode::GetBBox();
+}
+
+EERType CMergedMeshRenderNode::GetRenderNodeType()
+{
+	return eERType_MergedMesh;
+}
+
+float CMergedMeshRenderNode::GetMaxViewDist()
+{
+	float radius = m_internalAABB.GetRadius();
+	return max(GetCVars()->e_ViewDistMin, radius * GetCVars()->e_MergedMeshesViewDistRatio);
+}
+
+Vec3 CMergedMeshRenderNode::GetPos(bool bWorldOnly) const
+{
+	return m_pos;
+}
+
+IMaterial* CMergedMeshRenderNode::GetMaterial(Vec3* pHitPos) const
+{
+	return NULL;
+}
+
 #undef FSL_CREATE_MODE

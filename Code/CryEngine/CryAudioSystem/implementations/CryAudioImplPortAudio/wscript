@@ -1,0 +1,51 @@
+# Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+
+import os
+from waflib import Logs
+
+def build(bld):
+	platform = bld.env['PLATFORM']
+	spec = bld.options.project_spec
+	configuration = bld.env['CONFIGURATION']
+
+	if platform and not platform == 'project_generator' and not bld.cmd == 'generate_uber_files' and 'CryAudioImplPortAudio' in bld.spec_modules(spec, platform, configuration):
+		if not os.path.isdir('Code/SDKs/Audio/portaudio') or not os.path.isdir('Code/SDKs/Audio/libsndfile'):
+			Logs.error('[ERROR] Attempting to build CryAudioImplPortAudio, but could not find the PortAudio SDK at Code/SDKs/Audio/portaudio or libsndfile SDK at Code/SDKs/Audio/libsndfile, skipping.')
+			return
+
+	bld.CryEngineModule(
+		target      = 'CryAudioImplPortAudio',
+		vs_filter   = 'CryEngine/Audio/Implementations',
+		file_list   = 'cryaudioimpl.waf_files',
+		pch         = 'stdafx.cpp',
+
+		module_extensions = [ 'audio_portaudio' ],
+
+		### GENERAL ###
+		debug_defines       = 'PORTAUDIO_FOR_DEBUG',
+		profile_defines     = 'PORTAUDIO_FOR_PROFILE',
+		performance_defines = 'PORTAUDIO_FOR_RELEASE',
+		release_defines     = 'PORTAUDIO_FOR_RELEASE',
+
+		includes = '../../Common',
+		
+		### WINDOWS ###
+		win_includes = [
+		bld.CreateRootRelativePath('Code/SDKs/Audio/portaudio/inc/'),
+		bld.CreateRootRelativePath('Code/SDKs/Audio/libsndfile/include/')
+		],
+
+		win_x86_libpath = bld.CreateRootRelativePath('Code/SDKs/Audio/libsndfile/lib/win32/'),
+		win_x64_libpath = bld.CreateRootRelativePath('Code/SDKs/Audio/libsndfile/lib/win64/'),
+		win_lib = ['libsndfile-1'],
+
+		win_x86_debug_libpath   = bld.CreateRootRelativePath('Code/SDKs/Audio/portaudio/lib/win32/debug/'),
+		win_x86_profile_libpath = bld.CreateRootRelativePath('Code/SDKs/Audio/portaudio/lib/win32/release/'),
+		win_x86_release_libpath = bld.CreateRootRelativePath('Code/SDKs/Audio/portaudio/lib/win32/release/'),
+		win_x64_debug_libpath   = bld.CreateRootRelativePath('Code/SDKs/Audio/portaudio/lib/win64/debug/'),
+		win_x64_profile_libpath = bld.CreateRootRelativePath('Code/SDKs/Audio/portaudio/lib/win64/release/'),
+		win_x64_release_libpath = bld.CreateRootRelativePath('Code/SDKs/Audio/portaudio/lib/win64/release/'),
+
+		win_x86_lib = ['portaudio_x86'],
+		win_x64_lib = ['portaudio_x64'],
+	)

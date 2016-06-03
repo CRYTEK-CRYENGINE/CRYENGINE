@@ -1766,7 +1766,6 @@ bool CREBeam::mfDraw(CShader* ef, SShaderPass* sl)
 
 	Matrix44 projMat = mLightView * mLightProj;
 
-	const ShadowMapFrustum& shadowFrustum = CShadowUtils::GetFirstFrustum(rd->m_RP.m_pCurrentRenderView, nLightID);
 	const CRenderCamera& RCam = gRenDev->GetRCamera();
 
 	float fLightAngle = pDL->m_fLightFrustumAngle;
@@ -1824,12 +1823,16 @@ bool CREBeam::mfDraw(CShader* ef, SShaderPass* sl)
 	CTexture* pShadowTex = NULL;
 	CTexture* pProjTex = NULL;
 
-	if (shadowFrustum.bUseShadowsPool)
+	if (bCastsShadows)
 	{
-		pShadowTex = CTexture::s_ptexRT_ShadowPool;
-		float fTexWidth = CTexture::s_ptexRT_ShadowPool->GetWidth();
-		float fTexHeight = CTexture::s_ptexRT_ShadowPool->GetHeight();
-		vShadowCoords = Vec4(shadowFrustum.packX[0] / fTexWidth, shadowFrustum.packY[0] / fTexHeight, shadowFrustum.packWidth[0] / fTexWidth, shadowFrustum.packHeight[0] / fTexHeight);
+		const ShadowMapFrustum& shadowFrustum = CShadowUtils::GetFirstFrustum(rd->m_RP.m_pCurrentRenderView, nLightID);
+		if (shadowFrustum.bUseShadowsPool)
+		{
+			pShadowTex = CTexture::s_ptexRT_ShadowPool;
+			float fTexWidth = CTexture::s_ptexRT_ShadowPool->GetWidth();
+			float fTexHeight = CTexture::s_ptexRT_ShadowPool->GetHeight();
+			vShadowCoords = Vec4(shadowFrustum.packX[0] / fTexWidth, shadowFrustum.packY[0] / fTexHeight, shadowFrustum.packWidth[0] / fTexWidth, shadowFrustum.packHeight[0] / fTexHeight);
+		}
 	}
 
 	if (pDL->m_pLightImage)

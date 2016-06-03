@@ -32,7 +32,7 @@ public:
 	#ifdef USING_BEHAVIOR_TREE_SERIALIZATION
 	virtual void Serialize(Serialization::IArchive& archive) override
 	{
-		archive(m_children, "children", "^[+<>]");
+		archive(m_children, "children", "^[+<>" NODE_COMBOBOX_FIXED_WIDTH ">]");
 
 		if (archive.isEdit())
 		{
@@ -50,7 +50,8 @@ public:
 	#ifdef USING_BEHAVIOR_TREE_XML_DESCRIPTION_CREATION
 	virtual XmlNodeRef CreateXmlDescription() override
 	{
-		XmlNodeRef xml = GetISystem()->CreateXmlNode("Composite");
+		XmlNodeRef xml = BaseClass::CreateXmlDescription();
+		xml->setTag("Composite");
 
 		for (int i = 0; i < m_children.size(); ++i)
 		{

@@ -394,6 +394,7 @@ struct CVars : public Cry3DEngineBase
 	DeclareConstIntCVar(e_StreamCgfDebug, 0);
 	float e_TerrainOcclusionCullingMaxDist;
 	int e_TerrainMeshInstancingMinLod;
+	float e_TerrainMeshInstancingShadowLodRatio;
 	float e_TerrainMeshInstancingShadowBias;
 	int   e_StatObjTessellationMode;
 	DeclareConstIntCVar(e_OcclusionLazyHideFrames, 0);

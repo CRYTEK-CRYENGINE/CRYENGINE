@@ -63,6 +63,7 @@ void Plan::Clear(IMovementActor& actor)
 {
 	ChangeToIndex(NoBlockIndex, actor);
 	m_blocks.clear();
+	m_requestId = MovementRequestID();
 }
 
 void Plan::CutOffAfterCurrentBlock()

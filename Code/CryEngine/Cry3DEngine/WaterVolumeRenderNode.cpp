@@ -1270,3 +1270,31 @@ void CWaterVolumeRenderNode::OffsetPosition(const Vec3& delta)
 		m_pPhysArea->SetParams(&par_pos);
 	}
 }
+
+void CWaterVolumeRenderNode::FillBBox(AABB& aabb)
+{
+	aabb = CWaterVolumeRenderNode::GetBBox();
+}
+
+EERType CWaterVolumeRenderNode::GetRenderNodeType()
+{
+	return eERType_WaterVolume;
+}
+
+float CWaterVolumeRenderNode::GetMaxViewDist()
+{
+	if (GetMinSpecFromRenderNodeFlags(m_dwRndFlags) == CONFIG_DETAIL_SPEC)
+		return max(GetCVars()->e_ViewDistMin, CWaterVolumeRenderNode::GetBBox().GetRadius() * GetCVars()->e_ViewDistRatioDetail * GetViewDistRatioNormilized());
+
+	return max(GetCVars()->e_ViewDistMin, CWaterVolumeRenderNode::GetBBox().GetRadius() * GetCVars()->e_ViewDistRatio * GetViewDistRatioNormilized());
+}
+
+Vec3 CWaterVolumeRenderNode::GetPos(bool bWorldOnly) const
+{
+	return m_center;
+}
+
+IMaterial* CWaterVolumeRenderNode::GetMaterial(Vec3* pHitPos) const
+{
+	return m_pMaterial;
+}

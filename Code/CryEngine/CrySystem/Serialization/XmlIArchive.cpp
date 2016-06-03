@@ -87,14 +87,14 @@ bool ReadChildNode(XmlNodeRef pParent, const int childIndexOverride, int& childI
 }
 
 Serialization::CXmlIArchive::CXmlIArchive()
-	: IArchive(INPUT | NO_EMPTY_NAMES)
+	: IArchive(INPUT | NO_EMPTY_NAMES | VALIDATION)
 	, m_childIndexOverride(-1)
 	, m_childIndexHint(0)
 {
 }
 
 Serialization::CXmlIArchive::CXmlIArchive(XmlNodeRef pRootNode)
-	: IArchive(INPUT | NO_EMPTY_NAMES)
+	: IArchive(INPUT | NO_EMPTY_NAMES | VALIDATION)
 	, m_pRootNode(pRootNode)
 	, m_childIndexOverride(-1)
 	, m_childIndexHint(0)
@@ -247,11 +247,11 @@ bool Serialization::CXmlIArchive::operator()(IContainer& ser, const char* name, 
 	CRY_ASSERT(name);
 	CRY_ASSERT(name[0]);
 
-	bool serializeSuccess = true;
-
 	XmlNodeRef pChild = XmlUtil::FindChildNode(m_pRootNode, m_childIndexOverride, m_childIndexHint, name);
 	if (pChild)
 	{
+		bool serializeSuccess = true;
+
 		const int elementCount = pChild->getChildCount();
 		ser.resize(elementCount);
 
@@ -269,7 +269,15 @@ bool Serialization::CXmlIArchive::operator()(IContainer& ser, const char* name, 
 				ser.next();
 			}
 		}
-	}
 
-	return serializeSuccess;
+		return serializeSuccess;
+	}
+	return false;
+}
+
+void Serialization::CXmlIArchive::validatorMessage(bool error, const void* handle, const TypeID& type, const char* message)
+{
+	const EValidatorModule module = VALIDATOR_MODULE_UNKNOWN;
+	const EValidatorSeverity severity = error ? VALIDATOR_ERROR : VALIDATOR_WARNING;
+	CryWarning(module, severity, "CXmlIArchive: %s", message);
 }

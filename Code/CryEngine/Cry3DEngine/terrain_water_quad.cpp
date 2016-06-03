@@ -864,3 +864,23 @@ void COcean::OffsetPosition(const Vec3& delta)
 	if (m_pTempData) m_pTempData->OffsetPosition(delta);
 #endif
 }
+
+void COcean::FillBBox(AABB& aabb)
+{
+	aabb = COcean::GetBBox();
+}
+
+EERType COcean::GetRenderNodeType()
+{
+	return eERType_WaterVolume;
+}
+
+Vec3 COcean::GetPos(bool) const
+{
+	return Vec3(0, 0, 0);
+}
+
+IMaterial* COcean::GetMaterial(Vec3* pHitPos) const
+{
+	return m_pMaterial;
+}

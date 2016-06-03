@@ -735,7 +735,7 @@ COPFollowPath::COPFollowPath(const XmlNodeRef& node) :
 COPFollowPath::COPFollowPath(const COPFollowPath& rhs)
 	: m_pTraceDirective(nullptr)
 	, m_pPathFindDirective(nullptr)
-	//, CStrongRef<CAIObject> m_refPathStartPoint
+	, m_refPathStartPoint()
 	, m_pathFindToStart(rhs.m_pathFindToStart)
 	, m_reversePath(rhs.m_reversePath)
 	, m_startNearest(rhs.m_startNearest)
@@ -1159,7 +1159,7 @@ COPBackoff::COPBackoff(const COPBackoff& rhs)
 	, m_bCheckSlopeDistance(rhs.m_bCheckSlopeDistance)
 	, m_pTraceDirective(nullptr)
 	, m_pPathfindDirective(nullptr)
-	//, CStrongRef<CAIObject> m_refBackoffPoint;
+	, m_refBackoffPoint()
 {
 	ResetMoveDirections();
 }

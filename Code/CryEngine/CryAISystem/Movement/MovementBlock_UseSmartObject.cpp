@@ -8,7 +8,7 @@
 #include "Navigation/NavigationSystem/NavigationSystem.h"
 #include "Navigation/MNM/OffGridLinks.h"
 #include "PipeUser.h"
-#include "AIBubblesSystem/IAIBubblesSystem.h"
+#include "AIBubblesSystem/AIBubblesSystem.h"
 
 namespace Movement
 {

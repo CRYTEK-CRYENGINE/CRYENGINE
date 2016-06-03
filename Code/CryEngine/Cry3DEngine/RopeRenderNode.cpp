@@ -1901,6 +1901,7 @@ void CRopeRenderNode::ResetRopeSound()
 
 }
 
+///////////////////////////////////////////////////////////////////////////////
 void CRopeRenderNode::OffsetPosition(const Vec3& delta)
 {
 	if (m_pTempData) m_pTempData->OffsetPosition(delta);
@@ -1919,4 +1920,37 @@ void CRopeRenderNode::OffsetPosition(const Vec3& delta)
 		par_pos.bRecalcBounds = 3;
 		m_pPhysicalEntity->SetParams(&par_pos);
 	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
+void CRopeRenderNode::FillBBox(AABB& aabb)
+{
+	aabb = CRopeRenderNode::GetBBox();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+EERType CRopeRenderNode::GetRenderNodeType()
+{
+	return eERType_Rope;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+float CRopeRenderNode::GetMaxViewDist()
+{
+	if (GetMinSpecFromRenderNodeFlags(m_dwRndFlags) == CONFIG_DETAIL_SPEC)
+		return max(GetCVars()->e_ViewDistMin, CRopeRenderNode::GetBBox().GetRadius() * GetCVars()->e_ViewDistRatioDetail * GetViewDistRatioNormilized());
+
+	return(max(GetCVars()->e_ViewDistMin, CRopeRenderNode::GetBBox().GetRadius() * GetCVars()->e_ViewDistRatio * GetViewDistRatioNormilized()));
+}
+
+///////////////////////////////////////////////////////////////////////////////
+Vec3 CRopeRenderNode::GetPos(bool bWorldOnly) const
+{
+	return m_pos;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+IMaterial* CRopeRenderNode::GetMaterial(Vec3* pHitPos) const
+{
+	return m_pMaterial;
 }

@@ -1794,7 +1794,7 @@ void CPersistantStats::GetMapStatForActorThisSession(EMapPersistantStats stat, E
 	if (isLocalClient)
 	{
 		SSessionStats *pStartSessionStats = GetClientPersistantStatsAtSessionStart();
-		const SSessionStats::SMap::MapNameToCount& statAtSessionStart = pStartSessionStats->GetStat(stat);
+		const SSessionStats::SMap::MapNameToCount& statAtSessionStart = pStartSessionStats->GetStatMap(stat);
 		const SSessionStats::SMap::MapNameToCount& statAtSessionEnd = GetStat(stat);
 		SSessionStats::SMap::MapNameToCount::const_iterator enditem = statAtSessionEnd.begin();
 		SSessionStats::SMap::MapNameToCount::const_iterator endend = statAtSessionEnd.end();
@@ -1820,7 +1820,7 @@ void CPersistantStats::GetMapStatForActorThisSession(EMapPersistantStats stat, E
 		CRY_ASSERT_MESSAGE(stats, string().Format("GetActorSessionStats() failed to find session stats for actor=%d", inActorId));
 		if (stats)
 		{
-			const SSessionStats::SMap::MapNameToCount& statmap = stats->GetStat(stat);
+			const SSessionStats::SMap::MapNameToCount& statmap = stats->GetStatMap(stat);
 			SSessionStats::SMap::MapNameToCount::const_iterator item = statmap.begin();
 			SSessionStats::SMap::MapNameToCount::const_iterator end = statmap.end();
 			for( ; item != end; ++item )

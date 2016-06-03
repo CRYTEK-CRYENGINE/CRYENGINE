@@ -528,12 +528,15 @@ void CCompiledRenderObject::DrawToCommandList(CDeviceGraphicsCommandListRef REST
 
 	{
 #ifndef _RELEASE
-		if (!!m_vertexStreamSet[VSF_HWSKIN_INFO])
+		if (m_vertexStreamSet)
 		{
-			CD3D9Renderer* pRenderer = gcpRendD3D;
-			SRenderPipeline& rp = pRenderer->m_RP;
+			if (!!m_vertexStreamSet[VSF_HWSKIN_INFO])
+			{
+				CD3D9Renderer* pRenderer = gcpRendD3D;
+				SRenderPipeline& rp = pRenderer->m_RP;
 
-			CryInterlockedIncrement(&(rp.m_PS[rp.m_nProcessThreadID].m_NumRendSkinnedObjects));
+				CryInterlockedIncrement(&(rp.m_PS[rp.m_nProcessThreadID].m_NumRendSkinnedObjects));
+			}
 		}
 #endif
 

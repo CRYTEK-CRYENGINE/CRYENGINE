@@ -295,8 +295,8 @@ struct SSendableHandle
 	{
 		return id == 0 && salt == 0;
 	}
-	typedef uint32 (SSendableHandle::* unknown_bool_type);
-	ILINE operator unknown_bool_type() const
+	typedef uint32 SSendableHandle::* safe_bool_idiom_type;
+	ILINE operator safe_bool_idiom_type() const
 	{
 		return !!(*this) ? &SSendableHandle::id : NULL;
 	}

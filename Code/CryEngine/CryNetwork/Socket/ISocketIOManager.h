@@ -30,11 +30,12 @@ struct SSocketID
 	{
 		return id == InvalidId;
 	}
-	typedef uint16 (SSocketID::* unknown_bool_type);
-	ILINE operator unknown_bool_type() const
+	typedef uint16 SSocketID::* safe_bool_idiom_type;
+	ILINE operator safe_bool_idiom_type() const
 	{
 		return !!(*this) ? &SSocketID::id : NULL;
 	}
+
 	ILINE bool operator!=(const SSocketID& rhs) const
 	{
 		return !(*this == rhs);

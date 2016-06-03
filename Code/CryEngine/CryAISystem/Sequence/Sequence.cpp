@@ -4,7 +4,7 @@
 #include "Sequence.h"
 #include "SequenceAgent.h"
 #include "SequenceFlowNodes.h"
-#include "AIBubblesSystem/IAIBubblesSystem.h"
+#include "AIBubblesSystem/AIBubblesSystem.h"
 
 namespace
 {

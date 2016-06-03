@@ -362,7 +362,7 @@ void Tile::Draw(size_t drawFlags, vector3_t origin, TileID tileID, const std::ve
 				stack_string text;
 				if ((drawFlags & DrawTrianglesId) && drawIslandData)
 				{
-					text.Format("id: %d, area: %f", ComputeTriangleID(tileID, static_cast<uint16>(i)), static_cast<uint16>(islandAreas[triangle.islandID - 1]));
+					text.Format("id: %d, area: %f, islandID: %u", ComputeTriangleID(tileID, static_cast<uint16>(i)), static_cast<uint16>(islandAreas[triangle.islandID - 1]), triangle.islandID);
 				}
 				else if (drawFlags & DrawTrianglesId)
 				{
@@ -370,11 +370,11 @@ void Tile::Draw(size_t drawFlags, vector3_t origin, TileID tileID, const std::ve
 				}
 				else
 				{
-					text.Format("area: %f", islandAreas[triangle.islandID - 1]);
+					text.Format("area: %f, islandID: %u", islandAreas[triangle.islandID - 1], triangle.islandID);
 				}
 
 				CDebugDrawContext dc;
-				dc->Draw3dLabelEx(triCenter, 1.0f, ColorB(255, 255, 255), true, true, true, false, "%s", text.c_str());
+				dc->Draw3dLabelEx(triCenter, 1.2f, ColorB(255, 255, 255), true, true, true, false, "%s", text.c_str());
 			}
 		}
 	}

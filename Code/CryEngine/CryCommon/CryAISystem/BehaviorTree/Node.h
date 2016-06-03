@@ -112,13 +112,35 @@ public:
 		m_failureLog = xml->getAttr("_failureLog");
 	#endif // USING_BEHAVIOR_TREE_LOG
 
+	#ifdef USING_BEHAVIOR_TREE_COMMENTS
+		m_comment = xml->getAttr("_comment");
+	#endif // USING_BEHAVIOR_TREE_COMMENTS
+
 		return LoadSuccess;
 	}
 
 	#ifdef USING_BEHAVIOR_TREE_XML_DESCRIPTION_CREATION
 	virtual XmlNodeRef CreateXmlDescription() override
 	{
-		return GetISystem()->CreateXmlNode("Node");
+		XmlNodeRef node = GetISystem()->CreateXmlNode("Node");
+
+		auto setAttrOptional = [this, &node](const char* szKey, const string& value)
+		{
+			if (!value.empty())
+			{
+				node->setAttr(szKey, value);
+			}
+		};
+		#ifdef USING_BEHAVIOR_TREE_LOG
+		setAttrOptional("_startLog", m_startLog);
+		setAttrOptional("_successLog", m_successLog);
+		setAttrOptional("_failureLog", m_failureLog);
+		#endif // USING_BEHAVIOR_TREE_LOG
+		#ifdef USING_BEHAVIOR_TREE_COMMENTS
+		setAttrOptional("_comment", m_comment);
+		#endif // USING_BEHAVIOR_TREE_COMMENTS
+
+		return node;
 	}
 	#endif
 
@@ -128,6 +150,10 @@ public:
 		#ifdef DEBUG_MODULAR_BEHAVIOR_TREE
 		HandleXmlLineNumberSerialization(archive, m_xmlLine);
 		#endif
+
+		#ifdef USING_BEHAVIOR_TREE_COMMENTS
+		HandleCommentSerialization(archive, m_comment);
+		#endif // USING_BEHAVIOR_TREE_COMMENTS
 	}
 	#endif
 
@@ -167,7 +193,7 @@ public:
 
 	NodeID GetNodeID() const { return m_id; }
 
-	NodeID m_id;   //!< TODO: Make this accessible only to the creator.
+	NodeID m_id;     //!< TODO: Make this accessible only to the creator.
 
 protected:
 
@@ -215,6 +241,10 @@ private:
 	#ifdef DEBUG_MODULAR_BEHAVIOR_TREE
 	uint32 m_xmlLine;
 	#endif // DEBUG_MODULAR_BEHAVIOR_TREE
+
+	#ifdef USING_BEHAVIOR_TREE_COMMENTS
+	string m_comment;
+	#endif // USING_BEHAVIOR_TREE_COMMENTS
 
 };
 

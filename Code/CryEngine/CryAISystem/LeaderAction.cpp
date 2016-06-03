@@ -39,6 +39,17 @@ const float CLeaderAction_Search::m_CSearchDistance = 15.f;
 const uint32 CLeaderAction_Search::m_CCoverUnitProperties = UPR_COMBAT_GROUND;
 const float CLeaderAction_Attack_SwitchPositions::m_fDefaultMinDistance = 6;
 
+CLeaderAction::CLeaderAction()
+	: m_pLeader(nullptr)
+	, m_eActionType(LA_NONE)
+	, m_eActionSubType(LAS_DEFAULT)
+	, m_Priority(0)
+	, m_unitProperties(UPR_ALL)
+	, m_currentNavType(IAISystem::NAV_UNSET)
+	, m_NavProperties()
+{
+}
+
 CLeaderAction::CLeaderAction(CLeader* pLeader)
 	: m_pLeader(pLeader)
 	, m_eActionType(LA_NONE)
@@ -46,6 +57,7 @@ CLeaderAction::CLeaderAction(CLeader* pLeader)
 	, m_Priority(0)
 	, m_unitProperties(UPR_ALL)
 	, m_currentNavType(IAISystem::NAV_UNSET)
+	, m_NavProperties()
 {
 }
 
@@ -649,7 +661,11 @@ CLeaderAction_Attack_SwitchPositions::CLeaderAction_Attack_SwitchPositions()
 
 CLeaderAction_Attack_SwitchPositions::CLeaderAction_Attack_SwitchPositions(CLeader* pLeader, const LeaderActionParams& params)
 	: m_fDistanceToTarget(LEADERACTION_DEFAULT_DISTANCE_TO_TARGET)
+	, m_bVisibilityChecked(false)
 	, m_bPointsAssigned(false)
+	, m_bAvoidDanger(false)
+	, m_fFormationSize(0.0f)
+	, m_fFormationScale(0.0f)
 	, m_pLiveTarget(NULL)
 {
 	CCCPOINT(CLeaderAction_Attack_SwitchPositions_CLA_A_SP);

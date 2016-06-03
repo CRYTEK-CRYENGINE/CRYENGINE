@@ -334,6 +334,19 @@ void CATLControl::LoadConnectionFromXML(XmlNodeRef xmlNode, int platformIndex)
 				AddConnection(pConnection);
 			}
 		}
+		else if (GetType() == eACEControlType_Preload && platformIndex == -1)
+		{
+			// If it's a preload connection from another middleware and the platform
+			// wasn't found (old file format) fall back to adding them to all the platforms
+			const std::vector<dll_string>& platforms = GetIEditor()->GetConfigurationManager()->GetPlatformNames();
+			const size_t count = platforms.size();
+			for (size_t i = 0; i < count; ++i)
+			{
+				AddRawXMLConnection(xmlNode, false, i);
+			}
+			return;
+		}
+
 		AddRawXMLConnection(xmlNode, pConnection != nullptr, platformIndex);
 	}
 }

@@ -71,8 +71,7 @@ v2f_sh Common_SG_VS(app2vertSGGeneral IN_common)
 		HPosition.z /= CP_ShadowGen_FrustumInfo.y;	//use linear z-buffer
 
 	#if %TEMP_TERRAIN
-		HPosition.z *= 1.005f;
-		HPosition.z += .001;
+		HPosition.z += .002;
 		HPosition.z = max(HPosition.z, 0.001);
 	#endif
 

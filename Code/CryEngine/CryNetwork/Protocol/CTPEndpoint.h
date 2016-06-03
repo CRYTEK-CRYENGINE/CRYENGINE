@@ -529,6 +529,7 @@ private:
 		void Encrypt(uint8* pBuf, size_t len)
 		{
 #if ENCRYPTION_RIJNDAEL
+			// cppcheck-suppress allocaCalled
 			PREFAST_SUPPRESS_WARNING(6255) uint8 * buf = (uint8*)alloca(len);
 			NET_ASSERT(0 == (len & 15));
 			m_crypt.blockEncrypt(pBuf, len * 8, buf);
@@ -540,6 +541,7 @@ private:
 		void Decrypt(uint8* pBuf, size_t len)
 		{
 #if ENCRYPTION_RIJNDAEL
+			// cppcheck-suppress allocaCalled
 			PREFAST_SUPPRESS_WARNING(6255) uint8 * buf = (uint8*)alloca(len);
 			NET_ASSERT(0 == (len & 15));
 			m_crypt.blockDecrypt(pBuf, len * 8, buf);
@@ -1057,6 +1059,7 @@ private:
 		SCorruptPacketDumpData()
 		{
 			hdl = TMemInvalidHdl;
+			inSync = false;
 			processingPacket = false;
 			doingDump = false;
 		}

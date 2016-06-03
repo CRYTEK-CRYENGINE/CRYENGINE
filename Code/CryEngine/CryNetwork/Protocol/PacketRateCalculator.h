@@ -209,7 +209,7 @@ public:
 	{
 		return uint32(m_samples.Size());
 	}
-	bool  Empty() { return m_samples.Empty(); }
+	bool  Empty() const { return m_samples.Empty(); }
 	float CountsPerSecond()
 	{
 		return CountsPerSecond(m_samples.Empty() ? 0.0f : m_samples.Back());

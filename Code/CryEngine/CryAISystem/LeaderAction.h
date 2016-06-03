@@ -106,7 +106,7 @@ public:
 		ACTION_FAILED
 	} eActionUpdateResult;
 
-	CLeaderAction() {};
+	CLeaderAction();
 	CLeaderAction(CLeader* pLeader);
 	virtual ~CLeaderAction();
 

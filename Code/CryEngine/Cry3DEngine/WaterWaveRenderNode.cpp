@@ -699,3 +699,36 @@ void CWaterWaveManager::Update(const SRenderingPassInfo& passInfo)
 	}
 
 }
+
+///////////////////////////////////////////////////////////////////////////////
+void CWaterWaveRenderNode::FillBBox(AABB& aabb)
+{
+	aabb = CWaterWaveRenderNode::GetBBox();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+EERType CWaterWaveRenderNode::GetRenderNodeType()
+{
+	return eERType_WaterWave;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+float CWaterWaveRenderNode::GetMaxViewDist()
+{
+	if (GetMinSpecFromRenderNodeFlags(m_dwRndFlags) == CONFIG_DETAIL_SPEC)
+		return max(GetCVars()->e_ViewDistMin, CWaterWaveRenderNode::GetBBox().GetRadius() * GetCVars()->e_ViewDistRatioDetail * GetViewDistRatioNormilized());
+
+	return max(GetCVars()->e_ViewDistMin, CWaterWaveRenderNode::GetBBox().GetRadius() * GetCVars()->e_ViewDistRatio * GetViewDistRatioNormilized());
+}
+
+///////////////////////////////////////////////////////////////////////////////
+Vec3 CWaterWaveRenderNode::GetPos(bool bWorldOnly) const
+{
+	return m_pParams.m_pPos;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+IMaterial* CWaterWaveRenderNode::GetMaterial(Vec3* pHitPos) const
+{
+	return m_pMaterial;
+}

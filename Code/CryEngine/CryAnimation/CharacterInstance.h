@@ -239,6 +239,7 @@ inline int CCharInstance::Release()
 	{
 		m_AttachmentManager.RemoveAllAttachments();
 		delete this;
+		return 0;
 	}
 	else if (m_nRefCounter < 0)
 	{

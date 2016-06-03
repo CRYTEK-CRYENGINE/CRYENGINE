@@ -5,7 +5,7 @@
 
 #include "AIActor.h" // Big one, but needed for timestamp collection
 #include "Puppet.h"  // Big one, but needed for the posture manager
-#include "AIBubblesSystem/IAIBubblesSystem.h"
+#include "AIBubblesSystem/AIBubblesSystem.h"
 #include "AIGroup.h"
 #include "Group/GroupManager.h"
 #include <CryAISystem/BehaviorTree/Action.h>

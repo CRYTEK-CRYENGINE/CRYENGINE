@@ -11,7 +11,7 @@
 #include "PipeUser.h"
 #include "AIActions.h"
 #include "AIActor.h"
-#include "AIBubblesSystem/IAIBubblesSystem.h"
+#include "AIBubblesSystem/AIBubblesSystem.h"
 
 ///////////////////////////////////////////////////
 // CAIAction

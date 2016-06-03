@@ -514,7 +514,7 @@ struct SSessionStats
 	}
 
 	int GetStat(const char* name, EMapPersistantStats) const;
-	const SMap::MapNameToCount& GetStat(EMapPersistantStats) const;
+	const SMap::MapNameToCount& GetStatMap(EMapPersistantStats) const;
 	int GetDerivedStat(EDerivedIntPersistantStats stat) const;
 	float GetDerivedStat(EDerivedFloatPersistantStats stat) const;
 	int GetDerivedStat(const char* name, EDerivedIntMapPersistantStats) const;

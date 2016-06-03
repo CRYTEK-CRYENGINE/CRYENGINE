@@ -75,6 +75,7 @@ public:
 				, height(18)
 				, climbableHeight(4)
 				, maxWaterDepth(8)
+				, callback()
 			{
 			}
 

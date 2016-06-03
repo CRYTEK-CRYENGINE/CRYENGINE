@@ -22,27 +22,47 @@ struct IPlanner
 	{
 	public:
 		Status()
-			: m_requestSatisfied(false)
+			: m_requestId()
+			, m_requestSatisfied(false)
 			, m_pathfinderFailed(false)
 			, m_movingAlongPathFailed(false)
 			, m_reachedMaxNumberOfReplansAllowed(false)
 		{}
 
-		void SetRequestSatisfied()                              { m_requestSatisfied = true; }
-		void SetPathfinderFailed()                              { m_pathfinderFailed = true; }
-		void SetMovingAlongPathFailed()                         { m_movingAlongPathFailed = true; }
-		void SetReachedMaxAllowedReplans()                      { m_reachedMaxNumberOfReplansAllowed = true; }
+		void SetRequestSatisfied(const MovementRequestID& requestId)
+		{
+			m_requestSatisfied = true;
+			m_requestId = requestId;
+		}
+		void SetPathfinderFailed(const MovementRequestID& requestId)
+		{
+			m_pathfinderFailed = true;
+			m_requestId = requestId;
+		}
+		void SetMovingAlongPathFailed(const MovementRequestID& requestId)
+		{
+			m_movingAlongPathFailed = true;
+			m_requestId = requestId;
+		}
+		void SetReachedMaxAllowedReplans(const MovementRequestID& requestId)
+		{
+			m_reachedMaxNumberOfReplansAllowed = true;
+			m_requestId = requestId;
+		}
 
-		bool HasRequestBeenSatisfied() const                    { return m_requestSatisfied; }
-		bool HasPathfinderFailed() const                        { return m_pathfinderFailed; }
-		bool HasMovingAlongPathFailed() const                   { return m_movingAlongPathFailed; }
-		bool HasReachedTheMaximumNumberOfReplansAllowed() const { return m_reachedMaxNumberOfReplansAllowed; }
+		bool                     HasRequestBeenSatisfied() const                    { return m_requestSatisfied; }
+		bool                     HasPathfinderFailed() const                        { return m_pathfinderFailed; }
+		bool                     HasMovingAlongPathFailed() const                   { return m_movingAlongPathFailed; }
+		bool                     HasReachedTheMaximumNumberOfReplansAllowed() const { return m_reachedMaxNumberOfReplansAllowed; }
+
+		const MovementRequestID& GetRequestId() const                               { return m_requestId; }
 
 	private:
-		bool m_requestSatisfied;
-		bool m_pathfinderFailed;
-		bool m_movingAlongPathFailed;
-		bool m_reachedMaxNumberOfReplansAllowed;
+		MovementRequestID m_requestId;
+		bool              m_requestSatisfied;
+		bool              m_pathfinderFailed;
+		bool              m_movingAlongPathFailed;
+		bool              m_reachedMaxNumberOfReplansAllowed;
 	};
 
 	virtual ~IPlanner() {}
@@ -52,7 +72,7 @@ struct IPlanner
 
 	// Called when the movement system has some work for the planner.
 	// Only called when 'IsReadyForNewRequest' returns true.
-	virtual void StartWorkingOnRequest(const MovementRequest& request, const MovementUpdateContext& context) = 0;
+	virtual void StartWorkingOnRequest(const MovementRequestID& requestId, const MovementRequest& request, const MovementUpdateContext& context) = 0;
 
 	// The movement system calls this when the actor is no longer
 	// interested in satisfying the request the planner is working on.
@@ -83,7 +103,7 @@ public:
 	explicit GenericPlanner(NavigationAgentTypeID navigationAgentTypeID);
 	~GenericPlanner();
 	virtual bool   IsUpdateNeeded() const override;
-	virtual void   StartWorkingOnRequest(const MovementRequest& request, const MovementUpdateContext& context) override;
+	virtual void   StartWorkingOnRequest(const MovementRequestID& requestId, const MovementRequest& request, const MovementUpdateContext& context) override;
 	virtual void   CancelCurrentRequest(MovementActor& actor) override;
 	virtual Status Update(const MovementUpdateContext& context) override;
 	virtual bool   IsReadyForNewRequest() const override;
@@ -96,7 +116,7 @@ private:
 	void ProduceMoveToPlan(const MovementUpdateContext& context);
 	void ProduceStopPlan(const MovementUpdateContext& context);
 	bool CanReplan(const MovementRequest& request) const;
-	void StartWorkingOnRequest_Internal(const MovementRequest& request, const MovementUpdateContext& context);
+	void StartWorkingOnRequest_Internal(const MovementRequestID& requestId, const MovementRequest& request, const MovementUpdateContext& context);
 	void OnNavigationMeshChanged(NavigationAgentTypeID navigationAgentTypeID, NavigationMeshID meshID, uint32 tileID);
 
 private:
@@ -112,8 +132,9 @@ private:
 
 	const NavigationAgentTypeID  m_navigationAgentTypeID;
 	std::vector<MeshIDAndTileID> m_queuedNavMeshChanges;
-	bool                         m_pendingPathReplanningDueToPreviousNavMeshChanges; // dirty-flag to automatically re-path as soon as the possibly existing plan allows for it again
+	bool                         m_pendingPathReplanningDueToPreviousNavMeshChanges;   // dirty-flag to automatically re-path as soon as the possibly existing plan allows for it again
 	Plan                         m_plan;
+	MovementRequestID            m_requestId;
 	MovementRequest              m_request;
 	uint8                        m_amountOfFailedReplanning;
 	bool                         m_pathfinderRequestQueued;

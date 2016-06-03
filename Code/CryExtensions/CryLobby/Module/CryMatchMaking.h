@@ -149,6 +149,7 @@ struct SHostMigrationInfo_Private : public SHostMigrationInfo
 		#if ENABLE_HOST_MIGRATION_STATE_CHECK
 		, m_stateCheckDone(false)
 		#endif
+	{
 	}
 
 	void Reset(void)
@@ -374,6 +375,8 @@ protected:
 			CryPing                       pingToServer;
 			uint8                         numUsers;
 			bool                          used;
+			// CCryDedicatedServer::SSession uses the same member names for the non-pointer versions of localConnection and remoteConnection. See CCryDedicatedServer::CCryDedicatedServer()
+			// cppcheck-suppress duplInheritedMember
 		}* localConnection;
 
 	#define CMMRC_FLAG_PLATFORM_DATA_VALID 0x00000001       // Flag set if the platform data in a remote connection is valid.
@@ -410,7 +413,7 @@ protected:
 			bool   timerStarted;
 			bool   gameInformedConnectionEstablished;
 		};
-
+		// cppcheck-suppress duplInheritedMember
 		CryLobbyIDArray<SRConnection*, CryMatchMakingConnectionID, MAX_LOBBY_CONNECTIONS> remoteConnection;
 
 	#if NETWORK_HOST_MIGRATION
@@ -558,7 +561,10 @@ protected:
 	TBannedUser       m_resolvedBannedUser;
 	TBannedUser       m_unresolvedBannedUser;
 	uint32            m_connectionUIDCounter;
+	// CCryDedicatedServer uses the same member names for the non-pointer versions of m_sessions and m_task. See CCryDedicatedServer::CCryDedicatedServer()
+	// cppcheck-suppress duplInheritedMember
 	CryLobbyIDArray<SSession*, CryLobbySessionHandle, MAX_MATCHMAKING_SESSIONS> m_sessions;
+	// cppcheck-suppress duplInheritedMember
 	STask*            m_task[MAX_MATCHMAKING_TASKS];
 	CCryLobby*        m_lobby;
 	CCryLobbyService* m_pService;

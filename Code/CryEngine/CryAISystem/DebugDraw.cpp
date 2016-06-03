@@ -52,6 +52,8 @@
 	#include "PersonalInterestManager.h"
 	#include "BehaviorTree/BehaviorTreeManager.h"
 
+	#include <CryAISystem/IAIBubblesSystem.h>
+
 	#pragma warning(disable: 4244)
 
 	#define whiteTrans ColorB(255, 255, 255, 179)
@@ -1723,7 +1725,7 @@ void CAISystem::DebugDrawDistanceLUT()
 struct SSlopeTriangle
 {
 	SSlopeTriangle(const Triangle& tri, float slope) : triangle(tri), slope(slope) {}
-	SSlopeTriangle() {}
+	SSlopeTriangle() : triangle(Vec3(ZERO), Vec3(ZERO), Vec3(ZERO)), slope(0.0f) {}
 	Triangle triangle;
 	float    slope;
 };
@@ -1783,10 +1785,10 @@ void CAISystem::DebugDrawSteepSlopes()
 		float minY = currentPos.y - 0.5f * drawBoxWidth;
 		float maxX = currentPos.x + 0.5f * drawBoxWidth;
 		float maxY = currentPos.y + 0.5f * drawBoxWidth;
-		int minIx = (int) (minX / dx);
-		int minIy = (int) (minY / dx);
-		int maxIx = (int) (maxX / dx);
-		int maxIy = (int) (maxY / dx);
+		int minIx = (int)(minX / dx);
+		int minIy = (int)(minY / dx);
+		int maxIx = (int)(maxX / dx);
+		int maxIy = (int)(maxY / dx);
 		Limit(minIx, 1, terrainArraySize - 1);
 		Limit(minIy, 1, terrainArraySize - 1);
 		Limit(maxIx, 1, terrainArraySize - 1);
@@ -2314,7 +2316,7 @@ void CAISystem::DebugDrawPathAdjustments() const
 			if (ai->first != AIOBJECT_ACTOR)
 				break;
 			cnt++;
-			CPuppet* pPuppet = (CPuppet*) ai->second.GetAIObject();
+			CPuppet* pPuppet = (CPuppet*)ai->second.GetAIObject();
 			pPuppet->GetPathAdjustmentObstacles(false).DebugDraw();
 		}
 	}
@@ -2325,7 +2327,7 @@ void CAISystem::DebugDrawPathAdjustments() const
 			if (ai->first != AIOBJECT_VEHICLE)
 				break;
 			cnt++;
-			CAIVehicle* pVehicle = (CAIVehicle*) ai->second.GetAIObject();
+			CAIVehicle* pVehicle = (CAIVehicle*)ai->second.GetAIObject();
 			pVehicle->GetPathAdjustmentObstacles(false).DebugDraw();
 		}
 	}
@@ -2791,6 +2793,7 @@ void CAISystem::DebugDrawAgent(CAIObject* pAgentObj) const
 		{
 			if (enabledStats & GoalPipe)
 			{
+				// cppcheck-suppress constStatement
 				int lineCount = 1;
 				const string& pipeDebugName = pPipe->GetDebugName();
 				text = pipeDebugName.empty() ? pPipe->GetNameAsString() : pipeDebugName;
@@ -2885,6 +2888,7 @@ void CAISystem::DebugDrawAgent(CAIObject* pAgentObj) const
 	// FireMode
 	if (pPipeUser && (enabledStats & Firemode))
 	{
+		// cppcheck-suppress constStatement
 		EAimState aimState = pPipeUser->GetAimState();
 		EFireMode fireMode = pPipeUser->GetFireMode();
 
@@ -3238,6 +3242,7 @@ void CAISystem::DebugDrawAgent(CAIObject* pAgentObj) const
 	stack_string rfname = gAIEnv.CVars.DrawRefPoints;
 	if (rfname != "")
 	{
+		// cppcheck-suppress constStatement
 		int group = atoi(rfname);
 		if (rfname == "all" || rfname == pAgent->GetName() || ((rfname == "0" || group > 0) && group == pAgent->GetGroupId()))
 		{
@@ -4781,7 +4786,7 @@ void CAISystem::DebugDrawOneGroup(float x, float& y, float& w, float fontSize, s
 			}
 		}
 
-		if (CAIObject* beacon = (CAIObject*) GetAISystem()->GetBeacon(groupID))
+		if (CAIObject* beacon = (CAIObject*)GetAISystem()->GetBeacon(groupID))
 		{
 			Vec3 beaconLocation = beacon->GetPos() + Vec3(0.0f, 0.0f, 0.25f);
 			dc->DrawCone(beaconLocation, Vec3(0.0f, 0.0f, -1.0f), 0.25f, 0.55f, worldColor);
@@ -5290,6 +5295,13 @@ void CAISystem::DebugDraw()
 
 	if (gAIEnv.CVars.DebugGlobalPerceptionScale > 0)
 		m_globalPerceptionScale.DebugDraw();
+
+	#ifdef CRYAISYSTEM_DEBUG
+	{
+		FRAME_PROFILER("AIBubblesSystem", gEnv->pSystem, PROFILE_AI);
+		gAIEnv.pBubblesSystem->Update();
+	}
+	#endif
 
 	if (!IsEnabled())
 	{
