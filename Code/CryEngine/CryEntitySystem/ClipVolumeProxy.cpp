@@ -160,9 +160,11 @@ bool CClipVolumeProxy::LoadFromFile(const char* szFilePath)
 				CNodeCGF* pNode = pCgfContent->GetNode(i);
 				if (pNode->type == CNodeCGF::NODE_MESH && pNode->pMesh)
 				{
-					m_pRenderMesh = gEnv->pRenderer->CreateRenderMesh("ClipVolume", szFilePath, NULL, eRMT_Static);
-					m_pRenderMesh->SetMesh(*pNode->pMesh, 0, FSM_CREATE_DEVICE_MESH, NULL, false);
-
+					if (gEnv->pRenderer)
+					{
+						m_pRenderMesh = gEnv->pRenderer->CreateRenderMesh("ClipVolume", szFilePath, NULL, eRMT_Static);
+						m_pRenderMesh->SetMesh(*pNode->pMesh, 0, FSM_CREATE_DEVICE_MESH, NULL, false);
+					}
 					break;
 				}
 			}
