@@ -1,4 +1,0 @@
-<Entity
- Name="DecalPlacer"
- Script="Scripts/Entities/Others/DecalPlacer.lua" 
-/>

@@ -340,8 +340,10 @@ StackSizeKB:
 		<!-- [SCALEFORM][3rd Party] -->
 		<Thread name ="GFxVideo_SoundUpdate" Affinity="ignore" Priority="highest" DisablePriorityBoost="ignore" StackSizeKB="16"/>	
 		
-			<!-- Special case, to add additional decoder threads add a threads with an increase incremental number. "GFxVideo_Decoder_0" sets thread priority for all other decoder threads-->
-		<Thread name ="GFxVideo_Decoder_*" Affinity="ignore" Priority="normal" DisablePriorityBoost="ignore" StackSizeKB="ignore"/>	
+		<!-- Special case to add additional decoder threads with an increase incremental number. "GFxVideo_Decoder_0" sets thread priority for all other decoder threads-->
+		<!-- Wildcards such as GFxVideo_Decoder_* is not allowed for video threads -->
+		<Thread name ="GFxVideo_Decoder_0" Affinity="ignore" Priority="normal" DisablePriorityBoost="ignore" StackSizeKB="ignore"/>	
+		<Thread name ="GFxVideo_Decoder_1" Affinity="ignore" Priority="normal" DisablePriorityBoost="ignore" StackSizeKB="ignore"/>	
 	</Platform>
 	
 	<!-- ============ -->

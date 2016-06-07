@@ -1,4 +1,0 @@
-<Entity
- Name="CinematicTrigger"
- Script="Scripts/Entities/Triggers/CinematicTrigger.lua"
-/>

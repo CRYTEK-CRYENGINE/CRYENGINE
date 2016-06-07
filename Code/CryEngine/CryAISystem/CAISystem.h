@@ -263,6 +263,8 @@ public:
 	virtual void              SetAgentDebugTarget(const EntityId id) { m_agentDebugTarget = id; }
 	virtual EntityId          GetAgentDebugTarget() const            { return m_agentDebugTarget; }
 
+	virtual IAIBubblesSystem* GetAIBubblesSystem();
+
 	// debug recorder
 	virtual bool IsRecording(const IAIObject* pTarget, IAIRecordable::e_AIDbgEvent event) const;
 	virtual void Record(const IAIObject* pTarget, IAIRecordable::e_AIDbgEvent event, const char* pString) const;

@@ -178,3 +178,31 @@ void CDistanceCloudRenderNode::OffsetPosition(const Vec3& delta)
 	m_pos += delta;
 	m_WSBBox.Move(delta);
 }
+
+void CDistanceCloudRenderNode::FillBBox(AABB& aabb)
+{
+	aabb = CDistanceCloudRenderNode::GetBBox();
+}
+
+EERType CDistanceCloudRenderNode::GetRenderNodeType()
+{
+	return eERType_DistanceCloud;
+}
+
+float CDistanceCloudRenderNode::GetMaxViewDist()
+{
+	if (GetMinSpecFromRenderNodeFlags(m_dwRndFlags) == CONFIG_DETAIL_SPEC)
+		return max(GetCVars()->e_ViewDistMin, CDistanceCloudRenderNode::GetBBox().GetRadius() * GetCVars()->e_ViewDistRatioDetail * GetViewDistRatioNormilized());
+
+	return max(GetCVars()->e_ViewDistMin, CDistanceCloudRenderNode::GetBBox().GetRadius() * GetCVars()->e_ViewDistRatio * GetViewDistRatioNormilized());
+}
+
+Vec3 CDistanceCloudRenderNode::GetPos(bool bWorldOnly) const
+{
+	return m_pos;
+}
+
+IMaterial* CDistanceCloudRenderNode::GetMaterial(Vec3* pHitPos) const
+{
+	return m_pMaterial;
+}

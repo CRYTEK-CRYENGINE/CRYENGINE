@@ -3977,6 +3977,8 @@ void CRenderMesh::DebugDraw(const struct SGeometryDebugDrawInfo& info, uint32 nV
 	SAuxGeomRenderFlags renderFlags = prevRenderFlags;
 	renderFlags.SetAlphaBlendMode(e_AlphaBlended);
 
+	int oldIndex = pRenderAuxGeom->PushMatrix(info.tm);
+
 	if (bNoCull)
 	{
 		renderFlags.SetCullMode(e_CullModeNone);
@@ -4023,11 +4025,12 @@ void CRenderMesh::DebugDraw(const struct SGeometryDebugDrawInfo& info, uint32 nV
 		uint32 indexRemainder = numIndices % indexStep;
 		if (indexRemainder != 0)
 		{
+			// maybe assert instead?
 			numIndices -= indexRemainder;
 		}
 
 		const uint32 firstIndex = pChunk->nFirstIndexId;
-		const uint32 lastIndex = firstIndex + pChunk->nNumIndices;
+		const uint32 lastIndex = firstIndex + numIndices;
 
 		for (uint32 i = firstIndex; i < lastIndex; i += indexStep)
 		{
@@ -4053,10 +4056,6 @@ void CRenderMesh::DebugDraw(const struct SGeometryDebugDrawInfo& info, uint32 nV
 				v1 += normal * fExtrdueScale;
 				v2 += normal * fExtrdueScale;
 			}
-
-			v0 = mat.TransformPoint(v0);
-			v1 = mat.TransformPoint(v1);
-			v2 = mat.TransformPoint(v2);
 
 #if CRY_PLATFORM_WINDOWS
 			s_vertexBuffer.push_back(v0);
@@ -4110,6 +4109,7 @@ void CRenderMesh::DebugDraw(const struct SGeometryDebugDrawInfo& info, uint32 nV
 		}
 	}
 
+	pRenderAuxGeom->SetMatrixIndex(oldIndex);
 	pRenderAuxGeom->SetRenderFlags(prevRenderFlags);
 	UnLockForThreadAccess();
 }

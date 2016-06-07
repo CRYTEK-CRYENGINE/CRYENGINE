@@ -81,7 +81,7 @@
 	"orbis_debug_modules"                   : ["CryLiveCreate"],
 	"orbis_profile_modules"                 : ["CryLiveCreate"],
 
-	"linux_modules"                         : [ "LinuxLauncher", "CryRenderOpenGL", "CryAudioImplSDLMixer", "CryAudioImplFmod", "CryAudioImplPortAudio", "assert_term" ],
+	"linux_modules"                         : [ "LinuxLauncher", "CryRenderOpenGL", "CryAudioImplSDLMixer", "CryAudioImplFmod", "assert_term" ],
 
 	"darwin_modules"                        : [ "MacLauncher", "CryRenderOpenGL" ],
 

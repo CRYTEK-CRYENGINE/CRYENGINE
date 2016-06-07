@@ -1,4 +1,0 @@
-<Entity
- Name="HUD_MessagePlane" 
- Script="Scripts/Entities/HUD/HUD_MessagePlane.lua"
-/>

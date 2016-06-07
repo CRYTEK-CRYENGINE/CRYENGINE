@@ -69,7 +69,7 @@
 #include "GameSpecific/GoalOp_Crysis2.h" //TODO move these out of AISystem
 
 #ifdef CRYAISYSTEM_DEBUG
-	#include "AIBubblesSystem/AIBubblesSystem.h"
+	#include "AIBubblesSystem/AIBubblesSystemImpl.h"
 #endif
 
 #include "FlowNodes/AIFlowBaseNode.h"
@@ -3065,14 +3065,6 @@ void CAISystem::Update(CTimeValue frameStartTime, float frameDeltaTime)
 
 			gAIEnv.pClusterDetector->Update(frameDeltaTime);
 		}
-
-#ifdef CRYAISYSTEM_DEBUG
-		{
-			FRAME_PROFILER("AIBubblesSystem", gEnv->pSystem, PROFILE_AI);
-
-			gAIEnv.pBubblesSystem->Update();
-		}
-#endif
 
 		if (gAIEnv.CVars.DebugDrawPhysicsAccess)
 		{
@@ -6749,6 +6741,15 @@ void CAISystem::SetAINetworkDebugRenderer(IAIDebugRenderer* pAINetworkDebugRende
 void CAISystem::SetAIDebugRenderer(IAIDebugRenderer* pAIDebugRenderer)
 {
 	gAIEnv.SetDebugRenderer(pAIDebugRenderer);
+}
+
+IAIBubblesSystem* CAISystem::GetAIBubblesSystem()
+{
+#ifdef CRYAISYSTEM_DEBUG
+	return gAIEnv.pBubblesSystem;
+#else
+	return nullptr;
+#endif // CRYAISYSTEM_DEBUG
 }
 
 const CAISystem::AIActorSet& CAISystem::GetEnabledAIActorSet() const

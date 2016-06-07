@@ -1,5 +1,0 @@
-<Entity
- Name="NavigationSeedPoint"
- Script="Scripts/Entities/AI/NavigationSeedPoint.lua" 
- Invisible="1"
-/>

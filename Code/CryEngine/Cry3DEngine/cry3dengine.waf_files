@@ -64,7 +64,6 @@
 			"StatObjConstr.cpp",
 			"StatObjFar.cpp",
 			"StatObjLoad.cpp",
-			"StatObj_Jobs.cpp",
 			"IndexedMesh.h",
 			"StatObj.h"
 		],
@@ -84,7 +83,6 @@
 		[
 			"ObjectsTree.cpp",
 			"ObjectsTree_MT.cpp",
-			"ObjectsTree_Jobs.cpp",
 			"ObjectsTree_Serialize.cpp",
 			"ObjectsTree.h",
 			"ObjectsTree_Serialize_info.h"
@@ -115,7 +113,6 @@
 		],
 		"Material":
 		[
-			"Material_Jobs.cpp",
 			"MaterialHelpers.cpp",
 			"MaterialHelpers.h",
 			"Material.cpp",
@@ -172,7 +169,6 @@
 			"VisAreaCompile.cpp",
 			"VisAreas.cpp",
 			"VisAreaManCompile.cpp",
-			"VisArea_Jobs.cpp",
 			"BasicArea.cpp",
 			"BasicArea.h",
 			"VisAreaCompile_info.h",
@@ -197,7 +193,6 @@
 		],
 		"3DEngine":
 		[
-			"3DEngine_Jobs.cpp",
 			"BreezeGenerator.cpp",
 			"3dEngine.cpp",
 			"3DEngineLight.cpp",
@@ -293,7 +288,6 @@
 		"Brush":
 		[
 			"Brush.cpp",
-			"Brush_Jobs.cpp",
 			"Brush.h"
 		],
 		"Effects/Clounds":
@@ -319,7 +313,6 @@
 		"Effects/FogVolumes":
 		[
 			"FogVolumeRenderNode.cpp",
-			"FogVolumeRenderNode_Jobs.cpp",
 			"FogVolumeRenderNode.h"
 		],
 		"RenderNodes":

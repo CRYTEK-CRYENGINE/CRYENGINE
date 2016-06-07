@@ -124,12 +124,21 @@ enum ETacticalPointQueryCost
 {
 	eTPQC_IGNORE = -1,
 
-	eTPQC_CHEAP  = 0,                 //!< Cheap tests which use no heavy processing time (some math and no iteration).
-	eTPQC_MEDIUM,                     //!< Medium tests (one ray trace or test, iteration of simple operation).
-	eTPQC_EXPENSIVE,                  //!< Heavy processing time (multiple ray traces, multiple point tests, etc).
+	eTPQC_CHEAP  = 0,                //!< Cheap tests which use no heavy processing time (some math and no iteration).
+	eTPQC_MEDIUM,                    //!< Medium tests (one ray trace or test, iteration of simple operation).
+	eTPQC_EXPENSIVE,                 //!< Heavy processing time (multiple ray traces, multiple point tests, etc).
 	eTPQC_DEFERRED,
 
 	eTPQC_COUNT,
+};
+
+//! States of deferred tests.
+enum ETacticalPointDeferredState
+{
+	eTPDS_Failed = 0,                                       //!< Operation execution failed.
+	eTPDS_InProgress,                                       //!< Operation is still processing a request.
+	eTPDS_Complete,                                         //!< Opertion completed, result is ready.
+	eTPDS_UnknownRequest                                    //!< Request is unknown or not implemented.
 };
 
 //! Defines a tactical point with optional info.
@@ -159,8 +168,8 @@ struct ITacticalPoint
 //! \see STacticalPointResult for definitions.
 enum ETacticalPointDataFlags
 {
-	eTPDF_None      = 0,           //!< No data - invalid hidespot.
-	eTPDF_Pos       = 1 << 0,      //!< All valid points should have this set.
+	eTPDF_None      = 0,      //!< No data - invalid hidespot.
+	eTPDF_Pos       = 1 << 0, //!< All valid points should have this set.
 	eTPDF_EntityId  = 1 << 1,
 	eTPDF_ObjectPos = 1 << 2,
 	eTPDF_ObjectDir = 1 << 3,
@@ -266,6 +275,8 @@ struct ITacticalPointLanguageExtender
 	typedef SExtenderParameters<float>                         TRealParameters;
 	typedef SRangeExtenderParameters<float>                    TRangeParameters;
 
+	typedef Functor0                                           TDeferredCancelFunc;
+
 	//! Generate struct for generate-specific information.
 	struct SGenerateDetails
 	{
@@ -298,7 +309,16 @@ struct ITacticalPointLanguageExtender
 	virtual bool RealProperty(TRealParameters& parameters, TPointType point) const                                             { return false; }
 	virtual bool RealMeasure(TRealParameters& parameters, TObjectType pObject, const Vec3& vObjectPos, TPointType point) const { return false; }
 
-	virtual bool RealRange(TRangeParameters& parameters) const                                                                 { return false; }
+	//! This function will be called several times for the same point as long as it returns eTPDS_InProgress.
+	//! Function can set onDeferredCancel callback functor every time it returns eTPDS_InProgress - same function will be passed next time.
+	//! onDeferredCancel is set internally to "nullptr" when the test reports, that it's not in progress (completed, failed, ...).
+	//! onDeferredCancel callback will be called only if the query instance is cancelled to allow extender clear its state.
+	//! If the test is finished (completed, failed, ...), it's an extenders responsibility to clear its state beforehand - onDeferredCancel callback
+	//! will not be called in this case.
+	//! If the extender doesn't have an implementation for test, return eTPDS_UnknownRequest.
+	virtual ETacticalPointDeferredState DeferredBoolTest(TBoolParameters& parameters, TObjectType pObject, const Vec3& vObjectPos, TPointType point, TDeferredCancelFunc& onDeferredCancel) { return eTPDS_UnknownRequest; }
+
+	virtual bool                        RealRange(TRangeParameters& parameters) const                                                                                                       { return false; }
 	// </interfuscator:shuffle>
 };
 
@@ -307,7 +327,7 @@ struct ITacticalPointLanguageExtender
 struct ITacticalPointSystem
 {
 	// <interfuscator:shuffle>
-	virtual ~ITacticalPointSystem(){}
+	virtual ~ITacticalPointSystem() {}
 
 	//! Extend the language by adding new keywords.
 	//! For Generators and Primary Objects, the cost is not relevant (use eTPQC_IGNORE).
@@ -362,7 +382,7 @@ struct ITacticalPointResultsReceiver
 	// <interfuscator:shuffle>
 	//! Ticket is set even if bError is true to identify the query request, but no results will be returned.
 	virtual void AcceptResults(bool bError, TPSQueryTicket nQueryTicket, STacticalPointResult* vResults, int nResults, int nOptionUsed) = 0;
-	virtual ~ITacticalPointResultsReceiver(){}
+	virtual ~ITacticalPointResultsReceiver() {}
 	// </interfuscator:shuffle>
 };
 
@@ -384,14 +404,22 @@ public:
 	CTacticalPointQueryInstance(TPSQueryID queryID, const QueryContext& context) : m_eStatus(eTPSQS_Fail) {}
 	~CTacticalPointQueryInstance() { Cancel(); }
 
-	void                SetQueryID(TPSQueryID queryID)
-	{ m_queryID = queryID; }
-	void                SetContext(const QueryContext& context)
-	{ m_context = context; }
-	TPSQueryID          GetQueryID() const
-	{ return m_queryID; }
+	void SetQueryID(TPSQueryID queryID)
+	{
+		m_queryID = queryID;
+	}
+	void SetContext(const QueryContext& context)
+	{
+		m_context = context;
+	}
+	TPSQueryID GetQueryID() const
+	{
+		return m_queryID;
+	}
 	const QueryContext& GetContext() const
-	{ return m_context; }
+	{
+		return m_context;
+	}
 
 	//! Execute the given query with given context, with a single-point result.
 	//! Returns status which should be checked - especially for error.
@@ -450,13 +478,21 @@ public:
 	}
 
 	ETacticalPointQueryState GetStatus() const               //!< Get current status.
-	{ return m_eStatus; }
-	STacticalPointResult     GetBestResult() const           //!< Best-scoring or only returned point, or zero vector if none.
-	{ return m_Results.m_vSingleResult; }
-	int                      GetOptionUsed() const           //!< Query option chosen, or -1 if none.
-	{ return m_Results.m_nOptionUsed; }
-	int                      GetResultCount() const
-	{ return m_Results.m_nValidPoints; }
+	{
+		return m_eStatus;
+	}
+	STacticalPointResult GetBestResult() const               //!< Best-scoring or only returned point, or zero vector if none.
+	{
+		return m_Results.m_vSingleResult;
+	}
+	int GetOptionUsed() const                                //!< Query option chosen, or -1 if none.
+	{
+		return m_Results.m_nOptionUsed;
+	}
+	int GetResultCount() const
+	{
+		return m_Results.m_nValidPoints;
+	}
 
 private:
 	// ITacticalPointResultsReceiver.

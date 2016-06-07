@@ -1,5 +1,0 @@
-<Entity
-	Name="PlayerModelChanger"
-	Script="Scripts/Entities/Others/PlayerModelChanger.lua"
-	Invisible="1"
-/>

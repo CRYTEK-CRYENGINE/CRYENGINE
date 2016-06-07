@@ -345,11 +345,13 @@ private:
 	const Matrix44A&                         GetCurrentTrans2D() const;
 
 	bool                                     IsOrthoMode() const;
+	bool                                     HasWorldMatrix() const;
 
 	const CAuxGeomCB::AuxVertexBuffer&       GetAuxVertexBuffer() const;
 	const CAuxGeomCB::AuxIndexBuffer&        GetAuxIndexBuffer() const;
 	const CAuxGeomCB::AuxDrawObjParamBuffer& GetAuxDrawObjParamBuffer() const;
 	const Matrix44A&                         GetAuxOrthoMatrix(int idx) const;
+	const Matrix34&                          GetAuxWorldMatrix(int idx) const;
 
 private:
 	CD3D9Renderer&                            m_renderer;
@@ -374,6 +376,7 @@ private:
 	uint8                                     m_curPointSize;
 
 	int                                       m_curTransMatrixIdx;
+	int                                       m_curWorldMatrixIdx;
 
 	CShader*                                  m_pAuxGeomShader;
 	EAuxGeomPublicRenderflags_DrawInFrontMode m_curDrawInFrontMode;

@@ -86,6 +86,9 @@ public:
 	// EUL_GetExtents
 	virtual void GetSpatialExtents(const SUpdateContext& context, Array<const float, uint> scales, Array<float, uint> extents) {}
 
+protected:
+	void AddNoPropertiesLabel(Serialization::IArchive& ar);
+
 private:
 	SGpuInterfaceRef m_gpuInterfaceRef;
 	SEnable          m_enabled;

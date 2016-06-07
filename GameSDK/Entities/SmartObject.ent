@@ -1,5 +1,0 @@
-<Entity
- Name="SmartObject"
- Script="Scripts/Entities/AI/SmartObject.lua" 
- Invisible="1"
-/>

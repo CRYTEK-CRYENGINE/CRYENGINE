@@ -5,7 +5,7 @@
 #include "MNMPathfinder.h"
 #include "Navigation/NavigationSystem/NavigationSystem.h"
 #include "DebugDrawContext.h"
-#include "AIBubblesSystem/IAIBubblesSystem.h"
+#include "AIBubblesSystem/AIBubblesSystem.h"
 #include "Navigation/PathHolder.h"
 #include <CryThreading/IJobManager_JobDelegator.h>
 
@@ -523,7 +523,9 @@ bool CMNMPathfinder::SetupForNextPathRequest(MNM::QueuedPathID requestID, MNM::P
 		MNM::vector3_t closest;
 		if (!(triangleStartID = grid.GetClosestTriangle(startLocation - origin, verticalRange, horizontalRange, NULL, &closest)))
 		{
-			AIWarning("Navigation system couldn't figure out where the start point for agent %s was.", request.pRequester->GetPathAgentName());
+			AIWarning("Navigation system couldn't find NavMesh triangle at path start point (%.2f, %2f, %2f) for agent '%s'.",
+			          request.requestParams.startLocation.x, request.requestParams.startLocation.y, request.requestParams.startLocation.z,
+			          request.pRequester->GetPathAgentName());
 			return false;
 		}
 		else
@@ -544,7 +546,9 @@ bool CMNMPathfinder::SetupForNextPathRequest(MNM::QueuedPathID requestID, MNM::P
 		}
 		else
 		{
-			AIWarning("Navigation system couldn't figure out where the destination point for agent %s was.", request.pRequester->GetPathAgentName());
+			AIWarning("Navigation system couldn't find NavMesh triangle at path destination point (%.2f, %.2f, %.2f) for agent '%s'.",
+			          request.requestParams.endLocation.x, request.requestParams.endLocation.y, request.requestParams.endLocation.z,
+			          request.pRequester->GetPathAgentName());
 			return false;
 		}
 	}
@@ -751,7 +755,7 @@ void CMNMPathfinder::DebugStatistics(MNM::PathfinderUtils::ProcessingContext& pr
 	  "AStar steps: Average - %d / Maximum - %d\n"
 	  "AStar time:  Average - %.4f ms / Maximum - %.4f ms",
 	  stats.frameTimeQuota,
-	  (uint32) processingContext.processingRequest.data.requestParams.agentTypeID,
+	  (uint32)processingContext.processingRequest.data.requestParams.agentTypeID,
 	  processingContext.GetStatusAsString(),
 	  stats.averageSearchSteps,
 	  stats.peakSearchSteps,

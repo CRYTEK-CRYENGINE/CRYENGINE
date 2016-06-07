@@ -1,4 +1,0 @@
-<Entity
- Name="Hazard" 
- Script="Scripts/Entities/Others/Hazard.lua"
-/>

@@ -1,6 +1,0 @@
-<Entity
- Name="GravityStreamCap"
- Script="Scripts/Entities/Physics/GravityStreamCap.lua"
- Invisible="1"
-/>
-

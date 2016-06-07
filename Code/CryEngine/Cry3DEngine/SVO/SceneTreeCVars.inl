@@ -222,7 +222,6 @@ REGISTER_CVAR_AUTO(int, e_svoVoxGenRes, 512, VF_NULL, "GPU voxelization dummy re
 REGISTER_CVAR_AUTO(float, e_svoVoxNodeRatio, 4.f, VF_NULL, "Limits the real-time GPU voxelization only to leaf SVO nodes");
 REGISTER_CVAR_AUTO(int, e_svoTI_GsmCascadeLod, 2, VF_NULL, "Sun shadow cascade LOD for RSM GI");
 REGISTER_CVAR_AUTO(float, e_svoTI_TemporalFilteringBase, .35f, VF_NULL, "Controls amount of temporal smoothing\n0 = less noise and aliasing, 1 = less ghosting");
-REGISTER_CVAR_AUTO(float, e_svoTI_TemporalFilteringMinDistance, .5f, VF_NULL, "Prevent previous frame re-projection at very near range, mostly for 1p weapon and hands");
 REGISTER_CVAR_AUTO(float, e_svoTI_HighGlossOcclusion, 0.f, VF_NULL, "Normally specular contribution of env probes is corrected by diffuse GI\nThis parameter controls amount of correction (usually darkening) for very glossy and reflective surfaces");
 REGISTER_CVAR_AUTO(int, e_svoTI_VoxelizeUnderTerrain, 0, VF_NULL, "0 = Skip underground triangles during voxelization");
 REGISTER_CVAR_AUTO(int, e_svoTI_VoxelizeHiddenObjects, 0, VF_NULL, "0 = Skip hidden objects during voxelization");

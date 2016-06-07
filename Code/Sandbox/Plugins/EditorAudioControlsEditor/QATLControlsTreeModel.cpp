@@ -7,7 +7,6 @@
 
 #include <QtUtil.h>
 #include <QStandardItem>
-#include <QMessageBox>
 
 #include "AudioControl.h"
 #include "AudioControlsEditorPlugin.h"
@@ -18,6 +17,8 @@
 #include "IEditor.h"
 #include "QATLControlsTreeModel.h"
 #include "QAudioControlTreeWidget.h"
+
+#include "Controls/QuestionDialog.h"
 
 namespace ACE
 {
@@ -319,11 +320,9 @@ bool QATLTreeModel::dropMimeData(const QMimeData* pData, Qt::DropAction action, 
 								QStandardItem* pItem = pTargetItem->child(i);
 								if (pItem && (pItem->data(eDataRole_Type) == eItemType_Folder) && (QString::compare(droppedFolderName, pItem->text(), Qt::CaseInsensitive) == 0))
 								{
-									QMessageBox messageBox;
-									messageBox.setStandardButtons(QMessageBox::Ok);
-									messageBox.setWindowTitle("Audio Controls Editor");
-									messageBox.setText("This destination already contains a folder named '" + droppedFolderName + "'.");
-									messageBox.exec();
+									QString msg("This destination already contains a folder named '%1'.");
+									msg = msg.arg(droppedFolderName);
+									CQuestionDialog::SCritical("Audio Controls Editor", msg);
 									return false;
 								}
 							}

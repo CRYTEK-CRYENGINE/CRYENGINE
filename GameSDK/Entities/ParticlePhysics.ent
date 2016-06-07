@@ -1,4 +1,0 @@
-<Entity
- Name="ParticlePhysics" 
- Script="Scripts/Entities/Physics/ParticlePhysics.lua"
-/>

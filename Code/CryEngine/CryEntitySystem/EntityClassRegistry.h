@@ -39,7 +39,7 @@ public:
 	void          RegisterListener(IEntityClassRegistryListener* pListener) override;
 	void          UnregisterListener(IEntityClassRegistryListener* pListener) override;
 
-	void          LoadClasses(const char* sRootPath, bool bOnlyNewClasses = false) override;
+	void          LoadClasses(const char* szFilename, bool bOnlyNewClasses = false) override;
 	void          LoadArchetypes(const char* libPath, bool reload);
 
 	//////////////////////////////////////////////////////////////////////////
@@ -59,8 +59,8 @@ public:
 	}
 
 private:
-	void LoadArchetypeDescription(XmlNodeRef& root);
-	void LoadClassDescription(XmlNodeRef& root, bool bOnlyNewClasses);
+	void LoadArchetypeDescription(const XmlNodeRef& root);
+	void LoadClassDescription(const XmlNodeRef& root, bool bOnlyNewClasses);
 
 	void NotifyListeners(EEntityClassRegistryEvent event, const IEntityClass* pEntityClass);
 

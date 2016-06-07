@@ -76,6 +76,9 @@ struct IAIDebugRenderer
 	virtual void Draw3dLabel(Vec3 vPos, float fFontSize, const char* text, ...) PRINTF_PARAMS(4, 5) = 0;
 	virtual void Draw3dLabelEx(Vec3 vPos, float fFontSize, const ColorB& color, bool bFixedSize, bool bCenter, bool bDepthTest, bool bFramed, const char* text, ...) PRINTF_PARAMS(9, 10) = 0;
 
+	//! Draw label
+	virtual void DrawLabel(Vec3 pos, SDrawTextInfo& ti, const char* text) = 0;
+
 	//! Draw a 2D image on the screen (HUD etc.).
 	virtual void Draw2dImage(float fX, float fY, float fWidth, float fHeight, int nTextureID, float fS0 = 0, float fT0 = 0, float fS1 = 1, float fT1 = 1, float fAngle = 0, float fR = 1, float fG = 1, float fB = 1, float fA = 1, float fZ = 1) = 0;
 

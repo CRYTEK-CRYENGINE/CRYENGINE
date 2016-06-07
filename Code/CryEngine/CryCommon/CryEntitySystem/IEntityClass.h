@@ -378,9 +378,9 @@ struct IEntityClassRegistry
 	//! \return Pointer to the IEntityClass interface, It can never return NULL.
 	virtual IEntityClass* GetDefaultClass() const = 0;
 
-	//! Load all entity class description xml files with extension ".ent" from specified directory.
-	//! \param sPath Path where to search for .ent files.
-	virtual void LoadClasses(const char* sPath, bool bOnlyNewClasses = false) = 0;
+	//! Load all entity class descriptions from the provided xml file.
+	//! \param szFilename Path to XML file containing entity class descriptions.
+	virtual void LoadClasses(const char* szFilename, bool bOnlyNewClasses = false) = 0;
 
 	//! Register standard entity class, if class id not specified (is zero), generate a new class id.
 	//! \return Pointer to the new created and registered IEntityClass interface, or NULL if failed.

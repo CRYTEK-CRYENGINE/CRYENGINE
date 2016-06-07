@@ -48,6 +48,7 @@ struct IClusterDetector;
 class IPathFollower;
 struct IPathObstacles;
 struct PathFollowerParams;
+struct IAIBubblesSystem;
 namespace AIActionSequence {
 struct ISequenceManager;
 }
@@ -741,6 +742,8 @@ struct IAISystem
 
 	virtual void              SetAgentDebugTarget(const EntityId id) = 0;
 	virtual EntityId          GetAgentDebugTarget() const = 0;
+
+	virtual IAIBubblesSystem* GetAIBubblesSystem() = 0;
 
 	// Debug recorder.
 	virtual bool IsRecording(const IAIObject* pTarget, IAIRecordable::e_AIDbgEvent event) const = 0;

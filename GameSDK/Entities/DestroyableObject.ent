@@ -1,5 +1,0 @@
-<Entity
- Name="DestroyableObject"
- Script="Scripts/Entities/Physics/DestroyableObject.lua"
-
-/>

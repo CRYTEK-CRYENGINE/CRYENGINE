@@ -46,6 +46,7 @@ CHardwareMouse::CHardwareMouse(bool bVisibleByDefault)
 	: m_debugHardwareMouse(0)
 	, m_pExclusiveEventListener(nullptr)
 	, m_pCursorTexture(nullptr)
+	, m_bPrevShowState(true)
 #if !defined(_RELEASE)
 	, m_allowConfine(GetISystem()->GetICmdLine()->FindArg(eCLAT_Pre, "nomouse") == nullptr)
 #else
@@ -138,6 +139,23 @@ void CHardwareMouse::ShowHardwareMouse(bool bShow)
 		return;
 	}
 
+	// Apply overrides here. Needless to say if any override changes value, then ShowHardwareMouse
+	// should be called with the reference counted value
+	bShow = m_shouldUseSystemCursor && ((bShow && !m_hide) || (m_allowConfine == false));
+
+	// This is very important! Since ShowCursor acts as a stack on OS level,
+	// and the state here is quite complex, with variables suspending reference
+	// counting and enforcable state, we really should only call pInput->ShowCursor if the value
+	// was different than before. This ensures that at OS level we never have
+	// a stack value more than 0/1 (at least we don't have a bigger/lower value that is
+	// caused by CHardwareMouse).
+	if (bShow == m_bPrevShowState)
+	{
+		return;
+	}
+
+	m_bPrevShowState = bShow;
+
 	if (m_debugHardwareMouse)
 	{
 		CryLogAlways("HM: ShowHardwareMouse = %d", bShow);
@@ -155,7 +173,7 @@ void CHardwareMouse::ShowHardwareMouse(bool bShow)
 	IInput* const pInput = gEnv->pInput;
 	if (pInput)
 	{
-		pInput->ShowCursor(m_shouldUseSystemCursor && ((bShow && !m_hide) || (m_allowConfine == false)));
+		pInput->ShowCursor(bShow);
 		pInput->SetExclusiveMode(eIDT_Mouse, false);
 	}
 
@@ -479,11 +497,8 @@ void CHardwareMouse::IncrementCounter()
 		CryLogAlways("HM: IncrementCounter = %d", m_iReferenceCounter);
 	CRY_ASSERT(m_iReferenceCounter >= 0);
 
-	if (m_iReferenceCounter == 1)
-	{
-		ShowHardwareMouse(true);
-		EvaluateCursorConfinement();
-	}
+	ShowHardwareMouse(m_iReferenceCounter > 0);
+	EvaluateCursorConfinement();
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -496,11 +511,8 @@ void CHardwareMouse::DecrementCounter()
 		CryLogAlways("HM: DecrementCounter = %d", m_iReferenceCounter);
 	CRY_ASSERT(m_iReferenceCounter >= 0);
 
-	if (m_iReferenceCounter == 0)
-	{
-		ShowHardwareMouse(false);
-		EvaluateCursorConfinement();
-	}
+	ShowHardwareMouse(m_iReferenceCounter > 0);
+	EvaluateCursorConfinement();
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -743,11 +755,8 @@ void CHardwareMouse::Update()
 	// Note: Calling ShowCursor from a different thread does not work
 	if (m_usingSystemCursor != m_shouldUseSystemCursor)
 	{
-		if (gEnv->pInput)
-		{
-			gEnv->pInput->ShowCursor(m_shouldUseSystemCursor && ((m_iReferenceCounter > 0 && !m_hide) || (m_allowConfine == false)));
-		}
 		m_usingSystemCursor = m_shouldUseSystemCursor;
+		ShowHardwareMouse(m_iReferenceCounter > 0);
 	}
 }
 
@@ -793,7 +802,13 @@ void CHardwareMouse::Hide(bool hide)
 	m_hide = hide;
 	if (m_calledShowHWMouse && gEnv->pInput)
 	{
-		gEnv->pInput->ShowCursor(m_shouldUseSystemCursor && ((m_iReferenceCounter > 0 && !m_hide) || (m_allowConfine == false)));
+		bool bShow = m_shouldUseSystemCursor && ((m_iReferenceCounter > 0 && !m_hide) || (m_allowConfine == false));
+
+		if (bShow != m_bPrevShowState)
+		{
+			m_bPrevShowState = bShow;
+			gEnv->pInput->ShowCursor(bShow);
+		}
 	}
 }
 
@@ -856,7 +871,7 @@ void CHardwareMouse::DestroyCursor()
 
 void CHardwareMouse::EvaluateCursorConfinement()
 {
-	bool bConfine = IsFullscreen() || gEnv->IsEditorGameMode() || m_iReferenceCounter == 0;
+	bool bConfine = IsFullscreen() || m_iReferenceCounter == 0;
 
 	ConfineCursor(bConfine);
 }

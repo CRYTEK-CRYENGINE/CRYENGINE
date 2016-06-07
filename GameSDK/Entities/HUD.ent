@@ -1,4 +1,0 @@
-<Entity
- Name="HUD_Object" 
- Script="Scripts/Entities/HUD/HUD_Object.lua"
-/>

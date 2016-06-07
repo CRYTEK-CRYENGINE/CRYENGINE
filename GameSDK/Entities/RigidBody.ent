@@ -1,5 +1,0 @@
-<Entity
- Name="RigidBody" 
- Script="Scripts/Entities/Others/RigidBody.lua"
- Invisible="1"
-/>

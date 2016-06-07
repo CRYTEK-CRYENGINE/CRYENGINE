@@ -18,6 +18,15 @@ void CParticleFeature::Serialize(Serialization::IArchive& ar)
 	ar(m_enabled);
 }
 
+void CParticleFeature::AddNoPropertiesLabel(Serialization::IArchive& ar)
+{
+	if (ar.isEdit() && ar.isOutput())
+	{
+		const string label;		
+		ar(label, "", "!No Properties");
+	}
+}
+
 gpu_pfx2::IParticleFeatureGpuInterface* pfx2::CParticleFeature::GetGpuInterface()
 {
 

@@ -19,10 +19,10 @@
 #include <AudioLogger.h>
 #include <fmod_studio.hpp>
 
-extern CSoundAllocator g_audioImplMemoryPool_fmod;
-extern CAudioLogger g_audioImplLogger_fmod;
+extern CSoundAllocator g_audioImplMemoryPool;
+extern CAudioLogger g_audioImplLogger;
 
-#define AUDIO_ALLOCATOR_MEMORY_POOL g_audioImplMemoryPool_fmod
+#define AUDIO_ALLOCATOR_MEMORY_POOL g_audioImplMemoryPool
 #include <STLSoundAllocator.h>
 
 #if !defined(_RELEASE)
@@ -39,7 +39,7 @@ extern CAudioLogger g_audioImplLogger_fmod;
 
 typedef NCryPoolAlloc::CThreadSafe<NCryPoolAlloc::CBestFit<NCryPoolAlloc::CReferenced<NCryPoolAlloc::CMemoryDynamic, 4*1024, true>, NCryPoolAlloc::CListItemReference>> tMemoryPoolReferenced;
 
-extern tMemoryPoolReferenced g_audioImplMemoryPoolSecondary_fmod;
+extern tMemoryPoolReferenced g_audioImplMemoryPoolSecondary;
 
 //////////////////////////////////////////////////////////////////////////
 inline void* Secondary_Allocate(size_t const nSize)
@@ -48,13 +48,13 @@ inline void* Secondary_Allocate(size_t const nSize)
 	// and at the beginning the handle is saved.
 
 	/* Allocate in Referenced Secondary Pool */
-	uint32 const allocHandle = g_audioImplMemoryPoolSecondary_fmod.Allocate<uint32>(nSize, AUDIO_MEMORY_ALIGNMENT);
+	uint32 const allocHandle = g_audioImplMemoryPoolSecondary.Allocate<uint32>(nSize, AUDIO_MEMORY_ALIGNMENT);
 	CRY_ASSERT(allocHandle > 0);
 	void* pAlloc = NULL;
 
 	if (allocHandle > 0)
 	{
-		pAlloc = g_audioImplMemoryPoolSecondary_fmod.Resolve<void*>(allocHandle);
+		pAlloc = g_audioImplMemoryPoolSecondary.Resolve<void*>(allocHandle);
 	}
 
 	return pAlloc;
@@ -68,11 +68,11 @@ inline bool Secondary_Free(void* pFree)
 
 	// retrieve handle
 	bool bFreed = (pFree == NULL);//true by default when passing NULL
-	uint32 const allocHandle = g_audioImplMemoryPoolSecondary_fmod.AddressToHandle(pFree);
+	uint32 const allocHandle = g_audioImplMemoryPoolSecondary.AddressToHandle(pFree);
 
 	if (allocHandle > 0)
 	{
-		bFreed = g_audioImplMemoryPoolSecondary_fmod.Free(allocHandle);
+		bFreed = g_audioImplMemoryPoolSecondary.Free(allocHandle);
 	}
 
 	return bFreed;

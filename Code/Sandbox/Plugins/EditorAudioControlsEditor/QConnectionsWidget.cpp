@@ -16,7 +16,6 @@
 #include <QDropEvent>
 #include <QEvent>
 #include <QMimeData>
-#include <QMessageBox>
 #include <QMenu>
 #include <QVBoxLayout>
 #include <QTreeView>

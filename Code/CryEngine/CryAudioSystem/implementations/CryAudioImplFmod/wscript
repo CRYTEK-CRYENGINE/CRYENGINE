@@ -16,7 +16,7 @@ def build(bld):
 	bld.CryEngineModule(
 		target      = 'CryAudioImplFmod',
 		vs_filter   = 'CryEngine/Audio/Implementations',
-		file_list   = 'cryaudioimpl_fmod.waf_files',
+		file_list   = 'cryaudioimpl.waf_files',
 		pch         = 'stdafx.cpp',
 
 		### GENERAL ###

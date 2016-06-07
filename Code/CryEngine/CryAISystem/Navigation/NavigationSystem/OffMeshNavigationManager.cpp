@@ -44,11 +44,17 @@ MNM::OffMeshNavigation& OffMeshNavigationManager::GetOffMeshNavigationForMesh(co
 
 void OffMeshNavigationManager::QueueCustomLinkAddition(const MNM::LinkAdditionRequest& request)
 {
+#if DEBUG_MNM_LOG_OFFMESH_LINK_OPERATIONS
+	AILogCommentID("<MNM:OffMeshLink>", "OffMeshNavigationManager::QueueCustomLinkAddition for entity %x", request.requestOwner);
+#endif
 	m_operations.push_back(request);
 }
 
 void OffMeshNavigationManager::QueueCustomLinkRemoval(const MNM::LinkRemovalRequest& request)
 {
+#if DEBUG_MNM_LOG_OFFMESH_LINK_OPERATIONS
+	AILogCommentID("<MNM:OffMeshLink>", "OffMeshNavigationManager::QueueCustomLinkRemoval linkId %u for entity %x", request.linkId, request.requestOwner);
+#endif
 	m_operations.push_back(request);
 }
 
@@ -129,7 +135,7 @@ bool OffMeshNavigationManager::AddCustomLink(const NavigationMeshID& meshID, MNM
 
 	m_links[linkID] = SLinkInfo(meshID, startTriangleID, endTriangleID, pClonedData);
 
-	gAIEnv.pNavigationSystem->AddIslandConnectionsBetweenTriangles(meshID, startTriangleID, endTriangleID);
+	gAIEnv.pNavigationSystem->AddOffMeshLinkIslandConnectionsBetweenTriangles(meshID, startTriangleID, endTriangleID, linkID);
 
 	return true;
 }
@@ -150,7 +156,7 @@ void OffMeshNavigationManager::RemoveCustomLink(const MNM::OffMeshLinkID& linkID
 		// NOTE: There should only ever be one element in the link array
 		offMeshNavigation.RemoveLink(mesh, linkInfo.startTriangleID, linkID);
 
-		gAIEnv.pNavigationSystem->RemoveAllIslandConnectionsForObject(linkInfo.meshID, linkInfo.offMeshLink->GetEntityIdForOffMeshLink());
+		gAIEnv.pNavigationSystem->RemoveOffMeshLinkIslandsConnectionBetweenTriangles(linkInfo.meshID, linkInfo.startTriangleID, linkInfo.endTriangleID, linkID);
 
 		// Remove cached data
 		m_links.erase(linkIt);
@@ -611,6 +617,10 @@ void OffMeshNavigationManager::RefreshConnections(const NavigationMeshID meshID,
 			}
 
 			// disconnect whatever islands were connected by the offmesh-link
+			// TODO pavloi 2016.02.05: actually, it will remove all links, which have the same owner as this link, from same meshID.
+			// We probably should call RemoveOffMeshLinkIslandsConnectionBetweenTriangles(), but we need to know start and end triangles to
+			// get the start and end island. Right now, I'm not sure, whether the triangleId's in linkInfo are valid at this stage, so I leave this
+			// call as it is.
 			gAIEnv.pNavigationSystem->RemoveAllIslandConnectionsForObject(linkInfo.meshID, linkInfo.offMeshLink->GetEntityIdForOffMeshLink());
 
 			// Try to re-connect everything later on, but only if it was not explicitly requested to be deleted by an outside source.
@@ -718,6 +728,8 @@ void OffMeshNavigationManager::OnNavigationMeshDestroyed(const NavigationMeshID&
 
 		const MNM::OffMeshLinkID& linkID = iter->first;
 		removedLinkIDs.push_back(linkID);
+
+		NotifyAllListenerAboutLinkDeletion(linkID);
 
 		m_links.erase(iter++);
 	}

@@ -1,4 +1,0 @@
-<Entity
- Name="Fan"
- Script="Scripts/Entities/Others/Fan.lua"
-/>

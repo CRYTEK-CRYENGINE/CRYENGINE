@@ -424,7 +424,7 @@ void CSystem::RenderPhysicsStatistics(IPhysicalWorld* pWorld)
 				                            "%s %.2fms/%d (peak %.2fms/%d)", pInfos[j].pName, time, pInfos[j].nCallsLast,
 				                            gEnv->pTimer->TicksToSeconds(pInfos[j].nTicksPeak) * 1000.0f, pInfos[j].nCallsPeak);
 				pInfos[j].peakAge = pInfos[j].peakAge + 1 & ~mask;
-				if (j == nGroups - 4) ++i;
+				if (j == nGroups - 3) ++i;
 			}
 		}
 		if (pVars->bProfileEntities == 2)

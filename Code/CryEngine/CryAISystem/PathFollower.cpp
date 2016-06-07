@@ -38,6 +38,7 @@ void PathFollowerParams::Serialize(TSerialize ser)
 	ser.Value("endDistance", endDistance);
 	ser.Value("stopAtEnd", stopAtEnd);
 	ser.Value("use2D", use2D);
+	ser.Value("snapEndPointToGround", snapEndPointToGround);
 	ser.Value("isVehicle", isVehicle);
 }
 

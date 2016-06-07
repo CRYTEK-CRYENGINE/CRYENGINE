@@ -1,5 +1,0 @@
-<Entity
- Name="ShootingTarget" 
- Script="Scripts/Entities/Others/ShootingTarget.lua"
- Invisible="1"
-/>

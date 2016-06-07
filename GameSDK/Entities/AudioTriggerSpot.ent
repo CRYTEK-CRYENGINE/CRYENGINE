@@ -1,4 +1,0 @@
-<Entity
- Name="AudioTriggerSpot" 
- Script="Scripts/Entities/Sound/AudioTriggerSpot.lua"
-/>

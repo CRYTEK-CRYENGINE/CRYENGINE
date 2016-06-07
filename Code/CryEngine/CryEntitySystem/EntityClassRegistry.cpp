@@ -170,7 +170,7 @@ IEntityClass* CEntityClassRegistry::IteratorNext()
 //////////////////////////////////////////////////////////////////////////
 void CEntityClassRegistry::InitializeDefaultClasses()
 {
-	LoadClasses("Entities");
+	LoadClasses("entities.xml");
 
 	LoadArchetypes("Libs/EntityArchetypes", false);
 
@@ -204,37 +204,17 @@ void CEntityClassRegistry::InitializeDefaultClasses()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntityClassRegistry::LoadClasses(const char* sRootPath, bool bOnlyNewClasses)
+void CEntityClassRegistry::LoadClasses(const char* szFilename, bool bOnlyNewClasses)
 {
-	ICryPak* pCryPak = gEnv->pCryPak;
-	_finddata_t fd;
-	char filename[_MAX_PATH];
+	const XmlNodeRef root = m_pSystem->LoadXmlFromFile(szFilename);
 
-	string sPath = sRootPath;
-	sPath.TrimRight("/\\");
-	string sSearch = sPath + "/*.ent";
-	intptr_t handle = pCryPak->FindFirst(sSearch, &fd, 0);
-	if (handle != -1)
+	if (root && root->isTag("Entities"))
 	{
-		int res = 0;
-		do
+		int childCount = root->getChildCount();
+		for (int i = 0; i < childCount; ++i)
 		{
-			// Animation file found, load it.
-			cry_strcpy(filename, sPath);
-			cry_strcat(filename, "/");
-			cry_strcat(filename, fd.name);
-
-			// Load xml file.
-			XmlNodeRef root = m_pSystem->LoadXmlFromFile(filename);
-			if (root)
-			{
-				LoadClassDescription(root, bOnlyNewClasses);
-			}
-
-			res = pCryPak->FindNext(handle, &fd);
+			LoadClassDescription(root->getChild(i), bOnlyNewClasses);
 		}
-		while (res >= 0);
-		pCryPak->FindClose(handle);
 	}
 }
 
@@ -295,7 +275,7 @@ void CEntityClassRegistry::LoadArchetypes(const char* libPath, bool reload)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntityClassRegistry::LoadArchetypeDescription(XmlNodeRef& root)
+void CEntityClassRegistry::LoadArchetypeDescription(const XmlNodeRef& root)
 {
 	for (int i = 0, childCount = root->getChildCount(); i < childCount; ++i)
 	{
@@ -324,7 +304,7 @@ void CEntityClassRegistry::LoadArchetypeDescription(XmlNodeRef& root)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntityClassRegistry::LoadClassDescription(XmlNodeRef& root, bool bOnlyNewClasses)
+void CEntityClassRegistry::LoadClassDescription(const XmlNodeRef& root, bool bOnlyNewClasses)
 {
 	assert(root != (IXmlNode*)NULL);
 	if (root->isTag("Entity"))

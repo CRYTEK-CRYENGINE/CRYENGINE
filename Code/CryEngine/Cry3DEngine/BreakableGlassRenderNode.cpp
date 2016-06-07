@@ -1068,3 +1068,35 @@ void CBreakableGlassRenderNode::OffsetPosition(const Vec3& delta)
 		m_pPhysEnt->SetParams(&par_pos);
 	}
 }
+
+void CBreakableGlassRenderNode::FillBBox(AABB& aabb)
+{
+	aabb = CBreakableGlassRenderNode::GetBBox();
+}
+
+const AABB CBreakableGlassRenderNode::GetBBox() const
+{
+	AABB bbox = m_planeBBox;
+	bbox.Add(m_fragBBox);
+	return bbox;
+}
+
+EERType CBreakableGlassRenderNode::GetRenderNodeType()
+{
+	return eERType_BreakableGlass;
+}
+
+float CBreakableGlassRenderNode::GetMaxViewDist()
+{
+	return m_maxViewDist;
+}
+
+Vec3 CBreakableGlassRenderNode::GetPos(bool worldOnly) const
+{
+	return m_matrix.GetTranslation();
+}
+
+IMaterial* CBreakableGlassRenderNode::GetMaterial(Vec3* pHitPos) const
+{
+	return m_glassParams.pGlassMaterial;
+}

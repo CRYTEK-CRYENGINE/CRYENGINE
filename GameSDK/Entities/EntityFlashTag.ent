@@ -1,5 +1,0 @@
-<Entity
- Name="EntityFlashTag"
- Script="Scripts/Entities/Others/EntityFlashTag.lua"
-
-/>

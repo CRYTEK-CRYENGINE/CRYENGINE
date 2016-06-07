@@ -1,4 +1,0 @@
-<Entity
- Name="ProximityTrigger" 
- Script="Scripts/Entities/Triggers/ProximityTrigger.lua"
-/>

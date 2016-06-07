@@ -1,5 +1,0 @@
-<Entity
-	Name="CameraPoint"
-	Script="Scripts/Entities/Multiplayer/CameraPoint.lua"
-/>
-

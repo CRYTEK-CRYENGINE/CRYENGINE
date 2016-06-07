@@ -67,6 +67,10 @@ public:
 
 	virtual void                RenderText(Vec3 pos, SDrawTextInfo& ti, const char* format, va_list args);
 
+	virtual int                 PushMatrix(const Matrix34&  mat);
+	virtual Matrix34*           GetMatrix();
+	virtual void                SetMatrixIndex(int matID);
+
 	void                        Flush(bool reset);
 	virtual void                Flush();
 	virtual void                Commit(uint frames = 0);
@@ -124,22 +128,24 @@ public:
 		{
 		}
 
-		SAuxPushBufferEntry(uint32 numVertices, uint32 numIndices, uint32 vertexOffs, uint32 indexOffs, uint32 transMatrixIdx, const SAuxGeomRenderFlags& renderFlags)
+		SAuxPushBufferEntry(uint32 numVertices, uint32 numIndices, uint32 vertexOffs, uint32 indexOffs, uint32 transMatrixIdx, int worldMatrixIdx, const SAuxGeomRenderFlags& renderFlags)
 			: m_numVertices(numVertices)
 			, m_numIndices(numIndices)
 			, m_vertexOffs(vertexOffs)
 			, m_indexOffs(indexOffs)
 			, m_transMatrixIdx(transMatrixIdx)
+			, m_worldMatrixIdx(worldMatrixIdx)
 			, m_renderFlags(renderFlags)
 		{
 		}
 
-		SAuxPushBufferEntry(uint32 drawParamOffs, uint32 transMatrixIdx, const SAuxGeomRenderFlags& renderFlags)
+		SAuxPushBufferEntry(uint32 drawParamOffs, uint32 transMatrixIdx, int worldMatrixIdx, const SAuxGeomRenderFlags& renderFlags)
 			: m_numVertices(0)
 			, m_numIndices(0)
 			, m_vertexOffs(drawParamOffs)
 			, m_indexOffs(0)
 			, m_transMatrixIdx(transMatrixIdx)
+			, m_worldMatrixIdx(worldMatrixIdx)
 			, m_renderFlags(renderFlags)
 		{
 			assert(e_Obj == GetPrimType(m_renderFlags));
@@ -164,6 +170,7 @@ public:
 		uint32              m_vertexOffs;
 		uint32              m_indexOffs;
 		int                 m_transMatrixIdx;
+		int                 m_worldMatrixIdx;
 		SAuxGeomRenderFlags m_renderFlags;
 	};
 
@@ -173,11 +180,18 @@ public:
 	typedef std::vector<vtx_idx>                    AuxIndexBuffer;
 	typedef std::vector<SAuxDrawObjParams>          AuxDrawObjParamBuffer;
 	typedef stl::aligned_vector<Matrix44, 16>       AuxOrthoMatrixBuffer;
+	typedef std::deque<Matrix34>                    AuxWorldMatrixBuffer;
 
 	struct SAuxGeomCBRawData
 	{
 	public:
-		SAuxGeomCBRawData() : m_isUsed(false), m_curRenderFlags(e_Def3DPublicRenderflags), m_curTransMatIdx(-1), m_uCount(0) {}
+		SAuxGeomCBRawData() 
+			: m_isUsed(false)
+			, m_curRenderFlags(e_Def3DPublicRenderflags)
+			, m_curTransMatIdx(-1)
+			, m_curWorldMatIdx(-1)
+			, m_uCount(0) 
+		{}
 
 		void GetSortedPushBuffer(size_t begin, size_t end, AuxSortedPushBuffer& auxSortedPushBuffer) const;
 		void GetMemoryUsage(ICrySizer* pSizer) const;
@@ -189,10 +203,12 @@ public:
 			m_auxIndexBuffer.resize(0);
 			m_auxDrawObjParamBuffer.resize(0);
 			m_auxOrthoMatrices.resize(0);
+			m_auxWorldMatrices.resize(0);
 			m_TextMessages.Clear();
 
 			m_curRenderFlags = e_Def3DPublicRenderflags;
 			m_curTransMatIdx = -1;
+			m_curWorldMatIdx = -1;
 			m_uCount = 0;
 		}
 
@@ -222,9 +238,11 @@ public:
 		AuxIndexBuffer        m_auxIndexBuffer;
 		AuxDrawObjParamBuffer m_auxDrawObjParamBuffer;
 		AuxOrthoMatrixBuffer  m_auxOrthoMatrices;
+		AuxWorldMatrixBuffer  m_auxWorldMatrices;
 		CTextMessages         m_TextMessages;
 		SAuxGeomRenderFlags   m_curRenderFlags;
 		int                   m_curTransMatIdx;
+		int                   m_curWorldMatIdx;
 		uint                  m_uCount;
 		bool                  m_isUsed;
 	};
@@ -326,6 +344,11 @@ protected:
 		return m_cbCurrent->m_curTransMatIdx;
 	}
 
+	int GetWorldMatrixIndex() const
+	{
+		return m_cbCurrent->m_curWorldMatIdx;
+	}
+
 	SAuxGeomCBRawData* AccessData()
 	{
 		return m_cbCurrent;
@@ -338,6 +361,9 @@ protected:
 		{
 			if (lhs->m_renderFlags.m_renderFlags != rhs->m_renderFlags.m_renderFlags)
 				return lhs->m_renderFlags.m_renderFlags < rhs->m_renderFlags.m_renderFlags;
+
+			if (lhs->m_worldMatrixIdx != rhs->m_worldMatrixIdx)
+				return lhs->m_worldMatrixIdx < rhs->m_worldMatrixIdx;
 
 			return lhs->m_transMatrixIdx < rhs->m_transMatrixIdx;
 		}
@@ -560,6 +586,10 @@ public:
 	virtual void                DrawBone(const Vec3& rParent, const Vec3& rBone, ColorB col)                                                                   {}
 
 	virtual void                RenderText(Vec3 pos, SDrawTextInfo& ti, const char* format, va_list args)                                                      {}
+
+	virtual int                 PushMatrix(const Matrix34&  mat)                                                                                                      { return -1; }
+	virtual Matrix34*           GetMatrix()                                                                                                                    { return nullptr; }
+	virtual void                SetMatrixIndex(int matID)                                                                                                    {}
 
 	virtual void                Flush()                                                                                                                        {}
 	virtual void                Commit(uint frames = 0)                                                                                                        {}

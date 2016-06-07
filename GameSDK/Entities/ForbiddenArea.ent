@@ -1,4 +1,0 @@
-<Entity
- Name="ForbiddenArea" 
- Script="Scripts/Entities/Multiplayer/ForbiddenArea.lua"
-/>

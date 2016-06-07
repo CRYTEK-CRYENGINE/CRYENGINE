@@ -528,3 +528,33 @@ void CDecalRenderNode::OffsetPosition(const Vec3& delta)
 	m_WSBBox.Move(delta);
 	m_Matrix.SetTranslation(m_Matrix.GetTranslation() + delta);
 }
+
+void CDecalRenderNode::FillBBox(AABB& aabb)
+{
+	aabb = CDecalRenderNode::GetBBox();
+}
+
+EERType CDecalRenderNode::GetRenderNodeType()
+{
+	return eERType_Decal;
+}
+
+float CDecalRenderNode::GetMaxViewDist()
+{
+	float fMatScale = m_Matrix.GetColumn0().GetLength();
+
+	if (GetMinSpecFromRenderNodeFlags(m_dwRndFlags) == CONFIG_DETAIL_SPEC)
+		return max(GetCVars()->e_ViewDistMin, fMatScale * 0.75f * GetCVars()->e_ViewDistRatioDetail * GetViewDistRatioNormilized());
+
+	return(max(GetCVars()->e_ViewDistMin, fMatScale * 0.75f * GetCVars()->e_ViewDistRatio * GetViewDistRatioNormilized()));
+}
+
+Vec3 CDecalRenderNode::GetPos(bool bWorldOnly) const
+{
+	return m_pos;
+}
+
+IMaterial* CDecalRenderNode::GetMaterial(Vec3* pHitPos) const
+{
+	return m_pMaterial;
+}

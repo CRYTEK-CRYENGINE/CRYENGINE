@@ -2149,3 +2149,30 @@ void CLightEntity::ProcessPerObjectFrustum(ShadowMapFrustum* pFr, struct SPerObj
 		Get3DEngine()->DrawBBox(pFr->aabbCasters, Col_Green);
 	}
 }
+
+void CLightEntity::FillBBox(AABB& aabb)
+{
+	aabb = CLightEntity::GetBBox();
+}
+
+EERType CLightEntity::GetRenderNodeType()
+{
+	return eERType_Light;
+}
+
+float CLightEntity::GetMaxViewDist()
+{
+	if (m_light.m_Flags & DLF_SUN)
+		return 10.f * DISTANCE_TO_THE_SUN;
+
+	if (GetMinSpecFromRenderNodeFlags(m_dwRndFlags) == CONFIG_DETAIL_SPEC)
+		return max(GetCVars()->e_ViewDistMin, CLightEntity::GetBBox().GetRadius() * GetCVars()->e_ViewDistRatioDetail * GetViewDistRatioNormilized());
+
+	return max(GetCVars()->e_ViewDistMin, CLightEntity::GetBBox().GetRadius() * GetCVars()->e_ViewDistRatioLights * GetViewDistRatioNormilized());
+}
+
+Vec3 CLightEntity::GetPos(bool bWorldOnly) const
+{
+	assert(bWorldOnly);
+	return m_light.m_Origin;
+}

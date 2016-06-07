@@ -1,4 +1,0 @@
-<Entity
- Name="CloudBlocker" 
- Script="Scripts/Entities/Render/CloudBlocker.lua"
-/>

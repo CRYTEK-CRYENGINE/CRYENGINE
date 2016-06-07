@@ -1,4 +1,0 @@
-<Entity
- Name="Switch"
- Script="Scripts/Entities/Others/Switch.lua"
-/>

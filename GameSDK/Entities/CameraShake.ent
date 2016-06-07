@@ -1,4 +1,0 @@
-<Entity
- Name="CameraShake"
- Script="Scripts/Entities/Others/CameraShake.lua" 
-/>

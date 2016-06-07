@@ -1,4 +1,0 @@
-<Entity
- Name="CTFBase"
- Script="Scripts/Entities/Multiplayer/CTFBase.lua"
-/>

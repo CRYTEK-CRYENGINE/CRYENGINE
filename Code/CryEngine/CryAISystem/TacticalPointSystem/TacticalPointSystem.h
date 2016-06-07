@@ -463,29 +463,31 @@ private:
 		int iCurrentQueryOption;                               // Whether we are currently evaluating the first option, the first fallback, the next, etc.
 
 		typedef std::vector<CCriterion> Criteria;
-		Criteria                       vCheapConds;
-		Criteria                       vExpConds;
-		Criteria                       vDefConds;
-		Criteria                       vCheapWeights;
-		Criteria                       vExpWeights;
+		Criteria                                            vCheapConds;
+		Criteria                                            vExpConds;
+		Criteria                                            vDefConds;
+		Criteria                                            vCheapWeights;
+		Criteria                                            vExpWeights;
 
-		PostureManager::PostureQueryID postureQueryID;
+		PostureManager::PostureQueryID                      postureQueryID;
 
-		QueuedRayID                    visibleRayID;
-		int                            visibleResult;
+		QueuedRayID                                         visibleRayID;
+		int                                                 visibleResult;
 
-		QueuedRayID                    canShootRayID;
-		int                            canShootResult;
+		QueuedRayID                                         canShootRayID;
+		int                                                 canShootResult;
 
-		QueuedRayID                    canShootSecondRayID;
-		int                            canShootSecondRayResult;
+		QueuedRayID                                         canShootSecondRayID;
+		int                                                 canShootSecondRayResult;
 
-		std::vector<SPointEvaluation>  vPoints;
+		ITacticalPointLanguageExtender::TDeferredCancelFunc deferredExtenderCancelFunc;
 
-		SQueryInstance                 queryInstance;          // Defines details of the query request
-		int                            nFoundBestN;            // Number of best points found so far
+		std::vector<SPointEvaluation>                       vPoints;
 
-		EntityId                       owner;
+		SQueryInstance                                      queryInstance; // Defines details of the query request
+		int                                                 nFoundBestN;   // Number of best points found so far
+
+		EntityId                                            owner;
 
 		// Used for debugging
 		bool       bPersistent;
@@ -497,7 +499,9 @@ private:
 
 		// Avoid using this on non-empty instances due to std::vector copy
 		SQueryEvaluation(const SQueryEvaluation& that)
-		{ *this = that; }
+		{
+			*this = that;
+		}
 
 		// Avoid using this on non-empty instances due to std::vector copy
 		void operator=(const SQueryEvaluation& that)
@@ -524,6 +528,11 @@ private:
 			canShootResult = that.canShootResult;
 			canShootSecondRayID = that.canShootSecondRayID;
 			canShootSecondRayResult = that.canShootSecondRayResult;
+			deferredExtenderCancelFunc = that.deferredExtenderCancelFunc;
+			if (that.deferredExtenderCancelFunc)
+			{
+				CryFatalError("Can't make a copy of a deferredExtenderCancelFunc - it will lead to a double call - this message should never happen.");
+			}
 		}
 
 		void Reset()
@@ -551,13 +560,18 @@ private:
 			canShootResult = -1;
 			canShootSecondRayID = 0;
 			canShootSecondRayResult = -1;
+			deferredExtenderCancelFunc = ITacticalPointLanguageExtender::TDeferredCancelFunc();
 		}
 
 		const std::vector<SPointEvaluation>::iterator GetIterHeapEndRejectedBegin(void)
-		{ return vPoints.begin() + indexHeapEndRejectedBegin; }
+		{
+			return vPoints.begin() + indexHeapEndRejectedBegin;
+		}
 
 		const std::vector<SPointEvaluation>::iterator GetIterRejectedEndAcceptedBegin(void)
-		{ return vPoints.begin() + indexRejectedEndAcceptedBegin; }
+		{
+			return vPoints.begin() + indexRejectedEndAcceptedBegin;
+		}
 
 		void SetIterRejectedEndAcceptedBegin(const std::vector<SPointEvaluation>::iterator& it)
 		{
@@ -625,12 +639,13 @@ private:
 	                            CAIObject* pObject, const Vec3& vObjectPos, CAIObject* pObjectAux, const Vec3& vObjectAuxPos, TTacticalPoints& accumulator) const;
 
 	// If a query is based on a Boolean Property we gain the core bool result here before processing
-	bool       BoolProperty(TTacticalPointQuery query, const CTacticalPoint& point, const QueryContext& context, bool& result) const;
-	bool       BoolPropertyInternal(TTacticalPointQuery query, const CTacticalPoint& point, const QueryContext& context, bool& result) const;
+	bool                        BoolProperty(TTacticalPointQuery query, const CTacticalPoint& point, const QueryContext& context, bool& result) const;
+	bool                        BoolPropertyInternal(TTacticalPointQuery query, const CTacticalPoint& point, const QueryContext& context, bool& result) const;
 	// If a query is based on a Boolean Test we gain the core bool result here before processing
-	bool       BoolTest(TTacticalPointQuery query, TTacticalPointQuery object, const CTacticalPoint& point, const QueryContext& context, bool& result) const;
-	bool       BoolTestInternal(TTacticalPointQuery query, TTacticalPointQuery object, const CTacticalPoint& point, const QueryContext& context, bool& result) const;
-	AsyncState DeferredBoolTest(TTacticalPointQuery query, TTacticalPointQuery object, const CTacticalPoint& point, SQueryEvaluation& eval, bool& result) const;
+	bool                        BoolTest(TTacticalPointQuery query, TTacticalPointQuery object, const CTacticalPoint& point, const QueryContext& context, bool& result) const;
+	bool                        BoolTestInternal(TTacticalPointQuery query, TTacticalPointQuery object, const CTacticalPoint& point, const QueryContext& context, bool& result) const;
+	AsyncState                  DeferredBoolTest(TTacticalPointQuery query, TTacticalPointQuery object, const CTacticalPoint& point, SQueryEvaluation& eval, bool& result) const;
+	ETacticalPointDeferredState DeferredBoolTestInternal(TTacticalPointQuery query, TTacticalPointQuery object, const CTacticalPoint& point, SQueryEvaluation& eval, bool& result) const;
 
 	// If a query is based on a Real Property we gain the core _absolute_ float result here before processing
 	bool RealProperty(TTacticalPointQuery query, const CTacticalPoint& point, const QueryContext& context, float& result) const;

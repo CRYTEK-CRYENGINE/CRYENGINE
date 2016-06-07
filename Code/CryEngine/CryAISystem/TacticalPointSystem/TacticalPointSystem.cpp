@@ -269,6 +269,9 @@ CTacticalPointSystem::SQueryEvaluation::~SQueryEvaluation()
 
 	if (canShootSecondRayID)
 		gAIEnv.pRayCaster->Cancel(canShootSecondRayID);
+
+	if (deferredExtenderCancelFunc)
+		deferredExtenderCancelFunc();
 }
 
 //----------------------------------------------------------------------------------------------//
@@ -2078,12 +2081,66 @@ AsyncState CTacticalPointSystem::DeferredBoolTest(TTacticalPointQuery query, TTa
 {
 	assert(query & eTPQ_FLAG_TEST);
 
+	// Set result to false by default to avoid lots of else clauses
+	result = false;
+
+	// Attempt default implementations
+	ETacticalPointDeferredState state = DeferredBoolTestInternal(query, object, point, eval, result);
+	if (state == eTPDS_UnknownRequest)
+	{
+		CAIObject* pObject = NULL;
+		Vec3 vObjectPos(ZERO);
+
+		const QueryContext& context = eval.queryInstance.queryContext;
+
+		if (GetObject(object, context, pObject, vObjectPos))
+		{
+			ITacticalPointLanguageExtender::TBoolParameters parameters(Translate(query), context, result);
+
+			// Allow the language extenders to attempt
+			TLanguageExtenders::const_iterator itExtender = m_LanguageExtenders.begin();
+			TLanguageExtenders::const_iterator itExtenderEnd = m_LanguageExtenders.end();
+			for (; state == eTPDS_UnknownRequest && itExtender != itExtenderEnd; ++itExtender)
+			{
+				ITacticalPointLanguageExtender* pExtender = (*itExtender);
+				assert(pExtender);
+
+				state = pExtender->DeferredBoolTest(parameters, pObject, vObjectPos, point, eval.deferredExtenderCancelFunc);
+			}
+			if (state != eTPDS_InProgress)
+			{
+				eval.deferredExtenderCancelFunc = ITacticalPointLanguageExtender::TDeferredCancelFunc();
+			}
+		}
+	}
+	switch (state)
+	{
+	case eTPDS_Failed:
+		return AsyncFailed;
+	case eTPDS_InProgress:
+		return AsyncInProgress;
+	case eTPDS_Complete:
+		return AsyncComplete;
+	case eTPDS_UnknownRequest:
+		return AsyncFailed;
+	default:
+		return AsyncFailed;
+	}
+}
+
+//----------------------------------------------------------------------------------------------//
+
+ETacticalPointDeferredState CTacticalPointSystem::DeferredBoolTestInternal(TTacticalPointQuery query, TTacticalPointQuery object,
+                                                                           const CTacticalPoint& point, SQueryEvaluation& eval, bool& result) const
+{
+	assert(query & eTPQ_FLAG_TEST);
+
 	const QueryContext& context = eval.queryInstance.queryContext;
 
 	CAIObject* pObject = NULL;
 	Vec3 vObjectPos(ZERO);
 	if (!GetObject(object, eval.queryInstance.queryContext, pObject, vObjectPos))
-		return AsyncFailed;
+		return eTPDS_Failed;
 
 	Vec3 vTmpA; // Handy temp vector 1
 	Vec3 vTmpB; // Handy temp vector 2
@@ -2098,7 +2155,7 @@ AsyncState CTacticalPointSystem::DeferredBoolTest(TTacticalPointQuery query, TTa
 				eval.visibleResult = -1;
 				eval.visibleRayID = 0;
 
-				return AsyncComplete;
+				return eTPDS_Complete;
 			}
 			else if (!eval.visibleRayID)
 			{
@@ -2119,7 +2176,7 @@ AsyncState CTacticalPointSystem::DeferredBoolTest(TTacticalPointQuery query, TTa
 				}
 			}
 
-			return AsyncInProgress;
+			return eTPDS_InProgress;
 		}
 		break;
 
@@ -2135,7 +2192,7 @@ AsyncState CTacticalPointSystem::DeferredBoolTest(TTacticalPointQuery query, TTa
 					eval.canShootResult = -1;
 					eval.canShootRayID = 0;
 
-					return AsyncComplete;
+					return eTPDS_Complete;
 				}
 				else if (!eval.canShootRayID)
 				{
@@ -2164,80 +2221,93 @@ AsyncState CTacticalPointSystem::DeferredBoolTest(TTacticalPointQuery query, TTa
 
 				}
 
-				return AsyncInProgress;
+				return eTPDS_InProgress;
 			}
 		}
 		break;
 
 	case eTPQ_T_CanShootTwoRayTest:
 		{
-			if (context.pAIActor)
+			if (eval.canShootResult != -1 && eval.canShootSecondRayResult != -1)
 			{
-				if (eval.canShootResult != -1 && eval.canShootSecondRayResult != -1)
-				{
-					result = (eval.canShootResult != 0 && eval.canShootSecondRayResult != 0);
-					eval.canShootResult = -1;
-					eval.canShootRayID = 0;
-					eval.canShootSecondRayResult = -1;
-					eval.canShootSecondRayID = 0;
+				result = (eval.canShootResult != 0 && eval.canShootSecondRayResult != 0);
+				eval.canShootResult = -1;
+				eval.canShootRayID = 0;
+				eval.canShootSecondRayResult = -1;
+				eval.canShootSecondRayID = 0;
 
-					return AsyncComplete;
-				}
-				else if (!eval.canShootRayID && !eval.canShootSecondRayID)
-				{
-					const float horizontalDestinationOffset = 0.15f;
-					float horizontalSourceOffset = 4.0f;
-
-					const CTacticalPointQuery* pQuery = GetQuery(eval.queryInstance.nQueryID);
-					CRY_ASSERT(pQuery);
-
-					const int nOption = eval.iCurrentQueryOption;
-					const COptionCriteria* pOption = pQuery->GetOption(nOption);
-					if (pOption)
-					{
-						horizontalSourceOffset = pOption->GetParams()->fHorizontalSpacing;
-					}
-
-					CAIActor* pAIActor = static_cast<CAIActor*>(context.pAIActor);
-
-					const SAIBodyInfo& bodyInfo = pAIActor->GetBodyInfo();
-					const Vec3 vRight = pAIActor->GetEntity()->GetWorldTM().GetColumn0();
-					const Vec3 vWeaponPos = bodyInfo.vFirePos;
-					const Vec3 vWeaponPosition = pAIActor->GetPos() - vWeaponPos;
-					const Vec3 vWeaponSideOffset = vRight * horizontalSourceOffset;
-					const Vec3 vWeaponDeltaRight = vWeaponPosition + vWeaponSideOffset;
-					const Vec3 vWeaponDeltaLeft = vWeaponPosition - vWeaponSideOffset;
-
-					const Vec3 pointPos = point.GetPos();
-					const Vec3 vPointRight = pointPos + vWeaponDeltaRight;
-					const Vec3 vPointLeft = pointPos + vWeaponDeltaLeft;
-					const Vec3 vDeltaOffset = vRight * horizontalDestinationOffset;
-					const Vec3 vDeltaRight = vObjectPos + vDeltaOffset - vPointRight;
-					const Vec3 vDeltaLeft = vObjectPos - vDeltaOffset - vPointLeft;
-
-					eval.canShootRayID = gAIEnv.pRayCaster->Queue(RayCastRequest::HighestPriority,
-					                                              RayCastRequest(
-					                                                vPointLeft, vDeltaLeft, COVER_OBJECT_TYPES,
-					                                                AI_VISION_RAY_CAST_FLAG_BLOCKED_BY_SOLID_COVER),
-					                                              functor(*const_cast<CTacticalPointSystem*>(this), &CTacticalPointSystem::CanShootRayComplete));
-
-					eval.canShootSecondRayID = gAIEnv.pRayCaster->Queue(RayCastRequest::HighestPriority,
-					                                                    RayCastRequest(
-					                                                      vPointRight, vDeltaRight, COVER_OBJECT_TYPES,
-					                                                      AI_VISION_RAY_CAST_FLAG_BLOCKED_BY_SOLID_COVER),
-					                                                    functor(*const_cast<CTacticalPointSystem*>(this), &CTacticalPointSystem::CanShootSecondRayComplete));
-
-					if (CVars.DebugTacticalPoints != 0 && gAIEnv.CVars.DebugDraw != 0)
-					{
-						IPersistantDebug* debug = gEnv->pGame->GetIGameFramework()->GetIPersistantDebug();
-						debug->Begin("eTPQ_T_CanShootTwoRayTest", false);
-						debug->AddLine(vPointRight, vPointRight + vDeltaRight, Col_Blue, 10.0f);
-						debug->AddLine(vPointLeft, vPointLeft + vDeltaLeft, Col_Blue, 10.0f);
-					}
-				}
-
-				return AsyncInProgress;
+				return eTPDS_Complete;
 			}
+			else if (!eval.canShootRayID && !eval.canShootSecondRayID)
+			{
+				const float horizontalDestinationOffset = 0.15f;
+				float horizontalSourceOffset = 4.0f;
+
+				const CTacticalPointQuery* pQuery = GetQuery(eval.queryInstance.nQueryID);
+				CRY_ASSERT(pQuery);
+
+				const int nOption = eval.iCurrentQueryOption;
+				const COptionCriteria* pOption = pQuery->GetOption(nOption);
+				if (pOption)
+				{
+					horizontalSourceOffset = pOption->GetParams()->fHorizontalSpacing;
+				}
+
+				Vec3 vRight;
+				Vec3 vWeaponPosition;
+
+				const Vec3 pointPos = point.GetPos();
+
+				if (context.pAIActor)
+				{
+					const CAIActor* pAIActor = static_cast<CAIActor*>(context.pAIActor);
+					const SAIBodyInfo& bodyInfo = pAIActor->GetBodyInfo();
+					vRight = pAIActor->GetEntity()->GetWorldTM().GetColumn0();
+					const Vec3 vWeaponPos = bodyInfo.vFirePos;
+					vWeaponPosition = pAIActor->GetPos() - vWeaponPos;
+				}
+				else
+				{
+					// cross forwardVec with upVec to get rightVec
+					const Vec3 pointToObjectDelta = vObjectPos - pointPos;
+					const Vec3 zAxis = Vec3Constants<float>::fVec3_OneZ;
+					vRight = (pointToObjectDelta % zAxis).GetNormalized();
+
+					vWeaponPosition = Vec3(0, 0, 1.0f);
+				}
+
+				const Vec3 vWeaponSideOffset = vRight * horizontalSourceOffset;
+				const Vec3 vWeaponDeltaRight = vWeaponPosition + vWeaponSideOffset;
+				const Vec3 vWeaponDeltaLeft = vWeaponPosition - vWeaponSideOffset;
+
+				const Vec3 vPointRight = pointPos + vWeaponDeltaRight;
+				const Vec3 vPointLeft = pointPos + vWeaponDeltaLeft;
+				const Vec3 vDeltaOffset = vRight * horizontalDestinationOffset;
+				const Vec3 vDeltaRight = vObjectPos + vDeltaOffset - vPointRight;
+				const Vec3 vDeltaLeft = vObjectPos - vDeltaOffset - vPointLeft;
+
+				eval.canShootRayID = gAIEnv.pRayCaster->Queue(RayCastRequest::HighestPriority,
+				                                              RayCastRequest(
+				                                                vPointLeft, vDeltaLeft, COVER_OBJECT_TYPES,
+				                                                AI_VISION_RAY_CAST_FLAG_BLOCKED_BY_SOLID_COVER),
+				                                              functor(*const_cast<CTacticalPointSystem*>(this), &CTacticalPointSystem::CanShootRayComplete));
+
+				eval.canShootSecondRayID = gAIEnv.pRayCaster->Queue(RayCastRequest::HighestPriority,
+				                                                    RayCastRequest(
+				                                                      vPointRight, vDeltaRight, COVER_OBJECT_TYPES,
+				                                                      AI_VISION_RAY_CAST_FLAG_BLOCKED_BY_SOLID_COVER),
+				                                                    functor(*const_cast<CTacticalPointSystem*>(this), &CTacticalPointSystem::CanShootSecondRayComplete));
+
+				if (CVars.DebugTacticalPoints != 0 && gAIEnv.CVars.DebugDraw != 0)
+				{
+					IPersistantDebug* debug = gEnv->pGame->GetIGameFramework()->GetIPersistantDebug();
+					debug->Begin("eTPQ_T_CanShootTwoRayTest", false);
+					debug->AddLine(vPointRight, vPointRight + vDeltaRight, Col_Blue, 10.0f);
+					debug->AddLine(vPointLeft, vPointLeft + vDeltaLeft, Col_Blue, 10.0f);
+				}
+			}
+
+			return eTPDS_InProgress;
 		}
 		break;
 
@@ -2279,19 +2349,19 @@ AsyncState CTacticalPointSystem::DeferredBoolTest(TTacticalPointQuery query, TTa
 						if (state == AsyncComplete)
 						{
 							result = true;
-							return AsyncComplete;
+							return eTPDS_Complete;
 						}
 						else if (state == AsyncFailed)
 						{
 							result = false;
-							return AsyncComplete;
+							return eTPDS_Complete;
 						}
 					}
 
 					if (!eval.postureQueryID)
 					{
 						result = false;
-						return AsyncComplete;
+						return eTPDS_Complete;
 					}
 				}
 			}
@@ -2299,10 +2369,10 @@ AsyncState CTacticalPointSystem::DeferredBoolTest(TTacticalPointQuery query, TTa
 		break;
 
 	default:
-		return AsyncFailed;
+		return eTPDS_UnknownRequest;
 	}
 
-	return AsyncInProgress;
+	return eTPDS_InProgress;
 }
 
 //----------------------------------------------------------------------------------------------//

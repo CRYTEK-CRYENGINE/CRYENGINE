@@ -1,4 +1,0 @@
-<Entity
-	Name="VolumeObject"
-	Script="Scripts/Entities/Render/VolumeObject.lua"
-/>

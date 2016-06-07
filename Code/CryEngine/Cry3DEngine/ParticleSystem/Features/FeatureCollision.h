@@ -23,6 +23,7 @@ public:
 	CFeatureCollision() : CParticleFeature(gpu_pfx2::eGpuFeatureType_Collision) {}
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override;
+	virtual void Serialize(Serialization::IArchive& ar) override;
 };
 
 }

@@ -28,6 +28,8 @@ class CFeatureMotionFluidDynamics : public CParticleFeature
 public:
 	CRY_PFX2_DECLARE_FEATURE
 
+	typedef TValue<int, USoftLimit<100>> TParticleCount;
+
 	CFeatureMotionFluidDynamics()
 		: CParticleFeature(gpu_pfx2::eGpuFeatureType_MotionFluidDynamics)
 		, m_initialVelocity(0.0, 0.0, 5.0)
@@ -103,24 +105,24 @@ public:
 	}
 
 private:
-	Vec3  m_initialVelocity;
-	float m_stiffness;
-	float m_gravityConstant;
-	float m_h;
-	float m_r0;
-	float m_mass;
-	float m_maxVelocity;
-	float m_maxForce;
-	float m_atmosphericDrag;
-	float m_cohesion;
-	float m_baroclinity;
-	float m_spread;
-	float m_particleInfluence;
-	int   m_numberOfIterations;
-	int   m_gridSizeX;
-	int   m_gridSizeY;
-	int   m_gridSizeZ;
-	int   m_numSpawnParticles;
+	Vec3           m_initialVelocity;
+	UFloat         m_stiffness;
+	float          m_gravityConstant;
+	UFloat         m_h;
+	UFloat         m_r0;
+	UFloat         m_mass;
+	UFloat         m_maxVelocity;
+	UFloat         m_maxForce;
+	UFloat         m_atmosphericDrag;
+	UFloat         m_cohesion;
+	UFloat         m_baroclinity;
+	UFloat         m_spread;
+	UFloat         m_particleInfluence;
+	UByte          m_numberOfIterations;
+	UByte          m_gridSizeX;
+	UByte          m_gridSizeY;
+	UByte          m_gridSizeZ;
+	TParticleCount m_numSpawnParticles;
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureMotionFluidDynamics, "Motion", "GPU Fluid Dynamics", defaultIcon, ColorB(255, 0, 0));

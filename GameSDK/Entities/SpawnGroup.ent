@@ -1,4 +1,0 @@
-<Entity
- Name="SpawnGroup" 
- Script="Scripts/Entities/Multiplayer/SpawnGroup.lua"
-/>

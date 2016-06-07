@@ -441,7 +441,7 @@ public:
 	void ReleaseIndexedMesh(bool bRenderMeshUpdated = false);
 	virtual ILINE const Vec3 GetVegCenter() override          { return m_vVegCenter; }
 
-	virtual void             SetFlags(int nFlags) override    { m_nFlags = nFlags; };
+	virtual void             SetFlags(int nFlags) override		{ m_nFlags = nFlags; IncrementModificationId(); }
 	virtual int              GetFlags() override              { return m_nFlags; };
 
 	virtual unsigned int     GetVehicleOnlyPhysics() override { return m_bVehicleOnlyPhysics; };

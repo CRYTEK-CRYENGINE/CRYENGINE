@@ -273,9 +273,10 @@ CPhysicalWorld::CPhysicalWorld(ILog *pLog) : m_nWorkerThreads(0)
 	m_grpProfileData[ 9].pName = "Character skeletons";
 	m_grpProfileData[10].pName = "Kinematic objects";
 	m_grpProfileData[11].pName = "Areas";
-	m_grpProfileData[12].pName = "Entities total";   m_grpProfileData[11].nCallsLast=1;
-	m_grpProfileData[13].pName = "Queued requests";	 m_grpProfileData[12].nCallsLast=1;
-	m_grpProfileData[14].pName = "World step total"; m_grpProfileData[13].nCallsLast=1;
+	m_grpProfileData[12].pName = "Entities total";   m_grpProfileData[12].nCallsLast=1;
+	m_grpProfileData[13].pName = "of which the Solver"; m_grpProfileData[13].nCallsLast=1;
+	m_grpProfileData[14].pName = "Queued requests";	 m_grpProfileData[14].nCallsLast=1;
+	m_grpProfileData[15].pName = "World step total"; m_grpProfileData[15].nCallsLast=1;
 	memset(m_pEntProfileData, 0, sizeof(m_pEntProfileData));
 
 	memset(m_JobProfileInfo, 0, sizeof(m_JobProfileInfo));
@@ -1897,7 +1898,9 @@ void CPhysicalWorld::ProcessIslandSolverResults(int i, int iter, float groupTime
 	#ifdef ENTITY_PROFILER_ENABLED
 
 	i1 = CryGetTicks()-iticks0;
-	if ( m_vars.bProfileEntities>0 && iticks0>0 ) {
+	if (m_vars.bProfileGroups && iticks0>0)
+		m_grpProfileData[13].nTicks += i1;
+	if (m_vars.bProfileEntities>0 && iticks0>0) {
 		for(pent=m_pTmpEntList1[i],j=0; pent; pent=pent->m_next_coll)
 			j += -pent->m_iSimClass>>31 & 1;
 		i1 /= max(1,j);
@@ -2294,7 +2297,7 @@ void CPhysicalWorld::TimeStep(float time_interval, int flags)
 		if (nQueueSlots) {
 			m_nQueueSlotsAux=1; m_nQueueSlotSizeAux=0; *(int*)m_pQueueSlotsAux[0]=-1;
 		}
-		m_grpProfileData[13].nTicksLast = CryGetTicks()-timer;
+		m_grpProfileData[14].nTicksLast = CryGetTicks()-timer;
 	}
 	{ WriteLock lock(m_lockStep);
 	if (time_interval>0 && !(flags & ent_flagged_only))
@@ -2369,6 +2372,7 @@ void CPhysicalWorld::TimeStep(float time_interval, int flags)
 			for(pent=m_pTypedEnts[4]; pent; pent=pent->m_next) if (!(m_bUpdateOnlyFlagged&(pent->m_flags^pef_update) | bSkipFlagged&pent->m_flags))
 				pent->StartStep(time_interval);
 		}
+		m_grpProfileData[13].nCallsLast = 0;
 
 		if (flags & ent_rigid && time_interval>0) {
 			if (m_pTypedEnts[2]) do { // make as many substeps as required
@@ -2475,7 +2479,8 @@ void CPhysicalWorld::TimeStep(float time_interval, int flags)
 						m_pCurEnt=m_pAuxStepEnt; m_pAuxStepEnt=0;
 						THREAD_TASK(2, ProcessNextEngagedIndependentEntity(0))
 						m_bWorldStep = 1;
-					}
+					}	else
+						m_grpProfileData[13].nCallsLast = max(m_grpProfileData[13].nCallsLast,m_nGroups);
 				}
 			} while (!bAllGroupsFinished && ++iter<m_vars.nMaxSubsteps);
 
@@ -2633,7 +2638,7 @@ void CPhysicalWorld::TimeStep(float time_interval, int flags)
 		++m_idStep;
 
 	if (m_vars.bProfileGroups) {
-		for(i=0,m_grpProfileData[12].nTicksLast=0; i<=10; i++) {
+		for(i=0,m_grpProfileData[12].nTicksLast=0; i<=11; i++) {
 			m_grpProfileData[12].nTicksLast += (m_grpProfileData[i].nTicksLast=m_grpProfileData[i].nTicks);
 			m_grpProfileData[i].nTicks=0; m_grpProfileData[i].nCallsLast=0;
 		}
@@ -2643,7 +2648,9 @@ void CPhysicalWorld::TimeStep(float time_interval, int flags)
 			m_grpProfileData[PE_LIVING-2].nCallsLast++;
 		for(pent=m_pTypedEntsPerm[4]; pent; pent=pent->m_next)
 			m_grpProfileData[GetEntityProfileType(pent)].nCallsLast++;
-		m_grpProfileData[14].nTicksLast = CryGetTicks()-timer;
+		m_grpProfileData[13].nTicksLast = m_grpProfileData[13].nTicks;
+		m_grpProfileData[13].nTicks = 0;
+		m_grpProfileData[15].nTicksLast = CryGetTicks()-timer;
 	}
 	} // m_lockStep
 	

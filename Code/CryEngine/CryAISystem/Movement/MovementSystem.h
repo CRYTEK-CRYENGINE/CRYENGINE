@@ -39,7 +39,7 @@ private:
 	};
 
 	MovementRequestID GenerateUniqueMovementRequestID();
-	void              FinishRequest(MovementActor& actor, MovementRequestResult::Result result,
+	void              FinishRequest(MovementActor& actor, const MovementRequestID requestId, MovementRequestResult::Result result,
 	                                MovementRequestResult::FailureReason failureReason = MovementRequestResult::NoReason);
 	void              CleanUpAfterFinishedRequest(MovementActor& actor, MovementRequestID activeRequestID);
 	MovementRequest&  GetActiveRequest(MovementActor& actor, MovementRequestID* outRequestID = NULL);

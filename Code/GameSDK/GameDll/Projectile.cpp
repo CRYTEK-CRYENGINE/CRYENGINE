@@ -175,6 +175,8 @@ CProjectile::CProjectile()
 //------------------------------------------------------------------------
 CProjectile::~CProjectile()
 {
+	GetGameObject()->ReleaseProfileManager(this);
+
 	Destroy();
 
 	if (CheckAnyProjectileFlags(ePFlag_hitListener))
@@ -1168,15 +1170,9 @@ void CProjectile::DestroyImmediate()
 
 	SetProjectileFlags(ePFlag_destroying);
 
-	GetGameObject()->ReleaseProfileManager(this);
 	GetGameObject()->EnablePhysicsEvent(false, eEPE_OnCollisionLogged | eEPE_OnPostStepImmediate);
 
 	DestroyObstructObject();
-
-	// Do not re-enable this code again. Causes crashes in CGameRules::ClientExplosion() by removing listener whilst iterating listeners
-	//	if(m_hitListener)
-	//		if (CGameRules * pGameRules = g_pGame->GetGameRules())
-	//			pGameRules->RemoveHitListener(this);
 
 	CWeaponSystem* pWeaponSystem = g_pGame->GetWeaponSystem();
 	EntityId projectileId = GetEntity()->GetId();

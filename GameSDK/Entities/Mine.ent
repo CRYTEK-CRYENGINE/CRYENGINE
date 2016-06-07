@@ -1,4 +1,0 @@
-<Entity
- Name="Mine" 
- Script="Scripts/Entities/Others/Mine.lua"
-/>

@@ -1,4 +1,0 @@
-<Entity
- Name="AITerritory"
- Script="Scripts/Entities/AI/AITerritory.lua"
-/>

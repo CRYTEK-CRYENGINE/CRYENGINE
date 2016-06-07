@@ -1,4 +1,0 @@
-<Entity
- Name="Lightning" 
- Script="Scripts/Entities/Render/Lightning.lua"
-/>

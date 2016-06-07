@@ -38,7 +38,7 @@ public:
 #ifdef USING_BEHAVIOR_TREE_SERIALIZATION
 	void Serialize(Serialization::IArchive& archive)
 	{
-		archive(m_child, "child", "+<>");
+		archive(m_child, "child", "+<>" NODE_COMBOBOX_FIXED_WIDTH ">");
 		if (!m_child)
 			archive.error(m_child, "Node must be specified");
 
@@ -49,7 +49,8 @@ public:
 #ifdef USING_BEHAVIOR_TREE_XML_DESCRIPTION_CREATION
 	virtual XmlNodeRef CreateXmlDescription() override
 	{
-		XmlNodeRef xml = GetISystem()->CreateXmlNode("Decorator");
+		XmlNodeRef xml = BaseClass::CreateXmlDescription();
+		xml->setTag("Decorator");
 		if (m_child)
 			xml->addChild(m_child->CreateXmlDescription());
 		return xml;

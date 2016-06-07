@@ -1,4 +1,0 @@
-<Entity 
-Name="Bugs"
- Script="Scripts/Entities/Boids/Bugs.lua"
-/>

@@ -1,4 +1,0 @@
-<Entity 
-Name="BaldEagle"
- Script="Scripts/Entities/Boids/BaldEagle.lua"
-/>

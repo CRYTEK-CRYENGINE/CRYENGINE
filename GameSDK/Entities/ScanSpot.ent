@@ -1,5 +1,0 @@
-<Entity
-	Name="ScanSpot"
-	Script="Scripts/Entities/AI/ScanSpot.lua" 
-	Invisible="1"
-/>

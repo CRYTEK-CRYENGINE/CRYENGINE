@@ -113,6 +113,16 @@ void CVisionMap::UnregisterObserver(const ObserverID& observerID)
 	if (observerInfo.queuedForVisibilityUpdate)
 		stl::find_and_erase(m_observerVisibilityUpdateQueue, observerInfo.observerID);
 
+	for (const auto& pvsIdEntryPair : observerInfo.pvs)
+	{
+		const PVSEntry& pvsEntry = pvsIdEntryPair.second;
+		if (pvsEntry.visible)
+		{
+			TriggerObserverCallback(observerInfo, pvsEntry.observableInfo, false);
+			TriggerObservableCallback(observerInfo, pvsEntry.observableInfo, false);
+		}
+	}
+
 	m_observers.erase(observerIt);
 }
 
@@ -169,7 +179,10 @@ void CVisionMap::UnregisterObservable(const ObservableID& observableID)
 		PVSEntry& pvsEntry = pvsIt->second;
 
 		if (pvsEntry.visible)
+		{
 			TriggerObserverCallback(observerInfo, pvsEntry.observableInfo, false);
+			TriggerObservableCallback(observerInfo, pvsEntry.observableInfo, false);
+		}
 
 		DeletePendingRay(pvsEntry);
 

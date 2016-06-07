@@ -6,6 +6,7 @@
 #include "Communication/CommunicationTestManager.h"
 #include "Navigation/NavigationSystem/NavigationSystem.h"
 #include "BehaviorTree/BehaviorTreeManager.h"
+#include <CryAISystem/IAIBubblesSystem.h>
 
 void AIConsoleVars::Init()
 {
@@ -184,9 +185,11 @@ void AIConsoleVars::Init()
 	DefineConstIntCVarName("ai_BubblesSystemUseDepthTest", BubblesSystemUseDepthTest, 0, VF_CHEAT | VF_CHEAT_NOCHECK,
 	                       "Specifies if the BubblesSystem should use the depth test to show the messages"
 	                       " inside the 3D world.");
-	DefineConstIntCVarName("ai_BubbleSystemAllowPrototypeDialogBubbles", BubbleSystemAllowPrototypeDialogBubbles, 0, VF_CHEAT | VF_CHEAT_NOCHECK,
+	DefineConstIntCVarName("ai_BubblesSystemAllowPrototypeDialogBubbles", BubblesSystemAllowPrototypeDialogBubbles, 0, VF_CHEAT | VF_CHEAT_NOCHECK,
 	                       "Enabling the visualization of the bubbles created to prototype AI dialogs");
 	REGISTER_CVAR2("ai_BubblesSystemFontSize", &BubblesSystemFontSize, 45.0f, VF_CHEAT | VF_CHEAT_NOCHECK, "Font size for the BubblesSystem.");
+	REGISTER_CVAR2_CB("ai_BubblesSystemNameFilter", &BubblesSystemNameFilter, "", VF_CHEAT | VF_CHEAT_NOCHECK,
+	                  "Filter BubblesSystem messages by name. Do not filter, if empty.", &AIBubblesNameFilterCallback);
 	// Bubble System cvars
 
 	// Pathfinding dangers
@@ -1083,7 +1086,7 @@ struct PotentialDebugAgent
 {
 	Vec3        entityPosition;
 	EntityId    entityId;
-	const char* name;   // Pointer directly to the entity name
+	const char* name;     // Pointer directly to the entity name
 
 	PotentialDebugAgent()
 		: entityPosition(ZERO)
@@ -1256,4 +1259,12 @@ void AIConsoleVars::DebugAgent(IConsoleCmdArgs* args)
 	}
 #endif
 
+}
+
+void AIConsoleVars::AIBubblesNameFilterCallback(ICVar* pCvar)
+{
+	if (IAIBubblesSystem* pBubblesSystem = GetAISystem()->GetAIBubblesSystem())
+	{
+		pBubblesSystem->SetNameFilter(pCvar->GetString());
+	}
 }

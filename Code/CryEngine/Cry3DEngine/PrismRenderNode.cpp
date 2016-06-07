@@ -82,4 +82,29 @@ void CPrismRenderNode::OffsetPosition(const Vec3& delta)
 	if (m_pRE) m_pRE->m_center += delta;
 }
 
+void CPrismRenderNode::FillBBox(AABB& aabb)
+{
+	aabb = CPrismRenderNode::GetBBox();
+}
+
+EERType CPrismRenderNode::GetRenderNodeType()
+{
+	return eERType_PrismObject;
+}
+
+float CPrismRenderNode::GetMaxViewDist()
+{
+	return 1000.0f;
+}
+
+Vec3 CPrismRenderNode::GetPos(bool bWorldOnly) const
+{
+	return m_mat.GetTranslation();
+}
+
+IMaterial* CPrismRenderNode::GetMaterial(Vec3* pHitPos) const
+{
+	return m_pMaterial;
+}
+
 #endif // EXCLUDE_DOCUMENTATION_PURPOSE

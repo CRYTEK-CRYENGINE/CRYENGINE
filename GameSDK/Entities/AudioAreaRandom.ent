@@ -1,4 +1,0 @@
-<Entity
- Name="AudioAreaRandom" 
- Script="Scripts/Entities/Sound/AudioAreaRandom.lua"
-/>

@@ -22,6 +22,9 @@
 // If you want to debug the data consistency just set this define to 1
 #define DEBUG_MNM_DATA_CONSISTENCY_ENABLED 0
 
+// Log additional information about OffMesh link operation (add, remove, ...)
+#define DEBUG_MNM_LOG_OFFMESH_LINK_OPERATIONS 0
+
 #if CRY_PLATFORM_WINDOWS
 	#define MNM_USE_EXPORT_INFORMATION 1
 #else
@@ -673,13 +676,13 @@ inline EIntersectionResult DetailedIntersectSegmentSegment(const VecType& a0, co
                                                            real_t& s, real_t& t)
 {
 	/*
-	    a0
+	   a0
 	 |
-	    s
+	   s
 	   b0-----t----------b1
 	 |
 	 |
-	    a1
+	   a1
 
 	   Assuming
 	   da = a1 - a0

@@ -52,6 +52,8 @@
 	#include "PersonalInterestManager.h"
 	#include "BehaviorTree/BehaviorTreeManager.h"
 
+	#include <CryAISystem/IAIBubblesSystem.h>
+
 	#pragma warning(disable: 4244)
 
 	#define whiteTrans ColorB(255, 255, 255, 179)
@@ -1783,10 +1785,10 @@ void CAISystem::DebugDrawSteepSlopes()
 		float minY = currentPos.y - 0.5f * drawBoxWidth;
 		float maxX = currentPos.x + 0.5f * drawBoxWidth;
 		float maxY = currentPos.y + 0.5f * drawBoxWidth;
-		int minIx = (int) (minX / dx);
-		int minIy = (int) (minY / dx);
-		int maxIx = (int) (maxX / dx);
-		int maxIy = (int) (maxY / dx);
+		int minIx = (int)(minX / dx);
+		int minIy = (int)(minY / dx);
+		int maxIx = (int)(maxX / dx);
+		int maxIy = (int)(maxY / dx);
 		Limit(minIx, 1, terrainArraySize - 1);
 		Limit(minIy, 1, terrainArraySize - 1);
 		Limit(maxIx, 1, terrainArraySize - 1);
@@ -2314,7 +2316,7 @@ void CAISystem::DebugDrawPathAdjustments() const
 			if (ai->first != AIOBJECT_ACTOR)
 				break;
 			cnt++;
-			CPuppet* pPuppet = (CPuppet*) ai->second.GetAIObject();
+			CPuppet* pPuppet = (CPuppet*)ai->second.GetAIObject();
 			pPuppet->GetPathAdjustmentObstacles(false).DebugDraw();
 		}
 	}
@@ -2325,7 +2327,7 @@ void CAISystem::DebugDrawPathAdjustments() const
 			if (ai->first != AIOBJECT_VEHICLE)
 				break;
 			cnt++;
-			CAIVehicle* pVehicle = (CAIVehicle*) ai->second.GetAIObject();
+			CAIVehicle* pVehicle = (CAIVehicle*)ai->second.GetAIObject();
 			pVehicle->GetPathAdjustmentObstacles(false).DebugDraw();
 		}
 	}
@@ -4784,7 +4786,7 @@ void CAISystem::DebugDrawOneGroup(float x, float& y, float& w, float fontSize, s
 			}
 		}
 
-		if (CAIObject* beacon = (CAIObject*) GetAISystem()->GetBeacon(groupID))
+		if (CAIObject* beacon = (CAIObject*)GetAISystem()->GetBeacon(groupID))
 		{
 			Vec3 beaconLocation = beacon->GetPos() + Vec3(0.0f, 0.0f, 0.25f);
 			dc->DrawCone(beaconLocation, Vec3(0.0f, 0.0f, -1.0f), 0.25f, 0.55f, worldColor);
@@ -5293,6 +5295,13 @@ void CAISystem::DebugDraw()
 
 	if (gAIEnv.CVars.DebugGlobalPerceptionScale > 0)
 		m_globalPerceptionScale.DebugDraw();
+
+	#ifdef CRYAISYSTEM_DEBUG
+	{
+		FRAME_PROFILER("AIBubblesSystem", gEnv->pSystem, PROFILE_AI);
+		gAIEnv.pBubblesSystem->Update();
+	}
+	#endif
 
 	if (!IsEnabled())
 	{

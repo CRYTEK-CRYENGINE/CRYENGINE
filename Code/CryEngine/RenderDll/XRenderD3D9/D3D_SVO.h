@@ -216,7 +216,6 @@ protected:
 	  INIT_SVO_CVAR(float, e_svoTI_EmissiveMultiplier);             \
 	  INIT_SVO_CVAR(float, e_svoTI_PointLightsMultiplier);          \
 	  INIT_SVO_CVAR(float, e_svoTI_TemporalFilteringBase);          \
-	  INIT_SVO_CVAR(float, e_svoTI_TemporalFilteringMinDistance);   \
 	  INIT_SVO_CVAR(float, e_svoTI_HighGlossOcclusion);             \
 	  INIT_SVO_CVAR(float, e_svoTI_VegetationMaxOpacity);           \
 	  INIT_SVO_CVAR(float, e_svoTI_MinReflectance);                 \

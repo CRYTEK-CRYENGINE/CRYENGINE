@@ -1,4 +1,0 @@
-<Entity
- Name="CloneFactory" 
- Script="Scripts/Entities/Others/CloneFactory.lua"
-/>

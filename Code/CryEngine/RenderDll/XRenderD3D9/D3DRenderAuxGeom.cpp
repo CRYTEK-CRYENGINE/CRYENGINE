@@ -48,6 +48,7 @@ CRenderAuxGeomD3D::CRenderAuxGeomD3D(CD3D9Renderer& renderer)
 	, m_curPrimType(CAuxGeomCB::e_PrimTypeInvalid)
 	, m_curPointSize(1)
 	, m_curTransMatrixIdx(-1)
+	, m_curWorldMatrixIdx(-1)
 	, m_pAuxGeomShader(0)
 	, m_curDrawInFrontMode(e_DrawInFrontOff)
 	, m_auxSortedPushBuffer()
@@ -810,7 +811,7 @@ void CRenderAuxGeomD3D::DrawAuxObjects(CAuxGeomCB::AuxSortedPushBuffer::const_it
 			static CCryNameR matWorldViewProjName("matWorldViewProj");
 			if (m_curDrawInFrontMode == e_DrawInFrontOn)
 			{
-				Matrix44A matScale(Matrix44A(Matrix34::CreateScale(Vec3(0.999f, 0.999f, 0.999f))));
+				Matrix44A matScale(Matrix34::CreateScale(Vec3(0.999f, 0.999f, 0.999f)));
 
 				Matrix44A matWorldViewScaleProjT;
 				matWorldViewScaleProjT = (GetCurrentView() * matScale);
@@ -1291,10 +1292,17 @@ void CRenderAuxGeomD3D::SetShader(const SAuxGeomRenderFlags& renderFlags)
 				static CCryNameR matViewProjName("matViewProj");
 				if (e_DrawInFrontOn == renderFlags.GetDrawInFrontMode() && e_Mode3D == renderFlags.GetMode2D3DFlag())
 				{
-					Matrix44A matScale(Matrix44(Matrix34::CreateScale(Vec3(0.999f, 0.999f, 0.999f))));
+					Matrix44A matScale(Matrix34::CreateScale(Vec3(0.999f, 0.999f, 0.999f)));
 
 					Matrix44A matViewScaleProjT;
-					matViewScaleProjT = GetCurrentView() * matScale;
+					if (HasWorldMatrix())
+					{
+						matViewScaleProjT = Matrix44A(GetAuxWorldMatrix(m_curWorldMatrixIdx)).GetTransposed() * GetCurrentView() * matScale;
+					}
+					else
+					{
+						matViewScaleProjT = GetCurrentView() * matScale;
+					}
 					matViewScaleProjT = matViewScaleProjT * GetCurrentProj();
 					matViewScaleProjT = matViewScaleProjT.GetTransposed();
 					m_pAuxGeomShader->FXSetVSFloat(matViewProjName, alias_cast<Vec4*>(&matViewScaleProjT), 4);
@@ -1302,7 +1310,16 @@ void CRenderAuxGeomD3D::SetShader(const SAuxGeomRenderFlags& renderFlags)
 				}
 				else
 				{
-					Matrix44A matViewProjT = m_matrices.m_pCurTransMat->GetTransposed();
+					Matrix44A matViewProjT;
+					if (HasWorldMatrix())
+					{
+						matViewProjT = Matrix44(GetAuxWorldMatrix(m_curWorldMatrixIdx)).GetTransposed() *  *m_matrices.m_pCurTransMat;
+						matViewProjT = matViewProjT.GetTransposed();
+					}
+					else
+					{
+						matViewProjT = m_matrices.m_pCurTransMat->GetTransposed();
+					}
 					m_pAuxGeomShader->FXSetVSFloat(matViewProjName, alias_cast<Vec4*>(&matViewProjT), 4);
 					m_curDrawInFrontMode = e_DrawInFrontOff;
 				}
@@ -1500,6 +1517,7 @@ void CRenderAuxGeomD3D::RT_Flush(SAuxGeomCBRawDataPackaged& data, size_t begin, 
 				// get current render flags
 				const SAuxGeomRenderFlags& curRenderFlags((*itCur)->m_renderFlags);
 				m_curTransMatrixIdx = (*itCur)->m_transMatrixIdx;
+				m_curWorldMatrixIdx = (*itCur)->m_worldMatrixIdx;
 
 				// get prim type
 				CAuxGeomCB::EPrimType primType(CAuxGeomCB::GetPrimType(curRenderFlags));
@@ -1508,7 +1526,8 @@ void CRenderAuxGeomD3D::RT_Flush(SAuxGeomCBRawDataPackaged& data, size_t begin, 
 				while (true)
 				{
 					++it;
-					if ((it == itEnd) || ((*it)->m_renderFlags != curRenderFlags) || ((*it)->m_transMatrixIdx != m_curTransMatrixIdx))
+					if ((it == itEnd) || ((*it)->m_renderFlags != curRenderFlags) || ((*it)->m_transMatrixIdx != m_curTransMatrixIdx) || 
+						((*it)->m_worldMatrixIdx != m_curWorldMatrixIdx))
 					{
 						break;
 					}
@@ -1616,7 +1635,8 @@ void CRenderAuxGeomD3D::RT_Flush(SAuxGeomCBRawDataPackaged& data, size_t begin, 
 		m_renderer.EF_DirtyMatrix();
 
 		m_pCurCBRawData = 0;
-		m_curTransMatrixIdx = 0;
+		m_curTransMatrixIdx = -1;
+		m_curWorldMatrixIdx = -1;
 	}
 
 	if (reset)
@@ -1671,6 +1691,11 @@ bool CRenderAuxGeomD3D::IsOrthoMode() const
 	return m_curTransMatrixIdx != -1;
 }
 
+bool CRenderAuxGeomD3D::HasWorldMatrix() const
+{
+	return m_curWorldMatrixIdx != -1;
+}
+
 void CRenderAuxGeomD3D::SMatrices::UpdateMatrices(CD3D9Renderer& renderer)
 {
 	renderer.GetModelViewMatrix(&m_matView.m00);
@@ -1721,6 +1746,12 @@ inline const Matrix44A& CRenderAuxGeomD3D::GetAuxOrthoMatrix(int idx) const
 {
 	assert(m_pCurCBRawData && idx >= 0 && idx < (int)m_pCurCBRawData->m_auxOrthoMatrices.size());
 	return m_pCurCBRawData->m_auxOrthoMatrices[idx];
+}
+
+inline const Matrix34A& CRenderAuxGeomD3D::GetAuxWorldMatrix(int idx) const
+{
+	assert(m_pCurCBRawData && idx >= 0 && idx < (int)m_pCurCBRawData->m_auxWorldMatrices.size());
+	return m_pCurCBRawData->m_auxWorldMatrices[idx];
 }
 
 #endif // #if defined(ENABLE_RENDER_AUX_GEOM)

@@ -13,6 +13,10 @@ void MNM::IslandConnections::SetOneWayConnectionBetweenIsland(const MNM::GlobalI
 {
 	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
 
+#if DEBUG_MNM_LOG_OFFMESH_LINK_OPERATIONS
+	AILogCommentID("<MNM:OffMeshLink>", "IslandConnections::SetOneWayConnectionBetweenIsland from %u to %u, linkId %u", fromIsland, link.toIsland, link.offMeshLinkID);
+#endif
+
 	TLinksVector& links = m_islandConnections[fromIsland];
 	stl::push_back_unique(links, link);
 }
@@ -21,12 +25,28 @@ void MNM::IslandConnections::RemoveOneWayConnectionBetweenIsland(const MNM::Glob
 {
 	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
 
+#if DEBUG_MNM_LOG_OFFMESH_LINK_OPERATIONS
+	AILogCommentID("<MNM:OffMeshLink>", "remove link %u of object %x", link.offMeshLinkID, link.objectIDThatCreatesTheConnection);
+#endif
+
 	TIslandConnectionsMap::iterator linksIt = m_islandConnections.find(fromIsland);
 	if (linksIt != m_islandConnections.end())
 	{
 		TLinksVector& links = linksIt->second;
 		if (!links.empty())
+		{
+#if DEBUG_MNM_LOG_OFFMESH_LINK_OPERATIONS
+			for (const Link& l : links)
+			{
+				if (l == link)
+				{
+					AILogCommentID("<MNM:OffMeshLink>", "object %x : from %u to %u, linkId %u", l.objectIDThatCreatesTheConnection, linksIt->first.GetStaticIslandID(), l.toIsland, l.offMeshLinkID);
+				}
+			}
+#endif
+
 			links.erase(std::remove(links.begin(), links.end(), link), links.end());
+		}
 
 		if (links.empty())
 		{
@@ -51,6 +71,12 @@ struct IsLinkAssociatedWithObjectPredicate
 
 void MNM::IslandConnections::RemoveAllIslandConnectionsForObject(const NavigationMeshID& meshID, const uint32 objectId)
 {
+	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+
+#if DEBUG_MNM_LOG_OFFMESH_LINK_OPERATIONS
+	AILogCommentID("<MNM:OffMeshLink>", "remove all links of object %x", objectId);
+#endif
+
 	TIslandConnectionsMap::iterator linksIt = m_islandConnections.begin();
 	TIslandConnectionsMap::iterator linksEnd = m_islandConnections.end();
 	for (; linksIt != linksEnd; )
@@ -58,10 +84,21 @@ void MNM::IslandConnections::RemoveAllIslandConnectionsForObject(const Navigatio
 		if (NavigationMeshID(linksIt->first.GetNavigationMeshIDAsUint32()) == meshID)
 		{
 			TLinksVector& links = linksIt->second;
+
+#if DEBUG_MNM_LOG_OFFMESH_LINK_OPERATIONS
+			for (const Link& l : links)
+			{
+				if (IsLinkAssociatedWithObjectPredicate(objectId)(l))
+				{
+					AILogCommentID("<MNM:OffMeshLink>", "object %x : from %u to %u, linkId %u", l.objectIDThatCreatesTheConnection, linksIt->first.GetStaticIslandID(), l.toIsland, l.offMeshLinkID);
+				}
+			}
+#endif
+
 			links.erase(std::remove_if(links.begin(), links.end(), IsLinkAssociatedWithObjectPredicate(objectId)), links.end());
 			if (links.empty())
 			{
-				m_islandConnections.erase(linksIt++);
+				linksIt = m_islandConnections.erase(linksIt);
 				continue;
 			}
 		}

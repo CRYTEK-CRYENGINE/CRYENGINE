@@ -1344,7 +1344,8 @@ bool CXConsole::OnInputEvent(const SInputEvent& event)
 		}
 	}
 
-	if (event.keyId == eKI_Tilde)
+	// keep only bare tilde key, modified one may be used by someone else - such as editor suspend
+	if (event.keyId == eKI_Tilde && !(event.modifiers & (eMM_Shift | eMM_Ctrl | eMM_Alt)))
 	{
 		if (m_bActivationKeyEnable)
 		{

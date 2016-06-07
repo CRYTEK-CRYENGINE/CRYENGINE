@@ -1,4 +1,0 @@
-<Entity
- Name="ExtractionPoint"
- Script="Scripts/Entities/Multiplayer/ExtractionPoint.lua"
-/>

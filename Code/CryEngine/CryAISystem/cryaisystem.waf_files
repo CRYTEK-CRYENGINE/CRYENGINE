@@ -192,9 +192,9 @@
 		],
 		"Helpers/Debug/AIBubblesSystem":
 		[
-			"AIBubblesSystem/AIBubblesSystem.cpp",
-			"AIBubblesSystem/AIBubblesSystem.h",
-			"AIBubblesSystem/IAIBubblesSystem.h"
+			"AIBubblesSystem/AIBubblesSystemImpl.cpp",
+			"AIBubblesSystem/AIBubblesSystemImpl.h",
+			"AIBubblesSystem/AIBubblesSystem.h"
 		],
 		"Helpers/PID":
 		[

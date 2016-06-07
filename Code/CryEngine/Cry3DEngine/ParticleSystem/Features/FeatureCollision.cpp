@@ -17,4 +17,10 @@ void CFeatureCollision::AddToComponent(CParticleComponent* pComponent, SComponen
 	pComponent->AddToUpdateList(EUL_Update, this);
 }
 
+void CFeatureCollision::Serialize(Serialization::IArchive& ar)
+{
+	CParticleFeature::Serialize(ar);
+	AddNoPropertiesLabel(ar);
+}
+
 }

@@ -701,9 +701,9 @@ void NavigationSystem::SetExclusionVolume(const NavigationAgentTypeID* agentType
    {
    if (meshID && volumeID && m_meshes.validate(meshID) && m_volumes.validate(volumeID))
    {
-    NavigationMesh& mesh = m_meshes[meshID];
+   NavigationMesh& mesh = m_meshes[meshID];
 
-    if (stl::push_back_unique(mesh.exclusions, volumeID))
+   if (stl::push_back_unique(mesh.exclusions, volumeID))
    ++mesh.version;
    }
    }
@@ -712,9 +712,9 @@ void NavigationSystem::SetExclusionVolume(const NavigationAgentTypeID* agentType
    {
    if (meshID && volumeID && m_meshes.validate(meshID) && m_volumes.validate(volumeID))
    {
-    NavigationMesh& mesh = m_meshes[meshID];
+   NavigationMesh& mesh = m_meshes[meshID];
 
-    if (stl::find_and_erase(mesh.exclusions, volumeID))
+   if (stl::find_and_erase(mesh.exclusions, volumeID))
    ++mesh.version;
    }
    }
@@ -1530,6 +1530,9 @@ void NavigationSystem::AddIslandConnectionsBetweenTriangles(const NavigationMesh
 					const MNM::Tile::Link& link = tile.links[startingTriangle.firstLink + l];
 					if (link.side == MNM::Tile::Link::OffMesh)
 					{
+#if DEBUG_MNM_LOG_OFFMESH_LINK_OPERATIONS
+						AILogCommentID("<MNM:OffMeshLink>", "NavigationSystem::AddIslandConnectionsBetweenTriangles link from %u to %u (mesh %u)", startingTriangle.islandID, endingTriangle.islandID, meshID);
+#endif
 						MNM::GlobalIslandID endingIslandID(meshID, endingTriangle.islandID);
 						MNM::OffMeshNavigation& offMeshNavigation = m_offMeshNavigationManager.GetOffMeshNavigationForMesh(meshID);
 						MNM::OffMeshNavigation::QueryLinksResult linksResult = offMeshNavigation.GetLinksForTriangle(startingTriangleID, link.triangle);
@@ -1560,6 +1563,9 @@ void NavigationSystem::RemoveAllIslandConnectionsForObject(const NavigationMeshI
 void NavigationSystem::RemoveIslandsConnectionBetweenTriangles(const NavigationMeshID& meshID, const MNM::TriangleID startingTriangleID,
                                                                const MNM::TriangleID endingTriangleID)
 {
+	// NOTE pavloi 2016.02.05: be advised, that this function is not use anywhere. It should be called before triangles are unlinked
+	// from each other, but currently OffMeshNavigationManager first unlinks triangles and only then unlinks islands.
+
 	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
 
 	if (m_meshes.validate(meshID))
@@ -1578,6 +1584,9 @@ void NavigationSystem::RemoveIslandsConnectionBetweenTriangles(const NavigationM
 					const MNM::Tile::Link& link = tile.links[startingTriangle.firstLink + l];
 					if (link.side == MNM::Tile::Link::OffMesh)
 					{
+#if DEBUG_MNM_LOG_OFFMESH_LINK_OPERATIONS
+						AILogCommentID("<MNM:OffMeshLink>", "NavigationSystem::RemoveIslandsConnectionBetweenTriangles link from %u to %u (mesh %u)", startingTriangle.islandID, endingTriangle.islandID, meshID);
+#endif
 						MNM::GlobalIslandID endingIslandID(meshID, endingTriangle.islandID);
 						MNM::OffMeshNavigation& offMeshNavigation = m_offMeshNavigationManager.GetOffMeshNavigationForMesh(meshID);
 						MNM::OffMeshNavigation::QueryLinksResult linksResult = offMeshNavigation.GetLinksForTriangle(startingTriangleID, link.triangle);
@@ -1593,6 +1602,174 @@ void NavigationSystem::RemoveIslandsConnectionBetweenTriangles(const NavigationM
 							}
 						}
 					}
+				}
+			}
+		}
+	}
+}
+
+void NavigationSystem::AddOffMeshLinkIslandConnectionsBetweenTriangles(
+  const NavigationMeshID& meshID,
+  const MNM::TriangleID startingTriangleID,
+  const MNM::TriangleID endingTriangleID,
+  const MNM::OffMeshLinkID& linkID)
+{
+	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+
+#if DEBUG_MNM_DATA_CONSISTENCY_ENABLED
+	{
+		bool bLinkIsFound = false;
+		// Next piece code is an almost exact copy from AddIslandConnectionsBetweenTriangles()
+		if (m_meshes.validate(meshID))
+		{
+			const NavigationMesh& mesh = m_meshes[meshID];
+			MNM::Tile::Triangle startingTriangle, endingTriangle;
+			if (mesh.grid.GetTriangle(startingTriangleID, startingTriangle))
+			{
+				if (mesh.grid.GetTriangle(endingTriangleID, endingTriangle))
+				{
+					const MNM::GlobalIslandID startingIslandID(meshID, startingTriangle.islandID);
+					const MNM::Tile& tile = mesh.grid.GetTile(MNM::ComputeTileID(startingTriangleID));
+					for (uint16 l = 0; l < startingTriangle.linkCount && !bLinkIsFound; ++l)
+					{
+						const MNM::Tile::Link& link = tile.links[startingTriangle.firstLink + l];
+						if (link.side == MNM::Tile::Link::OffMesh)
+						{
+							const MNM::GlobalIslandID endingIslandID(meshID, endingTriangle.islandID);
+							const MNM::OffMeshNavigation& offMeshNavigation = m_offMeshNavigationManager.GetOffMeshNavigationForMesh(meshID);
+							const MNM::OffMeshNavigation::QueryLinksResult linksResult = offMeshNavigation.GetLinksForTriangle(startingTriangleID, link.triangle);
+							while (MNM::WayTriangleData nextTri = linksResult.GetNextTriangle())
+							{
+								if (nextTri.triangleID == endingTriangleID)
+								{
+									if (nextTri.offMeshLinkID == linkID)
+									{
+										if (const MNM::OffMeshLink* pLink = m_offMeshNavigationManager.GetOffMeshLink(nextTri.offMeshLinkID))
+										{
+											bLinkIsFound = true;
+											break;
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if (!bLinkIsFound)
+		{
+			// It's expected, that the triangles in tiles are already linked together before this function is called.
+			// But we haven't found a link during validation.
+			AIErrorID("<MNM:OffMeshLink>", "NavigationSystem::AddOffMeshLinkIslandConnectionsBetweenTriangles is called with wrong input");
+		}
+	}
+#endif // DEBUG_MNM_DATA_CONSISTENCY_ENABLED
+
+	// TODO pavloi 2016.02.05: whole piece is suboptimal - this function is called from m_offMeshNavigationManager already, where
+	// it linked triangles and had full info about them. I leave it like this to be consistent with AddIslandConnectionsBetweenTriangles()
+	if (m_meshes.validate(meshID))
+	{
+		NavigationMesh& mesh = m_meshes[meshID];
+		MNM::Tile::Triangle startingTriangle, endingTriangle;
+		if (mesh.grid.GetTriangle(startingTriangleID, startingTriangle))
+		{
+			if (mesh.grid.GetTriangle(endingTriangleID, endingTriangle))
+			{
+				const MNM::GlobalIslandID startingIslandID(meshID, startingTriangle.islandID);
+				const MNM::GlobalIslandID endingIslandID(meshID, endingTriangle.islandID);
+
+				const MNM::OffMeshLink* pLink = m_offMeshNavigationManager.GetOffMeshLink(linkID);
+				if (pLink)
+				{
+					const MNM::IslandConnections::Link islandLink(endingTriangleID, linkID, endingIslandID, pLink->GetEntityIdForOffMeshLink());
+					MNM::IslandConnections& islandConnections = m_islandConnectionsManager.GetIslandConnections();
+					islandConnections.SetOneWayConnectionBetweenIsland(startingIslandID, islandLink);
+				}
+			}
+		}
+	}
+}
+
+void NavigationSystem::RemoveOffMeshLinkIslandsConnectionBetweenTriangles(
+  const NavigationMeshID& meshID,
+  const MNM::TriangleID startingTriangleID,
+  const MNM::TriangleID endingTriangleID,
+  const MNM::OffMeshLinkID& linkID)
+{
+	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+#if DEBUG_MNM_DATA_CONSISTENCY_ENABLED
+	{
+		bool bLinkIsFound = false;
+		// Next piece code is an almost exact copy from RemoveIslandConnectionsBetweenTriangles()
+		if (m_meshes.validate(meshID))
+		{
+			const NavigationMesh& mesh = m_meshes[meshID];
+			MNM::Tile::Triangle startingTriangle, endingTriangle;
+			if (mesh.grid.GetTriangle(startingTriangleID, startingTriangle))
+			{
+				if (mesh.grid.GetTriangle(endingTriangleID, endingTriangle))
+				{
+					const MNM::GlobalIslandID startingIslandID(meshID, startingTriangle.islandID);
+
+					const MNM::Tile& tile = mesh.grid.GetTile(MNM::ComputeTileID(startingTriangleID));
+					for (uint16 l = 0; l < startingTriangle.linkCount && !bLinkIsFound; ++l)
+					{
+						const MNM::Tile::Link& link = tile.links[startingTriangle.firstLink + l];
+						if (link.side == MNM::Tile::Link::OffMesh)
+						{
+							const MNM::GlobalIslandID endingIslandID(meshID, endingTriangle.islandID);
+							const MNM::OffMeshNavigation& offMeshNavigation = m_offMeshNavigationManager.GetOffMeshNavigationForMesh(meshID);
+							const MNM::OffMeshNavigation::QueryLinksResult linksResult = offMeshNavigation.GetLinksForTriangle(startingTriangleID, link.triangle);
+							while (MNM::WayTriangleData nextTri = linksResult.GetNextTriangle())
+							{
+								if (nextTri.triangleID == endingTriangleID)
+								{
+									if (nextTri.offMeshLinkID == linkID)
+									{
+										if (const MNM::OffMeshLink* pLink = m_offMeshNavigationManager.GetOffMeshLink(nextTri.offMeshLinkID))
+										{
+											bLinkIsFound = true;
+											break;
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if (bLinkIsFound)
+		{
+			// It's expected, that the triangles in tiles are already unlinked from each other before this function is called.
+			// But validation actually found, that the link is still there.
+			AIErrorID("<MNM:OffMeshLink>", "NavigationSystem::RemoveOffMeshLinkIslandsConnectionBetweenTriangles is called with wrong input");
+		}
+	}
+#endif // DEBUG_MNM_DATA_CONSISTENCY_ENABLED
+
+	// TODO pavloi 2016.02.05: whole piece is suboptimal - this function is called from m_offMeshNavigationManager already, where
+	// it unlinked triangles and had full info about them. I leave it like this to be consistent with RemoveIslandConnectionsBetweenTriangles()
+	if (m_meshes.validate(meshID))
+	{
+		NavigationMesh& mesh = m_meshes[meshID];
+		MNM::Tile::Triangle startingTriangle, endingTriangle;
+		if (mesh.grid.GetTriangle(startingTriangleID, startingTriangle))
+		{
+			if (mesh.grid.GetTriangle(endingTriangleID, endingTriangle))
+			{
+				const MNM::GlobalIslandID startingIslandID(meshID, startingTriangle.islandID);
+				const MNM::GlobalIslandID endingIslandID(meshID, endingTriangle.islandID);
+
+				const MNM::OffMeshLink* pLink = m_offMeshNavigationManager.GetOffMeshLink(linkID);
+				if (pLink)
+				{
+					const MNM::IslandConnections::Link islandLink(endingTriangleID, linkID, endingIslandID, pLink->GetEntityIdForOffMeshLink());
+					MNM::IslandConnections& islandConnections = m_islandConnectionsManager.GetIslandConnections();
+					islandConnections.RemoveOneWayConnectionBetweenIsland(startingIslandID, islandLink);
 				}
 			}
 		}
@@ -3859,9 +4036,6 @@ void NavigationSystemDebugDraw::DebugDrawPathFinder(NavigationSystem& navigation
 				workingSet.aStarOpenList.SetFrameTimeQuota(0.0f);
 				workingSet.aStarOpenList.SetUpForPathSolving(grid.GetTriangleCount(), triStart, fixedPointStartLoc, startToEndDist);
 
-				const size_t MaxWaySize = 512;
-				MNM::WayTriangleData outputWay[MaxWaySize];
-
 				CTimeValue timeStart = gEnv->pTimer->GetAsyncTime();
 
 				MNM::DangerousAreasList dangersInfo;
@@ -3878,11 +4052,12 @@ void NavigationSystemDebugDraw::DebugDrawPathFinder(NavigationSystem& navigation
 					dangersInfo.push_back(info);
 				}
 
+				const size_t k_MaxWaySize = 512;
 				const float pathSharingPenalty = .0f;
 				const float pathLinkSharingPenalty = .0f;
 				MNM::MeshGrid::WayQueryRequest inputParams(debugObjectStart->CastToIAIActor(), triStart, startLoc, triEnd, endLoc,
 				                                           offMeshNavigation, *offMeshNavigationManager, dangersInfo);
-				MNM::MeshGrid::WayQueryResult result;
+				MNM::MeshGrid::WayQueryResult result(k_MaxWaySize);
 
 				const bool hasPathfindingFinished = (grid.FindWay(inputParams, workingSet, result) == MNM::MeshGrid::eWQR_Done);
 
@@ -3891,13 +4066,16 @@ void NavigationSystemDebugDraw::DebugDrawPathFinder(NavigationSystem& navigation
 
 				assert(hasPathfindingFinished);
 
-				for (size_t i = 0; i < result.GetWaySize(); ++i)
+				const MNM::WayTriangleData* const pOutputWay = result.GetWayData();
+				const size_t outputWaySize = result.GetWaySize();
+
+				for (size_t i = 0; i < outputWaySize; ++i)
 				{
-					if ((outputWay[i].triangleID != triStart) && (outputWay[i].triangleID != triEnd))
+					if ((pOutputWay[i].triangleID != triStart) && (pOutputWay[i].triangleID != triEnd))
 					{
 						MNM::vector3_t a, b, c;
 
-						grid.GetVertices(outputWay[i].triangleID, a, b, c);
+						grid.GetVertices(pOutputWay[i].triangleID, a, b, c);
 
 						renderAuxGeom->DrawTriangle(
 						  (a + originOffset).GetVec3(), ColorB(Col_Maroon),
@@ -3910,23 +4088,22 @@ void NavigationSystemDebugDraw::DebugDrawPathFinder(NavigationSystem& navigation
 				PathPointDescriptor navPathEnd(IAISystem::NAV_UNSET, endLoc);
 
 				CPathHolder<PathPointDescriptor> outputPath;
-				size_t waySize = result.GetWaySize();
-				for (size_t i = 0; i < waySize; ++i)
+				for (size_t i = 0; i < outputWaySize; ++i)
 				{
 					// Using the edge-midpoints of adjacent triangles to build the path.
 					if (i > 0)
 					{
 						Vec3 edgeMidPoint;
-						if (grid.CalculateMidEdge(outputWay[i - 1].triangleID, outputWay[i].triangleID, edgeMidPoint))
+						if (grid.CalculateMidEdge(pOutputWay[i - 1].triangleID, pOutputWay[i].triangleID, edgeMidPoint))
 						{
 							outputPath.PushFront(PathPointDescriptor(IAISystem::NAV_UNSET, edgeMidPoint + origin.GetVec3()));
 						}
 					}
 
-					if (outputWay[i].offMeshLinkID)
+					if (pOutputWay[i].offMeshLinkID)
 					{
 						// Grab off-mesh link object
-						const MNM::OffMeshLink* pOffMeshLink = gAIEnv.pNavigationSystem->GetOffMeshNavigationManager()->GetOffMeshLink(outputWay[i].offMeshLinkID);
+						const MNM::OffMeshLink* pOffMeshLink = gAIEnv.pNavigationSystem->GetOffMeshNavigationManager()->GetOffMeshLink(pOutputWay[i].offMeshLinkID);
 						assert(pOffMeshLink);
 
 						if (pOffMeshLink)
@@ -3936,17 +4113,17 @@ void NavigationSystemDebugDraw::DebugDrawPathFinder(NavigationSystem& navigation
 
 							// Add Entry/Exit points
 							PathPointDescriptor pathPoint(type);
-							pathPoint.iTriId = outputWay[i].triangleID;
+							pathPoint.iTriId = pOutputWay[i].triangleID;
 
 							// Cache off-mesh link data on the waypoint
-							pathPoint.offMeshLinkData.offMeshLinkID = outputWay[i].offMeshLinkID;
+							pathPoint.offMeshLinkData.offMeshLinkID = pOutputWay[i].offMeshLinkID;
 
 							pathPoint.vPos = pOffMeshLink->GetEndPosition();
 							pathPoint.iTriId = 0;
 							outputPath.PushFront(pathPoint);
 
 							pathPoint.vPos = pOffMeshLink->GetStartPosition();
-							pathPoint.iTriId = outputWay[i].triangleID;
+							pathPoint.iTriId = pOutputWay[i].triangleID;
 							outputPath.PushFront(pathPoint);
 						}
 					}
@@ -3960,7 +4137,9 @@ void NavigationSystemDebugDraw::DebugDrawPathFinder(NavigationSystem& navigation
 
 					CTimeValue stringPullingStartTime = gEnv->pTimer->GetAsyncTime();
 					if (gAIEnv.CVars.BeautifyPath)
-						outputPath.PullPathOnNavigationMesh(meshID, gAIEnv.CVars.PathStringPullingIterations, &outputWay[0], result.GetWaySize());
+					{
+						outputPath.PullPathOnNavigationMesh(meshID, gAIEnv.CVars.PathStringPullingIterations, &pOutputWay[0], outputWaySize);
+					}
 					stringPullingTotalTime = gEnv->pTimer->GetAsyncTime() - stringPullingStartTime;
 					size_t pathSize = outputPath.Size();
 					const Vec3 verticalOffset = Vec3(.0f, .0f, .1f);
@@ -3986,22 +4165,66 @@ void NavigationSystemDebugDraw::DebugDrawPathFinder(NavigationSystem& navigation
 	}
 }
 
+static bool FindObjectToTestIslandConnectivity(const char* szName, Vec3& outPos, IEntity** ppOutEntityToTestOffGridLinks)
+{
+	if (const CAIObject* pAiObject = gAIEnv.pAIObjectManager->GetAIObjectByName(szName))
+	{
+		outPos = pAiObject->GetPos();
+
+		if (ppOutEntityToTestOffGridLinks)
+		{
+			const IAIPathAgent* pPathAgent = pAiObject->CastToIAIActor();
+			assert(pPathAgent);
+			if (pPathAgent)
+			{
+				(*ppOutEntityToTestOffGridLinks) = pPathAgent->GetPathAgentEntity();
+			}
+		}
+		return true;
+	}
+	else if (IEntity* pEntity = gEnv->pEntitySystem->FindEntityByName(szName))
+	{
+		outPos = pEntity->GetWorldPos();
+
+		if (ppOutEntityToTestOffGridLinks)
+		{
+			(*ppOutEntityToTestOffGridLinks) = pEntity;
+		}
+		return true;
+	}
+	return false;
+}
+
 void NavigationSystemDebugDraw::DebugDrawIslandConnection(NavigationSystem& navigationSystem, const DebugDrawSettings& settings)
 {
-	bool isReachable = false;
+	// NOTE: difference between two possible start entities:
+	// - "MNMIslandStart" is used during island connectivity check to traverse OffNavMesh links;
+	// - "MNMIslandStartAnyLink" is not used during connectivity check, so any OffNavMesh link is considered to be traversable all the time.
+	const char* szStartName = "MNMIslandStart";
+	const char* szStartNameAnyLink = "MNMIslandStartAnyLink";
+	const char* szEndName = "MNMIslandEnd";
 
-	if (CAIObject* debugObjectStart = gAIEnv.pAIObjectManager->GetAIObjectByName("MNMIslandStart"))
+	Vec3 startPos;
+	Vec3 endPos;
+	IEntity* pEntityToTestOffGridLinksOrNull = nullptr;
+
+	if (!FindObjectToTestIslandConnectivity(szStartName, startPos, &pEntityToTestOffGridLinksOrNull))
 	{
-		if (CAIObject* debugObjectEnd = gAIEnv.pAIObjectManager->GetAIObjectByName("MNMIslandEnd"))
+		if (!FindObjectToTestIslandConnectivity(szStartNameAnyLink, startPos, nullptr))
 		{
-			assert(debugObjectStart->CastToIAIActor());
-			IAIPathAgent* pPathAgent = debugObjectStart->CastToIAIActor();
-			isReachable = gAIEnv.pNavigationSystem->IsPointReachableFromPosition(m_agentTypeID, pPathAgent->GetPathAgentEntity(), debugObjectStart->GetPos(), debugObjectEnd->GetPos());
-
-			CDebugDrawContext dc;
-			dc->Draw2dLabel(10.0f, 250.0f, 1.6f, isReachable ? Col_ForestGreen : Col_VioletRed, false, isReachable ? "The two islands ARE connected" : "The two islands ARE NOT connected");
+			return;
 		}
 	}
+
+	if (!FindObjectToTestIslandConnectivity(szEndName, endPos, nullptr))
+	{
+		return;
+	}
+
+	const bool isReachable = gAIEnv.pNavigationSystem->IsPointReachableFromPosition(m_agentTypeID, pEntityToTestOffGridLinksOrNull, startPos, endPos);
+
+	CDebugDrawContext dc;
+	dc->Draw2dLabel(10.0f, 250.0f, 1.6f, isReachable ? Col_ForestGreen : Col_VioletRed, false, isReachable ? "The two islands ARE connected" : "The two islands ARE NOT connected");
 }
 
 void NavigationSystemDebugDraw::DebugDrawNavigationMeshesForSelectedAgent(NavigationSystem& navigationSystem, MNM::TileID excludeTileID)
@@ -4038,7 +4261,7 @@ void NavigationSystemDebugDraw::DebugDrawNavigationMeshesForSelectedAgent(Naviga
 			break;
 		case 5:
 			mesh.grid.Draw(drawFlag | MNM::Tile::DrawInternalLinks | MNM::Tile::DrawExternalLinks |
-			               MNM::Tile::DrawOffMeshLinks | MNM::Tile::DrawIslandsId, excludeTileID);
+			               MNM::Tile::DrawOffMeshLinks | MNM::Tile::DrawTrianglesId | MNM::Tile::DrawIslandsId, excludeTileID);
 			break;
 		default:
 			break;
@@ -4266,7 +4489,14 @@ void NavigationSystemDebugDraw::NavigationSystemWorkingProgress::DrawQuad(const 
 	IRenderAuxGeom* pRenderAux = gEnv->pRenderer->GetIRenderAuxGeom();
 	if (pRenderAux)
 	{
+		const SAuxGeomRenderFlags oldFlags = pRenderAux->GetRenderFlags();
+		SAuxGeomRenderFlags flags = oldFlags;
+		flags.SetMode2D3DFlag(e_Mode2D);
+		flags.SetDrawInFrontMode(e_DrawInFrontOn);
+		flags.SetDepthTestFlag(e_DepthTestOff);
+		pRenderAux->SetRenderFlags(flags);
 		pRenderAux->DrawTriangles(quadVertices, 4, auxIndices, 6, color);
+		pRenderAux->SetRenderFlags(oldFlags);
 	}
 }
 

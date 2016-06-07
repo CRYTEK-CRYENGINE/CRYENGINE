@@ -725,7 +725,7 @@ public:
 	phys_profile_info *m_pFuncProfileData;
 	int m_nProfileFunx,m_nProfileFunxAlloc;
 	volatile int m_lockEntProfiler,m_lockFuncProfiler;
-	phys_profile_info m_grpProfileData[15];
+	phys_profile_info m_grpProfileData[16];
 	phys_job_info m_JobProfileInfo[6];
 	float m_lastTimeInterval;
 	int m_nSlowFrames;

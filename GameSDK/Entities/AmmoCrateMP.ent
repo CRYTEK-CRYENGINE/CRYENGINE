@@ -1,5 +1,0 @@
-<Entity
-	Name="AmmoCrateMP"
-	Script="Scripts/Entities/Multiplayer/AmmoCrateMP.lua"
-/>
-

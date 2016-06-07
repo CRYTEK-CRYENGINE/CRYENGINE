@@ -1954,6 +1954,24 @@ void CAuxGeomCB::RenderText(Vec3 pos, SDrawTextInfo& ti, const char* format, va_
 	}
 }
 
+int32 CAuxGeomCB::PushMatrix(const Matrix34& mat)
+{
+	int curIndex = m_cbCurrent->m_curWorldMatIdx;
+	m_cbCurrent->m_curWorldMatIdx = m_cbCurrent->m_auxWorldMatrices.size();
+	m_cbCurrent->m_auxWorldMatrices.push_back(mat);
+	return curIndex;
+}
+
+Matrix34* CAuxGeomCB::GetMatrix()
+{
+	return &m_cbCurrent->m_auxWorldMatrices[m_cbCurrent->m_curWorldMatIdx];
+}
+
+void CAuxGeomCB::SetMatrixIndex(int matID)
+{
+	m_cbCurrent->m_curWorldMatIdx = matID;
+}
+
 void CAuxGeomCB::Flush()
 {
 	Flush(false);
@@ -1994,6 +2012,7 @@ void CAuxGeomCBMainThread::Commit(uint frames)
 
 	assert(m_cbCurrent->m_curTransMatIdx == -1);
 	m_cbCurrent->m_curTransMatIdx = -1;
+	m_cbCurrent->m_curWorldMatIdx = -1;
 
 	for (CBList::iterator it = m_cbData.begin(); it != m_cbData.end(); ++it)
 	{
@@ -2101,6 +2120,7 @@ void CAuxGeomCB::AddPushBufferEntry(uint32 numVertices, uint32 numIndices, const
 	if (false == auxPushBuffer.empty() &&
 	    auxPushBuffer[auxPushBuffer.size() - 1].m_renderFlags == renderFlags &&
 	    auxPushBuffer[auxPushBuffer.size() - 1].m_transMatrixIdx == GetTransMatrixIndex() &&
+		auxPushBuffer[auxPushBuffer.size() - 1].m_worldMatrixIdx == GetWorldMatrixIndex() &&
 	    (e_PtList == primType || e_LineList == primType || e_TriList == primType))
 	{
 		// Perform a runtime optimization (pre-merging) which effectively reduces the number of PB entries created.
@@ -2120,7 +2140,7 @@ void CAuxGeomCB::AddPushBufferEntry(uint32 numVertices, uint32 numIndices, const
 	{
 		// create new push buffer entry
 		auxPushBuffer.push_back(SAuxPushBufferEntry(numVertices, numIndices,
-		                                            AccessData()->m_auxVertexBuffer.size(), AccessData()->m_auxIndexBuffer.size(), GetTransMatrixIndex(), renderFlags));
+		                                            AccessData()->m_auxVertexBuffer.size(), AccessData()->m_auxIndexBuffer.size(), GetTransMatrixIndex(), GetWorldMatrixIndex(), renderFlags));
 	}
 }
 
@@ -2164,7 +2184,7 @@ void CAuxGeomCB::AddObject(SAuxDrawObjParams*& pDrawParams, const SAuxGeomRender
 	// create new push buffer entry
 	AuxPushBuffer& auxPushBuffer(AccessData()->m_auxPushBuffer);
 	AuxDrawObjParamBuffer& auxDrawObjParamBuffer(AccessData()->m_auxDrawObjParamBuffer);
-	auxPushBuffer.push_back(SAuxPushBufferEntry(auxDrawObjParamBuffer.size(), GetTransMatrixIndex(), renderFlags));
+	auxPushBuffer.push_back(SAuxPushBufferEntry(auxDrawObjParamBuffer.size(), GetTransMatrixIndex(), GetWorldMatrixIndex(), renderFlags));
 
 	// get draw param buffer ptr
 	AuxDrawObjParamBuffer::size_type oldSize(auxDrawObjParamBuffer.size());

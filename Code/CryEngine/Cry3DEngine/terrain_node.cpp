@@ -1522,3 +1522,8 @@ void CTerrainNode::OffsetPosition(const Vec3& delta)
 			m_pChilds[i].OffsetPosition(delta);
 #endif
 }
+
+void CTerrainNode::FillBBox(AABB& aabb)
+{
+	aabb = GetBBox();
+}

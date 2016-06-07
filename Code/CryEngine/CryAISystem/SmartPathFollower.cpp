@@ -730,6 +730,7 @@ void CSmartPathFollower::ProcessPath()
 	}
 
 	// Ensure end point is at ground level (very often it isn't)
+	if (m_params.snapEndPointToGround)
 	{
 		SPathControlPoint2& endPoint = m_path.back();
 

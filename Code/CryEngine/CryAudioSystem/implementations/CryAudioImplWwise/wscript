@@ -108,7 +108,7 @@ def build(bld):
 		target      = 'CryAudioImplWwise',
 		vs_filter   = 'CryEngine/Audio/Implementations',
 
-		file_list   = 'cryaudioimpl_wwise.waf_files',
+		file_list   = 'cryaudioimpl.waf_files',
 		pch         = 'stdafx.cpp',
 
 		includes = [ '../../Common', bld.CreateRootRelativePath('Code/SDKs/Audio') ],

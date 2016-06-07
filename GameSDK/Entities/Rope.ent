@@ -1,5 +1,0 @@
-<Entity
-	Name="Rope"
-	Script="Scripts/Entities/Physics/Rope.lua"
- Invisible="0"
-/>

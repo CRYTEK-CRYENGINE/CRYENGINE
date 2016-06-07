@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<Entities>
+  <Entity Name="EnvironmentLight" Script="Scripts/Entities/Lights/EnvironmentLight.lua" Invisible="1"/>
+  <Entity Name="Light" Script="Scripts/Entities/Lights/Light.lua"/>
+  <Entity Name="ParticleEffect" Script="Scripts/Entities/Particle/ParticleEffect.lua" Invisible="1"/>
+</Entities>

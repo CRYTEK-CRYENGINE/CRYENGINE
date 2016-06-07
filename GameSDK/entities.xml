@@ -1,0 +1,137 @@
+<?xml version="1.0"?>
+<Entities>
+	<Entity Name="AdvancedDoor" Script="Scripts/Entities/Doors/AdvancedDoor.lua"/>
+	<Entity Name="AIAlertness" Script="Scripts/Entities/AI/AIAlertness.lua" Invisible="1"/>
+	<Entity Name="AIAnchor" Script="Scripts/Entities/AI/AIAnchor.lua" Invisible="1"/>
+	<Entity Name="AIReinforcementSpot" Script="Scripts/Entities/AI/AIReinforcementSpot.lua" Invisible="1"/>
+	<Entity Name="AISpawner" Script="Scripts/Entities/AI/AISpawner.lua" Invisible="1"/>
+	<Entity Name="AITerritory" Script="Scripts/Entities/AI/AITerritory.lua"/>
+	<Entity Name="AIWave" Script="Scripts/Entities/AI/AIWave.lua"/>
+	<Entity Name="AmmoCrate" Script="Scripts/Entities/Items/AmmoCrate.lua"/>
+	<Entity Name="AmmoCrateMP" Script="Scripts/Entities/Multiplayer/AmmoCrateMP.lua"/>
+	<Entity Name="AnimDoor" Script="Scripts/Entities/Doors/AnimDoor.lua"/>
+	<Entity Name="AnimObject" Script="Scripts/Entities/Physics/AnimObject.lua"/>
+	<Entity Name="AreaBezierVolume" Script="Scripts/Entities/Physics/AreaBezierVolume.lua" Invisible="1"/>
+	<Entity Name="AreaBox" Invisible="1"/>
+	<Entity Name="AreaRiver" Invisible="1"/>
+	<Entity Name="AreaRoad" Invisible="1"/>
+	<Entity Name="AreaShape" Invisible="1"/>
+	<Entity Name="AreaSolid" Invisible="1"/>
+	<Entity Name="AreaSphere" Invisible="1"/>
+	<Entity Name="AreaTrigger" Script="Scripts/Entities/Triggers/AreaTrigger.lua"/>
+	<Entity Name="AssaultIntel" Script="Scripts/Entities/Multiplayer/AssaultIntel.lua"/>
+	<Entity Name="AudioAreaAmbience" Script="Scripts/Entities/Sound/AudioAreaAmbience.lua"/>
+	<Entity Name="AudioAreaEntity" Script="Scripts/Entities/Sound/AudioAreaEntity.lua"/>
+	<Entity Name="AudioAreaRandom" Script="Scripts/Entities/Sound/AudioAreaRandom.lua"/>
+	<Entity Name="AudioTriggerSpot" Script="Scripts/Entities/Sound/AudioTriggerSpot.lua"/>
+	
+	<Entity Name="BaldEagle" Script="Scripts/Entities/Boids/BaldEagle.lua"/>
+	<Entity Name="BasicEntity" Script="Scripts/Entities/Physics/BasicEntity.lua"/>
+	<Entity Name="Birds" Script="Scripts/Entities/Boids/Birds.lua"/>
+	<Entity Name="Boid" Script="Scripts/Entities/Boids/Boid.lua" Invisible="1"/>
+	<Entity Name="BreakableObject" Script="Scripts/Entities/Physics/BreakableObject.lua"/>
+	<Entity Name="Breakage" Script="Scripts/Entities/Physics/Breakage.lua" Invisible="1"/>
+	<Entity Name="BTBBombBase" Script="Scripts/Entities/Multiplayer/BTBBombBase.lua"/>
+	<Entity Name="BTBBombSite" Script="Scripts/Entities/Multiplayer/BTBBombSite.lua"/>
+	<Entity Name="Bugs" Script="Scripts/Entities/Boids/Bugs.lua"/>
+	
+	<Entity Name="CameraPoint" Script="Scripts/Entities/Multiplayer/CameraPoint.lua"/>
+	<Entity Name="CameraShake" Script="Scripts/Entities/Others/CameraShake.lua"/>
+	<Entity Name="CameraSource" Script="Scripts/Entities/Others/CameraSource.lua"/>
+	<Entity Name="CameraTarget" Script="Scripts/Entities/Others/CameraTarget.lua" Invisible="1"/>
+	<Entity Name="CharacterAttachHelper" Script="Scripts/Entities/Others/CharacterAttachHelper.lua" Invisible="1"/>
+	<Entity Name="Chickens" Script="Scripts/Entities/Boids/Chickens.lua"/>
+	<Entity Name="CinematicTrigger" Script="Scripts/Entities/Triggers/CinematicTrigger.lua"/>
+	<Entity Name="ClipVolume" Invisible="1"/>
+	<Entity Name="CloneFactory" Script="Scripts/Entities/Others/CloneFactory.lua"/>
+	<Entity Name="Cloth" Script="Scripts/Entities/Physics/Cloth.lua"/>
+	<Entity Name="Cloud" Script="Scripts/Entities/Render/Cloud.lua"/>
+	<Entity Name="CloudBlocker" Script="Scripts/Entities/Render/CloudBlocker.lua"/>
+	<Entity Name="Comment" Script="Scripts/Entities/Others/Comment.lua" Invisible="1"/>
+	<Entity Name="Constraint" Script="Scripts/Entities/Physics/Constraint.lua"/>
+	<Entity Name="Crabs" Script="Scripts/Entities/Boids/Crabs.lua" Invisible="1"/>
+	<Entity Name="CTFBase" Script="Scripts/Entities/Multiplayer/CTFBase.lua"/>
+
+	<Entity Name="DeadBody" Script="Scripts/Entities/Physics/DeadBody.lua"/>
+	<Entity Name="DecalPlacer" Script="Scripts/Entities/Others/DecalPlacer.lua"/>
+	<Entity Name="DestroyableLight" Script="Scripts/Entities/Lights/DestroyableLight.lua"/>
+	<Entity Name="DestroyableObject" Script="Scripts/Entities/Physics/DestroyableObject.lua"/>
+	<Entity Name="DestroyedVehicle" Script="Scripts/Entities/Vehicles/DestroyedVehicle.lua"/>
+	<Entity Name="Door" Script="Scripts/Entities/Doors/Door.lua"/>
+
+	<Entity Name="Elevator" Script="Scripts/Entities/Elevators/Elevator.lua"/>
+	<Entity Name="ElevatorSwitch" Script="Scripts/Entities/Elevators/ElevatorSwitch.lua"/>
+	<Entity Name="EntityFlashTag" Script="Scripts/Entities/Others/EntityFlashTag.lua"/>
+	<Entity Name="EnvironmentLight" Script="Scripts/Entities/Lights/EnvironmentLight.lua" Invisible="1"/>
+	<Entity Name="Explosion" Script="Scripts/Entities/Physics/Explosion.lua"/>
+	<Entity Name="ExtractionPoint" Script="Scripts/Entities/Multiplayer/ExtractionPoint.lua"/>
+	<Entity Name="ExtractionWeaponSpawn" Script="Scripts/Entities/Multiplayer/ExtractionWeaponSpawn.lua"/>
+
+	<Entity Name="Fan" Script="Scripts/Entities/Others/Fan.lua"/>
+	<Entity Name="Fish" Script="Scripts/Entities/Boids/Fish.lua"/>
+	<Entity Name="Flash" Script="Scripts/Entities/Render/Flash.lua"/>
+	<Entity Name="Fog" Script="Scripts/Entities/Render/Fog.lua" Invisible="1"/>
+	<Entity Name="FogVolume" Script="Scripts/Entities/Render/FogVolume.lua"/>
+	<Entity Name="ForbiddenArea" Script="Scripts/Entities/Multiplayer/ForbiddenArea.lua"/>
+	<Entity Name="Frogs" Script="Scripts/Entities/Boids/Frogs.lua"/>
+
+	<Entity Name="GeomCache" Script="Scripts/Entities/Render/GeomCache.lua"/>
+	<Entity Name="GravityBox" Script="Scripts/Entities/Physics/GravityBox.lua"/>
+	<Entity Name="GravitySphere" Script="Scripts/Entities/Physics/GravitySphere.lua"/>
+	<Entity Name="GravityStream" Script="Scripts/Entities/Physics/GravityStream.lua" Invisible="1"/>
+	<Entity Name="GravityStreamCap" Script="Scripts/Entities/Physics/GravityStreamCap.lua" Invisible="1"/>
+	<Entity Name="GravityValve" Script="Scripts/Entities/Physics/GravityValve.lua"/>
+
+	<Entity Name="Hazard" Script="Scripts/Entities/Others/Hazard.lua"/>
+	<Entity Name="HealthPack" Script="Scripts/Entities/Items/HealthPack.lua"/>
+	<Entity Name="HUD_Object" Script="Scripts/Entities/HUD/HUD_Object.lua"/>
+	<Entity Name="HUD_MessagePlane" Script="Scripts/Entities/HUD/HUD_MessagePlane.lua"/>
+	<Entity Name="InteractiveEntity" Script="Scripts/Entities/Others/InteractiveEntity.lua"/>
+	<Entity Name="JointGen" Script="Scripts/Entities/Physics/JointGen.lua"/>
+	<Entity Name="Ladder" Script="Scripts/Entities/Others/Ladder.lua"/>
+	<Entity Name="Light" Script="Scripts/Entities/Lights/Light.lua"/>
+	<Entity Name="Lightning" Script="Scripts/Entities/Render/Lightning.lua"/>
+	<Entity Name="MapIconEntity" Script="Scripts/Entities/HUD/MapIconEntity.lua"/>
+	<Entity Name="Mine" Script="Scripts/Entities/Others/Mine.lua"/>
+	<Entity Name="MissionObjective" Script="Scripts/Entities/Others/MissionObjective.lua"/>
+	<Entity Name="NavigationSeedPoint" Script="Scripts/Entities/AI/NavigationSeedPoint.lua" Invisible="1"/>
+	
+	<Entity Name="ParticleEffect" Script="Scripts/Entities/Particle/ParticleEffect.lua" Invisible="1"/>
+	<Entity Name="ParticlePhysics" Script="Scripts/Entities/Physics/ParticlePhysics.lua"/>
+	<Entity Name="PickableAmmo" Script="Scripts/Entities/Items/PickableAmmo.lua" Invisible="1"/>
+	<Entity Name="PlayerModelChanger" Script="Scripts/Entities/Others/PlayerModelChanger.lua" Invisible="1"/>
+	<Entity Name="PrecacheCamera" Script="Scripts/Entities/Others/PrecacheCamera.lua"/>
+	<Entity Name="PressurizedObject" Script="Scripts/Entities/Physics/PressurizedObject.lua"/>
+	<Entity Name="PrismObject" Script="Scripts/Entities/Render/PrismObject.lua" Invisible="1"/>
+	<Entity Name="ProceduralObject" Script="Scripts/Entities/Others/ProceduralObject.lua" BBoxSelection="1"/>
+	<Entity Name="ProximityTrigger" Script="Scripts/Entities/Triggers/ProximityTrigger.lua"/>
+
+	<Entity Name="RaisingWater" Script="Scripts/Entities/Others/RaisingWater.lua" Invisible="1"/>
+	<Entity Name="RigidBody" Script="Scripts/Entities/Others/RigidBody.lua" Invisible="1"/>
+	<Entity Name="RigidBodyEx" Script="Scripts/Entities/Physics/RigidBodyEx.lua"/>
+	<Entity Name="RigidBodyLight" Script="Scripts/Entities/Lights/RigidBodyLight.lua"/>
+	<Entity Name="Rope" Script="Scripts/Entities/Physics/Rope.lua" Invisible="0"/>
+
+	<Entity Name="ScanSpot" Script="Scripts/Entities/AI/ScanSpot.lua" Invisible="1"/>
+	<Entity Name="ShootingTarget" Script="Scripts/Entities/Others/ShootingTarget.lua" Invisible="1"/>
+	<Entity Name="SmartObject" Script="Scripts/Entities/AI/SmartObject.lua" Invisible="1"/>
+	<Entity Name="SmartObjectCondition" Script="Scripts/Entities/AI/SmartObjectCondition.lua" Invisible="1"/>
+	<Entity Name="Snake" Script="Scripts/Entities/Boids/Snake.lua" Invisible="1"/>
+	<Entity Name="SpawnGroup" Script="Scripts/Entities/Multiplayer/SpawnGroup.lua"/>
+	<Entity Name="SpawnPoint" Script="Scripts/Entities/Others/SpawnPoint.lua"/>
+	<Entity Name="SpectatorPoint" Script="Scripts/Entities/Multiplayer/SpectatorPoint.lua"/>
+	<Entity Name="SpotterScannable" Script="Scripts/Entities/Others/SpotterScannable.lua" Invisible="1"/>
+	<Entity Name="Switch" Script="Scripts/Entities/Others/Switch.lua"/>
+
+	<Entity Name="TacticalEntity" Script="Scripts/Entities/Others/TacticalEntity.lua" Invisible="1"/>
+	<Entity Name="TagNamePoint" Script="Scripts/Entities/Multiplayer/TagNamePoint.lua"/>
+	<Entity Name="TagPoint" Script="Scripts/Entities/AI/TagPoint.lua" Invisible="1"/>
+	<Entity Name="Turtles" Script="Scripts/Entities/Boids/Turtles.lua"/>
+
+	<Entity Name="UIEntity" Script="Scripts/Entities/Others/UIEntity.lua"/>
+	<Entity Name="ViewDist" Script="Scripts/Entities/Render/ViewDist.lua"/>
+	<Entity Name="VolumeObject" Script="Scripts/Entities/Render/VolumeObject.lua"/>
+	<Entity Name="VTOLSpawnPoint" Script="Scripts/Entities/Multiplayer/VTOLSpawnPoint.lua" Invisible="1"/>
+	<Entity Name="Wind" Script="Scripts/Entities/Physics/Wind.lua"/>
+	<Entity Name="WindArea" Script="Scripts/Entities/Physics/WindArea.lua"/>
+</Entities>

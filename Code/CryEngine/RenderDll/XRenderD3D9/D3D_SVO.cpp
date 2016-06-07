@@ -899,6 +899,8 @@ void CSvoRenderer::ConeTracePass(SSvoTargetsSet* pTS)
 			}
 		}
 
+		GetUtils().SetTexture(GetUtils().GetVelocityObjectRT(), 8, FILTER_POINT);
+
 		rd->FX_Commit();
 
 		SD3DPostEffectsUtils::DrawFullScreenTriWPOS(CTexture::s_ptexCurrentSceneDiffuseAccMap->GetWidth(), CTexture::s_ptexCurrentSceneDiffuseAccMap->GetHeight());
@@ -1090,6 +1092,8 @@ void CSvoRenderer::DemosaicPass(SSvoTargetsSet* pTS)
 			pTS->pRT_ALD_DEM_MAX_1->Apply(3, m_nTexStateLinear);
 
 			//CTexture::s_ptexSceneSpecularAccMap->Apply(15, m_nTexStateLinear);
+
+			GetUtils().SetTexture(GetUtils().GetVelocityObjectRT(), 8, FILTER_POINT);
 
 			rd->FX_Commit();
 
@@ -1559,7 +1563,7 @@ bool CSvoRenderer::SetShaderParameters(float*& pSrc, uint32 paramType, UFloat4* 
 	case ECGP_PB_SvoParams6:
 		{
 			sData[0].f[0] = pSR->e_svoTI_PointLightsMultiplier;
-			sData[0].f[1] = gEnv->IsEditing() ? 0 : (pSR->e_svoTI_TemporalFilteringMinDistance / gcpRendD3D->GetRCamera().fFar);
+			sData[0].f[1] = 0;
 			sData[0].f[2] = pSR->e_svoTI_MinReflectance;
 			sData[0].f[3] = 0;
 			break;
@@ -1888,6 +1892,8 @@ void CSvoRenderer::UpScalePass(SSvoTargetsSet* pTS)
 		static CCryNameR paramNamePrev("g_mViewProjPrev");
 		m_pShader->FXSetPSFloat(paramNamePrev, alias_cast<Vec4*>(&m_matViewProjPrev), 4);
 	}
+
+	GetUtils().SetTexture(GetUtils().GetVelocityObjectRT(), 8, FILTER_POINT);
 
 	rd->FX_Commit();
 

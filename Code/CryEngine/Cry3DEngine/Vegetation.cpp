@@ -968,3 +968,90 @@ bool CVegetation::GetLodDistances(const SFrameLodInfo& frameLodInfo, float* dist
 
 	return true;
 }
+
+const AABB CVegetation::GetBBox() const
+{
+	AABB aabb;
+	FillBBoxFromExtends(aabb, m_boxExtends, m_vPos);
+	return aabb;
+}
+
+void CVegetation::UpdateRndFlags()
+{
+	StatInstGroup& vegetGroup = GetStatObjGroup();
+
+	const uint32 dwFlagsToUpdate =
+		ERF_CASTSHADOWMAPS | ERF_DYNAMIC_DISTANCESHADOWS | ERF_HIDABLE | ERF_PICKABLE
+		| ERF_SPEC_BITS_MASK | ERF_OUTDOORONLY | ERF_ACTIVE_LAYER;
+	m_dwRndFlags &= ~dwFlagsToUpdate;
+	m_dwRndFlags |= vegetGroup.m_dwRndFlags & (dwFlagsToUpdate | ERF_HAS_CASTSHADOWMAPS);
+
+	IRenderNode::SetLodRatio((int)(vegetGroup.fLodDistRatio * 100.f));
+	IRenderNode::SetViewDistRatio((int)(vegetGroup.fMaxViewDistRatio * 100.f));
+}
+
+void CVegetation::FillBBox(AABB& aabb)
+{
+	FillBBoxFromExtends(aabb, m_boxExtends, m_vPos);
+}
+
+EERType CVegetation::GetRenderNodeType()
+{
+	return eERType_Vegetation;
+}
+
+float CVegetation::GetMaxViewDist()
+{
+	StatInstGroup& group = GetStatObjGroup();
+	CStatObj* pStatObj = (CStatObj*)(IStatObj*)group.pStatObj;
+	if (pStatObj)
+	{
+		if (GetMinSpecFromRenderNodeFlags(m_dwRndFlags) == CONFIG_DETAIL_SPEC)
+			return max(GetCVars()->e_ViewDistMin, group.fVegRadius * CVegetation::GetScale() * GetCVars()->e_ViewDistRatioDetail * GetViewDistRatioNormilized());
+
+		return max(GetCVars()->e_ViewDistMin, group.fVegRadius * CVegetation::GetScale() * GetCVars()->e_ViewDistRatioVegetation * GetViewDistRatioNormilized());
+	}
+
+	return 0;
+}
+
+IStatObj* CVegetation::GetEntityStatObj(unsigned int nPartId, unsigned int nSubPartId, Matrix34A* pMatrix, bool bReturnOnlyVisible)
+{
+	if (nPartId != 0)
+		return 0;
+
+	if (pMatrix)
+	{
+		if (m_pTempData)
+		{
+			*pMatrix = m_pTempData->userData.objMat;
+		}
+		else
+		{
+			Matrix34A tm;
+			CalcMatrix(tm);
+			*pMatrix = tm;
+		}
+	}
+
+	return GetStatObj();
+}
+
+Vec3 CVegetation::GetPos(bool bWorldOnly) const
+{
+	assert(bWorldOnly);
+	return m_vPos;
+}
+
+IMaterial* CVegetation::GetMaterial(Vec3* pHitPos) const
+{
+	StatInstGroup& vegetGroup = GetStatObjGroup();
+
+	if (vegetGroup.pMaterial)
+		return vegetGroup.pMaterial;
+
+	if (CStatObj* pBody = vegetGroup.GetStatObj())
+		return pBody->GetMaterial();
+
+	return NULL;
+}

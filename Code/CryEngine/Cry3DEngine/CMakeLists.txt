@@ -8,7 +8,6 @@ project( ${THIS_PROJECT} )
 set (SourceGroup_3DEngine
 	3DEngineLight.cpp
 	3DEngineRender.cpp
-	3DEngine_Jobs.cpp
 	3dEngine.cpp
 	3dEngine.h
 	3dEngineLoad.cpp
@@ -27,7 +26,6 @@ source_group("3DEngine" FILES ${SourceGroup_3DEngine})
 set (SourceGroup_Brush
 	Brush.cpp
 	Brush.h
-	Brush_Jobs.cpp
 )
 source_group("Brush" FILES ${SourceGroup_Brush})
 
@@ -105,7 +103,6 @@ source_group("Effects\\Decals" FILES ${SourceGroup_Effects_Decals})
 set (SourceGroup_Effects_FogVolumes
 	FogVolumeRenderNode.cpp
 	FogVolumeRenderNode.h
-	FogVolumeRenderNode_Jobs.cpp
 )
 source_group("Effects\\FogVolumes" FILES ${SourceGroup_Effects_FogVolumes})
 
@@ -200,7 +197,6 @@ set (SourceGroup_Material
 	Material.h
 	MaterialHelpers.cpp
 	MaterialHelpers.h
-	Material_Jobs.cpp
 	SurfaceTypeManager.cpp
 	SurfaceTypeManager.h
 )
@@ -238,7 +234,6 @@ source_group("Object Manager" FILES ${SourceGroup_ObjectManager})
 set (SourceGroup_ObjectsTree
 	ObjectsTree.cpp
 	ObjectsTree.h
-	ObjectsTree_Jobs.cpp
 	ObjectsTree_MT.cpp
 	ObjectsTree_Serialize.cpp
 	ObjectsTree_Serialize_info.h
@@ -340,7 +335,6 @@ set (SourceGroup_StatObj
 	StatObjPhys.cpp
 	StatObjRend.cpp
 	StatObjStream.cpp
-	StatObj_Jobs.cpp
 )
 source_group("StatObj" FILES ${SourceGroup_StatObj})
 
@@ -393,7 +387,6 @@ set (SourceGroup_VisAreas
 	VisAreaCompile_info.h
 	VisAreaMan.cpp
 	VisAreaManCompile.cpp
-	VisArea_Jobs.cpp
 	VisAreas.cpp
 	VisAreas.h
 )

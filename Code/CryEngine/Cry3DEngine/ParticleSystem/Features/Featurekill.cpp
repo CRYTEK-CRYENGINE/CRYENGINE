@@ -21,6 +21,12 @@ public:
 		pComponent->AddToUpdateList(EUL_Update, this);
 	}
 
+	virtual void Serialize(Serialization::IArchive& ar) override
+	{
+		CParticleFeature::Serialize(ar);
+		AddNoPropertiesLabel(ar);
+	}
+
 	virtual void Update(const SUpdateContext& context) override
 	{
 		CRY_PFX2_PROFILE_DETAIL;

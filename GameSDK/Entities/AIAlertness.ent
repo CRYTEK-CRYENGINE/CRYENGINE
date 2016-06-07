@@ -1,5 +1,0 @@
-<Entity
-	Name="AIAlertness"
-	Script="Scripts/Entities/AI/AIAlertness.lua" 
-	Invisible="1"
-/>

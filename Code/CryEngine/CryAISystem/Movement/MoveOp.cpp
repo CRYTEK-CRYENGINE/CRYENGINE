@@ -8,7 +8,7 @@
 #include "Cover/CoverSystem.h"
 #include "PipeUser.h"
 #include <CrySystem/XML/XMLAttrReader.h>
-#include "AIBubblesSystem/IAIBubblesSystem.h"
+#include "AIBubblesSystem/AIBubblesSystem.h"
 #include "Navigation/NavigationSystem/NavigationSystem.h"
 
 MoveOpDictionaryCollection::MoveOpDictionaryCollection()

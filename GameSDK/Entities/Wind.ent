@@ -1,4 +1,0 @@
-<Entity
-	Name="Wind"
-	Script="Scripts/Entities/Physics/Wind.lua"
-/>

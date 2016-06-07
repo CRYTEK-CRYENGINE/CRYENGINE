@@ -1,4 +1,0 @@
-<Entity
-	Name="FogVolume"
-	Script="Scripts/Entities/Render/FogVolume.lua"
-/>

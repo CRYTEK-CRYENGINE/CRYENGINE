@@ -1,5 +1,0 @@
-<Entity
-	Name="Snake"
-	Script="Scripts/Entities/Boids/Snake.lua"
-	Invisible="1"
-/>

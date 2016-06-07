@@ -61,6 +61,10 @@ public:
 
 	virtual void                RenderText(Vec3 pos, SDrawTextInfo& ti, const char* forma, va_list args)                                              {}
 
+	virtual int32               PushMatrix(const Matrix34& mat)                                                                                             { return -1; }
+	virtual Matrix34*           GetMatrix()                                                                                                           { return nullptr; }
+	virtual void                SetMatrixIndex(int32 matID)                                                                                           {}
+
 public:
 	static CNULLRenderAuxGeom* Create()
 	{

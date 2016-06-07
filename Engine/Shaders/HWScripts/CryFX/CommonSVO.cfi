@@ -176,6 +176,7 @@ sampler2D SVO_RsmSunColorsMap : register(s13);
 sampler2D SVO_RsmSunNormalMap : register(s9);
 float4    SVO_RsmSunCol;
 float4    SVO_RsmSunDir;
+sampler2D SVO_VelocityRT : register(s8);
 
 Texture2D<float4> ForwRsmPoolCol : register(t26);
 Texture2D<float4> ForwRsmPoolNor : register(t27);

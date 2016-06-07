@@ -201,7 +201,7 @@ def _get_project_overrides(ctx, target):
 					element_value = get_element_value(next_line)
 
 					# Cache override
-					_set_override(project_options_overrides, element_name, element_value, ctx.env, ctx.path.abspath())
+					_set_override(project_options_overrides, element_name, element_value, ctx.env, ctx.path)
 					
 				elif next_line.startswith('</ItemDefinitionGroup>'):
 					break
@@ -246,7 +246,7 @@ def _get_project_overrides(ctx, target):
 									project_file_options_overrides[vs_file_path] = {}
 									override_map = project_file_options_overrides[vs_file_path]
 
-									_set_override(override_map, element_name, element_value, ctx.env, ctx.path.abspath())
+									_set_override(override_map, element_name, element_value, ctx.env, ctx.path)
 
 						#end of ClCompile Element
 						elif next_line_child.startswith('</ClCompile>'):

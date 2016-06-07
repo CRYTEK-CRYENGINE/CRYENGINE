@@ -1,4 +1,0 @@
-<Entity
- Name="Flash" 
- Script="Scripts/Entities/Render/Flash.lua"
-/>

@@ -654,7 +654,11 @@ float3 Reproject(in half2 vScreenPos, in float fDepth, in float3x4 matReproj)
 	pos.xyz = mul(matReproj, pos);
 	pos.xy /= pos.z;
 	pos.z *= fDepth;
-	pos.xy = lerp(vScreenPos.xy, pos.xy, saturate((fDepth-SvoParamsMisc2.y) / (SvoParamsMisc2.y*0.5f))); // 1p weapon fix
+
+	float2 vMV = tex2D(SVO_VelocityRT, vScreenPos);
+	if (vMV.x != 0)
+		pos.xy = vScreenPos + DecodeMotionVector(vMV);
+
 	return pos.xyz;
 }
 

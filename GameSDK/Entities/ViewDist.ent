@@ -1,4 +1,0 @@
-<Entity
-	Name="ViewDist"
-	Script="Scripts/Entities/Render/ViewDist.lua"
-/>

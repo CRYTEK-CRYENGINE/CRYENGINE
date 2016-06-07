@@ -848,3 +848,31 @@ void CVolumeObjectRenderNode::OffsetPosition(const Vec3& delta)
 	m_mat.SetTranslation(m_mat.GetTranslation() + delta);
 	m_matInv = m_mat.GetInverted();
 }
+
+void CVolumeObjectRenderNode::FillBBox(AABB& aabb)
+{
+	aabb = CVolumeObjectRenderNode::GetBBox();
+}
+
+EERType CVolumeObjectRenderNode::GetRenderNodeType()
+{
+	return eERType_VolumeObject;
+}
+
+float CVolumeObjectRenderNode::GetMaxViewDist()
+{
+	if (GetMinSpecFromRenderNodeFlags(m_dwRndFlags) == CONFIG_DETAIL_SPEC)
+		return max(GetCVars()->e_ViewDistMin, CVolumeObjectRenderNode::GetBBox().GetRadius() * GetCVars()->e_ViewDistRatioDetail * GetViewDistRatioNormilized());
+
+	return max(GetCVars()->e_ViewDistMin, CVolumeObjectRenderNode::GetBBox().GetRadius() * GetCVars()->e_ViewDistRatio * GetViewDistRatioNormilized());
+}
+
+Vec3 CVolumeObjectRenderNode::GetPos(bool bWorldOnly) const
+{
+	return m_pos;
+}
+
+IMaterial* CVolumeObjectRenderNode::GetMaterial(Vec3* pHitPos) const
+{
+	return m_pMaterial;
+}

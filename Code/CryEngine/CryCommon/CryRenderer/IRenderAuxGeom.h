@@ -194,6 +194,19 @@ struct IRenderAuxGeom
 	}
 	//! ##@}
 
+	//! Push a world matrix for the next primitives
+	//! \param mat  Contains the matrix that will be used for trasforms of further primitives
+	//! \return     Index of previous used matrix index in the matrix buffer, as set internally or by SetMatrixIndex!
+	virtual int PushMatrix(const Matrix34& mat) = 0;
+
+	//! Get the world matrix for the next primitives
+	//! \return active matrix in the matrix buffer.
+	virtual Matrix34* GetMatrix() = 0;
+
+	//! Set world matrix for the next primitives based on ID. This function allows us to do push/pop semantics
+	//! \param matID matrix ID. Should be a matrix id returned by PushMatrix
+	virtual void SetMatrixIndex(int matID) = 0;
+
 	//! If possible flushes all elements stored on the buffer to rendering system.
 	//! Note 1: rendering system may start processing flushed commands immediately or postpone it till Commit() call.
 	//! Note 2: worker threads's commands are always postponed till Commit() call.

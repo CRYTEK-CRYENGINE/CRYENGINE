@@ -1,4 +1,0 @@
-<Entity
- Name="AnimDoor" 
- Script="Scripts/Entities/Doors/AnimDoor.lua"
-/>

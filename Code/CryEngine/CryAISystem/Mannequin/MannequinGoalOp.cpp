@@ -3,7 +3,7 @@
 #include "StdAfx.h"
 #include "MannequinGoalOp.h"
 #include "PipeUser.h"
-#include "AIBubblesSystem/IAIBubblesSystem.h"
+#include "AIBubblesSystem/AIBubblesSystem.h"
 
 //////////////////////////////////////////////////////////////////////////
 CMannequinTagGoalOp::CMannequinTagGoalOp()

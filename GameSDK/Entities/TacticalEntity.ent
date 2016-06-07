@@ -1,5 +1,0 @@
-<Entity
-	Name="TacticalEntity"
-	Script="Scripts/Entities/Others/TacticalEntity.lua"
-	Invisible="1"
-/>
