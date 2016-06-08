@@ -32,14 +32,15 @@ enum ScrollDir
 //////////////////////////////////////////////////////////////////////////
 struct CConsoleCommand
 {
-	string             m_sName;    // Console command name
-	string             m_sCommand; // lua code that is executed when this command is invoked
-	string             m_sHelp;    // optional help string - can be shown in the console with "<commandname> ?"
-	int                m_nFlags;   // bitmask consist of flag starting with VF_ e.g. VF_CHEAT
-	ConsoleCommandFunc m_func;     // Pointer to console command.
+	string					m_sName;    // Console command name
+	string					m_sCommand; // lua code that is executed when this command is invoked
+	string					m_sHelp;    // optional help string - can be shown in the console with "<commandname> ?"
+	int						m_nFlags;   // bitmask consist of flag starting with VF_ e.g. VF_CHEAT
+	ConsoleCommandLambda	m_func;     // Pointer to console command.
+	bool					m_hasFunc; // Whether or not m_func has an underlying function. It is easier to do this than use pointers when wrapping around a plain function.
 
 	//////////////////////////////////////////////////////////////////////////
-	CConsoleCommand() : m_func(0), m_nFlags(0) {}
+	CConsoleCommand() : m_hasFunc(false), m_nFlags(0) {}
 	size_t sizeofThis() const { return sizeof(*this) + m_sName.capacity() + 1 + m_sCommand.capacity() + 1; }
 	void   GetMemoryUsage(class ICrySizer* pSizer) const
 	{
@@ -163,6 +164,7 @@ public:
 	virtual void                   Update();
 	virtual void                   Draw();
 	virtual void                   AddCommand(const char* sCommand, ConsoleCommandFunc func, int nFlags = 0, const char* sHelp = NULL);
+	virtual void                   AddCommand(const char* sCommand, ConsoleCommandLambda func, int nFlags, const char* sHelp);
 	virtual void                   AddCommand(const char* sName, const char* sScriptFunc, int nFlags = 0, const char* sHelp = NULL);
 	virtual void                   RemoveCommand(const char* sName);
 	virtual void                   ExecuteString(const char* command, const bool bSilentMode, const bool bDeferExecution = false);

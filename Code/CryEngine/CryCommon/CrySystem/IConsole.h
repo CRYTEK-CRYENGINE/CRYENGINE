@@ -3,6 +3,8 @@
 #ifndef _ICONSOLE_H_
 #define _ICONSOLE_H_
 
+#include <functional>
+
 struct SFunctor;
 
 struct ConsoleBind;
@@ -141,6 +143,8 @@ struct IConsoleArgumentAutoComplete
 
 //! This a definition of the console command function that can be added to console with AddCommand.
 typedef void (* ConsoleCommandFunc)(IConsoleCmdArgs*);
+
+typedef std::function<void(IConsoleCmdArgs*)> ConsoleCommandLambda;
 
 //! This a definition of the callback function that is called when variable change.
 typedef void (* ConsoleVarFunc)(ICVar*);
@@ -329,6 +333,13 @@ struct IConsole
 	//! \param nFlags   Bitfield consisting of VF_ flags (e.g. VF_CHEAT).
 	//! \param sHelp    Help string, will be displayed when typing in console "command ?".
 	virtual void AddCommand(const char* sCommand, ConsoleCommandFunc func, int nFlags = 0, const char* sHelp = NULL) = 0;
+
+	//! Register a new console command.
+	//! \param sCommand Command name.
+	//! \param func     Pointer to the console command function to be called when command is invoked.
+	//! \param nFlags   Bitfield consisting of VF_ flags (e.g. VF_CHEAT).
+	//! \param sHelp    Help string, will be displayed when typing in console "command ?".
+	virtual void AddCommand(const char* sCommand, ConsoleCommandLambda func, int nFlags = 0, const char* sHelp = NULL) = 0;
 
 	//! Register a new console command that execute script function.
 	//! EG "Game.Connect(%1)" the symbol "%1" will be replaced with the command parameter 1
