@@ -1834,6 +1834,7 @@ void CXConsole::AddCommand(const char* sCommand, ConsoleCommandLambda func, int 
 		CConsoleCommand cmd;
 		cmd.m_sName = sCommand;
 		cmd.m_func = func;
+		cmd.m_hasFunc = true;
 		if (sHelp)
 		{
 			cmd.m_sHelp = sHelp;
