@@ -164,7 +164,7 @@ public:
 	virtual void                   Update();
 	virtual void                   Draw();
 	virtual void                   AddCommand(const char* sCommand, ConsoleCommandFunc func, int nFlags = 0, const char* sHelp = NULL);
-	virtual void                   AddCommand(const char* sCommand, ConsoleCommandLambda func, int nFlags, const char* sHelp);
+	virtual void                   AddCommand(const char* sCommand, ConsoleCommandLambda func, int nFlags = 0, const char* sHelp = NULL);
 	virtual void                   AddCommand(const char* sName, const char* sScriptFunc, int nFlags = 0, const char* sHelp = NULL);
 	virtual void                   RemoveCommand(const char* sName);
 	virtual void                   ExecuteString(const char* command, const bool bSilentMode, const bool bDeferExecution = false);
