@@ -336,7 +336,7 @@ struct IConsole
 
 	//! Register a new console command.
 	//! \param sCommand Command name.
-	//! \param func     Pointer to the console command function to be called when command is invoked.
+	//! \param func     The lambda function to be called when command is invoked.
 	//! \param nFlags   Bitfield consisting of VF_ flags (e.g. VF_CHEAT).
 	//! \param sHelp    Help string, will be displayed when typing in console "command ?".
 	virtual void AddCommand(const char* sCommand, ConsoleCommandLambda func, int nFlags = 0, const char* sHelp = NULL) = 0;
