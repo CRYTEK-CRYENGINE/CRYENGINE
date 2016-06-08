@@ -2518,7 +2518,7 @@ void CXConsole::ExecuteCommand(CConsoleCommand& cmd, string& str, bool bIgnoreDe
 		}
 	}
 
-	if (cmd.m_func != nullptr)
+	if (cmd.m_hasFunc)
 	{
 		// This is function command, execute it with a list of parameters.
 		CConsoleCommandArgs cmdArgs(str, args);
