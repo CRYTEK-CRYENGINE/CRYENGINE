@@ -3,7 +3,7 @@
 #pragma once
 
 #include <CryAudio/IAudioSystem.h>
-#include <IAudioSystemImplementation.h>
+#include <IAudioImpl.h>
 #include <CryString/CryName.h>
 
 enum EAudioRequestInfoFlags : AudioEnumFlagsType

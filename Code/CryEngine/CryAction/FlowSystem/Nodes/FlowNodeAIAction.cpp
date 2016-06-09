@@ -323,17 +323,6 @@ template<bool TBlocking> void CFlowNode_AIBase<TBlocking >::OnEntityEvent(IEntit
 
 //
 //-------------------------------------------------------------------------------------------------------------
-template<bool TBlocking> void CFlowNode_AIBase<TBlocking >::OnEntityReturnedToPool(EntityId entityId, IEntity* pEntity)
-{
-	// Cancel if the entity being returned is the user entity, to clean up internally.
-	if (m_EntityId == entityId)
-	{
-		Cancel();
-	}
-}
-
-//
-//-------------------------------------------------------------------------------------------------------------
 template<bool TBlocking> void CFlowNode_AIBase<TBlocking >::Cancel()
 {
 	OnCancel();
@@ -386,13 +375,6 @@ template<bool TBlocking> void CFlowNode_AIBase<TBlocking >::RegisterEvents()
 {
 	RegisterEntityEvents();
 	RegisterAIEvents();
-
-	// Register entity pool listener. If the user agent is returned to the pool, we must Cancel to clean up.
-	IEntityPoolManager* pEntityPoolManager = gEnv->pEntitySystem->GetIEntityPoolManager();
-	if (pEntityPoolManager)
-	{
-		pEntityPoolManager->AddListener(this, "CFlowNode_AIBase", IEntityPoolListener::EntityReturnedToPool);
-	}
 }
 
 //
@@ -440,12 +422,6 @@ template<bool TBlocking> void CFlowNode_AIBase<TBlocking >::UnregisterEvents()
 {
 	if (m_UnregisterEntityId && !m_EntityId)
 		m_EntityId = m_UnregisterEntityId;
-
-	IEntityPoolManager* pEntityPoolManager = gEnv->pEntitySystem->GetIEntityPoolManager();
-	if (pEntityPoolManager)
-	{
-		pEntityPoolManager->RemoveListener(this);
-	}
 
 	if (m_EntityId)
 	{
@@ -3932,7 +3908,9 @@ void CFlowNode_AIEnterVehicle::GetConfiguration(SFlowNodeConfig& config)
 		{ 0 }
 	};
 	static const SOutputPortConfig out_config[] = {
-		OutputPortConfig<bool>("Success", _HELP("Activated when the view is change is successful or fails")),
+		OutputPortConfig<EntityId>("Done", _HELP("Activated when the action finished")),
+		OutputPortConfig<EntityId>("Success", _HELP("Activated when Vehicle:Enter action succeeded")),
+		OutputPortConfig<EntityId>("Fail",    _HELP("Activated when Vehicle:Enter action failed")),
 		{ 0 }
 	};
 

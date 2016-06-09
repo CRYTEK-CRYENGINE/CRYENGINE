@@ -210,8 +210,6 @@ CStatsRecordingMgr::CStatsRecordingMgr() :
  	m_lifeCount = 0;
 
 	g_pGame->GetIGameFramework()->RegisterListener(this, "CStatsRecordingMgr", FRAMEWORKLISTENERPRIORITY_GAME);
-	gEnv->pEntitySystem->GetIEntityPoolManager()->AddListener(this, "CStatsRecordingMgr", 
-		(IEntityPoolListener::EntityPreparedFromPool | IEntityPoolListener::EntityReturnedToPool));
 
 	CDownloadMgr		*pDL=g_pGame->GetDownloadMgr();
 	CRY_ASSERT_MESSAGE(pDL || !gEnv->bMultiplayer,"CStatsRecordingMgr must be instantiated after the CDownloadMgr");		// need to get our settings from the web
@@ -262,7 +260,6 @@ CStatsRecordingMgr::~CStatsRecordingMgr()
 	delete m_serializer;
 
 	g_pGame->GetIGameFramework()->UnregisterListener(this);
-	gEnv->pEntitySystem->GetIEntityPoolManager()->RemoveListener(this);
 }
 
 void CStatsRecordingMgr::ProcessOnlinePermission(
@@ -754,15 +751,10 @@ void CStatsRecordingMgr::BeginRound()
 			IActorIteratorPtr it = pActorSystem->CreateActorIterator();
 			while (IActor *pActor = it->Next())
 			{
-				// only track actors that aren't pooled here (and are active). Others will begin tracking
-				//	in OnEntityPreparedFromPool
-
-				if((!pActor->GetEntity()->IsFromPool() || m_checkpointCount != 0) && pActor->GetEntity()->IsActive())
+				if(m_checkpointCount != 0 && pActor->GetEntity()->IsActive())
 				{
-					if(strcmp(pActor->GetEntity()->GetName(), "PoolEntity") )
-					{
-						StartTrackingStats(pActor);
-					}
+					CRY_ASSERT_MESSAGE(strcmp(pActor->GetEntity()->GetName(), "PoolEntity"), "Support for pooled entities has been deprecated.");
+					StartTrackingStats(pActor);
 				}
 			}
 		}
@@ -1719,28 +1711,6 @@ void CStatsRecordingMgr::OnActionEvent(const SActionEvent& event)
 		// reset checkpoint counter at the end of the level
 		m_checkpointCount = 0;
 		m_lifeCount = 0;
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CStatsRecordingMgr::OnEntityPreparedFromPool(EntityId entityId, IEntity *pEntity)
-{
-	// 'new' entity is coming into existence - start tracking stats
-	IActor* pActor = g_pGame->GetIGameFramework()->GetIActorSystem()->GetActor(entityId);
-	if(pActor)
-	{
-		StartTrackingStats(pActor);
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CStatsRecordingMgr::OnEntityReturnedToPool(EntityId entityId, IEntity *pEntity)
-{
-	// entity is being removed from the game - stop tracking stats
-	IActor* pActor = g_pGame->GetIGameFramework()->GetIActorSystem()->GetActor(entityId);
-	if(pActor && GetStatsTracker(pActor))
-	{
-		StopTrackingStats(pActor);
 	}
 }
 

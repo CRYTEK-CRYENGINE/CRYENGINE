@@ -1736,12 +1736,6 @@ void CActor::ProcessEvent(SEntityEvent& event)
 			}
 		}
 		break;
-	case ENTITY_EVENT_RETURNING_TO_POOL:
-		{
-			// Set all the Item's Action Controllers to NULL as they will be removed in this event in the AnimatedCharacter and we can't leave hanging ptrs.
-			ClearItemActionControllers();
-		}
-		break;
 	case ENTITY_EVENT_DONE:
 		{
 			// Set all the Item's Action Controllers to NULL as they will be removed in this event in the AnimatedCharacter and we can't leave hanging ptrs.
@@ -3688,10 +3682,6 @@ void CActor::AttemptToRecycleAIActor()
 		if (gEnv->IsEditor())
 		{
 			EntityScripts::CallScriptFunction( GetEntity(), GetEntity()->GetScriptTable(), "ShutDown" );
-		}
-		else if (GetEntity()->IsFromPool())
-		{
-			gEnv->pEntitySystem->GetIEntityPoolManager()->ReturnToPool( GetEntityId() );
 		}
 		else
 		{

@@ -152,22 +152,25 @@ bool CClipVolumeProxy::LoadFromFile(const char* szFilePath)
 			}
 		}
 
-		CContentCGF* pCgfContent = gEnv->p3DEngine->CreateChunkfileContent(szFilePath);
-		if (gEnv->p3DEngine->LoadChunkFileContentFromMem(pCgfContent, pBuffer, nFileSize, 0, false))
+		if (gEnv->pRenderer)
 		{
-			for (int i = 0; i < pCgfContent->GetNodeCount(); ++i)
+			CContentCGF* pCgfContent = gEnv->p3DEngine->CreateChunkfileContent(szFilePath);
+			if (gEnv->p3DEngine->LoadChunkFileContentFromMem(pCgfContent, pBuffer, nFileSize, 0, false))
 			{
-				CNodeCGF* pNode = pCgfContent->GetNode(i);
-				if (pNode->type == CNodeCGF::NODE_MESH && pNode->pMesh)
+				for (int i = 0; i < pCgfContent->GetNodeCount(); ++i)
 				{
-					m_pRenderMesh = gEnv->pRenderer->CreateRenderMesh("ClipVolume", szFilePath, NULL, eRMT_Static);
-					m_pRenderMesh->SetMesh(*pNode->pMesh, 0, FSM_CREATE_DEVICE_MESH, NULL, false);
+					CNodeCGF* pNode = pCgfContent->GetNode(i);
+					if (pNode->type == CNodeCGF::NODE_MESH && pNode->pMesh)
+					{
+						m_pRenderMesh = gEnv->pRenderer->CreateRenderMesh("ClipVolume", szFilePath, NULL, eRMT_Static);
+						m_pRenderMesh->SetMesh(*pNode->pMesh, 0, FSM_CREATE_DEVICE_MESH, NULL, false);
 
-					break;
+						break;
+					}
 				}
 			}
+			gEnv->p3DEngine->ReleaseChunkfileContent(pCgfContent);
 		}
-		gEnv->p3DEngine->ReleaseChunkfileContent(pCgfContent);
 
 		delete[] pBuffer;
 	}

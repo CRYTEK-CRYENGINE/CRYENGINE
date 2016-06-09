@@ -22,7 +22,6 @@
 #include <Cry3DEngine/I3DEngine.h>
 #include <CryInput/IInput.h>
 #include <CryEntitySystem/IEntitySystem.h>
-#include <CryEntitySystem/IEntityPoolManager.h>
 #include <CrySystem/ITimer.h>
 #include <CrySystem/IConsole.h>
 #include <CryAISystem/IAISystem.h>
@@ -167,9 +166,6 @@ CScriptBind_System::CScriptBind_System(IScriptSystem* pScriptSystem, ISystem* pS
 	SCRIPT_REG_FUNC(DrawLabel);
 	SCRIPT_REG_FUNC(GetEntity);//<<FIXME>> move to server
 	SCRIPT_REG_FUNC(GetEntityClass);//<<FIXME>> move to server
-	SCRIPT_REG_FUNC(PrepareEntityFromPool);
-	SCRIPT_REG_FUNC(ReturnEntityToPool);
-	SCRIPT_REG_FUNC(ResetPoolEntity);
 	SCRIPT_REG_FUNC(GetEntities);//<<FIXME>> move to server
 	SCRIPT_REG_TEMPLFUNC(GetEntitiesInSphere, "center, radius");//<<FIXME>> move to server
 	SCRIPT_REG_TEMPLFUNC(GetEntitiesInSphereByClass, "center, radius, className");//<<FIXME>> move to server
@@ -720,95 +716,6 @@ int CScriptBind_System::GetEntityClass(IFunctionHandler* pH)
 
 	if (pEntity)
 		return pH->EndFunction(pEntity->GetClass()->GetName());
-
-	return pH->EndFunction();
-}
-
-/////////////////////////////////////////////////////////////////////////////////
-/*!Entity pool management
-   @param nID the entity id
-   @param bPrepareNow (optional) whether the entity shall get prepared immediately, rather than enqueuing a request if another entity is already being prepared
- */
-int CScriptBind_System::PrepareEntityFromPool(IFunctionHandler* pH)
-{
-	bool bResult = false;
-
-	//support also number type
-	EntityId eID(0);
-	if (pH->GetParamType(1) == svtNumber)
-	{
-		pH->GetParam(1, eID);
-	}
-	else
-	{
-		ScriptHandle sh;
-		pH->GetParam(1, sh);
-		eID = (EntityId)sh.n;
-	}
-
-	bool bPrepareNow = false;
-	if (pH->GetParamType(2) == svtBool)
-	{
-		pH->GetParam(2, bPrepareNow);
-	}
-
-	IEntityPoolManager* pPoolManager = gEnv->pEntitySystem->GetIEntityPoolManager();
-	if (pPoolManager)
-	{
-		bResult = pPoolManager->PrepareFromPool(eID, bPrepareNow);
-	}
-
-	return pH->EndFunction(bResult);
-}
-
-/////////////////////////////////////////////////////////////////////////////////
-int CScriptBind_System::ReturnEntityToPool(IFunctionHandler* pH)
-{
-	bool bResult = false;
-
-	//support also number type
-	EntityId eID(0);
-	if (pH->GetParamType(1) == svtNumber)
-	{
-		pH->GetParam(1, eID);
-	}
-	else
-	{
-		ScriptHandle sh;
-		pH->GetParam(1, sh);
-		eID = (EntityId)sh.n;
-	}
-
-	IEntityPoolManager* pPoolManager = gEnv->pEntitySystem->GetIEntityPoolManager();
-	if (pPoolManager)
-	{
-		bResult = pPoolManager->ReturnToPool(eID);
-	}
-
-	return pH->EndFunction(bResult);
-}
-
-/////////////////////////////////////////////////////////////////////////////////
-int CScriptBind_System::ResetPoolEntity(IFunctionHandler* pH)
-{
-	//support also number type
-	EntityId eID(0);
-	if (pH->GetParamType(1) == svtNumber)
-	{
-		pH->GetParam(1, eID);
-	}
-	else
-	{
-		ScriptHandle sh;
-		pH->GetParam(1, sh);
-		eID = (EntityId)sh.n;
-	}
-
-	IEntityPoolManager* pPoolManager = gEnv->pEntitySystem->GetIEntityPoolManager();
-	if (pPoolManager)
-	{
-		pPoolManager->ResetBookmark(eID);
-	}
 
 	return pH->EndFunction();
 }

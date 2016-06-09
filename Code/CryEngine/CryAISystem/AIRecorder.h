@@ -22,7 +22,6 @@
 	#include <CryAISystem/IAIRecorder.h>
 	#include <CryCore/StlUtils.h>
 	#include "ObjectContainer.h"
-	#include <CryEntitySystem/IEntityPoolManager.h>
 
 typedef uint64 TAIRecorderUnitId;
 struct SAIRecorderUnitId
@@ -220,7 +219,7 @@ protected:
 	CCountedRef<CAIObject> m_refUnit;
 };
 
-class CAIRecorder : public IAIRecorder, public ISystemEventListener, public IEntityPoolListener
+class CAIRecorder : public IAIRecorder, public ISystemEventListener
 {
 public:
 	CAIRecorder();
@@ -229,10 +228,6 @@ public:
 	// ISystemEventListener
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam);
 	// ~ISystemEventListener
-
-	// IEntityPoolListener
-	virtual void OnEntityReturnedToPool(EntityId entityId, IEntity* pEntity);
-	// ~IEntityPoolListener
 
 	bool IsRunning(void) const;
 

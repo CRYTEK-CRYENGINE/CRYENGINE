@@ -3,7 +3,7 @@
 #include "stdafx.h"
 #include "FileCacheManager.h"
 #include "SoundCVars.h"
-#include <IAudioSystemImplementation.h>
+#include <IAudioImpl.h>
 #include <CryRenderer/IRenderer.h>
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <CryMemory/IMemory.h>

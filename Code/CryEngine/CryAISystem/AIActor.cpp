@@ -1156,7 +1156,6 @@ void CAIActor::EntityEvent(const SEntityEvent& event)
 		break;
 
 	case ENTITY_EVENT_DONE:
-	case ENTITY_EVENT_RETURNING_TO_POOL:
 		StopBehaviorTree();
 		break;
 

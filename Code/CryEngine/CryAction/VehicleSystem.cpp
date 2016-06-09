@@ -35,18 +35,14 @@ CVehicleSystem::TVehicleClassCount CVehicleSystem::s_classInstanceCounts;
 
 //------------------------------------------------------------------------
 CVehicleSystem::CVehicleSystem(ISystem* pSystem, IEntitySystem* pEntitySystem)
-	: m_pDamagesTemplateRegistry(NULL),
+	: m_nextObjectId (InvalidVehicleObjectId),
+	m_pDamagesTemplateRegistry(NULL),
 	m_pVehicleClient(NULL),
 	m_pInitializingSeat(NULL),
 	m_pCurrentClientVehicle(NULL)
 {
 	m_pDamagesTemplateRegistry = new CVehicleDamagesTemplateRegistry;
 	m_pCVars = new CVehicleCVars;
-
-	if (IEntityPoolManager* pPM = gEnv->pEntitySystem->GetIEntityPoolManager())
-	{
-		pPM->AddListener(this, "CVehicleSystem", BookmarkEntitySerialize);
-	}
 }
 
 // Iterators now have their destructors called before they enter the pool - so we only need to free the memory here {2008/12/09}
@@ -59,12 +55,6 @@ CVehicleSystem::~CVehicleSystem()
 
 	SAFE_RELEASE(m_pDamagesTemplateRegistry);
 	SAFE_DELETE(m_pCVars);
-
-	if (IEntityPoolManager* pPM = gEnv->pEntitySystem->GetIEntityPoolManager())
-	{
-		pPM->RemoveListener(this);
-	}
-
 }
 
 //------------------------------------------------------------------------
@@ -605,35 +595,6 @@ void CVehicleSystem::BroadcastVehicleUsageEvent(const EVehicleEvent eventId, con
 			(*listenerInfo)->OnEndUse(playerId, pVehicle);
 		}
 		break;
-	}
-}
-
-//------------------------------------------------------------------------
-void CVehicleSystem::OnBookmarkEntitySerialize(TSerialize serialize, void* pVEntity)
-{
-	//If a bookmark is being serialized from, check if the entity is attached to vehicle AND FORCE call enter.
-	if (serialize.IsReading())
-	{
-		IEntity* pEntity = reinterpret_cast<IEntity*>(pVEntity);
-
-		if (!pEntity)
-			return;
-
-		IAIObject* aiObject = pEntity->GetAI();
-		IAIActorProxy* aiActorProxy = aiObject ? aiObject->GetProxy() : 0;
-
-		if (aiActorProxy)
-		{
-			EntityId vehicleId = aiActorProxy->GetLinkedVehicleEntityId();
-			IVehicle* pVehicle = gEnv->pGame->GetIGameFramework()->GetIVehicleSystem()->GetVehicle(vehicleId);
-			if (pVehicle)
-			{
-				EntityId passengerId = pEntity->GetId();
-				IVehicleSeat* pSeat = pVehicle->GetSeatForPassenger(passengerId);
-				if (pSeat)
-					pSeat->Enter(passengerId, false);
-			}
-		}
 	}
 }
 

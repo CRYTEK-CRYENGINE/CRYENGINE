@@ -51,7 +51,7 @@ inline void CheckIfBBoxValid(const AABB& box, CEntity* pEntity)
 	float v = box.min.x + box.min.y + box.min.z + box.max.x + box.max.y + box.max.z;
 	if (!_finite(v))
 	{
-		CryWarning(VALIDATOR_MODULE_ENTITYSYSTEM, VALIDATOR_WARNING, "BBox contain invalid floating values for Entity: %s", pEntity->GetEntityTextDescription());
+		CryWarning(VALIDATOR_MODULE_ENTITYSYSTEM, VALIDATOR_WARNING, "BBox contain invalid floating values for Entity: %s", pEntity->GetEntityTextDescription().c_str());
 	}
 #endif
 }
@@ -1523,7 +1523,7 @@ int CRenderProxy::LoadGeometry(int nSlot, const char* sFilename, const char* sGe
 
 	if (!sFilename || (sFilename[0] == 0))
 	{
-		EntityWarning("[RenderProxy::LoadGeometry] Called with empty filename, Entity: %s", m_pEntity->GetEntityTextDescription());
+		EntityWarning("[RenderProxy::LoadGeometry] Called with empty filename, Entity: %s", m_pEntity->GetEntityTextDescription().c_str());
 		return -1;
 	}
 
@@ -1579,7 +1579,7 @@ int CRenderProxy::LoadCharacter(int nSlot, const char* sFilename, int nLoadFlags
 {
 	if (!sFilename || (sFilename[0] == 0))
 	{
-		EntityWarning("[RenderProxy::LoadCharacter] Called with empty filename, Entity: %s", m_pEntity->GetEntityTextDescription());
+		EntityWarning("[RenderProxy::LoadCharacter] Called with empty filename, Entity: %s", m_pEntity->GetEntityTextDescription().c_str());
 		return -1;
 	}
 

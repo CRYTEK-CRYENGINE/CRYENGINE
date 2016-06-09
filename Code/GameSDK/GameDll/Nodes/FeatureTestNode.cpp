@@ -16,7 +16,6 @@ History:
 #include <CrySystem/Profilers/IStatoscope.h>
 #include <CryAISystem/IGoalPipe.h>							// For Entity debug info
 #include "Player.h"
-#include <CryEntitySystem/IEntityPoolManager.h>
 
 #include "CodeCheckpointDebugMgr.h"
 #include "Utility/CryWatch.h"
@@ -518,7 +517,7 @@ bool CFlowNode_FeatureTest::StartNextTestRun()
 
 			CryLogAlways("Starting test: \"%s[%s]\". Max time: %fs. Entity start pos: (%f, %f, %f)",
 										Name(),
-										pSeqEntity->GetEntityTextDescription(),
+										pSeqEntity->GetEntityTextDescription().c_str(),
 										GetPortFloat(&m_actInfo, eInputPorts_MaxTime),
 										m_entityStartPos.x, m_entityStartPos.y, m_entityStartPos.z);
 
@@ -606,9 +605,6 @@ bool CFlowNode_FeatureTest::GetEntityAtIndex(int index, IEntity* &outEntity, boo
 	IEntitySystem *pEntitySystem = gEnv->pEntitySystem;
 	CRY_ASSERT(pEntitySystem);
 
-	IEntityPoolManager *pEntityPoolManager = pEntitySystem->GetIEntityPoolManager();
-	CRY_ASSERT(pEntityPoolManager);
-
 	outEntity = NULL;
 	bool bHasEntry = false;
 
@@ -620,19 +616,6 @@ bool CFlowNode_FeatureTest::GetEntityAtIndex(int index, IEntity* &outEntity, boo
 		{
 			bHasEntry = true;
 			outEntity = pEntitySystem->GetEntity(id);
-
-			// Prepare entity from pool if needed
-			if (!outEntity && bPrepareFromPool && pEntityPoolManager->IsEntityBookmarked(id))
-			{
-				if (pEntityPoolManager->PrepareFromPool(id, true))
-				{
-					outEntity = pEntitySystem->GetEntity(id);
-				}
-				if (!outEntity)
-				{
-					CryLogAlways("Error: Test \"%s\" failed to prepare entity with id \'%u\' from the pool", Name(), id);
-				}
-			}
 		}
 	}
 
@@ -663,20 +646,6 @@ bool CFlowNode_FeatureTest::GetEntityDataAtIndex(int index, SEntityData& outData
 			{
 				outData.m_name = pOutEntity->GetName();
 				outData.m_class = pOutEntity->GetClass()->GetName();
-				return true;
-			}
-			else if (pEntitySystem->GetIEntityPoolManager()->IsEntityBookmarked(id))
-			{
-				//the entity might be bookmarked
-				IEntityPoolManager *pEntityPoolManager = pEntitySystem->GetIEntityPoolManager();
-				const char* entityName = pEntityPoolManager->GetBookmarkedEntityName(id);
-				outData.m_name = entityName;				
-				const char* className = pEntityPoolManager->GetBookmarkedClassName(id);
-				outData.m_class = className;
-				
-
-								
-				
 				return true;
 			}
 
@@ -1096,33 +1065,15 @@ void CFlowNode_FeatureTest::SetResult(bool result, const char* reason)
 /// Utility function for activating/deactivating all associated entities
 void CFlowNode_FeatureTest::ActivateAllEntities(bool activate)
 {
-	IEntityPoolManager *pEntityPoolManager = gEnv->pEntitySystem->GetIEntityPoolManager();
-	CRY_ASSERT(pEntityPoolManager);
-
 	// Activate/deactivate any associated entities
 	for (int i = 0; i < SEQ_ENTITY_COUNT; ++i)
 	{
-		// If entity is pooled, this will prepare it when requesting to activate only.
 		IEntity* pEnt = NULL;
 		GetEntityAtIndex(i, pEnt, activate);
 		if (pEnt)
 		{
-			// Deactivate means return pooled entities
-			if (!activate && pEnt->IsFromPool())
-			{
-				EntityId id = pEnt->GetId();
-				const char* entityName = pEnt->GetName();
-
-				bool returnedToPool = pEntityPoolManager->ReturnToPool(id, false);
-
-				if (!returnedToPool)
-					CryLogAlways("Error: Test \"%s\" failed to return entity \"%s\" with id \'%u\' to the pool", Name(), entityName, id);
-			}
-			else
-			{
-				pEnt->Hide(!activate);
-				pEnt->Activate(activate);
-			}
+			pEnt->Hide(!activate);
+			pEnt->Activate(activate);
 		}
 	}
 }

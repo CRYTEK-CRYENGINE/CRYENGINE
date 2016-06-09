@@ -1108,12 +1108,13 @@ EditorStyleHelper {
 	qproperty-disabledIconTint: rgb(105, 105, 105);
 	qproperty-activeIconTint: rgb(190, 190, 190);
 	qproperty-selectedIconTint: rgb(97, 172, 236);
+	qproperty-alternateSelectedIconTint: rgb(255, 255, 255);
 
 	/* Timeline colors */
 	qproperty-timelineTrackColor: rgb(68, 68, 68);
 	qproperty-timelineDescriptionTrackColor: rgb(91, 91, 91);
 	qproperty-timelineCompositeTrackColor: rgb(75, 75, 75);
-	qproperty-timelineSelectionColor: rgb(33, 114, 144);
+	qproperty-timelineSelectionColor: rgb(97, 172, 236);
 	qproperty-timelineDescriptionTextColor: rgb(149, 149, 149);
 	qproperty-timelineInnerTickLines: rgb(50, 50, 50);
 	qproperty-timelineOuterTickLines: rgb(97, 97, 97);
@@ -1124,7 +1125,7 @@ EditorStyleHelper {
 	qproperty-timelineSelectedClip: rgb(0, 0, 0);
 	qproperty-timelineSelectedClipFocused: rgb(0, 161, 222);
 	qproperty-timelineTreeLines: rgb(33, 33, 33);
-	qproperty-timelineTreeText: rgb(231, 231, 231);
+	qproperty-timelineTreeText: rgb(255, 255, 255);
 	qproperty-timelineSplitterNormal: rgb(55, 55, 55);
 	qproperty-timelineSplitterSelected: rgb(55, 55, 55);
 	qproperty-timelineSplitterMoving: rgb(0, 161, 222);

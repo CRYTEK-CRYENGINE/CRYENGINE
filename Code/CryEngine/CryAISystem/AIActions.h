@@ -409,8 +409,7 @@ public:
 ///////////////////////////////////////////////////
 // CAIActionManager keeps track of all AIActions
 ///////////////////////////////////////////////////
-class CAIActionManager : public IAIActionManager,
-	                       public IEntityPoolListener
+class CAIActionManager : public IAIActionManager
 {
 private:
 	// library of all defined AI Actions
@@ -479,10 +478,6 @@ public:
 	void OnEntityRemove(IEntity* pEntity);
 
 	void Serialize(TSerialize ser);
-
-	//Clean up entity action state if returning to the pool
-	virtual void OnEntityReturningToPool(EntityId entityId, IEntity* pEntity);
-
 };
 
 #endif

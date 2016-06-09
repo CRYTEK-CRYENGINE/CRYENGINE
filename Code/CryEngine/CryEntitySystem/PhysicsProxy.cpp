@@ -1370,7 +1370,7 @@ void CPhysicalProxy::PhysicalizeSoft(SEntityPhysicalizeParams& params)
 		float abs1 = (scaleVec.x - scaleVec.z) * (scaleVec.x - scaleVec.z);
 		float abs2 = (scaleVec.y - scaleVec.z) * (scaleVec.y - scaleVec.z);
 		if ((abs0 + abs1 + abs2) > FLT_EPSILON)
-			EntityWarning("<CPhysicalProxy::PhysicalizeSoft> '%s' non-uniform scaling not supported for softbodies", m_pEntity->GetEntityTextDescription());
+			EntityWarning("<CPhysicalProxy::PhysicalizeSoft> '%s' non-uniform scaling not supported for softbodies", m_pEntity->GetEntityTextDescription().c_str());
 		float scale = scaleVec.x;
 
 		pe_geomparams partpos;
@@ -1469,7 +1469,7 @@ void CPhysicalProxy::PhysicalizeArea(SEntityPhysicalizeParams& params)
 			phys_geometry* pPhysGeom = GetSlotGeometry(params.nSlot);
 			if (!pPhysGeom || !pPhysGeom->pGeom)
 			{
-				EntityWarning("<CPhysicalProxy::PhysicalizeArea> No Physical Geometry in Slot %d of Entity %s", params.nSlot, m_pEntity->GetEntityTextDescription());
+				EntityWarning("<CPhysicalProxy::PhysicalizeArea> No Physical Geometry in Slot %d of Entity %s", params.nSlot, m_pEntity->GetEntityTextDescription().c_str());
 				return;
 			}
 			pPhysicalEntity = PhysicalWorld()->AddArea(pPhysGeom->pGeom, affineParts.pos, affineParts.rot, fEntityScale);
@@ -1946,7 +1946,7 @@ void CPhysicalProxy::SetTriggerBounds(const AABB& bbox)
 
 	if (Vec3(bbox.max - bbox.min).GetLengthSquared() > 10000 * 10000)
 	{
-		EntityWarning("Too big physical bounding box set for entity %s", m_pEntity->GetEntityTextDescription());
+		EntityWarning("Too big physical bounding box set for entity %s", m_pEntity->GetEntityTextDescription().c_str());
 	}
 
 	Vec3 pos = m_pEntity->GetWorldTM().GetTranslation();

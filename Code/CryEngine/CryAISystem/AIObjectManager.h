@@ -8,7 +8,6 @@
 #endif
 
 #include <CryAISystem/IAIObjectManager.h>
-#include <CryEntitySystem/IEntityPoolManager.h>
 
 #include <CryMemory/PoolAllocator.h>
 
@@ -44,7 +43,7 @@ struct SAIObjectCreationHelper
 	tAIObjectID objectId;
 };
 
-class CAIObjectManager : public IAIObjectManager, public IEntityPoolListener
+class CAIObjectManager : public IAIObjectManager
 {
 public:
 
@@ -75,15 +74,6 @@ public:
 	//IAIObjectManager/////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	//IEntityPoolListener//////////////////////////////////////////////////////////////////////////////////////////
-	virtual void OnEntityPreparedFromPool(EntityId entityId, IEntity* pEntity);
-	virtual void OnEntityReturnedToPool(EntityId entityId, IEntity* pEntity);
-	virtual void OnPoolDefinitionsLoaded(size_t numAI);
-	virtual void OnBookmarkEntitySerialize(TSerialize serialize, void* pVEntity);
-	//IEntityPoolListener//////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 	// callback from CObjectContainer: notify the rest of the system that the object is disappearing
 	void OnObjectRemoved(CAIObject* pObject);
 
@@ -96,26 +86,9 @@ public:
 
 	CAIObject* GetAIObjectByName(const char* pName) const;
 
-	void       ReleasePooledObject(CAIObject* pObject);
-	bool       IsSerializingBookmark() const { return m_serializingBookmark; }
-
 	// todo: ideally not public
 	AIObjectOwners m_Objects;// m_RootObjects or EntityObjects might be better names
 	AIObjects      m_mapDummyObjects;
-
-protected:
-
-	typedef std::map<EntityId, CCountedRef<CAIObject>> TPooledAIObjectMap;
-	TPooledAIObjectMap m_pooledObjects;
-
-	typedef class CAIVehicle TPooledAIObject; // Currently CAIVehicle is the largest class; ensures there is always space in the pool
-	stl::TPoolAllocator<TPooledAIObject>* m_pPoolAllocator;
-
-	// set to true during the process of serializing an AI object to/from an entity pool bookmark. This allows
-	//	objects owned by the current object to be serialized into the bookmark as well.
-	bool   m_serializingBookmark;
-
-	size_t m_PoolBucketSize;
 };
 
 #endif

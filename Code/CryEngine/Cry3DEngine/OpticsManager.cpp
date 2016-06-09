@@ -24,6 +24,9 @@ IOpticsElementBase* COpticsManager::ParseOpticsRecursively(IOpticsElementBase* p
 	if (!node->getAttr("Type", &type))
 		return NULL;
 
+	if (!gEnv->pRenderer)
+		return NULL;
+
 	IOpticsElementBase* pOptics = Create(GetFlareType(type));
 	if (pOptics == NULL)
 		return NULL;

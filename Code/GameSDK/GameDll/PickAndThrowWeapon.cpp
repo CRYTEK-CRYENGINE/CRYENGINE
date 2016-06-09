@@ -529,7 +529,6 @@ CPickAndThrowWeapon::CPickAndThrowWeapon()
 	}
 	m_attachmentOldRelativeLoc.SetIdentity();
 	m_collisionHelper.SetUser(this);	
-	gEnv->pEntitySystem->GetIEntityPoolManager()->AddListener( this, "PickAndthrowWeapon", IEntityPoolListener::EntityReturnedToPool );
 }
 
 
@@ -545,8 +544,6 @@ CPickAndThrowWeapon::~CPickAndThrowWeapon()
 
 	ResetTrackingOfExternalEntities();
 
-	gEnv->pEntitySystem->GetIEntityPoolManager()->RemoveListener( this );
-	
 	if (gEnv->pEntitySystem->GetEntity( GetOwnerId() ))
 	{
 		ResetInternal();	
@@ -3672,19 +3669,6 @@ void CPickAndThrowWeapon::OnEndCutScene()
 float CPickAndThrowWeapon::GetMeleeRange() const
 {
 	return m_meleeRange;
-}
-
-//////////////////////////////////////////////////////////////////////////
-
-void CPickAndThrowWeapon::OnEntityReturnedToPool(EntityId entityId, IEntity *pEntity)
-{
-	if (m_objectId==entityId)
-	{
-		ResetInternal();
-		CPlayer* pOwnerPlayer = GetOwnerPlayer();
-		if (pOwnerPlayer)
-			pOwnerPlayer->ExitPickAndThrow();
-	}
 }
 
 

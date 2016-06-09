@@ -15,7 +15,6 @@
 #include "EntityCVars.h"
 #include "EntitySystem.h"
 #include "AreaManager.h"
-#include "EntityPoolManager.h"
 #include <CryAnimation/ICryAnimation.h>
 #include <CryEntitySystem/IComponent.h>
 #include "ComponentEventDistributer.h"
@@ -76,14 +75,9 @@ int CVar::es_DisableTriggers = 0;
 int CVar::es_DrawProximityTriggers = 0;
 int CVar::es_DebugEntityUsage = 0;
 const char* CVar::es_DebugEntityUsageFilter = "";
-int CVar::es_EnablePoolUse = 0;
-int CVar::es_DebugPool = 0;
-int CVar::es_TestPoolSignatures = 0;
-const char* CVar::es_DebugPoolFilter = "";
 int CVar::es_LayerSaveLoadSerialization = 0;
 int CVar::es_LayerDebugInfo = 0;
 int CVar::es_SaveLoadUseLUANoSaveFlag = 1;
-int CVar::es_ClearPoolBookmarksOnLayerUnload = 1;
 ICVar* CVar::pUpdateType = NULL;
 float CVar::es_EntityUpdatePosDelta = 0.0f;
 int CVar::es_debugDrawEntityIDs = 0;
@@ -120,8 +114,7 @@ void CVar::Init(struct IConsole* pConsole)
 	REGISTER_COMMAND("es_dump_entities", (ConsoleCommandFunc)DumpEntities, 0, "Dumps current entities and their states!");
 	REGISTER_COMMAND("es_dump_entity_classes_in_use", (ConsoleCommandFunc)DumpEntityClassesInUse, 0, "Dumps all used entity classes");
 	REGISTER_COMMAND("es_compile_area_grid", (ConsoleCommandFunc)CompileAreaGrid, 0, "Trigger a recompile of the area grid");
-	REGISTER_COMMAND("es_dump_bookmarks", (ConsoleCommandFunc)DumpEntityBookmarks, 0, "Dumps information about all bookmarked entities");
-	REGISTER_COMMAND("es_AudioListenerOffset", (ConsoleCommandFunc)SetAudioListenerOffsets, 0,
+		REGISTER_COMMAND("es_AudioListenerOffset", (ConsoleCommandFunc)SetAudioListenerOffsets, 0,
 	                 "Sets by how much the audio listener offsets its position and rotation in regards to its entity.\n"
 	                 "Usage: es_AudioListenerOffset PosX PosY PosZ RotX RotY RotZ\n");
 
@@ -233,15 +226,6 @@ void CVar::Init(struct IConsole* pConsole)
 	              "\nupdate_rate - Time in ms to refresh memory usage calculation or 0 to disable");
 	REGISTER_CVAR(es_DebugEntityUsageFilter, "", 0, "Filter entity usage debugging to classes which have this string in their name");
 
-	REGISTER_CVAR(es_EnablePoolUse, -1, 0,
-	              "Force toggle the use of entity pools on/off.\n"
-	              "Usage: es_EnablePoolUse 1\n"
-	              "Default is -1, or normal behavior. 0 forces system off. 1 forces system on.");
-
-	REGISTER_CVAR(es_DebugPool, 0, 0, "Enable debug drawing of entity pools");
-	REGISTER_CVAR(es_TestPoolSignatures, 0, VF_CHEAT, "Enable signature testing on entity classes the first time they're prepared from an entity pool");
-	REGISTER_CVAR(es_DebugPoolFilter, "", 0, "Filter entity pool debugging for just this pool and draw more info about it");
-
 	REGISTER_CVAR(es_LayerSaveLoadSerialization, 0, VF_CHEAT,
 	              "Switches layer entity serialization: \n"
 	              "0 - serialize all \n"
@@ -255,7 +239,6 @@ void CVar::Init(struct IConsole* pConsole)
 	              "3 - all layer and all layer pak info");
 	REGISTER_CVAR(es_SaveLoadUseLUANoSaveFlag, 0, VF_CHEAT, "Save&Load optimization : use lua flag to not serialize entities, for example rigid bodies.");
 
-	REGISTER_CVAR(es_ClearPoolBookmarksOnLayerUnload, 1, VF_CHEAT, "Clear pool bookmarks when a layer is unloaded (saves memory and makes smaller saves)");
 	pUpdateType = REGISTER_INT_CB("es_updateType", CComponentEventDistributer::EEventUpdatePolicy_UseDistributer, VF_CHEAT, "Defines how we update type for the entities", OnUpdateTypeChange);
 
 	pDrawAreas = REGISTER_INT("es_DrawAreas", 0, VF_CHEAT, "Enables drawing of Areas");
@@ -323,26 +306,6 @@ void CVar::CompileAreaGrid(IConsoleCmdArgs*)
 	CAreaManager* pAreaManager = (pEntitySystem ? static_cast<CAreaManager*>(pEntitySystem->GetAreaManager()) : 0);
 	if (pAreaManager)
 		pAreaManager->SetAreasDirty();
-}
-
-void CVar::DumpEntityBookmarks(IConsoleCmdArgs* pArgs)
-{
-	const char* szFilterName = 0;
-	bool bWriteSIDToDisk = false;
-	if (pArgs && pArgs->GetArgCount() > 1)
-	{
-		szFilterName = pArgs->GetArg(1);
-		if (szFilterName && szFilterName[0] && 0 == stricmp(szFilterName, "all"))
-			szFilterName = 0;
-
-		if (pArgs->GetArgCount() > 2)
-			bWriteSIDToDisk = (atoi(pArgs->GetArg(2)) != 0);
-	}
-
-	CEntitySystem* pEntitySystem = GetIEntitySystem();
-	CEntityPoolManager* pEntityPoolManager = (pEntitySystem ? pEntitySystem->GetEntityPoolManager() : NULL);
-	if (pEntityPoolManager)
-		pEntityPoolManager->DumpEntityBookmarks(szFilterName, bWriteSIDToDisk);
 }
 
 void CVar::EnableDebugAnimText(IConsoleCmdArgs* args)

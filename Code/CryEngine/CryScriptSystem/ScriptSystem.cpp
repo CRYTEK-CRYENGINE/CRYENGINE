@@ -2614,7 +2614,7 @@ void CScriptSystem::DumpStateToFile(const char* filename)
 					EntityId id = handle.n;
 					IEntity* pEntity = gEnv->pEntitySystem->GetEntity(id);
 					char str[256];
-					cry_sprintf(str, "*Entity: %s", pEntity->GetEntityTextDescription());
+					cry_sprintf(str, "*Entity: %s", pEntity->GetEntityTextDescription().c_str());
 					sink.OnBeginTable(0, str, 0);
 				}
 				else

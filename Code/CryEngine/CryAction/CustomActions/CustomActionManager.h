@@ -11,12 +11,11 @@
 #include <CryAction/ICustomActions.h>
 #include <CryCore/Containers/CryListenerSet.h>
 #include "CustomAction.h"
-#include <CryEntitySystem/IEntityPoolManager.h>
 
 ///////////////////////////////////////////////////
 // CCustomActionManager keeps track of all CustomActions
 ///////////////////////////////////////////////////
-class CCustomActionManager : public ICustomActionManager, public IEntityPoolListener
+class CCustomActionManager : public ICustomActionManager
 {
 public:
 	CCustomActionManager();
@@ -42,10 +41,6 @@ public:
 	virtual bool           UnregisterListener(ICustomActionListener* pEventListener);
 	virtual void           Serialize(TSerialize ser);
 	// ~ICustomActionManager
-
-	// IEntityPoolListener
-	virtual void OnEntityReturningToPool(EntityId entityId, IEntity* pEntity);
-	// ~IEntityPoolListener
 
 	// Removes deleted Action from the list of active actions
 	void Update();

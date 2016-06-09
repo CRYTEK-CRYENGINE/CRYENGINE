@@ -3,7 +3,7 @@
 #include "stdafx.h"
 #include "ATLComponents.h"
 #include "SoundCVars.h"
-#include <IAudioSystemImplementation.h>
+#include <IAudioImpl.h>
 #include <CryPhysics/IPhysics.h>
 #include <Cry3DEngine/ISurfaceType.h>
 #include <Cry3DEngine/I3DEngine.h>

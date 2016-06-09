@@ -3,7 +3,7 @@
 #pragma once
 
 #include <ATLEntityData.h>
-#include <IAudioSystemImplementation.h>
+#include <IAudioImpl.h>
 #include <AK/SoundEngine/Common/AkTypes.h>
 
 namespace CryAudio

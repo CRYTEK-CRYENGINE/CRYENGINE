@@ -60,8 +60,6 @@ namespace
 Matrix34 sIdentityMatrix = Matrix34::CreateIdentity();
 }
 
-string CEntity::m_szDescription;
-
 namespace
 {
 struct FEntityProxyReload_ExceptScript
@@ -239,7 +237,6 @@ CEntity::CEntity(SEntitySpawnParams& params)
 	m_bWasRelocated = 0;
 	m_bNotInheritXform = 0;
 	m_bInShutDown = 0;
-	m_bIsFromPool = 0;
 	m_bLoadedFromLevelFile = 0;
 
 	m_pGridLocation = 0;
@@ -449,19 +446,6 @@ bool CEntity::ReloadEntity(SEntityLoadParams& loadParams)
 	}
 
 	return bResult;
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CEntity::SetPoolControl(bool bSet)
-{
-	m_bIsFromPool = bSet;
-
-	if (bSet)
-	{
-		// Initially turned off
-		Activate(false);
-		Hide(true);
-	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -864,7 +848,7 @@ void CEntity::AttachChild(IEntity* pChildEntity, const SChildAttachParams& attac
 #endif
 	if (pChildEntity == this)
 	{
-		EntityWarning("Trying to attaching Entity %s to itself", GetEntityTextDescription());
+		EntityWarning("Trying to attaching Entity %s to itself", GetEntityTextDescription().c_str());
 		return;
 	}
 
@@ -1461,10 +1445,9 @@ void CEntity::SetUpdatePolicy(EEntityUpdatePolicy eUpdatePolicy)
 }
 
 //////////////////////////////////////////////////////////////////////////
-const char* CEntity::GetEntityTextDescription() const
+string CEntity::GetEntityTextDescription() const
 {
-	m_szDescription = m_szName + " (" + m_pClass->GetName() + ")";
-	return m_szDescription;
+	return m_szName + " (" + m_pClass->GetName() + ")";
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2559,12 +2542,6 @@ bool CEntity::RegisterInAISystem(const AIObjectParams& params)
 		IAIObjectManager* pAIObjMgr = pAISystem->GetAIObjectManager();
 		if (IAIObject* pAIObject = GetAIObject())
 		{
-			CRY_ASSERT_TRACE(!m_bIsFromPool, ("Reregistering pool entity \"%s\" AI will break everything! (wierd behavior, dangling pointers, etc.", GetName()));
-			if (m_bIsFromPool)
-			{
-				return false;
-			}
-
 			pAIObjMgr->RemoveObject(m_aiObjectID);
 			m_aiObjectID = INVALID_AIOBJECTID;
 			// The RemoveObject() call triggers immediate complete cleanup. Ideally the system would wait, as it does for internal removals. {2009/04/07}
@@ -2833,7 +2810,7 @@ void CEntity::LogEvent(SEntityEvent& event, CTimeValue dt)
 	s_LastLoggedFrame = nFrameId;
 
 	float fTimeMs = dt.GetMilliSeconds();
-	CryLogAlways("<Frame:%d><EntityEvent> [%s](%X)\t[%.2fms]\t%s", nFrameId, sName, (int)event.nParam[0], fTimeMs, GetEntityTextDescription());
+	CryLogAlways("<Frame:%d><EntityEvent> [%s](%X)\t[%.2fms]\t%s", nFrameId, sName, (int)event.nParam[0], fTimeMs, GetEntityTextDescription().c_str());
 }
 
 IAIObject* CEntity::GetAIObject()

@@ -81,24 +81,17 @@ struct CVar
 	static const char* es_DebugEntityUsageFilter;
 
 	// Entity pool usage
-	static int         es_EnablePoolUse;
-	static int         es_DebugPool;
-	static int         es_TestPoolSignatures;
+	static int    es_LayerSaveLoadSerialization;
+	static int    es_SaveLoadUseLUANoSaveFlag;
+	static int    es_LayerDebugInfo;
 
-	static const char* es_DebugPoolFilter;
+	static ICVar* pUpdateType;
 
-	static int         es_LayerSaveLoadSerialization;
-	static int         es_SaveLoadUseLUANoSaveFlag;
-	static int         es_ClearPoolBookmarksOnLayerUnload;
-	static int         es_LayerDebugInfo;
+	static float  es_EntityUpdatePosDelta;
 
-	static ICVar*      pUpdateType;
+	static int    es_debugDrawEntityIDs;
 
-	static float       es_EntityUpdatePosDelta;
-
-	static int         es_debugDrawEntityIDs;
-
-	static int         es_MaxJointFx;
+	static int    es_MaxJointFx;
 
 	// Initialize console variables.
 	static void Init(struct IConsole* pConsole);
@@ -109,8 +102,6 @@ struct CVar
 
 	// Recompile area grid
 	static void CompileAreaGrid(IConsoleCmdArgs*);
-
-	static void DumpEntityBookmarks(IConsoleCmdArgs*);
 
 	static void EnableDebugAnimText(IConsoleCmdArgs* args);
 

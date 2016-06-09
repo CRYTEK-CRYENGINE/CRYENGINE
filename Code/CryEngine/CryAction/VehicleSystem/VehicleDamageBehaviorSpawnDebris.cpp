@@ -234,7 +234,6 @@ IEntity* CVehicleDamageBehaviorSpawnDebris::SpawnDebris(IStatObj* pStatObj, Matr
 
 	SEntitySpawnParams spawnParams;
 	spawnParams.sName = buffer;
-	spawnParams.bCreatedThroughPool = true;
 	spawnParams.nFlags = ENTITY_FLAG_CLIENT_ONLY;
 	if (!m_pickableDebris)
 		spawnParams.nFlags |= ENTITY_FLAG_NO_PROXIMITY;

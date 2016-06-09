@@ -6,6 +6,8 @@
 #include "QtUtil.h"
 #include <ACETypes.h>
 
+#include <QAdvancedItemDelegate.h>
+
 using namespace ACE;
 
 QFolderItem::QFolderItem(const QString& sName) : QStandardItem(sName)
@@ -107,6 +109,7 @@ bool QAudioControlSortProxy::lessThan(const QModelIndex& left, const QModelIndex
 QAudioControlsTreeView::QAudioControlsTreeView(QWidget* pParent /*= 0*/)
 	: QTreeView(pParent)
 {
+	setItemDelegate(new QAdvancedItemDelegate(this));
 }
 
 void QAudioControlsTreeView::scrollTo(const QModelIndex& index, ScrollHint hint /*= EnsureVisible*/)

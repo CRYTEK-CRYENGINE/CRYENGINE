@@ -3,7 +3,7 @@
 #pragma once
 
 #include "ATLEntities.h"
-#include <IAudioSystemImplementation.h>
+#include <IAudioImpl.h>
 
 namespace CryAudio
 {

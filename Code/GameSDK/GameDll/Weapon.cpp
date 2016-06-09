@@ -4843,7 +4843,7 @@ void CWeapon::UpdateBulletBelt()
 
 				const int16 jointId = rIDefaultSkeleton.GetJointIDByName(jointName.c_str());
 
-				CRY_ASSERT_TRACE(jointId >= 0, ("Invalid joint name '%s' in bullet belt params of %s belonging to %s", jointName.c_str(), GetEntity()->GetEntityTextDescription(), GetOwnerActor() ? GetOwnerActor()->GetEntity()->GetEntityTextDescription() : "nobody"));
+				CRY_ASSERT_TRACE(jointId >= 0, ("Invalid joint name '%s' in bullet belt params of %s belonging to %s", jointName.c_str(), GetEntity()->GetEntityTextDescription().c_str(), GetOwnerActor() ? GetOwnerActor()->GetEntity()->GetEntityTextDescription().c_str() : "nobody"));
 
 				if (jointId >= 0)
 				{

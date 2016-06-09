@@ -291,7 +291,7 @@ void CEntityObject::Render(CEntity* pEntity, SRendParams& rParams, int nRndFlags
 		if (rParams.pMatrix->IsValid())
 			pStatObj->Render(rParams, passInfo);
 		else
-			EntityWarning("CEntityObject::Render: Invalid world matrix: %s", pEntity->GetEntityTextDescription());
+			EntityWarning("CEntityObject::Render: Invalid world matrix: %s", pEntity->GetEntityTextDescription().c_str());
 	}
 	else if (pCharacter)
 	{
@@ -384,7 +384,7 @@ void CEntityObject::OnXForm(CEntity* pEntity)
 
 	if (!m_worldTM.IsValid())
 	{
-		EntityWarning("CEntityObject::OnXForm: Invalid world matrix: %s", pEntity->GetEntityTextDescription());
+		EntityWarning("CEntityObject::OnXForm: Invalid world matrix: %s", pEntity->GetEntityTextDescription().c_str());
 		return;
 	}
 

@@ -379,7 +379,7 @@ bool CEntityAudioProxy::PlayFile(SAudioPlayFileInfo const& playbackInfo, AudioPr
 #if defined(INCLUDE_ENTITYSYSTEM_PRODUCTION_CODE)
 			else
 			{
-				gEnv->pSystem->Warning(VALIDATOR_MODULE_ENTITYSYSTEM, VALIDATOR_WARNING, VALIDATOR_FLAG_AUDIO, 0, "<Audio> Could not find AuxAudioProxy with id '%u' on entity '%s' to PlayFile '%s'", audioProxyId, m_pEntity->GetEntityTextDescription(), playbackInfo.szFile);
+				gEnv->pSystem->Warning(VALIDATOR_MODULE_ENTITYSYSTEM, VALIDATOR_WARNING, VALIDATOR_FLAG_AUDIO, 0, "<Audio> Could not find AuxAudioProxy with id '%u' on entity '%s' to PlayFile '%s'", audioProxyId, m_pEntity->GetEntityTextDescription().c_str(), playbackInfo.szFile);
 			}
 #endif  // INCLUDE_ENTITYSYSTEM_PRODUCTION_CODE
 		}
@@ -434,7 +434,7 @@ bool CEntityAudioProxy::ExecuteTrigger(
 #if defined(INCLUDE_ENTITYSYSTEM_PRODUCTION_CODE)
 		if (m_pEntity->GetWorldTM().GetTranslation() == Vec3Constants<float>::fVec3_Zero)
 		{
-			gEnv->pSystem->Warning(VALIDATOR_MODULE_ENTITYSYSTEM, VALIDATOR_WARNING, VALIDATOR_FLAG_AUDIO, 0, "<Audio> Trying to execute an audio trigger at (0,0,0) position in the entity %s. Entity may not be initialized correctly!", m_pEntity->GetEntityTextDescription());
+			gEnv->pSystem->Warning(VALIDATOR_MODULE_ENTITYSYSTEM, VALIDATOR_WARNING, VALIDATOR_FLAG_AUDIO, 0, "<Audio> Trying to execute an audio trigger at (0,0,0) position in the entity %s. Entity may not be initialized correctly!", m_pEntity->GetEntityTextDescription().c_str());
 		}
 #endif // INCLUDE_ENTITYSYSTEM_PRODUCTION_CODE
 
@@ -453,7 +453,7 @@ bool CEntityAudioProxy::ExecuteTrigger(
 #if defined(INCLUDE_ENTITYSYSTEM_PRODUCTION_CODE)
 				else
 				{
-					gEnv->pSystem->Warning(VALIDATOR_MODULE_ENTITYSYSTEM, VALIDATOR_WARNING, VALIDATOR_FLAG_AUDIO, 0, "<Audio> Could not find AuxAudioProxy with id '%u' on entity '%s' to ExecuteTrigger '%s'", audioProxyId, m_pEntity->GetEntityTextDescription(), gEnv->pAudioSystem->GetAudioControlName(eAudioControlType_Trigger, audioTriggerId));
+					gEnv->pSystem->Warning(VALIDATOR_MODULE_ENTITYSYSTEM, VALIDATOR_WARNING, VALIDATOR_FLAG_AUDIO, 0, "<Audio> Could not find AuxAudioProxy with id '%u' on entity '%s' to ExecuteTrigger '%s'", audioProxyId, m_pEntity->GetEntityTextDescription().c_str(), gEnv->pAudioSystem->GetAudioControlName(eAudioControlType_Trigger, audioTriggerId));
 				}
 #endif  // INCLUDE_ENTITYSYSTEM_PRODUCTION_CODE
 			}
@@ -716,13 +716,13 @@ bool CEntityAudioProxy::RemoveAuxAudioProxy(AudioProxyId const audioProxyId)
 		}
 		else
 		{
-			gEnv->pSystem->Warning(VALIDATOR_MODULE_ENTITYSYSTEM, VALIDATOR_WARNING, VALIDATOR_FLAG_AUDIO, 0, "<Audio> AuxAudioProxy with ID '%u' not found during CEntityAudioProxy::RemoveAuxAudioProxy (%s)!", audioProxyId, m_pEntity->GetEntityTextDescription());
+			gEnv->pSystem->Warning(VALIDATOR_MODULE_ENTITYSYSTEM, VALIDATOR_WARNING, VALIDATOR_FLAG_AUDIO, 0, "<Audio> AuxAudioProxy with ID '%u' not found during CEntityAudioProxy::RemoveAuxAudioProxy (%s)!", audioProxyId, m_pEntity->GetEntityTextDescription().c_str());
 			assert(false);
 		}
 	}
 	else
 	{
-		gEnv->pSystem->Warning(VALIDATOR_MODULE_ENTITYSYSTEM, VALIDATOR_ERROR, VALIDATOR_FLAG_AUDIO, 0, "<Audio> Trying to remove the default AudioProxy during CEntityAudioProxy::RemoveAuxAudioProxy (%s)!", m_pEntity->GetEntityTextDescription());
+		gEnv->pSystem->Warning(VALIDATOR_MODULE_ENTITYSYSTEM, VALIDATOR_ERROR, VALIDATOR_FLAG_AUDIO, 0, "<Audio> Trying to remove the default AudioProxy during CEntityAudioProxy::RemoveAuxAudioProxy (%s)!", m_pEntity->GetEntityTextDescription().c_str());
 		assert(false);
 	}
 

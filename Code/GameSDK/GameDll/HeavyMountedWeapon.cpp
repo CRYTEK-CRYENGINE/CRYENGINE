@@ -230,7 +230,7 @@ bool CHeavyMountedWeapon::OnActionFiremode(EntityId actorId, const ActionId& act
 
 void CHeavyMountedWeapon::Use(EntityId userId)
 {
-	int frameID = gEnv->pRenderer->GetFrameID();
+	int frameID = gEnv->nMainFrameID;
 	if (m_lastUsedFrame == frameID)
 		return;
 

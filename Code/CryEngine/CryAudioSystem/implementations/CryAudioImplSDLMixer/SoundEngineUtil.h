@@ -2,12 +2,16 @@
 
 #pragma once
 
-#include "SDLMixerSoundEngine.h"
+#include "SoundEngine.h"
 #include <CryCore/CryCrc32.h>
 #include <CrySystem/File/CryFile.h>
 #include <CryString/CryPath.h>
 
-namespace SdlMixer
+namespace CryAudio
+{
+namespace Impl
+{
+namespace SDL_mixer
 {
 inline const SampleId GetIDFromString(const string& sName)
 {
@@ -34,5 +38,7 @@ inline void GetDistanceAngleToObject(const CAudioObjectTransformation& listener,
 	// Get angle between listener position and projected point
 	const Vec3 listenerDir = listener.GetForward().GetNormalizedFast();
 	out_angle = RAD2DEG(asin(objectDir.Cross(listenerDir).Dot(n)));
+}
+}
 }
 }

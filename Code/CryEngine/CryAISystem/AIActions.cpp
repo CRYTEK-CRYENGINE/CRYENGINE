@@ -301,19 +301,10 @@ bool CActiveAction::operator==(const CActiveAction& other) const
 
 CAIActionManager::CAIActionManager()
 {
-	if (gEnv->pEntitySystem)
-	{
-		gEnv->pEntitySystem->GetIEntityPoolManager()->AddListener(this, "ActionManager", IEntityPoolListener::EntityReturningToPool);
-	}
 }
 
 CAIActionManager::~CAIActionManager()
 {
-	if (gEnv->pEntitySystem)
-	{
-		gEnv->pEntitySystem->GetIEntityPoolManager()->RemoveListener(this);
-	}
-
 	Reset();
 	m_ActionsLib.clear();
 }
@@ -935,14 +926,6 @@ void CAIActionManager::LoadLibrary(const char* sPath)
 }
 
 //------------------------------------------------------------------------------------------------------------------------
-void CAIActionManager::OnEntityReturningToPool(EntityId entityId, IEntity* pEntity)
-{
-	assert(pEntity);
-
-	//When entities return to the pool, the actions can't be serialized into the entity's bookmark. So the action will get canceled on the next frame,
-	// but the AI if it is pulled back from the bookmark will not be aware. -Morgan 03/01/2011
-	OnEntityRemove(pEntity);
-}
 
 // notification sent by smart objects system
 void CAIActionManager::OnEntityRemove(IEntity* pEntity)

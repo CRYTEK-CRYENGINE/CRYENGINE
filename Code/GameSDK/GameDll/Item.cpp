@@ -44,7 +44,6 @@
 
 #include "ItemAnimation.h"
 #include "ItemAnimation.h"
-#include <CryEntitySystem/IEntityPoolManager.h>
 
 #include <IVehicleSystem.h>
 
@@ -813,14 +812,6 @@ void CItem::ProcessEvent(SEntityEvent &event)
 		AttachToHand(false); //only required because we don't have the "arms" weapon anymore if there is no item
 		break;
 
-	case ENTITY_EVENT_RETURNING_TO_POOL:
-		if (m_pItemActionController)
-		{
-			m_pItemActionController->Reset();
-		}
-		SetCurrentActionController(NULL);
-		break;
-
 	case ENTITY_EVENT_DEACTIVATED:
 		if (m_pItemActionController)
 		{
@@ -1079,9 +1070,8 @@ void CItem::PostSerialize()
 			if (pEntityOwner)
 				CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "PostSerialize(). Item %s has ownerId %i that is an entity (%s) but not an actor.", GetEntity()->GetName(), m_owner.GetId(), pEntityOwner->GetName());
 			else
-			{
-				bool inPool = gEnv->pEntitySystem->GetIEntityPoolManager()->IsEntityBookmarked( m_owner.GetId() );
-				CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "PostSerialize(). Item %s has ownerId %i but owner actor does not exist! %s", GetEntity()->GetName(), m_owner.GetId(), inPool ? " cant find actor because is bookmarked!" : "");
+			{				
+				CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "PostSerialize(). Item %s has ownerId %i but owner actor does not exist!", GetEntity()->GetName(), m_owner.GetId());
 			}
 		}
 

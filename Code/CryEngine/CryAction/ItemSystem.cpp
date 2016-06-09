@@ -664,7 +664,7 @@ EntityId CItemSystem::GiveItem(IActor* pActor, const char* item, bool sound, boo
 
 	CRY_ASSERT(item && pActor);
 
-	INDENT_LOG_DURING_SCOPE(true, "Giving %s a new item of class %s (sound=%u select=%u keepHistory=%u setup='%s')", pActor->GetEntity()->GetEntityTextDescription(), item, sound, select, keepHistory, setup ? setup : "N/A");
+	INDENT_LOG_DURING_SCOPE(true, "Giving %s a new item of class %s (sound=%u select=%u keepHistory=%u setup='%s')", pActor->GetEntity()->GetEntityTextDescription().c_str(), item, sound, select, keepHistory, setup ? setup : "N/A");
 
 	static char itemName[65];
 	cry_sprintf(itemName, "%s%.03u", item, ++m_spawnCount);
@@ -753,7 +753,7 @@ void CItemSystem::SetActorItem(IActor* pActor, EntityId itemId, bool keepHistory
 	{
 #ifndef _RELEASE
 		IEntity* pEntity = gEnv->pEntitySystem->GetEntity(itemId);
-		CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "%s tried to select item ID %u but that ID does not belong to an item, it belongs to %s", pActor->GetEntity()->GetName(), itemId, pEntity ? pEntity->GetEntityTextDescription() : "nothing");
+		CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "%s tried to select item ID %u but that ID does not belong to an item, it belongs to %s", pActor->GetEntity()->GetName(), itemId, pEntity ? pEntity->GetEntityTextDescription().c_str() : "nothing");
 #endif
 		return;
 	}

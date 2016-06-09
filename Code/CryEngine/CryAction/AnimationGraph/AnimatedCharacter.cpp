@@ -1222,12 +1222,6 @@ void CAnimatedCharacter::ProcessEvent(SEntityEvent& event)
 			}
 		}
 		break;
-	case ENTITY_EVENT_RETURNING_TO_POOL:
-		{
-			// Delete the ActionController before everything is reused.
-			DeleteActionController();
-		}
-		break;
 	}
 }
 

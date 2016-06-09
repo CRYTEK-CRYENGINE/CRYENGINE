@@ -17,7 +17,6 @@
 #include "CryAction.h"
 #include "ScriptBind_Inventory.h"
 #include "IActorSystem.h"
-#include <CryEntitySystem/IEntityPoolManager.h>
 
 //------------------------------------------------------------------------
 CInventory::CInventory()
@@ -84,51 +83,6 @@ bool CInventory::GetEntityPoolSignature(TSerialize signature)
 void CInventory::FullSerialize(TSerialize ser)
 {
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Inventory serialization");
-
-	IEntityPoolManager* pMgr = gEnv->pEntitySystem->GetIEntityPoolManager();
-
-	if (pMgr && !gEnv->pSystem->IsSerializingFile())
-	{
-		// Entities being activated from the pool shouldn't
-		//	serialize their inventories. The item ids in the bookmark
-		//	refer to the previous entities which no longer exist, instead the
-		//	actor will have been given a new equipment pack instead.
-		//	In that case just holster the default weapon. We will have to
-		//  select it after on the behavior or on the entity side
-
-		if (ser.IsReading())
-		{
-			EntityId currentItemId = 0;
-			bool isUsing = false;
-
-			ser.Value("using", isUsing);
-			ser.Value("CurrentItem", currentItemId);
-
-			if (currentItemId)
-			{
-				IItem* pItem = m_pGameFrameWork->GetIItemSystem()->GetItem(currentItemId);
-				if (pItem && isUsing && !pItem->IsUsed())
-				{
-					pItem->Use(GetEntityId());
-
-					return;
-				}
-			}
-
-			HolsterItem(true);
-		}
-		else
-		{
-			bool isUsing = false;
-			if (IItem* pItem = m_pGameFrameWork->GetIItemSystem()->GetItem(m_stats.currentItemId))
-				isUsing = pItem->IsUsed() && pItem->GetOwnerId() == GetEntityId();
-
-			ser.Value("using", isUsing);
-			ser.Value("CurrentItem", m_stats.currentItemId);
-		}
-
-		return;
-	}
 
 	ser.BeginGroup("InventoryItems");
 

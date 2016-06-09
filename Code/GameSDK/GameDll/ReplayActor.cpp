@@ -135,7 +135,6 @@ void CReplayActor::ProcessEvent(SEntityEvent &event)
 		}
 		break;
 	case ENTITY_EVENT_DONE:
-	case ENTITY_EVENT_RETURNING_TO_POOL:
 		{
 			SAFE_RELEASE(m_pActionController);
 			SAFE_DELETE(m_pAnimContext);

@@ -107,61 +107,22 @@ CAIObject* SAIObjectCreationHelper::RecreateObject(void* pAlloc /*=NULL*/)
 //////////////////////////////////////////////////////////////////////////
 
 CAIObjectManager::CAIObjectManager()
-	: m_pPoolAllocator(NULL)
-	, m_serializingBookmark(false)
-	, m_PoolBucketSize(0)
 {
 }
 
 CAIObjectManager::~CAIObjectManager()
 {
-	SAFE_DELETE(m_pPoolAllocator);
-
 	m_mapDummyObjects.clear();
-
-	IEntityPoolManager* pPM = gEnv->pEntitySystem->GetIEntityPoolManager();
-	if (pPM)
-	{
-		pPM->RemoveListener(this);
-	}
 }
 
 void CAIObjectManager::Init()
 {
-	IEntityPoolManager* pPM = gEnv->pEntitySystem->GetIEntityPoolManager();
-	if (pPM)
-	{
-		pPM->AddListener(this, "CAIObjectManager", EntityReturnedToPool | PoolDefinitionsLoaded | BookmarkEntitySerialize);
-	}
 }
 
 void CAIObjectManager::Reset(bool includingPooled /*=true*/)
 {
 	m_mapDummyObjects.clear();
-
-	if (includingPooled)
-	{
-		m_Objects.clear();
-		stl::free_container(m_pooledObjects);
-		if (m_pPoolAllocator)
-		{
-			gAIEnv.pObjectContainer->ReleaseDeregisteredObjects(false);
-			m_pPoolAllocator->FreeMemoryIfEmpty();
-			assert(m_pPoolAllocator->GetTotalMemory().nAlloc == 0);
-		}
-	}
-	else
-	{
-		// remove all objects unless they are in the pooled list. This happens at the start of AI serialization (loading),
-		//	when pooled objects have already been serialized by the entity pool manager. We need to leave those objects in
-		//	the list since they won't be created/registered again.
-		m_Objects.clear();
-
-		for (TPooledAIObjectMap::iterator it = m_pooledObjects.begin(), end = m_pooledObjects.end(); it != end; ++it)
-		{
-			m_Objects.insert(AIObjectOwners::iterator::value_type(it->second->GetAIType(), it->second));
-		}
-	}
+	m_Objects.clear();
 }
 
 IAIObject* CAIObjectManager::CreateAIObject(const AIObjectParams& params)
@@ -182,39 +143,8 @@ IAIObject* CAIObjectManager::CreateAIObject(const AIObjectParams& params)
 
 	tAIObjectID idToUse = INVALID_AIOBJECTID;
 
-	// first figure out if this AI object should be created from the pool,
-	//	and (if so) attempt to get the object ID from there. This avoids creating a
-	//	temporary object here, then a new one with the correct ID when the
-	//	serialize-from-bookmark happens.
-	bool pooled = false;
 	IEntity* pEntity = gEnv->pEntitySystem->GetEntity(params.entityID);
-	const bool isPooledEntity = pEntity ? pEntity->IsFromPool() : false;
-	if (isPooledEntity)
-	{
-		pooled = true;
-
-		IEntityPoolManager::SPreparingParams poolParams;
-		if (gEnv->pEntitySystem->GetIEntityPoolManager()->IsPreparingEntity(poolParams))
-		{
-			assert(poolParams.entityId == params.entityID);
-			idToUse = poolParams.aiObjectId;
-		}
-		else
-		{
-			// something wrong in the pool manager
-			assert(false);
-		}
-	}
-
 	uint16 type = params.type;
-
-	void* pAlloc = NULL;
-	if (pooled)
-	{
-		// allocate the object memory
-		assert(m_pPoolAllocator);
-		pAlloc = m_pPoolAllocator->Allocate();
-	}
 
 	switch (type)
 	{
@@ -223,83 +153,75 @@ IAIObject* CAIObjectManager::CreateAIObject(const AIObjectParams& params)
 		return 0;
 	case AIOBJECT_ACTOR:
 		type = AIOBJECT_ACTOR;
-		pObject = pooled ? new(pAlloc) CPuppet : new CPuppet;
+		pObject = new CPuppet;
 		break;
 	case AIOBJECT_2D_FLY:
 		type = AIOBJECT_ACTOR;
-		pObject = pooled ? new(pAlloc) CPuppet : new CPuppet;
+		pObject = new CPuppet;
 		pObject->SetSubType(CAIObject::STP_2D_FLY);
 		break;
 	case AIOBJECT_LEADER:
 		{
 			int iGroup = params.association ? static_cast<CPuppet*>(params.association)->GetGroupId() : -1;
-			pLeader = pooled ? new(pAlloc) CLeader(iGroup) : new CLeader(iGroup);
+			pLeader = new CLeader(iGroup);
 			pObject = pLeader;
 		}
 		break;
 	case AIOBJECT_BOAT:
 		type = AIOBJECT_VEHICLE;
-		pObject = pooled ? new(pAlloc) CAIVehicle : new CAIVehicle;
+		pObject = new CAIVehicle;
 		pObject->SetSubType(CAIObject::STP_BOAT);
 		//				pObject->m_bNeedsPathOutdoor = false;
 		break;
 	case AIOBJECT_CAR:
 		type = AIOBJECT_VEHICLE;
-		pObject = pooled ? new(pAlloc) CAIVehicle : new CAIVehicle;
+		pObject = new CAIVehicle;
 		pObject->SetSubType(CAIObject::STP_CAR);
 		break;
 	case AIOBJECT_HELICOPTER:
 		type = AIOBJECT_VEHICLE;
-		pObject = pooled ? new(pAlloc) CAIVehicle : new CAIVehicle;
+		pObject = new CAIVehicle;
 		pObject->SetSubType(CAIObject::STP_HELI);
 		break;
 	case AIOBJECT_INFECTED:
 		type = AIOBJECT_ACTOR;
-		pObject = pooled ? new(pAlloc) CAIActor : new CAIActor;
+		pObject = new CAIActor;
 		break;
 	case AIOBJECT_PLAYER:
-		pObject = pooled ? new(pAlloc) CAIPlayer : new CAIPlayer; // just a dummy for the player
+		pObject = new CAIPlayer; // just a dummy for the player
 		break;
 	case AIOBJECT_RPG:
 	case AIOBJECT_GRENADE:
-		pObject = pooled ? new(pAlloc) CAIObject : new CAIObject;
+		pObject = new CAIObject;
 		break;
 	case AIOBJECT_WAYPOINT:
 	case AIOBJECT_HIDEPOINT:
 	case AIOBJECT_SNDSUPRESSOR:
 	case AIOBJECT_NAV_SEED:
-		pObject = pooled ? new(pAlloc) CAIObject : new CAIObject;
+		pObject = new CAIObject;
 		break;
 	case AIOBJECT_ALIENTICK:
 		type = AIOBJECT_ACTOR;
-		pObject = pooled ? new(pAlloc) CPipeUser : new CPipeUser;
+		pObject = new CPipeUser;
 		break;
 	case AIOBJECT_HELICOPTERCRYSIS2:
 		type = AIOBJECT_ACTOR;
-		pObject = pooled ? new(pAlloc) CAIFlyingVehicle : new CAIFlyingVehicle;
+		pObject = new CAIFlyingVehicle;
 		pObject->SetSubType(CAIObject::STP_HELICRYSIS2);
 		break;
 	default:
 		// try to create an object of user defined type
-		pObject = pooled ? new(pAlloc) CAIObject : new CAIObject;
+		pObject = new CAIObject;
 		break;
 	}
 
 	assert(pObject);
-	assert(!pooled || (pAlloc == pObject));
 
 	// Register the object
 	CStrongRef<CAIObject> object;
 	gAIEnv.pObjectContainer->RegisterObject(pObject, object, idToUse);
 
 	CCountedRef<CAIObject> countedRef = object;
-
-	if (pooled)
-	{
-		// store the details
-		pObject->m_createdFromPool = true;
-		m_pooledObjects[params.entityID] = countedRef;
-	}
 
 	// insert object into map under key type
 	// this is a multimap
@@ -411,21 +333,6 @@ void CAIObjectManager::RemoveObject(tAIObjectID objectID)
 	}
 
 	m_Objects.erase(it);
-
-	// also remove from the pooled objects list
-	if (entityId != 0)
-	{
-		IEntity* pEntity = gEnv->pEntitySystem->GetEntity(entityId);
-
-		// Note: multiple AI objects may refer to the same entity
-		//	(eg Group target dummy objects); in that case only remove this object
-		//	from the pooled objects list if it is actually the main
-		//	AI object associated with the entity.
-		if ((pEntity != NULL) && (pEntity->GetAIObjectID() == objectID))
-		{
-			stl::member_find_and_erase(m_pooledObjects, entityId);
-		}
-	}
 
 	// Because Action doesn't yet handle a delayed removal of the Proxies, we should perform cleanup immediately.
 	// Note that this only happens when triggered externally, when an entity is refreshed/removed
@@ -653,180 +560,4 @@ void CAIObjectManager::RemoveObjectFromAllOfType(int nType, CAIObject* pRemovedO
 	AIObjectOwners::iterator end = m_Objects.end();
 	for (; ai != end && ai->first == nType; ++ai)
 		ai->second.GetAIObject()->OnObjectRemoved(pRemovedObject);
-}
-
-//-----------------------------------------------------------------------------------------------------------
-void CAIObjectManager::ReleasePooledObject(CAIObject* pObject)
-{
-	assert(pObject && pObject->IsFromPool());
-
-	// destruct and free pooled memory
-	pObject->~CAIObject();
-	m_pPoolAllocator->Deallocate(pObject);
-}
-
-//-----------------------------------------------------------------------------------------------------------
-void CAIObjectManager::OnPoolDefinitionsLoaded(size_t num)
-{
-	Reset(true);
-	SAFE_DELETE(m_pPoolAllocator);
-
-	// ensure that the pool is big enough for any type of AI object
-	STATIC_CHECK(sizeof(TPooledAIObject) >= sizeof(CPuppet), Change_TPooledAIObject_To_CPuppet);
-	STATIC_CHECK(sizeof(TPooledAIObject) >= sizeof(CAIActor), Change_TPooledAIObject_To_CAIActor);
-	STATIC_CHECK(sizeof(TPooledAIObject) >= sizeof(CPipeUser), Change_TPooledAIObject_To_CPipeUser);
-	STATIC_CHECK(sizeof(TPooledAIObject) >= sizeof(CAIObject), Change_TPooledAIObject_To_CAIObject);
-	STATIC_CHECK(sizeof(TPooledAIObject) >= sizeof(CAIVehicle), Change_TPooledAIObject_To_CAIVehicle);
-	STATIC_CHECK(sizeof(TPooledAIObject) >= sizeof(CLeader), Change_TPooledAIObject_To_CLeader);
-	STATIC_CHECK(sizeof(TPooledAIObject) >= sizeof(CAIPlayer), Change_TPooledAIObject_To_CAIPlayer);
-	STATIC_CHECK(sizeof(TPooledAIObject) >= sizeof(CAIFlyingVehicle), Change_TPooledAIObject_To_CAIFlyingVehicle);
-
-	m_pPoolAllocator = new stl::TPoolAllocator<TPooledAIObject>(stl::FHeap().PageSize(num));
-	m_PoolBucketSize = num;
-}
-
-//-----------------------------------------------------------------------------------------------------------
-void CAIObjectManager::OnEntityPreparedFromPool(EntityId entityId, IEntity* pEntity)
-{
-	// not necessary to do anything here; the AI object will be created when the
-	//	bookmark is serialized
-}
-
-//-----------------------------------------------------------------------------------------------------------
-void CAIObjectManager::OnEntityReturnedToPool(EntityId entityId, IEntity* pEntity)
-{
-	// the check for pEntity->IsFromPool fixes the editor, where 'pooled' entities are actually
-	//	just disabled
-	if (pEntity && pEntity->HasAI() && pEntity->IsFromPool())
-	{
-		tAIObjectID idToRemove = INVALID_AIOBJECTID;
-		CAIObject* pObject = NULL;
-		bool serializing = (gEnv->pSystem->IsSerializingFile() != 0);
-
-		// if we're serializing the AI object might have already been removed by the ai system Flush
-		{
-			CCountedRef<CAIObject> objectref = stl::find_in_map(m_pooledObjects, entityId, CCountedRef<CAIObject>());
-			assert(serializing || !objectref.IsNil());
-
-			idToRemove = objectref.GetObjectID();
-			pObject = objectref.GetAIObject();
-
-			// Marcio: This should probably not be here but should perhaps be called by the AIProxyFactory in CryAction
-			if (pObject)
-			{
-				if (IAIActorProxy* proxy = pObject->GetProxy())
-					proxy->Reset(AIOBJRESET_SHUTDOWN);
-			}
-
-			// the entity and the ai object should both hold the id of the other
-			assert(serializing || idToRemove == pEntity->GetAIObjectID());
-			assert(serializing || ((pObject != NULL) && (pObject->GetEntityID() == entityId)));
-		}
-
-		// this will remove the object from the m_Objects map,
-		// meaning the ref count will be zero and the object should be deleted
-		//	(CAIObject::Release will call ReleasePooledObject above, to actually free the memory)
-		if (idToRemove != INVALID_AIOBJECTID)
-		{
-			RemoveObject(idToRemove);
-
-			// add a temporary NULL object to make sure no other AI object is created using the same id
-			gAIEnv.pObjectContainer->ReserveID(idToRemove);
-		}
-
-		// Entity should now forget about the AI object, since it will be removed.
-		//	On reactivating from the pool, the object ID is saved and used to recreate
-		//	the AI object; the ID will be reset on the entity at that point.
-		pEntity->SetAIObjectID(INVALID_AIOBJECTID);
-	}
-}
-
-//-----------------------------------------------------------------------------------------------------------
-void CAIObjectManager::OnBookmarkEntitySerialize(TSerialize serialize, void* pVEntity)
-{
-	// In the editor nothing is truly pooled; entities are just hidden instead.
-	//	So no need to serialize anything to/from the bookmark
-	if (gEnv->IsEditor())
-		return;
-
-	m_serializingBookmark = true;
-
-	IEntity* pEntity = reinterpret_cast<IEntity*>(pVEntity);
-
-	// not all pooled entities have AI: don't write anything if so (meaning this will all be skipped on loading as well)
-	if (serialize.BeginOptionalGroup("BookmarkedAIObject", pEntity->HasAI()))
-	{
-		if (serialize.IsWriting())
-		{
-			CCountedRef<CAIObject> objectref = stl::find_in_map(m_pooledObjects, pEntity->GetId(), CCountedRef<CAIObject>());
-			CAIObject* pObject = objectref.GetAIObject();
-			if (pObject)
-			{
-				SAIObjectCreationHelper objHeader(pObject);
-				objHeader.Serialize(serialize);
-
-				pObject->Serialize(serialize);
-			}
-		}
-		else
-		{
-			CCountedRef<CAIObject> objectref = stl::find_in_map(m_pooledObjects, pEntity->GetId(), CCountedRef<CAIObject>());
-
-			SAIObjectCreationHelper objHeader(NULL);
-
-			objHeader.Serialize(serialize);
-			assert(objHeader.aiClass != eAIC_Invalid);
-			assert(objHeader.objectId != INVALID_AIOBJECTID);
-
-			CAIObject* pObject = objectref.GetAIObject();
-
-			if (!objectref.IsNil() && objHeader.objectId != objectref.GetObjectID())
-			{
-				assert(false);
-
-				// deregister + remove old object
-
-				RemoveObject(objectref.GetObjectID());
-				objectref.Release();
-
-				gAIEnv.pObjectContainer->ReleaseDeregisteredObjects(true);
-
-				// verify that it's been removed
-				// cppcheck-suppress assertWithSideEffect
-				assert(GetAIObject(objHeader.objectId) == NULL);
-			}
-
-			// now recreate object with new ai object ID
-			if (objectref.IsNil())
-			{
-				void* pAlloc = m_pPoolAllocator->Allocate();
-
-				pObject = objHeader.RecreateObject(pAlloc);
-
-				assert(pAlloc == pObject);
-				assert(pObject);
-				pObject->m_createdFromPool = true;
-
-				// reregister the object with both the object container and our own maps.
-				//	NB: requesting a specific ID here will allow us to take it from the
-				//	'reserved ids' list in the object container
-				CStrongRef<CAIObject> ref;
-				gAIEnv.pObjectContainer->RegisterObject(pObject, ref, objHeader.objectId);
-				objectref = ref;
-				m_Objects.insert(AIObjectOwners::iterator::value_type(pObject->GetAIType(), objectref));
-				m_pooledObjects[pEntity->GetId()] = objectref;
-			}
-
-			// set this before serializing the AI object
-			pEntity->SetAIObjectID(objHeader.objectId);
-
-			// serialize into the existing object
-			pObject->Serialize(serialize);
-			pObject->PostSerialize();
-		}
-
-		serialize.EndGroup(); // BookmarkedAIObject
-	}
-
-	m_serializingBookmark = false;
 }

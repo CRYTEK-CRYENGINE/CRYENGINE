@@ -24,7 +24,6 @@
 #include <CryGame/IGameTokens.h>
 #include <CryGame/IGameFramework.h>
 #include <CryEntitySystem/IEntitySystem.h>
-#include <CryEntitySystem/IEntityPoolManager.h>
 #include "IActorSystem.h"
 #include "IPlayerProfiles.h"
 #include "IVehicleSystem.h"
@@ -1008,10 +1007,6 @@ void CCheckpointSystem::DeleteDynamicEntities()
 	}
 	// Force deletion of removed entities.
 	pEntitySystem->DeletePendingEntities();
-	//////////////////////////////////////////////////////////////////////////
-
-	// Reset entity pools
-	pEntitySystem->GetIEntityPoolManager()->ResetPools(false);
 }
 
 //////////////////////////////////////////////////////////////////////////

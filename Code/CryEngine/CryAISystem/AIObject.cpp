@@ -45,7 +45,6 @@ CAIObject::CAIObject() :
 	m_isThreateningForHostileFactions(true),
 	m_bTouched(false),
 	m_observable(false),
-	m_createdFromPool(false),
 	m_serialize(true)
 {
 	AILogComment("CAIObject (%p)", this);
@@ -237,9 +236,6 @@ void CAIObject::SetRadius(float fRadius)
 bool CAIObject::ShouldSerialize() const
 {
 	if (!m_serialize)
-		return false;
-
-	if (m_createdFromPool)
 		return false;
 
 	if (gAIEnv.CVars.ForceSerializeAllObjects == 0)
@@ -656,16 +652,7 @@ bool CAIObject::IsUpdatedOnce() const
 
 void CAIObject::Release()
 {
-	// AI objects relating to pooled entities are
-	// handled by CAIObjectManager and shouldn't be deleted directly
-	if (m_createdFromPool)
-	{
-		gAIEnv.pAIObjectManager->ReleasePooledObject(this);
-	}
-	else
-	{
-		delete this;
-	}
+	delete this;
 }
 
 const Vec3& CAIObject::GetViewDir() const

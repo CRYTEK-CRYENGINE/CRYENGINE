@@ -2319,7 +2319,7 @@ void CGameRules::PrecacheLevelResource(const char* resourceName, EGameResourceTy
 {
 	LOADING_TIME_PROFILE_SECTION;
 
-	INDENT_LOG_DURING_SCOPE(true, "While %s is precaching level resource '%s' (resourceType=%d)...", GetEntity()->GetEntityTextDescription(), resourceName, resourceType);
+	INDENT_LOG_DURING_SCOPE(true, "While %s is precaching level resource '%s' (resourceType=%d)...", GetEntity()->GetEntityTextDescription().c_str(), resourceName, resourceType);
 
 	switch(resourceType)
 	{
@@ -2345,7 +2345,7 @@ XmlNodeRef CGameRules::LoadLevelXml()
 	string levelName = pGameFramework->GetLevelName();
 	levelName = PathUtil::GetFileName(levelName);	// ensure we don't have anything like !testmap/ in the path
 
-	INDENT_LOG_DURING_SCOPE(true, "While %s is loading level XML '%s'", GetEntity()->GetEntityTextDescription(), levelName.c_str());
+	INDENT_LOG_DURING_SCOPE(true, "While %s is loading level XML '%s'", GetEntity()->GetEntityTextDescription().c_str(), levelName.c_str());
 
 	if(!IsValidName(levelName))
 	{

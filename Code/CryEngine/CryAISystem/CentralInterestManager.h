@@ -22,7 +22,6 @@
 #endif
 
 #include "PersonalInterestManager.h"
-#include <CryEntitySystem/IEntityPoolManager.h>
 #include <CryMemory/STLGlobalAllocator.h>
 
 // Forward declarations
@@ -109,8 +108,7 @@ struct SEntityInterest
 class CCentralInterestManager :
 	public ICentralInterestManager,
 	public IEntitySystemSink,
-	public IEntityEventListener,
-	public IEntityPoolListener
+	public IEntityEventListener
 {
 public:
 	// Get the CIM singleton
@@ -162,11 +160,6 @@ public:
 	// IEntityEventListener
 	virtual void OnEntityEvent(IEntity* pEntity, SEntityEvent& event);
 	// End of IEntityEventListener
-
-	// IEntityPoolListener
-	virtual void OnEntityPreparedFromPool(EntityId entityId, IEntity* pEntity);
-	virtual void OnEntityReturnedToPool(EntityId entityId, IEntity* pEntity);
-	// End of IEntityPoolListener
 
 	// Expose for DebugDraw
 	typedef std::deque<CPersonalInterestManager, stl::STLGlobalAllocator<CPersonalInterestManager>> TVecPIMs;

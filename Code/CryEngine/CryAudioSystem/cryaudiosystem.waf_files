@@ -18,7 +18,7 @@
 			"AudioProxy.cpp",
 			"AudioRequests.cpp",
 			"AudioSystem.cpp",
-			"AudioSystemImpl_NULL.cpp",
+			"AudioImpl.cpp",
 			"CryAudioSystem.cpp",
 			"FileCacheManager.cpp",
 			"SoundCVars.cpp"
@@ -33,7 +33,7 @@
 			"AudioInternalInterfaces.h",
 			"AudioProxy.h",
 			"AudioSystem.h",
-			"AudioSystemImpl_NULL.h",
+			"AudioImpl.h",
 			"FileCacheManager.h",
 			"resource.h",
 			"SoundCVars.h"

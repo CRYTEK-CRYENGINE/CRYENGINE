@@ -570,14 +570,6 @@ protected:
 	//!	</returns>
 	int IsActive(IFunctionHandler* pH);
 
-	//! <code>Entity.IsFromPool()</code>
-	//! <description>Returns if the entity came from an entity pool.</description>
-	//! <returns>
-	//!    true - Entity is from a pool. (Bookmarked)
-	//!    false - Entity is not from a pool. (Not bookmarked)
-	//! </returns>
-	int IsFromPool(IFunctionHandler* pH);
-
 	//! <code>Entity.SetUpdatePolicy( nUpdatePolicy )</code>
 	//! <description>
 	//!    Changes update policy for the entity.

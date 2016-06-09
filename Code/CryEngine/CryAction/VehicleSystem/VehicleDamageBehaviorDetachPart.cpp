@@ -240,7 +240,6 @@ IEntity* CVehicleDamageBehaviorDetachPart::SpawnDetachedEntity()
 
 	SEntitySpawnParams spawnParams;
 	spawnParams.sName = pPartName;
-	spawnParams.bCreatedThroughPool = true;
 	spawnParams.nFlags = ENTITY_FLAG_CLIENT_ONLY;
 	if (!m_pickableDebris)
 		spawnParams.nFlags |= ENTITY_FLAG_NO_PROXIMITY;

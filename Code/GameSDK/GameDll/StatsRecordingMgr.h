@@ -25,7 +25,6 @@
 #include "IWeapon.h"
 #include <CryGame/IGameStatistics.h>
 #include "IGameRulesSystem.h"
-#include <CryEntitySystem/IEntityPoolManager.h>
 #include "ITelemetryCollector.h"
 #include "GameRulesTypes.h"
 #include "DownloadMgr.h"
@@ -207,7 +206,7 @@ public:
 #endif
 };
 
-class CStatsRecordingMgr : public IGameStatisticsCallback, public IHitListener, public IGameFrameworkListener, public IEntityPoolListener, public IDataListener
+class CStatsRecordingMgr : public IGameStatisticsCallback, public IHitListener, public IGameFrameworkListener, public IDataListener
 {
 	public:
 		typedef uint8															TSubmitPermissions;
@@ -339,12 +338,6 @@ class CStatsRecordingMgr : public IGameStatisticsCallback, public IHitListener, 
 		virtual void OnLevelEnd(const char* pNextLevel) {}
 		virtual void OnActionEvent(const SActionEvent& event);
 		// ~IGameFrameworkListener
-
-		// IEntityPoolListener
-		virtual void OnPoolBookmarkCreated(EntityId entityId, const SEntitySpawnParams& params, XmlNodeRef entityNode) {};
-		virtual void OnEntityPreparedFromPool(EntityId entityId, IEntity *pEntity);
-		virtual void OnEntityReturnedToPool(EntityId entityId, IEntity *pEntity);
-		// ~IEntityPoolListener
 
 		// IDataListener
 		virtual void DataDownloaded(CDownloadableResourcePtr inResource);

@@ -186,13 +186,13 @@ const char* CAIHandler::GetInitialCharacterName()
 
 	if (!m_pScriptObject->GetValue("Properties", pEntityProperties))
 	{
-		AIWarningID("<CAIHandler> ", "can't find Properties. Entity %s", m_pEntity->GetEntityTextDescription());
+		AIWarningID("<CAIHandler> ", "can't find Properties. Entity %s", m_pEntity->GetEntityTextDescription().c_str());
 		return 0;
 	}
 
 	if (!pEntityProperties->GetValue("aicharacter_character", szAICharacterName))
 	{
-		AIWarningID("<CAIHandler> ", "can't find aicharacter_character. Entity %s", m_pEntity->GetEntityTextDescription());
+		AIWarningID("<CAIHandler> ", "can't find aicharacter_character. Entity %s", m_pEntity->GetEntityTextDescription().c_str());
 		return 0;
 	}
 
@@ -349,7 +349,7 @@ void CAIHandler::SetInitialBehaviorAndCharacter()
 		m_sFirstCharacterName = szDefaultCharacter;
 		if (!SetCharacter(szDefaultCharacter, SET_DELAYED) && !m_sFirstCharacterName.empty())
 			AIWarningID("<CAIHandler> ", "Could not set initial character: %s on Entity: %s",
-			            szDefaultCharacter, m_pEntity->GetEntityTextDescription());
+			            szDefaultCharacter, m_pEntity->GetEntityTextDescription().c_str());
 #endif
 
 		const char* szDefaultBehavior = GetInitialBehaviorName();

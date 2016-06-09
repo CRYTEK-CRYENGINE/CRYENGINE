@@ -5,7 +5,7 @@
 		[
 			"ATLEntityData.h",
 			"AudioLogger.h",
-			"IAudioSystemImplementation.h",
+			"IAudioImpl.h",
 			"SharedAudioData.h",
 			"SoundAllocator.h",
 			"STLSoundAllocator.h"

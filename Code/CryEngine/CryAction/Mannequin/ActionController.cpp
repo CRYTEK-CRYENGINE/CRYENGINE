@@ -12,7 +12,6 @@
 
 #include <CryExtension/CryCreateClassInstance.h>
 
-#include <CryEntitySystem/IEntityPoolManager.h>
 #include "MannequinUtils.h"
 #include "MannequinDebug.h"
 

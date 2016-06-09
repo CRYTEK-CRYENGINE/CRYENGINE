@@ -433,7 +433,6 @@ CATLAudioObject::CPropagationProcessor::CPropagationProcessor(AudioObjectId cons
 	, m_originalOcclusionType(eAudioOcclusionType_None)
 	, m_rayDebugInfos(s_numConcurrentRaysHigh)
 	, m_timeSinceLastUpdateMS(0.0f)
-	, m_originalOcclusionType(eAudioOcclusionType_None)
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 {
 	if (s_raySamplePositionsLow.empty())

@@ -16,7 +16,6 @@
 #pragma once
 
 #include "FlowBaseNode.h"
-#include <CryEntitySystem/IEntityPoolManager.h>
 
 //////////////////////////////////////////////////////////////////////////
 class CFlowEntityClass : public IFlowNodeFactory
@@ -90,13 +89,12 @@ public:
 	}
 
 	// Return entity of this node.
-	// Note: Will not work if the entity is pooled and not yet prepared.
 	ILINE IEntity* GetEntity() const
 	{
 		return gEnv->pEntitySystem->GetEntity(m_entityId);
 	}
 
-	// Return entityId of this node (works with entity pools)
+	// Return entityId of this node
 	EntityId GetEntityId(SActivationInfo* pActInfo) const
 	{
 		assert(pActInfo);
@@ -106,12 +104,6 @@ public:
 		if (pActInfo->pEntity)
 		{
 			entityId = pActInfo->pEntity->GetId();
-		}
-		else
-		{
-			const EntityId graphEntityId = pActInfo->pGraph->GetEntityId(pActInfo->myID);
-			if (gEnv->pEntitySystem->GetIEntityPoolManager()->IsEntityBookmarked(graphEntityId))
-				entityId = graphEntityId;
 		}
 
 		return entityId;

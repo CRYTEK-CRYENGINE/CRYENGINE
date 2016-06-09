@@ -28,7 +28,6 @@ CActionCoopAnimation::CActionCoopAnimation(const SActionCoopParams& params)
 	m_targetTagID(params.m_targetTagID),
 	m_piOptionalTargetDatabase(params.m_piOptionalTargetDatabase)
 {
-	gEnv->pEntitySystem->GetIEntityPoolManager()->AddListener(this, "ActionCoopAnimation", IEntityPoolListener::EntityReturningToPool);
 	if(gEnv->bMultiplayer)
 	{
 		gEnv->pEntitySystem->AddEntityEventListener(m_targetEntityID, ENTITY_EVENT_DONE, this);
@@ -37,39 +36,9 @@ CActionCoopAnimation::CActionCoopAnimation(const SActionCoopParams& params)
 
 CActionCoopAnimation::~CActionCoopAnimation()
 {
-	gEnv->pEntitySystem->GetIEntityPoolManager()->RemoveListener(this);
 	if(m_targetEntityID)
 	{
 		gEnv->pEntitySystem->RemoveEntityEventListener(m_targetEntityID, ENTITY_EVENT_DONE, this);
-	}
-}
-
-void CActionCoopAnimation::OnEntityReturningToPool(EntityId entityId, IEntity *pEntity)
-{
-	if(entityId == m_targetEntityID)
-	{
-		// Cleaning the slave context currently /immediately/ flush scopes using
-		// it, which means WE will get flushed too. In that case we will get a
-		// Release() call. By adding a reference to ourselves we prevent ourselves
-		// from being deleted in flight.
-		AddRef();
-
-		if (m_eStatus == Pending)
-		{
-			// In the unlikely event we didn't even start yet, make sure to send the
-			// event that tells the rest of the code we finished
-			SendStateEventCoopAnim();
-
-			ForceFinish();
-		}
-		else if (m_eStatus == Installed)
-		{
-			// Note: Cleaning the slave context will cause Exit() to be called on ourselves
-			RemoveTargetFromSlaveContext();
-		}
-
-		// Release ourselves after we cleaned up (this might cause ourselves to be deleted)
-		Release();
 	}
 }
 

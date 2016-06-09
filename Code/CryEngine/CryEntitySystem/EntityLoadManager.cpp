@@ -14,7 +14,6 @@
 
 #include "stdafx.h"
 #include "EntityLoadManager.h"
-#include "EntityPoolManager.h"
 #include "EntitySystem.h"
 #include "Entity.h"
 #include "EntityLayer.h"
@@ -175,10 +174,6 @@ void CEntityLoadManager::CloneHeldLayerEntities(const char* pLayerName, const Ve
 	// Get all the held entities for this layer
 	std::vector<XmlNodeRef>& entities = m_heldLayers[heldLayerIdx].m_entities;
 
-	CEntityPoolManager* pEntityPoolManager = m_pEntitySystem->GetEntityPoolManager();
-	assert(pEntityPoolManager);
-	const bool bEnablePoolUse = pEntityPoolManager->IsUsingPools();
-
 	const int nSize = entities.size();
 	for (int i = 0; i < nSize; i++)
 	{
@@ -233,12 +228,6 @@ void CEntityLoadManager::CloneHeldLayerEntities(const char* pLayerName, const Ve
 			loadParams.clonedLayerId = cloneIdx;
 
 			//////////////////////////////////////////////////////////////////////////
-
-			if (bEnablePoolUse && loadParams.spawnParams.bCreatedThroughPool)
-			{
-				CEntityPoolManager* pPoolManager = m_pEntitySystem->GetEntityPoolManager();
-				bSuccess = (pPoolManager && pPoolManager->AddPoolBookmark(loadParams));
-			}
 
 			// Default to just creating the entity
 			if (!bSuccess)
@@ -433,10 +422,6 @@ bool CEntityLoadManager::ParseEntities(XmlNodeRef& entitiesNode, bool bIsLoading
 
 	bool bResult = true;
 
-	CEntityPoolManager* pEntityPoolManager = m_pEntitySystem->GetEntityPoolManager();
-	assert(pEntityPoolManager);
-	const bool bEnablePoolUse = pEntityPoolManager->IsUsingPools();
-
 	const int iChildCount = entitiesNode->getChildCount();
 
 	CryLog("Parsing %d entities...", iChildCount);
@@ -460,12 +445,6 @@ bool CEntityLoadManager::ParseEntities(XmlNodeRef& entitiesNode, bool bIsLoading
 				SEntityLoadParams loadParams;
 				if (ExtractEntityLoadParams(entityNode, loadParams, segmentOffset, true))
 				{
-					if (bEnablePoolUse && loadParams.spawnParams.bCreatedThroughPool)
-					{
-						CEntityPoolManager* pPoolManager = m_pEntitySystem->GetEntityPoolManager();
-						bSuccess = (pPoolManager && pPoolManager->AddPoolBookmark(loadParams));
-					}
-
 					// Default to just creating the entity
 					if (!bSuccess)
 					{
@@ -621,14 +600,6 @@ bool CEntityLoadManager::ExtractCommonEntityLoadParams(XmlNodeRef& entityNode, S
 				EntityWarning("Archetype %s used by entity %s cannot be found! Entity cannot be loaded.", szArchetypeName, spawnParams.sName);
 				bResult = false;
 			}
-		}
-
-		entityNode->getAttr("CreatedThroughPool", spawnParams.bCreatedThroughPool);
-		if (!spawnParams.bCreatedThroughPool)
-		{
-			// Check if forced via its class
-			CEntityPoolManager* const pPoolManager = m_pEntitySystem->GetEntityPoolManager();
-			spawnParams.bCreatedThroughPool = (pPoolManager && pPoolManager->IsClassForcedBookmarked(pClass));
 		}
 	}
 	else  // No entity class found!
@@ -1041,9 +1012,6 @@ void CEntityLoadManager::AddQueuedEntityLink(IEntity* pEntity, XmlNodeRef& pNode
 //////////////////////////////////////////////////////////////////////////
 void CEntityLoadManager::OnBatchCreationCompleted()
 {
-	CEntityPoolManager* pEntityPoolManager = m_pEntitySystem->GetEntityPoolManager();
-	assert(pEntityPoolManager);
-
 	// Load attachments
 	TQueuedAttachments::iterator itQueuedAttachment = m_queuedAttachments.begin();
 	TQueuedAttachments::iterator itQueuedAttachmentEnd = m_queuedAttachments.end();
@@ -1065,10 +1033,6 @@ void CEntityLoadManager::OnBatchCreationCompleted()
 				SChildAttachParams attachParams(entityAttachment.flags, entityAttachment.target.c_str());
 				pParent->AttachChild(pChild, attachParams);
 				pChild->SetLocalTM(Matrix34::Create(entityAttachment.scale, entityAttachment.rot, entityAttachment.pos));
-			}
-			else if (pEntityPoolManager->IsEntityBookmarked(entityAttachment.parent))
-			{
-				pEntityPoolManager->AddAttachmentToBookmark(entityAttachment.parent, entityAttachment);
 			}
 		}
 	}

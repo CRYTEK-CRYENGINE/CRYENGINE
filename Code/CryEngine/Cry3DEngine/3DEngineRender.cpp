@@ -1784,6 +1784,14 @@ void C3DEngine::RenderScene(const int nRenderFlags, const SRenderingPassInfo& pa
 	if (passInfo.IsGeneralPass() && GetCVars()->e_StatObjBufferRenderTasks && JobManager::InvokeAsJob("CheckOcclusion"))
 		m_pObjManager->RenderBufferedRenderMeshes(passInfo);
 
+	// Call postrender on the meshes that require it.
+	// Call it before InvokeShadowMapRenderJobs, otherwise render meshes are not constructed at the moment of shadow gen render calls
+	if (passInfo.IsGeneralPass())
+	{
+		m_pMergedMeshesManager->SortActiveInstances(passInfo);
+		m_pMergedMeshesManager->PostRenderMeshes(passInfo);
+	}
+
 	// start render jobs for shadow map
 	if (!passInfo.IsShadowPass() && passInfo.RenderShadows() && !passInfo.IsRecursivePass())
 	{
@@ -1806,12 +1814,6 @@ void C3DEngine::RenderScene(const int nRenderFlags, const SRenderingPassInfo& pa
 	if (m_pPartManager)
 		m_pPartManager->FinishParticleRenderTasks(passInfo);
 
-	// Call postrender on the meshes that require it.
-	if (passInfo.IsGeneralPass())
-	{
-		m_pMergedMeshesManager->SortActiveInstances(passInfo);
-		m_pMergedMeshesManager->PostRenderMeshes(passInfo);
-	}
 
 	if (passInfo.IsGeneralPass())
 		m_LightVolumesMgr.Update(passInfo);

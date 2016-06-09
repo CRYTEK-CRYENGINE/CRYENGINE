@@ -15,19 +15,10 @@
 
 CCustomActionManager::CCustomActionManager()
 {
-	if (gEnv->pEntitySystem)
-	{
-		gEnv->pEntitySystem->GetIEntityPoolManager()->AddListener(this, "CustomActionManager", IEntityPoolListener::EntityReturningToPool);
-	}
 }
 
 CCustomActionManager::~CCustomActionManager()
 {
-	if (gEnv->pEntitySystem)
-	{
-		gEnv->pEntitySystem->GetIEntityPoolManager()->RemoveListener(this);
-	}
-
 	ClearActiveActions();
 	ClearLibraryActions();
 }
@@ -378,15 +369,6 @@ void CCustomActionManager::Update()
 			m_activeActions.remove(action);
 		}
 	}
-}
-
-//------------------------------------------------------------------------------------------------------------------------
-void CCustomActionManager::OnEntityReturningToPool(EntityId entityId, IEntity* pEntity)
-{
-	assert(pEntity);
-
-	// When entities return to the pool, the actions can't be serialized into the entity's bookmark. So the action will get canceled on the next frame, -Morgan 03/01/2011
-	OnEntityRemove(pEntity);
 }
 
 //------------------------------------------------------------------------------------------------------------------------

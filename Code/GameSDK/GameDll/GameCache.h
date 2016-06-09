@@ -15,7 +15,6 @@
 #ifndef __GAME_CACHE_H__
 #define __GAME_CACHE_H__
 
-#include <CryEntitySystem/IEntityPoolManager.h>
 #include "ActorLuaCache.h"
 #include "Utility/CryHash.h"
 
@@ -92,7 +91,7 @@ private:
 	TCharacterDBAGroups	m_dbaGroups; 
 };
 
-class CGameCache : public IEntityPoolListener
+class CGameCache
 {
 public:
 
@@ -108,10 +107,6 @@ public:
 	static bool IsCacheEnabled();
 	static bool IsLuaCacheEnabled();
 	static void GenerateModelVariation(const string& inputName, TCachedModelName& outputName, SmartScriptTable pEntityScript, int variationCount, int variation);
-
-	// IEntityPoolListener
-	virtual void OnPoolBookmarkCreated(EntityId entityId, const SEntitySpawnParams& params, XmlNodeRef entityNode);
-	//~IEntityPoolListener
 
 	void CacheActorClass(IEntityClass *pClass, SmartScriptTable pEntityScript);
 	void CacheActorInstance(EntityId entityId, SmartScriptTable pEntityScript, SmartScriptTable pPropertiesOverride = SmartScriptTable(), int modelVariation = -1);

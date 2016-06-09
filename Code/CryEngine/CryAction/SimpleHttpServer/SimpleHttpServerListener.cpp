@@ -248,7 +248,11 @@ void CSimpleHttpServerListener::OnGetRequest(int connectionID, string url)
 			{
 				page.resize(size, '0');
 				fseek(file, 0, SEEK_SET);
-				fread((char*)page.data(), 1, page.size(), file);
+				size_t len = fread((char*)page.data(), 1, page.size(), file);
+				if(len != page.size())
+				{
+					CryLog("HTTP: page size and read size different");
+				}
 			}
 		}
 		fclose(file);

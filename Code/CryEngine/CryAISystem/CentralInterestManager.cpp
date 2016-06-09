@@ -105,16 +105,12 @@ void CCentralInterestManager::Reset()
 			CryLog("Registering CentralInterestManager with EntitySystem");
 			gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnSpawn | IEntitySystem::OnRemove, 0);
 			m_bEntityEventListenerInstalled = true;
-
-			gEnv->pEntitySystem->GetIEntityPoolManager()->AddListener(this, "CCentralInterestManager", (IEntityPoolListener::EntityPreparedFromPool | IEntityPoolListener::EntityReturnedToPool));
 		}
 		else
 		{
 			CryLog("Unregistering CentralInterestManager from EntitySystem");
 			gEnv->pEntitySystem->RemoveSink(this);
 			m_bEntityEventListenerInstalled = false;
-
-			gEnv->pEntitySystem->GetIEntityPoolManager()->RemoveListener(this);
 		}
 	}
 }
@@ -709,24 +705,6 @@ bool CCentralInterestManager::OnRemove(IEntity* pEntity)
 	}
 
 	return true;
-}
-
-//------------------------------------------------------------------------------------------------------------------------
-
-void CCentralInterestManager::OnEntityReturnedToPool(EntityId entityId, IEntity* pEntity)
-{
-	// Remove old if it exists
-	DeregisterObject(pEntity);
-}
-
-//------------------------------------------------------------------------------------------------------------------------
-
-void CCentralInterestManager::OnEntityPreparedFromPool(EntityId entityId, IEntity* pEntity)
-{
-	// Handle entity again as if it was spawned
-	SEntitySpawnParams temp;
-	OnSpawn(pEntity, temp);
-	RegisterObject(pEntity);
 }
 
 //------------------------------------------------------------------------------------------------------------------------

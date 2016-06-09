@@ -3,7 +3,7 @@
 #include "stdafx.h"
 #include "ATL.h"
 #include "ATLComponents.h"
-#include "AudioSystemImpl_NULL.h"
+#include "AudioImpl.h"
 #include "SoundCVars.h"
 #include "AudioProxy.h"
 #include <CrySystem/ISystem.h>
@@ -12,6 +12,7 @@
 #include <CryRenderer/IRenderAuxGeom.h>
 
 using namespace CryAudio::Impl;
+using namespace CryAudio::Impl::Null;
 
 ///////////////////////////////////////////////////////////////////////////
 inline EAudioRequestResult ConvertToRequestResult(EAudioRequestStatus const eAudioRequestStatus)
@@ -1288,9 +1289,9 @@ EAudioRequestStatus CAudioTranslationLayer::SetImpl(IAudioImpl* const pImpl)
 	{
 		g_audioLogger.Log(eAudioLogType_Warning, "nullptr passed to SetImpl, will run with the null implementation");
 
-		POOL_NEW_CREATE(CAudioImpl_null, pAudioImpl_null);
-		CRY_ASSERT(pAudioImpl_null != nullptr);
-		m_pImpl = pAudioImpl_null;
+		POOL_NEW_CREATE(CAudioImpl, pAudioImpl);
+		CRY_ASSERT(pAudioImpl != nullptr);
+		m_pImpl = pAudioImpl;
 	}
 
 	result = m_pImpl->Init();
@@ -1306,9 +1307,9 @@ EAudioRequestStatus CAudioTranslationLayer::SetImpl(IAudioImpl* const pImpl)
 		result = m_pImpl->Release(); // Release the engine specific data.
 		CRY_ASSERT(result == eAudioRequestStatus_Success);
 
-		POOL_NEW_CREATE(CAudioImpl_null, pAudioImpl_null);
-		CRY_ASSERT(pAudioImpl_null != nullptr);
-		m_pImpl = pAudioImpl_null;
+		POOL_NEW_CREATE(CAudioImpl, pAudioImpl);
+		CRY_ASSERT(pAudioImpl != nullptr);
+		m_pImpl = pAudioImpl;
 	}
 
 	IAudioObject* const pGlobalObjectData = m_pImpl->NewGlobalAudioObject(m_globalAudioObjectId);

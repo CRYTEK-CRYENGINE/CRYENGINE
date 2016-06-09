@@ -94,7 +94,12 @@ struct pixout_cl_depth
 
 struct pixout_cl_void_depth
 {
+#if !OPENGL
 	float  Depth : SV_Depth;
+#else
+	//HLSLcc compiler crash issue
+	float Depth    : COLOR3; 
+#endif
 };
 
 struct app2vertShadow

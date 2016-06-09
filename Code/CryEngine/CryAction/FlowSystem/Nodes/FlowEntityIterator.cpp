@@ -426,13 +426,13 @@ public:
 	{
 		static const SInputPortConfig inputs[] =
 		{
-			InputPortConfig_Void("Start",         _HELP("Call to start iterating through all entities inside the defined sphere")),
-			InputPortConfig_Void("Next",          _HELP("Call to get next entity found")),
-			InputPortConfig<int>("Limit",         0,                                                                               _HELP("Limit how many entities are returned. Use 0 to get all entities")),
-			InputPortConfig<bool>("Immediate",    false,                                                                           _HELP("TRUE to iterate immediately through results, without having to call Next")),
-			InputPortConfig<string>("Class Name", _HELP("Class name of entity to iterate")),
-			InputPortConfig<Vec3>("Center",       _HELP("Center point of the box")),
-			InputPortConfig<float>("Size",        0.f,                                                                             _HELP("Size of the box (from center to any edge) where to check for entities")),
+			InputPortConfig_Void("Start",        _HELP("Call to start iterating through all entities inside the defined sphere")),
+			InputPortConfig_Void("Next",         _HELP("Call to get next entity found")),
+			InputPortConfig<int>("Limit",        0,                                                                               _HELP("Limit how many entities are returned. Use 0 to get all entities")),
+			InputPortConfig<bool>("Immediate",   false,                                                                           _HELP("TRUE to iterate immediately through results, without having to call Next")),
+			InputPortConfig<string>("ClassName", _HELP("Class name of entity to iterate")),
+			InputPortConfig<Vec3>("Center",      _HELP("Center point of the box")),
+			InputPortConfig<float>("Size",       0.f,                                                                             _HELP("Size of the box (from center to any edge) where to check for entities")),
 			{ 0 }
 		};
 

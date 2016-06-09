@@ -21,7 +21,6 @@
 #include "ILevelSystem.h"
 #include "IMovementController.h"
 #include "IItemSystem.h"
-#include <CryEntitySystem/IEntityPoolManager.h>
 #include <CryMovie/IMovieSystem.h>
 #include "IVehicleSystem.h"
 #include "EquipmentSystemInterface.h"
@@ -1137,7 +1136,7 @@ void MarkEntityForSerialize(TSerializationData& data, IEntity* pEntity, int reas
 	}
 
 	// skip if no-save flag is set on the entity itself, or if the entity is due to be pooled
-	if(!gEnv->pEntitySystem->ShouldSerializedEntity(pEntity) || gEnv->pEntitySystem->GetIEntityPoolManager()->IsEntityBookmarked(pEntity->GetId()))
+	if(!gEnv->pEntitySystem->ShouldSerializedEntity(pEntity))
 	{
 		return;
 	}

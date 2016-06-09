@@ -45,7 +45,7 @@ public:
  			EntityScripts::GetEntityProperty(pLadder, "Camera", cameraAnimFactorAtStart, m_cameraAnimFactorAtStart);
 			EntityScripts::GetEntityProperty(pLadder, "Camera", cameraAnimFactorAtEnd, m_cameraAnimFactorAtEnd);
 		}
-		LadderLog ("Constructing %s instance for %s who's %s a ladder", GetName(), player.GetEntity()->GetEntityTextDescription(), player.IsOnLadder() ? "on" : "not on");
+		LadderLog ("Constructing %s instance for %s who's %s a ladder", GetName(), player.GetEntity()->GetEntityTextDescription().c_str(), player.IsOnLadder() ? "on" : "not on");
 
 #ifndef _RELEASE
 		ladderState->UpdateNumActions(1);
@@ -65,7 +65,7 @@ public:
 	{
 		const CTagDefinition* pFragTagDef = m_context->controllerDef.GetFragmentTagDef(m_fragmentID);
 
-		LadderLog ("Initializing %s instance for %s performing action defined in '%s' direction=%s, foot=%s", GetName(), m_player.GetEntity()->GetEntityTextDescription(), pFragTagDef->GetFilename(), directionText, footText);
+		LadderLog ("Initializing %s instance for %s performing action defined in '%s' direction=%s, foot=%s", GetName(), m_player.GetEntity()->GetEntityTextDescription().c_str(), pFragTagDef->GetFilename(), directionText, footText);
 		LadderLogIndent();
 
 		if (directionText)
@@ -88,7 +88,7 @@ public:
 
 	virtual void Enter()
 	{
-		LadderLog ("Entering %s instance for %s", GetName(), m_player.GetEntity()->GetEntityTextDescription());
+		LadderLog ("Entering %s instance for %s", GetName(), m_player.GetEntity()->GetEntityTextDescription().c_str());
 		LadderLogIndent();
 
 		TPlayerAction::Enter();
@@ -114,7 +114,7 @@ public:
 
 	virtual void Exit()
 	{
-		LadderLog ("Exiting %s instance for %s", GetName(), m_player.GetEntity()->GetEntityTextDescription());
+		LadderLog ("Exiting %s instance for %s", GetName(), m_player.GetEntity()->GetEntityTextDescription().c_str());
 		LadderLogIndent();
 
 		TPlayerAction::Exit();
@@ -283,11 +283,11 @@ void CPlayerStateLadder::OnUseLadder(CPlayer& player, IEntity* pLadder)
 {
 	assert (pLadder);
 
-	LadderLog ("%s has started using ladder %s", player.GetEntity()->GetEntityTextDescription(), pLadder->GetEntityTextDescription());
+	LadderLog ("%s has started using ladder %s", player.GetEntity()->GetEntityTextDescription().c_str(), pLadder->GetEntityTextDescription().c_str());
 	LadderLogIndent();
 
 #ifndef _RELEASE
-	CRY_ASSERT_TRACE(m_dbgNumActions == 0, ("%s shouldn't have any leftover ladder actions but has %d", player.GetEntity()->GetEntityTextDescription(), m_dbgNumActions));
+	CRY_ASSERT_TRACE(m_dbgNumActions == 0, ("%s shouldn't have any leftover ladder actions but has %d", player.GetEntity()->GetEntityTextDescription().c_str(), m_dbgNumActions));
 #endif
 
 	assert (player.IsOnLadder());
@@ -447,7 +447,7 @@ static void LadderExitIsComplete(CPlayer & player)
 
 void CPlayerStateLadder::OnExit( CPlayer& player )
 {
-	LadderLog ("%s has stopped using ladder (%s)", player.GetEntity()->GetEntityTextDescription(), s_onOffAnimTypeNames[m_playGetOffAnim]);
+	LadderLog ("%s has stopped using ladder (%s)", player.GetEntity()->GetEntityTextDescription().c_str(), s_onOffAnimTypeNames[m_playGetOffAnim]);
 	LadderLogIndent();
 
 	assert (! player.IsOnLadder());
@@ -536,7 +536,7 @@ void CPlayerStateLadder::InterruptCurrentAnimation()
 
 void CPlayerStateLadder::QueueLadderAction(CPlayer& player, CLadderAction * action)
 {
-	LadderLog ("Queuing %s ladder anim '%s'", player.GetEntity()->GetEntityTextDescription(), action ? action->GetName() : "NULL");
+	LadderLog ("Queuing %s ladder anim '%s'", player.GetEntity()->GetEntityTextDescription().c_str(), action ? action->GetName() : "NULL");
 	LadderLogIndent();
 
 	if (action)
@@ -566,7 +566,7 @@ bool CPlayerStateLadder::OnPrePhysicsUpdate( CPlayer& player, const SActorFrameM
 #ifndef _RELEASE
 	if (g_pGameCVars->pl_ladderControl.ladder_logVerbosity)
 	{
-		CryWatch ("[LADDER] RUNG=$3%u/%u$o FRAC=$3%.2f$o: %s is %.2fm up a ladder, move=%.2f - %s, %s, %s, camAnim=%.2f, $7INERTIA=%.2f SETTLE=%.2f", m_numRungsFromBottomPosition, m_topRungNumber, m_fractionBetweenRungs, player.GetEntity()->GetEntityTextDescription(), player.GetEntity()->GetWorldPos().z - m_ladderBottom.z, requiredMovement.z, player.CanTurnBody() ? "$4can turn body$o" : "$3cannot turn body$o", (player.GetEntity()->GetSlotFlags(0) & ENTITY_SLOT_RENDER_NEAREST) ? "render nearest" : "render normal", player.IsOnLadder() ? "$3on a ladder$o" : "$4not on a ladder$o", player.GetActorStats()->partialCameraAnimFactor, m_climbInertia, m_scaleSettle);
+		CryWatch ("[LADDER] RUNG=$3%u/%u$o FRAC=$3%.2f$o: %s is %.2fm up a ladder, move=%.2f - %s, %s, %s, camAnim=%.2f, $7INERTIA=%.2f SETTLE=%.2f", m_numRungsFromBottomPosition, m_topRungNumber, m_fractionBetweenRungs, player.GetEntity()->GetEntityTextDescription().c_str(), player.GetEntity()->GetWorldPos().z - m_ladderBottom.z, requiredMovement.z, player.CanTurnBody() ? "$4can turn body$o" : "$3cannot turn body$o", (player.GetEntity()->GetSlotFlags(0) & ENTITY_SLOT_RENDER_NEAREST) ? "render nearest" : "render normal", player.IsOnLadder() ? "$3on a ladder$o" : "$4not on a ladder$o", player.GetActorStats()->partialCameraAnimFactor, m_climbInertia, m_scaleSettle);
 
 		if (m_mostRecentlyEnteredAction && m_mostRecentlyEnteredAction->GetStatus() == IAction::Installed)
 		{
@@ -612,7 +612,7 @@ bool CPlayerStateLadder::OnPrePhysicsUpdate( CPlayer& player, const SActorFrameM
 
 			if (pEntity == NULL /*|| pEntity->GetClass() != CEntityClassPtr::NoWeapon*/)
 			{
-				GameWarning ("!%s should be switching to 'NoWeapon' but is using %s and switching to %s", player.GetEntity()->GetEntityTextDescription(), pItem->GetEntity()->GetClass()->GetName(), pEntity ? pEntity->GetClass()->GetName() : "<NULL>");
+				GameWarning ("!%s should be switching to 'NoWeapon' but is using %s and switching to %s", player.GetEntity()->GetEntityTextDescription().c_str(), pItem->GetEntity()->GetClass()->GetName(), pEntity ? pEntity->GetClass()->GetName() : "<NULL>");
 				//player.SelectItemByClass(CEntityClassPtr::NoWeapon);
 				canPlayGetOnAnim = true;
 			}
@@ -723,7 +723,7 @@ bool CPlayerStateLadder::OnPrePhysicsUpdate( CPlayer& player, const SActorFrameM
 #ifndef _RELEASE
 						else if (g_pGameCVars->pl_ladderControl.ladder_logVerbosity)
 						{
-							CryWatch ("[LADDER] %s can't climb up and off %s - top is blocked", player.GetEntity()->GetName(), pLadder->GetEntityTextDescription());
+							CryWatch ("[LADDER] %s can't climb up and off %s - top is blocked", player.GetEntity()->GetName(), pLadder->GetEntityTextDescription().c_str());
 						}
 #endif
 					}
@@ -862,7 +862,7 @@ bool CPlayerStateLadder::IsUsableLadder(CPlayer& player, IEntity* pLadder, const
 			pGeom->DrawLine(ladderBasePos + rungEndSideways, ladderColour, ladderBasePos + rungEndSideways + offsetToTop, ladderColour, 20.f);
 		}
 
-		CryWatch ("[LADDER] Is %s usable by %s? %s", pLadder ? pLadder->GetEntityTextDescription() : "<NULL ladder entity>", player.GetEntity()->GetEntityTextDescription(), retVal ? "$3YES$o" : "$4NO$o");
+		CryWatch ("[LADDER] Is %s usable by %s? %s", pLadder ? pLadder->GetEntityTextDescription().c_str() : "<NULL ladder entity>", player.GetEntity()->GetEntityTextDescription().c_str(), retVal ? "$3YES$o" : "$4NO$o");
 	}
 #endif
 

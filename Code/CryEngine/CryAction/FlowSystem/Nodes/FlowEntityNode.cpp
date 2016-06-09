@@ -17,7 +17,6 @@
 #include <IActorSystem.h>
 #include <IGameRulesSystem.h>
 #include "CryAction.h"
-#include <CryEntitySystem/IEntityPoolManager.h>
 
 //////////////////////////////////////////////////////////////////////////
 CFlowEntityClass::CFlowEntityClass(IEntityClass* pEntityClass)
@@ -220,15 +219,6 @@ void CFlowEntityNode::ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
 			IEntity* pEntity = gEnv->pEntitySystem->GetEntity(m_entityId);
 			if (!pEntity)
 			{
-				if (gEnv->pEntitySystem->GetIEntityPoolManager()->IsEntityBookmarked(m_entityId))
-				{
-					const char* entityName = gEnv->pEntitySystem->GetIEntityPoolManager()->GetBookmarkedEntityName(m_entityId);
-
-					GameWarning("FlowEntityNode event called on entity '%s' (id: %08x) which is created through pool, but not spawn yet!\n"
-					            "Please change the logic to only send these events after the entity has been created from the pool.",
-					            entityName ? entityName : "<null>", m_entityId);
-				}
-
 				return;
 			}
 
@@ -1410,10 +1400,11 @@ public:
 
 	CFlowNode_EntityFaceAt(SActivationInfo* pActInfo)
 		: CFlowEntityNodeBase()
-		, m_targetPos(0.0f, 0.0f, 0.0f)
+		, m_targetPos(ZERO)
 		, m_fwdAxis(eFA_XPlus)
-		, m_referenceVector(0.0f, 0.0f, 0.0f)
+		, m_referenceVector(ZERO)
 		, m_targetEntityId(0)
+		, m_blendDuration (0.0f)
 		, m_bIsBlending(false)
 	{}
 
@@ -3386,76 +3377,6 @@ protected:
 	// By not serializing or reseting this member, we cover those cases correctly
 };
 
-//////////////////////////////////////////////////////////////////////////
-// Flow node for entity pool usage
-//////////////////////////////////////////////////////////////////////////
-class CFlowNode_EntityPool : public CFlowBaseNode<eNCT_Singleton>
-{
-public:
-	CFlowNode_EntityPool(SActivationInfo* pActInfo)
-	{
-
-	}
-
-	enum EInputs
-	{
-		IN_PREPARE,
-		IN_FREE,
-	};
-
-	enum EOutputs
-	{
-		OUT_READY,
-		OUT_FREED,
-		OUT_ERROR,
-	};
-
-	virtual void GetMemoryUsage(ICrySizer* s) const
-	{
-		s->Add(*this);
-	}
-
-	virtual void GetConfiguration(SFlowNodeConfig& config)
-	{
-		static const SInputPortConfig in_config[] =
-		{
-			InputPortConfig_Void("Prepare", _HELP("Prepare the entity by bringing it into existence from the pool")),
-			InputPortConfig_Void("Free",    _HELP("Free the entity back to the pool to free resources")),
-			{ 0 }
-		};
-		static const SOutputPortConfig out_config[] =
-		{
-			OutputPortConfig<EntityId>("Ready", _HELP("Outputs when the entity is fully prepared and ready to be used. EntityId is guaranteed to be the same.")),
-			OutputPortConfig_Void("Freed",      _HELP("Outputs when the entity is freed up and returned back to the pool")),
-			OutputPortConfig_Void("Error",      _HELP("Called if an error occurred, such as the entity isn't configured for pool usage")),
-			{ 0 }
-		};
-		config.sDescription = _HELP("Used to prepare an entity from the pool, or free it back to the pool");
-		config.nFlags |= EFLN_TARGET_ENTITY;
-		config.pInputPorts = in_config;
-		config.pOutputPorts = out_config;
-		config.SetCategory(EFLN_APPROVED);
-	}
-
-	virtual void ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
-	{
-		EntityId entityId = pActInfo->pGraph->GetEntityId(pActInfo->myID);
-		if (event == eFE_Activate && entityId != 0)
-		{
-			if (IsPortActive(pActInfo, IN_PREPARE))
-			{
-				const bool bReady = gEnv->pEntitySystem->GetIEntityPoolManager()->PrepareFromPool(entityId);
-				ActivateOutput(pActInfo, bReady ? OUT_READY : OUT_ERROR, true);
-			}
-			else if (IsPortActive(pActInfo, IN_FREE))
-			{
-				const bool bFreed = gEnv->pEntitySystem->GetIEntityPoolManager()->ReturnToPool(entityId);
-				ActivateOutput(pActInfo, bFreed ? OUT_FREED : OUT_ERROR, true);
-			}
-		}
-	}
-};
-
 class CFlowNodeCharAttachmentMaterialShaderParam : public CFlowBaseNode<eNCT_Instanced>
 {
 public:
@@ -4926,7 +4847,6 @@ REGISTER_FLOW_NODE("Entity:GetBounds", CFlowNode_EntityGetBounds)
 
 REGISTER_FLOW_NODE("Entity:CharAttachmentMaterialParam", CFlowNodeCharAttachmentMaterialShaderParam)
 
-REGISTER_FLOW_NODE("Entity:EntityPool", CFlowNode_EntityPool)
 REGISTER_FLOW_NODE("Entity:EntityFaceAt", CFlowNode_EntityFaceAt)
 
 REGISTER_FLOW_NODE("Entity:FindEntityByName", CFlowNode_FindEntityByName);

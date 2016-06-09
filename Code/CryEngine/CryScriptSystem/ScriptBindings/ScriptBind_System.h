@@ -144,22 +144,6 @@ public:
 	//! <description>Gets an entity class from its ID.</description>
 	int GetEntityClass(IFunctionHandler* pH);
 
-	//! <code>System.PrepareEntityFromPool(entityId)</code>
-	//!		<param name="entityId">Entity identifier.</param>
-	//!		<param name="bPrepareNow">(optional) Specifies whether the pooled entity shall be prepared immediately rather than queuing a request in case there is a preparation already in progress.</param>
-	//! <description>Prepares the given bookmarked entity from the pool, bringing it into existence.</description>
-	int PrepareEntityFromPool(IFunctionHandler* pH);
-
-	//! <code>System.ReturnEntityToPool(entityId)</code>
-	//!		<param name="entityId">Entity identifier.</param>
-	//! <returns>the bookmarked entity to the pool, destroying it.</returns>
-	int ReturnEntityToPool(IFunctionHandler* pH);
-
-	//! <code>System.ResetPoolEntity(entityId)</code>
-	//!		<param name="entityId">Entity identifier.</param>
-	//! <description>Resets the entity's bookmarked, which frees memory.</description>
-	int ResetPoolEntity(IFunctionHandler* pH);
-
 	//! <code>System.GetEntities(center, radius)</code>
 	//!		<param name="center">Center position vector for the area where to get entities.</param>
 	//!		<param name="radius">Radius of the area.</param>

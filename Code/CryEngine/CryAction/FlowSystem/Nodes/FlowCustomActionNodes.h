@@ -17,7 +17,6 @@
 #pragma once
 
 #include "FlowBaseNode.h"
-#include <CryEntitySystem/IEntityPoolManager.h>
 #include <CryAction/ICustomActions.h>
 
 // Forward declarations

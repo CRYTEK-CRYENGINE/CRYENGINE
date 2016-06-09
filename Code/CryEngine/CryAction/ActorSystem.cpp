@@ -64,8 +64,6 @@ CActorSystem::CActorSystem(ISystem* pSystem, IEntitySystem* pEntitySystem)
 
 	if (gEnv->pEntitySystem)
 	{
-		gEnv->pEntitySystem->GetIEntityPoolManager()->AddListener(this, "CActorSystem",
-		                                                          (IEntityPoolListener::EntityPreparedFromPool | IEntityPoolListener::EntityReturnedToPool));
 		gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnReused, 0);
 	}
 }
@@ -78,7 +76,6 @@ CActorSystem::~CActorSystem()
 {
 	if (gEnv->pEntitySystem)
 	{
-		gEnv->pEntitySystem->GetIEntityPoolManager()->RemoveListener(this);
 		gEnv->pEntitySystem->RemoveSink(this);
 	}
 
@@ -410,22 +407,6 @@ bool CActorSystem::IsActorClass(IEntityClass* pClass) const
 	}
 
 	return bResult;
-}
-
-//------------------------------------------------------------------------
-void CActorSystem::OnEntityReturnedToPool(EntityId entityId, IEntity* pEntity)
-{
-	IActor* pActor = GetActor(entityId);
-	if (pActor)
-		pActor->OnReturnedToPool();
-}
-
-//------------------------------------------------------------------------
-void CActorSystem::OnEntityPreparedFromPool(EntityId entityId, IEntity* pEntity)
-{
-	IActor* pActor = GetActor(entityId);
-	if (pActor)
-		pActor->OnPreparedFromPool();
 }
 
 //------------------------------------------------------------------------

@@ -972,8 +972,8 @@ bool CVehicleSeat::StandUp()
 	if (!pActor)
 		return false;
 
-	const string actorTextDescription = pActor->GetEntity()->GetEntityTextDescription();
-	const string vehicleTextDescription = m_pVehicle->GetEntity()->GetEntityTextDescription();
+	const string actorTextDescription = pActor->GetEntity()->GetEntityTextDescription().c_str();
+	const string vehicleTextDescription = m_pVehicle->GetEntity()->GetEntityTextDescription().c_str();
 	CryLog("Making %s leave %s", actorTextDescription.c_str(), vehicleTextDescription.c_str());
 	INDENT_LOG_DURING_SCOPE();
 

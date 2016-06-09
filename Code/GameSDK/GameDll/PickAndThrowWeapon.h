@@ -13,7 +13,6 @@ not really a "weapon": is just the hands grabbing objects (barrels etc) and thro
 #include "Weapon.h"
 #include "WeaponSharedParams.h"
 #include "MeleeCollisionHelper.h"
-#include <CryEntitySystem/IEntityPoolManager.h>
 #include "IPlayerEventListener.h"
 #include "QuatTBlender.h"
 #include "PickAndThrowUtilities.h"
@@ -31,7 +30,7 @@ struct SAutoaimTarget;
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-class CPickAndThrowWeapon :	public CWeapon, public IMeleeCollisionHelperListener, public IEntityPoolListener
+class CPickAndThrowWeapon :	public CWeapon, public IMeleeCollisionHelperListener
 {
 	struct FinishSimpleMelee;
 	struct FinishComplexMelee;
@@ -129,9 +128,6 @@ public:
 	bool OnAnimationEvent(const AnimEventInstance &event);
 
 	ILINE bool IsIdling() const { return (m_state == eST_IDLE) && !IsNPC(); }
-
-	// IEntityPoolListener	
-	virtual void OnEntityReturnedToPool(EntityId entityId, IEntity *pEntity);
 
 	EInteractionType GetHeldEntityInteractionType();
 

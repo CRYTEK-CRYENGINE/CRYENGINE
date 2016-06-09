@@ -10,7 +10,6 @@
 %{
 #include <CryEntitySystem/IEntityProxy.h>
 #include <CryEntitySystem/IEntity.h>
-#include <CryEntitySystem/IEntityPoolManager.h>
 #include <CryEntitySystem/IEntitySystem.h>
 #include <CryEntitySystem/IBreakableManager.h>
 #include <CryEntitySystem/IComponent.h>
@@ -26,7 +25,6 @@
 // TEMPORARY
 %ignore IEntityProxy::GetSignature;
 %ignore IEntityPhysicalProxy::SerializeTyped;
-%ignore IEntityPoolListener::OnBookmarkEntitySerialize;
 // ~TEMPORARY
 %feature("director") IEntityScriptProxy;
 %include "../../../../CryEngine/CryCommon/CryEntitySystem/IEntityProxy.h"
@@ -65,7 +63,6 @@
 //(maybe) TODO: %include "../../../CryEngine/CryCommon/IEntityRenderState.h"
 //(maybe) TODO: %include "../../../CryEngine/CryCommon/IEntityRenderState_info.h"
 //TODO: %include "../../../CryEngine/CryCommon/IEntitySerialize.h"
-%include "../../../../CryEngine/CryCommon/CryEntitySystem/IEntityPoolManager.h"
 %typemap(csbase) IEntitySystem::SinkEventSubscriptions "uint"
 %ignore CreateEntitySystem;
 %feature("director") IEntityEventListener;

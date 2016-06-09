@@ -537,7 +537,7 @@ void CObjectContainer::RebuildObjectMaps(std::multimap<short, CCountedRef<CAIObj
 				CWeakRef<CAIObject> ref = GetWeakRef(object->GetAIObjectID());
 				dummyMap.insert(std::multimap<short, CWeakRef<CAIObject>>::iterator::value_type(object->GetSubType(), ref));
 			}
-			else if (!object->IsFromPool())  // pooled objects will already be in the objectMap
+			else
 			{
 				CStrongRef<CAIObject> ref;
 				ref.Assign(object->GetAIObjectID());

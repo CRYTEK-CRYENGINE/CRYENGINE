@@ -21,7 +21,6 @@
 #include "IActorSystem.h"
 #include <CryGame/IGameFramework.h>
 #include "ItemParams.h"
-#include <CryEntitySystem/IEntityPoolManager.h>
 
 typedef std::map<EntityId, IActor*> TActorMap;
 
@@ -30,7 +29,6 @@ class CPlayerEntityProxy;
 
 class CActorSystem :
 	public IActorSystem,
-	public IEntityPoolListener,
 	public IEntitySystemSink
 {
 	struct DemoSpectatorSystem
@@ -73,11 +71,6 @@ public:
 	virtual bool                   IsActorClass(IEntityClass* pClass) const;
 
 	// ~IActorSystem
-
-	// IEntityPoolListener
-	virtual void OnEntityReturnedToPool(EntityId entityId, IEntity* pEntity);
-	virtual void OnEntityPreparedFromPool(EntityId entityId, IEntity* pEntity);
-	// ~IEntityPoolListener
 
 	// IEntitySystemSink
 	virtual bool OnBeforeSpawn(SEntitySpawnParams& params);

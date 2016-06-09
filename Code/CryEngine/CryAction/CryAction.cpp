@@ -2684,16 +2684,17 @@ void CCryAction::PostUpdate(bool haveFocus, unsigned int updateFlags)
 	if (gEnv->pCharacterManager)
 		gEnv->pCharacterManager->SyncAllAnimations();
 
-	// begin occlusion job after settign the correct camera
-	// if camera isn't driven by an animation, it is possible to
-	// move this call before the SyncAllAnimation call
-	gEnv->p3DEngine->PrepareOcclusion(m_pSystem->GetViewCamera());
-
+	//update view system before p3DEngine->PrepareOcclusion as it might change view camera
 	const bool useDeferredViewSystemUpdate = m_pViewSystem->UseDeferredViewSystemUpdate();
 	if (useDeferredViewSystemUpdate)
 	{
 		m_pViewSystem->Update(min(delta, 0.1f));
 	}
+
+	// begin occlusion job after settign the correct camera	
+	// if camera isn't driven by an animation, it is possible to
+	// move this call before the SyncAllAnimation call
+	gEnv->p3DEngine->PrepareOcclusion(m_pSystem->GetViewCamera());
 
 	if (gEnv->pHardwareMouse)
 		gEnv->pHardwareMouse->Update();

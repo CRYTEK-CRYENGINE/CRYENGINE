@@ -328,7 +328,7 @@ bool CPlayerStateGround::CheckForVaultTrigger(CPlayer & player, float frameTime)
 					const char * transitionName = s_ledgeTransitionNames[ledgeTransition.m_ledgeTransition];
 
 					IEntity* pEntity = gEnv->pEntitySystem->GetEntity(ledgeInfo.GetEntityId());
-					CryWatch ("[LEDGEGRAB] $5%s nearest ledge: %s%s%s%s, transition=%s", player.GetEntity()->GetEntityTextDescription(), pEntity ? pEntity->GetEntityTextDescription() : "none", ledgeInfo.AreFlagsSet(kLedgeFlag_isThin) ? " THIN" : "", ledgeInfo.AreFlagsSet(kLedgeFlag_isWindow) ? " WINDOW" : "", ledgeInfo.AreFlagsSet(kLedgeFlag_endCrouched) ? " ENDCROUCHED" : "", transitionName);
+					CryWatch ("[LEDGEGRAB] $5%s nearest ledge: %s%s%s%s, transition=%s", player.GetEntity()->GetEntityTextDescription().c_str(), pEntity ? pEntity->GetEntityTextDescription().c_str() : "none", ledgeInfo.AreFlagsSet(kLedgeFlag_isThin) ? " THIN" : "", ledgeInfo.AreFlagsSet(kLedgeFlag_isWindow) ? " WINDOW" : "", ledgeInfo.AreFlagsSet(kLedgeFlag_endCrouched) ? " ENDCROUCHED" : "", transitionName);
 				}
 
 #endif

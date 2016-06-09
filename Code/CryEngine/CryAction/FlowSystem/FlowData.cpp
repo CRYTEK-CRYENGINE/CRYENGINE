@@ -3,7 +3,6 @@
 #include "StdAfx.h"
 #include "FlowData.h"
 #include "FlowSerialize.h"
-#include <CryEntitySystem/IEntityPoolManager.h>
 
 // do some magic stuff to be backwards compatible with flowgraphs
 // which don't use the REAL port name but a stripped version
@@ -500,14 +499,7 @@ bool CFlowData::DoForwardingIfNeed(IFlowNode::SActivationInfo* pActInfo)
 	}
 	else
 	{
-		// if the pEntity does not exist because was bookmarked, we keep forwarding to the last forwarded id
-		EntityId initialId = GetEntityId();
-		if (initialId && gEnv->pEntitySystem->GetIEntityPoolManager()->IsEntityBookmarked(initialId))
-		{
-			forwardingEntityID = m_forwardingEntityID;
-		}
-		else
-			return NoForwarding(pActInfo);
+		return NoForwarding(pActInfo);
 	}
 
 	if (forwardingEntityID)

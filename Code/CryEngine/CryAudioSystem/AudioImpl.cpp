@@ -1,205 +1,206 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
-#include "AudioSystemImpl_NULL.h"
+#include "AudioImpl.h"
 
 using namespace CryAudio::Impl;
+using namespace CryAudio::Impl::Null;
 
 ///////////////////////////////////////////////////////////////////////////
-CAudioImpl_null::CAudioImpl_null()
+CAudioImpl::CAudioImpl()
 {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-CAudioImpl_null::~CAudioImpl_null()
+CAudioImpl::~CAudioImpl()
 {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CAudioImpl_null::Update(float const deltaTime)
+void CAudioImpl::Update(float const deltaTime)
 {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::Init()
-{
-	return eAudioRequestStatus_Success;
-}
-
-///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::ShutDown()
+EAudioRequestStatus CAudioImpl::Init()
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::Release()
+EAudioRequestStatus CAudioImpl::ShutDown()
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::OnLoseFocus()
+EAudioRequestStatus CAudioImpl::Release()
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::OnGetFocus()
+EAudioRequestStatus CAudioImpl::OnLoseFocus()
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::MuteAll()
+EAudioRequestStatus CAudioImpl::OnGetFocus()
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::UnmuteAll()
+EAudioRequestStatus CAudioImpl::MuteAll()
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::StopAllSounds()
+EAudioRequestStatus CAudioImpl::UnmuteAll()
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::RegisterAudioObject(IAudioObject* const pObjectData, char const* const szAudioObjectName)
+EAudioRequestStatus CAudioImpl::StopAllSounds()
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::RegisterAudioObject(IAudioObject* const pObject)
+EAudioRequestStatus CAudioImpl::RegisterAudioObject(IAudioObject* const pObjectData, char const* const szAudioObjectName)
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::UnregisterAudioObject(IAudioObject* const pObject)
+EAudioRequestStatus CAudioImpl::RegisterAudioObject(IAudioObject* const pObject)
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::ResetAudioObject(IAudioObject* const pObject)
+EAudioRequestStatus CAudioImpl::UnregisterAudioObject(IAudioObject* const pObject)
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::UpdateAudioObject(IAudioObject* const pObject)
+EAudioRequestStatus CAudioImpl::ResetAudioObject(IAudioObject* const pObject)
+{
+	return eAudioRequestStatus_Success;
+}
+
+///////////////////////////////////////////////////////////////////////////
+EAudioRequestStatus CAudioImpl::UpdateAudioObject(IAudioObject* const pObject)
 {
 	return eAudioRequestStatus_Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::PlayFile(SAudioStandaloneFileInfo* const _pAudioStandaloneFileInfo)
+EAudioRequestStatus CAudioImpl::PlayFile(SAudioStandaloneFileInfo* const _pAudioStandaloneFileInfo)
 {
 	return eAudioRequestStatus_Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::StopFile(SAudioStandaloneFileInfo* const _pAudioStandaloneFileInfo)
+EAudioRequestStatus CAudioImpl::StopFile(SAudioStandaloneFileInfo* const _pAudioStandaloneFileInfo)
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::PrepareTriggerSync(IAudioObject* const pAudioObject, IAudioTrigger const* const pTrigger)
+EAudioRequestStatus CAudioImpl::PrepareTriggerSync(IAudioObject* const pAudioObject, IAudioTrigger const* const pTrigger)
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::UnprepareTriggerSync(IAudioObject* const pAudioObject, IAudioTrigger const* const pTrigger)
+EAudioRequestStatus CAudioImpl::UnprepareTriggerSync(IAudioObject* const pAudioObject, IAudioTrigger const* const pTrigger)
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::PrepareTriggerAsync(IAudioObject* const pAudioObject, IAudioTrigger const* const pTrigger, IAudioEvent* const pEvent)
+EAudioRequestStatus CAudioImpl::PrepareTriggerAsync(IAudioObject* const pAudioObject, IAudioTrigger const* const pTrigger, IAudioEvent* const pEvent)
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::UnprepareTriggerAsync(IAudioObject* const pAudioObject, IAudioTrigger const* const pTrigger, IAudioEvent* const pEvent)
+EAudioRequestStatus CAudioImpl::UnprepareTriggerAsync(IAudioObject* const pAudioObject, IAudioTrigger const* const pTrigger, IAudioEvent* const pEvent)
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::ActivateTrigger(IAudioObject* const pAudioObject, IAudioTrigger const* const pTrigger, IAudioEvent* const pEvent)
+EAudioRequestStatus CAudioImpl::ActivateTrigger(IAudioObject* const pAudioObject, IAudioTrigger const* const pTrigger, IAudioEvent* const pEvent)
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::StopEvent(IAudioObject* const pAudioObject, IAudioEvent const* const pEvent)
+EAudioRequestStatus CAudioImpl::StopEvent(IAudioObject* const pAudioObject, IAudioEvent const* const pEvent)
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::StopAllEvents(IAudioObject* const pAudioObject)
+EAudioRequestStatus CAudioImpl::StopAllEvents(IAudioObject* const pAudioObject)
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::Set3DAttributes(IAudioObject* const pAudioObject, SAudioObject3DAttributes const& attributes)
+EAudioRequestStatus CAudioImpl::Set3DAttributes(IAudioObject* const pAudioObject, SAudioObject3DAttributes const& attributes)
 {
 	return eAudioRequestStatus_Success;
 }
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::SetEnvironment(IAudioObject* const pAudioObjectData, IAudioEnvironment const* const pEnvironmentImplData, float const amount)
+EAudioRequestStatus CAudioImpl::SetEnvironment(IAudioObject* const pAudioObjectData, IAudioEnvironment const* const pEnvironmentImplData, float const amount)
 {
 	return eAudioRequestStatus_Success;
 }
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::SetRtpc(IAudioObject* const pAudioObjectData, IAudioRtpc const* const pRtpcData, float const value)
-{
-	return eAudioRequestStatus_Success;
-}
-
-///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::SetSwitchState(IAudioObject* const pAudioObject, IAudioSwitchState const* const pState)
+EAudioRequestStatus CAudioImpl::SetRtpc(IAudioObject* const pAudioObjectData, IAudioRtpc const* const pRtpcData, float const value)
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::SetObstructionOcclusion(IAudioObject* const pAudioObjectData, float const obstruction, float const occlusion)
+EAudioRequestStatus CAudioImpl::SetSwitchState(IAudioObject* const pAudioObject, IAudioSwitchState const* const pState)
 {
 	return eAudioRequestStatus_Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::SetListener3DAttributes(IAudioListener* const pAudioListener, SAudioObject3DAttributes const& attributes)
+EAudioRequestStatus CAudioImpl::SetObstructionOcclusion(IAudioObject* const pAudioObjectData, float const obstruction, float const occlusion)
+{
+	return eAudioRequestStatus_Success;
+}
+
+///////////////////////////////////////////////////////////////////////////
+EAudioRequestStatus CAudioImpl::SetListener3DAttributes(IAudioListener* const pAudioListener, SAudioObject3DAttributes const& attributes)
 {
 	return eAudioRequestStatus_Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::RegisterInMemoryFile(SAudioFileEntryInfo* const pAudioFileEntry)
+EAudioRequestStatus CAudioImpl::RegisterInMemoryFile(SAudioFileEntryInfo* const pAudioFileEntry)
 {
 	return eAudioRequestStatus_Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::UnregisterInMemoryFile(SAudioFileEntryInfo* const pAudioFileEntry)
+EAudioRequestStatus CAudioImpl::UnregisterInMemoryFile(SAudioFileEntryInfo* const pAudioFileEntry)
 {
 	return eAudioRequestStatus_Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
-EAudioRequestStatus CAudioImpl_null::ParseAudioFileEntry(XmlNodeRef const pAudioFileEntryNode, SAudioFileEntryInfo* const pFileEntryInfo)
+EAudioRequestStatus CAudioImpl::ParseAudioFileEntry(XmlNodeRef const pAudioFileEntryNode, SAudioFileEntryInfo* const pFileEntryInfo)
 {
 	pFileEntryInfo->memoryBlockAlignment = 0;
 	pFileEntryInfo->size = 0;
@@ -211,148 +212,148 @@ EAudioRequestStatus CAudioImpl_null::ParseAudioFileEntry(XmlNodeRef const pAudio
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioImpl_null::DeleteAudioFileEntry(IAudioFileEntry* const pOldAudioFileEntry)
+void CAudioImpl::DeleteAudioFileEntry(IAudioFileEntry* const pOldAudioFileEntry)
 {
 }
 
 //////////////////////////////////////////////////////////////////////////
-char const* const CAudioImpl_null::GetAudioFileLocation(SAudioFileEntryInfo* const pFileEntryInfo)
+char const* const CAudioImpl::GetAudioFileLocation(SAudioFileEntryInfo* const pFileEntryInfo)
 {
 	return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-IAudioObject* CAudioImpl_null::NewGlobalAudioObject(AudioObjectId const audioObjectID)
+IAudioObject* CAudioImpl::NewGlobalAudioObject(AudioObjectId const audioObjectID)
 {
 	POOL_NEW_CREATE(IAudioObject, pNewObject)();
 	return pNewObject;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-IAudioObject* CAudioImpl_null::NewAudioObject(AudioObjectId const audioObjectID)
+IAudioObject* CAudioImpl::NewAudioObject(AudioObjectId const audioObjectID)
 {
 	POOL_NEW_CREATE(IAudioObject, pNewObject)();
 	return pNewObject;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CAudioImpl_null::DeleteAudioObject(IAudioObject const* const pOldObject)
+void CAudioImpl::DeleteAudioObject(IAudioObject const* const pOldObject)
 {
 	POOL_FREE_CONST(pOldObject);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CAudioImpl_null::DeleteAudioListener(IAudioListener* const pOldListener)
+void CAudioImpl::DeleteAudioListener(IAudioListener* const pOldListener)
 {
 	POOL_FREE(pOldListener);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-IAudioListener* CAudioImpl_null::NewDefaultAudioListener(AudioObjectId const audioObjectId)
+IAudioListener* CAudioImpl::NewDefaultAudioListener(AudioObjectId const audioObjectId)
 {
 	POOL_NEW_CREATE(IAudioListener, pNewObject)();
 	return pNewObject;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-IAudioListener* CAudioImpl_null::NewAudioListener(AudioObjectId const audioObjectId)
+IAudioListener* CAudioImpl::NewAudioListener(AudioObjectId const audioObjectId)
 {
 	POOL_NEW_CREATE(IAudioListener, pNewObject)();
 	return pNewObject;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-IAudioEvent* CAudioImpl_null::NewAudioEvent(AudioEventId const audioEventID)
+IAudioEvent* CAudioImpl::NewAudioEvent(AudioEventId const audioEventID)
 {
 	POOL_NEW_CREATE(IAudioEvent, pNewEvent)();
 	return pNewEvent;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CAudioImpl_null::DeleteAudioEvent(IAudioEvent const* const pOldEventImpl)
+void CAudioImpl::DeleteAudioEvent(IAudioEvent const* const pOldEventImpl)
 {
 	POOL_FREE_CONST(pOldEventImpl);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CAudioImpl_null::ResetAudioEvent(IAudioEvent* const pEventData)
+void CAudioImpl::ResetAudioEvent(IAudioEvent* const pEventData)
 {
 }
 
 //////////////////////////////////////////////////////////////////////////
-IAudioStandaloneFile* CAudioImpl_null::NewAudioStandaloneFile()
+IAudioStandaloneFile* CAudioImpl::NewAudioStandaloneFile()
 {
 	POOL_NEW_CREATE(IAudioStandaloneFile, pNewAudioStandaloneFile);
 	return pNewAudioStandaloneFile;
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioImpl_null::DeleteAudioStandaloneFile(IAudioStandaloneFile const* const _pOldAudioStandaloneFileData)
+void CAudioImpl::DeleteAudioStandaloneFile(IAudioStandaloneFile const* const _pOldAudioStandaloneFileData)
 {
 	POOL_FREE_CONST(_pOldAudioStandaloneFileData);
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioImpl_null::ResetAudioStandaloneFile(IAudioStandaloneFile* const _pAudioStandaloneFileData)
+void CAudioImpl::ResetAudioStandaloneFile(IAudioStandaloneFile* const _pAudioStandaloneFileData)
 {
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioImpl_null::GamepadConnected(TAudioGamepadUniqueID const deviceUniqueID)
+void CAudioImpl::GamepadConnected(TAudioGamepadUniqueID const deviceUniqueID)
 {
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioImpl_null::GamepadDisconnected(TAudioGamepadUniqueID const deviceUniqueID)
+void CAudioImpl::GamepadDisconnected(TAudioGamepadUniqueID const deviceUniqueID)
 {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-IAudioTrigger const* CAudioImpl_null::NewAudioTrigger(XmlNodeRef const pAudioTriggerNode, SAudioTriggerInfo& info)
-{
-	return nullptr;
-}
-
-///////////////////////////////////////////////////////////////////////////
-void CAudioImpl_null::DeleteAudioTrigger(IAudioTrigger const* const pOldTriggerImpl)
-{
-}
-
-///////////////////////////////////////////////////////////////////////////
-IAudioRtpc const* CAudioImpl_null::NewAudioRtpc(XmlNodeRef const pAudioRtpcNode)
+IAudioTrigger const* CAudioImpl::NewAudioTrigger(XmlNodeRef const pAudioTriggerNode, SAudioTriggerInfo& info)
 {
 	return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CAudioImpl_null::DeleteAudioRtpc(IAudioRtpc const* const pOldRtpcImpl)
+void CAudioImpl::DeleteAudioTrigger(IAudioTrigger const* const pOldTriggerImpl)
 {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-IAudioSwitchState const* CAudioImpl_null::NewAudioSwitchState(XmlNodeRef const pAudioSwitchNode)
-{
-	return nullptr;
-}
-
-///////////////////////////////////////////////////////////////////////////
-void CAudioImpl_null::DeleteAudioSwitchState(IAudioSwitchState const* const pOldAudioSwitchStateImplData)
-{
-}
-
-///////////////////////////////////////////////////////////////////////////
-IAudioEnvironment const* CAudioImpl_null::NewAudioEnvironment(XmlNodeRef const pAudioEnvironmentNode)
+IAudioRtpc const* CAudioImpl::NewAudioRtpc(XmlNodeRef const pAudioRtpcNode)
 {
 	return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CAudioImpl_null::DeleteAudioEnvironment(IAudioEnvironment const* const pOldEnvironmentImpl)
+void CAudioImpl::DeleteAudioRtpc(IAudioRtpc const* const pOldRtpcImpl)
 {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CAudioImpl_null::GetMemoryInfo(SAudioImplMemoryInfo& memoryInfo) const
+IAudioSwitchState const* CAudioImpl::NewAudioSwitchState(XmlNodeRef const pAudioSwitchNode)
+{
+	return nullptr;
+}
+
+///////////////////////////////////////////////////////////////////////////
+void CAudioImpl::DeleteAudioSwitchState(IAudioSwitchState const* const pOldAudioSwitchStateImplData)
+{
+}
+
+///////////////////////////////////////////////////////////////////////////
+IAudioEnvironment const* CAudioImpl::NewAudioEnvironment(XmlNodeRef const pAudioEnvironmentNode)
+{
+	return nullptr;
+}
+
+///////////////////////////////////////////////////////////////////////////
+void CAudioImpl::DeleteAudioEnvironment(IAudioEnvironment const* const pOldEnvironmentImpl)
+{
+}
+
+///////////////////////////////////////////////////////////////////////////
+void CAudioImpl::GetMemoryInfo(SAudioImplMemoryInfo& memoryInfo) const
 {
 	memoryInfo.primaryPoolSize = 0;
 	memoryInfo.primaryPoolUsedSize = 0;
@@ -365,16 +366,16 @@ void CAudioImpl_null::GetMemoryInfo(SAudioImplMemoryInfo& memoryInfo) const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioImpl_null::OnAudioSystemRefresh()
+void CAudioImpl::OnAudioSystemRefresh()
 {
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioImpl_null::SetLanguage(char const* const szLanguage)
+void CAudioImpl::SetLanguage(char const* const szLanguage)
 {
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioImpl_null::GetAudioFileData(char const* const szFilename, SAudioFileData& audioFileData) const
+void CAudioImpl::GetAudioFileData(char const* const szFilename, SAudioFileData& audioFileData) const
 {
 }

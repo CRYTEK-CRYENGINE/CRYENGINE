@@ -1,18 +1,19 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
-#include "AudioSystemImpl_sdlmixer.h"
-#include "AudioSystemImplCVars_sdlmixer.h"
+#include "AudioImpl.h"
+#include "AudioImplCVars.h"
 #include <CryAudio/IAudioSystem.h>
 #include <CryCore/Platform/platform_impl.inl>
 #include <CrySystem/IEngineModule.h>
 #include <CryExtension/ClassWeaver.h>
 
-using namespace CryAudio::Impl;
+using namespace CryAudio::Impl::SDL_mixer;
 
-CSoundAllocator g_audioImplMemoryPool_sdlmixer;
-CAudioLogger g_audioImplLogger_sdlmixer;
-CAudioSystemImplCVars CryAudio::Impl::g_audioImplCVars_sdlmixer;
+// Define global objects.
+CSoundAllocator g_audioImplMemoryPool;
+CAudioLogger g_audioImplLogger;
+CAudioImplCVars CryAudio::Impl::SDL_mixer::g_audioImplCVars;
 
 //////////////////////////////////////////////////////////////////////////
 class CEngineModule_CryAudioImplSDLMixer : public IEngineModule
@@ -21,37 +22,37 @@ class CEngineModule_CryAudioImplSDLMixer : public IEngineModule
 	CRYGENERATE_SINGLETONCLASS(CEngineModule_CryAudioImplSDLMixer, "CryAudioImplSDLMixer", 0x8030c0d1905b4031, 0xa3785a8b53125f3f)
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual const char* GetName() override { return "CryAudioImplSDLMixer"; }
-	virtual const char* GetCategory() override { return "CryAudio"; }
+	virtual char const* GetName()     { return "CryAudioImplSDLMixer"; }
+	virtual char const* GetCategory() { return "CryAudio"; }
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override
+	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams)
 	{
 		// Initialize memory pools.
 		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "SDL Mixer Audio Implementation Memory Pool Primary");
-		size_t const nPoolSize = g_audioImplCVars_sdlmixer.m_nPrimaryPoolSize << 10;
-		uint8* const pPoolMemory = new uint8[nPoolSize];
-		g_audioImplMemoryPool_sdlmixer.InitMem(nPoolSize, pPoolMemory, "SDL Mixer Implementation Audio Pool");
+		size_t const poolSize = g_audioImplCVars.m_primaryMemoryPoolSize << 10;
+		uint8* const pPoolMemory = new uint8[poolSize];
+		g_audioImplMemoryPool.InitMem(poolSize, pPoolMemory, "SDL Mixer Implementation Audio Pool");
 
-		POOL_NEW_CREATE(CAudioSystemImpl_sdlmixer, pImpl);
+		POOL_NEW_CREATE(CAudioImpl, pImpl);
 
 		if (pImpl != nullptr)
 		{
-			g_audioImplLogger_sdlmixer.Log(eAudioLogType_Always, "CryAudioImplSDLMixer loaded");
+			g_audioImplLogger.Log(eAudioLogType_Always, "CryAudioImplSDLMixer loaded");
 
-			SAudioRequest oAudioRequestData;
-			oAudioRequestData.flags = eAudioRequestFlags_PriorityHigh | eAudioRequestFlags_ExecuteBlocking;
+			SAudioRequest request;
+			request.flags = eAudioRequestFlags_PriorityHigh | eAudioRequestFlags_ExecuteBlocking;
 
-			SAudioManagerRequestData<eAudioManagerRequestType_SetAudioImpl> oAMData(pImpl);
-			oAudioRequestData.pData = &oAMData;
+			SAudioManagerRequestData<eAudioManagerRequestType_SetAudioImpl> requestData(pImpl);
+			request.pData = &requestData;
 
 			gEnv->pAudioSystem->AddRequestListener(&CEngineModule_CryAudioImplSDLMixer::OnAudioEvent, nullptr, eAudioRequestType_AudioManagerRequest, eAudioManagerRequestType_SetAudioImpl);
-			env.pAudioSystem->PushRequest(oAudioRequestData);
+			env.pAudioSystem->PushRequest(request);
 			gEnv->pAudioSystem->RemoveRequestListener(&CEngineModule_CryAudioImplSDLMixer::OnAudioEvent, nullptr);
 		}
 		else
 		{
-			g_audioImplLogger_sdlmixer.Log(eAudioLogType_Always, "CryAudioImplSDLMixer failed to load");
+			g_audioImplLogger.Log(eAudioLogType_Always, "CryAudioImplSDLMixer failed to load");
 		}
 
 		return m_bSuccess;
@@ -71,7 +72,7 @@ bool CEngineModule_CryAudioImplSDLMixer::m_bSuccess = false;
 
 CEngineModule_CryAudioImplSDLMixer::CEngineModule_CryAudioImplSDLMixer()
 {
-	g_audioImplCVars_sdlmixer.RegisterVariables();
+	g_audioImplCVars.RegisterVariables();
 }
 
 CEngineModule_CryAudioImplSDLMixer::~CEngineModule_CryAudioImplSDLMixer()

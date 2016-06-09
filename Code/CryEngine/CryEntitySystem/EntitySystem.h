@@ -42,7 +42,6 @@ class CPartitionGrid;
 class CProximityTriggerSystem;
 class CEntityLayer;
 class CEntityLoadManager;
-class CEntityPoolManager;
 struct SEntityLayerGarbage;
 class CGeomCacheAttachmentManager;
 class CCharacterBoneAttachmentManager;
@@ -248,11 +247,7 @@ public:
 	IAreaManager* GetAreaManager() const override { return (IAreaManager*)(m_pAreaManager); }
 
 	// Access to breakable manager.
-	virtual IBreakableManager* GetBreakableManager() const override { return m_pBreakableManager; };
-
-	// Access to entity pool manager.
-	virtual IEntityPoolManager*      GetIEntityPoolManager() const override    { return (IEntityPoolManager*)m_pEntityPoolManager; }
-	CEntityPoolManager*              GetEntityPoolManager() const              { return m_pEntityPoolManager; }
+	virtual IBreakableManager*       GetBreakableManager() const override      { return m_pBreakableManager; };
 
 	CEntityLoadManager*              GetEntityLoadManager() const              { return m_pEntityLoadManager; }
 
@@ -378,7 +373,6 @@ private: // -----------------------------------------------------------------
 	CAreaManager*          m_pAreaManager;
 
 	CEntityLoadManager*    m_pEntityLoadManager;
-	CEntityPoolManager*    m_pEntityPoolManager;
 
 	// There`s a map of entity id to event listeners for each event.
 	typedef std::multimap<EntityId, IEntityEventListener*> EventListenersMap;

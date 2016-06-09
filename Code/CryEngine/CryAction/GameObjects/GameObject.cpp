@@ -1614,7 +1614,7 @@ void CGameObject::EnableUpdateSlot(IGameObjectExtension* pExtension, int slot)
 	SExtension* pExt = GetExtensionInfo(pExtension);
 	if (pExt)
 	{
-		CRY_ASSERT_TRACE(255 != pExt->updateEnables[slot], ("Already got 255 reasons for slot %d of '%s' to be enabled", slot, GetEntity()->GetEntityTextDescription()));
+		CRY_ASSERT_TRACE(255 != pExt->updateEnables[slot], ("Already got 255 reasons for slot %d of '%s' to be enabled", slot, GetEntity()->GetEntityTextDescription().c_str()));
 		++pExt->updateEnables[slot];
 	}
 	EvaluateUpdateActivation();

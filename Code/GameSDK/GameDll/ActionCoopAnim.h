@@ -20,12 +20,11 @@ History:
 
 #include "ICryMannequin.h"
 #include "PlayerAnimation.h"
-#include <CryEntitySystem/IEntityPoolManager.h>
 
 class CPlayer;
 class CActor;
 
-class CActionCoopAnimation : public TPlayerAction, public IEntityPoolListener, public IEntityEventListener
+class CActionCoopAnimation : public TPlayerAction, public IEntityEventListener
 {
 public:
 
@@ -61,10 +60,6 @@ protected:
 	virtual void Install() override;
 	virtual void Enter() override;
 	virtual void Exit() override;
-
-	// IEntityPoolListener
-	virtual void OnEntityReturningToPool(EntityId entityId, IEntity *pEntity) override;
-	// ~IEntityPoolListener
 
 	// IEntityEventListener
 	virtual void OnEntityEvent( IEntity *pEntity,SEntityEvent &event ) override;

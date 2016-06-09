@@ -604,7 +604,7 @@ bool CScriptProxy::GotoState(const char* sStateName)
 	}
 	else
 	{
-		EntityWarning("GotoState called with unknown state %s, in entity %s", sStateName, m_pEntity->GetEntityTextDescription());
+		EntityWarning("GotoState called with unknown state %s, in entity %s", sStateName, m_pEntity->GetEntityTextDescription().c_str());
 		return false;
 	}
 	return true;

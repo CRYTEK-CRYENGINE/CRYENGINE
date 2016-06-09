@@ -7,6 +7,7 @@
 #include <CryCore/Platform/platform.h>
 #include <CryCore/StlUtils.h>
 #include <CryCore/Project/ProjectDefines.h>
+
 #include <SoundAllocator.h>
 
 #if !defined(_RELEASE)
@@ -17,10 +18,10 @@
 
 #include <AudioLogger.h>
 
-extern CSoundAllocator g_audioImplMemoryPool_sdlmixer;
-extern CAudioLogger g_audioImplLogger_sdlmixer;
+extern CSoundAllocator g_audioImplMemoryPool;
+extern CAudioLogger g_audioImplLogger;
 
-#define AUDIO_ALLOCATOR_MEMORY_POOL g_audioImplMemoryPool_sdlmixer
+#define AUDIO_ALLOCATOR_MEMORY_POOL g_audioImplMemoryPool
 #include <STLSoundAllocator.h>
 
 #if !defined(_RELEASE)

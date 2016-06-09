@@ -14,7 +14,6 @@
 
 #include "StdAfx.h"
 #include "Nodes/G2FlowBaseNode.h"
-#include <CryEntitySystem/IEntityPoolManager.h>
 
 class CFlowNode_CheckArea : public CFlowBaseNode<eNCT_Instanced>, public IEntityEventListener
 {
@@ -135,12 +134,6 @@ public:
 			if (pActInfo->pEntity)
 			{
 				newEntityId = pActInfo->pEntity->GetId();
-			}
-			else
-			{
-				const EntityId graphEntityId = pActInfo->pGraph->GetEntityId(pActInfo->myID);
-				if (gEnv->pEntitySystem->GetIEntityPoolManager()->IsEntityBookmarked(graphEntityId))
-					newEntityId = graphEntityId;
 			}
 
 			if (m_entityId && newEntityId)

@@ -32,10 +32,6 @@ CGameCache::CGameCache()
 //////////////////////////////////////////////////////////////////////////
 CGameCache::~CGameCache()
 {
-	IEntityPoolManager *pEntityPoolManager = gEnv->pEntitySystem->GetIEntityPoolManager();
-	assert(pEntityPoolManager);
-
-	pEntityPoolManager->RemoveListener(this);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -77,11 +73,6 @@ SmartScriptTable CGameCache::GetProperties(SmartScriptTable pEntityScript, Smart
 //////////////////////////////////////////////////////////////////////////
 void CGameCache::Init()
 {
-	IEntityPoolManager *pEntityPoolManager = gEnv->pEntitySystem->GetIEntityPoolManager();
-	assert(pEntityPoolManager);
-
-	pEntityPoolManager->AddListener(this, "GameCache", IEntityPoolListener::PoolBookmarkCreated);
-
 	IGameFramework *pGameFramework = g_pGame->GetIGameFramework();
 	assert(pGameFramework);
 
@@ -258,41 +249,6 @@ SLuaCache_ActorPropertiesPtr CGameCache::GetActorProperties(EntityId entityId) c
 	}
 
 	return pResult;
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CGameCache::OnPoolBookmarkCreated(EntityId entityId, const SEntitySpawnParams& params, XmlNodeRef entityNode)
-{
-	if (IsCacheEnabled())
-	{
-		IScriptTable *pScriptTable = params.pClass->GetScriptTable();
-		IScriptTable *pArchetypeProperties = params.pArchetype ? params.pArchetype->GetProperties() : NULL;
-
-		if (m_pActorSystem && m_pActorSystem->IsActorClass(params.pClass))
-		{
-			CacheActorClass(params.pClass, pScriptTable);
-
-			int modelVariation = 0;
-			if (entityNode)
-			{
-				XmlNodeRef propertiesInstance = entityNode->findChild("Properties2");
-				if (propertiesInstance)
-				{
-					propertiesInstance->getAttr("nVariation", modelVariation);
-				}
-			}
-
-			CacheActorInstance(entityId, pScriptTable, pArchetypeProperties, modelVariation);
-
-			stack_string modularBehaviorTreeName("");
-			GetInstancePropertyValue("esModularBehaviorTree", modularBehaviorTreeName, entityNode, pScriptTable, pArchetypeProperties);
-			if (!modularBehaviorTreeName.empty())
-			{
-				gEnv->pAISystem->GetIBehaviorTreeManager()->LoadFromDiskIntoCache(modularBehaviorTreeName.c_str());
-			}
-		}
-		// Other classes to follow...
-	}
 }
 
 void CGameCache::GetInstancePropertyValue(const char* szPropertyName, stack_string& propertyValue, const XmlNodeRef& entityNode, 

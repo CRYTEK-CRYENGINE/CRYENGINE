@@ -115,7 +115,7 @@ public:
 
 	bool             ShouldSerialize() const;
 	void             SetShouldSerialize(bool ser) { m_serialize = ser; }
-	bool             IsFromPool() const           { return m_createdFromPool; }
+
 	//Serialize/////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////////
 
@@ -284,10 +284,6 @@ private:
 	bool     m_isThreateningForHostileFactions;
 	bool     m_observable;
 
-	// pooled objects are removed by the CAIObjectManager. NB by the time Release() is called
-	// on this object, it will already have been removed from the manager's m_pooledObjects map,
-	// hence this is stored here.
-	bool                m_createdFromPool;
 	bool                m_serialize;
 
 	string              m_name;

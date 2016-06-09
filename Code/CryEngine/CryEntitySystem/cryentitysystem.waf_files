@@ -164,18 +164,6 @@
 			"PartitionGrid.h",
 			"ProximityTriggerSystem.h",
 			"RadixSort.h"
-		],
-		"Pool":
-		[
-			"EntityPool.cpp",
-			"EntityPoolDefinition.cpp",
-			"EntityPoolManager.cpp",
-			"EntityPoolSignature.cpp",
-			"EntityPool.h",
-			"EntityPoolCommon.h",
-			"EntityPoolDefinition.h",
-			"EntityPoolManager.h",
-			"EntityPoolSignature.h"
 		]
 	}
 }	

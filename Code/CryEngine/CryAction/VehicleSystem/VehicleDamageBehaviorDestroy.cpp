@@ -49,7 +49,7 @@ void CVehicleDamageBehaviorDestroy::SetDestroyed(bool isDestroyed, EntityId shoo
 	// destroy the vehicle
 	if (!destroyed && isDestroyed)
 	{
-		CryLog("%s being driven by %s has been destroyed!", m_pVehicle->GetEntity()->GetEntityTextDescription(), m_pVehicle->GetDriver() ? m_pVehicle->GetDriver()->GetEntity()->GetEntityTextDescription() : "nobody");
+		CryLog("%s being driven by %s has been destroyed!", m_pVehicle->GetEntity()->GetEntityTextDescription().c_str(), m_pVehicle->GetDriver() ? m_pVehicle->GetDriver()->GetEntity()->GetEntityTextDescription().c_str() : "nobody");
 		INDENT_LOG_DURING_SCOPE();
 
 		// call OnVehicleDestroyed function on lua side

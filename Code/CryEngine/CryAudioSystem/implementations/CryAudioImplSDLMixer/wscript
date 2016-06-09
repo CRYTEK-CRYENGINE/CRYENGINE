@@ -6,7 +6,7 @@ def build(bld):
 		target		= 'CryAudioImplSDLMixer',
 		vs_filter	= 'CryEngine/Audio/Implementations',
 
-		file_list   = 'audioimplsdlmixer.waf_files',
+		file_list   = 'cryaudioimpl.waf_files',
 		pch			= 'stdafx.cpp',
 
 		win_module_extensions = ['sdl2', 'sdl_mixer'],

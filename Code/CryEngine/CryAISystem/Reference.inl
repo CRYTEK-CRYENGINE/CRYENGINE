@@ -142,61 +142,13 @@ void CStrongRef<T >::Serialize(TSerialize ser, const char* sName)
 #if _DEBUG
 	if (ser.IsWriting() && this->m_nID != INVALID_AIOBJECTID)
 	{
-		if (CAIObject* pObject = GetAIObject())
-		{
-			// serializing a strong ref to a pooled object is a bug
-			assert(!pObject->IsFromPool());
-		}
-		else
+		if (!GetAIObject())
 		{
 			assert(false);
 			CryLogAlways("Saving an AI strong ref to an object that doesn't exist - code bug");
 		}
 	}
 #endif
-
-	// Need to take care serializing strong refs into / out of bookmarks. If the owning
-	//	object is destroyed (returned to the pool) then the ref will be released,
-	//	destroying the referenced object. Then when loading from the pool again
-	//	this code cannot recreate the object properly. In that case the reference shouldn't
-	//	be serialized as an ID, instead we actually serialize the entire object into the
-	//	bookmark as well.
-	if (gAIEnv.pAIObjectManager->IsSerializingBookmark())
-	{
-		ser.BeginGroup("SubAIObject");
-
-		T* pObject = GetAIObject();
-		SAIObjectCreationHelper objHeader(pObject);
-		objHeader.Serialize(ser);
-
-		if (ser.IsWriting() && this->IsSet())
-		{
-			// reserve the object ID. This means no other object will steal the ID later on
-			//	(which would cause problems if we tried to recreate this object again).
-			gAIEnv.pObjectContainer->ReserveID(objHeader.objectId);
-		}
-
-		if (ser.IsReading() && !pObject && objHeader.objectId != INVALID_AIOBJECTID)
-		{
-			pObject = objHeader.RecreateObject();
-
-			// reregister with the same ID as previously (will work even though the ID is reserved)
-			gAIEnv.pObjectContainer->RegisterObject(pObject, *this, objHeader.objectId);
-		}
-
-		if (pObject)
-		{
-			pObject->Serialize(ser);
-
-			// Tell the object manager not to serialize this
-			//	object as well.
-			pObject->SetShouldSerialize(false);
-		}
-
-		ser.EndGroup();
-
-		return;
-	}
 
 	// [AlexMcC|19.03.10] Make sure we release this object before overwriting it.
 	// Otherwise we'll leak any objects that were created as things were initialized

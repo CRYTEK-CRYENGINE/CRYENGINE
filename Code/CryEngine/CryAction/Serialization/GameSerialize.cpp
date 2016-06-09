@@ -21,7 +21,6 @@
 #include "MaterialEffects/MaterialEffects.h"
 #include "Network/GameContext.h"
 #include "Network/GameServerNub.h"
-#include <CryEntitySystem/IEntityPoolManager.h>
 
 #ifdef USE_COPYPROTECTION
 	#include "CopyProtection.h"
@@ -107,7 +106,7 @@ bool VerifyEntities(const TBasicEntityDatas& basicEntityData)
 		{
 			if (!pEntity->IsGarbage() && !(pEntity->GetFlags() & ENTITY_FLAG_UNREMOVABLE) && (0 != strcmp(it->className, pEntity->GetClass()->GetName())))
 			{
-				GameWarning("[LoadGame] Entity ID=%d '%s', class mismatch, should be '%s'", pEntity->GetId(), pEntity->GetEntityTextDescription(), it->className.c_str());
+				GameWarning("[LoadGame] Entity ID=%d '%s', class mismatch, should be '%s'", pEntity->GetId(), pEntity->GetEntityTextDescription().c_str(), it->className.c_str());
 				return false;
 			}
 		}
@@ -202,7 +201,7 @@ void CGameSerialize::OnSpawn(IEntity* pEntity, SEntitySpawnParams&)
 {
 	assert(pEntity);
 
-	if (!gEnv->bMultiplayer && !(pEntity->GetFlags() & ENTITY_FLAG_UNREMOVABLE) && !pEntity->IsFromPool())
+	if (!gEnv->bMultiplayer && !(pEntity->GetFlags() & ENTITY_FLAG_UNREMOVABLE))
 	{
 		bool bSerializeEntity = gEnv->pEntitySystem->ShouldSerializedEntity(pEntity);
 
@@ -521,7 +520,7 @@ void CGameSerialize::DeleteDynamicEntities(const TBasicEntityDatas& basicEntityD
 		if (nEntityFlags & ENTITY_FLAG_UNREMOVABLE)
 		{
 #ifdef EXCESSIVE_ENTITY_DEBUG
-			CryLogAlways(">Unremovable Entity ID=%d Name='%s'", pEntity->GetId(), pEntity->GetEntityTextDescription());
+			CryLogAlways(">Unremovable Entity ID=%d Name='%s'", pEntity->GetId(), pEntity->GetEntityTextDescription().c_str());
 #endif
 
 			tempSearchEntity.id = pEntity->GetId();
@@ -536,7 +535,7 @@ void CGameSerialize::DeleteDynamicEntities(const TBasicEntityDatas& basicEntityD
 		else
 		{
 #ifdef EXCESSIVE_ENTITY_DEBUG
-			CryLogAlways(">Removing Entity ID=%d Name='%s'", pEntity->GetId(), pEntity->GetEntityTextDescription());
+			CryLogAlways(">Removing Entity ID=%d Name='%s'", pEntity->GetId(), pEntity->GetEntityTextDescription().c_str());
 #endif
 
 			pEntity->ResetKeepAliveCounter();
@@ -564,7 +563,7 @@ void CGameSerialize::DumpEntities()
 		IEntity* pEntity = pIt->Next();
 		if (pEntity)
 		{
-			CryLogAlways("ID=%u Name='%s'", pEntity->GetId(), pEntity->GetEntityTextDescription());
+			CryLogAlways("ID=%u Name='%s'", pEntity->GetId(), pEntity->GetEntityTextDescription().c_str());
 		}
 		else
 		{
@@ -857,11 +856,11 @@ ELoadGameResult CGameSerialize::LoadGame(CCryAction* pCryAction, const char* met
 		{
 			IEntity* pNextEntity = pIt->Next();
 			uint32 flags = pNextEntity->GetFlags();
-			if (!pNextEntity->IsGarbage() && !pNextEntity->IsFromPool() && !(flags & ENTITY_FLAG_UNREMOVABLE && flags & ENTITY_FLAG_NO_SAVE))
+			if (!pNextEntity->IsGarbage() && !(flags & ENTITY_FLAG_UNREMOVABLE && flags & ENTITY_FLAG_NO_SAVE))
 			{
 				tempSearchEntity.id = pNextEntity->GetId();
 				if ((stl::binary_find(loadEnvironment.m_basicEntityData.begin(), loadEnvironment.m_basicEntityData.end(), tempSearchEntity) == loadEnvironment.m_basicEntityData.end()))
-					GameWarning("[LoadGame] Entities were spawned that are not in the save file! : %s with ID=%d", pNextEntity->GetEntityTextDescription(), pNextEntity->GetId());
+					GameWarning("[LoadGame] Entities were spawned that are not in the save file! : %s with ID=%d", pNextEntity->GetEntityTextDescription().c_str(), pNextEntity->GetId());
 			}
 		}
 	}
@@ -1073,12 +1072,6 @@ bool CGameSerialize::SaveEntities(SSaveEnvironment& savEnv)
 				continue;
 			}
 
-			if (pEntity->IsFromPool())
-			{
-				// GameWarning("Skipping Entity %d '%s' '%s' IsFromPool", pEntity->GetId(), pEntity->GetName(), pEntity->GetClass()->GetName());
-				continue;
-			}
-
 			{
 				MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Basic entity data serialization");
 
@@ -1160,18 +1153,6 @@ bool CGameSerialize::SaveEntities(SSaveEnvironment& savEnv)
 		gameState.EndGroup();
 
 		savEnv.m_checkpoint.Check("EntityPrep");
-	}
-
-	// Entity pools get serialized just before the normal entity data, so they can be re-created just before
-	//	the normal entities are re-created
-	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Entity pool serialization");
-
-		// Store entity ids sorted in a file.
-		IEntityPoolManager* pEntityPoolManager = gEnv->pEntitySystem->GetIEntityPoolManager();
-		assert(pEntityPoolManager);
-
-		pEntityPoolManager->Serialize(gameState);
 	}
 
 	{
@@ -1268,13 +1249,11 @@ bool CGameSerialize::SaveGameData(SSaveEnvironment& savEnv, TSerialize& gameStat
 				EntityId id = *iter;
 				IEntity* pEntity = gEnv->pEntitySystem->GetEntity(id);
 
-				// pooled AI appear in the save list because they are present in the editor. They are saved by the pool manager
-				//	so we can skip them here
-				if (pEntity && !pEntity->IsFromPool())
+				if (pEntity)
 				{
 					if ((pEntity->GetPhysics() && pEntity->GetPhysics()->GetType() == PE_ROPE) == !pass)
 						continue;
-					CRY_ASSERT_TRACE(!(pEntity->GetFlags() & ENTITY_FLAG_LOCAL_PLAYER), ("%s has ENTITY_FLAG_LOCAL_PLAYER - local player should not be in m_serializeEntities!", pEntity->GetEntityTextDescription()));
+					CRY_ASSERT_TRACE(!(pEntity->GetFlags() & ENTITY_FLAG_LOCAL_PLAYER), ("%s has ENTITY_FLAG_LOCAL_PLAYER - local player should not be in m_serializeEntities!", pEntity->GetEntityTextDescription().c_str()));
 
 					// c++ entity data
 					gameState.BeginGroup("Entity");
@@ -1632,11 +1611,6 @@ bool CGameSerialize::LoadEntities(SLoadEnvironment& loadEnv, std::unique_ptr<TSe
 	//fix breakables forced ids
 	pEntitySystem->SetNextSpawnId(0);
 
-	// Serialize entity pools (will recreate all entities that existed from the pool on save)
-	IEntityPoolManager* pEntityPoolManager = gEnv->pEntitySystem->GetIEntityPoolManager();
-	assert(pEntityPoolManager);
-	pEntityPoolManager->Serialize(*loadEnv.m_pSer);
-
 	// basic entity data
 	LoadBasicEntityData(loadEnv);
 
@@ -1794,7 +1768,7 @@ void CGameSerialize::LoadGameData(SLoadEnvironment& loadEnv)
 		// extra sanity check for matching class
 		if (!(pEntity->GetFlags() & ENTITY_FLAG_UNREMOVABLE) && iter->className != pEntity->GetClass()->GetName())
 		{
-			GameWarning("[LoadGame] Entity class mismatch ID=%d %s, should have class '%s'", pEntity->GetId(), pEntity->GetEntityTextDescription(), iter->className.c_str());
+			GameWarning("[LoadGame] Entity class mismatch ID=%d %s, should have class '%s'", pEntity->GetId(), pEntity->GetEntityTextDescription().c_str(), iter->className.c_str());
 			loadEnv.m_bLoadingErrors = true;
 			continue;
 		}

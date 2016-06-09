@@ -118,8 +118,6 @@ struct IBreakableManager;
 struct SComponentRegisteredEvents;
 class CEntity;
 
-struct IEntityPoolManager;
-
 //! SpecType for entity layers.
 //! Add new bits to update. Do not just rename, cause values are used for saving levels.
 enum ESpecType
@@ -578,9 +576,6 @@ struct IEntitySystem
 
 	//! \return The breakable manager interface.
 	virtual IBreakableManager* GetBreakableManager() const = 0;
-
-	//! \return The entity pool manager interface.
-	virtual IEntityPoolManager* GetIEntityPoolManager() const = 0;
 
 	//////////////////////////////////////////////////////////////////////////
 	//! Entity archetypes.

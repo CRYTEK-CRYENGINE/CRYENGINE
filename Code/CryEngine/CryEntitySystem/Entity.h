@@ -93,42 +93,42 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// IEntity interface implementation.
 	//////////////////////////////////////////////////////////////////////////
-	virtual EntityId   GetId() const   { return m_nID; }
-	virtual EntityGUID GetGuid() const { return m_guid; }
+	virtual EntityId   GetId() const override   { return m_nID; }
+	virtual EntityGUID GetGuid() const override { return m_guid; }
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual IEntityClass*     GetClass() const { return m_pClass; }
-	virtual IEntityArchetype* GetArchetype()   { return m_pArchetype; }
+	virtual IEntityClass*     GetClass() const override     { return m_pClass; }
+	virtual IEntityArchetype* GetArchetype() const override { return m_pArchetype; }
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual void   SetFlags(uint32 flags);
-	virtual uint32 GetFlags() const                                          { return m_flags; }
-	virtual void   AddFlags(uint32 flagsToAdd)                               { SetFlags(m_flags | flagsToAdd); }
-	virtual void   ClearFlags(uint32 flagsToClear)                           { SetFlags(m_flags & (~flagsToClear)); }
-	virtual bool   CheckFlags(uint32 flagsToCheck) const                     { return (m_flags & flagsToCheck) == flagsToCheck; }
+	virtual void   SetFlags(uint32 flags) override;
+	virtual uint32 GetFlags() const override                                 { return m_flags; }
+	virtual void   AddFlags(uint32 flagsToAdd) override                      { SetFlags(m_flags | flagsToAdd); }
+	virtual void   ClearFlags(uint32 flagsToClear) override                  { SetFlags(m_flags & (~flagsToClear)); }
+	virtual bool   CheckFlags(uint32 flagsToCheck) const override            { return (m_flags & flagsToCheck) == flagsToCheck; }
 
-	virtual void   SetFlagsExtended(uint32 flags)                            { m_flagsExtended = flags; }
-	virtual uint32 GetFlagsExtended() const                                  { return m_flagsExtended; }
+	virtual void   SetFlagsExtended(uint32 flags) override                   { m_flagsExtended = flags; }
+	virtual uint32 GetFlagsExtended() const override                         { return m_flagsExtended; }
 
-	virtual bool   IsGarbage() const                                         { return m_bGarbage; }
-	virtual bool   IsLoadedFromLevelFile() const                             { return m_bLoadedFromLevelFile; }
+	virtual bool   IsGarbage() const override                                { return m_bGarbage; }
+	virtual bool   IsLoadedFromLevelFile() const override                    { return m_bLoadedFromLevelFile; }
 	ILINE void     SetLoadedFromLevelFile(const bool bIsLoadedFromLevelFile) { m_bLoadedFromLevelFile = bIsLoadedFromLevelFile; }
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual void        SetName(const char* sName);
-	virtual const char* GetName() const { return m_szName.c_str(); }
-	virtual const char* GetEntityTextDescription() const;
+	virtual void        SetName(const char* sName) override;
+	virtual const char* GetName() const override { return m_szName.c_str(); }
+	virtual string GetEntityTextDescription() const override;
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual void     AttachChild(IEntity* pChildEntity, const SChildAttachParams& attachParams);
-	virtual void     DetachAll(int nDetachFlags = 0);
-	virtual void     DetachThis(int nDetachFlags = 0, int nWhyFlags = 0);
-	virtual int      GetChildCount() const;
-	virtual IEntity* GetChild(int nIndex) const;
+	virtual void     AttachChild(IEntity* pChildEntity, const SChildAttachParams& attachParams) override;
+	virtual void     DetachAll(int nDetachFlags = 0) override;
+	virtual void     DetachThis(int nDetachFlags = 0, int nWhyFlags = 0) override;
+	virtual int      GetChildCount() const override;
+	virtual IEntity* GetChild(int nIndex) const override;
 	virtual void     EnableInheritXForm(bool bEnable);
-	virtual IEntity* GetParent() const { return (m_pBinds) ? m_pBinds->pParent : NULL; }
-	virtual Matrix34 GetParentAttachPointWorldTM() const;
-	virtual bool     IsParentAttachmentValid() const;
+	virtual IEntity* GetParent() const override { return (m_pBinds) ? m_pBinds->pParent : NULL; }
+	virtual Matrix34 GetParentAttachPointWorldTM() const override;
+	virtual bool     IsParentAttachmentValid() const override;
 	virtual IEntity* GetAdam()
 	{
 		IEntity* pParent, * pAdam = this;
@@ -137,135 +137,133 @@ public:
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual void SetWorldTM(const Matrix34& tm, int nWhyFlags = 0);
-	virtual void SetLocalTM(const Matrix34& tm, int nWhyFlags = 0);
+	virtual void SetWorldTM(const Matrix34& tm, int nWhyFlags = 0) override;
+	virtual void SetLocalTM(const Matrix34& tm, int nWhyFlags = 0) override;
 
 	// Set position rotation and scale at once.
-	virtual void            SetPosRotScale(const Vec3& vPos, const Quat& qRotation, const Vec3& vScale, int nWhyFlags = 0);
+	virtual void            SetPosRotScale(const Vec3& vPos, const Quat& qRotation, const Vec3& vScale, int nWhyFlags = 0) override;
 
-	virtual Matrix34        GetLocalTM() const;
-	virtual const Matrix34& GetWorldTM() const { return m_worldTM; }
+	virtual Matrix34        GetLocalTM() const override;
+	virtual const Matrix34& GetWorldTM() const override { return m_worldTM; }
 
-	virtual void            GetWorldBounds(AABB& bbox) const;
-	virtual void            GetLocalBounds(AABB& bbox) const;
-
-	//////////////////////////////////////////////////////////////////////////
-	virtual void        SetPos(const Vec3& vPos, int nWhyFlags = 0, bool bRecalcPhyBounds = false, bool bForce = false);
-	virtual const Vec3& GetPos() const { return m_vPos; }
-
-	virtual void        SetRotation(const Quat& qRotation, int nWhyFlags = 0);
-	virtual const Quat& GetRotation() const { return m_qRotation; }
-
-	virtual void        SetScale(const Vec3& vScale, int nWhyFlags = 0);
-	virtual const Vec3& GetScale() const    { return m_vScale; }
-
-	virtual Vec3        GetWorldPos() const { return m_worldTM.GetTranslation(); }
-	virtual Ang3        GetWorldAngles() const;
-	virtual Quat        GetWorldRotation() const;
-	virtual const Vec3& GetForwardDir() const { ComputeForwardDir(); return m_vForwardDir; }
-	//////////////////////////////////////////////////////////////////////////
+	virtual void            GetWorldBounds(AABB& bbox) const override;
+	virtual void            GetLocalBounds(AABB& bbox) const override;
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual void Activate(bool bActive);
-	virtual bool IsActive() const   { return m_bActive; }
+	virtual void        SetPos(const Vec3& vPos, int nWhyFlags = 0, bool bRecalcPhyBounds = false, bool bForce = false) override;
+	virtual const Vec3& GetPos() const override { return m_vPos; }
 
-	virtual bool IsFromPool() const { return IsPoolControlled(); }
+	virtual void        SetRotation(const Quat& qRotation, int nWhyFlags = 0) override;
+	virtual const Quat& GetRotation() const override { return m_qRotation; }
 
-	virtual void PrePhysicsActivate(bool bActive);
-	virtual bool IsPrePhysicsActive();
+	virtual void        SetScale(const Vec3& vScale, int nWhyFlags = 0) override;
+	virtual const Vec3& GetScale() const override { return m_vScale; }
+
+	virtual Vec3        GetWorldPos() const override { return m_worldTM.GetTranslation(); }
+	virtual Ang3        GetWorldAngles() const override;
+	virtual Quat        GetWorldRotation() const override;
+	virtual const Vec3& GetForwardDir() const override { ComputeForwardDir(); return m_vForwardDir; }
+	//////////////////////////////////////////////////////////////////////////
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual void Serialize(TSerialize ser, int nFlags);
+	virtual void Activate(bool bActive) override;
+	virtual bool IsActive() const override { return m_bActive; }
 
-	virtual bool SendEvent(SEntityEvent& event);
-	//////////////////////////////////////////////////////////////////////////
-
-	virtual void SetTimer(int nTimerId, int nMilliSeconds);
-	virtual void KillTimer(int nTimerId);
-
-	virtual void Hide(bool bHide);
-	virtual bool IsHidden() const { return m_bHidden; }
-
-	virtual void Invisible(bool bInvisible);
-	virtual bool IsInvisible() const { return m_bInvisible; }
+	virtual void PrePhysicsActivate(bool bActive) override;
+	virtual bool IsPrePhysicsActive() override;
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual IAIObject*  GetAI()                       { return (m_aiObjectID ? GetAIObject() : NULL); }
-	virtual bool        HasAI() const                 { return m_aiObjectID != 0; }
-	virtual tAIObjectID GetAIObjectID() const         { return m_aiObjectID; }
-	virtual void        SetAIObjectID(tAIObjectID id) { m_aiObjectID = id; }
+	virtual void Serialize(TSerialize ser, int nFlags) override;
+
+	virtual bool SendEvent(SEntityEvent& event) override;
 	//////////////////////////////////////////////////////////////////////////
-	virtual bool        RegisterInAISystem(const AIObjectParams& params);
+
+	virtual void SetTimer(int nTimerId, int nMilliSeconds) override;
+	virtual void KillTimer(int nTimerId) override;
+
+	virtual void Hide(bool bHide) override;
+	virtual bool IsHidden() const override { return m_bHidden; }
+
+	virtual void Invisible(bool bInvisible) override;
+	virtual bool IsInvisible() const override { return m_bInvisible; }
+
+	//////////////////////////////////////////////////////////////////////////
+	virtual IAIObject*  GetAI() override                       { return (m_aiObjectID ? GetAIObject() : NULL); }
+	virtual bool        HasAI() const override                 { return m_aiObjectID != 0; }
+	virtual tAIObjectID GetAIObjectID() const override         { return m_aiObjectID; }
+	virtual void        SetAIObjectID(tAIObjectID id) override { m_aiObjectID = id; }
+	//////////////////////////////////////////////////////////////////////////
+	virtual bool        RegisterInAISystem(const AIObjectParams& params) override;
 	//////////////////////////////////////////////////////////////////////////
 	// reflect changes in position or orientation to the AI object
 	void UpdateAIObject();
 	//////////////////////////////////////////////////////////////////////////
 
-	virtual void                SetUpdatePolicy(EEntityUpdatePolicy eUpdatePolicy);
-	virtual EEntityUpdatePolicy GetUpdatePolicy() const { return (EEntityUpdatePolicy)m_eUpdatePolicy; }
+	virtual void                SetUpdatePolicy(EEntityUpdatePolicy eUpdatePolicy) override;
+	virtual EEntityUpdatePolicy GetUpdatePolicy() const override { return (EEntityUpdatePolicy)m_eUpdatePolicy; }
 
 	//////////////////////////////////////////////////////////////////////////
 	// Entity Proxies Interfaces access functions.
 	//////////////////////////////////////////////////////////////////////////
-	virtual IEntityProxy*   GetProxy(EEntityProxy proxy) const;
-	virtual void            SetProxy(EEntityProxy proxy, IEntityProxyPtr pProxy);
-	virtual IEntityProxyPtr CreateProxy(EEntityProxy proxy);
+	virtual IEntityProxy*   GetProxy(EEntityProxy proxy) const override;
+	virtual void            SetProxy(EEntityProxy proxy, IEntityProxyPtr pProxy) override;
+	virtual IEntityProxyPtr CreateProxy(EEntityProxy proxy) override;
 	//////////////////////////////////////////////////////////////////////////
-	virtual void            RegisterComponent(IComponentPtr pComponentPtr, const int flags);
+	virtual void            RegisterComponent(IComponentPtr pComponentPtr, const int flags) override;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Physics.
 	//////////////////////////////////////////////////////////////////////////
-	virtual void             Physicalize(SEntityPhysicalizeParams& params);
-	virtual void             EnablePhysics(bool enable);
-	virtual IPhysicalEntity* GetPhysics() const;
+	virtual void             Physicalize(SEntityPhysicalizeParams& params) override;
+	virtual void             EnablePhysics(bool enable) override;
+	virtual IPhysicalEntity* GetPhysics() const override;
 
-	virtual int              PhysicalizeSlot(int slot, SEntityPhysicalizeParams& params);
-	virtual void             UnphysicalizeSlot(int slot);
-	virtual void             UpdateSlotPhysics(int slot);
+	virtual int              PhysicalizeSlot(int slot, SEntityPhysicalizeParams& params) override;
+	virtual void             UnphysicalizeSlot(int slot) override;
+	virtual void             UpdateSlotPhysics(int slot) override;
 
-	virtual void             SetPhysicsState(XmlNodeRef& physicsState);
+	virtual void             SetPhysicsState(XmlNodeRef& physicsState) override;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Custom entity material.
 	//////////////////////////////////////////////////////////////////////////
-	virtual void       SetMaterial(IMaterial* pMaterial);
-	virtual IMaterial* GetMaterial();
+	virtual void       SetMaterial(IMaterial* pMaterial) override;
+	virtual IMaterial* GetMaterial() override;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Entity Slots interface.
 	//////////////////////////////////////////////////////////////////////////
-	virtual bool                  IsSlotValid(int nSlot) const;
-	virtual void                  FreeSlot(int nSlot);
-	virtual int                   GetSlotCount() const;
-	virtual bool                  GetSlotInfo(int nSlot, SEntitySlotInfo& slotInfo) const;
-	virtual const Matrix34&       GetSlotWorldTM(int nIndex) const;
-	virtual const Matrix34&       GetSlotLocalTM(int nIndex, bool bRelativeToParent) const;
-	virtual void                  SetSlotLocalTM(int nIndex, const Matrix34& localTM, int nWhyFlags = 0);
-	virtual void                  SetSlotCameraSpacePos(int nIndex, const Vec3& cameraSpacePos);
-	virtual void                  GetSlotCameraSpacePos(int nSlot, Vec3& cameraSpacePos) const;
-	virtual bool                  SetParentSlot(int nParentSlot, int nChildSlot);
-	virtual void                  SetSlotMaterial(int nSlot, IMaterial* pMaterial);
-	virtual void                  SetSlotFlags(int nSlot, uint32 nFlags);
-	virtual uint32                GetSlotFlags(int nSlot) const;
-	virtual bool                  ShouldUpdateCharacter(int nSlot) const;
-	virtual ICharacterInstance*   GetCharacter(int nSlot);
-	virtual int                   SetCharacter(ICharacterInstance* pCharacter, int nSlot);
-	virtual IStatObj*             GetStatObj(int nSlot);
-	virtual int                   SetStatObj(IStatObj* pStatObj, int nSlot, bool bUpdatePhysics, float mass = -1.0f);
-	virtual IParticleEmitter*     GetParticleEmitter(int nSlot);
-	virtual IGeomCacheRenderNode* GetGeomCacheRenderNode(int nSlot);
+	virtual bool                  IsSlotValid(int nSlot) const override;
+	virtual void                  FreeSlot(int nSlot) override;
+	virtual int                   GetSlotCount() const override;
+	virtual bool                  GetSlotInfo(int nSlot, SEntitySlotInfo& slotInfo) const override;
+	virtual const Matrix34&       GetSlotWorldTM(int nIndex) const override;
+	virtual const Matrix34&       GetSlotLocalTM(int nIndex, bool bRelativeToParent) const override;
+	virtual void                  SetSlotLocalTM(int nIndex, const Matrix34& localTM, int nWhyFlags = 0) override;
+	virtual void                  SetSlotCameraSpacePos(int nIndex, const Vec3& cameraSpacePos) override;
+	virtual void                  GetSlotCameraSpacePos(int nSlot, Vec3& cameraSpacePos) const override;
+	virtual bool                  SetParentSlot(int nParentSlot, int nChildSlot) override;
+	virtual void                  SetSlotMaterial(int nSlot, IMaterial* pMaterial) override;
+	virtual void                  SetSlotFlags(int nSlot, uint32 nFlags) override;
+	virtual uint32                GetSlotFlags(int nSlot) const override;
+	virtual bool                  ShouldUpdateCharacter(int nSlot) const override;
+	virtual ICharacterInstance*   GetCharacter(int nSlot) override;
+	virtual int                   SetCharacter(ICharacterInstance* pCharacter, int nSlot) override;
+	virtual IStatObj*             GetStatObj(int nSlot) override;
+	virtual int                   SetStatObj(IStatObj* pStatObj, int nSlot, bool bUpdatePhysics, float mass = -1.0f) override;
+	virtual IParticleEmitter*     GetParticleEmitter(int nSlot) override;
+	virtual IGeomCacheRenderNode* GetGeomCacheRenderNode(int nSlot) override;
 
-	virtual void                  MoveSlot(IEntity* targetIEnt, int nSlot);
+	virtual void                  MoveSlot(IEntity* targetIEnt, int nSlot) override;
 
-	virtual int                   LoadGeometry(int nSlot, const char* sFilename, const char* sGeomName = NULL, int nLoadFlags = 0);
-	virtual int                   LoadCharacter(int nSlot, const char* sFilename, int nLoadFlags = 0);
+	virtual int                   LoadGeometry(int nSlot, const char* sFilename, const char* sGeomName = NULL, int nLoadFlags = 0) override;
+	virtual int                   LoadCharacter(int nSlot, const char* sFilename, int nLoadFlags = 0) override;
 	#if defined(USE_GEOM_CACHES)
-	virtual int                   LoadGeomCache(int nSlot, const char* sFilename);
+	virtual int                   LoadGeomCache(int nSlot, const char* sFilename) override;
 	#endif
-	virtual int                   SetParticleEmitter(int nSlot, IParticleEmitter* pEmitter, bool bSerialize = false);
-	virtual int                   LoadParticleEmitter(int nSlot, IParticleEffect* pEffect, SpawnParams const* params = NULL, bool bPrime = false, bool bSerialize = false);
-	virtual int                   LoadLight(int nSlot, CDLight* pLight);
+	virtual int                   SetParticleEmitter(int nSlot, IParticleEmitter* pEmitter, bool bSerialize = false) override;
+	virtual int                   LoadParticleEmitter(int nSlot, IParticleEffect* pEffect, SpawnParams const* params = NULL, bool bPrime = false, bool bSerialize = false) override;
+	virtual int                   LoadLight(int nSlot, CDLight* pLight) override;
 	int                           LoadLightImpl(int nSlot, CDLight* pLight);
 
 	virtual bool                  UpdateLightClipBounds(CDLight& light);
@@ -281,30 +279,30 @@ public:
 	virtual int LoadPrismObject(int nSlot);
 	#endif // EXCLUDE_DOCUMENTATION_PURPOSE
 
-	virtual void InvalidateTM(int nWhyFlags = 0, bool bRecalcPhyBounds = false);
+	virtual void InvalidateTM(int nWhyFlags = 0, bool bRecalcPhyBounds = false) override;
 
 	// Load/Save entity parameters in XML node.
-	virtual void         SerializeXML(XmlNodeRef& node, bool bLoading);
+	virtual void         SerializeXML(XmlNodeRef& node, bool bLoading) override;
 
-	virtual IEntityLink* GetEntityLinks();
-	virtual IEntityLink* AddEntityLink(const char* sLinkName, EntityId entityId, EntityGUID entityGuid = 0);
-	virtual void         RemoveEntityLink(IEntityLink* pLink);
-	virtual void         RemoveAllEntityLinks();
+	virtual IEntityLink* GetEntityLinks() override;
+	virtual IEntityLink* AddEntityLink(const char* sLinkName, EntityId entityId, EntityGUID entityGuid = 0) override;
+	virtual void         RemoveEntityLink(IEntityLink* pLink) override;
+	virtual void         RemoveAllEntityLinks() override;
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 
-	virtual IEntity* UnmapAttachedChild(int& partId);
+	virtual IEntity* UnmapAttachedChild(int& partId) override;
 
-	virtual void     GetMemoryUsage(ICrySizer* pSizer) const;
+	virtual void     GetMemoryUsage(ICrySizer* pSizer) const override;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Local methods.
 	//////////////////////////////////////////////////////////////////////////
 
 	// Returns true if entity was already fully initialized by this point.
-	virtual bool IsInitialized() const { return m_bInitialized; }
+	virtual bool IsInitialized() const override { return m_bInitialized; }
 
-	virtual void DebugDraw(const SGeometryDebugDrawInfo& info);
+	virtual void DebugDraw(const SGeometryDebugDrawInfo& info) override;
 	//////////////////////////////////////////////////////////////////////////
 
 	// Get fast access to the slot, only used internally by entity components.
@@ -327,9 +325,6 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	bool ReloadEntity(SEntityLoadParams& loadParams);
 
-	void SetPoolControl(bool bSet);
-	bool IsPoolControlled() const { return m_bIsFromPool; }
-
 	//////////////////////////////////////////////////////////////////////////
 	// Activates entity only for specified number of frames.
 	// numUpdates must be a small number from 0-15.
@@ -348,13 +343,13 @@ public:
 	// for ProximityTriggerSystem
 	SProximityElement* GetProximityElement()   { return m_pProximityEntity; }
 
-	virtual void       IncKeepAliveCounter()   { m_nKeepAliveCounter++; }
-	virtual void       DecKeepAliveCounter()   { assert(m_nKeepAliveCounter > 0); m_nKeepAliveCounter--; }
-	virtual void       ResetKeepAliveCounter() { m_nKeepAliveCounter = 0; }
-	virtual bool       IsKeptAlive() const     { return m_nKeepAliveCounter > 0; }
+	virtual void       IncKeepAliveCounter() override   { m_nKeepAliveCounter++; }
+	virtual void       DecKeepAliveCounter() override   { assert(m_nKeepAliveCounter > 0); m_nKeepAliveCounter--; }
+	virtual void       ResetKeepAliveCounter() override { m_nKeepAliveCounter = 0; }
+	virtual bool       IsKeptAlive() const override     { return m_nKeepAliveCounter > 0; }
 
 	// LiveCreate entity interface
-	virtual bool HandleVariableChange(const char* szVarName, const void* pVarData);
+	virtual bool HandleVariableChange(const char* szVarName, const void* pVarData) override;
 
 	#ifdef SEG_WORLD
 	virtual unsigned int GetSwObjDebugFlag() const             { return m_eSwObjDebugFlag; };
@@ -363,8 +358,6 @@ public:
 	virtual void         SetLocalSeg(bool bLocalSeg)           { m_bLocalSeg = bLocalSeg; }
 	virtual bool         IsLocalSeg() const                    { return m_bLocalSeg; }
 	#endif //SEG_WORLD
-
-	static void ClearStaticData() { stl::free_container(m_szDescription); }
 
 	void        CheckMaterialFlags();
 
@@ -443,7 +436,6 @@ private:
 	unsigned int m_bNotInheritXform     : 1;        // Inherit or not transformation from parent.
 	unsigned int m_bInShutDown          : 1;        // Entity is being shut down.
 
-	unsigned int m_bIsFromPool          : 1;    // Set if entity was created through the pool system
 	mutable bool m_bDirtyForwardDir     : 1;    // Cached world transformed forward vector
 	unsigned int m_bLoadedFromLevelFile : 1;    // Entity was loaded from level file
 	#ifdef SEG_WORLD
@@ -462,9 +454,6 @@ private:
 
 	// Entity extended flags. any combination of EEntityFlagsExtended values.
 	uint32 m_flagsExtended;
-
-	// Description of the entity, generated on the fly.
-	static string m_szDescription;
 
 	// Pointer to the class that describe this entity.
 	IEntityClass* m_pClass;
