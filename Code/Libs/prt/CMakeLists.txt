@@ -37,7 +37,6 @@ set (SourceGroup_PRT
 	../../Tools/SphericalHarmonics/PRT/BaseTextureMaterial.cpp
 	../../Tools/SphericalHarmonics/PRT/BaseTextureMaterial.h
 	../../Tools/SphericalHarmonics/PRT/BasicUtils.h
-	../../Tools/SphericalHarmonics/PRT/CoefficientStream.cpp
 	../../Tools/SphericalHarmonics/PRT/CommonImageReader.cpp
 	../../Tools/SphericalHarmonics/PRT/CommonImageReader.h
 	../../Tools/SphericalHarmonics/PRT/DefaultAlphaMaterial.cpp

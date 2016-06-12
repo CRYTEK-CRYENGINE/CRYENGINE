@@ -8,6 +8,7 @@
 #include <SharedAudioData.h>
 
 #include <AK/SoundEngine/Common/AkSoundEngine.h>     // Sound engine
+#include <AK/MotionEngine/Common/AkMotionEngine.h>   // Motion Engine
 #include <AK/MusicEngine/Common/AkMusicEngine.h>     // Music Engine
 #include <AK/SoundEngine/Common/AkMemoryMgr.h>       // Memory Manager
 #include <AK/SoundEngine/Common/AkModule.h>          // Default memory and stream managers
@@ -18,7 +19,7 @@
 #include <AK/Plugin/AllPluginsRegistrationHelpers.h>
 
 #if defined(WWISE_USE_OCULUS)
-	#include <AK/Plugin/OculusSpatializer.h>
+	#include <OculusSpatializer.h>
 	#include <CryCore/Platform/CryLibrary.h>
 #endif // WWISE_USE_OCULUS
 
@@ -216,21 +217,21 @@ void CAudioImpl::Update(float const deltaTime)
 	{
 #if defined(INCLUDE_WWISE_IMPL_PRODUCTION_CODE)
 		AKRESULT wwiseResult = AK_Fail;
-		static int nEnableOutputCapture = 0;
+		static int enableOutputCapture = 0;
 
-		if (g_audioImplCVars.m_enableOutputCapture == 1 && nEnableOutputCapture == 0)
+		if (g_audioImplCVars.m_enableOutputCapture == 1 && enableOutputCapture == 0)
 		{
 			AkOSChar const* pOutputCaptureFileName = nullptr;
 			CONVERT_CHAR_TO_OSCHAR("../wwise_audio_capture.wav", pOutputCaptureFileName);
 			wwiseResult = AK::SoundEngine::StartOutputCapture(pOutputCaptureFileName);
 			AKASSERT((wwiseResult == AK_Success) || !"StartOutputCapture failed!");
-			nEnableOutputCapture = g_audioImplCVars.m_enableOutputCapture;
+			enableOutputCapture = g_audioImplCVars.m_enableOutputCapture;
 		}
-		else if (g_audioImplCVars.m_enableOutputCapture == 0 && nEnableOutputCapture == 1)
+		else if (g_audioImplCVars.m_enableOutputCapture == 0 && enableOutputCapture == 1)
 		{
 			wwiseResult = AK::SoundEngine::StopOutputCapture();
 			AKASSERT((wwiseResult == AK_Success) || !"StopOutputCapture failed!");
-			nEnableOutputCapture = g_audioImplCVars.m_enableOutputCapture;
+			enableOutputCapture = g_audioImplCVars.m_enableOutputCapture;
 		}
 #endif // INCLUDE_WWISE_IMPL_PRODUCTION_CODE
 
@@ -437,16 +438,6 @@ EAudioRequestStatus CAudioImpl::Init()
 		}
 	}
 #endif // !WWISE_FOR_RELEASE
-
-	// Register plugins
-	/// Note: This a convenience method for rapid prototyping.
-	/// To reduce executable code size register/link only the plug-ins required by your game
-	wwiseResult = AK::SoundEngine::RegisterAllPlugins();
-
-	if (wwiseResult != AK_Success)
-	{
-		g_audioImplLogger.Log(eAudioLogType_Warning, "AK::SoundEngine::RegisterAllPlugins() returned AKRESULT %d", wwiseResult);
-	}
 
 #if defined(WWISE_USE_OCULUS)
 	m_pOculusSpatializerLibrary = CryLoadLibrary("OculusSpatializer.dll");
@@ -919,7 +910,7 @@ EAudioRequestStatus CAudioImpl::StopAllEvents(IAudioObject* const _pAudioObject)
 ///////////////////////////////////////////////////////////////////////////
 EAudioRequestStatus CAudioImpl::Set3DAttributes(
   IAudioObject* const pAudioObject,
-  SAudioObject3DAttributes const& attributes)
+	CryAudio::Impl::SAudioObject3DAttributes const& attributes)
 {
 	EAudioRequestStatus result = eAudioRequestStatus_Failure;
 
@@ -1208,7 +1199,7 @@ EAudioRequestStatus CAudioImpl::SetObstructionOcclusion(
 ///////////////////////////////////////////////////////////////////////////
 EAudioRequestStatus CAudioImpl::SetListener3DAttributes(
   IAudioListener* const pAudioListener,
-  SAudioObject3DAttributes const& attributes)
+	CryAudio::Impl::SAudioObject3DAttributes const& attributes)
 {
 	EAudioRequestStatus result = eAudioRequestStatus_Failure;
 

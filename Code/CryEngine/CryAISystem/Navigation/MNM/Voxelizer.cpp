@@ -14,6 +14,9 @@ Voxelizer::Voxelizer()
 	, m_voxelConv(ZERO)
 	, m_voxelSize(ZERO)
 	, m_voxelSpaceSize(ZERO)
+#if DEBUG_MNM_ENABLED
+	, m_pDebugRawGeometry(nullptr)
+#endif // DEBUG_MNM_ENABLED
 {
 }
 
@@ -40,13 +43,42 @@ Vec3i GetVec3iFromVec3(const Vec3& vector)
 	return Vec3i((int)vector.x, (int)vector.y, (int)vector.z);
 }
 
-void Voxelizer::RasterizeTriangle(const Vec3 v0, const Vec3 v1, const Vec3 v2)
+void Voxelizer::RasterizeTriangle(const Vec3 v0World, const Vec3 v1World, const Vec3 v2World)
 {
-	const Vec3 minTriangleBoundingBox(Minimize(v0, v1, v2));
-	const Vec3 maxTriangleBoundingBox(Maximize(v0, v1, v2));
+	const Vec3 minTriangleBoundingBoxWorld(Minimize(v0World, v1World, v2World));
+	const Vec3 maxTriangleBoundingBoxWorld(Maximize(v0World, v1World, v2World));
 
-	if (!Overlap::AABB_AABB(AABB(minTriangleBoundingBox, maxTriangleBoundingBox), m_volumeAABB))
+	if (!Overlap::AABB_AABB(AABB(minTriangleBoundingBoxWorld, maxTriangleBoundingBoxWorld), m_volumeAABB))
 		return;
+
+#if DEBUG_MNM_ENABLED
+	if (m_pDebugRawGeometry)
+	{
+		m_pDebugRawGeometry->emplace_back(v0World, v1World, v2World);
+	}
+#endif // DEBUG_MNM_ENABLED
+
+#if 0 // see notes below, why it's disabled
+	// NOTE pavloi 2016.03.16: shift volume and triangle into Vec3(ZERO) to avoid
+	// issues, that happen, when same geometry results in different voxelization
+	// in overlapping parts of neighbor tiles.
+
+	// NOTE pavloi 2016.06.09: I hoped, that the math will behave more stable this way.
+	// But it didn't really solved the issue - some test cases were fixed, but then some other broke.
+
+	const Vec3 spaceMinWorld = m_volumeAABB.min;
+	const Vec3 spaceMin(ZERO);
+#else
+	const Vec3 spaceMinWorld(ZERO);
+	const Vec3 spaceMin = m_volumeAABB.min;
+#endif
+
+	const Vec3 v0 = v0World - spaceMinWorld;
+	const Vec3 v1 = v1World - spaceMinWorld;
+	const Vec3 v2 = v2World - spaceMinWorld;
+
+	const Vec3 minTriangleBoundingBox = minTriangleBoundingBoxWorld - spaceMinWorld;
+	const Vec3 maxTriangleBoundingBox = maxTriangleBoundingBoxWorld - spaceMinWorld;
 
 	const Vec3 e0(v1 - v0);
 	const Vec3 e1(v2 - v1);
@@ -56,7 +88,6 @@ void Voxelizer::RasterizeTriangle(const Vec3 v0, const Vec3 v1, const Vec3 v2)
 
 	const bool backface = n.z < 0.0f;
 
-	const Vec3 spaceMin = m_volumeAABB.min;
 	const Vec3 voxelSize = m_voxelSize;
 	const Vec3 voxelConv = m_voxelConv;
 	const Vec3i voxelSpaceSize = m_voxelSpaceSize;

@@ -217,17 +217,23 @@ struct INavigationSystem
 	virtual bool                SaveToFile(const char* fileName) const = 0;
 #endif
 
-	virtual void                             RegisterListener(INavigationSystemListener* pListener, const char* name = NULL) = 0;
-	virtual void                             UnRegisterListener(INavigationSystemListener* pListener) = 0;
+	virtual void RegisterListener(INavigationSystemListener* pListener, const char* name = NULL) = 0;
+	virtual void UnRegisterListener(INavigationSystemListener* pListener) = 0;
 
-	virtual void                             RegisterUser(INavigationSystemUser* pExtension, const char* name = NULL) = 0;
-	virtual void                             UnRegisterUser(INavigationSystemUser* pExtension) = 0;
+	virtual void RegisterUser(INavigationSystemUser* pExtension, const char* name = NULL) = 0;
+	virtual void UnRegisterUser(INavigationSystemUser* pExtension) = 0;
 
-	virtual void                             RegisterArea(const char* shapeName) = 0;
+	//! Register editor Navigation Area shape.
+	//! \param shapeName Name of the Navigation Area shape.
+	//! \param outVolumeId Returns NavigationVolumeID, if there is a volume already loaded from exported data with the same shapeName.
+	//! \return true if the area name is successfully registered.
+	virtual bool                             RegisterArea(const char* shapeName, NavigationVolumeID& outVolumeId) = 0;
 	virtual void                             UnRegisterArea(const char* shapeName) = 0;
 	virtual NavigationVolumeID               GetAreaId(const char* shapeName) const = 0;
 	virtual void                             SetAreaId(const char* shapeName, NavigationVolumeID id) = 0;
 	virtual void                             UpdateAreaNameForId(const NavigationVolumeID id, const char* newShapeName) = 0;
+	//! Remove navigation meshes and volumes which don't have corresponding registered Navigation Areas. This may happen in editor, when the exported level data is older that the saved level.
+	virtual void                             RemoveLoadedMeshesWithoutRegisteredAreas() = 0;
 
 	virtual void                             StartWorldMonitoring() = 0;
 	virtual void                             StopWorldMonitoring() = 0;

@@ -31,16 +31,16 @@ def build(bld):
 		lib					=	[ 'SDL2', 'c', 'log', 'm', 'android', 'gcc', 'EGL', 'GLESv1_CM', 'OpenSLES' ],
 		
 		debug_libpath					=	common_libpaths + [ Path('Code/SDKs/Scaleform/Lib/android-armeabi-v7a/Debug'),						
-													                      Path('Code/SDKs/Audio/AK/lib/android/armeabi/debug/')	],		
+													                      Path('Code/SDKs/Audio/wwise/SDK/android-9_armeabi-v7a/Debug/lib')	],		
 
 		profile_libpath				=	common_libpaths + [ Path('Code/SDKs/Scaleform/Lib/android-armeabi-v7a/Release'),
-																						    Path('Code/SDKs/Audio/AK/lib/android/armeabi/profile/')	],
+																						    Path('Code/SDKs/Audio/wwise/SDK/android-9_armeabi-v7a/Profile/lib')	],
 
 		performance_libpath		=	common_libpaths + [ Path('Code/SDKs/Scaleform/Lib/android-armeabi-v7a/Release'),
-																								Path('Code/SDKs/Audio/AK/lib/android/armeabi/release/')	],
+																								Path('Code/SDKs/Audio/wwise/SDK/android-9_armeabi-v7a/Release/lib')	],
 
 		release_libpath				=	common_libpaths + [ Path('Code/SDKs/Scaleform/Lib/android-armeabi-v7a/Release'),
-																								Path('Code/SDKs/Audio/AK/lib/android/armeabi/release/') ],
+																								Path('Code/SDKs/Audio/wwise/SDK/android-9_armeabi-v7a/Release/lib') ],
 
 		debug_linkflags        = common_linkerflags_shared_libs + common_linkerflags,
 		profile_linkflags      = common_linkerflags_shared_libs + common_linkerflags,

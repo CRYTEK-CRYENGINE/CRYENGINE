@@ -27,7 +27,7 @@ public:
 	void                      SetSwitch(CAudioSwitchState const* const pSwitch);
 	void                      RemoveEnvironment(CAudioEnvironment const* const pEnvironment);
 	void                      SetEnvironment(CAudioEnvironment const* const pEnvironment, float const value);
-	void                      Set3DAttributes(SAudioObject3DAttributes const& attributes);
+	void                      Set3DAttributes(CryAudio::Impl::SAudioObject3DAttributes const& attributes);
 	void                      StopAllEvents();
 	void                      StopEvent(uint32 const eventPathId);
 	void                      SetObstructionOcclusion(float const obstruction, float const occlusion);

@@ -37,7 +37,7 @@ def build(bld):
 		durango_lib          = [ 'Ws2_32', 'uuid' ],
 		durango_meta_includes = [ 
 			bld.path.make_node("DurangoLive/DurangoChat/Microsoft.Xbox.GameChat").abspath(),
-			Path('Code/SDKs/Microsoft SDKs/Durango.160300/v8.0/ExtensionSDKs/xbox services api/8.0/references/commonconfiguration/neutral')
+			Path('Code/SDKs/Microsoft SDKs/Durango.160303/v8.0/ExtensionSDKs/xbox services api/8.0/references/commonconfiguration/neutral')
 		],
 		durango_cxxflags     = [ '/ZW', '/wd4530' ],
 	)

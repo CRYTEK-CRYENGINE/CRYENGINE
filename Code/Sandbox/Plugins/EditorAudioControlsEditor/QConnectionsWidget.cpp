@@ -25,6 +25,7 @@
 #include <CrySerialization/STL.h>
 #include <QPropertyTree/QPropertyTree.h>
 #include <QAdvancedTreeView.h>
+#include <QMessageBox>
 
 namespace ACE
 {

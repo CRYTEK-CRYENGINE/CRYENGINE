@@ -2043,10 +2043,13 @@ gpu_pfx2::IManager* CD3D9Renderer::GetGpuParticleManager()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CD3D9Renderer::ClearPerFrameData()
+void CD3D9Renderer::ClearPerFrameData(const SRenderingPassInfo& passInfo)
 {
-	CRenderer::ClearPerFrameData();
-	GetVolumetricFog().Clear();
+	CRenderer::ClearPerFrameData(passInfo);
+	if (passInfo.IsGeneralPass())
+	{
+		GetVolumetricFog().Clear();
+	}
 }
 
 static float LogMap(const float fA)

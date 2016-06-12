@@ -356,12 +356,16 @@ bool LoadSampleImpl(const SampleId id, const string& samplePath)
 	return bSuccess;
 }
 
-const SampleId SoundEngine::LoadSample(const string& sampleFilePath)
+const SampleId SoundEngine::LoadSample(const string& sampleFilePath, bool bOnlyMetadata)
 {
 	const SampleId id = GetIDFromFilePath(sampleFilePath);
 	if (stl::find_in_map(g_sampleData, id, nullptr) == nullptr)
 	{
-		if (!LoadSampleImpl(id, sampleFilePath))
+		if (bOnlyMetadata)
+		{
+			g_samplePaths[id] = g_sampleDataRootDir + sampleFilePath;
+		}
+		else if (!LoadSampleImpl(id, sampleFilePath))
 		{
 			return SDL_MIXER_INVALID_SAMPLE_ID;
 		}

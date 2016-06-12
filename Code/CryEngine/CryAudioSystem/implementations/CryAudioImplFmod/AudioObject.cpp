@@ -302,7 +302,7 @@ void CAudioObject::SetEnvironment(CAudioEnvironment const* const pEnvironment, f
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioObject::Set3DAttributes(SAudioObject3DAttributes const& attributes)
+void CAudioObject::Set3DAttributes(CryAudio::Impl::SAudioObject3DAttributes const& attributes)
 {
 	FMOD_RESULT fmodResult = FMOD_ERR_UNINITIALIZED;
 	FillFmodObjectPosition(attributes, m_attributes);

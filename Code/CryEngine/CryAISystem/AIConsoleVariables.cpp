@@ -966,6 +966,10 @@ void AIConsoleVars::Init()
 	REGISTER_COMMAND("ai_MNMComputeConnectedIslands", MNMComputeConnectedIslands, VF_DEV_ONLY,
 	                 "Computes connected islands on the mnm mesh.\n");
 
+	REGISTER_COMMAND("ai_NavigationReloadConfig", NavigationReloadConfig, VF_DEV_ONLY,
+	                 "Usage: ai_NavigationReloadConfig\n"
+	                 "Reloads navigation config file. May lead to broken subsystems and weird bugs. For DEBUG purposes ONLY!\n");
+
 	REGISTER_COMMAND("ai_DebugAgent", DebugAgent, VF_NULL,
 	                 "Start debugging an agent more in-depth. Pick by name, closest or in center of view.\n"
 	                 "Example: ai_DebugAgent closest\n"
@@ -1139,6 +1143,24 @@ void GatherPotentialDebugAgents(PotentialDebugAgents& agents)
 void AIConsoleVars::MNMComputeConnectedIslands(IConsoleCmdArgs* args)
 {
 	gAIEnv.pNavigationSystem->ComputeIslands();
+}
+
+void AIConsoleVars::NavigationReloadConfig(IConsoleCmdArgs* args)
+{
+	if (INavigationSystem* pNavigationSystem = gAIEnv.pNavigationSystem)
+	{
+		// TODO pavloi 2016.03.09: hack implementation. See comments in ReloadConfig.
+		if (pNavigationSystem->ReloadConfig())
+		{
+			pNavigationSystem->ClearAndNotify();
+		}
+		else
+		{
+			AIWarning("Errors during config reloading");
+		}
+		return;
+	}
+	AIWarning("Unable to obtain navigation system to reload config.");
 }
 
 void AIConsoleVars::DebugAgent(IConsoleCmdArgs* args)

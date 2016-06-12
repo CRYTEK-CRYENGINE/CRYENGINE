@@ -315,7 +315,9 @@ EAudioRequestStatus CAudioImpl::StopAllEvents(IAudioObject* const pAudioObject)
 	return eAudioRequestStatus_Success;
 }
 
-EAudioRequestStatus CAudioImpl::Set3DAttributes(IAudioObject* const pAudioObject, SAudioObject3DAttributes const& attributes)
+EAudioRequestStatus CAudioImpl::Set3DAttributes(
+	IAudioObject* const pAudioObject,
+	CryAudio::Impl::SAudioObject3DAttributes const& attributes)
 {
 	SAudioObject* const pSdlMixerObject = static_cast<SAudioObject* const>(pAudioObject);
 	if (pSdlMixerObject)
@@ -346,7 +348,9 @@ EAudioRequestStatus CAudioImpl::SetEnvironment(IAudioObject* const pAudioObject,
 	return eAudioRequestStatus_Success;
 }
 
-EAudioRequestStatus CAudioImpl::SetListener3DAttributes(IAudioListener* const pAudioListener, SAudioObject3DAttributes const& attributes)
+EAudioRequestStatus CAudioImpl::SetListener3DAttributes(
+	IAudioListener* const pAudioListener,
+	CryAudio::Impl::SAudioObject3DAttributes const& attributes)
 {
 	SAudioListener* const pListener = static_cast<SAudioListener* const>(pAudioListener);
 	if (pListener)
@@ -452,6 +456,8 @@ IAudioTrigger const* CAudioImpl::NewAudioTrigger(XmlNodeRef const pAudioTriggerN
 			char const* const szFileName = pAudioTriggerNode->getAttr(s_szSDLCommonAttribute);
 			pNewTriggerImpl->sampleId = GetIDFromString(szFileName);
 
+			SoundEngine::LoadSample(szFileName, true);
+
 			pNewTriggerImpl->bStartEvent = (_stricmp(pAudioTriggerNode->getAttr(s_szSDLEventTypeTag), "stop") != 0);
 			if (pNewTriggerImpl->bStartEvent)
 			{
@@ -546,19 +552,19 @@ void CAudioImpl::DeleteAudioObject(IAudioObject const* const pOldObjectData)
 	POOL_FREE_CONST(pOldObjectData);
 }
 
-IAudioListener* CAudioImpl::NewDefaultAudioListener(AudioObjectId const audioObjectId)
+CryAudio::Impl::IAudioListener* CAudioImpl::NewDefaultAudioListener(AudioObjectId const audioObjectId)
 {
 	POOL_NEW_CREATE(SAudioListener, pNewObject)(0);
 	return pNewObject;
 }
 
-IAudioListener* CAudioImpl::NewAudioListener(AudioObjectId const audioObjectId)
+CryAudio::Impl::IAudioListener* CAudioImpl::NewAudioListener(AudioObjectId const audioObjectId)
 {
 	POOL_NEW_CREATE(SAudioListener, pNewObject)(audioObjectId);
 	return pNewObject;
 }
 
-void CAudioImpl::DeleteAudioListener(IAudioListener* const pOldAudioListener)
+void CAudioImpl::DeleteAudioListener(CryAudio::Impl::IAudioListener* const pOldAudioListener)
 {
 	POOL_FREE(pOldAudioListener);
 }

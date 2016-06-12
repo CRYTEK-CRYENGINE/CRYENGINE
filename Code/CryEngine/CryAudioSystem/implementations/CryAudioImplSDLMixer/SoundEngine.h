@@ -29,7 +29,7 @@ void UnMute();
 void Stop();
 
 // Load / Unload samples
-const SampleId LoadSample(const string& sampleFilePath);
+const SampleId LoadSample(const string& sampleFilePath, bool bOnlyMetadata);
 const SampleId LoadSampleFromMemory(void* pMemory, const size_t size, const string& samplePath, const SampleId id = 0);
 void           UnloadSample(const SampleId id);
 

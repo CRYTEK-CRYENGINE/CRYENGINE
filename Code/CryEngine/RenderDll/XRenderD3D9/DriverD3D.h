@@ -1299,7 +1299,7 @@ private:
 	virtual void                             EnablePipelineProfiler(bool bEnable) override;
 
 	// Called before starting drawing new frame
-	virtual void ClearPerFrameData() override;
+	virtual void ClearPerFrameData(const SRenderingPassInfo& passInfo) override;
 #if CRY_PLATFORM_WINDOWS
 public:
 	// Called to inspect window messages sent to this renderer's windows

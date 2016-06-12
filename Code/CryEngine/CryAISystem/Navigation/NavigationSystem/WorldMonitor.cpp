@@ -22,6 +22,8 @@ WorldMonitor::WorldMonitor(const Callback& callback)
 
 void WorldMonitor::Start()
 {
+	AILogComment("Navigation System WorldMonitor::Start");
+
 	if (IsEnabled())
 	{
 		if (m_callback)
@@ -35,6 +37,8 @@ void WorldMonitor::Start()
 
 void WorldMonitor::Stop()
 {
+	AILogComment("Navigation System WorldMonitor::Stop");
+
 	if (IsEnabled())
 	{
 		if (m_callback)

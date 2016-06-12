@@ -24,14 +24,21 @@ inline void FillAKVector(Vec3 const& vCryVector, AkVector& vAKVector)
 ///////////////////////////////////////////////////////////////////////////
 inline void FillAKObjectPosition(CAudioObjectTransformation const& transformation, AkSoundPosition& outTransformation)
 {
-	FillAKVector(transformation.GetPosition(), outTransformation.Position);
-	FillAKVector(transformation.GetForward(), outTransformation.Orientation);
+	AkVector vec1, vec2;
+	FillAKVector(transformation.GetPosition(), vec1);
+	outTransformation.SetPosition(vec1);
+	FillAKVector(transformation.GetForward(), vec1);
+	FillAKVector(transformation.GetUp(), vec2);
+	outTransformation.SetOrientation(vec1, vec2);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 inline void FillAKListenerPosition(CAudioObjectTransformation const& transformation, AkListenerPosition& outTransformation)
 {
-	FillAKVector(transformation.GetPosition(), outTransformation.Position);
-	FillAKVector(transformation.GetForward(), outTransformation.OrientationFront);
-	FillAKVector(transformation.GetUp(), outTransformation.OrientationTop);
+	AkVector vec1, vec2;
+	FillAKVector(transformation.GetPosition(), vec1);
+	outTransformation.SetPosition(vec1);
+	FillAKVector(transformation.GetForward(), vec1);
+	FillAKVector(transformation.GetUp(), vec2);
+	outTransformation.SetOrientation(vec1, vec2);
 }

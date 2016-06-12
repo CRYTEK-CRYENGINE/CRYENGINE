@@ -13,8 +13,38 @@
 
 #include <CryMath/SimpleHashLookUp.h>
 
+#if DEBUG_MNM_ENABLED
+	#define DEBUG_MNM_GATHER_NONWALKABLE_REASONS       (1)
+	#define DEBUG_MNM_GATHER_EXTRA_CONTOUR_VERTEX_INFO (1)
+#endif // DEBUG_MNM_ENABLED
+
 namespace MNM
 {
+struct SSpanCoord
+{
+	struct Hash
+	{
+		size_t operator()(const SSpanCoord& coord) const { return std::hash<size_t>()(coord.spanAbsIdx); }
+	};
+
+	SSpanCoord(size_t x, size_t y, size_t s, size_t spanAbsIdx_)
+		: cellX(x)
+		, cellY(y)
+		, spanIdx(s)
+		, spanAbsIdx(spanAbsIdx_)
+	{}
+
+	bool operator==(const SSpanCoord& other) const
+	{
+		return (spanAbsIdx == other.spanAbsIdx) && (cellX == other.cellX) && (cellY == other.cellY) && (spanIdx == other.spanIdx);
+	}
+
+	size_t cellX;
+	size_t cellY;
+	size_t spanIdx;
+	size_t spanAbsIdx;
+};
+
 class TileGenerator
 {
 public:
@@ -42,8 +72,7 @@ public:
 			, exclusions(0)
 			, exclusionCount(0)
 			, hashValue(0)
-		{
-		}
+		{}
 
 		enum Flags
 		{
@@ -76,8 +105,7 @@ public:
 				, climbableHeight(4)
 				, maxWaterDepth(8)
 				, callback()
-			{
-			}
+			{}
 
 			uint32                       radius          : 8;
 			uint32                       height          : 8;
@@ -128,16 +156,19 @@ public:
 		BVTreeNodeCount,
 	};
 
-	enum DrawMode
+	enum class EDrawMode
 	{
 		DrawNone = 0,
+		DrawRawInputGeometry,
 		DrawRawVoxels,
 		DrawFlaggedVoxels,
+		DrawFilteredVoxels,
 		DrawDistanceTransform,
+		DrawPainting,
 		DrawSegmentation,
+		DrawTracers,
 		DrawContourVertices,
 		DrawNumberedContourVertices,
-		DrawTracers,
 		DrawSimplifiedContours,
 		DrawTriangulation,
 		DrawBVTree,
@@ -145,7 +176,7 @@ public:
 	};
 
 	bool Generate(const Params& params, Tile& tile, uint32* hashValue);
-	void Draw(DrawMode mode) const;
+	void Draw(const EDrawMode mode, const bool bDrawAdditionalInfo) const;
 
 	typedef MNMProfiler<ProfilerMemoryUsers, ProfilerTimers, ProfilerStats> ProfilerType;
 	const ProfilerType& GetProfiler() const;
@@ -180,21 +211,20 @@ protected:
 	struct ContourVertex
 	{
 		ContourVertex()
-		{
-		}
+#if DEBUG_MNM_GATHER_EXTRA_CONTOUR_VERTEX_INFO
+			: debugInfoIndex(~0)
+#endif
+		{}
 
 		ContourVertex(uint16 _x, uint16 _y, uint16 _z)
 			: x(_x)
 			, y(_y)
 			, z(_z)
 			, flags(0)
-		{
-		}
-
-		uint16 x;
-		uint16 y;
-		uint16 z;
-		uint16 flags;
+#if DEBUG_MNM_GATHER_EXTRA_CONTOUR_VERTEX_INFO
+			, debugInfoIndex(~0)
+#endif
+		{}
 
 		enum Flags
 		{
@@ -220,6 +250,14 @@ protected:
 		{
 			return (x == other.x) && (y == other.y) && (z == other.z);
 		}
+
+		uint16 x;
+		uint16 y;
+		uint16 z;
+		uint16 flags;
+#if DEBUG_MNM_GATHER_EXTRA_CONTOUR_VERTEX_INFO
+		size_t debugInfoIndex;
+#endif
 	};
 
 	typedef std::vector<ContourVertex> Contour;
@@ -238,8 +276,7 @@ protected:
 			, y(_y)
 			, z(_z)
 			, flags(0)
-		{
-		}
+		{}
 
 		uint16 x;
 		uint16 y;
@@ -283,8 +320,7 @@ protected:
 		Region()
 			: spanCount(0)
 			, flags(0)
-		{
-		}
+		{}
 
 		enum Flags
 		{
@@ -309,21 +345,20 @@ protected:
 
 	// Call this when reusing an existing TileGenerator for a second job.
 	// Clears all the data but leaves the allocated memory.
-	void          Clear();
+	void                 Clear();
 
-	inline size_t BorderSizeH() const
-	{
-		return (m_params.flags & Params::NoBorder) ? 0 : ((m_params.agent.radius & ~1) + 2);
-	}
+	static size_t        BorderSizeH(const Params& params);
+	static size_t        BorderSizeV(const Params& params);
 
-	inline size_t BorderSizeV() const
+	inline static size_t Top(const Params& params)
 	{
-		return (m_params.flags & Params::NoBorder) ? 0 : ((m_params.agent.radius & ~1) + 2);
+		// TODO pavloi 2016.03.10: is 0.1f added to deal with some numerical issues?
+		return (size_t)(params.sizeZ / params.voxelSize.z + 0.10f);
 	}
 
 	inline bool IsBorderCell(size_t x, size_t y) const
 	{
-		const size_t border = BorderSizeH();
+		const size_t border = BorderSizeH(m_params);
 		const size_t width = m_spanGrid.GetWidth();
 		const size_t height = m_spanGrid.GetHeight();
 
@@ -338,7 +373,7 @@ protected:
 
 	inline bool IsBoundaryCell(size_t x, size_t y) const
 	{
-		const size_t border = BorderSizeH();
+		const size_t border = BorderSizeH(m_params);
 		const size_t width = m_spanGrid.GetWidth();
 		const size_t height = m_spanGrid.GetHeight();
 
@@ -348,7 +383,7 @@ protected:
 
 	inline bool IsBoundaryVertex(size_t x, size_t y) const
 	{
-		const size_t border = BorderSizeH();
+		const size_t border = BorderSizeH(m_params);
 		const size_t width = m_spanGrid.GetWidth();
 		const size_t height = m_spanGrid.GetHeight();
 
@@ -358,7 +393,7 @@ protected:
 
 	inline bool IsCornerVertex(size_t x, size_t y) const
 	{
-		const size_t border = BorderSizeH();
+		const size_t border = BorderSizeH(m_params);
 		const size_t width = m_spanGrid.GetWidth();
 		const size_t height = m_spanGrid.GetHeight();
 
@@ -367,17 +402,28 @@ protected:
 
 	inline bool IsBoundaryVertexV(size_t z) const
 	{
-		const size_t borderV = BorderSizeV();
+		const size_t borderV = BorderSizeV(m_params);
 
-		return (z == borderV) || (z == m_top + borderV);
+		return (z == borderV) || (z == Top(m_params) + borderV);
 	}
 
 	size_t VoxelizeVolume(const AABB& volume, uint32 hashValueSeed = 0, uint32* hashValue = 0);
-	void   FilterWalkable(const AABB& aabb, bool fullyContained = true);
-	void   ComputeDistanceTransform();
-	void   BlurDistanceTransform();
 
-	void   PaintBorder(uint16* data, size_t borderH, size_t borderV);
+	// Filter walkable and helpers
+	struct SFilterWalkableParams;
+	struct SSpanClearance;
+	struct SNonWalkableNeighbourReason;
+
+	void        FilterWalkable(const AABB& aabb, bool fullyContained = true);
+	static bool FilterWalkable_CheckSpanBackface(const CompactSpanGrid::Span& span);
+	static bool FilterWalkable_CheckSpanWaterDepth(const CompactSpanGrid::Span& span, const Params& params);
+	static bool FilterWalkable_CheckNeighbours(const SSpanCoord& spanCoord, const SSpanClearance& spanClearance, const SFilterWalkableParams& filterParams, SNonWalkableNeighbourReason* pOutReason);
+	void        FilterWalkable_CheckBoundaries(const AABB& aabb, const size_t gridWidth, const size_t gridHeight);
+
+	void        ComputeDistanceTransform();
+	void        BlurDistanceTransform();
+
+	void        PaintBorder(uint16* data, size_t borderH, size_t borderV);
 
 	struct NeighbourInfoRequirements
 	{
@@ -483,9 +529,10 @@ protected:
 #ifndef _RELEASE
 		if (m_params.flags & Params::DebugInfo)
 		{
+			// TODO pavloi 2016.03.15: m_tracerPaths is not accounted in memory profiler
 			m_tracerPaths.push_back(path);
 		}
-#endif //_RELEASE
+#endif      //_RELEASE
 	}
 
 	struct SurroundingSpanInfo
@@ -494,8 +541,7 @@ protected:
 			: flags(_flags)
 			, label(_label)
 			, index(_index)
-		{
-		}
+		{}
 		size_t flags;
 		size_t index;
 		uint16 label;
@@ -507,6 +553,8 @@ protected:
 		NB = 1,   // walkable, not border
 		WB = 2,   // walkable, border
 	};
+
+	struct SContourVertexDebugInfo;
 
 	inline NeighbourClassification ClassifyNeighbour(const SurroundingSpanInfo& neighbour,
 	                                                 size_t erosion, size_t borderFlag) const
@@ -520,7 +568,7 @@ protected:
 	                           const uint16 climbableVoxelCount, size_t& height, SurroundingSpanInfo& left, SurroundingSpanInfo& front,
 	                           SurroundingSpanInfo& frontLeft) const;
 	void        DetermineContourVertex(const Vec2i& vertex, const Vec2i& direction, uint16 top,
-	                                   uint16 climbableVoxelCount, ContourVertex& contourVertex) const;
+	                                   uint16 climbableVoxelCount, ContourVertex& contourVertex, SContourVertexDebugInfo* pDebugInfo) const;
 	inline bool ContourVertexRemovable(const ContourVertex& contourVertex) const
 	{
 		return ((contourVertex.flags & ContourVertex::TileBoundary) == 0)
@@ -531,9 +579,13 @@ protected:
 
 	size_t InsertUniqueVertex(VertexIndexLookUp& lookUp, size_t x, size_t y, size_t z);
 
+	void   DrawNavTriangulation() const;
+	void   DrawTracers(const Vec3& origin) const;
+	void   DrawSimplifiedContours(const Vec3& origin) const;
+	void   DrawSegmentation(const Vec3& origin, const bool bDrawAdditionalInfo) const;
+
 	Params       m_params;
 	ProfilerType m_profiler;
-	size_t       m_top;
 
 	typedef std::vector<Tile::Triangle> Triangles;
 	Triangles m_triangles;
@@ -559,7 +611,109 @@ protected:
 	typedef std::vector<TracerPath> TracerPaths;
 	TracerPaths     m_tracerPaths;
 
+	CompactSpanGrid m_spanGridRaw;
 	CompactSpanGrid m_spanGridFlagged;
+
+#if DEBUG_MNM_ENABLED
+	std::vector<Triangle> m_debugRawGeometry;
+	AABB                  m_debugVoxelizedVolume;
+#endif // DEBUG_MNM_ENABLED
+
+#if DEBUG_MNM_GATHER_NONWALKABLE_REASONS
+
+	struct SNonWalkableNeighbourReason
+	{
+		SNonWalkableNeighbourReason()
+			: szReason(nullptr)
+		{}
+
+		const char* szReason;
+	};
+
+	struct SNonWalkableReason
+	{
+		SNonWalkableReason(const char* szReason_ = nullptr)
+			: szReason(szReason_)
+			, bIsNeighbourReason(false)
+			, neighbourReason()
+		{}
+
+		SNonWalkableReason(const char* szReason_, const SNonWalkableNeighbourReason& neighbourReason_)
+			: szReason(szReason_)
+			, bIsNeighbourReason(true)
+			, neighbourReason(neighbourReason_)
+		{}
+
+		const char*                 szReason;
+		bool                        bIsNeighbourReason;
+		SNonWalkableNeighbourReason neighbourReason;
+	};
+
+	typedef std::unordered_map<SSpanCoord, SNonWalkableReason, SSpanCoord::Hash> NonWalkableSpanReasonMap;
+
+	friend class CNonWalkableInfoPrinter;
+
+	NonWalkableSpanReasonMap m_debugNonWalkableReasonMap;
+
+#endif // DEBUG_MNM_GATHER_NONWALKABLE_REASONS
+
+	inline void DebugAddNonWalkableReason(const SSpanCoord& spanCoord, const char* szReason)
+	{
+#if DEBUG_MNM_GATHER_NONWALKABLE_REASONS
+		IF_UNLIKELY (m_params.flags & Params::DebugInfo)
+		{
+			m_debugNonWalkableReasonMap[spanCoord] = SNonWalkableReason(szReason);
+		}
+#endif // DEBUG_MNM_GATHER_NONWALKABLE_REASONS
+	}
+
+	friend class CContourRenderer;
+#if DEBUG_MNM_GATHER_EXTRA_CONTOUR_VERTEX_INFO
+	struct SContourVertexDebugInfo
+	{
+		SContourVertexDebugInfo()
+			: unremovableReason()
+			, tracer()
+			, tracerIndex(-1)
+			, lclass(UW)
+			, flclass(UW)
+			, fclass(UW)
+			, walkableBit(0)
+			, borderBitH(0)
+			, borderBitV(0)
+			, internalBorderV(false)
+		{}
+
+		CryFixedStringT<64>     unremovableReason;
+		Tracer                  tracer;
+		int                     tracerIndex;
+		NeighbourClassification lclass;
+		NeighbourClassification flclass;
+		NeighbourClassification fclass;
+		uint8                   walkableBit;
+		uint8                   borderBitH;
+		uint8                   borderBitV;
+		bool                    internalBorderV;
+	};
+
+	typedef std::vector<SContourVertexDebugInfo> ContourVertexDebugInfos;
+	ContourVertexDebugInfos m_debugContourVertexDebugInfos;
+	mutable Contour         m_debugDiscardedVertices;
+#endif // DEBUG_MNM_GATHER_EXTRA_CONTOUR_VERTEX_INFO
+
+	void DebugAddContourVertexUnremovableReason(SContourVertexDebugInfo* pDebugInfo, const char* szUnremovableReason) const
+	{
+#if DEBUG_MNM_GATHER_EXTRA_CONTOUR_VERTEX_INFO
+		IF_UNLIKELY (pDebugInfo)
+		{
+			if (!pDebugInfo->unremovableReason.empty())
+			{
+				pDebugInfo->unremovableReason += '\n';
+			}
+			pDebugInfo->unremovableReason += szUnremovableReason;
+		}
+#endif
+	}
 };
 }
 

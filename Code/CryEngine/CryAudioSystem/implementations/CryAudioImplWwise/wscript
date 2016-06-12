@@ -9,8 +9,8 @@ def build(bld):
 	configuration = bld.env['CONFIGURATION']
 
 	if platform and not platform == 'project_generator' and not bld.cmd == 'generate_uber_files' and 'CryAudioImplWwise' in bld.spec_modules(spec, platform, configuration):
-		if not os.path.isdir('Code/SDKs/Audio/AK'):
-			Logs.error('[ERROR] Attempting to build CryAudioImplWwise, but could not find the Wwise SDK at Code/SDKs/Audio/AK, skipping.')
+		if not os.path.isdir('Code/SDKs/Audio/wwise/SDK'):
+			Logs.error('[ERROR] Attempting to build CryAudioImplWwise, but could not find the Wwise SDK at Code/SDKs/Audio/wwise/SDK, skipping.')
 			return
 
 	wwise_core_libs             = [ 'AkMemoryMgr', 'AkMusicEngine', 'AkSoundEngine', 'AkStreamMgr' ]
@@ -30,6 +30,7 @@ def build(bld):
 		'AkParametricEQFX',
 		'AkPeakLimiterFX',
 		'AkPitchShifterFX',
+		'AkRecorderFX',
 		'AkRoomVerbFX',
 		'AkSilenceSource',
 		'AkSineSource',
@@ -66,7 +67,7 @@ def build(bld):
 	common_wwise_libs           = wwise_core_libs + wwise_plugins_libs
 
 	win_libs                    = [ 'Ole32', 'dxguid', 'ws2_32', 'Dsound', 'XINPUT9_1_0', 'Msacm32' ]
-	win_wwise_libs              = wwise_extra_plugins_libs + [ 'AkMP3Source', 'AuroHeadphoneFX', 'AuroPannerMixer' ]
+	win_wwise_libs              = wwise_extra_plugins_libs + [ 'AuroHeadphoneFX', 'AuroPannerMixer' ]
 	win_release_libs            = common_wwise_libs + win_wwise_libs + win_libs
 	win_non_release_libs        = comm_central_libs + win_release_libs + [ 'SFlib' ]
 	
@@ -111,7 +112,11 @@ def build(bld):
 		file_list   = 'cryaudioimpl.waf_files',
 		pch         = 'stdafx.cpp',
 
-		includes = [ '../../Common', bld.CreateRootRelativePath('Code/SDKs/Audio') ],
+		includes = [
+		'../../Common',
+		bld.CreateRootRelativePath('Code/SDKs/Audio/oculus/wwise/Include'),
+		bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/include')
+		],
 
 		debug_defines        = 'WWISE_FOR_DEBUG',
 		profile_defines      = 'WWISE_FOR_PROFILE',
@@ -122,59 +127,59 @@ def build(bld):
 		win_profile_lib                 = win_non_release_libs,
 		win_performance_lib             = win_release_libs,
 		win_release_lib                 = win_release_libs,
-		win_x86_debug_libpath           = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/win32/debug/' + wwise_lib_subfolder),
-		win_x86_profile_libpath         = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/win32/profile/' + wwise_lib_subfolder),
-		win_x86_performance_libpath     = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/win32/release/' + wwise_lib_subfolder),
-		win_x86_release_libpath         = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/win32/release/' + wwise_lib_subfolder),
-		win_x64_debug_libpath           = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/x64/debug/' + wwise_lib_subfolder),
-		win_x64_profile_libpath         = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/x64/profile/' + wwise_lib_subfolder),
-		win_x64_performance_libpath     = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/x64/release/' + wwise_lib_subfolder),
-		win_x64_release_libpath         = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/x64/release/' + wwise_lib_subfolder),
+		win_x86_debug_libpath           = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/Win32_' + wwise_lib_subfolder + '/Debug/lib'),
+		win_x86_profile_libpath         = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/Win32_' + wwise_lib_subfolder + '/Profile/lib'),
+		win_x86_performance_libpath     = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/Win32_' + wwise_lib_subfolder + '/Release/lib'),
+		win_x86_release_libpath         = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/Win32_' + wwise_lib_subfolder + '/Release/lib'),
+		win_x64_debug_libpath           = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/x64_' + wwise_lib_subfolder + '/Debug/lib'),
+		win_x64_profile_libpath         = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/x64_' + wwise_lib_subfolder + '/Profile/lib'),
+		win_x64_performance_libpath     = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/x64_' + wwise_lib_subfolder + '/Release/lib'),
+		win_x64_release_libpath         = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/x64_' + wwise_lib_subfolder + '/Release/lib'),
 
 		durango_debug_lib               = durango_non_release_libs,
 		durango_profile_lib             = durango_non_release_libs,
 		durango_performance_lib         = durango_release_libs,
 		durango_release_lib             = durango_release_libs,
-		durango_debug_libpath           = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/xboxone/debug/' + wwise_lib_subfolder),
-		durango_profile_libpath         = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/xboxone/profile/' + wwise_lib_subfolder),
-		durango_performance_libpath     = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/xboxone/release/' + wwise_lib_subfolder),
-		durango_release_libpath         = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/xboxone/release/' + wwise_lib_subfolder),
+		durango_debug_libpath           = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/XboxOne_' + wwise_lib_subfolder + '/Debug/lib'),
+		durango_profile_libpath         = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/XboxOne_' + wwise_lib_subfolder + '/Profile/lib'),
+		durango_performance_libpath     = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/XboxOne_' + wwise_lib_subfolder + '/Release/lib'),
+		durango_release_libpath         = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/XboxOne_' + wwise_lib_subfolder + '/Release/lib'),
 
 		orbis_debug_lib                 = orbis_non_release_libs,
 		orbis_profile_lib               = orbis_non_release_libs,
 		orbis_performance_lib           = orbis_release_libs,
 		orbis_release_lib               = orbis_release_libs,
-		orbis_debug_libpath             = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/ps4/debug'),
-		orbis_profile_libpath           = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/ps4/profile'),
-		orbis_performance_libpath       = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/ps4/release'),
-		orbis_release_libpath           = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/ps4/release'),
+		orbis_debug_libpath             = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/PS4/Debug/lib'),
+		orbis_profile_libpath           = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/PS4/Profile/lib'),
+		orbis_performance_libpath       = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/PS4/Release/lib'),
+		orbis_release_libpath           = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/PS4/Release/lib'),
 
 		linux_debug_lib                 = linux_non_release_libs,
 		linux_profile_lib               = linux_non_release_libs,
 		linux_performance_lib           = linux_release_libs,
 		linux_release_lib               = linux_release_libs,
 		linux_x64_libpath               = bld.CreateRootRelativePath('Code/SDKs/SDL2/lib/linux/'),
-		linux_x64_debug_libpath         = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/linux/x64/debug'),
-		linux_x64_profile_libpath       = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/linux/x64/profile'),
-		linux_x64_release_libpath       = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/linux/x64/release'),
-		linux_x64_performance_libpath   = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/linux/x64/release'),
+		linux_x64_debug_libpath         = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/Linux_x64/Debug/lib'),
+		linux_x64_profile_libpath       = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/Linux_x64/Profile/lib'),
+		linux_x64_release_libpath       = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/Linux_x64/Release/lib'),
+		linux_x64_performance_libpath   = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/Linux_x64/Release/lib'),
 
 		darwin_debug_lib                = darwin_non_release_libs,
 		darwin_profile_lib              = darwin_non_release_libs,
 		darwin_performance_lib          = darwin_release_libs,
 		darwin_release_lib              = darwin_release_libs,
 		darwin_framework                = [ 'CoreAudio', 'AudioUnit', 'AudioToolbox' ],
-		darwin_x64_debug_libpath        = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/mac/x64/debug'),
-		darwin_x64_profile_libpath      = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/mac/x64/profile'),
-		darwin_x64_release_libpath      = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/mac/x64/release'),
-		darwin_x64_performance_libpath  = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/mac/x64/release'),
+		darwin_x64_debug_libpath        = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/Mac/Debug/lib'),
+		darwin_x64_profile_libpath      = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/Mac/Profile/lib'),
+		darwin_x64_release_libpath      = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/Mac/Release/lib'),
+		darwin_x64_performance_libpath  = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/Mac/Release/lib'),
 
 		android_debug_lib               = android_non_release_libs,
 		android_profile_lib             = android_non_release_libs,
 		android_performance_lib         = android_release_libs,
 		android_release_lib             = android_release_libs,
-		android_arm_debug_libpath       = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/android/armeabi/debug/'),
-		android_arm_profile_libpath     = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/android/armeabi/profile/'),
-		android_arm_performance_libpath = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/android/armeabi/release/'),
-		android_arm_release_libpath     = bld.CreateRootRelativePath('Code/SDKs/Audio/AK/lib/android/armeabi/release/'),
+		android_arm_debug_libpath       = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/android-9_armeabi-v7a/Debug/lib'),
+		android_arm_profile_libpath     = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/android-9_armeabi-v7a/Profile/lib'),
+		android_arm_performance_libpath = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/android-9_armeabi-v7a/Release/lib'),
+		android_arm_release_libpath     = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/android-9_armeabi-v7a/Release/lib'),
 	)

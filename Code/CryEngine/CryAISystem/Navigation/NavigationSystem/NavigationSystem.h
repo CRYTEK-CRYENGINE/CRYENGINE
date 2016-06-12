@@ -504,11 +504,12 @@ public:
 	virtual void                             RegisterUser(INavigationSystemUser* pUser, const char* name = NULL) override             { m_users.Add(pUser, name); }
 	virtual void                             UnRegisterUser(INavigationSystemUser* pUser) override                                    { m_users.Remove(pUser); }
 
-	virtual void                             RegisterArea(const char* shapeName) override;
+	virtual bool                             RegisterArea(const char* shapeName, NavigationVolumeID& outVolumeId) override;
 	virtual void                             UnRegisterArea(const char* shapeName) override;
 	virtual NavigationVolumeID               GetAreaId(const char* shapeName) const override;
 	virtual void                             SetAreaId(const char* shapeName, NavigationVolumeID id) override;
 	virtual void                             UpdateAreaNameForId(const NavigationVolumeID id, const char* newShapeName) override;
+	virtual void                             RemoveLoadedMeshesWithoutRegisteredAreas() override;
 
 	virtual void                             StartWorldMonitoring() override;
 	virtual void                             StopWorldMonitoring() override;

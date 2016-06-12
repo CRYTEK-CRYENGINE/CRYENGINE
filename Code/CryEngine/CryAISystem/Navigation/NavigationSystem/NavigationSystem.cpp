@@ -146,7 +146,6 @@ NavigationSystem::NavigationSystem(const char* configName)
 	SetupTasks();
 
 	m_worldMonitor = WorldMonitor(functor(*this, &NavigationSystem::WorldChanged));
-	StartWorldMonitoring();
 
 	ReloadConfig();
 
@@ -2135,7 +2134,23 @@ void NavigationSystem::ClearAndNotify()
 
 bool NavigationSystem::ReloadConfig()
 {
+	// TODO pavloi 2016.03.09: this function should be refactored.
+	// Proper way of doing things should be something like this:
+	// 1) load config data into an array of CreateAgentTypeParams, do nothing, if there are errors
+	// 2) pass array of CreateAgentTypeParams into different publically available function, which will:
+	//    a) notify interested listeners, that we're about to wipe out and reload navigation;
+	//    b) clear current data;
+	//    c) replace agent settings;
+	//    d) kick-off navmesh regeneration (if required/enabled);
+	//    e) notify listeners, that new settings are available.
+	// This way:
+	// 1) loading and application of config will be decoupled from each other, so we will be able to put data in descriptor database (if we want);
+	// 2) it will be possible to reliably reload config and provide better editor tools, which react to config changes in runtime;
+	// 3) continuous nav mesh update can be taken away from editor's CAIManager to navigation system.
+
 	Clear();
+
+	m_agentTypes.clear();
 
 	XmlNodeRef rootNode = GetISystem()->LoadXmlFromFile(m_configName.c_str());
 	if (!rootNode)
@@ -2390,9 +2405,9 @@ void NavigationSystem::SetupTasks()
 	m_free = 0;
 }
 
-void NavigationSystem::RegisterArea(const char* shapeName)
+bool NavigationSystem::RegisterArea(const char* shapeName, NavigationVolumeID& outVolumeId)
 {
-	m_volumesManager.RegisterArea(shapeName);
+	return m_volumesManager.RegisterArea(shapeName, outVolumeId);
 }
 
 void NavigationSystem::UnRegisterArea(const char* shapeName)
@@ -2413,6 +2428,51 @@ void NavigationSystem::SetAreaId(const char* shapeName, NavigationVolumeID id)
 void NavigationSystem::UpdateAreaNameForId(const NavigationVolumeID id, const char* newShapeName)
 {
 	m_volumesManager.UpdateNameForAreaID(id, newShapeName);
+}
+
+void NavigationSystem::RemoveLoadedMeshesWithoutRegisteredAreas()
+{
+	std::vector<NavigationVolumeID> volumesToRemove;
+	m_volumesManager.GetLoadedUnregisteredVolumes(volumesToRemove);
+
+	if (!volumesToRemove.empty())
+	{
+		std::vector<NavigationMeshID> meshesToRemove;
+
+		for (const NavigationVolumeID& volumeId : volumesToRemove)
+		{
+			AILogComment("Removing Navigation Volume id = %u because it was created by loaded unregistered navigation area.",
+			             (uint32)volumeId);
+
+			for (const AgentType& agentType : m_agentTypes)
+			{
+				for (const AgentType::MeshInfo& meshInfo : agentType.meshes)
+				{
+					const NavigationMeshID meshID = meshInfo.id;
+					const NavigationMesh& mesh = m_meshes[meshID];
+
+					if (mesh.boundary == volumeId)
+					{
+						meshesToRemove.push_back(meshID);
+						AILogComment("Removing NavMesh '%s' (meshId = %u, agent = %s) because it uses loaded unregistered navigation area id = %u.",
+						             mesh.name.c_str(), (uint32)meshID, agentType.name.c_str(), (uint32)volumeId);
+					}
+				}
+			}
+		}
+
+		for (const NavigationMeshID& meshId : meshesToRemove)
+		{
+			DestroyMesh(meshId);
+		}
+
+		for (const NavigationVolumeID& volumeId : volumesToRemove)
+		{
+			DestroyVolume(volumeId);
+		}
+	}
+
+	m_volumesManager.ClearLoadedAreas();
 }
 
 void NavigationSystem::StartWorldMonitoring()
@@ -2726,6 +2786,8 @@ bool NavigationSystem::ReadFromFile(const char* fileName, bool bAfterExporting)
 
 	m_pEditorBackgroundUpdate->Pause(true);
 
+	m_volumesManager.ClearLoadedAreas();
+
 	CCryFile file;
 	if (false != file.Open(fileName, "rb"))
 	{
@@ -2792,10 +2854,7 @@ bool NavigationSystem::ReadFromFile(const char* fileName, bool bAfterExporting)
 				uint32 areaIDUint32 = 0;
 				file.ReadType(&areaIDUint32);
 #if !defined(SEG_WORLD)
-				if (gEnv->IsEditor())
-				{
-					m_volumesManager.SetAreaID(areaName, NavigationVolumeID(areaIDUint32));
-				}
+				m_volumesManager.RegisterAreaFromLoadedData(areaName, NavigationVolumeID(areaIDUint32));
 #endif
 			}
 
@@ -2857,12 +2916,6 @@ bool NavigationSystem::ReadFromFile(const char* fileName, bool bAfterExporting)
 
 					const size_t fileSeekPositionForNextMesh = file.GetPosition() + totalMeshMemory;
 
-					if (gEnv->IsEditor() && !m_volumesManager.IsAreaPresent(meshName))
-					{
-						file.Seek(fileSeekPositionForNextMesh, SEEK_SET);
-						continue;
-					}
-
 					// Reading mesh boundary
 #ifdef SW_NAVMESH_USE_GUID
 					NavigationVolumeGUID boundaryGUID = 0;
@@ -2872,6 +2925,39 @@ bool NavigationSystem::ReadFromFile(const char* fileName, bool bAfterExporting)
 					file.ReadType(&boundaryIDuint32);
 					NavigationVolumeID boundaryID = NavigationVolumeID(boundaryIDuint32);
 #endif
+
+					{
+						if (m_volumesManager.GetLoadedAreaID(meshName) != boundaryID)
+						{
+							AIWarning("The NavMesh '%s' (agent = '%s', meshId = %u, boundaryVolumeId = %u) and the loaded corresponding Navigation Area have different IDs. Data might be corrupted.",
+							          meshName, agentName, meshIDuint32, (uint32)boundaryID);
+						}
+
+						const NavigationVolumeID existingAreaId = m_volumesManager.GetAreaID(meshName);
+						if (existingAreaId != boundaryID)
+						{
+							if (!m_volumesManager.IsAreaPresent(meshName))
+							{
+								if (!m_volumesManager.IsLoadedAreaPresent(meshName))
+								{
+									AIWarning("The NavMesh '%s' (agent = '%s', meshId = %u, boundaryVolumeId = %u) doesn't have a loaded corresponding Navigation Area. Data might be corrupted.",
+									          meshName, agentName, meshIDuint32, (uint32)boundaryID);
+								}
+							}
+							else
+							{
+								if (existingAreaId == NavigationVolumeID() && bAfterExporting)
+								{
+									// Expected situation
+								}
+								else
+								{
+									AIWarning("The NavMesh '%s' (agent = '%s', meshId = %u, boundaryVolumeId = %u) and the existing corresponding Navigation Area have different IDs. Data might be corrupted.",
+									          meshName, agentName, meshIDuint32, (uint32)boundaryID);
+								}
+							}
+						}
+					}
 
 					//Saving the volume used by the boundary
 					MNM::BoundingVolume volume;
@@ -3578,12 +3664,15 @@ void NavigationSystemDebugDraw::UpdateWorkingProgress(const float frameTime, con
 MNM::TileID NavigationSystemDebugDraw::DebugDrawTileGeneration(NavigationSystem& navigationSystem, const DebugDrawSettings& settings)
 {
 	MNM::TileID debugTileID(0);
+	#if DEBUG_MNM_ENABLED
 
-	#if CRY_PLATFORM_WINDOWS
+	// TODO pavloi 2016.03.09: instead of calling GetAsyncKeyState(), register for events with GetISystem()->GetIInput()->AddEventListener().
+
 	static MNM::TileGenerator debugGenerator;
 	static MNM::TileID tileID(0);
 	static bool prevKeyState = false;
-	static size_t drawMode = MNM::TileGenerator::DrawNone;
+	static size_t drawMode = (size_t)MNM::TileGenerator::EDrawMode::DrawNone;
+	static bool bDrawAdditionalInfo = false;
 
 	NavigationMesh& mesh = navigationSystem.m_meshes[settings.meshID];
 	const MNM::MeshGrid::Params& paramsGrid = mesh.grid.GetParams();
@@ -3609,10 +3698,10 @@ MNM::TileID NavigationSystemDebugDraw::DebugDrawTileGeneration(NavigationSystem&
 		else
 			++drawMode;
 
-		if (drawMode == MNM::TileGenerator::LastDrawMode)
-			drawMode = MNM::TileGenerator::DrawNone;
-		else if (drawMode > MNM::TileGenerator::LastDrawMode)
-			drawMode = MNM::TileGenerator::LastDrawMode - 1;
+		if (drawMode == (size_t)MNM::TileGenerator::EDrawMode::LastDrawMode)
+			drawMode = (size_t)MNM::TileGenerator::EDrawMode::DrawNone;
+		else if (drawMode > (size_t)MNM::TileGenerator::EDrawMode::LastDrawMode)
+			drawMode = (size_t)MNM::TileGenerator::EDrawMode::LastDrawMode - 1;
 	}
 
 	prevKeyState = keyState;
@@ -3669,6 +3758,16 @@ MNM::TileID NavigationSystemDebugDraw::DebugDrawTileGeneration(NavigationSystem&
 		selectPrevKeyState = selectKeyState;
 	}
 
+	{
+		static bool bPrevAdditionalInfoKeyState = false;
+		bool bAdditionalInfoKeyState = (GetAsyncKeyState(VK_DIVIDE) & 0x8000) != 0;
+		if (bAdditionalInfoKeyState && bAdditionalInfoKeyState != bPrevAdditionalInfoKeyState)
+		{
+			bDrawAdditionalInfo = !bDrawAdditionalInfo;
+		}
+		bPrevAdditionalInfoKeyState = bAdditionalInfoKeyState;
+	}
+
 	if (forceGeneration)
 	{
 		tileID = 0;
@@ -3702,51 +3801,67 @@ MNM::TileID NavigationSystemDebugDraw::DebugDrawTileGeneration(NavigationSystem&
 			mesh.grid.ClearTile(tileID);
 	}
 
-	debugGenerator.Draw((MNM::TileGenerator::DrawMode)drawMode);
+	debugGenerator.Draw((MNM::TileGenerator::EDrawMode)drawMode, bDrawAdditionalInfo);
 
 	const char* drawModeName = "None";
 
-	switch (drawMode)
+	switch ((MNM::TileGenerator::EDrawMode)drawMode)
 	{
-	default:
-	case MNM::TileGenerator::DrawNone:
-	case MNM::TileGenerator::LastDrawMode:
+	case MNM::TileGenerator::EDrawMode::DrawNone:
 		break;
 
-	case MNM::TileGenerator::DrawRawVoxels:
+	case MNM::TileGenerator::EDrawMode::DrawRawInputGeometry:
+		drawModeName = "Raw Input Geometry";
+		break;
+
+	case MNM::TileGenerator::EDrawMode::DrawRawVoxels:
 		drawModeName = "Raw Voxels";
 		break;
 
-	case MNM::TileGenerator::DrawFlaggedVoxels:
+	case MNM::TileGenerator::EDrawMode::DrawFilteredVoxels:
+		drawModeName = "Filtered Voxels - filtered after walkable test";
+		break;
+
+	case MNM::TileGenerator::EDrawMode::DrawFlaggedVoxels:
 		drawModeName = "Flagged Voxels";
 		break;
 
-	case MNM::TileGenerator::DrawDistanceTransform:
+	case MNM::TileGenerator::EDrawMode::DrawDistanceTransform:
 		drawModeName = "Distance Transform";
 		break;
 
-	case MNM::TileGenerator::DrawSegmentation:
+	case MNM::TileGenerator::EDrawMode::DrawPainting:
+		drawModeName = "Painting";
+		break;
+
+	case MNM::TileGenerator::EDrawMode::DrawSegmentation:
 		drawModeName = "Segmentation";
 		break;
 
-	case MNM::TileGenerator::DrawNumberedContourVertices:
-	case MNM::TileGenerator::DrawContourVertices:
+	case MNM::TileGenerator::EDrawMode::DrawNumberedContourVertices:
+	case MNM::TileGenerator::EDrawMode::DrawContourVertices:
 		drawModeName = "Contour Vertices";
 		break;
 
-	case MNM::TileGenerator::DrawTracers:
+	case MNM::TileGenerator::EDrawMode::DrawTracers:
 		drawModeName = "Tracers";
 		break;
-	case MNM::TileGenerator::DrawSimplifiedContours:
+
+	case MNM::TileGenerator::EDrawMode::DrawSimplifiedContours:
 		drawModeName = "Simplified Contours";
 		break;
 
-	case MNM::TileGenerator::DrawTriangulation:
+	case MNM::TileGenerator::EDrawMode::DrawTriangulation:
 		drawModeName = "Triangulation";
 		break;
 
-	case MNM::TileGenerator::DrawBVTree:
+	case MNM::TileGenerator::EDrawMode::DrawBVTree:
 		drawModeName = "BV Tree";
+		break;
+
+	case MNM::TileGenerator::EDrawMode::LastDrawMode:
+	default:
+		drawModeName = "Unknown";
 		break;
 	}
 
@@ -3787,11 +3902,11 @@ MNM::TileID NavigationSystemDebugDraw::DebugDrawTileGeneration(NavigationSystem&
 	                triangleMemory,
 	                bvTreeMemory);
 
-	if (drawMode != MNM::TileGenerator::DrawNone)
+	if (drawMode != (size_t)MNM::TileGenerator::EDrawMode::DrawNone)
 	{
 		debugTileID = mesh.grid.GetTileID(selectedX, selectedY, selectedZ);
 	}
-	#endif
+	#endif // DEBUG_MNM_ENABLED
 
 	return debugTileID;
 }
@@ -4371,7 +4486,7 @@ NavigationSystemDebugDraw::DebugDrawSettings NavigationSystemDebugDraw::GetDebug
 	{
 		const Vec3 debugLocation = pMNMDebugLocator->GetPos();
 
-		if ((lastLocation - debugLocation).len2() > 0.0001f)
+		if ((lastLocation - debugLocation).len2() > 0.00001f)
 		{
 			settings.meshID = navigationSystem.GetEnclosingMeshID(m_agentTypeID, debugLocation);
 

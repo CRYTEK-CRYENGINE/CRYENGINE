@@ -28,7 +28,6 @@
 			"../../Tools/SphericalHarmonics/PRT/AlphaTextureMaterial.cpp",
 			"../../Tools/SphericalHarmonics/PRT/BacklightingAlphaTextureMaterial.cpp",
 			"../../Tools/SphericalHarmonics/PRT/BaseTextureMaterial.cpp",
-			"../../Tools/SphericalHarmonics/PRT/CoefficientStream.cpp",
 			"../../Tools/SphericalHarmonics/PRT/CommonImageReader.cpp",
 			"../../Tools/SphericalHarmonics/PRT/DefaultAlphaMaterial.cpp",
 			"../../Tools/SphericalHarmonics/PRT/DefaultBacklightingMaterial.cpp",

@@ -23,6 +23,13 @@ public:
 		return m_spanGrid;
 	}
 
+#if DEBUG_MNM_ENABLED
+	void SetDebugRawGeometryContainer(std::vector<Triangle>* pDebugRawGeometry)
+	{
+		m_pDebugRawGeometry = pDebugRawGeometry;
+	}
+#endif // DEBUG_MNM_ENABLED
+
 protected:
 	template<typename Ty>
 	inline Vec3_tpl<Ty> Maximize(const Vec3_tpl<Ty> a, const Vec3_tpl<Ty> b)
@@ -61,6 +68,10 @@ protected:
 	Vec3i           m_voxelSpaceSize;
 
 	DynamicSpanGrid m_spanGrid;
+
+#if DEBUG_MNM_ENABLED
+	std::vector<Triangle>* m_pDebugRawGeometry;
+#endif   // DEBUG_MNM_ENABLED
 };
 
 class WorldVoxelizer

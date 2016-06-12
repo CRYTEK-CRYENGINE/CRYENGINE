@@ -637,7 +637,7 @@ EAudioRequestStatus CAudioImpl::StopAllEvents(IAudioObject* const pAudioObject)
 ///////////////////////////////////////////////////////////////////////////
 EAudioRequestStatus CAudioImpl::Set3DAttributes(
   IAudioObject* const pAudioObject,
-  SAudioObject3DAttributes const& attributes)
+	CryAudio::Impl::SAudioObject3DAttributes const& attributes)
 {
 	EAudioRequestStatus requestResult = eAudioRequestStatus_Failure;
 	CAudioObject* const pFmodAudioObject = static_cast<CAudioObject* const>(pAudioObject);
@@ -789,7 +789,7 @@ EAudioRequestStatus CAudioImpl::SetObstructionOcclusion(
 ///////////////////////////////////////////////////////////////////////////
 EAudioRequestStatus CAudioImpl::SetListener3DAttributes(
   IAudioListener* const pAudioListener,
-  SAudioObject3DAttributes const& attributes)
+	CryAudio::Impl::SAudioObject3DAttributes const& attributes)
 {
 	EAudioRequestStatus requestResult = eAudioRequestStatus_Failure;
 	CAudioListener* const pFmodAudioListener = static_cast<CAudioListener* const>(pAudioListener);

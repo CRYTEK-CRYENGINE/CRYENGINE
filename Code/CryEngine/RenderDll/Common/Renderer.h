@@ -1021,7 +1021,7 @@ public:
 
 	virtual void                   EF_ReleaseDeferredData() override;
 	virtual SInputShaderResources* EF_CreateInputShaderResource(IRenderShaderResources* pOptionalCopyFrom = nullptr) override;
-	virtual void                   ClearPerFrameData();
+	virtual void                   ClearPerFrameData(const SRenderingPassInfo& passInfo);
 	virtual bool                   EF_UpdateDLight(SRenderLight* pDL) override;
 	void                           EF_CheckLightMaterial(CDLight* pLight, uint16 nRenderLightID, const SRenderingPassInfo& passInfo);
 

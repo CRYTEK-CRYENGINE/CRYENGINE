@@ -1781,7 +1781,7 @@ void CRenderer::EF_StartEf(const SRenderingPassInfo& passInfo)
 	{
 		pPostEffectMgr->OnBeginFrame(passInfo);
 	}
-	ClearPerFrameData();
+	ClearPerFrameData(passInfo);
 }
 
 void CRenderer::RT_PrepareLevelTexStreaming()
@@ -2373,7 +2373,7 @@ bool CRenderer::EF_AddDeferredDecal(const SDeferredDecal& rDecal, const SRenderi
 	return false;
 }
 
-void CRenderer::ClearPerFrameData()
+void CRenderer::ClearPerFrameData(const SRenderingPassInfo& passInfo)
 {
 }
 

@@ -184,7 +184,6 @@
       "ZipDirList.h",
       "ZipDirStructures.h",
       "ZipDirTree.h",
-      "ZipFile.h",
       "ZipFileFormat.h",
       "ZipFileFormat_info.h"
     ]

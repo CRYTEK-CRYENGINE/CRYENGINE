@@ -52,20 +52,15 @@
 	#define LINK_SYSTEM_LIBRARY(name)
 #else
 
-	#ifndef CMAKE_INTDIR
 ////////////////////////////////////////////////////////////////////////////
 //! Include a third party library. The path has to be specified relative to the Code/ folder.
 //! In addition the path has to be specified as a literal, not as a string, and forward slashes have to be used.
 //! For example: LINK_THIRD_PARTY_LIBRARY("SDK/MyLib/lib/MyLib.a").
-		#define LINK_THIRD_PARTY_LIBRARY(name) __DETAIL__LINK_THIRD_PARTY_LIBRARY(name)
+	#define LINK_THIRD_PARTY_LIBRARY(name) __DETAIL__LINK_THIRD_PARTY_LIBRARY(name)
 
 ////////////////////////////////////////////////////////////////////////////
 //! Include a platform library.
-		#define LINK_SYSTEM_LIBRARY(name) __DETAIL__LINK_SYSTEM_PARTY_LIBRARY(name)
-	#else
-		#define LINK_THIRD_PARTY_LIBRARY(name)
-		#define LINK_SYSTEM_LIBRARY(name)
-	#endif //CMAKE_INTDIR
+	#define LINK_SYSTEM_LIBRARY(name) __DETAIL__LINK_SYSTEM_PARTY_LIBRARY(name)
 
 #endif //CRY_NO_PRAGMA_LIB
 

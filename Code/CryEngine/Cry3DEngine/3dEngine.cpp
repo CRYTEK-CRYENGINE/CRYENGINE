@@ -3578,17 +3578,14 @@ void C3DEngine::UpdateWindAreas()
 
 			// Sample wind at the corners of the area
 			pe_status_area area;
-			area.size = Vec3(0.1f, 0.1f, 0.1f);
-			windArea.point[0] = Vec2(b0.x, b0.y);
-			windArea.point[1] = Vec2(b1.x, b0.y);
-			windArea.point[2] = Vec2(b1.x, b1.y);
-			windArea.point[3] = Vec2(b0.x, b1.y);
-			windArea.point[4] = 0.5f * (Vec2(b0.x, b0.y) + Vec2(b1.x, b1.y));
-			for (int i = 0; i < 5; ++i)
+			Vec3 c = (b1 + b0) * 0.5f, sz = (b1 - b0) * 0.45f;
+			Vec2i idir(0);
+			area.pb.waterFlow.zero();
+			for (int i = 4; i >= 0; idir = idir.rot90cw() + Vec2i(-(i >> 2), i >> 2), --i)
 			{
-				area.ctr = Vec3(windArea.point[i].x, windArea.point[i].y, windArea.z);
-				if (pArea->GetStatus(&area))
-					windArea.windSpeed[i] = area.pb.waterFlow;
+				area.ctr = c + Vec3(sz.x * idir.x, sz.y * idir.y, 0);
+				pArea->GetStatus(&area);
+				windArea.windSpeed[i] = area.pb.waterFlow;
 			}
 			if (bIndoor)
 				m_indoorWindAreas[nextWindAreaList].push_back(windArea);

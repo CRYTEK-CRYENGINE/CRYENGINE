@@ -377,6 +377,7 @@ struct AIConsoleVars
 	static void DebugMNMAgentType(IConsoleCmdArgs* args);
 	static void MNMCalculateAccessibility(IConsoleCmdArgs* args); // TODO: Remove when the seeds work
 	static void MNMComputeConnectedIslands(IConsoleCmdArgs* args);
+	static void NavigationReloadConfig(IConsoleCmdArgs* args);
 	static void DebugAgent(IConsoleCmdArgs* args);
 	static void AIBubblesNameFilterCallback(ICVar* pCvar);
 };
