@@ -1341,8 +1341,8 @@ void CGameRulesObjective_CTF::Client_SetIconForBase(int teamIndex)
 	int localTeamId = m_pGameRules->GetTeam(clientActorId);
 	bool bFriendly = (localTeamId == (teamIndex + 1));
 
-	const char *pText;
-	const char *pColour;
+	const char *pText = NULL;
+	const char *pColour = NULL;
 
 	EGameRulesMissionObjectives icon = EGRMO_Unknown;
 	if (m_teamInfo[teamIndex].m_state == ESES_AtBase)
