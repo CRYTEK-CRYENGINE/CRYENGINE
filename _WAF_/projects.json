@@ -67,6 +67,22 @@
 			"data_folder"      : "/data/sdk/"
 		}
 	},
+	"CryTest" :
+	{
+		"code_folder"         : "Code/CryTest",
+		"game_data_dir"       : "CryTest",
+		"game_dll_filename"   : "CryTest.dll",
+
+		"executable_name"     : "CryTest",
+
+		"product_name"        : "CRYENGINE SDK",
+
+
+		"orbis_settings" :
+		{
+			"data_folder"      : "/data/sdk/"
+		}
+	},
 	"GameMono" :
 	{
 		"code_folder"         : "Code/GameMono",
@@ -101,4 +117,5 @@
 			"data_folder"      : "/data/sdk/"
 		}
 	}
+
 }

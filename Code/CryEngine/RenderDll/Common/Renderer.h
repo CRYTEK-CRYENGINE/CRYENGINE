@@ -849,8 +849,8 @@ public:
 	virtual void     SetTextureStreamListener(ITextureStreamListener* pListener) override;
 
 #if defined(CRY_ENABLE_RC_HELPER)
-	virtual void AddAsyncTextureCompileListener(IAsyncTextureCompileListener* pListener);
-	virtual void RemoveAsyncTextureCompileListener(IAsyncTextureCompileListener* pListener);
+	virtual void AddAsyncTextureCompileListener(IAsyncTextureCompileListener* pListener) override;
+	virtual void RemoveAsyncTextureCompileListener(IAsyncTextureCompileListener* pListener) override;
 #endif
 
 	virtual void GetLogVBuffers() = 0;

@@ -1035,7 +1035,7 @@ void CD3D9Renderer::DrawObjSprites(PodArray<SVegetationSpriteInfo>* pList, SSpri
 
 	if (bShadows)
 	{
-		int nColorMask = ((~(1 << 0)) << GS_COLMASK_SHIFT) & GS_COLMASK_MASK;
+		int nColorMask = ((~(1U << 0)) << GS_COLMASK_SHIFT) & GS_COLMASK_MASK;
 		nState |= nColorMask | GS_BLSRC_ONE | GS_BLDST_ONE;
 	}
 

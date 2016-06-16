@@ -130,7 +130,7 @@ int CCapsuleGeom::FindClosestPoint(geom_world_data *pgwd, int &iPrim,int &iFeatu
 	ptresi[1].zero();
 	for(i=0;i<=bLine;i++)	{
 		pt = ptdst[i]-center;
-		if (fabsf(pt*axis)<hh) { // the closest point lies on capsule side
+		if (fabs_tpl(pt*axis)<hh) { // the closest point lies on capsule side
 			pt -= axis*(axis*pt);
 			ptresi[i] = ptdst[i]-pt+pt.normalized()*r;
 			continue;

@@ -1401,7 +1401,7 @@ bool CFlashUIElement::GetVariable(const SUIParameterDesc* pVarDesc, TUIData& val
 bool CFlashUIElement::CreateVariable(const SUIParameterDesc*& pNewDesc, const char* varName, const TUIData& value, const char* pTmplName)
 {
 	const SUIMovieClipDesc* pTmplDesc = pTmplName ? GetMovieClipDesc(pTmplName) : NULL;
-	return CreateVariable(pNewDesc, varName, value, pTmplName);
+	return CreateVariable(pNewDesc, varName, value, pTmplDesc);
 }
 
 //------------------------------------------------------------------------------------
@@ -1507,7 +1507,7 @@ bool CFlashUIElement::GetArray(const SUIParameterDesc* pArrayDesc, SUIArguments&
 bool CFlashUIElement::CreateArray(const SUIParameterDesc*& pNewDesc, const char* arrayName, const SUIArguments& values, const char* pTmplName)
 {
 	const SUIMovieClipDesc* pTmplDesc = pTmplName ? GetMovieClipDesc(pTmplName) : NULL;
-	return CreateArray(pNewDesc, arrayName, values, pTmplName);
+	return CreateArray(pNewDesc, arrayName, values, pTmplDesc);
 }
 
 //------------------------------------------------------------------------------------

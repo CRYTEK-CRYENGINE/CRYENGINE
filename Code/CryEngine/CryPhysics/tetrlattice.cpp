@@ -321,7 +321,7 @@ void CTetrLattice::Subtract(IGeometry *pGeom, const geom_world_data *pgwd1,const
 					sz = bboxLoc.Basis*(m_pVtx[ptet->ivtx[i]]-bboxLoc.center);
 					if (max(max(fabs_tpl(sz.x)-bboxLoc.size.x,fabs_tpl(sz.y)-bboxLoc.size.y),fabs_tpl(sz.z)-bboxLoc.size.z)<0)
 						m_pVtxFlags[ptet->ivtx[i]] |= lvtx_removed_new & -pGeom->PointInsideStatus(R*m_pVtx[ptet->ivtx[i]]+pos);
-					m_pVtxFlags[ptet->ivtx[i]] = m_pVtxFlags[ptet->ivtx[i]] & ~(-1<<lvtx_inext_log2) | ivtx0<<lvtx_inext_log2 | lvtx_processed;
+					m_pVtxFlags[ptet->ivtx[i]] = m_pVtxFlags[ptet->ivtx[i]] & ~(-1U<<lvtx_inext_log2) | ivtx0<<lvtx_inext_log2 | lvtx_processed;
 					ivtx0 = ptet->ivtx[i]; // maintain a linked list of processed vertices
 				}
 				state1 ^= (m_pVtxFlags[ptet->ivtx[i]]>>1 & lvtx_removed)<<i;
@@ -347,7 +347,7 @@ void CTetrLattice::Subtract(IGeometry *pGeom, const geom_world_data *pgwd1,const
 					m_pTetr[ptet->ibuddy[i]].ibuddy[GetFaceByBuddy(ptet->ibuddy[i],m_pGrid[idx])] = -1;
 				m_nRemovedTets++;
 			}
-			ptet->flags = ptet->flags & ~(-1<<ltet_inext_log2) | itet0<<ltet_inext_log2 | ltet_processed; // link processed tets into a list
+			ptet->flags = ptet->flags & ~(-1U<<ltet_inext_log2) | itet0<<ltet_inext_log2 | ltet_processed; // link processed tets into a list
 			itet0 = m_pGrid[idx];	
 		}
 
@@ -614,12 +614,12 @@ void CTetrLattice::Split(CTriMesh **pChunks,int nChunks, CTetrLattice **pLattice
 				{	// move the tets that have their centers inside the chunk geom to that chunk's lattice
 					ptet->idx = nNewTet++; ptet->flags |= ltet_removed_new;
 					for(i=0;i<4;i++) if (!(m_pVtxFlags[ptet->ivtx[i]] & lvtx_processed)) {
-						m_pVtxFlags[ptet->ivtx[i]] = m_pVtxFlags[ptet->ivtx[i]] & ~(-1<<lvtx_inext_log2) | ivtx0<<lvtx_inext_log2 | lvtx_processed;
+						m_pVtxFlags[ptet->ivtx[i]] = m_pVtxFlags[ptet->ivtx[i]] & ~(-1U<<lvtx_inext_log2) | ivtx0<<lvtx_inext_log2 | lvtx_processed;
 						ivtx0 = ptet->ivtx[i]; // maintain a linked list of processed vertices
 						m_pVtxRemap[ptet->ivtx[i]] = nNewVtx++;
 					}
 				}
-				ptet->flags = ptet->flags & ~(-1<<ltet_inext_log2) | itet0<<ltet_inext_log2 | ltet_processed; // link processed tets into a list
+				ptet->flags = ptet->flags & ~(-1U<<ltet_inext_log2) | itet0<<ltet_inext_log2 | ltet_processed; // link processed tets into a list
 				itet0 = m_pGrid[idx];	
 			}
 

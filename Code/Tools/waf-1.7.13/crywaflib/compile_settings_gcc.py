@@ -85,6 +85,7 @@ def load_gcc_common_settings(conf):
 		'-Wno-uninitialized',				
 		'-Wno-unused-local-typedefs',
 		'-Wno-deprecated',
+        '-Wno-unused-result'
 		]
 
 	if conf.env.CC_VERSION[0] >= '4' and conf.env.CC_VERSION[1] >= '8' and conf.env.CC_VERSION[2] >= '0':

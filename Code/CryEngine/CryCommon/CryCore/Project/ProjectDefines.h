@@ -227,7 +227,7 @@ extern void SliceAndSleep(const char* pFunc, int line);
 #endif
 
 // Reflect texture slot information - only used in the editor.
-#if CRY_PLATFORM_WINDOWS
+#if CRY_PLATFORM_WINDOWS || CRY_PLATFORM_LINUX
 	#define SHADER_REFLECT_TEXTURE_SLOTS 1
 #else
 	#define SHADER_REFLECT_TEXTURE_SLOTS 0

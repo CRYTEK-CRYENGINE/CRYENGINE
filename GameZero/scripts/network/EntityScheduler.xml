@@ -1,5 +1,0 @@
-<EntityScheduler>
-	<Class name="Player" policy="player" own="own"/>
-	<!-- fallback -->
-	<Default policy="obj"/>
-</EntityScheduler>
