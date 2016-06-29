@@ -784,7 +784,15 @@ struct ITerrain
 
 	//! Updates part of height map.
 	//! x1, y1, nSizeX, nSizeY are in terrain units
-	//! pTerrainBlock points to a square 2D array with dimensions GetTerrainSize()
+	//! nSizeX,nSizeY = CTerrain::GetTerrainSize() / CTerrain::GetHeightMapUnitSize()
+	//! pTerrainBlock is a 1D array used to define the elevations of the terrain
+	//! float * pTerrainBlock = new float[(CTerrain::GetTerrainSize() / CTerrain::GetHeightMapUnitSize()) 
+	//!				    * (CTerrain::GetTerrainSize() / CTerrain::GetHeightMapUnitSize())];
+	//! pSurfaceData is a 1D array used to rebuild the LOD of the terrain(just duplicate the heightmap array into it)
+	//! uint8* pSurfaceData = new uint8[(CTerrain::GetTerrainSize() / CTerrain::GetHeightMapUnitSize()) 
+	//!				  * (CTerrain::GetTerrainSize() / CTerrain::GetHeightMapUnitSize())];
+	//! int nSurfSizeX, int nSurfSizeY = = CTerrain::GetTerrainSize() / CTerrain::GetHeightMapUnitSize()
+	//! the resolution parameters are related to the textures
 	//! by default update only elevation.
 	virtual void SetTerrainElevation(int x1, int y1, int nSizeX, int nSizeY, float* pTerrainBlock, uint8* pSurfaceData, int nSurfOrgX, int nSurfOrgY, int nSurfSizeX, int nSurfSizeY, uint32* pResolMap, int nResolMapSizeX, int nResolMapSizeY, int nSID = DEFAULT_SID) = 0;
 
