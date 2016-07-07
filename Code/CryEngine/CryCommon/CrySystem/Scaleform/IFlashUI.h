@@ -2559,112 +2559,27 @@ struct SUIEventSenderDispatcher
 		m_pEventSystem->SendEvent(event);
 	}
 
-	template<T type, class T0, class T1>
-	inline void SendEvent(T0 arg0, T1 arg1)
+	template<T type, typename T, typename... Args>
+	inline void SendEvent(T arg, Args... args)
 	{
 		UIEVENT_GETEVENT;
-		UIEVENT_CHECKARGCOUNT_SEND(2);
-		UIEVENT_ADDARGSAFE(0);
-		UIEVENT_ADDARGSAFE(1);
+		const int count = sizeof...(args)+1;
+		SendEvent_Helper(event, arg, args...);
+		UIEVENT_CHECKARGCOUNT_SEND(count);
 		m_pEventSystem->SendEvent(event);
 	}
 
-	template<T type, class T0, class T1, class T2>
-	inline void SendEvent(T0 arg0, T1 arg1, T2 arg2)
+	template<typename T>
+	inline void SendEvent_Helper(SUIEvent& event, T arg)
 	{
-		UIEVENT_GETEVENT;
-		UIEVENT_CHECKARGCOUNT_SEND(3);
-		UIEVENT_ADDARGSAFE(0);
-		UIEVENT_ADDARGSAFE(1);
-		UIEVENT_ADDARGSAFE(2);
-		m_pEventSystem->SendEvent(event);
+		event.args.AddArgument(arg);
 	}
-
-	template<T type, class T0, class T1, class T2, class T3>
-	inline void SendEvent(T0 arg0, T1 arg1, T2 arg2, T3 arg3)
+	
+	template<typename T, typename... Args>
+	inline void SendEvent_Helper(SUIEvent& event, T arg, Args... rest)
 	{
-		UIEVENT_GETEVENT;
-		UIEVENT_CHECKARGCOUNT_SEND(4);
-		UIEVENT_ADDARGSAFE(0);
-		UIEVENT_ADDARGSAFE(1);
-		UIEVENT_ADDARGSAFE(2);
-		UIEVENT_ADDARGSAFE(3);
-		m_pEventSystem->SendEvent(event);
-	}
-
-	template<T type, class T0, class T1, class T2, class T3, class T4>
-	inline void SendEvent(T0 arg0, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
-	{
-		UIEVENT_GETEVENT;
-		UIEVENT_CHECKARGCOUNT_SEND(5);
-		UIEVENT_ADDARGSAFE(0);
-		UIEVENT_ADDARGSAFE(1);
-		UIEVENT_ADDARGSAFE(2);
-		UIEVENT_ADDARGSAFE(3);
-		UIEVENT_ADDARGSAFE(4);
-		m_pEventSystem->SendEvent(event);
-	}
-
-	template<T type, class T0, class T1, class T2, class T3, class T4, class T5>
-	inline void SendEvent(T0 arg0, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5)
-	{
-		UIEVENT_GETEVENT;
-		UIEVENT_CHECKARGCOUNT_SEND(6);
-		UIEVENT_ADDARGSAFE(0);
-		UIEVENT_ADDARGSAFE(1);
-		UIEVENT_ADDARGSAFE(2);
-		UIEVENT_ADDARGSAFE(3);
-		UIEVENT_ADDARGSAFE(4);
-		UIEVENT_ADDARGSAFE(5);
-		m_pEventSystem->SendEvent(event);
-	}
-
-	template<T type, class T0, class T1, class T2, class T3, class T4, class T5, class T6>
-	inline void SendEvent(T0 arg0, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6)
-	{
-		UIEVENT_GETEVENT;
-		UIEVENT_CHECKARGCOUNT_SEND(7);
-		UIEVENT_ADDARGSAFE(0);
-		UIEVENT_ADDARGSAFE(1);
-		UIEVENT_ADDARGSAFE(2);
-		UIEVENT_ADDARGSAFE(3);
-		UIEVENT_ADDARGSAFE(4);
-		UIEVENT_ADDARGSAFE(5);
-		UIEVENT_ADDARGSAFE(6);
-		m_pEventSystem->SendEvent(event);
-	}
-
-	template<T type, class T0, class T1, class T2, class T3, class T4, class T5, class T6, class T7>
-	inline void SendEvent(T0 arg0, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7)
-	{
-		UIEVENT_GETEVENT;
-		UIEVENT_CHECKARGCOUNT_SEND(8);
-		UIEVENT_ADDARGSAFE(0);
-		UIEVENT_ADDARGSAFE(1);
-		UIEVENT_ADDARGSAFE(2);
-		UIEVENT_ADDARGSAFE(3);
-		UIEVENT_ADDARGSAFE(4);
-		UIEVENT_ADDARGSAFE(5);
-		UIEVENT_ADDARGSAFE(6);
-		UIEVENT_ADDARGSAFE(7);
-		m_pEventSystem->SendEvent(event);
-	}
-
-	template<T type, class T0, class T1, class T2, class T3, class T4, class T5, class T6, class T7, class T8>
-	inline void SendEvent(T0 arg0, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8)
-	{
-		UIEVENT_GETEVENT;
-		UIEVENT_CHECKARGCOUNT_SEND(9);
-		UIEVENT_ADDARGSAFE(0);
-		UIEVENT_ADDARGSAFE(1);
-		UIEVENT_ADDARGSAFE(2);
-		UIEVENT_ADDARGSAFE(3);
-		UIEVENT_ADDARGSAFE(4);
-		UIEVENT_ADDARGSAFE(5);
-		UIEVENT_ADDARGSAFE(6);
-		UIEVENT_ADDARGSAFE(7);
-		UIEVENT_ADDARGSAFE(8);
-		m_pEventSystem->SendEvent(event);
+		event.args.AddArgument(arg);
+		SendEvent_Helper(event, rest...);
 	}
 
 	//! Special case for dyn args.
