@@ -2559,8 +2559,8 @@ struct SUIEventSenderDispatcher
 		m_pEventSystem->SendEvent(event);
 	}
 
-	template<T type, typename T, typename... Args>
-	inline void SendEvent(T arg, Args... args)
+	template<T type, typename T0, typename... Args>
+	inline void SendEvent(T0 arg, Args... args)
 	{
 		UIEVENT_GETEVENT;
 		const int count = sizeof...(args)+1;
@@ -2569,14 +2569,14 @@ struct SUIEventSenderDispatcher
 		m_pEventSystem->SendEvent(event);
 	}
 
-	template<typename T>
-	inline void SendEvent_Helper(SUIEvent& event, T arg)
+	template<typename T0>
+	inline void SendEvent_Helper(SUIEvent& event, T0 arg)
 	{
 		event.args.AddArgument(arg);
 	}
 	
-	template<typename T, typename... Args>
-	inline void SendEvent_Helper(SUIEvent& event, T arg, Args... rest)
+	template<typename T0, typename... Args>
+	inline void SendEvent_Helper(SUIEvent& event, T0 arg, Args... rest)
 	{
 		event.args.AddArgument(arg);
 		SendEvent_Helper(event, rest...);
