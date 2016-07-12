@@ -40,7 +40,7 @@ public:
 			OutputPortConfig<int>("YPos", _HELP("Y Position.")),
 			{ 0 }
 		};
-		config.sDescription = _HELP("Get mouse cursor's position.");
+		config.sDescription = _HELP("Get mouse cursor's position. When mouse is disabled, this node will return (-1, -1).");
 		config.pInputPorts = in_config;
 		config.pOutputPorts = out_config;
 		config.SetCategory(EFLN_APPROVED);
@@ -54,8 +54,9 @@ public:
 			if (!IsPortActive(pActInfo, Get))
 				break;
 
-			float x, y;
-			gEnv->pHardwareMouse->GetHardwareMouseClientPosition(&x, &y);
+			float x=-1, y=-1;
+			if (gEnv->pHardwareMouse)
+				gEnv->pHardwareMouse->GetHardwareMouseClientPosition(&x, &y);
 			ActivateOutput(pActInfo, XPos, (int)x);
 			ActivateOutput(pActInfo, YPos, (int)y);
 			break;
@@ -86,7 +87,7 @@ public:
 	{
 		static const SInputPortConfig in_config[] =
 		{
-			InputPortConfig_Void("Set", _HELP("Set mouse cursor's position.")),
+			InputPortConfig_Void("Set", _HELP("Set mouse cursor's position. When mouse is disabled, this node will do nothing.")),
 			InputPortConfig<int>("XPos", _HELP("X Position.")),
 			InputPortConfig<int>("YPos", _HELP("Y Position")),
 			{ 0 }
@@ -103,8 +104,8 @@ public:
 		case eFE_Activate:
 			if (!IsPortActive(pActInfo, Set))
 				break;
-
-			gEnv->pHardwareMouse->SetHardwareMouseClientPosition((float)GetPortInt(pActInfo, XPos), (float)GetPortInt(pActInfo, YPos));
+			if (gEnv->pHardwareMouse)
+				gEnv->pHardwareMouse->SetHardwareMouseClientPosition((float)GetPortInt(pActInfo, XPos), (float)GetPortInt(pActInfo, YPos));
 			break;
 		}
 	}
@@ -125,6 +126,19 @@ public:
 
 	}
 
+	~CInputLockMousePosNode()
+	{
+		//For abnormal termination.
+#if CRY_PLATFORM_WINDOWS
+		//Windows
+		ClipCursor(NULL);
+#elif CRY_PLATFORM_ORBIS
+		//PS4
+#elif CRY_PLATFORM_DURANGO
+		//XboxOne
+#endif		
+	}
+
 	virtual void GetMemoryUsage(ICrySizer * s) const
 	{
 		s->Add(*this);
@@ -142,7 +156,7 @@ public:
 		{
 			{ 0 }
 		};
-		config.sDescription = _HELP("Lock/Unlock mouse cursor's position.");
+		config.sDescription = _HELP("Lock/Unlock mouse cursor's position. This node is only for Windows. When other platforms, this node will do nothing.");
 		config.pInputPorts = in_config;
 		config.pOutputPorts = out_config;
 		config.SetCategory(EFLN_APPROVED);
@@ -155,6 +169,8 @@ public:
 		case eFE_Activate:
 			if (IsPortActive(pActInfo, Lock))
 			{
+#if CRY_PLATFORM_WINDOWS
+				//Windows
 				POINT p;
 				GetCursorPos(&p);
 				RECT r;
@@ -163,10 +179,24 @@ public:
 				r.left = p.x;
 				r.right = p.x;
 				ClipCursor(&r);
+#elif CRY_PLATFORM_ORBIS
+				//PS4
+#elif CRY_PLATFORM_DURANGO
+				//XboxOne
+#endif
+				
 			}
 			if (IsPortActive(pActInfo, Unlock))
 			{
+#if CRY_PLATFORM_WINDOWS
+				//Windows
 				ClipCursor(NULL);
+#elif CRY_PLATFORM_ORBIS
+				//PS4
+#elif CRY_PLATFORM_DURANGO
+				//XboxOne
+#endif
+				
 			}
 			break;
 		}
