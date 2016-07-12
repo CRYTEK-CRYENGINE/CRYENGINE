@@ -98,6 +98,7 @@
       "FlowSystem/Nodes/AnimationEventListenerNode.cpp",
       "FlowSystem/Nodes/FlowPrefabNodes.cpp",
       "FlowSystem/Nodes/FlowMouseInfo.cpp",
+      "FlowSystem/Nodes/FlowMousePos.cpp",
       "FlowSystem/Nodes/FlowNodeAIHelicopter.cpp",
       "FlowSystem/Nodes/FlowCustomActionNodes.h",
       "FlowSystem/Nodes/FlowPrefabNodes.h",
