@@ -1300,13 +1300,13 @@ void CObjManager::UpdateRenderNodeStreamingPriority(IRenderNode* pObj, float fEn
 	{
 		if (GetFloatCVar(e_StreamCgfGridUpdateDistance) != 0.0f || GetFloatCVar(e_StreamPredictionAhead) != 0.0f || GetFloatCVar(e_StreamPredictionMinFarZoneDistance) != 0.0f)
 		{
-			float fDistanceToCam = sqrt_tpl(Distance::Point_AABBSq(passInfo.GetCamera().GetPosition(), objBox)) * passInfo.GetZoomFactor();
+			float fDistanceToCam = sqrt_tpl(passInfo.GetCamera().GetSquaredAABBDistanceM(objBox)) * passInfo.GetZoomFactor();
 
 			if (pObj->GetRenderNodeType() == eERType_Vegetation && ((CVegetation*)pObj)->m_pInstancingInfo)
 			{
 				// for instance groups compute distance to the center of bbox
 				AABB objBoxS = AABB(objBox.GetCenter() - Vec3(.1f, .1f, .1f), objBox.GetCenter() + Vec3(.1f, .1f, .1f));
-				fDistanceToCam = sqrt_tpl(Distance::Point_AABBSq(passInfo.GetCamera().GetPosition(), objBoxS)) * passInfo.GetZoomFactor();
+				fDistanceToCam = sqrt_tpl(passInfo.GetCamera().GetSquaredAABBDistanceM(objBoxS)) * passInfo.GetZoomFactor();
 			}
 
 			pObj->m_pTempData->userData.nWantedLod = CObjManager::GetObjectLOD(pObj, fDistanceToCam);
@@ -1351,7 +1351,7 @@ void CObjManager::UpdateRenderNodeStreamingPriority(IRenderNode* pObj, float fEn
 
 		// If the object is in camera space, don't use the prediction position.
 		const float fEntPrecacheDistance = (bDrawNear)
-		                                   ? sqrt_tpl(Distance::Point_AABBSq(passInfo.GetCamera().GetPosition(), objBox))
+		                                   ? sqrt_tpl(passInfo.GetCamera().GetSquaredAABBDistanceM(objBox))
 		                                   : fEntDistance;
 
 		bDrawNear |= bHighPriority;

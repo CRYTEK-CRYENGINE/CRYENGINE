@@ -146,9 +146,9 @@ void C3DEngine::FindPotentialLightSources(const SRenderingPassInfo& passInfo)
 			continue;
 
 		const bool bIsPost3dRendererLight = (pLight->m_Flags & DLF_POST_3D_RENDERER) ? true : false;
-		const Vec3 vFinalCamPos = (!bIsPost3dRendererLight) ? vCamPos : ZERO; // Post 3d renderer camera is at origin
-		float fEntDistance = sqrt(Distance::Point_AABBSq(vFinalCamPos, pLightEntity->GetBBox())) * passInfo.GetZoomFactor();
-		if (fEntDistance > pLightEntity->m_fWSMaxViewDist && !bIsPost3dRendererLight)
+		float fEntDistanceSq = passInfo.GetCamera().GetSquaredAABBDistanceM(pLightEntity->GetBBox()) * passInfo.GetZoomFactor();
+
+		if (fEntDistanceSq > pLightEntity->m_fWSMaxViewDist && !bIsPost3dRendererLight)
 			continue;
 
 		IMaterial* pMat = pLightEntity->GetMaterial();
@@ -197,9 +197,9 @@ void C3DEngine::FindPotentialLightSources(const SRenderingPassInfo& passInfo)
 			}
 
 			if (pLight->m_pOwner)
-				((CLightEntity*)pLight->m_pOwner)->UpdateCastShadowFlag(fEntDistance, passInfo);
+				((CLightEntity*)pLight->m_pOwner)->UpdateCastShadowFlag(fEntDistanceSq, passInfo);
 
-			AddDynamicLightSource(*pLight, pLight->m_pOwner, 1, pLightEntity->m_fWSMaxViewDist > 0.f ? fEntDistance / pLightEntity->m_fWSMaxViewDist : 0.f, passInfo);
+			AddDynamicLightSource(*pLight, pLight->m_pOwner, 1, pLightEntity->m_fWSMaxViewDist > 0.f ? fEntDistanceSq / pLightEntity->m_fWSMaxViewDist : 0.f, passInfo);
 		}
 	}
 }

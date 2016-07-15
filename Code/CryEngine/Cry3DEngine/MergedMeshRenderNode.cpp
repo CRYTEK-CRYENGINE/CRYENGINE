@@ -2753,10 +2753,9 @@ void CMergedMeshRenderNode::Render(const struct SRendParams& EntDrawParams, cons
 		s_mmrm_globals.frameId = frameId;
 	}
 
-	const Vec3& camPos = currentCam.GetPosition();
 	const float sqDiagonalInternal = m_internalAABB.GetRadiusSqr() * GetCVars()->e_MergedMeshesInstanceDist;
 	const float sqDiagonal = m_visibleAABB.GetRadiusSqr();
-	const float sqDistanceToBox = Distance::Point_AABBSq(camPos, m_visibleAABB);
+	const float sqDistanceToBox = currentCam.GetSquaredAABBDistanceM(m_visibleAABB);
 	int nLod = 0;
 	uint32 lodFrequency[] = { 3, 5, 7, 11 };
 

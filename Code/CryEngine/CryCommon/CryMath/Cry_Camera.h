@@ -23,6 +23,8 @@
 #include <CryMemory/MemoryAccess.h>
 #include <CryMath/Cry_XOptimise.h>
 
+#include <limits>
+
 #define DEFAULT_NEAR 0.25f
 #define DEFAULT_FAR  1024.0f
 #define DEFAULT_FOV  (75.0f * gf_PI / 180.0f)
@@ -144,9 +146,11 @@ public:
 
 	//! Check if a point lies within camera's frustum.
 	bool IsPointVisible(const Vec3& p) const;
+	bool IsPointVisibleM(const Vec3& p) const;
 
 	// Sphere-frustum tests
 	bool  IsSphereVisible_F(const Sphere& s) const;
+	bool IsSphereVisible_FM(const Sphere& s) const;
 	uint8 IsSphereVisible_FH(const Sphere& s) const;   //!< This is going to be the exact version of sphere-culling.
 
 	// AABB-frustum test
@@ -167,9 +171,14 @@ public:
 
 	// OBB-frustum test
 	bool  IsOBBVisible_F(const Vec3& wpos, const OBB& obb) const;
+	bool IsOBBVisible_FM(const Vec3& wpos, const OBB& obb) const;
 	uint8 IsOBBVisible_FH(const Vec3& wpos, const OBB& obb) const;
 	bool  IsOBBVisible_E(const Vec3& wpos, const OBB& obb, f32 uscale) const;
 	uint8 IsOBBVisible_EH(const Vec3& wpos, const OBB& obb, f32 uscale) const;
+
+	// Distance checks
+	float GetSquaredAABBDistanceM(const AABB& bbox) const;
+	float GetSquaredAABBDistanceWith2DM(const AABB& bbox, const Vec3& pos, float& distance2DOut) const;
 
 	// constructor/destructor
 	CCamera() { m_Matrix.SetIdentity(); SetFrustum(640, 480); m_zrangeMin = 0.0f; m_zrangeMax = 1.0f;  m_pMultiCamera = NULL; m_pPortal = NULL; m_JustActivated = 0; m_nPosX = m_nPosY = m_nSizeX = m_nSizeY = 0; m_asymR = 0; m_asymL = 0; m_asymB = 0; m_asymT = 0; }
@@ -788,6 +797,20 @@ inline bool CCamera::IsPointVisible(const Vec3& p) const
 	return CULL_OVERLAP;
 }
 
+inline bool	CCamera::IsPointVisibleM(const Vec3 &p) const
+{
+	if (!m_pMultiCamera)
+		return IsPointVisible(p);
+
+	for (auto it = m_pMultiCamera->begin(); it != m_pMultiCamera->end(); ++it)
+	{
+		if (it->IsPointVisible(p))
+			return true;
+	}
+
+	return false;
+}
+
 //! Conventional method to check if a sphere and the camera-frustum overlap
 //! The center of the sphere is assumed to be in world-space.
 //! Example: u8 InOut=camera.IsSphereVisible_F(sphere);
@@ -801,6 +824,20 @@ inline bool CCamera::IsSphereVisible_F(const Sphere& s) const
 	if ((m_fp[4] | s.center) > s.radius) return CULL_EXCLUSION;
 	if ((m_fp[5] | s.center) > s.radius) return CULL_EXCLUSION;
 	return CULL_OVERLAP;
+}
+
+inline bool CCamera::IsSphereVisible_FM(const Sphere &s) const
+{
+	if (!m_pMultiCamera) // use main camera
+		return IsSphereVisible_F(s);
+
+	for (auto it = m_pMultiCamera->begin(); it != m_pMultiCamera->end(); ++it)
+	{
+		if (it->IsSphereVisible_F(s))
+			return true;
+	}
+
+	return false;
 }
 
 //! Conventional method to check if a sphere and the camera-frustum overlap, or
@@ -1097,6 +1134,20 @@ inline bool CCamera::IsOBBVisible_F(const Vec3& wpos, const OBB& obb) const
 
 }
 
+inline bool CCamera::IsOBBVisible_FM(const Vec3& wpos, const OBB& obb) const
+{
+	if (!m_pMultiCamera)
+		return IsOBBVisible_F(wpos, obb);
+
+	for (auto it = m_pMultiCamera->begin(); it != m_pMultiCamera->end(); ++it)
+	{
+		if (it->IsOBBVisible_F(wpos, obb))
+			return true;
+	}
+
+	return false;
+}
+
 //! Not yet implemented.
 ILINE uint8 CCamera::IsOBBVisible_FH(const Vec3& wpos, const OBB& obb) const
 {
@@ -1185,6 +1236,57 @@ inline uint8 CCamera::IsOBBVisible_EH(const Vec3& wpos, const OBB& obb, f32 usca
 		return CULL_INCLUSION;
 	}
 	return AdditionalCheck(wpos, obb, uscale);
+}
+
+inline float CCamera::GetSquaredAABBDistanceM(const AABB &bbox) const
+{
+	if (m_pMultiCamera != nullptr)
+	{
+		float fDistance = std::numeric_limits<float>::max();
+
+		for (auto it = m_pMultiCamera->begin(); it != m_pMultiCamera->end(); ++it)
+		{
+			float distance = Distance::Point_AABBSq(it->GetPosition(), bbox);
+			if (distance < fDistance)
+			{
+				fDistance = distance;
+			}
+		}
+
+		return fDistance;
+	}
+
+	return Distance::Point_AABBSq(GetPosition(), bbox);
+}
+
+inline float CCamera::GetSquaredAABBDistanceWith2DM(const AABB &bbox, const Vec3 &pos, float &distance2DOut) const
+{
+	if (m_pMultiCamera != nullptr)
+	{
+		float fEntDistance = std::numeric_limits<float>::max();
+
+		Vec3 camPos;
+
+		for (auto it = m_pMultiCamera->begin(); it != m_pMultiCamera->end(); ++it)
+		{
+			camPos = it->GetPosition();
+
+			float distance = Distance::Point_AABBSq(camPos, bbox);
+
+			if (distance < fEntDistance)
+			{
+				fEntDistance = distance;
+				distance2DOut = it->GetPosition().GetSquaredDistance2D(pos);
+			}
+		}
+
+		return fEntDistance;
+	}
+
+	distance2DOut = GetPosition().GetSquaredDistance2D(pos);
+
+	Vec3 camPos = GetPosition();
+	return Distance::Point_AABBSq(camPos, bbox);
 }
 
 //------------------------------------------------------------------------------

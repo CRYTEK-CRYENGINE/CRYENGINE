@@ -1240,8 +1240,6 @@ void C3DEngine::UpdateRenderingCamera(const char* szCallerName, const SRendering
 	{
 		if (gEnv->IsEditor())
 			GetObjManager()->PrepareCullbufferAsync(passInfo.GetCamera());
-		else
-			assert(IsEquivalent(passInfo.GetCamera().GetViewdir(), GetObjManager()->m_CullThread.GetViewDir())); // early set camera differs from current main camera - will cause occlusion errors
 	}
 
 	/////////////////////////////////////////////////////////////////////////////
@@ -1263,8 +1261,8 @@ void C3DEngine::UpdateRenderingCamera(const char* szCallerName, const SRendering
 	{
 		IRenderNode* pRenderNode = m_deferredRenderProxyStreamingPriorityUpdates[i];
 		AABB aabb = pRenderNode->GetBBox();
-		const Vec3& vCamPos = GetRenderingCamera().GetPosition();
-		float fEntDistance = sqrt_tpl(Distance::Point_AABBSq(vCamPos, aabb)) * passInfo.GetZoomFactor();
+
+		float fEntDistance = sqrt_tpl(GetRenderingCamera().GetSquaredAABBDistanceM(aabb)) * passInfo.GetZoomFactor();
 
 		GetObjManager()->UpdateRenderNodeStreamingPriority(pRenderNode, fEntDistance, 1.0f, false, passInfo);
 		if (GetCVars()->e_StreamCgfDebug == 2)
@@ -6118,10 +6116,9 @@ void C3DEngine::RenderRenderNode_ShadowPass(IShadowCaster* pShadowCaster, const 
 	break;
 	default:
 	{
-		const Vec3 vCamPos = passInfo.GetCamera().GetPosition();
 		const AABB objBox = pRenderNode->GetBBoxVirtual();
 		SRendParams rParams;
-		rParams.fDistance = sqrt_tpl(Distance::Point_AABBSq(vCamPos, objBox)) * passInfo.GetZoomFactor();
+		rParams.fDistance = passInfo.GetCamera().GetSquaredAABBDistanceM(objBox) * passInfo.GetZoomFactor();
 		rParams.lodValue = pRenderNode->ComputeLod(wantedLod, passInfo);
 
 		pRenderNode->Render(rParams, passInfo);

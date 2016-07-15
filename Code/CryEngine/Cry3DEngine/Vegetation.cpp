@@ -147,13 +147,16 @@ CLodValue CVegetation::ComputeLod(int wantedLod, const SRenderingPassInfo& passI
 	StatInstGroup& vegetGroup = GetStatObjGroup();
 	if (CStatObj* pStatObj = vegetGroup.GetStatObj())
 	{
-		const Vec3 vCamPos = passInfo.GetCamera().GetPosition();
+		float fEntDistance2D;
+		float fEntDistanceSqr = passInfo.GetCamera().GetSquaredAABBDistanceWith2DM(GetBBox(), m_vPos, fEntDistance2D);
+		
+		fEntDistanceSqr *= passInfo.GetZoomFactor();
+		fEntDistance2D = sqrt(fEntDistance2D) * passInfo.GetZoomFactor();
 
 		// update LOD faster in zoom mode
 		if (passInfo.IsGeneralPass() && passInfo.IsZoomActive())
 		{
-			const float fEntDistance = sqrt_tpl(Distance::Point_AABBSq(vCamPos, GetBBox())) * passInfo.GetZoomFactor();
-			wantedLod = CObjManager::GetObjectLOD(this, fEntDistance);
+			wantedLod = CObjManager::GetObjectLOD(this, fEntDistanceSqr);
 		}
 
 		int minUsableLod = pStatObj->GetMinUsableLod();
@@ -168,8 +171,6 @@ CLodValue CVegetation::ComputeLod(int wantedLod, const SRenderingPassInfo& passI
 
 			if (GetCVars()->e_Dissolve)
 			{
-				const float fEntDistance2D = sqrt_tpl(vCamPos.GetSquaredDistance2D(m_vPos)) * passInfo.GetZoomFactor();
-
 				int nLod;
 				float fSwitchRange = min(fSpriteSwitchDist * GetCVars()->e_DissolveSpriteDistRatio, GetCVars()->e_DissolveSpriteMinDist);
 				bool bUsingSprite = vegetGroup.bUseSprites && (fEntDistance2D > (fSpriteSwitchDist - fSwitchRange));
@@ -239,13 +240,9 @@ CLodValue CVegetation::ComputeLod(int wantedLod, const SRenderingPassInfo& passI
 
 			const float fDissolveStartDist = sqr(m_fWSMaxViewDist - fDissolveDist);
 
-			AABB bbox;
-			FillBBox_NonVirtual(bbox);
-			float fEntDistanceSq = Distance::Point_AABBSq(vCamPos, bbox) * sqr(passInfo.GetZoomFactor());
-
-			if (fEntDistanceSq > fDissolveStartDist)
+			if (fEntDistanceSqr > fDissolveStartDist)
 			{
-				float fDissolve = (sqrt(fEntDistanceSq) - (m_fWSMaxViewDist - fDissolveDist))
+				float fDissolve = (sqrt(fEntDistanceSqr) - (m_fWSMaxViewDist - fDissolveDist))
 				                  / fDissolveDist;
 				nDissolveRefA = (uint8)(255.f * SATURATE(fDissolve));
 				nLodB = -1;
@@ -297,10 +294,13 @@ void CVegetation::Render(const SRenderingPassInfo& passInfo, const CLodValue& lo
 
 	const Vec3 vCamPos = passInfo.GetCamera().GetPosition();
 	const Vec3 vObjCenter = GetBBox().GetCenter();
-	const Vec3 vObjPos = GetPos();
+	
+	float fEntDistance2D;
+	float fEntDistance = sqrt_tpl(passInfo.GetCamera().GetSquaredAABBDistanceWith2DM(GetBBox(), m_vPos, fEntDistance2D));
 
-	float fEntDistance = sqrt_tpl(Distance::Point_AABBSq(vCamPos, GetBBox())) * passInfo.GetZoomFactor();
-	float fEntDistance2D = sqrt_tpl(vCamPos.GetSquaredDistance2D(m_vPos)) * passInfo.GetZoomFactor();
+	fEntDistance *= passInfo.GetZoomFactor();
+	fEntDistance2D = sqrt_tpl(fEntDistance2D) * passInfo.GetZoomFactor();
+
 	bool bUseTerrainColor((vegetGroup.bUseTerrainColor && GetCVars()->e_VegetationUseTerrainColor) || GetCVars()->e_VegetationUseTerrainColor == 2);
 
 	SRenderNodeTempData::SUserData& userData = m_pTempData->userData;
@@ -769,10 +769,13 @@ void CVegetation::OnRenderNodeBecomeVisible(const SRenderingPassInfo& passInfo)
 
 	UpdateBending();
 
-	const Vec3 vCamPos = passInfo.GetCamera().GetPosition();
 	StatInstGroup& vegetGroup = GetStatObjGroup();
-	float fEntDistance2D = sqrt_tpl(vCamPos.GetSquaredDistance2D(m_vPos)) * passInfo.GetZoomFactor();
-	float fEntDistance = sqrt_tpl(Distance::Point_AABBSq(vCamPos, GetBBox())) * passInfo.GetZoomFactor();
+	
+	float fEntDistance2D;
+	float fEntDistance = sqrt_tpl(passInfo.GetCamera().GetSquaredAABBDistanceWith2DM(GetBBox(), m_vPos, fEntDistance2D));
+
+	fEntDistance *= passInfo.GetZoomFactor();
+	fEntDistance2D = sqrt_tpl(fEntDistance2D) * passInfo.GetZoomFactor();
 
 	userData.nWantedLod = CObjManager::GetObjectLOD(this, fEntDistance);
 

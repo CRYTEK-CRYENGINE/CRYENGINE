@@ -54,8 +54,7 @@ CLodValue CBrush::ComputeLod(int wantedLod, const SRenderingPassInfo& passInfo)
 
 	if (CStatObj* pStatObj = (CStatObj*)CBrush::GetEntityStatObj())
 	{
-		const Vec3 vCamPos = passInfo.GetCamera().GetPosition();
-		const float fEntDistance = sqrt_tpl(Distance::Point_AABBSq(vCamPos, CBrush::GetBBox())) * passInfo.GetZoomFactor();
+		const float fEntDistance = sqrt_tpl(passInfo.GetCamera().GetSquaredAABBDistanceM(CBrush::GetBBox()) * passInfo.GetZoomFactor());
 
 		// update LOD faster in zoom mode
 		if (passInfo.IsGeneralPass() && passInfo.IsZoomActive())
@@ -844,7 +843,7 @@ void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInf
 	if (GetObjManager()->AddOrCreatePersistentRenderObject(m_pTempData, pObj, &lodValue, passInfo))
 		return;
 
-	pObj->m_fDistance = sqrt_tpl(Distance::Point_AABBSq(vCamPos, CBrush::GetBBox())) * passInfo.GetZoomFactor();
+	pObj->m_fDistance = sqrt_tpl(passInfo.GetCamera().GetSquaredAABBDistanceM(CBrush::GetBBox())) * passInfo.GetZoomFactor();
 
 	pObj->m_pRenderNode = this;
 	pObj->m_II.m_Matrix = userData.objMat;
@@ -990,7 +989,7 @@ void CBrush::OnRenderNodeBecomeVisible(const SRenderingPassInfo& passInfo)
 
 	userData.objMat = m_Matrix;
 	const Vec3 vCamPos = passInfo.GetCamera().GetPosition();
-	float fEntDistance = sqrt_tpl(Distance::Point_AABBSq(vCamPos, CBrush::GetBBox())) * passInfo.GetZoomFactor();
+	float fEntDistance = sqrt_tpl(passInfo.GetCamera().GetSquaredAABBDistanceM(CBrush::GetBBox())) * passInfo.GetZoomFactor();
 
 	userData.nWantedLod = CObjManager::GetObjectLOD(this, fEntDistance);
 

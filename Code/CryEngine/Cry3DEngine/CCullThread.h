@@ -10,6 +10,16 @@ namespace NAsyncCull
 
 class CRY_ALIGN(128) CCullThread: public Cry3DEngineBase
 {
+	// Information on a view, in order to support multiple view rendering
+	struct SViewInfo
+	{
+		Vec3 position;
+		AABB aabbPosition;
+		
+		Matrix44A matScreenViewProj;
+		Matrix44A matScreenViewProjTransposed;
+	};
+	
 	bool m_Enabled;
 
 	bool m_Active;                                      // used to verify that the cull job is running and no new jobs are added after the job has finished
@@ -26,12 +36,9 @@ private:
 	void* m_pCheckOcclusionJob;
 	JobManager::SJobState m_JobStatePrepareOcclusionBuffer;
 	JobManager::SJobState m_PrepareBufferSync;
-	Matrix44A m_MatScreenViewProj;
-	Matrix44A m_MatScreenViewProjTransposed;
-	Vec3 m_ViewDir;
-	Vec3 m_Position;
-	float m_NearPlane;
-	float m_FarPlane;
+	std::vector<SViewInfo> m_viewInfo; 
+	float m_primaryCameraNearPlane;
+	float m_primaryCameraFarPlane;
 	float m_NearestMax;
 
 	PodArray<uint8> m_OCMBuffer;
@@ -71,6 +78,8 @@ private:
 
 	void RasterizeZBuffer(uint32 PolyLimit);
 	void OutputMeshList();
+	
+	void UpdateViewInfo(SViewInfo &viewInfo, const CCamera &camera, Matrix44 &matView, Matrix44 &matProj);
 
 public:
 
@@ -86,7 +95,7 @@ public:
 	bool LoadLevel(const char* pFolderName);
 	void UnloadLevel();
 
-	bool TestAABB(const AABB &rAABB, float fEntDistance, float fVerticalExpand = 0.0f);
+	bool TestAABB(const AABB &rAABB, float fEntDistance = -1.f, float fVerticalExpand = 0.0f);
 	bool TestQuad(const Vec3 &vCenter, const Vec3 &vAxisX, const Vec3 &vAxisY);
 
 	CCullThread();
@@ -102,9 +111,6 @@ public:
 
 	bool IsActive() const        { return m_Active; }
 	void SetActive(bool bActive) { m_Active = bActive; }
-
-	Vec3 GetViewDir()            { return m_ViewDir; };
-
 };
 
 }

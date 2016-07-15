@@ -1756,12 +1756,12 @@ void C3DEngine::RenderScene(const int nRenderFlags, const SRenderingPassInfo& pa
 		{
 			FRAME_PROFILER("C3DEngine::RenderScene_DrawAlwaysVisible", GetSystem(), PROFILE_3DENGINE);
 
-			Vec3 vCamPos = passInfo.GetCamera().GetPosition();
-			float fEntDistance = sqrt_tpl(Distance::Point_AABBSq(vCamPos, objBox)) * passInfo.GetZoomFactor();
-			assert(fEntDistance >= 0 && _finite(fEntDistance));
-			if (fEntDistance < pObj->m_fWSMaxViewDist)
+			float fEntDistanceSq = passInfo.GetCamera().GetSquaredAABBDistanceM(objBox) * passInfo.GetZoomFactor();
+
+			assert(fEntDistanceSq >= 0 && _finite(fEntDistanceSq));
+			if (fEntDistanceSq < pObj->m_fWSMaxViewDist)
 			{
-				GetObjManager()->RenderObject(pObj, NULL, GetSkyColor(), objBox, fEntDistance, false, pObj->GetRenderNodeType(), passInfo);
+				GetObjManager()->RenderObject(pObj, NULL, GetSkyColor(), objBox, fEntDistanceSq, false, pObj->GetRenderNodeType(), passInfo);
 			}
 		}
 	}

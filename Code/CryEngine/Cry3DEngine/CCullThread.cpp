@@ -34,10 +34,8 @@ CCullThread::CCullThread()
 	, m_nRunningReprojJobsAfterMerge(0)
 	, m_bCheckOcclusionRequested(0)
 	, m_pCheckOcclusionJob(nullptr)
-	, m_ViewDir(ZERO)
-	, m_Position(ZERO)
-	, m_NearPlane(0.0f)
-	, m_FarPlane(0.0f)
+	, m_primaryCameraNearPlane(0.0f)
+	, m_primaryCameraFarPlane(0.0f)
 	, m_NearestMax(0.0f)
 	, m_pOCMBufferAligned(nullptr)
 	, m_OCMMeshCount(0)
@@ -278,41 +276,27 @@ void CCullThread::PrepareCullbufferAsync(const CCamera& rCamera)
 	// sync a possible job from the last frame
 	gEnv->pJobManager->WaitForJob(m_JobStatePrepareOcclusionBuffer);
 
-	const CCamera& rCam = rCamera;
-
-	CCamera tmp_cam = m_pRenderer->GetCamera();
-	m_pRenderer->SetCamera(rCam);
-	m_pRenderer->GetModelViewMatrix(reinterpret_cast<f32*>(&MatView));
-	m_pRenderer->GetProjectionMatrix(reinterpret_cast<f32*>(&MatProj));
-	m_pRenderer->SetCamera(tmp_cam);
-
-	uint32 nReverseDepthEnabled = 0;
-	m_pRenderer->EF_Query(EFQ_ReverseDepthEnabled, nReverseDepthEnabled);
-
-	if (nReverseDepthEnabled) // Convert to regular depth again. TODO: make occlusion culler work with reverse depth
+	if(rCamera.m_pMultiCamera == nullptr)
 	{
-		MatProj.m22 = -MatProj.m22 + MatProj.m23;
-		MatProj.m32 = -MatProj.m32 + MatProj.m33;
+		m_viewInfo.resize(1);
+
+		UpdateViewInfo(m_viewInfo.front(), rCamera, MatView, MatProj);
 	}
-
-	m_ViewDir = rCam.GetViewdir();
-	MatViewProj = MatView * MatProj;
-
-	MatViewProj.Transpose();
-
-	const float SCALEX = static_cast<float>(CULL_SIZEX / 2);
-	const float SCALEY = static_cast<float>(CULL_SIZEY / 2);
-	const Matrix44A MatScreen(SCALEX, 0.f, 0.f, SCALEX,
-	                          0.f, -SCALEY, 0.f, SCALEY,
-	                          0.f, 0.f, 1.f, 0.f,
-	                          0.f, 0.f, 0.f, 1.f);
-	m_MatScreenViewProj = MatScreen * MatViewProj;
-	m_MatScreenViewProjTransposed = m_MatScreenViewProj.GetTransposed();
-	m_NearPlane = rCam.GetNearPlane();
-	m_FarPlane = rCam.GetFarPlane();
+	else
+	{
+		m_viewInfo.resize(rCamera.m_pMultiCamera->size());
+		
+		for(uint8 i = 0; i < m_viewInfo.size(); i++)
+		{
+			UpdateViewInfo(m_viewInfo[i], rCamera.m_pMultiCamera->GetAt(i), MatView, MatProj);
+		}
+	}
+	
+	// Get primary camera data, used for coverage buffer checks
+	m_primaryCameraNearPlane =  rCamera.GetNearPlane();
+	m_primaryCameraFarPlane =  rCamera.GetFarPlane();
+	
 	m_NearestMax = m_pRenderer->GetNearestRangeMax();
-
-	m_Position = rCam.GetPosition();
 
 	HWZBuffer.ZBufferSizeX = CULL_SIZEX;
 	HWZBuffer.ZBufferSizeY = CULL_SIZEY;
@@ -332,6 +316,41 @@ void CCullThread::PrepareCullbufferAsync(const CCamera& rCamera)
 	job.SetPriorityLevel(JobManager::eHighPriority);
 	job.SetBlocking();
 	job.Run();
+}
+
+void CCullThread::UpdateViewInfo(SViewInfo &viewInfo, const CCamera &rCam, Matrix44 &matView, Matrix44 &matProj)
+{
+	CCamera tmp_cam = m_pRenderer->GetCamera();
+	
+	m_pRenderer->SetCamera(rCam);
+	m_pRenderer->GetModelViewMatrix(reinterpret_cast<f32*>(&matView));
+	m_pRenderer->GetProjectionMatrix(reinterpret_cast<f32*>(&matProj));
+	m_pRenderer->SetCamera(tmp_cam);
+
+	uint32 nReverseDepthEnabled = 0;
+	m_pRenderer->EF_Query(EFQ_ReverseDepthEnabled, nReverseDepthEnabled);
+
+	if (nReverseDepthEnabled) // Convert to regular depth again. TODO: make occlusion culler work with reverse depth
+	{
+		matProj.m22 = -matProj.m22 + matProj.m23;
+		matProj.m32 = -matProj.m32 + matProj.m33;
+	}
+
+	auto matViewProj = matView * matProj;
+	matViewProj.Transpose();
+
+	const float SCALEX		=	static_cast<float>(CULL_SIZEX/2);
+	const float SCALEY		=	static_cast<float>(CULL_SIZEY/2);
+	const Matrix44A matScreen(SCALEX, 0.f, 0.f, SCALEX,
+								0.f, -SCALEY, 0.f, SCALEY,
+								0.f, 0.f, 1.f, 0.f,
+								0.f, 0.f, 0.f, 1.f);
+	
+	viewInfo.matScreenViewProj	= matScreen * matViewProj;
+	viewInfo.matScreenViewProjTransposed = viewInfo.matScreenViewProj.GetTransposed();
+
+	viewInfo.position = rCam.GetPosition();
+	viewInfo.aabbPosition = AABB(viewInfo.position, 0.5f);
 }
 
 void CCullThread::CullStart(const SRenderingPassInfo& passInfo)
@@ -433,7 +452,7 @@ void CCullThread::RasterizeZBuffer(uint32 PolyLimit)
 
 	Matrix44A& rTmp0 = *reinterpret_cast<Matrix44A*>((reinterpret_cast<size_t>(Tmp) + 15) & ~15);
 	Matrix44A& rTmp1 = *reinterpret_cast<Matrix44A*>((reinterpret_cast<size_t>(Tmp) + 15 + 64) & ~15);
-	rTmp0 = m_MatScreenViewProj.GetTransposed();
+	rTmp0 = m_viewInfo.front().matScreenViewProjTransposed;
 	//rTmp	=	m_MatScreenViewProjTransposed;
 
 	int Visible = 0;
@@ -460,7 +479,7 @@ void CCullThread::RasterizeZBuffer(uint32 PolyLimit)
 			Extend.z = (fabsf(World.m20) + fabsf(World.m21) + fabsf(World.m22)) * (127.f);
 
 			//simple incremental bubblesort
-			const float Dist = DistToBox(Pos, Extend, m_Position);
+			const float Dist = DistToBox(Pos, Extend, m_viewInfo.front().position);
 			if (Dist < LastDist)
 			{
 				PREFAST_ASSUME(pLastInstance);
@@ -519,7 +538,7 @@ void CCullThread::RasterizeZBuffer(uint32 PolyLimit)
 		      LastDist	=	Dist;
 		    pLastInstance	=	pInstance;
 		 */
-		const int InFrustum = RASTERIZER.AABBInFrustum(reinterpret_cast<NVMath::vec4*>(&rTmp0), Pos - Extend, Pos + Extend, m_Position);
+		const int InFrustum = RASTERIZER.AABBInFrustum(reinterpret_cast<NVMath::vec4*>(&rTmp0), Pos - Extend, Pos + Extend, m_viewInfo.front().position);
 		if (!InFrustum)
 		{
 			Invisible++;
@@ -528,7 +547,7 @@ void CCullThread::RasterizeZBuffer(uint32 PolyLimit)
 		else
 			Visible++;
 
-		rTmp1 = (m_MatScreenViewProj * World).GetTransposed();
+		rTmp1 = (m_viewInfo.front().matScreenViewProj * World).GetTransposed();
 		const uint8* pMesh = pMeshes + MeshOffset;
 		const size_t TriCount = *reinterpret_cast<const uint32*>(pMesh);
 		const size_t Tris16 = (reinterpret_cast<size_t>(pMesh + 4) + 15) & ~15;
@@ -567,7 +586,7 @@ void CCullThread::PrepareOcclusion()
 		{
 			CRY_PROFILE_REGION(PROFILE_3DENGINE, "Transfer Previous Frame Z-Buffer");
 			CRYPROFILE_SCOPE_PROFILE_MARKER("Transfer Previous Frame Z-Buffer");
-			m_Enabled = RASTERIZER.DownLoadHWDepthBuffer(m_NearPlane, m_FarPlane, m_NearestMax, GetCVars()->e_CoverageBufferBias);
+			m_Enabled = RASTERIZER.DownLoadHWDepthBuffer(m_primaryCameraNearPlane, m_primaryCameraFarPlane, m_NearestMax, GetCVars()->e_CoverageBufferBias);
 		}
 		else
 			RASTERIZER.Clear();
@@ -616,8 +635,8 @@ void CCullThread::PrepareOcclusion_ReprojectZBufferLine(int nStartLine, int nNum
 	{
 		uint Tmp[80];
 		Matrix44A& rTmp = *reinterpret_cast<Matrix44A*>((reinterpret_cast<size_t>(Tmp) + 15) & ~15);
-		rTmp = m_MatScreenViewProjTransposed;
-		RASTERIZER.ReprojectHWDepthBuffer(rTmp, m_NearPlane, m_FarPlane, m_NearestMax, GetCVars()->e_CoverageBufferBias, nStartLine, nNumLines);
+		rTmp = m_viewInfo.front().matScreenViewProjTransposed;
+		RASTERIZER.ReprojectHWDepthBuffer(rTmp, m_primaryCameraNearPlane, m_primaryCameraFarPlane, m_NearestMax, GetCVars()->e_CoverageBufferBias, nStartLine, nNumLines);
 	}
 
 	uint32 nRemainingJobs = CryInterlockedDecrement((volatile int*)&m_nRunningReprojJobs);
@@ -643,8 +662,8 @@ void CCullThread::PrepareOcclusion_ReprojectZBufferLineAfterMerge(int nStartLine
 	{
 		uint Tmp[80];
 		Matrix44A& rTmp = *reinterpret_cast<Matrix44A*>((reinterpret_cast<size_t>(Tmp) + 15) & ~15);
-		rTmp = m_MatScreenViewProjTransposed;
-		RASTERIZER.ReprojectHWDepthBufferAfterMerge(rTmp, m_NearPlane, m_FarPlane, m_NearestMax, GetCVars()->e_CoverageBufferBias, nStartLine, nNumLines);
+		rTmp = m_viewInfo.front().matScreenViewProjTransposed;
+		RASTERIZER.ReprojectHWDepthBufferAfterMerge(rTmp, m_primaryCameraNearPlane, m_primaryCameraFarPlane, m_NearestMax, GetCVars()->e_CoverageBufferBias, nStartLine, nNumLines);
 	}
 
 	uint32 nRemainingJobs = CryInterlockedDecrement((volatile int*)&m_nRunningReprojJobsAfterMerge);
@@ -701,17 +720,7 @@ void CCullThread::PrepareOcclusion_RasterizeZBuffer()
 
 void CCullThread::CheckOcclusion(SRenderingPassInfo passInfo)
 {
-	uint8 AlignBuffer[2 * sizeof(Matrix44A) + 16];
-	size_t pBuffer = (reinterpret_cast<size_t>(AlignBuffer) + 15) & ~15;
-	Matrix44A& RESTRICT_REFERENCE rMatFinalT = reinterpret_cast<Matrix44A*>(pBuffer)[1];
-
-	Vec3 localPostion;
-	memcpy(&localPostion, &m_Position, sizeof(Vec3));
-
-	const AABB PosAABB = AABB(m_Position, 0.5f);
-	const float Bias = GetCVars()->e_CoverageBufferAABBExpand;
 	const float TerrainBias = GetCVars()->e_CoverageBufferTerrainExpand;
-	rMatFinalT = m_MatScreenViewProj.GetTransposed();
 	bool bEnabled = m_Enabled;
 
 	while (1)
@@ -729,10 +738,9 @@ void CCullThread::CheckOcclusion(SRenderingPassInfo passInfo)
 			COctreeNode* pOctTreeNode = jobData.octTreeData.pOctTreeNode;
 
 			memcpy(&rAABB, &pOctTreeNode->GetObjectsBBox(), sizeof(AABB));
-			float fDistance = sqrtf(Distance::Point_AABBSq(passInfo.GetCamera().GetPosition(), rAABB));
-
+			
 			// Test OctTree BoundingBox
-			if (TestAABB(rAABB, fDistance))
+			if (TestAABB(rAABB))
 			{
 				Vec3 vAmbColor(jobData.octTreeData.vAmbColor[0], jobData.octTreeData.vAmbColor[1], jobData.octTreeData.vAmbColor[2]);
 
@@ -772,29 +780,46 @@ bool CCullThread::TestAABB(const AABB& rAABB, float fEntDistance, float fVertica
 	IF (GetCVars()->e_CheckOcclusion == 0, 0)
 		return true;
 
-	const AABB PosAABB = AABB(m_Position, 0.5f);
+	if(!m_Enabled)
+		return true;
+	
+	// Special case for multiple cameras, calculate entity distance from bbox (select nearest)
+	if (isneg(fEntDistance))
+	{
+		fEntDistance = std::numeric_limits<float>::max();
+
+		for (auto it = m_viewInfo.begin(); it != m_viewInfo.end(); ++it)
+		{
+			float distance = sqrtf(Distance::Point_AABBSq(it->position, rAABB));
+			if (distance < fEntDistance)
+			{
+				fEntDistance = distance;
+			}
+		}
+	}
+
 	const float Bias = GetCVars()->e_CoverageBufferAABBExpand;
-	Matrix44A rMatFinalT(m_MatScreenViewProj.GetTransposed());
+
 	AABB bbox(rAABB);
 
 	if (Bias < 0.f)
 		bbox.Expand((bbox.max - bbox.min) * -Bias - Vec3(Bias, Bias, Bias));
 	else
 		bbox.Expand(Vec3(Bias * fEntDistance));
-
+	
 	float fVerticalExpandScaled = fVerticalExpand * fEntDistance;
 	bbox.min.z -= fVerticalExpandScaled;
 	bbox.max.z += fVerticalExpandScaled;
 
-	if (!m_Enabled)
-		return true;
-
-	if (bbox.IsIntersectBox(PosAABB))
-		return true;
-
-	if (RASTERIZER.TestAABB(reinterpret_cast<const NVMath::vec4*>(&rMatFinalT), bbox.min, bbox.max, m_Position))
-		return true;
-
+	for(auto it = m_viewInfo.begin(); it != m_viewInfo.end(); ++it)
+	{
+		if (bbox.IsIntersectBox(it->aabbPosition))
+			return true;
+		
+		if(RASTERIZER.TestAABB(reinterpret_cast<const NVMath::vec4*>(&it->matScreenViewProjTransposed), bbox.min, bbox.max, it->position))
+			return true;
+	}
+	
 	return false;
 }
 
@@ -806,9 +831,11 @@ bool CCullThread::TestQuad(const Vec3& vCenter, const Vec3& vAxisX, const Vec3& 
 	if (!m_Enabled)
 		return true;
 
-	Matrix44A rMatFinalT(m_MatScreenViewProj.GetTransposed());
-	if (RASTERIZER.TestQuad(reinterpret_cast<const NVMath::vec4*>(&rMatFinalT), vCenter, vAxisX, vAxisY))
-		return true;
+	for (auto it = m_viewInfo.begin(); it != m_viewInfo.end(); ++it)
+	{
+		if (RASTERIZER.TestQuad(reinterpret_cast<const NVMath::vec4*>(&it->matScreenViewProjTransposed), vCenter, vAxisX, vAxisY))
+			return true;
+	}
 
 	return false;
 }

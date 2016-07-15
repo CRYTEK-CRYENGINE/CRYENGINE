@@ -90,7 +90,6 @@ void COctreeNode::CheckManageVegetationSprites(float fNodeDistance, int nMaxFram
 	if (sunDirReady.Dot(p3DEngine->GetSunDirNormalized()) < 0.99f)
 		SetCompiled(false);
 
-	const Vec3 vCamPos = passInfo.GetCamera().GetPosition();
 	AABB objBox;
 
 	SSectorTextureSet* pTerrainTexInfo = NULL;
@@ -113,9 +112,10 @@ void COctreeNode::CheckManageVegetationSprites(float fNodeDistance, int nMaxFram
 
 		pObj->FillBBox_NonVirtual(objBox);
 
-		const float fEntDistanceSqr = Distance::Point_AABBSq(vCamPos, objBox) * passInfo.GetZoomFactor() * passInfo.GetZoomFactor();
+		float fEntDistance2D;
+		const float fEntDistanceSqr = passInfo.GetCamera().GetSquaredAABBDistanceWith2DM(objBox, pObj->m_vPos, fEntDistance2D) * sqrt_tpl(passInfo.GetZoomFactor());
 
-		float fEntDistance2D = sqrt_tpl(vCamPos.GetSquaredDistance2D(pObj->m_vPos)) * passInfo.GetZoomFactor();
+		fEntDistance2D = sqrt_tpl(fEntDistance2D) * passInfo.GetZoomFactor();
 
 		StatInstGroup& vegetGroup = pObj->GetStatObjGroup();
 
@@ -217,12 +217,10 @@ void COctreeNode::Render_Object_Nodes(bool bNodeCompletelyInFrustum, int nRender
 	if (m_nOccludedFrameId == passInfo.GetFrameID())
 		return;
 
-	if (!bNodeCompletelyInFrustum && !rCam.IsAABBVisible_EH(m_objectsBox, &bNodeCompletelyInFrustum))
+	if (!bNodeCompletelyInFrustum && !rCam.IsAABBVisible_EHM(m_objectsBox, &bNodeCompletelyInFrustum))
 		return;
 
-	const Vec3& vCamPos = rCam.GetPosition();
-
-	float fNodeDistanceSq = Distance::Point_AABBSq(vCamPos, m_objectsBox) * sqr(passInfo.GetZoomFactor());
+	float fNodeDistanceSq = passInfo.GetCamera().GetSquaredAABBDistanceM(m_objectsBox) * sqr(passInfo.GetZoomFactor());
 
 	if (fNodeDistanceSq > sqr(m_fObjectsMaxViewDist))
 		return;
@@ -237,6 +235,8 @@ void COctreeNode::Render_Object_Nodes(bool bNodeCompletelyInFrustum, int nRender
 			return;
 		}
 	}
+
+	const Vec3 vCamPos = passInfo.GetCamera().GetPosition();
 
 	m_nLastVisFrameId = passInfo.GetFrameID();
 
@@ -2612,8 +2612,7 @@ void COctreeNode::RenderVegetations(TDoublyLinkedList<IRenderNode>* lstObjects, 
 	CVars* pCVars = GetCVars();
 
 	AABB objBox;
-	const Vec3 vCamPos = passInfo.GetCamera().GetPosition();
-
+	
 	bool bCheckPerObjectOcclusion = m_vNodeAxisRadius.len2() > pCVars->e_CoverageBufferCullIndividualBrushesMaxNodeSize * pCVars->e_CoverageBufferCullIndividualBrushesMaxNodeSize;
 
 	const bool bRenderSprites = pCVars->e_VegetationSpritesBatching && !(nRenderMask & OCTREENODE_RENDER_FLAG_OBJECTS_ONLY_ENTITIES) && pCVars->e_VegetationSprites;
@@ -2650,7 +2649,7 @@ void COctreeNode::RenderVegetations(TDoublyLinkedList<IRenderNode>* lstObjects, 
 
 		if (bNodeCompletelyInFrustum || passInfo.GetCamera().IsAABBVisible_FM(objBox))
 		{
-			float fEntDistanceSq = Distance::Point_AABBSq(vCamPos, objBox) * sqr(passInfo.GetZoomFactor());
+			float fEntDistanceSq = passInfo.GetCamera().GetSquaredAABBDistanceM(objBox) * sqr(passInfo.GetZoomFactor());
 
 			if (fEntDistanceSq < sqr(pObj->m_fWSMaxViewDist))
 			{
@@ -2691,8 +2690,7 @@ void COctreeNode::RenderBrushes(TDoublyLinkedList<IRenderNode>* lstObjects, bool
 	FUNCTION_PROFILER_3DENGINE;
 
 	CVars* pCVars = GetCVars();
-	const Vec3 vCamPos = passInfo.GetCamera().GetPosition();
-
+	
 	float cullMaxNodeSize = static_cast<float>(pCVars->e_CoverageBufferCullIndividualBrushesMaxNodeSize);
 	bool bCheckPerObjectOcclusion = GetNodeRadius2() > cullMaxNodeSize * cullMaxNodeSize;
 
@@ -2712,7 +2710,7 @@ void COctreeNode::RenderBrushes(TDoublyLinkedList<IRenderNode>* lstObjects, bool
 		//		if(bNodeCompletelyInFrustum || passInfo.GetCamera().IsAABBVisible_FM( objBox ))
 		if (bNodeCompletelyInFrustum || passInfo.GetCamera().IsAABBVisible_F(objBox))  // TODO: we must use multi-camera check here, but it is broken by dx12 development
 		{
-			float fEntDistance = sqrt_tpl(Distance::Point_AABBSq(vCamPos, objBox)) * passInfo.GetZoomFactor();
+			float fEntDistance = sqrt_tpl(passInfo.GetCamera().GetSquaredAABBDistanceM(objBox)) * passInfo.GetZoomFactor();
 			assert(fEntDistance >= 0 && _finite(fEntDistance));
 			if (fEntDistance < pObj->m_fWSMaxViewDist)
 			{
@@ -2741,7 +2739,6 @@ void COctreeNode::RenderDecalsAndRoads(TDoublyLinkedList<IRenderNode>* lstObject
 
 	CVars* pCVars = GetCVars();
 	AABB objBox;
-	const Vec3 vCamPos = passInfo.GetCamera().GetPosition();
 
 	bool bCheckPerObjectOcclusion = m_vNodeAxisRadius.len2() > pCVars->e_CoverageBufferCullIndividualBrushesMaxNodeSize * pCVars->e_CoverageBufferCullIndividualBrushesMaxNodeSize;
 
@@ -2760,7 +2757,7 @@ void COctreeNode::RenderDecalsAndRoads(TDoublyLinkedList<IRenderNode>* lstObject
 
 		if (bNodeCompletelyInFrustum || passInfo.GetCamera().IsAABBVisible_FM(objBox))
 		{
-			float fEntDistance = sqrt_tpl(Distance::Point_AABBSq(vCamPos, objBox)) * passInfo.GetZoomFactor();
+			float fEntDistance = sqrt_tpl(passInfo.GetCamera().GetSquaredAABBDistanceM(objBox)) * passInfo.GetZoomFactor();
 			assert(fEntDistance >= 0 && _finite(fEntDistance));
 			if (fEntDistance < pObj->m_fWSMaxViewDist)
 			{
@@ -2815,7 +2812,7 @@ void COctreeNode::RenderCommonObjects(TDoublyLinkedList<IRenderNode>* lstObjects
 
 		if (bNodeCompletelyInFrustum || passInfo.GetCamera().IsAABBVisible_FM(objBox))
 		{
-			float fEntDistance = sqrt_tpl(Distance::Point_AABBSq(vCamPos, objBox)) * passInfo.GetZoomFactor();
+			float fEntDistance = sqrt_tpl(passInfo.GetCamera().GetSquaredAABBDistanceM(objBox)) * passInfo.GetZoomFactor();
 			assert(fEntDistance >= 0 && _finite(fEntDistance));
 			if (fEntDistance < pObj->m_fWSMaxViewDist)
 			{
