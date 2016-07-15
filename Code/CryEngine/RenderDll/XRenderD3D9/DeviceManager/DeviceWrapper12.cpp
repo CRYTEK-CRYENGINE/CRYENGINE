@@ -1339,7 +1339,7 @@ CDeviceInputStream* CDeviceObjectFactory::CreateVertexStreamSet(uint32 streamCou
 		vertexFilled |= !!(vertexStreams[i] = streams[i]);
 
 	if ((vertexStreamSet = (vertexFilled ? *m_UniqueVertexStreams.insert(vertexStreams).first : nullptr)) != vertexStreams)
-		delete vertexStreams;
+		delete[] vertexStreams;
 
 	return vertexStreamSet;
 }
