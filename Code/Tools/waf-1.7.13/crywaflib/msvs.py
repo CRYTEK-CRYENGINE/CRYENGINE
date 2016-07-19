@@ -749,6 +749,10 @@ def strip_unsupported_msbuild_platforms(conf):
 		# Go up two folders i.e. C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC -> C:\Program Files (x86)
 		msvs_dir = os.path.dirname(cur_env['MSVC_PATH'])
 		msbuild_dir = os.path.dirname(msvs_dir) + '/MSBUILD'
+		
+		# Fallback to default MSBUILD install directory, if only custom VS installation path was chosen
+		if not os.path.exists(msbuild_dir):
+			msbuild_dir = 'C:/Program Files (x86)/MSBuild'
 	else:
 		# Internally assume MSBUILD is installed here (as MSVC_PATH will point to Code/SDK)
 		msbuild_dir = 'C:/Program Files (x86)/MSBuild'
