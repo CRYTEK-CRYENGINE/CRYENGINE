@@ -268,7 +268,7 @@ public:
 	uint32 m_nMaterialLayers;          //!< Which mtl layers active and how much to blend them
 
 	IRenderNode* m_pRenderNode;         //!< Will define instance id.
-	IMaterial* m_pCurrMaterial;         //!< Parent material used for render object.
+	_smart_ptr<IMaterial> m_pCurrMaterial;         //!< Parent material used for render object.
 	CRendElementBase* m_pRE;            //!< RenderElement used by this CRenderObject
 
 	// Linked list of compiled objects, one per mesh subset (Chunk).
