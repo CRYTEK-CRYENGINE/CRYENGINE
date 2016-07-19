@@ -641,9 +641,9 @@ struct SAllocatorConstruct
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
 	//! C++11 standard-compliant implementation.
 	template<typename T, typename ... Args>
-	static void construct(T* ptr, Args&& ... args)
+	static void construct(const T* ptr, Args&& ... args)
 	{
-		::new(static_cast<void*>(ptr))T(std::forward<Args>(args) ...);
+		::new(static_cast<void*>(const_cast<T *>(ptr))) T(std::forward<Args>(args)...);
 	}
 #else
 
@@ -652,32 +652,32 @@ struct SAllocatorConstruct
 
 	//! Work-around implementation, 0 arguments.
 	template<typename T>
-	static void construct(T* ptr)
+	static void construct(const T* ptr)
 	{
-		::new(static_cast<void*>(ptr))T();
+		::new(static_cast<void*>(const_cast<T *>(ptr))) T();
 	}
 
 	#pragma warning(pop)
 
 	//! Work-around implementation, 1 argument.
 	template<typename T, typename Arg1>
-	static void construct(T* ptr, Arg1&& arg1)
+	static void construct(const T* ptr, Arg1&& arg1)
 	{
-		::new(static_cast<void*>(ptr))T(std::forward<Arg1>(arg1));
+		::new(static_cast<void*>(const_cast<T *>(ptr)))T(std::forward<Arg1>(arg1));
 	}
 
 	//! Work-around implementation, 2 arguments.
 	template<typename T, typename Arg1, typename Arg2>
-	static void construct(T* ptr, Arg1&& arg1, Arg2&& arg2)
+	static void construct(const T* ptr, Arg1&& arg1, Arg2&& arg2)
 	{
-		::new(static_cast<void*>(ptr))T(std::forward<Arg1>(arg1), std::forward<Arg2>(arg2));
+		::new(static_cast<void*>(const_cast<T *>(ptr)))T(std::forward<Arg1>(arg1), std::forward<Arg2>(arg2));
 	}
 
 	//! Work-around implementation, 3 arguments.
 	template<typename T, typename Arg1, typename Arg2, typename Arg3>
-	static void construct(T* ptr, Arg1&& arg1, Arg2&& arg2, Arg3&& arg3)
+	static void construct(const T* ptr, Arg1&& arg1, Arg2&& arg2, Arg3&& arg3)
 	{
-		::new(static_cast<void*>(ptr))T(std::forward<Arg1>(arg1), std::forward<Arg2>(arg2), std::forward<Arg3>(arg3));
+		::new(static_cast<void*>(const_cast<T *>(ptr)))T(std::forward<Arg1>(arg1), std::forward<Arg2>(arg2), std::forward<Arg3>(arg3));
 	}
 
 	//! Note: add more implementations if required.

@@ -124,72 +124,9 @@ bool GetDefaultThreadStackSize(size_t* pStackSize)
     return true;
 }
 
-static void InitRootDir(CryPathString& strAppDir)
-{
-#if !defined(APPLE_BUNDLE)
-#if defined(DEDICATED_SERVER)
-    static const char* s_szBinDir = "BinMac_Dedicated";
-#else
-    static const char* s_szBinDir = "BinMac";
-#endif
-
-    const char* szInnermostDirName = PathUtil::GetFile(strAppDir.c_str());
-    
-    if (strcmp(s_szBinDir, szInnermostDirName) == 0)
-    {
-        strAppDir = PathUtil::GetParentDirectoryStackString(strAppDir);
-        int ret = chdir(strAppDir.c_str());
-        printf("chdir(%s) : %s\n", strAppDir.c_str(), ret == 0 ? "success" : "fail");
-        if(ret != 0) {
-            RunGame_EXIT(1);
-        }
-    } 
-#else 
-    char resourceDir[MAXPATHLEN];
-    if(!GetBundleResourcePath(resourceDir, MAXPATHLEN)) {
-        fprintf(stderr, "error: Could not retrieve bundle resource directory\n");
-        RunGame_EXIT(1);
-    }
-    
-    if (0 != chdir(resourceDir)) {
-        fprintf(stderr,"chdir(%s) : failed\n", resourceDir);
-        RunGame_EXIT(1);
-    }
-    
-#endif
-}
-
 //void HandleAssert(const char* cpMessage, const char* cpFunc, const char* cpFile, const int cLine) {
 // gEnv->pLog->LogError("Assert failed: %s - Function:%s in %s:%d",cpMessage,cpFunc,cpFile,cLine);
 //}
-
-
-bool GetAbsoluteExecutablePath(CryPathString& strAppPath)
-{
-	// Get the relative path
-	char szRelPathBuffer[MAXPATHLEN];
-	char* szRelPath(NULL);
-	uint32 uReqSize(MAXPATHLEN);
-	if (_NSGetExecutablePath(szRelPathBuffer, &uReqSize) != 0)
-	{
-		szRelPath = new char[uReqSize];
-		if (_NSGetExecutablePath(szRelPath, &uReqSize) == 0)
-        {
-			delete [] szRelPath;
-            fprintf(stderr, "Could not read the application path\n");
-            return false;
-        }
-	}
-	
-	// Convert to absolute path
-    char resolvedPath[PATH_MAX];
-	char* szAbsPath(realpath(szRelPath == NULL ? szRelPathBuffer : szRelPath, resolvedPath));
-	strAppPath.assign(resolvedPath);
-	
-	delete [] szRelPath;
-	
-	return true;
-}
 
 #if defined(_LIB)
 //extern void WrappedF_InitCWD();
@@ -290,14 +227,10 @@ static void InitStackTracer(const char* libPath)
 int RunGame(const char *) __attribute__ ((noreturn));
 int RunGame(const char *commandLine)
 {
-	CryPathString strAppPath;
-	if (!GetAbsoluteExecutablePath(strAppPath))
-		RunGame_EXIT(1);
+	char szExecFilePath[MAXPATHLEN];
+	CryGetExecutableFolder(MAXPATHLEN, szExecFilePath);
 
-	CryPathString strAppDir(PathUtil::GetParentDirectoryStackString(strAppPath));
-	CryPathString strLibDir = strAppDir;
-
-	InitStackTracer(strLibDir.c_str());
+	InitStackTracer(szExecFilePath);
 
 	size_t uDefStackSize;
 	if (!IncreaseResourceMaxLimit(RLIMIT_CORE, RLIM_INFINITY) ||         // RLIM_INFINITY is used to set as unlimited, not MAX_UINT (error on Mac OS)
@@ -306,12 +239,8 @@ int RunGame(const char *commandLine)
 		RunGame_EXIT(1);
 	}
 
-
-	InitRootDir(strAppDir);
-	WrappedF_InitCWD();
-
-	SetModulePath(strLibDir.c_str());
 #if !defined(_LIB)
+	SetModulePath(szExecFilePath);
 	HMODULE systemlib = CryLoadLibraryDefName("CrySystem");
 	if(!systemlib)
 	{
@@ -320,13 +249,8 @@ int RunGame(const char *commandLine)
 	}
 #endif
 
-#if !defined(DEDICATED_SERVER)
-	if (SDL_Init(SDL_INIT_VIDEO) < 0)
-	{
-		fprintf(stderr, "SDL initialization failed: %s\n", SDL_GetError());
-		exit(1);
-	}
-#endif
+	CryFindRootFolderAndSetAsCurrentWorkingDirectory();
+	WrappedF_InitCWD();
 
 	HMODULE gameDll = 0;
 #ifndef _LIB
@@ -354,6 +278,14 @@ int RunGame(const char *commandLine)
 		RunGame_EXIT(1);
 	}
 #endif //_LIB
+
+#if !defined(DEDICATED_SERVER)
+	if (SDL_Init(SDL_INIT_VIDEO) < 0)
+	{
+		fprintf(stderr, "SDL initialization failed: %s\n", SDL_GetError());
+		exit(1);
+	}
+#endif
 
 	// create the startup interface
 	IGameStartup* pGameStartup = CreateGameStartup();
@@ -416,9 +348,6 @@ void this_function_is_not_used(void)
 {
 }
 
-// CryCommon/WinBase.cpp
-void InitFileList(void);
-
 #if defined(_DEBUG)
 // Debug code for running the executable with GDB attached.  We'll start an
 // XTerm with a GDB attaching to the running process.
@@ -480,8 +409,6 @@ int main(int argc, char **argv)
 		}
 	}
 #endif
-
-	InitFileList();
 
 	// Build the command line.
 	// We'll attempt to re-create the argument quoting that was used in the

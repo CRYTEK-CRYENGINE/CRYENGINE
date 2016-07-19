@@ -357,13 +357,13 @@ extern void SliceAndSleep(const char* pFunc, int line);
 
 // #define SUPPORT_XTEA_PAK_ENCRYPTION                             //! C2 Style. Compromised - do not use.
 // #define SUPPORT_STREAMCIPHER_PAK_ENCRYPTION                     //! C2 DLC Style - by Mark Tully.
-#if !CRY_PLATFORM_DURANGO
+#if !defined(CRY_PLATFORM_DURANGO) && !defined(CRY_PLATFORM_APPLE)
 	#define SUPPORT_RSA_AND_STREAMCIPHER_PAK_ENCRYPTION //C3/Warface Style - By Timur Davidenko and integrated by Rob Jessop
 #endif
 #if !defined(_RELEASE) || defined(PERFORMANCE_BUILD)
 	#define SUPPORT_UNSIGNED_PAKS //Enable to load paks that aren't RSA signed
 #endif                          //!_RELEASE || PERFORMANCE_BUILD
-#if !CRY_PLATFORM_DURANGO
+#if !defined(CRY_PLATFORM_DURANGO) && !defined(CRY_PLATFORM_APPLE)
 	#define SUPPORT_RSA_PAK_SIGNING //RSA signature verification
 #endif
 

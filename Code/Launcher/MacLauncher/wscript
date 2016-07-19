@@ -1,0 +1,28 @@
+#############################################################################
+## Crytek Source File
+## Copyright (C) 2013, Crytek Studios
+##
+## Creator: Christopher Bolte
+## Date: Oct 31, 2013
+## Description: WAF  based build system
+#############################################################################
+
+def build(bld):	
+
+	tsk = bld.CryLauncher(
+		target      = 'MacLauncher',
+		vs_filter   = 'Launcher',		
+		file_list   = 'maclauncher.waf_files',
+				
+		includes    = [ Path('Code/CryEngine/CrySystem') ],
+		darwin_module_extensions = [ 'sdl2' ],
+	)
+	
+	bld.CryDedicatedServer(
+		target      = 'DedicatedMacLauncher',
+		vs_filter   = 'Launcher',		
+		file_list   = 'maclauncher.waf_files',
+				
+		includes    = [ Path('Code/CryEngine/CrySystem') ],
+		darwin_module_extensions = [ 'sdl2' ]
+	)

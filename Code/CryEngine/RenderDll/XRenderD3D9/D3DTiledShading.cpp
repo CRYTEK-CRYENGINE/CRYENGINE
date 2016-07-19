@@ -107,6 +107,10 @@ CTiledShading::CTiledShading()
 
 void CTiledShading::CreateResources()
 {
+	// Workaround for OS X crash because of ancient OpenGL version
+	if (!CRenderer::CV_r_DeferredShadingTiled)
+		return;
+	
 	uint32 dispatchSizeX = gRenDev->GetWidth() / LightTileSizeX + (gRenDev->GetWidth() % LightTileSizeX > 0 ? 1 : 0);
 	uint32 dispatchSizeY = gRenDev->GetHeight() / LightTileSizeY + (gRenDev->GetHeight() % LightTileSizeY > 0 ? 1 : 0);
 

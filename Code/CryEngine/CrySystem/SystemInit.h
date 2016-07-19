@@ -6,6 +6,6 @@
 #endif
 
 #include "UnixConsole.h"
-#if CRY_PLATFORM_LINUX
+#if defined(USE_UNIXCONSOLE)
 extern __attribute__((visibility("default"))) CUNIXConsole* pUnixConsole;
 #endif

@@ -28,6 +28,15 @@
 #endif
 
 #if CRY_PLATFORM_APPLE
+	#include <mach/mach.h>
+	#include <mach/mach_time.h>
+	#include <sys/sysctl.h>                     // for total physical memory on Mac
+	#include <CoreFoundation/CoreFoundation.h>  // for CryMessageBox
+	#include <mach/vm_statistics.h>             // host_statistics
+	#include <mach/mach_types.h>
+	#include <mach/mach_init.h>
+	#include <mach/mach_host.h>
+	#include <mach-o/dyld.h>    // For _NSGetExecutablePath
 	#include "../CrySystem/SystemUtilsApple.h"
 #elif CRY_PLATFORM_ANDROID
 extern const char* androidGetInternalPath();
@@ -218,7 +227,9 @@ inline void WrappedF_InitCWD()
 	    chdir(fopenwrapper_basedir);
 	   }
 	   }*/
+#if !defined(CRY_PLATFORM_APPLE)
 	SetModulePath(fopenwrapper_basedir);
+#endif
 	char* ptr = strstr(fopenwrapper_basedir, "/Build");
 	if (ptr != NULL)
 	{
@@ -1943,7 +1954,7 @@ int CryGetWritableDirectory(unsigned int nBufferLength, char* lpBuffer)
 #endif
 }
 
-#if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID
+#if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE
 //////////////////////////////////////////////////////////////////////////
 void CrySetCurrentWorkingDirectory(const char* szWorkingDirectory)
 {
@@ -1952,7 +1963,9 @@ void CrySetCurrentWorkingDirectory(const char* szWorkingDirectory)
 		CryFatalError("Unexpected error while trying to set current working directory to: %s", szWorkingDirectory);
 	}
 }
+#endif
 
+#if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID
 //////////////////////////////////////////////////////////////////////////
 void CryGetExecutableFolder(unsigned int pathSize, char* szPath)
 {
@@ -1965,6 +1978,40 @@ void CryGetExecutableFolder(unsigned int pathSize, char* szPath)
 	{
 		strEnd[1] = '\0';
 	}
+}
+#endif
+
+#if CRY_PLATFORM_APPLE
+//////////////////////////////////////////////////////////////////////////
+void CryGetExecutableFolder(unsigned int pathSize, char* szPath)
+{
+#if defined(APPLE_BUNDLE)
+	if(!GetBundleResourcePath(szPath, MAXPATHLEN)) 
+	{
+		CryFatalError("error: Could not retrieve bundle resource directory\n");
+	}
+#else
+	// Get the relative path
+	char szRelPathBuffer[MAXPATHLEN];
+	char *szRelPath(NULL);
+	uint32 uReqSize(MAXPATHLEN);
+	if (_NSGetExecutablePath(szRelPathBuffer, &uReqSize) != 0)
+	{
+		szRelPath = new char[uReqSize];
+		if (_NSGetExecutablePath(szRelPath, &uReqSize) == 0)
+		{
+			delete [] szRelPath;
+        		CryFatalError("Could not read the application path");
+		}
+	}
+	// Convert to absolute path
+	char resolvedPath[PATH_MAX];
+	char *szAbsPath(realpath(szRelPath == NULL ? szRelPathBuffer : szRelPath, resolvedPath));
+	//strAppPath.assign(resolvedPath);
+	string executableFolder = PathUtil::GetParentDirectory(resolvedPath);
+	cry_strcpy(szPath, (size_t)min(executableFolder.size(), (size_t)PATH_MAX), executableFolder.c_str());
+	delete [] szRelPath;
+#endif
 }
 #endif
 

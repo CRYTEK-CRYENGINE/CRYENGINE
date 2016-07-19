@@ -1,0 +1,13 @@
+{
+	"NoUberFile": 
+	{
+		"Source Files":
+		[
+			"AppKitWrapper.h",
+			"AppKitWrapper.mm",
+			"Main.cpp",
+			"StdAfx.cpp",
+			"StdAfx.h"
+		]
+	}
+}

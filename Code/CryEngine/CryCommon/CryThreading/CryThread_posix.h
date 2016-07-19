@@ -5,7 +5,13 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <pthread.h>
+
+#ifdef CRY_PLATFORM_APPLE
+#include <dispatch/dispatch.h>
+#else
 #include <semaphore.h>
+#endif
+
 #include <sched.h>
 
 #include <CrySystem/ISystem.h>
@@ -265,7 +271,11 @@ public:
 	void Release();
 
 private:
+#ifdef CRY_PLATFORM_APPLE
+	dispatch_semaphore_t m_Semaphore;
+#else
 	sem_t m_Semaphore;
+#endif
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -273,6 +283,8 @@ inline CrySemaphore::CrySemaphore(int nMaximumCount, int nInitialCount)
 {
 #if defined(ORIS_SCE_THREADS)
 	ORBIS_TO_IMPLEMENT;
+#elif defined(CRY_PLATFORM_APPLE)
+	m_Semaphore = dispatch_semaphore_create(nInitialCount);
 #else
 	sem_init(&m_Semaphore, 0, nInitialCount);
 #endif
@@ -283,6 +295,8 @@ inline CrySemaphore::~CrySemaphore()
 {
 #if defined(ORIS_SCE_THREADS)
 	ORBIS_TO_IMPLEMENT;
+#elif defined(CRY_PLATFORM_APPLE)
+	dispatch_release(m_Semaphore);
 #else
 	sem_destroy(&m_Semaphore);
 #endif
@@ -293,6 +307,8 @@ inline void CrySemaphore::Acquire()
 {
 #if defined(ORIS_SCE_THREADS)
 	ORBIS_TO_IMPLEMENT;
+#elif defined(CRY_PLATFORM_APPLE)
+	dispatch_semaphore_wait(m_Semaphore, DISPATCH_TIME_FOREVER);
 #else
 	sem_wait(&m_Semaphore);
 #endif
@@ -303,6 +319,8 @@ inline void CrySemaphore::Release()
 {
 #if defined(ORIS_SCE_THREADS)
 	ORBIS_TO_IMPLEMENT;
+#elif defined(CRY_PLATFORM_APPLE)
+	dispatch_semaphore_signal(m_Semaphore);
 #else
 	sem_post(&m_Semaphore);
 #endif

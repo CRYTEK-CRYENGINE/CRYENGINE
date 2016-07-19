@@ -58,6 +58,9 @@ def load_darwin_common_settings(conf):
 	v['CXX'] = 'clang++'
 	v['LINK'] = v['LINK_CC'] = v['LINK_CXX'] = 'clang++'
 	
+	# Override link flags, --rpath=$ORIGIN not supported on Mac
+	v['LINKFLAGS'] = ['-Wl']
+	
 @conf
 def load_debug_darwin_settings(conf):
 	"""

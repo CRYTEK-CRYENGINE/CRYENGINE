@@ -45,7 +45,11 @@ private:
 			#undef MOUSE_MOVED
 		#endif
 
-		#include <ncursesw/ncurses.h>
+		#ifdef CRY_PLATFORM_APPLE
+			#include <curses.h>
+		#else
+			#include <ncursesw/ncurses.h>
+		#endif
 
 // Avoid naming conflicts with pdcurses.
 // Use werase(stdscr) instead of erase().

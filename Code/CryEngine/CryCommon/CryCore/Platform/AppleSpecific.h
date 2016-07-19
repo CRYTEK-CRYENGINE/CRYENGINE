@@ -400,6 +400,52 @@ typedef struct in_addr_windows
 //! We take the definition of the pthread_t type directly from the pthread file.
 	#define THREADID_NULL 0
 
+// General overloads of bitwise operators for enum types.
+// This makes the type of expressions like "eFoo_Flag1 | eFoo_Flag2" to be of type EFoo, instead of int.
+	
+namespace Detail
+{
+template<typename T>
+struct SIsFlagEnum:std::false_type {};
+}
+#define DEFINE_ENUM_FLAG_OPERATORS(TEnum) \
+	namespace Detail { template<> struct SIsFlagEnum<TEnum> :std::true_type {}; }
+template<typename TEnum>
+inline constexpr typename std::enable_if<Detail::SIsFlagEnum<TEnum>::value, TEnum>::type operator ~(TEnum rhs)
+{
+	return static_cast<TEnum>(~static_cast<typename std::underlying_type<TEnum>::type>(rhs));
+}
+template<typename TEnum>
+inline constexpr typename std::enable_if<Detail::SIsFlagEnum<TEnum>::value, TEnum>::type operator |(TEnum lhs, TEnum rhs)
+{
+	return static_cast<TEnum>(static_cast<typename std::underlying_type<TEnum>::type>(lhs) | static_cast<typename std::underlying_type<TEnum>::type>(rhs));
+}
+template<typename TEnum>
+inline constexpr typename std::enable_if<Detail::SIsFlagEnum<TEnum>::value, TEnum>::type operator &(TEnum lhs, TEnum rhs)
+{
+	return static_cast<TEnum>(static_cast<typename std::underlying_type<TEnum>::type>(lhs) & static_cast<typename std::underlying_type<TEnum>::type>(rhs));
+}
+template<typename TEnum>
+inline constexpr typename std::enable_if<Detail::SIsFlagEnum<TEnum>::value, TEnum>::type operator ^(TEnum lhs, TEnum rhs)
+{
+	return static_cast<TEnum>(static_cast<typename std::underlying_type<TEnum>::type>(lhs) ^ static_cast<typename std::underlying_type<TEnum>::type>(rhs));
+}
+template<typename TEnum>
+inline constexpr typename std::enable_if<Detail::SIsFlagEnum<TEnum>::value, TEnum &>::type operator |=(TEnum &lhs, TEnum rhs)
+{
+	return (lhs = static_cast<TEnum>(static_cast<typename std::underlying_type<TEnum>::type>(lhs) | static_cast<typename std::underlying_type<TEnum>::type>(rhs)));
+}
+template<typename TEnum>
+inline constexpr typename std::enable_if<Detail::SIsFlagEnum<TEnum>::value, TEnum &>::type operator &=(TEnum &lhs, TEnum rhs)
+{
+	return (lhs = static_cast<TEnum>(static_cast<typename std::underlying_type<TEnum>::type>(lhs) & static_cast<typename std::underlying_type<TEnum>::type>(rhs)));
+}
+template<typename TEnum>
+inline constexpr typename std::enable_if<Detail::SIsFlagEnum<TEnum>::value, TEnum &>::type operator ^=(TEnum &lhs, TEnum rhs)
+{
+	return (lhs = static_cast<TEnum>(static_cast<typename std::underlying_type<TEnum>::type>(lhs) ^ static_cast<typename std::underlying_type<TEnum>::type>(rhs)));
+}
+	
 #endif // CRY_PLATFORM_APPLE
 
 #endif // __APPLESPECIFIC_H__

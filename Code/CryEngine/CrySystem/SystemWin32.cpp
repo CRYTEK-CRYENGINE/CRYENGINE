@@ -1575,7 +1575,7 @@ void CSystem::ChangeUserPath(const char* sUserPath)
 	userFolder = androidGetInternalPath();
 	m_sys_user_folder->Set(userFolder.c_str());
 	m_env.pCryPak->MakeDir(userFolder.c_str());
-#elif CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID
+#elif CRY_PLATFORM_LINUX || CRY_PLATFORM_APPLE
 	if (userFolder.empty())
 	{
 		userFolder = "USER";

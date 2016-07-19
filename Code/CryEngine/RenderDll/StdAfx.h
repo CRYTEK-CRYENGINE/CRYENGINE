@@ -186,7 +186,7 @@ enum EVerifyType
 #define ASSERT_IN_SHADER(expr)
 
 // TODO: linux clang doesn't behave like orbis clang and linux gcc doesn't behave like darwin gcc, all linux instanced can't manage squish-template overloading
-#if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_ORBIS || CRY_PLATFORM_APPLE
+#if CRY_PLATFORM_POSIX
 	#define EXCLUDE_SQUISH_SDK
 #endif
 

@@ -313,7 +313,7 @@ int CCylinderGeom::FindClosestPoint(geom_world_data *pgwd, int &iPrim,int &iFeat
 	ptresi[1].zero();
 	for(i=0;i<=bLine;i++)	{
 		pt = ptdst[i]-center;
-		if (fabsf(pt*axis)<hh) { // the closest point lies on cylinder side
+		if (fabs_tpl(pt*axis)<hh) { // the closest point lies on cylinder side
 			pt -= axis*(axis*pt);
 			ptresi[i] = ptdst[i]-pt+pt.normalized()*r;
 			continue;
@@ -337,7 +337,7 @@ int CCylinderGeom::UnprojectSphere(Vec3 center,float r,float rsep, contact *pcon
 	Vec3 dc = center-m_cyl.center;
 	float axdist2,capdist,r2=sqr(m_cyl.r);
 	axdist2 = max((dc^m_cyl.axis).len2(),r2);
-	capdist = max(0.0f,fabsf(dc*m_cyl.axis)-m_cyl.hh);
+	capdist = max(0.0f,fabs_tpl(dc*m_cyl.axis)-m_cyl.hh);
 	if (sqr_signed(axdist2+r2+sqr(capdist)-sqr(rsep)) > axdist2*r2*4)
 		return 0;
 
