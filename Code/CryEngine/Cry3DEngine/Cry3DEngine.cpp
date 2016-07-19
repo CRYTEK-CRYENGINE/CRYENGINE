@@ -97,6 +97,10 @@ public:
 				{
 					pObjManager->UnloadObjects(true);
 				}
+				
+				// We have to unload physics data *before* shutting down the geom manager
+				// Otherwise physical entities that are destroyed later will reference dangling geom pointers
+				Cry3DEngineBase::Get3DEngine()->UnloadPhysicsData();
 
 				if (IGeomManager* pGeomManager = Cry3DEngineBase::GetPhysicalWorld()->GetGeomManager())
 				{
