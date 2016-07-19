@@ -81,11 +81,9 @@ SContext::EState SExecuteJob::operator()(const SContext& ctx)
 
 	pSkeletonPose->GetPoseData().Validate(*pSkeletonPose->m_pInstance->m_pDefaultSkeleton);
 
-	if (pSkeletonPose->m_pInstance->IsCharacterVisible())
-	{
-		pSkeletonPose->m_pInstance->m_AttachmentManager.UpdateLocationsExceptExecute(
-		  *pSkeletonPose->GetPoseDataWriteable());
-	}
+	pSkeletonPose->m_pInstance->m_AttachmentManager.UpdateLocationsExceptExecute(
+	  *pSkeletonPose->GetPoseDataWriteable());
+		  
 	pSkeletonPose->m_pInstance->m_AttachmentManager.UpdateLocationsExecute(
 	  *pSkeletonPose->GetPoseDataWriteable());
 
