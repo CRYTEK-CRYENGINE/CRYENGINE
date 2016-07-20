@@ -1270,7 +1270,7 @@ void CObjManager::UpdateRenderNodeStreamingPriority(IRenderNode* pObj, float fEn
 		break;
 	case eERType_Road:
 		if (!passInfo.RenderRoads()) return;
-		fObjScale = max(0.001f, ((CRoadRenderNode*)pObj)->m_arrVerts[0].GetDistance(((CRoadRenderNode*)pObj)->m_arrVerts[1]));
+		fObjScale = max(0.001f,((CRoadRenderNode*)pObj)->m_serializedData.worldSpaceBBox.GetRadius());
 		break;
 	case eERType_Light:
 		if (!GetCVars()->e_DynamicLights) return;

@@ -86,12 +86,11 @@ struct SBrushChunk : public SRenderNodeChunk
 
 struct SRoadChunk : public SRenderNodeChunk
 {
-	int32 m_nVertsNum;
+	CRoadRenderNode::SData m_roadData;
+	
 	int16 m_nSortPriority;
 	int16 m_nFlags;
 	int32 m_nMaterialId;
-	float m_arrTexCoors[2];
-	float m_arrTexCoorsGlobal[2];
 
 	AUTO_STRUCT_INFO_LOCAL;
 };
@@ -412,7 +411,15 @@ int COctreeNode::GetSingleObjectFileDataSize(IRenderNode* pObj, const SHotUpdate
 	{
 		nBlockSize += sizeof(eType);
 		nBlockSize += sizeof(SRoadChunk);
-		nBlockSize += ((CRoadRenderNode*)pRenderNode)->m_arrVerts.GetDataSize();
+		
+		nBlockSize += ((CRoadRenderNode*)pRenderNode)->m_dynamicData.vertices.GetDataSize();
+		nBlockSize += ((CRoadRenderNode*)pRenderNode)->m_dynamicData.tangents.GetDataSize();
+		
+		// vtx_idx is not used since we are exporting from PC and possibly loading on platform with <32 bit vertex indices
+		nBlockSize += ((CRoadRenderNode*)pRenderNode)->m_dynamicData.indices.size() * sizeof(uint32);
+		
+		// Should be zero if m_bPhysicalize is false
+		nBlockSize += ((CRoadRenderNode*)pRenderNode)->m_dynamicData.physicsGeometry.GetDataSize();
 	}
 	else if (eType == eERType_DistanceCloud)
 	{
@@ -547,20 +554,25 @@ void COctreeNode::SaveSingleObject(byte*& pPtr, int& nDatanSize, IRenderNode* pE
 		chunk.m_nFlags = pObj->m_bIgnoreTerrainHoles ? ROADCHUNKFLAG_IGNORE_TERRAIN_HOLES : 0;
 		chunk.m_nFlags |= pObj->m_bPhysicalize ? ROADCHUNKFLAG_PHYSICALIZE : 0;
 
-		chunk.m_nVertsNum = pObj->m_arrVerts.Count();
+		chunk.m_roadData = pObj->m_serializedData;
 
-		for (int i = 0; i < 2; i++)
-			COPY_MEMBER_SAVE(&chunk, pObj, m_arrTexCoors[i]);
-
-		for (int i = 0; i < 2; i++)
-			COPY_MEMBER_SAVE(&chunk, pObj, m_arrTexCoorsGlobal[i]);
+		chunk.m_roadData.numVertices = pObj->m_dynamicData.vertices.size();
+		chunk.m_roadData.numIndices = pObj->m_dynamicData.indices.size();
+		chunk.m_roadData.numTangents = pObj->m_dynamicData.tangents.size();
+		
+		chunk.m_roadData.physicsGeometryCount = pObj->m_dynamicData.physicsGeometry.Count();
 
 		AddToPtr(pPtr, nDatanSize, chunk, eEndian);
 
-		for (int i = 0; i < pObj->m_arrVerts.Count(); i++)
+		CRY_ASSERT_MESSAGE(sizeof(vtx_idx) == sizeof(uint32), "Road exporting can only occur on a platform with 32-bit vertex indices");
+		
+		AddToPtr(pPtr, nDatanSize, pObj->m_dynamicData.vertices.GetElements(), chunk.m_roadData.numVertices, eEndian);
+		AddToPtr(pPtr, nDatanSize, pObj->m_dynamicData.indices.GetElements(), chunk.m_roadData.numIndices, eEndian);
+		AddToPtr(pPtr, nDatanSize, pObj->m_dynamicData.tangents.GetElements(), chunk.m_roadData.numTangents, eEndian);
+		
+		if(chunk.m_roadData.physicsGeometryCount > 0)
 		{
-			Vec3 vPos(pObj->m_arrVerts[i] + segmentOffset);
-			AddToPtr(pPtr, nDatanSize, vPos, eEndian);
+			AddToPtr(pPtr, nDatanSize, pObj->m_dynamicData.physicsGeometry.GetElements(), chunk.m_roadData.physicsGeometryCount, eEndian);
 		}
 	}
 	else if (eERType_Decal == eType && !(pEnt->GetRndFlags() & ERF_PROCEDURAL))
@@ -898,21 +910,28 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 	{
 		SRoadChunk* pChunk = StepData<SRoadChunk>(pPtr, eEndian);
 
+		// Make sure we always step through the data, even if we return below
+		SVF_P3F_C4B_T2S *pVertices = StepData<SVF_P3F_C4B_T2S>(pPtr, pChunk->m_roadData.numVertices, eEndian);
+		uint32 *pIndices = StepData<uint32>(pPtr, pChunk->m_roadData.numIndices, eEndian);
+		SPipTangents *pTangents = StepData<SPipTangents>(pPtr, pChunk->m_roadData.numTangents, eEndian);
+		
+		CRoadRenderNode::SPhysicsGeometryParams *pPhysParams = nullptr;
+		if(pChunk->m_roadData.physicsGeometryCount > 0)
+		{
+			pPhysParams = StepData<CRoadRenderNode::SPhysicsGeometryParams>(pPtr, pChunk->m_roadData.physicsGeometryCount, eEndian);
+		}
+		
 		if (CheckSkipLoadObject(eType, pChunk->m_dwRndFlags, eLoadMode) || !CheckRenderFlagsMinSpec(pChunk->m_dwRndFlags) || Get3DEngine()->IsLayerSkipped(pChunk->m_nLayerId))
 		{
-			for (int j = 0; j < pChunk->m_nVertsNum; j++)
-			{
-				StepData<Vec3>(pPtr, eEndian);
-			}
-
 			return;
 		}
 
 		CRoadRenderNode* pObj = new CRoadRenderNode();
 		pRN = pObj;
+		
+		pObj->m_serializedData = pChunk->m_roadData;
 
 		// common node data
-		COPY_MEMBER_LOAD(pObj, pChunk, m_WSBBox);
 		LoadCommonData(pChunk, pObj, pLayerVisibility);
 
 		// road data
@@ -921,23 +940,29 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 		pObj->m_bIgnoreTerrainHoles = (pChunk->m_nFlags & ROADCHUNKFLAG_IGNORE_TERRAIN_HOLES) != 0;
 		pObj->m_bPhysicalize = (pChunk->m_nFlags & ROADCHUNKFLAG_PHYSICALIZE) != 0;
 
-		for (int i = 0; i < 2; i++)
-			COPY_MEMBER_LOAD(pObj, pChunk, m_arrTexCoors[i]);
-
-		for (int i = 0; i < 2; i++)
-			COPY_MEMBER_LOAD(pObj, pChunk, m_arrTexCoorsGlobal[i]);
-
-		pObj->m_arrVerts.PreAllocate(pChunk->m_nVertsNum);
-		for (int j = 0; j < pChunk->m_nVertsNum; j++)
+		pObj->m_dynamicData.vertices.AddList(pVertices, pObj->m_serializedData.numVertices);
+		
+		// Would be nice to have a preprocessor check for support of 32-bit indices
+#if defined(CRY_PLATFORM_MOBILE) || defined(CRY_PLATFORM_ORBIS)
+		// Strided copy, need to cast uint32 from uint16 since we exported from PC (uint32 vertices) and load on console / mobile (uint16)
+		for(uint32 i = 0; i < pChunk->m_roadData.numIndices; i++)
 		{
-			Vec3* pVert = StepData<Vec3>(pPtr, eEndian);
-			pObj->m_arrVerts.Add(*pVert);
+			pObj->m_dynamicData.indices.Add(pIndices[i]);
 		}
-
-		pObj->SetVertices(pObj->m_arrVerts.GetElements(), pObj->m_arrVerts.Count(),
-		                  pObj->m_arrTexCoors[0], pObj->m_arrTexCoors[1],
-		                  pObj->m_arrTexCoorsGlobal[0], pObj->m_arrTexCoorsGlobal[1]);
-
+		#else
+		pObj->m_dynamicData.indices.AddList(pIndices, pObj->m_serializedData.numIndices);
+#endif
+		
+		pObj->m_dynamicData.tangents.AddList(pTangents, pObj->m_serializedData.numTangents);
+		
+		if(pObj->m_serializedData.physicsGeometryCount > 0)
+		{
+			pObj->m_dynamicData.physicsGeometry.AddList(pPhysParams, pObj->m_serializedData.physicsGeometryCount);
+		}
+		
+		// Trigger CRoadRenderNode::Compile, but don't perform a full rebuild
+		pObj->ScheduleRebuild(false);
+		
 		// set object visibility
 		if (NULL != pLayerVisibility)
 		{

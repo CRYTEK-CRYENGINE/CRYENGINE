@@ -203,6 +203,8 @@ struct SVF_P3F_C4B_T2S
 	Vec3    xyz;
 	UCol    color;
 	Vec2f16 st;
+	
+	AUTO_STRUCT_INFO;
 };
 
 struct SVF_P3S_N4B_C4B_T2S
@@ -536,6 +538,8 @@ public:
 	}
 
 	friend struct SMeshTangents;
+	
+	AUTO_STRUCT_INFO;
 };
 
 struct SPipQTangents

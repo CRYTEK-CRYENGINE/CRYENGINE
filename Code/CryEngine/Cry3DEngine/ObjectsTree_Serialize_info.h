@@ -22,12 +22,10 @@ STRUCT_INFO_END(SBrushChunk)
 
 STRUCT_INFO_BEGIN(SRoadChunk)
 STRUCT_BASE_INFO(SRenderNodeChunk)
-STRUCT_VAR_INFO(m_nVertsNum, TYPE_INFO(int32))
+STRUCT_VAR_INFO(m_roadData, TYPE_INFO(CRoadRenderNode::SData))
 STRUCT_VAR_INFO(m_nSortPriority, TYPE_INFO(int16))
 STRUCT_VAR_INFO(m_nFlags, TYPE_INFO(int16))
 STRUCT_VAR_INFO(m_nMaterialId, TYPE_INFO(int32))
-STRUCT_VAR_INFO(m_arrTexCoors, TYPE_ARRAY(2, TYPE_INFO(float)))
-STRUCT_VAR_INFO(m_arrTexCoorsGlobal, TYPE_ARRAY(2, TYPE_INFO(float)))
 STRUCT_INFO_END(SRoadChunk)
 
 STRUCT_INFO_BEGIN(SVegetationChunkOld)

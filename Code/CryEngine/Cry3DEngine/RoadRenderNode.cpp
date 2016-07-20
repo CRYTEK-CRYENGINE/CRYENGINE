@@ -7,30 +7,48 @@
 #include "RoadRenderNode.h"
 #include "terrain.h"
 #include "ObjMan.h"
-#include "MatMan.h"
 #include "MeshCompiler/MeshCompiler.h"
+
+#include "CryCore/TypeInfo_impl.h"
 
 const float fRoadAreaZRange = 2.5f;
 const float fRoadTerrainZOffset = 0.06f;
 
 // tmp buffers used during road mesh creation
-PodArray<SVF_P3F_C4B_T2S> CRoadRenderNode::m_lstVerticesMerged;
-PodArray<vtx_idx> CRoadRenderNode::m_lstIndicesMerged;
-PodArray<SPipTangents> CRoadRenderNode::m_lstTangMerged;
-PodArray<Vec3> CRoadRenderNode::m_lstVerts;
-PodArray<vtx_idx> CRoadRenderNode::m_lstIndices;
-PodArray<SPipTangents> CRoadRenderNode::m_lstTang;
-PodArray<SVF_P3F_C4B_T2S> CRoadRenderNode::m_lstVertices;
+PodArray<Vec3> CRoadRenderNode::s_tempVertexPositions;
+PodArray<vtx_idx> CRoadRenderNode::s_tempIndices;
+PodArray<SPipTangents> CRoadRenderNode::s_tempTangents;
+PodArray<SVF_P3F_C4B_T2S> CRoadRenderNode::s_tempVertices;
 CPolygonClipContext CRoadRenderNode::s_tmpClipContext;
 ILINE Vec3 max(const Vec3& v0, const Vec3& v1) { return Vec3(max(v0.x, v1.x), max(v0.y, v1.y), max(v0.z, v1.z)); }
 ILINE Vec3 min(const Vec3& v0, const Vec3& v1) { return Vec3(min(v0.x, v1.x), min(v0.y, v1.y), min(v0.z, v1.z)); }
 
+STRUCT_INFO_BEGIN(CRoadRenderNode::SData)
+	STRUCT_VAR_INFO(arrTexCoors, TYPE_ARRAY(2, TYPE_INFO(float)))
+	STRUCT_VAR_INFO(arrTexCoorsGlobal, TYPE_ARRAY(2, TYPE_INFO(float)))
+	
+	STRUCT_VAR_INFO(worldSpaceBBox, TYPE_INFO(AABB))
+	
+	STRUCT_VAR_INFO(numVertices, TYPE_INFO(uint32))
+	STRUCT_VAR_INFO(numIndices, TYPE_INFO(uint32))
+	STRUCT_VAR_INFO(numTangents, TYPE_INFO(uint32))
+	
+	STRUCT_VAR_INFO(physicsGeometryCount, TYPE_INFO(uint32))
+STRUCT_INFO_END(CRoadRenderNode::SData)
+
+STRUCT_INFO_BEGIN(CRoadRenderNode::SPhysicsGeometryParams)
+	STRUCT_VAR_INFO(size, TYPE_INFO(Vec3))
+	STRUCT_VAR_INFO(pos, TYPE_INFO(Vec3))
+	STRUCT_VAR_INFO(q, TYPE_INFO(Quat))
+STRUCT_INFO_END(CRoadRenderNode::SPhysicsGeometryParams)
+
 CRoadRenderNode::CRoadRenderNode()
+	: m_bRebuildFull(false)
 {
 	m_pRenderMesh = NULL;
 	m_pMaterial = NULL;
-	m_arrTexCoors[0] = m_arrTexCoorsGlobal[0] = 0;
-	m_arrTexCoors[1] = m_arrTexCoorsGlobal[1] = 1;
+	m_serializedData.arrTexCoors[0] = m_serializedData.arrTexCoorsGlobal[0] = 0;
+	m_serializedData.arrTexCoors[1] = m_serializedData.arrTexCoorsGlobal[1] = 1;
 	m_pPhysEnt = NULL;
 	m_sortPrio = 0;
 	m_nLayerId = 0;
@@ -51,6 +69,8 @@ CRoadRenderNode::~CRoadRenderNode()
 	GetInstCount(GetRenderNodeType())--;
 }
 
+// Sets vertices, texture coordinates and updates the bbox.
+// Only called when actually modifying the road, should never be called in Launcher normally.
 void CRoadRenderNode::SetVertices(const Vec3* pVertsAll, int nVertsNumAll,
                                   float fTexCoordBegin, float fTexCoordEnd,
                                   float fTexCoordBeginGlobal, float fTexCoordEndGlobal)
@@ -89,86 +109,68 @@ void CRoadRenderNode::SetVertices(const Vec3* pVertsAll, int nVertsNumAll,
 	const float fNodeStart = static_cast<float>(static_cast<int>(fTexCoordBegin));
 	const float fNodeOffset = fTexCoordBegin - fNodeStart;
 
-	m_arrTexCoors[0] = fNodeOffset;
-	m_arrTexCoors[1] = fNodeOffset + (fTexCoordEnd - fTexCoordBegin);
+	m_serializedData.arrTexCoors[0] = fNodeOffset;
+	m_serializedData.arrTexCoors[1] = fNodeOffset + (fTexCoordEnd - fTexCoordBegin);
 
-	m_arrTexCoorsGlobal[0] = fTexCoordBeginGlobal - fNodeStart;
-	m_arrTexCoorsGlobal[1] = fTexCoordBeginGlobal + (fTexCoordEndGlobal - fTexCoordBeginGlobal) - fNodeStart;
+	m_serializedData.arrTexCoorsGlobal[0] = fTexCoordBeginGlobal - fNodeStart;
+	m_serializedData.arrTexCoorsGlobal[1] = fTexCoordBeginGlobal + (fTexCoordEndGlobal - fTexCoordBeginGlobal) - fNodeStart;
 
-	m_WSBBox.Reset();
+	m_serializedData.worldSpaceBBox.Reset();
 	for (int i = 0; i < nVertsNumAll; i++)
-		m_WSBBox.Add(m_arrVerts[i]);
+		m_serializedData.worldSpaceBBox.Add(m_arrVerts[i]);
 
-	m_WSBBox.min -= Vec3(0.1f, 0.1f, fRoadAreaZRange);
-	m_WSBBox.max += Vec3(0.1f, 0.1f, fRoadAreaZRange);
+	m_serializedData.worldSpaceBBox.min -= Vec3(0.1f,0.1f,fRoadAreaZRange);
+	m_serializedData.worldSpaceBBox.max += Vec3(0.1f,0.1f,fRoadAreaZRange);
 
-	ScheduleRebuild();
+	// Query rebuild, results in CRoadRenderNode::Compile being called
+	// In this case the road vertices were changed, schedule a full rebuild.
+	ScheduleRebuild(true);
 }
 
 void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses > 32k stack space
 {
 	LOADING_TIME_PROFILE_SECTION;
 
-	int nVertsNumAll = m_arrVerts.Count();
-
-	assert(!(nVertsNumAll & 1));
-
-	if (nVertsNumAll < 4)
-		return;
-
 	// free old object and mesh
 	m_pRenderMesh = NULL;
 
-	Plane arrPlanes[6];
-	float arrTexCoors[2];
-
-	IGeomManager* pGeoman = GetPhysicalWorld()->GetGeomManager();
-	primitives::box abox;
-	pe_geomparams gp;
-	int matid = 0;
-	abox.center.zero();
-	abox.Basis.SetIdentity();
-	gp.flags = geom_mat_substitutor;
+	// Make sure to dephysicalize first
 	Dephysicalize();
 
-	if (m_bPhysicalize)
+	Vec3 segmentOffset(0, 0, 0);
+	if (Get3DEngine()->m_pSegmentsManager)
 	{
-		pe_params_flags pf;
-		pf.flagsAND = ~pef_traceable;
-		pf.flagsOR = pef_parts_traceable;
-		m_pPhysEnt = GetPhysicalWorld()->CreatePhysicalEntity(PE_STATIC, &pf);
-
-		if (m_pMaterial)
-		{
-			ISurfaceType* psf;
-			if ((psf = m_pMaterial->GetSurfaceType()) || m_pMaterial->GetSubMtl(0) && (psf = m_pMaterial->GetSubMtl(0)->GetSurfaceType()))
-				matid = psf->GetId();
-		}
+		segmentOffset = GetTerrain()->GetSegmentOrigin(m_nSID);
 	}
-
-	// update object bbox
+	
+	// The process of generating the render mesh is very slow, only perform if the road changed!
+	if (m_bRebuildFull)
 	{
-		Vec3 segmentOffset(0, 0, 0);
-		if (Get3DEngine()->m_pSegmentsManager)
-		{
-			segmentOffset = GetTerrain()->GetSegmentOrigin(m_nSID);
-		}
-
-		m_WSBBox.Reset();
+		Plane arrPlanes[6];
+		float arrTexCoors[2];
+		
+		int nVertsNumAll = m_arrVerts.Count();
+		
+		assert(!(nVertsNumAll & 1));
+		
+		if (nVertsNumAll<4)
+			return;
+		
+		m_serializedData.worldSpaceBBox.Reset();
 		for (int i = 0; i < nVertsNumAll; i++)
 		{
 			Vec3 vTmp(m_arrVerts[i].x, m_arrVerts[i].y, Get3DEngine()->GetTerrainElevation(m_arrVerts[i].x, m_arrVerts[i].y, m_nSID) + fRoadTerrainZOffset);
-			m_WSBBox.Add(vTmp);
+			m_serializedData.worldSpaceBBox.Add(vTmp);
 		}
-
+		
 		// prepare arrays for final mesh
 		const int nMaxVerticesToMerge = 1024 * 32; // limit memory usage
-		m_lstVerticesMerged.PreAllocate(nMaxVerticesToMerge, 0);
-		m_lstIndicesMerged.PreAllocate(nMaxVerticesToMerge * 6, 0);
-		m_lstTangMerged.PreAllocate(nMaxVerticesToMerge, 0);
+		m_dynamicData.vertices.PreAllocate(nMaxVerticesToMerge, 0);
+		m_dynamicData.indices.PreAllocate(nMaxVerticesToMerge * 6, 0);
+		m_dynamicData.tangents.PreAllocate(nMaxVerticesToMerge, 0);
 
 		float fChunksNum = (float)((nVertsNumAll - 2) / 2);
-		float fTexStep = (m_arrTexCoors[1] - m_arrTexCoors[0]) / fChunksNum;
+		float fTexStep = (m_serializedData.arrTexCoors[1] - m_serializedData.arrTexCoors[0]) / fChunksNum;
 
 		// for every trapezoid
 		for (int nVertId = 0; nVertId <= nVertsNumAll - 4; nVertId += 2)
@@ -176,14 +178,14 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 			const Vec3* pVerts = &m_arrVerts[nVertId];
 
 			if (pVerts[0] == pVerts[1] ||
-			    pVerts[1] == pVerts[2] ||
-			    pVerts[2] == pVerts[3] ||
-			    pVerts[3] == pVerts[0])
-				continue;
+				pVerts[1] == pVerts[2] ||
+				pVerts[2] == pVerts[3] ||
+				pVerts[3] == pVerts[0])
+ 				continue;
 
 			// get texture coordinates range
-			arrTexCoors[0] = m_arrTexCoors[0] + fTexStep * (nVertId / 2);
-			arrTexCoors[1] = m_arrTexCoors[0] + fTexStep * (nVertId / 2 + 1);
+			arrTexCoors[0] = m_serializedData.arrTexCoors[0] + fTexStep*(nVertId / 2);
+			arrTexCoors[1] = m_serializedData.arrTexCoors[0] + fTexStep*(nVertId / 2 + 1);
 
 			GetClipPlanes(&arrPlanes[0], 4, nVertId);
 
@@ -215,15 +217,17 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 #endif
 
 			// make arrays of verts and indices used in trapezoid area
-			m_lstVerts.Clear();
-			m_lstIndices.Clear();
+			s_tempVertexPositions.Clear();
+			s_tempIndices.Clear();
 
 			for (int x = x1; x <= x2; x += nUnitSize)
+			{
 				for (int y = y1; y <= y2; y += nUnitSize)
 				{
-					Vec3 vTmp((float)x, (float)y, GetTerrain()->GetZ(x, y, m_nSID, true));
-					m_lstVerts.Add(vTmp);
+					s_tempVertexPositions.Add(Vec3((float)x, (float)y, GetTerrain()->GetZ(x, y, m_nSID, true)));
 				}
+			}
+			
 			// make indices
 			int dx = (x2 - x1) / nUnitSize;
 			int dy = (y2 - y1) / nUnitSize;
@@ -237,8 +241,6 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 					int nIdx2 = (x * (dy + 1) + y + 1);
 					int nIdx3 = (x * (dy + 1) + y + 1 + (dy + 1));
 
-					assert(nIdx3 < m_lstVerts.Count());
-
 					int X_in_meters = x1 + x * nUnitSize;
 					int Y_in_meters = y1 + y * nUnitSize;
 
@@ -248,79 +250,85 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 					{
 						if (pTerrain && pTerrain->IsMeshQuadFlipped(X_in_meters, Y_in_meters, nUnitSize, m_nSID))
 						{
-							m_lstIndices.Add(nIdx0);
-							m_lstIndices.Add(nIdx1);
-							m_lstIndices.Add(nIdx3);
+							s_tempIndices.Add(nIdx0);
+							s_tempIndices.Add(nIdx1);
+							s_tempIndices.Add(nIdx3);
 
-							m_lstIndices.Add(nIdx0);
-							m_lstIndices.Add(nIdx3);
-							m_lstIndices.Add(nIdx2);
+							s_tempIndices.Add(nIdx0);
+							s_tempIndices.Add(nIdx3);
+							s_tempIndices.Add(nIdx2);
 						}
 						else
 						{
-							m_lstIndices.Add(nIdx0);
-							m_lstIndices.Add(nIdx1);
-							m_lstIndices.Add(nIdx2);
+							s_tempIndices.Add(nIdx0);
+							s_tempIndices.Add(nIdx1);
+							s_tempIndices.Add(nIdx2);
 
-							m_lstIndices.Add(nIdx1);
-							m_lstIndices.Add(nIdx3);
-							m_lstIndices.Add(nIdx2);
+							s_tempIndices.Add(nIdx1);
+							s_tempIndices.Add(nIdx3);
+							s_tempIndices.Add(nIdx2);
 						}
 					}
 				}
 			}
 
 			// clip triangles
-			int nOrigCount = m_lstIndices.Count();
+			int nOrigCount = s_tempIndices.Count();
 			for (int i = 0; i < nOrigCount; i += 3)
 			{
-				if (ClipTriangle(m_lstVerts, m_lstIndices, i, arrPlanes))
+				if (ClipTriangle(s_tempVertexPositions, s_tempIndices, i, arrPlanes))
 				{
 					i -= 3;
 					nOrigCount -= 3;
 				}
 			}
 
-			if (m_lstIndices.Count() < 3 || m_lstVerts.Count() < 3)
+			if (s_tempIndices.Count() < 3 || s_tempVertexPositions.Count() < 3)
 				continue;
 
-			if (m_pPhysEnt)
+			if (m_bPhysicalize)
 			{
 				Vec3 axis = (pVerts[2] + pVerts[3] - pVerts[0] - pVerts[1]).normalized(), n = (pVerts[1] - pVerts[0] ^ pVerts[2] - pVerts[0]) + (pVerts[2] - pVerts[3] ^ pVerts[2] - pVerts[3]);
 				(n -= axis * (n * axis)).normalize();
-				gp.q = Quat(Matrix33::CreateFromVectors(axis, n ^ axis, n));
-				Vec3 BBox[] = { Vec3(VMAX), Vec3(VMIN) };
-				for (int j = 0; j < m_lstIndices.Count(); j++)
+				
+				SPhysicsGeometryParams physParams;
+				
+				Vec3 bbox[2];
+				bbox[0] = VMAX;
+				bbox[1] = VMIN;
+				
+				physParams.q = Quat(Matrix33::CreateFromVectors(axis, n^axis, n));
+				
+				for (int j = 0; j < s_tempIndices.Count(); j++)
 				{
-					Vec3 ptloc = m_lstVerts[m_lstIndices[j]] * gp.q;
-					BBox[0] = min(BBox[0], ptloc);
-					BBox[1] = max(BBox[1], ptloc);
+					Vec3 ptloc = s_tempVertexPositions[s_tempIndices[j]] * physParams.q;
+					bbox[0] = min(bbox[0], ptloc); 
+					bbox[1] = max(bbox[1], ptloc);
 				}
-				gp.pos = gp.q * (BBox[1] + BBox[0]) * 0.5f;
-				(abox.size = (BBox[1] - BBox[0]) * 0.5f).z += fRoadTerrainZOffset * 2;
-				phys_geometry* physGeom = pGeoman->RegisterGeometry(pGeoman->CreatePrimitive(primitives::box::type, &abox), matid);
-				physGeom->pGeom->Release();
-				m_pPhysEnt->AddGeometry(physGeom, &gp);
-				pGeoman->UnregisterGeometry(physGeom);
+				
+				physParams.pos = physParams.q * (bbox[1] + bbox[0]) * 0.5f;
+				physParams.size = (bbox[1] - bbox[0]) * 0.5f;
+				
+				m_dynamicData.physicsGeometry.Add(physParams);
 			}
 
 			// allocate tangent array
-			m_lstTang.Clear();
-			m_lstTang.PreAllocate(m_lstVerts.Count(), m_lstVerts.Count());
-
+			s_tempTangents.Clear();
+			s_tempTangents.PreAllocate(s_tempVertexPositions.Count(), s_tempVertexPositions.Count());
+			
 			int nStep = CTerrain::GetHeightMapUnitSize();
 
-			Vec3 vWSBoxCenter = m_WSBBox.GetCenter(); //vWSBoxCenter.z=0;
+			Vec3 vWSBoxCenter = m_serializedData.worldSpaceBBox.GetCenter(); //vWSBoxCenter.z=0;
 
 			// make real vertex data
-			m_lstVertices.Clear();
-			for (int i = 0; i < m_lstVerts.Count(); i++)
+			s_tempVertices.Clear();
+			for (int i = 0; i < s_tempVertexPositions.Count(); i++)
 			{
 				SVF_P3F_C4B_T2S tmp;
 
-				Vec3 vWSPos = m_lstVerts[i];
+				Vec3 vWSPos = s_tempVertexPositions[i];
 
-				tmp.xyz = (m_lstVerts[i] - vWSBoxCenter);
+				tmp.xyz = (vWSPos - vWSBoxCenter);
 
 				// do texgen
 				float d0 = arrPlanes[0].DistFromPlane(vWSPos);
@@ -329,13 +337,13 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 				float d3 = arrPlanes[3].DistFromPlane(vWSPos);
 
 				float t = fabsf(d0 + d1) < FLT_EPSILON ? 0.0f : d0 / (d0 + d1);
-				tmp.st = Vec2f16((1 - t) * fabs(arrTexCoors[0]) + t * fabs(arrTexCoors[1]), fabsf(d2 + d3) < FLT_EPSILON ? 0.0f : d2 / (d2 + d3));
-
+				tmp.st = Vec2f16((1 - t)*fabs(arrTexCoors[0]) + t*fabs(arrTexCoors[1]), fabsf(d2 + d3) < FLT_EPSILON ? 0.0f : d2 / (d2 + d3));
+				
 				// calculate alpha value
 				float fAlpha = 1.f;
-				if (fabs(arrTexCoors[0] - m_arrTexCoorsGlobal[0]) < 0.01f)
+				if (fabs(arrTexCoors[0] - m_serializedData.arrTexCoorsGlobal[0]) < 0.01f)
 					fAlpha = CLAMP(t, 0, 1.f);
-				else if (fabs(arrTexCoors[1] - m_arrTexCoorsGlobal[1]) < 0.01f)
+				else if (fabs(arrTexCoors[1] - m_serializedData.arrTexCoorsGlobal[1]) < 0.01f)
 					fAlpha = CLAMP(1.f - t, 0, 1.f);
 
 				tmp.color.bcolor[0] = 255;
@@ -344,84 +352,123 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 				tmp.color.bcolor[3] = uint8(255.f * fAlpha);
 				SwapEndian(tmp.color.dcolor, eLittleEndian);
 
-				m_lstVertices.Add(tmp);
+				s_tempVertices.Add(tmp);
 
-				Vec3 vTang = pVerts[2] - pVerts[0];
 				Vec3 vNormal = GetTerrain()->GetTerrainSurfaceNormal(vWSPos, 0.25f, m_nSID);
 
-				// Orthogonalize Tangent Frame
-				Vec3 vBitang = -vNormal.Cross(vTang);
-				vBitang.Normalize();
-				vTang = vNormal.Cross(vBitang);
+				Vec3 vBiTang = pVerts[1] - pVerts[0];
+				vBiTang.Normalize();
+				
+				Vec3 vTang = pVerts[2] - pVerts[0];
 				vTang.Normalize();
 
-				m_lstTang[i] = SPipTangents(vTang, vBitang, -1);
+				vBiTang = -vNormal.Cross(vTang);
+				vTang = vNormal.Cross(vBiTang);
+				
+				s_tempTangents[i] = SPipTangents(vTang, vBiTang, -1);
 			}
 
 			// shift indices
-			for (int i = 0; i < m_lstIndices.Count(); i++)
-				m_lstIndices[i] += m_lstVerticesMerged.Count();
+			for (int i = 0; i<s_tempIndices.Count(); i++)
+				s_tempIndices[i] += m_dynamicData.vertices.size();
 
-			if (m_lstVerticesMerged.Count() + m_lstVertices.Count() > nMaxVerticesToMerge)
+			if (m_dynamicData.vertices.size() + s_tempVertices.Count() > nMaxVerticesToMerge)
 			{
-				Warning("Road object is too big, has to be split into several smaller parts (pos=%d,%d,%d)", (int)m_WSBBox.GetCenter().x, (int)m_WSBBox.GetCenter().y, (int)m_WSBBox.GetCenter().z);
-				Get3DEngine()->UnRegisterEntityAsJob(this);
+				Warning("Road object is too big, has to be split into several smaller parts (pos=%d,%d,%d)", (int)m_serializedData.worldSpaceBBox.GetCenter().x, (int)m_serializedData.worldSpaceBBox.GetCenter().y, (int)m_serializedData.worldSpaceBBox.GetCenter().z);
 				return;
 			}
 
-			m_lstIndicesMerged.AddList(m_lstIndices);
-			m_lstVerticesMerged.AddList(m_lstVertices);
-			m_lstTangMerged.AddList(m_lstTang);
+			m_dynamicData.indices.AddList(s_tempIndices);
+			m_dynamicData.vertices.AddList(s_tempVertices);
+			m_dynamicData.tangents.AddList(s_tempTangents);
 		}
 
-		PodArray<SPipNormal> listNormalsDummy;
+		PodArray<SPipNormal> dummyNormals;
 
 		mesh_compiler::CMeshCompiler meshCompiler;
-		meshCompiler.WeldPos_VF_P3X(m_lstVerticesMerged, m_lstTangMerged, listNormalsDummy, m_lstIndicesMerged, VEC_EPSILON, GetBBox());
+		meshCompiler.WeldPos_VF_P3X(m_dynamicData.vertices, m_dynamicData.tangents, dummyNormals, m_dynamicData.indices, VEC_EPSILON, GetBBox());
+	}
 
-		// make render mesh
-		if (m_lstIndicesMerged.Count() && GetRenderer())
+	// make render mesh
+	if (m_dynamicData.indices.Count() && GetRenderer())
+	{
+		m_pRenderMesh = GetRenderer()->CreateRenderMeshInitialized(
+			m_dynamicData.vertices.GetElements(), m_dynamicData.vertices.Count(), eVF_P3F_C4B_T2S,
+			m_dynamicData.indices.GetElements(), m_dynamicData.indices.Count(), prtTriangleList,
+			"RoadRenderNode", GetName(), eRMT_Static, 1, 0, NULL, NULL, false, true, m_dynamicData.tangents.GetElements());
+
+		// Calculate the texel area density
+		float texelAreaDensity = 1.0f;
+		
+		const size_t indexCount = m_dynamicData.indices.size();
+		const size_t vertexCount = m_dynamicData.vertices.size();
+		
+		if ((indexCount > 0) && (vertexCount > 0))
 		{
-			m_pRenderMesh = GetRenderer()->CreateRenderMeshInitialized(
-			  m_lstVerticesMerged.GetElements(), m_lstVerticesMerged.Count(), eVF_P3F_C4B_T2S,
-			  m_lstIndicesMerged.GetElements(), m_lstIndicesMerged.Count(), prtTriangleList,
-			  "RoadRenderNode", GetName(), eRMT_Static, 1, 0, NULL, NULL, false, true, m_lstTangMerged.GetElements());
+			float posArea;
+			float texArea;
+			const char* errorText = "";
 
-			float texelAreaDensity = 1.0f;
+			const bool ok = CMeshHelpers::ComputeTexMappingAreas(
+				indexCount, &m_dynamicData.indices[0],
+				vertexCount,
+				&m_dynamicData.vertices[0].xyz, sizeof(m_dynamicData.vertices[0]),
+				&m_dynamicData.vertices[0].st, sizeof(m_dynamicData.vertices[0]),
+				posArea, texArea, errorText);
+
+			if (ok)
 			{
-				const size_t indexCount = m_lstIndicesMerged.size();
-				const size_t vertexCount = m_lstVerticesMerged.size();
+				texelAreaDensity = texArea / posArea;
+			}
+			else
+			{
+				gEnv->pLog->LogError("Failed to compute texture mapping density for mesh '%s': %s", GetName(), errorText);
+			}
+		}
 
-				if ((indexCount > 0) && (vertexCount > 0))
+		m_pRenderMesh->SetChunk((m_pMaterial != NULL) ? (IMaterial*)m_pMaterial : GetMatMan()->GetDefaultMaterial(),
+			0, m_dynamicData.vertices.Count(), 0, m_dynamicData.indices.Count(), texelAreaDensity);
+		m_serializedData.worldSpaceBBox.Move(segmentOffset);
+		Vec3 vWSBoxCenter = m_serializedData.worldSpaceBBox.GetCenter(); //vWSBoxCenter.z=0;
+		AABB OSBBox(m_serializedData.worldSpaceBBox.min - vWSBoxCenter, m_serializedData.worldSpaceBBox.max - vWSBoxCenter);
+		m_pRenderMesh->SetBBox(OSBBox.min, OSBBox.max);
+		
+		if (m_bPhysicalize)
+		{
+			LOADING_TIME_PROFILE_SECTION_NAMED("RoadPhysicalization");
+			
+			IGeomManager *pGeoman = GetPhysicalWorld()->GetGeomManager();
+			primitives::box abox;
+			pe_geomparams gp;
+			int matid = 0;
+			abox.center.zero();	abox.Basis.SetIdentity();
+			gp.flags = geom_mat_substitutor;
+			pe_params_flags pf; pf.flagsAND = ~pef_traceable; pf.flagsOR = pef_parts_traceable;
+			m_pPhysEnt = GetPhysicalWorld()->CreatePhysicalEntity(PE_STATIC, &pf);
+
+			if (m_pMaterial && m_pPhysEnt)
+			{
+				LOADING_TIME_PROFILE_SECTION_NAMED("RoadPhysicalizationParts");
+				
+				ISurfaceType *psf;
+				if ((psf = m_pMaterial->GetSurfaceType()) || m_pMaterial->GetSubMtl(0) && (psf = m_pMaterial->GetSubMtl(0)->GetSurfaceType()))
+					matid = psf->GetId();
+
+				phys_geometry *pPhysGeom;
+				
+				for (int i = 0, numParts = m_dynamicData.physicsGeometry.Count(); i < numParts; i++)
 				{
-					float posArea;
-					float texArea;
-					const char* errorText = "";
+					gp.q = m_dynamicData.physicsGeometry[i].q;
+					gp.pos = m_dynamicData.physicsGeometry[i].pos;
 
-					const bool ok = CMeshHelpers::ComputeTexMappingAreas(
-					  indexCount, &m_lstIndicesMerged[0],
-					  vertexCount,
-					  &m_lstVerticesMerged[0].xyz, sizeof(m_lstVerticesMerged[0]),
-					  &m_lstVerticesMerged[0].st, sizeof(m_lstVerticesMerged[0]),
-					  posArea, texArea, errorText);
-
-					if (ok)
-					{
-						texelAreaDensity = texArea / posArea;
-					}
-					else
-					{
-						gEnv->pLog->LogError("Failed to compute texture mapping density for mesh '%s': %s", GetName(), errorText);
-					}
+					abox.size = m_dynamicData.physicsGeometry[i].size;
+						
+					pPhysGeom = pGeoman->RegisterGeometry(pGeoman->CreatePrimitive(primitives::box::type, &abox), matid);
+					pPhysGeom->pGeom->Release();
+					m_pPhysEnt->AddGeometry(pPhysGeom, &gp);
+					pGeoman->UnregisterGeometry(pPhysGeom);
 				}
 			}
-
-			m_pRenderMesh->SetChunk((m_pMaterial != NULL) ? (IMaterial*)m_pMaterial : GetMatMan()->GetDefaultMaterial(),
-			                        0, m_lstVerticesMerged.Count(), 0, m_lstIndicesMerged.Count(), texelAreaDensity);
-			m_WSBBox.Move(segmentOffset);
-			Vec3 vWSBoxCenter = m_WSBBox.GetCenter(); //vWSBoxCenter.z=0;
-			AABB OSBBox(m_WSBBox.min - vWSBoxCenter, m_WSBBox.max - vWSBoxCenter);
-			m_pRenderMesh->SetBBox(OSBBox.min, OSBBox.max);
 		}
 	}
 
@@ -446,8 +493,10 @@ void CRoadRenderNode::Render(const SRendParams& RendParams, const SRenderingPass
 	if (!passInfo.RenderRoads())
 		return; // false;
 
+	// This used to perform a full rebuild every frame if we were close (likely to increase vertex density?)
+	// Not sure about this, full road generation can easily exceed several ms
 	if (GetCVars()->e_Roads == 2 && RendParams.fDistance < 2.f)
-		ScheduleRebuild();
+		ScheduleRebuild(false);
 
 	CRenderObject* pObj = 0;
 
@@ -457,7 +506,7 @@ void CRoadRenderNode::Render(const SRendParams& RendParams, const SRenderingPass
 	pObj->m_pRenderNode = this;
 	pObj->m_ObjFlags |= RendParams.dwFObjFlags;
 	pObj->m_II.m_AmbColor = RendParams.AmbientColor;
-	Vec3 vWSBoxCenter = m_WSBBox.GetCenter();
+	Vec3 vWSBoxCenter = m_serializedData.worldSpaceBBox.GetCenter();
 	vWSBoxCenter.z += 0.01f;
 	pObj->m_II.m_Matrix.SetTranslation(vWSBoxCenter);
 
@@ -548,10 +597,16 @@ void CRoadRenderNode::GetMemoryUsage(ICrySizer* pSizer) const
 	SIZER_COMPONENT_NAME(pSizer, "Road");
 	pSizer->AddObject(this, sizeof(*this));
 	pSizer->AddObject(m_arrVerts);
+	
+	pSizer->AddObject(m_dynamicData.vertices);
+	pSizer->AddObject(m_dynamicData.indices);
+	pSizer->AddObject(m_dynamicData.tangents);
 }
 
-void CRoadRenderNode::ScheduleRebuild()
+void CRoadRenderNode::ScheduleRebuild(bool bFullRebuild)
 {
+	m_bRebuildFull = bFullRebuild;
+	
 	if (Get3DEngine()->m_lstRoadRenderNodesForUpdate.Find(this) < 0)
 		Get3DEngine()->m_lstRoadRenderNodesForUpdate.Add(this);
 }
@@ -567,7 +622,7 @@ void CRoadRenderNode::OnTerrainChanged()
 
 	byte* pPos = m_pRenderMesh->GetPosPtr(nPosStride, FSL_SYSTEM_UPDATE);
 
-	Vec3 vWSBoxCenter = m_WSBBox.GetCenter(); //vWSBoxCenter.z=0;
+	Vec3 vWSBoxCenter = m_serializedData.worldSpaceBBox.GetCenter(); //vWSBoxCenter.z=0;
 
 	for (int i = 0, nVertsNum = m_pRenderMesh->GetVerticesCount(); i < nVertsNum; i++)
 	{
@@ -575,7 +630,9 @@ void CRoadRenderNode::OnTerrainChanged()
 		vPos.z = GetTerrain()->GetZApr(vWSBoxCenter.x + vPos.x, vWSBoxCenter.y + vPos.y, /*m_nSID*/ GetDefSID()) + 0.01f - vWSBoxCenter.z;
 	}
 	m_pRenderMesh->UnlockStream(VSF_GENERAL);
-	ScheduleRebuild();
+	
+	// Terrain changed, schedule a full rebuild of the road to match
+	ScheduleRebuild(true);
 }
 
 void CRoadRenderNode::OnRenderNodeBecomeVisible(const SRenderingPassInfo& passInfo)
@@ -586,10 +643,10 @@ void CRoadRenderNode::OnRenderNodeBecomeVisible(const SRenderingPassInfo& passIn
 
 void CRoadRenderNode::GetTexCoordInfo(float* pTexCoordInfo)
 {
-	pTexCoordInfo[0] = m_arrTexCoors[0];
-	pTexCoordInfo[1] = m_arrTexCoors[1];
-	pTexCoordInfo[2] = m_arrTexCoorsGlobal[0];
-	pTexCoordInfo[3] = m_arrTexCoorsGlobal[1];
+	pTexCoordInfo[0] = m_serializedData.arrTexCoors[0];
+	pTexCoordInfo[1] = m_serializedData.arrTexCoors[1];
+	pTexCoordInfo[2] = m_serializedData.arrTexCoorsGlobal[0];
+	pTexCoordInfo[3] = m_serializedData.arrTexCoorsGlobal[1];
 }
 
 void CRoadRenderNode::GetClipPlanes(Plane* pPlanes, int nPlanesNum, int nVertId)
@@ -622,7 +679,7 @@ void CRoadRenderNode::GetClipPlanes(Plane* pPlanes, int nPlanesNum, int nVertId)
 void CRoadRenderNode::OffsetPosition(const Vec3& delta)
 {
 	if (m_pTempData) m_pTempData->OffsetPosition(delta);
-	m_WSBBox.Move(delta);
+	m_serializedData.worldSpaceBBox.Move(delta);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -646,7 +703,7 @@ float CRoadRenderNode::GetMaxViewDist()
 
 Vec3 CRoadRenderNode::GetPos(bool) const
 {
-	return m_WSBBox.GetCenter();
+	return m_serializedData.worldSpaceBBox.GetCenter();
 }
 
 IMaterial* CRoadRenderNode::GetMaterial(Vec3* pHitPos) const

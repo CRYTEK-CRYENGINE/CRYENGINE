@@ -6,6 +6,43 @@
 class CRoadRenderNode : public IRoadRenderNode, public Cry3DEngineBase
 {
 public:
+	// SDynamicData and SData are helpers for serialization
+	struct SData
+	{
+		float arrTexCoors[2];
+		float arrTexCoorsGlobal[2];
+
+		AABB worldSpaceBBox;
+
+		// Don't use vtx_idx, we need to keep levels exported on PC loadable on lesser platforms
+		uint32 numVertices;
+		uint32 numIndices;
+		uint32 numTangents;
+
+		uint32 physicsGeometryCount;
+
+		AUTO_STRUCT_INFO;
+	};
+
+	struct SPhysicsGeometryParams
+	{
+		Vec3 size;
+		Vec3 pos;
+		Quat q;
+
+		AUTO_STRUCT_INFO;
+	};
+
+	struct SDynamicData
+	{
+		PodArray<SVF_P3F_C4B_T2S> vertices;
+		PodArray<vtx_idx> indices;
+		PodArray<SPipTangents> tangents;
+
+		PodArray<SPhysicsGeometryParams> physicsGeometry;
+	};
+	
+public:
 	CRoadRenderNode();
 	virtual ~CRoadRenderNode();
 
@@ -13,7 +50,7 @@ public:
 	virtual void SetVertices(const Vec3* pVerts, int nVertsNum, float fTexCoordBegin, float fTexCoordEnd, float fTexCoordBeginGlobal, float fTexCoordEndGlobal);
 	virtual void SetSortPriority(uint8 sortPrio);
 	virtual void SetIgnoreTerrainHoles(bool bVal);
-	virtual void SetPhysicalize(bool bVal) { if (m_bPhysicalize != bVal) { ScheduleRebuild(); m_bPhysicalize = bVal; } }
+	virtual void SetPhysicalize(bool bVal) { if (m_bPhysicalize != bVal) { m_bPhysicalize = bVal; ScheduleRebuild(false); } }
 
 	// IRenderNode implementation
 	virtual const char*         GetEntityClassName(void) const { return "RoadObjectClass"; }
@@ -31,8 +68,8 @@ public:
 	virtual EERType             GetRenderNodeType();
 	virtual struct IRenderMesh* GetRenderMesh(int nLod)     { return nLod == 0 ? m_pRenderMesh.get() : NULL; }
 	virtual void                GetMemoryUsage(ICrySizer* pSizer) const;
-	virtual const AABB          GetBBox() const             { return m_WSBBox; }
-	virtual void                SetBBox(const AABB& WSBBox) { m_WSBBox = WSBBox; }
+	virtual const AABB          GetBBox() const             { return m_serializedData.worldSpaceBBox; }
+	virtual void                SetBBox(const AABB& WSBBox) { m_serializedData.worldSpaceBBox = WSBBox; }
 	virtual void                FillBBox(AABB& aabb);
 	virtual void                OffsetPosition(const Vec3& delta);
 	virtual void                OnRenderNodeBecomeVisible(const SRenderingPassInfo& passInfo);
@@ -47,14 +84,18 @@ public:
 	using IRenderNode::Physicalize;
 	virtual void                Dephysicalize(bool bKeepIfReferenced = false);
 	void                        Compile();
-	void                        ScheduleRebuild();
+	void                        ScheduleRebuild(bool bFullRebuild);
 	void                        OnTerrainChanged();
 
 	_smart_ptr<IRenderMesh> m_pRenderMesh;
 	_smart_ptr<IMaterial>   m_pMaterial;
 	PodArray<Vec3>          m_arrVerts;
-	float                   m_arrTexCoors[2];
-	float                   m_arrTexCoorsGlobal[2];
+	
+	SData m_serializedData;
+	SDynamicData m_dynamicData;
+	
+	// Set when scheduling rebuild, true if the road was changed and we need to recompile it
+	bool m_bRebuildFull;
 
 	uint8                   m_sortPrio;
 	bool                    m_bIgnoreTerrainHoles;
@@ -62,52 +103,38 @@ public:
 
 	IPhysicalEntity*        m_pPhysEnt;
 
-	AABB                    m_WSBBox;
-
 	uint16                  m_nLayerId;
 
-	// tmp buffers used during road mesh creation
-	static PodArray<SVF_P3F_C4B_T2S> m_lstVerticesMerged;
-	static PodArray<vtx_idx>         m_lstIndicesMerged;
-	static PodArray<SPipTangents>    m_lstTangMerged;
-
-	static PodArray<Vec3>            m_lstVerts;
-	static PodArray<vtx_idx>         m_lstIndices;
-
-	static PodArray<SPipTangents>    m_lstTang;
-	static PodArray<SVF_P3F_C4B_T2S> m_lstVertices;
-
+	// Temp buffers used during road mesh creation
+	static PodArray<Vec3> s_tempVertexPositions;
+	static PodArray<vtx_idx> s_tempIndices;
+	
+	static PodArray<SPipTangents> s_tempTangents;
+	static PodArray<SVF_P3F_C4B_T2S> s_tempVertices;
+	
 	static CPolygonClipContext       s_tmpClipContext;
 
 	static void GetMemoryUsageStatic(ICrySizer* pSizer)
 	{
 		SIZER_COMPONENT_NAME(pSizer, "RoadRenderNodeStaticData");
 
-		pSizer->AddObject(m_lstVerticesMerged);
-		pSizer->AddObject(m_lstIndicesMerged);
-		pSizer->AddObject(m_lstTangMerged);
-
-		pSizer->AddObject(m_lstVerts);
-		pSizer->AddObject(m_lstIndices);
-
-		pSizer->AddObject(m_lstTang);
-		pSizer->AddObject(m_lstVertices);
-
+		pSizer->AddObject(s_tempVertexPositions);
+		pSizer->AddObject(s_tempIndices);
+		
+		pSizer->AddObject(s_tempTangents);
+		pSizer->AddObject(s_tempVertices);
+		
 		pSizer->AddObject(s_tmpClipContext);
 	}
 
 	static void FreeStaticMemoryUsage()
 	{
-		m_lstVerticesMerged.Reset();
-		m_lstIndicesMerged.Reset();
-		m_lstTangMerged.Reset();
-
-		m_lstVerts.Reset();
-		m_lstIndices.Reset();
-
-		m_lstTang.Reset();
-		m_lstVertices.Reset();
-
+		s_tempVertexPositions.Reset();
+		s_tempIndices.Reset();
+		
+		s_tempTangents.Reset();
+		s_tempVertices.Reset();
+		
 		s_tmpClipContext.Reset();
 	}
 };
