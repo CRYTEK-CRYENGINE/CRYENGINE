@@ -1028,7 +1028,7 @@ void CCryDX12DeviceContext::InsertOcclusionStop(NCryDX12::CCommandList* pCmdList
 
 void CCryDX12DeviceContext::ResolveOcclusion(NCryDX12::CCommandList* pCmdList, UINT index, void* mem)
 {
-	if (mem)
+	if (mem != nullptr)
 	{
 		if (!m_OcclusionMapValid)
 		{
@@ -1036,21 +1036,21 @@ void CCryDX12DeviceContext::ResolveOcclusion(NCryDX12::CCommandList* pCmdList, U
 			m_OcclusionMapValid = true;
 		}
 
-		if (!m_OcclusionMemory)
+		if (m_OcclusionMemory == nullptr)
 		{
 			// Resources on D3D12_HEAP_TYPE_READBACK heaps do not support persistent map.
 			const D3D12_RANGE sFullRead = { 0, sizeof(UINT64) * m_OcclusionHeap.GetCapacity() };
-			m_OcclusionDownloadBuffer->Map(0, &sFullRead, &m_OcclusionMemory);
+			if (!m_OcclusionDownloadBuffer->Map(0, &sFullRead, &m_OcclusionMemory))
+				m_OcclusionMemory = nullptr;
 		}
 
-		memcpy(mem, (char*)m_OcclusionMemory + index * 8, 8);
-
-		if (m_OcclusionMemory)
-		{
-			const D3D12_RANGE sNoWrite = { 0, 0 };
-			m_OcclusionDownloadBuffer->Unmap(0, &sNoWrite);
-			m_OcclusionMemory = nullptr;
-		}
+		if (m_OcclusionMemory != nullptr)
+                {
+                        memcpy(mem, (char*)m_OcclusionMemory + index * 8, 8);
+                        const D3D12_RANGE sNoWrite = { 0, 0 };
+                        m_OcclusionDownloadBuffer->Unmap(0, &sNoWrite);
+                        m_OcclusionMemory = nullptr;
+                }
 	}
 }
 
