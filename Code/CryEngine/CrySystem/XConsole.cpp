@@ -1825,7 +1825,7 @@ void CXConsole::ScrollConsole()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CXConsole::AddCommand(const char* sCommand, ConsoleCommandFunc func, int nFlags, const char* sHelp)
+void CXConsole::AddCommand(const char* sCommand, ConsoleCommandLambda func, int nFlags, const char* sHelp)
 {
 	AssertName(sCommand);
 
@@ -1834,6 +1834,7 @@ void CXConsole::AddCommand(const char* sCommand, ConsoleCommandFunc func, int nF
 		CConsoleCommand cmd;
 		cmd.m_sName = sCommand;
 		cmd.m_func = func;
+		cmd.m_hasFunc = true;
 		if (sHelp)
 		{
 			cmd.m_sHelp = sHelp;
@@ -1848,6 +1849,12 @@ void CXConsole::AddCommand(const char* sCommand, ConsoleCommandFunc func, int nF
 		gEnv->pSystem->debug_LogCallStack();
 #endif // LOG_CVAR_INFRACTIONS_CALLSTACK
 	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CXConsole::AddCommand(const char* sCommand, ConsoleCommandFunc func, int nFlags, const char* sHelp)
+{
+	AddCommand(sCommand, ConsoleCommandLambda(func), nFlags, sHelp);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2512,7 +2519,7 @@ void CXConsole::ExecuteCommand(CConsoleCommand& cmd, string& str, bool bIgnoreDe
 		}
 	}
 
-	if (cmd.m_func)
+	if (cmd.m_hasFunc)
 	{
 		// This is function command, execute it with a list of parameters.
 		CConsoleCommandArgs cmdArgs(str, args);
