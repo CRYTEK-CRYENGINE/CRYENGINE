@@ -176,48 +176,6 @@ bool CDXInput::HandleMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 		input = (uint32)wParam;
 		break;
 
-	case WM_KEYDOWN:
-		// CTRL+V for clipboard paste support
-		if (wParam == 'V')
-		{
-			const bool bWasDown = (lParam & (1 << 30)) != 0;
-			const bool bControl = (GetKeyState(VK_CONTROL) & (1 << 15)) != 0;
-			if (!bWasDown && bControl)
-			{
-				if (OpenClipboard(NULL) != 0)
-				{
-					wstring data;
-					const HANDLE wideData = GetClipboardData(CF_UNICODETEXT);
-					if (wideData)
-					{
-						const LPCWSTR pWideData = (LPCWSTR)GlobalLock(wideData);
-						if (pWideData)
-						{
-							// Note: This conversion is just to make sure we discard malicious or malformed data
-							Unicode::ConvertSafe<Unicode::eErrorRecovery_Discard>(data, pWideData);
-							GlobalUnlock(wideData);
-						}
-					}
-					CloseClipboard();
-
-					for (Unicode::CIterator<wstring::const_iterator> it(data.begin(), data.end()); it != data.end(); ++it)
-					{
-						const uint32 cp = *it;
-						if (cp != '\r')
-						{
-							SUnicodeEvent evt(cp);
-							PostUnicodeEvent(evt);
-						}
-					}
-
-					if (wideData)
-					{
-						*pResult = 0;
-						return true;
-					}
-				}
-			}
-		}
 	// Fall through intended
 	default:
 		return false;
