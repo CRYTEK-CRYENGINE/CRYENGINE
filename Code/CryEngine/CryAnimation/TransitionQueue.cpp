@@ -332,6 +332,8 @@ void CTransitionQueue::ManualSeekAnimation(uint index, float time2, bool bTrigge
 			}
 		}
 
+		// Previous time has to be updated as well, otherwise animation events will be incorrectly calculated since prev will be 0 at all times until manual update stops.
+		animation.m_fAnimTimePrev[0] = time2;
 		// Update the time.
 		animation.m_fAnimTime[0] = time2;
 	}
