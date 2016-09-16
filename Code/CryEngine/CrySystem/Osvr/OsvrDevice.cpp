@@ -652,7 +652,20 @@ bool Device::RegisterTextureSwapSet(TextureSwapSet* swapSet)
 		}
 	}
 
-	return (bSuccess && osvrRenderManagerFinishRegisterRenderBuffers(m_renderManagerD3D11, regBufState, OSVR_TRUE) == OSVR_RETURN_SUCCESS);
+	//   The final parameter specifies to OSVR whether the rendering system promises not to
+	// overwrite the texture before it is presented again, which enables OSVR to use it
+	// in a separate thread for intermediate frames in asynchronous time warp.
+	//   For a texture to be usable that way with DirectMode rendering, it has to be created
+	// with MiscFlags parameters including D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX.  If the last
+	// parameter is set to false, then OSVR makes a copy of each texture that it keeps until
+	// it receives a new one, which does a bit of extra work.  This extra work is required if
+	// there is only one set of render targets (one per eye), but not required if there are
+	// multiple render buffers per eye that are used round-robin and the above flag is set
+	// at texture creation time.
+	//   To be safe in all circumstances, we currently set this flag to false.  If the texture
+	// creation is changed and we know that we have at least two buffers per eye, we can make
+	// this true and save a copy operation.
+	return (bSuccess && osvrRenderManagerFinishRegisterRenderBuffers(m_renderManagerD3D11, regBufState, OSVR_FALSE) == OSVR_RETURN_SUCCESS);
 }
 
 void Device::GetPreferredRenderResolution(unsigned int& width, unsigned int& height)
