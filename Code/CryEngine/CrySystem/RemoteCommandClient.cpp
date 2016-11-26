@@ -419,7 +419,7 @@ bool CRemoteCommandClient::Connection::Update()
 						}
 						else
 						{
-							LOG_VERBOSE(3, "Command ID=%d is to big (%d) to fit packet size limit (%d)",
+							LOG_VERBOSE(3, "Command ID=%d is too big (%d) to fit packet size limit (%d)",
 							            commandRef->m_pCommand->GetCommandId(),
 							            commandDataSize,
 							            kCommandMaxMergePacketSize);

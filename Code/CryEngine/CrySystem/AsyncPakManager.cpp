@@ -336,7 +336,7 @@ void CAsyncPakManager::StreamAsyncOnComplete(
 
 	SAsyncPak* pLayerPak = (SAsyncPak*) pStream->GetUserData();
 
-	//Check is pak is already open, if so, just assign mem
+	//Check if pak is already open, if so, just assign mem
 	if (gEnv->pCryPak->LoadPakToMemory(pLayerPak->filename.c_str(), ICryPak::eInMemoryPakLocale_GPU, pLayerPak->pData))
 	{
 		pLayerPak->bPakAlreadyOpen = true;
