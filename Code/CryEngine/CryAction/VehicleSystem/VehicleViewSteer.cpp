@@ -400,7 +400,8 @@ void CVehicleViewSteer::Update(float dt)
 			// Calculate camera bounds.
 			AABB localBounds;
 
-			m_pVehicle->GetEntity()->GetLocalBounds(localBounds);
+			//Get the bounding box of the model which is in the first place of the render nodes
+			m_pVehicle->GetEntity()->GetRenderNode()->GetLocalBounds(localBounds);
 
 			const float cameraBoundsScale = 0.75f;
 
@@ -433,8 +434,8 @@ void CVehicleViewSteer::Update(float dt)
 			IPhysicalEntity* pSkipEntities[10];
 
 			float distance = gEnv->pPhysicalWorld->PrimitiveWorldIntersection(sphere.type, &sphere, direction, ent_static | ent_terrain | ent_rigid | ent_sleeping_rigid,
-			                                                                  &pContact, 0, (geom_colltype_player << rwi_colltype_bit) | rwi_stop_at_pierceable, 0, 0, 0,
-			                                                                  pSkipEntities, m_pVehicle->GetSkipEntities(pSkipEntities, 10));
+				&pContact, 0, (geom_colltype_player << rwi_colltype_bit) | rwi_stop_at_pierceable, 0, 0, 0,
+				pSkipEntities, m_pVehicle->GetSkipEntities(pSkipEntities, 10));
 
 			if (distance > 0.0f)
 			{

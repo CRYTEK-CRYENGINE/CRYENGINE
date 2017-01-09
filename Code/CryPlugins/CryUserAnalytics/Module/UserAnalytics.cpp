@@ -320,7 +320,6 @@ void CUserAnalytics::PrepareAndSendEvents()
 		if (res == CURLE_OK)
 		{
 			m_sendBuffer.clear();
-			eventsCount = 0;
 
 			if (cv_logging && cv_logging->GetIVal() > 0)
 			{
@@ -328,6 +327,8 @@ void CUserAnalytics::PrepareAndSendEvents()
 
 				CryLogAlways("[User Analytics] Queuing Event: SessionAlive");
 			}
+
+			eventsCount = 0;
 
 			// pushing an alive-event to check client state on server side
 			TriggerEvent("SessionAlive");

@@ -2525,7 +2525,7 @@ void CSvoEnv::CollectLights()
 				else
 					lightTI.fSortVal = vCamPos.GetDistance(rLight.m_Origin) / max(24.f, rLight.m_fRadius);
 
-				if (eVoxMode == IRenderNode::eGM_DynamicVoxelization || !GetCVars()->e_svoTI_IntegrationMode)
+				if (eVoxMode == IRenderNode::eGM_DynamicVoxelization || (!GetCVars()->e_svoTI_IntegrationMode && !(rLight.m_Flags & DLF_SUN)))
 				{
 					if ((pRN->GetDrawFrame(0) > 10) && (pRN->GetDrawFrame(0) >= (int)GetCurrPassMainFrameID()))
 					{

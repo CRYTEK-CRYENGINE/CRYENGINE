@@ -12,7 +12,7 @@ class CRopeEntityRegistrator
 			CryLog("Skipping registration of default engine entity class %s, overridden by game", szName);
 			return;
 		}
-		RegisterEntityWithDefaultComponent<CDesignerEntityComponent<>>(szName, szEditorPath);
+		RegisterEntityWithDefaultComponent<CDesignerEntityComponent<>>(szName, szEditorPath, "rope.bmp");
 	}
 
 	virtual void Register() override

@@ -280,7 +280,7 @@ void CPlayerStateSwim::OnEnter( CPlayer& player )
 	player.m_playerStateSwim_WaterTestProxy.OnEnterWater(player);
 	
 	IPhysicalEntity* pPhysEnt = player.GetEntity()->GetPhysics();
-	if (pPhysEnt != NULL)
+	if (pPhysEnt != nullptr)
 	{
 		// get current gravity before setting to zero.
 		pe_player_dynamics simPar;
@@ -329,7 +329,11 @@ void CPlayerStateSwim::OnExit( CPlayer& player )
 	
 	if (player.IsClient())
 	{
-		player.GetPlayerCamera()->SetCameraMode( eCameraMode_Default, "Leaving swim state" );
+		//check if the camera still exists 
+		if (player.m_playerCamera != nullptr)
+		{
+			player.GetPlayerCamera()->SetCameraMode(eCameraMode_Default, "Leaving swim state");
+		}
 
 		//Unselect underwater weapon here
 		if (!player.IsCinematicFlagActive(SPlayerStats::eCinematicFlag_HolsterWeapon))
@@ -355,7 +359,7 @@ void CPlayerStateSwim::OnExit( CPlayer& player )
 	}
 
 	IPhysicalEntity* pPhysEnt = player.GetEntity()->GetPhysics();
-	if (pPhysEnt != NULL)
+	if (pPhysEnt != nullptr)
 	{
 		CPlayerStateUtil::PhySetNoFly( player, m_gravity );
 	}

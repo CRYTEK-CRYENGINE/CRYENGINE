@@ -15,7 +15,7 @@ class CTriggerEntityRegistrator
 			return;
 		}
 
-		RegisterEntityWithDefaultComponent<CTriggerEntity>("AreaTrigger", "Triggers");
+		RegisterEntityWithDefaultComponent<CTriggerEntity>("AreaTrigger", "Triggers", "AreaTrigger.bmp");
 		
 		// Register flow node
 		// Factory will be destroyed by flowsystem during shutdown

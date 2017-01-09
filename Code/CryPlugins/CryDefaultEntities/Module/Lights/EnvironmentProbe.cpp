@@ -70,41 +70,37 @@ void CEnvironmentProbeEntity::OnResetState()
 	m_light.SetAnimSpeed(0.f);
 	m_light.m_fProjectorNearPlane = 0.f;
 
-	ITexture* pSpecularTexture, * pDiffuseTexture;
+	if (m_cubemapPath.IsEmpty())
+	{
+		m_light.DropResources();
+		return;
+	}
+
+	ITexture* pSpecularTexture, *pDiffuseTexture;
 	GetCubemapTextures(m_cubemapPath, &pSpecularTexture, &pDiffuseTexture);
+
+	// When the textures remains the same, reference count of their resources should be bigger than 1 now,
+	// so light resources can be dropped without releasing textures
+	m_light.DropResources();
 
 	m_light.SetSpecularCubemap(pSpecularTexture);
 	m_light.SetDiffuseCubemap(pDiffuseTexture);
 
-	if (!m_light.GetSpecularCubemap())
+	if (!m_light.GetSpecularCubemap() || !m_light.GetDiffuseCubemap())
 	{
-		m_light.SetDiffuseCubemap(nullptr);
-		m_light.SetSpecularCubemap(nullptr);
+		CRY_ASSERT_MESSAGE(m_light.GetSpecularCubemap(), "Failed to load specular cubemap for environment probe!");
+		CRY_ASSERT_MESSAGE(m_light.GetDiffuseCubemap(), "Failed to load diffuse cubemap for environment probe!");
 
+		m_light.DropResources();
 		m_light.m_Flags &= ~DLF_DEFERRED_CUBEMAPS;
-
-		CRY_ASSERT_MESSAGE(false, "Failed to load specular cubemap for environment probe!");
 		return;
 	}
-	else if (!m_light.GetDiffuseCubemap())
-	{
-		m_light.SetDiffuseCubemap(nullptr);
-		m_light.SetSpecularCubemap(nullptr);
-
-		m_light.m_Flags &= ~DLF_DEFERRED_CUBEMAPS;
-
-		CRY_ASSERT_MESSAGE(false, "Failed to load diffuse cubemap for environment probe!");
-		return;
-	}
-
-	// Acquire resources, as the cubemap will be releasing when it goes out of scope
-	m_light.AcquireResources();
 
 	// Load the light source into the entity
 	m_lightSlot = entity.LoadLight(1, &m_light);
 }
 
-void CEnvironmentProbeEntity::GetCubemapTextures(const char* path, ITexture** pSpecular, ITexture** pDiffuse)
+void CEnvironmentProbeEntity::GetCubemapTextures(const char* path, ITexture** pSpecular, ITexture** pDiffuse) const
 {
 	stack_string specularCubemap = path;
 

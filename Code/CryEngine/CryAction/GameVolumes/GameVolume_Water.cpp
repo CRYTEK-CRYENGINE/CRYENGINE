@@ -307,14 +307,14 @@ void CGameVolume_Water::SetupVolume()
 	if (GetVolumeInfoForEntity(GetEntityId(), volumeInfo) == false)
 		return;
 
-	if (volumeInfo.verticesCount < 3)
+	if (volumeInfo.verticesCount < 4)
 		return;
 
 	WaterProperties waterProperties(GetEntity());
 
 	if (waterProperties.isRiver)
 	{
-		if (volumeInfo.verticesCount < 4 || volumeInfo.verticesCount % 2 != 0)
+		if (volumeInfo.verticesCount % 2 != 0)
 			return;
 
 		int numSegments = (volumeInfo.verticesCount / 2) - 1;
