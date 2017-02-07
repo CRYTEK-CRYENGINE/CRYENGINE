@@ -3653,29 +3653,22 @@ void CPhysicalWorld::DestroyDynamicEntities()
 
 void CPhysicalWorld::PurgeDeletedEntities()
 {
-	int i,j;
+	auto IterateQueue = [this](std::function<void(char *slot,CPhysicalWorld*)> func)	{
+		for(int i=0; i<m_nQueueSlots; i++)
+			for(int j=0; *(int*)(m_pQueueSlots[i]+j)!=-1; j+=*(int*)(m_pQueueSlots[i]+j+sizeof(int)))
+				func(m_pQueueSlots[i]+j,this);
+	};
 	{ WriteLock lock1(m_lockQueue);
-		for(i=0; i<m_nQueueSlots; i++)
-		{
-			for(j=0; *(int*)(m_pQueueSlots[i]+j)!=-1; j+=*(int*)(m_pQueueSlots[i]+j+sizeof(int)))
-			{
-				int *pCmdId = (int*)(m_pQueueSlots[i]+j);
-				CPhysicalEntity *pent = *(CPhysicalEntity**)(m_pQueueSlots[i]+j+sizeof(int)*2);
-
-				if (*pCmdId != -2 && pent->m_iSimClass==7)
-				{
-					 *pCmdId = -2;
-				}
-				else if (*pCmdId == 5)
-				{
-					DestroyPhysicalEntity((IPhysicalEntity*)pent, *(int*)(m_pQueueSlots[i]+j+sizeof(int)*2+sizeof(void*)),1);
-					*pCmdId = -2;
-				}
-			}
-		}
+		IterateQueue([](char *slot,CPhysicalWorld *pWorld) { 
+			CPhysicalEntity *pent = *(CPhysicalEntity**)(slot+sizeof(int)*2);
+			if (*slot==5) 
+				pWorld->DestroyPhysicalEntity(pent, *(int*)(slot+sizeof(int)*2+sizeof(void*)), 1); 
+		});
+		IterateQueue([](char *slot,CPhysicalWorld*) { if ((*(CPhysicalEntity**)(slot+sizeof(int)*2))->m_iSimClass==7) *(int*)slot = -2; });
 	}
 
 	{ WriteLock lock3(m_lockDeformingEntsList);
+		int i,j;
 		for(i=j=0; i<m_nDeformingEnts; i++) if (m_pDeformingEnts[i]->m_iSimClass!=7)
 			m_pDeformingEnts[j++] = m_pDeformingEnts[i];
 		else

@@ -8,7 +8,7 @@ endif()
 
 start_sources()
 # -- Scaleform/scaleform.waf_files --
-sources_platform(ALL AND HAS_SCALEFORM)
+sources_platform(ALL AND HAS_SCALEFORM AND NOT OPTION_SCALEFORMHELPER)
 add_sources("NoUberFile"
 	PROJECTS CrySystem
 	SOURCE_GROUP "Scaleform"

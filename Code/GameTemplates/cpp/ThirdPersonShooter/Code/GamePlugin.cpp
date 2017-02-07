@@ -40,7 +40,11 @@ void CGamePlugin::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lp
 				pTemp = pTemp->m_pNext;
 			}
 
-		gEnv->pConsole->ExecuteString("map example", false, true);
+			// Don't need to load the map in editor
+			if (!gEnv->IsEditor())
+			{
+				gEnv->pConsole->ExecuteString("map example", false, true);
+			}
 	}
 	break;
 	}

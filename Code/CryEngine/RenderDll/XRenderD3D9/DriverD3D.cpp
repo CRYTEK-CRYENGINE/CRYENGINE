@@ -1536,8 +1536,6 @@ void CD3D9Renderer::RT_BeginFrame()
 	CV_e_DebugTexelDensity = pCVDebugTexelDensity ? pCVDebugTexelDensity->GetIVal() : 0;
 #endif
 
-	m_RP.m_TI[m_RP.m_nProcessThreadID].m_matView->LoadIdentity();
-
 	CheckDeviceLost();
 
 	if (!m_bDeviceLost && m_bIsWindowActive)

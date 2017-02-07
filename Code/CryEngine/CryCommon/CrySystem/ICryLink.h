@@ -324,7 +324,7 @@ namespace CryLinkService
 				{
 					encodedQuery.append(&ch, 1);
 				}
-				else if (ch <= 0x7f)
+				else if (ch <= 0x7f && ch >= 0)
 				{
 					encodedQuery.append(s_szAsHex[ch], 3);
 				}

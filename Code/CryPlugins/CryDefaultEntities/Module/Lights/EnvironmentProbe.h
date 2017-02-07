@@ -59,7 +59,7 @@ public:
 	// ~IEntityPropertyGroup
 
 protected:
-	void GetCubemapTextures(const char* path, ITexture** pSpecular, ITexture** pDiffuse);
+	void GetCubemapTextures(const char* path, ITexture** pSpecular, ITexture** pDiffuse) const;
 
 	// Specifies the entity geometry slot in which the light is loaded, -1 if not currently loaded
 	// We default to using slot 1 for this light sample, in case the user would want to put geometry into slot 0.

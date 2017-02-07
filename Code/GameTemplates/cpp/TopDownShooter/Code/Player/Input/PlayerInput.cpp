@@ -85,6 +85,7 @@ void CPlayerInput::SpawnCursorEntity()
 
 	// Scale the cursor down a bit
 	m_pCursorEntity->SetScale(Vec3(0.1f));
+	m_pCursorEntity->SetViewDistRatio(255);
 
 	// Load the custom cursor material
 	auto *pCursorMaterial = gEnv->p3DEngine->GetMaterialManager()->LoadMaterial("Materials/cursor");

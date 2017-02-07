@@ -49,7 +49,7 @@ elseif(LINUX32)
 	set_target_properties(fmodstudio PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${FMOD_DIR}/linux/api/studio/inc)
 endif()
 
-if(FMOD_DLL)
+if(AUDIO_FMOD AND FMOD_DLL)
 	set_target_properties(fmod PROPERTIES INTERFACE_COMPILE_DEFINITIONS FMOD_FOR_$<UPPER_CASE:$<CONFIG>>)
 	deploy_runtime_files(${FMOD_DLL})
 	deploy_runtime_files(${FMODSTUDIO_DLL})

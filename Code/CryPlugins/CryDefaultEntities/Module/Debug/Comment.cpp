@@ -15,7 +15,7 @@ class CCommentEntityRegistrator
 			return;
 		}
 
-		RegisterEntityWithDefaultComponent<CCommentEntity>("Comment", "Debug");
+		RegisterEntityWithDefaultComponent<CCommentEntity>("Comment", "Debug", "Comment.bmp");
 	}
 };
 

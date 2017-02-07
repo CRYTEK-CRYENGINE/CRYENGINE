@@ -56,7 +56,7 @@ def read_file_lists(path):
 		output += "# -- "+l+" --\r\n"
 		cond = generate_platform_condition([k for k in platform_lists if l in platform_lists[k]])
 		if l.endswith('Scaleform/scaleform.waf_files'):
-			cond = cond + " AND HAS_SCALEFORM"
+			cond = cond + " AND HAS_SCALEFORM AND NOT OPTION_SCALEFORMHELPER"
 		elif l.endswith('cryinput_orbis_shared.waf_files'):
 			cond = cond + " AND HAS_ORBISPAD"
 		output += "sources_platform(%s)\r\n" % cond

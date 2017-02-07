@@ -698,6 +698,7 @@ bool CMovieSystem::InternalStopSequence(IAnimSequence* pSequence, bool bAbort, b
 				SAnimContext ac;
 				ac.bSingleFrame = true;
 				ac.time = pSequence->GetTimeRange().end;
+				pSequence->Activate();
 				pSequence->Animate(ac);
 			}
 			else if (m_sequenceStopBehavior == eSSB_GotoStartTime)
@@ -705,6 +706,7 @@ bool CMovieSystem::InternalStopSequence(IAnimSequence* pSequence, bool bAbort, b
 				SAnimContext ac;
 				ac.bSingleFrame = true;
 				ac.time = pSequence->GetTimeRange().start;
+				pSequence->Activate();
 				pSequence->Animate(ac);
 			}
 

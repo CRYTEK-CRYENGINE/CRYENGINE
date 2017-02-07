@@ -528,7 +528,7 @@ void CDedicatedInput::HandleDeathAndSuicide(CGameRules* const pGameRules)
 
 			IGameRulesSpawningModule *pSpawningModule = pGameRules->GetSpawningModule();
 
-			if (pSpawningModule)
+			if (pSpawningModule && pSpawningModule->GetRemainingLives(m_pPlayer->GetEntityId()) > 0)
 			{
 				pSpawningModule->ClRequestRevive(m_pPlayer->GetEntityId());
 			}

@@ -6,6 +6,7 @@
 
 #include "Entities/Gameplay/Weapons/ISimpleWeapon.h"
 
+#include <CryAnimation/IAttachment.h>
 #include <CryInput/IHardwareMouse.h>
 
 CPlayerInput::CPlayerInput()
@@ -93,6 +94,7 @@ void CPlayerInput::SpawnCursorEntity()
 
 	// Scale the cursor down a bit
 	m_pCursorEntity->SetScale(Vec3(0.1f));
+	m_pCursorEntity->SetViewDistRatio(255);
 
 	// Load the custom cursor material
 	auto *pCursorMaterial = gEnv->p3DEngine->GetMaterialManager()->LoadMaterial("Materials/cursor");
@@ -156,9 +158,19 @@ bool CPlayerInput::OnActionShoot(EntityId entityId, const ActionId& actionId, in
 	// Only fire on press, not release
 	if (activationMode == eIS_Pressed)
 	{
-		if (auto *pWeapon = m_pPlayer->GetCurrentWeapon())
+		auto *pWeapon = m_pPlayer->GetCurrentWeapon();
+		auto *pCharacter = GetEntity()->GetCharacter(CPlayer::eGeometry_ThirdPerson);
+
+		if (pWeapon != nullptr && pCharacter != nullptr)
 		{
-			pWeapon->RequestFire();
+			auto *pBarrelOutAttachment = pCharacter->GetIAttachmentManager()->GetInterfaceByName("barrel_out");
+
+			if (pBarrelOutAttachment != nullptr)
+			{
+				QuatTS bulletOrigin = pBarrelOutAttachment->GetAttWorldAbsolute();
+
+				pWeapon->RequestFire(bulletOrigin.t, bulletOrigin.q);
+			}
 		}
 	}
 

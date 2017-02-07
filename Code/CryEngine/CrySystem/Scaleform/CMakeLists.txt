@@ -40,7 +40,8 @@ add_sources("ScaleformHelper_uber.cpp"
 end_sources()
 #END-FILE-LIST
 
-if(NOT (ORBIS OR ANDROID)) # Some platforms can never build to shared libraries, so we need to skip the helper library for those.
+# Some platforms can never build to shared libraries, so we need to skip the helper library for those.
+if(OPTION_SCALEFORMHELPER AND NOT (ORBIS OR ANDROID))
 	CryEngineModule(CryScaleformHelper SOLUTION_FOLDER "CryExtensions" FORCE_SHARED)
 
 	target_include_directories( ${THIS_PROJECT} PRIVATE .. )

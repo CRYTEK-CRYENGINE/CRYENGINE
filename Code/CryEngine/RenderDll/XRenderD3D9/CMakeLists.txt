@@ -1036,15 +1036,21 @@ end_sources()
 set(gnm_compiler_version "ORBIS/V031")
 
 set(extra_defines -DCRY_GNM_SHADER_COMPILER_VERSION="${gnm_compiler_version}")
-	if (NOT EXISTS ${SDK_DIR}/NVIDIA/NVAPI_r386)
-		message(STATUS "NVAPI SDK v.386 not found, excluding from the build.")
-		list(APPEND extra_defines -DEXCLUDE_NV_API)
-	endif()
-	
-	if (NOT EXISTS ${SDK_DIR}/AMD)
-		message(STATUS "AMD AGS SDK not found, excluding from the build.")
-		list(APPEND extra_defines -DEXCLUDE_AMD_API)
-	endif()
+
+if(PLUGIN_VR_OCULUS OR PLUGIN_VR_OSVR OR PLUGIN_VR_OPENVR)
+	message(STATUS "Enabling VR rendering.")
+	list(APPEND extra_defines -DINCLUDE_VR_RENDERING)
+endif()
+
+if (NOT EXISTS ${SDK_DIR}/NVIDIA/NVAPI_r386)
+	message(STATUS "NVAPI SDK v.386 not found, excluding from the build.")
+	list(APPEND extra_defines -DEXCLUDE_NV_API)
+endif()
+
+if (NOT EXISTS ${SDK_DIR}/AMD)
+	message(STATUS "AMD AGS SDK not found, excluding from the build.")
+	list(APPEND extra_defines -DEXCLUDE_AMD_API)
+endif()
 
 if (RENDERER_DX11)
 	CryEngineModule(CryRenderD3D11 PCH "../StdAfx.cpp" SOLUTION_FOLDER "CryEngine")

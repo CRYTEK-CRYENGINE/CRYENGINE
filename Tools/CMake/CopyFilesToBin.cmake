@@ -2,41 +2,50 @@
 set(DEPLOY_FILES  CACHE INTERNAL "List of files to deploy before running")
 
 set (BinaryFileList_Win64
-	${SDK_DIR}/XT_13_4/bin_vc14/*.dll
-	${SDK_DIR}/Mono/bin/x64/mono-2.0.dll
-
-	${SDK_DIR}/Brofiler/ProfilerCore64.dll
-
-	${SDK_DIR}/audio/oculus/wwise/bin/plugins/OculusSpatializer.dll
-
-	${SDK_DIR}/OpenVR/bin/win64/*.*
-
-	${SDK_DIR}/OSVR/dll/*.dll
-
-	${SDK_DIR}/Qt/5.6/msvc2015_64/Qt/bin/*.dll
-	${SDK_DIR}/Qt/5.6/msvc2015_64/Qt/bin/*d.pdb
-
 	"${SDK_DIR}/Microsoft Windows SDK/10/Debuggers/x64/dbghelp.dll"
 	"${SDK_DIR}/Microsoft Windows SDK/10/bin/x64/d3dcompiler_47.dll"
-
-	${SDK_DIR}/CrashRpt/1403/bin/x64/CrashSender1403.exe
-	${SDK_DIR}/CrashRpt/1403/bin/x64/crashrpt_lang.ini
 	)
 
 set (BinaryFileList_Win32
-	${SDK_DIR}/Brofiler/ProfilerCore32.dll
-	${SDK_DIR}/Mono/bin/x86/mono-2.0.dll
 	"${SDK_DIR}/Microsoft Windows SDK/10/Debuggers/x86/dbghelp.dll"
 	"${SDK_DIR}/Microsoft Windows SDK/10/bin/x86/d3dcompiler_47.dll"
-
-	${SDK_DIR}/CrashRpt/1403/bin/CrashSender1403.exe
-	${SDK_DIR}/CrashRpt/1403/bin/crashrpt_lang.ini
-
 	)
 
 set (BinaryFileList_LINUX64
 	${SDK_DIR}/ncurses/lib/libncursesw.so.6
 	)
+
+
+if (OPTION_ENABLE_BROFILER)
+	set (BinaryFileList_Win64 ${BinaryFileList_Win64};${SDK_DIR}/Brofiler/ProfilerCore64.dll)
+	set (BinaryFileList_Win32 ${BinaryFileList_Win32};${SDK_DIR}/Brofiler/ProfilerCore32.dll)
+endif()
+if(OPTION_ENABLE_CRASHRPT)
+	set (BinaryFileList_Win64 ${BinaryFileList_Win64};${SDK_DIR}/CrashRpt/1403/bin/x64/crashrpt_lang.ini)
+	set (BinaryFileList_Win64 ${BinaryFileList_Win64};${SDK_DIR}/CrashRpt/1403/bin/x64/CrashSender1403.exe)
+	set (BinaryFileList_Win32 ${BinaryFileList_Win32};${SDK_DIR}/CrashRpt/1403/bin/x86/crashrpt_lang.ini)
+	set (BinaryFileList_Win32 ${BinaryFileList_Win32};${SDK_DIR}/CrashRpt/1403/bin/x86/CrashSender1403.exe)
+endif()
+if (OPTION_CRYMONO)
+	set (BinaryFileList_Win64 ${BinaryFileList_Win64};${SDK_DIR}/Mono/bin/x64/mono-2.0.dll)
+	set (BinaryFileList_Win32 ${BinaryFileList_Win32};${SDK_DIR}/Mono/bin/x86/mono-2.0.dll)
+endif()
+if (PLUGIN_VR_OCULUS)
+	set (BinaryFileList_Win64 ${BinaryFileList_Win64};${SDK_DIR}/audio/oculus/wwise/bin/plugins/OculusSpatializer.dll)
+endif()
+if (PLUGIN_VR_OPENVR)
+	set (BinaryFileList_Win64 ${BinaryFileList_Win64};${SDK_DIR}/OpenVR/bin/win64/*.*)
+endif()
+if (PLUGIN_VR_OSVR)
+	set (BinaryFileList_Win64 ${BinaryFileList_Win64};${SDK_DIR}/OSVR/dll/*.dll)
+endif()
+if (OPTION_SANDBOX)
+	set (BinaryFileList_Win64 ${BinaryFileList_Win64}
+		${SDK_DIR}/XT_13_4/bin_vc14/*.dll
+		${SDK_DIR}/Qt/5.6/msvc2015_64/Qt/bin/*.dll
+		${SDK_DIR}/Qt/5.6/msvc2015_64/Qt/bin/*d.pdb
+	)
+endif()
 
 macro(deploy_runtime_file source destination)
 	list(APPEND DEPLOY_FILES ${source})
@@ -121,11 +130,10 @@ macro(copy_binary_files_to_target)
 	endif()
 
 	if (WIN64) 
-		deploy_runtime_files(${SDK_DIR}/Qt/5.6/msvc2015_64/Qt/plugins/platforms/*.dll platforms)
-		deploy_runtime_files(${SDK_DIR}/Qt/5.6/msvc2015_64/Qt/plugins/imageformats/*.dll imageformats)
-
 		deploy_runtime_files("${SDK_DIR}/Microsoft Visual Studio Compiler/14.0/redist/x64/**/*.dll")
 		if (OPTION_SANDBOX)
+			deploy_runtime_files(${SDK_DIR}/Qt/5.6/msvc2015_64/Qt/plugins/platforms/*.dll platforms)
+			deploy_runtime_files(${SDK_DIR}/Qt/5.6/msvc2015_64/Qt/plugins/imageformats/*.dll imageformats)
 			deploy_runtime_files(${SDK_DIR}/Python27/*.zip)
 			deploy_pyside()
 		endif()

@@ -336,7 +336,7 @@ unsigned long GetCPUFeatureSet()
 			features |= CPUF_SSE;
 		if (CPUInfo[3] & (1 << 26))
 			features |= CPUF_SSE2;
-		if (CPUInfo[2] & (1 << 9))
+		if (CPUInfo[2] & (1 << 0))
 			features |= CPUF_SSE3;
 		if (CPUInfo[2] & (1 << 20))
 			features |= CPUF_SSE4;

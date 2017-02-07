@@ -12,12 +12,6 @@
 // This was chewing up a lot of CPU time just waiting for a connection
 #define NO_LIVECREATE
 
-// [VR]
-// Optional VR IHmdRenderer integration, note that HMD SDKs are implemented separately in plug-ins.
-#if !defined(DEDICATED_SERVER) && defined(CRY_PLATFORM_WINDOWS)
-	#define INCLUDE_VR_RENDERING
-#endif
-
 // Scaleform base configuration
 #if defined(DEDICATED_SERVER)
 	#undef INCLUDE_SCALEFORM_SDK   // Not used in dedicated server

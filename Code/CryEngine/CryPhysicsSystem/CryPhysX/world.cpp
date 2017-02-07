@@ -185,7 +185,7 @@ int CopyHitData(const PxRaycastHit &src, ray_hit &dst, bool valid=true, const Ve
 		return 0;
 	}
 	PhysXEnt *pent = Ent(src.actor);
-	dst.pCollider = pent;
+	dst.pCollider = pent->m_mask & (8|16) ? PhysXEnt::g_pPhysWorld->m_phf : pent;
 	dst.bTerrain = pent==PhysXEnt::g_pPhysWorld->m_phf;
 	dst.dist = src.distance;
 	dst.pt = V(src.position);
@@ -530,18 +530,19 @@ int PhysXWorld::GetEntitiesInBox(Vec3 ptmin, Vec3 ptmax, IPhysicalEntity**& pLis
 			PxRigidBody *body0 = (*(PhysXEnt**)pent0)->m_actor->isRigidBody(), *body1 = (*(PhysXEnt**)pent1)->m_actor->isRigidBody();
 			return sgn((body1 ? body1->getInvMass():0.0f) - (body0 ? body0->getInvMass():0.0f));
 		});
-	if ((PhysXEnt**)pList != pListSrc)
-		memcpy(pList, pListSrc, filter.nEnts*sizeof(pList[0]));
 	for(int i=0; i<filter.nEnts; i++) 
 		AtomicAdd(&pListSrc[i]->m_mask, -(1<<filter.ithread));
+	int n = 0;
+	for(int i=0; i<filter.nEnts; i++)	if (!(pListSrc[i]->m_mask & (8|16)))
+		pList[n++] = pListSrc[i];
 	if (objtypes & ent_addref_results)
-		for(int i=0; i<filter.nEnts; pListSrc[i++]->AddRef()); 
+		for(int i=0; i<n; pListSrc[i++]->AddRef()); 
 		
 	WriteLock lock(m_lockMask);
 	m_maskUsed &= ~(1u<<filter.ithread);
 	if (filter.nEnts>64)
 		AtomicAdd(&m_lockEntList, -WRITE_LOCK_VAL);
-	return filter.nEnts;
+	return n;
 }
 
 void PhysXWorld::AddEventClient(int type, int(*func)(const EventPhys*), int bLogged, float priority)

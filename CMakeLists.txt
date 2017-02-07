@@ -30,6 +30,10 @@ if(NOT ${CMAKE_GENERATOR} MATCHES "Visual Studio")
 	endif()
 endif()
 
+if("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
+	set(OUTPUT_DIRECTORY ${OUTPUT_DIRECTORY}_release)
+endif()
+
 set(METADATA_PROJECT_NAME "CryEngine" CACHE STRING "Name of the solution project")
 project(${METADATA_PROJECT_NAME}_CMake_${BUILD_PLATFORM} CXX C)
 
@@ -62,6 +66,8 @@ if(LINUX32 OR LINUX64)
 endif()
 
 # Define Options
+option(OPTION_ENGINE "Enable CRYENGINE" ON)
+
 option(OPTION_PROFILE "Enable Profiling" ON)
 option(OPTION_UNITY_BUILD "Enable Unity Build" ON)
 if(WIN32 OR WIN64)
@@ -84,7 +90,6 @@ option(OPTION_PCH "Enable Precompiled Headers" ON)
 
 #Plugins
 option(PLUGIN_FPSPLUGIN "Frames per second sample plugin" OFF)
-
 option(PLUGIN_SCHEMATYC "Enable Schematyc" ON)
 
 if(WIN32 OR WIN64)
@@ -137,6 +142,10 @@ include(${CRYENGINE_DIR}/Tools/CMake/CopyFilesToBin.cmake)
 
 # custom defines
 set(global_defines "CRYENGINE_DEFINE")
+
+if(EXISTS ${SDK_DIR}/Scaleform AND NOT ANDROID AND NOT ORBIS)
+	option(OPTION_SCALEFORMHELPER "Use Scaleform Helper" ON)
+endif()
 
 if(OPTION_STATIC_LINKING)
 	# Enable static libraries
@@ -242,12 +251,6 @@ include ("${CRYENGINE_DIR}/Tools/CMake/BuildLaunchers.cmake")
 
 # Shaders custom project
 add_subdirectory(Engine/Shaders)
-
-if (WIN32)
-	add_subdirectory(Code/CryEngine/CryLiveCreate)
-	# CryExtensions
-	#add_subdirectory(Code/CryExtensions/GameStream)
-endif (WIN32)
 
 # CryExtensions
 add_subdirectory(Code/CryExtensions)

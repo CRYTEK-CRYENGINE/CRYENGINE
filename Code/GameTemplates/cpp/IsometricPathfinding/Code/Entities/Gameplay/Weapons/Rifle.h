@@ -11,11 +11,7 @@ class CRifle
 public:
 	virtual ~CRifle() {}
 
-	// ISimpleExtension	
-	virtual void PostInit(IGameObject *pGameObject) override;
-	// ~ISimpleExtension
-
 	// IWeapon
-	virtual void RequestFire() override;
+	virtual void RequestFire(const Vec3 &initialBulletPosition, const Quat &initialBulletRotation) override;
 	// ~IWeapon
 };

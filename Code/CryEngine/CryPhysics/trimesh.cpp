@@ -162,7 +162,7 @@ CTriMesh* CTriMesh::CreateTriMesh(strided_pointer<const Vec3> pVertices,strided_
 		nTris = min(nTris,10000);
 	m_nTris = nTris;
 	m_pNormals = new Vec3[m_nTris];
-	m_flags = flags & (mesh_shared_vtx|mesh_shared_idx|mesh_shared_mats|mesh_shared_foreign_idx|mesh_keep_vtxmap|mesh_always_static);
+	m_flags = flags & (mesh_shared_vtx|mesh_shared_idx|mesh_shared_mats|mesh_shared_foreign_idx|mesh_keep_vtxmap|mesh_always_static|mesh_full_serialization);
 	if (!(flags & mesh_shared_idx) || pIndices.iStride!=sizeof(index_t))	{
 		m_pIndices = new index_t[m_nTris*3];
 		for(i=0;i<m_nTris*3;i++) m_pIndices[i] = pIndices[i];

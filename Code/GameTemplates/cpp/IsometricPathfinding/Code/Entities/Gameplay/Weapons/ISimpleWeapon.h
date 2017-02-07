@@ -10,5 +10,5 @@ struct ISimpleWeapon : public ISimpleExtension
 	virtual ~ISimpleWeapon() {}
 
 	// Call to request that the weapon is fired
-	virtual void RequestFire() = 0;
+	virtual void RequestFire(const Vec3 &initialBulletPosition, const Quat &initialBulletRotation) = 0;
 };

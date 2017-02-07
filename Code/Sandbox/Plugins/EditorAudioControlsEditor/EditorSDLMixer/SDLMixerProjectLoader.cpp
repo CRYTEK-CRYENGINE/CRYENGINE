@@ -49,12 +49,16 @@ void CSdlMixerProjectLoader::LoadFolder(const string& folderPath, IAudioSystemIt
 				}
 				else
 				{
-					if (name.find(".wav") != string::npos ||
-					    name.find(".ogg") != string::npos ||
-					    name.find(".mp3") != string::npos)
+					string::size_type posExtension = name.rfind('.');
+					if (posExtension != string::npos)
 					{
-						// Create the event with the same name as the file
-						CreateItem(name, folderPath, eSdlMixerTypes_Event, parent);
+						if (stricmp(name.data() + posExtension, ".mp3") == 0
+							|| stricmp(name.data() + posExtension, ".ogg") == 0
+							|| stricmp(name.data() + posExtension, ".wav") == 0)
+						{
+							// Create the event with the same name as the file
+							CreateItem(name, folderPath, eSdlMixerTypes_Event, parent);
+						}
 					}
 				}
 			}
