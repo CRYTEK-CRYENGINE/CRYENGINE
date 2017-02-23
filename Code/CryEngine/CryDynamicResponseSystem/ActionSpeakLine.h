@@ -39,6 +39,8 @@ public:
 	//////////////////////////////////////////////////////////
 
 private:
+	CHashedString GetLineIdToSpeak(DRS::IResponseInstance* pResponseInstance) const;
+
 	CHashedString m_speakerOverrideName;
 	CHashedString m_lineIDToSpeak;
 	uint32        m_flags;            //ESpeakLineFlags
