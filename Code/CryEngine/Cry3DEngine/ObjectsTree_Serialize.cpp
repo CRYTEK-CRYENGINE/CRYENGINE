@@ -1132,7 +1132,7 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 		int auxCntSrc = pChunk->m_volumeTypeAndMiscBits >> volumeTypeAndMiscBitShift, auxCntDst;
 		float* pAuxDataDst = pObj->GetAuxSerializationDataPtr(auxCntDst);
 		const float* pAuxDataSrc = StepData<float>(pPtr, auxCntSrc, eEndian);
-		memcpy(pAuxDataDst, pAuxDataDst, min(auxCntSrc, auxCntDst) * sizeof(float));
+		memcpy(pAuxDataDst, pAuxDataSrc, min(auxCntSrc, auxCntDst) * sizeof(float));
 
 		// read common node data
 		pObj->SetBBox(pChunk->m_WSBBox);
