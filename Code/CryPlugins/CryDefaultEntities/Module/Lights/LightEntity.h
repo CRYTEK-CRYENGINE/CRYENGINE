@@ -121,7 +121,7 @@ public:
 
 	void SetActive(bool bActive)
 	{
-		if (bActive == bActive)
+		if (m_bActive == bActive)
 			return;
 
 		m_bActive = bActive;
