@@ -57,11 +57,12 @@ void CAudioNode::Animate(SAnimContext& animContext)
 		const CAnimParamType paramType = m_tracks[paramIndex]->GetParameterType();
 		IAnimTrack* pTrack = m_tracks[paramIndex];
 
-		const bool bMuted = gEnv->IsEditor() && (pTrack->GetFlags() & IAnimTrack::eAnimTrackFlags_Muted);
 		if (!pTrack || pTrack->GetNumKeys() == 0 || pTrack->GetFlags() & IAnimTrack::eAnimTrackFlags_Disabled)
 		{
 			continue;
 		}
+    
+		const bool bMuted = gEnv->IsEditor() && (pTrack->GetFlags() & IAnimTrack::eAnimTrackFlags_Muted);
 
 		switch (paramType.GetType())
 		{
