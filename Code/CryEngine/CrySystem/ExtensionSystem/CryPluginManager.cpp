@@ -299,9 +299,23 @@ bool CCryPluginManager::LoadExtensionFile(const char* szFilename)
 	bool bResult = true;
 
 	ICryPak* pCryPak = gEnv->pCryPak;
-	FILE* pFile = pCryPak->FOpen(szFilename, "rb", ICryPak::FLAGS_PATH_REAL);
+
+	//! TODO recursive plugin dependency? plugin depends on plugin?
+	FILE* pFile = nullptr;
+
+#ifndef _RELEASE
+	// This will not work in release mode (Incorrect flag passed to FOpen for release since release only reads from paks)
+	pFile = pCryPak->FOpen(szFilename, "rb", ICryPak::FLAGS_PATH_REAL);
 	if (pFile == nullptr)
+		CryLogAlways("Warning: Cannot open extensions file (From DISK) '%s'", szFilename);
+	if (pFile == nullptr) // For the pak check below
+#endif
+	pFile = pCryPak->FOpen(szFilename, "rb");
+	if (pFile == nullptr)
+	{
+		CryLogAlways("Warning: Cannot open extensions file (From ASSETS) '%s'", szFilename);
 		return bResult;
+	}
 
 	size_t iFileSize = pCryPak->FGetSize(pFile);
 	char* pBuffer = new char[iFileSize];
