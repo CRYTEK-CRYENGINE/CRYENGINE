@@ -2309,7 +2309,12 @@ void CPlayer::SetIK( const SActorFrameMovementParams& frameMovementParams )
 	{
 		if (IsThirdPerson()) 
 		{
-			const Vec3 cameraPosition = GetViewMatrix().GetTranslation();
+			Vec3 cameraPosition;
+
+			if (IsClient())
+				cameraPosition = GetViewMatrix().GetTranslation();
+			else
+				cameraPosition = curMovementState.eyePosition;
 
 			const Vec3 down = Vec3(0, 0, -1);
 			const float dotProd = curMovementState.aimDirection.dot(down);
