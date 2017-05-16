@@ -123,6 +123,7 @@ bool CMonoRuntime::Initialize(SSystemGlobalEnvironment& env, const SSystemInitPa
 	if (!gEnv->pCryPak->IsFileExist(sMonoLib) || !gEnv->pCryPak->IsFileExist(sMonoEtc))
 	{
 		CryLogAlways("Failed to initialize Mono runtime, Mono directory was not found or incomplete in %s directory", szMonoDirectoryParent);
+		Shutdown();
 		delete this;
 
 		return false;
