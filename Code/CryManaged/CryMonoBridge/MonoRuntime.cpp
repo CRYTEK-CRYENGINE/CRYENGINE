@@ -124,7 +124,7 @@ bool CMonoRuntime::Initialize(SSystemGlobalEnvironment& env, const SSystemInitPa
 	{
 		CryLogAlways("Failed to initialize Mono runtime, Mono directory was not found or incomplete in %s directory", szMonoDirectoryParent);
 		Shutdown();
-		delete this;
+		//delete this;
 
 		return false;
 	}
