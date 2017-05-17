@@ -1712,11 +1712,11 @@ public:
 	}
 };
 
-	#define LOADING_TIME_PROFILE_SECTION CSYSBootProfileBlock _profileBlockLine(gEnv->pSystem, __FUNC__);
-	#define LOADING_TIME_PROFILE_SECTION_ARGS(args)                    CSYSBootProfileBlock _profileBlockLine_args(gEnv->pSystem, __FUNC__, args);
-	#define LOADING_TIME_PROFILE_SECTION_NAMED(sectionName)            CSYSBootProfileBlock _profileBlockLine_named(gEnv->pSystem, sectionName);
-	#define LOADING_TIME_PROFILE_SECTION_NAMED_ARGS(sectionName, args) CSYSBootProfileBlock _profileBlockLine_named_args(gEnv->pSystem, sectionName, args);
-	#define LOADING_TIME_PROFILE_AUTO_SESSION(sessionName)             CSYSBootProfileAutoSession _profileAutoSession(gEnv->pSystem, (sessionName));
+	#define LOADING_TIME_PROFILE_SECTION                               if(gEnv) CSYSBootProfileBlock _profileBlockLine(gEnv->pSystem, __FUNC__);
+	#define LOADING_TIME_PROFILE_SECTION_ARGS(args)                    if(gEnv) CSYSBootProfileBlock _profileBlockLine_args(gEnv->pSystem, __FUNC__, args);
+	#define LOADING_TIME_PROFILE_SECTION_NAMED(sectionName)            if(gEnv) CSYSBootProfileBlock _profileBlockLine_named(gEnv->pSystem, sectionName);
+	#define LOADING_TIME_PROFILE_SECTION_NAMED_ARGS(sectionName, args) if(gEnv) CSYSBootProfileBlock _profileBlockLine_named_args(gEnv->pSystem, sectionName, args);
+	#define LOADING_TIME_PROFILE_AUTO_SESSION(sessionName)             if(gEnv) CSYSBootProfileAutoSession _profileAutoSession(gEnv->pSystem, (sessionName));
 
 #else
 
