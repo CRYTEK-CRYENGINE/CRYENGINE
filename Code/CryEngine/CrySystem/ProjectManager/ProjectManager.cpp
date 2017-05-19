@@ -112,6 +112,18 @@ void CProjectManager::ParseProjectFile()
 	{
 		m_project.rootDirectory = PathUtil::RemoveSlash(PathUtil::ToUnixPath(PathUtil::GetPathWithoutFilename(m_project.filePath)));
 
+		// In-Asset Project File
+		//
+		// Allows specifying a project file inside the actual project Asset folder.
+		// Inside the project file, specify "." for [content]=>[assets].
+		if (m_project.assetDirectory == ".")
+		{
+			size_t lastSepPos = m_project.rootDirectory.find_last_of('/');
+			m_project.assetDirectory = m_project.rootDirectory.Right(m_project.rootDirectory.length()- lastSepPos -1);
+			m_project.rootDirectory.Truncate(lastSepPos);
+		}
+		// ~/In-Asset Project File
+
 		// Create the full path to the asset directory
 		m_project.assetDirectoryFullPath = PathUtil::Make(m_project.rootDirectory, m_project.assetDirectory);
 
