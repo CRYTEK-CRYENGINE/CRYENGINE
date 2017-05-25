@@ -169,7 +169,49 @@ add_subdirectory($${CRYENGINE_DIR} $${CMAKE_CURRENT_BINARY_DIR}/CRYENGINE)
 
 include($${TOOLS_CMAKE_DIR}/Configure.cmake)"""
     
-    cmakelists_template.template += """\nstart_sources()
+    # Attempt to read cmakelists already present
+    cmakelists_path = os.path.join(code_directory, 'CMakeLists.txt')
+    
+    existing_cmakelists_contents = 0
+    if os.path.exists(cmakelists_path):
+        cmakelists_file = open(cmakelists_path, 'r')
+        existing_cmakelists_contents = cmakelists_file.read()
+    else:
+        existing_cmakelists_contents = 0
+    
+    # Search for module type tag
+    moduletype_container = '#MODULETYPE=CONTAINER'
+    moduletype_module = '#MODULETYPE=MODULE'
+    moduletype_empty = '#MODULETYPE=EMPTY'
+    
+    moduletype = 'MODULE'
+    moduletypetag = ''
+    
+    if existing_cmakelists_contents != 0:
+        # CONTAINER
+        if existing_cmakelists_contents.find(moduletype_container, 0) != -1:
+            moduletype = 'CONTAINER'
+            moduletypetag = moduletype_container
+        # EMPTY
+        elif existing_cmakelists_contents.find(moduletype_empty, 0) != -1:
+            moduletype = 'EMPTY'
+            moduletypetag = moduletype_empty
+        # MODULE (default)
+        elif existing_cmakelists_contents.find(moduletype_module, 0) != -1:
+            moduletype = 'MODULE'
+            moduletypetag = moduletype_module
+    
+    if moduletype == 'CONTAINER':
+        cmakelists_template.template += """\n$moduletypetag\n\nstart_sources()
+
+sources_platform(ALL)
+$sources
+end_sources()
+
+CryFileContainer($project_name SOLUTION_FOLDER "Project")
+"""
+    elif moduletype == 'MODULE':
+        cmakelists_template.template += """\n$moduletypetag\n\nstart_sources()
 
 sources_platform(ALL)
 $sources
@@ -183,7 +225,10 @@ PRIVATE
     $${CRYENGINE_DIR}/Code/CryEngine/CryAction
 )
 """
-
+    elif moduletype == 'EMPTY':
+        cmakelists_template.template += """\n$moduletypetag\n\n
+"""
+    
     if is_default_project:
         cmakelists_template.template += '''\n# Set StartUp project in Visual Studio
 set_solution_startup_target($${THIS_PROJECT})
@@ -202,12 +247,10 @@ endif()\n'''
     standalone_directories = []
     
     # Try to copy custom data
-    if os.path.exists(cmakelists_path):
-        cmakelists_file = open(cmakelists_path, 'r')
-        
-        existing_cmakelists_contents = cmakelists_file.read()
+    if existing_cmakelists_contents != 0:
         
         current_index = 0
+        
         while True:
             current_index = existing_cmakelists_contents.find(custom_block_prefix, current_index)
             if current_index == -1:
@@ -266,7 +309,7 @@ endif()\n'''
     if source_count == 0:
         return
         
-    cmakelists_contents = cmakelists_template.substitute({'sources' : cmakelists_sources, 'engine_root_directory': engine_root_directory.replace('\\', '/'), 'project_name': project_name, 'projectfile': project_file.replace('\\', '/'), 'project_path': os.path.abspath(os.path.dirname(project_file)).replace('\\', '/')})
+    cmakelists_contents = cmakelists_template.substitute({'moduletypetag' : moduletypetag, 'sources' : cmakelists_sources, 'engine_root_directory': engine_root_directory.replace('\\', '/'), 'project_name': project_name, 'projectfile': project_file.replace('\\', '/'), 'project_path': os.path.abspath(os.path.dirname(project_file)).replace('\\', '/')})
     cmakelists_contents += custom_contents
         
     cmakelists_file = open(cmakelists_path, 'w')
