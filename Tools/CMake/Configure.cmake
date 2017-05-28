@@ -65,8 +65,13 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
 	set(OUTPUT_DIRECTORY ${OUTPUT_DIRECTORY}_release)
 endif()
 
-set(METADATA_PROJECT_NAME "CryEngine" CACHE STRING "Name of the solution project")
-project(${METADATA_PROJECT_NAME}_CMake_${BUILD_PLATFORM} CXX C)
+if(CE_EXTENSION_NAME)
+	set(METADATA_PROJECT_NAME "${CE_EXTENSION_NAME}" CACHE STRING "Name of the solution project" FORCE)
+	project(${METADATA_PROJECT_NAME} CXX C)
+else()
+	set(METADATA_PROJECT_NAME "CryEngine" CACHE STRING "Name of the solution project")
+	project(${METADATA_PROJECT_NAME}_CMake_${BUILD_PLATFORM} CXX C)
+endif()
 
 # Prefix all Visual Studio solution folder names with this string
 set( VS_FOLDER_PREFIX "CRYENGINE/" )
