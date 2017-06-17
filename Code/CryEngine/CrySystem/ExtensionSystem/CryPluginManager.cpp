@@ -333,15 +333,15 @@ bool CCryPluginManager::OnPluginLoaded()
 bool CCryPluginManager::UnloadAllPlugins()
 {
 	bool bError = false;
-	for (SPluginContainer& it : m_pluginContainer)
+	for (auto r_it = std::rbegin(m_pluginContainer); r_it != std::rend(m_pluginContainer); ++r_it)
 	{
-		if (!it.Shutdown())
+		if (!(*r_it).Shutdown())
 		{
 			bError = true;
 		}
 
 		// notification to listeners, that plugin got un-initialized
-		NotifyEventListeners(it.m_pluginClassId, IPluginEventListener::EPluginEvent::Unloaded);
+		NotifyEventListeners((*r_it).m_pluginClassId, IPluginEventListener::EPluginEvent::Unloaded);
 	}
 
 	m_pluginContainer.clear();
