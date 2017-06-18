@@ -15,6 +15,12 @@ namespace CryVR
 {
 namespace Osvr {
 
+CPlugin_Osvr::CPlugin_Osvr()
+{
+	m_loadPriority = EPluginPriority_CryLoad;
+	m_unloadPriority = EPluginPriority_CryUnload;
+};
+
 CPlugin_Osvr::~CPlugin_Osvr()
 {
 	CryVR::Osvr::Resources::Shutdown();

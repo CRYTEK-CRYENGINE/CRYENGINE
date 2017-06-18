@@ -28,11 +28,11 @@ inline bool WantUpdate()
 } // Anonymous
 
 CSTDEnv::CSTDEnv()
-	: m_pSystemStateMonitor(new CSystemStateMonitor())
-	, m_pEntityObjectClassRegistry(new CEntityObjectClassRegistry())
-	, m_pEntityObjectMap(new CEntityObjectMap())
-	, m_pEntityObjectDebugger(new CEntityObjectDebugger())
-{}
+{
+
+	m_loadPriority = EPluginPriority_CryLoad-1; // Need to load after core
+	m_unloadPriority = EPluginPriority_CryUnload+1; // Need to die after core, before others
+}
 
 CSTDEnv::~CSTDEnv()
 {
@@ -56,6 +56,11 @@ bool CSTDEnv::Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams&
 	SCHEMATYC_CORE_ASSERT(!s_pInstance);
 
 	s_pInstance = this;
+
+	m_pSystemStateMonitor = std::unique_ptr<CSystemStateMonitor>(new CSystemStateMonitor());
+	m_pEntityObjectClassRegistry = std::unique_ptr<CEntityObjectClassRegistry>(new CEntityObjectClassRegistry());
+	m_pEntityObjectMap = std::unique_ptr<CEntityObjectMap>(new CEntityObjectMap());
+	m_pEntityObjectDebugger = std::unique_ptr<CEntityObjectDebugger>(new CEntityObjectDebugger());
 
 	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this,"CSTDEnv");
 

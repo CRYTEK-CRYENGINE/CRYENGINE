@@ -16,6 +16,7 @@ class CPlugin_OculusVR : public IOculusVRPlugin, public ISystemEventListener
 
 	CRYGENERATE_SINGLETONCLASS(CPlugin_OculusVR, "Plugin_OculusVR", 0x4DF8241E2BC24EC7, 0xB237EE5DB27265B3)
 
+	CPlugin_OculusVR();
 	virtual ~CPlugin_OculusVR();
 
 	//! Retrieve name of plugin.

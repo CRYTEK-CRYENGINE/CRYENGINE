@@ -10,6 +10,8 @@
 CPlugin_CryUserAnalytics::CPlugin_CryUserAnalytics()
 	: m_pUserAnalytics(nullptr)
 {
+	m_loadPriority = EPluginPriority_CryLoad;
+	m_unloadPriority = EPluginPriority_CryUnload;
 }
 
 CPlugin_CryUserAnalytics::~CPlugin_CryUserAnalytics()

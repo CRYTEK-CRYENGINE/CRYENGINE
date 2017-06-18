@@ -63,6 +63,12 @@ public:
 
 CSystemEventListener g_listener;
 
+CPlugin_CryDefaultEntities::CPlugin_CryDefaultEntities()
+{
+	m_loadPriority = EPluginPriority_CryLoad;
+	m_unloadPriority = EPluginPriority_CryUnload;
+};
+
 bool CPlugin_CryDefaultEntities::Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams)
 {
 	env.pSystem->GetISystemEventDispatcher()->RegisterListener(&g_listener,"CCryPluginManager::CSystemEventListener");

@@ -30,7 +30,7 @@ public:
 		}
 	}
 
-	// Called by CrySystem during early init to initialize the manager and load plugins
+	// Called by CrySystem during early init to initialize the manager and load plugin modules
 	// Plugins that require later activation can do so by listening to system events such as ESYSTEM_EVENT_PRE_RENDERER_INIT
 	void LoadProjectPlugins();
 
@@ -39,6 +39,7 @@ public:
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam) override;
 
 protected:
+	bool 								LoadModule(EPluginType type, const char* path);
 	virtual bool                        LoadPluginFromDisk(EPluginType type, const char* path) override;
 
 	virtual std::shared_ptr<ICryPlugin> QueryPluginById(const CryClassID& classID) const override;

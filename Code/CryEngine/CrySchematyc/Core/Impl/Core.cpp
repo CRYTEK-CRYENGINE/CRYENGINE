@@ -70,7 +70,10 @@ CCore::CCore()
 	, m_pLogRecorder(new CLogRecorder())
 	, m_pSettingsManager(new CSettingsManager())
 	, m_pUpdateScheduler(new CUpdateScheduler())
-{}
+{
+	m_loadPriority = EPluginPriority_CryLoad;
+	m_unloadPriority = EPluginPriority_CryUnload+2;
+}
 
 CCore::~CCore()
 {

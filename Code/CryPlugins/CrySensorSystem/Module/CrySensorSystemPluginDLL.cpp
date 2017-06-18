@@ -8,6 +8,12 @@
 
 #include "SensorSystem.h"
 
+CCrySensorSystemPlugin::CCrySensorSystemPlugin()
+{
+	m_loadPriority = EPluginPriority_CryLoad;
+	m_unloadPriority = EPluginPriority_CryUnload;
+}
+
 const char* CCrySensorSystemPlugin::GetName() const
 {
 	return "CrySensorSystem";

@@ -15,6 +15,7 @@ class CCrySensorSystemPlugin : public ICrySensorSystemPlugin
 
 	CRYGENERATE_SINGLETONCLASS(CCrySensorSystemPlugin, "Plugin_CrySensorSystem", 0x08a9684689334211, 0x913f7a64c0bf9822)
 
+	CCrySensorSystemPlugin();
 	virtual ~CCrySensorSystemPlugin() {}
 
 	// ICryPlugin

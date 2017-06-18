@@ -12,11 +12,16 @@
 class CEngineModule_CryLobby : public ILobbyEngineModule
 {
 	CRYINTERFACE_BEGIN()
-		CRYINTERFACE_ADD(Cry::IDefaultModule)
-		CRYINTERFACE_ADD(ILobbyEngineModule)
+	CRYINTERFACE_ADD(Cry::IDefaultModule)
+	CRYINTERFACE_ADD(ILobbyEngineModule)
 	CRYINTERFACE_END()
 	CRYGENERATE_SINGLETONCLASS(CEngineModule_CryLobby, "EngineModule_CryLobby", 0x2c5cc5ec41f7451c, 0xa785857ca7731c28)
 
+	CEngineModule_CryLobby()
+	{
+		m_loadPriority = EPluginPriority_CryLoad;
+		m_unloadPriority = EPluginPriority_CryUnload;
+	}
 	virtual ~CEngineModule_CryLobby()
 	{
 		SAFE_DELETE(gEnv->pLobby);

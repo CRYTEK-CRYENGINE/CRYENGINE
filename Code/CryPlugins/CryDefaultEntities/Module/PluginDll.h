@@ -19,6 +19,8 @@ class CPlugin_CryDefaultEntities
 	virtual ~CPlugin_CryDefaultEntities() {}
 
 public:
+	CPlugin_CryDefaultEntities();
+
 	//! Retrieve name of plugin.
 	virtual const char* GetName() const override { return "CryDefaultEntities"; }
 

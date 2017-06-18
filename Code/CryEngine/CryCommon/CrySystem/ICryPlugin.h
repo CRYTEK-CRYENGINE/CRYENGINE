@@ -25,6 +25,15 @@ struct IPluginUpdateListener
 
 struct ICryPlugin : public ICryUnknown, IPluginUpdateListener, IAutoCleanup
 {
+	friend class CCryPluginManager;
+
+	enum EPluginPriority : int16
+	{
+		EPluginPriority_CryUnload = -100,	// Lowest priority
+		EPluginPriority_Default = 0,
+		EPluginPriority_CryLoad = 100	// Highest priority
+	};
+
 	CRYINTERFACE_DECLARE(ICryPlugin, 0xF491A0DB38634FCA, 0xB6E6BCFE2D98EEA2);
 
 	virtual ~ICryPlugin() {}
@@ -48,6 +57,8 @@ struct ICryPlugin : public ICryUnknown, IPluginUpdateListener, IAutoCleanup
 protected:
 	uint8 m_updateFlags = IPluginUpdateListener::EUpdateType_NoUpdate;
 	std::vector<TFlowNodeTypeId> m_registeredFlowNodeIds;
+	int16 m_loadPriority = EPluginPriority_Default;
+	int16 m_unloadPriority = EPluginPriority_Default;
 };
 
 #ifndef _LIB

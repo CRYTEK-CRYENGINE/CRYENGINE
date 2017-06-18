@@ -16,6 +16,7 @@ class CPlugin_Osvr : public IOsvrPlugin, public ISystemEventListener
 
 	CRYGENERATE_SINGLETONCLASS(CPlugin_Osvr, "Plugin_OSVR", 0x655D32522A6D4D09, 0xAFE82386D4566054)
 
+	CPlugin_Osvr();
 	virtual ~CPlugin_Osvr();
 
 	//! Retrieve name of plugin.

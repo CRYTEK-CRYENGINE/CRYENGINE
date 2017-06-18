@@ -119,12 +119,14 @@ struct SPluginContainer
 		: m_pPlugin(plugin)
 		, m_module(module)
 		, m_pluginClassId(plugin->GetFactory()->GetClassID())
+		, m_bFailedInit(false)
 	{
 	}
 
 	// Constructor for managed (Mono) plug-ins, or statically linked ones
 	SPluginContainer(const std::shared_ptr<ICryPlugin>& plugin)
-		: m_pPlugin(plugin) 
+		: m_pPlugin(plugin)
+		, m_bFailedInit(false)
 	{
 		if (ICryFactory* pFactory = plugin->GetFactory())
 		{
@@ -141,6 +143,8 @@ struct SPluginContainer
 			m_pPlugin->SetUpdateFlags(IPluginUpdateListener::EUpdateType_NoUpdate);
 			bSuccess = m_pPlugin->Initialize(env, initParams);
 		}
+
+		m_bFailedInit = !bSuccess;
 
 		return bSuccess;
 	}
@@ -163,6 +167,8 @@ struct SPluginContainer
 	{
 		return (left.GetPluginPtr() == right.GetPluginPtr());
 	}
+
+	bool						   m_bFailedInit;
 
 	CryClassID                     m_pluginClassId;
 	string                         m_pluginAssetDirectory;
@@ -230,7 +236,6 @@ void CCryPluginManager::LoadProjectPlugins()
 
 		m_pluginContainer.emplace_back(pPlugin);
 
-		OnPluginLoaded();
 	}
 
 	m_bLoadedProjectPlugins = true;
@@ -241,109 +246,158 @@ void CCryPluginManager::LoadProjectPlugins()
 
 	for (const SPluginDefinition& pluginDefinition : pluginDefinitions)
 	{
-		LoadPluginFromDisk(pluginDefinition.type, pluginDefinition.path);
+		LoadModule(pluginDefinition.type, pluginDefinition.path);
 	}
 
 	// Always load the CryUserAnalytics plugin
 	SPluginDefinition userAnalyticsPlugin(EPluginType::Native, "CryUserAnalytics");
 	if (std::find(std::begin(pluginDefinitions), std::end(pluginDefinitions), userAnalyticsPlugin) == std::end(pluginDefinitions))
 	{
-		LoadPluginFromDisk(userAnalyticsPlugin.type, userAnalyticsPlugin.path);
+		LoadModule(userAnalyticsPlugin.type, userAnalyticsPlugin.path);
 	}
+
+	// Danger Robinson! Dragons Ahead!
+	// Don't touch m_pluginContainers until we are done with containerPtrs!
+
+	// Make temp list we can sort without moving modules around
+	std::vector<SPluginContainer*> containerPtrs;
+	for (auto & container : m_pluginContainer)
+		containerPtrs.push_back(&container);
+
+	// Sort containers by load priority
+	std::sort(containerPtrs.begin(), containerPtrs.end(),
+	[](const SPluginContainer* lhs, const SPluginContainer* rhs) -> bool
+	{
+		if (lhs->m_pPlugin == nullptr || rhs->m_pPlugin == nullptr)
+			return false;
+		return (lhs->m_pPlugin->m_loadPriority > rhs->m_pPlugin->m_loadPriority); 
+	});
+
+	// Initialize in order, erase failed-init plugins
+	for (auto & container : containerPtrs)
+		if(!container->Initialize(*gEnv, m_systemInitParams))
+			container->Shutdown();
+		else
+			NotifyEventListeners(container->m_pluginClassId, IPluginEventListener::EPluginEvent::Initialized);
+	containerPtrs.clear();
+
+	// clean failed containers
+	m_pluginContainer.erase(
+		std::remove_if(m_pluginContainer.begin(), m_pluginContainer.end(),
+			[](const SPluginContainer & o) { return o.m_bFailedInit; }),
+		m_pluginContainer.end());
 }
 
+// Manually loaded plugins will of course be loaded as and when requested.
 bool CCryPluginManager::LoadPluginFromDisk(EPluginType type, const char* path)
 {
 	CRY_ASSERT_MESSAGE(m_bLoadedProjectPlugins, "Plug-ins must not be loaded before LoadProjectPlugins!");
 
-	CryLogAlways("Loading plug-in %s", path);
+	if(LoadModule(type, path))
+	{
+		if (m_pluginContainer.back().Initialize(*gEnv, m_systemInitParams))
+		{
+			NotifyEventListeners(m_pluginContainer.back().m_pluginClassId, IPluginEventListener::EPluginEvent::Initialized);
+			return true;
+		}
+		else
+		{
+			m_pluginContainer.back().Shutdown();
+			m_pluginContainer.pop_back();
+		}
+	}
+
+	return false;
+}
+
+bool CCryPluginManager::LoadModule(EPluginType type, const char* path)
+{
+	CryLogAlways("Loading plugin module %s", path);
 
 	std::shared_ptr<ICryPlugin> pPlugin;
 
 	switch (type)
 	{
 	case EPluginType::Native:
+	{
+		// Load the module, note that this calls ISystem::InitializeEngineModule
+		// Automatically unloads in destructor
+		SNativePluginModule module(path);
+		ICryFactory* pFactory = module.GetFactory();
+		if (pFactory == nullptr)
 		{
-			// Load the module, note that this calls ISystem::InitializeEngineModule
-			// Automatically unloads in destructor
-			SNativePluginModule module(path);
-			ICryFactory* pFactory = module.GetFactory();
-			if (pFactory == nullptr)
-			{
-				return false;
-			}
-
-			ICryUnknownPtr pUnk = pFactory->CreateClassInstance();
-			pPlugin = cryinterface_cast<ICryPlugin>(pUnk);
-			if (pPlugin == nullptr)
-			{
-				return false;
-			}
-
-			m_pluginContainer.emplace_back(pPlugin, std::move(module));
-			module.MarkUnloaded();
-
-			break;
+			return false;
 		}
+
+		ICryUnknownPtr pUnk = pFactory->CreateClassInstance();
+		pPlugin = cryinterface_cast<ICryPlugin>(pUnk);
+		if (pPlugin == nullptr)
+		{
+			return false;
+		}
+
+		m_pluginContainer.emplace_back(pPlugin, std::move(module));
+		module.MarkUnloaded();
+
+		break;
+	}
 
 	case EPluginType::Managed:
-		{
-			if (gEnv->pMonoRuntime == nullptr)
-			{
-				CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "Tried to load Mono plugin %s without having loaded the CryMono module!", path);
-
-				return false;
-			}
-
-			pPlugin = gEnv->pMonoRuntime->LoadBinary(path);
-			if (!pPlugin)
-			{
-				CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "Plugin load failed - Could not load Mono binary %s", path);
-
-				return false;
-			}
-
-			m_pluginContainer.emplace_back(pPlugin);
-			break;
-		}
-	}
-
-	return OnPluginLoaded();
-}
-
-bool CCryPluginManager::OnPluginLoaded()
-{
-	SPluginContainer& containedPlugin = m_pluginContainer.back();
-
-	if (!containedPlugin.Initialize(*gEnv, m_systemInitParams))
 	{
-		CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "Plugin load failed - Failed to initialize!");
+		if (gEnv->pMonoRuntime == nullptr)
+		{
+			CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "Tried to load Mono plugin %s without having loaded the CryMono module!", path);
 
-		containedPlugin.Shutdown();
-		m_pluginContainer.pop_back();
+			return false;
+		}
 
-		return false;
+		pPlugin = gEnv->pMonoRuntime->LoadBinary(path);
+		if (!pPlugin)
+		{
+			CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "Plugin load failed - Could not load Mono binary %s", path);
+
+			return false;
+		}
+
+		m_pluginContainer.emplace_back(pPlugin);
+		break;
+	}
 	}
 
-	// Notification to listeners, that plugin got initialized
-	NotifyEventListeners(containedPlugin.m_pluginClassId, IPluginEventListener::EPluginEvent::Initialized);
 	return true;
 }
 
 bool CCryPluginManager::UnloadAllPlugins()
 {
 	bool bError = false;
-	for (auto r_it = std::rbegin(m_pluginContainer); r_it != std::rend(m_pluginContainer); ++r_it)
-	{
-		if (!(*r_it).Shutdown())
-		{
-			bError = true;
-		}
 
-		// notification to listeners, that plugin got un-initialized
-		NotifyEventListeners((*r_it).m_pluginClassId, IPluginEventListener::EPluginEvent::Unloaded);
+	// Unload in specified order (matching priorities in reverse)
+	std::vector<SPluginContainer*> containerPtrs;
+	for (auto& container : m_pluginContainer)
+		containerPtrs.push_back(&container);
+
+	// Reverse order
+	std::reverse(containerPtrs.begin(), containerPtrs.end());
+
+	// Sort containers by unload priority
+	std::sort(containerPtrs.begin(), containerPtrs.end(),
+		[](const SPluginContainer* lhs, const SPluginContainer* rhs) -> bool
+	{
+		if (lhs->m_pPlugin == nullptr || rhs->m_pPlugin == nullptr)
+			return false;
+		return (lhs->m_pPlugin->m_unloadPriority > rhs->m_pPlugin->m_unloadPriority);
+	});
+
+	// Shutdown and notify
+	for (const auto& containerPtr : containerPtrs)
+	{
+		if (!containerPtr->Shutdown())
+			bError = true;
+		NotifyEventListeners(containerPtr->m_pluginClassId, IPluginEventListener::EPluginEvent::Unloaded);
 	}
 
+	// Cleanup
+	containerPtrs.clear();
 	m_pluginContainer.clear();
 
 	return !bError;
@@ -397,16 +451,20 @@ std::shared_ptr<ICryPlugin> CCryPluginManager::AcquirePluginById(const CryClassI
 	std::shared_ptr<ICryPlugin> pPlugin;
 	CryCreateClassInstance(classID, pPlugin);
 
-	if (pPlugin == nullptr)
+	if (pPlugin != nullptr)
 	{
-		return nullptr;
-	}
+		m_pluginContainer.emplace_back(pPlugin);
 
-	m_pluginContainer.emplace_back(pPlugin);
-
-	if (OnPluginLoaded())
-	{
-		return pPlugin;
+		if (m_pluginContainer.back().Initialize(*gEnv, m_systemInitParams))
+		{
+			NotifyEventListeners(m_pluginContainer.back().m_pluginClassId, IPluginEventListener::EPluginEvent::Initialized);
+			return pPlugin;
+		}
+		else
+		{
+			m_pluginContainer.back().Shutdown();
+			m_pluginContainer.pop_back();
+		}
 	}
 
 	return nullptr;
