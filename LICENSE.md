@@ -1,4 +1,4 @@
-#LIMITED LICENSE AGREEMENT FOR THE USE OF THE CRYENGINE
+# LIMITED LICENSE AGREEMENT FOR THE USE OF THE CRYENGINE
 
 This limited license agreement (this "Agreement") for the use of the CryEngine is entered into between Crytek GmbH, Frankfurt/Main, Germany ("Crytek") and you, the user (the "Licensee" or "You").
 The Agreement is made effective beginning on the date on which you, the Licensee, first accept this agreement or download, install, load or otherwise use the CryEngine as defined below (whichever occurs first).
@@ -12,7 +12,7 @@ Other policies which apply with respect to the CryEngine include without limitat
   - Crytek's Privacy Policy.
 
 
-##1. Definition
+## 1. Definition
 1.1. "CryEngine": the software called "CryEngine" as offered by Crytek for certain Platforms in object code or source code, including the CryEngine Assets, the CryEngine Documentation, the CryEngine Tools, the CryEngine Redistributables and any updates thereto as made available by Crytek at its sole discretion.
 
 1.2. "CryEngine Assets": the audiovisual files included in the CryEngine as distributed by Crytek in its sole discretion.
@@ -50,7 +50,7 @@ Other policies which apply with respect to the CryEngine include without limitat
 1.14. "Team": a number of Seats set up through one account. All Seats of a Team must have the same entitlements, level of Support etc.
 
 
-##2. Grant of License
+## 2. Grant of License
 2.1. Grant: Subject to strict and continuous compliance with the restrictions of this Agreement Crytek grants to Licensee a non-exclusive, non-transferable, non-assignable, non-sublicensable, limited license (the "License") only:
 
   2.1.1. to install and run the CryEngine pursuant to the CryEngine Documentation;
@@ -91,7 +91,7 @@ Other policies which apply with respect to the CryEngine include without limitat
 2.5. Intellectual Property Rights: CryEngine and all copyrights, trademarks, and all other conceivable intellectual property rights related thereto are owned by Crytek or its affiliates and are protected by German, US and other national and international law. Licensee shall have no ownership or intellectual property rights in or to CryEngine, including, without limitation, all copyrights related thereto.
 
 
-##3. Copyright Notice and Trademarks
+## 3. Copyright Notice and Trademarks
 3.1. The splash screen, credits screen, documentation and packaging (if any) as well as the marketing material (print, online etc.) of the Game shall include the following wording: "Portions of this software are included under license (c) 2004-201_ Crytek GmbH. All rights reserved." Crytek's copyright notices shall be no less prominently displayed than Licensee's own copyright notices.
 
 3.2. Crytek grants Licensee the right to use the trademarks "Crytek" and "CryEngine" only to promote the Game. The splash screen, credits screen, documentation and packaging (if any) as well as the marketing material (print, online etc.) of the Game shall include the trademarks "Crytek" and "CryEngine". Licensee shall use the trademarks as made available online by Crytek within eight (8) weeks before the final design of the respective material. Crytek's trademarks shall be no less prominently displayed than Licensee's own trademarks.
@@ -99,7 +99,7 @@ Other policies which apply with respect to the CryEngine include without limitat
 3.3. The design of the splash screen, the credits screen, the documentation, the packaging and the marketing material is subject to Crytek's prior written approval regarding Crytek's copyright notice and trademarks. The approval shall be deemed given if Crytek does not give any notice within ten (10) days from receipt of a sample.
 
 
-##4. Support
+## 4. Support
 4.1. For Licensees who have not purchased Support Crytek may or may not render support at its sole discretion.
 
 4.2. Licensees may decide to purchase Support for a certain Support Period against payment of a Support Fee. The exact scope of Support shall be defined and offered by Crytek on its website or otherwise. The following basic rules apply:
@@ -112,7 +112,7 @@ Other policies which apply with respect to the CryEngine include without limitat
   - The Parties agree that the primary means of communication shall be by electronic mail or submission of Support requests to an online software tool established for this purpose by Crytek.
   - In case of training the details of the training (especially the dates) are subject to further consultation between the parties. In case of onsite training Licensee shall bear all costs (if any) for traveling, as well as 4-stars accommodation and meals of Crytek's staff involved.
 
-##5. Warranty, Indemnification
+## 5. Warranty, Indemnification
 5.1. CRYTEK WARRANTY DISCLAIMER. CRYTEK GIVES NO WARRANTY. SOFTWARE IS DELIVERED "AS IS". CRYTEK DOES NOT MAKE AND HEREBY DISCLAIMS ANY AND ALL EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANY WARRANTIES ARISING FROM COURSE OF DEALING, USAGE OR TRADE PRATICE.
 
 5.2. CRYTEK INDEMNIFICATION DISCLAIMER.
@@ -125,7 +125,7 @@ A. In case that German law applies:
   
   5.2.3. If Crytek is liable for damages pursuant to Section (a) above for gross negligence or intent of Crytek staff other than the managing directors then the liability is also limited to the amount set forth in Section (b).
   
-  5.2.4. Crytek is not liable for indirect or consequential damages (Mangelfolgeschäden), loss of profits or frustrated costs if such damages are not a result of gross negligence or intent of Crytek's managing directors.
+  5.2.4. Crytek is not liable for indirect or consequential damages (MangelfolgeschÃ¤den), loss of profits or frustrated costs if such damages are not a result of gross negligence or intent of Crytek's managing directors.
   
   5.2.5. The exclusion or limitation of liability pursuant to this Sec. 5 also applies with respect to claims against Crytek's staff or contractors.
   
@@ -140,11 +140,11 @@ INDEMNIFICATION DISCLAIMER. EXCEPT FOR INTENTIONAL ACTS OR OMISSIONS OF CRYTEK, 
 5.3. Licensee Indemnification: Licensee shall indemnify and hold harmless Crytek against all costs and expenses (including reasonable attorney's fees and expenses) and all other liability related to any claim on Licensee's use of the CryEngine.
 
 
-##6. Feedback
+## 6. Feedback
 You are not obliged to report to Crytek any feedback (including but not limited to bug fixes, optimizations or any other changes) made to the CryEngine (including the CryEngine Tools) (collectively the "Feedback"). However, if you report Feedback to Crytek you hereby grant Crytek a worldwide, non-exclusive, royalty-free, transferrable, sub-licensable and perpetual license to such Feedback for the purposes of (1) using the Feedback internally at Crytek, (2) incorporating the Feedback in future releases of the CryEngine and (3) distributing the CryEngine with the embedded Feedback to third parties without restriction in any way and without payment of any additional fees or royalties to Licensee. Crytek acknowledges that it does not obtain any rights in any Game itself.
 
 
-##7. Term and Termination
+## 7. Term and Termination
 
 7.1. The Term of this Agreement and the license granted herein begin on the Start Date and remain in full force and effect unless terminated as set forth in this Agreement.
 
@@ -157,7 +157,7 @@ You are not obliged to report to Crytek any feedback (including but not limited 
 7.5. Termination of this Agreement shall not create any liability against Crytek and shall not relieve Licensee from any liability which arises prior to termination or expiration. The provisions of this Agreement which by their terms or sense are intended to survive shall survive cancellation, expiration or termination of this Agreement.
 
 
-##8. General Provisions
+## 8. General Provisions
 8.1. Oral agreements have not been made. This Agreement supersedes all prior agreements made between the Parties regarding CryEngine. This Agreement and any other general term published by Crytek reflect the entire agreement and understanding of the Parties with respect to its subject matter. For avoidance of doubt: this Agreement cannot be combined with agreements regarding CryEngine entered into in the past.
 
 8.2. This Agreement does not constitute and shall not be construed as constituting a partnership or joint venture between Crytek and Licensee. Neither party hereto shall have any right to obligate or bind the other party in any manner whatsoever, and nothing herein contained shall give, or is intended to give, any rights of any kind to any third persons.
@@ -171,21 +171,21 @@ You are not obliged to report to Crytek any feedback (including but not limited 
 8.6. For Licensees subject to the law of the EU the following shall apply:
 
 
-##Right of Revocation
+## Right of Revocation
 You have the right to withdraw from this contract within 14 days without giving any reason.
 
 The withdrawal period will expire after 14 days from the day of the conclusion of the contract .
 
-To exercise the right of withdrawal, you must inform us, Crytek GmbH, Grüneburgweg 16-18, 60322 Frankfurt am Main, fax +49 69 219 77 66 99, mail: revocation@cryengine.com, of your decision to withdraw from this contract by an unequivocal statement (e.g. a letter sent by post, fax or e-mail). You may use the attached model withdrawal form, but it is not obligatory.
+To exercise the right of withdrawal, you must inform us, Crytek GmbH, GrÃ¼neburgweg 16-18, 60322 Frankfurt am Main, fax +49 69 219 77 66 99, mail: revocation@cryengine.com, of your decision to withdraw from this contract by an unequivocal statement (e.g. a letter sent by post, fax or e-mail). You may use the attached model withdrawal form, but it is not obligatory.
 
 To meet the withdrawal deadline, it is sufficient for you to send your communication concerning your exercise of the right of withdrawal before the withdrawal period has expired.
 
-###Effects of withdrawal
+### Effects of withdrawal
 If you withdraw from this contract, we shall reimburse to you all payments received from you, including the costs of delivery (with the exception of the supplementary costs resulting from your choice of a type of delivery other than the least expensive type of standard delivery offered by us), without undue delay and in any event not later than 14 days from the day on which we are informed about your decision to withdraw from this contract. We will carry out such reimbursement using the same means of payment as you used for the initial transaction, unless you have expressly agreed otherwise; in any event, you will not incur any fees as a result of such reimbursement.
 
 Model withdrawal form (complete and return this form only if you wish to withdraw from the contract)
 
-	To Crytek GmbH, Grüneburgweg 16-18, 60322 Frankfurt am Main, fax +49 69 219 77 66 99, mail: revocation@cryengine.com:
+	To Crytek GmbH, GrÃ¼neburgweg 16-18, 60322 Frankfurt am Main, fax +49 69 219 77 66 99, mail: revocation@cryengine.com:
 	I/We (*) hereby give notice that I/We (*) withdraw from my/our (*) contract of sale of the following goods (*)/for the provision of the following service (*),
 	Ordered on (*)/received on (*),
 	Name of consumer(s),
