@@ -3314,6 +3314,14 @@ bool CSystem::HandleMessage(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, 
 		break;
 	case WM_MOUSEWHEEL:
 		event = HARDWAREMOUSEEVENT_WHEEL;
+		{
+			POINT pt;
+			pt.x = x;
+			pt.y = y;
+			ScreenToClient(hWnd, &pt);
+			x = pt.x;
+			y = pt.y;
+		}
 		break;
 
 	// Any other event doesn't interest us
