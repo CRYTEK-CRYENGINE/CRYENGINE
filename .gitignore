@@ -8,6 +8,9 @@
 /editor.cfg
 /.bootstrap*.*
 
+# User projects
+Code/CMakeLists.txt
+
 # Temporary files.
 *.log
 *.dmp
@@ -25,6 +28,7 @@ _WAF_/user_settings.options
 # Temporary directories.
 /TestResults/*
 /Solutions/*
+/solutions_cmake/*
 /.depproj/*
 /project.sln
 /[Ll]og[Bb]ackups
