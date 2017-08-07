@@ -83,6 +83,9 @@ add_sources("CryAction_flashui_uber.cpp"
 add_sources("CryAction_flowsystem_uber.cpp"
 	PROJECTS CryAction
 	SOURCE_GROUP "Flow System\\\\Nodes"
+		"FlowSystem/Nodes/FlowEngineCustomNodes.cpp"
+		"FlowSystem/Nodes/FlowEntityCustomNodes.h"
+		"FlowSystem/Nodes/FlowEntityCustomNodes.cpp"
 		"FlowSystem/Nodes/FlowGameNodes.cpp"
 		"FlowSystem/Nodes/FlowWeaponNodes.cpp"
 		"FlowSystem/Nodes/FlowInventoryNodes.cpp"
@@ -207,6 +210,7 @@ add_sources("CryAction_main_uber_1.cpp"
 		"AIFaceManager.cpp"
 		"CallbackTimer.cpp"
 		"CryAction.cpp"
+		"CryAction_RMI.cpp"
 		"CryActionCVars.cpp"
 		"DevMode.cpp"
 		"Main.cpp"
@@ -566,7 +570,6 @@ add_sources("CryAction_network_uber.cpp"
 		"Network/ObjectSelector.cpp"
 		"Network/NetActionSync.h"
 		"Network/ObjectSelector.h"
-		"Network/SensedInclusionSet.h"
 	SOURCE_GROUP "Network\\\\Voice"
 		"Network/VoiceController.cpp"
 		"Network/VoiceListener.cpp"
@@ -865,6 +868,8 @@ add_sources("NoUberFile"
 		"StdAfx.h"
 )
 
+# -- cryaction_durango.waf_files --
+sources_platform(DURANGO)
 add_sources("CryAction_main_uber_durango.cpp"
 	PROJECTS CryAction
 	SOURCE_GROUP "Player Profiles"
@@ -886,6 +891,9 @@ end_sources()
 
 CryEngineModule(CryAction PCH "StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
 
+if(PROJECT_BUILD)
+	target_compile_definitions(${THIS_PROJECT} PRIVATE DISABLE_LEGACY_GAME_DLL=1)
+endif()
 
 target_link_libraries( ${THIS_PROJECT} PRIVATE md5)
 if (WIN32 OR WIN64)
@@ -895,7 +903,7 @@ if(DURANGO)
 	target_link_libraries(${THIS_PROJECT} PRIVATE jsmn)
 endif()
 
-target_include_directories(CryAction INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}> $<INSTALL_INTERFACE:include/CryAction>)
+target_include_directories(CryAction INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>" "$<INSTALL_INTERFACE:include/CryAction>")
 
 install(DIRECTORY . DESTINATION include/CryAction FILES_MATCHING PATTERN "*.h")
 install(DIRECTORY . DESTINATION include/CryAction FILES_MATCHING PATTERN "*.hpp")

@@ -897,11 +897,11 @@ CreateCam:
 			SEntitySpawnParams esp;
 			esp.sName = "CameraProxy";
 			esp.nFlags = 0;
-			esp.pClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass("Default");
+			esp.pClass = gEnv->pEntitySystem->GetClassRegistry()->GetDefaultClass();
 			IEntity* pCam = gEnv->pEntitySystem->SpawnEntity(esp);
 			pCam->SetPos(cam.GetPosition());
 			pCam->SetRotation(qcam);
-			pHost->AddEntityLink("CameraProxy", pCam->GetId());
+			pHost->AddEntityLink("CameraProxy", pCam->GetId(),pCam->GetGuid());
 			SEntityPhysicalizeParams epp;
 			epp.type = PE_ARTICULATED;
 			pCam->Physicalize(epp);
@@ -1629,7 +1629,7 @@ public:
 						SEntitySpawnParams esp;
 						esp.sName = "SkeletonTmp";
 						esp.nFlags = ENTITY_FLAG_NO_SAVE | ENTITY_FLAG_CLIENT_ONLY | ENTITY_FLAG_PROCEDURAL | ENTITY_FLAG_SPAWNED;
-						esp.pClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass("Default");
+						esp.pClass = gEnv->pEntitySystem->GetClassRegistry()->GetDefaultClass();
 						esp.vPosition = sp.pos;
 						esp.qRotation = sp.q;
 						pSkel = gEnv->pEntitySystem->SpawnEntity(esp);
@@ -1751,7 +1751,13 @@ public:
 							case eFDT_Bool   : params->SetValue(m_params[i-1], GetPortBool(pActInfo, i)); break;
 							case eFDT_String : params->SetValue(m_params[i-1], GetPortString(pActInfo, i).c_str()); break;
 						}
-				pActInfo->pEntity->GetComponent<IEntityScriptComponent>()->SetPhysParams(m_type+1, params);
+				IEntityScriptComponent *pScript0 = pActInfo->pEntity->GetComponent<IEntityScriptComponent>(), *pScript = pScript0;
+				if (!pScript)
+					pScript = pActInfo->pEntity->CreateComponent<IEntityScriptComponent>();
+				pScript->SetPhysParams(m_type+1, params);
+				if (!pScript0)
+					pActInfo->pEntity->RemoveComponent(pScript);
+
 				ActivateOutput(pActInfo, 0, 0);
 			}
 		}
@@ -1773,7 +1779,7 @@ public:
 
 	CAutoRegParamsNode() : CAutoRegFlowNodeBase(s_PhysParamNames[GetType()]) 
 	{
-		if (!*m_sClassName)
+		if (!*m_szClassName)
 			this->~CAutoRegParamsNode();
 	}
 	IFlowNodePtr Create(IFlowNode::SActivationInfo* pActInfo)	
@@ -1781,18 +1787,14 @@ public:
 		int type = GetType();
 		if (m_inputs.empty())
 		{
-			if (!g_dummyEnt)
+			// Horrible workaround for existing code relying on calling code in init that depends on an entity existing.
+			static std::shared_ptr<IEntityScriptComponent> pScriptComponentDummy;
+			if (pScriptComponentDummy == nullptr)
 			{
-				SEntitySpawnParams esp;
-				esp.sName = "PhysParamsDummy";
-				esp.nFlags = 0;
-				esp.pClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass("Default");
-				g_dummyEnt = gEnv->pEntitySystem->SpawnEntity(esp);
-				SEntityPhysicalizeParams pp;
-				pp.type = PE_STATIC;
-				g_dummyEnt->Physicalize(pp);
+				CryCreateClassInstanceForInterface(cryiidof<IEntityScriptComponent>(), pScriptComponentDummy);
 			}
-			g_dummyEnt->GetOrCreateComponent<IEntityScriptComponent>()->SetPhysParams(type+1, &m_table);
+
+			pScriptComponentDummy->SetPhysParams(type+1, &m_table);
 
 			m_inputs.push_back(InputPortConfig_Void("Set"));
 			for(const auto& str : m_table.m_fields)
@@ -1833,22 +1835,13 @@ public:
 			m_inputs.push_back(SInputPortConfig({ nullptr }));
 		}
 
-		if (g_dummyEnt && type == CRY_ARRAY_COUNT(s_PhysParamNames)-1)
-		{
-			gEnv->pEntitySystem->RemoveEntity(g_dummyEnt->GetId(), true);
-			g_dummyEnt = nullptr;
-		}
-
 		return new CFlowNode_PhysParams2(GetType(), pActInfo, m_inputs.data(), m_table.m_fields.data()); 
 	}
 
 	STableLogger                  m_table;
 	std::vector<SInputPortConfig> m_inputs;
 	std::vector<string>           m_inputNames;
-
-	static IEntity* g_dummyEnt;
 };
-IEntity *CAutoRegParamsNode::g_dummyEnt = nullptr;
 
 CAutoRegParamsNode CAutoRegParamsNode::s_Params[CRY_ARRAY_COUNT(s_PhysParamNames)];
 

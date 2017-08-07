@@ -1525,7 +1525,7 @@ bool CGeometryManager::PrepareLOD(SMMRMGeometry* geometry, CStatObj* host, size_
 
 	renderMesh->LockForThreadAccess();
 	int nvertices = renderMesh->GetVerticesCount();
-	EVertexFormat vtx_fmt = renderMesh->GetVertexFormat();
+	InputLayoutHandle vtx_fmt = renderMesh->GetVertexFormat();
 
 	vtx.data = (Vec3*)renderMesh->GetPosPtr(vtx.iStride, FSL_READ);
 	colour.data = (uint32*)renderMesh->GetColorPtr(colour.iStride, FSL_READ);
@@ -1943,7 +1943,7 @@ void CGeometryManager::GetUsedMeshes(DynArray<string>& names)
 		CStatObj* pObj = NULL;
 		if (geom.is_obj)
 			pObj = geom.srcObj;
-		else
+		else if(geom.srcGroupId < (uint32)GetObjManager()->m_lstStaticTypes[0].Count())
 		{
 			pObj = GetStatObj(&geom);
 		}
@@ -2633,7 +2633,7 @@ done:
 			mmrm_assert(iv <= 0xffff);
 			// Create a new rendermesh and dispatch the asynchronous updates
 			_smart_ptr<IRenderMesh> rm = GetRenderer()->CreateRenderMeshInitialized(
-			  NULL, iv, eVF_P3S_C4B_T2S, NULL, ii,
+			  NULL, iv, EDefaultInputLayouts::P3S_C4B_T2S, NULL, ii,
 			  prtTriangleList, "MergedMesh", "MergedMesh", eRMT_Dynamic);
 			rm->LockForThreadAccess();
 			m_SizeInVRam += (sizeof(SVF_P3S_C4B_T2S) + sizeof(SPipTangents)) * iv;
@@ -5051,7 +5051,7 @@ void CDeformableNode::RenderInternalDeform(
 			return;
 
 		m_renderMesh = gEnv->pRenderer->CreateRenderMeshInitialized(
-		  NULL, m_numVertices, eVF_P3S_C4B_T2S, NULL, m_numIndices,
+		  NULL, m_numVertices, EDefaultInputLayouts::P3S_C4B_T2S, NULL, m_numIndices,
 		  prtTriangleList, "MergedMesh", "MergedMesh", eRMT_Dynamic);
 
 		m_renderMesh->LockForThreadAccess();

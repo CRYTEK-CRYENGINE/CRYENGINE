@@ -57,24 +57,6 @@ ILINE Planev ToPlanev(Plane v)
 	  ToFloatv(v.d));
 }
 
-ILINE float HMin(floatv v0)
-{
-	const floatv v1 = _mm_shuffle_ps(v0, v0, _MM_SHUFFLE(3, 3, 1, 1));
-	const floatv v2 = _mm_min_ps(v0, v1);
-	const floatv v3 = _mm_shuffle_ps(v2, v2, _MM_SHUFFLE(2, 2, 2, 2));
-	const floatv res = _mm_min_ps(v3, v2);
-	return _mm_cvtss_f32(res);
-}
-
-ILINE float HMax(floatv v0)
-{
-	const floatv v1 = _mm_shuffle_ps(v0, v0, _MM_SHUFFLE(3, 3, 1, 1));
-	const floatv v2 = _mm_max_ps(v0, v1);
-	const floatv v3 = _mm_shuffle_ps(v2, v2, _MM_SHUFFLE(2, 2, 2, 2));
-	const floatv res = _mm_max_ps(v3, v2);
-	return _mm_cvtss_f32(res);
-}
-
 ILINE ColorFv operator+(const ColorFv& a, const ColorFv& b)
 {
 	return ColorFv(
@@ -97,11 +79,6 @@ ILINE ColorFv operator*(const ColorFv& a, floatv b)
 	  Mul(a.r, b),
 	  Mul(a.g, b),
 	  Mul(a.b, b));
-}
-
-ILINE floatv DeltaTime(floatv normAge, floatv frameTime)
-{
-	return __fsel(normAge, frameTime, -(normAge * frameTime));
 }
 
 ILINE ColorFv ToColorFv(UColv color)
@@ -172,7 +149,7 @@ ILINE floatv cos_fast(floatv x)
 ILINE Quatv quat_exp_fast(Vec3v v)
 {
 	const floatv lenSqr = v.len2();
-	const floatv len = sqrt_fast_tpl(lenSqr);
+	const floatv len = sqrt_fast(lenSqr);
 	const floatv invLen = rcp_fast(max(len, convert<floatv>(FLT_MIN)));
 	const floatv s = sin_fast(len) * invLen;
 	const floatv c = cos_fast(len);

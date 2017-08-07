@@ -3,8 +3,8 @@
 #include "StdAfx.h"
 #include "ScriptParam.h"
 
-#include <Schematyc/ICore.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/ICore.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
 
 namespace Schematyc
 {
@@ -44,8 +44,8 @@ namespace ScriptParam
 {
 void EnumerateDependencies(const ScriptParams& params, const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type)
 {
-	SCHEMATYC_CORE_ASSERT(!enumerator.IsEmpty());
-	if (!enumerator.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(enumerator);
+	if (enumerator)
 	{
 		for (const SScriptParam& param : params)
 		{

@@ -64,7 +64,7 @@ void CFactionMap::Reload()
 	{
 		if (!m_pDataSource->Load(*this))
 		{
-			AIWarning("[FactionMap] Failed to load factions from data source!");
+			AILogAlways("[FactionMap] Failed to load factions from data source!");
 		}
 	}
 }
@@ -295,7 +295,7 @@ void CFactionMap::SetDataSource(IFactionDataSource* pDataSource, EDataSourceLoad
 	{
 		if (!m_pDataSource->Load(*this))
 		{
-			AIWarning("[FactionMap] Failed to load factions from data source!");
+			AILogAlways("[FactionMap] Failed to load factions from data source!");
 		}
 	}
 }

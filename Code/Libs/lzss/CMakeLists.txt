@@ -14,4 +14,4 @@ end_sources()
 #END-FILE-LIST
 
 CryEngineStaticModule(lzss SOLUTION_FOLDER "Libs")
-target_include_directories(${THIS_PROJECT} INTERFACE ${SDK_DIR})
+target_include_directories(${THIS_PROJECT} INTERFACE "${SDK_DIR}")

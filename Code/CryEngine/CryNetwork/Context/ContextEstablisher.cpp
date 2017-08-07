@@ -131,6 +131,8 @@ void CContextEstablisher::Fail(EDisconnectionCause cause, const string& reason)
 }
 
 #if ENABLE_DEBUG_KIT
+#include <CryRenderer/IRenderAuxGeom.h>
+
 void CContextEstablisher::DebugDraw()
 {
 	ASSERT_PRIMARY_THREAD;

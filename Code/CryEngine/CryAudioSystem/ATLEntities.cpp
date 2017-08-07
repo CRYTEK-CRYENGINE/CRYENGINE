@@ -4,10 +4,10 @@
 #include "ATLEntities.h"
 #include "AudioSystem.h"
 #include "ATLAudioObject.h"
+#include "Common/IAudioImpl.h"
 
-using namespace CryAudio;
-using namespace CryAudio::Impl;
-
+namespace CryAudio
+{
 #if CRY_PLATFORM_WINDOWS
 char const* const SATLXMLTags::szPlatform = "pc";
 #elif CRY_PLATFORM_DURANGO
@@ -59,12 +59,12 @@ char const* const SATLXMLTags::szATLOcclusionFadeOutDistanceAttribute = "atl_occ
 
 char const* const SATLXMLTags::szATLDataLoadType = "AutoLoad";
 
-IAudioImpl* CATLControlImpl::s_pImpl = nullptr;
+Impl::IImpl* CATLControlImpl::s_pIImpl = nullptr;
 
 //////////////////////////////////////////////////////////////////////////
 void CATLListener::SetTransformation(CObjectTransformation const& transformation, SRequestUserData const& userData /* = SAudioRequestUserData::GetEmptyObject() */)
 {
-	SAudioListenerRequestData<eAudioListenerRequestType_SetTransformation> requestData(transformation, this);
+	SAudioListenerRequestData<EAudioListenerRequestType::SetTransformation> requestData(transformation, this);
 	CAudioRequest request(&requestData);
 	request.flags = userData.flags;
 	request.pOwner = userData.pOwner;
@@ -136,7 +136,36 @@ ERequestStatus CParameterImpl::Set(CATLAudioObject& audioObject, float const val
 }
 
 //////////////////////////////////////////////////////////////////////////
+CParameterImpl::~CParameterImpl()
+{
+	CRY_ASSERT(s_pIImpl != nullptr);
+	s_pIImpl->DestructParameter(m_pImplData);
+}
+
+//////////////////////////////////////////////////////////////////////////
 ERequestStatus CExternalAudioSwitchStateImpl::Set(CATLAudioObject& audioObject) const
 {
 	return audioObject.GetImplDataPtr()->SetSwitchState(m_pImplData);
 }
+
+//////////////////////////////////////////////////////////////////////////
+CExternalAudioSwitchStateImpl::~CExternalAudioSwitchStateImpl()
+{
+	CRY_ASSERT(s_pIImpl != nullptr);
+	s_pIImpl->DestructSwitchState(m_pImplData);
+}
+
+//////////////////////////////////////////////////////////////////////////
+CATLTriggerImpl::~CATLTriggerImpl()
+{
+	CRY_ASSERT(s_pIImpl != nullptr);
+	s_pIImpl->DestructTrigger(m_pImplData);
+}
+
+//////////////////////////////////////////////////////////////////////////
+CATLEnvironmentImpl::~CATLEnvironmentImpl()
+{
+	CRY_ASSERT(s_pIImpl != nullptr);
+	s_pIImpl->DestructEnvironment(m_pImplData);
+}
+} // namespace CryAudio

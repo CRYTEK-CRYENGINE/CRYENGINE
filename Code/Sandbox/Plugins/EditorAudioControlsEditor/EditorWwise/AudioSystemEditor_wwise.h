@@ -21,8 +21,6 @@ public:
 		, shift(0.0f)
 	{}
 
-	virtual ~CRtpcConnection() {}
-
 	virtual bool HasProperties() override { return true; }
 
 	virtual void Serialize(Serialization::IArchive& ar) override
@@ -47,8 +45,6 @@ public:
 		: IAudioConnection(nID)
 		, value(0.0f)
 	{}
-
-	virtual ~CStateToRtpcConnection() {}
 
 	virtual bool HasProperties() override { return true; }
 
@@ -99,11 +95,11 @@ public:
 	virtual void                     Reload(bool bPreserveConnectionStatus = true) override;
 	virtual IAudioSystemItem*        GetRoot() override { return &m_rootControl; }
 	virtual IAudioSystemItem*        GetControl(CID id) const override;
-	virtual EACEControlType          ImplTypeToATLType(ItemType type) const override;
-	virtual TImplControlTypeMask     GetCompatibleTypes(EACEControlType eATLControlType) const override;
-	virtual ConnectionPtr            CreateConnectionToControl(EACEControlType eATLControlType, IAudioSystemItem* pMiddlewareControl) override;
-	virtual ConnectionPtr            CreateConnectionFromXMLNode(XmlNodeRef pNode, EACEControlType eATLControlType) override;
-	virtual XmlNodeRef               CreateXMLNodeFromConnection(const ConnectionPtr pConnection, const EACEControlType eATLControlType) override;
+	virtual EItemType                ImplTypeToATLType(ItemType type) const override;
+	virtual TImplControlTypeMask     GetCompatibleTypes(EItemType eATLControlType) const override;
+	virtual ConnectionPtr            CreateConnectionToControl(EItemType eATLControlType, IAudioSystemItem* pMiddlewareControl) override;
+	virtual ConnectionPtr            CreateConnectionFromXMLNode(XmlNodeRef pNode, EItemType eATLControlType) override;
+	virtual XmlNodeRef               CreateXMLNodeFromConnection(const ConnectionPtr pConnection, const EItemType eATLControlType) override;
 	virtual const char*              GetTypeIcon(ItemType type) const override;
 	virtual string                   GetName() const override;
 	virtual void                     EnableConnection(ConnectionPtr pConnection) override;
@@ -117,7 +113,7 @@ private:
 	void UpdateConnectedStatus();
 
 	// Generates the ID of the control given its full path name.
-	CID GenerateID(const string& controlName, bool bIsLocalised, IAudioSystemItem* pParent) const;
+	CID GenerateID(const string& controlName, bool bIsLocalized, IAudioSystemItem* pParent) const;
 	// Convenience function to form the full path name.
 	// Controls can have the same name if they're under different parents so knowledge of the parent name is needed.
 	// Localized controls live in different areas of disk so we also need to know if its localized.

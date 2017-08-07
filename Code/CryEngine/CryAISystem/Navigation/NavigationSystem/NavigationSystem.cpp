@@ -217,13 +217,13 @@ NavigationAgentTypeID NavigationSystem::CreateAgentType(const char* name, const 
 
 	agentType.name = name;
 	agentType.settings.voxelSize = params.voxelSize;
-	agentType.settings.radiusVoxelCount = params.radiusVoxelCount;
-	agentType.settings.climbableVoxelCount = params.climbableVoxelCount;
-	agentType.settings.climbableInclineGradient = params.climbableInclineGradient;
-	agentType.settings.climbableStepRatio = params.climbableStepRatio;
+	agentType.settings.agent.radius = params.radiusVoxelCount;
+	agentType.settings.agent.climbableHeight = params.climbableVoxelCount;
+	agentType.settings.agent.climbableInclineGradient = params.climbableInclineGradient;
+	agentType.settings.agent.climbableStepRatio = params.climbableStepRatio;
+	agentType.settings.agent.height = params.heightVoxelCount;
+	agentType.settings.agent.maxWaterDepth = params.maxWaterDepthVoxelCount;
 	agentType.meshEntityCallback = functor(ShouldBeConsideredByVoxelizer);
-	agentType.settings.heightVoxelCount = params.heightVoxelCount;
-	agentType.settings.maxWaterDepthVoxelCount = params.maxWaterDepthVoxelCount;
 
 	return NavigationAgentTypeID(m_agentTypes.size());
 }
@@ -371,7 +371,7 @@ NavigationMeshID NavigationSystem::CreateMeshForVolumeAndUpdate(const char* name
 		SetMeshBoundaryVolume(meshID, volumeID);
 
 		NavigationBoundingVolume& volume = m_volumes[volumeID];
-		m_updatesManager.RequestQueueMeshUpdate(meshID, volume.aabb);
+		m_updatesManager.RequestMeshUpdate(meshID, volume.aabb);
 
 		return meshID;
 	}
@@ -550,7 +550,7 @@ void NavigationSystem::DestroyVolume(NavigationVolumeID volumeID)
 
 				if (stl::find_and_erase(mesh.exclusions, volumeID))
 				{
-					m_updatesManager.RequestQueueMeshUpdate(meshID, volume.aabb);
+					m_updatesManager.RequestMeshUpdate(meshID, volume.aabb);
 					++mesh.version;
 				}
 			}
@@ -574,24 +574,11 @@ void NavigationSystem::SetVolume(NavigationVolumeID volumeID, Vec3* vertices, si
 		bool recomputeAABB = false;
 
 		NavigationBoundingVolume newVolume;
-		AABB aabbNew(AABB::RESET);
-
-		newVolume.vertices.reserve(vertexCount);
-
-		for (size_t i = 0; i < vertexCount; ++i)
-		{
-			aabbNew.Add(vertices[i]);
-			newVolume.vertices.push_back(vertices[i]);
-		}
-
-		aabbNew.Add(vertices[0] + Vec3(0.0f, 0.0f, height));
-
-		newVolume.height = height;
-		newVolume.aabb = aabbNew;
+		newVolume.Set(vertices, vertexCount, height);
 
 		NavigationBoundingVolume& volume = m_volumes[volumeID];
 
-		if (!volume.vertices.empty())
+		if (!volume.GetBoundaryVertices().empty())
 		{
 			AgentTypes::const_iterator it = m_agentTypes.begin();
 			AgentTypes::const_iterator end = m_agentTypes.end();
@@ -613,13 +600,13 @@ void NavigationSystem::SetVolume(NavigationVolumeID volumeID, Vec3* vertices, si
 						++mesh.version;
 						recomputeAABB = true;
 						
-						m_updatesManager.RequestQueueDifferenceUpdate(meshID, volume, newVolume);
+						m_updatesManager.RequestMeshDifferenceUpdate(meshID, volume, newVolume);
 					}
 
 					if (std::find(mesh.exclusions.begin(), mesh.exclusions.end(), volumeID) != mesh.exclusions.end())
 					{
-						m_updatesManager.RequestQueueMeshUpdate(meshID, volume.aabb);
-						m_updatesManager.RequestQueueMeshUpdate(meshID, aabbNew);
+						m_updatesManager.RequestMeshUpdate(meshID, volume.aabb);
+						m_updatesManager.RequestMeshUpdate(meshID, newVolume.aabb);
 						++mesh.version;
 					}
 				}
@@ -681,7 +668,7 @@ void NavigationSystem::SetExclusionVolume(const NavigationAgentTypeID* agentType
 
 				if (stl::find_and_erase(mesh.exclusions, volumeID))
 				{
-					m_updatesManager.RequestQueueMeshUpdate(meshID, volume.aabb);
+					m_updatesManager.RequestMeshUpdate(meshID, volume.aabb);
 
 					++mesh.version;
 				}
@@ -711,7 +698,7 @@ void NavigationSystem::SetExclusionVolume(const NavigationAgentTypeID* agentType
 					++mesh.version;
 
 					if (mesh.boundary != volumeID)
-						m_updatesManager.RequestQueueMeshUpdate(meshID, volume.aabb);
+						m_updatesManager.RequestMeshUpdate(meshID, volume.aabb);
 					else
 					{
 						AILogComment("NavigationSystem::SetExclusionVolume: volumeID %u for a mesh %u '%s'", (unsigned int)volumeID, (unsigned int)meshID, mesh.name.c_str());
@@ -1027,7 +1014,7 @@ void NavigationSystem::UpdateMeshes(const float frameTime, const bool blocking, 
 			{
 				const CMNMUpdatesManager::TileUpdateRequest& task = m_updatesManager.GetFrontRequest();
 
-				if (task.aborted)
+				if (task.IsAborted())
 				{
 					m_updatesManager.PopFrontRequest();
 					continue;
@@ -1061,7 +1048,7 @@ void NavigationSystem::UpdateMeshes(const float frameTime, const bool blocking, 
 				{
 					const CMNMUpdatesManager::TileUpdateRequest& task = m_updatesManager.GetFrontRequest();
 
-					if (task.aborted)
+					if (task.IsAborted())
 					{
 						m_updatesManager.PopFrontRequest();
 						continue;
@@ -1110,13 +1097,8 @@ void NavigationSystem::SetupGenerator(NavigationMeshID meshID, const MNM::CNavMe
 
 	const AgentType& agentType = m_agentTypes[mesh.agentTypeID - 1];
 
-	params.agent.radius = agentType.settings.radiusVoxelCount;
-	params.agent.height = agentType.settings.heightVoxelCount;
-	params.agent.climbableHeight = agentType.settings.climbableVoxelCount;
-	params.agent.maxWaterDepth = agentType.settings.maxWaterDepthVoxelCount;
-	params.climbableInclineGradient = agentType.settings.climbableInclineGradient;
-	params.climbableStepRatio = agentType.settings.climbableStepRatio;
-	params.agent.callback = agentType.meshEntityCallback;
+	params.agent = agentType.settings.agent;
+	params.callback = agentType.meshEntityCallback;
 
 	if (MNM::TileID tileID = mesh.navMesh.GetTileID(x, y, z))
 		params.hashValue = mesh.navMesh.GetTile(tileID).GetHashValue();
@@ -1205,7 +1187,7 @@ bool NavigationSystem::SpawnJob(TileTaskResult& result, NavigationMeshID meshID,
 	MNM::CTileGenerator::Params params;
 
 	SetupGenerator(meshID, paramsGrid, x, y, z, params, &def->boundary,
-	               def->exclusions.empty() ? 0 : &def->exclusions[0], def->exclusions.size());
+	               def->exclusions.empty() ? nullptr : &def->exclusions[0], def->exclusions.size());
 
 	if (mt)
 	{
@@ -1313,8 +1295,9 @@ void NavigationSystem::ProcessQueuedMeshUpdates()
 
 size_t NavigationSystem::QueueMeshUpdate(NavigationMeshID meshID, const AABB& aabb)
 {
-	AIWarning("NavigationSystem::QueueMeshUpdate() is deprecated! RequestQueueDifferenceUpdate should be used instead");
-	return m_updatesManager.QueueMeshUpdate(meshID, aabb);
+	AIWarning("NavigationSystem::QueueMeshUpdate() is deprecated! INavigationUpdatesManager::RequestMeshUpdate should be used instead");
+	m_updatesManager.RequestMeshUpdate(meshID, aabb);
+	return 0;
 }
 
 void NavigationSystem::StopAllTasks()
@@ -1626,14 +1609,9 @@ void NavigationSystem::RemoveOffMeshLinkIslandsConnectionBetweenTriangles(
 }
 
 #if MNM_USE_EXPORT_INFORMATION
-void NavigationSystem::ComputeAccessibility(IAIObject* pIAIObject, NavigationAgentTypeID agentTypeId /* = NavigationAgentTypeID(0) */)
+void NavigationSystem::ComputeAccessibility(const Vec3& debugLocation, NavigationAgentTypeID agentTypeId /*= NavigationAgentTypeID(0)*/)
 {
-	const CAIActor* actor = CastToCAIActorSafe(pIAIObject);
-	const Vec3 debugLocation = pIAIObject->GetEntity()->GetPos(); // we're using the IEntity's position (not the IAIObject one's), because the CAIObject one's is always some time behind due to the way its private position is queried via BodyInfo -> StanceState -> eye position
-	const NavigationAgentTypeID actorTypeId = actor ? actor->GetNavigationTypeID() : NavigationAgentTypeID(0);
-	const NavigationAgentTypeID agentTypeIdForAccessibilityCalculation = agentTypeId ? agentTypeId : actorTypeId;
-	NavigationMeshID meshId = GetEnclosingMeshID(agentTypeIdForAccessibilityCalculation, debugLocation);
-
+	NavigationMeshID meshId = GetEnclosingMeshID(agentTypeId, debugLocation);
 	if (meshId)
 	{
 		NavigationMesh& mesh = GetMesh(meshId);
@@ -1644,16 +1622,16 @@ void NavigationSystem::ComputeAccessibility(IAIObject* pIAIObject, NavigationAge
 		const Vec3& voxelSize = mesh.navMesh.GetGridParams().voxelSize;
 		const MNM::vector3_t seedLocation(MNM::real_t(debugLocation.x), MNM::real_t(debugLocation.y), MNM::real_t(debugLocation.z));
 
-		const uint16 agentHeightUnits = GetAgentHeightInVoxelUnits(agentTypeIdForAccessibilityCalculation);
+		const uint16 agentHeightUnits = GetAgentHeightInVoxelUnits(agentTypeId);
 
 		const MNM::real_t verticalRange = MNMUtils::CalculateMinVerticalRange(agentHeightUnits, voxelSize.z);
 		const MNM::real_t verticalDownwardRange(verticalRange);
 
 		AgentType agentTypeProperties;
-		const bool arePropertiesValid = GetAgentTypeProperties(agentTypeIdForAccessibilityCalculation, agentTypeProperties);
+		const bool arePropertiesValid = GetAgentTypeProperties(agentTypeId, agentTypeProperties);
 		assert(arePropertiesValid);
 		const uint16 minZOffsetMultiplier(2);
-		const uint16 zOffsetMultiplier = min(minZOffsetMultiplier, agentTypeProperties.settings.heightVoxelCount);
+		const uint16 zOffsetMultiplier = min(minZOffsetMultiplier, (uint16)agentTypeProperties.settings.agent.height);
 		const MNM::real_t verticalUpwardRange = arePropertiesValid ? MNM::real_t(zOffsetMultiplier * agentTypeProperties.settings.voxelSize.z) : MNM::real_t(.2f);
 
 		MNM::TriangleID seedTriangleID = mesh.navMesh.GetTriangleAt(seedLocation - origin, verticalDownwardRange, verticalUpwardRange);
@@ -1691,39 +1669,27 @@ void NavigationSystem::ClearAllAccessibility(uint8 resetValue)
 void NavigationSystem::CalculateAccessibility()
 {
 #if MNM_USE_EXPORT_INFORMATION
-
-	bool isThereAtLeastOneSeedPresent = false;
-
 	ClearAllAccessibility(MNM::CNavMesh::eARNotAccessible);
 
-	// Filtering accessibility with actors
+	//TODO: Should be navigation seeds rather registered in navigation system?
+	std::vector<std::pair<Vec3, NavigationAgentTypeID>> seeds(10);
+	GetAISystem()->GetNavigationSeeds(seeds);
+
+	for (size_t i = 0, count = seeds.size(); i < count; ++i)
 	{
-		AutoAIObjectIter itActors(gAIEnv.pAIObjectManager->GetFirstAIObject(OBJFILTER_TYPE, AIOBJECT_ACTOR));
-
-		for (; itActors->GetObject(); itActors->Next())
+		if (seeds[i].second == NavigationAgentTypeID(0))
 		{
-			ComputeAccessibility(itActors->GetObject());
-		}
-	}
-
-	// Filtering accessibility with Navigation Seeds
-	{
-		AutoAIObjectIter itNavSeeds(gAIEnv.pAIObjectManager->GetFirstAIObject(OBJFILTER_TYPE, AIOBJECT_NAV_SEED));
-
-		for (; itNavSeeds->GetObject(); itNavSeeds->Next())
-		{
-
-			AgentTypes::const_iterator it = m_agentTypes.begin();
-			AgentTypes::const_iterator end = m_agentTypes.end();
-
-			for (; it != end; ++it)
+			for (const AgentType& agentType : m_agentTypes)
 			{
-				const AgentType& agentType = *it;
-				ComputeAccessibility(itNavSeeds->GetObject(), GetAgentTypeID(it->name));
+				ComputeAccessibility(seeds[i].first, GetAgentTypeID(agentType.name));
 			}
 		}
+		else
+		{
+			ComputeAccessibility(seeds[i].first, seeds[i].second);
+		}
 	}
-#endif
+#endif //MNM_USE_EXPORT_INFORMATION
 }
 
 bool NavigationSystem::IsInUse() const
@@ -1906,9 +1872,8 @@ uint16 NavigationSystem::GetAgentRadiusInVoxelUnits(NavigationAgentTypeID agentT
 {
 	if (agentTypeID && agentTypeID <= m_agentTypes.size())
 	{
-		return m_agentTypes[agentTypeID - 1].settings.radiusVoxelCount;
+		return m_agentTypes[agentTypeID - 1].settings.agent.radius;
 	}
-
 	return 0;
 }
 
@@ -1916,9 +1881,8 @@ uint16 NavigationSystem::GetAgentHeightInVoxelUnits(NavigationAgentTypeID agentT
 {
 	if (agentTypeID && agentTypeID <= m_agentTypes.size())
 	{
-		return m_agentTypes[agentTypeID - 1].settings.heightVoxelCount;
+		return m_agentTypes[agentTypeID - 1].settings.agent.height;
 	}
-
 	return 0;
 }
 
@@ -1927,9 +1891,10 @@ void NavigationSystem::Clear()
 	StopAllTasks();
 	SetupTasks();
 
+	m_updatesManager.Clear();
+
 	AgentTypes::iterator it = m_agentTypes.begin();
 	AgentTypes::iterator end = m_agentTypes.end();
-
 	for (; it != end; ++it)
 	{
 		AgentType& agentType = *it;
@@ -1960,8 +1925,6 @@ void NavigationSystem::Clear()
 #endif
 
 	m_worldAABB = AABB::RESET;
-
-	m_updatesManager.Clear();
 
 	m_volumeDefCopy.clear();
 	m_volumeDefCopy.resize(MaxVolumeDefCopyCount, VolumeDefCopy());
@@ -2488,7 +2451,7 @@ MNM::TriangleID NavigationSystem::GetTriangleIDWhereLocationIsAtForMesh(const Na
 		const bool arePropertiesValid = GetAgentTypeProperties(agentID, agentTypeProperties);
 		assert(arePropertiesValid);
 		const uint16 minZOffsetMultiplier(2);
-		const uint16 zOffsetMultiplier = min(minZOffsetMultiplier, agentTypeProperties.settings.heightVoxelCount);
+		const uint16 zOffsetMultiplier = min(minZOffsetMultiplier, (uint16)agentTypeProperties.settings.agent.height);
 		const MNM::real_t verticalUpwardRange = arePropertiesValid ? MNM::real_t(zOffsetMultiplier * agentTypeProperties.settings.voxelSize.z) : MNM::real_t(.2f);
 
 		return mesh.navMesh.GetTriangleAt(location - paramsGrid.origin, verticalDownwardRange, verticalUpwardRange);
@@ -3199,7 +3162,7 @@ bool NavigationSystem::SaveToFile(const char* fileName) const PREFAST_SUPPRESS_W
 				CRY_ASSERT(m_volumes.validate(volumeId));
 				const MNM::BoundingVolume& volume = m_volumes.get(volumeId);
 
-				const uint32 verticesCount = volume.vertices.size();
+				const uint32 verticesCount = volume.GetBoundaryVertices().size();
 
 				volumeAreaName.clear();
 				m_volumesManager.GetAreaName(volumeId, *&volumeAreaName);
@@ -3208,7 +3171,7 @@ bool NavigationSystem::SaveToFile(const char* fileName) const PREFAST_SUPPRESS_W
 				WriteNavigationIdType(file, volumeId);
 				file.WriteType(&volume.height);
 				file.WriteType(&verticesCount);
-				for (const Vec3& vertex : volume.vertices)
+				for (const Vec3& vertex : volume.GetBoundaryVertices())
 				{
 					file.WriteType(&vertex.x, 3);
 				}
@@ -3616,6 +3579,8 @@ bool NavigationSystem::UnRegisterTileGeneratorExtension(const TileGeneratorExten
 
 void NavigationSystemDebugDraw::DebugDraw(NavigationSystem& navigationSystem)
 {
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
+	
 	const bool validDebugAgent = m_agentTypeID && (m_agentTypeID <= navigationSystem.GetAgentTypeCount());
 
 	if (validDebugAgent)
@@ -3918,390 +3883,392 @@ MNM::TileID NavigationSystemDebugDraw::DebugDrawTileGeneration(NavigationSystem&
 
 void NavigationSystemDebugDraw::DebugDrawRayCast(NavigationSystem& navigationSystem, const DebugDrawSettings& settings)
 {
-	if (CAIObject* debugObjectStart = gAIEnv.pAIObjectManager->GetAIObjectByName("MNMRayStart"))
+	CAISystem::SObjectDebugParams debugObjectStart;
+	if (!GetAISystem()->GetObjectDebugParamsFromName("MNMRayStart", debugObjectStart))
+		return;
+
+	CAISystem::SObjectDebugParams debugObjectEnd;
+	if (!GetAISystem()->GetObjectDebugParamsFromName("MNMRayEnd", debugObjectEnd))
+		return;
+
+	NavigationMeshID meshID = navigationSystem.GetEnclosingMeshID(m_agentTypeID, debugObjectStart.objectPos);
+	IF_UNLIKELY(!meshID)
+		return;
+
+	NavigationMesh& mesh = navigationSystem.m_meshes[meshID];
+	const MNM::CNavMesh::SGridParams& paramsGrid = mesh.navMesh.GetGridParams();
+	const MNM::CNavMesh& navMesh = mesh.navMesh;
+
+	const MNM::vector3_t origin = MNM::vector3_t(MNM::real_t(paramsGrid.origin.x),
+		MNM::real_t(paramsGrid.origin.y),
+		MNM::real_t(paramsGrid.origin.z));
+	const MNM::vector3_t originOffset = origin + MNM::vector3_t(0, 0, MNM::real_t::fraction(725, 10000));
+
+	IRenderAuxGeom* renderAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom();
+
+	const Vec3& startLoc = debugObjectStart.objectPos;
+	const Vec3& endLoc = debugObjectEnd.objectPos;
+
+	const MNM::real_t range = MNM::real_t(1.0f);
+
+	MNM::vector3_t start = MNM::vector3_t(
+		MNM::real_t(startLoc.x), MNM::real_t(startLoc.y), MNM::real_t(startLoc.z)) - origin;
+	MNM::vector3_t end = MNM::vector3_t(
+		MNM::real_t(endLoc.x), MNM::real_t(endLoc.y), MNM::real_t(endLoc.z)) - origin;
+
+	MNM::TriangleID triStart = navMesh.GetTriangleAt(start, range, range);
+	if (!triStart)
+		return;
+
+	if (triStart)
 	{
-		if (CAIObject* debugObjectEnd = gAIEnv.pAIObjectManager->GetAIObjectByName("MNMRayEnd"))
+		SAuxGeomRenderFlags oldFlags = renderAuxGeom->GetRenderFlags();
+
+		SAuxGeomRenderFlags renderFlags(e_Def3DPublicRenderflags);
+		renderFlags.SetAlphaBlendMode(e_AlphaBlended);
+		renderAuxGeom->SetRenderFlags(renderFlags);
+
+		MNM::TriangleID triEnd = navMesh.GetTriangleAt(end, range, range);
+
+		MNM::CNavMesh::RayCastRequest<512> raycastRequest;
+
+		MNM::CNavMesh::ERayCastResult result = navMesh.RayCast(start, triStart, end, triEnd, raycastRequest);
+
+		for (size_t i = 0; i < raycastRequest.wayTriCount; ++i)
 		{
-			NavigationMeshID meshID = navigationSystem.GetEnclosingMeshID(m_agentTypeID, debugObjectStart->GetPos());
-			IF_UNLIKELY (!meshID)
-				return;
+			MNM::vector3_t a, b, c;
 
-			NavigationMesh& mesh = navigationSystem.m_meshes[meshID];
-			const MNM::CNavMesh::SGridParams& paramsGrid = mesh.navMesh.GetGridParams();
-			const MNM::CNavMesh& navMesh = mesh.navMesh;
+			navMesh.GetVertices(raycastRequest.way[i], a, b, c);
 
-			const MNM::vector3_t origin = MNM::vector3_t(MNM::real_t(paramsGrid.origin.x),
-			                                             MNM::real_t(paramsGrid.origin.y),
-			                                             MNM::real_t(paramsGrid.origin.z));
-			const MNM::vector3_t originOffset = origin + MNM::vector3_t(0, 0, MNM::real_t::fraction(725, 10000));
-
-			IRenderAuxGeom* renderAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom();
-
-			const Vec3 startLoc = debugObjectStart->GetPos();
-			const Vec3 endLoc = debugObjectEnd->GetPos();
-
-			const MNM::real_t range = MNM::real_t(1.0f);
-
-			MNM::vector3_t start = MNM::vector3_t(
-			  MNM::real_t(startLoc.x), MNM::real_t(startLoc.y), MNM::real_t(startLoc.z)) - origin;
-			MNM::vector3_t end = MNM::vector3_t(
-			  MNM::real_t(endLoc.x), MNM::real_t(endLoc.y), MNM::real_t(endLoc.z)) - origin;
-
-			MNM::TriangleID triStart = navMesh.GetTriangleAt(start, range, range);
-
-			if (triStart)
-			{
-				MNM::vector3_t a, b, c;
-				navMesh.GetVertices(triStart, a, b, c);
-
-				renderAuxGeom->DrawTriangle(
-				  (a + originOffset).GetVec3(), ColorB(Col_GreenYellow),
-				  (b + originOffset).GetVec3(), ColorB(Col_GreenYellow),
-				  (c + originOffset).GetVec3(), ColorB(Col_GreenYellow));
-			}
-
-			if (triStart)
-			{
-				MNM::TriangleID triEnd = navMesh.GetTriangleAt(end, range, range);
-
-				MNM::CNavMesh::RayCastRequest<512> raycastRequest;
-
-				MNM::CNavMesh::ERayCastResult result = navMesh.RayCast(start, triStart, end, triEnd, raycastRequest);
-
-				for (size_t i = 0; i < raycastRequest.wayTriCount; ++i)
-				{
-					MNM::vector3_t a, b, c;
-
-					navMesh.GetVertices(raycastRequest.way[i], a, b, c);
-
-					renderAuxGeom->DrawTriangle(
-					  (a + originOffset).GetVec3(), ColorB(Col_Maroon),
-					  (b + originOffset).GetVec3(), ColorB(Col_Maroon),
-					  (c + originOffset).GetVec3(), ColorB(Col_Maroon));
-				}
-
-				if (triStart)
-				{
-					MNM::vector3_t a, b, c;
-					navMesh.GetVertices(triStart, a, b, c);
-
-					renderAuxGeom->DrawTriangle(
-					  (a + originOffset).GetVec3(), ColorB(Col_GreenYellow),
-					  (b + originOffset).GetVec3(), ColorB(Col_GreenYellow),
-					  (c + originOffset).GetVec3(), ColorB(Col_GreenYellow));
-				}
-
-				if (triEnd)
-				{
-					MNM::vector3_t a, b, c;
-					navMesh.GetVertices(triEnd, a, b, c);
-
-					renderAuxGeom->DrawTriangle(
-					  (a + originOffset).GetVec3(), ColorB(Col_Red),
-					  (b + originOffset).GetVec3(), ColorB(Col_Red),
-					  (c + originOffset).GetVec3(), ColorB(Col_Red));
-				}
-
-				const Vec3 offset(0.0f, 0.0f, 0.085f);
-
-				if (result == MNM::CNavMesh::eRayCastResult_NoHit)
-				{
-					renderAuxGeom->DrawLine(startLoc + offset, Col_YellowGreen, endLoc + offset, Col_YellowGreen, 8.0f);
-				}
-				else
-				{
-					const MNM::CNavMesh::RayHit& hit = raycastRequest.hit;
-					Vec3 hitLoc = (result == MNM::CNavMesh::eRayCastResult_Hit) ? startLoc + ((endLoc - startLoc) * hit.distance.as_float()) : startLoc;
-					renderAuxGeom->DrawLine(startLoc + offset, Col_YellowGreen, hitLoc + offset, Col_YellowGreen, 8.0f);
-					renderAuxGeom->DrawLine(hitLoc + offset, Col_Red, endLoc + offset, Col_Red, 8.0f);
-				}
-			}
+			renderAuxGeom->DrawTriangle(
+				(a + originOffset).GetVec3(), ColorB(Col_Maroon, 0.5f),
+				(b + originOffset).GetVec3(), ColorB(Col_Maroon, 0.5f),
+				(c + originOffset).GetVec3(), ColorB(Col_Maroon, 0.5f));
 		}
+
+		if (triStart)
+		{
+			MNM::vector3_t a, b, c;
+			navMesh.GetVertices(triStart, a, b, c);
+
+			renderAuxGeom->DrawTriangle(
+				(a + originOffset).GetVec3(), ColorB(Col_GreenYellow, 0.5f),
+				(b + originOffset).GetVec3(), ColorB(Col_GreenYellow, 0.5f),
+				(c + originOffset).GetVec3(), ColorB(Col_GreenYellow, 0.5f));
+		}
+
+		if (triEnd)
+		{
+			MNM::vector3_t a, b, c;
+			navMesh.GetVertices(triEnd, a, b, c);
+
+			renderAuxGeom->DrawTriangle(
+				(a + originOffset).GetVec3(), ColorB(Col_Red, 0.5f),
+				(b + originOffset).GetVec3(), ColorB(Col_Red, 0.5f),
+				(c + originOffset).GetVec3(), ColorB(Col_Red, 0.5f));
+		}
+
+		const Vec3 offset(0.0f, 0.0f, 0.085f);
+
+		if (result == MNM::CNavMesh::eRayCastResult_NoHit)
+		{
+			renderAuxGeom->DrawLine(startLoc + offset, Col_YellowGreen, endLoc + offset, Col_YellowGreen, 8.0f);
+		}
+		else
+		{
+			const MNM::CNavMesh::RayHit& hit = raycastRequest.hit;
+			Vec3 hitLoc = (result == MNM::CNavMesh::eRayCastResult_Hit) ? startLoc + ((endLoc - startLoc) * hit.distance.as_float()) : startLoc;
+			renderAuxGeom->DrawLine(startLoc + offset, Col_YellowGreen, hitLoc + offset, Col_YellowGreen, 8.0f);
+			renderAuxGeom->DrawLine(hitLoc + offset, Col_Red, endLoc + offset, Col_Red, 8.0f);
+		}
+
+		renderAuxGeom->SetRenderFlags(oldFlags);
 	}
 }
 
 void NavigationSystemDebugDraw::DebugDrawClosestPoint(NavigationSystem& navigationSystem, const DebugDrawSettings& settings)
 {
-	if (CAIObject* debugObject = gAIEnv.pAIObjectManager->GetAIObjectByName("MNMClosestPoint"))
+	CAISystem::SObjectDebugParams debugObject;
+	if (!GetAISystem()->GetObjectDebugParamsFromName("MNMClosestPoint", debugObject))
+		return;
+	
+	NavigationMeshID meshID = navigationSystem.GetEnclosingMeshID(m_agentTypeID, debugObject.objectPos);
+	IF_UNLIKELY(!meshID)
+		return;
+
+	NavigationMesh& mesh = navigationSystem.m_meshes[meshID];
+	const MNM::CNavMesh& navMesh = mesh.navMesh;
+	const MNM::CNavMesh::SGridParams& paramsGrid = mesh.navMesh.GetGridParams();
+
+	const MNM::vector3_t origin = MNM::vector3_t(MNM::real_t(paramsGrid.origin.x),
+		MNM::real_t(paramsGrid.origin.y),
+		MNM::real_t(paramsGrid.origin.z));
+	const MNM::vector3_t originOffset = origin + MNM::vector3_t(0, 0, MNM::real_t::fraction(725, 10000));
+
+	const Vec3& startLoc = debugObject.entityPos;
+	const MNM::vector3_t fixedPointStartLoc(MNM::real_t(startLoc.x), MNM::real_t(startLoc.y), MNM::real_t(startLoc.z));
+	const MNM::real_t range = MNM::real_t(5.0f);
+
+	MNM::real_t distance(.0f);
+	MNM::vector3_t closestPosition;
+	if (MNM::TriangleID closestTriangle = navMesh.GetClosestTriangle(fixedPointStartLoc, range, range, &distance, &closestPosition))
 	{
-		NavigationMeshID meshID = navigationSystem.GetEnclosingMeshID(m_agentTypeID, debugObject->GetPos());
-		IF_UNLIKELY (!meshID)
-			return;
+		IRenderAuxGeom* renderAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom();
+		const Vec3 verticalOffset = Vec3(.0f, .0f, .1f);
+		const Vec3 endPos(closestPosition.GetVec3() + origin.GetVec3());
+		renderAuxGeom->DrawSphere(endPos + verticalOffset, 0.05f, ColorB(Col_Red));
+		renderAuxGeom->DrawSphere(fixedPointStartLoc.GetVec3() + verticalOffset, 0.05f, ColorB(Col_Black));
 
-		NavigationMesh& mesh = navigationSystem.m_meshes[meshID];
-		const MNM::CNavMesh& navMesh = mesh.navMesh;
-		const MNM::CNavMesh::SGridParams& paramsGrid = mesh.navMesh.GetGridParams();
-
-		const MNM::vector3_t origin = MNM::vector3_t(MNM::real_t(paramsGrid.origin.x),
-		                                             MNM::real_t(paramsGrid.origin.y),
-		                                             MNM::real_t(paramsGrid.origin.z));
-		const MNM::vector3_t originOffset = origin + MNM::vector3_t(0, 0, MNM::real_t::fraction(725, 10000));
-
-		const Vec3 startLoc = debugObject->GetEntity() ? debugObject->GetEntity()->GetWorldPos() : debugObject->GetPos();
-		const MNM::vector3_t fixedPointStartLoc(MNM::real_t(startLoc.x), MNM::real_t(startLoc.y), MNM::real_t(startLoc.z));
-		const MNM::real_t range = MNM::real_t(5.0f);
-
-		MNM::real_t distance(.0f);
-		MNM::vector3_t closestPosition;
-		if (MNM::TriangleID closestTriangle = navMesh.GetClosestTriangle(fixedPointStartLoc, range, range, &distance, &closestPosition))
-		{
-			IRenderAuxGeom* renderAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom();
-			const Vec3 verticalOffset = Vec3(.0f, .0f, .1f);
-			const Vec3 endPos(closestPosition.GetVec3() + origin.GetVec3());
-			renderAuxGeom->DrawSphere(endPos + verticalOffset, 0.05f, ColorB(Col_Red));
-			renderAuxGeom->DrawSphere(fixedPointStartLoc.GetVec3() + verticalOffset, 0.05f, ColorB(Col_Black));
-
-			CDebugDrawContext dc;
-			dc->Draw2dLabel(10.0f, 10.0f, 1.3f, Col_White, false,
-			                "Distance of the ending result position from the original one: %f", distance.as_float());
-		}
+		CDebugDrawContext dc;
+		dc->Draw2dLabel(10.0f, 10.0f, 1.3f, Col_White, false,
+			"Distance of the ending result position from the original one: %f", distance.as_float());
 	}
 }
 
 void NavigationSystemDebugDraw::DebugDrawGroundPoint(NavigationSystem& navigationSystem, const DebugDrawSettings& settings)
 {
-	if (CAIObject* debugObject = gAIEnv.pAIObjectManager->GetAIObjectByName("MNMGroundPoint"))
+	CAISystem::SObjectDebugParams debugObject;
+	if (!GetAISystem()->GetObjectDebugParamsFromName("MNMGroundPoint", debugObject))
+		return;
+	
+	NavigationMeshID meshID = navigationSystem.GetEnclosingMeshID(m_agentTypeID, debugObject.objectPos);
+	IF_UNLIKELY(!meshID)
+		return;
+
+	NavigationMesh& mesh = navigationSystem.m_meshes[meshID];
+	const MNM::CNavMesh& navMesh = mesh.navMesh;
+	const MNM::CNavMesh::SGridParams& paramsGrid = mesh.navMesh.GetGridParams();
+
+	const MNM::vector3_t origin = MNM::vector3_t(MNM::real_t(paramsGrid.origin.x),
+		MNM::real_t(paramsGrid.origin.y), MNM::real_t(paramsGrid.origin.z));
+	const Vec3& startLoc = debugObject.entityPos;
+
+	Vec3 closestPosition;
+	if (navigationSystem.GetGroundLocationInMesh(meshID, startLoc, 100.0f, 0.25f, &closestPosition))
 	{
-		NavigationMeshID meshID = navigationSystem.GetEnclosingMeshID(m_agentTypeID, debugObject->GetPos());
-		IF_UNLIKELY (!meshID)
-			return;
-
-		NavigationMesh& mesh = navigationSystem.m_meshes[meshID];
-		const MNM::CNavMesh& navMesh = mesh.navMesh;
-		const MNM::CNavMesh::SGridParams& paramsGrid = mesh.navMesh.GetGridParams();
-
-		const MNM::vector3_t origin = MNM::vector3_t(MNM::real_t(paramsGrid.origin.x),
-		                                             MNM::real_t(paramsGrid.origin.y), MNM::real_t(paramsGrid.origin.z));
-		const Vec3 startLoc = debugObject->GetEntity() ? debugObject->GetEntity()->GetWorldPos() : debugObject->GetPos();
-
-		Vec3 closestPosition;
-		if (navigationSystem.GetGroundLocationInMesh(meshID, startLoc, 100.0f, 0.25f, &closestPosition))
-		{
-			IRenderAuxGeom* renderAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom();
-			const Vec3 verticalOffset = Vec3(.0f, .0f, .1f);
-			const Vec3 endPos(closestPosition + origin.GetVec3());
-			renderAuxGeom->DrawSphere(endPos + verticalOffset, 0.05f, ColorB(Col_Red));
-			renderAuxGeom->DrawSphere(startLoc, 0.05f, ColorB(Col_Black));
-		}
+		IRenderAuxGeom* renderAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom();
+		const Vec3 verticalOffset = Vec3(.0f, .0f, .1f);
+		const Vec3 endPos(closestPosition + origin.GetVec3());
+		renderAuxGeom->DrawSphere(endPos + verticalOffset, 0.05f, ColorB(Col_Red));
+		renderAuxGeom->DrawSphere(startLoc, 0.05f, ColorB(Col_Black));
 	}
 }
 
 void NavigationSystemDebugDraw::DebugDrawPathFinder(NavigationSystem& navigationSystem, const DebugDrawSettings& settings)
 {
-	if (CAIObject* debugObjectStart = gAIEnv.pAIObjectManager->GetAIObjectByName("MNMPathStart"))
+	CAISystem::SObjectDebugParams debugObjectStart;
+	if (!GetAISystem()->GetObjectDebugParamsFromName("MNMPathStart", debugObjectStart))
+		return;
+
+	CAISystem::SObjectDebugParams debugObjectEnd;
+	if (!GetAISystem()->GetObjectDebugParamsFromName("MNMPathEnd", debugObjectEnd))
+		return;
+	
+	NavigationMeshID meshID = navigationSystem.GetEnclosingMeshID(m_agentTypeID, debugObjectStart.objectPos);
+	IF_UNLIKELY(!meshID)
+		return;
+
+	NavigationMesh& mesh = navigationSystem.m_meshes[meshID];
+	const MNM::CNavMesh& navMesh = mesh.navMesh;
+	const MNM::CNavMesh::SGridParams& paramsGrid = mesh.navMesh.GetGridParams();
+
+	const OffMeshNavigationManager* offMeshNavigationManager = navigationSystem.GetOffMeshNavigationManager();
+	assert(offMeshNavigationManager);
+	const MNM::OffMeshNavigation& offMeshNavigation = offMeshNavigationManager->GetOffMeshNavigationForMesh(meshID);
+
+	const MNM::vector3_t origin = MNM::vector3_t(MNM::real_t(paramsGrid.origin.x),
+		MNM::real_t(paramsGrid.origin.y),
+		MNM::real_t(paramsGrid.origin.z));
+	const bool bOffsetTriangleUp = false;
+	const MNM::vector3_t originOffset = origin + MNM::vector3_t(0, 0, MNM::real_t::fraction(725, 10000));
+
+	auto drawTriangle = [originOffset, bOffsetTriangleUp](IRenderAuxGeom* renderAuxGeom, const MNM::vector3_t& a, const MNM::vector3_t& b, const MNM::vector3_t& c, const ColorB& color)
 	{
-		if (CAIObject* debugObjectEnd = gAIEnv.pAIObjectManager->GetAIObjectByName("MNMPathEnd"))
+		Vec3 va, vb, vc;
+		if (bOffsetTriangleUp)
 		{
-			NavigationMeshID meshID = navigationSystem.GetEnclosingMeshID(m_agentTypeID, debugObjectStart->GetPos());
-			IF_UNLIKELY (!meshID)
-				return;
+			va = (a + originOffset).GetVec3();
+			vb = (b + originOffset).GetVec3();
+			vc = (c + originOffset).GetVec3();
+		}
+		else
+		{
+			const Vec3 vao = a.GetVec3();
+			const Vec3 vbo = b.GetVec3();
+			const Vec3 vco = c.GetVec3();
 
-			NavigationMesh& mesh = navigationSystem.m_meshes[meshID];
-			const MNM::CNavMesh& navMesh = mesh.navMesh;
-			const MNM::CNavMesh::SGridParams& paramsGrid = mesh.navMesh.GetGridParams();
+			Triangle t(vao, vbo, vco);
+			const Vec3 n = t.GetNormal() * 0.07f;
 
-			const OffMeshNavigationManager* offMeshNavigationManager = navigationSystem.GetOffMeshNavigationManager();
-			assert(offMeshNavigationManager);
-			const MNM::OffMeshNavigation& offMeshNavigation = offMeshNavigationManager->GetOffMeshNavigationForMesh(meshID);
+			va = vao + n;
+			vb = vbo + n;
+			vc = vco + n;
+		}
+		renderAuxGeom->DrawTriangle(va, color, vb, color, vc, color);
+	};
 
-			const MNM::vector3_t origin = MNM::vector3_t(MNM::real_t(paramsGrid.origin.x),
-			                                             MNM::real_t(paramsGrid.origin.y),
-			                                             MNM::real_t(paramsGrid.origin.z));
-			const bool bOffsetTriangleUp = false;
-			const MNM::vector3_t originOffset = origin + MNM::vector3_t(0, 0, MNM::real_t::fraction(725, 10000));
+	auto drawPath = [](IRenderAuxGeom* pRenderAuxGeom, const CPathHolder<PathPointDescriptor>& path, const ColorB& color, const Vec3& offset)
+	{
+		const size_t pathSize = path.Size();
+		if (pathSize > 0)
+		{
+			const float radius = 0.015f;
 
-			auto drawTriangle = [originOffset, bOffsetTriangleUp](IRenderAuxGeom* renderAuxGeom, const MNM::vector3_t& a, const MNM::vector3_t& b, const MNM::vector3_t& c, const ColorB& color)
+			for (size_t j = 0; j < pathSize - 1; ++j)
 			{
-				Vec3 va, vb, vc;
-				if (bOffsetTriangleUp)
-				{
-					va = (a + originOffset).GetVec3();
-					vb = (b + originOffset).GetVec3();
-					vc = (c + originOffset).GetVec3();
-				}
-				else
-				{
-					const Vec3 vao = a.GetVec3();
-					const Vec3 vbo = b.GetVec3();
-					const Vec3 vco = c.GetVec3();
+				const Vec3 start = path.At(j);
+				const Vec3 end = path.At(j + 1);
+				pRenderAuxGeom->DrawLine(start + offset, color, end + offset, color, 4.0f);
+				pRenderAuxGeom->DrawSphere(start + offset, radius, color);
+			}
 
-					Triangle t(vao, vbo, vco);
-					const Vec3 n = t.GetNormal() * 0.07f;
+			pRenderAuxGeom->DrawSphere(path.At(pathSize - 1) + offset, radius, color);
+		}
+	};
 
-					va = vao + n;
-					vb = vbo + n;
-					vc = vco + n;
-				}
-				renderAuxGeom->DrawTriangle(va, color, vb, color, vc, color);
-			};
+	IRenderAuxGeom* renderAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom();
 
-			auto drawPath = [](IRenderAuxGeom* pRenderAuxGeom, const CPathHolder<PathPointDescriptor>& path, const ColorB& color, const Vec3& offset)
-			{
-				const size_t pathSize = path.Size();
-				if (pathSize > 0)
-				{
-					const float radius = 0.015f;
+	const Vec3& startLoc = debugObjectStart.entityPos;
+	const Vec3& endLoc = debugObjectEnd.objectPos;
 
-					for (size_t j = 0; j < pathSize - 1; ++j)
-					{
-						const Vec3 start = path.At(j);
-						const Vec3 end = path.At(j + 1);
-						pRenderAuxGeom->DrawLine(start + offset, color, end + offset, color, 4.0f);
-						pRenderAuxGeom->DrawSphere(start + offset, radius, color);
-					}
+	const MNM::real_t hrange = MNM::real_t(1.0f);
+	const MNM::real_t vrange = MNM::real_t(1.0f);
 
-					pRenderAuxGeom->DrawSphere(path.At(pathSize - 1) + offset, radius, color);
-				}
-			};
+	MNM::vector3_t fixedPointStartLoc;
+	const MNM::TriangleID triStart = navMesh.GetClosestTriangle(
+		MNM::vector3_t(startLoc) - origin, vrange, hrange, nullptr, &fixedPointStartLoc);
+	//fixedPointStartLoc += origin;
 
-			IRenderAuxGeom* renderAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom();
+	if (triStart)
+	{
+		MNM::vector3_t a, b, c;
+		navMesh.GetVertices(triStart, a, b, c);
 
-			const Vec3 startLoc = debugObjectStart->GetEntity() ? debugObjectStart->GetEntity()->GetWorldPos() : debugObjectStart->GetPos();
-			const Vec3 endLoc = debugObjectEnd->GetPos();
+		drawTriangle(renderAuxGeom, a, b, c, ColorB(ColorF(Col_GreenYellow, 0.5f)));
+	}
 
-			const MNM::real_t hrange = MNM::real_t(1.0f);
-			const MNM::real_t vrange = MNM::real_t(1.0f);
+	MNM::vector3_t fixedPointEndLoc;
+	const MNM::TriangleID triEnd = navMesh.GetClosestTriangle(
+		MNM::vector3_t(endLoc) - origin, vrange, hrange, nullptr, &fixedPointEndLoc);
 
-			MNM::vector3_t fixedPointStartLoc;
-			const MNM::TriangleID triStart = navMesh.GetClosestTriangle(
-			  MNM::vector3_t(startLoc) - origin, vrange, hrange, nullptr, &fixedPointStartLoc);
-			//fixedPointStartLoc += origin;
+	if (triEnd)
+	{
+		MNM::vector3_t a, b, c;
+		navMesh.GetVertices(triEnd, a, b, c);
 
-			if (triStart)
+		drawTriangle(renderAuxGeom, a, b, c, ColorB(Col_MidnightBlue));
+	}
+
+	CTimeValue timeTotal(0ll);
+	CTimeValue stringPullingTotalTime(0ll);
+	float totalPathLength = 0;
+	if (triStart && triEnd)
+	{
+		const MNM::vector3_t startToEnd = (fixedPointStartLoc - fixedPointEndLoc);
+		const MNM::real_t startToEndDist = startToEnd.lenNoOverflow();
+		MNM::CNavMesh::WayQueryWorkingSet workingSet;
+		workingSet.aStarOpenList.SetFrameTimeQuota(0.0f);
+		workingSet.aStarOpenList.SetUpForPathSolving(navMesh.GetTriangleCount(), triStart, fixedPointStartLoc, startToEndDist);
+
+		CTimeValue timeStart = gEnv->pTimer->GetAsyncTime();
+
+		MNM::DangerousAreasList dangersInfo;
+		MNM::DangerAreaConstPtr info;
+		const Vec3& cameraPos = gAIEnv.GetDebugRenderer()->GetCameraPos(); // To simulate the player position and evaluate the path generation
+		info.reset(new MNM::DangerAreaT<MNM::eWCT_Direction>(cameraPos, 0.0f, gAIEnv.CVars.PathfinderDangerCostForAttentionTarget));
+		dangersInfo.push_back(info);
+
+		// This object is used to simulate the explosive threat and debug draw the behavior of the pathfinding
+		CAISystem::SObjectDebugParams debugObjectExplosiveThreat;
+		if (GetAISystem()->GetObjectDebugParamsFromName("MNMPathExplosiveThreat", debugObjectExplosiveThreat))
+		{
+			info.reset(new MNM::DangerAreaT<MNM::eWCT_Range>(debugObjectExplosiveThreat.objectPos,
+				gAIEnv.CVars.PathfinderExplosiveDangerRadius, gAIEnv.CVars.PathfinderDangerCostForExplosives));
+			dangersInfo.push_back(info);
+		}
+
+		const size_t k_MaxWaySize = 512;
+		const float pathSharingPenalty = .0f;
+		const float pathLinkSharingPenalty = .0f;
+		MNM::CNavMesh::WayQueryRequest inputParams(debugObjectStart.entityId, triStart, startLoc, triEnd, endLoc,
+			offMeshNavigation, *offMeshNavigationManager, dangersInfo);
+		MNM::CNavMesh::WayQueryResult result(k_MaxWaySize);
+
+		const bool hasPathfindingFinished = (navMesh.FindWay(inputParams, workingSet, result) == MNM::CNavMesh::eWQR_Done);
+
+		CTimeValue timeEnd = gEnv->pTimer->GetAsyncTime();
+		timeTotal = timeEnd - timeStart;
+
+		assert(hasPathfindingFinished);
+
+		const MNM::WayTriangleData* const pOutputWay = result.GetWayData();
+		const size_t outputWaySize = result.GetWaySize();
+
+		for (size_t i = 0; i < outputWaySize; ++i)
+		{
+			if ((pOutputWay[i].triangleID != triStart) && (pOutputWay[i].triangleID != triEnd))
 			{
 				MNM::vector3_t a, b, c;
-				navMesh.GetVertices(triStart, a, b, c);
 
-				drawTriangle(renderAuxGeom, a, b, c, ColorB(ColorF(Col_GreenYellow, 0.5f)));
+				navMesh.GetVertices(pOutputWay[i].triangleID, a, b, c);
+
+				drawTriangle(renderAuxGeom, a, b, c, ColorB(ColorF(Col_Maroon, 0.5f)));
 			}
+		}
 
-			MNM::vector3_t fixedPointEndLoc;
-			const MNM::TriangleID triEnd = navMesh.GetClosestTriangle(
-			  MNM::vector3_t(endLoc) - origin, vrange, hrange, nullptr, &fixedPointEndLoc);
-
-			if (triEnd)
+		const bool bPathFound = (result.GetWaySize() != 0);
+		if (bPathFound)
+		{
+			CPathHolder<PathPointDescriptor> outputPath;
+			if (CMNMPathfinder::ConstructPathFromFoundWay(result, navMesh, offMeshNavigationManager, fixedPointStartLoc.GetVec3(), fixedPointEndLoc.GetVec3(), *&outputPath))
 			{
-				MNM::vector3_t a, b, c;
-				navMesh.GetVertices(triEnd, a, b, c);
+				const Vec3 pathVerticalOffset = Vec3(.0f, .0f, .1f);
+				drawPath(renderAuxGeom, outputPath, Col_Gray, pathVerticalOffset);
 
-				drawTriangle(renderAuxGeom, a, b, c, ColorB(Col_MidnightBlue));
-			}
-
-			CTimeValue timeTotal(0ll);
-			CTimeValue stringPullingTotalTime(0ll);
-			float totalPathLength = 0;
-			if (triStart && triEnd)
-			{
-				const MNM::vector3_t startToEnd = (fixedPointStartLoc - fixedPointEndLoc);
-				const MNM::real_t startToEndDist = startToEnd.lenNoOverflow();
-				MNM::CNavMesh::WayQueryWorkingSet workingSet;
-				workingSet.aStarOpenList.SetFrameTimeQuota(0.0f);
-				workingSet.aStarOpenList.SetUpForPathSolving(navMesh.GetTriangleCount(), triStart, fixedPointStartLoc, startToEndDist);
-
-				CTimeValue timeStart = gEnv->pTimer->GetAsyncTime();
-
-				MNM::DangerousAreasList dangersInfo;
-				MNM::DangerAreaConstPtr info;
-				const Vec3& cameraPos = gAIEnv.GetDebugRenderer()->GetCameraPos(); // To simulate the player position and evaluate the path generation
-				info.reset(new MNM::DangerAreaT<MNM::eWCT_Direction>(cameraPos, 0.0f, gAIEnv.CVars.PathfinderDangerCostForAttentionTarget));
-				dangersInfo.push_back(info);
-				// This object is used to simulate the explosive threat and debug draw the behavior of the pathfinding
-				CAIObject* debugObjectExplosiveThreat = gAIEnv.pAIObjectManager->GetAIObjectByName("MNMPathExplosiveThreat");
-				if (debugObjectExplosiveThreat)
+				const bool bBeautifyPath = (gAIEnv.CVars.BeautifyPath != 0);
+				CTimeValue stringPullingStartTime = gEnv->pTimer->GetAsyncTime();
+				if (bBeautifyPath)
 				{
-					info.reset(new MNM::DangerAreaT<MNM::eWCT_Range>(debugObjectExplosiveThreat->GetPos(),
-					                                                 gAIEnv.CVars.PathfinderExplosiveDangerRadius, gAIEnv.CVars.PathfinderDangerCostForExplosives));
-					dangersInfo.push_back(info);
+					outputPath.PullPathOnNavigationMesh(navMesh, gAIEnv.CVars.PathStringPullingIterations);
+				}
+				stringPullingTotalTime = gEnv->pTimer->GetAsyncTime() - stringPullingStartTime;
+
+				if (bBeautifyPath)
+				{
+					drawPath(renderAuxGeom, outputPath, Col_Black, pathVerticalOffset);
 				}
 
-				const size_t k_MaxWaySize = 512;
-				const float pathSharingPenalty = .0f;
-				const float pathLinkSharingPenalty = .0f;
-				MNM::CNavMesh::WayQueryRequest inputParams(debugObjectStart->CastToIAIActor(), triStart, startLoc, triEnd, endLoc,
-				                                           offMeshNavigation, *offMeshNavigationManager, dangersInfo);
-				MNM::CNavMesh::WayQueryResult result(k_MaxWaySize);
-
-				const bool hasPathfindingFinished = (navMesh.FindWay(inputParams, workingSet, result) == MNM::CNavMesh::eWQR_Done);
-
-				CTimeValue timeEnd = gEnv->pTimer->GetAsyncTime();
-				timeTotal = timeEnd - timeStart;
-
-				assert(hasPathfindingFinished);
-
-				const MNM::WayTriangleData* const pOutputWay = result.GetWayData();
-				const size_t outputWaySize = result.GetWaySize();
-
-				for (size_t i = 0; i < outputWaySize; ++i)
+				const size_t pathSize = outputPath.Size();
+				for (size_t j = 0; pathSize > 0 && j < pathSize - 1; ++j)
 				{
-					if ((pOutputWay[i].triangleID != triStart) && (pOutputWay[i].triangleID != triEnd))
-					{
-						MNM::vector3_t a, b, c;
-
-						navMesh.GetVertices(pOutputWay[i].triangleID, a, b, c);
-
-						drawTriangle(renderAuxGeom, a, b, c, ColorB(ColorF(Col_Maroon, 0.5f)));
-					}
-				}
-
-				const bool bPathFound = (result.GetWaySize() != 0);
-				if (bPathFound)
-				{
-					CPathHolder<PathPointDescriptor> outputPath;
-					if (CMNMPathfinder::ConstructPathFromFoundWay(result, navMesh, offMeshNavigationManager, fixedPointStartLoc.GetVec3(), fixedPointEndLoc.GetVec3(), *&outputPath))
-					{
-						const Vec3 pathVerticalOffset = Vec3(.0f, .0f, .1f);
-						drawPath(renderAuxGeom, outputPath, Col_Gray, pathVerticalOffset);
-
-						const bool bBeautifyPath = (gAIEnv.CVars.BeautifyPath != 0);
-						CTimeValue stringPullingStartTime = gEnv->pTimer->GetAsyncTime();
-						if (bBeautifyPath)
-						{
-							outputPath.PullPathOnNavigationMesh(navMesh, gAIEnv.CVars.PathStringPullingIterations);
-						}
-						stringPullingTotalTime = gEnv->pTimer->GetAsyncTime() - stringPullingStartTime;
-
-						if (bBeautifyPath)
-						{
-							drawPath(renderAuxGeom, outputPath, Col_Black, pathVerticalOffset);
-						}
-
-						const size_t pathSize = outputPath.Size();
-						for (size_t j = 0; pathSize > 0 && j < pathSize - 1; ++j)
-						{
-							const Vec3 start = outputPath.At(j);
-							const Vec3 end = outputPath.At(j + 1);
-							totalPathLength += Distance::Point_Point(start, end);
-						}
-					}
+					const Vec3 start = outputPath.At(j);
+					const Vec3 end = outputPath.At(j + 1);
+					totalPathLength += Distance::Point_Point(start, end);
 				}
 			}
-
-			const stack_string predictionName = gAIEnv.CVars.MNMPathfinderPositionInTrianglePredictionType ? "Advanced prediction" : "Triangle Center";
-
-			CDebugDrawContext dc;
-
-			dc->Draw2dLabel(10.0f, 172.0f, 1.3f, Col_White, false,
-			                "Start: %08x  -  End: %08x - Total Pathfinding time: %.4fms -- Type of prediction for the point inside each triangle: %s", triStart, triEnd, timeTotal.GetMilliSeconds(), predictionName.c_str());
-			dc->Draw2dLabel(10.0f, 184.0f, 1.3f, Col_White, false,
-			                "String pulling operation - Iteration %d  -  Total time: %.4fms -- Total Length: %f", gAIEnv.CVars.PathStringPullingIterations, stringPullingTotalTime.GetMilliSeconds(), totalPathLength);
 		}
 	}
+
+	const stack_string predictionName = gAIEnv.CVars.MNMPathfinderPositionInTrianglePredictionType ? "Advanced prediction" : "Triangle Center";
+
+	CDebugDrawContext dc;
+
+	dc->Draw2dLabel(10.0f, 172.0f, 1.3f, Col_White, false,
+		"Start: %08x  -  End: %08x - Total Pathfinding time: %.4fms -- Type of prediction for the point inside each triangle: %s", triStart, triEnd, timeTotal.GetMilliSeconds(), predictionName.c_str());
+	dc->Draw2dLabel(10.0f, 184.0f, 1.3f, Col_White, false,
+		"String pulling operation - Iteration %d  -  Total time: %.4fms -- Total Length: %f", gAIEnv.CVars.PathStringPullingIterations, stringPullingTotalTime.GetMilliSeconds(), totalPathLength);
 }
 
 static bool FindObjectToTestIslandConnectivity(const char* szName, Vec3& outPos, IEntity** ppOutEntityToTestOffGridLinks)
 {
-	if (const CAIObject* pAiObject = gAIEnv.pAIObjectManager->GetAIObjectByName(szName))
+	CAISystem::SObjectDebugParams debugObjectParams;
+	if (GetAISystem()->GetObjectDebugParamsFromName(szName, debugObjectParams))
 	{
-		outPos = pAiObject->GetPos();
+		outPos = debugObjectParams.objectPos;
 
 		if (ppOutEntityToTestOffGridLinks)
 		{
-			const IAIPathAgent* pPathAgent = pAiObject->CastToIAIActor();
-			assert(pPathAgent);
-			if (pPathAgent)
-			{
-				(*ppOutEntityToTestOffGridLinks) = pPathAgent->GetPathAgentEntity();
-			}
+			gEnv->pEntitySystem->GetEntity(debugObjectParams.entityId);
 		}
 		return true;
 	}
@@ -4352,13 +4319,20 @@ void NavigationSystemDebugDraw::DebugDrawIslandConnection(NavigationSystem& navi
 
 void NavigationSystemDebugDraw::DebugDrawNavigationMeshesForSelectedAgent(NavigationSystem& navigationSystem, MNM::TileID excludeTileID)
 {
+	FRAME_PROFILER("NavigationSystemDebugDraw::DebugDrawNavigationMeshesForSelectedAgent()", gEnv->pSystem, PROFILE_AI);
+
 	AgentType& agentType = navigationSystem.m_agentTypes[m_agentTypeID - 1];
 	AgentType::Meshes::const_iterator it = agentType.meshes.begin();
 	AgentType::Meshes::const_iterator end = agentType.meshes.end();
 
+	CCamera& viewCamera = gEnv->pSystem->GetViewCamera();
+
 	for (; it != end; ++it)
 	{
 		const NavigationMesh& mesh = navigationSystem.GetMesh(it->id);
+
+		if(!viewCamera.IsAABBVisible_F(navigationSystem.m_volumes[mesh.boundary].aabb))
+			continue;
 
 		size_t drawFlag = MNM::STile::DrawTriangles | MNM::STile::DrawMeshBoundaries;
 		if (gAIEnv.CVars.MNMDebugAccessibility)
@@ -4496,31 +4470,37 @@ NavigationSystemDebugDraw::DebugDrawSettings NavigationSystemDebugDraw::GetDebug
 	DebugDrawSettings settings;
 	settings.forceGeneration = false;
 
-	if (CAIObject* pMNMDebugLocator = gAIEnv.pAIObjectManager->GetAIObjectByName("MNMDebugLocator"))
+	CAISystem::SObjectDebugParams MNMDebugLocatorParams;
+	if (GetAISystem()->GetObjectDebugParamsFromName("MNMDebugLocator", MNMDebugLocatorParams))
 	{
-		const Vec3 debugLocation = pMNMDebugLocator->GetPos();
-
+		const Vec3& debugLocation = MNMDebugLocatorParams.objectPos;
 		if ((lastLocation - debugLocation).len2() > 0.00001f)
 		{
 			settings.meshID = navigationSystem.GetEnclosingMeshID(m_agentTypeID, debugLocation);
 
-			const NavigationMesh& mesh = navigationSystem.GetMesh(settings.meshID);
-			const MNM::CNavMesh::SGridParams& params = mesh.navMesh.GetGridParams();
-
-			size_t x = (size_t)((debugLocation.x - params.origin.x) / (float)params.tileSize.x);
-			size_t y = (size_t)((debugLocation.y - params.origin.y) / (float)params.tileSize.y);
-			size_t z = (size_t)((debugLocation.z - params.origin.z) / (float)params.tileSize.z);
-
-			if ((x != selectedX) || (y != selectedY) || (z != selectedZ))
+			if (settings.meshID)
 			{
-				settings.forceGeneration = true;
+				const NavigationMesh& mesh = navigationSystem.GetMesh(settings.meshID);
+				const MNM::CNavMesh::SGridParams& params = mesh.navMesh.GetGridParams();
 
-				selectedX = x;
-				selectedY = y;
-				selectedZ = z;
+				size_t x = (size_t)((debugLocation.x - params.origin.x) / (float)params.tileSize.x);
+				size_t y = (size_t)((debugLocation.y - params.origin.y) / (float)params.tileSize.y);
+				size_t z = (size_t)((debugLocation.z - params.origin.z) / (float)params.tileSize.z);
+
+				if ((x != selectedX) || (y != selectedY) || (z != selectedZ))
+				{
+					settings.forceGeneration = true;
+
+					selectedX = x;
+					selectedY = y;
+					selectedZ = z;
+				}
+				lastLocation = debugLocation;
 			}
-
-			lastLocation = debugLocation;
+			else
+			{
+				lastLocation.zero();
+			}
 		}
 	}
 	else

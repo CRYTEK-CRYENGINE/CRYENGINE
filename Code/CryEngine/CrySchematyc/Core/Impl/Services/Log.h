@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Services/ILog.h>
-#include <Schematyc/Services/ISettingsManager.h>
-#include <Schematyc/Utils/ScopedConnection.h>
-#include <Schematyc/Utils/StackString.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Services/ILog.h>
+#include <CrySchematyc/Services/ISettingsManager.h>
+#include <CrySchematyc/Utils/ScopedConnection.h>
+#include <CrySchematyc/Utils/StackString.h>
 
 namespace Schematyc
 {
@@ -31,7 +31,7 @@ private:
 	typedef std::vector<ILogOutputPtr> Outputs;
 	typedef std::vector<SLogScope*>    ScopeStack;
 
-	typedef CDelegate<void ()>         SettingsModifiedCallback;
+	typedef std::function<void ()>         SettingsModifiedCallback;
 
 	struct SSettings : public ISettings
 	{

@@ -829,7 +829,7 @@ bool CVisionMap::RayCastSubmit(const QueuedRayID& queuedRayID, RayCastRequest& r
 	latencyInfo->buffer[latencyInfo->bufferIndex].latency = latency;
 	latencyInfo->buffer[latencyInfo->bufferIndex].occurred = m_debugTimer;
 	latencyInfo->bufferIndex = (latencyInfo->bufferIndex + 1) % CRY_ARRAY_COUNT(latencyInfo->buffer);
-	latencyInfo->usedBufferSize = MAX(latencyInfo->usedBufferSize, latencyInfo->bufferIndex);
+	latencyInfo->usedBufferSize = std::max(latencyInfo->usedBufferSize, latencyInfo->bufferIndex);
 #endif
 
 	return true;
@@ -1080,8 +1080,8 @@ void CVisionMap::DebugDrawVisionMapStats()
 		{
 			if (latencyInfo->buffer[j].occurred >= cutOffTime)
 			{
-				displayInfo->min = MIN(latencyInfo->buffer[j].latency, displayInfo->min);
-				displayInfo->max = MAX(latencyInfo->buffer[j].latency, displayInfo->max);
+				displayInfo->min = std::min(latencyInfo->buffer[j].latency, displayInfo->min);
+				displayInfo->max = std::max(latencyInfo->buffer[j].latency, displayInfo->max);
 				displayInfo->avg += latencyInfo->buffer[j].latency;
 				count++;
 			}

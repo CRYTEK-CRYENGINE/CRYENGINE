@@ -1,35 +1,30 @@
 {
-	"NoUberFile":
-	{
-		"Root":
-		[
-			"CryPhysics.cpp",
-			"StdAfx.cpp",
-			"StdAfx.h",
-
-			"articulatedent.cpp",
-			"baseent.cpp",
-			"clothent.cpp",
-			"geometries.cpp",
-			"livingent.cpp",
-			"projectileent.cpp",
-			"ropeent.cpp",
-			"vehicleent.cpp",
-			"world.cpp",
-
-			"entities.h",
-			"geometries.h",
-			"world.h",
-			"CryPhysX.h",
-			"CryPhysX.cpp"
-		],		
-		"Shared":
-		[
-			"../../CryPhysics/geoman.h",
-			"../../CryPhysics/matrixnm.h",
-			"../../CryPhysics/qhull.cpp",
-			"../../CryPhysics/utils.h",
-			"../../CryPhysics/utils.cpp"
-		]
-	}
+  "NoUberFile": {
+    "Root": [
+      "CryPhysics.cpp", 
+      "StdAfx.cpp", 
+      "StdAfx.h", 
+      "articulatedent.cpp", 
+      "baseent.cpp", 
+      "clothent.cpp", 
+      "geometries.cpp", 
+      "livingent.cpp", 
+      "projectileent.cpp", 
+      "ropeent.cpp", 
+      "vehicleent.cpp", 
+      "world.cpp", 
+      "entities.h", 
+      "geometries.h", 
+      "world.h", 
+      "CryPhysX.h", 
+      "CryPhysX.cpp"
+    ], 
+    "Shared": [
+      "../../CryPhysics/geoman.h", 
+      "../../CryPhysics/matrixnm.h", 
+      "../../CryPhysics/qhull.cpp", 
+      "../../CryPhysics/utils.h", 
+      "../../CryPhysics/utils.cpp"
+    ]
+  }
 }

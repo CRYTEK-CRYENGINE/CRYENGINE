@@ -5,10 +5,11 @@
 #include "GraphNodeItem.h"
 #include "GraphPinItem.h"
 
-#include <Schematyc/Script/IScriptGraph.h>
+#include <CrySchematyc/Script/IScriptGraph.h>
 
 #include <NodeGraph/NodeWidget.h>
 #include <NodeGraph/PinGridNodeContentWidget.h>
+#include <NodeGraph/NodeGraphUndo.h>
 
 #include <QString>
 
@@ -79,6 +80,11 @@ void CNodeItem::SetPosition(QPointF position)
 	m_scriptNode.SetPos(pos);
 
 	CAbstractNodeItem::SetPosition(position);
+	if (GetRecordUndo())
+	{
+		CryGraphEditor::CUndoNodeMove* pUndoObject = new CryGraphEditor::CUndoNodeMove(*this);
+		CUndo::Record(pUndoObject);
+	}
 }
 
 QVariant CNodeItem::GetId() const
@@ -88,7 +94,7 @@ QVariant CNodeItem::GetId() const
 
 bool CNodeItem::HasId(QVariant id) const
 {
-	return (id.value<Schematyc::SGUID>() == m_scriptNode.GetGUID());
+	return (id.value<CryGUID>() == m_scriptNode.GetGUID());
 }
 
 QVariant CNodeItem::GetTypeId() const
@@ -130,7 +136,7 @@ CPinItem* CNodeItem::GetPinItemById(CPinId id) const
 	return nullptr;
 }
 
-Schematyc::SGUID CNodeItem::GetGUID() const
+CryGUID CNodeItem::GetGUID() const
 {
 	return m_scriptNode.GetGUID();
 }
@@ -266,7 +272,6 @@ void CNodeItem::LoadFromScriptElement()
 void CNodeItem::RefreshName()
 {
 	m_shortName = m_scriptNode.GetName();
-	m_fullQualifiedName = QString("<b>FQNN: </b>%1").arg(m_shortName);
 
 	CNodeItem::SignalNameChanged();
 }
@@ -292,7 +297,7 @@ void CNodeItem::Validate()
 			}
 		}
 	};
-	m_scriptNode.Validate(Schematyc::Validator::FromLambda(validateScriptNode));
+	m_scriptNode.Validate(validateScriptNode);
 
 	CAbstractNodeItem::SetWarnings(warningCount > 0);
 	CAbstractNodeItem::SetErrors(errorCount > 0);

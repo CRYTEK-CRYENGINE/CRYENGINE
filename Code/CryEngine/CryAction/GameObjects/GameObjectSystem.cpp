@@ -328,7 +328,7 @@ IGameObject* CGameObjectSystem::CreateGameObjectForEntity(EntityId entityId)
 	IEntity* pEntity = gEnv->pEntitySystem->GetEntity(entityId);
 	if (pEntity)
 	{
-		auto pGameObject = pEntity->CreateComponentClass<CGameObject>();
+		auto pGameObject = pEntity->GetOrCreateComponentClass<CGameObject>();
 
 		// call sink
 		for (SinkList::iterator si = m_lstSinks.begin(); si != m_lstSinks.end(); ++si)
@@ -344,7 +344,7 @@ IGameObject* CGameObjectSystem::CreateGameObjectForEntity(EntityId entityId)
 
 IEntityComponent* CGameObjectSystem::CreateGameObjectEntityProxy(IEntity& entity, IGameObject** ppGameObject)
 {
-	auto pGameObject = entity.CreateComponentClass<CGameObject>();
+	auto pGameObject = entity.GetOrCreateComponentClass<CGameObject>();
 	if (ppGameObject)
 	{
 		*ppGameObject = pGameObject;
@@ -377,7 +377,7 @@ IGameObjectExtension* CGameObjectSystem::Instantiate(ExtensionID id, IGameObject
 /* static */
 IEntityComponent* CGameObjectSystem::CreateGameObjectWithPreactivatedExtension(IEntity* pEntity, SEntitySpawnParams& params, void* pUserData)
 {
-	auto pGameObject = pEntity->CreateComponentClass<CGameObject>();
+	auto pGameObject = pEntity->GetOrCreateComponentClass<CGameObject>();
 	if (!pGameObject->ActivateExtension(params.pClass->GetName()))
 	{
 		pEntity->RemoveComponent(pGameObject);
@@ -441,7 +441,6 @@ const SEntitySchedulingProfiles* CGameObjectSystem::GetEntitySchedulerProfiles(I
 
 void CGameObjectSystem::SetSpawnSerializerForEntity(const EntityId entityId, TSerialize* pSerializer)
 {
-	CryLogAlways("Spawnserializers: %d, set", m_spawnSerializers.size());
 	CRY_ASSERT(GetSpawnSerializerForEntity(entityId) == NULL);
 	if (GetSpawnSerializerForEntity(entityId) != NULL)
 	{
@@ -476,7 +475,6 @@ void CGameObjectSystem::GetMemoryUsage(ICrySizer* s) const
 	s->AddObject(m_extensionInfo);
 	s->AddObject(m_dispatch);
 	s->AddObject(m_postUpdateObjects);
-	s->AddObject(m_schedulingParams);
 
 	IEntityItPtr pIt = gEnv->pEntitySystem->GetEntityIterator();
 	while (IEntity* pEnt = pIt->Next())

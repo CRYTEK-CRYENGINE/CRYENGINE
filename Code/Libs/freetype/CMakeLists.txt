@@ -32,5 +32,5 @@ end_sources()
 #END-FILE-LIST
 
 CryEngineStaticModule(freetype SOLUTION_FOLDER "Libs")
-target_include_directories(${THIS_PROJECT} PUBLIC ${SDK_DIR}/freetype/include)
+target_include_directories(${THIS_PROJECT} PUBLIC "${SDK_DIR}/freetype/include")
 target_compile_definitions(${THIS_PROJECT} PRIVATE -DFT_CONFIG_OPTIONS_H="cry_ftoption.h" -DFT_CONFIG_MODULES_H="cry_ftmodule.h" -DFT2_BUILD_LIBRARY)

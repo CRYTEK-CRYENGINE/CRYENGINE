@@ -36,7 +36,7 @@ bool CCryDXGLShaderResourceView::Initialize(NCryOpenGL::CContext* pContext)
 	return m_spGLView != NULL;
 }
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 
 NCryOpenGL::SShaderView* CCryDXGLShaderResourceView::GetGLView(NCryOpenGL::CContext* pContext)
 {

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <Schematyc/Script/Elements/IScriptConstructor.h>
+#include <CrySchematyc/Script/Elements/IScriptConstructor.h>
 
 #include "Script/ScriptElementBase.h"
 #include "Script/ScriptUserDocumentation.h"
@@ -14,7 +14,7 @@ class CScriptConstructor : public CScriptElementBase<IScriptConstructor>
 public:
 
 	CScriptConstructor();
-	CScriptConstructor(const SGUID& guid, const char* szName);
+	CScriptConstructor(const CryGUID& guid, const char* szName);
 
 	// IScriptElement
 	virtual void EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const override;

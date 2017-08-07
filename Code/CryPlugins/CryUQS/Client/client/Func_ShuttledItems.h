@@ -4,11 +4,11 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client
+	namespace Client
 	{
-		namespace internal
+		namespace Internal
 		{
 
 			//===================================================================================
@@ -47,14 +47,14 @@ namespace uqs
 			{
 				assert(ctorContext.pOptionalReturnValueInCaseOfLeafFunction);
 
-				const core::ILeafFunctionReturnValue::SShuttledItemsInfo shuttledItemsInfo = ctorContext.pOptionalReturnValueInCaseOfLeafFunction->GetShuttledItems(ctorContext.blackboard);
+				const Core::ILeafFunctionReturnValue::SShuttledItemsInfo shuttledItemsInfo = ctorContext.pOptionalReturnValueInCaseOfLeafFunction->GetShuttledItems(ctorContext.blackboard);
 
 				// check for existence of shuttled items
 				if (shuttledItemsInfo.pShuttledItems)
 				{
 					// check for correct type of shuttled items
-					const shared::CTypeInfo& typeOfShuttledItems = shuttledItemsInfo.pShuttledItems->GetItemFactory().GetItemType();
-					const shared::CTypeInfo& expectedType = shared::SDataTypeHelper<TItem>::GetTypeInfo();
+					const Shared::CTypeInfo& typeOfShuttledItems = shuttledItemsInfo.pShuttledItems->GetItemFactory().GetItemType();
+					const Shared::CTypeInfo& expectedType = Shared::SDataTypeHelper<TItem>::GetTypeInfo();
 					if (typeOfShuttledItems == expectedType)
 					{
 						m_pItemListProxy = new CItemListProxy_Readable<TItem>(*shuttledItemsInfo.pShuttledItems);
@@ -85,7 +85,7 @@ namespace uqs
 				}
 				else
 				{
-					validationContext.error.Format("%s: %s", validationContext.nameOfFunctionBeingValidated, m_errorMessage.c_str());
+					validationContext.error.Format("%s: %s", validationContext.szNameOfFunctionBeingValidated, m_errorMessage.c_str());
 					return false;
 				}
 			}

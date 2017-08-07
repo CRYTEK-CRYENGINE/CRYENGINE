@@ -3,11 +3,12 @@
 #pragma once
 
 #include <CrySerialization/Forward.h>
-#include <Schematyc/Utils/GUID.h>
+#include <CrySchematyc/Utils/GUID.h>
 
-class CSchematycEntityDrsComponent final : public Schematyc::CComponent, DRS::IResponseManager::IListener, DRS::ISpeakerManager::IListener
+class CSchematycEntityDrsComponent final : public IEntityComponent, DRS::IResponseManager::IListener, DRS::ISpeakerManager::IListener
 {
 public:
+
 	struct SResponseStartedSignal
 	{
 		static void ReflectType(Schematyc::CTypeDesc<SResponseStartedSignal>& typeInfo);
@@ -39,14 +40,13 @@ public:
 		//animation, audioTrigger... do we need these as well?
 	};
 
-	CSchematycEntityDrsComponent();
-	~CSchematycEntityDrsComponent();
+	CSchematycEntityDrsComponent() = default;
+	virtual ~CSchematycEntityDrsComponent() = default;
 
-	// Schematyc::CComponent
-	virtual bool Init() override;
-	virtual void Run(Schematyc::ESimulationMode simulationMode) override;
-	virtual void Shutdown() override;
-	// ~Schematyc::CComponent
+	//IEntityComponent
+	virtual void Initialize() override;
+	virtual void OnShutDown() override;
+	// ~IEntityComponent
 
 	// DRS::IResponseManager::IListener
 	virtual void OnSignalProcessingStarted(SSignalInfos& signal, DRS::IResponseInstance* pStartedResponse) override;
@@ -61,6 +61,11 @@ public:
 	static void Register(Schematyc::IEnvRegistrar& registrar);
 
 private:
+	template <typename SIGNAL> inline void OutputSignal(const SIGNAL& signal)
+	{
+		if (GetEntity()->GetSchematycObject())
+			GetEntity()->GetSchematycObject()->ProcessSignal(signal, m_guid);
+	}
 
 	void SendSignal(const Schematyc::CSharedString& signalName, const Schematyc::CSharedString& contextFloatName, float contextFloatValue, const Schematyc::CSharedString& contextStringName, const Schematyc::CSharedString& contextStringValue);
 	

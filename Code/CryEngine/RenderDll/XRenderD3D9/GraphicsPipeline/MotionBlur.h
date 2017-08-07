@@ -16,13 +16,10 @@ private:
 	float ComputeMotionScale();
 
 private:
-	CFullscreenPass  m_passPacking;
-	CFullscreenPass  m_passTileGen1;
-	CFullscreenPass  m_passTileGen2;
-	CFullscreenPass  m_passNeighborMax;
-	CStretchRectPass m_passCopy;
-	CFullscreenPass  m_passMotionBlur;
-
-	int32            m_samplerPoint;
-	int32            m_samplerLinear;
+	CFullscreenPass    m_passPacking;
+	CFullscreenPass    m_passTileGen1;
+	CFullscreenPass    m_passTileGen2;
+	CFullscreenPass    m_passNeighborMax;
+	CStretchRectPass   m_passCopy;
+	CFullscreenPass    m_passMotionBlur;
 };

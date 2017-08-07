@@ -34,11 +34,11 @@ public:
 	virtual void           SetFlags(uint32 flags) { m_nFlags = flags; }
 	virtual uint32         GetFlags() const       { return m_nFlags; }
 	virtual EFlowDataTypes GetType() const        { return (EFlowDataTypes)m_value.GetType(); };
-	virtual void           SetType(EFlowDataTypes dataType);
 	virtual void           SetValue(const TFlowInputData& val);
+	virtual void           SetValueFromString(const char* valueStr);
 	virtual bool           GetValue(TFlowInputData& val) const;
-	virtual void           SetValueAsString(const char* sValue, bool bDefault = false);
 	virtual const char*    GetValueAsString() const;
+	virtual void           TriggerAsChanged(bool bIsGameStart);
 	//////////////////////////////////////////////////////////////////////////
 
 	void       AddListener(IGameTokenEventListener* pListener)    { stl::push_back_unique(m_listeners, pListener); };
@@ -48,6 +48,8 @@ public:
 	CTimeValue GetLastChangeTime() const { return m_changed; };
 
 	void       GetMemoryStatistics(ICrySizer* s);
+
+	const string& GetStringName() const { return m_name; }
 
 private:
 	friend class CGameTokenSystem; // Need access to m_name

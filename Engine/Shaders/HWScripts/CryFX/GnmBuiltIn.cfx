@@ -1,0 +1,284 @@
+// CRYENGINE Source Code File
+// Copyright 2001-2017 Crytek GmbH. All rights reserved.
+#include "GnmBuiltIn.cfi"
+
+struct SEmpty
+{
+	// Empty on purpose
+};
+
+struct SColor0
+{
+	float4 color0 : SV_Target0;
+};
+
+struct SQuad
+{
+	float4 pos : SV_Position;
+	float4 uv : TEXCOORD; // xy: in [0, 1], zw: in [-1, 1]
+};
+
+struct SQuadArray
+{
+	float4 pos : SV_Position;
+	float4 uv : TEXCOORD; // xy: in [0, 1], zw: in [-1, 1]
+	uint slice : SV_RenderTargetArrayIndex;
+};
+
+float2 GnmFullscreenQuadPosition(uint vertId)
+{
+	// Construct quad from hard-coded index input: 0, 1, 2, 1, 3, 2
+	// 
+	// 0 ---- 1
+	// |   /  |
+	// |  /   |
+	// 2 ---- 3
+	const float x = vertId & 1;
+	const float y = (vertId & 2) * 0.5f;
+	return float2(x, y);
+}
+
+// Construct a full-screen quad
+// Note: Since any GNM shader exports at least one float4 parameter (other than position), we provide UV in there.
+SQuad GnmQuadVS(uint vertId : SV_VertexId)
+{
+	const float2 quadPos = GnmFullscreenQuadPosition(vertId);
+	const float2 viewPos = quadPos * 2.0f - 1.0f;
+
+	SQuad OUT;
+	OUT.pos = float4(viewPos, 0.0f, 1.0f);
+	OUT.uv = float4(quadPos, viewPos);
+	return OUT;
+}
+
+// Construct an array of full-screen quads (when rendering to an array)
+// Note: Since any GNM shader exports at least one float4 parameter (other than position), we provide UV in there.
+SQuadArray GnmQuadArrayVS(uint vertId : SV_VertexId, uint sliceId : SV_InstanceId)
+{
+	const float2 quadPos = GnmFullscreenQuadPosition(vertId);
+	const float2 viewPos = quadPos * 2.0f - 1.0f;
+
+	SQuadArray OUT;
+	OUT.pos = float4(viewPos, 0.0f, 1.0f);
+	OUT.uv = float4(quadPos, viewPos);
+	OUT.slice = sliceId;
+	return OUT;
+}
+
+// NULL-export shader
+// Use when no color target is bound
+SEmpty GnmEmptyPS()
+{
+	SEmpty OUT;
+	return OUT;
+}
+
+// Zero-export shader to MRT0
+// Use when color is irrelevant (or exactly zero is desired)
+SColor0 GnmZeroPS()
+{
+	SColor0 OUT;
+	OUT.color0 = float4(0, 0, 0, 0);
+	return OUT;
+}
+
+// Constant-export shader to MRT0
+// Use when specific color is desired
+SColor0 GnmConstantPS(SConstantColor userData : SV_UserData)
+{
+	SColor0 OUT;
+	OUT.color0 = userData.color;
+	return OUT;
+}
+
+// Copy 128-bit bit-pattern into 4-byte aligned memory, when the target buffer size is a multiple of 4-byte.
+// This is the minimum supported granularity, each thread stores 4x32 bit.
+[numthreads(64, 1, 1)]
+void GnmMemSet32CS(uint3 threadId : SV_DispatchThreadID, SMemSet32 userData : SV_UserData)
+{
+	// Note: Reason for this indexing pattern is that it generates contiguous stores per warp.
+	// We trust the buffer descriptor to discard writes "out of bounds" of the target area.
+	const uint bufferIndex = (threadId.x & 63) + (threadId.x & ~63) * 4;
+	const uint value = userData.source[threadId.x & 3];
+	userData.target[bufferIndex + 0  ] = value;
+	userData.target[bufferIndex + 64 ] = value;
+	userData.target[bufferIndex + 128] = value;
+	userData.target[bufferIndex + 192] = value;
+}
+
+// Copy 128-bit bit-pattern into 16-byte aligned memory, when the target buffer size is a multiple of 16-byte.
+// This allows for a single 128-bit wide store for each thread.
+[numthreads(64, 1, 1)]
+void GnmMemSet128CS(uint3 threadId : SV_DispatchThreadID, SMemSet128 userData : SV_UserData)
+{
+	userData.target[threadId.x] = userData.source;
+}
+
+// Copy data from one 4-byte aligned buffer to another 4-byte aligned buffer, the copy-size is a multiple of 4-byte.
+// This is the minimum supported granularity, each thread stores 4x32 bit.
+[numthreads(64, 1, 1)]
+void GnmMemCpy32CS(uint3 threadId : SV_DispatchThreadID, SMemCpy32 userData : SV_UserData)
+{
+	const uint bufferIndex = (threadId.x & 63) + (threadId.x & ~63) * 4;
+	userData.target[bufferIndex + 0  ] = userData.source[bufferIndex + 0  ];
+	userData.target[bufferIndex + 64 ] = userData.source[bufferIndex + 64 ];
+	userData.target[bufferIndex + 128] = userData.source[bufferIndex + 128];
+	userData.target[bufferIndex + 192] = userData.source[bufferIndex + 192];
+}
+
+// Copy data from one 16-byte aligned buffer to another 16-byte aligned buffer, the copy-size is a multiple of 16-byte.
+// This allows for a single 128-but wide store for each thread.
+[numthreads(64, 1, 1)]
+void GnmMemCpy128CS(uint3 threadId : SV_DispatchThreadID, SMemCpy128 userData : SV_UserData)
+{
+	userData.target[threadId.x] = userData.source[threadId.x];
+}
+
+// Copy data between 1D texture(array)s.
+[numthreads(64, 1, 1)]
+void GnmTexCpy1DCS(uint3 threadId : SV_DispatchThreadID, STexCpy1D userData : SV_UserData)
+{
+	if (threadId.x < userData.region)
+	{
+		const uint2 targetCoord = uint2(userData.targetOffset + threadId.x, userData.targetSlice);
+		const uint2 sourceCoord = uint2(userData.sourceOffset + threadId.x, userData.sourceSlice);
+		const uint4 value = userData.pIndirect->source.MipMaps(userData.sourceMip, sourceCoord);
+		userData.pIndirect->target.MipMaps(userData.targetMip, targetCoord) = value;
+	}
+}
+
+// Copy data between 2D texture(array)s
+[numthreads(8, 8, 1)]
+void GnmTexCpy2DCS(uint3 threadId : SV_DispatchThreadID, STexCpy2D userData : SV_UserData)
+{
+	if (all(threadId.xy < userData.region))
+	{
+		const uint3 targetCoord = uint3(userData.targetOffset + threadId.xy, userData.targetSlice);
+		const uint3 sourceCoord = uint3(userData.sourceOffset + threadId.xy, userData.sourceSlice);
+		const uint4 value = userData.pIndirect->source.MipMaps(userData.sourceMip, sourceCoord);
+		userData.pIndirect->target.MipMaps(userData.targetMip, targetCoord) = value;
+	}
+}
+
+// Copy data between 3D textures.
+[numthreads(4, 4, 4)]
+void GnmTexCpy3DCS(uint3 threadId : SV_DispatchThreadID, STexCpy3D userData : SV_UserData)
+{
+	if (all(threadId < userData.region))
+	{
+		const uint3 targetCoord = userData.targetOffset + threadId;
+		const uint3 sourceCoord = userData.sourceOffset + threadId;
+		const uint4 value = userData.pIndirect->source.MipMaps(userData.sourceMip, sourceCoord);
+		userData.pIndirect->target.MipMaps(userData.targetMip, targetCoord) = value;
+	}
+}
+
+technique GnmNullExport
+{
+	pass p0
+	{
+		VertexShader = GnmQuadVS();
+		PixelShader = GnmEmptyPS();
+	}
+}
+
+technique GnmNullArrayExport
+{
+	pass p0
+	{
+		VertexShader = GnmQuadArrayVS();
+		PixelShader = GnmEmptyPS();
+	}
+}
+
+technique GnmZeroExport
+{
+	pass p0
+	{
+		VertexShader = GnmQuadVS();
+		PixelShader = GnmZeroPS();
+	}
+}
+
+technique GnmZeroArrayExport
+{
+	pass p0
+	{
+		VertexShader = GnmQuadArrayVS();
+		PixelShader = GnmZeroPS();
+	}
+}
+
+technique GnmConstantExport
+{
+	pass p0
+	{
+		VertexShader = GnmQuadVS();
+		PixelShader = GnmConstantPS();
+	}
+}
+
+technique GnmConstantArrayExport
+{
+	pass p0
+	{
+		VertexShader = GnmQuadArrayVS();
+		PixelShader = GnmConstantPS();
+	}
+}
+
+technique GnmMemSet32
+{
+	pass p0
+	{
+		ComputeShader = GnmMemSet32CS();
+	}
+}
+
+technique GnmMemSet128
+{
+	pass p0
+	{
+		ComputeShader = GnmMemSet128CS();
+	}
+}
+
+technique GnmMemCpy32
+{
+	pass p0
+	{
+		ComputeShader = GnmMemCpy32CS();
+	}
+}
+
+technique GnmMemCpy128
+{
+	pass p0
+	{
+		ComputeShader = GnmMemCpy128CS();
+	}
+}
+
+technique GnmTexCpy1D
+{
+	pass p0
+	{
+		ComputeShader = GnmTexCpy1DCS();
+	}
+}
+
+technique GnmTexCpy2D
+{
+	pass p0
+	{
+		ComputeShader = GnmTexCpy2DCS();
+	}
+}
+
+technique GnmTexCpy3D
+{
+	pass p0
+	{
+		ComputeShader = GnmTexCpy3DCS();
+	}
+}

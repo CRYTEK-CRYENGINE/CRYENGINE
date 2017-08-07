@@ -96,7 +96,7 @@ class CDialogLineDatabase final : public DRS::IDialogLineDatabase
 
 public:
 	CDialogLineDatabase();
-	virtual ~CDialogLineDatabase();
+	virtual ~CDialogLineDatabase() override;
 	bool            InitFromFiles(const char* szFilePath);
 	//will reset all temporary data (for example the data to pick variations in sequential order)
 	void            Reset();

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <Schematyc/Compiler/CompilerContext.h>
+#include <CrySchematyc/Compiler/CompilerContext.h>
 
 namespace Schematyc
 {

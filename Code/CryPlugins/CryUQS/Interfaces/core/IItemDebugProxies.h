@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 		//
 		// An IItemDebugProxy_* is a geometric representation of an item that was generated and evaluated throughout the query.

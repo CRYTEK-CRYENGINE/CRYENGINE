@@ -14,7 +14,8 @@ SERIALIZATION_DECLARE_ENUM(EAlignType,
 	Screen,
 	Camera,
 	Velocity,
-	Parent
+	Parent,
+	World
 	)
 
 SERIALIZATION_DECLARE_ENUM(EAlignView,

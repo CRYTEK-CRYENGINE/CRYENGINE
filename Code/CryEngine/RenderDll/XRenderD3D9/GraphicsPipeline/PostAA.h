@@ -26,8 +26,4 @@ private:
 	CFullscreenPass      m_passSMAANeighborhoodBlending;
 	CFullscreenPass      m_passTemporalAA;
 	CFullscreenPass      m_passComposition;
-
-	int                  m_samplerPoint;
-	int                  m_samplerPointWrap;
-	int                  m_samplerLinear;
 };

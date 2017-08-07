@@ -857,6 +857,7 @@ protected:
 			return HandleSuccess(context, runtimeData);
 
 		case eTPSQS_Fail:
+		case eTPSQS_Error:
 			return Failure;
 
 		default:
@@ -3265,7 +3266,7 @@ protected:
 				                             functor(runtimeData, &RuntimeData::PathfinderCallback),
 				                             pipeUser.GetNavigationTypeID(), eMNMDangers_None);
 
-				runtimeData.queuedPathID = gAIEnv.pMNMPathfinder->RequestPathTo(&pipeUser, request);
+				runtimeData.queuedPathID = gAIEnv.pMNMPathfinder->RequestPathTo(pipeUser.GetEntityID(), request);
 
 				if (runtimeData.queuedPathID)
 					runtimeData.pendingStatus = Running;

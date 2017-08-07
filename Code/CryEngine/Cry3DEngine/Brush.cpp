@@ -147,10 +147,31 @@ void CBrush::Render(const struct SRendParams& _EntDrawParams, const SRenderingPa
 	rParms.nEditorSelectionID = m_nEditorSelectionID;
 
 	rParms.dwFObjFlags |= (m_dwRndFlags & ERF_FOB_RENDER_AFTER_POSTPROCESSING) ? FOB_RENDER_AFTER_POSTPROCESSING : 0;
-	//rParms.dwFObjFlags |= (m_dwRndFlags & ERF_FOB_NEAREST) ? FOB_NEAREST : 0;
 	rParms.dwFObjFlags |= FOB_TRANS_MASK;
-
+	
 	rParms.nHUDSilhouettesParams = m_nHUDSilhouettesParam;
+	rParms.nSubObjHideMask = m_nSubObjHideMask;
+
+	if ((m_dwRndFlags & (ERF_NO_DECALNODE_DECALS | ERF_MOVES_EVERY_FRAME)) ||
+	    (gEnv->nMainFrameID - m_lastMoveFrameId < 3))
+	{
+		rParms.dwFObjFlags |= FOB_DYNAMIC_OBJECT;
+	}
+
+	if ((m_dwRndFlags & ERF_FOB_NEAREST) != 0)
+	{
+		if (passInfo.IsRecursivePass()) // Nearest objects are not rendered in the recursive passes.
+			return;
+
+		rParms.dwFObjFlags |= FOB_NEAREST;
+		if (rParms.dwFObjFlags & FOB_DYNAMIC_OBJECT)
+		{
+			rParms.pInstance = this;
+		}
+
+		// Nearest objects recalculate instance matrix every frame
+		CalcNearestTransform(m_Matrix, passInfo);	
+	}
 
 	m_pStatObj->Render(rParms, passInfo);
 }
@@ -588,9 +609,6 @@ void CBrush::SetMaterial(IMaterial* pMat)
 
 	UpdatePhysicalMaterials();
 
-	// register and get brush material id
-	m_pMaterial = pMat;
-
 	InvalidatePermanentRenderObject();
 }
 
@@ -608,7 +626,7 @@ void CBrush::GetMemoryUsage(ICrySizer* pSizer) const
 	pSizer->AddObject(this, sizeof(*this));
 }
 
-void CBrush::SetEntityStatObj(unsigned int nSlot, IStatObj* pStatObj, const Matrix34A* pMatrix)
+void CBrush::SetEntityStatObj(IStatObj* pStatObj, const Matrix34A* pMatrix)
 {
 	//assert(pStatObj);
 
@@ -926,6 +944,21 @@ void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInf
 	else
 		pObj->m_ObjFlags &= ~FOB_AFTER_WATER;
 
+	if (GetRndFlags() & ERF_RECVWIND)
+	{
+		if (GetCVars()->e_VegetationBending)
+		{
+			pObj->m_vegetationBendingData.scale = 0.1f; // this is default value for vegetation if bending in veg group is set to 1
+			pObj->m_vegetationBendingData.verticalRadius = m_pStatObj->m_fRadiusVert;
+			pObj->m_ObjFlags |= FOB_BENDED | FOB_DYNAMIC_OBJECT;
+		}
+		else
+		{
+			pObj->m_vegetationBendingData.scale = 0.0f;
+			pObj->m_vegetationBendingData.verticalRadius = 0.0f;
+		}
+	}
+
 	//IFoliage* pFoliage = GetFoliage(-1);
 	if (m_pFoliage)
 	{
@@ -965,16 +998,15 @@ void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInf
 			}
 		}
 
+		pObj->m_data.m_nHUDSilhouetteParams = m_nHUDSilhouettesParam;
+
 		m_pStatObj->RenderInternal(pObj, m_nSubObjHideMask, lodValue, passInfo);
 	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-IStatObj* CBrush::GetEntityStatObj(unsigned int nPartId, unsigned int nSubPartId, Matrix34A* pMatrix, bool bReturnOnlyVisible)
+IStatObj* CBrush::GetEntityStatObj(unsigned int nSubPartId, Matrix34A* pMatrix, bool bReturnOnlyVisible)
 {
-	if (nPartId != 0)
-		return 0;
-
 	if (pMatrix)
 		*pMatrix = m_Matrix;
 

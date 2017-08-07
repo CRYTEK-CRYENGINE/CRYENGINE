@@ -6,9 +6,9 @@
 
 #include <CryAISystem/INavigationSystem.h>
 
-namespace uqs
+namespace UQS
 {
-	namespace stdlib
+	namespace StdLib
 	{
 
 		//===================================================================================
@@ -22,7 +22,7 @@ namespace uqs
 		//
 		//===================================================================================
 
-		class CGenerator_PointsOnPureGrid : public client::CGeneratorBase<CGenerator_PointsOnPureGrid, Pos3>
+		class CGenerator_PointsOnPureGrid : public Client::CGeneratorBase<CGenerator_PointsOnPureGrid, Pos3>
 		{
 		public:
 			struct SParams
@@ -32,15 +32,15 @@ namespace uqs
 				float                   spacing;                 // space between individual points on both, the x- and y-axis
 
 				UQS_EXPOSE_PARAMS_BEGIN
-					UQS_EXPOSE_PARAM("center", center);
-					UQS_EXPOSE_PARAM("size", size);
-					UQS_EXPOSE_PARAM("spacing", spacing);
+					UQS_EXPOSE_PARAM("center", center, "CENT", "Center of the grid.");
+					UQS_EXPOSE_PARAM("size", size, "SIZE", "Length of one edge of the grid.");
+					UQS_EXPOSE_PARAM("spacing", spacing, "SPAC", "Space between individual points on both the x- and y-axis.");
 				UQS_EXPOSE_PARAMS_END
 			};
 
 		public:
 			explicit                    CGenerator_PointsOnPureGrid(const SParams& params);
-			EUpdateStatus               DoUpdate(const SUpdateContext& updateContext, client::CItemListProxy_Writable<Pos3>& itemListToPopulate);
+			EUpdateStatus               DoUpdate(const SUpdateContext& updateContext, Client::CItemListProxy_Writable<Pos3>& itemListToPopulate);
 
 		private:
 			const SParams               m_params;
@@ -57,7 +57,7 @@ namespace uqs
 		//
 		//===================================================================================
 
-		class CGenerator_PointsOnNavMesh : public client::CGeneratorBase<CGenerator_PointsOnNavMesh, Pos3>
+		class CGenerator_PointsOnNavMesh : public Client::CGeneratorBase<CGenerator_PointsOnNavMesh, Pos3>
 		{
 		public:
 			struct SParams
@@ -68,19 +68,72 @@ namespace uqs
 				NavigationAgentTypeID   navigationAgentTypeID;   // the points will be generated in this layer of the NavMesh
 
 				UQS_EXPOSE_PARAMS_BEGIN
-					UQS_EXPOSE_PARAM("pivot", pivot);
-					UQS_EXPOSE_PARAM("localAABBMins", localAABBMins);
-					UQS_EXPOSE_PARAM("localAABBMaxs", localAABBMaxs);
-					UQS_EXPOSE_PARAM("navigationAgentTypeID", navigationAgentTypeID);
+					UQS_EXPOSE_PARAM("pivot", pivot, "PIVO", "Center of the AABB.");
+					UQS_EXPOSE_PARAM("localAABBMins", localAABBMins, "LMIN", "Local min extents of the AABB in which the points will be generated.");
+					UQS_EXPOSE_PARAM("localAABBMaxs", localAABBMaxs, "LMAX", "Local max extents of the AABB in which the points will be generated.");
+					UQS_EXPOSE_PARAM("navigationAgentTypeID", navigationAgentTypeID, "AGEN", "The points will be generated in this layer of the NavMesh.");
 				UQS_EXPOSE_PARAMS_END
 			};
 
 		public:
 			explicit                    CGenerator_PointsOnNavMesh(const SParams& params);
-			EUpdateStatus               DoUpdate(const SUpdateContext& updateContext, client::CItemListProxy_Writable<Pos3>& itemListToPopulate);
+			EUpdateStatus               DoUpdate(const SUpdateContext& updateContext, Client::CItemListProxy_Writable<Pos3>& itemListToPopulate);
 
 		private:
 			const SParams               m_params;
+		};
+
+		//===================================================================================
+		//
+		// CGenerator_PointsOnGridProjectedOntoNavMesh
+		//
+		// - generates points on a grid which are then projected onto the navigation mesh
+		// - internally, a flood-filling originating at the grid's center is used to radially spread out and project all grid cell positions onto the navigation mesh
+		// - as opposed to CGenerator_PointsOnPureGrid, this one should work fine for hills and slopes on the terrain
+		//
+		//===================================================================================
+
+		class CGenerator_PointsOnGridProjectedOntoNavMesh : public Client::CGeneratorBase<CGenerator_PointsOnGridProjectedOntoNavMesh, Pos3>
+		{
+		public:
+			struct SParams
+			{
+				Pos3                    center;                     // center of the grid
+				float                   size;                       // length of one edge of the grid
+				float                   spacing;                    // space between individual points on both, the x- and y-axis
+				NavigationAgentTypeID   navigationAgentTypeID;      // the points will be generated in this layer of the NavMesh
+				float                   verticalTolerance;          // upwards + downwards tolerance (in meters) to find valid navmesh positions for each grid position
+
+				UQS_EXPOSE_PARAMS_BEGIN
+					UQS_EXPOSE_PARAM("center", center, "CENT", "Center of the grid.");
+					UQS_EXPOSE_PARAM("size", size, "SIZE", "Length of one edge of the grid.");
+					UQS_EXPOSE_PARAM("spacing", spacing, "SPAC", "Space between individual points on both the x- and y-axis.");
+					UQS_EXPOSE_PARAM("navigationAgentTypeID", navigationAgentTypeID, "AGEN", "The points will be generated in this layer of the NavMesh.");
+					UQS_EXPOSE_PARAM("verticalTolerance", verticalTolerance, "VTOL", "Upwards and downwards tolerance (in meters) to find a valid position on the navmesh for each grid position.");
+				UQS_EXPOSE_PARAMS_END
+			};
+
+		public:
+			explicit                    CGenerator_PointsOnGridProjectedOntoNavMesh(const SParams& params);
+			EUpdateStatus               DoUpdate(const SUpdateContext& updateContext, Client::CItemListProxy_Writable<Pos3>& itemListToPopulate);
+
+		private:
+			EUpdateStatus               State1_Setup(const SUpdateContext& updateContext, Client::CItemListProxy_Writable<Pos3>& itemListToPopulate);
+			EUpdateStatus               State2_Flood(const SUpdateContext& updateContext, Client::CItemListProxy_Writable<Pos3>& itemListToPopulate);
+			void                        PerformOneFloodStep(const SUpdateContext& updateContext);
+
+		private:
+			const SParams               m_params;
+			int                         m_numCellsOnOneAxis;
+			float                       m_startPosX;
+			float                       m_startPosY;
+			std::vector<Pos3>           m_grid;
+			std::vector<bool>           m_visited;
+			std::vector<int>            m_parents;
+			std::deque<int>             m_openList;
+			std::vector<Pos3>           m_successfullyProjectedPoints;
+			EUpdateStatus               (CGenerator_PointsOnGridProjectedOntoNavMesh::*m_pCurrentStateFn)(const SUpdateContext& updateContext, Client::CItemListProxy_Writable<Pos3>& itemListToPopulate);
+			int                         m_debugRunawayCounter;
 		};
 
 	}

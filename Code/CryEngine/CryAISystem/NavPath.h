@@ -115,9 +115,6 @@ public:
 	/// path, then std::numeric_limits<float>::max() will be returned
 	float GetDistToSmartObject(bool b2D) const override;
 
-	/// Returns a pointer to a smartobject nav data if the last path point exists and
-	/// its traversal method is one of the animation methods.
-	PathPointDescriptor::SmartObjectNavDataPtr  GetLastPathPointAnimNavSOData() const override;
 	const PathPointDescriptor::OffMeshLinkData* GetLastPathPointMNNSOData() const;
 	/// Sets the value of the previous path point, if it exists
 	void                                        SetPreviousPoint(const PathPointDescriptor& previousPoint) override;
@@ -173,7 +170,7 @@ public:
 	/// Cuts the path at the path point where the next navSO animation should be played.
 	/// The trace goalop will follow the path and play the animation at the target location
 	/// and then regenerate the path to the target.
-	void PrepareNavigationalSmartObjectsForMNM(IAIPathAgent* pAgent);
+	void PrepareNavigationalSmartObjectsForMNM(IEntity* pEntity);
 	/// Reinstates the path removed during the last PrepareNavigationalSmartObjects()
 	void ResurrectRemainingPath();
 
@@ -198,11 +195,6 @@ public:
 
 	/// Calculates a target position which is lookAhead along the path,
 	Vec3 CalculateTargetPos(Vec3 agentPos, float lookAhead, float minLookAheadAlongPath, float pathRadius, bool twoD) const override;
-	/// Returns true if the path can be modified to use request.targetPoint, and byproducts
-	/// of the test are cached in request.
-	ETriState CanTargetPointBeReached(CTargetPointRequest& request, const CAIActor* pAIActor, bool twoD) const override;
-	/// Returns true if the request is still valid/can be used, false otherwise.
-	bool      UseTargetPointRequest(const CTargetPointRequest& request, CAIActor* pAIActor, bool twoD) override;
 
 private:
 	// Hiding these virtual methods here, so they are only accessible through the INavPath interface

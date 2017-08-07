@@ -21,6 +21,9 @@
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"     // MSVC equivalent C4996
 #endif
 
+// C6246: Local declaration of <variable> hides declaration of same name in outer scope.
+#define LOCAL_NAME_OVERRIDE_OK PREFAST_SUPPRESS_WARNING(6246)
+
 #include <vector>
 #include <map>
 #include <algorithm>

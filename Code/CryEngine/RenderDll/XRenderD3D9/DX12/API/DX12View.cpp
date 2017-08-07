@@ -140,6 +140,10 @@ bool CView::Init(CResource& resource, EViewType type, UINT64 size)
 
 	// The *View descriptions have all the same structure and identical enums
 	case EVT_ShaderResourceView:
+		m_unSRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		if (desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER)
+			m_unSRVDesc.Texture1D.MipLevels = -1;
+
 	case EVT_UnorderedAccessView:
 	case EVT_DepthStencilView:
 	case EVT_RenderTargetView:

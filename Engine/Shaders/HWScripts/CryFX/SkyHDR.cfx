@@ -118,7 +118,7 @@ v2f_hdr SkyHDRVS(a2v IN)
 #if %_RT_FOG
 
   float3 viewDirNorm = IN.Position.xyz;
-  float viewDirCorrection = 1.0 / dot(viewDirNorm, -miscCamFront.xyz);
+  float viewDirCorrection = 1.0 / dot(viewDirNorm, -CV_CameraFrontVector.xyz);
   float3 vWorldPos  = vfViewPos.xyz + g_VS_NearFarClipDist.y * viewDirNorm * viewDirCorrection;
 #if !%_RT_VOLUMETRIC_FOG
   OUT.localFogColor = GetVolumetricFogColor( vWorldPos );

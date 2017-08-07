@@ -486,7 +486,7 @@ public:
 		if (jointID >= 0)
 		{
 			m_jointID = jointID;
-			CryCreateClassInstance("AnimationPoseModifier_OperatorQueue", m_pPoseModifier);
+			CryCreateClassInstanceForInterface(cryiidof<IAnimationOperatorQueue>(), m_pPoseModifier);
 		}
 		else
 		{

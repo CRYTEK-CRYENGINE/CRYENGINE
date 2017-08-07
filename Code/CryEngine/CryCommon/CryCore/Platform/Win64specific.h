@@ -53,7 +53,6 @@ typedef unsigned char                 BYTE;
 typedef unsigned long                 threadID;
 typedef unsigned long                 DWORD;
 typedef double                        real; //!< Biggest float-type on this machine.
-typedef long                          LONG;
 
 typedef void*                         THREAD_HANDLE;
 typedef void*                         EVENT_HANDLE;

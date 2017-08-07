@@ -8,7 +8,6 @@
 #include "AILog.h"
 #include <CrySystem/IConsole.h>
 #include "AICollision.h"
-#include "NavRegion.h"
 #include "PipeUser.h"
 #include "Leader.h"
 #include "DebugDrawContext.h"

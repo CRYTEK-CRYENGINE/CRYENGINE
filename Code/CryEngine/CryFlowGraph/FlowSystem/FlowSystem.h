@@ -66,6 +66,8 @@ public:
 	virtual IFlowSystemContainerPtr  GetContainer(TFlowSystemContainerId id);
 
 	virtual void                     Serialize(TSerialize ser);
+
+	virtual IFlowNodePtr             CreateNodeOfType(IFlowNode::SActivationInfo*, TFlowNodeTypeId typeId);
 	// ~IFlowSystem
 
 	// TODO Make a single point of entry for this and the AIProxyManager to share?
@@ -85,7 +87,6 @@ public:
 	void OnEntityClassRegistryEvent(EEntityClassRegistryEvent event, const IEntityClass* pEntityClass);
 	// ~IEntityClassRegistryListener
 
-	IFlowNodePtr                   CreateNodeOfType(IFlowNode::SActivationInfo*, TFlowNodeTypeId typeId);
 	void                           NotifyCriticalLoadingError() { m_criticalLoadingErrorHappened = true; }
 
 	void                           PreInit();

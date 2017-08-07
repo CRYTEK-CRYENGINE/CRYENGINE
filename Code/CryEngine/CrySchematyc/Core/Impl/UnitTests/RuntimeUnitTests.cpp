@@ -2,9 +2,9 @@
 
 #include "StdAfx.h"
 
-#include <Schematyc/Runtime/RuntimeParams.h>
-#include <Schematyc/Utils/Scratchpad.h>
-#include <Schematyc/Utils/SharedString.h>
+#include <CrySchematyc/Runtime/RuntimeParams.h>
+#include <CrySchematyc/Utils/Scratchpad.h>
+#include <CrySchematyc/Utils/SharedString.h>
 
 #include "UnitTests/UnitTestRegistrar.h"
 

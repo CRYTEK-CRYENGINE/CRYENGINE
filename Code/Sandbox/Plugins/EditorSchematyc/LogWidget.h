@@ -1,18 +1,12 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-// #SchematycTODO : Store stream ids rather than names in order to optimize filtering.
-// #SchematycTODO : Display separate report when opening editor rather than copying recorded messages to log?
-// #SchematycTODO : Should we allow log widgets to output messages when tabbed (i.e. not visible but not closed)?
-
 #pragma once
-
-#include "QScrollableBox.h"
 
 #include <QTextBrowser>
 #include <QWidget>
-#include <Schematyc/Services/LogStreamName.h>
-#include <Schematyc/SerializationUtils/SerializationUtils.h>
-#include <Schematyc/Utils/ScopedConnection.h>
+#include <CrySchematyc/Services/LogStreamName.h>
+#include <CrySchematyc/SerializationUtils/SerializationUtils.h>
+#include <CrySchematyc/Utils/ScopedConnection.h>
 
 class QBoxLayout;
 class QLineEdit;
@@ -41,7 +35,7 @@ struct SLogSettings
 	bool       bShowOrigin;
 };
 
-class CLogSettingsWidget : public QScrollableBox
+class CLogSettingsWidget : public QWidget
 {
 	Q_OBJECT
 
@@ -50,8 +44,8 @@ public:
 
 	const SLogSettings& GetSettings() const;
 
-//protected Q_SLOTS:
-//	void OnAttachToSelectedEntityButtonClicked();
+	//protected Q_SLOTS:
+	//	void OnAttachToSelectedEntityButtonClicked();
 
 protected:
 	void showEvent(QShowEvent* pEvent);

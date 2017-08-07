@@ -3,16 +3,16 @@
 #include "StdAfx.h"
 #include "AbstractVariableTypesModel.h"
 
-#include <Schematyc/Reflection/TypeDesc.h>
-#include <Schematyc/Utils/SharedString.h>
+#include <CrySchematyc/Reflection/TypeDesc.h>
+#include <CrySchematyc/Utils/SharedString.h>
 
 const CDataTypeItem& CDataTypeItem::Empty()
 {
-	static CDataTypeItem empty("Unknown", QColor(255, 55, 100), Schematyc::SGUID());
+	static CDataTypeItem empty("Unknown", QColor(255, 55, 100), CryGUID());
 	return empty;
 }
 
-CDataTypeItem::CDataTypeItem(QString name, const QColor& color, const Schematyc::SGUID& guid)
+CDataTypeItem::CDataTypeItem(QString name, const QColor& color, const CryGUID& guid)
 	: m_name(name)
 	, m_color(color)
 	, m_guid(guid)
@@ -45,7 +45,7 @@ CDataTypeItem* CDataTypesModel::GetTypeItemByIndex(uint32 index) const
 	return nullptr;
 }
 
-CDataTypeItem* CDataTypesModel::GetTypeItemByGuid(const Schematyc::SGUID& guid) const
+CDataTypeItem* CDataTypesModel::GetTypeItemByGuid(const CryGUID& guid) const
 {
 	TypesByGuid::const_iterator result = m_typesByGuid.find(guid);
 	if (result != m_typesByGuid.end())
@@ -76,7 +76,7 @@ void CDataTypesModel::GenerateTypeInfo()
 	CREATE_TYPE_ITEM(uint32, QColor(255, 72, 29));
 	CREATE_TYPE_ITEM(float, QColor(68, 249, 183));
 	CREATE_TYPE_ITEM(Vec3, QColor(205, 151, 23));
-	CREATE_TYPE_ITEM(Schematyc::SGUID, QColor(192, 192, 98));
+	CREATE_TYPE_ITEM(CryGUID, QColor(192, 192, 98));
 	CREATE_TYPE_ITEM(Schematyc::CSharedString, QColor(210, 42, 252));
 	CREATE_TYPE_ITEM(Schematyc::ObjectId, QColor(0, 156, 255));
 	//CREATE_TYPE_ITEM(Schematyc::ExplicitEntityId, QColor(110, 180, 160));

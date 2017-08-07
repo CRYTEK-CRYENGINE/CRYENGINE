@@ -47,8 +47,7 @@ void CPartitionGrid::DeallocateGrid()
 {
 	if (m_pSectorGroups)
 	{
-		if (m_pSectorGroups)
-			delete[] m_pSectorGroups;
+		delete[] m_pSectorGroups;
 	}
 	m_pSectorGroups = NULL;
 

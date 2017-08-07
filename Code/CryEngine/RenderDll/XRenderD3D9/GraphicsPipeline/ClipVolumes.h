@@ -60,24 +60,24 @@ private:
 #endif
 
 	CRY_ALIGN(16) Vec4 m_clipVolumeShaderParams[MaxDeferredClipVolumes];
-	uint32                     m_nShaderParamCount;
+	uint32                          m_nShaderParamCount;
 
-	CTexture*                  m_pBlendValuesRT;
-	SDepthTexture*             m_pDepthTarget;
+	CTexture*                       m_pBlendValuesRT;
+	CTexture*                       m_pDepthTarget;
 
 	CTexture*                  m_pClipVolumeStencilVolumeTex;
 #ifdef FEATURE_RENDER_CLIPVOLUME_GEOMETRY_SHADER
-	SDepthTexture              m_depthTargetVolFog;
+	CTexture*                  m_depthTargetVolFog;
 #else
 	std::vector<CTexture*>     m_pClipVolumeStencilVolumeTexArray;
 #endif
-	std::vector<SDepthTexture> m_depthTargetArrayVolFog;
+	std::vector<ResourceViewHandle> m_depthTargetArrayVolFog;
 
-	int32                      m_cleared;
-	float                      m_nearDepth;
-	float                      m_raymarchDistance;
+	int32                           m_cleared;
+	float                           m_nearDepth;
+	float                           m_raymarchDistance;
 
-	bool                       m_bClipVolumesValid;
-	bool                       m_bBlendPassReady;
-	bool                       m_bOutdoorVisible;
+	bool                            m_bClipVolumesValid;
+	bool                            m_bBlendPassReady;
+	bool                            m_bOutdoorVisible;
 };

@@ -29,6 +29,7 @@ public:
 	static int OnBBoxOverlap(const EventPhys* pEvent);
 	static int OnStateChange(const EventPhys* pEvent);
 	static int OnPostStep(const EventPhys* pEvent);
+	static int OnPostStepImmediate(const EventPhys* pEvent);
 	static int OnUpdateMesh(const EventPhys* pEvent);
 	static int OnCreatePhysEntityPart(const EventPhys* pEvent);
 	static int OnRemovePhysEntityParts(const EventPhys* pEvent);

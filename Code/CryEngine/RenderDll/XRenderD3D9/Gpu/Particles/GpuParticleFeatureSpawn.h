@@ -14,10 +14,15 @@
 namespace gpu_pfx2
 {
 
+class CParticleComponentRuntime;
+
 class CFeatureSpawnBase : public CFeatureWithParameterStruct<SFeatureParametersSpawn>
 {
 public:
 	virtual void InitSubInstance(IParticleComponentRuntime* pRuntime, SSpawnData* pInstances, size_t count) override;
+
+protected:
+	bool CanSpawnParticles(CParticleComponentRuntime* pRuntime) const;
 };
 
 class CFeatureSpawnCount : public CFeatureSpawnBase

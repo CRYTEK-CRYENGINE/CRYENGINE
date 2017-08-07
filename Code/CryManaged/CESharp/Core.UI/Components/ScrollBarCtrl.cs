@@ -1,23 +1,37 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
-using System.Runtime.Serialization;
 
 namespace CryEngine.UI.Components
 {
 	/// <summary>
 	/// Input control for ScrollBar.
 	/// </summary>
-	[DataContract]
 	public class ScrollBarCtrl : UIComponent
 	{
 		bool _drag = false;
 		Point _startPos;
 
-		public float VisibleArea; ///< Normed visible area, relative to the Content panel's size.
-		public bool IsVertical; ///< Determines whether or not ths ScrollBar is vertical.
-		public float TargetAlpha { get; private set; } ///< Defines the alpha for this ScrollBar.
-		public ScrollBar Parent; ///< Owning ScrollBar.
+		/// <summary>
+		/// Normed visible area, relative to the Content panel's size.
+		/// </summary>
+		public float VisibleArea;
+
+		/// <summary>
+		/// Determines whether or not ths ScrollBar is vertical.
+		/// </summary>
+		public bool IsVertical;
+
+		/// <summary>
+		/// Defines the alpha for this ScrollBar.
+		/// </summary>
+		/// <value>The target alpha.</value>
+		public float TargetAlpha { get; private set; }
+
+		/// <summary>
+		/// Owning ScrollBar.
+		/// </summary>
+		public ScrollBar Parent;
 
 		/// <summary>
 		/// Initialized by ScrollBar element.
@@ -32,7 +46,7 @@ namespace CryEngine.UI.Components
 		/// </summary>
 		public override void OnMouseMove(int x, int y)
 		{
-			if (_drag && ((y - _startPos.y) != 0 || (x - _startPos.x) != 0))
+			if (_drag && (Math.Abs((y - _startPos.y)) > MathHelpers.Epsilon || Math.Abs(x - _startPos.x) > MathHelpers.Epsilon))
 			{
 				var prt = Parent.RectTransform;
 				var knobSize = IsVertical ? Math.Max(30, VisibleArea * prt.Height) : Math.Max(30, VisibleArea * prt.Width);

@@ -9,8 +9,9 @@
 
 		<Terrain>
 			<DetailLayersViewDistRatio type="Float" value="1.0"/>
-			<HeightMapAO type="BOOL" value="0"/>
-		</Terrain>
+      <HeightMapAO type="BOOL" value="0"/>
+      <IntegrateObjects type="BOOL" value="0"/>
+    </Terrain>
 
 		<EnvState>
 			<WindVector type="Vector" value="1,0,0"/>
@@ -55,7 +56,9 @@
 			<ShadingLOD type="Float" value="0.7"/>
 			<ShadowTilingSize type="Float" value="16000"/>
 			<MaxGlobalCloudDensity type="Float" value="0.04"/>
+			<GlobalCloudNoiseVolumeTexture type="Texture" value=""/>
 			<GlobalCloudNoiseScale type="Vector" value="3,3,5"/>
+			<EdgeTurbulenceNoiseVolumeTexture type="Texture" value=""/>
 			<EdgeTurbulenceNoiseScale type="Vector" value="1,1,1"/>
 			<EdgeTurbulenceNoiseErode type="BOOL" value="1"/>
 			<EdgeTurbulenceNoiseAbsolute type="BOOL" value="1"/>
@@ -84,7 +87,6 @@
 		<OceanAnimation>
 			<WindDirection type="Float" value="1.0"/>
 			<WindSpeed type="Float" value="4.0"/>
-			<WavesSpeed type="Float" value="1.0"/>
 			<WavesAmount type="Float" value="1.5"/>
 			<WavesSize type="Float" value="0.4"/>
 		</OceanAnimation>

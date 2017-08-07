@@ -5,11 +5,11 @@
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
 // make the global Serialize() functions available for use in yasli serialization
-using uqs::core::Serialize;
+using UQS::Core::Serialize;
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -18,7 +18,7 @@ namespace uqs
 		//
 		//===================================================================================
 
-		CQuery_Regular::SPhaseUpdateContext::SPhaseUpdateContext(shared::CUqsString& _error)
+		CQuery_Regular::SPhaseUpdateContext::SPhaseUpdateContext(Shared::CUqsString& _error)
 			: error(_error)
 		{}
 
@@ -50,18 +50,20 @@ namespace uqs
 		//
 		//===================================================================================
 
-		CQuery_Regular::SInstantEvaluatorWithIndex::SInstantEvaluatorWithIndex(client::InstantEvaluatorUniquePtr _pInstantEvaluator, client::ParamsHolderUniquePtr _pParamsHolder, const client::IInputParameterRegistry* _pInputParameterRegistry, size_t _originalIndexInQueryBlueprint)
+		CQuery_Regular::SInstantEvaluatorWithIndex::SInstantEvaluatorWithIndex(Client::InstantEvaluatorUniquePtr _pInstantEvaluator, Client::ParamsHolderUniquePtr _pParamsHolder, const Client::IInputParameterRegistry* _pInputParameterRegistry, const CEvaluationResultTransform& _evaluationResultTransform, size_t _originalIndexInQueryBlueprint)
 			: pInstantEvaluator(std::move(_pInstantEvaluator))
 			, pParamsHolder(std::move(_pParamsHolder))
 			, pInputParameterRegistry(_pInputParameterRegistry)
+			, evaluationResultTransform(_evaluationResultTransform)
 			, originalIndexInQueryBlueprint(_originalIndexInQueryBlueprint)
 		{}
 
 		CQuery_Regular::SInstantEvaluatorWithIndex::SInstantEvaluatorWithIndex(SInstantEvaluatorWithIndex&& other)
 			: pInstantEvaluator(std::move(other.pInstantEvaluator))
 			, pParamsHolder(std::move(other.pParamsHolder))
-			, pInputParameterRegistry(other.pInputParameterRegistry)
-			, originalIndexInQueryBlueprint(other.originalIndexInQueryBlueprint)
+			, pInputParameterRegistry(std::move(other.pInputParameterRegistry))
+			, evaluationResultTransform(std::move(other.evaluationResultTransform))
+			, originalIndexInQueryBlueprint(std::move(other.originalIndexInQueryBlueprint))
 		{}
 
 		CQuery_Regular::SInstantEvaluatorWithIndex& CQuery_Regular::SInstantEvaluatorWithIndex::operator=(SInstantEvaluatorWithIndex&& other)
@@ -70,8 +72,9 @@ namespace uqs
 			{
 				pInstantEvaluator = std::move(other.pInstantEvaluator);
 				pParamsHolder = std::move(other.pParamsHolder);
-				pInputParameterRegistry = other.pInputParameterRegistry;
-				originalIndexInQueryBlueprint = other.originalIndexInQueryBlueprint;
+				pInputParameterRegistry = std::move(other.pInputParameterRegistry);
+				evaluationResultTransform = std::move(other.evaluationResultTransform);
+				originalIndexInQueryBlueprint = std::move(other.originalIndexInQueryBlueprint);
 			}
 			return *this;
 		}
@@ -82,14 +85,16 @@ namespace uqs
 		//
 		//===================================================================================
 
-		CQuery_Regular::SDeferredEvaluatorWithIndex::SDeferredEvaluatorWithIndex(client::DeferredEvaluatorUniquePtr _pDeferredEvaluator, size_t _originalIndexInQueryBlueprint)
+		CQuery_Regular::SDeferredEvaluatorWithIndex::SDeferredEvaluatorWithIndex(Client::DeferredEvaluatorUniquePtr _pDeferredEvaluator, const CEvaluationResultTransform& _evaluationResultTransform, size_t _originalIndexInQueryBlueprint)
 			: pDeferredEvaluator(std::move(_pDeferredEvaluator))
+			, evaluationResultTransform(_evaluationResultTransform)
 			, originalIndexInQueryBlueprint(_originalIndexInQueryBlueprint)
 		{}
 
 		CQuery_Regular::SDeferredEvaluatorWithIndex::SDeferredEvaluatorWithIndex(SDeferredEvaluatorWithIndex&& other)
 			: pDeferredEvaluator(std::move(other.pDeferredEvaluator))
-			, originalIndexInQueryBlueprint(other.originalIndexInQueryBlueprint)
+			, evaluationResultTransform(std::move(other.evaluationResultTransform))
+			, originalIndexInQueryBlueprint(std::move(other.originalIndexInQueryBlueprint))
 		{}
 
 		CQuery_Regular::SDeferredEvaluatorWithIndex& CQuery_Regular::SDeferredEvaluatorWithIndex::operator=(SDeferredEvaluatorWithIndex&& other)
@@ -97,7 +102,8 @@ namespace uqs
 			if (this != &other)
 			{
 				pDeferredEvaluator = std::move(other.pDeferredEvaluator);
-				originalIndexInQueryBlueprint = other.originalIndexInQueryBlueprint;
+				evaluationResultTransform = std::move(other.evaluationResultTransform);
+				originalIndexInQueryBlueprint = std::move(other.originalIndexInQueryBlueprint);
 			}
 			return *this;
 		}
@@ -131,19 +137,19 @@ namespace uqs
 			m_peakElapsedTimePerPhaseUpdate.resize(1);    // ditto for the peak call duration
 		}
 
-		bool CQuery_Regular::OnInstantiateFromQueryBlueprint(const shared::IVariantDict& runtimeParams, shared::CUqsString& error)
+		bool CQuery_Regular::OnInstantiateFromQueryBlueprint(const Shared::IVariantDict& runtimeParams, Shared::CUqsString& error)
 		{
 			// ensure that a generator exists in the query-blueprint (CQuery_Regular::Phase1_PrepareGenerationPhase() uses it)
-			if (!m_queryBlueprint->GetGeneratorBlueprint())
+			if (!m_pQueryBlueprint->GetGeneratorBlueprint())
 			{
-				error.Format("CQuery_Regular::OnInstantiateFromQueryBlueprint: the query-blueprint '%s' has no generator specified", m_queryBlueprint->GetName());
+				error.Format("CQuery_Regular::OnInstantiateFromQueryBlueprint: the query-blueprint '%s' has no generator specified", m_pQueryBlueprint->GetName());
 				return false;
 			}
 
 			return true;
 		}
 
-		CQuery_Regular::EUpdateState CQuery_Regular::OnUpdate(shared::CUqsString& error)
+		CQuery_Regular::EUpdateState CQuery_Regular::OnUpdate(Shared::CUqsString& error)
 		{
 			assert(m_currentPhaseFn);	// query has already finished before; cannot recycle a query
 
@@ -217,13 +223,16 @@ namespace uqs
 			out.elapsedTimePerPhase = m_elapsedTimePerPhase;
 			out.peakElapsedTimePerPhaseUpdate = m_peakElapsedTimePerPhaseUpdate;
 
+			const int maxItemsToKeepInResultSet = m_pQueryBlueprint->GetMaxItemsToKeepInResultSet();
+
+			out.numDesiredItems = (maxItemsToKeepInResultSet < 1) ? 0 : (size_t)maxItemsToKeepInResultSet;
 			out.numGeneratedItems = m_generatedItems.GetItemCount();
 			out.numRemainingItemsToInspect = m_remainingItemWorkingDatasToInspect.size();
 			out.numItemsInFinalResultSet = m_candidates.size();
 
 			// Instant-Evaluator runs
 			{
-				const size_t numInstantEvaluatorBPs = m_queryBlueprint->GetInstantEvaluatorBlueprints().size();
+				const size_t numInstantEvaluatorBPs = m_pQueryBlueprint->GetInstantEvaluatorBlueprints().size();
 
 				out.instantEvaluatorsRuns.resize(numInstantEvaluatorBPs);
 
@@ -244,7 +253,7 @@ namespace uqs
 
 			// Deferred-Evaluator runs
 			{
-				const size_t numDeferredEvaluatorBPs = m_queryBlueprint->GetDeferredEvaluatorBlueprints().size();
+				const size_t numDeferredEvaluatorBPs = m_pQueryBlueprint->GetDeferredEvaluatorBlueprints().size();
 
 				out.deferredEvaluatorsFullRuns.resize(numDeferredEvaluatorBPs);
 				out.deferredEvaluatorsAbortedRuns.resize(numDeferredEvaluatorBPs);
@@ -278,7 +287,7 @@ namespace uqs
 			// instantiate the generator
 			//
 
-			const CGeneratorBlueprint* pGenBP = m_queryBlueprint->GetGeneratorBlueprint();
+			const CGeneratorBlueprint* pGenBP = m_pQueryBlueprint->GetGeneratorBlueprint();
 			assert(pGenBP);   // should have been detected by OnInstantiateFromQueryBlueprint() already
 			m_pGenerator = pGenBP->InstantiateGenerator(m_blackboard, phaseUpdateContext.error);
 			if (!m_pGenerator)
@@ -300,24 +309,24 @@ namespace uqs
 
 		CQuery_Regular::EPhaseStatus CQuery_Regular::Phase2_GenerateItems(const SPhaseUpdateContext& phaseUpdateContext)
 		{
-			const client::IGenerator::SUpdateContext updateContext(m_queryID, m_blackboard, phaseUpdateContext.error);
-			const client::IGenerator::EUpdateStatus generatorStatus = m_pGenerator->Update(updateContext, m_generatedItems);
+			const Client::IGenerator::SUpdateContext updateContext(m_queryID, m_blackboard, phaseUpdateContext.error);
+			const Client::IGenerator::EUpdateStatus generatorStatus = m_pGenerator->Update(updateContext, m_generatedItems);
 
 			switch (generatorStatus)
 			{
-			case client::IGenerator::EUpdateStatus::StillGeneratingItems:
+			case Client::IGenerator::EUpdateStatus::StillGeneratingItems:
 				// keep generating
 				return EPhaseStatus::Ok;
 
-			case client::IGenerator::EUpdateStatus::FinishedGeneratingItems:
+			case Client::IGenerator::EUpdateStatus::FinishedGeneratingItems:
 				if (m_pHistory)
 				{
-					m_pHistory->OnGenerationPhaseFinished(m_generatedItems.GetItemCount(), *m_queryBlueprint);
+					m_pHistory->OnGenerationPhaseFinished(m_generatedItems.GetItemCount(), *m_pQueryBlueprint);
 				}
 				m_currentPhaseFn = &CQuery_Regular::Phase3_CreateDebugRepresentationsOfGeneratedItemsIfHistoryLoggingIsDesired;
 				return EPhaseStatus::Ok;
 
-			case client::IGenerator::EUpdateStatus::ExceptionOccurred:
+			case Client::IGenerator::EUpdateStatus::ExceptionOccurred:
 				return EPhaseStatus::ExceptionOccurred;
 
 			default:
@@ -330,7 +339,7 @@ namespace uqs
 		{
 			if (m_pHistory)
 			{
-				const client::IItemFactory& itemFactory = m_generatedItems.GetItemFactory();
+				const Client::IItemFactory& itemFactory = m_generatedItems.GetItemFactory();
 				CDebugRenderWorldPersistent& debugRenderWorld = m_pHistory->GetDebugRenderWorldPersistent();
 
 				for (size_t i = 0, n = m_generatedItems.GetItemCount(); i < n; ++i)
@@ -364,7 +373,7 @@ namespace uqs
 
 			// instant-evaluator blueprints
 			{
-				const std::vector<CInstantEvaluatorBlueprint*>& instantEvaluatorBlueprints = m_queryBlueprint->GetInstantEvaluatorBlueprints();
+				const std::vector<CInstantEvaluatorBlueprint*>& instantEvaluatorBlueprints = m_pQueryBlueprint->GetInstantEvaluatorBlueprints();
 				const size_t numInstantEvaluators = instantEvaluatorBlueprints.size();
 				m_functionCallHierarchyPerInstantEvalBP.reserve(numInstantEvaluators);
 
@@ -381,7 +390,7 @@ namespace uqs
 
 			// deferred-evaluator blueprints
 			{
-				const std::vector<CDeferredEvaluatorBlueprint*>& deferredEvaluatorBlueprints = m_queryBlueprint->GetDeferredEvaluatorBlueprints();
+				const std::vector<CDeferredEvaluatorBlueprint*>& deferredEvaluatorBlueprints = m_pQueryBlueprint->GetDeferredEvaluatorBlueprints();
 				const size_t numDeferredEvaluators = deferredEvaluatorBlueprints.size();
 				m_functionCallHierarchyPerDeferredEvalBP.reserve(numDeferredEvaluators);
 
@@ -402,25 +411,27 @@ namespace uqs
 			//
 
 			{
-				const std::vector<CInstantEvaluatorBlueprint*>& instantEvaluatorBlueprints = m_queryBlueprint->GetInstantEvaluatorBlueprints();
+				const std::vector<CInstantEvaluatorBlueprint*>& instantEvaluatorBlueprints = m_pQueryBlueprint->GetInstantEvaluatorBlueprints();
 				const size_t numInstantEvaluators = instantEvaluatorBlueprints.size();
 
 				for (size_t i = 0; i < numInstantEvaluators; ++i)
 				{
-					client::IInstantEvaluatorFactory& instantEvaluatorFactory = instantEvaluatorBlueprints[i]->GetFactory();
-					client::InstantEvaluatorUniquePtr pEval = instantEvaluatorFactory.CreateInstantEvaluator();
-					client::ParamsHolderUniquePtr pParamsHolder = instantEvaluatorFactory.GetParamsHolderFactory().CreateParamsHolder();
-					const client::IInputParameterRegistry* pInputParameterRegistry = &instantEvaluatorFactory.GetInputParameterRegistry();
-					const client::IInstantEvaluatorFactory::ECostCategory costCategory = instantEvaluatorFactory.GetCostCategory();
+					const CInstantEvaluatorBlueprint* pInstantEvaluatorBlueprint = instantEvaluatorBlueprints[i];
+					Client::IInstantEvaluatorFactory& instantEvaluatorFactory = pInstantEvaluatorBlueprint->GetFactory();
+					Client::InstantEvaluatorUniquePtr pEval = instantEvaluatorFactory.CreateInstantEvaluator();
+					Client::ParamsHolderUniquePtr pParamsHolder = instantEvaluatorFactory.GetParamsHolderFactory().CreateParamsHolder();
+					const Client::IInputParameterRegistry* pInputParameterRegistry = &instantEvaluatorFactory.GetInputParameterRegistry();
+					const CEvaluationResultTransform& evaluationResultTransform = pInstantEvaluatorBlueprint->GetEvaluationResultTransform();
+					const Client::IInstantEvaluatorFactory::ECostCategory costCategory = instantEvaluatorFactory.GetCostCategory();
 
 					switch (costCategory)
 					{
-					case client::IInstantEvaluatorFactory::ECostCategory::Cheap:
-						m_cheapInstantEvaluators.emplace_back(std::move(pEval), std::move(pParamsHolder), pInputParameterRegistry, i);
+					case Client::IInstantEvaluatorFactory::ECostCategory::Cheap:
+						m_cheapInstantEvaluators.emplace_back(std::move(pEval), std::move(pParamsHolder), pInputParameterRegistry, evaluationResultTransform, i);
 						break;
 
-					case client::IInstantEvaluatorFactory::ECostCategory::Expensive:
-						m_expensiveInstantEvaluators.emplace_back(std::move(pEval), std::move(pParamsHolder), pInputParameterRegistry, i);
+					case Client::IInstantEvaluatorFactory::ECostCategory::Expensive:
+						m_expensiveInstantEvaluators.emplace_back(std::move(pEval), std::move(pParamsHolder), pInputParameterRegistry, evaluationResultTransform, i);
 						break;
 
 					default:
@@ -449,7 +460,7 @@ namespace uqs
 			// - notice: we might end up with less candidates than the desired limit after the query finishes
 			//
 
-			const int maxItemsToKeepInResultSet = m_queryBlueprint->GetMaxItemsToKeepInResultSet();
+			const int maxItemsToKeepInResultSet = m_pQueryBlueprint->GetMaxItemsToKeepInResultSet();
 			m_maxCandidates = (maxItemsToKeepInResultSet < 1) ? numGeneratedItems : std::min((size_t)maxItemsToKeepInResultSet, numGeneratedItems);
 			m_candidates.reserve(m_maxCandidates);
 
@@ -487,9 +498,9 @@ namespace uqs
 
 			// fill the parameters for this instant-evaluator by making function calls
 			{
-				shared::CUqsString exceptionMessageFromFunctionCalls;
+				Shared::CUqsString exceptionMessageFromFunctionCalls;
 				bool bExceptionOccurredInFunctionCalls = false;
-				const client::IFunction::SExecuteContext executeContext(workingDataToWriteResultTo.indexInGeneratedItems, m_blackboard, exceptionMessageFromFunctionCalls, bExceptionOccurredInFunctionCalls);
+				const Client::IFunction::SExecuteContext executeContext(workingDataToWriteResultTo.indexInGeneratedItems, m_blackboard, exceptionMessageFromFunctionCalls, bExceptionOccurredInFunctionCalls);
 				const CFunctionCallHierarchy* pFunctionCalls = m_functionCallHierarchyPerInstantEvalBP[instantEvaluatorIndex].get();
 				pFunctionCalls->ExecuteAll(executeContext, pParams, *instantEvaluatorToRun.pInputParameterRegistry);
 
@@ -507,17 +518,20 @@ namespace uqs
 
 			// run this instant-evaluator
 			SItemEvaluationResult evaluationResult;
-			shared::CUqsString exceptionMessageFromInstantEvaluatorHimself;
-			const client::IInstantEvaluator* pInstantEvaluator = instantEvaluatorToRun.pInstantEvaluator.get();
-			const client::IInstantEvaluator::SRunContext runContext(evaluationResult, m_blackboard, exceptionMessageFromInstantEvaluatorHimself);
-			const client::IInstantEvaluator::ERunStatus status = pInstantEvaluator->Run(runContext, pParams);
+			Shared::CUqsString exceptionMessageFromInstantEvaluatorHimself;
+			const Client::IInstantEvaluator* pInstantEvaluator = instantEvaluatorToRun.pInstantEvaluator.get();
+			const Client::IInstantEvaluator::SRunContext runContext(evaluationResult, m_blackboard, exceptionMessageFromInstantEvaluatorHimself);
+			const Client::IInstantEvaluator::ERunStatus status = pInstantEvaluator->Run(runContext, pParams);
 
 			switch(status)
 			{
-			case client::IInstantEvaluator::ERunStatus::Finished:
+			case Client::IInstantEvaluator::ERunStatus::Finished:
 				{
 					// mark the evaluator as finished (this may only be done if the evaluator finished with whatever he was supposed to do without causing an exception)
 					workingDataToWriteResultTo.bitsFinishedInstantEvaluators |= (evaluatorsBitfield_t)1 << instantEvaluatorIndex;
+
+					// transform the evaluation result
+					instantEvaluatorToRun.evaluationResultTransform.TransformItemEvaluationResult(evaluationResult);
 
 					if (evaluationResult.bDiscardItem)
 					{
@@ -532,7 +546,7 @@ namespace uqs
 					else
 					{
 						// update the item's score so far
-						const float weight = m_queryBlueprint->GetInstantEvaluatorBlueprints()[instantEvaluatorIndex]->GetWeight();	// FIXME: could cache the weights of all evaluators and spare the pointer access
+						const float weight = m_pQueryBlueprint->GetInstantEvaluatorBlueprints()[instantEvaluatorIndex]->GetWeight();	// FIXME: could cache the weights of all evaluators and spare the pointer access
 						const float weightedScore = evaluationResult.score * weight;
 						workingDataToWriteResultTo.accumulatedAndWeightedScoreSoFar += weightedScore;
 
@@ -544,7 +558,7 @@ namespace uqs
 				}
 				break;
 
-			case client::IInstantEvaluator::ERunStatus::ExceptionOccurred:
+			case Client::IInstantEvaluator::ERunStatus::ExceptionOccurred:
 				{
 					// the instant-evaluator himself caused an exception (meaning that he did *not* fully run to its end, so doesn't count as "finished")
 					workingDataToWriteResultTo.bitsExceptionByInstantEvaluatorsThemselves |= (evaluatorsBitfield_t)1 << instantEvaluatorIndex;
@@ -627,9 +641,9 @@ namespace uqs
 		CQuery_Regular::EPhaseStatus CQuery_Regular::Phase6_SortByScoreSoFar(const SPhaseUpdateContext& phaseUpdateContext)
 		{
 			// sort the remaining items such that the ones with higher scores come first
-			auto sorter = [](const SItemWorkingData* lhs, const SItemWorkingData* rhs)
+			auto sorter = [](const SItemWorkingData* pLHS, const SItemWorkingData* pRHS)
 			{
-				return lhs->accumulatedAndWeightedScoreSoFar > rhs->accumulatedAndWeightedScoreSoFar;
+				return pLHS->accumulatedAndWeightedScoreSoFar > pRHS->accumulatedAndWeightedScoreSoFar;
 			};
 			std::sort(m_remainingItemWorkingDatasToInspect.begin(), m_remainingItemWorkingDatasToInspect.end(), sorter);
 
@@ -701,28 +715,28 @@ namespace uqs
 				//
 
 				SItemEvaluationResult evaluationResult;
-				shared::CUqsString exceptionMessageFromDeferredEvaluatorHimself;
-				const client::IDeferredEvaluator::SUpdateContext evaluatorUpdateContext(evaluationResult, m_blackboard, exceptionMessageFromDeferredEvaluatorHimself);
-				const client::IDeferredEvaluator::EUpdateStatus evaluatorStatus = de.pDeferredEvaluator->Update(evaluatorUpdateContext);
+				Shared::CUqsString exceptionMessageFromDeferredEvaluatorHimself;
+				const Client::IDeferredEvaluator::SUpdateContext evaluatorUpdateContext(evaluationResult, m_blackboard, exceptionMessageFromDeferredEvaluatorHimself);
+				const Client::IDeferredEvaluator::EUpdateStatus evaluatorStatus = de.pDeferredEvaluator->Update(evaluatorUpdateContext);
 
 				switch (evaluatorStatus)
 				{
-				case client::IDeferredEvaluator::EUpdateStatus::BusyWaitingForExternalSchedulerFeedback:
+				case Client::IDeferredEvaluator::EUpdateStatus::BusyWaitingForExternalSchedulerFeedback:
 					taskToUpdate.status |= SDeferredTask::statusFlag_atLeastOneEvaluatorIsWaitingForExternalResourceInCurrentFrame;
 					++it;
 					break;
 
-				case client::IDeferredEvaluator::EUpdateStatus::BusyButBlockedDueToResourceShortage:
+				case Client::IDeferredEvaluator::EUpdateStatus::BusyButBlockedDueToResourceShortage:
 					taskToUpdate.status |= SDeferredTask::statusFlag_atLeastOneEvaluatorIsShortOnResources;
 					++it;
 					break;
 
-				case client::IDeferredEvaluator::EUpdateStatus::BusyDoingTimeSlicedWork:
+				case Client::IDeferredEvaluator::EUpdateStatus::BusyDoingTimeSlicedWork:
 					taskToUpdate.status |= SDeferredTask::statusFlag_atLeastOneEvaluatorIsDoingTimeSlicedWork;
 					++it;
 					break;
 
-				case client::IDeferredEvaluator::EUpdateStatus::Finished:
+				case Client::IDeferredEvaluator::EUpdateStatus::Finished:
 					{
 						const evaluatorsBitfield_t myOwnBit = (evaluatorsBitfield_t)1 << de.originalIndexInQueryBlueprint;
 
@@ -731,6 +745,9 @@ namespace uqs
 
 						// leave our finished mark
 						taskToUpdate.pWorkingData->bitsFinishedDeferredEvaluators |= myOwnBit;
+
+						// transform the evaluation result
+						de.evaluationResultTransform.TransformItemEvaluationResult(evaluationResult);
 
 						if (evaluationResult.bDiscardItem)
 						{
@@ -745,7 +762,7 @@ namespace uqs
 						}
 						else
 						{
-							const float weight = m_queryBlueprint->GetDeferredEvaluatorBlueprints()[de.originalIndexInQueryBlueprint]->GetWeight();	// FIXME: could cache the weights of all evaluators and spare the pointer access
+							const float weight = m_pQueryBlueprint->GetDeferredEvaluatorBlueprints()[de.originalIndexInQueryBlueprint]->GetWeight();	// FIXME: could cache the weights of all evaluators and spare the pointer access
 							const float weightedScore = evaluationResult.score * weight;
 							taskToUpdate.pWorkingData->accumulatedAndWeightedScoreSoFar += weightedScore;
 
@@ -759,7 +776,7 @@ namespace uqs
 					}
 					break;
 
-				case client::IDeferredEvaluator::EUpdateStatus::ExceptionOccurred:
+				case Client::IDeferredEvaluator::EUpdateStatus::ExceptionOccurred:
 					{
 						const evaluatorsBitfield_t myOwnBit = (evaluatorsBitfield_t)1 << de.originalIndexInQueryBlueprint;
 
@@ -796,7 +813,7 @@ namespace uqs
 			}
 		}
 
-		void CQuery_Regular::AbortDeferredTask(SDeferredTask& taskToAbort, const char* reasonForAbort)
+		void CQuery_Regular::AbortDeferredTask(SDeferredTask& taskToAbort, const char* szReasonForAbort)
 		{
 			// abort all remaining deferred-evaluators and mark them as "aborted"
 			while (!taskToAbort.deferredEvaluators.empty())
@@ -818,7 +835,7 @@ namespace uqs
 
 				if (m_pHistory)
 				{
-					m_pHistory->OnDeferredEvaluatorGotAborted(originalIndexInQueryBlueprint, taskToAbort.pWorkingData->indexInGeneratedItems, reasonForAbort);
+					m_pHistory->OnDeferredEvaluatorGotAborted(originalIndexInQueryBlueprint, taskToAbort.pWorkingData->indexInGeneratedItems, szReasonForAbort);
 				}
 			}
 		}
@@ -841,7 +858,7 @@ namespace uqs
 
 			// accumulate best possible score from expensive instant-evaluators that haven't run yet
 			{
-				const std::vector<CInstantEvaluatorBlueprint*>& instantEvaluatorBlueprints = m_queryBlueprint->GetInstantEvaluatorBlueprints();
+				const std::vector<CInstantEvaluatorBlueprint*>& instantEvaluatorBlueprints = m_pQueryBlueprint->GetInstantEvaluatorBlueprints();
 
 				for(const SInstantEvaluatorWithIndex& ie : m_expensiveInstantEvaluators)
 				{
@@ -856,7 +873,7 @@ namespace uqs
 
 			// accumulate best possible score from deferred-evaluators
 			{
-				const std::vector<CDeferredEvaluatorBlueprint*>& deferredEvaluatorBlueprints = m_queryBlueprint->GetDeferredEvaluatorBlueprints();
+				const std::vector<CDeferredEvaluatorBlueprint*>& deferredEvaluatorBlueprints = m_pQueryBlueprint->GetDeferredEvaluatorBlueprints();
 				const size_t numDeferredEvaluatorBlueprints = deferredEvaluatorBlueprints.size();
 
 				// figure out the best possible score that given item can still achieve
@@ -972,7 +989,7 @@ namespace uqs
 			//
 
 			// all deferred-evaluators must have had their say on the item
-			assert(itemToFinalize.bitsFinishedDeferredEvaluators == ((evaluatorsBitfield_t)1 << m_queryBlueprint->GetDeferredEvaluatorBlueprints().size()) - 1);
+			assert(itemToFinalize.bitsFinishedDeferredEvaluators == ((evaluatorsBitfield_t)1 << m_pQueryBlueprint->GetDeferredEvaluatorBlueprints().size()) - 1);
 
 			AddItemToResultSetOrDisqualifyIt(itemToFinalize);
 		}
@@ -1071,7 +1088,7 @@ namespace uqs
 					// - if it doesn't then there's no need to set up a costly deferred task that will ultimately be a NOP
 					//
 
-					const size_t numDeferredEvaluatorBlueprints = m_queryBlueprint->GetDeferredEvaluatorBlueprints().size();
+					const size_t numDeferredEvaluatorBlueprints = m_pQueryBlueprint->GetDeferredEvaluatorBlueprints().size();
 
 					if (numDeferredEvaluatorBlueprints > 0)
 					{
@@ -1127,7 +1144,7 @@ namespace uqs
 
 		CQuery_Regular::SDeferredTask* CQuery_Regular::StartDeferredTask(SItemWorkingData* pWorkingDataToInspectNext)
 		{
-			const std::vector<CDeferredEvaluatorBlueprint*>& deferredEvaluatorBlueprints = m_queryBlueprint->GetDeferredEvaluatorBlueprints();
+			const std::vector<CDeferredEvaluatorBlueprint*>& deferredEvaluatorBlueprints = m_pQueryBlueprint->GetDeferredEvaluatorBlueprints();
 			const size_t numDeferredEvaluatorBlueprints = deferredEvaluatorBlueprints.size();
 
 			// create a new task (we'll fill it with deferred-evaluators below)
@@ -1135,17 +1152,18 @@ namespace uqs
 			SDeferredTask& freshlyCreatedTask = m_deferredTasks.back();
 
 			// function execution context (used for all function calls)
-			shared::CUqsString exceptionMessageFromFunctionCalls;
+			Shared::CUqsString exceptionMessageFromFunctionCalls;
 			bool bExceptionOccurredInFunctionCalls = false;
-			const client::IFunction::SExecuteContext executeContext(pWorkingDataToInspectNext->indexInGeneratedItems, m_blackboard, exceptionMessageFromFunctionCalls, bExceptionOccurredInFunctionCalls);
+			const Client::IFunction::SExecuteContext executeContext(pWorkingDataToInspectNext->indexInGeneratedItems, m_blackboard, exceptionMessageFromFunctionCalls, bExceptionOccurredInFunctionCalls);
 
 			// fill the new task with all deferred-evaluators
 			for (size_t deferredEvaluatorBlueprintIndex = 0; deferredEvaluatorBlueprintIndex < numDeferredEvaluatorBlueprints; ++deferredEvaluatorBlueprintIndex)
 			{
-				client::IDeferredEvaluatorFactory& deferredEvaluatorFactory = deferredEvaluatorBlueprints[deferredEvaluatorBlueprintIndex]->GetFactory();
+				const CDeferredEvaluatorBlueprint* pDeferredEvaluatorBlueprint = deferredEvaluatorBlueprints[deferredEvaluatorBlueprintIndex];
+				Client::IDeferredEvaluatorFactory& deferredEvaluatorFactory = pDeferredEvaluatorBlueprint->GetFactory();
 
 				// create input parameters (they will get filled by the function calls below)
-				client::ParamsHolderUniquePtr pParamsHolder = deferredEvaluatorFactory.GetParamsHolderFactory().CreateParamsHolder();
+				Client::ParamsHolderUniquePtr pParamsHolder = deferredEvaluatorFactory.GetParamsHolderFactory().CreateParamsHolder();
 				void* pParams = pParamsHolder->GetParams();
 
 				// fill the parameters for this deferred-evaluator by making function calls
@@ -1162,8 +1180,8 @@ namespace uqs
 				}
 
 				// instantiate a new DE and add it to the task
-				client::DeferredEvaluatorUniquePtr pDeferredEvaluator = deferredEvaluatorFactory.CreateDeferredEvaluator(pParams);
-				freshlyCreatedTask.deferredEvaluators.emplace_back(std::move(pDeferredEvaluator), deferredEvaluatorBlueprintIndex);
+				Client::DeferredEvaluatorUniquePtr pDeferredEvaluator = deferredEvaluatorFactory.CreateDeferredEvaluator(pParams);
+				freshlyCreatedTask.deferredEvaluators.emplace_back(std::move(pDeferredEvaluator), pDeferredEvaluatorBlueprint->GetEvaluationResultTransform(), deferredEvaluatorBlueprintIndex);
 
 				// mark the item as being worked on by this DE
 				pWorkingDataToInspectNext->bitsWorkingDeferredEvaluators |= (evaluatorsBitfield_t)1 << deferredEvaluatorBlueprintIndex;

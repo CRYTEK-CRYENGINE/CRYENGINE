@@ -18,8 +18,6 @@
 
 #include <CryThreading/IThreadManager.h>
 
-typedef void (* RenderFunc)(void);
-
 //====================================================================
 
 struct IFlashPlayer;
@@ -116,7 +114,6 @@ enum ERenderCommand
 	eRC_DrawImageWithUV,
 
 	eRC_PreprGenerateFarTrees,
-	eRC_PreprGenerateCloud,
 	eRC_DynTexUpdate,
 	eRC_PushFog,
 	eRC_PopFog,
@@ -166,7 +163,9 @@ enum ERenderCommand
 
 	eRC_SetRendererCVar,
 
-	eRC_ReleaseGraphicsPipeline
+	eRC_ReleaseGraphicsPipeline,
+
+	eRC_ResetDeviceObjectFactory,
 };
 
 //====================================================================
@@ -220,12 +219,12 @@ struct CRY_ALIGN(128) SRenderThread
 	CryEvent m_suspendWhileLoadingEvent;
 #endif
 	HRESULT m_hResult;
-#if defined(OPENGL) && !DXGL_FULL_EMULATION
-	#if !CRY_OPENGL_SINGLE_CONTEXT
+#if CRY_RENDERER_OPENGL && !DXGL_FULL_EMULATION
+	#if !OGL_SINGLE_CONTEXT
 	SDXGLContextThreadLocalHandle m_kDXGLContextHandle;
 	#endif
 	SDXGLDeviceContextThreadLocalHandle m_kDXGLDeviceContextHandle;
-#endif //defined(OPENGL) && !DXGL_FULL_EMULATION
+#endif //CRY_RENDERER_OPENGL && !DXGL_FULL_EMULATION
 	float m_fTimeIdleDuringLoading;
 	float m_fTimeBusyDuringLoading;
 	TArray<byte> m_Commands[RT_COMMAND_BUF_COUNT]; // m_nCurThreadFill shows which commands are filled by main thread
@@ -257,8 +256,8 @@ struct CRY_ALIGN(128) SRenderThread
 #endif
 		m_nFlush = 0;
 #ifdef USE_LOCKS_FOR_FLUSH_SYNC
-		m_FlushFinishedCondition.Notify();
 		m_LockFlushNotify.Unlock();
+		m_FlushFinishedCondition.Notify();
 #else
 		READ_WRITE_BARRIER
 #endif
@@ -271,8 +270,8 @@ struct CRY_ALIGN(128) SRenderThread
 #endif
 		m_nFlush = 1;
 #ifdef USE_LOCKS_FOR_FLUSH_SYNC
-		m_FlushCondition.Notify();
 		m_LockFlushNotify.Unlock();
+		m_FlushCondition.Notify();
 #else
 		READ_WRITE_BARRIER
 #endif
@@ -530,7 +529,8 @@ struct CRY_ALIGN(128) SRenderThread
 #endif
 	void RC_PreloadTextures();
 	void RC_ReadFrameBuffer(unsigned char* pRGB, int nImageX, int nSizeX, int nSizeY, ERB_Type eRBType, bool bRGBA, int nScaledX, int nScaledY);
-	bool RC_CreateDeviceTexture(CTexture * pTex, byte * pData[6]);
+	bool RC_CreateDeviceTexture(CTexture * pTex, const void* pData[]);
+	bool RC_CreateDeviceTexture(CTexture * pTex, D3DResource* pNatTex);
 	void RC_CopyDataToTexture(void* pkTexture, unsigned int uiStartMip, unsigned int uiEndMip);
 	void RC_ClearTarget(void* pkTexture, const ColorF &kColor);
 	void RC_CreateResource(SResourceAsync * pRes);
@@ -548,7 +548,7 @@ struct CRY_ALIGN(128) SRenderThread
 	void RC_ReleaseOptics(IOpticsElementBase* pOpticsElement);
 	void RC_RelinkTexture(CTexture * pTex);
 	void RC_UnlinkTexture(CTexture * pTex);
-	bool RC_CheckUpdate2(CRenderMesh * pMesh, CRenderMesh * pVContainer, EVertexFormat eVF, uint32 nStreamMask);
+	bool RC_CheckUpdate2(CRenderMesh * pMesh, CRenderMesh * pVContainer, InputLayoutHandle eVF, uint32 nStreamMask);
 	void RC_ReleaseCB(void* pCB);
 	void RC_ReleaseRS(std::shared_ptr<CDeviceResourceSet> &pRS);
 	void RC_ReleaseVB(buffer_handle_t nID);
@@ -619,7 +619,6 @@ struct CRY_ALIGN(128) SRenderThread
 	bool RC_OC_ReadResult_Try(uint32 nDefaultNumSamples, CREOcclusionQuery * pRE);
 
 	void RC_PreprGenerateFarTrees(CREFarTreeSprites * pRE, const SRenderingPassInfo &passInfo);
-	void RC_PreprGenerateCloud(CRenderElement * pRE, CShader * pShader, CShaderResources * pRes, CRenderObject * pObject);
 	void RC_SetViewport(int x, int y, int width, int height, int id = 0);
 
 	void RC_ReleaseVBStream(void* pVB, int nStream);
@@ -628,6 +627,7 @@ struct CRY_ALIGN(128) SRenderThread
 
 	void RC_ReleasePostEffects();
 	void RC_ReleaseGraphicsPipeline();
+	void RC_ResetDeviceObjectFactory();
 
 	void RC_ResetPostEffects(bool bOnSpecChange = false);
 	void RC_ResetGlass();

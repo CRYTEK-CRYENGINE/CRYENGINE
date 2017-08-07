@@ -4,6 +4,7 @@
 
 %import "CryEntitySystem.i"
 %import "CryGame.i"
+%import "CryAnimation.i"
 
 %ignore GetGameObjectExtensionRMIData;
 
@@ -17,10 +18,14 @@
 #include <IActorSystem.h>
 #include <IAnimatedCharacter.h>
 #include <CryAudio/Dialog/IDialogSystem.h>
-#include <CryFlowGraph/IFlowSystem.h>
 #include <CryAction/IMaterialEffects.h>
 #include <IEffectSystem.h>
+
+#include <ICryMannequinDefs.h>
+#define MannGenCRC CCrc32::ComputeLowercase
+#include <ICryMannequinTagDefs.h>
 #include <ICryMannequin.h>
+
 #include <ICheckpointSystem.h>
 #include <IAnimationGraph.h>
 #include <ICooperativeAnimationManager.h>
@@ -38,7 +43,6 @@
 #include <IPlayerProfiles.h>
 #include <ISubtitleManager.h>
 #include <IForceFeedbackSystem.h>
-#include <CryFlowGraph/IFlowGraphModuleManager.h>
 #include <IGameplayRecorder.h>
 #include <IGameSessionHandler.h>
 #include <TestSystem/IGameStateRecorder.h>
@@ -49,13 +53,31 @@
 #include <CryAction/ILipSyncProvider.h>
 %}
 
-%ignore operator==(const SFlowSystemVoid& a, const SFlowSystemVoid& b);
-
 %import "../../../../CryEngine/CryCommon/CryNetwork/INetwork.h"
 
 %csconstvalue("0xFFFFFFFF") eEA_All;
 %typemap(csbase) EEntityAspects "uint"
 %ignore GameWarning;
+
+%ignore SAnimationContext::randGenerator;
+%include "../../../CryEngine/CryAction/ICryMannequinTagDefs.h"
+%extend CTagDefinition {
+		STagState<12U> GenerateMaskManaged(STagStateBase tagState){
+			return $self->GenerateMask(tagState);
+	
+	}
+}
+
+%include "../../../CryEngine/CryAction/ICryMannequin.h"
+%extend TAction {
+	static TAction* CreateSAnimationContext(int priority, int fragmentID, STagState<12U> fragTags, uint flags, ulong scopeMask, uint userToken){
+		return new TAction<SAnimationContext>(priority, fragmentID, fragTags, flags, scopeMask, userToken);
+	}
+}
+%include "../../../CryEngine/CryAction/ICryMannequinProceduralClipFactory.h"
+%include "../../../CryEngine/CryAction/ICryMannequinDefs.h"
+%template(AnimationContextActionList) TAction<SAnimationContext>;
+%template(TagState) STagState<12U>;
 
 %feature("director") ILevelSystemListener;
 %include "../../../CryEngine/CryAction/ILevelSystem.h"
@@ -83,31 +105,6 @@
 %csconstvalue("5") eFDT_String;
 %csconstvalue("6") eFDT_Bool;
 
-SMART_PTR_TEMPLATE(IFlowEdgeIterator)
-SMART_PTR_TEMPLATE(IFlowGraph)
-SMART_PTR_TEMPLATE(IFlowGraphHook)
-%template(IFilterPtr) _smart_ptr<IFlowGraphInspector::IFilter>;
-SMART_PTR_TEMPLATE(IFlowGraphInspector)
-SMART_PTR_TEMPLATE(IFlowGraphModuleInstanceIterator)
-SMART_PTR_TEMPLATE(IFlowGraphModuleIterator)
-SMART_PTR_TEMPLATE(IFlowNode)
-SMART_PTR_TEMPLATE(IFlowNodeFactory)
-SMART_PTR_TEMPLATE(IFlowNodeIterator)
-SMART_PTR_TEMPLATE(IFlowNodeTypeIterator)
-
-%feature("director") IFlowNode;
-%feature("director") IFlowNodeFactory;
-
-%include "../../../../CryEngine/CryCommon/CryFlowGraph/IFlowSystem.h"
-
-
-%template(WrapperVoid) NFlowSystemUtils::Wrapper<SFlowSystemVoid>;
-%template(WrapperInt) NFlowSystemUtils::Wrapper<int>;
-%template(WrapperFloat) NFlowSystemUtils::Wrapper<float>;
-%template(WrapperEntityId) NFlowSystemUtils::Wrapper<EntityId>;
-%template(WrapperVec3) NFlowSystemUtils::Wrapper<Vec3>;
-%template(WrapperString) NFlowSystemUtils::Wrapper<string>;
-%template(WrapperBool) NFlowSystemUtils::Wrapper<bool>;
 %ignore SMFXParticleListNode::Create;
 %ignore SMFXParticleListNode::Destroy;
 %ignore SMFXParticleListNode::FreePool;
@@ -127,12 +124,7 @@ SMART_PTR_TEMPLATE(IFlowNodeTypeIterator)
 %ignore SMFXResourceList::FreePool;
 %include "../../../../CryEngine/CryCommon/CryAction/IMaterialEffects.h"
 %include "../../../CryEngine/CryAction/IEffectSystem.h"
-%ignore SAnimationContext;
-%include "../../../CryEngine/CryAction/ICryMannequin.h"
-%include "../../../CryEngine/CryAction/ICryMannequinProceduralClipFactory.h"
-%include "../../../CryEngine/CryAction/ICryMannequinDefs.h"
-%include "../../../CryEngine/CryAction/ICryMannequinTagDefs.h"
-%template(TagState) STagState<12U>;
+
 %include "../../../CryEngine/CryAction/ICheckpointSystem.h"
 %include "../../../CryEngine/CryAction/IAnimationGraph.h"
 %include "../../../CryEngine/CryAction/ICooperativeAnimationManager.h"
@@ -171,7 +163,6 @@ SMART_PTR_TEMPLATE(IFlowNodeTypeIterator)
 %include "../../../CryEngine/CryAction/IPlayerProfiles.h"
 %include "../../../CryEngine/CryAction/ISubtitleManager.h"
 %include "../../../CryEngine/CryAction/IForceFeedbackSystem.h"
-%include "../../../../CryEngine/CryCommon/CryFlowGraph/IFlowGraphModuleManager.h"
 %include "../../../CryEngine/CryAction/IGameplayRecorder.h"
 %include "../../../CryEngine/CryAction/IGameSessionHandler.h"
 %include "../../../CryEngine/CryAction/TestSystem/IGameStateRecorder.h"

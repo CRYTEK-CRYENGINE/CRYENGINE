@@ -20,6 +20,10 @@ extern DECLSPEC const char * SDLCALL SDLExt_AndroidGetPackageName();
 
 /* Return the asset manager of the application */
 extern DECLSPEC AAssetManager * SDLCALL SDLExt_GetAssetManager();
+
+
+/* Return the asset manager of the application */
+extern DECLSPEC const char * SDLCALL SDLExt_GetSharedLibDirectory();
 	
 #endif /* __ANDROID__ */
 

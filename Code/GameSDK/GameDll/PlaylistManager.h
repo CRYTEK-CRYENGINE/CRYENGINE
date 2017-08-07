@@ -230,6 +230,7 @@ public:
 	// IConsoleVarSink
 	virtual bool OnBeforeVarChange( ICVar *pVar,const char *sNewValue ) { return true; }
 	virtual void OnAfterVarChange( ICVar *pVar );
+	virtual void OnVarUnregister(ICVar* pVar) {}
 	// ~IConsoleVarSink
 
 	CPlaylistManager();

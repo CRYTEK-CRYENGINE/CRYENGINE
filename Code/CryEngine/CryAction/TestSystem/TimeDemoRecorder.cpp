@@ -365,7 +365,7 @@ void CTimeDemoRecorder::cmd_Play(IConsoleCmdArgs* pArgs)
 		{
 			s_timedemo_file->Set(pArgs->GetArg(1));
 		}
-		s_pTimeDemoRecorder->StartDemoDelayed(2);
+		s_pTimeDemoRecorder->StartDemoDelayed();
 	}
 }
 
@@ -455,7 +455,7 @@ CTimeDemoRecorder::CTimeDemoRecorder()
 	, m_pTimeDemoInfo(nullptr)
 	, m_numLoops(0)
 	, m_bAIEnabled(false)
-	, m_countDownPlay(0)
+	, m_bDelayedPlayFlag(false)
 	, m_prevGodMode(0)
 	, m_nCurrentDemoLevel(0)
 	, m_lastChainDemoTime(0.0f)
@@ -542,7 +542,7 @@ const char* CTimeDemoRecorder::GetCurrentLevelPath()
 {
 	static char buf[_MAX_PATH];
 	gEnv->pGameFramework->GetAbsLevelPath(buf, sizeof(buf));
-	return &buf[0];
+	return buf;
 	/*
 	   ILevel *pLevel = gEnv->pGameFramework->GetILevelSystem()->GetCurrentLevel();
 	   if (!pLevel)
@@ -633,14 +633,14 @@ void CTimeDemoRecorder::Play(bool bEnable)
 
 	if (bEnable)
 	{
-		CRY_ASSERT(*GetCurrentLevelPath() != 0);
+		CRY_ASSERT(strlen(GetCurrentLevelPath()));
 
 		// Try to load demo file.
 		string filename = PathUtil::Make(GetCurrentLevelPath(), s_timedemo_file->GetString(), "tmd");
 
 		// Put it back later!
 		Load(filename);
-
+		
 		if (m_records.empty())
 		{
 			m_bDemoFinished = true;
@@ -1419,7 +1419,7 @@ void CTimeDemoRecorder::PostUpdate()
 		return;
 	}
 
-	if (!m_countDownPlay && !m_bPlaying && m_bDemoFinished)
+	if (!m_bDelayedPlayFlag && !m_bPlaying && m_bDemoFinished)
 	{
 		if (!m_demoLevels.empty())
 		{
@@ -1445,12 +1445,14 @@ void CTimeDemoRecorder::PostUpdate()
 		}
 	}
 
-	if (m_countDownPlay)
+	if (m_bDelayedPlayFlag)
 	{
 		// to avoid playing demo before game is initialized (when running autotest)
-		m_countDownPlay--;
-		if (m_countDownPlay == 0)
+		if (strlen(GetCurrentLevelPath()))
+		{
+			m_bDelayedPlayFlag = false;
 			Play(true);
+		}
 	}
 
 	ProcessKeysInput();
@@ -1682,9 +1684,9 @@ bool CTimeDemoRecorder::PlayFrame()
 	//////////////////////////////////////////////////////////////////////////
 	if (m_pTimeDemoInfo)
 	{
-		m_pTimeDemoInfo->pFrames[m_currentFrame].fFrameRate = (float)(1.0 / deltaFrameTime.GetSeconds());
-		m_pTimeDemoInfo->pFrames[m_currentFrame].nPolysRendered = nPolygons;
-		m_pTimeDemoInfo->pFrames[m_currentFrame].nDrawCalls = gEnv->pRenderer->GetCurrentNumberOfDrawCalls();
+		m_pTimeDemoInfo->frames[m_currentFrame].fFrameRate = (float)(1.0 / deltaFrameTime.GetSeconds());
+		m_pTimeDemoInfo->frames[m_currentFrame].nPolysRendered = nPolygons;
+		m_pTimeDemoInfo->frames[m_currentFrame].nDrawCalls = gEnv->pRenderer->GetCurrentNumberOfDrawCalls();
 	}
 	//////////////////////////////////////////////////////////////////////////
 	m_lastFrameTime = GetTime();
@@ -1904,16 +1906,12 @@ void CTimeDemoRecorder::StartSession()
 	if (!m_pTimeDemoInfo)
 	{
 		m_pTimeDemoInfo = new STimeDemoInfo();
-		m_pTimeDemoInfo->pFrames = 0;
 	}
 
 	int size = GetNumberOfFrames();
-	if (m_pTimeDemoInfo && m_pTimeDemoInfo->nFrameCount != size)
+	if (m_pTimeDemoInfo && m_pTimeDemoInfo->frames.size() != size)
 	{
-		delete[]m_pTimeDemoInfo->pFrames;
-		STimeDemoInfo* pTD = m_pTimeDemoInfo;
-		pTD->nFrameCount = size;
-		pTD->pFrames = new STimeDemoFrameInfo[pTD->nFrameCount];
+		m_pTimeDemoInfo->frames.resize(size);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -2153,7 +2151,7 @@ void CTimeDemoRecorder::OnEvent(IEntity* pEntity, SEntityEvent& event)
 	{
 		// Record entity event for this frame.
 		EntityGUID guid = pEntity->GetGuid();
-		if (!guid)
+		if (guid.IsNull())
 			return;
 
 		// Record entity event for this frame.
@@ -2251,7 +2249,7 @@ void CTimeDemoRecorder::SaveAllEntitiesState()
 	while (pEntity = pEntityIter->Next())
 	{
 		EntityGUID guid = pEntity->GetGuid();
-		if (guid)
+		if (!guid.IsNull())
 		{
 			EntityEventRecord rec;
 			memset(&rec, 0, sizeof(rec));
@@ -2459,7 +2457,7 @@ void CTimeDemoRecorder::StartNextChainedLevel()
 			CryStackStringT<char, 256> mapCmd("map ");
 			mapCmd += m_demoLevels[m_nCurrentDemoLevel].level;
 			gEnv->pConsole->ExecuteString(mapCmd);
-			StartDemoDelayed(50);
+			StartDemoDelayed();
 			m_nCurrentDemoLevel++;
 			return;
 		}
@@ -2658,10 +2656,11 @@ void CTimeDemoRecorder::ReplayGameState(FrameRecord& rec)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CTimeDemoRecorder::StartDemoDelayed(int nFrames)
+void CTimeDemoRecorder::StartDemoDelayed()
 {
+	CRY_ASSERT(!m_bDelayedPlayFlag);
 	EraseLogFile();
-	m_countDownPlay = nFrames;
+	m_bDelayedPlayFlag = true;
 }
 
 //////////////////////////////////////////////////////////////////////////

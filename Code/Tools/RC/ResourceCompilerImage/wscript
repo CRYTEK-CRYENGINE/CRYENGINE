@@ -1,0 +1,37 @@
+# Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+	
+def build(bld):
+	bld.CryResourceCompilerModule(
+		target    = 'ResourceCompilerImage',
+		vs_filter = 'RC',
+		file_list = 'resourcecompilerimage.waf_files',
+		cxxflags  = ['/EHsc'],
+		linkflags = ['/DELAYLOAD:xg.dll', '/DELAYLOAD:libSceGpuAddress.dll', '/DELAYLOAD:libSceGnm.dll'],
+		lib       = ['delayimp'],
+
+		use_module = ['tiff', 'zlib', 'astc'],
+
+		defines         = ['RESOURCECOMPILERIMAGE_EXPORTS', 'RESOURCE_COMPILER_IMAGE'],
+		release_defines = ['NDEBUG'],
+		debug_defines   = ['_DEBUG'],
+
+		debug_linkflags = ['/NODEFAULTLIB:libcmt.lib'], # PVR will reference this by default, this is fine in release, but not in debug
+
+		includes = [
+			'.',
+			Path('Code/Tools/RC/ResourceCompiler'),
+			Path('Code/Tools/CryCommonTools'),
+			Path('Code/SDKs/squish-ccr'),
+			Path('Code/SDKs/Orbis/target/include_common'),
+			Path('Code/SDKs/POWERVR/PVRTexLib/Include'),
+		],
+
+		libpath = [
+			Path('Code/SDKs/Orbis/host_tools/lib'),
+			Path('Code/SDKs/DurangoSDK/170300/PC/Lib/amd64'),
+			Path('Code/SDKs/DurangoSDK/PC/Lib/amd64'),
+			Path('Code/SDKs/POWERVR/PVRTexLib/Windows_x86_64'),
+		],
+		
+		export_definitions = 'ImageExports.def'
+	)

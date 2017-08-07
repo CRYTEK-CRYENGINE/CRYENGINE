@@ -15,10 +15,10 @@ function(PhysXaddLib version extension)
 	set_target_properties(PHYSX PROPERTIES IMPORTED_LOCATION "${SDK_DIR}/PhysX/Lib/${version}/PhysX3Cooking${extension}_x64.lib")
 	set_target_properties(PHYSX PROPERTIES IMPORTED_LOCATION "${SDK_DIR}/PhysX/Lib/${version}/PhysX3Vehicle${extension}.lib")
 	 
-	deploy_runtime_files(${SDK_DIR}/PhysX/Bin/${version}/PhysX3${extension}_x64.dll)
-	deploy_runtime_files(${SDK_DIR}/PhysX/Bin/${version}/PhysX3CharacterKinematic${extension}_x64.dll)
-	deploy_runtime_files(${SDK_DIR}/PhysX/Bin/${version}/PhysX3Common${extension}_x64.dll)
-	deploy_runtime_files(${SDK_DIR}/PhysX/Bin/${version}/PhysX3Cooking${extension}_x64.dll)
+	deploy_runtime_files("${SDK_DIR}/PhysX/Bin/${version}/PhysX3${extension}_x64.dll")
+	deploy_runtime_files("${SDK_DIR}/PhysX/Bin/${version}/PhysX3CharacterKinematic${extension}_x64.dll")
+	deploy_runtime_files("${SDK_DIR}/PhysX/Bin/${version}/PhysX3Common${extension}_x64.dll")
+	deploy_runtime_files("${SDK_DIR}/PhysX/Bin/${version}/PhysX3Cooking${extension}_x64.dll")
 
 endfunction()
 

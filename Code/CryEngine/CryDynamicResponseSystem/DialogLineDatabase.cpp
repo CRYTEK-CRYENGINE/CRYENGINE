@@ -414,7 +414,7 @@ IDialogLine* CDialogLineSet::InsertLine(uint32 index)
 {
 	if (index == (uint32)-1)
 	{
-		m_lines.push_back(CDialogLine());
+		m_lines.emplace_back(CDialogLine());
 		return &m_lines.back();
 	}
 	return &(*m_lines.insert(m_lines.begin() + index, CDialogLine()));

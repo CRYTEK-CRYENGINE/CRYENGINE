@@ -32,23 +32,23 @@ namespace PathfinderUtils
 struct QueuedRequest
 {
 	QueuedRequest()
-		: pRequester(NULL)
+		: requesterEntityId(INVALID_ENTITYID)
 		, agentTypeID(0)
 	{
-		SetupDangerousLocationsData();
+		//don't need to setup dangerous areas in default constructor
 	}
 
-	QueuedRequest(const IAIPathAgent* _pRequester, NavigationAgentTypeID _agentTypeID, const MNMPathRequest& _request)
-		: pRequester(_pRequester)
+	QueuedRequest(EntityId _requesterEntityId, NavigationAgentTypeID _agentTypeID, const MNMPathRequest& _request)
+		: requesterEntityId(_requesterEntityId)
 		, agentTypeID(_agentTypeID)
 		, requestParams(_request)
 	{
 		SetupDangerousLocationsData();
 	}
 
-	const IAIPathAgent*            pRequester;
-	NavigationAgentTypeID          agentTypeID;
-	MNMPathRequest                 requestParams;
+	EntityId                 requesterEntityId;
+	NavigationAgentTypeID    agentTypeID;
+	MNMPathRequest           requestParams;
 
 	const MNM::DangerousAreasList& GetDangersInfos() { return dangerousAreas; }
 
@@ -65,7 +65,7 @@ private:
 struct ProcessingRequest
 {
 	ProcessingRequest()
-		: pRequester(NULL)
+		: requesterEntityId(INVALID_ENTITYID)
 		, meshID(0)
 		, fromTriangleID(0)
 		, toTriangleID(0)
@@ -78,7 +78,7 @@ struct ProcessingRequest
 	ILINE void Reset()         { (*this) = ProcessingRequest(); }
 	ILINE bool IsValid() const { return (queuedID != 0); };
 
-	const IAIPathAgent* pRequester;
+	EntityId            requesterEntityId;
 	NavigationMeshID    meshID;
 	MNM::TriangleID     fromTriangleID;
 	MNM::TriangleID     toTriangleID;
@@ -341,7 +341,7 @@ public:
 
 	void                      Reset();
 
-	virtual MNM::QueuedPathID RequestPathTo(const IAIPathAgent* pRequester, const MNMPathRequest& request);
+	virtual MNM::QueuedPathID RequestPathTo(const EntityId requesterEntityId, const MNMPathRequest& request);
 	virtual void              CancelPathRequest(MNM::QueuedPathID requestId);
 
 	void                      WaitForJobsToFinish();
@@ -367,8 +367,6 @@ public:
 	  CPathHolder<PathPointDescriptor>& outputPath);
 
 private:
-
-	MNM::QueuedPathID QueuePathRequest(IAIPathAgent* pRequester, const MNMPathRequest& request);
 
 	void              SpawnJobs();
 	void              SpawnAppropriateJobIfPossible(MNM::PathfinderUtils::ProcessingContext& processingContext);

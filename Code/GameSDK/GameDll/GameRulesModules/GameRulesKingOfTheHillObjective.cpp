@@ -340,7 +340,7 @@ void CGameRulesKingOfTheHillObjective::SvSiteChangedOwner( SHoldEntityDetails *p
 	CRY_ASSERT(pKotHEntity);
 
 	// Set the team
-	g_pGame->GetGameRules()->SetTeam(MAX(0, pDetails->m_controllingTeamId), pDetails->m_id);
+	g_pGame->GetGameRules()->SetTeam(std::max(0, pDetails->m_controllingTeamId), pDetails->m_id);
 }
 
 //------------------------------------------------------------------------
@@ -384,7 +384,7 @@ void CGameRulesKingOfTheHillObjective::OnInsideStateChanged( SHoldEntityDetails 
 	{
 		int oldTeamId = pKotHEntity->m_scoringTeamId;
 
-		pKotHEntity->m_scoringTeamId = MAX(pDetails->m_controllingTeamId, 0);
+		pKotHEntity->m_scoringTeamId = std::max(pDetails->m_controllingTeamId, 0);
 		pKotHEntity->m_timeSinceLastScore = 0.f;
 
 		if (gEnv->bServer)

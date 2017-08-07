@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include <IAudioImpl.h>
 #include "AudioInternalInterfaces.h"
 
 namespace CryAudio
@@ -19,7 +18,7 @@ public:
 	CAudioEventListenerManager& operator=(CAudioEventListenerManager const&) = delete;
 	CAudioEventListenerManager& operator=(CAudioEventListenerManager&&) = delete;
 
-	ERequestStatus              AddRequestListener(SAudioManagerRequestData<eAudioManagerRequestType_AddRequestListener> const* const pRequestData);
+	ERequestStatus              AddRequestListener(SAudioManagerRequestData<EAudioManagerRequestType::AddRequestListener> const* const pRequestData);
 	ERequestStatus              RemoveRequestListener(void (* func)(SRequestInfo const* const), void const* const pObjectToListenTo);
 	void                        NotifyListener(SRequestInfo const* const pRequestInfo);
 
@@ -29,7 +28,7 @@ public:
 
 private:
 
-	typedef std::vector<SAudioEventListener> ListenerArray;
+	using ListenerArray = std::vector<SAudioEventListener>;
 	ListenerArray m_listeners;
 };
 } // namespace CryAudio

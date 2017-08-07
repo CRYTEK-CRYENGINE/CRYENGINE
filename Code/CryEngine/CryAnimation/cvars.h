@@ -41,6 +41,7 @@ struct CRY_ALIGN(128) Console
 	void Init();
 	const char* ca_CharEditModel;
 	const char* ca_FilterJoints;
+	const char* ca_DebugCommandBufferFilter;
 	string ca_DebugTextTarget;
 	uint32 ca_DebugTextLayer;
 

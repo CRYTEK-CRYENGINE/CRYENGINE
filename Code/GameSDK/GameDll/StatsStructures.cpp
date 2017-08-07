@@ -617,7 +617,7 @@ float SSessionStats::GetStatStrings(EDerivedFloatPersistantStats stat, CryFixedS
 	switch (stat)
 	{
 	case EDFPS_Accuracy:
-		valueString.Format("%.2f %%", MIN(statValue,100.f));
+		valueString.Format("%.2f %%", std::min(statValue,100.f));
 		break;
 	case EDFPS_LifeExpectancy:
 		valueString.Format("%s", GetTimeString(statValue));

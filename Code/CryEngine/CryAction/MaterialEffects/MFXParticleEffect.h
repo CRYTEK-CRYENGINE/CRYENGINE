@@ -5,18 +5,20 @@
 
 #pragma once
 
+#include <CryParticleSystem/IParticles.h>
 #include "MFXEffectBase.h"
 
 struct SMFXParticleEntry
 {
-	string name;
-	string userdata;
-	float  scale;    // base scale
-	float  maxdist;  // max distance for spawning this effect
-	float  minscale; // min scale (distance == 0)
-	float  maxscale; // max scale (distance == maxscaledist)
-	float  maxscaledist;
-	bool   attachToTarget;
+	string                name;
+	string                userdata;
+	float                 scale;    // base scale
+	float                 maxdist;  // max distance for spawning this effect
+	float                 minscale; // min scale (distance == 0)
+	float                 maxscale; // max scale (distance == maxscaledist)
+	float                 maxscaledist;
+	bool                  attachToTarget;
+	TMFXEmitterParameters parameters;
 
 	SMFXParticleEntry()
 		: scale(1.0f)

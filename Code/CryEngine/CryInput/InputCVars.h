@@ -18,6 +18,10 @@ public:
 	float i_mouse_smooth;
 	float i_mouse_inertia;
 
+#if CRY_PLATFORM_WINDOWS
+	int i_mouse_scroll_coordinate_origin;
+#endif
+
 	int   i_bufferedkeys;
 
 	int   i_xinput;

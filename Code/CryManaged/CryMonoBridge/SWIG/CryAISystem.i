@@ -41,6 +41,8 @@
 using namespace BehaviorTree;
 %}
 
+%ignore IAIEngineModule;
+
 %include "../../../../CryEngine/CryCommon/CryAISystem/NavigationSystem/NavigationIdTypes.h"
 %template(NavigationMeshID) TNavigationID<MeshIDTag>;
 %template(NavigationAgentTypeID) TNavigationID<AgentTypeIDTag>;

@@ -398,8 +398,7 @@ private:
 				const bool getValueSuccess = pScriptTable->GetValueAny("Helicopter_FlowNodeFollowPath", value);
 				if (getValueSuccess)
 				{
-					CFlowNode_Helicopter_FollowPath* pNode = const_cast<CFlowNode_Helicopter_FollowPath*>(reinterpret_cast<const CFlowNode_Helicopter_FollowPath*>(value.ptr));
-					return pNode;
+					return reinterpret_cast<CFlowNode_Helicopter_FollowPath*>(value.GetScriptHandle().ptr);
 				}
 			}
 		}
@@ -415,8 +414,7 @@ private:
 			if (pScriptTable)
 			{
 				ScriptAnyValue value;
-				value.type = ANY_THANDLE;
-				value.ptr = pNode;
+				value.SetScriptHandle(pNode);
 				pScriptTable->SetValueAny("Helicopter_FlowNodeFollowPath", value);
 			}
 		}

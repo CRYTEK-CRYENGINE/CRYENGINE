@@ -409,18 +409,6 @@ protected:
 	float m_fLookAtLimit;
 	Vec3  m_vLookAtPos;
 
-	typedef std::map<const SmartObjectHelper*, unsigned> MapNavNodes;
-
-	// Cached results for GetEnclosingNavNode, which looks for enclosing nav nodes of types SMART_OBJECT_ENCLOSING_NAV_TYPES (does NOT include smartobject nav type!)
-	MapNavNodes m_enclosingNavNodes;
-
-	// The navgraph nodes created by this smartobject (one per helper)
-	MapNavNodes m_correspondingNavNodes;
-
-	// Links from the navgraph nodes created by this smartobject (one per helper) to other connected (non-smartobject) nodes
-	typedef std::vector<unsigned> VectorNavLinks;
-	VectorNavLinks m_navLinks;
-
 	ESO_Validate   m_eValidationResult;
 
 	bool           m_bHidden;
@@ -491,13 +479,6 @@ public:
 
 	/// Measures the user size and applies value to all associated smart object classes
 	void ApplyUserSize();
-
-	/// Calculates the navigation node that we're, or else a particular helper is, attached to.
-	/// If already attached it does nothing - the result is cached
-	unsigned GetEnclosingNavNode(const SmartObjectHelper* pHelper);
-
-	/// Returns the navigation node which was created for this helper
-	unsigned      GetCorrespondingNavNode(const SmartObjectHelper* pHelper);
 
 	MapTemplates& GetMapTemplates();
 
@@ -908,13 +889,10 @@ public:
 	int TriggerEvent(const char* sEventName, IEntity*& pUser, IEntity*& pObject, QueryEventMap* pQueryEvents = NULL, const Vec3* pExtraPoint = NULL, bool bHighPriority = false);
 
 	/// used by heuristic to check is this link passable by current pathfind requester
-	float GetSmartObjectLinkCostFactor(const GraphNode* nodes[2], const CAIObject* pRequester, float* fCostMultiplier) const;
-	bool  GetSmartObjectLinkCostFactorForMNM(const OffMeshLink_SmartObject* pSmartObjectLink, IEntity* pRequesterEntity, float* fCostMultiplier) const;
+	bool  GetSmartObjectLinkCostFactorForMNM(const OffMeshLink_SmartObject* pSmartObjectLink, const IEntity* pRequesterEntity, float* fCostMultiplier) const;
 
 	// used by COPTrace to use smart objects in navigation
-	int                  GetNavigationalSmartObjectActionType(CPipeUser* pPipeUser, const GraphNode* pFromNode, const GraphNode* pToNode);
 	int                  GetNavigationalSmartObjectActionTypeForMNM(CPipeUser* pPipeUser, CSmartObject* pSmartObject, CSmartObjectClass* pSmartObjectClass, SmartObjectHelper* pFromHelper, SmartObjectHelper* pToHelper);
-	bool                 PrepareNavigateSmartObject(CPipeUser* pPipeUser, const GraphNode* pFromNode, const GraphNode* pToNode);
 	bool                 PrepareNavigateSmartObject(CPipeUser* pPipeUser, CSmartObject* pObject, CSmartObjectClass* pObjectClass, SmartObjectHelper* pFromHelper, SmartObjectHelper* pToHelper);
 	void                 UseSmartObject(CSmartObject* pSmartObjectUser, CSmartObject* pObject, CCondition* pCondition, int eventId = 0, bool bForceHighPriority = false);
 	/// Used by COPTrace to detect busy state of SO allowing agents to wait instead of simply failing the movement request.
@@ -1037,8 +1015,6 @@ private:
 private:
 	IEntity* m_pPreOnSpawnEntity; // the entity for which OnSpawn was called just right before the current OnSpawn call
 
-	void DeleteFromNavigation(CSmartObject* pSmartObject) const;
-
 	int  TriggerEventUserObject(const char* sEventName, CSmartObject* pUser, CSmartObject* pObject, QueryEventMap* pQueryEvents, const Vec3* pExtraPoint, bool bHighPriority);
 	int  TriggerEventUser(const char* sEventName, CSmartObject* pUser, QueryEventMap* pQueryEvents, IEntity** ppObjectEntity, const Vec3* pExtraPoint, bool bHighPriority);
 	int  TriggerEventObject(const char* sEventName, CSmartObject* pObject, QueryEventMap* pQueryEvents, IEntity** ppUserEntity, const Vec3* pExtraPoint, bool bHighPriority);
@@ -1114,7 +1090,7 @@ struct OffMeshLink_SmartObject : public MNM::OffMeshLink
 		return m_pSmartObject->GetHelperPos(m_pToHelper);
 	}
 
-	virtual bool CanUse(IEntity* pRequester, float* costMultiplier) const
+	virtual bool CanUse(const IEntity* pRequester, float* costMultiplier) const
 	{
 		return gAIEnv.pSmartObjectManager->GetSmartObjectLinkCostFactorForMNM(this, pRequester, costMultiplier);
 	}

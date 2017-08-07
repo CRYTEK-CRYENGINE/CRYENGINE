@@ -202,6 +202,9 @@ struct SBaseIterators<BaseIterator, false>
 	SBaseIterators(const BaseIterator& begin, const BaseIterator& end)
 		: it(begin) {}
 
+	SBaseIterators(const BaseIterator& begin)
+		: it(begin) {}
+
 	SBaseIterators(const SBaseIterators& other)
 		: it(other.it) {}
 
@@ -418,7 +421,7 @@ public:
 	//! This can only be used for unsafe iterators.
 	template<typename IteratorType>
 	CIterator(const IteratorType& it, typename Detail::SRequire<!Safe&& Detail::is_convertible<IteratorType, BaseIterator>::value, IteratorType>::type* = 0)
-		: its(static_cast<const BaseIterator&>(it), *(const BaseIterator*)0)
+		: its(static_cast<const BaseIterator&>(it))
 	{
 		sink.Clear();
 	}

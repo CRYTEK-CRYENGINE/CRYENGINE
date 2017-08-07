@@ -1,21 +1,10 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     03/02/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __CCRYDX12SAMPLERSTATE__
-	#define __CCRYDX12SAMPLERSTATE__
 
-	#include "DX12/Device/CCryDX12DeviceChild.hpp"
+#include "DX12/Device/CCryDX12DeviceChild.hpp"
 
-	#include "DX12/API/DX12SamplerState.hpp"
+#include "DX12/API/DX12SamplerState.hpp"
 
 class CCryDX12SamplerState : public CCryDX12DeviceChild<ID3D11SamplerStateToImplement>
 {
@@ -31,8 +20,8 @@ public:
 
 	#pragma region /* ID3D11SamplerState implementation */
 
-	virtual void STDMETHODCALLTYPE GetDesc(
-	  _Out_ D3D11_SAMPLER_DESC* pDesc);
+	VIRTUALGFX void STDMETHODCALLTYPE GetDesc(
+	  _Out_ D3D11_SAMPLER_DESC* pDesc) FINALGFX;
 
 	#pragma endregion
 
@@ -49,5 +38,3 @@ private:
 
 	NCryDX12::CSamplerState m_DX12SamplerState;
 };
-
-#endif // __CCRYDX12SAMPLERSTATE__

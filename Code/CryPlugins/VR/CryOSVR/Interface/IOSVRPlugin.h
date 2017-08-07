@@ -11,7 +11,7 @@ namespace CryVR
 namespace Osvr {
 struct IOsvrPlugin : public ICryPlugin
 {
-	CRYINTERFACE_DECLARE(IOsvrPlugin, 0x47512E926A94404D, 0xA2C9A14F0633EEBE);
+	CRYINTERFACE_DECLARE_GUID(IOsvrPlugin, "47512e92-6a94-404d-a2c9-a14f0633eebe"_cry_guid);
 
 public:
 	virtual IOsvrDevice* CreateDevice() = 0;

@@ -1,0 +1,22 @@
+e - Styles
+e - NamedCell
+a + *:Name
+a + *:Data
+a + *:Index
+a + *:ExpandedRowCount
+a + *:ExpandedColumnCount
+a - *:*
+
+f table *text_game_controls.xml
+f table *text_ui_credit_list.xml
+f table *text_ui_messages.xml
+f table *text_ui_mp_messages.xml
+f table *text_platformspecific.xml
+f table *dialog_ai_recording_list.xml
+f table *dialog_recording_list.xml
+f table *text_ui_objectives.xml
+f table *dialog_mp_recording_list.xml
+f table *text_mp_messages.xml
+
+f table *MaterialEffects.xml
+

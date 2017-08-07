@@ -334,7 +334,7 @@ bool InitializeRasterizerState(const D3D11_RASTERIZER_DESC& kDesc, SRasterizerSt
 		break;
 	}
 
-#if CRY_OPENGL_FLIP_Y
+#if OGL_FLIP_Y
 	kState.m_eFrontFaceMode = kDesc.FrontCounterClockwise ? GL_CW : GL_CCW;
 #else
 	kState.m_eFrontFaceMode = kDesc.FrontCounterClockwise ? GL_CCW : GL_CW;

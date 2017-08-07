@@ -1,0 +1,202 @@
+// CRYENGINE Source Code File
+// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+
+#include "Common.cfi"
+#include "ShadeLib.cfi"
+#include "PostEffectsLib.cfi"
+#include "TiledShading.cfi"
+
+SamplerState ssTrilinearClamp : register(s0);
+
+Texture2D<float4>	DepthTex : register(t0);
+Texture2D<float4>	GBufferA : register(t1);
+Texture2D<float4>	GBufferB : register(t2);
+Texture2D<float4>	GBufferC : register(t3);
+
+Buffer<uint>                           TileLightMask : register(t16);
+StructuredBuffer<STiledLightShadeInfo> TiledLightsShadeInfo : register(t17);
+Texture2DArray<float4>                 SpotTexArray : register(t18);
+
+
+vtxOutWPOS LightingMobileVS(vtxInWPOS IN)
+{
+  vtxOutWPOS OUT = (vtxOutWPOS)0; 
+
+	OUT.HPosition = float4(IN.Position.x * 2 - 1, (1 - IN.Position.y) * 2 - 1, IN.Position.z, 1.0);
+  OUT.baseTC.xy = IN.baseTC.xy;
+  OUT.CamVec.xyz = IN.CamVec;
+
+  return OUT;
+}
+
+pixout LightingMobilePS(vtxOutWPOS IN)
+{
+	pixout OUT = (pixout)0;
+	
+	int2 pixCoord = int2(IN.baseTC.xy * CV_ScreenSize.xy);
+	float devDepth = DepthTex[pixCoord];
+	
+	// Skybox
+	[branch] if (devDepth == 0)
+	{
+		OUT.Color.xyz = float3(0, 0, 0);
+		return OUT;
+	}
+	
+	float linearDepth = CV_ProjRatio.y / (devDepth - CV_ProjRatio.x);
+	float3 worldPos = IN.CamVec.xyz * linearDepth;
+	
+	MaterialAttribsCommon attribs;
+	
+#if !%_RT_SAMPLE0	
+	attribs = DecodeGBuffer(GBufferA[pixCoord], GBufferB[pixCoord], GBufferC[pixCoord]);
+#else
+	// Decode Micro GBuffer
+	{
+		float4 uGBuf = GBufferA[pixCoord];
+		float4 uGBuf1 = GBufferA[pixCoord + int2( 1,  0)];
+		float4 uGBuf2 = GBufferA[pixCoord + int2(-1,  0)];
+		float4 uGBuf3 = GBufferA[pixCoord + int2( 0,  1)];
+		float4 uGBuf4 = GBufferA[pixCoord + int2( 0, -1)];
+		
+		// Edge-directed reconstruction filter
+		const float edgeThreshold = 0.1;
+		float4 lum = float4(uGBuf1.x, uGBuf2.x, uGBuf3.x, uGBuf4.x);
+		float4 weights = 1 - step(edgeThreshold, abs(lum - uGBuf.x));
+		float weightSum = dot(weights, 1);
+		weights.x = (weightSum == 0) ? 1 : weights.x;
+		float invWeightSum = (weightSum == 0) ? 1 : rcp(weightSum);
+		
+		// Reconstruct missing components
+		float yy = dot(weights, float4(uGBuf1.y, uGBuf2.y, uGBuf3.y, uGBuf4.y)) * invWeightSum;
+		float zz = dot(weights, float4(uGBuf1.z, uGBuf2.z, uGBuf3.z, uGBuf4.z)) * invWeightSum;
+		float ww = dot(weights, float4(uGBuf1.w, uGBuf2.w, uGBuf3.w, uGBuf4.w)) * invWeightSum;
+		
+		bool bChecker0 = ((int)IN.WPos.x & 1) == ((int)IN.WPos.y & 1);
+		
+		attribs.Smoothness = bChecker0 ? uGBuf.z : zz;
+		attribs.Reflectance = bChecker0 ? uGBuf.w : ww;
+		attribs.Albedo = DecodeColorYCC(float3(uGBuf.x, bChecker0 ? uGBuf.y : yy, bChecker0 ? yy : uGBuf.y));
+		
+		// Decode normal
+		float2 normEnc = float2(bChecker0 ? zz : uGBuf.z, bChecker0 ? ww : uGBuf.w) * 4 - 2;
+		float f = dot(normEnc, normEnc);
+		attribs.NormalWorld.xy = normEnc * sqrt(1 - f / 4);
+		attribs.NormalWorld.z = 1 - f / 2;
+		attribs.NormalWorld = mul(attribs.NormalWorld, (float3x3)CV_ViewMatr);
+	}
+#endif
+	
+	float3 viewVec = normalize(-worldPos);
+	float3 diffuseAcc = 0;
+	float3 specularAcc = 0;
+	
+	// Environment probe
+	{
+		diffuseAcc = texCUBElod(_cubetex7, float4(attribs.NormalWorld, 8));
+		float NdotV = saturate(dot(viewVec, attribs.NormalWorld));
+		specularAcc = GetEnvironmentCMap(_cubetex7, reflect(normalize(worldPos), attribs.NormalWorld), attribs.Smoothness) * GetEnvmapFresnel(attribs.Reflectance, attribs.Smoothness, NdotV);
+	}
+	
+	// Sun
+	{
+		float NdotL = saturate(dot(attribs.NormalWorld, CV_SunLightDir.xyz));
+		diffuseAcc += NdotL * CV_SunColor.xyz;
+		specularAcc += SpecularBRDF(attribs.NormalWorld, viewVec, CV_SunLightDir.xyz, attribs.Smoothness, attribs.Reflectance) * NdotL * CV_SunColor.xyz * CV_SunColor.w;
+	}
+	
+	// Tiled shading
+	uint2 numTiles = ceil(CV_ScreenSize.xy / float2(TILED_SHADING_TILE_SIZE_X, TILED_SHADING_TILE_SIZE_Y));
+	uint2 tileIdx = uint2(IN.baseTC.x * numTiles.x, IN.baseTC.y * numTiles.y);
+	uint bufferIdx = (tileIdx.y * numTiles.x + tileIdx.x) * 8;
+	
+	int lightIndex = -1;
+	uint curMask = TileLightMask[bufferIdx];
+	
+	[loop] for (;;)
+	{
+		lightIndex = GetNextTileLightIndex(curMask, lightIndex);
+		[branch] if (lightIndex < 0) break;
+			
+		if (TiledLightsShadeInfo[lightIndex].lightType >= TILEDLIGHT_TYPE_REGULAR_POINT)
+		{
+			STiledLightShadeInfo light = TiledLightsShadeInfo[lightIndex];
+			
+			float3 lightVec = (light.posRad.xyz - GetWorldViewPos()) - worldPos;
+			float3 illuminance = light.color.rgb;
+			
+			float attenuation = GetPhysicalLightAttenuation(length(lightVec), 1.0 / light.posRad.w, light.attenuationParams.x);
+			illuminance *= attenuation;
+			
+			if (light.lightType == TILEDLIGHT_TYPE_REGULAR_PROJECTOR)
+			{
+				float4 projTC = mul(light.projectorMatrix, float4(worldPos + GetWorldViewPos(), 1.0f));  
+				projTC.xy /= projTC.w;
+				if (projTC.w < 0 || min(projTC.x, projTC.y) < 0 || max(projTC.x, projTC.y) > 1)  // Avoid back-projection
+					illuminance = 0;
+				else
+					illuminance *= SpotTexArray.SampleLevel(ssTrilinearClamp, float3(projTC.xy, light.resIndex), 0).xxx;
+			}
+			
+			lightVec = normalize(lightVec);
+			float NdotL = saturate(dot(attribs.NormalWorld, lightVec));
+			
+			diffuseAcc += NdotL * illuminance;
+			specularAcc += SpecularBRDF(attribs.NormalWorld, viewVec, lightVec.xyz, attribs.Smoothness, attribs.Reflectance) * NdotL * illuminance * light.color.a;
+		}
+	}
+	
+	OUT.Color = float4(specularAcc + diffuseAcc * attribs.Albedo, 1);
+	
+	return OUT;
+}
+
+technique LightingMobile
+{
+  pass p0
+  {
+    VertexShader = LightingMobileVS();
+    PixelShader  = LightingMobilePS();  
+  }
+}
+
+
+vtxOut TonemappingMobileVS(vtxIn IN)
+{
+  vtxOut OUT = (vtxOut)0; 
+
+	OUT.HPosition = float4(IN.Position.x * 2 - 1, (1 - IN.Position.y) * 2 - 1, IN.Position.z, 1.0);
+  OUT.baseTC.xy = IN.baseTC.xy;
+
+  return OUT;
+}
+
+pixout TonemappingMobilePS(vtxOut IN)
+{
+	pixout OUT = (pixout)0;
+	
+	float3 col = tex2D(_tex0, IN.baseTC.xy).rgb;
+	
+	// Apply fixed exposure
+	col *= 1.0;
+	
+	// Apply vignette
+	col *= tex2D(_tex1, IN.baseTC.xy).x;
+	
+	// Tonemap (ACES Filmic Curve, fitted by K. Narkowicz)
+	OUT.Color.rgb = saturate((col * (2.51 * col + 0.03)) / (col * (2.43 * col + 0.59) + 0.14));
+	
+	// Apply gamma correction
+	OUT.Color.xyz = sqrt(OUT.Color.xyz);  // LinearToSRGB(OUT.Color.xyz)
+	
+	return OUT;
+}
+
+technique TonemappingMobile
+{
+  pass p0
+  {
+    VertexShader = TonemappingMobileVS();
+    PixelShader  = TonemappingMobilePS();  
+  }
+}

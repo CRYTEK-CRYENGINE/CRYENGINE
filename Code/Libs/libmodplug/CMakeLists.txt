@@ -49,8 +49,8 @@ if(LINUX OR ANDROID)
 
 CryEngineStaticModule(libmodplug_static SOLUTION_FOLDER "Libs/Audio")
 target_include_directories(${THIS_PROJECT} PUBLIC
-	${SDK_DIR}/libmodplug/src
-	${SDK_DIR}/libmodplug/src/libmodplug
+	"${SDK_DIR}/libmodplug/src"
+	"${SDK_DIR}/libmodplug/src/libmodplug"
 )
 target_compile_definitions(${THIS_PROJECT} PUBLIC -DMODPLUG_HEADER="modplug.h")
 target_compile_options(${THIS_PROJECT} PRIVATE -w)

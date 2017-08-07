@@ -66,8 +66,8 @@ inline bool Line_Plane(const Line& line, const Plane& plane, Vec3& output, bool 
 }
 
 //! Algorithm description: http://softsurfer.com/Archive/algorithm_0104/algorithm_0104B.htm#Line-Plane%20Intersection
-template<typename T>
-inline bool Segment_Plane(const Lineseg_tpl<T>& segment, const Plane_tpl<T>& plane, Vec3_tpl<T>& vOutput, bool bSingleSidePlane = true)
+template<typename T, typename P>
+inline bool Segment_Plane(const Lineseg_tpl<T>& segment, const P& plane, Vec3_tpl<T>& vOutput, bool bSingleSidePlane = true)
 {
 	Vec3_tpl<T> vSegment = segment.end - segment.start;
 	T planeNormalDotSegment = plane.n | vSegment;

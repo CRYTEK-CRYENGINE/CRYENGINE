@@ -10,9 +10,38 @@ add_sources("NoUberFile"
 		"DialogEditorPlugin.h"
 		"StdAfx.h"
 		"StdAfx.cpp"
+		"Resource.h"
+		"DialogEditor.rc"
 )
+
+add_sources("Editor_Uber_Audio.cpp"
+	SOURCE_GROUP "Root"
+		"DialogEditorDialog.cpp"
+		"DialogManager.cpp"
+		"DialogScriptRecord.cpp"
+		"DialogScriptView.cpp"
+		"DialogEditorDialog.h"
+		"DialogManager.h"
+		"DialogScriptRecord.h"
+		"DialogScriptView.h"
+)
+
 
 end_sources()
 #END-FILE-LIST
 
 CryEditorPlugin(DialogEditorPlugin PCH "StdAfx.cpp" SOLUTION_FOLDER "Sandbox/Plugins")
+
+use_xt()
+
+#necessary for ICryMannequin.h
+target_include_directories(${THIS_PROJECT} PRIVATE "${CRYENGINE_DIR}/Code/CryEngine/CryAction")	
+
+#Sandbox does not seem to be necessary, do not include it until necessary
+#target_include_directories(${THIS_PROJECT} PRIVATE ../../EditorQt)	
+#target_include_directories(${THIS_PROJECT} PRIVATE ../../EditorQt/Include)
+#target_link_libraries(${THIS_PROJECT} PRIVATE Sandbox)
+
+target_include_directories(${THIS_PROJECT} PRIVATE ../MFCToolsPlugin)
+target_link_libraries(${THIS_PROJECT} PRIVATE MFCToolsPlugin)
+				

@@ -2,11 +2,12 @@
 
 using System;
 using System.Globalization;
+
 using CryEngine.Common;
 
 namespace CryEngine
 {
-	public struct Matrix3x4
+	public struct Matrix3x4 :IEquatable<Matrix3x4>
 	{
 		public static readonly Matrix3x4 Identity = new Matrix3x4(Quaternion.Identity);
 
@@ -105,10 +106,17 @@ namespace CryEngine
 			if (obj == null)
 				return false;
 
-			if (obj is Matrix3x4 || obj is Matrix34)
-				return this == (Matrix3x4)obj;
+			if (!(obj is Matrix3x4 || obj is Matrix34))
+				return false;
 
-			return false;
+			return Equals((Matrix3x4)obj);
+		}
+
+		public bool Equals(Matrix3x4 other)
+		{
+			return MathHelpers.IsEqual(m00 , other.m00) && MathHelpers.IsEqual(m01 , other.m01) && MathHelpers.IsEqual(m02 , other.m02) && MathHelpers.IsEqual(m03 , other.m03)
+				  && MathHelpers.IsEqual(m10 , other.m10) && MathHelpers.IsEqual(m11 , other.m11) && MathHelpers.IsEqual(m12 , other.m12) && MathHelpers.IsEqual(m13 , other.m13)
+				  && MathHelpers.IsEqual(m20 , other.m20) && MathHelpers.IsEqual(m21 , other.m21) && MathHelpers.IsEqual(m22 , other.m22) && MathHelpers.IsEqual(m23 , other.m23);
 		}
 
 		public override string ToString()
@@ -149,9 +157,7 @@ namespace CryEngine
 			if ((object)right == null)
 				return (object)left == null;
 
-			return (left.m00 == right.m00) && (left.m01 == right.m01) && (left.m02 == right.m02) && (left.m03 == right.m03)
-				&& (left.m10 == right.m10) && (left.m11 == right.m11) && (left.m12 == right.m12) && (left.m13 == right.m13)
-				&& (left.m20 == right.m20) && (left.m21 == right.m21) && (left.m22 == right.m22) && (left.m23 == right.m23);
+			return left.Equals(right);
 		}
 
 		public static bool operator !=(Matrix3x4 left, Matrix3x4 right)

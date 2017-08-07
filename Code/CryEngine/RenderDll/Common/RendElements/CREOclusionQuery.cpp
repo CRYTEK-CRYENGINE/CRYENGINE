@@ -37,7 +37,7 @@ CREOcclusionQuery::~CREOcclusionQuery()
 
 void CREOcclusionQuery::mfReset()
 {
-	ID3D11Query* pVizQuery = (ID3D11Query*)m_nOcclusionID;
+	D3DOcclusionQuery* pVizQuery = (D3DOcclusionQuery*)m_nOcclusionID;
 	SAFE_RELEASE(pVizQuery);
 
 	m_nOcclusionID = 0;
@@ -75,12 +75,7 @@ bool CREOcclusionQuery::mfDraw(CShader* ef, SShaderPass* sfm)
 
 	if (!m_nOcclusionID)
 	{
-		HRESULT hr;
-		ID3D11Query* pVizQuery = NULL;
-		D3D11_QUERY_DESC qdesc;
-		qdesc.MiscFlags = 0; //D3D11_QUERY_MISC_PREDICATEHINT;
-		qdesc.Query = D3D11_QUERY_OCCLUSION;
-		hr = r->GetDevice().CreateQuery(&qdesc, &pVizQuery);
+		D3DOcclusionQuery* pVizQuery = GetDeviceObjectFactory().CreateOcclusionQuery();
 		if (pVizQuery)
 			m_nOcclusionID = (UINT_PTR)pVizQuery;
 	}
@@ -92,8 +87,9 @@ bool CREOcclusionQuery::mfDraw(CShader* ef, SShaderPass* sfm)
 		// draw test box
 		if (m_nOcclusionID)
 		{
-			D3DQuery* pVizQuery = (D3DQuery*)m_nOcclusionID;
-			r->GetDeviceContext().Begin(pVizQuery);
+			D3DOcclusionQuery* pVizQuery = (D3DOcclusionQuery*)m_nOcclusionID;
+			CDeviceCommandListRef commandList = GetDeviceObjectFactory().GetCoreCommandList();
+			commandList.GetGraphicsInterface()->BeginOcclusionQuery(pVizQuery);
 
 			const t_arrDeferredMeshIndBuff& arrDeferredInds = r->GetDeferredUnitBoxIndexBuffer();
 			const t_arrDeferredMeshVertBuff& arrDeferredVerts = r->GetDeferredUnitBoxVertexBuffer();
@@ -124,7 +120,7 @@ bool CREOcclusionQuery::mfDraw(CShader* ef, SShaderPass* sfm)
 			CShader* pShaderSave = r->m_RP.m_pShader;
 			SShaderTechnique* pCurTechniqueSave = r->m_RP.m_pCurTechnique;
 
-			if (r->FX_SetVertexDeclaration(0, eVF_P3F_C4B_T2F) == S_OK)
+			if (r->FX_SetVertexDeclaration(0, EDefaultInputLayouts::P3F_C4B_T2F) == S_OK)
 			{
 				r->m_RP.m_TI[r->m_RP.m_nProcessThreadID].m_PersFlags &= ~RBPF_FP_DIRTY | RBPF_FP_MATRIXDIRTY;
 				r->m_RP.m_ObjFlags &= ~FOB_TRANS_MASK;
@@ -149,7 +145,7 @@ bool CREOcclusionQuery::mfDraw(CShader* ef, SShaderPass* sfm)
 			r->m_RP.m_pShader = pShaderSave;
 			r->m_RP.m_pCurTechnique = pCurTechniqueSave;
 
-			r->GetDeviceContext().End(pVizQuery);
+			commandList.GetGraphicsInterface()->EndOcclusionQuery(pVizQuery);
 
 			CREOcclusionQuery::m_nQueriesPerFrameCounter++;
 			m_nDrawFrame = 1;
@@ -166,12 +162,16 @@ bool CREOcclusionQuery::mfReadResult_Now()
 {
 	int nFrame = gcpRendD3D->GetFrameID();
 
-	ID3D11Query* pVizQuery = (ID3D11Query*)m_nOcclusionID;
+	D3DOcclusionQuery* pVizQuery = (D3DOcclusionQuery*)m_nOcclusionID;
 	if (pVizQuery)
 	{
 		HRESULT hRes = S_FALSE;
+		uint64 samplesPassed;
 		while (hRes == S_FALSE)
-			hRes = gcpRendD3D->GetDeviceContext().GetData(pVizQuery, (void*)&m_nVisSamples, sizeof(uint64), 0);
+		{
+			hRes = GetDeviceObjectFactory().GetOcclusionQueryResults(pVizQuery, samplesPassed) ? S_OK : S_FALSE;
+		}
+		m_nVisSamples = (int)samplesPassed;
 
 		if (hRes == S_OK)
 		{
@@ -197,13 +197,15 @@ bool CREOcclusionQuery::RT_ReadResult_Try(uint32 nDefaultNumSamples)
 
 	int nFrame = gcpRendD3D->GetFrameID();
 
-	ID3D11Query* pVizQuery = (ID3D11Query*)m_nOcclusionID;
+	D3DOcclusionQuery* pVizQuery = (D3DOcclusionQuery*)m_nOcclusionID;
 	if (pVizQuery)
 	{
-		HRESULT hRes = gcpRendD3D->GetDeviceContext().GetData(pVizQuery, (void*)&m_nVisSamples, sizeof(uint64), D3D11_ASYNC_GETDATA_DONOTFLUSH);
+		uint64 samplesPassed;
+		HRESULT hRes = GetDeviceObjectFactory().GetOcclusionQueryResults(pVizQuery, samplesPassed) ? S_OK : S_FALSE;
 
 		if (hRes == S_OK)
 		{
+			m_nVisSamples = (int)samplesPassed;
 			m_nDrawFrame = 0;
 			m_nCheckFrame = nFrame;
 		}

@@ -7,8 +7,6 @@
 
 void CMotionBlurStage::Init()
 {
-	m_samplerPoint = CTexture::GetTexState(STexState(FILTER_POINT, true));
-	m_samplerLinear = CTexture::GetTexState(STexState(FILTER_LINEAR, true));
 }
 
 float CMotionBlurStage::ComputeMotionScale()
@@ -69,12 +67,13 @@ void CMotionBlurStage::Execute()
 		if (m_passPacking.InputChanged((int)bRadialBlur, GetUtils().GetVelocityObjectRT()->GetTextureID()))
 		{
 			static CCryNameTSCRC techPackVelocities("PackVelocities");
+			m_passPacking.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 			m_passPacking.SetTechnique(pShader, techPackVelocities, bRadialBlur ? g_HWSR_MaskBit[HWSR_SAMPLE0] : 0);
 			m_passPacking.SetRenderTarget(0, CTexture::s_ptexVelocity);
 			m_passPacking.SetState(GS_NODEPTHTEST);
-			m_passPacking.SetTextureSamplerPair(0, CTexture::s_ptexZTarget, m_samplerPoint);
-			m_passPacking.SetTextureSamplerPair(1, CTexture::s_ptexHDRTarget, m_samplerPoint);
-			m_passPacking.SetTextureSamplerPair(2, GetUtils().GetVelocityObjectRT(), m_samplerPoint);
+			m_passPacking.SetTextureSamplerPair(0, CTexture::s_ptexZTarget, EDefaultSamplerStates::PointClamp);
+			m_passPacking.SetTextureSamplerPair(1, CTexture::s_ptexHDRTarget, EDefaultSamplerStates::PointClamp);
+			m_passPacking.SetTextureSamplerPair(2, GetUtils().GetVelocityObjectRT(), EDefaultSamplerStates::PointClamp);
 			m_passPacking.SetRequireWorldPos(true);
 		}
 
@@ -111,10 +110,11 @@ void CMotionBlurStage::Execute()
 		{
 			if (m_passTileGen1.InputChanged())
 			{
+				m_passTileGen1.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 				m_passTileGen1.SetTechnique(pShader, techVelocityTileGen, 0);
 				m_passTileGen1.SetRenderTarget(0, CTexture::s_ptexVelocityTiles[0]);
 				m_passTileGen1.SetState(GS_NODEPTHTEST);
-				m_passTileGen1.SetTextureSamplerPair(0, CTexture::s_ptexVelocity, m_samplerPoint);
+				m_passTileGen1.SetTextureSamplerPair(0, CTexture::s_ptexVelocity, EDefaultSamplerStates::PointClamp);
 			}
 
 			m_passTileGen1.BeginConstantUpdate();
@@ -129,10 +129,11 @@ void CMotionBlurStage::Execute()
 		{
 			if (m_passTileGen2.InputChanged())
 			{
+				m_passTileGen2.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 				m_passTileGen2.SetTechnique(pShader, techVelocityTileGen, 0);
 				m_passTileGen2.SetRenderTarget(0, CTexture::s_ptexVelocityTiles[1]);
 				m_passTileGen2.SetState(GS_NODEPTHTEST);
-				m_passTileGen2.SetTextureSamplerPair(0, CTexture::s_ptexVelocityTiles[0], m_samplerPoint);
+				m_passTileGen2.SetTextureSamplerPair(0, CTexture::s_ptexVelocityTiles[0], EDefaultSamplerStates::PointClamp);
 			}
 
 			m_passTileGen2.BeginConstantUpdate();
@@ -147,10 +148,11 @@ void CMotionBlurStage::Execute()
 		{
 			if (m_passNeighborMax.InputChanged())
 			{
+				m_passNeighborMax.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 				m_passNeighborMax.SetTechnique(pShader, techTileNeighborhood, 0);
 				m_passNeighborMax.SetRenderTarget(0, CTexture::s_ptexVelocityTiles[2]);
 				m_passNeighborMax.SetState(GS_NODEPTHTEST);
-				m_passNeighborMax.SetTextureSamplerPair(0, CTexture::s_ptexVelocityTiles[1], m_samplerPoint);
+				m_passNeighborMax.SetTextureSamplerPair(0, CTexture::s_ptexVelocityTiles[1], EDefaultSamplerStates::PointClamp);
 			}
 
 			m_passNeighborMax.BeginConstantUpdate();
@@ -177,13 +179,14 @@ void CMotionBlurStage::Execute()
 			rtMask |= (CRenderer::CV_r_MotionBlurQuality == 1) ? g_HWSR_MaskBit[HWSR_SAMPLE1] : 0;
 
 			static CCryNameTSCRC techMotionBlur("MotionBlur");
+			m_passMotionBlur.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 			m_passMotionBlur.SetTechnique(pShader, techMotionBlur, rtMask);
 			m_passMotionBlur.SetFlags(CPrimitiveRenderPass::ePassFlags_VrProjectionPass);
 			m_passMotionBlur.SetRenderTarget(0, CTexture::s_ptexHDRTarget);
 			m_passMotionBlur.SetState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ONEMINUSSRCALPHA);
-			m_passMotionBlur.SetTextureSamplerPair(0, bGatherDofEnabled ? CTexture::s_ptexSceneTargetR11G11B10F[0] : CTexture::s_ptexHDRTargetPrev, m_samplerLinear);
-			m_passMotionBlur.SetTextureSamplerPair(1, CTexture::s_ptexVelocity, m_samplerPoint);
-			m_passMotionBlur.SetTextureSamplerPair(2, CTexture::s_ptexVelocityTiles[2], m_samplerPoint);
+			m_passMotionBlur.SetTextureSamplerPair(0, bGatherDofEnabled ? CTexture::s_ptexSceneTargetR11G11B10F[0] : CTexture::s_ptexHDRTargetPrev, EDefaultSamplerStates::LinearClamp);
+			m_passMotionBlur.SetTextureSamplerPair(1, CTexture::s_ptexVelocity, EDefaultSamplerStates::PointClamp);
+			m_passMotionBlur.SetTextureSamplerPair(2, CTexture::s_ptexVelocityTiles[2], EDefaultSamplerStates::PointClamp);
 		}
 
 		m_passMotionBlur.BeginConstantUpdate();

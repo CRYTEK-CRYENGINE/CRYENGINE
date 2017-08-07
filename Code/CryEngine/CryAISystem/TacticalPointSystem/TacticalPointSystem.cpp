@@ -1560,79 +1560,6 @@ bool CTacticalPointSystem::GenerateInternal(TTacticalPointQuery query, const Que
 				}
 			}
 		}
-		else
-		{
-			// We could go deeper than this and reap greater benefits
-			CAIActor* pAIActor = static_cast<CAIActor*>(context.pAIActor);
-			CPipeUser* pPipeUser = pAIActor->CastToCPipeUser();
-
-			if (pPipeUser)
-			{
-				// MATT Actor is checked for NULL internally
-				pAISystem->GetOccupiedHideObjectPositions(pPipeUser, m_occupiedSpots);
-			}
-
-			IPersistantDebug* pPD = NULL;
-			if (CVars.DebugTacticalPointsBlocked)
-			{
-				pPD = gEnv->pGameFramework->GetIPersistantDebug();
-				pPD->Begin("OccupiedOrUnreachablePoints", false);
-			}
-
-			MultimapRangeHideSpots hidespots;
-			MapConstNodesDistance traversedNodes;
-
-			IEntity* pEntity = gEnv->pEntitySystem->GetEntity(context.actorEntityId);
-
-			bool skipNavigationTest = 0 != (context.actorNavCaps & IAISystem::NAV_VOLUME);
-			pAISystem->GetHideSpotsInRange(hidespots, traversedNodes, objPos, fSearchDist,
-			                               context.actorNavCaps, fAgentRadius, skipNavigationTest, pEntity);
-
-			Vec3 dir;
-			MultimapRangeHideSpots::iterator itHEnd = hidespots.end();
-			for (MultimapRangeHideSpots::iterator itH = hidespots.begin(); itH != itHEnd; ++itH)
-			{
-				SHideSpot& hideSpot = itH->second;
-
-				// Check if this spot is occupied
-				if (HasPointInRange(m_occupiedSpots, hideSpot.info.pos, 2.0f) // In original code, this was 0.5f, but that doesn't work...
-				                                                              // Marcio: Avoid hidepoints the actor couldn't reach recently
-				    || ((pPipeUser != NULL) && pPipeUser->WasHideObjectRecentlyUnreachable(hideSpot.info.pos)))
-				{
-					if (pPD) pPD->AddSphere(hideSpot.info.pos + Vec3(0, 0, 0.05f), 2.00f, ColorF(0, 1, 0, 1), 1.0f);
-					continue;
-				}
-
-				// We use an auxiliary object (to hide from)
-				// Kevin - Can be None, meaning we just want a hidespot
-				if (!vObjectAuxPos.IsZero())
-				{
-					// Check if this is directional (an anchor)
-					// if ( !hideSpot.dir.IsZero() )
-					if (fabsf(hideSpot.info.dir.x) + fabsf(hideSpot.info.dir.y) + fabsf(hideSpot.info.dir.z) > 0.0003f)
-					{
-						// check that the enemy is vaguely in the dir of the hide anchor
-						Vec3 dirSpotToAuxObj = vObjectAuxPos - hideSpot.info.pos;
-						dirSpotToAuxObj.NormalizeSafe();
-						float fDot = dirSpotToAuxObj.Dot(hideSpot.info.dir);
-						if (fDot < HIDESPOT_COVERAGE_ANGLE_COS)
-						{
-							if (pPD) pPD->AddSphere(hideSpot.info.pos + Vec3(0, 0, 0.05f), 0.75f, ColorF(1, 0, 0, 1), 1.0f);
-							continue;
-						}
-					}
-
-					if (hideSpot.pObstacle) // If obstacle, move point from centre to behind it, w.r.t. object
-						pAISystem->AdjustOmniDirectionalCoverPosition(hideSpot.info.pos, dir,
-						                                              max(hideSpot.pObstacle->fApproxRadius, 0.0f), fAgentRadius, vObjectAuxPos, true);
-				}
-
-				CTacticalPoint point(hideSpot);
-				accumulator.push_back(point);
-			}
-
-			m_occupiedSpots.resize(0);
-		}
 		break;
 
 	case eTPQ_G_Grid:
@@ -3240,9 +3167,14 @@ bool CTacticalPointSystem::Parse(const char* sSpec, TTacticalPointQuery& _query,
 	string sWords[MAXWORDS];
 
 	int iC = 0, iWord = 0;
-	for (; iWord < MAXWORDS; !sWords[iWord].empty(), iWord++)
+
+	for (; iWord < MAXWORDS; iWord++)
 	{
 		sWords[iWord] = sInput.Tokenize("_", iC);
+		if (sWords[iWord].empty())
+		{
+			break;
+		}
 	}
 
 	TTacticalPointQuery token;

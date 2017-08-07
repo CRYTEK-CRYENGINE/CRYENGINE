@@ -1,0 +1,186 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>MonoDevelop.Debugger</name>
+    </assembly>
+    <members>
+        <member name="M:MonoDevelop.Debugger.DebuggingService.GetCurrentVisibleFrame">
+            <summary>
+            The deepest stack frame with source above the CurrentFrame
+            </summary>
+        </member>
+        <member name="P:MonoDevelop.Debugger.ValueVisualizer.Name">
+            <summary>
+            Display name of the visualizer
+            </summary>
+            <remarks>
+            This name is shown in a combo box at the top of the visualizer dialog when
+            there is more than one visualizer available for a value
+            </remarks>
+        </member>
+        <member name="M:MonoDevelop.Debugger.ValueVisualizer.CanVisualize(Mono.Debugging.Client.ObjectValue)">
+            <summary>
+            Determines whether this instance can visualize the specified value
+            </summary>
+            <returns>
+            <c>true</c> if this instance can visualize the specified value; otherwise, <c>false</c>.
+            </returns>
+            <param name='val'>
+            The value
+            </param>
+            <remarks>
+            This method must check the value and return <c>true</c> if it is able to display that value.
+            Typically, this method will check the TypeName of the value.
+            </remarks>
+        </member>
+        <member name="M:MonoDevelop.Debugger.ValueVisualizer.IsDefaultVisualizer(Mono.Debugging.Client.ObjectValue)">
+            <summary>
+            Determines whether this instance is the default visualizer for the specified value
+            </summary>
+            <returns>
+            <c>true</c> if this instance is the default visualizer for the specified value; otherwise, <c>false</c>.
+            </returns>
+            <param name='val'>
+            The value
+            </param>
+            <remarks>
+            The default visualizer will be selected by default in the visualizer dialog
+            </remarks>
+        </member>
+        <member name="M:MonoDevelop.Debugger.ValueVisualizer.GetVisualizerWidget(Mono.Debugging.Client.ObjectValue)">
+            <summary>
+            Gets a visualizer widget for a value
+            </summary>
+            <returns>
+            The visualizer widget.
+            </returns>
+            <param name='val'>
+            A value
+            </param>
+            <remarks>
+            This method is called to get a widget for displaying the specified value.
+            The method should create the widget and load the required information from
+            the value. Notice that the ObjectValue.Value property returns a string
+            representation of the value. If the visualizer needs to get values from
+            the object properties, it can use the ObjectValue.GetRawValue method.
+            </remarks>
+        </member>
+        <member name="M:MonoDevelop.Debugger.ValueVisualizer.StoreValue(Mono.Debugging.Client.ObjectValue)">
+            <summary>
+            Saves changes done in the visualizer
+            </summary>
+            <returns>
+            <c>true</c> if the changes could be saved
+            </returns>
+            <param name='val'>
+            The value on which to store changes
+            </param>
+            <remarks>
+            This method is called to save changes done in the visualizer.
+            The implementation should use ObjectValue.SetRawValue to store the changes.
+            This method is only called if CanEdit returns <c>true</c>.
+            </remarks>
+        </member>
+        <member name="M:MonoDevelop.Debugger.ValueVisualizer.CanEdit(Mono.Debugging.Client.ObjectValue)">
+            <summary>
+            Determines whether this instance supports editing the specified value
+            </summary>
+            <returns>
+            <c>true</c> if this instance can edit the specified value; otherwise, <c>false</c>.
+            </returns>
+            <param name='val'>
+            The value
+            </param>
+            <remarks>
+            This method is called to determine if this visualizer supports value editing,
+            in addition to visualization.
+            The method is called only if CanVisualize returns <c>true</c> for the value, and
+            if the value doesn't have the ReadOnly flag.
+            Editing support is optional. The default implementation returns <c>false</c>.
+            </remarks>
+        </member>
+        <member name="M:MonoDevelop.Debugger.DebuggerEngineBackend.IsDefaultDebugger(MonoDevelop.Core.Execution.ExecutionCommand)">
+            <summary>
+            Determines whether this instance is default debugger for the provided command
+            </summary>
+            <remarks>The default implementation returns false.</remarks>
+        </member>
+        <member name="M:MonoDevelop.Debugger.InlineVisualizer.CanInlineVisualize(Mono.Debugging.Client.ObjectValue)">
+            <summary>
+            Determines whether this instance can inline visualize the specified value
+            </summary>
+            <returns>
+            <c>true</c> if this instance can inline visualize the specified value; otherwise, <c>false</c>.
+            </returns>
+            <param name='val'>
+            The value
+            </param>
+            <remarks>
+            This method must check the value and return <c>true</c> if it is able to display that value.
+            Typically, this method will check the TypeName of the value.
+            </remarks>
+        </member>
+        <member name="M:MonoDevelop.Debugger.InlineVisualizer.InlineVisualize(Mono.Debugging.Client.ObjectValue)">
+            <summary>
+            Converts specified value into string to be displayed in debugger.
+            </summary>
+            <returns>String value representing value.</returns>
+            <param name="val">Value.</param>
+        </member>
+        <member name="M:MonoDevelop.Debugger.PreviewVisualizer.CanVisualize(Mono.Debugging.Client.ObjectValue)">
+            <summary>
+            Determines whether this instance can visualize the specified value
+            </summary>
+            <returns>
+            <c>true</c> if this instance can visualize the specified value; otherwise, <c>false</c>.
+            </returns>
+            <param name='val'>
+            The value
+            </param>
+            <remarks>
+            This method must check the value and return <c>true</c> if it is able to display that value.
+            Typically, this method will check the TypeName of the value.
+            </remarks>
+        </member>
+        <member name="M:MonoDevelop.Debugger.PreviewVisualizer.GetVisualizerWidget(Mono.Debugging.Client.ObjectValue)">
+            <summary>
+            Gets a visualizer widget for a value
+            </summary>
+            <returns>
+            The visualizer widget.
+            </returns>
+            <param name='val'>
+            A value
+            </param>
+            <remarks>
+            This method is called to get a widget for displaying the specified value.
+            The method should create the widget and load the required information from
+            the value. Notice that the ObjectValue.Value property returns a string
+            representation of the value. If the visualizer needs to get values from
+            the object properties, it can use the ObjectValue.GetRawValue method.
+            </remarks>
+        </member>
+        <member name="T:MonoDevelop.Debugger.TextEntryWithCodeCompletion.NullDotKeyHandler">
+            <summary>
+            Prevents typing '.' inserting(confirming/finishing) code completion
+            </summary>
+        </member>
+        <member name="M:MonoDevelop.Debugger.SourceCodeLookup.FindSourceFile(MonoDevelop.Core.FilePath,System.Byte[])">
+            <summary>
+            Finds the source file.
+            </summary>
+            <returns>The source file.</returns>
+            <param name="originalFile">File from .mdb/.pdb.</param>
+            <param name="hash">Hash of original file stored in .mdb/.pdb.</param>
+        </member>
+        <member name="M:MonoDevelop.Debugger.SourceCodeLookup.AddLoadedFile(MonoDevelop.Core.FilePath,MonoDevelop.Core.FilePath)">
+            <summary>
+            Call this method when user succesfully opens file so we can reuse this path
+            for other files from same project.
+            Notice that it's caller job to verify hash matches for performance reasons.
+            </summary>
+            <param name="file">File path which user picked.</param>
+            <param name = "originalFile">Original file path from .pdb/.mdb.</param>
+        </member>
+    </members>
+</doc>

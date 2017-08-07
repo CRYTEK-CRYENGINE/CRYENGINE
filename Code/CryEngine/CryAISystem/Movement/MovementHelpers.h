@@ -3,12 +3,14 @@
 #pragma once
 
 #ifndef MovementBlock_Helpers_h
-	#define MovementBlock_Helpers_h
+#define MovementBlock_Helpers_h
 
-	#include "MovementPlan.h"
-	#include <CryAISystem/MovementStyle.h>
+#include "MovementPlan.h"
+#include <CryAISystem/MovementStyle.h>
 
 struct IMovementActor;
+class MovementStyle;
+class CNavPath;
 
 namespace Movement
 {

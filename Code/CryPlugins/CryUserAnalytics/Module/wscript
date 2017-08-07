@@ -8,6 +8,7 @@ def build(bld) :
 	  file_list = 'cryuseranalytics.waf_files',
 
 	  win_use_module = ['curl'],
+	  win_lib        = ['Ole32', 'Shell32'],
 
 	  pch = 'StdAfx.cpp'
 	  )

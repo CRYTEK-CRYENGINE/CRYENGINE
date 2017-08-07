@@ -17,27 +17,25 @@ CRY_PFX2_DBG
 namespace pfx2
 {
 
-enum class EContactPointsFlags
-{
-	Active   = BIT(0),
-	Collided = BIT(1),
-	Sliding  = BIT(2),
-	Ignore   = BIT(3),
-};
-
 struct SContactPoint
 {
-	SContactPoint()
-		: m_point(ZERO)
-		, m_normal(ZERO)
-		, m_flags(0)
-		, m_totalCollisions(0) {}
+	Vec3  m_point;
+	Vec3  m_normal;
+	float m_speedIn;          // incoming collision speed
+	float m_time;             // since start of frame
+	uint  m_totalCollisions;
+	struct  
+	{
+		uint collided: 1,
+		     sliding: 1,
+		     ignore: 1;
+	} m_state;
 
-	Vec3 m_point;
-	Vec3 m_normal;
-	uint m_totalCollisions;
-	uint m_flags;	// EContactPointsFlags
+	SContactPoint() { ZeroStruct(*this); }
 };
+
+template<typename T, typename F = float> struct QuadPathT;
+typedef QuadPathT<Vec3> QuadPath;
 
 extern EParticleDataType EPDT_ContactPoint;
 
@@ -61,19 +59,25 @@ public:
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override;
 	virtual void Serialize(Serialization::IArchive& ar) override;
-	virtual void Update(const SUpdateContext& context) override;
+	virtual void InitParticles(const SUpdateContext& context) override;
+	virtual void PostUpdate(const SUpdateContext& context) override;
 
-	bool  IsActive() const           { return m_terrain || m_staticObjects || m_staticObjects; }
+	bool  IsActive() const           { return m_terrain || m_staticObjects || m_dynamicObjects; }
 	float GetElasticity() const      { return m_elasticity; }
 	int   GetRayTraceFilter() const;
 
 private:
+	void DoCollisions(const SUpdateContext& context) const;
+	bool DoCollision(SContactPoint& contact, QuadPath& path, int objectFilter, bool doSliding = true) const;
+
 	template<typename TCollisionLimit>
-	void UpdateCollisionLimit(const SUpdateContext& context);
+	void UpdateCollisionLimit(const SUpdateContext& context) const;
 
 	UUnitFloat          m_elasticity;
+	UUnitFloat          m_friction;
 	ECollisionLimitMode m_collisionsLimitMode;
 	UBytePos            m_maxCollisions;
+	bool                m_rotateToNormal;
 	bool                m_terrain;
 	bool                m_staticObjects;
 	bool                m_dynamicObjects;

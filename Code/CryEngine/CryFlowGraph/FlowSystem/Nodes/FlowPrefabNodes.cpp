@@ -81,14 +81,17 @@ void CFlowNode_PrefabEventSource::ProcessEvent(EFlowEvent event, SActivationInfo
 
 		const TCustomEventId eventId = (TCustomEventId)GetPortInt(pActInfo, EIP_EventId);
 
-		if (eventId != CUSTOMEVENTID_INVALID && eventId != m_eventId)
+		if (eventId != m_eventId)
 		{
 			if (m_eventId != CUSTOMEVENTID_INVALID)
 			{
 				pCustomEventManager->UnregisterEventListener(this, m_eventId);
 			}
 			m_eventId = eventId;
-			pCustomEventManager->RegisterEventListener(this, eventId);
+			if (eventId != CUSTOMEVENTID_INVALID)
+			{
+				pCustomEventManager->RegisterEventListener(this, eventId);
+			}
 		}
 	}
 }
@@ -223,14 +226,17 @@ void CFlowNode_PrefabInstance::ProcessEvent(EFlowEvent event, SActivationInfo* p
 		{
 			const TCustomEventId eventId = (TCustomEventId)GetPortInt(pActInfo, iCurPort);
 
-			if (eventId != CUSTOMEVENTID_INVALID && eventId != m_eventIds[i])
+			if (eventId != m_eventIds[i])
 			{
 				if (m_eventIds[i] != CUSTOMEVENTID_INVALID)
 				{
 					pCustomEventManager->UnregisterEventListener(this, m_eventIds[i]);
 				}
 				m_eventIds[i] = eventId;
-				pCustomEventManager->RegisterEventListener(this, eventId);
+				if (eventId != CUSTOMEVENTID_INVALID)
+				{
+					pCustomEventManager->RegisterEventListener(this, eventId);
+				}
 			}
 
 			iCurPort += static_cast<int>(ePrefabInstance_NumInputPortsPerEvent);

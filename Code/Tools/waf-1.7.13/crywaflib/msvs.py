@@ -141,35 +141,34 @@ PROJECT_TEMPLATE = r'''<?xml version="1.0" encoding="utf-8"?>
 		</ProjectConfiguration>
 		${endfor}
 	</ItemGroup>
-
-	<PropertyGroup Label="Globals">
+	
+	${for b in project.build_properties}
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='${b.configuration}|${b.platform}'" Label="Globals">
+		<ProjectGuid>{${project.uuid}}</ProjectGuid>
+		<ProjectName>${project.name}</ProjectName>
+		<Keyword>${project.get_project_keyword()}</Keyword>
 		
-		${if project.is_android_project()}
-			<ProjectGuid>{${project.uuid}}</ProjectGuid>
-			<ProjectName>${project.name}</ProjectName>
-			<Keyword>${project.get_project_keyword()}</Keyword>
-			<DefaultLanguage>en-US</DefaultLanguage>
-			<MinimumVisualStudioVersion>14.0</MinimumVisualStudioVersion>
-			<ApplicationType>Android</ApplicationType>
-			<ApplicationTypeRevision>2.0</ApplicationTypeRevision>
+		${if "ARM" in b.platform}	
+		<DefaultLanguage>en-US</DefaultLanguage>
+		<MinimumVisualStudioVersion>14.0</MinimumVisualStudioVersion>
+		<ApplicationType>Android</ApplicationType>
+		<ApplicationTypeRevision>2.0</ApplicationTypeRevision>		
 		${endif}
-		${if project.is_package_host()}
-			<ProjectGuid>{${project.uuid}}</ProjectGuid>
-			<Keyword>${project.get_project_keyword()}</Keyword>
-			<ProjectName>${project.name}</ProjectName>
-		${endif}
+		
 	</PropertyGroup>
+	${endfor}
+	
 	<Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
 
 	${for b in project.build_properties}
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='${b.configuration}|${b.platform}'" Label="Configuration">
 		<ConfigurationType>${project.get_project_type()}</ConfigurationType>
 		<OutDir>${b.outdir}</OutDir>		
-		${if project.is_android_project()}
+		${if "ARM" in b.platform}
 			<AndroidAPILevel>android-${xml:b.android_platform_target_version}</AndroidAPILevel>
 			<PlatformToolset>Clang_3_8</PlatformToolset>
 		${else}
-			<PlatformToolset>${xml:b.platform_toolset}</PlatformToolset>			
+			<PlatformToolset>${xml:b.platform_toolset}</PlatformToolset>
 		${endfor}
 		
 	</PropertyGroup>
@@ -272,7 +271,7 @@ ANDROID_PROJECT_USER_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='${b.configuration}|${b.platform}'">
 		<PackagePath>${b.bin_output_folder.abspath()}\\${project.name}.apk</PackagePath>
 		<DebuggerFlavor>AndroidDebugger</DebuggerFlavor>
-		<AdditionalSymbolSearchPaths>${b.bin_output_folder.abspath()}\\lib_debug\\armeabi-v7a;$(AdditionalSymbolSearchPaths)</AdditionalSymbolSearchPaths>
+		<AdditionalSymbolSearchPaths>${b.bin_output_folder.abspath()}\\lib_debug\\arm64-v8a;$(AdditionalSymbolSearchPaths)</AdditionalSymbolSearchPaths>
 	</PropertyGroup>
 	${endfor}
 </Project>
@@ -490,6 +489,9 @@ def convert_waf_platform_to_vs_platform(self, platform):
 	if platform == 'android_arm':
 		return 'ARM'
 		
+	if platform == 'android_arm64':
+		return 'ARM64'
+		
 	print('to_vs error ' + platform)
 	return 'UNKNOWN'
 	
@@ -516,6 +518,9 @@ def convert_vs_platform_to_waf_platform(self, platform):
 		
 	if platform == 'ARM':
 		return 'android_arm'
+		
+	if platform == 'ARM64':
+		return 'android_arm64'
 		
 	print('to_waf error ' + platform)
 	return 'UNKNOWN'
@@ -830,7 +835,8 @@ def strip_unsupported_msbuild_platforms(conf):
 		'durango' : 'Durango',
 		'orbis' 	: 'ORBIS',
 		'cppcheck': 'CppCheck',
-		'android_arm' : 'ARM'	
+		'android_arm' : 'ARM',
+		'android_arm64' : 'ARM'
 		}
 
 	installed_platforms = []
@@ -1333,7 +1339,6 @@ class vsnode_target(vsnode_alias):
 		return False
 		
 	def get_android_platform_version(self):
-		print "===", self.ctx.env['ANDROID_TARGET_VERSION']
 		return str(self.ctx.env['ANDROID_TARGET_VERSION'])
 		
 	def get_project_type(self):			

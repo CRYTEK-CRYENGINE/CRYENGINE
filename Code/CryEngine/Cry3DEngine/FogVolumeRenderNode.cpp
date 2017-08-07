@@ -478,6 +478,8 @@ void CFogVolumeRenderNode::Render(const SRendParams& rParam, const SRenderingPas
 		pMaterial = (rParam.pMaterial != nullptr) ? rParam.pMaterial : pMaterial;
 		SShaderItem& shaderItem = pMaterial->GetShaderItem(0);
 
+		pRenderObject->m_pCurrMaterial = pMaterial;
+
 		// add to renderer
 		GetRenderer()->EF_AddEf(m_pFogVolumeRenderElement[fillThreadID], shaderItem, pRenderObject, passInfo, EFSLIST_TRANSP, nAfterWater);
 	}

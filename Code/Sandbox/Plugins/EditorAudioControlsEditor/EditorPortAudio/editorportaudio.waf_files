@@ -1,0 +1,17 @@
+{
+	"EditorPortAudio_uber_0.cpp":
+	{
+		"Root":
+		[
+			"AudioSystemControl.cpp",
+			"AudioSystemControl.h",
+			"AudioSystemEditor.cpp",
+			"AudioSystemEditor.h",
+			"main.cpp",
+			"ProjectLoader.h",
+			"ProjectLoader.cpp",
+			"StdAfx.h",
+			"StdAfx.cpp"
+		]
+	}
+}

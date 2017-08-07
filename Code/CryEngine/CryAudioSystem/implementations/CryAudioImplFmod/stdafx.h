@@ -8,31 +8,31 @@
 #include <CryCore/StlUtils.h>
 #include <CryCore/Project/ProjectDefines.h>
 #include <CrySystem/ISystem.h>
+#include <fmod_studio.hpp>
 
 #if !defined(_RELEASE)
-// Define this to enable logging via CAudioLogger.
-// We disable logging for Release builds
+	#define INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 	#define ENABLE_AUDIO_LOGGING
 #endif // _RELEASE
 
 #include <AudioLogger.h>
-#include <fmod_studio.hpp>
-
-extern CAudioLogger g_audioImplLogger;
-
-#if !defined(_RELEASE)
-	#define INCLUDE_FMOD_IMPL_PRODUCTION_CODE
-#endif // _RELEASE
 
 #if CRY_PLATFORM_DURANGO
 	#define PROVIDE_FMOD_IMPL_SECONDARY_POOL
+// Memory Allocation
+	#include <CryMemory/CryPool/PoolAlloc.h>
 #endif // CRY_PLATFORM_DURANGO
 
-// Memory Allocation
-#if defined(PROVIDE_FMOD_IMPL_SECONDARY_POOL)
-	#include <CryMemory/CryPool/PoolAlloc.h>
+namespace CryAudio
+{
+namespace Impl
+{
+namespace Fmod
+{
+extern CLogger g_implLogger;
 
-typedef NCryPoolAlloc::CThreadSafe<NCryPoolAlloc::CBestFit<NCryPoolAlloc::CReferenced<NCryPoolAlloc::CMemoryDynamic, 4*1024, true>, NCryPoolAlloc::CListItemReference>> MemoryPoolReferenced;
+#if defined(PROVIDE_FMOD_IMPL_SECONDARY_POOL)
+typedef NCryPoolAlloc::CThreadSafe<NCryPoolAlloc::CBestFit<NCryPoolAlloc::CReferenced<NCryPoolAlloc::CMemoryDynamic, 4* 1024, true>, NCryPoolAlloc::CListItemReference>> MemoryPoolReferenced;
 
 extern MemoryPoolReferenced g_audioImplMemoryPoolSecondary;
 
@@ -62,7 +62,7 @@ inline bool Secondary_Free(void* pFree)
 	// and at the beginning the handle is saved.
 
 	// retrieve handle
-	bool bFreed = (pFree == NULL);//true by default when passing NULL
+	bool bFreed = (pFree == NULL);      //true by default when passing NULL
 	uint32 const allocHandle = g_audioImplMemoryPoolSecondary.AddressToHandle(pFree);
 
 	if (allocHandle > 0)
@@ -73,47 +73,6 @@ inline bool Secondary_Free(void* pFree)
 	return bFreed;
 }
 #endif // PROVIDE_FMOD_IMPL_SECONDARY_POOL
-
-// Windows or XboxOne
-//////////////////////////////////////////////////////////////////////////
-#if CRY_PLATFORM_WINDOWS || CRY_PLATFORM_DURANGO
-#endif
-
-// Windows32
-//////////////////////////////////////////////////////////////////////////
-#if CRY_PLATFORM_WINDOWS && CRY_PLATFORM_32BIT
-#endif
-
-// Windows64
-//////////////////////////////////////////////////////////////////////////
-#if CRY_PLATFORM_WINDOWS && CRY_PLATFORM_64BIT
-#endif
-
-// XboxOne
-//////////////////////////////////////////////////////////////////////////
-#if CRY_PLATFORM_DURANGO
-#endif
-
-//////////////////////////////////////////////////////////////////////////
-#if CRY_PLATFORM_ORBIS
-#endif
-
-// Mac
-//////////////////////////////////////////////////////////////////////////
-#if CRY_PLATFORM_MAC
-#endif
-
-// Android
-//////////////////////////////////////////////////////////////////////////
-#if CRY_PLATFORM_ANDROID
-#endif
-
-// IOS
-//////////////////////////////////////////////////////////////////////////
-#if CRY_PLATFORM_IOS
-#endif
-
-// Linux
-//////////////////////////////////////////////////////////////////////////
-#if CRY_PLATFORM_LINUX
-#endif
+}      // Fmod
+}      // Impl
+}      // CryAudio

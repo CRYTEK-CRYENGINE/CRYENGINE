@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <Schematyc/Reflection/TypeDesc.h>
-#include <Schematyc/Utils/GUID.h>
+#include <CrySchematyc/Reflection/TypeDesc.h>
+#include <CrySchematyc/Utils/GUID.h>
 
 namespace Schematyc
 {

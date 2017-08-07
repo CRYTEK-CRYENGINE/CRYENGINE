@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/icons">
+      <file alias="substance/archive.ico">icons/substance_library_var1.ico</file>
+      <file alias="substance/instance.ico">icons/Substance_var1.ico</file>
+    </qresource>
+</RCC>

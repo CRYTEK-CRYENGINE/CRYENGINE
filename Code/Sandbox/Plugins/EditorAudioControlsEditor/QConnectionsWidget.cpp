@@ -4,7 +4,7 @@
 #include "QConnectionsWidget.h"
 #include <IAudioSystemEditor.h>
 #include <IAudioSystemItem.h>
-#include "AudioControl.h"
+#include "AudioAssets.h"
 #include "AudioControlsEditorPlugin.h"
 #include "IEditor.h"
 #include "QtUtil.h"
@@ -26,24 +26,18 @@
 #include <CrySerialization/STL.h>
 #include <Serialization/QPropertyTree/QPropertyTree.h>
 #include <QAdvancedTreeView.h>
+#include <QSplitter>
+#include <QSizePolicy>
 
 namespace ACE
 {
-
+//////////////////////////////////////////////////////////////////////////
 QConnectionsWidget::QConnectionsWidget(QWidget* pParent)
 	: QWidget(pParent)
 	, m_pControl(nullptr)
 	, m_pConnectionModel(new QConnectionModel())
 	, m_pConnectionsView(new QAdvancedTreeView())
 {
-	resize(326, 450);
-	setSizePolicy(QSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed));
-	setMinimumSize(QSize(0, 450));
-	setMaximumSize(QSize(16777215, 450));
-	QVBoxLayout* pHorizontalLayout = new QVBoxLayout(this);
-	pHorizontalLayout->setSpacing(0);
-	pHorizontalLayout->setContentsMargins(0, 0, 0, 0);
-
 	m_pConnectionsView->setContextMenuPolicy(Qt::CustomContextMenu);
 	m_pConnectionsView->setDragEnabled(false);
 	m_pConnectionsView->setAcceptDrops(true);
@@ -66,51 +60,75 @@ QConnectionsWidget::QConnectionsWidget(QWidget* pParent)
 	  });
 
 	m_pConnectionPropertiesFrame = new QFrame(this);
-	m_pConnectionPropertiesFrame->setSizePolicy(QSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum));
 	m_pConnectionPropertiesFrame->setAutoFillBackground(false);
 	m_pConnectionPropertiesFrame->setStyleSheet(QStringLiteral("#m_pConnectionPropertiesFrame { border: 1px solid #363636; }"));
 	m_pConnectionPropertiesFrame->setFrameShape(QFrame::Box);
 	m_pConnectionPropertiesFrame->setFrameShadow(QFrame::Plain);
 	m_pConnectionPropertiesFrame->setHidden(true);
+	m_pConnectionPropertiesFrame->setMinimumHeight(20);
 
-	QVBoxLayout* pVerticalLayout = new QVBoxLayout(m_pConnectionPropertiesFrame);
-	pVerticalLayout->setSpacing(0);
-	pVerticalLayout->setContentsMargins(6, 6, 6, 6);
-	m_pConnectionProperties = new QPropertyTree(m_pConnectionPropertiesFrame);
-	m_pConnectionProperties->setSizePolicy(QSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum));
-	m_pConnectionProperties->setSizeToContent(true);
+	m_pConnectionProperties = new QPropertyTree();
+	m_pConnectionProperties->setSizeToContent(false);
 
-	pVerticalLayout->addWidget(m_pConnectionProperties);
-	pHorizontalLayout->addWidget(m_pConnectionsView);
-	pHorizontalLayout->addWidget(m_pConnectionPropertiesFrame);
+	QVBoxLayout* const pLayout = new QVBoxLayout();
+	pLayout->setContentsMargins(0, 0, 0, 0);
+	pLayout->addWidget(m_pConnectionProperties);
+	m_pConnectionPropertiesFrame->setLayout(pLayout);
 
-	// Hide all the columns except "Name" and "Path"
-	const int count = m_pConnectionModel->columnCount(QModelIndex());
+	QSplitter* const pSplitter = new QSplitter(Qt::Vertical);
+	pSplitter->addWidget(m_pConnectionsView);
+	pSplitter->addWidget(m_pConnectionPropertiesFrame);
+	pSplitter->setCollapsible(0, false);
+	pSplitter->setCollapsible(1, false);
+
+	QVBoxLayout* const pMainLayout = new QVBoxLayout();
+	pMainLayout->setContentsMargins(0, 0, 0, 0);
+	pMainLayout->addWidget(pSplitter);
+	setLayout(pMainLayout);
+
+	// First hide all the columns except "Name" and "Path"
+	int const count = m_pConnectionModel->columnCount(QModelIndex());
+
 	for (int i = 2; i < count; ++i)
 	{
 		m_pConnectionsView->SetColumnVisible(i, false);
 	}
 
-	CAudioControlsEditorPlugin::GetATLModel()->AddListener(this);
+	// Then hide the entire widget.
+	setHidden(true);
+
+	CAudioControlsEditorPlugin::GetAssetsManager()->signalConnectionRemoved.Connect([&](CAudioControl* pControl)
+		{
+			if (m_pControl == pControl)
+			{
+			  // clear the selection if a connection is removed
+			  m_pConnectionsView->selectionModel()->clear();
+			  RefreshConnectionProperties();
+			}
+	  }, reinterpret_cast<uintptr_t>(this));
 
 	CAudioControlsEditorPlugin::GetImplementationManger()->signalImplementationAboutToChange.Connect([&]()
 		{
 			m_pConnectionsView->selectionModel()->clear();
 			RefreshConnectionProperties();
-	  });
+	  }, reinterpret_cast<uintptr_t>(this));
 
 }
 
+//////////////////////////////////////////////////////////////////////////
 QConnectionsWidget::~QConnectionsWidget()
 {
-	CAudioControlsEditorPlugin::GetATLModel()->RemoveListener(this);
+	CAudioControlsEditorPlugin::GetAssetsManager()->signalConnectionRemoved.DisconnectById(reinterpret_cast<uintptr_t>(this));
+	CAudioControlsEditorPlugin::GetImplementationManger()->signalImplementationAboutToChange.DisconnectById(reinterpret_cast<uintptr_t>(this));
 }
 
+//////////////////////////////////////////////////////////////////////////
 void QConnectionsWidget::Init()
 {
 	connect(m_pConnectionsView->selectionModel(), &QItemSelectionModel::selectionChanged, this, &QConnectionsWidget::RefreshConnectionProperties);
 }
 
+//////////////////////////////////////////////////////////////////////////
 bool QConnectionsWidget::eventFilter(QObject* pObject, QEvent* pEvent)
 {
 	if (pEvent->type() == QEvent::KeyPress)
@@ -125,6 +143,7 @@ bool QConnectionsWidget::eventFilter(QObject* pObject, QEvent* pEvent)
 	return QWidget::eventFilter(pObject, pEvent);
 }
 
+//////////////////////////////////////////////////////////////////////////
 void QConnectionsWidget::RemoveSelectedConnection()
 {
 	if (m_pControl)
@@ -138,7 +157,7 @@ void QConnectionsWidget::RemoveSelectedConnection()
 			QString text;
 			if (size == 1)
 			{
-				text = "Are you sure you want to delete the connection between \"" + QtUtil::ToQString(m_pControl->GetName()) + "\" and \"" + selectedIndices[0].data(Qt::DisplayRole).toString() + "\"?";
+				text = R"(Are you sure you want to delete the connection between ")" + QtUtil::ToQString(m_pControl->GetName()) + R"(" and ")" + selectedIndices[0].data(Qt::DisplayRole).toString() + R"("?)";
 			}
 			else
 			{
@@ -172,7 +191,8 @@ void QConnectionsWidget::RemoveSelectedConnection()
 	}
 }
 
-void QConnectionsWidget::SetControl(CATLControl* pControl)
+//////////////////////////////////////////////////////////////////////////
+void QConnectionsWidget::SetControl(CAudioControl* pControl)
 {
 	if (m_pControl != pControl)
 	{
@@ -181,6 +201,7 @@ void QConnectionsWidget::SetControl(CATLControl* pControl)
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////
 void QConnectionsWidget::Reload()
 {
 	m_pConnectionModel->Init(m_pControl);
@@ -189,6 +210,7 @@ void QConnectionsWidget::Reload()
 	RefreshConnectionProperties();
 }
 
+//////////////////////////////////////////////////////////////////////////
 void QConnectionsWidget::RefreshConnectionProperties()
 {
 	ConnectionPtr pConnection;
@@ -217,15 +239,4 @@ void QConnectionsWidget::RefreshConnectionProperties()
 		m_pConnectionPropertiesFrame->setHidden(true);
 	}
 }
-
-void QConnectionsWidget::OnConnectionRemoved(CATLControl* pControl, IAudioSystemItem* pMiddlewareControl)
-{
-	if (m_pControl == pControl)
-	{
-		// clear the selection if a connection is removed
-		m_pConnectionsView->selectionModel()->clear();
-		RefreshConnectionProperties();
-	}
-}
-
-}
+} // namespace ACE

@@ -18,7 +18,10 @@
 			"shared/UqsString.h",
 			"shared/UqsString.cpp",
 			"shared/VariantDict.h",
-			"shared/VariantDict.cpp"
+			"shared/VariantDict.cpp",
+			"shared/FactoryBase.h",
+			"shared/TimeValueUtil.h",
+			"shared/TimeValueUtil.cpp"
 		]
 	}
 }

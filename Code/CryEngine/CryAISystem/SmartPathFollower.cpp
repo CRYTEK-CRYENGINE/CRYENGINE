@@ -20,8 +20,6 @@
 #include "CAISystem.h"
 #include "AILog.h"
 #include "NavPath.h"
-#include "NavRegion.h"
-#include "Walkability/WalkabilityCacheManager.h"
 #include "DebugDrawContext.h"
 #include <CryGame/IGameFramework.h>
 

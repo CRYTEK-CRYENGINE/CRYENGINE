@@ -2,11 +2,7 @@
 
 #pragma once
 
-#include "ATLControlsModel.h"
-
 #include <QWidget>
-#include <QListWidget>
-#include <QColor>
 
 class QVBoxLayout;
 class QFrame;
@@ -15,33 +11,30 @@ class QAdvancedTreeView;
 
 namespace ACE
 {
-class CATLControl;
+class CAudioControl;
 class QConnectionModel;
 
-class QConnectionsWidget : public QWidget, public IATLControlModelListener
+class QConnectionsWidget : public QWidget
 {
 public:
+
 	QConnectionsWidget(QWidget* pParent = nullptr);
-	~QConnectionsWidget();
+	virtual ~QConnectionsWidget() override;
+
 	void Init();
-	void SetControl(CATLControl* pControl);
+	void SetControl(CAudioControl* pControl);
 	void Reload();
 
 private:
+
 	bool eventFilter(QObject* pObject, QEvent* pEvent) override;
 	void RemoveSelectedConnection();
 	void RefreshConnectionProperties();
 
-	//////////////////////////////////////////////////////////
-	// IAudioSystemEditor implementation
-	/////////////////////////////////////////////////////////
-	virtual void OnConnectionRemoved(CATLControl* pControl, IAudioSystemItem* pMiddlewareControl) override;
-	//////////////////////////////////////////////////////////
-
-	CATLControl*       m_pControl;
+	CAudioControl*     m_pControl;
 	QFrame*            m_pConnectionPropertiesFrame;
 	QPropertyTree*     m_pConnectionProperties;
 	QConnectionModel*  m_pConnectionModel;
 	QAdvancedTreeView* m_pConnectionsView;
 };
-}
+} // namespace ACE

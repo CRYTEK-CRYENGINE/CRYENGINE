@@ -13,6 +13,7 @@
 #include "D3DPostProcess.h"
 #include "D3DStereo.h"
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 CMotionBlur::OMBParamsMap CMotionBlur::m_pOMBData[3];
@@ -463,7 +464,7 @@ void CMotionBlur::Render()
 				CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pDofFocusParam1Name, &vDofParams1, 1);
 
 				gcpRendD3D->FX_Commit();
-				if (!FAILED(gcpRendD3D->FX_SetVertexDeclaration(0, eVF_P3S_C4B_T2S)))
+				if (!FAILED(gcpRendD3D->FX_SetVertexDeclaration(0, EDefaultInputLayouts::P3S_C4B_T2S)))
 				{
 					gcpRendD3D->FX_SetVStream(0, NULL, 0, 0);
 					gcpRendD3D->FX_SetIStream(0, 0, Index16);
@@ -513,3 +514,5 @@ void CMotionBlur::Render()
 	gcpRendD3D->FX_SetActiveRenderTargets();
 	gcpRendD3D->RT_SetViewport(iTempX, iTempY, iWidth, iHeight);
 }
+
+#pragma warning(pop)

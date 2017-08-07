@@ -6,20 +6,20 @@
 #include <CrySerialization/BlackBox.h>
 #include <CrySerialization/IArchiveHost.h>
 #include <CrySerialization/STL.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvAction.h>
-#include <Schematyc/Env/Elements/IEnvInterface.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/SerializationUtils/SerializationUtils.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvAction.h>
+#include <CrySchematyc/Env/Elements/IEnvInterface.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/SerializationUtils/SerializationUtils.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
 
 namespace Schematyc
 {
 
 CScriptActionInstance::CScriptActionInstance() {}
 
-CScriptActionInstance::CScriptActionInstance(const SGUID& guid, const char* szName, const SGUID& actionTypeGUID, const SGUID& componentInstanceGUID)
+CScriptActionInstance::CScriptActionInstance(const CryGUID& guid, const char* szName, const CryGUID& actionTypeGUID, const CryGUID& componentInstanceGUID)
 	: CScriptElementBase(guid, szName)
 	, m_actionTypeGUID(actionTypeGUID)
 	, m_componentInstanceGUID(componentInstanceGUID)
@@ -44,12 +44,12 @@ void CScriptActionInstance::Serialize(Serialization::IArchive& archive)
 	CScriptElementBase::SerializeExtensions(archive);
 }
 
-SGUID CScriptActionInstance::GetActionTypeGUID() const
+CryGUID CScriptActionInstance::GetActionTypeGUID() const
 {
 	return m_actionTypeGUID;
 }
 
-SGUID CScriptActionInstance::GetComponentInstanceGUID() const
+CryGUID CScriptActionInstance::GetComponentInstanceGUID() const
 {
 	return m_componentInstanceGUID;
 }

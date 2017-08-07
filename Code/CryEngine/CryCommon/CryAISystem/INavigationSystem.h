@@ -11,7 +11,7 @@
 
 struct IAIPathAgent;
 struct IOffMeshNavigationManager;
-struct IPathGraphUpdatesManager;
+struct INavigationUpdatesManager;
 
 #ifdef SW_NAVMESH_USE_GUID
 typedef uint64 NavigationMeshGUID;
@@ -179,7 +179,7 @@ struct INavigationSystem
 	virtual void                  Reset() = 0;
 
 	
-	virtual IPathGraphUpdatesManager* GetUpdateManager() = 0;
+	virtual INavigationUpdatesManager* GetUpdateManager() = 0;
 
 	virtual void                  SetDebugDisplayAgentType(NavigationAgentTypeID agentTypeID) = 0;
 	virtual NavigationAgentTypeID GetDebugDisplayAgentType() const = 0;

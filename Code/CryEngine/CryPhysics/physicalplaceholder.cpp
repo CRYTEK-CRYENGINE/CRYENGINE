@@ -83,7 +83,7 @@ int CPhysicalPlaceholder::SetParams(pe_params *_params, int bThreadSafe)
 		}
 
 		CPhysicalWorld *pWorld = (CPhysicalWorld*)GetWorld();
-		AtomicAdd(&pWorld->m_lockGrid,-(pWorld->RepositionEntity(this,1) & WRITE_LOCK_VAL));
+		pWorld->RepositionEntity(this,1|8);
 		return 1;
 	}
 

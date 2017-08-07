@@ -23,7 +23,7 @@
 //////////////////////////////////////////////////////////////////////////
 class CEntityComponentFlowGraph : public IEntityFlowGraphComponent
 {
-	CRY_ENTITY_COMPONENT_CLASS(CEntityComponentFlowGraph,IEntityFlowGraphComponent,"CEntityComponentFlowGraph",0x2BC1F44EBD734EC5,0xBC8F7982E75BE23C);
+	CRY_ENTITY_COMPONENT_CLASS_GUID(CEntityComponentFlowGraph, IEntityFlowGraphComponent, "CEntityComponentFlowGraph", "2bc1f44e-bd73-4ec5-bc8f-7982e75be23c"_cry_guid);
 
 	CEntityComponentFlowGraph();
 	virtual ~CEntityComponentFlowGraph();

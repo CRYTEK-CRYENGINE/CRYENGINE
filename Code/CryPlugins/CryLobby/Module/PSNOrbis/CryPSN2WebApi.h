@@ -292,8 +292,8 @@ protected:
 
 	bool                      m_bIsInitialised;
 
-	static void               PushEventCallback(int, int, const SceNpPeerAddress*, const SceNpPeerAddress*, const SceNpWebApiPushEventDataType*, const char*, size_t, void*);
-	static void               ServicePushEventCallback(int, int, const char*, SceNpServiceLabel, const SceNpPeerAddress*, const SceNpPeerAddress*, const SceNpWebApiPushEventDataType*, const char*, size_t, void*);
+	static void               PushEventCallback(int, int, const SceNpPeerAddressA*, const SceNpPeerAddressA*, const SceNpWebApiPushEventDataType*, const char*, size_t, void*);
+	static void               ServicePushEventCallback(int, int, const char*, SceNpServiceLabel, const SceNpPeerAddressA*, const SceNpPeerAddressA*, const SceNpWebApiPushEventDataType*, const char*, size_t, void*);
 
 public:
 

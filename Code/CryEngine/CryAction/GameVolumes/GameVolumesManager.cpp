@@ -23,18 +23,21 @@ IGameVolumesEdit* CGameVolumesManager::GetEditorInterface()
 
 bool CGameVolumesManager::GetVolumeInfoForEntity(EntityId entityId, IGameVolumes::VolumeInfo* pOutInfo) const
 {
-	TEntityVolumes::const_iterator volumeIt = std::find(m_volumesData.begin(), m_volumesData.end(), entityId);
 
-	if (volumeIt != m_volumesData.end() && !(*volumeIt).vertices.empty())
+	TEntityToIndexMap::const_iterator indexIt = m_entityToIndexMap.find(entityId);
+	if (indexIt != m_entityToIndexMap.end())
 	{
-		const EntityVolume& entityVolume = *volumeIt;
+		const EntityVolume& entityVolume = m_volumesData[indexIt->second];
 
-		pOutInfo->volumeHeight = entityVolume.height;
-		pOutInfo->closed = entityVolume.closed;
-		pOutInfo->verticesCount = entityVolume.vertices.size();
-		pOutInfo->pVertices = &entityVolume.vertices[0];
+		if (!entityVolume.vertices.empty())
+		{
+			pOutInfo->volumeHeight = entityVolume.height;
+			pOutInfo->closed = entityVolume.closed;
+			pOutInfo->verticesCount = entityVolume.vertices.size();
+			pOutInfo->pVertices = &entityVolume.vertices[0];
 
-		return true;
+			return true;
+		}
 	}
 
 	return false;
@@ -109,25 +112,26 @@ void CGameVolumesManager::Load(const char* fileName)
 
 		file.Close();
 	}
+	RebuildIndex();
 }
 
 void CGameVolumesManager::Reset()
 {
+	stl::free_container(m_entityToIndexMap);
 	stl::free_container(m_volumesData);
 }
 
 void CGameVolumesManager::SetVolume(EntityId entityId, const IGameVolumes::VolumeInfo& volumeInfo)
 {
-	bool inserted = false;
-
-	TEntityVolumes::iterator volumeIt = std::find(m_volumesData.begin(), m_volumesData.end(), entityId);
-	if (volumeIt == m_volumesData.end())
+	TEntityToIndexMap::iterator indexIt = m_entityToIndexMap.find(entityId);
+	if (indexIt == m_entityToIndexMap.end())
 	{
+		m_entityToIndexMap[entityId] = static_cast<uint32>(m_volumesData.size());
 		m_volumesData.push_back(EntityVolume());
-		inserted = true;
+		indexIt = --m_entityToIndexMap.end();
 	}
 
-	EntityVolume& entityVolume = inserted ? m_volumesData.back() : *volumeIt;
+	EntityVolume& entityVolume = m_volumesData[indexIt->second];
 	entityVolume.entityId = entityId;
 	entityVolume.height = volumeInfo.volumeHeight;
 	entityVolume.closed = volumeInfo.closed;
@@ -141,6 +145,7 @@ void CGameVolumesManager::SetVolume(EntityId entityId, const IGameVolumes::Volum
 void CGameVolumesManager::DestroyVolume(EntityId entityId)
 {
 	stl::find_and_erase(m_volumesData, entityId);
+	RebuildIndex(); // That's a bit costly, but it only happens in editor when a designer actually deletes a volume
 }
 
 void CGameVolumesManager::RegisterEntityClass(const char* className)
@@ -213,5 +218,17 @@ void CGameVolumesManager::Export(const char* fileName) const
 		}
 
 		file.Close();
+	}
+}
+
+void CGameVolumesManager::RebuildIndex()
+{
+	m_entityToIndexMap.clear();
+	m_entityToIndexMap.reserve(m_volumesData.size());
+	const uint32 count = static_cast<uint32>(m_volumesData.size());
+	for (uint32 index = 0; index < count; ++index)
+	{
+		const EntityId entityId = m_volumesData[index].entityId;
+		m_entityToIndexMap[entityId] = index;
 	}
 }

@@ -33,8 +33,9 @@ private:
 		Vertices vertices;
 	};
 
-	typedef std::vector<EntityVolume>  TEntityVolumes;
-	typedef std::vector<IEntityClass*> TVolumeClasses;
+	typedef std::vector<EntityVolume>   TEntityVolumes;
+	typedef std::vector<IEntityClass*>  TVolumeClasses;
+	typedef VectorMap<EntityId, uint32> TEntityToIndexMap;
 
 public:
 	CGameVolumesManager();
@@ -59,9 +60,12 @@ public:
 	// ~IGameVolumesEdit
 
 private:
+	void RebuildIndex();
 
-	TEntityVolumes      m_volumesData; // Level memory
-	TVolumeClasses      m_classes;     // Global memory, initialized at start-up
+private:
+	TEntityToIndexMap m_entityToIndexMap; // Level memory
+	TEntityVolumes    m_volumesData; // Level memory
+	TVolumeClasses    m_classes;     // Global memory, initialized at start-up
 
 	const static uint32 GAME_VOLUMES_FILE_VERSION = 2;
 };

@@ -16,7 +16,7 @@ CVehicleSeatActionOrientateBoneToView::CVehicleSeatActionOrientateBoneToView() :
 	, m_BoneSmoothingRate(0.f, 0.f, 0.f)
 	, m_pAnimatedCharacter(NULL)
 {
-	CryCreateClassInstance("AnimationPoseModifier_OperatorQueue", m_poseModifier);
+	CryCreateClassInstanceForInterface(cryiidof<IAnimationOperatorQueue>(), m_poseModifier);
 }
 
 bool CVehicleSeatActionOrientateBoneToView::Init(IVehicle* pVehicle, IVehicleSeat* pSeat, const CVehicleParams& table)

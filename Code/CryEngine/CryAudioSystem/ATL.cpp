@@ -13,13 +13,12 @@
 #include <CryEntitySystem/IEntitySystem.h>
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
+	#include "ProfileData.h"
 	#include <CryRenderer/IRenderAuxGeom.h>
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
-using namespace CryAudio;
-using namespace CryAudio::Impl;
-using namespace CryAudio::Impl::Null;
-
+namespace CryAudio
+{
 ///////////////////////////////////////////////////////////////////////////
 inline ERequestResult ConvertToRequestResult(ERequestStatus const eAudioRequestStatus)
 {
@@ -27,25 +26,25 @@ inline ERequestResult ConvertToRequestResult(ERequestStatus const eAudioRequestS
 
 	switch (eAudioRequestStatus)
 	{
-	case eRequestStatus_Success:
+	case ERequestStatus::Success:
 		{
-			result = eRequestResult_Success;
+			result = ERequestResult::Success;
 			break;
 		}
-	case eRequestStatus_Failure:
-	case eRequestStatus_FailureInvalidObjectId:
-	case eRequestStatus_FailureInvalidControlId:
-	case eRequestStatus_FailureInvalidRequest:
-	case eRequestStatus_PartialSuccess:
+	case ERequestStatus::Failure:
+	case ERequestStatus::FailureInvalidObjectId:
+	case ERequestStatus::FailureInvalidControlId:
+	case ERequestStatus::FailureInvalidRequest:
+	case ERequestStatus::PartialSuccess:
 		{
-			result = eRequestResult_Failure;
+			result = ERequestResult::Failure;
 			break;
 		}
 	default:
 		{
-			g_audioLogger.Log(eAudioLogType_Error, "Invalid AudioRequestStatus '%u'. Cannot be converted to an AudioRequestResult. ", eAudioRequestStatus);
+			g_logger.Log(ELogType::Error, "Invalid AudioRequestStatus '%u'. Cannot be converted to an AudioRequestResult. ", eAudioRequestStatus);
 			CRY_ASSERT(false);
-			result = eRequestResult_Failure;
+			result = ERequestResult::Failure;
 			break;
 		}
 	}
@@ -59,39 +58,46 @@ CAudioTranslationLayer::CAudioTranslationLayer()
 	, m_fileCacheMgr(m_preloadRequests)
 	, m_xmlProcessor(m_triggers, m_parameters, m_switches, m_environments, m_preloadRequests, m_fileCacheMgr, m_internalControls)
 {
-
-	if (g_audioCVars.m_audioObjectPoolSize < 1)
+	if (g_cvars.m_audioObjectPoolSize < 1)
 	{
-		g_audioCVars.m_audioObjectPoolSize = 1;
-		g_audioLogger.Log(eAudioLogType_Warning, "Audio Object pool size should be greater than zero. Forcing the cvar \"s_AudioObjectPoolSize\" to 1!");
+		g_cvars.m_audioObjectPoolSize = 1;
+		g_logger.Log(ELogType::Warning, R"(Audio Object pool size should be greater than zero. Forcing the cvar "s_AudioObjectPoolSize" to 1!)");
 	}
-	CATLAudioObject::CreateAllocator(g_audioCVars.m_audioObjectPoolSize);
+	CATLAudioObject::CreateAllocator(g_cvars.m_audioObjectPoolSize);
 
-	if (g_audioCVars.m_audioEventPoolSize < 1)
+	if (g_cvars.m_audioEventPoolSize < 1)
 	{
-		g_audioCVars.m_audioEventPoolSize = 1;
-		g_audioLogger.Log(eAudioLogType_Warning, "Audio Event pool size should be greater than zero. Forcing the cvar \"s_AudioEventPoolSize\" to 1!");
+		g_cvars.m_audioEventPoolSize = 1;
+		g_logger.Log(ELogType::Warning, R"(Audio Event pool size should be greater than zero. Forcing the cvar "s_AudioEventPoolSize" to 1!)");
 	}
-	CATLEvent::CreateAllocator(g_audioCVars.m_audioEventPoolSize);
+	CATLEvent::CreateAllocator(g_cvars.m_audioEventPoolSize);
 
-	if (g_audioCVars.m_audioStandaloneFilePoolSize < 1)
+	if (g_cvars.m_audioStandaloneFilePoolSize < 1)
 	{
-		g_audioCVars.m_audioStandaloneFilePoolSize = 1;
-		g_audioLogger.Log(eAudioLogType_Warning, "Audio Standalone File pool size should be greater than zero. Forcing the cvar \"s_AudioStandaloneFilePoolSize\" to 1!");
+		g_cvars.m_audioStandaloneFilePoolSize = 1;
+		g_logger.Log(ELogType::Warning, R"(Audio Standalone File pool size should be greater than zero. Forcing the cvar "s_AudioStandaloneFilePoolSize" to 1!)");
 	}
-	CATLStandaloneFile::CreateAllocator(g_audioCVars.m_audioStandaloneFilePoolSize);
+	CATLStandaloneFile::CreateAllocator(g_cvars.m_audioStandaloneFilePoolSize);
+
+#if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
+	m_pProfileData = new CProfileData;
+#endif // INCLUDE_AUDIO_PRODUCTION_CODE
 }
 
 //////////////////////////////////////////////////////////////////////////
 CAudioTranslationLayer::~CAudioTranslationLayer()
 {
-	if (m_pImpl != nullptr)
+	if (m_pIImpl != nullptr)
 	{
 		// the ATL has not yet been properly shut down
 		ShutDown();
 	}
 
 	CRY_ASSERT_MESSAGE(!m_pGlobalAudioObject, "Global audio object should have been destroyed in the audio thread, before the ATL is destructed.");
+
+#if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
+	delete m_pProfileData;
+#endif // INCLUDE_AUDIO_PRODUCTION_CODE
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -128,30 +134,30 @@ bool CAudioTranslationLayer::ShutDown()
 ///////////////////////////////////////////////////////////////////////////
 void CAudioTranslationLayer::ProcessRequest(CAudioRequest& request)
 {
-	ERequestStatus result = eRequestStatus_None;
+	ERequestStatus result = ERequestStatus::None;
 
 	if (request.GetData())
 	{
 		switch (request.GetData()->type)
 		{
-		case eAudioRequestType_AudioObjectRequest:
+		case EAudioRequestType::AudioObjectRequest:
 			{
 				result = ProcessAudioObjectRequest(request);
 
 				break;
 			}
-		case eAudioRequestType_AudioListenerRequest:
+		case EAudioRequestType::AudioListenerRequest:
 			{
 				result = ProcessAudioListenerRequest(request.GetData());
 				break;
 			}
-		case eAudioRequestType_AudioCallbackManagerRequest:
+		case EAudioRequestType::AudioCallbackManagerRequest:
 			{
 				result = ProcessAudioCallbackManagerRequest(request);
 
 				break;
 			}
-		case eAudioRequestType_AudioManagerRequest:
+		case EAudioRequestType::AudioManagerRequest:
 			{
 				result = ProcessAudioManagerRequest(request);
 
@@ -159,7 +165,7 @@ void CAudioTranslationLayer::ProcessRequest(CAudioRequest& request)
 			}
 		default:
 			{
-				g_audioLogger.Log(eAudioLogType_Error, "Unknown audio request type: %d", static_cast<int>(request.GetData()->type));
+				g_logger.Log(ELogType::Error, "Unknown audio request type: %d", static_cast<int>(request.GetData()->type));
 				CRY_ASSERT(false);
 
 				break;
@@ -173,14 +179,14 @@ void CAudioTranslationLayer::ProcessRequest(CAudioRequest& request)
 ///////////////////////////////////////////////////////////////////////////
 void CAudioTranslationLayer::Update(float const deltaTime)
 {
-	if (m_pImpl != nullptr)
+	if (m_pIImpl != nullptr)
 	{
 		if (m_lastMainThreadFrameId != gEnv->nMainFrameID)
 		{
 			g_lastMainThreadFrameStartTime = gEnv->pTimer->GetFrameStartTime();
 			m_lastMainThreadFrameId = gEnv->nMainFrameID;
 
-			if (g_audioCVars.m_tickWithMainThread > 0)
+			if (g_cvars.m_tickWithMainThread > 0)
 			{
 				m_audioListenerMgr.Update(deltaTime);
 				m_audioEventMgr.Update(deltaTime);
@@ -188,11 +194,11 @@ void CAudioTranslationLayer::Update(float const deltaTime)
 				m_pGlobalAudioObject->GetImplDataPtr()->Update();
 				m_fileCacheMgr.Update();
 
-				m_pImpl->Update(deltaTime);
+				m_pIImpl->Update(deltaTime);
 			}
 		}
 
-		if (g_audioCVars.m_tickWithMainThread == 0)
+		if (g_cvars.m_tickWithMainThread == 0)
 		{
 			m_audioListenerMgr.Update(deltaTime);
 			m_audioEventMgr.Update(deltaTime);
@@ -200,119 +206,9 @@ void CAudioTranslationLayer::Update(float const deltaTime)
 			m_pGlobalAudioObject->GetImplDataPtr()->Update();
 			m_fileCacheMgr.Update();
 
-			m_pImpl->Update(deltaTime);
+			m_pIImpl->Update(deltaTime);
 		}
 	}
-}
-
-///////////////////////////////////////////////////////////////////////////
-bool CAudioTranslationLayer::GetAudioTriggerId(char const* const szAudioTriggerName, ControlId& audioTriggerId) const
-{
-	ControlId const tempAudioTriggerId = static_cast<ControlId const>(AudioStringToId(szAudioTriggerName));
-
-	if (stl::find_in_map(m_triggers, tempAudioTriggerId, nullptr) != nullptr)
-	{
-		audioTriggerId = tempAudioTriggerId;
-	}
-	else
-	{
-		audioTriggerId = InvalidControlId;
-	}
-
-	return (audioTriggerId != InvalidControlId);
-}
-
-///////////////////////////////////////////////////////////////////////////
-bool CAudioTranslationLayer::GetAudioParameterId(char const* const szAudioParameterName, ControlId& audioParameterId) const
-{
-	ControlId const parameterId = static_cast<ControlId const>(AudioStringToId(szAudioParameterName));
-
-	if (stl::find_in_map(m_parameters, parameterId, nullptr) != nullptr)
-	{
-		audioParameterId = parameterId;
-	}
-	else
-	{
-		audioParameterId = InvalidControlId;
-	}
-
-	return (audioParameterId != InvalidControlId);
-}
-
-///////////////////////////////////////////////////////////////////////////
-bool CAudioTranslationLayer::GetAudioSwitchId(char const* const szAudioSwitchName, ControlId& audioSwitchId) const
-{
-	ControlId const switchId = static_cast<ControlId const>(AudioStringToId(szAudioSwitchName));
-
-	if (stl::find_in_map(m_switches, switchId, nullptr) != nullptr)
-	{
-		audioSwitchId = switchId;
-	}
-	else
-	{
-		audioSwitchId = InvalidControlId;
-	}
-
-	return (audioSwitchId != InvalidControlId);
-}
-
-///////////////////////////////////////////////////////////////////////////
-bool CAudioTranslationLayer::GetAudioSwitchStateId(
-  ControlId const switchId,
-  char const* const szAudioSwitchStateName,
-  SwitchStateId& audioSwitchStateId) const
-{
-	audioSwitchStateId = InvalidControlId;
-
-	CATLSwitch const* const pSwitch = stl::find_in_map(m_switches, switchId, nullptr);
-
-	if (pSwitch != nullptr)
-	{
-		SwitchStateId const nStateID = static_cast<SwitchStateId const>(AudioStringToId(szAudioSwitchStateName));
-
-		CATLSwitchState const* const pState = stl::find_in_map(pSwitch->audioSwitchStates, nStateID, nullptr);
-
-		if (pState != nullptr)
-		{
-			audioSwitchStateId = nStateID;
-		}
-	}
-
-	return (audioSwitchStateId != InvalidControlId);
-}
-
-//////////////////////////////////////////////////////////////////////////
-bool CAudioTranslationLayer::GetAudioPreloadRequestId(char const* const szAudioPreloadRequestName, PreloadRequestId& audioPreloadRequestId) const
-{
-	PreloadRequestId const nAudioPreloadRequestID = static_cast<PreloadRequestId const>(AudioStringToId(szAudioPreloadRequestName));
-
-	if (stl::find_in_map(m_preloadRequests, nAudioPreloadRequestID, nullptr) != nullptr)
-	{
-		audioPreloadRequestId = nAudioPreloadRequestID;
-	}
-	else
-	{
-		audioPreloadRequestId = InvalidPreloadRequestId;
-	}
-
-	return (audioPreloadRequestId != InvalidPreloadRequestId);
-}
-
-///////////////////////////////////////////////////////////////////////////
-bool CAudioTranslationLayer::GetAudioEnvironmentId(char const* const szAudioEnvironmentName, EnvironmentId& audioEnvironmentId) const
-{
-	EnvironmentId const environmentId = static_cast<ControlId const>(AudioStringToId(szAudioEnvironmentName));
-
-	if (stl::find_in_map(m_environments, environmentId, nullptr) != nullptr)
-	{
-		audioEnvironmentId = environmentId;
-	}
-	else
-	{
-		audioEnvironmentId = InvalidControlId;
-	}
-
-	return (audioEnvironmentId != InvalidControlId);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -320,7 +216,7 @@ ERequestStatus CAudioTranslationLayer::ParseControlsData(char const* const szFol
 {
 	m_xmlProcessor.ParseControlsData(szFolderPath, dataScope);
 
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -328,19 +224,19 @@ ERequestStatus CAudioTranslationLayer::ParsePreloadsData(char const* const szFol
 {
 	m_xmlProcessor.ParsePreloadsData(szFolderPath, dataScope);
 
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 ERequestStatus CAudioTranslationLayer::ClearControlsData(EDataScope const dataScope)
 {
 	m_xmlProcessor.ClearControlsData(dataScope);
-	if (dataScope == eDataScope_All || dataScope == eDataScope_Global)
+	if (dataScope == EDataScope::All || dataScope == EDataScope::Global)
 	{
 		InitInternalControls();
 	}
 
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -348,65 +244,77 @@ ERequestStatus CAudioTranslationLayer::ClearPreloadsData(EDataScope const dataSc
 {
 	m_xmlProcessor.ClearPreloadsData(dataScope);
 
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
+}
+
+///////////////////////////////////////////////////////////////////////////
+void CAudioTranslationLayer::IncrementGlobalObjectSyncCallbackCounter()
+{
+	m_pGlobalAudioObject->IncrementSyncCallbackCounter();
+}
+
+///////////////////////////////////////////////////////////////////////////
+void CAudioTranslationLayer::DecrementGlobalObjectSyncCallbackCounter()
+{
+	m_pGlobalAudioObject->DecrementSyncCallbackCounter();
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CAudioTranslationLayer::NotifyListener(CAudioRequest const& request)
 {
-	EnumFlagsType audioSystemEvent = InvalidEnumFlagType;
+	ESystemEvents audioSystemEvent = ESystemEvents::None;
 	CATLStandaloneFile* pStandaloneFile = nullptr;
 	ControlId audioControlID = InvalidControlId;
 	CATLEvent* pAudioEvent = nullptr;
 	switch (request.GetData()->type)
 	{
-	case eAudioRequestType_AudioManagerRequest:
+	case EAudioRequestType::AudioManagerRequest:
 		{
 			SAudioManagerRequestDataBase const* const pRequestDataBase = static_cast<SAudioManagerRequestDataBase const* const>(request.GetData());
 
 			switch (pRequestDataBase->type)
 			{
-			case eAudioManagerRequestType_SetAudioImpl:
-				audioSystemEvent = eSystemEvent_ImplSet;
+			case EAudioManagerRequestType::SetAudioImpl:
+				audioSystemEvent = ESystemEvents::ImplSet;
 				break;
 			}
 
 			break;
 		}
-	case eAudioRequestType_AudioCallbackManagerRequest:
+	case EAudioRequestType::AudioCallbackManagerRequest:
 		{
 			SAudioCallbackManagerRequestDataBase const* const pRequestDataBase = static_cast<SAudioCallbackManagerRequestDataBase const* const>(request.GetData());
 
 			switch (pRequestDataBase->type)
 			{
-			case eAudioCallbackManagerRequestType_ReportFinishedTriggerInstance:
+			case EAudioCallbackManagerRequestType::ReportFinishedTriggerInstance:
 				{
-					SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportFinishedTriggerInstance> const* const pRequestData = static_cast<SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportFinishedTriggerInstance> const* const>(pRequestDataBase);
+					SAudioCallbackManagerRequestData<EAudioCallbackManagerRequestType::ReportFinishedTriggerInstance> const* const pRequestData = static_cast<SAudioCallbackManagerRequestData<EAudioCallbackManagerRequestType::ReportFinishedTriggerInstance> const* const>(pRequestDataBase);
 					audioControlID = pRequestData->audioTriggerId;
-					audioSystemEvent = eSystemEvent_TriggerFinished;
+					audioSystemEvent = ESystemEvents::TriggerFinished;
 
 					break;
 				}
-			case eAudioCallbackManagerRequestType_ReportStartedEvent:
+			case EAudioCallbackManagerRequestType::ReportStartedEvent:
 				{
-					SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportStartedEvent> const* const pRequestData = static_cast<SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportStartedEvent> const* const>(pRequestDataBase);
+					SAudioCallbackManagerRequestData<EAudioCallbackManagerRequestType::ReportStartedEvent> const* const pRequestData = static_cast<SAudioCallbackManagerRequestData<EAudioCallbackManagerRequestType::ReportStartedEvent> const* const>(pRequestDataBase);
 					pAudioEvent = &pRequestData->audioEvent;
 
 					break;
 				}
-			case eAudioCallbackManagerRequestType_ReportStartedFile:
+			case EAudioCallbackManagerRequestType::ReportStartedFile:
 				{
-					SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportStartedFile> const* const pRequestData = static_cast<SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportStartedFile> const* const>(pRequestDataBase);
+					SAudioCallbackManagerRequestData<EAudioCallbackManagerRequestType::ReportStartedFile> const* const pRequestData = static_cast<SAudioCallbackManagerRequestData<EAudioCallbackManagerRequestType::ReportStartedFile> const* const>(pRequestDataBase);
 					pStandaloneFile = &pRequestData->audioStandaloneFile;
-					audioSystemEvent = eSystemEvent_FileStarted;
+					audioSystemEvent = ESystemEvents::FileStarted;
 
 					break;
 				}
-			case eAudioCallbackManagerRequestType_ReportStoppedFile:
+			case EAudioCallbackManagerRequestType::ReportStoppedFile:
 				{
-					SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportStoppedFile> const* const pRequestData = static_cast<SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportStoppedFile> const* const>(pRequestDataBase);
+					SAudioCallbackManagerRequestData<EAudioCallbackManagerRequestType::ReportStoppedFile> const* const pRequestData = static_cast<SAudioCallbackManagerRequestData<EAudioCallbackManagerRequestType::ReportStoppedFile> const* const>(pRequestDataBase);
 					pStandaloneFile = &pRequestData->audioStandaloneFile;
-					audioSystemEvent = eSystemEvent_FileStopped;
+					audioSystemEvent = ESystemEvents::FileStopped;
 
 					break;
 				}
@@ -414,28 +322,28 @@ void CAudioTranslationLayer::NotifyListener(CAudioRequest const& request)
 
 			break;
 		}
-	case eAudioRequestType_AudioObjectRequest:
+	case EAudioRequestType::AudioObjectRequest:
 		{
 			SAudioObjectRequestDataBase const* const pRequestDataBase = static_cast<SAudioObjectRequestDataBase const* const>(request.GetData());
 
 			switch (pRequestDataBase->type)
 			{
-			case eAudioObjectRequestType_ExecuteTrigger:
+			case EAudioObjectRequestType::ExecuteTrigger:
 				{
-					SAudioObjectRequestData<eAudioObjectRequestType_ExecuteTrigger> const* const pRequestData = static_cast<SAudioObjectRequestData<eAudioObjectRequestType_ExecuteTrigger> const* const>(pRequestDataBase);
+					SAudioObjectRequestData<EAudioObjectRequestType::ExecuteTrigger> const* const pRequestData = static_cast<SAudioObjectRequestData<EAudioObjectRequestType::ExecuteTrigger> const* const>(pRequestDataBase);
 					audioControlID = pRequestData->audioTriggerId;
-					audioSystemEvent = eSystemEvent_TriggerExecuted;
+					audioSystemEvent = ESystemEvents::TriggerExecuted;
 
 					break;
 				}
-			case eAudioObjectRequestType_PlayFile:
-				audioSystemEvent = eSystemEvent_FilePlay;
+			case EAudioObjectRequestType::PlayFile:
+				audioSystemEvent = ESystemEvents::FilePlay;
 				break;
 			}
 
 			break;
 		}
-	case eAudioRequestType_AudioListenerRequest:
+	case EAudioRequestType::AudioListenerRequest:
 		{
 			// Nothing to do currently for this type of request.
 
@@ -456,7 +364,7 @@ void CAudioTranslationLayer::NotifyListener(CAudioRequest const& request)
 	  request.pUserDataOwner,
 	  audioSystemEvent,
 	  audioControlID,
-	  request.pObject,
+	  static_cast<IObject*>(request.pObject),
 	  pStandaloneFile,
 	  pAudioEvent);
 
@@ -466,53 +374,46 @@ void CAudioTranslationLayer::NotifyListener(CAudioRequest const& request)
 ///////////////////////////////////////////////////////////////////////////
 ERequestStatus CAudioTranslationLayer::ProcessAudioManagerRequest(CAudioRequest const& request)
 {
-	ERequestStatus result = eRequestStatus_Failure;
+	ERequestStatus result = ERequestStatus::Failure;
 	SAudioManagerRequestDataBase const* const pRequestDataBase = static_cast<SAudioManagerRequestDataBase const*>(request.GetData());
 
 	switch (pRequestDataBase->type)
 	{
-	case eAudioManagerRequestType_ConstructAudioListener:
+	case EAudioManagerRequestType::AddRequestListener:
 		{
-			SAudioManagerRequestData<eAudioManagerRequestType_ConstructAudioListener> const* const pRequestData = static_cast<SAudioManagerRequestData<eAudioManagerRequestType_ConstructAudioListener> const*>(request.GetData());
-			*pRequestData->ppListener = m_audioListenerMgr.CreateListener();
-
-			break;
-		}
-	case eAudioManagerRequestType_AddRequestListener:
-		{
-			SAudioManagerRequestData<eAudioManagerRequestType_AddRequestListener> const* const pRequestData = static_cast<SAudioManagerRequestData<eAudioManagerRequestType_AddRequestListener> const*>(request.GetData());
+			SAudioManagerRequestData<EAudioManagerRequestType::AddRequestListener> const* const pRequestData = static_cast<SAudioManagerRequestData<EAudioManagerRequestType::AddRequestListener> const*>(request.GetData());
 			result = m_audioEventListenerMgr.AddRequestListener(pRequestData);
 
 			break;
 		}
-	case eAudioManagerRequestType_RemoveRequestListener:
+	case EAudioManagerRequestType::RemoveRequestListener:
 		{
-			SAudioManagerRequestData<eAudioManagerRequestType_RemoveRequestListener> const* const pRequestData = static_cast<SAudioManagerRequestData<eAudioManagerRequestType_RemoveRequestListener> const*>(request.GetData());
+			SAudioManagerRequestData<EAudioManagerRequestType::RemoveRequestListener> const* const pRequestData = static_cast<SAudioManagerRequestData<EAudioManagerRequestType::RemoveRequestListener> const*>(request.GetData());
 			result = m_audioEventListenerMgr.RemoveRequestListener(pRequestData->func, pRequestData->pObjectToListenTo);
 
 			break;
 		}
-	case eAudioManagerRequestType_SetAudioImpl:
+	case EAudioManagerRequestType::SetAudioImpl:
 		{
-			SAudioManagerRequestData<eAudioManagerRequestType_SetAudioImpl> const* const pRequestData = static_cast<SAudioManagerRequestData<eAudioManagerRequestType_SetAudioImpl> const*>(request.GetData());
-			result = SetImpl(pRequestData->pImpl);
+			SAudioManagerRequestData<EAudioManagerRequestType::SetAudioImpl> const* const pRequestData = static_cast<SAudioManagerRequestData<EAudioManagerRequestType::SetAudioImpl> const*>(request.GetData());
+			result = SetImpl(pRequestData->pIImpl);
 
 			break;
 		}
-	case eAudioManagerRequestType_RefreshAudioSystem:
+	case EAudioManagerRequestType::RefreshAudioSystem:
 		{
-			SAudioManagerRequestData<eAudioManagerRequestType_RefreshAudioSystem> const* const pRequestData = static_cast<SAudioManagerRequestData<eAudioManagerRequestType_RefreshAudioSystem> const*>(request.GetData());
+			SAudioManagerRequestData<EAudioManagerRequestType::RefreshAudioSystem> const* const pRequestData = static_cast<SAudioManagerRequestData<EAudioManagerRequestType::RefreshAudioSystem> const*>(request.GetData());
 			result = RefreshAudioSystem(pRequestData->levelName);
 
 			break;
 		}
-	case eAudioManagerRequestType_LoseFocus:
+	case EAudioManagerRequestType::LoseFocus:
 		{
 			if (
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
-			  (g_audioCVars.m_ignoreWindowFocus == 0) &&
-#endif // INCLUDE_AUDIO_PRODUCTION_CODE
-			  (m_flags & eAudioInternalStates_IsMuted) == 0)
+			  (g_cvars.m_ignoreWindowFocus == 0) &&
+#endif  // INCLUDE_AUDIO_PRODUCTION_CODE
+			  (m_flags& EInternalStates::IsMuted) == 0)
 			{
 				CATLTrigger const* const pTrigger = stl::find_in_map(m_triggers, LoseFocusTriggerId, nullptr);
 
@@ -522,23 +423,23 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioManagerRequest(CAudioRequest 
 				}
 				else
 				{
-					g_audioLogger.Log(eAudioLogType_Warning, "Could not find definition of lose focus trigger");
+					g_logger.Log(ELogType::Warning, "Could not find definition of lose focus trigger");
 				}
 
-				result = m_pImpl->OnLoseFocus();
+				result = m_pIImpl->OnLoseFocus();
 			}
 
 			break;
 		}
-	case eAudioManagerRequestType_GetFocus:
+	case EAudioManagerRequestType::GetFocus:
 		{
 			if (
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
-			  (g_audioCVars.m_ignoreWindowFocus == 0) &&
-#endif // INCLUDE_AUDIO_PRODUCTION_CODE
-			  (m_flags & eAudioInternalStates_IsMuted) == 0)
+			  (g_cvars.m_ignoreWindowFocus == 0) &&
+#endif  // INCLUDE_AUDIO_PRODUCTION_CODE
+			  (m_flags& EInternalStates::IsMuted) == 0)
 			{
-				result = m_pImpl->OnGetFocus();
+				result = m_pIImpl->OnGetFocus();
 				CATLTrigger const* const pTrigger = stl::find_in_map(m_triggers, GetFocusTriggerId, nullptr);
 
 				if (pTrigger != nullptr)
@@ -547,13 +448,13 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioManagerRequest(CAudioRequest 
 				}
 				else
 				{
-					g_audioLogger.Log(eAudioLogType_Warning, "Could not find definition of get focus trigger");
+					g_logger.Log(ELogType::Warning, "Could not find definition of get focus trigger");
 				}
 			}
 
 			break;
 		}
-	case eAudioManagerRequestType_MuteAll:
+	case EAudioManagerRequestType::MuteAll:
 		{
 			CATLTrigger const* const pTrigger = stl::find_in_map(m_triggers, MuteAllTriggerId, nullptr);
 
@@ -563,33 +464,33 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioManagerRequest(CAudioRequest 
 			}
 			else
 			{
-				g_audioLogger.Log(eAudioLogType_Warning, "Could not find definition of mute all trigger");
+				g_logger.Log(ELogType::Warning, "Could not find definition of mute all trigger");
 			}
 
-			result = m_pImpl->MuteAll();
+			result = m_pIImpl->MuteAll();
 
-			if (result == eRequestStatus_Success)
+			if (result == ERequestStatus::Success)
 			{
-				m_flags |= eAudioInternalStates_IsMuted;
+				m_flags |= EInternalStates::IsMuted;
 			}
 			else
 			{
-				m_flags &= ~eAudioInternalStates_IsMuted;
+				m_flags &= ~EInternalStates::IsMuted;
 			}
 
 			break;
 		}
-	case eAudioManagerRequestType_UnmuteAll:
+	case EAudioManagerRequestType::UnmuteAll:
 		{
-			result = m_pImpl->UnmuteAll();
+			result = m_pIImpl->UnmuteAll();
 
-			if (result != eRequestStatus_Success)
+			if (result != ERequestStatus::Success)
 			{
-				m_flags |= eAudioInternalStates_IsMuted;
+				m_flags |= EInternalStates::IsMuted;
 			}
 			else
 			{
-				m_flags &= ~eAudioInternalStates_IsMuted;
+				m_flags &= ~EInternalStates::IsMuted;
 			}
 
 			CATLTrigger const* const pTrigger = stl::find_in_map(m_triggers, UnmuteAllTriggerId, nullptr);
@@ -600,102 +501,102 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioManagerRequest(CAudioRequest 
 			}
 			else
 			{
-				g_audioLogger.Log(eAudioLogType_Warning, "Could not find definition of unmute trigger");
+				g_logger.Log(ELogType::Warning, "Could not find definition of unmute trigger");
 			}
 
 			break;
 		}
-	case eAudioManagerRequestType_StopAllSounds:
+	case EAudioManagerRequestType::StopAllSounds:
 		{
-			result = m_pImpl->StopAllSounds();
+			result = m_pIImpl->StopAllSounds();
 
 			break;
 		}
-	case eAudioManagerRequestType_ParseControlsData:
+	case EAudioManagerRequestType::ParseControlsData:
 		{
-			SAudioManagerRequestData<eAudioManagerRequestType_ParseControlsData> const* const pRequestData = static_cast<SAudioManagerRequestData<eAudioManagerRequestType_ParseControlsData> const*>(request.GetData());
+			SAudioManagerRequestData<EAudioManagerRequestType::ParseControlsData> const* const pRequestData = static_cast<SAudioManagerRequestData<EAudioManagerRequestType::ParseControlsData> const*>(request.GetData());
 			result = ParseControlsData(pRequestData->folderPath.c_str(), pRequestData->dataScope);
 
 			break;
 		}
-	case eAudioManagerRequestType_ParsePreloadsData:
+	case EAudioManagerRequestType::ParsePreloadsData:
 		{
-			SAudioManagerRequestData<eAudioManagerRequestType_ParsePreloadsData> const* const pRequestData = static_cast<SAudioManagerRequestData<eAudioManagerRequestType_ParsePreloadsData> const*>(request.GetData());
+			SAudioManagerRequestData<EAudioManagerRequestType::ParsePreloadsData> const* const pRequestData = static_cast<SAudioManagerRequestData<EAudioManagerRequestType::ParsePreloadsData> const*>(request.GetData());
 			result = ParsePreloadsData(pRequestData->folderPath.c_str(), pRequestData->dataScope);
 
 			break;
 		}
-	case eAudioManagerRequestType_ClearControlsData:
+	case EAudioManagerRequestType::ClearControlsData:
 		{
-			SAudioManagerRequestData<eAudioManagerRequestType_ClearControlsData> const* const pRequestData = static_cast<SAudioManagerRequestData<eAudioManagerRequestType_ClearControlsData> const*>(request.GetData());
+			SAudioManagerRequestData<EAudioManagerRequestType::ClearControlsData> const* const pRequestData = static_cast<SAudioManagerRequestData<EAudioManagerRequestType::ClearControlsData> const*>(request.GetData());
 			result = ClearControlsData(pRequestData->dataScope);
 
 			break;
 		}
-	case eAudioManagerRequestType_ClearPreloadsData:
+	case EAudioManagerRequestType::ClearPreloadsData:
 		{
-			SAudioManagerRequestData<eAudioManagerRequestType_ClearPreloadsData> const* const pRequestData = static_cast<SAudioManagerRequestData<eAudioManagerRequestType_ClearPreloadsData> const*>(request.GetData());
+			SAudioManagerRequestData<EAudioManagerRequestType::ClearPreloadsData> const* const pRequestData = static_cast<SAudioManagerRequestData<EAudioManagerRequestType::ClearPreloadsData> const*>(request.GetData());
 			result = ClearPreloadsData(pRequestData->dataScope);
 
 			break;
 		}
-	case eAudioManagerRequestType_PreloadSingleRequest:
+	case EAudioManagerRequestType::PreloadSingleRequest:
 		{
-			SAudioManagerRequestData<eAudioManagerRequestType_PreloadSingleRequest> const* const pRequestData = static_cast<SAudioManagerRequestData<eAudioManagerRequestType_PreloadSingleRequest> const*>(request.GetData());
-			result = m_fileCacheMgr.TryLoadRequest(pRequestData->audioPreloadRequestId, ((request.flags & eRequestFlags_ExecuteBlocking) != 0), pRequestData->bAutoLoadOnly);
+			SAudioManagerRequestData<EAudioManagerRequestType::PreloadSingleRequest> const* const pRequestData = static_cast<SAudioManagerRequestData<EAudioManagerRequestType::PreloadSingleRequest> const*>(request.GetData());
+			result = m_fileCacheMgr.TryLoadRequest(pRequestData->audioPreloadRequestId, ((request.flags & ERequestFlags::ExecuteBlocking) != 0), pRequestData->bAutoLoadOnly);
 
 			break;
 		}
-	case eAudioManagerRequestType_UnloadSingleRequest:
+	case EAudioManagerRequestType::UnloadSingleRequest:
 		{
-			SAudioManagerRequestData<eAudioManagerRequestType_UnloadSingleRequest> const* const pRequestData = static_cast<SAudioManagerRequestData<eAudioManagerRequestType_UnloadSingleRequest> const*>(request.GetData());
+			SAudioManagerRequestData<EAudioManagerRequestType::UnloadSingleRequest> const* const pRequestData = static_cast<SAudioManagerRequestData<EAudioManagerRequestType::UnloadSingleRequest> const*>(request.GetData());
 			result = m_fileCacheMgr.TryUnloadRequest(pRequestData->audioPreloadRequestId);
 
 			break;
 		}
-	case eAudioManagerRequestType_UnloadAFCMDataByScope:
+	case EAudioManagerRequestType::UnloadAFCMDataByScope:
 		{
-			SAudioManagerRequestData<eAudioManagerRequestType_UnloadAFCMDataByScope> const* const pRequestData = static_cast<SAudioManagerRequestData<eAudioManagerRequestType_UnloadAFCMDataByScope> const*>(request.GetData());
+			SAudioManagerRequestData<EAudioManagerRequestType::UnloadAFCMDataByScope> const* const pRequestData = static_cast<SAudioManagerRequestData<EAudioManagerRequestType::UnloadAFCMDataByScope> const*>(request.GetData());
 			result = m_fileCacheMgr.UnloadDataByScope(pRequestData->dataScope);
 
 			break;
 		}
-	case eAudioManagerRequestType_ReleaseAudioImpl:
+	case EAudioManagerRequestType::ReleaseAudioImpl:
 		{
 			ReleaseImpl();
-			result = eRequestStatus_Success;
+			result = ERequestStatus::Success;
 
 			break;
 		}
-	case eAudioManagerRequestType_ChangeLanguage:
+	case EAudioManagerRequestType::ChangeLanguage:
 		{
 			SetImplLanguage();
 
 			m_fileCacheMgr.UpdateLocalizedFileCacheEntries();
-			result = eRequestStatus_Success;
+			result = ERequestStatus::Success;
 
 			break;
 		}
-	case eAudioManagerRequestType_RetriggerAudioControls:
+	case EAudioManagerRequestType::RetriggerAudioControls:
 		{
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 			RetriggerAudioControls();
-#endif // INCLUDE_AUDIO_PRODUCTION_CODE
-			result = eRequestStatus_Success;
+#endif  // INCLUDE_AUDIO_PRODUCTION_CODE
+			result = ERequestStatus::Success;
 
 			break;
 		}
-	case eAudioManagerRequestType_ReleasePendingRays:
+	case EAudioManagerRequestType::ReleasePendingRays:
 		{
 			m_audioObjectMgr.ReleasePendingRays();
-			result = eRequestStatus_Success;
+			result = ERequestStatus::Success;
 
 			break;
 		}
-	case eAudioManagerRequestType_ReloadControlsData:
+	case EAudioManagerRequestType::ReloadControlsData:
 		{
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
-			SAudioManagerRequestData<eAudioManagerRequestType_ReloadControlsData> const* const pRequestData = static_cast<SAudioManagerRequestData<eAudioManagerRequestType_ReloadControlsData> const*>(request.GetData());
+			SAudioManagerRequestData<EAudioManagerRequestType::ReloadControlsData> const* const pRequestData = static_cast<SAudioManagerRequestData<EAudioManagerRequestType::ReloadControlsData> const*>(request.GetData());
 			for (auto pAudioObject : m_audioObjectMgr.GetAudioObjects())
 			{
 				for (auto pEvent : pAudioObject->GetActiveEvents())
@@ -707,54 +608,54 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioManagerRequest(CAudioRequest 
 				}
 			}
 
-			if (ClearControlsData(eDataScope_All) == eRequestStatus_Success)
+			if (ClearControlsData(EDataScope::All) == ERequestStatus::Success)
 			{
-				if (ParseControlsData(pRequestData->folderPath, eDataScope_Global) == eRequestStatus_Success)
+				if (ParseControlsData(pRequestData->folderPath, EDataScope::Global) == ERequestStatus::Success)
 				{
 					if (strcmp(pRequestData->levelName, "") != 0)
 					{
-						if (ParseControlsData(pRequestData->folderPath + pRequestData->levelName, eDataScope_LevelSpecific) == eRequestStatus_Success)
+						if (ParseControlsData(pRequestData->folderPath + pRequestData->levelName, EDataScope::LevelSpecific) == ERequestStatus::Success)
 						{
 							RetriggerAudioControls();
-							result = eRequestStatus_Success;
+							result = ERequestStatus::Success;
 						}
 					}
 					else
 					{
 						RetriggerAudioControls();
-						result = eRequestStatus_Success;
+						result = ERequestStatus::Success;
 					}
 				}
 			}
-#endif // INCLUDE_AUDIO_PRODUCTION_CODE
+#endif  // INCLUDE_AUDIO_PRODUCTION_CODE
 			break;
 		}
-	case eAudioManagerRequestType_DrawDebugInfo:
+	case EAudioManagerRequestType::DrawDebugInfo:
 		{
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 			DrawAudioSystemDebugInfo();
-			result = eRequestStatus_Success;
-#endif // INCLUDE_AUDIO_PRODUCTION_CODE
+			result = ERequestStatus::Success;
+#endif  // INCLUDE_AUDIO_PRODUCTION_CODE
 
 			break;
 		}
-	case eAudioManagerRequestType_GetAudioFileData:
+	case EAudioManagerRequestType::GetAudioFileData:
 		{
-			SAudioManagerRequestData<eAudioManagerRequestType_GetAudioFileData> const* const pRequestData =
-			  static_cast<SAudioManagerRequestData<eAudioManagerRequestType_GetAudioFileData> const* const>(request.GetData());
-			m_pImpl->GetAudioFileData(pRequestData->szFilename, pRequestData->audioFileData);
+			SAudioManagerRequestData<EAudioManagerRequestType::GetAudioFileData> const* const pRequestData =
+			  static_cast<SAudioManagerRequestData<EAudioManagerRequestType::GetAudioFileData> const* const>(request.GetData());
+			m_pIImpl->GetFileData(pRequestData->name.c_str(), pRequestData->fileData);
 			break;
 		}
-	case eAudioManagerRequestType_None:
+	case EAudioManagerRequestType::None:
 		{
-			result = eRequestStatus_Success;
+			result = ERequestStatus::Success;
 
 			break;
 		}
 	default:
 		{
-			g_audioLogger.Log(eAudioLogType_Warning, "ATL received an unknown AudioManager request: %u", pRequestDataBase->type);
-			result = eRequestStatus_FailureInvalidRequest;
+			g_logger.Log(ELogType::Warning, "ATL received an unknown AudioManager request: %u", pRequestDataBase->type);
+			result = ERequestStatus::FailureInvalidRequest;
 
 			break;
 		}
@@ -766,19 +667,19 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioManagerRequest(CAudioRequest 
 ///////////////////////////////////////////////////////////////////////////
 ERequestStatus CAudioTranslationLayer::ProcessAudioCallbackManagerRequest(CAudioRequest& request)
 {
-	ERequestStatus result = eRequestStatus_Failure;
+	ERequestStatus result = ERequestStatus::Failure;
 	SAudioCallbackManagerRequestDataBase const* const pRequestDataBase =
 	  static_cast<SAudioCallbackManagerRequestDataBase const* const>(request.GetData());
 
 	switch (pRequestDataBase->type)
 	{
-	case eAudioCallbackManagerRequestType_ReportStartedEvent:
+	case EAudioCallbackManagerRequestType::ReportStartedEvent:
 		{
-			SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportStartedEvent> const* const pRequestData =
-			  static_cast<SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportStartedEvent> const* const>(request.GetData());
+			SAudioCallbackManagerRequestData<EAudioCallbackManagerRequestType::ReportStartedEvent> const* const pRequestData =
+			  static_cast<SAudioCallbackManagerRequestData<EAudioCallbackManagerRequestType::ReportStartedEvent> const* const>(request.GetData());
 			CATLEvent& audioEvent = pRequestData->audioEvent;
 
-			audioEvent.m_audioEventState = eAudioEventState_PlayingDelayed;
+			audioEvent.m_state = EEventState::PlayingDelayed;
 
 			if (audioEvent.m_pAudioObject != m_pGlobalAudioObject)
 			{
@@ -789,71 +690,71 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioCallbackManagerRequest(CAudio
 				m_pGlobalAudioObject->ReportStartedEvent(&audioEvent);
 			}
 
-			result = eRequestStatus_Success;
+			result = ERequestStatus::Success;
 
 			break;
 		}
-	case eAudioCallbackManagerRequestType_ReportFinishedEvent:
+	case EAudioCallbackManagerRequestType::ReportFinishedEvent:
 		{
-			SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportFinishedEvent> const* const pRequestData =
-			  static_cast<SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportFinishedEvent> const* const>(request.GetData());
-			CATLEvent& audioEvent = pRequestData->audioEvent;
+			SAudioCallbackManagerRequestData<EAudioCallbackManagerRequestType::ReportFinishedEvent> const* const pRequestData =
+			  static_cast<SAudioCallbackManagerRequestData<EAudioCallbackManagerRequestType::ReportFinishedEvent> const* const>(request.GetData());
+			CATLEvent& event = pRequestData->audioEvent;
 
-			if (audioEvent.m_pAudioObject != m_pGlobalAudioObject)
+			if (event.m_pAudioObject != m_pGlobalAudioObject)
 			{
-				m_audioObjectMgr.ReportFinishedEvent(&audioEvent, pRequestData->bSuccess);
+				m_audioObjectMgr.ReportFinishedEvent(&event, pRequestData->bSuccess);
 			}
 			else
 			{
-				m_pGlobalAudioObject->ReportFinishedEvent(&audioEvent, pRequestData->bSuccess);
+				m_pGlobalAudioObject->ReportFinishedEvent(&event, pRequestData->bSuccess);
 			}
 
-			m_audioEventMgr.ReleaseAudioEvent(&audioEvent);
+			m_audioEventMgr.ReleaseEvent(&event);
 
-			result = eRequestStatus_Success;
-
-			break;
-		}
-	case eAudioCallbackManagerRequestType_ReportVirtualizedEvent:
-		{
-			SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportVirtualizedEvent> const* const pRequestData =
-			  static_cast<SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportVirtualizedEvent> const* const>(request.GetData());
-
-			pRequestData->audioEvent.m_audioEventState = eAudioEventState_Virtual;
-
-			result = eRequestStatus_Success;
+			result = ERequestStatus::Success;
 
 			break;
 		}
-	case eAudioCallbackManagerRequestType_ReportPhysicalizedEvent:
+	case EAudioCallbackManagerRequestType::ReportVirtualizedEvent:
 		{
-			SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportPhysicalizedEvent> const* const pRequestData =
-			  static_cast<SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportPhysicalizedEvent> const* const>(request.GetData());
+			SAudioCallbackManagerRequestData<EAudioCallbackManagerRequestType::ReportVirtualizedEvent> const* const pRequestData =
+			  static_cast<SAudioCallbackManagerRequestData<EAudioCallbackManagerRequestType::ReportVirtualizedEvent> const* const>(request.GetData());
 
-			pRequestData->audioEvent.m_audioEventState = eAudioEventState_Playing;
+			pRequestData->audioEvent.m_state = EEventState::Virtual;
 
-			result = eRequestStatus_Success;
+			result = ERequestStatus::Success;
 
 			break;
 		}
-	case eAudioCallbackManagerRequestType_ReportStartedFile:
+	case EAudioCallbackManagerRequestType::ReportPhysicalizedEvent:
 		{
-			SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportStartedFile> const* const pRequestData =
-			  static_cast<SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportStartedFile> const* const>(request.GetData());
+			SAudioCallbackManagerRequestData<EAudioCallbackManagerRequestType::ReportPhysicalizedEvent> const* const pRequestData =
+			  static_cast<SAudioCallbackManagerRequestData<EAudioCallbackManagerRequestType::ReportPhysicalizedEvent> const* const>(request.GetData());
+
+			pRequestData->audioEvent.m_state = EEventState::Playing;
+
+			result = ERequestStatus::Success;
+
+			break;
+		}
+	case EAudioCallbackManagerRequestType::ReportStartedFile:
+		{
+			SAudioCallbackManagerRequestData<EAudioCallbackManagerRequestType::ReportStartedFile> const* const pRequestData =
+			  static_cast<SAudioCallbackManagerRequestData<EAudioCallbackManagerRequestType::ReportStartedFile> const* const>(request.GetData());
 
 			CATLStandaloneFile& audioStandaloneFile = pRequestData->audioStandaloneFile;
 
 			m_audioObjectMgr.GetStartedStandaloneFileRequestData(&audioStandaloneFile, request);
-			audioStandaloneFile.m_state = (pRequestData->bSuccess) ? eAudioStandaloneFileState_Playing : eAudioStandaloneFileState_None;
+			audioStandaloneFile.m_state = (pRequestData->bSuccess) ? EAudioStandaloneFileState::Playing : EAudioStandaloneFileState::None;
 
-			result = (pRequestData->bSuccess) ? eRequestStatus_Success : eRequestStatus_Failure;
+			result = (pRequestData->bSuccess) ? ERequestStatus::Success : ERequestStatus::Failure;
 
 			break;
 		}
-	case eAudioCallbackManagerRequestType_ReportStoppedFile:
+	case EAudioCallbackManagerRequestType::ReportStoppedFile:
 		{
-			SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportStoppedFile> const* const pRequestData =
-			  static_cast<SAudioCallbackManagerRequestData<eAudioCallbackManagerRequestType_ReportStoppedFile> const* const>(request.GetData());
+			SAudioCallbackManagerRequestData<EAudioCallbackManagerRequestType::ReportStoppedFile> const* const pRequestData =
+			  static_cast<SAudioCallbackManagerRequestData<EAudioCallbackManagerRequestType::ReportStoppedFile> const* const>(request.GetData());
 
 			CATLStandaloneFile& audioStandaloneFile = pRequestData->audioStandaloneFile;
 
@@ -870,21 +771,21 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioCallbackManagerRequest(CAudio
 
 			m_audioStandaloneFileMgr.ReleaseStandaloneFile(&audioStandaloneFile);
 
-			result = eRequestStatus_Success;
+			result = ERequestStatus::Success;
 
 			break;
 		}
-	case eAudioCallbackManagerRequestType_ReportFinishedTriggerInstance:
-	case eAudioCallbackManagerRequestType_None:
+	case EAudioCallbackManagerRequestType::ReportFinishedTriggerInstance:
+	case EAudioCallbackManagerRequestType::None:
 		{
-			result = eRequestStatus_Success;
+			result = ERequestStatus::Success;
 
 			break;
 		}
 	default:
 		{
-			result = eRequestStatus_FailureInvalidRequest;
-			g_audioLogger.Log(eAudioLogType_Warning, "ATL received an unknown AudioCallbackManager request: %u", pRequestDataBase->type);
+			result = ERequestStatus::FailureInvalidRequest;
+			g_logger.Log(ELogType::Warning, "ATL received an unknown AudioCallbackManager request: %u", pRequestDataBase->type);
 
 			break;
 		}
@@ -896,23 +797,18 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioCallbackManagerRequest(CAudio
 ///////////////////////////////////////////////////////////////////////////
 ERequestStatus CAudioTranslationLayer::ProcessAudioObjectRequest(CAudioRequest const& request)
 {
-	ERequestStatus result = eRequestStatus_Failure;
-	CATLAudioObject* pObject = m_pGlobalAudioObject;
-
-	if (request.pObject != nullptr)
-	{
-		pObject = request.pObject;
-	}
+	ERequestStatus result = ERequestStatus::Failure;
+	CATLAudioObject* const pObject = (request.pObject != nullptr) ? request.pObject : m_pGlobalAudioObject;
 
 	SAudioObjectRequestDataBase const* const pBaseRequestData =
 	  static_cast<SAudioObjectRequestDataBase const* const>(request.GetData());
 
 	switch (pBaseRequestData->type)
 	{
-	case eAudioObjectRequestType_LoadTrigger:
+	case EAudioObjectRequestType::LoadTrigger:
 		{
-			SAudioObjectRequestData<eAudioObjectRequestType_LoadTrigger> const* const pRequestData =
-			  static_cast<SAudioObjectRequestData<eAudioObjectRequestType_LoadTrigger> const* const>(request.GetData());
+			SAudioObjectRequestData<EAudioObjectRequestType::LoadTrigger> const* const pRequestData =
+			  static_cast<SAudioObjectRequestData<EAudioObjectRequestType::LoadTrigger> const* const>(request.GetData());
 
 			CATLTrigger const* const pTrigger = stl::find_in_map(m_triggers, pRequestData->audioTriggerId, nullptr);
 
@@ -922,15 +818,15 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioObjectRequest(CAudioRequest c
 			}
 			else
 			{
-				result = eRequestStatus_FailureInvalidControlId;
+				result = ERequestStatus::FailureInvalidControlId;
 			}
 
 			break;
 		}
-	case eAudioObjectRequestType_UnloadTrigger:
+	case EAudioObjectRequestType::UnloadTrigger:
 		{
-			SAudioObjectRequestData<eAudioObjectRequestType_UnloadTrigger> const* const pRequestData =
-			  static_cast<SAudioObjectRequestData<eAudioObjectRequestType_UnloadTrigger> const* const>(request.GetData());
+			SAudioObjectRequestData<EAudioObjectRequestType::UnloadTrigger> const* const pRequestData =
+			  static_cast<SAudioObjectRequestData<EAudioObjectRequestType::UnloadTrigger> const* const>(request.GetData());
 
 			CATLTrigger const* const pTrigger = stl::find_in_map(m_triggers, pRequestData->audioTriggerId, nullptr);
 
@@ -940,38 +836,40 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioObjectRequest(CAudioRequest c
 			}
 			else
 			{
-				result = eRequestStatus_FailureInvalidControlId;
+				result = ERequestStatus::FailureInvalidControlId;
 			}
 
 			break;
 		}
-	case eAudioObjectRequestType_PlayFile:
+	case EAudioObjectRequestType::PlayFile:
 		{
-			SAudioObjectRequestData<eAudioObjectRequestType_PlayFile> const* const pRequestData =
-			  static_cast<SAudioObjectRequestData<eAudioObjectRequestType_PlayFile> const* const>(request.GetData());
+			SAudioObjectRequestData<EAudioObjectRequestType::PlayFile> const* const pRequestData =
+			  static_cast<SAudioObjectRequestData<EAudioObjectRequestType::PlayFile> const* const>(request.GetData());
 
 			if (pRequestData != nullptr && !pRequestData->file.empty())
 			{
-				IAudioTrigger const* pTriggerImpl = nullptr;
+				Impl::ITrigger const* pITrigger = nullptr;
+
 				if (pRequestData->usedAudioTriggerId != InvalidControlId)
 				{
-					CATLTrigger const* const pAudioTrigger = stl::find_in_map(m_triggers, pRequestData->usedAudioTriggerId, nullptr);
-					if (pAudioTrigger != nullptr && !pAudioTrigger->m_implPtrs.empty())
+					CATLTrigger const* const pTrigger = stl::find_in_map(m_triggers, pRequestData->usedAudioTriggerId, nullptr);
+
+					if (pTrigger != nullptr && !pTrigger->m_implPtrs.empty())
 					{
-						pTriggerImpl = pAudioTrigger->m_implPtrs[0]->m_pImplData;
+						pITrigger = pTrigger->m_implPtrs[0]->m_pImplData;
 					}
 				}
 
-				CATLStandaloneFile* const pFile = m_audioStandaloneFileMgr.ConstructStandaloneFile(pRequestData->file.c_str(), pRequestData->bLocalized, pTriggerImpl);
+				CATLStandaloneFile* const pFile = m_audioStandaloneFileMgr.ConstructStandaloneFile(pRequestData->file.c_str(), pRequestData->bLocalized, pITrigger);
 				result = pObject->HandlePlayFile(pFile, request.pOwner, request.pUserData, request.pUserDataOwner);
 			}
 
 			break;
 		}
-	case eAudioObjectRequestType_StopFile:
+	case EAudioObjectRequestType::StopFile:
 		{
-			SAudioObjectRequestData<eAudioObjectRequestType_StopFile> const* const pRequestData =
-			  static_cast<SAudioObjectRequestData<eAudioObjectRequestType_StopFile> const* const>(request.GetData());
+			SAudioObjectRequestData<EAudioObjectRequestType::StopFile> const* const pRequestData =
+			  static_cast<SAudioObjectRequestData<EAudioObjectRequestType::StopFile> const* const>(request.GetData());
 
 			if (pRequestData != nullptr && !pRequestData->file.empty())
 			{
@@ -980,10 +878,10 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioObjectRequest(CAudioRequest c
 
 			break;
 		}
-	case eAudioObjectRequestType_ExecuteTrigger:
+	case EAudioObjectRequestType::ExecuteTrigger:
 		{
-			SAudioObjectRequestData<eAudioObjectRequestType_ExecuteTrigger> const* const pRequestData =
-			  static_cast<SAudioObjectRequestData<eAudioObjectRequestType_ExecuteTrigger> const* const>(request.GetData());
+			SAudioObjectRequestData<EAudioObjectRequestType::ExecuteTrigger> const* const pRequestData =
+			  static_cast<SAudioObjectRequestData<EAudioObjectRequestType::ExecuteTrigger> const* const>(request.GetData());
 
 			CATLTrigger const* const pTrigger = stl::find_in_map(m_triggers, pRequestData->audioTriggerId, nullptr);
 
@@ -993,15 +891,15 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioObjectRequest(CAudioRequest c
 			}
 			else
 			{
-				result = eRequestStatus_FailureInvalidControlId;
+				result = ERequestStatus::FailureInvalidControlId;
 			}
 
 			break;
 		}
-	case eAudioObjectRequestType_ExecuteTriggerEx:
+	case EAudioObjectRequestType::ExecuteTriggerEx:
 		{
-			SAudioObjectRequestData<eAudioObjectRequestType_ExecuteTriggerEx> const* const pRequestData =
-			  static_cast<SAudioObjectRequestData<eAudioObjectRequestType_ExecuteTriggerEx> const* const>(request.GetData());
+			SAudioObjectRequestData<EAudioObjectRequestType::ExecuteTriggerEx> const* const pRequestData =
+			  static_cast<SAudioObjectRequestData<EAudioObjectRequestType::ExecuteTriggerEx> const* const>(request.GetData());
 
 			CATLTrigger const* const pTrigger = stl::find_in_map(m_triggers, pRequestData->triggerId, nullptr);
 
@@ -1011,10 +909,10 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioObjectRequest(CAudioRequest c
 				m_audioObjectMgr.RegisterObject(pObject);
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
-				pObject->Init(pRequestData->name.c_str(), m_pImpl->ConstructAudioObject(pRequestData->name.c_str()), m_audioListenerMgr.GetActiveListenerAttributes().transformation.GetPosition());
+				pObject->Init(pRequestData->name.c_str(), m_pIImpl->ConstructObject(pRequestData->name.c_str()), m_audioListenerMgr.GetActiveListenerAttributes().transformation.GetPosition(), pRequestData->entityId);
 #else
-				pObject->Init(nullptr, m_pImpl->ConstructAudioObject(nullptr), m_audioListenerMgr.GetActiveListenerAttributes().transformation.GetPosition());
-#endif  // INCLUDE_AUDIO_PRODUCTION_CODE
+				pObject->Init(nullptr, m_pIImpl->ConstructObject(nullptr), m_audioListenerMgr.GetActiveListenerAttributes().transformation.GetPosition(), pRequestData->entityId);
+#endif    // INCLUDE_AUDIO_PRODUCTION_CODE
 
 				result = pObject->HandleSetTransformation(pRequestData->transformation, 0.0f);
 
@@ -1023,16 +921,14 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioObjectRequest(CAudioRequest c
 					SetCurrentEnvironmentsOnObject(pObject, INVALID_ENTITYID, pRequestData->transformation.GetPosition());
 				}
 
-				EnumFlagsType const index = static_cast<EnumFlagsType>(pRequestData->occlusionType);
-
-				if (index < eOcclusionType_Count)
+				if (pRequestData->occlusionType < EOcclusionType::Count)
 				{
 					// TODO: Can we prevent these lookups and access the switch and state directly?
 					CATLSwitch const* const pSwitch = stl::find_in_map(m_switches, OcclusionTypeSwitchId, nullptr);
 
 					if (pSwitch != nullptr)
 					{
-						CATLSwitchState const* const pState = stl::find_in_map(pSwitch->audioSwitchStates, OcclusionTypeStateIds[index], nullptr);
+						CATLSwitchState const* const pState = stl::find_in_map(pSwitch->audioSwitchStates, OcclusionTypeStateIds[IntegralValue(pRequestData->occlusionType)], nullptr);
 
 						if (pState != nullptr)
 						{
@@ -1042,19 +938,19 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioObjectRequest(CAudioRequest c
 				}
 
 				result = pObject->HandleExecuteTrigger(pTrigger, request.pOwner, request.pUserData, request.pUserDataOwner, request.flags);
-				pObject->RemoveFlag(eAudioObjectFlags_DoNotRelease);
+				pObject->RemoveFlag(EObjectFlags::InUse);
 			}
 			else
 			{
-				result = eRequestStatus_FailureInvalidControlId;
+				result = ERequestStatus::FailureInvalidControlId;
 			}
 
 			break;
 		}
-	case eAudioObjectRequestType_StopTrigger:
+	case EAudioObjectRequestType::StopTrigger:
 		{
-			SAudioObjectRequestData<eAudioObjectRequestType_StopTrigger> const* const pRequestData =
-			  static_cast<SAudioObjectRequestData<eAudioObjectRequestType_StopTrigger> const* const>(request.GetData());
+			SAudioObjectRequestData<EAudioObjectRequestType::StopTrigger> const* const pRequestData =
+			  static_cast<SAudioObjectRequestData<EAudioObjectRequestType::StopTrigger> const* const>(request.GetData());
 
 			CATLTrigger const* const pTrigger = stl::find_in_map(m_triggers, pRequestData->audioTriggerId, nullptr);
 
@@ -1064,41 +960,41 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioObjectRequest(CAudioRequest c
 			}
 			else
 			{
-				result = eRequestStatus_FailureInvalidControlId;
+				result = ERequestStatus::FailureInvalidControlId;
 			}
 
 			break;
 		}
-	case eAudioObjectRequestType_StopAllTriggers:
+	case EAudioObjectRequestType::StopAllTriggers:
 		{
 			result = pObject->StopAllTriggers();
 			;
 
 			break;
 		}
-	case eAudioObjectRequestType_SetTransformation:
+	case EAudioObjectRequestType::SetTransformation:
 		{
 			if (pObject != m_pGlobalAudioObject)
 			{
 				float const distanceToListener = (m_audioListenerMgr.GetActiveListenerAttributes().transformation.GetPosition() - pObject->GetTransformation().GetPosition()).GetLength();
-				SAudioObjectRequestData<eAudioObjectRequestType_SetTransformation> const* const pRequestData =
-				  static_cast<SAudioObjectRequestData<eAudioObjectRequestType_SetTransformation> const* const>(request.GetData());
+				SAudioObjectRequestData<EAudioObjectRequestType::SetTransformation> const* const pRequestData =
+				  static_cast<SAudioObjectRequestData<EAudioObjectRequestType::SetTransformation> const* const>(request.GetData());
 
 				result = pObject->HandleSetTransformation(pRequestData->transformation, distanceToListener);
 			}
 			else
 			{
-				g_audioLogger.Log(eAudioLogType_Warning, "ATL received a request to set a position on a global object");
+				g_logger.Log(ELogType::Warning, "ATL received a request to set a position on a global object");
 			}
 
 			break;
 		}
-	case eAudioObjectRequestType_SetParameter:
+	case EAudioObjectRequestType::SetParameter:
 		{
-			result = eRequestStatus_FailureInvalidControlId;
+			result = ERequestStatus::FailureInvalidControlId;
 
-			SAudioObjectRequestData<eAudioObjectRequestType_SetParameter> const* const pRequestData =
-			  static_cast<SAudioObjectRequestData<eAudioObjectRequestType_SetParameter> const* const>(request.GetData());
+			SAudioObjectRequestData<EAudioObjectRequestType::SetParameter> const* const pRequestData =
+			  static_cast<SAudioObjectRequestData<EAudioObjectRequestType::SetParameter> const* const>(request.GetData());
 
 			CParameter const* const pParameter = stl::find_in_map(m_parameters, pRequestData->parameterId, nullptr);
 
@@ -1109,11 +1005,11 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioObjectRequest(CAudioRequest c
 
 			break;
 		}
-	case eAudioObjectRequestType_SetSwitchState:
+	case EAudioObjectRequestType::SetSwitchState:
 		{
-			result = eRequestStatus_FailureInvalidControlId;
-			SAudioObjectRequestData<eAudioObjectRequestType_SetSwitchState> const* const pRequestData =
-			  static_cast<SAudioObjectRequestData<eAudioObjectRequestType_SetSwitchState> const* const>(request.GetData());
+			result = ERequestStatus::FailureInvalidControlId;
+			SAudioObjectRequestData<EAudioObjectRequestType::SetSwitchState> const* const pRequestData =
+			  static_cast<SAudioObjectRequestData<EAudioObjectRequestType::SetSwitchState> const* const>(request.GetData());
 
 			CATLSwitch const* const pSwitch = stl::find_in_map(m_switches, pRequestData->audioSwitchId, nullptr);
 
@@ -1129,22 +1025,22 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioObjectRequest(CAudioRequest c
 
 			break;
 		}
-	case eAudioObjectRequestType_SetCurrentEnvironments:
+	case EAudioObjectRequestType::SetCurrentEnvironments:
 		{
-			SAudioObjectRequestData<eAudioObjectRequestType_SetCurrentEnvironments> const* const pRequestData =
-			  static_cast<SAudioObjectRequestData<eAudioObjectRequestType_SetCurrentEnvironments> const* const>(request.GetData());
+			SAudioObjectRequestData<EAudioObjectRequestType::SetCurrentEnvironments> const* const pRequestData =
+			  static_cast<SAudioObjectRequestData<EAudioObjectRequestType::SetCurrentEnvironments> const* const>(request.GetData());
 
 			SetCurrentEnvironmentsOnObject(pObject, pRequestData->entityToIgnore, pRequestData->position);
 
 			break;
 		}
-	case eAudioObjectRequestType_SetEnvironment:
+	case EAudioObjectRequestType::SetEnvironment:
 		{
 			if (pObject != m_pGlobalAudioObject)
 			{
-				result = eRequestStatus_FailureInvalidControlId;
-				SAudioObjectRequestData<eAudioObjectRequestType_SetEnvironment> const* const pRequestData =
-				  static_cast<SAudioObjectRequestData<eAudioObjectRequestType_SetEnvironment> const* const>(request.GetData());
+				result = ERequestStatus::FailureInvalidControlId;
+				SAudioObjectRequestData<EAudioObjectRequestType::SetEnvironment> const* const pRequestData =
+				  static_cast<SAudioObjectRequestData<EAudioObjectRequestType::SetEnvironment> const* const>(request.GetData());
 
 				CATLAudioEnvironment const* const pEnvironment = stl::find_in_map(m_environments, pRequestData->audioEnvironmentId, nullptr);
 
@@ -1155,93 +1051,105 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioObjectRequest(CAudioRequest c
 			}
 			else
 			{
-				g_audioLogger.Log(eAudioLogType_Warning, "ATL received a request to set an environment on a global object");
+				g_logger.Log(ELogType::Warning, "ATL received a request to set an environment on a global object");
 			}
 
 			break;
 		}
-	case eAudioObjectRequestType_ResetEnvironments:
+	case EAudioObjectRequestType::ResetEnvironments:
 		{
 			result = pObject->HandleResetEnvironments(m_environments);
 			break;
 		}
-	case eAudioObjectRequestType_RegisterObject:
+	case EAudioObjectRequestType::RegisterObject:
 		{
-			SAudioObjectRequestData<eAudioObjectRequestType_RegisterObject> const* const pRequestData =
-			  static_cast<SAudioObjectRequestData<eAudioObjectRequestType_RegisterObject> const*>(request.GetData());
+			SAudioObjectRequestData<EAudioObjectRequestType::RegisterObject> const* const pRequestData =
+			  static_cast<SAudioObjectRequestData<EAudioObjectRequestType::RegisterObject> const*>(request.GetData());
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
-			pObject->Init(pRequestData->name.c_str(), m_pImpl->ConstructAudioObject(pRequestData->name.c_str()), m_audioListenerMgr.GetActiveListenerAttributes().transformation.GetPosition());
+			pObject->Init(pRequestData->name.c_str(), m_pIImpl->ConstructObject(pRequestData->name.c_str()), m_audioListenerMgr.GetActiveListenerAttributes().transformation.GetPosition(), pRequestData->entityId);
 #else
-			pObject->Init(nullptr, m_pImpl->ConstructAudioObject(nullptr), m_audioListenerMgr.GetActiveListenerAttributes().transformation.GetPosition());
+			pObject->Init(nullptr, m_pIImpl->ConstructObject(nullptr), m_audioListenerMgr.GetActiveListenerAttributes().transformation.GetPosition(), pRequestData->entityId);
 #endif  // INCLUDE_AUDIO_PRODUCTION_CODE
 
 			result = pObject->HandleSetTransformation(pRequestData->transformation, 0.0f);
-			CRY_ASSERT(result == eRequestStatus_Success);
+			CRY_ASSERT(result == ERequestStatus::Success);
 
 			if (pRequestData->bSetCurrentEnvironments)
 			{
 				SetCurrentEnvironmentsOnObject(pObject, INVALID_ENTITYID, pRequestData->transformation.GetPosition());
 			}
 
-			EnumFlagsType const index = static_cast<EnumFlagsType>(pRequestData->occlusionType);
-
-			if (index < eOcclusionType_Count)
+			if (pRequestData->occlusionType < EOcclusionType::Count)
 			{
 				// TODO: Can we prevent these lookups and access the switch and state directly?
 				CATLSwitch const* const pSwitch = stl::find_in_map(m_switches, OcclusionTypeSwitchId, nullptr);
 
 				if (pSwitch != nullptr)
 				{
-					CATLSwitchState const* const pState = stl::find_in_map(pSwitch->audioSwitchStates, OcclusionTypeStateIds[index], nullptr);
+					CATLSwitchState const* const pState = stl::find_in_map(pSwitch->audioSwitchStates, OcclusionTypeStateIds[IntegralValue(pRequestData->occlusionType)], nullptr);
 
 					if (pState != nullptr)
 					{
 						result = pObject->HandleSetSwitchState(pSwitch, pState);
-						CRY_ASSERT(result == eRequestStatus_Success);
+						CRY_ASSERT(result == ERequestStatus::Success);
 					}
 				}
 			}
 
 			m_audioObjectMgr.RegisterObject(pObject);
-			result = eRequestStatus_Success;
-
+			result = ERequestStatus::Success;
 			break;
 		}
-	case eAudioObjectRequestType_ReleaseObject:
+	case EAudioObjectRequestType::ReleaseObject:
 		{
 			if (pObject != m_pGlobalAudioObject)
 			{
-				pObject->RemoveFlag(eAudioObjectFlags_DoNotRelease);
-				result = eRequestStatus_Success;
+				pObject->RemoveFlag(EObjectFlags::InUse);
+				result = ERequestStatus::Success;
 			}
 			else
 			{
-				g_audioLogger.Log(eAudioLogType_Warning, "ATL received a request to release the GlobalAudioObject");
+				g_logger.Log(ELogType::Warning, "ATL received a request to release the GlobalAudioObject");
 			}
 
 			break;
 		}
-	case eAudioObjectRequestType_ProcessPhysicsRay:
+	case EAudioObjectRequestType::ProcessPhysicsRay:
 		{
-			SAudioObjectRequestData<eAudioObjectRequestType_ProcessPhysicsRay> const* const pRequestData =
-			  static_cast<SAudioObjectRequestData<eAudioObjectRequestType_ProcessPhysicsRay> const* const>(request.GetData());
+			SAudioObjectRequestData<EAudioObjectRequestType::ProcessPhysicsRay> const* const pRequestData =
+			  static_cast<SAudioObjectRequestData<EAudioObjectRequestType::ProcessPhysicsRay> const* const>(request.GetData());
 
 			pObject->ProcessPhysicsRay(pRequestData->pAudioRayInfo);
-			result = eRequestStatus_Success;
+			result = ERequestStatus::Success;
 			break;
 		}
-	case eAudioObjectRequestType_None:
+#if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
+	case EAudioObjectRequestType::SetName:
 		{
-			result = eRequestStatus_Success;
+			SAudioObjectRequestData<EAudioObjectRequestType::SetName> const* const pRequestData =
+			  static_cast<SAudioObjectRequestData<EAudioObjectRequestType::SetName> const* const>(request.GetData());
 
+			result = pObject->HandleSetName(pRequestData->name.c_str());
+
+			if (result == ERequestStatus::SuccessNeedsRefresh)
+			{
+				pObject->ForceImplementationRefresh(m_triggers, m_parameters, m_switches, m_environments, true);
+				result = ERequestStatus::Success;
+			}
+
+			break;
+		}
+#endif // INCLUDE_AUDIO_PRODUCTION_CODE
+	case EAudioObjectRequestType::None:
+		{
+			result = ERequestStatus::Success;
 			break;
 		}
 	default:
 		{
-			result = eRequestStatus_FailureInvalidRequest;
-			g_audioLogger.Log(eAudioLogType_Warning, "ATL received an unknown AudioObject request type: %u", pBaseRequestData->type);
-
+			g_logger.Log(ELogType::Warning, "ATL received an unknown AudioObject request type: %u", pBaseRequestData->type);
+			result = ERequestStatus::FailureInvalidRequest;
 			break;
 		}
 	}
@@ -1252,16 +1160,16 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioObjectRequest(CAudioRequest c
 ///////////////////////////////////////////////////////////////////////////
 ERequestStatus CAudioTranslationLayer::ProcessAudioListenerRequest(SAudioRequestData const* const pPassedRequestData)
 {
-	ERequestStatus result = eRequestStatus_Failure;
+	ERequestStatus result = ERequestStatus::Failure;
 	SAudioListenerRequestDataBase const* const pBaseRequestData =
 	  static_cast<SAudioListenerRequestDataBase const* const>(pPassedRequestData);
 
 	switch (pBaseRequestData->type)
 	{
-	case eAudioListenerRequestType_SetTransformation:
+	case EAudioListenerRequestType::SetTransformation:
 		{
-			SAudioListenerRequestData<eAudioListenerRequestType_SetTransformation> const* const pRequestData =
-			  static_cast<SAudioListenerRequestData<eAudioListenerRequestType_SetTransformation> const* const>(pPassedRequestData);
+			SAudioListenerRequestData<EAudioListenerRequestType::SetTransformation> const* const pRequestData =
+			  static_cast<SAudioListenerRequestData<EAudioListenerRequestType::SetTransformation> const* const>(pPassedRequestData);
 
 			CRY_ASSERT(pRequestData->pListener != nullptr);
 
@@ -1271,69 +1179,75 @@ ERequestStatus CAudioTranslationLayer::ProcessAudioListenerRequest(SAudioRequest
 			}
 		}
 		break;
-	case eAudioListenerRequestType_ReleaseListener:
+	case EAudioListenerRequestType::RegisterListener:
 		{
-			SAudioListenerRequestData<eAudioListenerRequestType_ReleaseListener> const* const pRequestData =
-			  static_cast<SAudioListenerRequestData<eAudioListenerRequestType_ReleaseListener> const* const>(pPassedRequestData);
+			SAudioListenerRequestData<EAudioListenerRequestType::RegisterListener> const* const pRequestData =
+			  static_cast<SAudioListenerRequestData<EAudioListenerRequestType::RegisterListener> const*>(pPassedRequestData);
+			*pRequestData->ppListener = m_audioListenerMgr.CreateListener(pRequestData->name.c_str());
+		}
+		break;
+	case EAudioListenerRequestType::ReleaseListener:
+		{
+			SAudioListenerRequestData<EAudioListenerRequestType::ReleaseListener> const* const pRequestData =
+			  static_cast<SAudioListenerRequestData<EAudioListenerRequestType::ReleaseListener> const* const>(pPassedRequestData);
 
 			CRY_ASSERT(pRequestData->pListener != nullptr);
 
 			if (pRequestData->pListener != nullptr)
 			{
 				m_audioListenerMgr.ReleaseListener(pRequestData->pListener);
-				result = eRequestStatus_Success;
+				result = ERequestStatus::Success;
 			}
-
-			break;
 		}
-	case eAudioListenerRequestType_None:
-		result = eRequestStatus_Success;
+		break;
+	case EAudioListenerRequestType::None:
+		result = ERequestStatus::Success;
 		break;
 	default:
-		result = eRequestStatus_FailureInvalidRequest;
-		g_audioLogger.Log(eAudioLogType_Warning, "ATL received an unknown AudioListener request type: %u", pPassedRequestData->type);
+		result = ERequestStatus::FailureInvalidRequest;
+		g_logger.Log(ELogType::Warning, "ATL received an unknown AudioListener request type: %u", pPassedRequestData->type);
 		break;
 	}
 
 	return result;
 }
 ///////////////////////////////////////////////////////////////////////////
-ERequestStatus CAudioTranslationLayer::SetImpl(IAudioImpl* const pImpl)
+ERequestStatus CAudioTranslationLayer::SetImpl(Impl::IImpl* const pIImpl)
 {
-	ERequestStatus result = eRequestStatus_Failure;
+	ERequestStatus result = ERequestStatus::Failure;
 
-	if (m_pImpl != nullptr && pImpl != m_pImpl)
+	if (m_pIImpl != nullptr && pIImpl != m_pIImpl)
 	{
 		ReleaseImpl();
 	}
 
-	m_pImpl = pImpl;
+	m_pIImpl = pIImpl;
 
-	if (m_pImpl == nullptr)
+	if (m_pIImpl == nullptr)
 	{
-		g_audioLogger.Log(eAudioLogType_Warning, "nullptr passed to SetImpl, will run with the null implementation");
+		g_logger.Log(ELogType::Warning, "nullptr passed to SetImpl, will run with the null implementation");
 
-		CAudioImpl* pNullImpl = new CAudioImpl();
-		CRY_ASSERT(pNullImpl != nullptr);
-		m_pImpl = pNullImpl;
+		auto const pImpl = new Impl::Null::CImpl();
+		CRY_ASSERT(pImpl != nullptr);
+		m_pIImpl = static_cast<Impl::IImpl*>(pImpl);
 	}
 
-	result = m_pImpl->Init(g_audioCVars.m_audioObjectPoolSize, g_audioCVars.m_audioEventPoolSize);
+	result = m_pIImpl->Init(g_cvars.m_audioObjectPoolSize, g_cvars.m_audioEventPoolSize);
 
-	if (result != eRequestStatus_Success)
+	if (result != ERequestStatus::Success)
 	{
 		// The impl failed to initialize, allow it to shut down and release then fall back to the null impl.
-		g_audioLogger.Log(eAudioLogType_Error, "Failed to set the AudioImpl %s. Will run with the null implementation.", m_pImpl->GetImplementationNameString());
+		g_logger.Log(ELogType::Error, "Failed to set the AudioImpl %s. Will run with the null implementation.", m_pIImpl->GetName());
 
 		// There's no need to call Shutdown when the initialization failed as
 		// we expect the implementation to clean-up itself if it couldn't be initialized
 
-		result = m_pImpl->Release(); // Release the engine specific data.
-		CRY_ASSERT(result == eRequestStatus_Success);
+		result = m_pIImpl->Release(); // Release the engine specific data.
+		CRY_ASSERT(result == ERequestStatus::Success);
 
-		CAudioImpl* pNullImpl = new CAudioImpl();
-		CRY_ASSERT(pNullImpl != nullptr);
-		m_pImpl = pNullImpl;
+		auto const pImpl = new Impl::Null::CImpl();
+		CRY_ASSERT(pImpl != nullptr);
+		m_pIImpl = static_cast<Impl::IImpl*>(pImpl);
 	}
 
 	if (m_pGlobalAudioObject == nullptr)
@@ -1346,22 +1260,22 @@ ERequestStatus CAudioTranslationLayer::SetImpl(IAudioImpl* const pImpl)
 	}
 
 	CRY_ASSERT(m_pGlobalAudioObject->GetImplDataPtr() == nullptr);
-	m_pGlobalAudioObject->SetImplDataPtr(m_pImpl->ConstructGlobalAudioObject());
+	m_pGlobalAudioObject->SetImplDataPtr(m_pIImpl->ConstructGlobalObject());
 
-	m_audioObjectMgr.Init(m_pImpl);
-	m_audioEventMgr.Init(m_pImpl);
-	m_audioStandaloneFileMgr.Init(m_pImpl);
-	m_audioListenerMgr.Init(m_pImpl);
-	m_xmlProcessor.Init(m_pImpl);
-	m_fileCacheMgr.Init(m_pImpl);
+	m_audioObjectMgr.Init(m_pIImpl);
+	m_audioEventMgr.Init(m_pIImpl);
+	m_audioStandaloneFileMgr.Init(m_pIImpl);
+	m_audioListenerMgr.Init(m_pIImpl);
+	m_xmlProcessor.Init(m_pIImpl);
+	m_fileCacheMgr.Init(m_pIImpl);
 
-	CATLControlImpl::SetImpl(m_pImpl);
+	CATLControlImpl::SetImpl(m_pIImpl);
 
 	SetImplLanguage();
 	InitInternalControls();
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
-	m_implNameString = m_pImpl->GetImplementationNameString();
+	m_pProfileData->SetImplName(m_pIImpl->GetName());
 #endif //INCLUDE_AUDIO_PRODUCTION_CODE
 
 	return result;
@@ -1371,65 +1285,65 @@ ERequestStatus CAudioTranslationLayer::SetImpl(IAudioImpl* const pImpl)
 void CAudioTranslationLayer::ReleaseImpl()
 {
 	// During audio middleware shutdown we do not allow for any new requests originating from the "dying" audio middleware!
-	m_flags |= eAudioInternalStates_AudioMiddlewareShuttingDown;
+	m_flags |= EInternalStates::AudioMiddlewareShuttingDown;
 
-	m_pImpl->OnBeforeShutDown();
+	m_pIImpl->OnBeforeShutDown();
 
 	m_audioStandaloneFileMgr.Release();
 	m_audioEventMgr.Release();
 	m_audioObjectMgr.Release();
 	m_audioListenerMgr.Release();
 
-	m_pImpl->DestructAudioObject(m_pGlobalAudioObject->GetImplDataPtr());
+	m_pIImpl->DestructObject(m_pGlobalAudioObject->GetImplDataPtr());
 	m_pGlobalAudioObject->SetImplDataPtr(nullptr);
 
 	delete m_pGlobalAudioObject;
 	m_pGlobalAudioObject = nullptr;
 
-	m_xmlProcessor.ClearControlsData(eDataScope_All);
-	m_xmlProcessor.ClearPreloadsData(eDataScope_All);
+	m_xmlProcessor.ClearControlsData(EDataScope::All);
+	m_xmlProcessor.ClearPreloadsData(EDataScope::All);
 
 	m_fileCacheMgr.Release();
 
-	ERequestStatus result = m_pImpl->ShutDown(); // Shut down the audio middleware.
-	CRY_ASSERT(result == eRequestStatus_Success);
+	ERequestStatus result = m_pIImpl->ShutDown(); // Shut down the audio middleware.
+	CRY_ASSERT(result == ERequestStatus::Success);
 
-	result = m_pImpl->Release(); // Release the engine specific data.
-	CRY_ASSERT(result == eRequestStatus_Success);
+	result = m_pIImpl->Release(); // Release the engine specific data.
+	CRY_ASSERT(result == ERequestStatus::Success);
 
-	m_pImpl = nullptr;
-	m_flags &= ~eAudioInternalStates_AudioMiddlewareShuttingDown;
+	m_pIImpl = nullptr;
+	m_flags &= ~EInternalStates::AudioMiddlewareShuttingDown;
 }
 
 //////////////////////////////////////////////////////////////////////////
 ERequestStatus CAudioTranslationLayer::RefreshAudioSystem(char const* const szLevelName)
 {
-	g_audioLogger.Log(eAudioLogType_Warning, "Beginning to refresh the AudioSystem!");
+	g_logger.Log(ELogType::Warning, "Beginning to refresh the AudioSystem!");
 
-	ERequestStatus result = m_pImpl->StopAllSounds();
-	CRY_ASSERT(result == eRequestStatus_Success);
+	ERequestStatus result = m_pIImpl->StopAllSounds();
+	CRY_ASSERT(result == ERequestStatus::Success);
 
-	result = m_fileCacheMgr.UnloadDataByScope(eDataScope_LevelSpecific);
-	CRY_ASSERT(result == eRequestStatus_Success);
+	result = m_fileCacheMgr.UnloadDataByScope(EDataScope::LevelSpecific);
+	CRY_ASSERT(result == ERequestStatus::Success);
 
-	result = m_fileCacheMgr.UnloadDataByScope(eDataScope_Global);
-	CRY_ASSERT(result == eRequestStatus_Success);
+	result = m_fileCacheMgr.UnloadDataByScope(EDataScope::Global);
+	CRY_ASSERT(result == ERequestStatus::Success);
 
-	result = ClearControlsData(eDataScope_All);
-	CRY_ASSERT(result == eRequestStatus_Success);
+	result = ClearControlsData(EDataScope::All);
+	CRY_ASSERT(result == ERequestStatus::Success);
 
-	result = ClearPreloadsData(eDataScope_All);
-	CRY_ASSERT(result == eRequestStatus_Success);
+	result = ClearPreloadsData(EDataScope::All);
+	CRY_ASSERT(result == ERequestStatus::Success);
 
-	m_pImpl->OnAudioSystemRefresh();
+	m_pIImpl->OnRefresh();
 
 	SetImplLanguage();
 
 	CryFixedStringT<MaxFilePathLength> configPath(gEnv->pAudioSystem->GetConfigPath());
-	result = ParseControlsData(configPath.c_str(), eDataScope_Global);
-	CRY_ASSERT(result == eRequestStatus_Success);
-	result = ParsePreloadsData(configPath.c_str(), eDataScope_Global);
-	CRY_ASSERT(result == eRequestStatus_Success);
+	result = ParseControlsData(configPath.c_str(), EDataScope::Global);
+	CRY_ASSERT(result == ERequestStatus::Success);
+	result = ParsePreloadsData(configPath.c_str(), EDataScope::Global);
+	CRY_ASSERT(result == ERequestStatus::Success);
 
 	// The global preload might not exist if no preloads have been created, for that reason we don't check the result of this call
 	result = m_fileCacheMgr.TryLoadRequest(GlobalPreloadRequestId, true, true);
@@ -1438,24 +1352,20 @@ ERequestStatus CAudioTranslationLayer::RefreshAudioSystem(char const* const szLe
 	{
 		configPath += "levels" CRY_NATIVE_PATH_SEPSTR;
 		configPath += szLevelName;
-		result = ParseControlsData(configPath.c_str(), eDataScope_LevelSpecific);
-		CRY_ASSERT(result == eRequestStatus_Success);
+		result = ParseControlsData(configPath.c_str(), EDataScope::LevelSpecific);
+		CRY_ASSERT(result == ERequestStatus::Success);
 
-		result = ParsePreloadsData(configPath.c_str(), eDataScope_LevelSpecific);
-		CRY_ASSERT(result == eRequestStatus_Success);
+		result = ParsePreloadsData(configPath.c_str(), EDataScope::LevelSpecific);
+		CRY_ASSERT(result == ERequestStatus::Success);
 
-		PreloadRequestId audioPreloadRequestId = InvalidPreloadRequestId;
-
-		if (GetAudioPreloadRequestId(szLevelName, audioPreloadRequestId))
-		{
-			result = m_fileCacheMgr.TryLoadRequest(audioPreloadRequestId, true, true);
-			CRY_ASSERT(result == eRequestStatus_Success);
-		}
+		PreloadRequestId const preloadRequestId = StringToId_RunTime(szLevelName);
+		result = m_fileCacheMgr.TryLoadRequest(preloadRequestId, true, true);
+		CRY_ASSERT(result == ERequestStatus::Success);
 	}
 
-	g_audioLogger.Log(eAudioLogType_Warning, "Done refreshing the AudioSystem!");
+	g_logger.Log(ELogType::Warning, "Done refreshing the AudioSystem!");
 
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1463,7 +1373,7 @@ void CAudioTranslationLayer::SetImplLanguage()
 {
 	if (ICVar* pCVar = gEnv->pConsole->GetCVar("g_languageAudio"))
 	{
-		m_pImpl->SetLanguage(pCVar->GetString());
+		m_pIImpl->SetLanguage(pCVar->GetString());
 	}
 }
 
@@ -1474,11 +1384,11 @@ bool CAudioTranslationLayer::OnInputEvent(SInputEvent const& event)
 	{
 		if (event.keyId == eKI_SYS_ConnectDevice)
 		{
-			m_pImpl->GamepadConnected(event.deviceUniqueID);
+			m_pIImpl->GamepadConnected(event.deviceUniqueID);
 		}
 		else if (event.keyId == eKI_SYS_DisconnectDevice)
 		{
-			m_pImpl->GamepadDisconnected(event.deviceUniqueID);
+			m_pIImpl->GamepadDisconnected(event.deviceUniqueID);
 		}
 	}
 
@@ -1540,7 +1450,6 @@ void CAudioTranslationLayer::SetCurrentEnvironmentsOnObject(CATLAudioObject* con
 	static size_t const s_maxAreas = 10;
 	static SAudioAreaInfo s_areaInfos[s_maxAreas];
 
-	// TODO: Clarify whether QueryAudioAreas is thread safe or not!
 	if (pIAreaManager->QueryAudioAreas(position, s_areaInfos, s_maxAreas, numAreas))
 	{
 		for (size_t i = 0; i < numAreas; ++i)
@@ -1566,31 +1475,33 @@ void CAudioTranslationLayer::DrawAudioSystemDebugInfo()
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AUDIO);
 
-	if (IRenderAuxGeom* const pAuxGeom = g_audioCVars.m_drawAudioDebug > 0 && gEnv->pRenderer != nullptr ? gEnv->pRenderer->GetIRenderAuxGeom() : nullptr)
+	if (IRenderAuxGeom* const pAuxGeom = g_cvars.m_drawAudioDebug > 0 && gEnv->pRenderer != nullptr ? gEnv->pRenderer->GetIRenderAuxGeom() : nullptr)
 	{
 		DrawAudioObjectDebugInfo(*pAuxGeom); // needs to be called first so that the rest of the labels are printed
 		// on top (Draw2dLabel doesn't provide a way set which labels are printed on top)
 
-		float posX = 0.0f;
+		float posX = 8.0f;
 		float posY = 4.0f;
-		float const lineHeight = 17.0f;
-		float const indentation = 20.0f;
+		float const lineHeight = 16.0f;
+		float const lineHeightClause = 20.0f;
+		float const indentation = 24.0f;
+		float const textSize = 1.35f;
 
 		static float const s_colorWhite[4] = { 1.0f, 1.0f, 1.0f, 0.9f };
 		static float const s_colorRed[4] = { 1.0f, 0.0f, 0.0f, 0.7f };
-		static float const s_colorGreen[4] = { 0.0f, 1.0f, 0.0f, 0.7f };
+		static float const s_colorGreen[4] = { 0.0f, 0.8f, 0.0f, 0.7f };
 		static float const s_colorBlue[4] = { 0.4f, 0.4f, 1.0f, 1.0f };
+		static float const s_colorGrey[4] = { 0.9f, 0.9f, 0.9f, 0.9f };
 
-		pAuxGeom->Draw2dLabel(posX, posY, 1.6f, s_colorBlue, false, "AudioTranslationLayer with %s", m_implNameString.c_str());
-		posX += indentation;
-		posY += lineHeight;
+		pAuxGeom->Draw2dLabel(posX, posY, 1.5f, s_colorBlue, false, m_pProfileData->GetImplName());
 
 		CryModuleMemoryInfo memInfo;
 		ZeroStruct(memInfo);
 		CryGetMemoryInfoForModule(&memInfo);
 
-		pAuxGeom->Draw2dLabel(posX, posY, 1.35f, s_colorWhite, false,
-		                      "[ATL] Total Memory Used: %uKiB",
+		posY += lineHeightClause;
+		pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorWhite, false,
+		                      "[Audio System] Total Memory Used: %uKiB",
 		                      static_cast<uint32>((memInfo.allocated - memInfo.freed) / 1024));
 
 		posX += indentation;
@@ -1599,7 +1510,7 @@ void CAudioTranslationLayer::DrawAudioSystemDebugInfo()
 			posY += lineHeight;
 			auto mem = allocator.GetTotalMemory();
 			auto pool = allocator.GetCounts();
-			pAuxGeom->Draw2dLabel(posX, posY, 1.35f, s_colorWhite, false, "[%s] InUse: %u | Constructed: %u (%uKiB) | Memory Pool: %uKiB", "Objects", pool.nUsed, pool.nAlloc, mem.nUsed / 1024, mem.nAlloc / 1024);
+			pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorGrey, false, "[Objects] InUse: %u | Constructed: %u (%uKiB) | Memory Pool: %uKiB", pool.nUsed, pool.nAlloc, mem.nUsed / 1024, mem.nAlloc / 1024);
 		}
 
 		{
@@ -1607,7 +1518,7 @@ void CAudioTranslationLayer::DrawAudioSystemDebugInfo()
 			posY += lineHeight;
 			auto mem = allocator.GetTotalMemory();
 			auto pool = allocator.GetCounts();
-			pAuxGeom->Draw2dLabel(posX, posY, 1.35f, s_colorWhite, false, "[%s] InUse: %u | Constructed: %u (%uKiB) | Memory Pool: %uKiB", "Events", pool.nUsed, pool.nAlloc, mem.nUsed / 1024, mem.nAlloc / 1024);
+			pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorGrey, false, "[Events] InUse: %u | Constructed: %u (%uKiB) | Memory Pool: %uKiB", pool.nUsed, pool.nAlloc, mem.nUsed / 1024, mem.nAlloc / 1024);
 		}
 
 		{
@@ -1615,17 +1526,17 @@ void CAudioTranslationLayer::DrawAudioSystemDebugInfo()
 			posY += lineHeight;
 			auto mem = allocator.GetTotalMemory();
 			auto pool = allocator.GetCounts();
-			pAuxGeom->Draw2dLabel(posX, posY, 1.35f, s_colorWhite, false, "[%s] InUse: %u | Constructed: %u (%uKiB) | Memory Pool: %uKiB", "Files", pool.nUsed, pool.nAlloc, mem.nUsed / 1024, mem.nAlloc / 1024);
+			pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorGrey, false, "[Files] InUse: %u | Constructed: %u (%uKiB) | Memory Pool: %uKiB", pool.nUsed, pool.nAlloc, mem.nUsed / 1024, mem.nAlloc / 1024);
 		}
 		posX -= indentation;
 
-		if (m_pImpl != nullptr)
+		if (m_pIImpl != nullptr)
 		{
-			SAudioImplMemoryInfo memoryInfo;
-			m_pImpl->GetMemoryInfo(memoryInfo);
+			Impl::SMemoryInfo memoryInfo;
+			m_pIImpl->GetMemoryInfo(memoryInfo);
 
-			posY += lineHeight;
-			pAuxGeom->Draw2dLabel(posX, posY, 1.35f, s_colorWhite, false, "[Impl] Total Memory Used: %uKiB | Secondary Memory: %.2f / %.2f MiB NumAllocs: %d",
+			posY += lineHeightClause;
+			pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorWhite, false, "[Impl] Total Memory Used: %uKiB | Secondary Memory: %.2f / %.2f MiB | NumAllocs: %d",
 			                      static_cast<uint32>(memoryInfo.totalMemory / 1024),
 			                      (memoryInfo.secondaryPoolUsedSize / 1024) / 1024.0f,
 			                      (memoryInfo.secondaryPoolSize / 1024) / 1024.0f,
@@ -1633,16 +1544,104 @@ void CAudioTranslationLayer::DrawAudioSystemDebugInfo()
 
 			posX += indentation;
 			posY += lineHeight;
-			pAuxGeom->Draw2dLabel(posX, posY, 1.35f, s_colorWhite, false, "[Impl Object Pool] InUse: %u | Constructed: %u (%uKiB) | Memory Pool: %uKiB",
+			pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorGrey, false, "[Impl Object Pool] InUse: %u | Constructed: %u (%uKiB) | Memory Pool: %uKiB",
 			                      memoryInfo.poolUsedObjects, memoryInfo.poolConstructedObjects, memoryInfo.poolUsedMemory, memoryInfo.poolAllocatedMemory);
 			posX -= indentation;
 		}
 
-		posY += lineHeight;
+		posY += lineHeightClause;
+
+		string debugFilter = g_cvars.m_pDebugFilter->GetString();
+
+		if (debugFilter.IsEmpty() || debugFilter == "0")
+		{
+			debugFilter = "<none>";
+		}
+
+		string debugDistance = ToString(g_cvars.m_debugDistance) + " m";
+
+		if (g_cvars.m_debugDistance <= 0)
+		{
+			debugDistance = "infinite";
+		}
+
+		string debugDraw = "";
+
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::DrawSpheres) > 0)
+		{
+			debugDraw += "Spheres, ";
+		}
+
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectLabel) > 0)
+		{
+			debugDraw += "Labels, ";
+		}
+
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectTriggers) > 0)
+		{
+			debugDraw += "Triggers, ";
+		}
+
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectStates) > 0)
+		{
+			debugDraw += "States, ";
+		}
+
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectParameters) > 0)
+		{
+			debugDraw += "Parameters, ";
+		}
+
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectEnvironments) > 0)
+		{
+			debugDraw += "Environments, ";
+		}
+
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowOcclusionRayLabels) > 0)
+		{
+			debugDraw += "Occlusion Ray Labels, ";
+		}
+
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::DrawOcclusionRays) > 0)
+		{
+			debugDraw += "Occlusion Rays, ";
+		}
+
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::DrawObjectStandaloneFiles) > 0)
+		{
+			debugDraw += "Object Standalone Files, ";
+		}
+
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowStandaloneFiles) > 0)
+		{
+			debugDraw += "Standalone Files, ";
+		}
+
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowActiveEvents) > 0)
+		{
+			debugDraw += "Active Events, ";
+		}
+
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowActiveObjects) > 0)
+		{
+			debugDraw += "Active Objects, ";
+		}
+
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowFileCacheManagerInfo) > 0)
+		{
+			debugDraw += "File Cache Manager, ";
+		}
+
+		if (!debugDraw.IsEmpty())
+		{
+			debugDraw.erase(debugDraw.length() - 2, 2);
+			pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorWhite, false, "Debug Filter: %s | Debug Distance: %s | Debug Draw: %s", debugFilter.c_str(), debugDistance.c_str(), debugDraw.c_str());
+			posY += lineHeight;
+		}
+
 		static float const SMOOTHING_ALPHA = 0.2f;
 		static float syncRays = 0;
 		static float asyncRays = 0;
-
 		Vec3 const& listenerPosition = m_audioListenerMgr.GetActiveListenerAttributes().transformation.GetPosition();
 		Vec3 const& listenerDirection = m_audioListenerMgr.GetActiveListenerAttributes().transformation.GetForward();
 		float const listenerVelocity = m_audioListenerMgr.GetActiveListenerAttributes().velocity.GetLength();
@@ -1655,25 +1654,24 @@ void CAudioTranslationLayer::DrawAudioSystemDebugInfo()
 		asyncRays += (CPropagationProcessor::s_totalAsyncPhysRays - asyncRays) * SMOOTHING_ALPHA * 0.1f;
 
 		bool const bActive = true;
-		float const colorListener[4] =
+		float const* colorListener = bActive ? s_colorGreen : s_colorRed;
+
+		pAuxGeom->Draw2dLabel(posX, posY, textSize, colorListener, false, "Listener <%d> PosXYZ: %.2f %.2f %.2f | FwdXYZ: %.2f %.2f %.2f | Velocity: %.2f m/s", 0, listenerPosition.x, listenerPosition.y, listenerPosition.z, listenerDirection.x, listenerDirection.y, listenerDirection.z, listenerVelocity);
+
+		if (numListeners > 0)
 		{
-			bActive ? s_colorGreen[0] : s_colorRed[0],
-			bActive ? s_colorGreen[1] : s_colorRed[1],
-			bActive ? s_colorGreen[2] : s_colorRed[2],
-			1.0f
-		};
+			char const* const szName = m_audioListenerMgr.GetActiveListenerName();
 
-		float const* colorNumbers = s_colorBlue;
+			posY += lineHeight;
+			pAuxGeom->Draw2dLabel(posX, posY, textSize, colorListener, false, "%s PosXYZ: %.2f %.2f %.2f FwdXYZ: %.2f %.2f %.2f Velocity: %.2f m/s", szName, listenerPosition.x, listenerPosition.y, listenerPosition.z, listenerDirection.x, listenerDirection.y, listenerDirection.z, listenerVelocity);
+		}
 
 		posY += lineHeight;
-		pAuxGeom->Draw2dLabel(posX, posY, 1.35f, colorListener, false, "Listener <%d> PosXYZ: %.2f %.2f %.2f FwdXYZ: %.2f %.2f %.2f Velocity: %.2f m/s", 0, listenerPosition.x, listenerPosition.y, listenerPosition.z, listenerDirection.x, listenerDirection.y, listenerDirection.z, listenerVelocity);
-
-		posY += lineHeight;
-		pAuxGeom->Draw2dLabel(posX, posY, 1.35f, colorNumbers, false,
+		pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorBlue, false,
 		                      "Objects: %3" PRISIZE_T "/%3" PRISIZE_T " Events: %3" PRISIZE_T " EventListeners %3" PRISIZE_T " Listeners: %" PRISIZE_T " | SyncRays: %3.1f AsyncRays: %3.1f",
 		                      numActiveObjects, numObjects, numEvents, numEventListeners, numListeners, syncRays, asyncRays);
 
-		posY += lineHeight;
+		posY += lineHeightClause;
 		DrawATLComponentDebugInfo(*pAuxGeom, posX, posY);
 
 		pAuxGeom->Commit(7);
@@ -1692,34 +1690,47 @@ void CAudioTranslationLayer::GetAudioTriggerData(ControlId const audioTriggerId,
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////
+CProfileData* CAudioTranslationLayer::GetProfileData() const
+{
+	return m_pProfileData;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 void CAudioTranslationLayer::DrawATLComponentDebugInfo(IRenderAuxGeom& auxGeom, float posX, float const posY)
 {
-	m_fileCacheMgr.DrawDebugInfo(auxGeom, posX, posY);
-
-	if ((g_audioCVars.m_drawAudioDebug & eADDF_SHOW_ACTIVE_OBJECTS) > 0)
+	if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowFileCacheManagerInfo) > 0)
 	{
-		m_audioObjectMgr.DrawDebugInfo(auxGeom, posX, posY);
-		posX += 300.0f;
-	}
-
-	if ((g_audioCVars.m_drawAudioDebug & eADDF_SHOW_ACTIVE_EVENTS) > 0)
-	{
-		m_audioEventMgr.DrawDebugInfo(auxGeom, posX, posY);
+		m_fileCacheMgr.DrawDebugInfo(auxGeom, posX, posY);
 		posX += 600.0f;
 	}
 
-	if ((g_audioCVars.m_drawAudioDebug & eADDF_SHOW_STANDALONE_FILES) > 0)
+	Vec3 const& listenerPosition = m_audioListenerMgr.GetActiveListenerAttributes().transformation.GetPosition();
+
+	if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowActiveObjects) > 0)
 	{
-		m_audioStandaloneFileMgr.DrawDebugInfo(auxGeom, posX, posY);
+		m_audioObjectMgr.DrawDebugInfo(auxGeom, listenerPosition, posX, posY);
+		posX += 300.0f;
+	}
+
+	if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowActiveEvents) > 0)
+	{
+		m_audioEventMgr.DrawDebugInfo(auxGeom, listenerPosition, posX, posY);
+		posX += 600.0f;
+	}
+
+	if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowStandaloneFiles) > 0)
+	{
+		m_audioStandaloneFileMgr.DrawDebugInfo(auxGeom, listenerPosition, posX, posY);
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CAudioTranslationLayer::RetriggerAudioControls()
 {
-	auto& registeredAudioObjects = m_audioObjectMgr.GetAudioObjects();
-	for (auto pAudioObject : registeredAudioObjects)
+	auto const& registeredAudioObjects = m_audioObjectMgr.GetAudioObjects();
+
+	for (auto const pAudioObject : registeredAudioObjects)
 	{
 		pAudioObject->ForceImplementationRefresh(m_triggers, m_parameters, m_switches, m_environments, true);
 	}
@@ -1740,3 +1751,4 @@ void CAudioTranslationLayer::DrawAudioObjectDebugInfo(IRenderAuxGeom& auxGeom)
 	  m_environments);
 }
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
+}      // namespace CryAudio

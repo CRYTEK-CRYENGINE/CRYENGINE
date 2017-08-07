@@ -183,7 +183,6 @@ InitPhysicsGlobals Now;
 
 CRYPHYSICS_API IPhysicalWorld *CreatePhysicalWorld(ISystem *pSystem)
 {
-	ModuleInitISystem(pSystem,"CryPhysics");
 	g_bHasSSE = pSystem && (pSystem->GetCPUFlags() & CPUF_SSE)!=0;
 
 	if (pSystem)
@@ -197,10 +196,14 @@ CRYPHYSICS_API IPhysicalWorld *CreatePhysicalWorld(ISystem *pSystem)
 
 #ifndef STANDALONE_PHYSICS
 //////////////////////////////////////////////////////////////////////////
-class CEngineModule_CryPhysics : public IEngineModule
+class CEngineModule_CryPhysics : public IPhysicsEngineModule
 {
-	CRYINTERFACE_SIMPLE(IEngineModule)
-	CRYGENERATE_SINGLETONCLASS(CEngineModule_CryPhysics, "EngineModule_CryPhysics", 0x526cabf3d776407f, 0xaa2338545bb6ae7f)
+	CRYINTERFACE_BEGIN()
+		CRYINTERFACE_ADD(Cry::IDefaultModule)
+		CRYINTERFACE_ADD(IPhysicsEngineModule)
+	CRYINTERFACE_END()
+
+	CRYGENERATE_SINGLETONCLASS_GUID(CEngineModule_CryPhysics, "EngineModule_CryPhysics", "526cabf3-d776-407f-aa23-38545bb6ae7f"_cry_guid)
 
 	virtual ~CEngineModule_CryPhysics()
 	{

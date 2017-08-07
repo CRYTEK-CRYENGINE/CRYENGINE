@@ -13,6 +13,10 @@
 
 //////////////////////////////////////////////////////////////////////////
 
+CRYREGISTER_CLASS(CAnimatedCharacterComponent_PrepareAnimatedCharacterForUpdate)
+CRYREGISTER_CLASS(CAnimatedCharacterComponent_StartAnimProc)
+CRYREGISTER_CLASS(CAnimatedCharacterComponent_GenerateMoveRequest)
+
 CAnimatedCharacterComponent_Base::CAnimatedCharacterComponent_Base()
 	: m_pAnimCharacter(nullptr)
 {

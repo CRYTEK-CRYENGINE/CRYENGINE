@@ -30,6 +30,15 @@
 #include <CryAISystem/IMovementSystem.h>
 #include "PipeUserMovementActorAdapter.h"
 
+enum EPathfinderResult
+{
+	PATHFINDER_STILLFINDING,
+	PATHFINDER_PATHFOUND,
+	PATHFINDER_NOPATH,
+	PATHFINDER_ABORT,
+	PATHFINDER_MAXVALUE
+};
+
 struct PathFollowerParams;
 
 struct CoverUsageInfo
@@ -275,9 +284,6 @@ public:
 	virtual bool                 IsUsingNavSO() const override             { return m_eNavSOMethod != nSOmNone; }
 	virtual void                 ClearPath(const char* dbgString) override;
 
-	virtual ETriState            CanTargetPointBeReached(CTargetPointRequest& request) override;
-	virtual bool                 UseTargetPointRequest(const CTargetPointRequest& request) override;
-
 	virtual void                 UpdateLookTarget(CAIObject* pTarget);
 	void                         EnableUpdateLookTarget(bool bEnable = true);
 
@@ -307,9 +313,6 @@ public:
 	//Last finished AIAction sets status as succeed or failed
 	virtual void SetLastActionStatus(bool bSucceed) override;
 
-	void         ClearInvalidatedSOLinks();
-	void         InvalidateSOLink(CSmartObject* pObject, SmartObjectHelper* pFromHelper, SmartObjectHelper* pToHelper) const;
-	bool         IsSOLinkInvalidated(CSmartObject* pObject, SmartObjectHelper* pFromHelper, SmartObjectHelper* pToHelper) const;
 	bool         ConvertPathToSpline(IAISystem::ENavigationType navType);
 
 	void         Update(EUpdateType type) override;
@@ -366,9 +369,6 @@ public:
 	bool            m_bLastNearForbiddenEdge;
 	bool            m_bLastActionSucceed;
 
-	typedef std::set<std::pair<CSmartObject*, std::pair<SmartObjectHelper*, SmartObjectHelper*>>> TSetInvalidatedSOLinks;
-	mutable TSetInvalidatedSOLinks m_invalidatedSOLinks;
-
 	// DEBUG MEMBERS
 	EGoalOperations m_lastExecutedGoalop;
 	//-----------------------------------
@@ -405,11 +405,6 @@ public:
 	ENavSOMethod        m_eNavSOMethod; // defines which method to use for navigating through a navigational smart object
 	bool                m_navSOEarlyPathRegen;
 	EntityId            m_idLastUsedSmartObject;
-
-#ifdef _DEBUG
-	ListPositions m_DEBUGCanTargetPointBeReached;
-	Vec3          m_DEBUGUseTargetPointRequest;
-#endif
 
 	SNavSOStates m_currentNavSOStates;
 	SNavSOStates m_pendingNavSOStates;

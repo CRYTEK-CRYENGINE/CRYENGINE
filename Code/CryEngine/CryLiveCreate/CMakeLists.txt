@@ -37,4 +37,4 @@ end_sources()
 #END-FILE-LIST
 
 CryEngineModule(CryLiveCreate PCH "StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
-target_include_directories( ${THIS_PROJECT} PRIVATE .. ${CRYENGINE_DIR}/Code/CryEngine/CryAction )
+target_include_directories( ${THIS_PROJECT} PRIVATE .. "${CRYENGINE_DIR}/Code/CryEngine/CryAction" )

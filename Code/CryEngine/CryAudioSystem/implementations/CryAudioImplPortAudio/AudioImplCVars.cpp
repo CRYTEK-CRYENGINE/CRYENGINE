@@ -4,15 +4,19 @@
 #include "AudioImplCVars.h"
 #include <CrySystem/IConsole.h>
 
-using namespace CryAudio::Impl::PortAudio;
-
+namespace CryAudio
+{
+namespace Impl
+{
+namespace PortAudio
+{
 //////////////////////////////////////////////////////////////////////////
-void CAudioImplCVars::RegisterVariables()
+void CCVars::RegisterVariables()
 {
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioImplCVars::UnregisterVariables()
+void CCVars::UnregisterVariables()
 {
 	IConsole* const pConsole = gEnv->pConsole;
 
@@ -20,3 +24,6 @@ void CAudioImplCVars::UnregisterVariables()
 	{
 	}
 }
+} // namespace PortAudio
+} // namespace Impl
+} // namespace CryAudio

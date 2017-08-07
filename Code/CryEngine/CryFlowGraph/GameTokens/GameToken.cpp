@@ -42,6 +42,12 @@ void CGameToken::Notify(EGameTokenEvent event)
 	}
 }
 
+void CGameToken::TriggerAsChanged(bool bIsGameStart)
+{
+	m_changed = gEnv->pTimer->GetFrameStartTime();
+	g_pGameTokenSystem->Notify(EGAMETOKEN_EVENT_CHANGE, this);
+}
+
 //////////////////////////////////////////////////////////////////////////
 void CGameToken::SetName(const char* sName)
 {
@@ -49,23 +55,59 @@ void CGameToken::SetName(const char* sName)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CGameToken::SetType(EFlowDataTypes dataType)
-{
-	//@TODO: implement
-	//m_value.SetType(dataType);
-}
-
-//////////////////////////////////////////////////////////////////////////
 void CGameToken::SetValue(const TFlowInputData& val)
 {
-	if ((0 == (m_nFlags & EGAME_TOKEN_MODIFIED)) || val != m_value)
+	if (val != m_value)
 	{
-		m_value = val;
-		m_nFlags |= EGAME_TOKEN_MODIFIED;
+		m_value.SetValueWithConversion(val);
 
-		m_changed = gEnv->pTimer->GetFrameStartTime();
-		g_pGameTokenSystem->Notify(EGAMETOKEN_EVENT_CHANGE, this);
+		#if (!defined(_RELEASE) && !defined(PERFORMANCE_BUILD))
+		// make extra checks on forced data type conversion when not on release
+		string valueToSetStr;
+		val.GetValueWithConversion(valueToSetStr); // get string representation of the value to set in the token
+		if (m_value.CheckIfForcedConversionOfCurrentValueWithString(valueToSetStr))
+		{
+			CryWarning(VALIDATOR_MODULE_FLOWGRAPH, VALIDATOR_ERROR,
+				"GameToken Internal SetValue: Forced conversion of GameToken '%s' of type '%s' with value >%s<",
+				m_name.c_str(),
+				FlowTypeToName(m_value.GetType()),
+				valueToSetStr.c_str()
+			);
+		}
+		#endif
+
+		TriggerAsChanged(false);
 	}
+}
+
+void CGameToken::SetValueFromString(const char* valueStr)
+{
+	TFlowInputData valueFD;
+	GetValue(valueFD); // get variant with correct type and lock
+
+	if (valueFD.GetType() != eFDT_String && *valueStr == '\0')
+	{
+		CryWarning(VALIDATOR_MODULE_FLOWGRAPH, VALIDATOR_ERROR,
+			"GameToken SetValue: Setting GameToken '%s' with an empty value.", m_name.c_str());
+	}
+
+	// bool convertWithSuccess = // ideally ret value of SetValueWithConversion could be used, but it accepts some conversions that we want to give a warning for
+	valueFD.SetValueWithConversion(string(valueStr)); // set and convert the value from the string
+
+	#if (!defined(_RELEASE) && !defined(PERFORMANCE_BUILD))
+	// make extra checks on forced data type conversion when not on release
+	if (valueFD.CheckIfForcedConversionOfCurrentValueWithString(valueStr))
+	{
+		CryWarning(VALIDATOR_MODULE_FLOWGRAPH, VALIDATOR_ERROR,
+			"GameToken SetValueFromString: Forced conversion of GameToken '%s' of type '%s' with value >%s<",
+			m_name.c_str(),
+			FlowTypeToName(m_value.GetType()),
+			valueStr
+		);
+	}
+	#endif
+
+	SetValue(valueFD); // set token from FD with correct type via the proper entry point
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -76,30 +118,10 @@ bool CGameToken::GetValue(TFlowInputData& val) const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CGameToken::SetValueAsString(const char* sValue, bool bDefault)
-{
-	if (bDefault)
-	{
-		SetFromString(m_value, sValue);
-	}
-	else
-	{
-		// if(strcmp(sValue,GetValueAsString()))
-		{
-			SetFromString(m_value, sValue);
-			m_nFlags |= EGAME_TOKEN_MODIFIED;
-
-			m_changed = gEnv->pTimer->GetFrameStartTime();
-			g_pGameTokenSystem->Notify(EGAMETOKEN_EVENT_CHANGE, this);
-		}
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
 const char* CGameToken::GetValueAsString() const
 {
 	static string temp;
-	temp = ConvertToString(m_value);
+	m_value.GetValueWithConversion(temp);
 	return temp.c_str();
 }
 

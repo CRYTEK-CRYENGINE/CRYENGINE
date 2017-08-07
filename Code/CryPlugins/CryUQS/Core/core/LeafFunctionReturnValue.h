@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -29,13 +29,13 @@ namespace uqs
 			{
 				struct
 				{
-					client::IItemFactory*                  pItemFactory;
+					Client::IItemFactory*                  pItemFactory;
 					void*                                  pValue;
 				} literal;
 
 				struct
 				{
-					shared::CUqsString*                    pNameOfGlobalParam;
+					Shared::CUqsString*                    pNameOfGlobalParam;
 				} globalParam;
 
 				struct
@@ -56,7 +56,7 @@ namespace uqs
 			                                               ~CLeafFunctionReturnValue();
 			CLeafFunctionReturnValue&                      operator=(const CLeafFunctionReturnValue& rhs);
 
-			void                                           SetLiteral(client::IItemFactory& itemFactory, const void* pItemToClone);
+			void                                           SetLiteral(Client::IItemFactory& itemFactory, const void* pItemToClone);
 			void                                           SetGlobalParam(const char* szNameOfGlobalParam);
 			void                                           SetItemIteration();
 			void                                           SetShuttledItems();
@@ -77,7 +77,7 @@ namespace uqs
 
 		private:
 			
-			client::IFunctionFactory::ELeafFunctionKind    m_leafFunctionKind;
+			Client::IFunctionFactory::ELeafFunctionKind    m_leafFunctionKind;
 			UReturnValue                                   m_returnValue;
 		};
 

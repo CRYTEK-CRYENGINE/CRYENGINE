@@ -28,7 +28,7 @@
 		"CryPhysics",
 		"CryRenderD3D11",
 		"CryRenderD3D12",
-		"CryRenderOpenGL",
+		"CryRenderVulkan",
 		"CryScriptSystem",
 		"CryAudioSystem",
 		"CryAudioCommon",
@@ -98,6 +98,7 @@
 		"jsmn",
 		"png16",
 		"jpeg",
+		"spirv-cross",
 
 		"LuaCompiler",
 

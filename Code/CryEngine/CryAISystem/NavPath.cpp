@@ -32,6 +32,13 @@
 #include <numeric>
 #include <algorithm>
 
+void PathPointDescriptor::Serialize(TSerialize ser)
+{
+	ser.Value("vPos", vPos);
+	ser.EnumValue("navType", navType, IAISystem::NAV_UNSET, IAISystem::NAV_MAX_VALUE);
+	ser.EnumValue("navSOMethod", navSOMethod, nSOmNone, nSOmLast);
+}
+
 //====================================================================
 // CNavPath
 //====================================================================
@@ -321,110 +328,6 @@ void CNavPath::DebugSphere(const Vec3& pos, float r, const ColorF& col) const
 	sphere.r = r;
 	sphere.col = col;
 	m_debugSpheres.push_back(sphere);
-}
-
-unsigned GetSmartObjectNavIndex(EntityId smartObjectEntityId, const string& className, const string& helperName)
-{
-	CSmartObject* pSmartObject = gAIEnv.pSmartObjectManager->GetSmartObject(smartObjectEntityId);
-	AIAssert(pSmartObject);
-	if (pSmartObject)
-	{
-		SmartObjectHelper* pHelper = gAIEnv.pSmartObjectManager->GetSmartObjectHelper(className.c_str(), helperName.c_str());
-		AIAssert(pHelper);
-		if (pHelper)
-		{
-			Vec3 pos = pHelper ? pSmartObject->GetHelperPos(pHelper) : pSmartObject->GetPos();
-			unsigned navIndex = pSmartObject->GetCorrespondingNavNode(pHelper);
-
-			AIAssert(navIndex);
-			GraphNode* pNode = gAIEnv.pGraph->GetNode(navIndex);
-			AIAssert(pNode);
-			AIAssert(pNode->navType == IAISystem::NAV_SMARTOBJECT);
-
-			return navIndex;
-		}
-		else
-		{
-			AIWarning("[GetSmartObjectNavIndex]: Can't find smart object helper \"%s\" for smart object class \"%s\"", helperName.c_str(), className.c_str());
-		}
-	}
-	else
-	{
-		AIWarning("[GetSmartObjectNavIndex]: Can't find smart object for entity id %i", smartObjectEntityId);
-	}
-
-	return 0;
-}
-
-//====================================================================
-// Serialize
-//====================================================================
-void SerializeNavIndex(TSerialize ser, const char* szName, unsigned& navIndex)
-{
-	EntityId entityId = 0;
-	string className;
-	string helperName;
-
-	ser.BeginGroup(szName);
-	if (ser.IsWriting())
-	{
-		const GraphNode* pNavNode = gAIEnv.pGraph->GetNodeManager().GetNode(navIndex);
-		if (pNavNode)
-		{
-			const SSmartObjectNavData* pNavData = pNavNode->GetSmartObjectNavData();
-			if ((pNavData != NULL) && pNavData->pSmartObject && pNavData->pClass && pNavData->pHelper)
-			{
-				entityId = pNavData->pSmartObject->GetEntityId();
-				className = pNavData->pClass->GetName();
-				helperName = pNavData->pHelper->name;
-			}
-		}
-	}
-
-	ser.Value("entityId", entityId);
-	ser.Value("className", className);
-	ser.Value("helperName", helperName);
-
-	if (ser.IsReading())
-	{
-		navIndex = GetSmartObjectNavIndex(entityId, className, helperName);
-	}
-	ser.EndGroup();
-}
-
-void PathPointDescriptor::SmartObjectNavData::Serialize(TSerialize ser)
-{
-	SerializeNavIndex(ser, "fromIndex", fromIndex);
-	SerializeNavIndex(ser, "toIndex", toIndex);
-}
-
-//====================================================================
-// Serialize
-//====================================================================
-void PathPointDescriptor::Serialize(TSerialize ser)
-{
-	ser.Value("vPos", vPos);
-	ser.EnumValue("navType", navType, IAISystem::NAV_UNSET, IAISystem::NAV_MAX_VALUE);
-	ser.EnumValue("navSOMethod", navSOMethod, nSOmNone, nSOmLast);
-
-	if (ser.IsWriting())
-	{
-		if (ser.BeginOptionalGroup("pSONavData", pSONavData != NULL))
-		{
-			pSONavData->Serialize(ser);
-			ser.EndGroup();
-		}
-	}
-	else
-	{
-		pSONavData = NULL;
-		if (ser.BeginOptionalGroup("pSONavData", true))
-		{
-			pSONavData = new SmartObjectNavData;
-			pSONavData->Serialize(ser);
-			ser.EndGroup();
-		}
-	}
 }
 
 //====================================================================
@@ -1003,13 +906,11 @@ bool CNavPath::UpdateAndSteerAlongPath(Vec3& dirOut, float& distToEndOut, float&
 	return true;
 }
 
-void CNavPath::PrepareNavigationalSmartObjectsForMNM(IAIPathAgent* pAgent)
+void CNavPath::PrepareNavigationalSmartObjectsForMNM(IEntity* pEntity)
 {
 	m_fDiscardedPathLength = 0.0f;
 
-	// TODO(marcio): Make this work with normal entities.
-	// Perhaps with an ISmartObjectUser interface.
-	IEntity* pEntity = pAgent ? pAgent->GetPathAgentEntity() : NULL;
+	// TODO: Make this work perhaps with an ISmartObjectUser interface?
 	IAIObject* pAIObject = pEntity ? pEntity->GetAI() : NULL;
 	CPipeUser* pPipeUser = pAIObject ? pAIObject->CastToCPipeUser() : NULL;
 
@@ -1155,17 +1056,12 @@ void CNavPath::TrimPath(float trimLength, bool twoD)
 				// The cut would happen at a navso segment, allow to pass it.
 				// The navso cutter will handle this case.
 				return;
-				/*				start.navType = lastSafeNavType;
-				        end.navType = start.navType;
-				        end.pSONavData = 0;
-				        end.navSOMethod = nSOmNone;*/
 			}
 			else
 			{
 				if (end.navType == IAISystem::NAV_SMARTOBJECT)
 				{
 					end.navType = start.navType;
-					end.pSONavData = 0;
 					end.navSOMethod = nSOmNone;
 				}
 
@@ -1745,210 +1641,6 @@ void CNavPath::GetDirectionToPathFromPoint(const Vec3& point, Vec3& dir) const
 	}
 }
 
-static float criticalMinDist = 0.5f;
-static float criticalMaxDist = 4.0f;
-
-//===================================================================
-// CanTargetPointBeReached
-//===================================================================
-ETriState CNavPath::CanTargetPointBeReached(CTargetPointRequest& request, const CAIActor* pAIActor, bool twoD) const
-{
-	request.result = eTS_false;
-
-	// Allow to check for the trivial cases even if there is inly one point on path.
-	if (m_pathPoints.empty())
-		return eTS_false;
-
-	const char* szAIActorName = pAIActor->GetName();
-
-	const PathPointDescriptor& lastPathPoint = m_pathPoints.back();
-	Vec3 curEndPt = lastPathPoint.vPos;
-	curEndPt.z = request.targetPoint.z + 0.5f;
-
-	request.pathID = m_version.v;
-	request.itIndex = 0;
-	request.itBeforeIndex = 1;
-	request.splitPoint = curEndPt;
-
-	Vec3 delta = request.targetPoint - curEndPt;
-	if (twoD)
-		delta.z = 0.0f;
-	float dist = delta.GetLength();
-
-	// blindly allow very small changes
-	if (dist < criticalMinDist)
-	{
-		AILogComment("CNavPath::CanTargetPointBeReached trivial distance for %s", szAIActorName);
-		return request.result = eTS_true;
-	}
-
-	// forbid huge changes
-	if (dist > criticalMaxDist)
-	{
-		AILogComment("CNavPath::CanTargetPointBeReached excessive distance for %s", szAIActorName);
-		return request.result = eTS_maybe;
-	}
-
-	// The remaining checks require at least one segment on the path.
-	if (m_pathPoints.size() < 2)
-		return eTS_false;
-
-	// this wouldn't be right to do here. it would break the entering into vehicles
-	// since the entry point is sometimes inside the obstacle shape of the vehicle.
-	//
-	//  const CPathObstacles &pathAdjustmentObstacles = pPuppet->GetLastPathAdjustmentObstacles();
-	//  if (pathAdjustmentObstacles.IsPointInsideObstacles(request.targetPoint))
-	//    return eTS_false;
-	//
-
-	// walk back dist along the path from the end. If it's possible to walk from this point to the
-	// requested end point then cut the end of the path off
-
-	TPathPoints::const_reverse_iterator it = m_pathPoints.rbegin();
-	TPathPoints::const_reverse_iterator itBefore = it;
-	float distLeft = dist;
-	float lastFrac = 1.0f; // at the end this is the fraction between it and itBefore
-	Vec3 candidatePt = curEndPt;
-	for (++itBefore; it != m_pathPoints.rend() && itBefore != m_pathPoints.rend(); ++it, ++itBefore)
-	{
-		const Vec3& pos = it->vPos;
-		const Vec3& posBefore = itBefore->vPos;
-		float thisSegLen = twoD ? (pos - posBefore).GetLength2D() : (pos - posBefore).GetLength();
-		if (thisSegLen <= 0.0001f)
-			continue;
-		if (thisSegLen < distLeft)
-		{
-			distLeft -= thisSegLen;
-			candidatePt = posBefore;
-		}
-		else
-		{
-			lastFrac = distLeft / thisSegLen;
-			candidatePt = lastFrac * posBefore + (1.0f - lastFrac) * pos;
-			break;
-		}
-	}
-	candidatePt.z = request.targetPoint.z + 0.5f;
-
-	// already checked that there's more than 2 points, so itBefore should hit rend first
-	AIAssert(it != m_pathPoints.rend());
-
-	request.itIndex = (int)std::distance(m_pathPoints.rbegin(), it);
-	request.itBeforeIndex = (int)std::distance(m_pathPoints.rbegin(), itBefore);
-	request.splitPoint = candidatePt;
-
-	Vec3 offset(0, 0, 1.0f);
-	float radius = pAIActor->m_Parameters.m_fPassRadius;
-	if (twoD)
-	{
-		if (!CheckWalkability(candidatePt, request.targetPoint + Vec3(0, 0, 0.5f), radius))
-		{
-			AILogComment("CNavPath::CanTargetPointBeReached no 2D walkability for %s", szAIActorName);
-			return request.result = eTS_false;
-		}
-	}
-	else
-	{
-		if (OverlapCapsule(Lineseg(candidatePt, request.targetPoint), radius, AICE_ALL))
-		{
-			AILogComment("CNavPath::CanTargetPointBeReached no 3D passability for %s", szAIActorName);
-			return request.result = eTS_false;
-		}
-	}
-
-	AILogComment("CNavPath::CanTargetPointBeReached Accepting new path target point (%5.2f, %5.2f, %5.2f) for %s",
-	             request.targetPoint.x, request.targetPoint.y, request.targetPoint.z, szAIActorName);
-
-	return request.result = eTS_true;
-}
-
-//===================================================================
-// UseTargetPointRequest
-// If we accept the request then it becomes impractical to store
-// the request and apply it in subsequent path regenerations - so
-// path regeneration needs to be disabled
-//===================================================================
-bool CNavPath::UseTargetPointRequest(const CTargetPointRequest& request, CAIActor* pAIActor, bool twoD)
-{
-	if (m_pathPoints.empty())
-		return false;
-
-	const char* szAIActorName = pAIActor->GetName();
-
-	PathPointDescriptor& lastPathPoint = m_pathPoints.back();
-	const Vec3& curEndPt = lastPathPoint.vPos;
-	// assume that the only ppd with a pSONavData is the last one
-	PathPointDescriptor::SmartObjectNavDataPtr pSONavData = lastPathPoint.pSONavData;
-	IAISystem::ENavigationType lastNavType = lastPathPoint.navType;
-
-	const float dist = twoD ? Distance::Point_Point2D(request.targetPoint, curEndPt) : Distance::Point_Point(request.targetPoint, curEndPt);
-	// blindly allow very small changes
-	if (dist < criticalMinDist)
-	{
-		AILogComment("CNavPath::UseTargetPointRequest trivial distance for %s (%.3f)", szAIActorName, dist);
-		lastPathPoint.vPos = request.targetPoint;
-		m_pathPoints.push_front(PathPointDescriptor(IAISystem::NAV_UNSET, pAIActor->GetPhysicsPos()));
-		return true;
-	}
-
-	// We (Mikko/Danny) are not sure, but think that this case happens when the guy starts near the
-	// exact position destination and he finishes his path before the exact positioning request calls
-	// here. So - we need to indicate to exact positioning that we can continue -
-	if (m_pathPoints.size() == 1)
-	{
-		AILogComment("CNavPath::UseTargetPointRequest excessive for %s when path size = 1", szAIActorName);
-		return false;
-	}
-
-	CTargetPointRequest workingReq = request;
-	if (request.pathID != m_version.v || request.result != eTS_true)
-	{
-		ETriState res = CanTargetPointBeReached(workingReq, pAIActor, twoD);
-		if (res != eTS_true)
-			return false;
-	}
-
-	Limit(workingReq.itIndex, 0, (int) m_pathPoints.size() - 1);
-	Limit(workingReq.itBeforeIndex, 0, (int) m_pathPoints.size() - 1);
-
-	TPathPoints::reverse_iterator it = m_pathPoints.rbegin();
-	TPathPoints::reverse_iterator itBefore = m_pathPoints.rbegin();
-	std::advance(it, workingReq.itIndex);
-	std::advance(itBefore, workingReq.itBeforeIndex);
-
-	if (itBefore == m_pathPoints.rend())
-	{
-		// replace the whole path with one that goes from the first point to the new point
-		TPathPoints::iterator pit = m_pathPoints.begin();
-		++pit;
-		m_pathPoints.erase(pit, m_pathPoints.end());
-		// clone the first point and modify it.
-		m_pathPoints.push_back(m_pathPoints.back());
-		m_pathPoints.back().vPos = workingReq.targetPoint;
-	}
-	else
-	{
-		TPathPoints::iterator fwdIt = it.base();
-		--fwdIt; // now fwdIt points to the same element as it
-		// move the last point and delete the rest
-		fwdIt->vPos = workingReq.splitPoint;
-		++fwdIt;
-		m_pathPoints.erase(fwdIt, m_pathPoints.end());
-		// clone the first point and modify it.
-		m_pathPoints.push_back(m_pathPoints.back());
-		m_pathPoints.back().vPos = workingReq.targetPoint;
-		if (lastNavType == IAISystem::NAV_SMARTOBJECT)
-			m_pathPoints.back().navType = lastNavType;
-	}
-
-	m_pathPoints.back().pSONavData = pSONavData;
-	m_pathPoints.back().vPos = workingReq.targetPoint;
-	m_params.inhibitPathRegeneration = true;
-	m_params.continueMovingAtEnd = (lastNavType == IAISystem::NAV_SMARTOBJECT); // request.continueMovingAtEnd;
-	++m_version.v;
-	return true;
-}
-
 //===================================================================
 // GetDistToSmartObject
 //===================================================================
@@ -1992,26 +1684,6 @@ float CNavPath::GetDistToSmartObject(bool b2D) const
 		curPos = pathIt->vPos;
 	}
 	return std::numeric_limits<float>::max();
-}
-
-//===================================================================
-// GetLastPathPointAnimNavSOData
-//===================================================================
-PathPointDescriptor::SmartObjectNavDataPtr CNavPath::GetLastPathPointAnimNavSOData() const
-{
-	if (!m_pathPoints.empty())
-	{
-		const PathPointDescriptor& lastPoint = m_pathPoints.back();
-		if (lastPoint.navType == IAISystem::NAV_SMARTOBJECT)
-		{
-			if (lastPoint.navSOMethod == nSOmSignalAnimation || lastPoint.navSOMethod == nSOmActionAnimation)
-			{
-				return lastPoint.pSONavData;
-			}
-		}
-	}
-
-	return 0;
 }
 
 const PathPointDescriptor::OffMeshLinkData* CNavPath::GetLastPathPointMNNSOData() const

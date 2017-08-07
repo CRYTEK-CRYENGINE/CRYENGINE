@@ -9,13 +9,13 @@
 #include <CrySerialization/STL.h>
 #include <CryString/CryStringUtils.h>
 #include <CrySystem/File/ICryPak.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/Utils/ScopedConnection.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/ScopedConnection.h>
 
 #include "CVars.h"
 #include "Core.h"
 
-SERIALIZATION_ENUM_BEGIN_NESTED(Schematyc, ELogMessageType, "Schematyc Log Message Type")
+SERIALIZATION_ENUM_BEGIN_NESTED(Schematyc, ELogMessageType, "CrySchematyc Log Message Type")
 SERIALIZATION_ENUM(Schematyc::ELogMessageType::Comment, "Comment", "Comment")
 SERIALIZATION_ENUM(Schematyc::ELogMessageType::Warning, "Warning", "Warning")
 SERIALIZATION_ENUM(Schematyc::ELogMessageType::Error, "Error", "Error")
@@ -38,7 +38,7 @@ inline ECriticalErrorStatus DisplayCriticalErrorMessage(const char* szMessage)
 	string message = szMessage;
 	message.append("\r\n\r\n");
 	message.append("Would you like to continue?\r\n\r\nClick 'Yes' to continue, 'No' to break or 'Cancel' to continue and ignore this error.");
-	switch (CryMessageBox(message.c_str(), "Schematyc - Critical Error!", eMB_YesNoCancel))
+	switch (CryMessageBox(message.c_str(), "CrySchematyc - Critical Error!", eMB_YesNoCancel))
 	{
 	case eQR_Yes:
 		{
@@ -50,7 +50,7 @@ inline ECriticalErrorStatus DisplayCriticalErrorMessage(const char* szMessage)
 		}
 	}
 #else
-	CryMessageBox(szMessage, "Schematyc - Critical Error!", eMB_Error);
+	CryMessageBox(szMessage, "CrySchematyc - Critical Error!", eMB_Error);
 #endif
 	return ECriticalErrorStatus::Break;
 }
@@ -277,7 +277,7 @@ CLog::SSettings::SSettings(const SettingsModifiedCallback& _modifiedCallback)
 void CLog::SSettings::Serialize(Serialization::IArchive& archive)
 {
 	archive(userStreams, "userStreams", "User Streams");
-	if (archive.isInput() && !modifiedCallback.IsEmpty())
+	if (archive.isInput() && modifiedCallback)
 	{
 		modifiedCallback();
 	}
@@ -378,8 +378,8 @@ const char* CLog::GetStreamName(LogStreamId streamId) const
 
 void CLog::VisitStreams(const LogStreamVisitor& visitor) const
 {
-	SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty());
-	if (!visitor.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(visitor);
+	if (visitor)
 	{
 		for (const SStream& stream : m_streams)
 		{

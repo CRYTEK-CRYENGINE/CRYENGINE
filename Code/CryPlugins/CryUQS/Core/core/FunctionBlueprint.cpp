@@ -5,23 +5,23 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
-		CFunctionBlueprint::CFunctionBlueprint(client::IFunctionFactory& functionFactory, const CLeafFunctionReturnValue& leafFunctionReturnValue, bool bAddReturnValueToDebugRenderWorldUponExecution)
+		CFunctionBlueprint::CFunctionBlueprint(Client::IFunctionFactory& functionFactory, const CLeafFunctionReturnValue& leafFunctionReturnValue, bool bAddReturnValueToDebugRenderWorldUponExecution)
 			: m_functionFactory(functionFactory)
 			, m_returnValueInCaseOfLeafFunction(leafFunctionReturnValue)
 			, m_bAddReturnValueToDebugRenderWorldUponExecution(bAddReturnValueToDebugRenderWorldUponExecution)
 		{
 		}
 
-		client::FunctionUniquePtr CFunctionBlueprint::InstantiateCallHierarchy(const SQueryBlackboard& blackboard, shared::CUqsString& error) const
+		Client::FunctionUniquePtr CFunctionBlueprint::InstantiateCallHierarchy(const SQueryBlackboard& blackboard, Shared::CUqsString& error) const
 		{
 			const CLeafFunctionReturnValue* pLeafFunctionReturnValue = m_returnValueInCaseOfLeafFunction.IsActuallyALeafFunction() ? &m_returnValueInCaseOfLeafFunction : nullptr;
-			const client::IFunction::SCtorContext ctorContext(pLeafFunctionReturnValue, blackboard, m_functionFactory.GetInputParameterRegistry(), m_bAddReturnValueToDebugRenderWorldUponExecution);
-			client::FunctionUniquePtr pFunc = m_functionFactory.CreateFunction(ctorContext);
+			const Client::IFunction::SCtorContext ctorContext(pLeafFunctionReturnValue, blackboard, m_functionFactory.GetInputParameterRegistry(), m_bAddReturnValueToDebugRenderWorldUponExecution);
+			Client::FunctionUniquePtr pFunc = m_functionFactory.CreateFunction(ctorContext);
 			assert(pFunc);       // function factories are never supposed to return nullptr
 
 			//
@@ -30,7 +30,7 @@ namespace uqs
 
 			for (const CFunctionBlueprint* pFuncBP : m_resolvedInputs)
 			{
-				client::FunctionUniquePtr pChildFunc = pFuncBP->InstantiateCallHierarchy(blackboard, error);
+				Client::FunctionUniquePtr pChildFunc = pFuncBP->InstantiateCallHierarchy(blackboard, error);
 				if (pChildFunc == nullptr)
 				{
 					// an error occurred and already got written to given output error string
@@ -43,7 +43,7 @@ namespace uqs
 			// validate the live function
 			//
 
-			client::IFunction::SValidationContext validationContext(m_functionFactory.GetName(), error);
+			Client::IFunction::SValidationContext validationContext(m_functionFactory.GetName(), error);
 
 #ifdef UQS_CHECK_RETURN_TYPE_CONSISTENCY_IN_CALL_HIERARCHY
 			// ensure all child functions are present and that the types of their return values match our input types
@@ -59,7 +59,7 @@ namespace uqs
 			return pFunc;
 		}
 
-		client::IFunctionFactory& CFunctionBlueprint::GetFactory() const
+		Client::IFunctionFactory& CFunctionBlueprint::GetFactory() const
 		{
 			return m_functionFactory;
 		}

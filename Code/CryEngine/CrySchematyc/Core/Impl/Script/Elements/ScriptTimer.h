@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include <Schematyc/Script/Elements/IScriptTimer.h>
-#include <Schematyc/SerializationUtils/MultiPassSerializer.h>
-#include <Schematyc/Services/ITimerSystem.h>
+#include <CrySchematyc/Script/Elements/IScriptTimer.h>
+#include <CrySchematyc/SerializationUtils/MultiPassSerializer.h>
+#include <CrySchematyc/Services/ITimerSystem.h>
 
 #include "Script/ScriptElementBase.h"
 #include "Script/ScriptUserDocumentation.h"
@@ -16,7 +16,7 @@ class CScriptTimer : public CScriptElementBase<IScriptTimer>, public CMultiPassS
 public:
 
 	CScriptTimer();
-	CScriptTimer(const SGUID& guid, const char* szName);
+	CScriptTimer(const CryGUID& guid, const char* szName);
 
 	// IScriptElement
 	virtual void EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const override;

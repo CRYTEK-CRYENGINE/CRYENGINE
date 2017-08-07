@@ -46,7 +46,7 @@ end_sources()
 
 CryGameModule(CryGameZero PCH "StdAfx.cpp" SOLUTION_FOLDER "Projects/GameZero")
 
-target_include_directories( ${THIS_PROJECT} PRIVATE ${CRYENGINE_DIR}/Code/CryEngine/CryAction )
+target_include_directories( ${THIS_PROJECT} PRIVATE "${CRYENGINE_DIR}/Code/CryEngine/CryAction" )
 
 if (WIN32 OR WIN64)
 	target_link_libraries( ${THIS_PROJECT} PRIVATE shell32 Gdi32  )
@@ -65,11 +65,11 @@ elseif(DURANGO)
 		"scid" "84d70100-5e91-4cf0-bcc9-7b2f06bff3bf"
 		"appxmanifest" "AppxManifest.xml"
 		"logo" "DurangoLogo.png"
+		"wide_logo" "DurangoWideLogo.png"
 		"small_logo" "DurangoSmallLogo.png"
 		"splash_screen" "DurangoSplashScreen.png"
 		"store_logo" "DurangoStoreLogo.png"
 	)	
 elseif(ANDROID)
 	target_link_libraries(${THIS_PROJECT} PRIVATE CryAction)
-	configure_android_build(APP_NAME "CRYENGINE Game Zero" PACKAGE com.crytek.cryengine PERMISSIONS WRITE_EXTERNAL_STORAGE INTERNET DEBUGGABLE VERSION_CODE 1 VERSION_NAME 1.0)
 endif()

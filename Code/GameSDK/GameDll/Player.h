@@ -596,7 +596,6 @@ public:
 	virtual bool ReloadExtension( IGameObject * pGameObject, const SEntitySpawnParams &params ) override;
 	virtual void PostReloadExtension( IGameObject * pGameObject, const SEntitySpawnParams &params ) override;
 	virtual void ProcessEvent(SEntityEvent& event) override;
-	virtual void SetAuthority( bool auth ) override;
 	virtual void Update(SEntityUpdateContext& ctx, int updateSlot) override;
 	virtual void SerializeSpawnInfo( TSerialize ser ) override;
 	virtual ISerializableInfoPtr GetSpawnInfo() override;

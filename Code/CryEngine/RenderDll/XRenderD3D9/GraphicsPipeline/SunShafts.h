@@ -23,7 +23,4 @@ private:
 	CFullscreenPass m_passShaftsMask;
 	CFullscreenPass m_passShaftsGen0;
 	CFullscreenPass m_passShaftsGen1;
-
-	int             m_samplerPoint;
-	int             m_samplerLinear;
 };

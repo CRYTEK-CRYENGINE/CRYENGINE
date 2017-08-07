@@ -1056,7 +1056,7 @@ int CGameRulesStandardRounds::GetRoundNumber() // Starts at 0
 //-------------------------------------------------------------------------
 int CGameRulesStandardRounds::GetRoundsRemaining() const // Returns 0 if currently on last round
 {
-	return (m_treatCurrentRoundAsFinalRound ? 0 : MAX(0, (g_pGame->GetGameRules()->GetRoundLimit() - m_roundNumber - 1)));
+	return (m_treatCurrentRoundAsFinalRound ? 0 : std::max(0, (g_pGame->GetGameRules()->GetRoundLimit() - m_roundNumber - 1)));
 }
 
 //-------------------------------------------------------------------------

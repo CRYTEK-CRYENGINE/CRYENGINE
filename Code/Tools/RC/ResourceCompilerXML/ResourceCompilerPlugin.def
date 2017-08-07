@@ -1,0 +1,3 @@
+LIBRARY	ResourceCompilerXML
+EXPORTS
+	RegisterConverters			@1

@@ -162,7 +162,7 @@ void CREGeomCache::UpdateModified()
 	}
 }
 
-bool CREGeomCache::mfUpdate(EVertexFormat eVertFormat, int Flags, bool bTessellation)
+bool CREGeomCache::mfUpdate(InputLayoutHandle eVertFormat, int Flags, bool bTessellation)
 {
 	const bool bRet = Update(Flags, bTessellation);
 
@@ -217,9 +217,9 @@ void CREGeomCache::DisplayFilledBuffer(const int threadId)
 	m_bUpdateFrame[threadId] = true;
 }
 
-EVertexFormat CREGeomCache::GetVertexFormat() const
+InputLayoutHandle CREGeomCache::GetVertexFormat() const
 {
-	return eVF_P3F_C4B_T2F;
+	return EDefaultInputLayouts::P3F_C4B_T2F;
 }
 
 bool CREGeomCache::GetGeometryInfo(SGeometryInfo& streams, bool bSupportTessellation)
@@ -241,24 +241,9 @@ void CREGeomCache::DrawToCommandList(CRenderObject* pObj, const SGraphicsPipelin
 
 inline static void getObjMatrix(UFloat4* sData, const register float* pData, const bool bRelativeToCamPos, const Vec3& vRelativeToCamPos)
 {
-#if CRY_PLATFORM_SSE2 && !defined(_DEBUG)
-	sData[0].m128 = _mm_load_ps(&pData[0]);
-	sData[1].m128 = _mm_load_ps(&pData[4]);
-	sData[2].m128 = _mm_load_ps(&pData[8]);
-#else
-	sData[0].f[0] = pData[0];
-	sData[0].f[1] = pData[1];
-	sData[0].f[2] = pData[2];
-	sData[0].f[3] = pData[3];
-	sData[1].f[0] = pData[4];
-	sData[1].f[1] = pData[5];
-	sData[1].f[2] = pData[6];
-	sData[1].f[3] = pData[7];
-	sData[2].f[0] = pData[8];
-	sData[2].f[1] = pData[9];
-	sData[2].f[2] = pData[10];
-	sData[2].f[3] = pData[11];
-#endif
+	sData[0].Load(&pData[0]);
+	sData[1].Load(&pData[4]);
+	sData[2].Load(&pData[8]);
 
 	if (bRelativeToCamPos)
 	{
@@ -343,11 +328,7 @@ bool CREGeomCache::mfDraw(CShader* ef, SShaderPass* sfm)
 					rRP.m_FirstIndex = chunk.nFirstIndexId;
 					rRP.m_RendNumIndices = chunk.nNumIndices;
 
-#if defined(HW_INSTANCING_ENABLED) && !CRY_PLATFORM_ORBIS
-					const bool bUseInstancing = (CRenderer::CV_r_geominstancing != 0) && (numInstances > CRenderer::CV_r_GeomCacheInstanceThreshold);
-#else
 					const bool bUseInstancing = false;
-#endif
 
 					TempDynInstVB instVB;
 					uint numInstancesToDraw = 0;
@@ -361,7 +342,7 @@ bool CREGeomCache::mfDraw(CShader* ef, SShaderPass* sfm)
 					// instancing. Need to clean this up later and ideally use constant based instancing.
 
 					const uint64 lastFlagsShader_RT = rRP.m_FlagsShader_RT;
-					rRP.m_FlagsShader_RT = flagsShader_RT | (bUseInstancing ? g_HWSR_MaskBit[HWSR_INSTANCING_ATTR] : 0);
+					rRP.m_FlagsShader_RT = flagsShader_RT; // | (bUseInstancing ? g_HWSR_MaskBit[HWSR_INSTANCING_ATTR] : 0);
 					if (lastFlagsShader_RT != rRP.m_FlagsShader_RT)
 					{
 						pCurVS->mfSet(bUseInstancing ? HWSF_INSTANCED : 0);

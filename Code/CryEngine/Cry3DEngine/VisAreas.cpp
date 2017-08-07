@@ -1344,7 +1344,7 @@ void CVisArea::UpdateClipVolume()
 		}
 
 		m_pClipVolumeMesh = gEnv->pRenderer->CreateRenderMeshInitialized(&vertices[0], vertices.size(),
-			eVF_P3F_C4B_T2F, &indices[0], indices.size(), prtTriangleList,
+			EDefaultInputLayouts::P3F_C4B_T2F, &indices[0], indices.size(), prtTriangleList,
 			"ClipVolume", GetName(), eRMT_Dynamic);
 	}
 }

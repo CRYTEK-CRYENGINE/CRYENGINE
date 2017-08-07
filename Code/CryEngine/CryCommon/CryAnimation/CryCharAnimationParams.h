@@ -161,8 +161,7 @@ struct SMotionParameterDetails
 {
 	enum EFlags
 	{
-		OBSOLETE              = 1 << 0,
-		ADDITIONAL_EXTRACTION = 1 << 1,
+		ADDITIONAL_EXTRACTION = 1 << 0,
 	};
 
 	const char* name;
@@ -192,6 +191,7 @@ enum EMotionParamID
 	eMotionParamID_BlendWeight_Last = eMotionParamID_BlendWeight7,
 
 	eMotionParamID_COUNT,
+	eMotionParamID_INVALID = eMotionParamID_COUNT
 };
 
 //--------------------------------------------------------------------------------

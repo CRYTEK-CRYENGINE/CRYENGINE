@@ -26,7 +26,7 @@ class CFeatureMotionFluidDynamics : public CParticleFeature
 public:
 	CRY_PFX2_DECLARE_FEATURE
 
-	typedef TValue<int, USoftLimit<100>> TParticleCount;
+	typedef TValue<uint> TParticleCount;
 
 	CFeatureMotionFluidDynamics()
 		: CParticleFeature(gpu_pfx2::eGpuFeatureType_MotionFluidDynamics)

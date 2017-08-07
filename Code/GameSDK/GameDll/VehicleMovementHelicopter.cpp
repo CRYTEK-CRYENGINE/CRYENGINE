@@ -953,7 +953,7 @@ void CVehicleMovementHelicopter::PostSerialize()
   {
     if (IEntity *entity = m_pVehicle->GetEntity())
     {
-      if (entity->IsActive() && !entity->IsHidden() && m_isEnginePowered)
+      if (entity->IsActivatedForUpdates() && !entity->IsHidden() && m_isEnginePowered)
       {
         StartExhaust();
       }

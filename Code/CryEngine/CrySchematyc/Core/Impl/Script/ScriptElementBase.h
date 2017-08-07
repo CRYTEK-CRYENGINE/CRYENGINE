@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include <Schematyc/Script/IScript.h>
-#include <Schematyc/Script/IScriptElement.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Script/IScript.h>
+#include <CrySchematyc/Script/IScriptElement.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
 
 #include "Script/ScriptExtensionMap.h"
 
@@ -26,7 +26,7 @@ public:
 		, m_pNextSibling(nullptr)
 	{}
 
-	inline CScriptElementBase(const SGUID& guid, const char* szName, const ScriptElementFlags& flags = EScriptElementFlags::None)
+	inline CScriptElementBase(const CryGUID& guid, const char* szName, const ScriptElementFlags& flags = EScriptElementFlags::None)
 		: m_guid(guid)
 		, m_name(szName)
 		, m_flags(flags)
@@ -62,7 +62,7 @@ public:
 
 	// IScriptElement
 
-	virtual SGUID GetGUID() const override
+	virtual CryGUID GetGUID() const override
 	{
 		return m_guid;
 	}
@@ -244,8 +244,8 @@ public:
 
 	virtual EVisitStatus VisitChildren(const ScriptElementVisitor& visitor) override
 	{
-		SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty());
-		if (!visitor.IsEmpty())
+		SCHEMATYC_CORE_ASSERT(visitor);
+		if (visitor)
 		{
 			for (IScriptElement* pChild = m_pFirstChild; pChild; pChild = pChild->GetNextSibling())
 			{
@@ -266,8 +266,8 @@ public:
 
 	virtual EVisitStatus VisitChildren(const ScriptElementConstVisitor& visitor) const override
 	{
-		SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty());
-		if (!visitor.IsEmpty())
+		SCHEMATYC_CORE_ASSERT(visitor);
+		if (visitor)
 		{
 			for (const IScriptElement* pChild = m_pFirstChild; pChild; pChild = pChild->GetNextSibling())
 			{
@@ -351,7 +351,7 @@ protected:
 
 private:
 
-	SGUID               m_guid;
+	CryGUID               m_guid;
 	string              m_name;
 	ScriptElementFlags  m_flags;
 	IScript*            m_pScript;

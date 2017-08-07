@@ -14,9 +14,9 @@ struct SSensorTagName : public string // #TODO : Move to separate header?
 
 bool Serialize(Serialization::IArchive& archive, SSensorTagName& value, const char* szName, const char* szLabel);
 
-typedef DynArray<SSensorTagName> SensorTagNames;
+typedef Schematyc::CArray<SSensorTagName> SensorTagNames;
 
-class CSchematycEntitySensorVolumeComponent final : public Schematyc::CComponent
+class CSchematycEntitySensorVolumeComponent final : public IEntityComponent
 {
 public:
 
@@ -28,16 +28,28 @@ public:
 
 	struct SDimensions
 	{
+		inline bool operator==(const SDimensions& rhs) const { return 0 == memcmp(this, &rhs, sizeof(rhs)); }
+
 		static void ReflectType(Schematyc::CTypeDesc<SDimensions>& desc);
 
-		EVolumeShape   shape = EVolumeShape::Box;
-		Vec3           size = Vec3(1.0f);
-		float          radius = 1.0f;
+		EVolumeShape shape = EVolumeShape::Box;
+		Vec3         size = Vec3(1.0f);
+		float        radius = 1.0f;
 	};
 
 	struct STags
 	{
 		static void ReflectType(Schematyc::CTypeDesc<STags>& desc);
+
+		inline bool operator==(const STags& rhs) const
+		{
+			if (shape == rhs.shape &&
+			    attributeTags == rhs.attributeTags &&
+			    listenerTags == rhs.listenerTags
+			    )
+				return true;
+			return false;
+		}
 
 		SensorTagNames attributeTags;
 		SensorTagNames listenerTags;
@@ -45,27 +57,6 @@ public:
 	};
 
 private:
-
-	struct SPreviewProperties
-	{
-		void Serialize(Serialization::IArchive& archive);
-
-		bool bShowVolumes = false;
-	};
-
-	class CPreviewer : public Schematyc::IComponentPreviewer
-	{
-	public:
-
-		// IComponentPreviewer
-		virtual void SerializeProperties(Serialization::IArchive& archive) override;
-		virtual void Render(const Schematyc::IObject& object, const Schematyc::CComponent& component, const SRendParams& params, const SRenderingPassInfo& passInfo) const override;
-		// ~IComponentPreviewer
-
-	private:
-
-		SPreviewProperties m_properties;
-	};
 
 	struct SEnteringSignal
 	{
@@ -87,13 +78,24 @@ private:
 		Schematyc::ExplicitEntityId entityId;
 	};
 
+	struct SEntityNotHidden
+	{
+		inline bool operator()(IEntity* pEntity) const
+		{
+			return pEntity && !pEntity->IsHidden();
+		}
+	};
+	typedef Schematyc::CConfigurableUpdateFilter<IEntity*, NTypelist::CConstruct<SEntityNotHidden>::TType> EntityNotHiddenUpdateFilter;
+
 public:
 
-	// Schematyc::CComponent
-	virtual bool Init() override;
-	virtual void Run(Schematyc::ESimulationMode simulationMode) override;
-	virtual void Shutdown() override;
-	// ~Schematyc::CComponent
+	// IEntityComponent
+	virtual void                       Initialize() override;
+	virtual uint64                     GetEventMask() const override;
+	virtual void                       ProcessEvent(SEntityEvent& event) override;
+	virtual void                       OnShutDown() override;
+	virtual IEntityComponentPreviewer* GetPreviewer() override;
+	// ~IEntityComponent
 
 	void        Enable();
 	void        Disable();
@@ -104,6 +106,8 @@ public:
 	void        SetVolumeRadius(float radius);
 	float       GetVolumeRadius() const;
 
+	void        RenderVolume() const;
+
 	static void ReflectType(Schematyc::CTypeDesc<CSchematycEntitySensorVolumeComponent>& desc);
 	static void Register(Schematyc::IEnvRegistrar& registrar);
 
@@ -112,20 +116,18 @@ private:
 	void          OnEntityEvent(const SEntityEvent& event);
 	void          OnSensorEvent(const SSensorEvent& event);
 
-	CSensorBounds CreateBounds(const Matrix34& worldTM, const Schematyc::CTransform& transform) const;
+	CSensorBounds CreateBounds(const Matrix34& worldTM, const CryTransform::CTransformPtr& transform) const;
 	CSensorBounds CreateOBBBounds(const Matrix34& worldTM, const Vec3& pos, const Vec3& size, const Matrix33& rot) const;
 	CSensorBounds CreateSphereBounds(const Matrix34& worldTM, const Vec3& pos, float radius) const;
 
 	SensorTags    GetTags(const SensorTagNames& tagNames) const;
 
-	void          RenderVolume() const;
-
 private:
 
-	SDimensions                            m_dimensions;
-	STags                                  m_tags;
+	SDimensions                 m_dimensions;
+	STags                       m_tags;
 
-	SensorVolumeId                         m_volumeId = SensorVolumeId::Invalid;
-	Schematyc::EntityNotHiddenUpdateFilter m_updateFilter;
-	Schematyc::CConnectionScope            m_connectionScope;
+	SensorVolumeId              m_volumeId = SensorVolumeId::Invalid;
+	EntityNotHiddenUpdateFilter m_updateFilter;
+	Schematyc::CConnectionScope m_connectionScope;
 };

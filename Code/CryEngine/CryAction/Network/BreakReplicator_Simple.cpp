@@ -727,8 +727,8 @@ void PartBreak::OnEndFrame()
 	}
 }
 
-	#pragma warning(push)
-	#pragma warning(disable : 6262)// 32k of stack space of CBitArray
+#pragma warning(push)
+#pragma warning(disable : 6262)// 32k of stack space of CBitArray
 void PartBreak::SerializeWith(CBitArray& array)
 {
 	SerializeWith_Begin(array, true);
@@ -782,7 +782,7 @@ void PartBreak::SerializeWith(CBitArray& array)
 	LOGBREAK("#   numJointBreaks: %d", m_numJointsBroken);
 	#endif
 }
-	#pragma warning(pop)
+#pragma warning(pop)
 
 void PartBreak::Playback()
 {
@@ -881,7 +881,7 @@ void PlaneBreak::SerializeWith(CBitArray& array)
 
 	CBreakReplicator::SerialisePosition(array, m_be.pt, CNetworkCVars::Get().BreakMaxWorldSize, CBreakReplicator::m_accurateWorldPosNumBits);
 
-	m_be.partid[1] = GetSlotIdx(m_be.partid[1], 0) << 8 | GetSlotIdx(m_be.partid[1], 1);
+	m_be.partid[1] = EntityPhysicsUtils::GetSlotIdx(m_be.partid[1], 0) << 8 | EntityPhysicsUtils::GetSlotIdx(m_be.partid[1], 1);
 
 	SerializeDirHelper(array, m_be.n, 8, 8);
 	array.Serialize(m_be.idmat[0], -1, 254);
@@ -891,7 +891,7 @@ void PlaneBreak::SerializeWith(CBitArray& array)
 	array.Serialize(m_be.mass[0], 1.f, 1000.f, 8);
 	SerializeDirVector(array, m_be.vloc[0], 20.f, 8, 8, 8);
 
-	m_be.partid[1] = (m_be.partid[1] & 0xff) + (m_be.partid[1] >> 8) * PARTID_MAX_SLOTS;
+	m_be.partid[1] = (m_be.partid[1] & 0xff) + (m_be.partid[1] >> 8) * EntityPhysicsUtils::PARTID_MAX_SLOTS;
 
 	// Looks like we dont need these
 	m_be.partid[0] = 0;
@@ -973,7 +973,7 @@ bool PlaneBreak::IsRenderMeshReady()
 			{
 				IStatObj::SSubObject* pSubObj;
 				Matrix34A mtx;
-				IStatObj* pStatObj = pRenderNode->GetEntityStatObj(0, 0, &mtx);
+				IStatObj* pStatObj = pRenderNode->GetEntityStatObj(0, &mtx);
 				if (pStatObj && pStatObj->GetFlags() & STATIC_OBJECT_COMPOUND)
 					if (pSubObj = pStatObj->GetSubObject(m_be.partid[1]))
 						pStatObj = pSubObj->pStatObj;

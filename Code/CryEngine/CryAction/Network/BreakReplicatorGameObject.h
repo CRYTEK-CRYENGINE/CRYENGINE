@@ -31,7 +31,6 @@ public:
 	virtual inline void                 ProcessEvent(SEntityEvent& event)                                               {}
 	virtual uint64                      GetEventMask() const final { return 0; };
 	virtual inline void                 SetChannelId(uint16 id)                                                         {}
-	virtual inline void                 SetAuthority(bool auth)                                                         {}
 	virtual inline void                 PostUpdate(float frameTime)                                                     {}
 	virtual inline void                 PostRemoteSpawn()                                                               {}
 	virtual inline void                 GetMemoryUsage(ICrySizer* s) const                                              { s->Add(*this); }

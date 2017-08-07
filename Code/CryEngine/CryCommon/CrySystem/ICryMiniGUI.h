@@ -123,7 +123,7 @@ struct IMiniGUIEventListener
 struct IMiniGUI : public ICryUnknown
 {
 public:
-	CRYINTERFACE_DECLARE(IMiniGUI, 0xea09d34268814f2a, 0xaf1034e04b076011);
+	CRYINTERFACE_DECLARE_GUID(IMiniGUI, "ea09d342-6881-4f2a-af10-34e04b076011"_cry_guid);
 
 	// <interfuscator:shuffle>
 	virtual void      Init() = 0;

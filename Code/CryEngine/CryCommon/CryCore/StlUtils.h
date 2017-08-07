@@ -345,6 +345,22 @@ inline bool binary_insert_unique(Container& container, const Value& value)
 	return true;
 }
 
+//! Find element in a sorted container using binary search with logarithmic efficiency.
+//! \return true if item was inserted.
+template<class Container, class Value, typename Func>
+inline bool binary_insert_unique(Container& container, const Value& value, Func order)
+{
+	typename Container::iterator it = std::lower_bound(container.begin(), container.end(), value, order);
+	if (it != container.end())
+	{
+		if (*it == value)
+			return false;
+		container.insert(it, value);
+	}
+	else
+		container.insert(container.end(), value);
+	return true;
+}
 //! Find element in a sorted container using binary search with logarithmic efficiency and erase it if found.
 //! \return true if item was erased.
 template<class Container, class Value>
@@ -649,7 +665,7 @@ struct SAllocatorConstruct
 	template<typename T, typename ... Args>
 	static void construct(T* ptr, Args&& ... args)
 	{
-		::new(static_cast<void*>(ptr))T(std::forward<Args>(args) ...);
+		::new(const_cast<void*>(static_cast<const void*>(ptr)))T(std::forward<Args>(args) ...);
 	}
 #else
 

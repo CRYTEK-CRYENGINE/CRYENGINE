@@ -56,7 +56,7 @@ bool CTerrain::RemoveObjectsInArea(Vec3 vExploPos, float fExploRadius)
 				{
 					//
 					Matrix34A objMat;
-					CStatObj* pStatObj = (CStatObj*)pRenderNode->GetEntityStatObj(0, 0, &objMat);
+					CStatObj* pStatObj = (CStatObj*)pRenderNode->GetEntityStatObj(0, &objMat);
 					if (!pStatObj)
 						continue;
 					objMat.Invert();

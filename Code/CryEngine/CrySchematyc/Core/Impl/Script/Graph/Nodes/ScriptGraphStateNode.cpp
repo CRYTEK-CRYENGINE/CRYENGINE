@@ -3,17 +3,17 @@
 #include "StdAfx.h"
 #include "Script/Graph/Nodes/ScriptGraphStateNode.h"
 
-#include <Schematyc/Compiler/CompilerContext.h>
-#include <Schematyc/Compiler/IGraphNodeCompiler.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvSignal.h>
-#include <Schematyc/Script/IScriptRegistry.h>
-#include <Schematyc/Script/Elements/IScriptSignal.h>
-#include <Schematyc/Script/Elements/IScriptState.h>
-#include <Schematyc/Script/Elements/IScriptTimer.h>
-#include <Schematyc/Script/Elements/IScriptVariable.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
-#include <Schematyc/Utils/StackString.h>
+#include <CrySchematyc/Compiler/CompilerContext.h>
+#include <CrySchematyc/Compiler/IGraphNodeCompiler.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvSignal.h>
+#include <CrySchematyc/Script/IScriptRegistry.h>
+#include <CrySchematyc/Script/Elements/IScriptSignal.h>
+#include <CrySchematyc/Script/Elements/IScriptState.h>
+#include <CrySchematyc/Script/Elements/IScriptTimer.h>
+#include <CrySchematyc/Script/Elements/IScriptVariable.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Utils/StackString.h>
 
 #include "Runtime/RuntimeClass.h"
 #include "Script/ScriptView.h"
@@ -21,7 +21,7 @@
 #include "Script/Graph/ScriptGraphNodeFactory.h"
 #include "SerializationUtils/SerializationContext.h"
 
-SERIALIZATION_ENUM_BEGIN_NESTED2(Schematyc, CScriptGraphStateNode, EOutputType, "Schematyc Script Graph State Node Output Type")
+SERIALIZATION_ENUM_BEGIN_NESTED2(Schematyc, CScriptGraphStateNode, EOutputType, "CrySchematyc Script Graph State Node Output Type")
 SERIALIZATION_ENUM(Schematyc::CScriptGraphStateNode::EOutputType::EnvSignal, "EnvSignal", "Environment Signal")
 SERIALIZATION_ENUM(Schematyc::CScriptGraphStateNode::EOutputType::ScriptSignal, "ScriptSignal", "Script Signal")
 SERIALIZATION_ENUM(Schematyc::CScriptGraphStateNode::EOutputType::ScriptTimer, "ScriptTimer", "Script Timer")
@@ -40,14 +40,14 @@ CScriptGraphStateNode::SRuntimeData::SRuntimeData(const SRuntimeData& rhs)
 
 void CScriptGraphStateNode::SRuntimeData::ReflectType(CTypeDesc<CScriptGraphStateNode::SRuntimeData>& desc)
 {
-	desc.SetGUID("3b0cfc25-30ed-44fb-afae-6b92e007bb0e"_schematyc_guid);
+	desc.SetGUID("3b0cfc25-30ed-44fb-afae-6b92e007bb0e"_cry_guid);
 }
 
 CScriptGraphStateNode::SOutputParams::SOutputParams()
 	: type(EOutputType::Unknown)
 {}
 
-CScriptGraphStateNode::SOutputParams::SOutputParams(EOutputType _type, const SGUID& _guid)
+CScriptGraphStateNode::SOutputParams::SOutputParams(EOutputType _type, const CryGUID& _guid)
 	: type(_type)
 	, guid(_guid)
 {}
@@ -65,11 +65,11 @@ bool CScriptGraphStateNode::SOutputParams::operator==(const SOutputParams& rhs) 
 
 CScriptGraphStateNode::CScriptGraphStateNode() {}
 
-CScriptGraphStateNode::CScriptGraphStateNode(const SGUID& stateGUID)
+CScriptGraphStateNode::CScriptGraphStateNode(const CryGUID& stateGUID)
 	: m_stateGUID(stateGUID)
 {}
 
-SGUID CScriptGraphStateNode::GetTypeGUID() const
+CryGUID CScriptGraphStateNode::GetTypeGUID() const
 {
 	return ms_typeGUID;
 }
@@ -89,7 +89,7 @@ void CScriptGraphStateNode::CreateLayout(CScriptGraphNodeLayout& layout)
 
 	layout.SetStyleId("Core::State");
 
-	layout.AddInput("Select", SGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::MultiLink, EScriptGraphPortFlags::End });
+	layout.AddInput("Select", CryGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::MultiLink, EScriptGraphPortFlags::End });
 
 	CScriptView scriptView(m_stateGUID);
 
@@ -97,13 +97,13 @@ void CScriptGraphStateNode::CreateLayout(CScriptGraphNodeLayout& layout)
 	{
 		layout.AddOutput(CUniqueId::FromGUID(scriptSignal.GetGUID()), scriptSignal.GetName(), scriptSignal.GetGUID(), { EScriptGraphPortFlags::Signal, EScriptGraphPortFlags::Begin });
 	};
-	scriptView.VisitEnclosedSignals(ScriptSignalConstVisitor::FromLambda(visitScriptSignal));
+	scriptView.VisitEnclosedSignals(visitScriptSignal);
 
 	auto visitScriptTimer = [&layout, &scriptView](const IScriptTimer& scriptTimer)
 	{
 		layout.AddOutput(CUniqueId::FromGUID(scriptTimer.GetGUID()), scriptTimer.GetName(), scriptTimer.GetGUID(), { EScriptGraphPortFlags::Signal, EScriptGraphPortFlags::Begin });
 	};
-	scriptView.VisitEnclosedTimers(ScriptTimerConstVisitor::FromLambda(visitScriptTimer));
+	scriptView.VisitEnclosedTimers(visitScriptTimer);
 
 	for (const Output& output : m_outputs)
 	{
@@ -193,7 +193,7 @@ void CScriptGraphStateNode::Edit(Serialization::IArchive& archive, const ISerial
 			quickSearchConfig.AddOption(envSignal.GetName(), outputParams, fullName.c_str(), envSignal.GetDescription());
 			return EVisitStatus::Continue;
 		};
-		scriptView.VisitEnvSignals(EnvSignalConstVisitor::FromLambda(visitEnvSignal));
+		scriptView.VisitEnvSignals(visitEnvSignal);
 
 		auto visitScriptSignal = [&quickSearchConfig, &scriptView](const IScriptSignal& scriptSignal)
 		{
@@ -204,7 +204,7 @@ void CScriptGraphStateNode::Edit(Serialization::IArchive& archive, const ISerial
 
 			quickSearchConfig.AddOption(scriptSignal.GetName(), outputParams, fullName.c_str(), scriptSignal.GetDescription());
 		};
-		scriptView.VisitAccesibleSignals(ScriptSignalConstVisitor::FromLambda(visitScriptSignal));
+		scriptView.VisitAccesibleSignals(visitScriptSignal);
 
 		auto visitScriptTimer = [&quickSearchConfig, &scriptView](const IScriptTimer& scriptTimer)
 		{
@@ -215,7 +215,7 @@ void CScriptGraphStateNode::Edit(Serialization::IArchive& archive, const ISerial
 
 			quickSearchConfig.AddOption(scriptTimer.GetName(), outputParams, fullName.c_str(), scriptTimer.GetDescription());
 		};
-		scriptView.VisitAccesibleTimers(ScriptTimerConstVisitor::FromLambda(visitScriptTimer));
+		scriptView.VisitAccesibleTimers(visitScriptTimer);
 	}
 	archive(m_outputs, "outputs", "Outputs");
 
@@ -262,7 +262,7 @@ void CScriptGraphStateNode::Register(CScriptGraphNodeFactory& factory)
 		{
 		public:
 
-			CCreationCommand(const char* szSubject, const SGUID& stateGUID)
+			CCreationCommand(const char* szSubject, const CryGUID& stateGUID)
 				: m_subject(szSubject)
 				, m_stateGUID(stateGUID)
 			{}
@@ -299,19 +299,19 @@ void CScriptGraphStateNode::Register(CScriptGraphNodeFactory& factory)
 		private:
 
 			string m_subject;
-			SGUID  m_stateGUID;
+			CryGUID  m_stateGUID;
 		};
 
 	public:
 
 		// IScriptGraphNodeCreator
 
-		virtual SGUID GetTypeGUID() const override
+		virtual CryGUID GetTypeGUID() const override
 		{
 			return CScriptGraphStateNode::ms_typeGUID;
 		}
 
-		virtual IScriptGraphNodePtr CreateNode(const SGUID& guid) override
+		virtual IScriptGraphNodePtr CreateNode(const CryGUID& guid) override
 		{
 			return std::make_shared<CScriptGraphNode>(guid, stl::make_unique<CScriptGraphStateNode>());
 		}
@@ -328,7 +328,7 @@ void CScriptGraphStateNode::Register(CScriptGraphNodeFactory& factory)
 						scriptView.QualifyName(scriptState, EDomainQualifier::Local, subject);
 						nodeCreationMenu.AddCommand(std::make_shared<CCreationCommand>(subject.c_str(), scriptState.GetGUID()));
 					};
-					scriptView.VisitAccesibleStates(ScriptStateConstVisitor::FromLambda(visitScriptState));
+					scriptView.VisitAccesibleStates(visitScriptState);
 					break;
 				}
 			}
@@ -354,7 +354,7 @@ SRuntimeResult CScriptGraphStateNode::Execute(SRuntimeContext& context, const SR
 	}
 }
 
-const SGUID CScriptGraphStateNode::ms_typeGUID = "4e1f8b82-1a47-4679-9f29-7f28df27cf35"_schematyc_guid;
+const CryGUID CScriptGraphStateNode::ms_typeGUID = "4e1f8b82-1a47-4679-9f29-7f28df27cf35"_cry_guid;
 
 } // Schematyc
 

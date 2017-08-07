@@ -133,7 +133,7 @@ void CVehiclePartEntity::Reset()
 						m_entityId = pEntity->GetId();
 
 						//Create an entity link so the entity can find the Vehicle if it needs to
-						m_pLink = pEntity->AddEntityLink("VehiclePartLink", m_pVehicle->GetEntityId());
+						m_pLink = pEntity->AddEntityLink("VehiclePartLink", m_pVehicle->GetEntityId(),m_pVehicle->GetEntity()->GetGuid());
 
 						m_pVehicle->SetObjectUpdate(this, IVehicle::eVOU_AlwaysUpdate);
 
@@ -165,7 +165,7 @@ void CVehiclePartEntity::Reset()
 			if (!m_entityAttached)
 			{
 				//Create an entity link so the entity can find the Vehicle if it needs to
-				m_pLink = pEntity->AddEntityLink("VehiclePartLink", m_pVehicle->GetEntityId());
+				m_pLink = pEntity->AddEntityLink("VehiclePartLink", m_pVehicle->GetEntityId(),m_pVehicle->GetEntity()->GetGuid());
 
 				m_pVehicle->SetObjectUpdate(this, IVehicle::eVOU_AlwaysUpdate);
 
@@ -282,7 +282,7 @@ void CVehiclePartEntity::OnVehicleEvent(EVehicleEvent event, const SVehicleEvent
 					{
 						m_entityId = params.entityId;
 						//Create an entity link so the entity can find the Vehicle if it needs to
-						m_pLink = pEntity->AddEntityLink("VehiclePartLink", m_pVehicle->GetEntityId());
+						m_pLink = pEntity->AddEntityLink("VehiclePartLink", m_pVehicle->GetEntityId(),m_pVehicle->GetEntity()->GetGuid());
 
 						m_pVehicle->SetObjectUpdate(this, IVehicle::eVOU_AlwaysUpdate);
 

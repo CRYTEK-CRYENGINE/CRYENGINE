@@ -4,7 +4,7 @@
 
 #if defined(ENABLE_NULL_D3D11DEVICE)
 
-	#if defined(DEVICE_SUPPORTS_D3D11_1)
+	#if (CRY_RENDERER_DIRECT3D >= 111)
 class NullD3D11Device : public ID3D11Device1
 	#else
 class NullD3D11Device : public ID3D11Device
@@ -309,7 +309,7 @@ public:
 		return 0;
 	}
 
-	#if defined(DEVICE_SUPPORTS_D3D11_1)
+	#if (CRY_RENDERER_DIRECT3D >= 111)
 	virtual void STDMETHODCALLTYPE    GetImmediateContext1(ID3D11DeviceContext1** ppImmediateContext);
 
 	virtual HRESULT STDMETHODCALLTYPE CreateDeferredContext1(UINT ContextFlags, ID3D11DeviceContext1** ppDeferredContext)
@@ -355,7 +355,7 @@ protected:
 protected:
 	volatile int m_refCount;
 
-	#if defined(DEVICE_SUPPORTS_D3D11_1)
+	#if (CRY_RENDERER_DIRECT3D >= 111)
 	ID3D11DeviceContext1* m_pImmediateCtx;
 	#else
 	ID3D11DeviceContext*  m_pImmediateCtx;
@@ -365,7 +365,7 @@ protected:
 namespace NullD3D11DeviceInternal
 {
 
-	#if defined(DEVICE_SUPPORTS_D3D11_1)
+	#if (CRY_RENDERER_DIRECT3D >= 111)
 class DeviceContext : public ID3D11DeviceContext1
 	#else
 class DeviceContext : public ID3D11DeviceContext
@@ -876,7 +876,7 @@ public:
 		return DXGI_ERROR_INVALID_CALL;
 	}
 
-	#if defined(DEVICE_SUPPORTS_D3D11_1)
+	#if (CRY_RENDERER_DIRECT3D >= 111)
 	void STDMETHODCALLTYPE CopySubresourceRegion1(ID3D11Resource* pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D11Resource* pSrcResource, UINT SrcSubresource, const D3D11_BOX* pSrcBox, UINT CopyFlags) {}
 	void STDMETHODCALLTYPE CopyResource1(ID3D11Resource* pDstResource, ID3D11Resource* pSrcResource, UINT CopyFlags)                                                                                                               {}
 	void STDMETHODCALLTYPE UpdateSubresource1(ID3D11Resource* pDstResource, UINT DstSubresource, const D3D11_BOX* pDstBox, const void* pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch, UINT CopyFlags)                             {}
@@ -907,7 +907,7 @@ protected:
 	{
 	}
 
-	#if defined(DEVICE_SUPPORTS_D3D11_1)
+	#if (CRY_RENDERER_DIRECT3D >= 111)
 public:
 	DeviceContext(ID3D11Device1* pDevice) : m_refCount(1), m_pDevice(pDevice) {}
 
@@ -940,7 +940,7 @@ void NullD3D11Device::GetImmediateContext(ID3D11DeviceContext** ppImmediateConte
 	}
 }
 
-	#if defined(DEVICE_SUPPORTS_D3D11_1)
+	#if (CRY_RENDERER_DIRECT3D >= 111)
 void NullD3D11Device::GetImmediateContext1(ID3D11DeviceContext1** ppImmediateContext)
 {
 	if (ppImmediateContext)

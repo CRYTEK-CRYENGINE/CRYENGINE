@@ -31,8 +31,6 @@
 #include <SDL.h>
 #endif
 
-#include <CrySystem/ParseEngineConfig.h>
-
 #ifdef _LIB
 #endif
 

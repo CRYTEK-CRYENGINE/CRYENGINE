@@ -7,8 +7,8 @@
 #include <QPointer>
 #include <Controls/DictionaryWidget.h>
 #include <Controls/QPopupWidget.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/SerializationUtils/SerializationQuickSearch.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/SerializationUtils/SerializationQuickSearch.h>
 
 #include "PluginUtils.h"
 #include "TypesDictionary.h"

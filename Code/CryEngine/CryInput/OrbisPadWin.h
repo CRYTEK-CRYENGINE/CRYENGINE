@@ -14,9 +14,6 @@
 #define __ORBISPADWIN_H__
 #pragma once
 
-// TOOLS_SUPPORT_ORBIS is defined only when the developer is supposed to have Orbis SDK access
-// Note: By default, the include files required are located at C:\Program Files (x86)\SCE\Common\External Tools\libScePad for PC Games
-//       Copy the \include and \lib folder from there to <ROOT>\Code\SDKs\OrbisPad\include and \lib
 // If you don't want this feature at all, just:
 //#undef WANT_ORBISPAD_WIN
 
@@ -26,7 +23,7 @@
 	#pragma message("Unable to use OrbisPad on Windows with MSVC newer than 2015 due to missing libs.")
 #endif
 
-#if defined(TOOLS_SUPPORT_ORBIS) && defined(USE_DXINPUT) && (CRY_PLATFORM_WINDOWS && CRY_PLATFORM_64BIT) && defined(WANT_ORBISPAD_WIN)
+#if defined(USE_DXINPUT) && (CRY_PLATFORM_WINDOWS && CRY_PLATFORM_64BIT) && defined(WANT_ORBISPAD_WIN)
 	#ifndef USE_ORBISPAD_WIN
 		#define USE_ORBISPAD_WIN
 	#endif

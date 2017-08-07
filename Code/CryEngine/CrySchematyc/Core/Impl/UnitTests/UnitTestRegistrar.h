@@ -4,9 +4,9 @@
 
 #include <CryCore/StaticInstanceList.h>
 
-#include "Schematyc/Utils/EnumFlags.h"
-#include "Schematyc/Utils/PreprocessorUtils.h"
-#include "Schematyc/Utils/TypeUtils.h"
+#include "CrySchematyc/Utils/EnumFlags.h"
+#include "CrySchematyc/Utils/PreprocessorUtils.h"
+#include "CrySchematyc/Utils/TypeUtils.h"
 
 #define SCHEMATYC_REGISTER_UNIT_TEST(function, name) static Schematyc::CUnitTestRegistrar SCHEMATYC_PP_JOIN_XY(schematycUnitTestRegistrar, __COUNTER__)(function, name);
 

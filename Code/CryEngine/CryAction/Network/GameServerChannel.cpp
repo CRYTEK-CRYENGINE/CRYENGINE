@@ -160,6 +160,7 @@ void CGameServerChannel::DefineProtocol(IProtocolBuilder* pBuilder)
 		cca->GetIGameObjectSystem()->DefineProtocol(true, pBuilder);
 	if (cca->GetGameContext())
 		cca->GetGameContext()->DefineContextProtocols(pBuilder, true);
+	cca->DefineProtocolRMI(pBuilder);
 }
 
 void CGameServerChannel::SetPlayerId(EntityId playerId)

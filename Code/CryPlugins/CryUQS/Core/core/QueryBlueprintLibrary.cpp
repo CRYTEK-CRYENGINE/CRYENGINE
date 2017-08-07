@@ -5,9 +5,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		CQueryBlueprintLibrary::CQueryBlueprintLibrary()
@@ -15,7 +15,7 @@ namespace uqs
 			// nothing
 		}
 
-		CQueryBlueprintLibrary::ELoadAndStoreResult CQueryBlueprintLibrary::LoadAndStoreQueryBlueprint(ELoadAndStoreOverwriteBehavior overwriteBehavior, datasource::IQueryBlueprintLoader& loader, shared::IUqsString& error)
+		CQueryBlueprintLibrary::ELoadAndStoreResult CQueryBlueprintLibrary::LoadAndStoreQueryBlueprint(ELoadAndStoreOverwriteBehavior overwriteBehavior, DataSource::IQueryBlueprintLoader& loader, Shared::IUqsString& error)
 		{
 			CTextualQueryBlueprint textualQueryBP;
 
@@ -24,8 +24,8 @@ namespace uqs
 				return ELoadAndStoreResult::ExceptionOccurred;
 			}
 
-			const char* queryBPName = textualQueryBP.GetName();
-			const CQueryBlueprintID blueprintID = FindQueryBlueprintIDByName(queryBPName);
+			const char* szQueryBPName = textualQueryBP.GetName();
+			const CQueryBlueprintID blueprintID = FindQueryBlueprintIDByName(szQueryBPName);
 			const bool bQueryBPExistsAlready = blueprintID.IsOrHasBeenValid() && (m_queryBlueprintsVector[blueprintID.m_index] != nullptr);
 
 			if (bQueryBPExistsAlready && overwriteBehavior == ELoadAndStoreOverwriteBehavior::KeepExisting)
@@ -36,11 +36,11 @@ namespace uqs
 			std::shared_ptr<CQueryBlueprint> pNewBP(new CQueryBlueprint);
 			if (!pNewBP->Resolve(textualQueryBP))
 			{
-				error.Format("Could not resolve the textual query-blueprint '%s'", queryBPName);
+				error.Format("Could not resolve the textual query-blueprint '%s'", szQueryBPName);
 				return ELoadAndStoreResult::ExceptionOccurred;
 			}
 
-			assert(strcmp(queryBPName, pNewBP->GetName()) == 0);
+			assert(strcmp(szQueryBPName, pNewBP->GetName()) == 0);
 
 			if (blueprintID.IsOrHasBeenValid())
 			{
@@ -50,15 +50,15 @@ namespace uqs
 			else
 			{
 				// this is a completely new blueprint that has never been in the library so far
-				const CQueryBlueprintID newBlueprintID((int32)m_queryBlueprintsVector.size(), queryBPName);
+				const CQueryBlueprintID newBlueprintID((int32)m_queryBlueprintsVector.size(), szQueryBPName);
 				m_queryBlueprintsVector.push_back(pNewBP);
-				m_queryBlueprintsMap[queryBPName] = newBlueprintID;
+				m_queryBlueprintsMap[szQueryBPName] = newBlueprintID;
 			}
 
 			return bQueryBPExistsAlready ? ELoadAndStoreResult::OverwrittenExistingOne : ELoadAndStoreResult::StoredFromScratch;
 		}
 
-		bool CQueryBlueprintLibrary::RemoveStoredQueryBlueprint(const char* szQueryBlueprintName, shared::IUqsString& error)
+		bool CQueryBlueprintLibrary::RemoveStoredQueryBlueprint(const char* szQueryBlueprintName, Shared::IUqsString& error)
 		{
 			auto it = m_queryBlueprintsMap.find(szQueryBlueprintName);
 			if (it == m_queryBlueprintsMap.cend())
@@ -81,6 +81,30 @@ namespace uqs
 		const IQueryBlueprint* CQueryBlueprintLibrary::GetQueryBlueprintByID(const CQueryBlueprintID& blueprintID) const
 		{
 			return GetQueryBlueprintByIDInternal(blueprintID).get();
+		}
+
+		size_t CQueryBlueprintLibrary::GetQueryBlueprintCount() const
+		{
+			return m_queryBlueprintsVector.size();
+		}
+
+		CQueryBlueprintID CQueryBlueprintLibrary::GetQueryBlueprintID(size_t index) const
+		{
+			assert(index < m_queryBlueprintsVector.size());
+
+			CQueryBlueprintID blueprintID(CQueryBlueprintID::s_invalidIndex, "");
+
+			for (const auto& pair : m_queryBlueprintsMap)
+			{
+				const CQueryBlueprintID& blueprintID = pair.second;
+
+				if (blueprintID.m_index == index)
+					return blueprintID;
+			}
+
+			// cannot reach here
+			assert(0);
+			return CQueryBlueprintID();
 		}
 
 		std::shared_ptr<const CQueryBlueprint> CQueryBlueprintLibrary::GetQueryBlueprintByIDInternal(const CQueryBlueprintID& blueprintID) const

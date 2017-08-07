@@ -13,6 +13,7 @@ int g_ConsoleInstanceCount;
 Console::Console()
 	: ca_CharEditModel(nullptr)
 	, ca_FilterJoints(nullptr)
+	, ca_DebugCommandBufferFilter(nullptr)
 {
 	if (g_ConsoleInstanceCount++)
 		abort();
@@ -120,6 +121,7 @@ void Console::Init()
 	REGISTER_STRING("ca_CharEditModel", ca_CharEditModel, VF_NULL, "");
 	REGISTER_STRING("ca_FilterJoints", ca_FilterJoints, VF_NULL, "");
 	REGISTER_STRING("ca_DrawPose", NULL, VF_NULL, "");
+	REGISTER_CVAR2("ca_DebugCommandBufferFilter", &ca_DebugCommandBufferFilter, "", VF_NULL, "Limits the command buffer debug output to a cdf containing the given string.");
 	assert(this);
 
 	DefineConstIntCVar(ca_DrawAllSimulatedSockets, 0, VF_CHEAT, "if set to 1, the own bounding box of the character is drawn");
@@ -172,7 +174,13 @@ void Console::Init()
 	DefineConstIntCVar(ca_DebugModelCache, 0, VF_CHEAT, "shows what models are currently loaded and how much memory they take");
 	DefineConstIntCVar(ca_ReloadAllCHRPARAMS, 0, VF_CHEAT, "reload all CHRPARAMS");
 	DefineConstIntCVar(ca_DebugAnimUpdates, 0, VF_CHEAT, "shows the amount of skeleton-updates");
-	DefineConstIntCVar(ca_DebugAnimUsage, 0, VF_CHEAT, "shows what animation assets are used in the level");
+	DefineConstIntCVar(ca_DebugAnimUsage, 0, VF_CHEAT, "shows what animation assets are used in the level (bitmask)"
+                       "\n BIT 0 - Display general information"
+                       "\n BIT 1 - Display CAF files used"
+                       "\n BIT 2 - Dump CAF files used to console (bit will be reset after use)"
+                       "\n BIT 3 - Display BlendSpaces used"
+                       "\n BIT 4 - Dump BlendSpaces used to console (bit will be reset after use)"
+                      );
 	DefineConstIntCVar(ca_StoreAnimNamesOnLoad, 0, VF_CHEAT, "stores the names of animations during load to allow name lookup for debugging");
 	DefineConstIntCVar(ca_DumpUsedAnims, 0, VF_CHEAT, "writes animation asset statistics to the disk");
 	DefineConstIntCVar(ca_AnimWarningLevel, 3, VF_CHEAT | VF_DUMPTODISK,

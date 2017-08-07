@@ -1084,8 +1084,7 @@ void CContextView::CompleteInitialization()
 	ContextState()->ChangeSubscription(this, FilterEventMask(ContextViewEvents[eCVS_Initial], eCVS_Initial) & m_eventMask);
 
 #if ENABLE_SESSION_IDS
-	const size_t typeIdx = boost::mpl::find<TNetAddressTypes, TLocalNetAddress>::type::pos::value;
-	if (m_pParent->GetIP().which() != typeIdx)
+	if (!stl::holds_alternative<TLocalNetAddress>(m_pParent->GetIP()))
 		m_pContext->EnableSessionDebugging();
 #endif
 

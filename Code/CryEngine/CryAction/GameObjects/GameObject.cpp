@@ -36,6 +36,8 @@
 //#pragma optimize("", off)
 //#pragma inline_depth(0)
 
+CRYREGISTER_CLASS(CGameObject);
+
 #define GET_FLAG_FOR_SLOT(flag, slotbit)        (((flag) & (slotbit)) != 0)
 #define SET_FLAG_FOR_SLOT(flag, slotbit, value) if (value) { flag |= (slotbit); } else { flag &= ~slotbit; }
 
@@ -115,9 +117,6 @@ static int g_forceFastUpdate = 0;
 static int g_visibilityTimeout = 0;
 static float g_visibilityTimeoutTime = 0.0f;
 
-static std::set<CGameObject*> g_updateSchedulingProfile;
-static CryCriticalSection g_updateSchedulingProfileCritSec;
-
 void CGameObject::CreateCVars()
 {
 	REGISTER_CVAR(g_forceFastUpdate, 0, VF_CHEAT, "GameObjects IsProbablyVisible->TRUE && IsProbablyDistant()->FALSE");
@@ -128,42 +127,33 @@ void CGameObject::CreateCVars()
 
 //------------------------------------------------------------------------
 CGameObject::CGameObject() :
+	m_pNetEntity(nullptr),
 	m_pActionDelegate(0),
 	m_pViewDelegate(0),
 	m_pView(0),
-	m_pProfileManager(0),
 #if GAME_OBJECT_SUPPORTS_CUSTOM_USER_DATA
 	m_pUserData(0),
 #endif
-	m_channelId(0),
-	m_enabledAspects(NET_ASPECT_ALL),
-	m_delegatableAspects(NET_ASPECT_ALL),
 	m_enabledPhysicsEvents(0),
 	m_forceUpdate(0),
 	m_updateState(eUS_NotVisible_FarAway),
 	m_updateTimer(0.1f),
-	m_isBoundToNetwork(false),
 	m_inRange(false),
 	m_justExchanging(false),
 	m_aiMode(eGOAIAM_VisibleOrInRange),
 	m_physDisableMode(eADPM_Never),
 	m_prePhysicsUpdateRule(ePPU_Never),
 	m_bPrePhysicsEnabled(false),
-	m_pSchedulingProfiles(NULL),
 	m_predictionHandle(0),
 	m_bPhysicsDisabled(false),
-	m_bNoSyncPhysics(false),
 	m_bNeedsNetworkRebind(false),
 	m_bOnInitEventCalled(false),
-	m_cachedParentId(0)
+	m_bShouldUpdate(false)
 {
 	static_assert(eGFE_Last <= 64, "Unexpected enum value!");
 
 	if (!m_pGOS)
-		m_pGOS = (CGameObjectSystem*) CCryAction::GetCryAction()->GetIGameObjectSystem();
-
-	for (int i = 0; i < NUM_ASPECTS; i++)
-		m_profiles[i] = 255;
+		m_pGOS = (CGameObjectSystem*)gEnv->pGameFramework->GetIGameObjectSystem();
 
 	m_bVisible = true;
 }
@@ -171,7 +161,8 @@ CGameObject::CGameObject() :
 //------------------------------------------------------------------------
 CGameObject::~CGameObject()
 {
-	g_updateSchedulingProfile.erase(this);
+	if (m_pNetEntity)
+		m_pEntity->AssignNetEntityLegacy(m_pNetEntity);
 }
 
 //------------------------------------------------------------------------
@@ -337,10 +328,16 @@ bool CGameObject::ShouldUpdateSlot(const SExtension* pExt, uint32 slot, uint32 s
 void CGameObject::Initialize()
 {
 	m_entityId = m_pEntity->GetId();
-
-	m_pSchedulingProfiles = ((CGameObjectSystem*)CCryAction::GetCryAction()->GetIGameObjectSystem())->GetEntitySchedulerProfiles(m_pEntity);
+	m_pNetEntity = m_pEntity->AssignNetEntityLegacy(this);
 
 	GetEntity()->SetFlags(GetEntity()->GetFlags() | ENTITY_FLAG_SEND_RENDER_EVENT);
+
+	// Fix case where init was already called
+	if (m_pEntity->IsInitialized())
+	{
+		SEntityEvent event(ENTITY_EVENT_INIT);
+		ProcessEvent(event);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -386,135 +383,19 @@ bool CGameObject::BindToNetwork(EBindToNetworkMode mode)
 
 bool CGameObject::BindToNetworkWithParent(EBindToNetworkMode mode, EntityId parentId)
 {
-	CGameContext* pGameContext = CCryAction::GetCryAction()->GetGameContext();
-	if (!pGameContext)
-		return false;
-	INetContext* pNetContext = pGameContext->GetNetContext();
-	if (!pNetContext)
-		return false;
+	bool previously_bound = m_pNetEntity->IsBoundToNetwork();
+	bool ret = m_pNetEntity->BindToNetworkWithParent(mode, parentId);
 
-	if (m_isBoundToNetwork)
+	if (!previously_bound && ret && GetEntity()->IsInitialized())
 	{
-		switch (mode)
-		{
-		case eBTNM_NowInitialized:
-			if (!m_isBoundToNetwork)
-				return false;
-			CRY_ASSERT(parentId == 0);
-			parentId = m_cachedParentId;
-		// fall through
-		case eBTNM_Force:
-			m_isBoundToNetwork = false;
-			break;
-		case eBTNM_Normal:
-			return true;
-		}
+		EvaluateUpdateActivation();
 	}
-	else if (mode == eBTNM_NowInitialized)
-		return false;
-
-	if (GetEntity()->GetFlags() & (ENTITY_FLAG_CLIENT_ONLY | ENTITY_FLAG_SERVER_ONLY))
-		return false;
-
-	if (!GetEntity()->IsInitialized())
-	{
-		m_cachedParentId = parentId;
-		m_isBoundToNetwork = true;
-		return true;
-	}
-
-	static const NetworkAspectType gameObjectAspects =
-	  eEA_GameClientDynamic |
-	  eEA_GameServerDynamic |
-	  eEA_GameClientStatic |
-	  eEA_GameServerStatic |
-	  eEA_Aspect31 |
-	  eEA_GameClientA |
-	  eEA_GameServerA |
-	  eEA_GameClientB |
-	  eEA_GameServerB |
-	  eEA_GameClientC |
-	  eEA_GameServerC |
-	  eEA_GameClientD |
-	  eEA_GameClientE |
-	  eEA_GameClientF |
-	  eEA_GameClientG |
-	  eEA_GameClientH |
-	  eEA_GameClientI |
-	  eEA_GameClientJ |
-	  eEA_GameClientK |
-	  eEA_GameServerD |
-	  eEA_GameClientL |
-	  eEA_GameClientM |
-	  eEA_GameClientN |
-	  eEA_GameClientO |
-	  eEA_GameClientP |
-	  eEA_GameServerE;
-
-	NetworkAspectType aspects = gameObjectAspects;
-	INetChannel* pControllingChannel = NULL;
-
-	if (!m_bNoSyncPhysics && (GetEntity()->GetPhysicalEntity() || m_pProfileManager))
-	{
-		aspects |= eEA_Physics;
-		//		aspects &= ~eEA_Volatile;
-	}
-	if (GetEntity()->GetProxy(ENTITY_PROXY_SCRIPT))
-		aspects |= eEA_Script;
-
-	if (gEnv->bServer)
-	{
-		if (m_channelId)
-		{
-			CGameServerNub* pServerNub = CCryAction::GetCryAction()->GetGameServerNub();
-			if (!pServerNub)
-			{
-				GameWarning("Unable to bind object to network (%s)", GetEntity()->GetName());
-				return false;
-			}
-			CGameServerChannel* pServerChannel = pServerNub->GetChannel(m_channelId);
-			if (!pServerChannel)
-			{
-				GameWarning("Unable to bind object to network (%s)", GetEntity()->GetName());
-				return false;
-			}
-			pServerChannel->SetPlayerId(GetEntity()->GetId());
-			pControllingChannel = pServerChannel->GetNetChannel();
-		}
-
-		bool isStatic = CCryAction::GetCryAction()->IsInLevelLoad();
-		if (GetEntity()->GetFlags() & ENTITY_FLAG_NEVER_NETWORK_STATIC)
-			isStatic = false;
-
-		aspects &= GetNetSerializeAspects();
-
-		pNetContext->BindObject(GetEntityId(), parentId, aspects, isStatic);
-		pNetContext->SetDelegatableMask(GetEntityId(), m_delegatableAspects);
-		if (pControllingChannel)
-		{
-			//pNetContext->DelegateAuthority( GetEntityId(), pControllingChannel );
-		}
-	}
-
-	// will this work :)
-	if (pControllingChannel)
-	{
-		pControllingChannel->DeclareWitness(GetEntityId());
-	}
-
-	m_isBoundToNetwork = true;
-	{
-		AUTO_LOCK(g_updateSchedulingProfileCritSec);
-		g_updateSchedulingProfile.insert(this);
-	}
-	EvaluateUpdateActivation();
-
-	return true;
+	return ret;
 }
 
-bool CGameObject::IsAspectDelegatable(NetworkAspectType aspect)
+bool CGameObject::IsAspectDelegatable(NetworkAspectType aspect) const
 {
-	return (m_delegatableAspects & aspect) ? true : false;
+	return m_pNetEntity->IsAspectDelegatable(aspect);
 }
 
 //------------------------------------------------------------------------
@@ -530,7 +411,6 @@ void CGameObject::OnShutDown()
 	FlushExtensions(true);
 	m_pGOS->SetPostUpdate(this, false);
 	m_distanceChecker.Reset();
-	g_updateSchedulingProfile.erase(this);
 
 	ReleaseMutex();
 }
@@ -724,38 +604,6 @@ void CGameObject::Update(SEntityUpdateContext& ctx)
 	updatingEntity = 0;
 }
 
-void CGameObject::UpdateSchedulingProfile()
-{
-	bool remove = false;
-	if (m_isBoundToNetwork && m_pSchedulingProfiles)
-	{
-		// We need to check NetContext here, because it's NULL in a dummy editor game session (or at least while starting up the editor).
-		INetContext* pNetContext = CCryAction::GetCryAction()->GetGameContext()->GetNetContext();
-		if (pNetContext && pNetContext->SetSchedulingParams(GetEntityId(), m_pSchedulingProfiles->normal, m_pSchedulingProfiles->owned))
-			remove = true;
-	}
-	else
-	{
-		remove = true;
-	}
-	if (remove)
-	{
-		g_updateSchedulingProfile.erase(this);
-	}
-}
-
-void CGameObject::UpdateSchedulingProfiles()
-{
-	AUTO_LOCK(g_updateSchedulingProfileCritSec);
-	for (std::set<CGameObject*>::iterator it = g_updateSchedulingProfile.begin(); it != g_updateSchedulingProfile.end(); )
-	{
-		std::set<CGameObject*>::iterator next = it;
-		++next;
-		(*it)->UpdateSchedulingProfile();
-		it = next;
-	}
-}
-
 void CGameObject::ForceUpdateExtension(IGameObjectExtension* pExt, int slot)
 {
 	SExtension* pInfo = GetExtensionInfo(pExt);
@@ -795,6 +643,7 @@ void CGameObject::ProcessEvent(SEntityEvent& event)
 			}
 			break;
 
+		// This is a CGameObject-specific vehicles-related workaround.
 		case ENTITY_EVENT_INIT:
 			OnInitEvent();
 			if (m_bNeedsNetworkRebind)
@@ -856,19 +705,10 @@ void CGameObject::ProcessEvent(SEntityEvent& event)
 			break;
 
 		case ENTITY_EVENT_DONE:
-			if (m_isBoundToNetwork)
+			// check if we're still bound
+			if (gEnv->pNetContext && IsBoundToNetwork() && !gEnv->pNetContext->IsBound(GetEntityId()))
 			{
-				// check if we're still bound
-				CGameContext* pGameContext = CCryAction::GetCryAction()->GetGameContext();
-				if (pGameContext)
-				{
-					INetContext* pNetContext = pGameContext->GetNetContext();
-					if (pNetContext)
-					{
-						m_isBoundToNetwork = pNetContext->IsBound(GetEntityId());
-						m_bNeedsNetworkRebind = !m_isBoundToNetwork;
-					}
-				}
+				m_bNeedsNetworkRebind = true;
 			}
 			break;
 		case ENTITY_EVENT_HIDE:
@@ -892,17 +732,23 @@ void CGameObject::ProcessEvent(SEntityEvent& event)
 
 uint64 CGameObject::GetEventMask() const
 {
-	return
-	  BIT64(ENTITY_EVENT_INIT) |
+	uint64 eventMask =
+		BIT64(ENTITY_EVENT_INIT) |
 		BIT64(ENTITY_EVENT_RESET) |
-	  BIT64(ENTITY_EVENT_DONE) |
-	  BIT64(ENTITY_EVENT_UPDATE) |
-	  BIT64(ENTITY_EVENT_RENDER_VISIBILITY_CHANGE) |
-	  BIT64(ENTITY_EVENT_ENTERAREA) |
-	  BIT64(ENTITY_EVENT_LEAVEAREA) |
-	  BIT64(ENTITY_EVENT_POST_SERIALIZE) |
-	  BIT64(ENTITY_EVENT_HIDE) |
-	  BIT64(ENTITY_EVENT_UNHIDE);
+		BIT64(ENTITY_EVENT_DONE) |
+		BIT64(ENTITY_EVENT_RENDER_VISIBILITY_CHANGE) |
+		BIT64(ENTITY_EVENT_ENTERAREA) |
+		BIT64(ENTITY_EVENT_LEAVEAREA) |
+		BIT64(ENTITY_EVENT_POST_SERIALIZE) |
+		BIT64(ENTITY_EVENT_HIDE) |
+		BIT64(ENTITY_EVENT_UNHIDE);
+
+	if (m_bShouldUpdate)
+	{
+		eventMask |= BIT64(ENTITY_EVENT_UPDATE);
+	}
+
+	return eventMask;
 }
 
 //------------------------------------------------------------------------
@@ -944,10 +790,7 @@ bool CGameObject::CaptureView(IGameObjectView* pGOV)
 
 bool CGameObject::CaptureProfileManager(IGameObjectProfileManager* pPM)
 {
-	if (m_pProfileManager || !pPM)
-		return false;
-	m_pProfileManager = pPM;
-	return true;
+	return m_pNetEntity->CaptureProfileManager(pPM);
 }
 
 void CGameObject::ReleaseActions(IActionListener* pAL)
@@ -966,9 +809,17 @@ void CGameObject::ReleaseView(IGameObjectView* pGOV)
 
 void CGameObject::ReleaseProfileManager(IGameObjectProfileManager* pPM)
 {
-	if (m_pProfileManager != pPM)
-		return;
-	m_pProfileManager = 0;
+	m_pNetEntity->ReleaseProfileManager(pPM);
+}
+
+void CGameObject::ClearProfileManager()
+{
+	m_pNetEntity->ClearProfileManager();
+}
+
+bool CGameObject::HasProfileManager()
+{
+	return m_pNetEntity->HasProfileManager();
 }
 
 //------------------------------------------------------------------------
@@ -1136,7 +987,7 @@ void CGameObject::FullSerialize(TSerialize ser)
 			}
 
 			uint8 profile = profileDefault;
-			if (m_pProfileManager)
+			if (m_pNetEntity->HasProfileManager())
 			{
 				for (NetworkAspectID i = 0; i < NUM_ASPECTS; i++)
 				{
@@ -1186,7 +1037,7 @@ void CGameObject::FullSerialize(TSerialize ser)
 			}
 
 			//physicalize after serialization with the correct parameters
-			if (m_pProfileManager)
+			if (m_pNetEntity->HasProfileManager())
 			{
 				for (NetworkAspectID i = 0; i < NUM_ASPECTS; i++)
 				{
@@ -1205,39 +1056,18 @@ void CGameObject::FullSerialize(TSerialize ser)
 }
 
 //------------------------------------------------------------------------
-bool CGameObject::NetSerialize(TSerialize ser, EEntityAspects aspect, uint8 profile, int flags)
+bool CGameObject::NetSerializeEntity(TSerialize ser, EEntityAspects aspect, uint8 profile, int flags)
 {
-	for (TExtensions::iterator it = m_extensions.begin(); it != m_extensions.end(); ++it)
-		if (!it->pExtension->NetSerialize(ser, aspect, profile, flags))
-			return false;
-
-	if (aspect == eEA_Physics && !m_pProfileManager)
-	{
-		GetEntity()->PhysicsNetSerialize(ser);
-	}
-
-	return true;
+	return m_pNetEntity->NetSerializeEntity(ser, aspect, profile, flags);
 }
 
-NetworkAspectType CGameObject::GetNetSerializeAspects()
+NetworkAspectType CGameObject::GetNetSerializeAspectMask() const
 {
 	NetworkAspectType aspects = 0;
-
-	for (TExtensions::iterator iter = m_extensions.begin(); iter != m_extensions.end(); ++iter)
+	for (auto& iter : m_extensions)
 	{
-		aspects |= iter->pExtension->GetNetSerializeAspects();
+		aspects |= iter.pExtension->GetNetSerializeAspects();
 	}
-
-	if (!m_bNoSyncPhysics && (GetEntity()->GetPhysicalEntity() || m_pProfileManager))
-	{
-		aspects |= eEA_Physics;
-	}
-
-	if (GetEntity()->GetProxy(ENTITY_PROXY_SCRIPT))
-	{
-		aspects |= eEA_Script;
-	}
-
 	return aspects;
 }
 
@@ -1258,18 +1088,6 @@ void CGameObject::PostSerialize()
 }
 
 //------------------------------------------------------------------------
-void CGameObject::SetAuthority(bool auth)
-{
-	{
-		AUTO_LOCK(g_updateSchedulingProfileCritSec);
-		g_updateSchedulingProfile.insert(this);
-	}
-
-	for (TExtensions::iterator iter = m_extensions.begin(); iter != m_extensions.end(); ++iter)
-		iter->pExtension->SetAuthority(auth);
-}
-
-//------------------------------------------------------------------------
 void CGameObject::InitClient(int channelId)
 {
 	for (TExtensions::iterator iter = m_extensions.begin(); iter != m_extensions.end(); ++iter)
@@ -1284,46 +1102,21 @@ void CGameObject::PostInitClient(int channelId)
 }
 
 //------------------------------------------------------------------------
-void CGameObject::ChangedNetworkState(NetworkAspectType aspects)
+void CGameObject::MarkAspectsDirty(NetworkAspectType aspects)
 {
-	CGameContext* pGameContext = CCryAction::GetCryAction()->GetGameContext();
-	if (!pGameContext)
-		return;
-	INetContext* pNetContext = pGameContext->GetNetContext();
-	if (!pNetContext)
-		return;
-	IEntity* pEntity = GetEntity();
-	if (!pEntity)
-		return;
-	pNetContext->ChangedAspects(pEntity->GetId(), aspects);
+	m_pNetEntity->MarkAspectsDirty(aspects);
 }
 
 //------------------------------------------------------------------------
 void CGameObject::EnableAspect(NetworkAspectType aspects, bool enable)
 {
-	CGameContext* pGameContext = CCryAction::GetCryAction()->GetGameContext();
-	if (!pGameContext)
-		return;
-
-	if (enable)
-		m_enabledAspects |= aspects;
-	else
-		m_enabledAspects &= ~aspects;
-
-	pGameContext->EnableAspects(GetEntityId(), aspects, enable);
+	m_pNetEntity->EnableAspect(aspects, enable);
 }
 
 //------------------------------------------------------------------------
 void CGameObject::EnableDelegatableAspect(NetworkAspectType aspects, bool enable)
 {
-	if (enable)
-	{
-		m_delegatableAspects |= aspects;
-	}
-	else
-	{
-		m_delegatableAspects &= ~aspects;
-	}
+	m_pNetEntity->EnableDelegatableAspect(aspects, enable);
 }
 
 //------------------------------------------------------------------------
@@ -1538,8 +1331,7 @@ void CGameObject::FlushExtensions(bool includeStickyBits)
 		// [10/12/2009 evgeny] The only way to ensure that "0 == m_pProfileManager" in all cases
 		// is to release the profile manager here explicitly.
 		// It's basically just zeroing the pointer, so not memory leak is expected.
-		ReleaseProfileManager(m_pProfileManager);
-		CRY_ASSERT(0 == m_pProfileManager);
+		m_pNetEntity->ClearProfileManager();
 
 		//CRY_ASSERT(0 == m_pActionDelegate);
 		//CRY_ASSERT(0 == m_pViewDelegate);
@@ -1677,128 +1469,33 @@ void CGameObject::SendEvent(const SGameObjectEvent& event)
 
 void CGameObject::SetChannelId(uint16 id)
 {
-	m_channelId = id;
+	m_pNetEntity->SetChannelId(id);
 
-	for (TExtensions::iterator iter = m_extensions.begin(); iter != m_extensions.end(); ++iter)
+	for (auto& iter : m_extensions)
 	{
-		if (iter->pExtension)
-			iter->pExtension->SetChannelId(id);
+		if (iter.pExtension)
+			iter.pExtension->SetChannelId(id);
 	}
 }
 
-INetChannel* CGameObject::GetNetChannel() const
+uint16 CGameObject::GetChannelId() const
 {
-	CGameServerNub* pServerNub = CCryAction::GetCryAction()->GetGameServerNub();
-	if (pServerNub)
-	{
-		CGameServerChannel* pChannel = pServerNub->GetChannel(m_channelId);
-		if (pChannel)
-			return pChannel->GetNetChannel();
-	}
-
-	return 0;
+	return m_pNetEntity->GetChannelId();
 }
 
-void CGameObject::DoInvokeRMI(_smart_ptr<CRMIBody> pBody, unsigned where, int channel)
+void CGameObject::BecomeBound()
 {
-	// 'where' flag validation
-	if (where & eRMI_ToClientChannel)
-	{
-		if (channel <= 0)
-		{
-			GameWarning("InvokeRMI: ToClientChannel specified, but no channel specified");
-			return;
-		}
-		if (where & eRMI_ToOwnClient)
-		{
-			GameWarning("InvokeRMI: ToOwnClient and ToClientChannel specified - not supported");
-			return;
-		}
-	}
-	if (where & eRMI_ToOwnClient)
-	{
-		if (m_channelId == 0)
-		{
-			GameWarning("InvokeRMI: ToOwnClient specified, but no own client");
-			return;
-		}
-		where &= ~eRMI_ToOwnClient;
-		where |= eRMI_ToClientChannel;
-		channel = m_channelId;
-	}
-	if (where & eRMI_ToAllClients)
-	{
-		where &= ~eRMI_ToAllClients;
-		where |= eRMI_ToOtherClients;
-		channel = -1;
-	}
+	m_pNetEntity->BecomeBound();
+}
 
-	CCryAction* pFramework = CCryAction::GetCryAction();
+bool CGameObject::IsBoundToNetwork() const
+{
+	return m_pNetEntity->IsBoundToNetwork();
+}
 
-	if (where & eRMI_ToServer)
-	{
-		CGameClientNub* pClientNub = pFramework->GetGameClientNub();
-		bool called = false;
-		if (pClientNub)
-		{
-			CGameClientChannel* pChannel = pClientNub->GetGameClientChannel();
-			if (pChannel)
-			{
-				INetChannel* pNetChannel = pChannel->GetNetChannel();
-				bool isLocal = pNetChannel->IsLocal();
-				bool send = true;
-				if ((where & eRMI_NoLocalCalls) != 0)
-					if (isLocal)
-						send = false;
-				if ((where & eRMI_NoRemoteCalls) != 0)
-					if (!isLocal)
-						send = false;
-				if (send)
-				{
-					NET_PROFILE_SCOPE_RMI(GetEntity()->GetClass()->GetName(), false);
-					NET_PROFILE_SCOPE_RMI(GetEntity()->GetName(), false);
-					pNetChannel->DispatchRMI(&*pBody);
-					called = true;
-				}
-			}
-		}
-		if (!called)
-		{
-			GameWarning("InvokeRMI: RMI via client (to server) requested but we are not a client");
-		}
-	}
-	if (where & (eRMI_ToClientChannel | eRMI_ToOtherClients))
-	{
-		CGameServerNub* pServerNub = pFramework->GetGameServerNub();
-		if (pServerNub)
-		{
-			TServerChannelMap* pChannelMap = pServerNub->GetServerChannelMap();
-			for (TServerChannelMap::iterator iter = pChannelMap->begin(); iter != pChannelMap->end(); ++iter)
-			{
-				bool isOwn = iter->first == channel;
-				if (isOwn && !(where & eRMI_ToClientChannel) && !IsDemoPlayback())
-					continue;
-				if (!isOwn && !(where & eRMI_ToOtherClients))
-					continue;
-				INetChannel* pNetChannel = iter->second->GetNetChannel();
-				if (!pNetChannel)
-					continue;
-				bool isLocal = pNetChannel->IsLocal();
-				if (isLocal && (where & eRMI_NoLocalCalls) != 0)
-					continue;
-				if (!isLocal && (where & eRMI_NoRemoteCalls) != 0)
-					continue;
-				NET_PROFILE_SCOPE_RMI(GetEntity()->GetClass()->GetName(), false);
-				NET_PROFILE_SCOPE_RMI(GetEntity()->GetName(), false);
-				pNetChannel->DispatchRMI(&*pBody);
-			}
-		}
-		else if (pFramework->GetGameContext() &&
-		         gEnv->bMultiplayer)
-		{
-			GameWarning("InvokeRMI: RMI via server (to client) requested but we are not a server");
-		}
-	}
+void CGameObject::DontSyncPhysics()
+{
+	m_pNetEntity->DontSyncPhysics();
 }
 
 void CGameObject::PostUpdate(float frameTime)
@@ -1960,8 +1657,6 @@ void CGameObject::EvaluateUpdateActivation()
 
 void CGameObject::SetActivation(bool activate)
 {
-	bool wasActivated = m_pEntity->IsActive();
-
 	if (TestIsProbablyVisible(m_updateState))
 		SetPhysicsDisable(false);
 	else
@@ -1974,14 +1669,15 @@ void CGameObject::SetActivation(bool activate)
 		case eADPM_WhenInvisibleAndFarAway:
 			break;
 		case eADPM_WhenAIDeactivated:
-			if (wasActivated && !activate)
+			if (m_bShouldUpdate && !activate)
 				SetPhysicsDisable(true);
 			break;
 		}
 
-	if (wasActivated != activate)
+	if (m_bShouldUpdate != activate)
 	{
-		m_pEntity->Activate(activate);
+		m_bShouldUpdate = activate;
+		m_pEntity->UpdateComponentEventMask(this);
 
 		if (!activate)
 		{
@@ -2037,10 +1733,10 @@ IWorldQuery* CGameObject::GetWorldQuery()
 
 IMovementController* CGameObject::GetMovementController()
 {
-	IActor* pActor = CCryAction::GetCryAction()->GetIActorSystem()->GetActor(m_pEntity->GetId());
+	IActor* pActor = gEnv->pGameFramework->GetIActorSystem()->GetActor(m_pEntity->GetId());
 	if (pActor != NULL)
 		return pActor->GetMovementController();
-	else if (IVehicle* pVehicle = CCryAction::GetCryAction()->GetIVehicleSystem()->GetVehicle(m_pEntity->GetId()))
+	else if (IVehicle* pVehicle = gEnv->pGameFramework->GetIVehicleSystem()->GetVehicle(m_pEntity->GetId()))
 		return pVehicle->GetMovementController();
 	else
 		return m_pMovementController;
@@ -2048,84 +1744,17 @@ IMovementController* CGameObject::GetMovementController()
 
 uint8 CGameObject::GetAspectProfile(EEntityAspects aspect)
 {
-	uint8 profile = 255;
-	if (m_isBoundToNetwork)
-	{
-		if (CGameContext* pGC = CCryAction::GetCryAction()->GetCryAction()->GetGameContext())
-		{
-			if (INetContext* pNC = pGC->GetNetContext())
-				profile = pNC->GetAspectProfile(GetEntityId(), aspect);
-		}
-	}
-	else
-		profile = m_profiles[BitIndex(NetworkAspectType(aspect))];
-
-	return profile;
+	return m_pNetEntity->GetAspectProfile(aspect);
 }
 
 bool CGameObject::SetAspectProfile(EEntityAspects aspect, uint8 profile, bool fromNetwork)
 {
-	bool ok = DoSetAspectProfile(aspect, profile, fromNetwork);
-
-	if (ok && aspect == eEA_Physics && m_isBoundToNetwork && gEnv->bMultiplayer)
-	{
-		if (IPhysicalEntity* pEnt = GetEntity()->GetPhysics())
-		{
-			pe_params_flags flags;
-			flags.flagsOR = pef_log_collisions;
-			pEnt->SetParams(&flags);
-		}
-	}
-
-	return ok;
-}
-
-bool CGameObject::DoSetAspectProfile(EEntityAspects aspect, uint8 profile, bool fromNetwork)
-{
-	if (m_isBoundToNetwork)
-	{
-		if (fromNetwork)
-		{
-			if (m_pProfileManager)
-			{
-				if (m_pProfileManager->SetAspectProfile(aspect, profile))
-				{
-					m_profiles[BitIndex(NetworkAspectType(aspect))] = profile;
-					return true;
-				}
-			}
-			else
-				return false;
-		}
-		else
-		{
-			if (CGameContext* pGameContext = CCryAction::GetCryAction()->GetGameContext())
-			{
-				if (INetContext* pNetContext = pGameContext->GetNetContext())
-				{
-					pNetContext->SetAspectProfile(GetEntityId(), aspect, profile);
-					m_profiles[BitIndex(NetworkAspectType(aspect))] = profile;
-					return true;
-				}
-			}
-			return false;
-		}
-	}
-	else if (m_pProfileManager)
-	{
-		//CRY_ASSERT( !fromNetwork );
-		if (m_pProfileManager->SetAspectProfile(aspect, profile))
-		{
-			m_profiles[BitIndex(NetworkAspectType(aspect))] = profile;
-			return true;
-		}
-	}
-	return false;
+	return m_pNetEntity->SetAspectProfile(aspect, profile, fromNetwork);
 }
 
 void CGameObject::AttachDistanceChecker()
 {
-	if (CCryAction::GetCryAction()->IsEditing())
+	if (gEnv->pGameFramework->IsEditing())
 		return;
 
 	m_distanceChecker.Init(m_pGOS, GetEntityId());
@@ -2139,6 +1768,8 @@ void CGameObject::ForceUpdate(bool force)
 		--m_forceUpdate;
 
 	CRY_ASSERT(m_forceUpdate >= 0);
+
+	EvaluateUpdateActivation();
 }
 
 struct SContainerSer : public ISerializableInfo
@@ -2174,27 +1805,17 @@ ISerializableInfoPtr CGameObject::GetSpawnInfo()
 
 void CGameObject::SetNetworkParent(EntityId id)
 {
-	if (!GetEntity()->IsInitialized())
-	{
-		m_cachedParentId = id;
-		return;
-	}
+	m_pNetEntity->SetNetworkParent(id);
+}
 
-	CCryAction* pCryAction = CCryAction::GetCryAction();
-	INetContext* pNetContext = pCryAction ? pCryAction->GetNetContext() : NULL;
-
-	if (pNetContext)
-	{
-		pNetContext->SetParentObject(GetEntityId(), id);
-	}
+NetworkAspectType CGameObject::GetEnabledAspects() const
+{
+	return m_pNetEntity->GetEnabledAspects();
 }
 
 uint8 CGameObject::GetDefaultProfile(EEntityAspects aspect)
 {
-	if (m_pProfileManager)
-		return m_pProfileManager->GetDefaultProfile(aspect);
-	else
-		return 0;
+	return m_pNetEntity->GetDefaultProfile(aspect);
 }
 
 bool CGameObject::SetAIActivation(EGameObjectAIActivationMode mode)
@@ -2209,7 +1830,7 @@ bool CGameObject::SetAIActivation(EGameObjectAIActivationMode mode)
 		EvaluateUpdateActivation(); // need to recheck any updates on slots
 	}
 
-	return GetEntity()->IsActive();
+	return GetEntity()->IsActivatedForUpdates();
 }
 
 bool CGameObject::ShouldUpdateAI()
@@ -2239,8 +1860,8 @@ void CGameObject::EnablePrePhysicsUpdate(EPrePhysicsUpdate updateRule)
 
 void CGameObject::Pulse(uint32 pulse)
 {
-	if (CGameContext* pGC = CCryAction::GetCryAction()->GetGameContext())
-		pGC->GetNetContext()->PulseObject(GetEntityId(), pulse);
+	if (INetContext* pNetContext = gEnv->pGameFramework->GetNetContext())
+		pNetContext->PulseObject(GetEntityId(), pulse);
 }
 
 void CGameObject::PostRemoteSpawn()
@@ -2273,7 +1894,8 @@ void CGameObject::GetMemoryUsage(ICrySizer* s) const
 void CGameObject::RegisterAsPredicted()
 {
 	CRY_ASSERT(!m_predictionHandle);
-	m_predictionHandle = CCryAction::GetCryAction()->GetNetContext()->RegisterPredictedSpawn(CCryAction::GetCryAction()->GetClientChannel(), GetEntityId());
+	m_predictionHandle = gEnv->pGameFramework->GetNetContext()->RegisterPredictedSpawn(
+		gEnv->pGameFramework->GetClientChannel(), GetEntityId());
 }
 
 int CGameObject::GetPredictionHandle()
@@ -2286,7 +1908,13 @@ void CGameObject::RegisterAsValidated(IGameObject* pGO, int predictionHandle)
 	if (!pGO)
 		return;
 	m_predictionHandle = predictionHandle;
-	CCryAction::GetCryAction()->GetNetContext()->RegisterValidatedPredictedSpawn(pGO->GetNetChannel(), m_predictionHandle, GetEntityId());
+
+	INetChannel *pNetChannel = gEnv->pGameFramework->GetNetChannel(pGO->GetChannelId());
+	if (pNetChannel)
+	{
+		gEnv->pGameFramework->GetNetContext()->RegisterValidatedPredictedSpawn(
+			pNetChannel, m_predictionHandle, GetEntityId());
+	}
 }
 
 void CGameObject::SetAutoDisablePhysicsMode(EAutoDisablePhysicsMode mode)
@@ -2300,7 +1928,7 @@ void CGameObject::SetAutoDisablePhysicsMode(EAutoDisablePhysicsMode mode)
 
 void CGameObject::RequestRemoteUpdate(NetworkAspectType aspectMask)
 {
-	if (INetContext* pNC = CCryAction::GetCryAction()->GetNetContext())
+	if (INetContext* pNC = gEnv->pGameFramework->GetNetContext())
 		pNC->RequestRemoteUpdate(GetEntityId(), aspectMask);
 }
 

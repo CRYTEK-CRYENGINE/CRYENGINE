@@ -157,7 +157,7 @@ SCreateChannelResult CGameServerNub::CreateChannel(INetChannel* pChannel, const 
 //------------------------------------------------------------------------
 void CGameServerNub::Update()
 {
-	const int timeout = MAX(0, sv_timeout_disconnect->GetIVal());
+	const int timeout = std::max(0, sv_timeout_disconnect->GetIVal());
 
 	CTimeValue now = gEnv->pTimer->GetFrameStartTime();
 

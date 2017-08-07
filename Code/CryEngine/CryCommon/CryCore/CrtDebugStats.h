@@ -30,12 +30,15 @@ typedef struct _CrtMemBlockHeader
 	 */
 } _CrtMemBlockHeader;
 
+namespace Cry
+{
 struct SFileInfo
 {
 	int     blocks;
-	INT_PTR bytes;                                   //!< AMD Port
-	SFileInfo(INT_PTR b) { blocks = 1; bytes = b; }; //!< AMD Port
+	INT_PTR bytes;                                  //!< AMD Port
+	SFileInfo(INT_PTR b) { blocks = 1; bytes = b; } //!< AMD Port
 };
+}      // namespace Cry
 
 _CrtMemState lastcheckpoint;
 bool checkpointset = false;
@@ -46,7 +49,7 @@ extern "C" void __declspec(dllexport) CheckPoint()
 	checkpointset = true;
 };
 
-bool pairgreater(const std::pair<string, SFileInfo>& elem1, const std::pair<string, SFileInfo>& elem2)
+bool pairgreater(const std::pair<string, Cry::SFileInfo>& elem1, const std::pair<string, Cry::SFileInfo>& elem2)
 {
 	return elem1.second.bytes > elem2.second.bytes;
 }
@@ -64,7 +67,7 @@ extern "C" void __declspec(dllexport) UsageSummary(ILog * log, char* modulename,
 	else
 	{
 		_CrtMemCheckpoint(&state);
-	};
+	}
 
 	INT_PTR numblocks = state.lCounts[_NORMAL_BLOCK]; //!< AMD Port
 	INT_PTR totalalloc = state.lSizes[_NORMAL_BLOCK]; //!< AMD Port
@@ -79,14 +82,13 @@ extern "C" void __declspec(dllexport) UsageSummary(ILog * log, char* modulename,
 		CryLogAlways("$3Module %s has no memory in use", modulename);
 		return;
 	}
-	;
 
 	CryLogAlways("$5Usage summary for module %s", modulename);
 	CryLogAlways("%d kbytes (peak %d) in %d objects of %d average bytes\n",
 	             totalalloc / 1024, state.lHighWaterCount / 1024, numblocks, numblocks ? totalalloc / numblocks : 0);
 	CryLogAlways("%d kbytes allocated over time\n", state.lTotalCount / 1024);
 
-	typedef std::map<string, SFileInfo> FileMap;
+	typedef std::map<string, Cry::SFileInfo> FileMap;
 	FileMap fm;
 
 	for (_CrtMemBlockHeader* h = state.pBlockHeader; h; h = h->pBlockHeaderNext)
@@ -107,12 +109,11 @@ extern "C" void __declspec(dllexport) UsageSummary(ILog * log, char* modulename,
 		}
 		else
 		{
-			fm.insert(FileMap::value_type(s, SFileInfo(h->nDataSize)));
-		};
+			fm.insert(FileMap::value_type(s, Cry::SFileInfo(h->nDataSize)));
+		}
 	}
-	;
 
-	typedef std::vector<std::pair<string, SFileInfo>> FileVector;
+	typedef std::vector<std::pair<string, Cry::SFileInfo>> FileVector;
 	FileVector fv;
 	for (FileMap::iterator it = fm.begin(); it != fm.end(); ++it)
 		fv.push_back((*it));
@@ -123,7 +124,6 @@ extern "C" void __declspec(dllexport) UsageSummary(ILog * log, char* modulename,
 		CryLogAlways("%6d kbytes / %6d blocks allocated from %s\n",
 		             (*it).second.bytes / 1024, (*it).second.blocks, (*it).first.c_str());
 	}
-	;
 
 	/*
 	   if(extras[2])

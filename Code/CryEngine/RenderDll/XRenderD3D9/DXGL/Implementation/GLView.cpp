@@ -414,14 +414,14 @@ SOutputMergerView::SOutputMergerView(const CResourceName& kUniqueView, EGIFormat
 	: m_kUniqueView(kUniqueView)
 	, m_eFormat(eFormat)
 {
-#if !CRY_OPENGL_SINGLE_CONTEXT
+#if !OGL_SINGLE_CONTEXT
 	memset(m_kContextMap, 0, sizeof(m_kContextMap));
 #endif
 }
 
 SOutputMergerView::~SOutputMergerView()
 {
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	SContextData* pContextData(&m_kContextData);
 	{
 #else
@@ -445,7 +445,7 @@ SOutputMergerView::~SOutputMergerView()
 				++kFrameBufferRefIter;
 			}
 
-#if !CRY_OPENGL_SINGLE_CONTEXT
+#if !OGL_SINGLE_CONTEXT
 			delete pContextData;
 #endif
 		}
@@ -460,7 +460,7 @@ SOutputMergerView::~SOutputMergerView()
 
 bool SOutputMergerView::AttachFrameBuffer(SFrameBuffer* pFrameBuffer, GLenum eAttachmentID, CContext* pContext)
 {
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	SContextData* pContextData(&m_kContextData);
 #else
 	SContextData* pContextData(m_kContextMap[pFrameBuffer->m_pContext->GetIndex()]);
@@ -482,7 +482,7 @@ bool SOutputMergerView::AttachFrameBuffer(SFrameBuffer* pFrameBuffer, GLenum eAt
 
 void SOutputMergerView::DetachFrameBuffer(SFrameBuffer* pFrameBuffer)
 {
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	SContextData* pContextData(&m_kContextData);
 #else
 	SContextData* pContextData(m_kContextMap[pFrameBuffer->m_pContext->GetIndex()]);

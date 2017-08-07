@@ -98,7 +98,7 @@ void CCompressionManager::Reset(bool useCompression, bool unloading)
 		m_compressionPolicies.insert(std::make_pair(0, m_pDefaultPolicy));
 
 		// Start by loading the engine defaults
-		const char* fileName = "Config/DefaultScripts/CompressionPolicy.xml";
+		const char* fileName = "%engine%/Config/DefaultScripts/CompressionPolicy.xml";
 		XmlNodeRef config = gEnv->pSystem->LoadXmlFromFile(fileName);
 		if (config)
 		{

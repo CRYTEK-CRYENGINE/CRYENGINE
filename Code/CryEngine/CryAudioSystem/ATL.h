@@ -3,7 +3,6 @@
 #pragma once
 
 #include "InternalEntities.h"
-#include "FileCacheManager.h"
 #include "AudioListenerManager.h"
 #include "AudioEventListenerManager.h"
 #include "AudioStandaloneFileManager.h"
@@ -14,14 +13,26 @@
 
 namespace CryAudio
 {
+enum class EInternalStates : EnumFlagsType
+{
+	None                        = 0,
+	IsMuted                     = BIT(0),
+	AudioMiddlewareShuttingDown = BIT(1),
+};
+CRY_CREATE_ENUM_FLAG_OPERATORS(EInternalStates);
+
 class CSystem;
+
+#if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
+class CProfileData;
+#endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
 class CAudioTranslationLayer final : public IInputEventListener
 {
 public:
 
 	CAudioTranslationLayer();
-	virtual ~CAudioTranslationLayer();
+	virtual ~CAudioTranslationLayer() override;
 
 	CAudioTranslationLayer(CAudioTranslationLayer const&) = delete;
 	CAudioTranslationLayer(CAudioTranslationLayer&&) = delete;
@@ -29,28 +40,25 @@ public:
 	CAudioTranslationLayer& operator=(CAudioTranslationLayer&&) = delete;
 
 	// IInputEventListener
-	virtual bool OnInputEvent(SInputEvent const& event);
+	virtual bool OnInputEvent(SInputEvent const& event) override;
 	// ~IInputEventListener
 
-	bool             Initialize(CSystem* const pAudioSystem);
-	bool             ShutDown();
-	void             ProcessRequest(CAudioRequest& request);
-	void             Update(float const deltaTime);
-	bool             GetAudioTriggerId(char const* const szAudioTriggerName, ControlId& audioTriggerId) const;
-	bool             GetAudioParameterId(char const* const szAudioParameterName, ControlId& audioParameterId) const;
-	bool             GetAudioSwitchId(char const* const szAudioSwitchName, ControlId& audioSwitchId) const;
-	bool             GetAudioSwitchStateId(ControlId const switchId, char const* const szAudioSwitchStateName, SwitchStateId& audioSwitchStateId) const;
-	bool             GetAudioPreloadRequestId(char const* const szAudioPreloadRequestName, PreloadRequestId& audioPreloadRequestId) const;
-	bool             GetAudioEnvironmentId(char const* const szAudioEnvironmentName, EnvironmentId& audioEnvironmentId) const;
+	bool           Initialize(CSystem* const pAudioSystem);
+	bool           ShutDown();
+	void           ProcessRequest(CAudioRequest& request);
+	void           Update(float const deltaTime);
 
-	bool             CanProcessRequests() const { return (m_flags & eAudioInternalStates_AudioMiddlewareShuttingDown) == 0; }
+	bool           CanProcessRequests() const { return (m_flags& EInternalStates::AudioMiddlewareShuttingDown) == 0; }
 
-	ERequestStatus   ParseControlsData(char const* const szFolderPath, EDataScope const dataScope);
-	ERequestStatus   ClearControlsData(EDataScope const dataScope);
-	ERequestStatus   ParsePreloadsData(char const* const szFolderPath, EDataScope const dataScope);
-	ERequestStatus   ClearPreloadsData(EDataScope const dataScope);
+	ERequestStatus ParseControlsData(char const* const szFolderPath, EDataScope const dataScope);
+	ERequestStatus ClearControlsData(EDataScope const dataScope);
+	ERequestStatus ParsePreloadsData(char const* const szFolderPath, EDataScope const dataScope);
+	ERequestStatus ClearPreloadsData(EDataScope const dataScope);
 
-	void             NotifyListener(CAudioRequest const& request);
+	void           NotifyListener(CAudioRequest const& request);
+
+	void           IncrementGlobalObjectSyncCallbackCounter();
+	void           DecrementGlobalObjectSyncCallbackCounter();
 
 private:
 
@@ -58,20 +66,13 @@ private:
 	ERequestStatus ProcessAudioCallbackManagerRequest(CAudioRequest& request);
 	ERequestStatus ProcessAudioObjectRequest(CAudioRequest const& request);
 	ERequestStatus ProcessAudioListenerRequest(SAudioRequestData const* const pPassedRequestData);
-	ERequestStatus SetImpl(Impl::IAudioImpl* const pImpl);
+	ERequestStatus SetImpl(Impl::IImpl* const pIImpl);
 	void           ReleaseImpl();
 
 	ERequestStatus RefreshAudioSystem(char const* const szLevelName);
 	void           SetImplLanguage();
 	void           InitInternalControls();
 	void           SetCurrentEnvironmentsOnObject(CATLAudioObject* const pObject, EntityId const entityToIgnore, Vec3 const& position);
-
-	enum EAudioInternalStates : EnumFlagsType
-	{
-		eAudioInternalStates_None                        = 0,
-		eAudioInternalStates_IsMuted                     = BIT(0),
-		eAudioInternalStates_AudioMiddlewareShuttingDown = BIT(1),
-	};
 
 	// ATLObject containers
 	AudioTriggerLookup        m_triggers;
@@ -94,14 +95,16 @@ private:
 	SInternalControls           m_internalControls;
 
 	// Utility members
-	uint32                 m_lastMainThreadFrameId = 0;
-	volatile EnumFlagsType m_flags = eAudioInternalStates_None;
-	Impl::IAudioImpl*      m_pImpl = nullptr;
+	uint32          m_lastMainThreadFrameId = 0;
+	EInternalStates m_flags = EInternalStates::None;
+	Impl::IImpl*    m_pIImpl = nullptr;
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 public:
-	void DrawAudioSystemDebugInfo();
-	void GetAudioTriggerData(ControlId const audioTriggerId, STriggerData& audioTriggerData) const;
+
+	void          DrawAudioSystemDebugInfo();
+	void          GetAudioTriggerData(ControlId const audioTriggerId, STriggerData& audioTriggerData) const;
+	CProfileData* GetProfileData() const;
 
 private:
 
@@ -109,7 +112,7 @@ private:
 	void DrawATLComponentDebugInfo(IRenderAuxGeom& auxGeom, float posX, float const posY);
 	void RetriggerAudioControls();
 
-	CryFixedStringT<MaxMiscStringLength> m_implNameString;
+	CProfileData* m_pProfileData = nullptr;
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 };
 } // namespace CryAudio

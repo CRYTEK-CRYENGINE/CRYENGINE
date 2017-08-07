@@ -24,14 +24,11 @@ History:
 #include <CryExtension/ICryFactoryRegistryImpl.h>
 #include <CryExtension/RegFactoryNode.h>
 
-
-#define PROCEDURAL_CONTEXT_RAGDOLL_NAME "ProceduralContextRagdoll"
-
 class CProceduralContextRagdoll
 	: public IProceduralContext
 {
 public:
-	PROCEDURAL_CONTEXT( CProceduralContextRagdoll, PROCEDURAL_CONTEXT_RAGDOLL_NAME, 0x37856d62bd5f42f0, 0xad8a4314a0de6dd2 );
+	PROCEDURAL_CONTEXT(CProceduralContextRagdoll, "ProceduralContextRagdoll", "37856d62-bd5f-42f0-ad8a-4314a0de6dd2"_cry_guid);
 
 	CProceduralContextRagdoll();
 	virtual ~CProceduralContextRagdoll() {}

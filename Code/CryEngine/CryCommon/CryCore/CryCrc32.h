@@ -211,7 +211,7 @@ public:
 
 	// Call at compile-time
 	// Calculation at compile time at the expense of using recursive functions (slow + stack unfriendly)
-	// Note: C++14 may not require seperate functions as it supports loops
+	// Note: C++14 may not require separate functions as it supports loops
 	constexpr static uint32 Compute_CompileTime(const char* s, const uint32 h = 0)
 	{
 		// By using a second level function we can add values to an already calculated hash. As the last step in the recursion is "~h" which needs reversing in that case.
@@ -220,15 +220,15 @@ public:
 
 	// Call at compile-time
 	// Calculation at compile time at the expense of using recursive functions (slow + stack unfriendly)
-	// Note: C++14 may not require seperate functions as it supports loops
-	constexpr static uint32 Compute_CompileTime(const void* s, const size_t sizeInBytes, const uint32 h = 0)
+	// Note: C++14 may not require separate functions as it supports loops
+	constexpr static uint32 Compute_CompileTime(const char* s, const size_t sizeInBytes, const uint32 h = 0)
 	{
-		return detail::compile_time::ComputeCrc32_internal((const char*)s, sizeInBytes, ~h);
+		return detail::compile_time::ComputeCrc32_internal(s, sizeInBytes, ~h);
 	}
 
 	// Call at compile-time
 	// Calculation at compile time at the expense of using recursive functions (slow + stack unfriendly)
-	// Note: C++14 may not require seperate functions as it supports loops
+	// Note: C++14 may not require separate functions as it supports loops
 	constexpr static uint32 ComputeLowercase_CompileTime(const char* s, const uint32 h = 0)
 	{
 		return detail::compile_time::ComputeCrc32Lowercase_internal(s, ~h);
@@ -236,10 +236,10 @@ public:
 
 	// Call at compile-time
 	// Calculation at compile time at the expense of using recursive functions (slow + stack unfriendly)
-	// Note: C++14 may not require seperate functions as it supports loops
-	constexpr static uint32 ComputeLowercase_CompileTime(const void* s, const size_t sizeInBytes, const uint32 h = 0)
+	// Note: C++14 may not require separate functions as it supports loops
+	constexpr static uint32 ComputeLowercase_CompileTime(const char* s, const size_t sizeInBytes, const uint32 h = 0)
 	{
-		return detail::compile_time::ComputeCrc32Lowercase_internal((const char*)s, sizeInBytes, ~h);
+		return detail::compile_time::ComputeCrc32Lowercase_internal(s, sizeInBytes, ~h);
 	}
 
 public:

@@ -662,11 +662,11 @@ CPlayer::CPlayer()
 
 	CALL_PLAYER_EVENT_LISTENERS(OnToggleThirdPerson(this,m_stats.isThirdPerson));
 
-	gEnv->pAudioSystem->GetAudioTriggerId("water_enter", m_waterEnter);
-	gEnv->pAudioSystem->GetAudioTriggerId("water_exit", m_waterExit);
-	gEnv->pAudioSystem->GetAudioTriggerId("water_dive_in", m_waterDiveIn);
-	gEnv->pAudioSystem->GetAudioTriggerId("water_dive_out", m_waterDiveOut);
-	gEnv->pAudioSystem->GetAudioParameterId("water_in_out_speed", m_waterInOutSpeed);
+	m_waterEnter = CryAudio::StringToId_CompileTime("water_enter");
+	m_waterExit = CryAudio::StringToId_CompileTime("water_exit");
+	m_waterDiveIn = CryAudio::StringToId_CompileTime("water_dive_in");
+	m_waterDiveOut = CryAudio::StringToId_CompileTime("water_dive_out");
+	m_waterInOutSpeed = CryAudio::StringToId_CompileTime("water_in_out_speed");
 }
 
 CPlayer::~CPlayer()
@@ -1512,6 +1512,23 @@ void CPlayer::ProcessEvent(SEntityEvent& event)
 			}
 		}
 		break;
+	case ENTITY_EVENT_SET_AUTHORITY:
+		{
+			const bool auth = event.nParam[0] ? true : false;
+			// we've been given authority of this entity, mark the physics as changed
+			// so that we send a current position, failure to do this can result in server/client
+			// disagreeing on where the entity is. most likely to happen on restart
+			if (auth)
+			{
+				CHANGED_NETWORK_STATE(this, eEA_Physics | ASPECT_RANK_CLIENT);
+
+				if (g_pGame->IsGameSessionHostMigrating())
+				{
+					// If we're migrating, we've probably set our selected item before we were allowed to, resend it here
+					CHANGED_NETWORK_STATE(this, ASPECT_CURRENT_ITEM);
+				}
+			}
+		}
 	}
 }
 
@@ -2298,7 +2315,11 @@ void CPlayer::SetIK( const SActorFrameMovementParams& frameMovementParams )
 	{
 		if (IsThirdPerson()) 
 		{
-			const Vec3 cameraPosition = GetViewMatrix().GetTranslation();
+			Vec3 cameraPosition;
+			if (IsClient())
+				cameraPosition = GetViewMatrix().GetTranslation();
+			else
+				cameraPosition = curMovementState.eyePosition;
 
 			const Vec3 down = Vec3(0, 0, -1);
 			const float dotProd = curMovementState.aimDirection.dot(down);
@@ -4675,23 +4696,6 @@ void CPlayer::UpdateHealthRegeneration(float fHealth, float frameTime)
 	}
 }
 
-void CPlayer::SetAuthority( bool auth )
-{
-	// we've been given authority of this entity, mark the physics as changed
-	// so that we send a current position, failure to do this can result in server/client
-	// disagreeing on where the entity is. most likely to happen on restart
-	if(auth)
-	{
-		CHANGED_NETWORK_STATE(this, eEA_Physics|ASPECT_RANK_CLIENT);
-
-		if (g_pGame->IsGameSessionHostMigrating())
-		{
-			// If we're migrating, we've probably set our selected item before we were allowed to, resend it here
-			CHANGED_NETWORK_STATE(this, ASPECT_CURRENT_ITEM);
-		}
-	}
-}
-
 //------------------------------------------------------------------------
 
 void CPlayer::SetAngles(const Ang3 &angles) 
@@ -5733,6 +5737,14 @@ void CPlayer::OnLocalSpectatorStateSerialize(CActor::EActorSpectatorState newSta
 void CPlayer::PostSerialize()
 {
 	CActor::PostSerialize();
+
+	if (IScriptTable* pScriptTable = GetEntity()->GetScriptTable())
+	{
+		if (pScriptTable->HaveValue("OnPlayerPostSerialize"))
+		{
+			Script::CallMethod(pScriptTable, "OnPlayerPostSerialize");
+		}
+	}
 
 	StateMachineHandleEventMovement( SStateEvent( STATE_EVENT_POST_SERIALIZE ) );
 
@@ -7405,7 +7417,7 @@ void CPlayer::AnimationEvent(ICharacterInstance *pCharacter, const AnimEventInst
 			//Only client ones (the rest are processed in AudioProxy)
 			if (isClient && m_pIEntityAudioComponent)
 			{
-				CryAudio::AuxObjectId nAudioProxyID = CryAudio::InvalidAuxObjectId;
+				CryAudio::AuxObjectId auxObjectId = CryAudio::InvalidAuxObjectId;
 
 				if (event.m_BonePathName && event.m_BonePathName[0] && pCharacter)
 				{
@@ -7414,23 +7426,18 @@ void CPlayer::AnimationEvent(ICharacterInstance *pCharacter, const AnimEventInst
 					int nJointID = rIDefaultSkeleton.GetJointIDByName(event.m_BonePathName);
 					if (nJointID >= 0)
 					{
-						nAudioProxyID = stl::find_in_map(m_cJointAudioProxies, nJointID, CryAudio::InvalidAuxObjectId);
-						if (nAudioProxyID == CryAudio::InvalidAuxObjectId)
+						auxObjectId = stl::find_in_map(m_cJointAudioProxies, nJointID, CryAudio::InvalidAuxObjectId);
+						if (auxObjectId == CryAudio::InvalidAuxObjectId)
 						{
-							nAudioProxyID = m_pIEntityAudioComponent->CreateAudioAuxObject();
-							m_cJointAudioProxies[nJointID] = nAudioProxyID;
+							auxObjectId = m_pIEntityAudioComponent->CreateAudioAuxObject();
+							m_cJointAudioProxies[nJointID] = auxObjectId;
 						}
 
-						m_pIEntityAudioComponent->SetAudioAuxObjectOffset(Matrix34(pSkeletonPose->GetAbsJointByID(nJointID)), nAudioProxyID);
+						m_pIEntityAudioComponent->SetAudioAuxObjectOffset(Matrix34(pSkeletonPose->GetAbsJointByID(nJointID)), auxObjectId);
 					}
 				}
-				CryAudio::ControlId nTriggerID = CryAudio::InvalidControlId;
-				gEnv->pAudioSystem->GetAudioTriggerId(event.m_CustomParameter, nTriggerID);
-
-				if (nTriggerID != CryAudio::InvalidControlId)
-				{
-					m_pIEntityAudioComponent->ExecuteTrigger(nTriggerID, nAudioProxyID);
-				}
+				CryAudio::ControlId const triggerId = CryAudio::StringToId_RunTime(event.m_CustomParameter);
+				m_pIEntityAudioComponent->ExecuteTrigger(triggerId, auxObjectId);
 
 				REINST("needs verification!");
 				/*int flags = FLAG_SOUND_DEFAULT_3D;
@@ -9192,19 +9199,19 @@ void SNetPlayerProgression::SyncOnLocalPlayer(const bool serialized/* = true*/)
 		bool  changeNetState = false;
 
 		newVal = pp->GetData(EPP_XP);
-		newVal = MIN(newVal, 0xffff);
+		newVal = std::min((int)newVal, (int)0xffff);
 		if (serialized && (m_serVals.xp != newVal))
 			changeNetState = true;
 		m_serVals.xp = newVal;
 
 		newVal = pp->GetData(EPP_Rank);
-		newVal = MIN(newVal, 0xff);
+		newVal = std::min((int)newVal, (int)0xff);
 		if (serialized && (m_serVals.rank != newVal))
 			changeNetState = true;
 		m_serVals.rank = newVal;
 
 		newVal = pp->GetData(EPP_Reincarnate);
-		newVal = MIN(newVal, 0xff);
+		newVal = std::min((int)newVal, (int)0xff);
 		if (serialized && (m_serVals.reincarnations != newVal))
 			changeNetState = true;
 		m_serVals.reincarnations = newVal;

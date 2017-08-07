@@ -310,11 +310,6 @@ void CInteractiveObjectEx::SetChannelId( uint16 id )
 
 }
 
-void CInteractiveObjectEx::SetAuthority( bool auth )
-{
-
-}
-
 void CInteractiveObjectEx::GetMemoryUsage(ICrySizer *pSizer) const
 {
 	pSizer->AddObject(this, sizeof(*this));

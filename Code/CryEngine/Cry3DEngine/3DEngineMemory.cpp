@@ -18,7 +18,7 @@ namespace util
 {
 void* pool_allocate(size_t nSize)
 {
-	return CTemporaryPool::Get()->Allocate(nSize, 8);
+	return CTemporaryPool::Get()->Allocate(nSize, 16);  // Align for possible SIMD types
 }
 void pool_free(void* ptr)
 {

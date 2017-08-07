@@ -297,7 +297,7 @@ struct SInputLayout
   float4 Tangent  : TANGENT;
 #endif
 #if %_FT_TANGENT_STREAM
-  float4 Binormal : BINORMAL;
+  float4 Binormal : BITANGENT;
 #endif
 #if %_FT_SKIN_STREAM
   IN_SKIN_STREAM

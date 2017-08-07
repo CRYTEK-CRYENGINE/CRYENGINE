@@ -20,8 +20,4 @@ private:
 	CStretchRectPass  m_passAlbedoDownsample1;
 	CStretchRectPass  m_passAlbedoDownsample2;
 	CGaussianBlurPass m_passAlbedoBlur;
-
-	int32             m_samplerPoint;
-	int32             m_samplerLinear;
-	int32             m_samplerPointWrap;
 };

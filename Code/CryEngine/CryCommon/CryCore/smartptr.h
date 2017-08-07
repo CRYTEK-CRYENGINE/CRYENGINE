@@ -29,7 +29,7 @@ public:
 			p->AddRef();
 	}
 
-	_smart_ptr(_smart_ptr&& p_)
+	_smart_ptr(_smart_ptr&& p_) noexcept
 	{
 		p = p_.p;
 		p_.p = nullptr;

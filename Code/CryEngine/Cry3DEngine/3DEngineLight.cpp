@@ -127,9 +127,6 @@ void C3DEngine::FindPotentialLightSources(const SRenderingPassInfo& passInfo)
 	static ICVar* pCV_r_wireframe = GetConsole()->GetCVar("r_wireframe");
 	if (pCV_r_wireframe && pCV_r_wireframe->GetIVal() == R_WIREFRAME_MODE)
 		return;
-	static ICVar* pCV_e_sketch_mode = gEnv->pConsole->GetCVar("e_SketchMode");
-	if (pCV_e_sketch_mode && pCV_e_sketch_mode->GetIVal() == 4) // 4 is set by setting CV_r_TexelsPerMeter ration to != 0
-		return;
 #endif
 	const Vec3 vCamPos = passInfo.GetCamera().GetPosition();
 

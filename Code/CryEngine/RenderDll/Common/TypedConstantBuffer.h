@@ -1,6 +1,7 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
+
 #include "DevBuffer.h"
 #include "DriverD3D.h"
 
@@ -31,10 +32,13 @@ public:
 		return m_constantBuffer;
 	}
 
+	template<typename S>
+	static CD3D9Renderer* ForceTwoPhase() { extern CD3D9Renderer gcpRendD3D; return &gcpRendD3D; }
+
 	void CreateDeviceBuffer()
 	{
 		int size = sizeof(T);
-		m_constantBuffer = gcpRendD3D->m_DevBufMan.CreateConstantBuffer(size); // TODO: this could be a good candidate for dynamic=false
+		m_constantBuffer = ForceTwoPhase<T>()->m_DevBufMan.CreateConstantBuffer(size); // TODO: this could be a good candidate for dynamic=false
 		CopyToDevice();
 	}
 	

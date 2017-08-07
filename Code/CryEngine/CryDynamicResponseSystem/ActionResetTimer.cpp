@@ -47,5 +47,3 @@ void CActionResetTimerVariable::Serialize(Serialization::IArchive& ar)
 	}
 #endif
 }
-
-REGISTER_DRS_ACTION(CActionResetTimerVariable, "ResetTimerVariable", DEFAULT_DRS_ACTION_COLOR);

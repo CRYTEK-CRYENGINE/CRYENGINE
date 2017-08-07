@@ -168,97 +168,102 @@ StackSizeKB:
 	<!-- ============= -->
 	<Platform name="Orbis">
 		<ThreadDefault Affinity="1,2,3" Priority="Normal" StackSizeKB="64"/>
-		
+
 		<!-- [PROCESS] -->
 		<Thread name ="Main" Affinity="0" Priority="Above_Normal"/>
-		
+
 		<!-- [ORBIS - SPECIFIC] -->
-		<Thread name ="CCryPSNReward_COrbisTrophyThread"/>	
-		<Thread name ="COrbisWebApiThread"/>	
-				
+		<Thread name ="CCryPSNReward_COrbisTrophyThread"/>
+		<Thread name ="COrbisWebApiThread"/>
+
 		<!-- [RenderDLL] -->
 		<Thread name ="RenderThread" Affinity="4" Priority="Highest" StackSizeKB="128"/>
 		<Thread name ="RenderLoadingThread" Affinity="5" Priority="Above_Normal" StackSizeKB="128"/>
-		<Thread name ="ShaderCompile" Affinity="5"/>	
+		<Thread name ="ShaderCompile" Affinity="5"/>
+		<Thread name ="GnmDeviceThread" Affinity="4,5" Priority="time_critical" StackSizeKB="32" />
 
-			<!-- [SYSTEM] -->
-		<Thread name ="GFxMeshCacheReset"/>		
-		<Thread name ="MTrace NetPump" Priority="25"/>		
+		<!-- [RenderDLL - Internal] -->
+		<Thread name ="SceVideoOutServiceThread" Affinity="4,5" Priority="Above_Normal" />
+		<Thread name ="SceVideoOutAuxEqueue" Affinity="4,5" Priority="Above_Normal" />
+
+		<!-- [SYSTEM] -->
+		<Thread name ="GFxMeshCacheReset"/>
+		<Thread name ="MTrace NetPump" Priority="25"/>
 		<Thread name ="NotificationNetwork"/>
-		<Thread name ="ReplayRecord"/>		
+		<Thread name ="ReplayRecord"/>
 		<Thread name ="ResourceActivator"/>
-		<Thread name ="StatoscopeDataWriter"/>	
-		<Thread name ="Stroboscope"/>		
+		<Thread name ="StatoscopeDataWriter"/>
+		<Thread name ="Stroboscope"/>
 		<Thread name ="RemoteCommandClient"/>
-		<Thread name ="RemoteCommandServer"/>	
+		<Thread name ="RemoteCommandServer"/>
 		<Thread name ="ServiceNetwork" Affinity="5"/>
 		<Thread name ="SysCrashTestOnThread"/>
-		
+
 		<!-- [SYSTEM] - JobSystem -->
 		<Thread name ="JobSystem_Worker_0 (Blocking)" Affinity="5"/>
 
 		<Thread name ="JobSystem_Worker_0" Affinity="1" StackSizeKB="256"/>
 		<Thread name ="JobSystem_Worker_1" Affinity="2" StackSizeKB="256"/>
 		<Thread name ="JobSystem_Worker_2" Affinity="3" StackSizeKB="256"/>
-		<Thread name ="JobSystem_Worker_3" Affinity="5" StackSizeKB="256"/>	
-		
+		<Thread name ="JobSystem_Worker_3" Affinity="5" StackSizeKB="256"/>
+
 		<!-- [SYSTEM] - Physics -->
 		<Thread name ="Physics"  StackSizeKB="128"/>
-		<Thread name ="PhysicsWorkerThread_*" StackSizeKB="128"/>	
-		
+		<Thread name ="PhysicsWorkerThread_*" StackSizeKB="128"/>
+
 		<!-- [SYSTEM] - Streaming -->
 		<Thread name ="Streaming File IO HDD" Priority="Above_Normal" Affinity="6"/>
 		<Thread name ="Streaming File IO Optical" Priority="Above_Normal" Affinity="6"/>
-		<Thread name ="Streaming File IO InMemory" Priority="Above_Normal" Affinity="6"/>		
+		<Thread name ="Streaming File IO InMemory" Priority="Above_Normal" Affinity="6"/>
 
 		<Thread name ="Streaming AsyncCallback" Affinity="6"/>
 		<Thread name ="Streaming AsyncCallback Pak 0" Affinity="6"/>
 
 		<!-- [SYSTEM] - Console -->
 		<Thread name ="RemoteConsoleServer"/>
-		<Thread name ="RemoteConsoleClient"/>	
-		
+		<Thread name ="RemoteConsoleClient"/>
+
 		<!-- [NETWORK] -->
 		<Thread name ="Network"/>
-		<Thread name ="ServerProbe"/>		
+		<Thread name ="ServerProbe"/>
 		<Thread name ="NetworkDebugKit"/>
 		<Thread name ="NetFileDownload"/>
 		<Thread name ="NetworkWatchdog"/>
 		<Thread name ="NetAddressSolver"/>
-		
+
 		<!-- [AI] -->
 		<Thread name ="NavigationSystemBackgroundUpdate"/>
-		
-		<!-- [AUDIO] -->		
+
+		<!-- [AUDIO] -->
 		<Thread name ="MainAudioThread" Priority="below_normal" StackSize="ignore"/>
-		
+
 		<Thread name ="AuxWwiseAudioThread" StackSize="ignore"/>
 		<Thread name ="Wwise_Device" Affinity="5" Priority="ignore" StackSize="ignore"/>
 		<Thread name ="Wwise_BankManager" Affinity="5" Priority="ignore" StackSize="ignore"/>
 		<Thread name ="Wwise_LEngine" Affinity="5" Priority="ignore" StackSize="ignore"/>
 		<Thread name ="Wwise_Monitor" Affinity="5" Priority="ignore" StackSize="ignore"/>
-		
+
 		<!-- [ACTION] -->
 		<Thread name ="NetworkStallTicker"/>
 		<Thread name ="ZLibCompressor" Priority="Normal" Affinity="6"/>
 		<Thread name ="LevelLoadingThread" Affinity="1" Priority="Above_Normal" StackSizeKB="128"/>
-		
+
 		<!-- [INPUT] -->
 		<Thread name ="InputWorker"/>
 		<Thread name ="Synergy"/>
-		
+
 		<!-- [LIVE_CREATE]-->
-		<Thread name ="LiveCreate_Server"/>	
+		<Thread name ="LiveCreate_Server"/>
 		<Thread name ="LiveCreate_FileSync"/>
 		<Thread name ="LiveCreatePlatformService"/>
-		<Thread name ="LiveCreateUtilityService"/>		
-		
+		<Thread name ="LiveCreateUtilityService"/>
+
 		<!-- [SCALEFORM][3rd Party] -->
-		<Thread name ="GFxVideo_SoundUpdate" Affinity="5" Priority="time_critical" DisablePriorityBoost="ignore" StackSizeKB="ignore"/>	
-		<Thread name ="GFxVideo_Decoder" Affinity="5" Priority="highest" DisablePriorityBoost="ignore" StackSizeKB="ignore"/>	
-		<Thread name ="GFxVideo_Reader" Affinity="6" Priority="highest" DisablePriorityBoost="ignore" StackSizeKB="ignore"/>	
-	</Platform> 	
-	
+		<Thread name ="GFxVideo_SoundUpdate" Affinity="5" Priority="time_critical" DisablePriorityBoost="ignore" StackSizeKB="ignore"/>
+		<Thread name ="GFxVideo_Decoder" Affinity="5" Priority="highest" DisablePriorityBoost="ignore" StackSizeKB="ignore"/>
+		<Thread name ="GFxVideo_Reader" Affinity="6" Priority="highest" DisablePriorityBoost="ignore" StackSizeKB="ignore"/>
+	</Platform>
+
 	<!-- ============ -->
 	<!-- === PC_Common === -->
 	<!-- ============ -->

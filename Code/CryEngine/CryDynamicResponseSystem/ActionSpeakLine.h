@@ -50,7 +50,7 @@ class CActionSpeakLineInstance final : public DRS::IResponseActionInstance, DRS:
 {
 public:
 	CActionSpeakLineInstance(CResponseActor* pSpeaker, const CHashedString& lineID, CResponseInstance* pResponseInstance, uint32 flags);
-	~CActionSpeakLineInstance();
+	virtual ~CActionSpeakLineInstance() override;
 
 	//////////////////////////////////////////////////////////
 	// IResponseActionInstance implementation

@@ -144,7 +144,7 @@ public:
 	// <interfuscator:shuffle>
 	virtual EFlareType          GetType() = 0;
 	virtual bool                IsGroup() const = 0;
-	virtual string              GetName() const = 0;
+	virtual const char*         GetName() const = 0;
 	virtual void                SetName(const char* ch_name) = 0;
 	virtual void                Load(IXmlNode* pNode) = 0;
 

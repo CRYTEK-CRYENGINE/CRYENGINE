@@ -29,6 +29,8 @@
 
 #include <CryAISystem/IPathfinder.h>
 
+class CAIObject;
+
 typedef std::vector<Vec3> TVectorOfVectors;
 
 //===================================================================

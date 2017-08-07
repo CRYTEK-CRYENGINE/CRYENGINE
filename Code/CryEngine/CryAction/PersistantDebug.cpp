@@ -329,6 +329,8 @@ void CPersistantDebug::Update(float frameTime)
 				break;
 			case eOT_Text3D:
 				{
+					if ((uint8)(clr.a * 255) == 0) // Font renderer ignores the color when alpha==0
+						continue;
 					IRenderAuxText::DrawText(iterList->pos, iterList->radius, clr, eDrawText_FixedSize | eDrawText_800x600, iterList->text.c_str());
 				}
 				break;

@@ -6,7 +6,7 @@ namespace pfx2
 namespace detail
 {
 
-ILINE floatv LoadIndexed4(const float* __restrict pStream, const uint32v index, float defaultVal)
+ILINE floatv LoadIndexed4(const float* __restrict pStream, const uint32v index, floatv defaultVal)
 {
 	const mask32v4 mask = index == convert<uint32v>(gInvalidId);
 	const uint32v mIndex = _mm_andnot_si128(mask, index);
@@ -26,7 +26,12 @@ ILINE floatv LoadIndexed4(const float* __restrict pStream, const uint32v index, 
 		output = _mm_or_ps(v0, _mm_and_ps(output, m));
 	}
 
-	return if_else(mask, convert<floatv>(defaultVal), output);
+	return if_else(mask, defaultVal, output);
+}
+
+ILINE floatv LoadIndexed4(const float* __restrict pStream, const uint32v index, float defaultVal)
+{
+	return LoadIndexed4(pStream, index, to_v4(defaultVal));
 }
 
 }
@@ -35,92 +40,97 @@ ILINE floatv LoadIndexed4(const float* __restrict pStream, const uint32v index, 
 // floatv
 
 template<>
-ILINE floatv TIStream<float, floatv >::Load(TParticleGroupId pgId) const
+ILINE floatv TIOStream<float>::Load(TParticleGroupId pgId) const
 {
 	return _mm_load_ps(m_pStream + pgId);
 }
 
 template<>
-ILINE floatv TIStream<float, floatv >::Load(TParticleIdv pIdv, float defaultVal) const
+ILINE void TIOStream<float>::Store(TParticleGroupId pgId, floatv value)
 {
-	return detail::LoadIndexed4(m_pStream, pIdv, defaultVal);
+	_mm_store_ps(m_pStream + pgId, value);
 }
 
 template<>
-ILINE floatv TIStream<float, floatv >::SafeLoad(TParticleGroupId pgId) const
+ILINE floatv TIStream<float>::SafeLoad(TParticleGroupId pgId) const
 {
 	return _mm_load_ps(m_pStream + (pgId & m_safeMask));
 }
 
 template<>
-ILINE void TIOStream<float, floatv >::Store(TParticleGroupId pgId, floatv value)
+ILINE floatv TIStream<float>::SafeLoad(TParticleIdv pIdv) const
 {
-	_mm_store_ps(const_cast<float*>(m_pStream) + pgId, value);
+	if (!m_safeMask)
+		return m_safeSink;
+	return detail::LoadIndexed4(m_pStream, pIdv, m_safeSink);
 }
 
 //////////////////////////////////////////////////////////////////////////
 // uint32
 
 template<>
-ILINE uint32v TIStream<uint32, uint32v >::Load(TParticleGroupId pgId) const
+ILINE uint32v TIOStream<uint32>::Load(TParticleGroupId pgId) const
 {
 	return _mm_load_si128(reinterpret_cast<const __m128i*>(m_pStream + pgId));
 }
 
 template<>
-ILINE uint32v TIStream<uint32, uint32v >::Load(TParticleIdv pIdv, uint32 defaultVal) const
+ILINE void TIOStream<uint32>::Store(TParticleGroupId pgId, uint32v value)
 {
-	const float defaultValF = _mm_cvtss_f32(_mm_castsi128_ps(_mm_set1_epi32(defaultVal)));
-	const float* streamF = reinterpret_cast<const float*>(m_pStream);
-	__m128 dataF = detail::LoadIndexed4(streamF, pIdv, defaultValF);
-	return _mm_castps_si128(dataF);
+	_mm_store_si128(reinterpret_cast<__m128i*>(m_pStream + pgId), value);
 }
 
 template<>
-ILINE uint32v TIStream<uint32, uint32v >::SafeLoad(TParticleGroupId pgId) const
+ILINE uint32v TIStream<uint32>::SafeLoad(TParticleGroupId pgId) const
 {
 	return _mm_load_si128(reinterpret_cast<const __m128i*>(m_pStream + (pgId & m_safeMask)));
 }
 
 template<>
-ILINE void TIOStream<uint32, uint32v >::Store(TParticleGroupId pgId, uint32v value)
+ILINE uint32v TIStream<uint32>::SafeLoad(TParticleIdv pIdv) const
 {
-	_mm_store_si128(reinterpret_cast<__m128i*>(const_cast<uint32*>(m_pStream) + pgId), value);
+	if (!m_safeMask)
+		return m_safeSink;
+	const float* streamF = reinterpret_cast<const float*>(m_pStream);
+	auto dataF = detail::LoadIndexed4(streamF, pIdv, vcast<floatv>(m_safeSink));
+	return vcast<uint32v>(dataF);
 }
 
 //////////////////////////////////////////////////////////////////////////
 // UColv
 
 template<>
-ILINE UColv TIStream<UCol, UColv >::Load(TParticleGroupId pgId) const
+ILINE UColv TIOStream<UCol>::Load(TParticleGroupId pgId) const
 {
 	return _mm_load_si128(reinterpret_cast<const __m128i*>(m_pStream + pgId));
 }
 
 template<>
-ILINE UColv TIStream<UCol, UColv >::Load(TParticleIdv pIdv, UCol defaultVal) const
+ILINE void TIOStream<UCol>::Store(TParticleGroupId pgId, UColv value)
 {
-	const float defaultValF = _mm_cvtss_f32(_mm_castsi128_ps(_mm_set1_epi32(defaultVal.dcolor)));
-	const float* streamF = reinterpret_cast<const float*>(m_pStream);
-	__m128 dataF = detail::LoadIndexed4(streamF, pIdv, defaultValF);
-	return _mm_castps_si128(dataF);
+	_mm_store_si128(reinterpret_cast<__m128i*>(const_cast<UCol*>(m_pStream) + pgId), value);
 }
 
 template<>
-ILINE UColv TIStream<UCol, UColv >::SafeLoad(TParticleGroupId pgId) const
+ILINE UColv TIStream<UCol>::SafeLoad(TParticleGroupId pgId) const
 {
 	return _mm_load_si128(reinterpret_cast<const __m128i*>(m_pStream + (pgId & m_safeMask)));
 }
 
 template<>
-ILINE void TIOStream<UCol, UColv >::Store(TParticleGroupId pgId, UColv value)
+ILINE UColv TIStream<UCol>::SafeLoad(TParticleIdv pIdv) const
 {
-	_mm_store_si128(reinterpret_cast<__m128i*>(const_cast<UCol*>(m_pStream) + pgId), value);
+	if (!m_safeMask)
+		return m_safeSink;
+	const float* streamF = reinterpret_cast<const float*>(m_pStream);
+	auto dataF = detail::LoadIndexed4(streamF, pIdv, vcast<floatv>(m_safeSink));
+	return vcast<UColv>(dataF);
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Vec3v
 
-ILINE Vec3v IVec3Stream::Load(TParticleGroupId pgId) const
+ILINE Vec3v IOVec3Stream::Load(TParticleGroupId pgId) const
 {
 	return Vec3v(
 		_mm_load_ps(m_pXStream + pgId),
@@ -128,12 +138,11 @@ ILINE Vec3v IVec3Stream::Load(TParticleGroupId pgId) const
 		_mm_load_ps(m_pZStream + pgId));
 }
 
-ILINE Vec3v IVec3Stream::Load(TParticleIdv pIdv, Vec3 defaultVal) const
+ILINE void IOVec3Stream::Store(TParticleGroupId pgId, const Vec3v& value)
 {
-	return Vec3v(
-		detail::LoadIndexed4(m_pXStream, pIdv, defaultVal.x),
-		detail::LoadIndexed4(m_pYStream, pIdv, defaultVal.y),
-		detail::LoadIndexed4(m_pZStream, pIdv, defaultVal.z));
+	_mm_store_ps(const_cast<float*>(m_pXStream) + pgId, value.x);
+	_mm_store_ps(const_cast<float*>(m_pYStream) + pgId, value.y);
+	_mm_store_ps(const_cast<float*>(m_pZStream) + pgId, value.z);
 }
 
 ILINE Vec3v IVec3Stream::SafeLoad(TParticleGroupId pgId) const
@@ -144,14 +153,20 @@ ILINE Vec3v IVec3Stream::SafeLoad(TParticleGroupId pgId) const
 		_mm_load_ps(m_pZStream + (pgId & m_safeMask)));
 }
 
-ILINE void IOVec3Stream::Store(TParticleGroupId pgId, const Vec3v& value) const
+ILINE Vec3v IVec3Stream::SafeLoad(TParticleIdv pIdv) const
 {
-	_mm_store_ps(const_cast<float*>(m_pXStream) + pgId, value.x);
-	_mm_store_ps(const_cast<float*>(m_pYStream) + pgId, value.y);
-	_mm_store_ps(const_cast<float*>(m_pZStream) + pgId, value.z);
+	if (!m_safeMask)
+		return m_safeSink;
+	return Vec3v(
+		detail::LoadIndexed4(m_pXStream, pIdv, m_safeSink.x),
+		detail::LoadIndexed4(m_pYStream, pIdv, m_safeSink.y),
+		detail::LoadIndexed4(m_pZStream, pIdv, m_safeSink.z));
 }
 
-ILINE Quatv IQuatStream::Load(TParticleGroupId pgId) const
+//////////////////////////////////////////////////////////////////////////
+// Quatv
+
+ILINE Quatv IOQuatStream::Load(TParticleGroupId pgId) const
 {
 	return Quatv(
 		_mm_load_ps(m_pWStream + pgId),
@@ -160,13 +175,12 @@ ILINE Quatv IQuatStream::Load(TParticleGroupId pgId) const
 		_mm_load_ps(m_pZStream + pgId));
 }
 
-ILINE Quatv IQuatStream::Load(TParticleIdv pIdv, Quat defaultVal) const
+ILINE void IOQuatStream::Store(TParticleGroupId pgId, const Quatv& value)
 {
-	return Quatv(
-		detail::LoadIndexed4(m_pWStream, pIdv, defaultVal.w),
-		detail::LoadIndexed4(m_pXStream, pIdv, defaultVal.v.x),
-		detail::LoadIndexed4(m_pYStream, pIdv, defaultVal.v.y),
-		detail::LoadIndexed4(m_pZStream, pIdv, defaultVal.v.z));
+	_mm_store_ps(m_pWStream + pgId, value.w);
+	_mm_store_ps(m_pXStream + pgId, value.v.x);
+	_mm_store_ps(m_pYStream + pgId, value.v.y);
+	_mm_store_ps(m_pZStream + pgId, value.v.z);
 }
 
 ILINE Quatv IQuatStream::SafeLoad(TParticleGroupId pgId) const
@@ -178,12 +192,15 @@ ILINE Quatv IQuatStream::SafeLoad(TParticleGroupId pgId) const
 		_mm_load_ps(m_pZStream + (pgId & m_safeMask)));
 }
 
-ILINE void IOQuatStream::Store(TParticleGroupId pgId, const Quatv& value) const
+ILINE Quatv IQuatStream::SafeLoad(TParticleIdv pIdv) const
 {
-	_mm_store_ps(const_cast<float*>(m_pWStream) + pgId, value.w);
-	_mm_store_ps(const_cast<float*>(m_pXStream) + pgId, value.v.x);
-	_mm_store_ps(const_cast<float*>(m_pYStream) + pgId, value.v.y);
-	_mm_store_ps(const_cast<float*>(m_pZStream) + pgId, value.v.z);
+	if (!m_safeMask)
+		return m_safeSink;
+	return Quatv(
+		detail::LoadIndexed4(m_pWStream, pIdv, m_safeSink.w),
+		detail::LoadIndexed4(m_pXStream, pIdv, m_safeSink.v.x),
+		detail::LoadIndexed4(m_pYStream, pIdv, m_safeSink.v.y),
+		detail::LoadIndexed4(m_pZStream, pIdv, m_safeSink.v.z));
 }
 
 }

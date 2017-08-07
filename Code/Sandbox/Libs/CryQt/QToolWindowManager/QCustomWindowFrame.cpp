@@ -146,8 +146,15 @@ void QCustomTitleBar::showSystemMenu(QPoint p)
 
 	QWidget* screen = qApp->desktop()->screen(qApp->desktop()->screenNumber(p));
 	p = screen->mapFromGlobal(p);
-	p.setX(p.x() * screen->devicePixelRatioF());
-	p.setY(p.y() * screen->devicePixelRatioF());
+
+#if QT_VERSION < 0x050600
+	const float pixelRatio = 1;
+#else
+	const float pixelRatio = screen->devicePixelRatioF();
+#endif
+
+	p.setX(p.x() * pixelRatio);
+	p.setY(p.y() * pixelRatio);
 	p = screen->mapToGlobal(p);
 
 	HWND hWnd = (HWND)parentWidget()->winId();
@@ -259,6 +266,7 @@ void QCustomTitleBar::onFrameContentsChanged(QWidget* newContents)
 {
 	m_minimizeButton->setVisible(parentWidget()->windowFlags() & Qt::WindowMinimizeButtonHint || parentWidget()->windowFlags() & Qt::MSWindowsFixedSizeDialogHint);
 	m_maximizeButton->setVisible(parentWidget()->windowFlags() & Qt::WindowMaximizeButtonHint || parentWidget()->windowFlags() & Qt::MSWindowsFixedSizeDialogHint);
+	m_closeButton->setVisible(parentWidget()->windowFlags() & Qt::WindowCloseButtonHint);
 
 	QString winTitle = parentWidget()->windowTitle();
 	if (!winTitle.size())
@@ -651,11 +659,18 @@ bool QCustomWindowFrame::winEvent(MSG *msg, long *result)
 			mmi->ptMaxSize.x = mi2Width;
 			mmi->ptMaxSize.y = mi2Height;
 		}
-		setMaximumSize(mi2Width / devicePixelRatioF(), mi2Height / devicePixelRatioF()); //Ensure window will not overlap taskbar
-		mmi->ptMaxTrackSize.x = min(this->maximumWidth() * devicePixelRatioF(), GetSystemMetrics(SM_CXMAXTRACK));
-		mmi->ptMaxTrackSize.y = min(this->maximumHeight() * devicePixelRatioF(), GetSystemMetrics(SM_CYMAXTRACK));
-		mmi->ptMinTrackSize.x = this->minimumWidth() * devicePixelRatioF();
-		mmi->ptMinTrackSize.y = this->minimumHeight() * devicePixelRatioF();
+
+#if QT_VERSION < 0x050600
+		const float pixelRatio = 1;
+#else
+		const float pixelRatio = devicePixelRatioF();
+#endif
+
+		setMaximumSize(mi2Width / pixelRatio, mi2Height / pixelRatio); //Ensure window will not overlap taskbar
+		mmi->ptMaxTrackSize.x = min(this->maximumWidth() * pixelRatio, GetSystemMetrics(SM_CXMAXTRACK));
+		mmi->ptMaxTrackSize.y = min(this->maximumHeight() * pixelRatio, GetSystemMetrics(SM_CYMAXTRACK));
+		mmi->ptMinTrackSize.x = this->minimumWidth() * pixelRatio;
+		mmi->ptMinTrackSize.y = this->minimumHeight() * pixelRatio;
 		*result = 0;
 		return true;
 	}

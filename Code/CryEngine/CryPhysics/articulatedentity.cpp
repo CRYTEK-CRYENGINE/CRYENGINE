@@ -383,7 +383,15 @@ int CArticulatedEntity::SetParams(pe_params *_params, int bThreadSafe)
 							m_joints[i].pivot[0] = (m_qrot*!prevq)*m_joints[i].pivot[0];
 					}
 				}
-				m_bPartPosForced |= 2;
+				if (m_iSimClass > 2)
+					m_bPartPosForced |= 2;
+				else for(int i=0;i<m_nJoints;i++) {
+					int j = m_joints[i].iStartPart;
+					m_joints[i].quat = m_qrot*m_parts[j].q*!m_infos[j].q0;
+					m_joints[i].body.pos = m_qrot*m_parts[j].pos-m_joints[i].quat*m_infos[j].pos0+m_pos;
+					m_joints[i].body.q = m_joints[i].quat*!m_joints[i].body.qfb;
+					SyncJointWithBody(i);
+				}
 				m_posPivot = m_pos + m_offsPivot;
 			}
 		}
@@ -502,7 +510,7 @@ int CArticulatedEntity::SetParams(pe_params *_params, int bThreadSafe)
 				m_joints[op[1]].qext[i] = params->qext[i]; nChanges++; 
 				if (!(m_joints[op[1]].flags & angle0_locked<<i) && 
 						isneg(m_joints[op[1]].limits[0][i]-m_joints[op[1]].qext[i]) + isneg(m_joints[op[1]].qext[i]-m_joints[op[1]].limits[1][i]) + 
-						isneg(m_joints[op[1]].limits[1][i]-m_joints[op[1]].limits[1][i]) < 2) 
+						isneg(m_joints[op[1]].limits[1][i]-m_joints[op[1]].limits[0][i]) < 2) 
 				{	// qext violates limits; adjust the limits
 					float diff[2];
 					diff[0] = m_joints[op[1]].limits[0][i]-m_joints[op[1]].qext[i];
@@ -898,7 +906,7 @@ int CArticulatedEntity::Action(pe_action *_action, int bThreadSafe)
 			}
 		}
 
-		if ((unsigned int)i>=(unsigned int)m_nParts || (unsigned int)(j=m_infos[i].iJoint)>=(unsigned int)m_nJoints || m_joints[j].flags & joint_ignore_impulses)
+		if ((unsigned int)i>=(unsigned int)m_nParts || (unsigned int)(j=m_infos[i].iJoint)>=(unsigned int)m_nJoints || (!action->iSource && m_joints[j].flags & joint_ignore_impulses))
 			return 0;
 		if (action->iSource==0) {
 			if (action->impulse.len2()<sqr(m_joints[j].body.M*0.04f))
@@ -992,8 +1000,11 @@ int CArticulatedEntity::Action(pe_action *_action, int bThreadSafe)
 			if ((unsigned int)i>=(unsigned int)m_nParts)
 				return 0;
 			i = m_infos[i].iJoint;
-			if (!is_unused(action->v)) 
+			if (!is_unused(action->v)) {
 				m_joints[i].body.P = (m_joints[i].body.v=action->v)*m_joints[i].body.M;
+				if (i==0)
+					m_body.v = m_joints[i].body.v;
+			}
 			if (!is_unused(action->w))
 				m_joints[i].body.L = m_joints[i].body.q*(m_joints[i].body.Ibody*(!m_joints[i].body.q*(m_joints[i].body.w=action->w)));
 			if (m_joints[i].body.v.len2() > sqr(m_pWorld->m_vars.maxVel)) {
@@ -1059,7 +1070,7 @@ RigidBody *CArticulatedEntity::GetRigidBodyData(RigidBody *pbody, int ipart)
 	return pbody;
 }
 Quat qlerp(const Quat &qlast,const Quat &q0,const Quat q1,float k) { return Quat::CreateNlerp(q1,q0,k)*!q1*qlast; }
-void CArticulatedEntity::GetLocTransformLerped(int ipart, Vec3 &offs, quaternionf &q, float &scale, float k) 
+void CArticulatedEntity::GetLocTransformLerped(int ipart, Vec3 &offs, quaternionf &q, float &scale, float k, const CPhysicalPlaceholder *trg) const 
 {
 	if ((unsigned int)ipart<(unsigned int)m_nParts) {
 		Vec3 pos=m_pos-(m_posHist[1]-m_posHist[0])*k, posPart=m_parts[ipart].pos-(m_infos[ipart].posHist[1]-m_infos[ipart].posHist[0])*k;
@@ -1070,6 +1081,7 @@ void CArticulatedEntity::GetLocTransformLerped(int ipart, Vec3 &offs, quaternion
 	} else {
 		q.SetIdentity(); offs.zero(); scale=1.0f;
 	}
+	m_pWorld->TransformToGrid(this,trg, offs,q);
 }
 
 void CArticulatedEntity::UpdatePosition(int bGridLocked)
@@ -1083,7 +1095,7 @@ void CArticulatedEntity::UpdatePosition(int bGridLocked)
 		m_parts[i].BBox[0] = m_parts[i].pNewCoords->BBox[0]; m_parts[i].BBox[1] = m_parts[i].pNewCoords->BBox[1];
 	}
 	m_BBox[0]=m_BBoxNew[0]; m_BBox[1]=m_BBoxNew[1];
-	JobAtomicAdd(&m_pWorld->m_lockGrid,-bGridLocked);
+	m_pWorld->UnlockGrid(this,-bGridLocked);
 }
 
 void CArticulatedEntity::UpdateJointDyn()
@@ -1113,6 +1125,7 @@ int CArticulatedEntity::SyncWithHost(int bRecalcJoints, float time_interval)
 		pe_params_pos pp;
 		pp.pos = m_posPivot - m_offsPivot;
 		pp.q = m_pHost->m_qrot*m_qHostPivot;
+		pp.pGridRefEnt = m_pHost;
 		pp.bRecalcBounds = 0;
 		if (!m_bAwake || m_body.M<=0 || m_flags & aef_recorded_physics)
 			SetParams(&pp,1);
@@ -1310,7 +1323,7 @@ int CArticulatedEntity::Step(float time_interval)
 			m_joints[i].q.Set(0,0,0);
 			for (j=0;j<3;j++) if (!(m_joints[i].flags & angle0_locked<<j) && 
 					isneg(m_joints[i].limits[0][j]-m_joints[i].qext[j]) + isneg(m_joints[i].qext[j]-m_joints[i].limits[1][j]) + 
-					isneg(m_joints[i].limits[1][j]-m_joints[i].limits[1][j]) < 2) 
+					isneg(m_joints[i].limits[1][j]-m_joints[i].limits[0][j]) < 2) 
 			{	// qext violates limits; adjust the limits
 				float diff[2];
 				diff[0] = m_joints[i].limits[0][j]-m_joints[i].qext[j];
@@ -1368,7 +1381,7 @@ int CArticulatedEntity::Step(float time_interval)
 		m_bSteppedBack = 0;
 
 		// do not request step back if we were in deep penetration state initially
-		i = m_iSimTypeCur | isneg(m_maxPenetrationCur-0.07f) | isneg(0.07f-maxPenetrationPrev);
+		i = 1;//m_iSimTypeCur | isneg(m_maxPenetrationCur-0.07f) | isneg(0.07f-maxPenetrationPrev);
 		if (!i)
 			m_simTimeAux = 0;
 		return UpdateHistory(i | isneg(3-(int)m_nStepBackCount));
@@ -1566,7 +1579,8 @@ float CArticulatedEntity::CalcEnergy(float time_interval)
 	}
 
 	for(i=0; i<m_nJoints; i++)
-		E += m_joints[i].body.M*(m_joints[i].body.v+m_joints[i].ddq).len2() + m_joints[i].body.L*m_joints[i].body.w;
+		E += m_joints[i].body.M*(m_joints[i].body.v+m_joints[i].ddq).len2() + m_joints[i].body.L*m_joints[i].body.w +
+		     m_joints[i].Pimpact.len2()*m_joints[i].body.Minv + m_joints[i].Limpact*(m_joints[i].body.Iinv*m_joints[i].Limpact);
 
 	if (time_interval>0) {
 		v.Set(0,0,0);
@@ -2596,6 +2610,8 @@ int CArticulatedEntity::GetStateSnapshot(TSerialize ser, float time_back, int fl
 			ser.EndGroup();
 		}
 		ser.Value("offsPivot", m_offsPivot);
+		if (flags & 16)
+			WriteContacts(ser);
 	}
 		
  	return 1;
@@ -2714,6 +2730,8 @@ int CArticulatedEntity::SetStateFromSnapshot(TSerialize ser, int flags)
 		for(int i=0;i<m_nJoints;i++)
 			SyncBodyWithJoint(i);
 		ComputeBBox(m_BBoxNew);
+		if (flags & 16)
+			ReadContacts(ser);
 		if ((unsigned int)m_iSimClass>=7u) 
 			return 1;
 		UpdatePosition(m_pWorld->RepositionEntity(this,3,m_BBoxNew));
@@ -2828,12 +2846,6 @@ void CArticulatedEntity::OnContactResolved(entity_contact *pcontact, int iop, in
 	CPhysicalEntity::OnContactResolved(pcontact,iop,iGroupId);
 	// force simtype 1 in case of character-vehicle interaction
 	//m_iSimTypeOverride |= inrange(pcontact->pbody[iop^1]->Minv,1E-8f,m_body.Minv*0.1f);
-}
-
-void CArticulatedEntity::GetContactMatrix(const Vec3 &pt, int ipart, Matrix33 &K)
-{
-	if ((unsigned int)ipart<(unsigned int)m_nParts)
-		m_joints[m_infos[ipart].iJoint].body.GetContactMatrix(pt-m_joints[m_infos[ipart].iJoint].body.pos,K);
 }
 
 
@@ -3064,7 +3076,7 @@ int CArticulatedEntity::Update(float time_interval, float damping)
 	int iCaller = get_iCaller();
 	entity_contact *pContact;
 	float dt,e,minEnergy = m_nBodyContacts>=m_nCollLyingMode ? m_EminLyingMode : m_Emin;
-	m_bAwake = (iszero(m_nBodyContacts) & (bFloating^1)) | isneg(m_simTimeAux-0.5f);
+	m_bAwake = (iszero(m_nBodyContacts) & (bFloating^1)) | isneg(m_simTimeAux-0.5f) | isneg(-m_minAwakeTime);
 	m_bUsingUnproj = 0;
 	m_nStepBackCount = (m_nStepBackCount&-(int)m_bSteppedBack)+m_bSteppedBack;
 
@@ -3151,6 +3163,7 @@ int CArticulatedEntity::Update(float time_interval, float damping)
 		}
 		UpdateJointDyn();
 	}
+	m_minAwakeTime = max(m_minAwakeTime,0.0f)-time_interval;
 
 	return (m_bAwake^1) | isneg(m_timeStepFull-m_timeStepPerformed-0.001f) | m_pWorld->m_threadData[iCaller].bGroupInvisible;
 }
@@ -3158,9 +3171,11 @@ int CArticulatedEntity::Update(float time_interval, float damping)
 
 void CArticulatedEntity::GetMemoryStatistics(ICrySizer *pSizer) const
 {
-	CRigidEntity::GetMemoryStatistics(pSizer);
 	if (GetType()==PE_ARTICULATED)
 		pSizer->AddObject(this, sizeof(CArticulatedEntity));
+	CRigidEntity::GetMemoryStatistics(pSizer);
 	pSizer->AddObject(m_joints, m_nJointsAlloc*sizeof(m_joints[0]));
+	for(int i=0; i<m_nJoints; i++) if (m_joints[i].fsbuf)
+		pSizer->AddObject(m_joints[i].fsbuf, sizeof(sizeof(featherstone_data)+16));
 	pSizer->AddObject(m_infos, m_nPartsAlloc*sizeof(m_infos[0]));
 }

@@ -26,6 +26,7 @@ public:
 	void                  Update();
 
 	static CSensorSystem& GetInstance();
+	static CryGUID GetSchematycPackageGUID() { return "e5f633a6-472d-470c-a78d-86bd2383092d"_cry_guid; }
 
 private:
 

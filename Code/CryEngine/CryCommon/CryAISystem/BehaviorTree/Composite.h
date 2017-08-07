@@ -7,10 +7,6 @@
 
 	#include "Node.h"
 
-	#ifdef USING_BEHAVIOR_TREE_SERIALIZATION
-		#include <CrySerialization/SharedPtr.h>
-	#endif
-
 namespace BehaviorTree
 {
 template<typename ChildType = INodePtr>

@@ -51,17 +51,12 @@ public:
 				// force remove all other entities
 				gEnv->pEntitySystem->RemoveEntity(pEnt->GetId(), true);
 			}
-
-			if (!m_skipGameRules)
-				gEnv->pEntitySystem->ReserveEntityId(1);
 		}
 		else
 		{
 			if (!gEnv->pSystem->IsSerializingFile())
 				gEnv->pEntitySystem->Reset();
-			gEnv->pEntitySystem->ReserveEntityId(1);
 		}
-		gEnv->pEntitySystem->ReserveEntityId(LOCAL_PLAYER_ENTITY_ID);
 
 		CActionGame::Get()->OnEntitySystemReset();
 

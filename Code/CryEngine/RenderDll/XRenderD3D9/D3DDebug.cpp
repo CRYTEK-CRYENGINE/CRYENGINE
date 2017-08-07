@@ -3,7 +3,7 @@
 #include "StdAfx.h"
 #include "D3DDebug.h"
 
-#if defined(SUPPORT_D3D_DEBUG_RUNTIME)
+#if defined(DX11_ALLOW_D3D_DEBUG_RUNTIME)
 
 CD3DDebug::CD3DDebug()
 {
@@ -85,6 +85,12 @@ void CD3DDebug::Update(ESeverityCombination muteSeverity, const char* strMuteMsg
 	///////////////////
 	D3D11_MESSAGE_ID msgIDsList[MAX_NUM_DEBUG_MSG_IDS] = { D3D11_MESSAGE_ID_UNKNOWN };
 	UINT nNumIDs = ParseIDs(strMuteMsgList, msgIDsList);
+
+#if CRY_PLATFORM_DURANGO
+	// Optional CopyOverlap in 11_1 is reported unsupported, but XDK's debug layer is broken (all optional features should be on, but are reported "off", even to the debug-layer)
+	// Additionally, the debug layer says there is a overlap, but's clearly not the case
+	msgIDsList[nNumIDs++] = D3D11_MESSAGE_ID_COPYSUBRESOURCEREGION_INVALIDSOURCE /*281*/;
+#endif
 
 	D3D11_INFO_QUEUE_FILTER filterQueue;
 	ZeroStruct(filterQueue);

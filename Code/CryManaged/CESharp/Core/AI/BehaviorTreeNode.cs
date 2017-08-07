@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using CryEngine.Common;
 using CryEngine.Common.BehaviorTree;
@@ -10,7 +9,7 @@ namespace CryEngine
 		#region Fields
 		private uint _nodeId;
 		private uint _entityId;
-		private UpdateContext _updateContext;
+		private readonly UpdateContext _updateContext;
 		#endregion
 
 		#region Properties
@@ -36,12 +35,12 @@ namespace CryEngine
 		#region Methods
 		public void Log(string message)
 		{
-			#if (!RELEASE && (WIN32 || WIN64))
-				if (_updateContext != null)
-				{
-					_updateContext.behaviorLog.AddMessage(message);
-				}
-			#endif
+#if(!RELEASE && (WIN32 || WIN64))
+			if(_updateContext != null)
+			{
+				_updateContext.behaviorLog.AddMessage(message);
+			}
+#endif
 		}
 		#endregion
 	}
@@ -76,10 +75,14 @@ namespace CryEngine
 
 	public abstract class BehaviorTreeNode : BehaviorTreeNodeBase
 	{
-		HashSet<UInt64> s_initialized = new HashSet<ulong>();
+
+
+		#region Static fields
+		private static uint _nodeIdCount = 0;
+		#endregion
 
 		#region Fields
-		private static uint s_nextNodeId = 0;
+		private HashSet<ulong> _initialized = new HashSet<ulong>();
 		private uint _nodeId;
 		private string _startLog;
 		private string _successLog;
@@ -92,44 +95,44 @@ namespace CryEngine
 		#endregion
 
 		#region Constructors
-		public BehaviorTreeNode() : base()
+		protected BehaviorTreeNode()
 		{
-			_nodeId = s_nextNodeId++;
+			_nodeId = _nodeIdCount++;
 		}
 		#endregion
-		
+
 		#region Methods
-		public sealed override Status Tick(UpdateContext context)
+		public sealed override Status Tick(UpdateContext unmodifiedContext)
 		{
 			Status returnStatus = Status.Running;
 
-			UInt64 runtimeDataId = MakeRuntimeDataId(context.entityId, _nodeId);
-			BehaviorTreeContext updateContext = new BehaviorTreeContext(_nodeId, context);
-			if (!s_initialized.Contains(runtimeDataId))
+			var runtimeDataId = MakeRuntimeDataId(unmodifiedContext.entityId, _nodeId);
+			var updateContext = new BehaviorTreeContext(_nodeId, unmodifiedContext);
+			if(!_initialized.Contains(runtimeDataId))
 			{
-				if (!string.IsNullOrEmpty(_startLog))
+				if(!string.IsNullOrEmpty(_startLog))
 				{
 					updateContext.Log(_startLog);
 				}
 				returnStatus = OnInitialize(updateContext) ? Status.Running : Status.Failure;
 			}
 
-			if (returnStatus == Status.Running)
+			if(returnStatus == Status.Running)
 			{
 				returnStatus = OnUpdate(updateContext);
 			}
 
-			if (returnStatus != Status.Running)
+			if(returnStatus != Status.Running)
 			{
 				OnTerminate(updateContext);
-				s_initialized.Remove(runtimeDataId);
+				_initialized.Remove(runtimeDataId);
 			}
 
-			if (returnStatus == Status.Success && !String.IsNullOrEmpty(_successLog))
+			if(returnStatus == Status.Success && !string.IsNullOrEmpty(_successLog))
 			{
 				updateContext.Log(_successLog);
 			}
-			else if (returnStatus == Status.Failure && !String.IsNullOrEmpty(_failureLog))
+			else if(returnStatus == Status.Failure && !string.IsNullOrEmpty(_failureLog))
 			{
 				updateContext.Log(_failureLog);
 			}
@@ -137,29 +140,29 @@ namespace CryEngine
 			return returnStatus;
 		}
 
-		public sealed override void Terminate(UpdateContext context)
+		public sealed override void Terminate(UpdateContext unmodifiedContext)
 		{
-			UInt64 runtimeDataId = MakeRuntimeDataId(context.entityId, _nodeId);
-			if (s_initialized.Contains(runtimeDataId))
+			var runtimeDataId = MakeRuntimeDataId(unmodifiedContext.entityId, _nodeId);
+			if(_initialized.Contains(runtimeDataId))
 			{
-				BehaviorTreeContext updateContext = new BehaviorTreeContext(_nodeId, context);
+				var updateContext = new BehaviorTreeContext(_nodeId, unmodifiedContext);
 				OnTerminate(updateContext, true);
-				s_initialized.Remove(runtimeDataId);
+				_initialized.Remove(runtimeDataId);
 
-				if (!String.IsNullOrEmpty(_interruptLog))
+				if(!string.IsNullOrEmpty(_interruptLog))
 				{
 					updateContext.Log(_interruptLog);
 				}
 			}
 		}
 
-		public sealed override void HandleEvent(EventContext context, Event e)
+		public sealed override void HandleEvent(EventContext context, Event arg1)
 		{
-			UInt64 runtimeDataId = MakeRuntimeDataId(context.entityId, _nodeId);
-			if (s_initialized.Contains(runtimeDataId))
+			var runtimeDataId = MakeRuntimeDataId(context.entityId, _nodeId);
+			if(_initialized.Contains(runtimeDataId))
 			{
-				BehaviorTreeContext updateContext = new BehaviorTreeContext(_nodeId, context);
-				HandleEvent(updateContext, e);
+				var updateContext = new BehaviorTreeContext(_nodeId, context);
+				HandleEvent(updateContext, arg1);
 			}
 		}
 
@@ -173,9 +176,9 @@ namespace CryEngine
 			return OnLoadFromXml(xml, context);
 		}
 
-		private static UInt64 MakeRuntimeDataId(uint entityId, uint nodeId)
+		private static ulong MakeRuntimeDataId(uint entityId, uint nodeId)
 		{
-			return (UInt64)entityId | (((UInt64)nodeId) << 32);
+			return entityId | ((ulong)nodeId) << 32;
 		}
 
 		protected virtual bool OnInitialize(BehaviorTreeContext updateContext) { return true; }
@@ -188,9 +191,13 @@ namespace CryEngine
 
 	public abstract class BehaviorTreeNode<TRuntimeData> : BehaviorTreeNodeBase where TRuntimeData : class, new()
 	{
+		#region Static fields
+		private static Dictionary<ulong, TRuntimeData> _runtimeData = new Dictionary<ulong, TRuntimeData>();
+		// FIXME Is this static field in generic type intended? Add pragma if it's intended, otherwise save the _nodeIdCount in BahviorTreeNodeBase.
+		private static uint _nodeIdCount = 0;
+		#endregion
+
 		#region Fields
-		private static Dictionary<UInt64, TRuntimeData> s_runtimeData = new Dictionary<ulong, TRuntimeData>();
-		private static uint s_nextNodeId = 0;
 		private uint _nodeId;
 		private string _startLog;
 		private string _successLog;
@@ -203,87 +210,87 @@ namespace CryEngine
 		#endregion
 
 		#region Constructors
-		public BehaviorTreeNode() : base()
+		protected BehaviorTreeNode()
 		{
-			_nodeId = s_nextNodeId++;
+			_nodeId = _nodeIdCount++;
 		}
 		#endregion
 
 		#region Methods
-		public sealed override Status Tick(UpdateContext context)
+		public sealed override Status Tick(UpdateContext unmodifiedContext)
 		{
 			Status returnStatus = Status.Running;
 
-			#if (!RELEASE && (WIN32 || WIN64))
-				context.debugTree.Push(this);
-			#endif
+#if(!RELEASE && (WIN32 || WIN64))
+			unmodifiedContext.debugTree.Push(this);
+#endif
 
-			UInt64 runtimeDataId = MakeRuntimeDataId(context.entityId, _nodeId);
+			var runtimeDataId = MakeRuntimeDataId(unmodifiedContext.entityId, _nodeId);
 			bool needsToBeInitialized = false;
-			TRuntimeData runtimeData = GetRuntimeData(runtimeDataId, out needsToBeInitialized);
-			BehaviorTreeContext<TRuntimeData> updateContext = new BehaviorTreeContext<TRuntimeData>(_nodeId, runtimeData, context);
-			if (needsToBeInitialized)
+			var runtimeData = GetRuntimeData(runtimeDataId, out needsToBeInitialized);
+			var updateContext = new BehaviorTreeContext<TRuntimeData>(_nodeId, runtimeData, unmodifiedContext);
+			if(needsToBeInitialized)
 			{
-				if (!string.IsNullOrEmpty(_startLog))
+				if(!string.IsNullOrEmpty(_startLog))
 				{
 					updateContext.Log(_startLog);
 				}
 				returnStatus = OnInitialize(updateContext) ? Status.Running : Status.Failure;
 			}
 
-			if (returnStatus == Status.Running)
+			if(returnStatus == Status.Running)
 			{
 				returnStatus = OnUpdate(updateContext);
 			}
 
-			if (returnStatus != Status.Running)
+			if(returnStatus != Status.Running)
 			{
 				OnTerminate(updateContext);
-				s_runtimeData.Remove(runtimeDataId);
+				_runtimeData.Remove(runtimeDataId);
 			}
 
-			if(returnStatus == Status.Success && !String.IsNullOrEmpty(_successLog))
+			if(returnStatus == Status.Success && !string.IsNullOrEmpty(_successLog))
 			{
 				updateContext.Log(_successLog);
 			}
-			else if(returnStatus == Status.Failure && !String.IsNullOrEmpty(_failureLog))
+			else if(returnStatus == Status.Failure && !string.IsNullOrEmpty(_failureLog))
 			{
 				updateContext.Log(_failureLog);
 			}
 
-			#if (!RELEASE && (WIN32 || WIN64))
-				context.debugTree.Pop(returnStatus);
-			#endif
+#if(!RELEASE && (WIN32 || WIN64))
+			unmodifiedContext.debugTree.Pop(returnStatus);
+#endif
 
 
 			return returnStatus;
 		}
 
-		public sealed override void Terminate(UpdateContext context)
+		public sealed override void Terminate(UpdateContext unmodifiedContext)
 		{
-			UInt64 runtimeDataId = MakeRuntimeDataId(context.entityId, _nodeId);
-			if (s_runtimeData.ContainsKey(runtimeDataId))
+			var runtimeDataId = MakeRuntimeDataId(unmodifiedContext.entityId, _nodeId);
+			if(_runtimeData.ContainsKey(runtimeDataId))
 			{
-				TRuntimeData runtimeData = s_runtimeData[runtimeDataId];
-				BehaviorTreeContext<TRuntimeData> updateContext = new BehaviorTreeContext<TRuntimeData>(_nodeId, runtimeData, context);
+				TRuntimeData runtimeData = _runtimeData[runtimeDataId];
+				var updateContext = new BehaviorTreeContext<TRuntimeData>(_nodeId, runtimeData, unmodifiedContext);
 				OnTerminate(updateContext, true);
-				s_runtimeData.Remove(runtimeDataId);
+				_runtimeData.Remove(runtimeDataId);
 
-				if(!String.IsNullOrEmpty(_interruptLog))
+				if(!string.IsNullOrEmpty(_interruptLog))
 				{
 					updateContext.Log(_interruptLog);
 				}
 			}
 		}
 
-		public sealed override void HandleEvent(EventContext context, Event e)
+		public sealed override void HandleEvent(EventContext context, Event arg1)
 		{
-			UInt64 runtimeDataId = MakeRuntimeDataId(context.entityId, _nodeId);
-			if (s_runtimeData.ContainsKey(runtimeDataId))
+			var runtimeDataId = MakeRuntimeDataId(context.entityId, _nodeId);
+			if(_runtimeData.ContainsKey(runtimeDataId))
 			{
-				TRuntimeData runtimeData = s_runtimeData[runtimeDataId];
-				BehaviorTreeContext<TRuntimeData> updateContext = new BehaviorTreeContext<TRuntimeData>(_nodeId, runtimeData, context);
-				HandleEvent(updateContext, e);
+				TRuntimeData runtimeData = _runtimeData[runtimeDataId];
+				var updateContext = new BehaviorTreeContext<TRuntimeData>(_nodeId, runtimeData, context);
+				HandleEvent(updateContext, arg1);
 			}
 		}
 
@@ -297,27 +304,27 @@ namespace CryEngine
 			return OnLoadFromXml(xml, context);
 		}
 
-		private static UInt64 MakeRuntimeDataId(uint entityId, uint nodeId)
+		private static ulong MakeRuntimeDataId(uint entityId, uint nodeId)
 		{
-			return (UInt64)entityId | (((UInt64)nodeId) << 32);
+			return entityId | ((ulong)nodeId) << 32;
 		}
 
-		private static TRuntimeData GetRuntimeData(UInt64 runtimeDataId, out bool justCreated)
+		private static TRuntimeData GetRuntimeData(ulong runtimeDataId, out bool justCreated)
 		{
 			justCreated = false;
-			if (!s_runtimeData.ContainsKey(runtimeDataId))
+			if(!_runtimeData.ContainsKey(runtimeDataId))
 			{
-				s_runtimeData.Add(runtimeDataId, new TRuntimeData());
+				_runtimeData.Add(runtimeDataId, new TRuntimeData());
 				justCreated = true;
 			}
-			return s_runtimeData[runtimeDataId];
+			return _runtimeData[runtimeDataId];
 		}
 
 		protected virtual bool OnInitialize(BehaviorTreeContext<TRuntimeData> updateContext) { return true; }
 		protected virtual Status OnUpdate(BehaviorTreeContext<TRuntimeData> updateContext) { return Status.Success; }
 		protected virtual void OnTerminate(BehaviorTreeContext<TRuntimeData> updateContext, bool interrupted = false) { }
 		protected virtual LoadResult OnLoadFromXml(XmlNodeRef xml, LoadContext context) { return LoadResult.LoadSuccess; }
-		protected virtual void HandleEvent(BehaviorTreeContext<TRuntimeData> updateContext, Event e) {  } 
+		protected virtual void HandleEvent(BehaviorTreeContext<TRuntimeData> updateContext, Event e) { }
 		#endregion
 	}
 }

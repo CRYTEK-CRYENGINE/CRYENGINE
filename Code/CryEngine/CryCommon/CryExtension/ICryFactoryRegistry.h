@@ -20,7 +20,6 @@ struct ICryFactory;
 
 struct ICryFactoryRegistry
 {
-	virtual ICryFactory* GetFactory(const char* cname) const = 0;
 	virtual ICryFactory* GetFactory(const CryClassID& cid) const = 0;
 	virtual void         IterateFactories(const CryInterfaceID& iid, ICryFactory** pFactories, size_t& numFactories) const = 0;
 

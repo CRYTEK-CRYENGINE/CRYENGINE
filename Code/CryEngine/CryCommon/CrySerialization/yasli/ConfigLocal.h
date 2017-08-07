@@ -27,8 +27,8 @@ typedef CryStringLocalT<wchar_t> wstring;
 }
 #else
 namespace yasli {
-typedef CryStringT<char> string;
-typedef CryStringT<wchar_t> wstring;
+typedef ::string string;
+typedef ::wstring wstring;
 }
 #endif
 namespace Serialization
@@ -76,8 +76,7 @@ namespace yasli
 }
 
 
-template< class T, class I, class STORE>
-struct DynArray;
+#include <CryCore/Containers/CryArray.h>
 
 template<class T, class I, class S>
 bool Serialize(yasli::Archive& ar, DynArray<T, I, S>& container, const char* name, const char* label);

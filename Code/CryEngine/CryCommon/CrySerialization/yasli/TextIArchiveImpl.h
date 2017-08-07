@@ -24,10 +24,12 @@
 # define DEBUG_TRACE_TOKENIZER(...)
 #endif
 
-namespace yasli{
+namespace yasli {
 
 using std::string;
 using std::wstring;
+
+const int MAX_BYTES_TO_ALLOC_ON_STACK = 16384;
 
 static char hexValueTable[256] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -51,50 +53,72 @@ static char hexValueTable[256] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static void unescapeString(string& buf, const char* begin, const char* end)
+static int unescapeString(char* pHead, const char* begin, const char* end)
 {
-	// TODO: use stack string
-	buf.resize(end-begin);
-	if(begin == end)
-		return;
-	char* ptr = &buf[0];
-	while(begin != end){
-		if(*begin != '\\'){
-			*ptr = *begin;
-			++ptr;
+	if (begin >= end)
+	{
+		return 0;
+	}
+
+	char* pTail = pHead;
+	while (begin != end) {
+		if (*begin != '\\') {
+			*pTail = *begin;
+			++pTail;
 		}
-		else{
+		else {
 			++begin;
-			if(begin == end)
+			if (begin == end)
 				break;
 
-			switch(*begin){
-			case '0':  *ptr = '\0'; ++ptr; break;
-			case 't':  *ptr = '\t'; ++ptr; break;
-			case 'n':  *ptr = '\n'; ++ptr; break;
-			case 'r':  *ptr = '\r'; ++ptr; break;
-			case '\\': *ptr = '\\'; ++ptr; break;
-			case '\"': *ptr = '\"'; ++ptr; break;
-			case '\'': *ptr = '\''; ++ptr; break;
+			switch (*begin) {
+			case '0':  *pTail = '\0'; ++pTail; break;
+			case 't':  *pTail = '\t'; ++pTail; break;
+			case 'n':  *pTail = '\n'; ++pTail; break;
+			case 'r':  *pTail = '\r'; ++pTail; break;
+			case '\\': *pTail = '\\'; ++pTail; break;
+			case '\"': *pTail = '\"'; ++pTail; break;
+			case '\'': *pTail = '\''; ++pTail; break;
 			case 'x':
-								 if(begin + 2 < end){
-									 *ptr = (hexValueTable[int(begin[1])] << 4) + hexValueTable[int(begin[2])];
-									 ++ptr;
-									 begin += 2;
-									 break;
-								 }
+				if (begin + 2 < end) {
+					*pTail = (hexValueTable[int(begin[1])] << 4) + hexValueTable[int(begin[2])];
+					++pTail;
+					begin += 2;
+					break;
+				}
 			default:
-								 *ptr = *begin;
-								 ++ptr;
-								 break;
+				*pTail = *begin;
+				++pTail;
+				break;
 			}
 		}
 		++begin;
 	}
-	buf.resize(ptr - &buf[0]);
+	return static_cast<int>(pTail - pHead);
 }
 
 YASLI_INLINE double parseFloat(const char* str);
+
+struct SScopedStackStringHelper
+{
+	SScopedStackStringHelper(char* pString, int nByteSize, bool isStackString)
+		: bIsStackString(isStackString)
+		, pStr(pString)
+	{
+		memset(pStr, '\0', nByteSize);
+	}
+
+	~SScopedStackStringHelper()
+	{
+		if (!bIsStackString)
+		{
+			free(pStr);
+		}
+	}
+
+	const bool bIsStackString;
+	char* const  pStr;
+};
 
 // ---------------------------------------------------------------------------
 
@@ -1022,9 +1046,14 @@ bool TextIArchive::operator()(StringInterface& value, const char* name, const ch
     if(findName(name)){
         readToken();
         if(checkStringValueToken()){
-			string buf;
-			unescapeString(buf, token_.start + 1, token_.end - 1);
-			value.set(buf.c_str());
+
+			const int nMaxBytesRequired = std::max(1, (int)(token_.end - token_.start) - 1) * sizeof(char);
+			const bool bIsStackString = nMaxBytesRequired < MAX_BYTES_TO_ALLOC_ON_STACK;
+			char* pTmpBuf = bIsStackString ? (char*)alloca(nMaxBytesRequired) : (char*)malloc(nMaxBytesRequired);
+			SScopedStackStringHelper strTemp(pTmpBuf, nMaxBytesRequired, bIsStackString);
+
+			unescapeString(pTmpBuf, token_.start + 1, token_.end - 1);
+			value.set(pTmpBuf);
 		}
 		else
 			return false;
@@ -1122,10 +1151,16 @@ bool TextIArchive::operator()(WStringInterface& value, const char* name, const c
 	if(findName(name)){
 		readToken();
 		if(checkStringValueToken()){
-			string buf;
-			unescapeString(buf, token_.start + 1, token_.end - 1);
+
+			const int nMaxBytesRequired = std::max(1, (int)(token_.end - token_.start) - 1) * sizeof(char);
+			const bool bIsStackString = nMaxBytesRequired < MAX_BYTES_TO_ALLOC_ON_STACK;
+			char* pTmpBuf = bIsStackString ? (char*)alloca(nMaxBytesRequired) : (char*)malloc(nMaxBytesRequired);
+			SScopedStackStringHelper strTemp(pTmpBuf, nMaxBytesRequired, bIsStackString);
+
+			unescapeString(pTmpBuf, token_.start + 1, token_.end - 1);
+
 			wstring wbuf;
-			utf8ToUtf16(&wbuf, buf.c_str());
+			utf8ToUtf16(&wbuf, pTmpBuf);
 			value.set(wbuf.c_str());
 		}
 		else

@@ -54,7 +54,7 @@ end_sources()
 
 ####################### smpeg #######################
 CreateDynamicModule(smpeg SOLUTION_FOLDER "Libs/Audio")
-target_include_directories(${THIS_PROJECT} PRIVATE ${SDK_DIR}/smpeg)
+target_include_directories(${THIS_PROJECT} PRIVATE "${SDK_DIR}/smpeg")
 target_compile_definitions(${THIS_PROJECT} PRIVATE
 	-DNOCONTROLS
 	-DTHREADED_AUDIO

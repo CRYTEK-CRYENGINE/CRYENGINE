@@ -19,6 +19,8 @@ struct CVars
 	static int    sc_RunUnitTests;
 	static ICVar* sc_ExperimentalFeatures;
 
+	static int sc_allowFlowGraphNodes;
+
 	static void               Register();
 	static void               Unregister();
 

@@ -1323,6 +1323,8 @@ void CVisAreaManager::DrawOcclusionAreasIntoCBuffer(const SRenderingPassInfo& pa
 					}
 					else
 					{
+						CRY_ASSERT_MESSAGE(pArea->m_lstShapePoints.Count() == 2, "Occlusion area only supports planes or quads");
+
 						activeVerts.arrvActiveVerts[0] = pArea->m_lstShapePoints[0];
 						activeVerts.arrvActiveVerts[1] = pArea->m_lstShapePoints[0] + Vec3(0, 0, pArea->m_fHeight);
 						activeVerts.arrvActiveVerts[2] = pArea->m_lstShapePoints[1] + Vec3(0, 0, pArea->m_fHeight);

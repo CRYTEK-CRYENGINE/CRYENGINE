@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace datasource_xml
+	namespace DataSource_XML
 	{
 
 		//===================================================================================
@@ -23,7 +23,7 @@ namespace uqs
 		public:
 			explicit                                      CXMLDatasource();
 			                                              ~CXMLDatasource();
-			void                                          SetupAndInstallInHub(core::IHub& hub, const char* szLibraryRootPath, const char* szFileExtension = "uqs");
+			void                                          SetupAndInstallInHub(Core::IHub& hub, const char* szLibraryRootPath, const char* szFileExtension = "uqs");
 
 		private:
 			                                              UQS_NON_COPYABLE(CXMLDatasource);

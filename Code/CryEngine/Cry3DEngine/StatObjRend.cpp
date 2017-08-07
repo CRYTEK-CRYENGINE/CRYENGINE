@@ -440,9 +440,9 @@ bool CStatObj::RenderDebugInfo(CRenderObject* pObj, const SRenderingPassInfo& pa
 					pMaterial = GetMatMan()->GetDefaultHelperMaterial();
 				if (pObj)
 				{
-					pObj->m_II.m_AmbColor = ColorF(clr.r / 155.0f, clr.g / 155.0f, clr.b / 155.0f, 1);
 					pObj->m_nMaterialLayers = 0;
 					pObj->m_ObjFlags |= FOB_SELECTED;
+					pObj->m_data.m_nHUDSilhouetteParams = RGBA8(255.0f, clr.b, clr.g, clr.r);
 				}
 
 				if (!bNoText)
@@ -492,9 +492,9 @@ bool CStatObj::RenderDebugInfo(CRenderObject* pObj, const SRenderingPassInfo& pa
 					pMaterial = GetMatMan()->GetDefaultHelperMaterial();
 				if (pObj)
 				{
-					pObj->m_II.m_AmbColor = ColorF(clr.r / 180.0f, clr.g / 180.0f, clr.b / 180.0f, 1);
 					pObj->m_nMaterialLayers = 0;
 					pObj->m_ObjFlags |= FOB_SELECTED;
+					pObj->m_data.m_nHUDSilhouetteParams = RGBA8(255.0f, clr.b, clr.g, clr.r);
 				}
 
 				if (pObj && nNumLods > 1 && !bNoText)
@@ -547,9 +547,9 @@ bool CStatObj::RenderDebugInfo(CRenderObject* pObj, const SRenderingPassInfo& pa
 					pMaterial = GetMatMan()->GetDefaultHelperMaterial();
 				if (pObj)
 				{
-					pObj->m_II.m_AmbColor = ColorF(clr.r / 155.0f, clr.g / 155.0f, clr.b / 155.0f, 1);
 					pObj->m_nMaterialLayers = 0;
 					pObj->m_ObjFlags |= FOB_SELECTED;
+					pObj->m_data.m_nHUDSilhouetteParams = RGBA8(255.0f, clr.b, clr.g, clr.r);
 				}
 
 				if (!bNoText)
@@ -729,10 +729,10 @@ bool CStatObj::RenderDebugInfo(CRenderObject* pObj, const SRenderingPassInfo& pa
 
 						pMaterial = GetMatMan()->GetDefaultHelperMaterial();
 					}
-
-					pObj->m_II.m_AmbColor = clr;
+					
 					pObj->m_nMaterialLayers = 0;
 					pObj->m_ObjFlags |= FOB_SELECTED;
+					pObj->m_data.m_nHUDSilhouetteParams = RGBA8(255.0f, clr.b * 255.0f, clr.g * 255.0f, clr.r * 255.0f);
 				}
 				return false;
 			}
@@ -815,8 +815,10 @@ float CStatObj::GetExtent(EGeomForm eForm)
 	}
 
 	CGeomExtent& ext = m_Extents.Make(eForm);
-	if (!ext)
+	if (!ext || ext.TotalExtent() == 0.0f)
 	{
+		ext.Clear();
+
 		// Create parts for main and sub-objects.
 		ext.ReserveParts(1 + nSubCount);
 
@@ -1157,6 +1159,12 @@ void CStatObj::RenderSubObject(CRenderObject* pRenderObject, int nLod,
 
 	if (subObj.bIdentityMatrix)
 	{
+		if ((pRenderObject->m_ObjFlags & FOB_DYNAMIC_OBJECT) && (pRenderObject->m_ObjFlags & FOB_NEAREST))
+		{
+			SRenderObjData* pRenderObjectData = pRenderObject->GetObjData();
+			pRenderObjectData->m_uniqueObjectId = pRenderObjectData->m_uniqueObjectId + nSubObjId;
+		}
+
 		pStatObj->RenderSubObjectInternal(pRenderObject, nLod, passInfo);
 	}
 	else

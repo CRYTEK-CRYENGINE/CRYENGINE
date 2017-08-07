@@ -5,8 +5,6 @@
 #include "ISubtitleManager.h"
 #include "DialogSystem/DialogActorContext.h"
 
-using namespace CryAudio;
-
 CSubtitleManager* CSubtitleManager::s_Instance = nullptr;
 
 //////////////////////////////////////////////////////////////////////////
@@ -37,8 +35,8 @@ void CSubtitleManager::SetEnabled(bool bEnabled)
 		{
 			if (bEnabled)
 			{
-				gEnv->pAudioSystem->AddRequestListener(&CSubtitleManager::OnAudioTriggerStarted, nullptr, eSystemEvent_TriggerExecuted);
-				gEnv->pAudioSystem->AddRequestListener(&CSubtitleManager::OnAudioTriggerFinished, nullptr, eSystemEvent_TriggerFinished);
+				gEnv->pAudioSystem->AddRequestListener(&CSubtitleManager::OnAudioTriggerStarted, nullptr, CryAudio::ESystemEvents::TriggerExecuted);
+				gEnv->pAudioSystem->AddRequestListener(&CSubtitleManager::OnAudioTriggerFinished, nullptr, CryAudio::ESystemEvents::TriggerFinished);
 			}
 			else
 			{
@@ -77,7 +75,7 @@ void CSubtitleManager::ShowSubtitle(const char* subtitleLabel, bool bShow)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSubtitleManager::ShowSubtitle(const SRequestInfo* const pAudioRequestInfo, bool bShow)
+void CSubtitleManager::ShowSubtitle(const CryAudio::SRequestInfo* const pAudioRequestInfo, bool bShow)
 {
 	if (m_bEnabled && m_pHandler)
 	{
@@ -86,13 +84,13 @@ void CSubtitleManager::ShowSubtitle(const SRequestInfo* const pAudioRequestInfo,
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSubtitleManager::OnAudioTriggerStarted(const SRequestInfo* const pAudioRequestInfo)
+void CSubtitleManager::OnAudioTriggerStarted(const CryAudio::SRequestInfo* const pAudioRequestInfo)
 {
 	CSubtitleManager::s_Instance->ShowSubtitle(pAudioRequestInfo, true);
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSubtitleManager::OnAudioTriggerFinished(const SRequestInfo* const pAudioRequestInfo)
+void CSubtitleManager::OnAudioTriggerFinished(const CryAudio::SRequestInfo* const pAudioRequestInfo)
 {
 	CSubtitleManager::s_Instance->ShowSubtitle(pAudioRequestInfo, false);
 }

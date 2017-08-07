@@ -1,0 +1,24 @@
+{
+	"CryXML_uber_0.cpp":
+	{
+		"Source Files": [
+			"CryXML.cpp",
+			"XMLSerializer.cpp",
+			"ICryXML.h",
+			"IXMLSerializer.h",
+			"XMLSerializer.h"
+		],
+		"Source Files/XML": [
+			"XML/xml.cpp",
+			"XML/xml.h"
+		]
+	},
+	"NoUberFile":
+	{
+		"Source Files": [
+      "stdafx.h",
+			"stdafx.cpp",
+			"CryXML.def"
+		]
+	}
+}

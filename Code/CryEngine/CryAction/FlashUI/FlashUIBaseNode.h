@@ -191,19 +191,16 @@ protected:
 class CFlashUiFlowNodeFactory : public IFlowNodeFactory
 {
 public:
-	CFlashUiFlowNodeFactory(const char* sClassName, IFlowNodePtr pFlowNode) : m_sClassName(sClassName), m_pFlowNode(pFlowNode), m_iRefs(0) {}
+	CFlashUiFlowNodeFactory(const char* sClassName, IFlowNodePtr pFlowNode) : m_sClassName(sClassName), m_pFlowNode(pFlowNode) {}
 	IFlowNodePtr Create(IFlowNode::SActivationInfo* pActInfo) { return m_pFlowNode->Clone(pActInfo); }
 	void         GetMemoryUsage(ICrySizer* s) const           { SIZER_SUBCOMPONENT_NAME(s, "CFlashUiFlowNodeFactory"); }
 	void         Reset()                                      {}
-	virtual void AddRef()                                     { m_iRefs++; }
-	virtual void Release()                                    { if (--m_iRefs == 0) delete this; }
 
 	const char*  GetNodeTypeName() const { return m_sClassName; }
 
 private:
 	const char*  m_sClassName;
 	IFlowNodePtr m_pFlowNode;
-	int          m_iRefs;
 };
 
 TYPEDEF_AUTOPTR(CFlashUiFlowNodeFactory);

@@ -117,10 +117,6 @@ void CVoiceListener::StartPlaying(bool checkStarted)
 	UpdateSound3dPan();
 }
 
-void CVoiceListener::SetAuthority(bool auth)
-{
-}
-
 void CVoiceListener::PostUpdate(float frameTime)
 {
 	CRY_ASSERT(false);

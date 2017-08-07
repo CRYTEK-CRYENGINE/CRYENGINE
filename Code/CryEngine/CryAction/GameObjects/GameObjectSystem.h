@@ -14,14 +14,6 @@
 #include <vector>
 #include <map>
 
-struct SEntitySchedulingProfiles
-{
-	uint32 normal;
-	uint32 owned;
-
-	void   GetMemoryUsage(ICrySizer* pSizer) const { /*nothing*/ }
-};
-
 class CGameObjectSystem : public IGameObjectSystem
 {
 public:

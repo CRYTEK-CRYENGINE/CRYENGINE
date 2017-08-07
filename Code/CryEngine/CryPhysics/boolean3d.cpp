@@ -1075,7 +1075,7 @@ int CTriMesh::Slice(const triangle *pcut, float minlen, float minArea)
 			bop_meshupdate *pmd = new bop_meshupdate, *pmd0;
 			pmd->pMesh[0]=pmd->pMesh[1] = this;	AddRef();AddRef();
 			for(pmd0=m_pMeshUpdate; pmd0->next; pmd0=pmd0->next);
-				pmd0->next = pmd;
+			pmd0->next = pmd;
 			pmd->pRemovedTri = new int[pmd->nRemovedTri = nRemovedTri];
 			for(int i0=i=nRemovedTri=0;i0<m_nTris;i0++) if (!m_pTri2Island[i0].bFree) {
 				pIdx[i]=pIdx[i0]; m_pNormals[i]=m_pNormals[i0];	m_pForeignIdx[i++]=m_pForeignIdx[i0];

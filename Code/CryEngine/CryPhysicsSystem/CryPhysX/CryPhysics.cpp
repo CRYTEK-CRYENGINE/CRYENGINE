@@ -39,8 +39,6 @@ static CSystemEventListner_Physics g_system_event_listener_physics;
 
 CRYPHYSICS_API IPhysicalWorld *CreatePhysicalWorld(ISystem *pSystem)
 {
-	ModuleInitISystem(pSystem, "CryPhysics");
-	
 	if (pSystem)
 	{
 		pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_physics, "CSystemEventListner_Physics");
@@ -54,10 +52,14 @@ CRYPHYSICS_API IPhysicalWorld *CreatePhysicalWorld(ISystem *pSystem)
 
 #ifndef STANDALONE_PHYSICS
 //////////////////////////////////////////////////////////////////////////
-class CEngineModule_CryPhysics : public IEngineModule
+class CEngineModule_CryPhysics : public IPhysicsEngineModule
 {
-	CRYINTERFACE_SIMPLE(IEngineModule)
-		CRYGENERATE_SINGLETONCLASS(CEngineModule_CryPhysics, "EngineModule_CryPhysics", 0x526cabf3d776407f, 0xaa2338545bb6ae7f)
+	CRYINTERFACE_BEGIN()
+		CRYINTERFACE_ADD(Cry::IDefaultModule)
+		CRYINTERFACE_ADD(IPhysicsEngineModule)
+	CRYINTERFACE_END()
+
+	CRYGENERATE_SINGLETONCLASS_GUID(CEngineModule_CryPhysics, "EngineModule_CryPhysics", "526cabf3-d776-407f-aa23-38545bb6ae7f"_cry_guid)
 
 		//////////////////////////////////////////////////////////////////////////
 		virtual const char *GetName() const override { return "CryPhysics"; };

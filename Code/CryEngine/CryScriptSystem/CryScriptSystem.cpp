@@ -11,10 +11,14 @@
 #include <CryExtension/ClassWeaver.h>
 
 //////////////////////////////////////////////////////////////////////////
-class CEngineModule_CryScriptSystem : public IEngineModule
+class CEngineModule_CryScriptSystem : public IScriptSystemEngineModule
 {
-	CRYINTERFACE_SIMPLE(IEngineModule)
-	CRYGENERATE_SINGLETONCLASS(CEngineModule_CryScriptSystem, "EngineModule_CryScriptSystem", 0xd032b16449784f82, 0xa99e7dc6b6338c5c)
+	CRYINTERFACE_BEGIN()
+		CRYINTERFACE_ADD(Cry::IDefaultModule)
+		CRYINTERFACE_ADD(IScriptSystemEngineModule)
+	CRYINTERFACE_END()
+
+	CRYGENERATE_SINGLETONCLASS_GUID(CEngineModule_CryScriptSystem, "EngineModule_CryScriptSystem", "d032b164-4978-4f82-a99e-7dc6b6338c5c"_cry_guid)
 
 	virtual ~CEngineModule_CryScriptSystem()
 	{

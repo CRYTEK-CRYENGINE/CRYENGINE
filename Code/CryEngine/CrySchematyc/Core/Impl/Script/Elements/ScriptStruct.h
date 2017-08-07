@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <Schematyc/Script/Elements/IScriptStruct.h>
-#include <Schematyc/SerializationUtils/MultiPassSerializer.h>
+#include <CrySchematyc/Script/Elements/IScriptStruct.h>
+#include <CrySchematyc/SerializationUtils/MultiPassSerializer.h>
 
 #include "Script/ScriptElementBase.h"
 #include "Script/ScriptParam.h"
@@ -19,7 +19,7 @@ class CScriptStruct : public CScriptElementBase<IScriptStruct>, public CMultiPas
 public:
 
 	CScriptStruct();
-	CScriptStruct(const SGUID& guid, const char* szName);
+	CScriptStruct(const CryGUID& guid, const char* szName);
 
 	// IScriptElement
 	virtual void EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const override;

@@ -644,7 +644,6 @@ inline FILE* fxopen(const char* file, const char* mode, bool bGameRelativePath =
 			bWriteAccess = true;
 			break;
 		}
-		;
 	}
 
 	// This is on windows/xbox/Linux/Mac

@@ -12,7 +12,7 @@ struct ISkin;
 
 class CAttachmentMerger : public IAttachmentMerger
 {
-	static const EVertexFormat TargetVertexFormat = eVF_P3F;
+	static const EDefaultInputLayouts::PreDefs TargetVertexFormat = EDefaultInputLayouts::P3F;
 
 public:
 
@@ -100,7 +100,7 @@ public:
 
 		SVF_W4B_I4S&  GetSkinningInfo(int nVtxIndex);
 		vtx_idx&      GetVertexIndex(int i);
-		EVertexFormat GetVertexFormat();
+		InputLayoutHandle GetVertexFormat();
 	};
 
 	struct MergeContext

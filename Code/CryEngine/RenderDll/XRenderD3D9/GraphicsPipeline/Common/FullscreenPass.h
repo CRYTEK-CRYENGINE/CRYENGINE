@@ -7,7 +7,7 @@
 class CFullscreenPass : public CPrimitiveRenderPass
 {
 public:
-	CFullscreenPass();
+	CFullscreenPass(CRenderPrimitive::EPrimitiveFlags primitiveFlags = CRenderPrimitive::eFlags_ReflectShaderConstants);
 	~CFullscreenPass();
 
 	bool InputChanged(int var0 = 0, int var1 = 0, int var2 = 0, int var3 = 0)
@@ -27,30 +27,37 @@ public:
 		return bChanged;
 	}
 
+	void SetPrimitiveFlags(CRenderPrimitive::EPrimitiveFlags flags);
+
+	ILINE void SetPrimitiveType(CRenderPrimitive::EPrimitiveType type)
+	{
+		m_primitive.SetPrimitiveType(type);
+	}
+
 	ILINE void SetTechnique(CShader* pShader, const CCryNameTSCRC& techName, uint64 rtMask)
 	{
 		m_primitive.SetTechnique(pShader, techName, rtMask);
 	}
 
-	ILINE void SetTexture(uint32 slot, CTexture* pTexture, SResourceView::KeyType resourceViewID = SResourceView::DefaultView)
+	ILINE void SetTexture(uint32 slot, CTexture* pTexture, ResourceViewHandle resourceViewID = EDefaultResourceViews::Default)
 	{
 		m_primitive.SetTexture(slot, pTexture, resourceViewID);
 	}
 
-	ILINE void SetSampler(uint32 slot, int32 sampler)
+	ILINE void SetSampler(uint32 slot, SamplerStateHandle sampler)
 	{
 		m_primitive.SetSampler(slot, sampler);
 	}
 
-	ILINE void SetTextureSamplerPair(uint32 slot, CTexture* pTex, int32 sampler, SResourceView::KeyType resourceViewID = SResourceView::DefaultView)
+	ILINE void SetTextureSamplerPair(uint32 slot, CTexture* pTex, SamplerStateHandle sampler, ResourceViewHandle resourceViewID = EDefaultResourceViews::Default)
 	{
 		m_primitive.SetTexture(slot, pTex, resourceViewID);
 		m_primitive.SetSampler(slot, sampler);
 	}
 
-	ILINE void SetBuffer(uint32 shaderSlot, const CGpuBuffer& buffer, bool bUnorderedAccess = false, EShaderStage shaderStages = EShaderStage_Pixel)
+	ILINE void SetBuffer(uint32 shaderSlot, const CGpuBuffer* pBuffer, ResourceViewHandle resourceViewID = EDefaultResourceViews::Default, EShaderStage shaderStages = EShaderStage_Pixel)
 	{
-		m_primitive.SetBuffer(shaderSlot, buffer, bUnorderedAccess, shaderStages);
+		m_primitive.SetBuffer(shaderSlot, pBuffer, resourceViewID, shaderStages);
 	}
 
 	ILINE void SetState(int state)
@@ -61,11 +68,6 @@ public:
 	ILINE void SetStencilState(int state, uint8 stencilRef, uint8 stencilReadMask = 0xFF, uint8 stencilWriteMask = 0xFF)
 	{
 		m_primitive.SetStencilState(state, stencilRef, stencilReadMask, stencilWriteMask);
-	}
-
-	ILINE void SetBuffer(uint32 shaderSlot, CGpuBuffer* pBuffer, bool bUnorderedAccess = false, EShaderStage shaderStages  = EShaderStage_Pixel)
-	{
-		m_primitive.SetBuffer(shaderSlot, *pBuffer, bUnorderedAccess, shaderStages);
 	}
 
 	void SetRequirePerViewConstantBuffer(bool bRequirePerViewCB)
@@ -117,6 +119,8 @@ public:
 	bool Execute();
 
 private:
+	void                     UpdatePrimitive();
+
 	int                      m_inputVars[4];
 
 	bool                     m_bRequirePerViewCB;
@@ -125,7 +129,18 @@ private:
 
 	f32                      m_clipZ;        // only work for WPos
 	buffer_handle_t          m_vertexBuffer; // only required for WPos
-	uint64                   m_prevRTMask;
 
 	CRenderPrimitive         m_primitive;
+	CConstantBufferPtr       m_pPerViewConstantBuffer = nullptr;
+
+	// Default flags for the rendering primitive
+	CRenderPrimitive::EPrimitiveFlags m_primitiveFlags;
 };
+
+ILINE void CFullscreenPass::SetPrimitiveFlags(CRenderPrimitive::EPrimitiveFlags flags)
+{
+	m_primitiveFlags = flags;
+
+	auto primitiveFlags = CRenderPrimitive::EPrimitiveFlags(flags & CRenderPrimitive::eFlags_ReflectShaderConstants);
+	m_primitive.SetFlags(primitiveFlags);
+}

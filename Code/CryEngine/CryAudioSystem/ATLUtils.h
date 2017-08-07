@@ -4,16 +4,14 @@
 
 #include <AudioLogger.h>
 
-#define ATL_FLOAT_EPSILON 1.0e-6
-
-///////////////////////////////////////////////////////////////////////////
+namespace CryAudio
+{
 template<typename TMap, typename TKey>
 bool FindPlace(TMap& map, TKey const& key, typename TMap::iterator& iPlace);
 
 template<typename TMap, typename TKey>
 bool FindPlaceConst(TMap const& map, TKey const& key, typename TMap::const_iterator& iPlace);
 
-//--------------------------- Implementations ------------------------------
 template<typename TMap, typename TKey>
 bool FindPlace(TMap& map, TKey const& key, typename TMap::iterator& iPlace)
 {
@@ -21,10 +19,10 @@ bool FindPlace(TMap& map, TKey const& key, typename TMap::iterator& iPlace)
 	return (iPlace != map.end());
 }
 
-///////////////////////////////////////////////////////////////////////////
 template<typename TMap, typename TKey>
 bool FindPlaceConst(TMap const& map, TKey const& key, typename TMap::const_iterator& iPlace)
 {
 	iPlace = map.find(key);
 	return (iPlace != map.end());
 }
+} // namespace CryAudio

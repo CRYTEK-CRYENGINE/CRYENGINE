@@ -4,9 +4,9 @@
 #include "ScriptGraph.h"
 
 #include <CrySerialization/Math.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/Utils/StackString.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/StackString.h>
 
 #include "Script/ScriptView.h"
 #include "Script/Graph/ScriptGraphNode.h"
@@ -27,7 +27,7 @@ inline bool Serialize(Serialization::IArchive& archive, shared_ptr<Schematyc::IS
 {
 	if (!value && archive.isInput())
 	{
-		Schematyc::SGUID typeGUID;
+		CryGUID typeGUID;
 		archive(typeGUID, "typeGUID");
 		value = Schematyc::g_scriptGraphNodeFactory.CreateNode(typeGUID);
 		if (!value)
@@ -41,7 +41,7 @@ inline bool Serialize(Serialization::IArchive& archive, shared_ptr<Schematyc::IS
 	{
 		if (archive.isOutput() && !archive.isEdit())
 		{
-			Schematyc::SGUID typeGUID = value->GetTypeGUID();
+			CryGUID typeGUID = value->GetTypeGUID();
 			archive(typeGUID, "typeGUID");
 		}
 		archive(*value, szName, szLabel);
@@ -76,26 +76,26 @@ void RegisterScriptGraphNodeCreators()
 
 CScriptGraphLink::CScriptGraphLink() {}
 
-CScriptGraphLink::CScriptGraphLink(const SGUID& srcNodeGUID, const char* szSrcOutputName, const SGUID& dstNodeGUID, const char* szDstInputName)
+CScriptGraphLink::CScriptGraphLink(const CryGUID& srcNodeGUID, const char* szSrcOutputName, const CryGUID& dstNodeGUID, const char* szDstInputName)
 	: m_srcNodeGUID(srcNodeGUID)
 	, m_srcOutputName(szSrcOutputName)
 	, m_dstNodeGUID(dstNodeGUID)
 	, m_dstInputName(szDstInputName)
 {}
 
-CScriptGraphLink::CScriptGraphLink(const SGUID& srcNodeGUID, const CUniqueId& srcOutputId, const SGUID& dstNodeGUID, const CUniqueId& dstInputId)
+CScriptGraphLink::CScriptGraphLink(const CryGUID& srcNodeGUID, const CUniqueId& srcOutputId, const CryGUID& dstNodeGUID, const CUniqueId& dstInputId)
 	: m_srcNodeGUID(srcNodeGUID)
 	, m_srcOutputId(srcOutputId)
 	, m_dstNodeGUID(dstNodeGUID)
 	, m_dstInputId(dstInputId)
 {}
 
-void CScriptGraphLink::SetSrcNodeGUID(const SGUID& guid)
+void CScriptGraphLink::SetSrcNodeGUID(const CryGUID& guid)
 {
 	m_srcNodeGUID = guid;
 }
 
-SGUID CScriptGraphLink::GetSrcNodeGUID() const
+CryGUID CScriptGraphLink::GetSrcNodeGUID() const
 {
 	return m_srcNodeGUID;
 }
@@ -105,12 +105,12 @@ CUniqueId CScriptGraphLink::GetSrcOutputId() const
 	return m_srcOutputId;
 }
 
-void CScriptGraphLink::SetDstNodeGUID(const SGUID& guid)
+void CScriptGraphLink::SetDstNodeGUID(const CryGUID& guid)
 {
 	m_dstNodeGUID = guid;
 }
 
-SGUID CScriptGraphLink::GetDstNodeGUID() const
+CryGUID CScriptGraphLink::GetDstNodeGUID() const
 {
 	return m_dstNodeGUID;
 }
@@ -285,7 +285,7 @@ bool CScriptGraph::AddNode(const IScriptGraphNodePtr& pNode)
 	{
 		return false;
 	}
-	const SGUID guid = pNode->GetGUID();
+	const CryGUID guid = pNode->GetGUID();
 	if (GUID::IsEmpty(guid) || GetNode(guid))
 	{
 		return false;
@@ -295,7 +295,7 @@ bool CScriptGraph::AddNode(const IScriptGraphNodePtr& pNode)
 	return true;
 }
 
-IScriptGraphNodePtr CScriptGraph::AddNode(const SGUID& typeGUID)
+IScriptGraphNodePtr CScriptGraph::AddNode(const CryGUID& typeGUID)
 {
 	IScriptGraphNodePtr pNode = g_scriptGraphNodeFactory.CreateNode(typeGUID, gEnv->pSchematyc->CreateGUID());
 	if (AddNode(pNode))
@@ -305,7 +305,7 @@ IScriptGraphNodePtr CScriptGraph::AddNode(const SGUID& typeGUID)
 	return IScriptGraphNodePtr();
 }
 
-void CScriptGraph::RemoveNode(const SGUID& guid)
+void CScriptGraph::RemoveNode(const CryGUID& guid)
 {
 	IScriptGraphNode* pNode = GetNode(guid);
 	SCHEMATYC_CORE_ASSERT(pNode && !pNode->GetFlags().Check(EScriptGraphNodeFlags::NotRemovable));
@@ -320,13 +320,13 @@ uint32 CScriptGraph::GetNodeCount() const
 	return m_nodes.size();
 }
 
-IScriptGraphNode* CScriptGraph::GetNode(const SGUID& guid)
+IScriptGraphNode* CScriptGraph::GetNode(const CryGUID& guid)
 {
 	Nodes::iterator itNode = m_nodes.find(guid);
 	return itNode != m_nodes.end() ? itNode->second.get() : nullptr;
 }
 
-const IScriptGraphNode* CScriptGraph::GetNode(const SGUID& guid) const
+const IScriptGraphNode* CScriptGraph::GetNode(const CryGUID& guid) const
 {
 	Nodes::const_iterator itNode = m_nodes.find(guid);
 	return itNode != m_nodes.end() ? itNode->second.get() : nullptr;
@@ -334,8 +334,8 @@ const IScriptGraphNode* CScriptGraph::GetNode(const SGUID& guid) const
 
 void CScriptGraph::VisitNodes(const ScriptGraphNodeVisitor& visitor)
 {
-	SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty());
-	if (!visitor.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(visitor);
+	if (visitor)
 	{
 		for (Nodes::value_type& node : m_nodes)
 		{
@@ -352,8 +352,8 @@ void CScriptGraph::VisitNodes(const ScriptGraphNodeVisitor& visitor)
 
 void CScriptGraph::VisitNodes(const ScriptGraphNodeConstVisitor& visitor) const
 {
-	SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty());
-	if (!visitor.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(visitor);
+	if (visitor)
 	{
 		for (const Nodes::value_type& node : m_nodes)
 		{
@@ -368,7 +368,7 @@ void CScriptGraph::VisitNodes(const ScriptGraphNodeConstVisitor& visitor) const
 	}
 }
 
-bool CScriptGraph::CanAddLink(const SGUID& srcNodeGUID, const CUniqueId& srcOutputId, const SGUID& dstNodeGUID, const CUniqueId& dstInputId) const
+bool CScriptGraph::CanAddLink(const CryGUID& srcNodeGUID, const CUniqueId& srcOutputId, const CryGUID& dstNodeGUID, const CUniqueId& dstInputId) const
 {
 	const CScriptGraphLink link(srcNodeGUID, srcOutputId, dstNodeGUID, dstInputId);
 
@@ -418,7 +418,7 @@ bool CScriptGraph::CanAddLink(const SGUID& srcNodeGUID, const CUniqueId& srcOutp
 			bLinked = true;
 			return EVisitStatus::Stop;
 		};
-		VisitOutputLinks(ScriptGraphLinkConstVisitor::FromLambda(visitOutputLink), srcNodeGUID, srcOutputId);
+		VisitOutputLinks(visitOutputLink, srcNodeGUID, srcOutputId);
 
 		if (bLinked)
 		{
@@ -434,7 +434,7 @@ bool CScriptGraph::CanAddLink(const SGUID& srcNodeGUID, const CUniqueId& srcOutp
 			bLinked = true;
 			return EVisitStatus::Stop;
 		};
-		VisitInputLinks(ScriptGraphLinkConstVisitor::FromLambda(visitInputLink), dstNodeGUID, dstInputId);
+		VisitInputLinks(visitInputLink, dstNodeGUID, dstInputId);
 
 		if (bLinked)
 		{
@@ -456,7 +456,7 @@ bool CScriptGraph::CanAddLink(const SGUID& srcNodeGUID, const CUniqueId& srcOutp
 	return true;
 }
 
-IScriptGraphLink* CScriptGraph::AddLink(const SGUID& srcNodeGUID, const CUniqueId& srcOutputId, const SGUID& dstNodeGUID, const CUniqueId& dstInputId)
+IScriptGraphLink* CScriptGraph::AddLink(const CryGUID& srcNodeGUID, const CUniqueId& srcOutputId, const CryGUID& dstNodeGUID, const CUniqueId& dstInputId)
 {
 	if (FindLink(srcNodeGUID, srcOutputId, dstNodeGUID, dstInputId) == InvalidIdx)
 	{
@@ -478,7 +478,7 @@ void CScriptGraph::RemoveLink(uint32 linkIdx)
 	}
 }
 
-void CScriptGraph::RemoveLinks(const SGUID& nodeGUID)
+void CScriptGraph::RemoveLinks(const CryGUID& nodeGUID)
 {
 	auto isConnectedToNode = [&nodeGUID](const CScriptGraphLink& link) -> bool
 	{
@@ -503,7 +503,7 @@ const IScriptGraphLink* CScriptGraph::GetLink(uint32 linkIdx) const
 	return linkIdx < m_links.size() ? m_links[linkIdx].get() : nullptr;
 }
 
-uint32 CScriptGraph::FindLink(const SGUID& srcNodeGUID, const CUniqueId& srcOutputId, const SGUID& dstNodeGUID, const CUniqueId& dstInputId) const
+uint32 CScriptGraph::FindLink(const CryGUID& srcNodeGUID, const CUniqueId& srcOutputId, const CryGUID& dstNodeGUID, const CUniqueId& dstInputId) const
 {
 	for (Links::const_iterator itBeginLink = m_links.begin(), itEndLink = m_links.end(), itLink = itBeginLink; itLink != itEndLink; ++itLink)
 	{
@@ -518,8 +518,8 @@ uint32 CScriptGraph::FindLink(const SGUID& srcNodeGUID, const CUniqueId& srcOutp
 
 EVisitResult CScriptGraph::VisitLinks(const ScriptGraphLinkVisitor& visitor)
 {
-	SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty());
-	if (!visitor.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(visitor);
+	if (visitor)
 	{
 		for (CScriptGraphLinkPtr& pLink : m_links)
 		{
@@ -542,8 +542,8 @@ EVisitResult CScriptGraph::VisitLinks(const ScriptGraphLinkVisitor& visitor)
 
 EVisitResult CScriptGraph::VisitLinks(const ScriptGraphLinkConstVisitor& visitor) const
 {
-	SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty());
-	if (!visitor.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(visitor);
+	if (visitor)
 	{
 		for (const CScriptGraphLinkPtr& pLink : m_links)
 		{
@@ -564,10 +564,10 @@ EVisitResult CScriptGraph::VisitLinks(const ScriptGraphLinkConstVisitor& visitor
 	return EVisitResult::Complete;
 }
 
-EVisitResult CScriptGraph::VisitInputLinks(const ScriptGraphLinkVisitor& visitor, const SGUID& dstNodeGUID, const CUniqueId& dstInputId)
+EVisitResult CScriptGraph::VisitInputLinks(const ScriptGraphLinkVisitor& visitor, const CryGUID& dstNodeGUID, const CUniqueId& dstInputId)
 {
-	SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty());
-	if (!visitor.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(visitor);
+	if (visitor)
 	{
 		for (CScriptGraphLinkPtr& pLink : m_links)
 		{
@@ -591,10 +591,10 @@ EVisitResult CScriptGraph::VisitInputLinks(const ScriptGraphLinkVisitor& visitor
 	return EVisitResult::Complete;
 }
 
-EVisitResult CScriptGraph::VisitInputLinks(const ScriptGraphLinkConstVisitor& visitor, const SGUID& dstNodeGUID, const CUniqueId& dstInputId) const
+EVisitResult CScriptGraph::VisitInputLinks(const ScriptGraphLinkConstVisitor& visitor, const CryGUID& dstNodeGUID, const CUniqueId& dstInputId) const
 {
-	SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty());
-	if (!visitor.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(visitor);
+	if (visitor)
 	{
 		for (const CScriptGraphLinkPtr& pLink : m_links)
 		{
@@ -618,10 +618,10 @@ EVisitResult CScriptGraph::VisitInputLinks(const ScriptGraphLinkConstVisitor& vi
 	return EVisitResult::Complete;
 }
 
-EVisitResult CScriptGraph::VisitOutputLinks(const ScriptGraphLinkVisitor& visitor, const SGUID& srcNodeGUID, const CUniqueId& srcOutputId)
+EVisitResult CScriptGraph::VisitOutputLinks(const ScriptGraphLinkVisitor& visitor, const CryGUID& srcNodeGUID, const CUniqueId& srcOutputId)
 {
-	SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty());
-	if (!visitor.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(visitor);
+	if (visitor)
 	{
 		for (CScriptGraphLinkPtr& pLink : m_links)
 		{
@@ -645,10 +645,10 @@ EVisitResult CScriptGraph::VisitOutputLinks(const ScriptGraphLinkVisitor& visito
 	return EVisitResult::Complete;
 }
 
-EVisitResult CScriptGraph::VisitOutputLinks(const ScriptGraphLinkConstVisitor& visitor, const SGUID& srcNodeGUID, const CUniqueId& srcOutputId) const
+EVisitResult CScriptGraph::VisitOutputLinks(const ScriptGraphLinkConstVisitor& visitor, const CryGUID& srcNodeGUID, const CUniqueId& srcOutputId) const
 {
-	SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty());
-	if (!visitor.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(visitor);
+	if (visitor)
 	{
 		for (const CScriptGraphLinkPtr& pLink : m_links)
 		{
@@ -762,7 +762,7 @@ void CScriptGraph::PatchLinks()
 			if (srcOutputId.IsEmpty())
 			{
 				Nodes::const_iterator itSrcNode = m_nodes.find(pLink->GetSrcNodeGUID());
-				if (itSrcNode != m_nodes.end())
+				if (itSrcNode != m_nodes.end() && itSrcNode->second)
 				{
 					const CScriptGraphNode& srcNode = static_cast<const CScriptGraphNode&>(*itSrcNode->second);
 					const uint32 srcOutputIdx = srcNode.FindOutputByName(pLink->GetSrcOutputName());
@@ -776,7 +776,7 @@ void CScriptGraph::PatchLinks()
 			else if (srcOutputId.IsIdx())
 			{
 				Nodes::const_iterator itSrcNode = m_nodes.find(pLink->GetSrcNodeGUID());
-				if (itSrcNode != m_nodes.end())
+				if (itSrcNode != m_nodes.end() && itSrcNode->second)
 				{
 					const uint32 srcOutputIdx = srcOutputId.GetIdx();
 					const CUniqueId trueOutputId = itSrcNode->second->GetOutputId(srcOutputIdx);

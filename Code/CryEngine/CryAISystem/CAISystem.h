@@ -8,9 +8,12 @@
 #endif
 
 #include <CryAISystem/IAISystem.h>
+
+typedef std::vector<Vec3> ListPositions;
+
+#include "NavPath.h"
 #include "ObjectContainer.h"
-#include "Formation.h"
-#include "Graph.h"
+#include "Formation/Formation.h"
 #include "PipeManager.h"
 #include "AIObject.h"
 #include "AICollision.h"
@@ -67,19 +70,6 @@ class CScriptBind_AI;
 #define AGENT_COVER_CLEARANCE 0.35f
 
 const static int NUM_ALERTNESS_COUNTERS = 4;
-
-// Listener for path found events.
-struct IAIPathFinderListerner
-{
-	virtual ~IAIPathFinderListerner(){}
-	virtual void OnPathResult(int id, const std::vector<unsigned>* pathNodes) = 0;
-};
-
-enum EGetObstaclesInRadiusFlags
-{
-	OBSTACLES_COVER      = 0x01,
-	OBSTACLES_SOFT_COVER = 0x02,
-};
 
 enum EPuppetUpdatePriority
 {
@@ -319,7 +309,6 @@ public:
 	//Get Subsystems///////////////////////////////////////////////////////////////////////////////////////////////
 	virtual IAIRecorder*                        GetIAIRecorder();
 	virtual INavigation*                        GetINavigation();
-	virtual IAIPathFinder*                      GetIAIPathFinder();
 	virtual IMNMPathfinder*                     GetMNMPathfinder() const;
 	virtual ICentralInterestManager*            GetCentralInterestManager(void);
 	virtual ICentralInterestManager const*      GetCentralInterestManager(void) const;
@@ -392,11 +381,6 @@ public:
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//Hide spots///////////////////////////////////////////////////////////////////////////////////////////////////
 
-	// Returns specified number of nearest hidespots. It considers the hidespots in graph and anchors.
-	// Any of the pointers to return values can be null. Returns number of hidespots found.
-	virtual unsigned int GetHideSpotsInRange(IAIObject* requester, const Vec3& reqPos,
-	                                         const Vec3& hideFrom, float minRange, float maxRange, bool collidableOnly, bool validatedOnly,
-	                                         unsigned int maxPts, Vec3* coverPos, Vec3* coverObjPos, Vec3* coverObjDir, float* coverRad, bool* coverCollidable);
 	// Returns a point which is a valid distance away from a wall in front of the point.
 	virtual void AdjustDirectionalCoverPosition(Vec3& pos, const Vec3& dir, float agentRadius, float testHeight);
 
@@ -475,12 +459,6 @@ public:
 
 	bool                     InitSmartObjects();
 
-	/// Returns true if all the links leading out of the node have radius < fRadius
-	bool ExitNodeImpossible(CGraphLinkManager& linkManager, const GraphNode* pNode, float fRadius) const;
-
-	/// Returns true if all the links leading into the node have radius < fRadius
-	bool EnterNodeImpossible(CGraphNodeManager& nodeManager, CGraphLinkManager& linkManager, const GraphNode* pNode, float fRadius) const;
-
 	void InvalidatePathsThroughArea(const ListPositions& areaShape);
 
 	typedef VectorSet<CWeakRef<CAIActor>> AIActorSet;
@@ -533,23 +511,6 @@ public:
 	int               GetBeaconGroupId(CAIObject* pBeacon);
 	void              UpdateGroupStatus(int groupId);
 
-	CFormation*       GetFormation(CFormation::TFormationID id);
-	bool              ScaleFormation(IAIObject* pOwner, float fScale);
-	bool              SetFormationUpdate(IAIObject* pOwner, bool bUpdate);
-	void              AddFormationPoint(const char* name, const FormationNode& nodeDescriptor);
-	IAIObject*        GetFormationPoint(IAIObject* pObject);
-	int               GetFormationPointClass(const char* descriptorName, int position);
-	bool              ChangeFormation(IAIObject* pOwner, const char* szFormationName, float fScale);
-	void              CreateFormationDescriptor(const char* name);
-	void              FreeFormationPoint(CWeakRef<CAIObject> refOwner);
-	bool              IsFormationDescriptorExistent(const char* name);
-	CFormation*       CreateFormation(CWeakRef<CAIObject> refOwner, const char* szFormationName, Vec3 vTargetPos = ZERO);
-	string            GetFormationNameFromCRC32(unsigned int nCrc32ForFormationName) const;
-	void              ReleaseFormation(CWeakRef<CAIObject> refOwner, bool bDelete);
-	void              ReleaseFormationPoint(CAIObject* pReserved);
-	// changes the formation's scale factor for the given group id
-	bool              SameFormation(const CPuppet* pHuman, const CAIVehicle* pVehicle);
-
 	void              FlushAllAreas();
 
 	// offsets all AI areas when the segmented world shifts.
@@ -580,14 +541,6 @@ public:
 	/// Returns positions of currently occupied hide point objects excluding the requesters hide spot.
 	void GetOccupiedHideObjectPositions(const CPipeUser* pRequester, std::vector<Vec3>& hideObjectPositions);
 
-	/// Finds all hidespots (and their path range) within path range of startPos, along with the navigation graph nodes traversed.
-	/// Each hidespot contains info about where it came from. If you want smart-object hidespots you need to pass in an entity
-	/// so it can be checked to see if it could use the smart object. pLastNavNode/pLastHideNode are just used as a hint.
-	/// Smart Objects are only considered if pRequester != 0
-	MultimapRangeHideSpots& GetHideSpotsInRange(MultimapRangeHideSpots& result, MapConstNodesDistance& traversedNodes, const Vec3& startPos, float maxDist,
-	                                            IAISystem::tNavCapMask navCapMask, float passRadius, bool skipNavigationTest,
-	                                            IEntity* pSmartObjectUserEntity = 0, unsigned lastNavNodeIndex = 0, const class CAIObject* pRequester = 0);
-
 	bool IsHideSpotOccupied(CPipeUser* pRequester, const Vec3& pos) const;
 
 	void AdjustOmniDirectionalCoverPosition(Vec3& pos, Vec3& dir, float hideRadius, float agentRadius, const Vec3& hideFrom, const bool hideBehind = true);
@@ -601,7 +554,6 @@ public:
 
 	static void           ReloadConsoleCommand(IConsoleCmdArgs*);
 	static void           CheckGoalpipes(IConsoleCmdArgs*);
-	static void           DumpCodeCoverageCheckpoints(IConsoleCmdArgs* pArgs);
 	static void           StartAIRecorder(IConsoleCmdArgs*);
 	static void           StopAIRecorder(IConsoleCmdArgs*);
 
@@ -619,7 +571,6 @@ public:
 
 	void UpdateAmbientFire();
 	void UpdateExpensiveAccessoryQuota();
-	void UpdateAuxSignalsMap();
 	void UpdateCollisionAvoidance(const AIActorVector& agents, float updateTime);
 
 	// just steps through objects - for debugging
@@ -629,12 +580,23 @@ public:
 
 	void         UnregisterAIActor(CWeakRef<CAIActor> destroyedObject);
 
+	//! Return array of pairs position - navigation agent type. When agent type is 0, position is used for all navmesh layers.
+	void GetNavigationSeeds(std::vector<std::pair<Vec3, NavigationAgentTypeID>>& seeds);
+
+	struct SObjectDebugParams
+	{
+		Vec3 objectPos;
+		Vec3 entityPos;
+		EntityId entityId;
+	};
+
+	bool GetObjectDebugParamsFromName(const char* szObjectName, SObjectDebugParams& outParams);
+
 	///////////////////////////////////////////////////
 	IAIActorProxyFactory* m_actorProxyFactory;
 	IAIGroupProxyFactory* m_groupProxyFactory;
 	CAIObjectManager      m_AIObjectManager;
 	CPipeManager          m_PipeManager;
-	CGraph*               m_pGraph;
 	CNavigation*          m_pNavigation;
 	CAIActionManager*     m_pAIActionManager;
 	CSmartObjectManager*  m_pSmartObjectManager;
@@ -659,9 +621,6 @@ public:
 	int        m_disabledActorsHead;
 	bool       m_iteratingActorSet;
 
-	typedef std::map<tAIObjectID, CAIHideObject> DebugHideObjectMap;
-	DebugHideObjectMap m_DebugHideObjects;
-
 	struct BeaconStruct
 	{
 		CCountedRef<CAIObject> refBeacon;
@@ -669,11 +628,6 @@ public:
 	};
 	typedef std::map<unsigned short, BeaconStruct> BeaconMap;
 	BeaconMap m_mapBeacons;
-
-	typedef std::map<CWeakRef<CAIObject>, CFormation*> FormationMap;  // (MATT) Could be a pipeuser or such? {2009/03/18}
-	FormationMap           m_mapActiveFormations;
-	typedef std::map<string, CFormationDescriptor>     FormationDescriptorMap;
-	FormationDescriptorMap m_mapFormationDescriptors;
 
 	//AIObject Related Data structs:
 	///////////////////////////////////////////////////////////////////////////////////
@@ -764,19 +718,6 @@ public:
 		bool     state;
 	};
 	std::vector<SAIDelayedExpAccessoryUpdate> m_delayedExpAccessoryUpdates;
-
-	struct AuxSignalDesc
-	{
-		float  fTimeout;
-		string strMessage;
-		void   Serialize(TSerialize ser)
-		{
-			ser.Value("AuxSignalDescTimeOut", fTimeout);
-			ser.Value("AuxSignalDescMessage", strMessage);
-		}
-	};
-	typedef std::multimap<short, AuxSignalDesc> MapSignalStrings;
-	MapSignalStrings m_mapAuxSignalsFired;
 
 	// combat classes
 	// vector of target selection scale multipliers
@@ -903,16 +844,12 @@ public:
 	void DebugDrawPerceptionModifiers();
 	void DebugDrawTargetTracks() const;
 	void DebugDrawDebugAgent();
-	void DebugDrawCodeCoverage() const;
-	void DebugDrawPerceptionManager();
 	void DebugDrawNavigation() const;
-	void DebugDrawGraph(int debugDrawVal) const;
 	void DebugDrawLightManager();
 	void DebugDrawP0AndP1() const;
 	void DebugDrawPuppetPaths();
 	void DebugDrawCheckCapsules() const;
 	void DebugDrawCheckRay() const;
-	void DebugDrawCheckWalkabilityTime() const;
 	void DebugDrawCheckFloorPos() const;
 	void DebugDrawCheckGravity() const;
 	void DebugDrawDebugShapes();
@@ -930,9 +867,6 @@ public:
 	void DebugDrawAgents() const;
 	void DebugDrawAgent(CAIObject* pAgent) const;
 	void DebugDrawStatsTarget(const char* pName);
-	void DebugDrawFormations() const;
-	void DebugDrawGraph(CGraph* pGraph, const std::vector<Vec3>* focusPositions = 0, float radius = 0.0f) const;
-	void DebugDrawGraphErrors(CGraph* pGraph) const;
 	void DebugDrawType() const;
 	void DebugDrawTypeSingle(CAIObject* pAIObj) const;
 	void DebugDrawPendingEvents(CPuppet* pPuppet, int xPos, int yPos) const;
@@ -946,7 +880,6 @@ public:
 	void DebugDrawGroups();
 	void DebugDrawOneGroup(float x, float& y, float& w, float fontSize, short groupID, const ColorB& textColor,
 	                       const ColorB& worldColor, bool drawWorld);
-	void DebugDrawHideSpots();
 	void DebugDrawDynamicHideObjects();
 	void DebugDrawMyHideSpot(CAIObject* pAIObj) const;
 	void DebugDrawSelectedHideSpots() const;
@@ -969,7 +902,6 @@ public:
 		DRAWUPDATE_WARNINGS_ONLY,
 	};
 	bool DebugDrawUpdateUnit(CAIActor* pTargetAIActor, int row, EDrawUpdateMode mode) const;
-	void DebugDrawTacticalPoints();
 
 	void DEBUG_AddFakeDamageIndicator(CAIActor* pShooter, float t);
 

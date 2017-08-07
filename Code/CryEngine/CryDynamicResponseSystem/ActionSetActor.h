@@ -22,7 +22,6 @@ class CActionSetActor final : public DRS::IResponseAction
 public:
 	CActionSetActor() : m_newResponderName() {}
 	CActionSetActor(const CHashedString& responderName, CVariableCollection* pUsedCollection) : m_newResponderName(responderName) {}
-	virtual ~CActionSetActor() {}
 
 	//////////////////////////////////////////////////////////
 	// IResponseAction implementation

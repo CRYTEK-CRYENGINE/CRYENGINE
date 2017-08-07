@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <Schematyc/Script/Elements/IScriptVariable.h>
-#include <Schematyc/SerializationUtils/MultiPassSerializer.h>
+#include <CrySchematyc/Script/Elements/IScriptVariable.h>
+#include <CrySchematyc/SerializationUtils/MultiPassSerializer.h>
 
 #include "Script/ScriptElementBase.h"
 #include "Script/ScriptVariableData.h"
@@ -18,7 +18,7 @@ class CScriptVariable : public CScriptElementBase<IScriptVariable>, public CMult
 public:
 
 	CScriptVariable();
-	CScriptVariable(const SGUID& guid, const char* szName, const SElementId& typeId, const SGUID& baseGUID);
+	CScriptVariable(const CryGUID& guid, const char* szName, const SElementId& typeId, const CryGUID& baseGUID);
 
 	// IScriptElement
 	virtual EScriptElementAccessor GetAccessor() const override;
@@ -32,7 +32,7 @@ public:
 	virtual SElementId      GetTypeId() const override;
 	virtual bool            IsArray() const override;
 	virtual CAnyConstPtr    GetData() const override;
-	virtual SGUID           GetBaseGUID() const override;
+	virtual CryGUID           GetBaseGUID() const override;
 	virtual EOverridePolicy GetOverridePolicy() const override;
 	// ~IScriptVariable
 
@@ -49,7 +49,7 @@ private:
 
 	EScriptElementAccessor m_accessor = EScriptElementAccessor::Private;
 	CScriptVariableData    m_data;
-	SGUID                  m_baseGUID;
+	CryGUID                  m_baseGUID;
 	EOverridePolicy        m_overridePolicy = EOverridePolicy::Default;
 };
 } // Schematyc

@@ -61,10 +61,16 @@
 #include <CryNetwork/ISerialize.h>
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <CryMath/Random.h>
+#include <CrySystem/ICodeCheckpointMgr.h>
+
+#include "CryAISystem/NavigationSystem/NavigationIdTypes.h"
+
 #include "XMLUtils.h"
 
 #include "Environment.h"
-#include "CodeCoverageTracker.h"
+
+// Hijack the old CCCPOINT definition (and add a semi-colon to allow compilation)
+#define CCCPOINT(x) CODECHECKPOINT(x);
 
 #include <CrySystem/Profilers/FrameProfiler/FrameProfiler_JobSystem.h>  // to be removed
 

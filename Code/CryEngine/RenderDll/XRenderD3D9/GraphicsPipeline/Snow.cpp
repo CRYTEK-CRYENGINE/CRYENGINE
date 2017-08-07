@@ -32,38 +32,30 @@ CSnowStage::~CSnowStage()
 	{
 		gRenDev->m_DevBufMan.Destroy(m_snowFlakeVertexBuffer);
 	}
-
-	SAFE_RELEASE(m_pSnowFlakesTex);
-	SAFE_RELEASE(m_pSnowDerivativesTex);
-	SAFE_RELEASE(m_pSnowSpatterTex);
-	SAFE_RELEASE(m_pFrostBubblesBumpTex);
-	SAFE_RELEASE(m_pSnowFrostBumpTex);
-	SAFE_RELEASE(m_pVolumeNoiseTex);
-	SAFE_RELEASE(m_pSnowDisplacementTex);
 }
 
 void CSnowStage::Init()
 {
 	CRY_ASSERT(m_pSnowFlakesTex == nullptr);
-	m_pSnowFlakesTex = CTexture::ForName("%ENGINE%/EngineAssets/Textures/snowflakes.tif", FT_DONT_STREAM, eTF_Unknown);
+	m_pSnowFlakesTex = CTexture::ForNamePtr("%ENGINE%/EngineAssets/Textures/snowflakes.tif", FT_DONT_STREAM, eTF_Unknown);
 
 	CRY_ASSERT(m_pSnowDerivativesTex == nullptr);
-	m_pSnowDerivativesTex = CTexture::ForName("%ENGINE%/EngineAssets/Textures/perlinNoiseDerivatives.tif", FT_DONT_STREAM, eTF_Unknown);
+	m_pSnowDerivativesTex = CTexture::ForNamePtr("%ENGINE%/EngineAssets/Textures/perlinNoiseDerivatives.tif", FT_DONT_STREAM, eTF_Unknown);
 
 	CRY_ASSERT(m_pSnowSpatterTex == nullptr);
-	m_pSnowSpatterTex = CTexture::ForName("%ENGINE%/EngineAssets/Textures/Frozen/snow_spatter.tif", FT_DONT_STREAM, eTF_Unknown);
+	m_pSnowSpatterTex = CTexture::ForNamePtr("%ENGINE%/EngineAssets/Textures/Frozen/snow_spatter.tif", FT_DONT_STREAM, eTF_Unknown);
 
 	CRY_ASSERT(m_pFrostBubblesBumpTex == nullptr);
-	m_pFrostBubblesBumpTex = CTexture::ForName("%ENGINE%/EngineAssets/Textures/Frozen/frost_noise4.tif", FT_DONT_STREAM, eTF_Unknown);
+	m_pFrostBubblesBumpTex = CTexture::ForNamePtr("%ENGINE%/EngineAssets/Textures/Frozen/frost_noise4.tif", FT_DONT_STREAM, eTF_Unknown);
 
 	CRY_ASSERT(m_pSnowFrostBumpTex == nullptr);
-	m_pSnowFrostBumpTex = CTexture::ForName("%ENGINE%/EngineAssets/Textures/Frozen/frost_noise3.dds", FT_DONT_STREAM, eTF_Unknown);
+	m_pSnowFrostBumpTex = CTexture::ForNamePtr("%ENGINE%/EngineAssets/Textures/Frozen/frost_noise3.dds", FT_DONT_STREAM, eTF_Unknown);
 
 	CRY_ASSERT(m_pVolumeNoiseTex == nullptr);
-	m_pVolumeNoiseTex = CTexture::ForName("%ENGINE%/EngineAssets/Textures/noise3d.dds", FT_DONT_STREAM, eTF_Unknown);
+	m_pVolumeNoiseTex = CTexture::ForNamePtr("%ENGINE%/EngineAssets/Textures/noise3d.dds", FT_DONT_STREAM, eTF_Unknown);
 
 	CRY_ASSERT(m_pSnowDisplacementTex == nullptr);
-	m_pSnowDisplacementTex = CTexture::CreateTextureObject("$SnowDisplacement", 0, 0, 0, eTT_2D, FT_DONT_STREAM | FT_USAGE_RENDERTARGET, eTF_R8G8B8A8);
+	m_pSnowDisplacementTex = CTexture::GetOrCreateTextureObject("$SnowDisplacement", 0, 0, 0, eTT_2D, FT_DONT_STREAM | FT_USAGE_RENDERTARGET, eTF_R8G8B8A8);
 }
 
 void CSnowStage::Prepare(CRenderView* pRenderView)
@@ -82,7 +74,7 @@ void CSnowStage::Prepare(CRenderView* pRenderView)
 
 	if (bSnowDisplacement && !CTexture::IsTextureExist(m_pSnowDisplacementTex))
 	{
-		m_pSnowDisplacementTex->Create2DTexture(screenWidth, screenHeight, 1, FT_DONT_STREAM | FT_USAGE_RENDERTARGET, nullptr, eTF_R8G8B8A8, eTF_R8G8B8A8);
+		m_pSnowDisplacementTex->Create2DTexture(screenWidth, screenHeight, 1, FT_DONT_STREAM | FT_USAGE_RENDERTARGET, nullptr, eTF_R8G8B8A8);
 	}
 }
 
@@ -153,6 +145,7 @@ void CSnowStage::ExecuteDeferredSnowGBuffer()
 	                      m_pSnowDisplacementTex->GetID()))
 	{
 		static CCryNameTSCRC techName("Snow");
+		pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 		pass.SetTechnique(CShaderMan::s_ShaderDeferredSnow, techName, rtMask);
 
 		const int32 stencilState = STENC_FUNC(FSS_STENCFUNC_EQUAL) |
@@ -167,7 +160,7 @@ void CSnowStage::ExecuteDeferredSnowGBuffer()
 		pass.SetRenderTarget(0, CTexture::s_ptexSceneNormalsMap);
 		pass.SetRenderTarget(1, CTexture::s_ptexSceneDiffuse);
 		pass.SetRenderTarget(2, pSceneSpecular);
-		pass.SetDepthTarget(&(rd->m_DepthBufferOrigMSAA));
+		pass.SetDepthTarget(rd->m_pZTexture);
 
 		if (CRenderer::CV_r_snow_displacement)
 		{
@@ -189,14 +182,14 @@ void CSnowStage::ExecuteDeferredSnowGBuffer()
 		pass.SetTexture(8, m_pVolumeNoiseTex);
 		pass.SetTexture(9, pOcclusionTex);
 
-		pass.SetSampler(0, rd->m_nPointClampSampler);
-		pass.SetSampler(1, rd->m_nTrilinearWrapSampler);
-		pass.SetSampler(2, rd->m_nPointBorderWhiteSampler);
-		pass.SetSampler(3, rd->m_nBilinearWrapSampler);
+		pass.SetSampler(0, EDefaultSamplerStates::PointClamp);
+		pass.SetSampler(1, EDefaultSamplerStates::TrilinearWrap);
+		pass.SetSampler(2, EDefaultSamplerStates::PointBorder_White);
+		pass.SetSampler(3, EDefaultSamplerStates::BilinearWrap);
 
 		// Those texture and sampler are used in EncodeGBuffer().
 		pass.SetTexture(30, CTexture::s_ptexNormalsFitting);
-		pass.SetSampler(9, rd->m_nPointClampSampler);
+		pass.SetSampler(9, EDefaultSamplerStates::PointClamp);
 
 		pass.SetRequirePerViewConstantBuffer(true);
 	}
@@ -310,6 +303,7 @@ void CSnowStage::ExecuteDeferredSnowDisplacement()
 		if (pass.InputChanged(m_pSnowDisplacementTex->GetID()))
 		{
 			static CCryNameTSCRC techName = "ParallaxMapPrepass";
+			pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 			pass.SetTechnique(CShaderMan::s_ShaderDeferredSnow, techName, 0);
 
 			pass.SetState(GS_NODEPTHTEST);
@@ -320,7 +314,7 @@ void CSnowStage::ExecuteDeferredSnowDisplacement()
 			pass.SetTexture(1, CTexture::s_ptexZTarget);
 			pass.SetTexture(2, CTexture::s_ptexSceneNormalsMap);
 
-			pass.SetSampler(0, rd->m_nPointClampSampler);
+			pass.SetSampler(0, EDefaultSamplerStates::PointClamp);
 
 			pass.SetRequirePerViewConstantBuffer(true);
 		}
@@ -349,7 +343,7 @@ void CSnowStage::ExecuteDeferredSnowDisplacement()
 			pass.SetTexture(0, CTexture::s_ptexBackBuffer);
 			pass.SetTexture(1, CTexture::s_ptexZTarget);
 
-			pass.SetSampler(0, rd->m_nPointClampSampler);
+			pass.SetSampler(0, EDefaultSamplerStates::PointClamp);
 
 			pass.SetRequirePerViewConstantBuffer(true);
 		}
@@ -377,6 +371,7 @@ void CSnowStage::ExecuteDeferredSnowDisplacement()
 
 			if (pass.InputChanged())
 			{
+				pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 				pass.SetTechnique(CShaderMan::s_ShaderDeferredSnow, techName, 0);
 
 				pass.SetState(GS_NODEPTHTEST);
@@ -387,7 +382,7 @@ void CSnowStage::ExecuteDeferredSnowDisplacement()
 				pass.SetTexture(0, CTexture::s_ptexSceneTarget);
 				pass.SetTexture(1, CTexture::s_ptexSceneDiffuseAccMap);
 
-				pass.SetSampler(0, rd->m_nLinearClampSampler);
+				pass.SetSampler(0, EDefaultSamplerStates::LinearClamp);
 
 				pass.SetRequirePerViewConstantBuffer(true);
 			}
@@ -408,6 +403,7 @@ void CSnowStage::ExecuteDeferredSnowDisplacement()
 
 			if (pass.InputChanged())
 			{
+				pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 				pass.SetTechnique(CShaderMan::s_ShaderDeferredSnow, techName, 0);
 
 				pass.SetState(GS_NODEPTHTEST);
@@ -418,7 +414,7 @@ void CSnowStage::ExecuteDeferredSnowDisplacement()
 				pass.SetTexture(0, CTexture::s_ptexHDRTarget);
 				pass.SetTexture(1, CTexture::s_ptexSceneSpecularAccMap);
 
-				pass.SetSampler(0, rd->m_nLinearClampSampler);
+				pass.SetSampler(0, EDefaultSamplerStates::LinearClamp);
 
 				pass.SetRequirePerViewConstantBuffer(true);
 			}
@@ -440,6 +436,7 @@ void CSnowStage::ExecuteDeferredSnowDisplacement()
 			if (pass.InputChanged())
 			{
 				uint64 rtMask = g_HWSR_MaskBit[HWSR_SAMPLE0];
+				pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 				pass.SetTechnique(CShaderMan::s_ShaderDeferredSnow, techName, rtMask);
 
 				pass.SetState(GS_NODEPTHTEST);
@@ -450,7 +447,7 @@ void CSnowStage::ExecuteDeferredSnowDisplacement()
 				pass.SetTexture(0, CTexture::s_ptexSceneTarget);
 				pass.SetTexture(1, CTexture::s_ptexSceneDiffuseAccMap);
 
-				pass.SetSampler(0, rd->m_nLinearClampSampler);
+				pass.SetSampler(0, EDefaultSamplerStates::LinearClamp);
 
 				pass.SetRequirePerViewConstantBuffer(true);
 			}
@@ -717,8 +714,6 @@ void CSnowStage::RenderSnowClusters()
 
 	auto& pass = m_passSnow;
 
-	pass.ClearPrimitives();
-
 	D3DViewPort viewport;
 	viewport.TopLeftX = 0.0f;
 	viewport.TopLeftY = 0.0f;
@@ -730,11 +725,11 @@ void CSnowStage::RenderSnowClusters()
 	// Render to HDR and velocity.
 	pass.SetRenderTarget(0, pSceneSrc);
 	pass.SetRenderTarget(1, pVelocitySrc);
-	pass.SetDepthTarget(CRenderer::CV_r_snow_halfres ? NULL : PostProcessUtils().m_pCurDepthSurface);
+	pass.SetDepthTarget(CRenderer::CV_r_snow_halfres ? nullptr : gcpRendD3D->m_pZTexture);
 	pass.SetViewport(viewport);
+	pass.BeginAddingPrimitives();
 
-	rd->GetGraphicsPipeline().UpdatePerViewConstantBuffer(&viewport);
-	auto pPerViewCB = rd->GetGraphicsPipeline().GetPerViewConstantBuffer();
+	auto pPerViewCB = rd->GetGraphicsPipeline().GetMainViewConstantBuffer();
 
 	CTexture* pOcclusionTex = (rainVolParams.bApplyOcclusion) ? CTexture::s_ptexRainOcclusion : CTexture::s_ptexBlack;
 
@@ -771,7 +766,7 @@ void CSnowStage::RenderSnowClusters()
 
 		CRenderPrimitive* pPrim = cluster.m_pPrimitive.get();
 
-		pPrim->SetCustomVertexStream(m_snowFlakeVertexBuffer, eVF_P3F_T2F_T3F, sizeof(SVF_P3F_T2F_T3F));
+		pPrim->SetCustomVertexStream(m_snowFlakeVertexBuffer, EDefaultInputLayouts::P3F_T2F_T3F, sizeof(SVF_P3F_T2F_T3F));
 		pPrim->SetCustomIndexStream(~0u, RenderIndexType(0));
 		pPrim->SetDrawInfo(eptTriangleList, 0, 0, m_nSnowFlakeVertCount);
 
@@ -784,12 +779,14 @@ void CSnowStage::RenderSnowClusters()
 		pPrim->SetTexture(2, pOcclusionTex);
 		pPrim->SetTexture(3, m_pSnowFlakesTex);
 
-		pPrim->SetSampler(0, rd->m_nPointClampSampler);
-		pPrim->SetSampler(1, rd->m_nTrilinearWrapSampler);
+		pPrim->SetSampler(0, EDefaultSamplerStates::PointClamp);
+		pPrim->SetSampler(1, EDefaultSamplerStates::TrilinearWrap);
+
+		pPrim->SetInlineConstantBuffer(eConstantBufferShaderSlot_PerView, pPerViewCB.get(), EShaderStage_Vertex | EShaderStage_Pixel);
+		pPrim->Compile(pass);
 
 		// update constant buffer
 		{
-			pPrim->SetInlineConstantBuffer(eConstantBufferShaderSlot_PerView, pPerViewCB.get(), EShaderStage_Vertex | EShaderStage_Pixel);
 
 			auto constants = pPrim->GetConstantManager().BeginTypedConstantUpdate<SSnowClusterCB>(eConstantBufferShaderSlot_PerBatch, EShaderStage_Vertex | EShaderStage_Pixel);
 
@@ -822,6 +819,7 @@ void CSnowStage::ExecuteHalfResComposite()
 	if (pass.InputChanged())
 	{
 		static CCryNameTSCRC techName = "SnowHalfResComposite";
+		pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_None);
 		pass.SetTechnique(CShaderMan::s_shPostEffectsGame, techName, 0);
 		pass.SetState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
 
@@ -831,8 +829,8 @@ void CSnowStage::ExecuteHalfResComposite()
 		pass.SetTexture(0, CTexture::s_ptexHDRTargetScaledTmp[0]);
 		pass.SetTexture(1, CTexture::s_ptexBackBufferScaled[0]);
 
-		pass.SetSampler(0, rd->m_nTrilinearClampSampler);
-		pass.SetSampler(1, rd->m_nPointClampSampler);
+		pass.SetSampler(0, EDefaultSamplerStates::TrilinearClamp);
+		pass.SetSampler(1, EDefaultSamplerStates::PointClamp);
 
 		pass.SetRequirePerViewConstantBuffer(true);
 	}

@@ -13,6 +13,7 @@
 #include <list>
 #include <map>
 #include <algorithm>
+#include <unordered_map>
 
 #include <CrySerialization/yasli/Config.h>
 #include <CrySerialization/yasli/Serializer.h>

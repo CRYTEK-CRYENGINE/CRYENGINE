@@ -228,6 +228,7 @@ void CGameClientChannel::DefineProtocol(IProtocolBuilder* pBuilder)
 		cca->GetIGameObjectSystem()->DefineProtocol(false, pBuilder);
 	if (cca->GetGameContext())
 		cca->GetGameContext()->DefineContextProtocols(pBuilder, false);
+	cca->DefineProtocolRMI(pBuilder);
 }
 
 // message implementation
@@ -255,7 +256,10 @@ NET_IMPLEMENT_SIMPLE_ATSYNC_MESSAGE(CGameClientChannel, SetGameType, eNRT_Reliab
 	string rulesClass;
 	string levelName = param.levelName;
 	if (!GetGameContext()->ClassNameFromId(rulesClass, param.rulesClass))
-		return false;
+	{
+		CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_WARNING, "No GameRules");
+	}
+
 	bool ok = true;
 	if (!GetGameContext()->SetImmersive(param.immersive))
 		return false;
@@ -357,21 +361,34 @@ NET_IMPLEMENT_IMMEDIATE_MESSAGE(CGameClientChannel, DefaultSpawn, eNRT_Unreliabl
 		const EntityId entityId = pEntity->GetId();
 
 		CCryAction::GetCryAction()->GetIGameObjectSystem()->SetSpawnSerializerForEntity(entityId, &ser);
+
+		if (!param.baseComponent.IsNull())
+		{
+			if (pEntity->QueryComponentByInterfaceID(param.baseComponent) == nullptr)
+			{
+				pEntity->CreateComponentByInterfaceID(param.baseComponent, nullptr);
+			}
+		}
+
 		if (!pEntitySystem->InitEntity(pEntity, esp))
 		{
 			CCryAction::GetCryAction()->GetIGameObjectSystem()->ClearSpawnSerializerForEntity(entityId);
 			return false;
 		}
 
-		CGameObject* pGameObject = (CGameObject*)CCryAction::GetCryAction()->GetIGameObjectSystem()->CreateGameObjectForEntity(pEntity->GetId());
-		CRY_ASSERT(pGameObject);
 		if (param.bClientActor)
 		{
 			SetPlayerId(entityId);
 		}
 		GetGameContext()->GetNetContext()->SpawnedObject(entityId);
 		CCryAction::GetCryAction()->GetIGameObjectSystem()->ClearSpawnSerializerForEntity(entityId);
-		pGameObject->PostRemoteSpawn();
+
+		CGameObject* pGameObject = (CGameObject*)pEntity->GetProxy(ENTITY_PROXY_USER);
+		if (pGameObject)
+		{
+			pGameObject->PostRemoteSpawn();
+		}
+
 		return true;
 	}
 
@@ -465,6 +482,9 @@ void CGameClientChannel::CallOnSetPlayerId()
 
 	if (IActor* pActor = CCryAction::GetCryAction()->GetIActorSystem()->GetActor(GetPlayerId()))
 		pActor->InitLocalPlayer();
+
+	SEntityEvent becomeLocalPlayer(ENTITY_EVENT_NET_BECOME_LOCAL_PLAYER);
+	pPlayer->SendEvent(becomeLocalPlayer);
 
 #ifndef OLD_VOICE_SYSTEM_DEPRECATED
 	if (m_pVoiceController)

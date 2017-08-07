@@ -119,8 +119,7 @@ class CArticulatedEntity : public CRigidEntity {
 
 	virtual RigidBody *GetRigidBody(int ipart=-1,int bWillModify=0);
 	virtual RigidBody *GetRigidBodyData(RigidBody *pbody, int ipart=-1);
-	virtual void GetLocTransformLerped(int ipart, Vec3 &offs, quaternionf &q, float &scale, float timeBack);
-	virtual void GetContactMatrix(const Vec3 &pt, int ipart, Matrix33 &K);
+	virtual void GetLocTransformLerped(int ipart, Vec3 &offs, quaternionf &q, float &scale, float timeBack, const CPhysicalPlaceholder *trg) const;
 	virtual void OnContactResolved(entity_contact *pcontact, int iop, int iGroupId);
 
 	virtual void GetMemoryStatistics(ICrySizer *pSizer) const;

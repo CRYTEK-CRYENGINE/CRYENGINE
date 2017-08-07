@@ -4,32 +4,21 @@
 #include "CommunicationHandler.h"
 #include "AIProxy.h"
 
-using namespace CryAudio;
-
 namespace ATLUtils
 {
 void SetSwitchState(const char* switchIdName, const char* switchValue, IEntityAudioComponent* pIEntityAudioComponent)
 {
 	CRY_ASSERT(gEnv && gEnv->pAudioSystem != nullptr);
-	ControlId switchControlId(InvalidControlId);
-	gEnv->pAudioSystem->GetAudioSwitchId(switchIdName, switchControlId);
-	if (switchControlId)
-	{
-		SwitchStateId switchStateId(InvalidSwitchStateId);
-		gEnv->pAudioSystem->GetAudioSwitchStateId(switchControlId, switchValue, switchStateId);
-		IF_UNLIKELY (switchStateId == InvalidSwitchStateId)
-		{
-			CryWarning(VALIDATOR_MODULE_AI, VALIDATOR_WARNING, "CommunicationHandler - You are trying to switch the state of the audio switch '%s' to the value '%s'. This switch state doesn't exist.", switchIdName, switchValue);
-		}
-		pIEntityAudioComponent->SetSwitchState(switchControlId, switchStateId);
-	}
+	CryAudio::ControlId const switchId = CryAudio::StringToId_RunTime(switchIdName);
+	CryAudio::SwitchStateId const switchStateId = CryAudio::StringToId_RunTime(switchValue);
+	pIEntityAudioComponent->SetSwitchState(switchId, switchStateId);
 }
-}
+} // namespace ATLUtils
 
 CommunicationHandler::CommunicationHandler(CAIProxy& proxy, IEntity* entity)
 	: m_proxy(proxy)
 	, m_entityId(entity->GetId())
-	, m_agState(0)
+	, m_agState(nullptr)
 	, m_currentQueryID(0)
 	, m_currentPlaying(0)
 	, m_signalInputID(0)
@@ -38,7 +27,7 @@ CommunicationHandler::CommunicationHandler(CAIProxy& proxy, IEntity* entity)
 	CRY_ASSERT(entity);
 	Reset();
 
-	gEnv->pAudioSystem->AddRequestListener(&CommunicationHandler::TriggerFinishedCallback, this, eSystemEvent_TriggerFinished);
+	gEnv->pAudioSystem->AddRequestListener(&CommunicationHandler::TriggerFinishedCallback, this, CryAudio::ESystemEvents::TriggerFinished);
 }
 
 CommunicationHandler::~CommunicationHandler()
@@ -190,7 +179,7 @@ void CommunicationHandler::StopSound(const SCommunicationSound& soundToStop)
 		IEntityAudioComponent* pIEntityAudioComponent = pEntity->GetOrCreateComponent<IEntityAudioComponent>();
 		if (pIEntityAudioComponent)
 		{
-			if (soundToStop.stopSoundControlId != InvalidControlId)
+			if (soundToStop.stopSoundControlId != CryAudio::InvalidControlId)
 			{
 				pIEntityAudioComponent->ExecuteTrigger(soundToStop.stopSoundControlId);
 			}
@@ -308,50 +297,39 @@ SCommunicationSound CommunicationHandler::PlaySound(CommPlayID playID, const cha
 		if (pIEntityAudioComponent)
 		{
 			const ICommunicationManager::WWiseConfiguration& wiseConfigutation = gEnv->pAISystem->GetCommunicationManager()->GetWiseConfiguration();
-
-			CRY_ASSERT(gEnv && gEnv->pAudioSystem);
-			IAudioSystem* pIAudioSystem = gEnv->pAudioSystem;
-			ControlId playCommunicationControlId(InvalidControlId);
-			ControlId stopCommunicationControlId(InvalidControlId);
+			
 			stack_string playTriggerName;
 			playTriggerName.Format("%s%s", wiseConfigutation.prefixForPlayTrigger.c_str(), name);
 			stack_string stopTriggerName;
 			stopTriggerName.Format("%s%s", wiseConfigutation.prefixForStopTrigger.c_str(), name);
+			CryAudio::ControlId const playCommunicationControlId = CryAudio::StringToId_RunTime(playTriggerName.c_str());
+			CryAudio::ControlId const stopCommunicationControlId = CryAudio::StringToId_RunTime(stopTriggerName.c_str());
 
-			pIAudioSystem->GetAudioTriggerId(playTriggerName, playCommunicationControlId);
-			pIAudioSystem->GetAudioTriggerId(stopTriggerName, stopCommunicationControlId);
-			if (playCommunicationControlId != InvalidControlId)
+			if (listener != nullptr)
 			{
-				if (listener)
-				{
-					std::pair<PlayingSounds::iterator, bool> iresult = m_playingSounds.insert(
-					  PlayingSounds::value_type(playCommunicationControlId, PlayingSound()));
+				std::pair<PlayingSounds::iterator, bool> iresult = m_playingSounds.insert(
+					PlayingSounds::value_type(playCommunicationControlId, PlayingSound()));
 
-					PlayingSound& playingSound = iresult.first->second;
-					playingSound.listener = listener;
-					playingSound.type = type;
-					playingSound.playID = playID;
-				}
-
-				SRequestUserData const userData(eRequestFlags_SyncFinishedCallback, this, reinterpret_cast<void*>(static_cast<UINT_PTR>(m_entityId)), this);
-				pIEntityAudioComponent->ExecuteTrigger(playCommunicationControlId, DefaultAuxObjectId, userData);
-
-				SCommunicationSound soundInfo;
-				soundInfo.playSoundControlId = playCommunicationControlId;
-				soundInfo.stopSoundControlId = stopCommunicationControlId;
-				return soundInfo;
+				PlayingSound& playingSound = iresult.first->second;
+				playingSound.listener = listener;
+				playingSound.type = type;
+				playingSound.playID = playID;
 			}
-			else
-			{
-				CryLogAlways("The audio trigger to play communication '%s' is not defined.", name);
-			}
+
+			CryAudio::SRequestUserData const userData(CryAudio::ERequestFlags::DoneCallbackOnExternalThread, this, reinterpret_cast<void*>(static_cast<UINT_PTR>(m_entityId)), this);
+			pIEntityAudioComponent->ExecuteTrigger(playCommunicationControlId, CryAudio::DefaultAuxObjectId, userData);
+
+			SCommunicationSound soundInfo;
+			soundInfo.playSoundControlId = playCommunicationControlId;
+			soundInfo.stopSoundControlId = stopCommunicationControlId;
+			return soundInfo;
 		}
 	}
 
 	return SCommunicationSound();
 }
 
-void CommunicationHandler::TriggerFinishedCallback(SRequestInfo const* const pAudioRequestInfo)
+void CommunicationHandler::TriggerFinishedCallback(CryAudio::SRequestInfo const* const pAudioRequestInfo)
 {
 	EntityId entityId = static_cast<EntityId>(reinterpret_cast<UINT_PTR>(pAudioRequestInfo->pUserData));
 
@@ -370,9 +348,9 @@ void CommunicationHandler::TriggerFinishedCallback(SRequestInfo const* const pAu
 	}
 }
 
-void CommunicationHandler::OnSoundTriggerFinishedToPlay(const ControlId nTriggerID)
+void CommunicationHandler::OnSoundTriggerFinishedToPlay(CryAudio::ControlId const triggerId)
 {
-	PlayingSounds::iterator it = m_playingSounds.find(nTriggerID);
+	PlayingSounds::iterator it = m_playingSounds.find(triggerId);
 	if (it != m_playingSounds.end())
 	{
 		PlayingSound& playing = it->second;
@@ -462,7 +440,7 @@ void CommunicationHandler::QueryComplete(TAnimationGraphQueryID queryID, bool su
 void CommunicationHandler::DestroyedState(IAnimationGraphState* agState)
 {
 	if (agState == m_agState)
-		m_agState = 0;
+		m_agState = nullptr;
 }
 
 bool CommunicationHandler::IsPlayingAnimation() const

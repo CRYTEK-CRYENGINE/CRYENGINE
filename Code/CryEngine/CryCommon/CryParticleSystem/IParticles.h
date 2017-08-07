@@ -13,7 +13,10 @@
 
 #pragma once
 
+#include <Cry3DEngine/I3DEngine.h>
+#include <Cry3DEngine/IRenderNode.h>
 #include <CrySerialization/IArchive.h>
+#include <CrySerialization/Enum.h>
 #include <CryMemory/IMemory.h>
 #include <CrySystem/TimeValue.h>
 #include <CryAudio/IAudioSystem.h>
@@ -21,16 +24,24 @@
 
 class SmartScriptTable;
 
+SERIALIZATION_DECLARE_ENUM(EParticleSpec,
+	Default  = 0,
+	Low      = CONFIG_LOW_SPEC,
+	Medium   = CONFIG_MEDIUM_SPEC,
+	High     = CONFIG_HIGH_SPEC,
+	VeryHigh = CONFIG_VERYHIGH_SPEC,
+	XBoxOne  = CONFIG_DURANGO,
+	PS4      = CONFIG_ORBIS
+	);
+
 //! Real-time params to control particle emitters.
 //! Some parameters override emitter params.
 struct SpawnParams
 {
-	EGeomType                eAttachType;     //!< What type of object particles emitted from.
-	EGeomForm                eAttachForm;     //!< What aspect of shape emitted from.
-	bool                     bCountPerUnit;   //!< Multiply particle count also by geometry extent (length/area/volume).
 	bool                     bPrime;          //!< Advance emitter age to its equilibrium state.
 	bool                     bRegisterByBBox; //!< Use the Bounding Box instead of Position to Register in VisArea.
 	bool                     bNowhere;        //!< Exists outside of level.
+	bool                     bPlaced;         //!< Loaded from placed entity.
 	float                    fCountScale;     //!< Multiple for particle count (on top of bCountPerUnit if set).
 	float                    fSizeScale;      //!< Multiple for all effect sizes.
 	float                    fSpeedScale;     //!< Multiple for particle emission speed.
@@ -39,18 +50,21 @@ struct SpawnParams
 	float                    fStrength;       //!< Controls parameter strength curves.
 	int                      nSeed;           //!< Initial seed. Default is -1 which means random seed.
 
+	EParticleSpec            eSpec;           //!< Overrides particle spec for this emitter
+	EGeomType                eAttachType;     //!< What type of object particles emitted from.
+	EGeomForm                eAttachForm;     //!< What aspect of shape emitted from.
+	bool                     bCountPerUnit;   //!< Multiply particle count also by geometry extent (length/area/volume).
+
 	bool                     bEnableAudio;  //!< Used by particle effect instances to indicate whether audio should be updated or not.
 	CryAudio::EOcclusionType occlusionType; //!< Audio obstruction/occlusion calculation type.
 	string                   audioRtpc;     //!< Indicates what audio RTPC this particle effect instance drives.
 
 	inline SpawnParams()
 	{
-		eAttachType = GeomType_None;
-		eAttachForm = GeomForm_Surface;
-		bCountPerUnit = false;
 		bPrime = false;
 		bRegisterByBBox = false;
 		bNowhere = false;
+		bPlaced = false;
 		fCountScale = 1;
 		fSizeScale = 1;
 		fSpeedScale = 1;
@@ -58,8 +72,28 @@ struct SpawnParams
 		fPulsePeriod = 0;
 		fStrength = -1;
 		nSeed = -1;
+		eSpec = EParticleSpec::Default;
+		eAttachType = GeomType_None;
+		eAttachForm = GeomForm_Surface;
+		bCountPerUnit = false;
 		bEnableAudio = true;
-		occlusionType = CryAudio::eOcclusionType_Ignore;
+		occlusionType = CryAudio::EOcclusionType::Ignore;
+	}
+
+	void Serialize(Serialization::IArchive& ar)
+	{
+		ar(eSpec, "spec", "Particle Spec");
+		ar.doc("Overrides Particle Spec for this emitter");
+		ar(fSizeScale, "scale", "Uniform Scale");
+		ar.doc("Emitter uniform scale");
+		ar(fCountScale, "countScale", "Count Scale");
+		ar.doc("Particle count multiplier");
+		ar(fSpeedScale, "speedScale", "Speed Scale");
+		ar.doc("Particle emission speed multiplier");
+		ar(fTimeScale, "timeScale", "Time Scale");
+		ar.doc("Emitter time multiplier");
+		ar(bPrime, "prime", "Prime");
+		ar.doc("Advance emitter age to its equilibrium state");
 	}
 };
 
@@ -106,19 +140,33 @@ struct ParticleLoc : QuatTS
 	ParticleLoc(const Vec3& pos, const Vec3& dir = Vec3(0, 0, 1), float scale = 1.f)
 		: QuatTS(IDENTITY, pos, scale)
 	{
-		if (!dir.IsZero())
-		{
-			// Rotate in 2 stages to avoid roll.
-			Vec3 dirxy = Vec3(dir.x, dir.y, 0.f);
-			if (!dirxy.IsZero(1e-10f))
-			{
-				dirxy.Normalize();
-				q = Quat::CreateRotationV0V1(dirxy, dir.GetNormalized())
-				    * Quat::CreateRotationV0V1(Vec3(0, 1, 0), dirxy);
-			}
-			else
-				q = Quat::CreateRotationV0V1(Vec3(0, 1, 0), dir.GetNormalized());
-		}
+		// ParticleLoc currently uses pfx1 behavior
+		SetYToDir(q, dir);
+	}
+
+	static void SetZToDir(Quat& q, const Vec3& dir)
+	{
+		// pfx2 orientation system: Z is focus.
+		if (dir.IsZero())
+			q.SetIdentity();
+		else
+			q.SetRotationV0V1(Vec3(0, 0, 1), dir);
+	}
+
+	static void SetYToDir(Quat& q, const Vec3& dir)
+	{
+		// pfx1 orientation system: Y is focus.
+		q.SetRotationVDir(dir);
+	}
+
+	static void RotateZtoY(Quat& q)
+	{
+		SetYToDir(q, q.GetColumn2());
+	}
+
+	static void RotateYtoZ(Quat& q)
+	{
+		SetZToDir(q, q.GetColumn1());
 	}
 };
 
@@ -131,15 +179,18 @@ struct IParticleAttributes
 		ET_Boolean,
 		ET_Integer,
 		ET_Float,
-		ET_Color
+		ET_Color,
+
+		ET_Count,
 	};
 
-	virtual void         UpdateScriptTable(const SmartScriptTable& scriptTable) = 0;
-
+	virtual void         Reset(const IParticleAttributes* pCopySource = nullptr) = 0;
+	virtual void         Serialize(Serialization::IArchive& ar) = 0;
+	virtual void         TransferInto(IParticleAttributes* pReceiver) const = 0;
 	virtual TAttributeId FindAttributeIdByName(cstr name) const = 0;
 	virtual uint         GetNumAttributes() const = 0;
-	virtual cstr         GetAttributeName(uint idx) const = 0;
-	virtual EType        GetAttributeType(uint idx) const = 0;
+	virtual cstr         GetAttributeName(TAttributeId idx) const = 0;
+	virtual EType        GetAttributeType(TAttributeId idx) const = 0;
 
 	virtual bool         GetAsBoolean(TAttributeId id, bool defaultValue) const = 0;
 	virtual int          GetAsInteger(TAttributeId id, int defaultValue) const = 0;
@@ -153,6 +204,8 @@ struct IParticleAttributes
 	virtual void         SetAsColor(TAttributeId id, ColorB value) = 0;
 	virtual void         SetAsColor(TAttributeId id, ColorF value) = 0;
 };
+
+typedef std::shared_ptr<IParticleAttributes> TParticleAttributesPtr;
 
 //! Interface to control a particle effect.
 //! This interface is used by I3DEngine::CreateParticleEffect to control a particle effect.
@@ -207,15 +260,14 @@ struct IParticleEffect : public _i_reference_target_t
 	//! \param bEnabled Set to true to enable the effect or to false to disable it.
 	virtual void SetEnabled(bool bEnabled) = 0;
 
-	//! Determines if the effect is already enabled.
-	//! \return A boolean value which indicate the status of the effect; true if enabled or false if disabled.
-	virtual bool IsEnabled() const = 0;
+	//! Determines if the effect is enabled.
+	enum ECheckOptions { eCheckChildren = 1, eCheckConfig = 2, eCheckFeatures = 4 };
+	virtual bool IsEnabled(uint options = 0) const = 0;
 
 	//! Returns true if this is a run-time only unsaved effect.
 	virtual bool IsTemporary() const = 0;
 
 	//! Sets the particle parameters.
-	//! \return An object of the type ParticleParams which contains several parameters.
 	virtual void SetParticleParams(const ParticleParams& params) = 0;
 
 	//! Gets the particle parameters.
@@ -279,15 +331,9 @@ struct IParticleEffect : public _i_reference_target_t
 
 	// Summary:
 	// Arguments:
-	virtual const IParticleAttributes& GetAttributes() = 0;
+	virtual IParticleAttributes& GetAttributes() = 0;
 
 	// </interfuscator:shuffle>
-};
-
-struct SInitialData
-{
-	Vec3 position;
-	Vec3 velocity;
 };
 
 //! Interface to a particle effect emitter.
@@ -401,10 +447,6 @@ struct IParticleEmitter : public IRenderNode, public CMultiThreadRefCount
 	//		 Get Particle Attributes
 	virtual IParticleAttributes& GetAttributes() = 0;
 
-	// Summary:
-	//		 Get Parent particle data to initialize GPU particles
-	virtual void GetParentData(const int parentComponentId, const uint* parentParticleIds, const int numParentParticleIds, SInitialData* data) const {};
-
 	// </interfuscator:shuffle>
 };
 
@@ -413,7 +455,7 @@ struct IParticleEmitter : public IRenderNode, public CMultiThreadRefCount
 struct IParticleEffectListener
 {
 	// <interfuscator:shuffle>
-	virtual ~IParticleEffectListener(){}
+	virtual ~IParticleEffectListener() {}
 	//! This callback is called when a new particle emitter is created.
 	//! \param pEmitter Created Emitter.
 	//! \param bIndependent
@@ -428,74 +470,58 @@ struct IParticleEffectListener
 };
 
 //////////////////////////////////////////////////////////////////////////
-struct SContainerCounts
-{
-	float EmittersRendered, ParticlesRendered;
-	float PixelsProcessed, PixelsRendered;
-	float ParticlesReiterate, ParticlesReject, ParticlesClip;
-	float ParticlesCollideTest, ParticlesCollideHit;
 
-	SContainerCounts()
-	{ memset(this, 0, sizeof(*this)); }
+// General particle stats
+template<typename F>
+struct TElementCounts
+	: INumberVector<F, 3, TElementCounts<F>>
+{
+	F alive, updated, rendered;
 };
 
-struct SParticleCounts : SContainerCounts
+// pfx1 particle stats
+template<typename F>
+struct TContainerCountsBase
 {
-	float EmittersAlloc;
-	float EmittersActive;
-	float ParticlesAlloc;
-	float ParticlesActive;
-	float SubEmittersActive;
-	int   nCollidingEmitters;
-	int   nCollidingParticles;
-
-	float StaticBoundsVolume;
-	float DynamicBoundsVolume;
-	float ErrorBoundsVolume;
-
-	SParticleCounts()
-	{ memset(this, 0, sizeof(*this)); }
-};
-
-struct SSumParticleCounts : SParticleCounts
-{
-	float SumParticlesAlloc, SumEmittersAlloc;
-
-	SSumParticleCounts()
-		: SumParticlesAlloc(0.f), SumEmittersAlloc(0.f)
-	{}
-
-	void GetMemoryUsage(ICrySizer* pSizer) const
+	TElementCounts<F> components;
+	struct SubEmitterCounts
 	{
-		pSizer->AddObject(this, sizeof(*this));
-	}
+		F updated;
+	} subemitters;
+	struct ParticleCounts : TElementCounts<F>
+	{
+		F reiterate, reject, clip, collideTest, collideHit;
+	} particles;
+	struct PixelCounts
+	{
+		F updated, rendered;
+	} pixels;
 };
 
-struct SEffectCounts
+template<typename F>
+struct TContainerCounts
+	: INumberVector<float, 14, TContainerCounts<F>>
+	, TContainerCountsBase<F>
 {
-	int nLoaded, nUsed, nEnabled, nActive;
-
-	SEffectCounts()
-	{ memset(this, 0, sizeof(*this)); }
+	TContainerCounts() { this->SetZero(); }
 };
 
-template<class T>
-Array<float> FloatArray(T& obj)
+template<typename F>
+struct TParticleCounts
+	: INumberVector<float, 20, TParticleCounts<F>>
+	, TContainerCountsBase<F>
 {
-	return Array<float>((float*)&obj, (float*)(&obj + 1));
-}
+	TElementCounts<F> emitters;
+	struct VolumeStats
+	{
+		F stat, dyn, error;
+	} volume;
 
-inline void AddArray(Array<float> dst, Array<const float> src)
-{
-	for (int i = min(dst.size(), src.size()) - 1; i >= 0; --i)
-		dst[i] += src[i];
-}
+	TParticleCounts()  { this->SetZero(); }
+};
 
-inline void BlendArray(Array<float> dst, float fDst, Array<const float> src, float fSrc)
-{
-	for (int i = min(dst.size(), src.size()) - 1; i >= 0; --i)
-		dst[i] = dst[i] * fDst + src[i] * fSrc;
-}
+typedef TContainerCounts<float> SContainerCounts;
+typedef TParticleCounts<float> SParticleCounts;
 
 //////////////////////////////////////////////////////////////////////////
 struct IParticleEffectIterator
@@ -516,7 +542,7 @@ typedef IParticleEffectIterator_AutoPtr IParticleEffectIteratorPtr;
 struct IParticleManager
 {
 	// <interfuscator:shuffle>
-	virtual ~IParticleManager(){}
+	virtual ~IParticleManager() {}
 	//////////////////////////////////////////////////////////////////////////
 	// ParticleEffects
 	//////////////////////////////////////////////////////////////////////////
@@ -714,6 +740,7 @@ struct SParticleShaderData
 		m_softnessMultiplier = 1;
 		m_sphericalApproximation = 0;
 		m_thickness = 0.0f;
+		m_axisScale = 0.0f;
 
 		m_diffuseLighting = 1.0f;
 		m_emissiveLighting = 0.0f;
@@ -761,6 +788,7 @@ struct SParticleShaderData
 			float m_softnessMultiplier;
 			float m_sphericalApproximation;
 			float m_thickness;
+			float m_axisScale;
 		};
 	};
 

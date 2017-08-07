@@ -10,60 +10,59 @@ namespace Impl
 {
 namespace Null
 {
-class CAudioImpl final : public IAudioImpl
+class CImpl final : public IImpl
 {
 public:
 
-	CAudioImpl() = default;
-	virtual ~CAudioImpl() override = default;
-	CAudioImpl(CAudioImpl const&) = delete;
-	CAudioImpl(CAudioImpl&&) = delete;
-	CAudioImpl& operator=(CAudioImpl const&) = delete;
-	CAudioImpl& operator=(CAudioImpl&&) = delete;
+	CImpl() = default;
+	CImpl(CImpl const&) = delete;
+	CImpl(CImpl&&) = delete;
+	CImpl& operator=(CImpl const&) = delete;
+	CImpl& operator=(CImpl&&) = delete;
 
-	// IAudioImpl
-	virtual void                     Update(float const deltaTime) override;
-	virtual ERequestStatus           Init(uint32 const audioObjectPoolSize, uint32 const eventPoolSize) override;
-	virtual ERequestStatus           OnBeforeShutDown() override;
-	virtual ERequestStatus           ShutDown() override;
-	virtual ERequestStatus           Release() override;
-	virtual void                     OnAudioSystemRefresh() override;
-	virtual ERequestStatus           OnLoseFocus() override;
-	virtual ERequestStatus           OnGetFocus() override;
-	virtual ERequestStatus           MuteAll() override;
-	virtual ERequestStatus           UnmuteAll() override;
-	virtual ERequestStatus           StopAllSounds() override;
-	virtual ERequestStatus           RegisterInMemoryFile(SAudioFileEntryInfo* const pAudioFileEntry) override;
-	virtual ERequestStatus           UnregisterInMemoryFile(SAudioFileEntryInfo* const pAudioFileEntry) override;
-	virtual ERequestStatus           ParseAudioFileEntry(XmlNodeRef const pAudioFileEntryNode, SAudioFileEntryInfo* const pFileEntryInfo) override;
-	virtual void                     DeleteAudioFileEntry(IAudioFileEntry* const pOldAudioFileEntry) override;
-	virtual char const* const        GetAudioFileLocation(SAudioFileEntryInfo* const pFileEntryInfo) override;
-	virtual IAudioTrigger const*     NewAudioTrigger(XmlNodeRef const pAudioTriggerNode) override;
-	virtual void                     DeleteAudioTrigger(IAudioTrigger const* const pOldAudioTrigger) override;
-	virtual IParameter const*        NewAudioParameter(XmlNodeRef const pAudioParameterNode) override;
-	virtual void                     DeleteAudioParameter(IParameter const* const pParameter) override;
-	virtual IAudioSwitchState const* NewAudioSwitchState(XmlNodeRef const pAudioSwitchStateImplNode) override;
-	virtual void                     DeleteAudioSwitchState(IAudioSwitchState const* const pOldAudioSwitchState) override;
-	virtual IAudioEnvironment const* NewAudioEnvironment(XmlNodeRef const pAudioEnvironmentNode) override;
-	virtual void                     DeleteAudioEnvironment(IAudioEnvironment const* const pOldAudioEnvironment) override;
-	virtual IAudioObject*            ConstructGlobalAudioObject() override;
-	virtual IAudioObject*            ConstructAudioObject(char const* const szAudioObjectName = "") override;
-	virtual void                     DestructAudioObject(IAudioObject const* const pAudioObject) override;
-	virtual IAudioListener*          ConstructAudioListener() override;
-	virtual void                     DestructAudioListener(IAudioListener* const pListenerData) override;
-	virtual IAudioEvent*             ConstructAudioEvent(CATLEvent& audioEvent) override;
-	virtual void                     DestructAudioEvent(IAudioEvent const* const pEvent) override;
-	virtual IAudioStandaloneFile*    ConstructAudioStandaloneFile(CATLStandaloneFile& atlStandaloneFile, char const* const szFile, bool const bLocalized, IAudioTrigger const* pTrigger = nullptr) override;
-	virtual void                     DestructAudioStandaloneFile(IAudioStandaloneFile const* const pAudioStandaloneFile) override;
-	virtual void                     GamepadConnected(TAudioGamepadUniqueID const deviceUniqueID) override;
-	virtual void                     GamepadDisconnected(TAudioGamepadUniqueID const deviceUniqueID) override;
-	virtual void                     SetLanguage(char const* const szLanguage) override;
+	// CryAudio::Impl::IImpl
+	virtual void                Update(float const deltaTime) override;
+	virtual ERequestStatus      Init(uint32 const objectPoolSize, uint32 const eventPoolSize) override;
+	virtual ERequestStatus      OnBeforeShutDown() override;
+	virtual ERequestStatus      ShutDown() override;
+	virtual ERequestStatus      Release() override;
+	virtual void                OnRefresh() override;
+	virtual ERequestStatus      OnLoseFocus() override;
+	virtual ERequestStatus      OnGetFocus() override;
+	virtual ERequestStatus      MuteAll() override;
+	virtual ERequestStatus      UnmuteAll() override;
+	virtual ERequestStatus      StopAllSounds() override;
+	virtual ERequestStatus      RegisterInMemoryFile(SFileInfo* const pFileInfo) override;
+	virtual ERequestStatus      UnregisterInMemoryFile(SFileInfo* const pFileInfo) override;
+	virtual ERequestStatus      ConstructFile(XmlNodeRef const pRootNode, SFileInfo* const pFileInfo) override;
+	virtual void                DestructFile(IFile* const pIFile) override;
+	virtual char const* const   GetFileLocation(SFileInfo* const pFileInfo) override;
+	virtual ITrigger const*     ConstructTrigger(XmlNodeRef const pRootNode) override;
+	virtual void                DestructTrigger(ITrigger const* const pITrigger) override;
+	virtual IParameter const*   ConstructParameter(XmlNodeRef const pRootNode) override;
+	virtual void                DestructParameter(IParameter const* const pIParameter) override;
+	virtual ISwitchState const* ConstructSwitchState(XmlNodeRef const pRootNode) override;
+	virtual void                DestructSwitchState(ISwitchState const* const pISwitchState) override;
+	virtual IEnvironment const* ConstructEnvironment(XmlNodeRef const pRootNode) override;
+	virtual void                DestructEnvironment(IEnvironment const* const pIEnvironment) override;
+	virtual IObject*            ConstructGlobalObject() override;
+	virtual IObject*            ConstructObject(char const* const szName = nullptr) override;
+	virtual void                DestructObject(IObject const* const pIObject) override;
+	virtual IListener*          ConstructListener(char const* const szName = nullptr) override;
+	virtual void                DestructListener(IListener* const pIListener) override;
+	virtual IEvent*             ConstructEvent(CATLEvent& event) override;
+	virtual void                DestructEvent(IEvent const* const pIEvent) override;
+	virtual IStandaloneFile*    ConstructStandaloneFile(CATLStandaloneFile& standaloneFile, char const* const szFile, bool const bLocalized, ITrigger const* pITrigger = nullptr) override;
+	virtual void                DestructStandaloneFile(IStandaloneFile const* const pIStandaloneFile) override;
+	virtual void                GamepadConnected(DeviceId const deviceUniqueID) override;
+	virtual void                GamepadDisconnected(DeviceId const deviceUniqueID) override;
+	virtual void                SetLanguage(char const* const szLanguage) override;
 
 	// Below data is only used when INCLUDE_AUDIO_PRODUCTION_CODE is defined!
-	virtual char const* const GetImplementationNameString() const override { return "null-implementation"; }
-	virtual void              GetMemoryInfo(SAudioImplMemoryInfo& memoryInfo) const override;
-	virtual void              GetAudioFileData(char const* const szFilename, SFileData& audioFileData) const override;
-	// ~IAudioImpl
+	virtual char const* const GetName() const override { return "null-implementation"; }
+	virtual void              GetMemoryInfo(SMemoryInfo& memoryInfo) const override;
+	virtual void              GetFileData(char const* const szName, SFileData& fileData) const override;
+	// ~CryAudio::Impl::IImpl
 };
 } // namespace Null
 } // namespace Impl

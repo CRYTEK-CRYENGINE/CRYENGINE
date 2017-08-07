@@ -33,8 +33,8 @@ enum EBasicTypes4CC
 	eBT_qutt = 'qutt', // QuatT<f32>
 };
 
-typedef boost::mpl::vector<int8, uint8, int16, uint16, int32, uint32, int64, uint64, f32, f64, string, Vec3, Ang3, Matrix34, Quat, QuatT> TBasicTypes;
-typedef boost::make_variant_over<TBasicTypes>::type                                                                                       TBasicType;
+typedef boost::mpl::vector<int8, uint8, int16, uint16, int32, uint32, int64, uint64, f32, f64, string, Vec3, Matrix34, Quat, QuatT> TBasicTypes;
+typedef boost::make_variant_over<TBasicTypes>::type                                                                                 TBasicType;
 
 template<typename T>
 static inline T ComposeValue(const uint8* data, size_t size)

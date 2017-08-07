@@ -15,7 +15,6 @@
 #define DECAL_MANAGER
 
 #define DECAL_COUNT              (512) // must be pow2
-#define ENTITY_DECAL_DIST_FACTOR (200)
 #define DIST_FADING_FACTOR       (6.f)
 
 class C3DEngine;

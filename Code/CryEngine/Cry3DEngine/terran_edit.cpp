@@ -52,7 +52,10 @@ IRenderNode* CTerrain::AddVegetationInstance(int nStaticGroupIndex, const Vec3& 
 		Warning("I3DEngine::AddStaticObject: Attempt to add object of undefined type");
 		return 0;
 	}
-	if (!group.bAutoMerged)
+
+	bool bValidForMerging = group.GetStatObj()->GetRenderTrisCount() < GetCVars()->e_MergedMeshesMaxTriangles;
+
+	if (!group.bAutoMerged || !bValidForMerging)
 	{
 		CVegetation* pEnt = (CVegetation*)Get3DEngine()->CreateRenderNode(eERType_Vegetation);
 		pEnt->SetScale(fScale);
@@ -68,6 +71,16 @@ IRenderNode* CTerrain::AddVegetationInstance(int nStaticGroupIndex, const Vec3& 
 		{
 			Warning("CTerrain::AddVegetationInstance: Object has invalid bbox: %s,%s, GetRadius() = %.2f",
 			        pEnt->GetName(), pEnt->GetEntityClassName(), sqrt_tpl(fEntLengthSquared) * 0.5f);
+		}
+
+		if (group.bAutoMerged && !bValidForMerging)
+		{
+			static int nLastFrameId = 0;
+			if (nLastFrameId != gEnv->pRenderer->GetFrameID()) // log spam prevention
+			{
+				Warning("%s: Vegetation object is not suitable for merging because of too many polygons: %s (%d triangles)", __FUNCTION__, group.GetStatObj()->GetFilePath(), group.GetStatObj()->GetRenderTrisCount());
+				nLastFrameId = gEnv->pRenderer->GetFrameID();
+			}
 		}
 
 		pEnt->Physicalize();
@@ -140,8 +153,8 @@ void CTerrain::BuildErrorsTableForArea(float* pLodErrors, int nMaxLods,
                                        int nSurfSizeX, int nSurfSizeY, bool& bHasHoleEdges)
 {
 	memset(pLodErrors, 0, nMaxLods * sizeof(pLodErrors[0]));
-	int nSectorSize = CTerrain::GetSectorSize() / CTerrain::GetHeightMapUnitSize();
-	int nTerrainSize = CTerrain::GetTerrainSize() / CTerrain::GetHeightMapUnitSize();
+	int nSectorSize = int(CTerrain::GetSectorSize() * CTerrain::GetHeightMapUnitSizeInverted());
+	int nTerrainSize = int(CTerrain::GetTerrainSize() * CTerrain::GetHeightMapUnitSizeInverted());
 
 	bool bSectorHasHoles = false;
 	bool bSectorHasMesh = false;
@@ -259,24 +272,24 @@ void CTerrain::BuildErrorsTableForArea(float* pLodErrors, int nMaxLods,
 void CTerrain::HighlightTerrain(int x1, int y1, int x2, int y2, int nSID)
 {
 	// Input dimensions are in units.
-	int iHMUnit = GetHeightMapUnitSize();
-	float x1u = (float)x1 * iHMUnit, x2u = (float)x2 * iHMUnit;
-	float y1u = (float)y1 * iHMUnit, y2u = (float)y2 * iHMUnit;
+	float unitSize = GetHeightMapUnitSize();
+	float x1u = (float)x1 * unitSize, x2u = (float)x2 * unitSize;
+	float y1u = (float)y1 * unitSize, y2u = (float)y2 * unitSize;
 
 	ColorB clrRed(255, 0, 0);
 	IRenderAuxGeom* prag = GetISystem()->GetIRenderer()->GetIRenderAuxGeom();
 
 	for (int x = x1; x < x2; x += 1)
 	{
-		float xu = (float)x * iHMUnit;
-		prag->DrawLine(Vec3(y1u, xu, GetZfromUnits(y1, x, nSID) + 0.5f), clrRed, Vec3(y1u, xu + iHMUnit, GetZfromUnits(y1, x + 1, nSID) + 0.5f), clrRed, 5.0f);
-		prag->DrawLine(Vec3(y2u, xu, GetZfromUnits(y2, x, nSID) + 0.5f), clrRed, Vec3(y2u, xu + iHMUnit, GetZfromUnits(y2, x + 1, nSID) + 0.5f), clrRed, 5.0f);
+		float xu = (float)x * unitSize;
+		prag->DrawLine(Vec3(y1u, xu, GetZfromUnits(y1, x, nSID) + 0.5f), clrRed, Vec3(y1u, xu + unitSize, GetZfromUnits(y1, x + 1, nSID) + 0.5f), clrRed, 5.0f);
+		prag->DrawLine(Vec3(y2u, xu, GetZfromUnits(y2, x, nSID) + 0.5f), clrRed, Vec3(y2u, xu + unitSize, GetZfromUnits(y2, x + 1, nSID) + 0.5f), clrRed, 5.0f);
 	}
 	for (int y = y1; y < y2; y += 1)
 	{
-		float yu = (float)y * iHMUnit;
-		prag->DrawLine(Vec3(yu, x1u, GetZfromUnits(y, x1, nSID) + 0.5f), clrRed, Vec3(yu + iHMUnit, x1u, GetZfromUnits(y + 1, x1, nSID) + 0.5f), clrRed, 5.0f);
-		prag->DrawLine(Vec3(yu, x2u, GetZfromUnits(y, x2, nSID) + 0.5f), clrRed, Vec3(yu + iHMUnit, x2u, GetZfromUnits(y + 1, x2, nSID) + 0.5f), clrRed, 5.0f);
+		float yu = (float)y * unitSize;
+		prag->DrawLine(Vec3(yu, x1u, GetZfromUnits(y, x1, nSID) + 0.5f), clrRed, Vec3(yu + unitSize, x1u, GetZfromUnits(y + 1, x1, nSID) + 0.5f), clrRed, 5.0f);
+		prag->DrawLine(Vec3(yu, x2u, GetZfromUnits(y, x2, nSID) + 0.5f), clrRed, Vec3(yu + unitSize, x2u, GetZfromUnits(y + 1, x2, nSID) + 0.5f), clrRed, 5.0f);
 	}
 }
 
@@ -290,8 +303,8 @@ void CTerrain::SetTerrainElevation(int X1, int Y1, int nSizeX, int nSizeY, float
 	FUNCTION_PROFILER_3DENGINE;
 
 	float fStartTime = GetCurAsyncTimeSec();
-	int nUnitSize = CTerrain::GetHeightMapUnitSize();
-	int nHmapSize = CTerrain::GetTerrainSize() / nUnitSize;
+	float unitSize = CTerrain::GetHeightMapUnitSize();
+	int nHmapSize = int(CTerrain::GetTerrainSize() / unitSize);
 
 	ResetHeightMapCache();
 
@@ -341,14 +354,16 @@ void CTerrain::SetTerrainElevation(int X1, int Y1, int nSizeX, int nSizeY, float
 	}
 #endif
 
-	AABB aabb;
+	AABB aabb = Get3DEngine()->m_pObjectsTree[0]->GetNodeBox();
+
 	if (!GetSegmentBounds(nSID, aabb))
 	{
 		Warning("CTerrain::SetTerrainElevation: invalid segment id specified!");
 		return;
 	}
-	int x0 = ((int)aabb.min.x) >> m_nBitShift;
-	int y0 = ((int)aabb.min.y) >> m_nBitShift;
+
+	int x0 = (int)(aabb.min.x * m_fInvUnitSize);
+	int y0 = (int)(aabb.min.y * m_fInvUnitSize);
 
 	if (!GetParentNode(nSID))
 		BuildSectorsTree(false, nSID);
@@ -420,8 +435,8 @@ void CTerrain::SetTerrainElevation(int X1, int Y1, int nSizeX, int nSizeY, float
 
 			assert(pTerrainNode->m_pGeomErrors[0] == 0);
 
-			pTerrainNode->m_boxHeigtmapLocal.min.Set((float)((x1 - x0) * nUnitSize), (float)((y1 - y0) * nUnitSize), fMin);
-			pTerrainNode->m_boxHeigtmapLocal.max.Set((float)((x2 - x0) * nUnitSize), (float)((y2 - y0) * nUnitSize), max(fMax, GetWaterLevel()));
+			pTerrainNode->m_boxHeigtmapLocal.min.Set((float)((x1 - x0) * unitSize), (float)((y1 - y0) * unitSize), fMin);
+			pTerrainNode->m_boxHeigtmapLocal.max.Set((float)((x2 - x0) * unitSize), (float)((y2 - y0) * unitSize), max(fMax, GetWaterLevel()));
 
 			// same as in SetLOD()
 			float fAllowedError = 0.05f; // ( GetCVars()->e_TerrainLodRatio * 32.f ) / 180.f * 2.5f;
@@ -429,9 +444,9 @@ void CTerrain::SetTerrainElevation(int X1, int Y1, int nSizeX, int nSizeY, float
 
 			for (; nGeomMML > 0; nGeomMML--)
 			{
-				float fStepMeters = (float)((1 << nGeomMML) * GetHeightMapUnitSize());
+				float stepMeters = (float)((1 << nGeomMML) * GetHeightMapUnitSize());
 
-				if (fStepMeters <= fMaxTexelSizeMeters)
+				if (stepMeters <= fMaxTexelSizeMeters)
 					break;
 
 				if (pTerrainNode->m_pGeomErrors[nGeomMML] < fAllowedError)
@@ -613,8 +628,8 @@ void CTerrain::SetTerrainElevation(int X1, int Y1, int nSizeX, int nSizeY, float
 		PodArray<IRenderNode*> lstRoads;
 
 		aabb = AABB(
-		  Vec3((float)(x0 + X1) * (float)nUnitSize, (float)(y0 + Y1) * (float)nUnitSize, 0.f),
-		  Vec3((float)(x0 + X1) * (float)nUnitSize + (float)nSizeX * (float)nUnitSize, (float)(y0 + Y1) * (float)nUnitSize + (float)nSizeY * (float)nUnitSize, 1024.f));
+		  Vec3((float)(x0 + X1) * (float)unitSize, (float)(y0 + Y1) * (float)unitSize, 0.f),
+		  Vec3((float)(x0 + X1) * (float)unitSize + (float)nSizeX * (float)unitSize, (float)(y0 + Y1) * (float)unitSize + (float)nSizeY * (float)unitSize, 1024.f));
 
 		Get3DEngine()->m_pObjectsTree[nSID]->GetObjectsByType(lstRoads, eERType_Road, &aabb);
 		for (int i = 0; i < lstRoads.Count(); i++)
@@ -697,11 +712,11 @@ void CTerrain::ResetTerrainVertBuffers(const AABB* pBox, int nSID)
 		GetParentNode(nSID)->ReleaseHeightMapGeometry(true, pBox);
 }
 
-void CTerrain::SetOceanWaterLevel(float fOceanWaterLevel)
+void CTerrain::SetOceanWaterLevel(float oceanWaterLevel)
 {
-	SetWaterLevel(fOceanWaterLevel);
+	SetWaterLevel(oceanWaterLevel);
 	pe_params_buoyancy pb;
-	pb.waterPlane.origin.Set(0, 0, fOceanWaterLevel);
+	pb.waterPlane.origin.Set(0, 0, oceanWaterLevel);
 	if (gEnv->pPhysicalWorld)
 		gEnv->pPhysicalWorld->AddGlobalArea()->SetParams(&pb);
 	extern float g_oceanStep;
@@ -722,12 +737,20 @@ bool CTerrain::CanPaintSurfaceType(int x, int y, int r, uint16 usGlobalSurfaceTy
 	int rangeX2 = min(nTerrainSizeSectors, ((x + r) >> m_nUnitsToSectorBitShift) + 1);
 	int rangeY2 = min(nTerrainSizeSectors, ((y + r) >> m_nUnitsToSectorBitShift) + 1);
 
+	float unitSize = (float)CTerrain::GetSectorSize();
+	int nSignedBitShift = IntegerLog2((unsigned int)CTerrain::GetSectorSize());
+	while (unitSize > CTerrain::GetHeightMapUnitSize())
+	{
+		unitSize *= 0.5f;
+		nSignedBitShift--;
+	}
+
 	// Can we fit this surface type into the palettes of all sectors involved?
 	for (int rangeX = rangeX1; rangeX < rangeX2; rangeX++)
 		for (int rangeY = rangeY1; rangeY < rangeY2; rangeY++)
 		{
 			int rx = rangeX, ry = rangeY;
-			int nSID = WorldToSegment(ry, rx, m_nBitShift + m_nUnitsToSectorBitShift);
+			int nSID = WorldToSegment(ry, rx, nSignedBitShift + m_nUnitsToSectorBitShift);
 			if (nSID < 0)
 				continue;
 

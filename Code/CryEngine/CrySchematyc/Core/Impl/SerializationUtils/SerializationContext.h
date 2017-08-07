@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
 
 namespace Schematyc
 {

@@ -518,7 +518,7 @@ CTimeOfDay::CTimeOfDay()
 
 	m_pCurrentPreset = NULL;
 
-	gEnv->pAudioSystem->GetAudioParameterId("time_of_day", m_timeOfDayRtpcId);
+	m_timeOfDayRtpcId = CryAudio::StringToId_CompileTime("time_of_day");
 }
 
 //////////////////////////////////////////////////////////////////////////

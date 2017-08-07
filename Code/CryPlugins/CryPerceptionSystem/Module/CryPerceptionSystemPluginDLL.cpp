@@ -5,8 +5,6 @@
 // Included only once per DLL module.
 #include <CryCore/Platform/platform_impl.inl>
 
-USE_CRYPLUGIN_FLOWNODES
-
 class CCryPerceptionSystemPlugin : public ICryPerceptionSystemPlugin
 {
 	CRYINTERFACE_BEGIN()
@@ -14,7 +12,7 @@ class CCryPerceptionSystemPlugin : public ICryPerceptionSystemPlugin
 		CRYINTERFACE_ADD(ICryPlugin)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_SINGLETONCLASS(CCryPerceptionSystemPlugin, "Plugin_CryPerceptionSystem", 0xA4EE250934684BAD, 0x8472DC66D91186C6)
+	CRYGENERATE_SINGLETONCLASS_GUID(CCryPerceptionSystemPlugin, "Plugin_CryPerceptionSystem", "a4ee2509-3468-4bad-8472-dc66d91186c6"_cry_guid)
 
 	PLUGIN_FLOWNODE_REGISTER
 	PLUGIN_FLOWNODE_UNREGISTER

@@ -8,11 +8,13 @@ namespace Serialization
 {
 	using yasli::RangeDecorator;
 	using yasli::Range;
+	using yasli::MinMaxRange;
 
 	namespace Decorators
 	{
 		using yasli::RangeDecorator;
 		using yasli::Range;
+		using yasli::MinMaxRange;
 	}
 }
 

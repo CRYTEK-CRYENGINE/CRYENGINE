@@ -48,7 +48,6 @@ private:
 	std::vector<SpritePoint> m_OrbsList;
 	CRenderPrimitive         m_GlowPrimitive;
 	CRenderPrimitive         m_CameraLensPrimitive;
-	int                      m_samplerPointClamp;
 	float                    m_spriteAspectRatio;
 
 	static const int         MAX_ORBS_NUMBER = 10000;

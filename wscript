@@ -1038,6 +1038,8 @@ def get_output_folders(self, platform, configuration, target_spec = None, game_p
 		path += self.options.out_folder_darwin64
 	elif platform == 'android_arm':
 		path += self.options.out_folder_android
+	elif platform == 'android_arm64':
+		path += self.options.out_folder_android64
 	else:
 		path += 'bin/platform_unknown'
 				

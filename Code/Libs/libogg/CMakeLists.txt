@@ -10,7 +10,7 @@ add_sources("NoUberFile"
 end_sources()
 
 CryEngineStaticModule(libogg_static SOLUTION_FOLDER "Libs/Audio")
-target_include_directories(${THIS_PROJECT} PUBLIC ${SDK_DIR}/libogg/include)
+target_include_directories(${THIS_PROJECT} PUBLIC "${SDK_DIR}/libogg/include")
 set_property(TARGET ${THIS_PROJECT} PROPERTY OUTPUT_NAME "ogg")
 
 if(WIN32 OR WIN64)

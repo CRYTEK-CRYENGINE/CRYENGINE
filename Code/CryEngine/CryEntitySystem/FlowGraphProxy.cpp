@@ -23,6 +23,7 @@ CRYREGISTER_CLASS(CEntityComponentFlowGraph);
 CEntityComponentFlowGraph::CEntityComponentFlowGraph()
 {
 	m_pFlowGraph = 0;
+	m_componentFlags.Add(EEntityComponentFlags::NoSave);
 }
 
 //////////////////////////////////////////////////////////////////////////

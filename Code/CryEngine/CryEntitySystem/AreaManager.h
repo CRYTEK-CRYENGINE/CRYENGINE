@@ -209,9 +209,9 @@ private:
 	struct SIsNotInGrid
 	{
 		explicit SIsNotInGrid(
-			EntityId const _entityId,
-			std::vector<CArea*> const& _areas,
-			size_t const _numAreas)
+		  EntityId const _entityId,
+		  std::vector<CArea*> const& _areas,
+		  size_t const _numAreas)
 			: entityId(_entityId),
 			areas(_areas),
 			numAreas(_numAreas)
@@ -219,7 +219,7 @@ private:
 
 		bool operator()(SAreaCacheEntry const& cacheEntry) const;
 
-		EntityId const entityId;
+		EntityId const             entityId;
 		std::vector<CArea*> const& areas;
 		size_t const               numAreas;
 	};
@@ -227,9 +227,9 @@ private:
 	struct SRemoveIfNoAreasLeft
 	{
 		explicit SRemoveIfNoAreasLeft(
-			CArea const* const _pArea,
-			std::vector<CArea*> const& _areas,
-			size_t const _numAreas)
+		  CArea const* const _pArea,
+		  std::vector<CArea*> const& _areas,
+		  size_t const _numAreas)
 			: pArea(_pArea),
 			areas(_areas),
 			numAreas(_numAreas)
@@ -237,22 +237,24 @@ private:
 
 		template<typename K, typename V>
 		bool operator()(std::pair<K, V>& cacheEntry) const;
-			
+
 		CArea const* const         pArea;
 		std::vector<CArea*> const& areas;
 		size_t const               numAreas;
 	};
 
-	TAreaCacheMap                    m_mapAreaCache;          // Area cache per entity id.
-	TEntitiesToUpdateMap             m_mapEntitiesToUpdate;
+	TAreaCacheMap        m_mapAreaCache;                      // Area cache per entity id.
+	TEntitiesToUpdateMap m_mapEntitiesToUpdate;
 
-	CryCriticalSectionNonRecursive   m_lockAddRemoveArea;
+	// We need two lists, one for the main thread access and one for the audio thread access.
+	enum Threads : uint8 { Main = 0, Audio = 1, Num };
+	TAreaPointers m_areasAtPos[Threads::Num];
+	CryCriticalSectionNonRecursive m_accessAreas;
 
 #if defined(DEBUG_AREAMANAGER)
 	//////////////////////////////////////////////////////////////////////////
 	void CheckArea(CArea const* const pArea)
 	{
-		CryAutoCriticalSectionNoRecursive lock(m_lockAddRemoveArea);
 		if (!stl::find(m_areas, pArea))
 		{
 			CryFatalError("<AreaManager>: area not found in overall areas list!");

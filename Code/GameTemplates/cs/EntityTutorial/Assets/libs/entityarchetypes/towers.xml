@@ -1,9 +1,0 @@
-<EntityPrototypeLibrary Name="Towers">
- <EntityPrototype Name="Towers.BulletTower" Id="{10D74700-D0D7-48E2-8631-DAE278E7FCBF}" Library="" Class="TowerInfo" Description="">
-  <Properties Cost="0" FireRateMultiplier="0" DamageMultiplier="0" RangeMultiplier="0">
-   <AdditionalArchetypeProperties PrototypeMaterial=""/>
-  </Properties>
-  <ObjectVars OutdoorOnly="0" CastShadow="1" CastShadowMinspec="1" DynamicDistanceShadows="0" LodRatio="100" ViewDistRatio="100" HiddenInGame="0" RecvWind="0" RenderNearest="0" NoStaticDecals="0" CreatedThroughPool="0"/>
-  <Attributes />
- </EntityPrototype>
-</EntityPrototypeLibrary>

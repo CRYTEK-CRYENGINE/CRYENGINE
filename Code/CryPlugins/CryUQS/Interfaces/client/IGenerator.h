@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client
+	namespace Client
 	{
 
 		//===================================================================================
@@ -26,18 +26,18 @@ namespace uqs
 
 			struct SUpdateContext
 			{
-				explicit                       SUpdateContext(const core::CQueryID& _queryID, const core::SQueryBlackboard& _blackboard, shared::IUqsString& _error);
-				core::CQueryID                 queryID;
-				const core::SQueryBlackboard&  blackboard;
-				shared::IUqsString&            error;
+				explicit                       SUpdateContext(const Core::CQueryID& _queryID, const Core::SQueryBlackboard& _blackboard, Shared::IUqsString& _error);
+				Core::CQueryID                 queryID;
+				const Core::SQueryBlackboard&  blackboard;
+				Shared::IUqsString&            error;
 			};
 
 			virtual                            ~IGenerator() {}
 			virtual IItemFactory&              GetItemFactory() const = 0;
-			virtual EUpdateStatus              Update(const SUpdateContext& updateContext, core::IItemList& itemListToPopulate) = 0;
+			virtual EUpdateStatus              Update(const SUpdateContext& updateContext, Core::IItemList& itemListToPopulate) = 0;
 		};
 
-		inline IGenerator::SUpdateContext::SUpdateContext(const core::CQueryID& _queryID, const core::SQueryBlackboard& _blackboard, shared::IUqsString& _error)
+		inline IGenerator::SUpdateContext::SUpdateContext(const Core::CQueryID& _queryID, const Core::SQueryBlackboard& _blackboard, Shared::IUqsString& _error)
 			: queryID(_queryID)
 			, blackboard(_blackboard)
 			, error(_error)

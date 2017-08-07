@@ -4,15 +4,15 @@
 #include "Script/Graph/Nodes/ScriptGraphExpandSignalNode.h"
 
 #include <CrySerialization/Decorators/ActionButton.h>
-#include <Schematyc/IObject.h>
-#include <Schematyc/Compiler/CompilerContext.h>
-#include <Schematyc/Compiler/IGraphNodeCompiler.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvSignal.h>
-#include <Schematyc/Script/IScriptRegistry.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
-#include <Schematyc/Utils/StackString.h>
+#include <CrySchematyc/IObject.h>
+#include <CrySchematyc/Compiler/CompilerContext.h>
+#include <CrySchematyc/Compiler/IGraphNodeCompiler.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvSignal.h>
+#include <CrySchematyc/Script/IScriptRegistry.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Utils/StackString.h>
 
 #include "Runtime/RuntimeClass.h"
 #include "Script/ScriptView.h"
@@ -29,7 +29,7 @@ CScriptGraphExpandSignalNode::CScriptGraphExpandSignalNode(const SElementId& typ
 	: m_typeId(typeId)
 {}
 
-SGUID CScriptGraphExpandSignalNode::GetTypeGUID() const
+CryGUID CScriptGraphExpandSignalNode::GetTypeGUID() const
 {
 	return ms_typeGUID;
 }
@@ -51,7 +51,7 @@ void CScriptGraphExpandSignalNode::CreateLayout(CScriptGraphNodeLayout& layout)
 					szSubject = pEnvSignal->GetName();
 
 					layout.AddInput("In", m_typeId.guid, EScriptGraphPortFlags::Signal);
-					layout.AddOutput("Out", SGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::Begin });
+					layout.AddOutput("Out", CryGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::Begin });
 
 					const CClassDesc& signalDesc = pEnvSignal->GetDesc();
 					for (const CClassMemberDesc& signalMemberDesc : signalDesc.GetMembers())
@@ -186,12 +186,12 @@ void CScriptGraphExpandSignalNode::Register(CScriptGraphNodeFactory& factory)
 
 		// IScriptGraphNodeCreator
 
-		virtual SGUID GetTypeGUID() const override
+		virtual CryGUID GetTypeGUID() const override
 		{
 			return CScriptGraphExpandSignalNode::ms_typeGUID;
 		}
 
-		virtual IScriptGraphNodePtr CreateNode(const SGUID& guid) override
+		virtual IScriptGraphNodePtr CreateNode(const CryGUID& guid) override
 		{
 			return std::make_shared<CScriptGraphNode>(guid, stl::make_unique<CScriptGraphExpandSignalNode>());
 		}
@@ -209,7 +209,7 @@ void CScriptGraphExpandSignalNode::Register(CScriptGraphNodeFactory& factory)
 						nodeCreationMenu.AddCommand(std::make_shared<CCreationCommand>(subject.c_str(), SElementId(EDomain::Env, envSignal.GetGUID())));
 						return EVisitStatus::Continue;
 					};
-					scriptView.VisitEnvSignals(EnvSignalConstVisitor::FromLambda(visitEnvSignal));
+					scriptView.VisitEnvSignals(visitEnvSignal);
 					break;
 				}
 			}
@@ -247,7 +247,7 @@ SRuntimeResult CScriptGraphExpandSignalNode::Execute(SRuntimeContext& context, c
 	return SRuntimeResult(ERuntimeStatus::Continue, EOutputIdx::Out);
 }
 
-const SGUID CScriptGraphExpandSignalNode::ms_typeGUID = "f4b52ef8-18ec-4f82-bf61-42429b85ebf6"_schematyc_guid;
+const CryGUID CScriptGraphExpandSignalNode::ms_typeGUID = "f4b52ef8-18ec-4f82-bf61-42429b85ebf6"_cry_guid;
 
 } // Schematyc
 

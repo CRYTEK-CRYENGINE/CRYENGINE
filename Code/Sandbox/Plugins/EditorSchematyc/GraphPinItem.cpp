@@ -9,8 +9,8 @@
 
 #include "VariableStorage/AbstractVariableTypesModel.h"
 
-#include <Schematyc/Script/IScriptGraph.h>
-#include <Schematyc/Reflection/TypeDesc.h>
+#include <CrySchematyc/Script/IScriptGraph.h>
+#include <CrySchematyc/Reflection/TypeDesc.h>
 
 #include <NodeGraph/PinWidget.h>
 #include <NodeGraph/NodeGraphViewStyle.h>
@@ -20,105 +20,6 @@
 #include <QtUtil.h>
 
 namespace CrySchematycEditor {
-
-// TODO: Move this into its own source files.
-/*typedef CryGraphEditor::CIconArray<CryGraphEditor::CPinWidget::Icon_Count> PinIconMap;
-
-   class CPinIconManager
-   {
-   struct SColors
-   {
-    QColor base;
-    QColor selected;
-    QColor highlighted;
-    QColor deactivated;
-   };
-
-   public:
-   static CPinIconManager& GetInstance()
-   {
-    static CPinIconManager instance;
-    return instance;
-   }
-
-   const PinIconMap& GetExecutionIconMap() const
-   {
-    return m_ExecutionIcons;
-   }
-
-   const PinIconMap& GetSignalIconMap() const
-   {
-    return m_SignalIcons;
-   }
-
-   const PinIconMap& GetDataIconMap(const CDataTypeItem& dataType) const
-   {
-    auto result = m_DataIconsByType.find(dataType.GetGUID());
-    if (result != m_DataIconsByType.end())
-    {
-      return result->second;
-    }
-    return m_UnkownTypeIcons;
-   }
-
-   private:
-   CPinIconManager()
-   {
-    const char* szDataIconFile = "icons:Graph/Node_connection_circle.ico";
-    const char* szExectionIconFile = "icons:Graph/Node_connection_arrow_R.ico";
-    const char* szUnknownTypeIconFile = "icons:Graph/Node_connection_circle.ico";
-    const char* szSignalIconFile = "icons:Graph/Node_connection_arrow_R.ico";
-
-    SColors colors;
-    colors.selected = CryGraphEditor::CGlobalStyle::GetSelectionColor();
-    colors.highlighted = CryGraphEditor::CGlobalStyle::GetHighlightColor();
-    colors.deactivated = CryGraphEditor::CNodeStyle::GetPinDefaultColor();
-
-    CDataTypesModel& dataTypesModel = CDataTypesModel::GetInstance();
-    for (uint32 i = 0; i < dataTypesModel.GetTypeItemsCount(); ++i)
-    {
-      CDataTypeItem* pDataTypeItem = dataTypesModel.GetTypeItemByIndex(i);
-      if (pDataTypeItem)
-      {
-        colors.base = pDataTypeItem->GetColor();
-        SetIconMap(m_DataIconsByType[pDataTypeItem->GetGUID()], colors, szDataIconFile);
-      }
-    }
-
-    colors.base = QColor(200, 200, 200);
-    SetIconMap(m_ExecutionIcons, colors, szExectionIconFile);
-    SetIconMap(m_SignalIcons, colors, szSignalIconFile);
-
-    colors.base = CryGraphEditor::CConnectionStyle::GetLineDefaultColor();
-    SetIconMap(m_UnkownTypeIcons, colors, szUnknownTypeIconFile);
-   }
-
-   void SetIconMap(PinIconMap& map, const SColors& colors, const char* szIconFile)
-   {
-    map.SetIcon(CryGraphEditor::CPinWidget::Icon_Default, CryIcon(szIconFile, { { QIcon::Mode::Normal, colors.base } }), PinIconMap::PinIcon);
-    map.SetIcon(CryGraphEditor::CPinWidget::Icon_Selected, CryIcon(szIconFile, { { QIcon::Mode::Normal, colors.selected } }), PinIconMap::PinIcon);
-
-    const QColor shc = CryGraphEditor::CGlobalStyle::GetHighlightColor();
-
-    QColor highlightColor;
-    highlightColor.setRedF(1.0f - (1.0f - colors.base.redF()) * (1.0f - shc.redF()));
-    highlightColor.setGreenF(1.0f - (1.0f - colors.base.greenF()) * (1.0f - shc.greenF()));
-    highlightColor.setBlueF(1.0f - (1.0f - colors.base.blueF()) * (1.0f - shc.blueF()));
-    highlightColor.setAlphaF(1.0f - (1.0f - colors.base.alphaF()) * (1.0f - shc.alphaF()));
-
-    map.SetIcon(CryGraphEditor::CPinWidget::Icon_Highlighted, CryIcon(szIconFile, { { QIcon::Mode::Normal, highlightColor } }), PinIconMap::PinIcon);
-    map.SetIcon(CryGraphEditor::CPinWidget::Icon_Deactivated, CryIcon(szIconFile, { { QIcon::Mode::Normal, colors.deactivated } }), PinIconMap::PinIcon);
-   }
-
-   private:
-   static CPinIconManager                           s_Instance;
-
-   PinIconMap                                       m_UnkownTypeIcons;
-   PinIconMap                                       m_ExecutionIcons;
-   PinIconMap                                       m_SignalIcons;
-   std::unordered_map<Schematyc::SGUID, PinIconMap> m_DataIconsByType;
-   };*/
-// ~TODO
 
 CPinItem::CPinItem(uint32 index, uint32 flags, CNodeItem& nodeItem, CryGraphEditor::CNodeGraphViewModel& model)
 	: CAbstractPinItem(model)
@@ -164,33 +65,36 @@ bool CPinItem::CanConnect(const CryGraphEditor::CAbstractPinItem* pOtherPin) con
 {
 	if (pOtherPin)
 	{
-		CNodeGraphViewModel& model = static_cast<CNodeGraphViewModel&>(GetViewModel());
-		Schematyc::IScriptGraph& scriptGraph = model.GetScriptGraph();
-
-		if (IsOutputPin())
+		if (&pOtherPin->GetNodeItem() != &GetNodeItem())
 		{
-			if (pOtherPin->IsInputPin())
+			CNodeGraphViewModel& model = static_cast<CNodeGraphViewModel&>(GetViewModel());
+			Schematyc::IScriptGraph& scriptGraph = model.GetScriptGraph();
+
+			if (IsOutputPin())
 			{
-				const Schematyc::SGUID sourceGuid = m_nodeItem.GetGUID();
-				const Schematyc::CUniqueId sourceId = GetPortId();
+				if (pOtherPin->IsInputPin())
+				{
+					const CryGUID sourceGuid = m_nodeItem.GetGUID();
+					const Schematyc::CUniqueId sourceId = GetPortId();
 
-				const Schematyc::SGUID targetGuid = static_cast<CNodeItem&>(pOtherPin->GetNodeItem()).GetGUID();
-				const Schematyc::CUniqueId targetId = static_cast<const CPinItem*>(pOtherPin)->GetPortId();
+					const CryGUID targetGuid = static_cast<CNodeItem&>(pOtherPin->GetNodeItem()).GetGUID();
+					const Schematyc::CUniqueId targetId = static_cast<const CPinItem*>(pOtherPin)->GetPortId();
 
-				return scriptGraph.CanAddLink(sourceGuid, sourceId, targetGuid, targetId);
+					return scriptGraph.CanAddLink(sourceGuid, sourceId, targetGuid, targetId);
+				}
 			}
-		}
-		else
-		{
-			if (pOtherPin->IsOutputPin())
+			else
 			{
-				const Schematyc::SGUID sourceGuid = static_cast<CNodeItem&>(pOtherPin->GetNodeItem()).GetGUID();
-				const Schematyc::CUniqueId sourceId = static_cast<const CPinItem*>(pOtherPin)->GetPortId();
+				if (pOtherPin->IsOutputPin())
+				{
+					const CryGUID sourceGuid = static_cast<CNodeItem&>(pOtherPin->GetNodeItem()).GetGUID();
+					const Schematyc::CUniqueId sourceId = static_cast<const CPinItem*>(pOtherPin)->GetPortId();
 
-				const Schematyc::SGUID targetGuid = m_nodeItem.GetGUID();
-				const Schematyc::CUniqueId targetId = GetPortId();
+					const CryGUID targetGuid = m_nodeItem.GetGUID();
+					const Schematyc::CUniqueId targetId = GetPortId();
 
-				return scriptGraph.CanAddLink(sourceGuid, sourceId, targetGuid, targetId);
+					return scriptGraph.CanAddLink(sourceGuid, sourceId, targetGuid, targetId);
+				}
 			}
 		}
 	}
@@ -198,7 +102,7 @@ bool CPinItem::CanConnect(const CryGraphEditor::CAbstractPinItem* pOtherPin) con
 	{
 		if (m_pinType == EPinType::Data || !IsConnected())
 		{
-			return (pOtherPin != this);
+			return true;
 		}
 	}
 

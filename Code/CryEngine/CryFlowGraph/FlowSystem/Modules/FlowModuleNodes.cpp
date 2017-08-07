@@ -14,8 +14,7 @@
 //////////////////////////////////////////////////////////////////////////
 
 CFlowModuleStartNodeFactory::CFlowModuleStartNodeFactory(CFlowGraphModule* pModule)
-	: m_pModule(pModule),
-	m_nRefCount(0)
+	: m_pModule(pModule)
 {}
 
 CFlowModuleStartNodeFactory::~CFlowModuleStartNodeFactory()
@@ -162,7 +161,6 @@ void CFlowModuleStartNode::OnCancel()
 
 CFlowModuleReturnNodeFactory::CFlowModuleReturnNodeFactory(CFlowGraphModule* pModule)
 	: m_pModule(pModule)
-	, m_nRefCount(0)
 {}
 
 CFlowModuleReturnNodeFactory::~CFlowModuleReturnNodeFactory()
@@ -300,7 +298,6 @@ void CFlowModuleReturnNode::OnFinished(bool success)
 
 CFlowModuleCallNodeFactory::CFlowModuleCallNodeFactory(CFlowGraphModule* pModule)
 	: m_pModule(pModule)
-	, m_nRefCount(0)
 {}
 
 CFlowModuleCallNodeFactory::~CFlowModuleCallNodeFactory()

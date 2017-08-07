@@ -1,11 +1,10 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
-
 #include "DetailWidget.h"
 
 #include <CrySerialization/IArchiveHost.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
 
 namespace CrySchematycEditor {
 
@@ -14,7 +13,7 @@ class CEmptyDetailItem : public IDetailItem
 public:
 	// IDetailItem
 	virtual EDetailItemType              GetType() const override                             { return EDetailItemType::Empty; }
-	virtual Schematyc::SGUID             GetGUID() const override                             { return Schematyc::SGUID(); }
+	virtual CryGUID             GetGUID() const override                             { return CryGUID(); }
 	virtual Serialization::CContextList* GetContextList() override                            { return nullptr; }
 	virtual void                         Serialize(Serialization::IArchive& archive) override {}
 	// ~IDetailItem
@@ -29,9 +28,9 @@ EDetailItemType CSettingsDetailItem::GetType() const
 	return EDetailItemType::Settings;
 }
 
-Schematyc::SGUID CSettingsDetailItem::GetGUID() const
+CryGUID CSettingsDetailItem::GetGUID() const
 {
-	return Schematyc::SGUID();
+	return CryGUID();
 }
 
 Serialization::CContextList* CSettingsDetailItem::GetContextList()
@@ -57,9 +56,9 @@ EDetailItemType CScriptElementDetailItem::GetType() const
 	return EDetailItemType::ScriptElement;
 }
 
-Schematyc::SGUID CScriptElementDetailItem::GetGUID() const
+CryGUID CScriptElementDetailItem::GetGUID() const
 {
-	return m_pScriptElement ? m_pScriptElement->GetGUID() : Schematyc::SGUID();
+	return m_pScriptElement ? m_pScriptElement->GetGUID() : CryGUID();
 }
 
 Serialization::CContextList* CScriptElementDetailItem::GetContextList()

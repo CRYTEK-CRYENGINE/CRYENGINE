@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <Schematyc/Runtime/IRuntimeRegistry.h>
-#include <Schematyc/Utils/GUID.h>
+#include <CrySchematyc/Runtime/IRuntimeRegistry.h>
+#include <CrySchematyc/Utils/GUID.h>
 
 #ifdef RegisterClass
 #undef RegisterClass
@@ -20,17 +20,17 @@ class CRuntimeRegistry : public IRuntimeRegistry
 {
 private:
 
-	typedef std::unordered_map<SGUID, CRuntimeClassConstPtr> Classes;
+	typedef std::unordered_map<CryGUID, CRuntimeClassConstPtr> Classes;
 
 public:
 
 	// IRuntimeRegistry
-	virtual IRuntimeClassConstPtr GetClass(const SGUID& guid) const override;
+	virtual IRuntimeClassConstPtr GetClass(const CryGUID& guid) const override;
 	// ~IRuntimeRegistry
 
 	void                  RegisterClass(const CRuntimeClassConstPtr& pClass);
-	void                  ReleaseClass(const SGUID& guid);
-	CRuntimeClassConstPtr GetClassImpl(const SGUID& guid) const;
+	void                  ReleaseClass(const CryGUID& guid);
+	CRuntimeClassConstPtr GetClassImpl(const CryGUID& guid) const;
 
 	void                  Reset();
 

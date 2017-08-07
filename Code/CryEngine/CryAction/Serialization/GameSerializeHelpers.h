@@ -69,7 +69,6 @@ struct SBasicEntityData
 	enum ExtraFlags
 	{
 		FLAG_HIDDEN             = BIT(0),
-		FLAG_ACTIVE             = BIT(1),
 		FLAG_INVISIBLE          = BIT(2),
 		FLAG_IGNORE_POS_ROT_SCL = BIT(3),
 		FLAG_PHYSICS_ENABLED    = BIT(4)
@@ -86,7 +85,6 @@ struct SBasicEntityData
 		parentEntity(0),
 		aiObjectId(0),
 		isHidden(false),
-		isActive(false),
 		isInvisible(false),
 		ignorePosRotScl(false),
 		isPhysicsEnabled(false)
@@ -100,7 +98,6 @@ struct SBasicEntityData
 		if (ser.IsWriting())
 		{
 			if (isHidden)          flags2 |= FLAG_HIDDEN;
-			if (isActive)          flags2 |= FLAG_ACTIVE;
 			if (isInvisible)       flags2 |= FLAG_INVISIBLE;
 			if (ignorePosRotScl)   flags2 |= FLAG_IGNORE_POS_ROT_SCL;
 			if (isPhysicsEnabled)  flags2 |= FLAG_PHYSICS_ENABLED;
@@ -119,7 +116,6 @@ struct SBasicEntityData
 		if (ser.IsReading())
 		{
 			isHidden = (flags2 & FLAG_HIDDEN) != 0;
-			isActive = (flags2 & FLAG_ACTIVE) != 0;
 			isInvisible = (flags2 & FLAG_INVISIBLE) != 0;
 			ignorePosRotScl = (flags2 & FLAG_IGNORE_POS_ROT_SCL) != 0;
 			isPhysicsEnabled = (flags2 & FLAG_PHYSICS_ENABLED) != 0;
@@ -189,7 +185,6 @@ struct SBasicEntityData
 	int         iPhysType;
 
 	bool        isHidden         : 1;
-	bool        isActive         : 1;
 	bool        isInvisible      : 1;
 	bool        ignorePosRotScl  : 1;
 	bool        isPhysicsEnabled : 1;

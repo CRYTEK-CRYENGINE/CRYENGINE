@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <Schematyc/Script/IScriptExtension.h>
+#include <CrySchematyc/Script/IScriptExtension.h>
 
 namespace Schematyc
 {

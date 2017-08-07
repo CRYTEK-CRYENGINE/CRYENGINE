@@ -366,9 +366,11 @@ void CWaterVolumeRenderNode::CreateArea(uint64 volumeID, const Vec3* pVertices, 
 	const bool serializeWith3DEngine = keepSerializationParams && !IsAttachedToEntity();
 
 	assert(fabs(fogPlane.n.GetLengthSquared() - 1.0f) < 1e-4 && "CWaterVolumeRenderNode::CreateArea(...) -- Fog plane normal doesn't have unit length!");
-	assert(fogPlane.n.Dot(Vec3(0, 0, 1)) > 1e-4f && "CWaterVolumeRenderNode::CreateArea(...) -- Invalid fog plane specified!");
 	if (fogPlane.n.Dot(Vec3(0, 0, 1)) <= 1e-4f)
+	{
+		// CWaterVolumeRenderNode::CreateArea(...) -- Invalid fog plane specified!
 		return;
+	}
 
 	assert(numVertices >= 3);
 	if (numVertices < 3)

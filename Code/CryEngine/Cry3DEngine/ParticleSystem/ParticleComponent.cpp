@@ -115,43 +115,16 @@ void SComponentParams::Reset()
 	m_renderObjectFlags = 0;
 	m_instanceDataStride = 0;
 	m_scaleParticleCount = 1.0f;
-	m_baseParticleLifeTime = 0.0f;
+	m_emitterLifeTime = {};
+	m_maxParticleLifeTime = 0.0f;
 	m_particleRange = 0;
 	m_renderStateFlags = OS_ALPHA_BLEND;
 	m_maxParticleSize = 0.0f;
 	m_meshCentered = false;
-	m_isValid = false;
-	m_parentId = gInvalidId;
 	m_diffuseMap = "%ENGINE%/EngineAssets/Textures/white.dds";
 	m_pMaterial = 0;
 	m_particleObjFlags = 0;
 	m_renderObjectSortBias = 0.0f;
-
-	m_subComponentIds.clear();
-}
-
-void SComponentParams::Validate(CParticleComponent* pComponent, Serialization::IArchive* ar)
-{
-	bool output = pComponent && ar;
-	bool isValid = true;
-#define CRY_PFX2_CHECK(cond, msg) if (!(cond)) { if (output) ar->warning(*pComponent, msg); isValid = false; } \
-  else
-
-	CRY_PFX2_CHECK(pComponent->GetNumFeatures(EFT_Spawn) != 0, "At least one spawn feature required");
-	CRY_PFX2_CHECK(pComponent->GetNumFeatures(EFT_Size) != 0, "At least one size feature required")
-	{
-		CRY_PFX2_CHECK(m_maxParticleSize > 0.0f, "Particles size are set to 0");
-	}
-	CRY_PFX2_CHECK(pComponent->GetNumFeatures(EFT_Life) != 0, "At least one life time feature required");
-	CRY_PFX2_CHECK(pComponent->GetNumFeatures(EFT_Render) < 2, "Too many render features.");
-	CRY_PFX2_CHECK(pComponent->GetNumFeatures(EFT_Motion) < 2, "Too many motion features.");
-
-	if (!isValid && output)
-		ar->error(*pComponent, "This component is invalid and will not render");
-
-	m_isValid = isValid;
-
-#undef CRY_PFX2_CHECK
 }
 
 void SComponentParams::MakeMaterial(CParticleComponent* pComponent)
@@ -164,30 +137,34 @@ void SComponentParams::MakeMaterial(CParticleComponent* pComponent)
 
 	if (m_pMaterial)
 		return;
-	const SRuntimeInitializationParameters& params = pComponent->GetRuntimeInitializationParameters();
+		
+	const gpu_pfx2::SComponentParams& params = pComponent->GetGPUComponentParams();
 	const char* shaderName = params.usesGpuImplementation ? "Particles.ParticlesGpu" : "Particles";
 	string materialName = string(pComponent->GetEffect()->GetName()) + pComponent->GetName();
 	m_pMaterial = gEnv->p3DEngine->GetMaterialManager()->CreateMaterial(materialName);
 	if (gEnv->pRenderer)
 	{
+		const uint32 textureLoadFlags = FT_DONT_STREAM;
+		const int textureId = gEnv->pRenderer->EF_LoadTexture(m_diffuseMap.c_str(), textureLoadFlags)->GetTextureID();
+		if (textureId <= 0)
+			CryWarning(VALIDATOR_MODULE_3DENGINE, VALIDATOR_WARNING, "Particle effect texture %s not found", m_diffuseMap.c_str());
+
 		SInputShaderResourcesPtr pResources = gEnv->pRenderer->EF_CreateInputShaderResource();
 		pResources->m_Textures[EFTT_DIFFUSE].m_Name = m_diffuseMap;
 		uint32 mask = eGpuParticlesVertexShaderFlags_None;
-		if (params.facingMode == 1)
+		if (params.facingMode == gpu_pfx2::EFacingMode::Velocity)
 			mask |= eGpuParticlesVertexShaderFlags_FacingVelocity;
 		SShaderItem shaderItem = gEnv->pRenderer->EF_LoadShaderItem(shaderName, false, 0, pResources, mask);
 		m_pMaterial->AssignShaderItem(shaderItem);
+
+		if (textureId > 0)
+			gEnv->pRenderer->RemoveTexture(textureId);
 	}
 	Vec3 white = Vec3(1.0f, 1.0f, 1.0f);
 	float defaultOpacity = 1.0f;
 	m_pMaterial->SetGetMaterialParamVec3("diffuse", white, false);
 	m_pMaterial->SetGetMaterialParamFloat("opacity", defaultOpacity, false);
 	m_pMaterial->RequestTexturesLoading(0.0f);
-}
-
-float SComponentParams::GetPrimeTime() const
-{
-	return m_baseParticleLifeTime;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -251,24 +228,6 @@ void CParticleComponent::SetNodePosition(Vec2 position)
 	m_nodePosition = position;
 }
 
-uint CParticleComponent::GetNumFeatures(EFeatureType type) const
-{
-	size_t count = 0;
-	for (auto& it : m_features)
-		count += (it->IsEnabled() && (it->GetFeatureType() & type) != 0) ? 1 : 0;
-	return count;
-}
-
-CParticleFeature* CParticleComponent::GetCFeatureByType(const SParticleFeatureParams* pSearchParams) const
-{
-	for (auto& pFeature : m_features)
-	{
-		if (pFeature->IsEnabled() && &pFeature->GetFeatureParams() == pSearchParams)
-			return pFeature.get();
-	}
-	return nullptr;
-}
-
 void CParticleComponent::AddToUpdateList(EUpdateList list, CParticleFeature* pFeature)
 {
 	if (std::find(m_updateLists[list].begin(), m_updateLists[list].end(), pFeature) != m_updateLists[list].end())
@@ -300,26 +259,39 @@ void CParticleComponent::AddParticleData(EParticleDataType type)
 		m_useParticleData[i] = true;
 }
 
-bool CParticleComponent::SetSecondGeneration(CParticleComponent* pParentComponent)
+bool CParticleComponent::SetParentComponent(CParticleComponent* pParentComponent, bool delayed)
 {
-	if (m_componentParams.m_parentId != gInvalidId)
-		return false;   // PFX2_TODO - user error - a component can only have one parent component at a time
-	m_componentParams.m_parentId = pParentComponent->GetComponentId();
-	m_runtimeInitializationParameters.parentId = m_componentParams.m_parentId;
-	m_runtimeInitializationParameters.isSecondGen = m_componentParams.IsSecondGen();
-	auto& subIds = pParentComponent->m_componentParams.m_subComponentIds;
-	auto it = std::find(subIds.begin(), subIds.end(), m_componentId);
-	if (it == subIds.end())
-		subIds.push_back(m_componentId);
+	if (m_parent)
+		return false;
+	m_parent = pParentComponent;
+	if (delayed)
+		m_componentParams.m_emitterLifeTime.end = gInfinity;
+	auto& children = pParentComponent->m_children;
+	auto it = std::find(children.begin(), children.end(), this);
+	if (it == children.end())
+		children.push_back(this);
 	return true;
 }
 
-CParticleComponent* CParticleComponent::GetParentComponent() const
+float CParticleComponent::GetEquilibriumTime(Range parentLife) const
 {
-	if (m_componentParams.m_parentId != gInvalidId)
-		return m_pEffect->GetCComponent(m_componentParams.m_parentId);
-	return 0;
+	Range compLife(
+		parentLife.start + m_componentParams.m_emitterLifeTime.start,
+		min(parentLife.end, parentLife.start + m_componentParams.m_emitterLifeTime.end) + m_componentParams.m_maxParticleLifeTime);
+	float eqTime = std::isfinite(compLife.end) ? 
+		compLife.end : 
+		compLife.start + (std::isfinite(m_componentParams.m_maxParticleLifeTime) ? m_componentParams.m_maxParticleLifeTime : 0.0f);
+	for (const auto& child : m_children)
+	{
+		if (child->IsEnabled())
+		{
+			float childEqTime = child->GetEquilibriumTime(compLife);
+			eqTime = max(eqTime, childEqTime);
+		}
+	}
+	return eqTime;
 }
+
 
 void CParticleComponent::PrepareRenderObjects(CParticleEmitter* pEmitter)
 {
@@ -337,7 +309,7 @@ void CParticleComponent::ResetRenderObjects(CParticleEmitter* pEmitter)
 		it->ResetRenderObjects(pEmitter, this);
 }
 
-void CParticleComponent::Render(CParticleEmitter* pEmitter, ICommonParticleComponentRuntime* pRuntime, const SRenderContext& renderContext)
+void CParticleComponent::Render(CParticleEmitter* pEmitter, IParticleComponentRuntime* pRuntime, const SRenderContext& renderContext)
 {
 	if (IsVisible())
 	{
@@ -357,7 +329,7 @@ void CParticleComponent::Render(CParticleEmitter* pEmitter, ICommonParticleCompo
 	}
 }
 
-void CParticleComponent::RenderDeferred(CParticleEmitter* pEmitter, ICommonParticleComponentRuntime* pRuntime, const SRenderContext& renderContext)
+void CParticleComponent::RenderDeferred(CParticleEmitter* pEmitter, IParticleComponentRuntime* pRuntime, const SRenderContext& renderContext)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
@@ -375,24 +347,50 @@ bool CParticleComponent::CanMakeRuntime(CParticleEmitter* pEmitter) const
 	return true;
 }
 
-gpu_pfx2::IParticleFeatureGpuInterface** CParticleComponent::GetGpuUpdateList(EUpdateList list, int& size) const
+gpu_pfx2::TFeatures CParticleComponent::GetGpuUpdateList(EUpdateList list) const
 {
-	size = m_gpuUpdateLists[list].size();
-	if (size)
-		return (gpu_pfx2::IParticleFeatureGpuInterface**)&m_gpuUpdateLists[list][0];
-	else
-		return nullptr;
+	return gpu_pfx2::TFeatures(&m_gpuUpdateLists[list][0], (uint)m_gpuUpdateLists[list].size());
 }
+
+void CParticleComponent::GetParentData(IParticleEmitter* pEmitter, Array<TParticleId, uint> parentParticleIds, gpu_pfx2::SInitialData data[]) const
+{
+	CParticleEmitter* pCEmitter = static_cast<CParticleEmitter*>(pEmitter);
+
+	const CParticleContainer& parentContainer = GetParentComponent() ?
+		pCEmitter->GetRuntimes()[GetParentComponent()->GetComponentId()].pRuntime->GetCpuRuntime()->GetContainer()
+	    : pCEmitter->GetParentContainer();
+
+	IVec3Stream parentPositions = parentContainer.GetIVec3Stream(EPVF_Position);
+	IVec3Stream parentVelocities = parentContainer.GetIVec3Stream(EPVF_Velocity);
+
+	for (uint i = 0; i < parentParticleIds.size(); ++i)
+	{
+		data[i].position = parentPositions.Load(parentParticleIds[i]);
+		data[i].velocity = parentVelocities.Load(parentParticleIds[i]);
+	}
+}
+
 
 void CParticleComponent::PreCompile()
 {
 	if (!m_dirty)
 		return;
 
+	m_componentParams.Reset();
+
+	m_parent = nullptr;
+	m_children.clear();
+
 	for (size_t i = 0; i < EUL_Count; ++i)
 		m_updateLists[i].clear();
 	for (size_t i = 0; i < EUL_Count; ++i)
 		m_gpuUpdateLists[i].clear();
+
+	for (auto& it : m_features)
+	{
+		if (it && !it->VersionValidate(this))
+			it = nullptr;
+	}
 
 	// eliminates features that point to null
 	auto it = std::remove_if(
@@ -412,10 +410,6 @@ void CParticleComponent::PreCompile()
 	AddParticleData(EPDT_InvLifeTime);
 	AddParticleData(EPDT_LifeTime);
 	AddParticleData(EPDT_State);
-
-	// add default motion feature
-	const bool hasMotion = GetNumFeatures(EFT_Motion) != 0;
-	m_defaultMotionFeature.reset(hasMotion ? nullptr : new CFeatureMotionPhysics());
 }
 
 void CParticleComponent::ResolveDependencies()
@@ -423,7 +417,7 @@ void CParticleComponent::ResolveDependencies()
 	if (!m_dirty)
 		return;
 
-	m_runtimeInitializationParameters = SRuntimeInitializationParameters();
+	m_GPUComponentParams = gpu_pfx2::SComponentParams();
 
 	for (auto& it : m_features)
 	{
@@ -437,25 +431,36 @@ void CParticleComponent::Compile()
 	if (!m_dirty)
 		return;
 
+	uint featureMask = 0;
 	for (auto& it : m_features)
 	{
 		if (it->IsEnabled())
 		{
-			it->SetGpuInterfaceNeeded(m_runtimeInitializationParameters.usesGpuImplementation);
+			// Validate feature requirements and exclusivity.
+			EFeatureType type = it->GetFeatureType();
+			if (type & (EFT_Life | EFT_Motion | EFT_Render))
+				if (featureMask & type)
+				{
+					it->SetEnabled(false);
+					continue;
+				}
+			featureMask |= type;
+			it->SetGpuInterfaceNeeded(m_GPUComponentParams.usesGpuImplementation);
 			it->AddToComponent(this, &m_componentParams);
 		}
 	}
-	if (m_defaultMotionFeature)
-		m_defaultMotionFeature->AddToComponent(this, &m_componentParams);
+
+	// add default features
+	for (uint b = 1; b < EFT_END; b <<= 1)
+		if (!(featureMask & b))
+			if (auto* params = GetPSystem()->GetDefaultFeatureParam(EFeatureType(b)))
+				if (auto* feature = params->m_pFactory())
+					static_cast<CParticleFeature*>(feature)->AddToComponent(this, &m_componentParams);
 }
 
 void CParticleComponent::FinalizeCompile()
 {
-	SComponentParams& params = m_componentParams;
-
-	params.MakeMaterial(this);
-	params.Validate(this);
-
+	m_componentParams.MakeMaterial(this);
 	m_dirty = false;
 }
 
@@ -489,24 +494,28 @@ void CParticleComponent::SetName(const char* name)
 
 	string oldName = m_name;
 
-	m_name = m_pEffect->MakeUniqueName(m_componentId, name);
+	m_name = m_pEffect->MakeUniqueName(this, name);
 
-	// #PFX2_TODO - not the best solution but needed for 5.3. Deprecate after SecondGen is reimplemented using UIDs
-	const uint numComponents = m_pEffect->GetNumComponents();
-	for (uint componentIdx = 0; componentIdx < numComponents; ++componentIdx)
+	if (oldName != m_name)
 	{
-		IParticleComponent* pComponent = m_pEffect->GetComponent(componentIdx);
-		const uint numFeatures = pComponent->GetNumFeatures();
-		for (uint featureIdx = 0; featureIdx < numFeatures; ++featureIdx)
+		const uint numComponents = m_pEffect->GetNumComponents();
+		for (uint componentIdx = 0; componentIdx < numComponents; ++componentIdx)
 		{
-			IParticleFeature* pFeature = pComponent->GetFeature(featureIdx);
-			const uint numConnectors = pFeature->GetNumConnectors();
-			for (uint connectorIdx = 0; connectorIdx < numConnectors; ++connectorIdx)
+			IParticleComponent* pComponent = m_pEffect->GetComponent(componentIdx);
+			if (!pComponent)
+				continue;
+			const uint numFeatures = pComponent->GetNumFeatures();
+			for (uint featureIdx = 0; featureIdx < numFeatures; ++featureIdx)
 			{
-				if (strcmp(pFeature->GetConnectorName(connectorIdx), oldName.c_str()) == 0)
+				IParticleFeature* pFeature = pComponent->GetFeature(featureIdx);
+				const uint numConnectors = pFeature->GetNumConnectors();
+				for (uint connectorIdx = 0; connectorIdx < numConnectors; ++connectorIdx)
 				{
-					pFeature->DisconnectFrom(oldName);
-					pFeature->ConnectTo(m_name.c_str());
+					if (oldName == pFeature->GetConnectorName(connectorIdx))
+					{
+						pFeature->DisconnectFrom(oldName);
+						pFeature->ConnectTo(m_name);
+					}
 				}
 			}
 		}

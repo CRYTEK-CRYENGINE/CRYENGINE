@@ -996,11 +996,8 @@ float CVegetation::GetMaxViewDist()
 	return 0;
 }
 
-IStatObj* CVegetation::GetEntityStatObj(unsigned int nPartId, unsigned int nSubPartId, Matrix34A* pMatrix, bool bReturnOnlyVisible)
+IStatObj* CVegetation::GetEntityStatObj(unsigned int nSubPartId, Matrix34A* pMatrix, bool bReturnOnlyVisible)
 {
-	if (nPartId != 0)
-		return 0;
-
 	if (pMatrix)
 	{
 		if (m_pTempData)

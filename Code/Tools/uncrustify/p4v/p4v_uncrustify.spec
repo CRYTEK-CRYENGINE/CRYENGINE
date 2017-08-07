@@ -1,7 +1,7 @@
 # To be used with PyInstaller
 # Command line: pyinstaller <thisfile> --distfile=.
 a = Analysis(['wrapper.py'],
-             hiddenimports=['platform'],
+             hiddenimports=['P4', 'platform'],
              runtime_hooks=None)
 
 # Remove specific binaries

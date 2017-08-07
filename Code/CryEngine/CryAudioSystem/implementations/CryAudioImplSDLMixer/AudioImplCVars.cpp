@@ -4,15 +4,19 @@
 #include "AudioImplCVars.h"
 #include <CrySystem/IConsole.h>
 
-using namespace CryAudio::Impl::SDL_mixer;
-
+namespace CryAudio
+{
+namespace Impl
+{
+namespace SDL_mixer
+{
 //////////////////////////////////////////////////////////////////////////
-void CAudioImplCVars::RegisterVariables()
+void CCVars::RegisterVariables()
 {
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioImplCVars::UnregisterVariables()
+void CCVars::UnregisterVariables()
 {
 	IConsole* const pConsole = gEnv->pConsole;
 
@@ -20,3 +24,6 @@ void CAudioImplCVars::UnregisterVariables()
 	{
 	}
 }
+} // namespace SDL_mixer
+} // namespace Impl
+} // namespace CryAudio

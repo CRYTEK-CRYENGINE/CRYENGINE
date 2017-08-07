@@ -46,8 +46,8 @@ enum ERenderObjectFlags : uint64
 	FOB_ALPHATEST                   = BIT64(29),  // Careful when moving (used in ObjSort)
 	FOB_HAS_PREVMATRIX              = BIT64(30),  // Careful when moving (used in ObjSort)
 	FOB_LIGHTVOLUME                 = BIT64(31),
-
 	FOB_TERRAIN_LAYER               = BIT64(32),
+	FOB_HUD_REQUIRE_DEPTHTEST       = BIT64(33),
 
 	FOB_TRANS_MASK                  = (FOB_TRANS_ROTATE | FOB_TRANS_SCALE | FOB_TRANS_TRANSLATE),
 	FOB_DECAL_MASK                  = (FOB_DECAL | FOB_DECAL_TEXGEN_2D),

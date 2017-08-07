@@ -4,7 +4,7 @@
 
 #include <CryCore/Platform/platform.h>
 
-#define CRY_USE_MFC
+#define CRY_USE_XT
 #include <CryCore/Platform/CryAtlMfc.h>
 
 #include "EditorCommon.h"

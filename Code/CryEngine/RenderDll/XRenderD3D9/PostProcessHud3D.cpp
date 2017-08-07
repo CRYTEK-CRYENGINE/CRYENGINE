@@ -16,6 +16,7 @@
 #include "D3DStereo.h"
 #include <CrySystem/Scaleform/IFlashPlayer.h>
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 enum EHud3dDebugView
@@ -695,7 +696,7 @@ void C3DHud::RenderFinalPass()
 			vHudEffectParams[1].z = 0.0f;
 			vHudEffectParams[1].w = m_interferenceRandNums.w;
 
-			GetUtils().SetTexture(m_pNoise, 2, FILTER_POINT, TADDR_WRAP);
+			GetUtils().SetTexture(m_pNoise, 2, FILTER_POINT, eSamplerAddressMode_Wrap);
 		}
 
 #if !defined(_RELEASE) && !defined(CONSOLE_CONST_CVAR_MODE)
@@ -838,3 +839,5 @@ void C3DHud::Render()
 		FinalPass();
 	}
 }
+
+#pragma warning(pop)

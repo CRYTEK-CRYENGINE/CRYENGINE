@@ -27,11 +27,28 @@ int CTerrainNode::CreateSectorTexturesFromBuffer(float * pSectorHeightMap)
 
 	//	uint32 nSectorDataSize = pLayers[0].nSectorSizeBytes + pLayers[1].nSectorSizeBytes;
 
-	// make RGB texture
-	m_nNodeTexSet.nTex0 = m_pTerrain->m_texCache[0].GetTexture(GetTerrain()->m_arrBaseTexInfos[m_nSID].m_ucpDiffTexTmpBuffer, m_nNodeTexSet.nSlot0);
+	if (pLayers[0].eTexFormat == m_pTerrain->m_texCache[0].m_eTexFormat)
+	{
+		// make RGB texture
+		m_nNodeTexSet.nTex0 = m_pTerrain->m_texCache[0].GetTexture(GetTerrain()->m_arrBaseTexInfos[m_nSID].m_ucpDiffTexTmpBuffer, m_nNodeTexSet.nSlot0);
 
-	// make normal map
-	m_nNodeTexSet.nTex1 = m_pTerrain->m_texCache[1].GetTexture(GetTerrain()->m_arrBaseTexInfos[m_nSID].m_ucpDiffTexTmpBuffer + pLayers[0].nSectorSizeBytes, m_nNodeTexSet.nSlot1);
+		// make normal map
+		m_nNodeTexSet.nTex1 = m_pTerrain->m_texCache[1].GetTexture(GetTerrain()->m_arrBaseTexInfos[m_nSID].m_ucpDiffTexTmpBuffer + pLayers[0].nSectorSizeBytes, m_nNodeTexSet.nSlot1);
+	}
+	else
+	{
+		// load decompressed textures stored in the end of pSectorHeightMap
+		assert(m_pTerrain->m_texCache[0].m_eTexFormat == eTF_R8G8B8A8);
+
+		int nDim = GetTerrain()->m_arrBaseTexInfos[0].m_TerrainTextureLayer[0].nSectorSizePixels;
+		byte * pRgbaIn = (byte*)(pSectorHeightMap + nDim * nDim);
+
+		// make RGB texture
+		m_nNodeTexSet.nTex0 = m_pTerrain->m_texCache[0].GetTexture(pRgbaIn, m_nNodeTexSet.nSlot0);
+
+		// make normal map
+		m_nNodeTexSet.nTex1 = m_pTerrain->m_texCache[1].GetTexture(pRgbaIn + pLayers[0].nSectorSizeBytes * 4, m_nNodeTexSet.nSlot1);
+	}
 
 	// make height map
 	m_nNodeTexSet.nTex2 = m_pTerrain->m_texCache[2].GetTexture((byte*)pSectorHeightMap, m_nNodeTexSet.nSlot2);
@@ -79,6 +96,25 @@ void CTerrainNode::StreamAsyncOnComplete(IReadStream* pStream, unsigned nError)
 		m_eTexStreamingStatus = ecss_NotLoaded;
 		m_pReadStream = NULL;
 		return;
+	}
+
+	STerrainTextureLayerFileHeader* pLayers = GetTerrain()->m_arrBaseTexInfos[0].m_TerrainTextureLayer;
+
+	// if texture compression format is not supported - decompress on CPU and store in UserData ptr (after heightmap)
+	if(pLayers[0].eTexFormat != m_pTerrain->m_texCache[0].m_eTexFormat)
+	{
+		assert(m_pTerrain->m_texCache[0].m_eTexFormat == eTF_R8G8B8A8);
+
+		int nDim = m_pTerrain->m_texCache[0].m_nDim;
+
+		int nSizeDxt = GetRenderer()->GetTextureFormatDataSize(nDim, nDim, 1, 1, pLayers[0].eTexFormat);
+		int nSizeRgb = GetRenderer()->GetTextureFormatDataSize(nDim, nDim, 1, 1, eTF_R8G8B8A8);
+
+		byte * pDxtIn = (byte *)pStream->GetBuffer();
+		byte * pRgbOut = ((byte*)pStream->GetUserData()) + nDim * nDim * sizeof(float);
+
+		GetRenderer()->DXTDecompress(pDxtIn,						nSizeDxt, (byte*)pRgbOut,						 nDim, nDim, 1, pLayers[0].eTexFormat, false, 4);
+		GetRenderer()->DXTDecompress(pDxtIn + nSizeDxt,	nSizeDxt, (byte*)pRgbOut + nSizeRgb, nDim, nDim, 1, pLayers[1].eTexFormat, false, 4);
 	}
 
 	Array2d<float> arrHmData;
@@ -150,7 +186,17 @@ void CTerrainNode::StartSectorTexturesStreaming(bool bFinishNow)
 
 	// start streaming
 	StreamReadParams params;	
-	params.dwUserData = (DWORD_PTR) new float[m_pTerrain->m_texCache[2].m_nDim * m_pTerrain->m_texCache[2].m_nDim];
+	
+	// user data ptr contain heightmap texture and optionally for uncompressed RGB and normals
+	int nUserDataSize = m_pTerrain->m_texCache[2].m_nDim * m_pTerrain->m_texCache[2].m_nDim;
+
+	if (pLayers->eTexFormat != m_pTerrain->m_texCache[0].m_eTexFormat)
+	{
+		assert(m_pTerrain->m_texCache[0].m_eTexFormat == eTF_R8G8B8A8);
+		nUserDataSize += nSectorDataSize * 2;
+	}
+
+	params.dwUserData = (DWORD_PTR) new float[nUserDataSize];
 	params.nSize = nSectorDataSize;
 	params.nLoadTime = 1000;
 	params.nMaxLoadTime = 0;

@@ -212,8 +212,7 @@ void IDebugCallStack::FatalError(const char* description)
 #endif
 
 #if CRY_PLATFORM_WINDOWS || !defined(_RELEASE)
-	int* p = 0x0;
-	PREFAST_SUPPRESS_WARNING(6011) * p = 1; // we're intentionally crashing here
+	__debugbreak(); // We're intentionally stopping execution and crashing here.
 #endif
 }
 

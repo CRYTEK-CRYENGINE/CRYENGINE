@@ -17,7 +17,7 @@
 
 #if USE_STEAM
 
-	#include "steam/steam_api.h"
+#include "steam/steam_api.h"
 
 // Achievement array which will hold data about the achievements and their state
 // Make sure the names in EAchievement match the API Name of the achievements

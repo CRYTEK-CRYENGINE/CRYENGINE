@@ -32,7 +32,8 @@ struct SPostEffectsUtils
 	static void Release();
 
 	// Create a render target
-	static bool CreateRenderTarget(const char* szTexName, CTexture*& pTex, int iWidth, int iHeight, const ColorF& cClear, bool bUseAlpha, bool bMipMaps = 0, ETEX_Format pTexFormat = eTF_R8G8B8A8, int nCustomID = -1, int nFlags = 0);
+	static bool GetOrCreateRenderTarget(const char* szTexName, CTexture*& pTex, int iWidth, int iHeight, const ColorF& cClear, bool bUseAlpha, bool bMipMaps = 0, ETEX_Format pTexFormat = eTF_R8G8B8A8, int nCustomID = -1, int nFlags = 0);
+	static bool GetOrCreateDepthStencil(const char* szTexName, CTexture*& pTex, int iWidth, int iHeight, const ColorF& cClear, bool bUseAlpha, bool bMipMaps = 0, ETEX_Format pTexFormat = eTF_R8G8B8A8, int nCustomID = -1, int nFlags = 0);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Utilities to void some code duplication
@@ -72,7 +73,7 @@ struct SPostEffectsUtils
 	                     const Vec2& uvA = Vec2(0, 0), const Vec2& uvB = Vec2(0, 1), const Vec2& uvC = Vec2(1, 1), const Vec2& uvD = Vec2(1, 0));
 
 	// Sets a texture
-	static void SetTexture(CTexture* pTex, int nStage, int nFilter = FILTER_LINEAR, int nClamp = 1, bool bSRGBLookup = false, DWORD dwBorderColor = 0);
+	static void SetTexture(CTexture* pTex, int nStage, int nFilter = FILTER_LINEAR, ESamplerAddressMode eMode = eSamplerAddressMode_Clamp, bool bSRGBLookup = false, DWORD dwBorderColor = 0);
 
 	// Copy a texture into other texture
 	virtual void StretchRect(CTexture* pSrc, CTexture*& pDst, bool bClearAlpha = false, bool bDecodeSrcRGBK = false, bool bEncodeDstRGBK = false, bool bBigDownsample = false, EDepthDownsample depthDownsampleMode = eDepthDownsample_None, bool bBindMultisampled = false, const RECT* srcRegion = NULL) = 0;
@@ -233,8 +234,9 @@ public:
 	static float          m_fWaterLevel;
 
 	// frustrum corners
-	static Vec3 m_vRT, m_vLT, m_vLB, m_vRB;
-	static int  m_nFrustrumFrameID;
+	static Vec3          m_vRT, m_vLT, m_vLB, m_vRB;
+	static int           m_nFrustrumFrameID;
+	static CRenderCamera m_cachedRenderCamera;
 
 protected:
 

@@ -6,6 +6,7 @@
 #include "MergedMeshGeometry.h"
 #include "VMath.hpp"
 
+#pragma warning(push)
 #pragma warning(disable: 6001)
 #pragma warning(disable: 4101)
 
@@ -54,24 +55,6 @@ struct CRY_ALIGN(16) Vec3A: public Vec3
 	}
 };
 
-struct CRY_ALIGN(16) Matrix34V: public Matrix34
-{
-	Matrix34V()
-	{
-	}
-
-	Matrix34V(const Matrix34 &v)
-		: Matrix34(v)
-	{
-	}
-
-	Matrix34V& operator=(const Matrix34V& other)
-	{
-		*static_cast<Matrix34*>(this) = other;
-		return *this;
-	}
-};
-
 struct CRY_ALIGN(16) DualQuatA: public DualQuat
 {
 	DualQuatA()
@@ -91,7 +74,6 @@ struct CRY_ALIGN(16) DualQuatA: public DualQuat
 };
 #else
 typedef Vec3     Vec3A;
-typedef Matrix34 Matrix34V;
 typedef DualQuat DualQuatA;
 #endif
 
@@ -1430,7 +1412,7 @@ static inline void UpdateTangents(SPipTangents* out, SPipQTangents* in, const Ma
 	Quat in_tangents[4];
 	int16 flip[4];
 	Quat q = mat33_to_quat(Matrix33(mat));
-	q.NormalizeFast();
+	q.Normalize();
 
 	for (size_t i = 0; i < (count & ~3); i += 4)
 	{
@@ -2792,7 +2774,7 @@ static inline void UpdateGeneralTangentsNormals(
 	Quat in_tangents[4];
 	int16 flip[4];
 	Quat q = mat33_to_quat(Matrix33(wmat));
-	q.NormalizeFast();
+	q.Normalize();
 
 	for (size_t i = 0; i < (count & ~3); i += 4)
 	{
@@ -2868,7 +2850,7 @@ static inline void UpdateGeneralTangents(
 	Quat in_tangents[4];
 	int16 flip[4];
 	Quat q = mat33_to_quat(Matrix33(wmat));
-	q.NormalizeFast();
+	q.Normalize();
 	for (size_t i = 0; i < (count & ~3); i += 4)
 	{
 		out_general[i + 0].xyz = wmat * in_general[i + 0].xyz;
@@ -2936,7 +2918,7 @@ static inline void UpdateGeneralTangentsNormals(
 	Quat in_tangents[4];
 	int16 flip[4];
 	Quat q = mat33_to_quat(Matrix33(wmat));
-	q.NormalizeFast();
+	q.Normalize();
 	for (size_t i = 0; i < (count & ~3); i += 4)
 	{
 		out_general[i + 0].xyz = wmat * in_general[i + 0].pos;
@@ -3008,7 +2990,7 @@ static inline void UpdateGeneralTangents(
 	Quat in_tangents[4];
 	int16 flip[4];
 	Quat q = mat33_to_quat(Matrix33(wmat));
-	q.NormalizeFast();
+	q.Normalize();
 	for (size_t i = 0; i < (count & ~3); i += 4)
 	{
 		out_general[i + 0].xyz = wmat * in_general[i + 0].pos;
@@ -3077,7 +3059,7 @@ static inline void UpdateGeneralTangents(
 	Quat in_tangents[4];
 	int16 flip[4];
 	Quat q = mat33_to_quat(Matrix33(wmat));
-	q.NormalizeFast();
+	q.Normalize();
 	for (size_t i = 0; i < (count & ~3); i += 4)
 	{
 		out_general[i + 0].xyz = wmat * deform[mapping[i + 0]].pos[0];
@@ -3300,7 +3282,7 @@ static void MergeInstanceList(SMMRMInstanceContext& context)
 	int i = 0, j = 0, l = 0, off = 0, boneIdx = 1, nLod, nspines = (int)geom->numSpines;
 	float i_f = 0.f;
 	int base = 0, ncolliders = context.ncolliders, nprojectiles = context.nprojectiles;
-	Matrix34V wmat, smat, iwmat, tmat;
+	Matrix34A wmat, smat, iwmat, tmat;
 	const float fExtents = c_MergedMeshesExtent;
 	const aVec3 origin = context.min;
 	int iter = 0, max_iter = context.max_iter, frame_id = update->frame_count;
@@ -3632,7 +3614,7 @@ static void MergeInstanceList(SMMRMInstanceContext& context)
 						// efficient & sufficient).
 						// Problem: not so efficient because the local space computations can become a bottleneck.
 						// Further, scaling the counter bending force on the input angle can lead to stability issues
-						Matrix34V lmat = Matrix34::CreateIdentity();
+						Matrix34A lmat = Matrix34::CreateIdentity();
 	#if MMRM_USE_VECTORIZED_SSE_INSTRUCTIONS
 						const vec4 vkL = NVMath::Vec4(kL);
 						vec4 vspt0 = _mm_loadu_ps(&geomSpines[off + 0].pt.x);
@@ -4699,3 +4681,5 @@ void CMergedMeshRenderNode::InitializeSpines()
 	}
 	m_SpinesActive = true;
 }
+
+#pragma warning(pop)

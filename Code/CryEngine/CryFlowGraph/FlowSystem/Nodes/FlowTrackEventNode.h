@@ -7,6 +7,7 @@
    ---------------------------------------------------------------------
    History:
    - 10:04:2008 : Created by Kevin Kirst
+   - Apr 11 2017  Modified by Fei Teng
 
  *********************************************************************/
 
@@ -19,39 +20,30 @@ class CFlowTrackEventNode : public CFlowBaseNode<eNCT_Instanced>, public ITrackE
 {
 public:
 	CFlowTrackEventNode(SActivationInfo*);
-	CFlowTrackEventNode(CFlowTrackEventNode const& obj);
-	CFlowTrackEventNode& operator=(CFlowTrackEventNode const& obj);
+	CFlowTrackEventNode(CFlowTrackEventNode const& obj) = default;
+	CFlowTrackEventNode& operator=(CFlowTrackEventNode const& obj) = default;
+	CFlowTrackEventNode(CFlowTrackEventNode&& obj) = default;
+	CFlowTrackEventNode& operator=(CFlowTrackEventNode&& obj) = default;
 	virtual ~CFlowTrackEventNode();
 
 	// IFlowNode
-	virtual void         AddRef();
-	virtual void         Release();
-	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo);
-	virtual void         GetConfiguration(SFlowNodeConfig& config);
-	virtual void         ProcessEvent(EFlowEvent event, SActivationInfo*);
-	virtual bool         SerializeXML(SActivationInfo* pActInfo, const XmlNodeRef& root, bool reading);
-	virtual void         Serialize(SActivationInfo*, TSerialize ser);
+	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo) override;
+	virtual void         GetConfiguration(SFlowNodeConfig& config) override;
+	virtual void         ProcessEvent(EFlowEvent event, SActivationInfo*) override;
+	virtual bool         SerializeXML(SActivationInfo* pActInfo, const XmlNodeRef& root, bool reading) override;
+	virtual void         Serialize(SActivationInfo*, TSerialize ser) override;
+	virtual void         GetMemoryUsage(class ICrySizer* pSizer) const override;
 
-	// ~ITrackEventListener
-	virtual void OnTrackEvent(IAnimSequence* pSequence, int reason, const char* event, void* pUserData);
-
-	void         GetMemoryUsage(class ICrySizer* pSizer) const
-	{
-		pSizer->AddObject(this, sizeof(*this));
-		pSizer->AddObject(m_outputStrings);
-	}
+	// ITrackEventListener
+	virtual void OnTrackEvent(IAnimSequence* pSequence, int reason, const char* event, void* pUserData) override;
 protected:
 	// Add to sequence listener
 	void AddListener(SActivationInfo* pActInfo);
 
 private:
-	typedef std::vector<string> StrArray;
-
-	int                m_refs;
-	int                m_nOutputs;
-	StrArray           m_outputStrings;
-	SOutputPortConfig* m_outputs;
+	std::vector<string> m_outputStrings;
+	std::vector<SOutputPortConfig> m_outputs;
 
 	SActivationInfo    m_actInfo;
-	IAnimSequence*     m_pSequence;
+	IAnimSequence*     m_pSequence = nullptr;
 };

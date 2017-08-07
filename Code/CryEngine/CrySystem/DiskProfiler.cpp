@@ -10,6 +10,7 @@
 	#include <CryRenderer/IRenderAuxGeom.h>
 	#include <CryThreading/IThreadManager.h>
 
+	#pragma warning(push)
 	#pragma warning(disable: 4244)
 
 int CDiskProfiler::profile_disk = 1;
@@ -364,5 +365,7 @@ void CDiskProfiler::SetTaskType(const threadID nThreadId, const uint32 nType /*=
 	CryAutoCriticalSection lock(m_csLock);
 	m_currentThreadTaskType[nThreadId] = (EStreamTaskType)nType;
 }
+
+	#pragma warning(pop)
 
 #endif

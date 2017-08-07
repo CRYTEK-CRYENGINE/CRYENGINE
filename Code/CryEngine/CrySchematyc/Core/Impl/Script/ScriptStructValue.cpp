@@ -3,10 +3,10 @@
 #include "StdAfx.h"
 #include "Script/ScriptStructValue.h"
 
-#include <Schematyc/Reflection/TypeDesc.h>
-#include <Schematyc/Script/Elements/IScriptStruct.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/Assert.h>
+#include <CrySchematyc/Reflection/TypeDesc.h>
+#include <CrySchematyc/Script/Elements/IScriptStruct.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/Assert.h>
 
 namespace Schematyc
 {
@@ -77,7 +77,7 @@ void CScriptStructValue::Refresh()
 
 void CScriptStructValue::ReflectType(CTypeDesc<CScriptStructValue>& desc)
 {
-	desc.SetGUID("a9774423-c635-4b2f-96ff-d7013230aded"_schematyc_guid);
+	desc.SetGUID("a9774423-c635-4b2f-96ff-d7013230aded"_cry_guid);
 }
 
 } // Schematyc

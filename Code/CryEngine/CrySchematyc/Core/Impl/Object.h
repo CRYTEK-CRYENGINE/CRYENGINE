@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include <Schematyc/IObject.h>
-#include <Schematyc/Runtime/RuntimeGraph.h>
-#include <Schematyc/Services/ITimerSystem.h>
-#include <Schematyc/Utils/Transform.h>
+#include <CrySchematyc/IObject.h>
+#include <CrySchematyc/Runtime/RuntimeGraph.h>
+#include <CrySchematyc/Services/ITimerSystem.h>
+#include <CrySchematyc/Utils/Transform.h>
+#include <CrySchematyc/Env/Elements/IEnvComponent.h>
 
 #include "Runtime/RuntimeClass.h"
 
@@ -13,21 +14,20 @@ namespace Schematyc
 {
 
 // Forward declare interfaces.
-struct IComponentPreviewer;
+
 struct IObjectProperties;
 // Forward declare structures.
 struct SUpdateContext;
 // Forward declare classes.
 class CAction;
 class CActionDesc;
-class CComponent;
-class CComponentDesc;
+
 class CRuntimeParamMap;
 class CScratchpad;
 // Forward declare shared pointers.
 DECLARE_SHARED_POINTERS(IObjectProperties)
 DECLARE_SHARED_POINTERS(CAction)
-DECLARE_SHARED_POINTERS(CComponent)
+
 DECLARE_SHARED_POINTERS(CRuntimeClass)
 
 struct SQueuedObjectSignal
@@ -80,18 +80,17 @@ private:
 
 	typedef std::vector<SStateMachine> StateMachines;
 
-	struct SComponent // #SchematycTODO : Can we refactor this structure to look more like SAction?
+	struct SComponent
 	{
-		SComponent(const SGUID& _guid, const CComponentDesc& _desc, const CComponentPtr& _pComponent, const CTransform& _transform, IComponentPreviewer* _pPreviewer, uint32 _parentIdx);
-
-		SGUID                 guid;
-		const CComponentDesc& desc;
-		CComponentPtr         pComponent;
-		CTransform            transform;
-		IComponentPreviewer*  pPreviewer;
-		uint32                parentIdx; // #SchematycTODO : Can we store a raw pointer to the component rather than referencing by index?
+		SComponent(const SRuntimeClassComponentInstance& inst, const IEnvComponent* pEnvComponent)
+			: classComponentInstance(inst)
+			, classDesc(pEnvComponent->GetDesc())
+			, pComponent(pEnvComponent->CreateFromPool())
+		{};
+		const SRuntimeClassComponentInstance& classComponentInstance;
+		const CClassDesc&                     classDesc;
+		std::shared_ptr<IEntityComponent>     pComponent;
 	};
-
 	typedef std::vector<SComponent> Components;
 
 	struct SAction
@@ -108,12 +107,12 @@ private:
 
 	struct STimer
 	{
-		STimer(CObject* _pObject, const SGUID& _guid, TimerFlags _flags);
+		STimer(CObject* _pObject, const CryGUID& _guid, TimerFlags _flags);
 
 		void Activate();
 
 		CObject*   pObject;
-		SGUID      guid;
+		CryGUID    guid;
 		TimerFlags flags;
 		TimerId    id;
 	};
@@ -128,40 +127,41 @@ private:
 	typedef std::vector<SState> States;
 
 public:
-
-	CObject(ObjectId id);
-
+	CObject(IEntity& entity, ObjectId id, void* pCustomData);
 	~CObject();
 
-	bool Init(const CRuntimeClassConstPtr& pClass, void* pCustomData, const IObjectPropertiesConstPtr& pProperties, ESimulationMode simulationMode);
+	bool Init(CryGUID classGUID, const IObjectPropertiesPtr& pProperties);
 
 	// IObject
-
 	virtual ObjectId             GetId() const override;
 	virtual const IRuntimeClass& GetClass() const override;
+	virtual const char*          GetScriptFile() const override;
 	virtual void*                GetCustomData() const override;
 	virtual ESimulationMode      GetSimulationMode() const override;
 
-	virtual bool                 Reset(ESimulationMode simulationMode, EObjectResetPolicy resetPolicy) override;
+	virtual bool                 SetSimulationMode(ESimulationMode simulationMode, EObjectSimulationUpdatePolicy updatePolicy, bool bStartSimulation) override;
 	virtual void                 ProcessSignal(const SObjectSignal& signal) override;
 	virtual void                 StopAction(CAction& action) override;
 
 	virtual EVisitResult         VisitComponents(const ObjectComponentConstVisitor& visitor) const override;
 	virtual void                 Dump(IObjectDump& dump, const ObjectDumpFlags& flags = EObjectDumpFlags::All) const override;
 
+	virtual IEntity*             GetEntity() const final           { return m_pEntity; };
+
+	virtual IObjectPropertiesPtr GetObjectProperties() const final { return m_pProperties; };
 	// ~IObject
 
-	CScratchpad& GetScratchpad();
-	CComponent*  GetComponent(uint32 componentIdx);
-	bool         ExecuteFunction(uint32 functionIdx, CRuntimeParamMap& params);
-	bool         StartAction(uint32 actionIdx, CRuntimeParamMap& params);
+	CScratchpad&      GetScratchpad();
+
+	bool              ExecuteFunction(uint32 functionIdx, CRuntimeParamMap& params);
+	bool              StartAction(uint32 actionIdx, CRuntimeParamMap& params);
+
+	IEntityComponent* GetComponent(uint32 componentId);
 
 private:
+	bool InitClass();
 
-	bool SetClass(const CRuntimeClassConstPtr& pClass);
-
-	bool Start(ESimulationMode simulationMode);
-	void Stop();
+	void StopSimulation();
 	void Update(const SUpdateContext& updateContext);
 
 	void CreateGraphs();
@@ -177,8 +177,6 @@ private:
 	void DestroyStateMachines();
 
 	bool CreateComponents();
-	bool InitComponents();
-	void RunComponents(ESimulationMode simulationMode);
 	void ShutdownComponents();
 	void DestroyComponents();
 
@@ -207,27 +205,31 @@ private:
 	void ProcessSignalQueue();
 
 private:
+	ObjectId              m_id;
 
-	ObjectId                  m_id;
+	CRuntimeClassConstPtr m_pClass;
+	void*                 m_pCustomData;
+	IObjectPropertiesPtr  m_pProperties;
+	ESimulationMode       m_simulationMode;
 
-	CRuntimeClassConstPtr     m_pClass;
-	void*                     m_pCustomData;
-	IObjectPropertiesConstPtr m_pProperties;
-	ESimulationMode           m_simulationMode;
+	HeapScratchpad        m_scratchpad;
+	Graphs                m_graphs;
 
-	HeapScratchpad            m_scratchpad;
-	Graphs                    m_graphs;
+	StateMachines         m_stateMachines;
 
-	StateMachines             m_stateMachines;
-	Components                m_components;
-	Actions                   m_actions;
-	Timers                    m_timers;
-	States                    m_states;
+	Actions               m_actions;
+	Timers                m_timers;
+	States                m_states;
 
-	bool                      m_bQueueSignals;
-	ObjectSignalQueue         m_signalQueue;
+	bool                  m_bQueueSignals;
+	ObjectSignalQueue     m_signalQueue;
 
-	CConnectionScope          m_connectionScope;
+	CConnectionScope      m_connectionScope;
+
+	// Components created by Schematyc object
+	Components m_components;
+
+	IEntity*   m_pEntity;
 };
 
 } // Schematyc

@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -15,7 +15,7 @@ namespace uqs
 		//
 		//===================================================================================
 
-		class CTextualQueryBlueprint : public ITextualQueryBlueprint
+		class CTextualQueryBlueprint final : public ITextualQueryBlueprint
 		{
 		public:
 			explicit                                                   CTextualQueryBlueprint();
@@ -27,14 +27,15 @@ namespace uqs
 			//
 			///////////////////////////////////////////////////////////////////////////////////
 
-			virtual void                                               SetName(const char* name) override;
-			virtual void                                               SetQueryFactoryName(const char* factoryName) override;
+			virtual void                                               SetName(const char* szName) override;
+			virtual void                                               SetQueryFactoryName(const char* szFactoryName) override;
+			virtual void                                               SetQueryFactoryGUID(const CryGUID& factoryGUID) override;
 			virtual void                                               SetMaxItemsToKeepInResultSet(size_t maxItems) override;
 			virtual ITextualGlobalConstantParamsBlueprint&             GetGlobalConstantParams() override;
 			virtual ITextualGlobalRuntimeParamsBlueprint&              GetGlobalRuntimeParams() override;
 			virtual ITextualGeneratorBlueprint&                        SetGenerator() override;
-			virtual ITextualInstantEvaluatorBlueprint&                 AddInstantEvaluator() override;
-			virtual ITextualDeferredEvaluatorBlueprint&                AddDeferredEvaluator() override;
+			virtual ITextualEvaluatorBlueprint&                        AddInstantEvaluator() override;
+			virtual ITextualEvaluatorBlueprint&                        AddDeferredEvaluator() override;
 			virtual ITextualQueryBlueprint&                            AddChild() override;
 
 			///////////////////////////////////////////////////////////////////////////////////
@@ -45,14 +46,15 @@ namespace uqs
 
 			virtual const char*                                        GetName() const override;
 			virtual const char*                                        GetQueryFactoryName() const override;
+			virtual const CryGUID&                                     GetQueryFactoryGUID() const override;
 			virtual size_t                                             GetMaxItemsToKeepInResultSet() const override;
 			virtual const ITextualGlobalConstantParamsBlueprint&       GetGlobalConstantParams() const override;
 			virtual const ITextualGlobalRuntimeParamsBlueprint&        GetGlobalRuntimeParams() const override;
 			virtual const ITextualGeneratorBlueprint*                  GetGenerator() const override;
 			virtual size_t                                             GetInstantEvaluatorCount() const override;
-			virtual const ITextualInstantEvaluatorBlueprint&           GetInstantEvaluator(size_t index) const override;
+			virtual const ITextualEvaluatorBlueprint&                  GetInstantEvaluator(size_t index) const override;
 			virtual size_t                                             GetDeferredEvaluatorCount() const override;
-			virtual const ITextualDeferredEvaluatorBlueprint&          GetDeferredEvaluator(size_t index) const override;
+			virtual const ITextualEvaluatorBlueprint&                  GetDeferredEvaluator(size_t index) const override;
 			virtual size_t                                             GetChildCount() const override;
 			virtual const ITextualQueryBlueprint&                      GetChild(size_t index) const override;
 
@@ -60,8 +62,8 @@ namespace uqs
 			// syntax error collector
 			//
 
-			virtual void                                               SetSyntaxErrorCollector(datasource::SyntaxErrorCollectorUniquePtr ptr) override;
-			virtual datasource::ISyntaxErrorCollector*                 GetSyntaxErrorCollector() const override;
+			virtual void                                               SetSyntaxErrorCollector(DataSource::SyntaxErrorCollectorUniquePtr pSyntaxErrorCollector) override;
+			virtual DataSource::ISyntaxErrorCollector*                 GetSyntaxErrorCollector() const override;
 
 		private:
 			                                                           UQS_NON_COPYABLE(CTextualQueryBlueprint);
@@ -69,13 +71,14 @@ namespace uqs
 		private:
 			string                                                     m_name;
 			string                                                     m_queryFactoryName;
+			CryGUID                                                    m_queryFactoryGUID;
 			size_t                                                     m_maxItemsToKeepInResultSet;
 			CTextualGlobalConstantParamsBlueprint                      m_globalConstantParams;
 			CTextualGlobalRuntimeParamsBlueprint                       m_globalRuntimeParams;
 			std::unique_ptr<CTextualGeneratorBlueprint>                m_pGenerator;
-			std::vector<CTextualInstantEvaluatorBlueprint*>            m_instantEvaluators;
-			std::vector<CTextualDeferredEvaluatorBlueprint*>           m_deferredEvaluators;
-			datasource::SyntaxErrorCollectorUniquePtr                  m_pSyntaxErrorCollector;
+			std::vector<CTextualEvaluatorBlueprint*>                   m_instantEvaluators;
+			std::vector<CTextualEvaluatorBlueprint*>                   m_deferredEvaluators;
+			DataSource::SyntaxErrorCollectorUniquePtr                  m_pSyntaxErrorCollector;
 			std::vector<CTextualQueryBlueprint*>                       m_children;
 		};
 
@@ -93,8 +96,8 @@ namespace uqs
 
 			// IQueryBlueprint
 			virtual const char*                                GetName() const override;
-			virtual void                                       VisitRuntimeParams(client::IQueryBlueprintRuntimeParamVisitor& visitor) const override;
-			virtual const shared::CTypeInfo&                   GetOutputType() const override;
+			virtual void                                       VisitRuntimeParams(Client::IQueryBlueprintRuntimeParamVisitor& visitor) const override;
+			virtual const Shared::CTypeInfo&                   GetOutputType() const override;
 			// ~IQueryBlueprint
 
 			// - called when resolving a textual blueprint into its compiled counterpart
@@ -115,10 +118,9 @@ namespace uqs
 			const CGeneratorBlueprint*                         GetGeneratorBlueprint() const;
 			const std::vector<CInstantEvaluatorBlueprint*>&    GetInstantEvaluatorBlueprints() const;
 			const std::vector<CDeferredEvaluatorBlueprint*>&   GetDeferredEvaluatorBlueprints() const;
-			// TODO: secondary-generator blueprints?
-			bool                                               CheckPresenceAndTypeOfGlobalRuntimeParamsRecursively(const shared::IVariantDict& runtimeParamsToValidate, shared::CUqsString& error) const;
+			bool                                               CheckPresenceAndTypeOfGlobalRuntimeParamsRecursively(const Shared::IVariantDict& runtimeParamsToValidate, Shared::CUqsString& error) const;
 
-			const shared::CTypeInfo*                           GetTypeOfShuttledItemsToExpect() const;
+			const Shared::CTypeInfo*                           GetTypeOfShuttledItemsToExpect() const;
 			const CQueryFactoryBase&                           GetQueryFactory() const;
 
 			// debugging: dumps query-blueprint details to the console
@@ -128,7 +130,7 @@ namespace uqs
 			                                                   UQS_NON_COPYABLE(CQueryBlueprint);
 
 			void                                               SortInstantEvaluatorBlueprintsByCostAndEvaluationModality();
-			void                                               GrabRuntimeParamsRecursively(std::map<string, client::IItemFactory*>& out) const;
+			void                                               GrabRuntimeParamsRecursively(std::map<string, Client::IItemFactory*>& out) const;
 
 		private:
 			string                                             m_name;
@@ -141,8 +143,6 @@ namespace uqs
 			std::vector<CDeferredEvaluatorBlueprint*>          m_deferredEvaluators;
 			std::vector<std::shared_ptr<CQueryBlueprint>>      m_children;
 			const CQueryBlueprint*                             m_pParent;
-
-			// TODO: secondary-generator blueprint(s)?
 		};
 
 	}

@@ -5,12 +5,12 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
-		bool Serialize(Serialization::IArchive& ar, CTimeValue& timeValue, const char* name, const char* label)
+		bool Serialize(Serialization::IArchive& ar, CTimeValue& timeValue, const char* szName, const char* szLabel)
 		{
 			int64 value = 0;
 
@@ -18,12 +18,12 @@ namespace uqs
 			{
 				// serialize
 				value = timeValue.GetValue();
-				return ar(value, name);
+				return ar(value, szName);
 			}
 			else if (ar.isInput())
 			{
 				// de-serialize
-				const bool result = ar(value, name);
+				const bool result = ar(value, szName);
 				timeValue.SetValue(value);
 				return result;
 			}
@@ -31,31 +31,31 @@ namespace uqs
 			return false;
 		}
 
-		bool Serialize(Serialization::IArchive& ar, OBB& obb, const char* name, const char* label)
+		bool Serialize(Serialization::IArchive& ar, OBB& obb, const char* szName, const char* szLabel)
 		{
 			typedef f32(&Array)[3][3];
 
 			stack_string tmpName;
 			stack_string tmpLabel;
 
-			if (!name)
-				name = "";
+			if (!szName)
+				szName = "";
 
-			if (!label)
-				label = "";
+			if (!szLabel)
+				szLabel = "";
 
-			tmpName.Format("%s.m33", name);
-			tmpLabel.Format("%s.m33", label);
+			tmpName.Format("%s.m33", szName);
+			tmpLabel.Format("%s.m33", szLabel);
 			if (!ar((Array)obb.m33, tmpName.c_str(), tmpLabel.c_str()))
 				return false;
 
-			tmpName.Format("%s.h", name);
-			tmpLabel.Format("%s.h", label);
+			tmpName.Format("%s.h", szName);
+			tmpLabel.Format("%s.h", szLabel);
 			if (!ar(obb.h, tmpName.c_str(), tmpLabel.c_str()))
 				return false;
 
-			tmpName.Format("%s.c", name);
-			tmpLabel.Format("%s.c", label);
+			tmpName.Format("%s.c", szName);
+			tmpLabel.Format("%s.c", szLabel);
 			if (!ar(obb.c, tmpName.c_str(), tmpLabel.c_str()))
 				return false;
 
@@ -71,12 +71,12 @@ namespace uqs
 
 			void Serialize(Serialization::IArchive& ar)
 			{
-				bool ptrExists = (ptr != nullptr);
+				bool bPtrExists = (ptr != nullptr);
 				if (ar.isInput())
 				{
-					if (ar(ptrExists, "exists"))
+					if (ar(bPtrExists, "exists"))
 					{
-						if (ptrExists)
+						if (bPtrExists)
 						{
 							ptr.reset(new T);
 							ar(*ptr, "ptr");
@@ -89,8 +89,8 @@ namespace uqs
 				}
 				else
 				{
-					ar(ptrExists, "exists");
-					if (ptrExists)
+					ar(bPtrExists, "exists");
+					if (bPtrExists)
 					{
 						ar(*ptr, "ptr");
 					}
@@ -98,9 +98,9 @@ namespace uqs
 			}
 		};
 
-		bool Serialize(Serialization::IArchive& ar, std::shared_ptr<CHistoricQuery>& ptr, const char* szName, const char* szLabel)
+		bool Serialize(Serialization::IArchive& ar, std::shared_ptr<CHistoricQuery>& pHistoricQuery, const char* szName, const char* szLabel)
 		{
-			SSharedPtrSerializer<CHistoricQuery> ser(ptr);
+			SSharedPtrSerializer<CHistoricQuery> ser(pHistoricQuery);
 			return ar(ser, szName, szLabel);
 		}
 

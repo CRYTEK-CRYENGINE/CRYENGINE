@@ -5,15 +5,15 @@
 
 #include "ScriptBrowserUtils.h"
 
-#include <Schematyc/Reflection/TypeDesc.h>
+#include <CrySchematyc/Reflection/TypeDesc.h>
 
-#include <Schematyc/Script/IScriptView.h>
-#include <Schematyc/Script/IScriptRegistry.h>
-#include <Schematyc/Script/Elements/IScriptComponentInstance.h>
+#include <CrySchematyc/Script/IScriptView.h>
+#include <CrySchematyc/Script/IScriptRegistry.h>
+#include <CrySchematyc/Script/Elements/IScriptComponentInstance.h>
 
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/IEnvElement.h>
-#include <Schematyc/Env/Elements/IEnvComponent.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/IEnvElement.h>
+#include <CrySchematyc/Env/Elements/IEnvComponent.h>
 
 namespace CrySchematycEditor {
 
@@ -93,7 +93,7 @@ void CComponentsDictionary::Load(const Schematyc::IScriptElement* pScriptScope)
 			const Schematyc::IEnvComponent* pEnvComponent = registry.GetComponent(pScriptComponentInstance->GetTypeGUID());
 			if (pEnvComponent)
 			{
-				if (pEnvComponent->GetDesc().GetComponentFlags().Check(Schematyc::EComponentFlags::Socket))
+				if (pEnvComponent->GetDesc().GetComponentFlags().Check(IEntityComponent::EFlags::Socket))
 				{
 					bAttach = true;
 				}
@@ -106,21 +106,21 @@ void CComponentsDictionary::Load(const Schematyc::IScriptElement* pScriptScope)
 
 		Schematyc::IScriptViewPtr pScriptView = gEnv->pSchematyc->CreateScriptView(pScriptScope->GetGUID());
 
-		VectorSet<Schematyc::SGUID> singletonExclusions;
+		VectorSet<CryGUID> singletonExclusions;
 		auto visitScriptComponentInstance = [this, &singletonExclusions](const Schematyc::IScriptComponentInstance& scriptComponentInstance) -> Schematyc::EVisitStatus
 		{
 			singletonExclusions.insert(scriptComponentInstance.GetTypeGUID());
 			return Schematyc::EVisitStatus::Continue;
 		};
-		pScriptView->VisitScriptComponentInstances(Schematyc::ScriptComponentInstanceConstVisitor::FromLambda(visitScriptComponentInstance), Schematyc::EDomainScope::Derived);
+		pScriptView->VisitScriptComponentInstances(visitScriptComponentInstance, Schematyc::EDomainScope::Derived);
 
 		auto visitEnvComponentFactory = [this, bAttach, &singletonExclusions, &pScriptView](const Schematyc::IEnvComponent& envComponent) -> Schematyc::EVisitStatus
 		{
-			const Schematyc::ComponentFlags componentFlags = envComponent.GetDesc().GetComponentFlags();
-			if (!bAttach || componentFlags.Check(Schematyc::EComponentFlags::Attach))
+			auto componentFlags = envComponent.GetDesc().GetComponentFlags();
+			if (!bAttach || componentFlags.Check(IEntityComponent::EFlags::Attach))
 			{
-				const Schematyc::SGUID envComponentGUID = envComponent.GetGUID();
-				if (!componentFlags.Check(Schematyc::EComponentFlags::Singleton) || (singletonExclusions.find(envComponentGUID) == singletonExclusions.end()))
+				const CryGUID envComponentGUID = envComponent.GetGUID();
+				if (!componentFlags.Check(IEntityComponent::EFlags::Singleton) || (singletonExclusions.find(envComponentGUID) == singletonExclusions.end()))
 				{
 					Schematyc::CStackString fullName;
 					pScriptView->QualifyName(envComponent, fullName);
@@ -136,7 +136,7 @@ void CComponentsDictionary::Load(const Schematyc::IScriptElement* pScriptScope)
 			}
 			return Schematyc::EVisitStatus::Continue;
 		};
-		pScriptView->VisitEnvComponents(Schematyc::EnvComponentConstVisitor::FromLambda(visitEnvComponentFactory));
+		pScriptView->VisitEnvComponents(visitEnvComponentFactory);
 	}
 }
 

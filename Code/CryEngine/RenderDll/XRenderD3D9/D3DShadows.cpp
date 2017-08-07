@@ -54,27 +54,33 @@ void CD3D9Renderer::EF_PrepareShadowGenRenderList(CRenderView* pRenderView)
 	//if (CV_r_UseShadowsPool)
 	//  return;
 
-	int NumDynLights = pRenderView->GetDynamicLightsCount();
-
+	auto& arrDynLights = pRenderView->GetLightsArray(eDLT_DynamicLight);
 	auto& arrDeferLights = pRenderView->GetLightsArray(eDLT_DeferredLight);
 
-	if (NumDynLights <= 0 && arrDeferLights.size() <= 0)
+	int NumDynLights = arrDynLights.size();
+	int NumDeferLights = arrDeferLights.size();
+	if ((NumDynLights + NumDeferLights) <= 0)
 		return;
 
 	int nSunID = -1;
-	for (int nLightID = 0; nLightID < NumDynLights; nLightID++)
-	{
-		SRenderLight* pLight = &pRenderView->GetDynamicLight(nLightID);
-		EF_PrepareShadowGenForLight(pRenderView, pLight, nLightID);
 
-		if (pLight->m_Flags & DLF_SUN)
-			nSunID = nLightID;
+	{
+		auto itr = arrDynLights.begin();
+		for (uint32 nDynLightID = 0; itr != arrDynLights.end(); ++itr, ++nDynLightID)
+		{
+			EF_PrepareShadowGenForLight(pRenderView, &*itr, nDynLightID);
+
+			if (itr->m_Flags & DLF_SUN)
+				nSunID = nDynLightID;
+		}
 	}
 
-	for (uint32 nDeferLightID = 0; nDeferLightID < arrDeferLights.size(); nDeferLightID++)
 	{
-		SRenderLight* pLight = &arrDeferLights[nDeferLightID];
-		EF_PrepareShadowGenForLight(pRenderView, pLight, (NumDynLights + nDeferLightID));
+		auto itr = arrDeferLights.begin();
+		for (uint32 nDeferLightID = NumDynLights; itr != arrDeferLights.end(); ++itr, ++nDeferLightID)
+		{
+			EF_PrepareShadowGenForLight(pRenderView, &*itr, nDeferLightID);
+		}
 	}
 
 	// add custom frustums
@@ -146,7 +152,7 @@ bool CD3D9Renderer::EF_PrepareShadowGenForLight(CRenderView* pRenderView, SRende
 	return true;
 }
 
-bool CD3D9Renderer::PrepareShadowGenForFrustum(CRenderView* pRenderView, ShadowMapFrustum* pCurFrustum, SRenderLight* pLight, int nLightID, int nLOD)
+bool CD3D9Renderer::PrepareShadowGenForFrustum(CRenderView* pRenderView, ShadowMapFrustum* pCurFrustum, const SRenderLight* pLight, int nLightID, int nLOD)
 {
 	int nThreadID = m_RP.m_nFillThreadID;
 
@@ -617,17 +623,7 @@ void CD3D9Renderer::ConfigShadowTexgen(int Num, ShadowMapFrustum* pFr, int nFrus
 				m_cEF.m_TempVecs[1][Num] = pFr->fDepthTestBias;
 			}
 
-			//fOneDivFarDist param
-			if ((pFr->m_Flags & DLF_DIRECTIONAL) || (!(pFr->bUseHWShadowMap) && !(pFr->bHWPCFCompare)))
-			{
-				//linearized shadows are used for any kind of directional lights and for non-hw point lights
-				m_cEF.m_TempVecs[2][Num] = 1.f / (pFr->fFarDist);
-			}
-			else
-			{
-				//hw point lights sources have non-linear depth for now
-				m_cEF.m_TempVecs[2][Num] = 1.f / (pFr->fFarDist);
-			}
+			m_cEF.m_TempVecs[2][Num] = 1.f / (pFr->fFarDist);
 
 			//vInvShadowMapWH param
 			m_cEF.m_TempVecs[9][Num] = 1.f / pFr->nTexSize;

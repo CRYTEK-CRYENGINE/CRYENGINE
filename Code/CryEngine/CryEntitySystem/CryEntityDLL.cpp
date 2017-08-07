@@ -4,6 +4,12 @@
 
 #include <CryEntitySystem/IEntitySystem.h>
 #include "EntitySystem.h"
+#include "EntityUnitTests.h"
+
+#include "Schematyc/EntitySchematycActions.h"
+#include "Schematyc/EntitySchematycUtilFunctions.h"
+#include "Schematyc/EntityUtilsComponent.h"
+
 // Included only once per DLL module.
 #include <CryCore/Platform/platform_impl.inl>
 
@@ -11,22 +17,66 @@
 #include <CryExtension/ICryFactory.h>
 #include <CryExtension/ClassWeaver.h>
 
-CEntitySystem* g_pIEntitySystem = NULL;
+#include  <CrySchematyc/Env/IEnvRegistry.h>
+#include  <CrySchematyc/Env/Elements/EnvComponent.h>
+#include  <CrySchematyc/Env/EnvPackage.h>
+#include <CryCore/StaticInstanceList.h>
 
-struct CSystemEventListner_Entity : public ISystemEventListener
+CEntitySystem* g_pIEntitySystem = NULL;
+constexpr CryGUID SchematyEntityComponentsPackageGUID = "A37D36D5-2AB1-4B48-9353-3DEC93A4236A"_cry_guid;
+
+struct CSystemEventListener_Entity : public ISystemEventListener
 {
 public:
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
 	{
 		switch (event)
 		{
+		case ESYSTEM_EVENT_REGISTER_SCHEMATYC_ENV:
+			{
+				auto entitySchematycRegistration = [](Schematyc::IEnvRegistrar& registrar)
+				{
+					Schematyc::CEntityTimerAction::Register(registrar);
+					Schematyc::CEntityDebugTextAction::Register(registrar);
+					Schematyc::Entity::RegisterUtilFunctions(registrar);
+					Schematyc::CEntityUtilsComponent::Register(registrar);
+
+					if (gEnv->bTesting)
+					{
+						RegisterUnitTestComponents(registrar);
+					}
+				};
+
+				gEnv->pSchematyc->GetEnvRegistry().RegisterPackage(
+					stl::make_unique<Schematyc::CEnvPackage>(
+						SchematyEntityComponentsPackageGUID,
+						"EntityComponents",
+						"Crytek GmbH",
+						"CRYENGINE Default Entity Components",
+						entitySchematycRegistration
+						)
+				);
+			}
+			break;
+		case ESYSTEM_EVENT_FULL_SHUTDOWN:
+		case ESYSTEM_EVENT_FAST_SHUTDOWN:
+		{
+			// Deregister the Schematyc packages which were registered in the entity system.
+			if (gEnv->pSchematyc)
+			{
+				gEnv->pSchematyc->GetEnvRegistry().DeregisterPackage(SchematyEntityComponentsPackageGUID);
+
+				gEnv->pEntitySystem->GetClassRegistry()->UnregisterSchematycEntityClass();
+			}
+		}
+		break;
 		case ESYSTEM_EVENT_LEVEL_LOAD_START:
 			if (g_pIEntitySystem)
 				g_pIEntitySystem->OnLevelLoadStart();
 			break;
 		case ESYSTEM_EVENT_LEVEL_LOAD_END:
 			{
-				if (g_pIEntitySystem )
+				if (g_pIEntitySystem)
 				{
 					if (!gEnv->pSystem->IsSerializingFile())
 					{
@@ -36,8 +86,9 @@ public:
 					{
 						LOADING_TIME_PROFILE_SECTION_NAMED("ENTITY_EVENT_LEVEL_LOADED");
 						SEntityEvent loadingCompleteEvent(ENTITY_EVENT_LEVEL_LOADED);
-						g_pIEntitySystem->SendEventToAll( loadingCompleteEvent );
+						g_pIEntitySystem->SendEventToAll(loadingCompleteEvent);
 					}
+					g_pIEntitySystem->OnLevelLoadEnd();
 				}
 			}
 			break;
@@ -50,22 +101,26 @@ public:
 		}
 	}
 };
-static CSystemEventListner_Entity g_system_event_listener_entity;
+static CSystemEventListener_Entity g_system_event_listener_entity;
 
 //////////////////////////////////////////////////////////////////////////
-class CEngineModule_EntitySystem : public IEngineModule
+class CEngineModule_EntitySystem : public IEntitySystemEngineModule
 {
-	CRYINTERFACE_SIMPLE(IEngineModule)
-	CRYGENERATE_SINGLETONCLASS(CEngineModule_EntitySystem, "EngineModule_CryEntitySystem", 0x885655072f014c03, 0x820c5a1a9b4d623b)
+	CRYINTERFACE_BEGIN()
+	CRYINTERFACE_ADD(Cry::IDefaultModule)
+	CRYINTERFACE_ADD(IEntitySystemEngineModule)
+	CRYINTERFACE_END()
 
-	virtual ~CEngineModule_EntitySystem() 
+	CRYGENERATE_SINGLETONCLASS_GUID(CEngineModule_EntitySystem, "EngineModule_CryEntitySystem", "88565507-2f01-4c03-820c-5a1a9b4d623b"_cry_guid)
+
+	virtual ~CEngineModule_EntitySystem()
 	{
 		GetISystem()->GetISystemEventDispatcher()->RemoveListener(&g_system_event_listener_entity);
 		SAFE_RELEASE(gEnv->pEntitySystem);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual const char* GetName() const override { return "CryEntitySystem"; };
+	virtual const char* GetName() const override     { return "CryEntitySystem"; };
 	virtual const char* GetCategory() const override { return "CryEngine"; };
 
 	//////////////////////////////////////////////////////////////////////////

@@ -27,8 +27,6 @@ public:
 	void Done();
 
 	void Display(DisplayContext& dc);
-	void BeginEditParams(int flags);
-	void EndEditParams();
 
 	void GetBoundSphere(Vec3& pos, float& radius);
 	void GetBoundBox(AABB& box);

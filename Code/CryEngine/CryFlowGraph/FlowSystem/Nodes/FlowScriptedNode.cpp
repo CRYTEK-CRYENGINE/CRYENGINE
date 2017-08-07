@@ -159,7 +159,7 @@ void CFlowDataToScriptParamVisitor::VisitVariant<stl::variant_size<TFlowInputDat
  */
 
 CFlowScriptedNode::CFlowScriptedNode(const SActivationInfo* pInfo, CFlowScriptedNodeFactoryPtr pFactory, SmartScriptTable table) :
-	m_refs(0), m_info(*pInfo), m_table(table), m_pFactory(pFactory)
+	m_info(*pInfo), m_table(table), m_pFactory(pFactory)
 {
 	ScriptHandle thisHandle;
 	thisHandle.ptr = this;
@@ -168,17 +168,6 @@ CFlowScriptedNode::CFlowScriptedNode(const SActivationInfo* pInfo, CFlowScripted
 
 CFlowScriptedNode::~CFlowScriptedNode()
 {
-}
-
-void CFlowScriptedNode::AddRef()
-{
-	++m_refs;
-}
-
-void CFlowScriptedNode::Release()
-{
-	if (0 == --m_refs)
-		delete this;
 }
 
 void CFlowScriptedNode::GetMemoryUsage(ICrySizer* s) const
@@ -206,7 +195,7 @@ void CFlowScriptedNode::ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo
 	// pass 1: update data
 	for (size_t i = 0; i < m_pFactory->NumInputs(); i++)
 	{
-		if (pActInfo->pInputPorts[i].IsUserFlagSet())
+		if (IsPortActive(pActInfo, i))
 		{
 			//TODO
 			//pActInfo->pInputPorts[i].Visit( CFlowDataToScriptDataVisitor(m_table.GetPtr(), m_pFactory->InputName(i)) );
@@ -216,7 +205,7 @@ void CFlowScriptedNode::ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo
 	// pass 2: call OnActivate functions
 	for (size_t i = 0; i < m_pFactory->NumInputs(); i++)
 	{
-		if (pActInfo->pInputPorts[i].IsUserFlagSet())
+		if (IsPortActive(pActInfo, i))
 		{
 			static char buffer[256] = "OnActivate_";
 			strcpy(buffer + 11, m_pFactory->InputName(i));
@@ -248,7 +237,6 @@ int CFlowScriptedNode::ActivatePort(IFunctionHandler* pH, size_t nOutput, const 
 
 CFlowScriptedNodeFactory::CFlowScriptedNodeFactory()
 {
-	m_refs = 0;
 }
 
 CFlowScriptedNodeFactory::~CFlowScriptedNodeFactory()
@@ -324,17 +312,6 @@ bool CFlowScriptedNodeFactory::Init(const char* path, const char* nodeName)
 	//m_category = EFLN_NOCATEGORY;
 
 	return true;
-}
-
-void CFlowScriptedNodeFactory::AddRef()
-{
-	++m_refs;
-}
-
-void CFlowScriptedNodeFactory::Release()
-{
-	if (0 == --m_refs)
-		delete this;
 }
 
 IFlowNodePtr CFlowScriptedNodeFactory::Create(IFlowNode::SActivationInfo* pInfo)
@@ -424,23 +401,12 @@ void CFlowScriptedNodeFactory::GetMemoryUsage(ICrySizer* s) const
  */
 
 CFlowSimpleScriptedNode::CFlowSimpleScriptedNode(const SActivationInfo* pInfo, CFlowSimpleScriptedNodeFactoryPtr pFactory) :
-	m_refs(0), m_pFactory(pFactory)
+	m_pFactory(pFactory)
 {
 }
 
 CFlowSimpleScriptedNode::~CFlowSimpleScriptedNode()
 {
-}
-
-void CFlowSimpleScriptedNode::AddRef()
-{
-	++m_refs;
-}
-
-void CFlowSimpleScriptedNode::Release()
-{
-	if (0 >= --m_refs)
-		delete this;
 }
 
 IFlowNodePtr CFlowSimpleScriptedNode::Clone(SActivationInfo* pActInfo)
@@ -462,7 +428,7 @@ void CFlowSimpleScriptedNode::ProcessEvent(EFlowEvent event, SActivationInfo* pA
 
 		for (size_t i = 0; i < m_pFactory->NumInputs(); i++)
 		{
-			if (pActInfo->pInputPorts[i].IsUserFlagSet() && (m_pFactory->GetActivateFlags() & (1 << i)))
+			if (IsPortActive(pActInfo, i) && (m_pFactory->GetActivateFlags() & (1 << i)))
 			{
 				pActInfo->pGraph->RequestFinalActivation(pActInfo->myID);
 				break;
@@ -490,7 +456,7 @@ bool CFlowSimpleScriptedNode::SerializeXML(SActivationInfo*, const XmlNodeRef& r
  * CFlowSimpleScriptedNodeFactory
  */
 
-CFlowSimpleScriptedNodeFactory::CFlowSimpleScriptedNodeFactory() : m_refs(0), m_func(0), activateFlags(0)
+CFlowSimpleScriptedNodeFactory::CFlowSimpleScriptedNodeFactory() : m_func(0), activateFlags(0)
 {
 }
 
@@ -669,39 +635,36 @@ bool CFlowSimpleScriptedNodeFactory::CallFunction(IFlowNode::SActivationInfo* pA
 		{
 			SFlowAddress port(pActInfo->myID, static_cast<TFlowPortId>(i), true);
 
-			switch (m_outputValues[i].type)
+			switch (m_outputValues[i].GetType())
 			{
-			case ANY_TNIL:
+			case EScriptAnyType::Nil:
 				pActInfo->pGraph->ActivatePort(port, SFlowSystemVoid());
 				break;
-			case ANY_TBOOLEAN:
-				pActInfo->pGraph->ActivatePort(port, m_outputValues[i].b);
+			case EScriptAnyType::Boolean:
+				pActInfo->pGraph->ActivatePort(port, m_outputValues[i].GetBool());
 				break;
-			case ANY_THANDLE:
-				pActInfo->pGraph->ActivatePort(port, EntityId(m_outputValues[i].ud.nRef));
+			case EScriptAnyType::Handle:
+				pActInfo->pGraph->ActivatePort(port, EntityId(m_outputValues[i].GetUserData().nRef));
 				break;
-			case ANY_TNUMBER:
-				pActInfo->pGraph->ActivatePort(port, m_outputValues[i].number);
+			case EScriptAnyType::Number:
+				pActInfo->pGraph->ActivatePort(port, m_outputValues[i].GetNumber());
 				break;
-			case ANY_TSTRING:
-				pActInfo->pGraph->ActivatePort(port, string(m_outputValues[i].str));
+			case EScriptAnyType::String:
+				pActInfo->pGraph->ActivatePort(port, string(m_outputValues[i].GetString()));
 				break;
-			case ANY_TTABLE:
+			case EScriptAnyType::Table:
 				{
-					float x, y, z;
-					IScriptTable* pTable = m_outputValues[i].table;
-					if (pTable->GetValue("x", x))
-						if (pTable->GetValue("y", y))
-							if (pTable->GetValue("z", z))
-								pActInfo->pGraph->ActivatePort(port, Vec3(x, y, z));
+					Vec3 vec;
+					IScriptTable* pTable = m_outputValues[i].GetScriptTable();
+					if (pTable->GetValue("x", vec.x) && pTable->GetValue("y", vec.y) && pTable->GetValue("z", vec.z))
+					{
+						pActInfo->pGraph->ActivatePort(port, vec);
+					}
 				}
 				break;
-			case ANY_TVECTOR:
+			case EScriptAnyType::Vector:
 				{
-					Vec3 v;
-					v.x = m_outputValues[i].vec3.x;
-					v.y = m_outputValues[i].vec3.y;
-					v.z = m_outputValues[i].vec3.z;
+					Vec3 v = m_outputValues[i].GetVector();
 					pActInfo->pGraph->ActivatePort(port, v);
 				}
 				break;
@@ -709,17 +672,6 @@ bool CFlowSimpleScriptedNodeFactory::CallFunction(IFlowNode::SActivationInfo* pA
 		}
 	}
 	return true;
-}
-
-void CFlowSimpleScriptedNodeFactory::AddRef()
-{
-	++m_refs;
-}
-
-void CFlowSimpleScriptedNodeFactory::Release()
-{
-	if (0 == --m_refs)
-		delete this;
 }
 
 IFlowNodePtr CFlowSimpleScriptedNodeFactory::Create(IFlowNode::SActivationInfo* pInfo)

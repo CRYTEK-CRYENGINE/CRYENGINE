@@ -25,6 +25,8 @@
 #include "Protocol/FrameTypes.h"
 #include <CryMemory/BucketAllocatorImpl.h>
 
+#include <CryMath/Random.h>
+
 const int LOBBY_KEEP_ALIVE_INTERVAL = (CryLobbySendInterval + 100);
 const int LOBBY_FORCE_DISCONNECT_TIMER = 99999999;
 

@@ -16,6 +16,7 @@ def build(bld):
 
 		includes = [ Path('Code/SDKs/libvorbis/include')],
 		linux_includes = [ Path('Code/SDKs/libvorbis/lib') ],
+		android_includes = [ Path('Code/SDKs/libvorbis/lib') ],
 
 		use_module = ['libogg'],
 

@@ -15,12 +15,13 @@ struct STiledLightVolumeInfo
 	Vec4     volumeParams0;
 	Vec4     volumeParams1;
 	Vec4     volumeParams2;
+	Vec4     volumeParams3;
 };
 
 struct VolumeLightListGenConstants
 {
 	Matrix44 matViewProj;
-	Vec4     params;
+	uint32   lightIndexOffset, numVertices;
 	Vec4     screenScale;
 	Vec4     viewerPos;
 	Vec4     worldBasisX;
@@ -37,11 +38,8 @@ CTiledShadingStage::CTiledShadingStage()
 
 CTiledShadingStage::~CTiledShadingStage()
 {
-	m_lightVolumeInfoBuf.Release();
-	
 	for (uint32 i = 0; i < eVolumeType_Count; i++)
 	{
-		m_volumeMeshes[i].vertexDataBuf.Release();
 		gRenDev->m_DevBufMan.Destroy(m_volumeMeshes[i].vertexBuffer);
 		gRenDev->m_DevBufMan.Destroy(m_volumeMeshes[i].indexBuffer);
 	}
@@ -52,19 +50,13 @@ void CTiledShadingStage::Init()
 {
 	CD3D9Renderer* pRenderer = gcpRendD3D;
 	
-	STexState ts0(FILTER_TRILINEAR, true);
-	STexState ts1(FILTER_LINEAR, true);
-	ts1.SetComparisonFilter(true);
-	m_samplerTrilinearClamp = CTexture::GetTexState(ts0);
-	m_samplerCompare = CTexture::GetTexState(ts1);
-
-	m_lightVolumeInfoBuf.Create(MaxNumTileLights, sizeof(STiledLightVolumeInfo), DXGI_FORMAT_UNKNOWN, DX11BUF_DYNAMIC | DX11BUF_STRUCTURED | DX11BUF_BIND_SRV, NULL);
+	m_lightVolumeInfoBuf.Create(MaxNumTileLights, sizeof(STiledLightVolumeInfo), DXGI_FORMAT_UNKNOWN, CDeviceObjectFactory::USAGE_CPU_WRITE | CDeviceObjectFactory::USAGE_STRUCTURED | CDeviceObjectFactory::BIND_SHADER_RESOURCE, NULL);
 	
 	// Create geometry for light volumes
 	{
 		t_arrDeferredMeshVertBuff vertices;
 		t_arrDeferredMeshIndBuff indices;
-		Vec3 vertexData[256];
+		Vec4 vertexData[256];
 		
 		for (uint32 i = 0; i < eVolumeType_Count; i++)
 		{
@@ -107,9 +99,9 @@ void CTiledShadingStage::Init()
 
 			for (uint32 i = 0; i < volumeMesh.numVertices; i++)
 			{
-				vertexData[i] = vertices[i].xyz;
+				vertexData[i] = Vec4(vertices[i].xyz, 1);
 			}
-			volumeMesh.vertexDataBuf.Create(volumeMesh.numVertices, sizeof(Vec3), DXGI_FORMAT_R32G32B32_FLOAT, DX11BUF_BIND_SRV, vertexData);
+			volumeMesh.vertexDataBuf.Create(volumeMesh.numVertices, sizeof(Vec4), DXGI_FORMAT_R32G32B32A32_FLOAT, CDeviceObjectFactory::BIND_SHADER_RESOURCE, vertexData);
 		}
 	}
 
@@ -117,6 +109,8 @@ void CTiledShadingStage::Init()
 	{
 		m_volumePasses[i].AllocateTypedConstantBuffer(eConstantBufferShaderSlot_PerBatch, sizeof(VolumeLightListGenConstants), EShaderStage_Vertex | EShaderStage_Pixel);
 	}
+
+	m_pPerViewConstantBuffer = gcpRendD3D->m_DevBufMan.CreateConstantBuffer(sizeof(HLSL_PerViewGlobalConstantBuffer));
 }
 
 
@@ -185,6 +179,7 @@ void CTiledShadingStage::PrepareLightVolumeInfo()
 			Vec4 volumeParams0(0, 0, 0, 0);
 			Vec4 volumeParams1(0, 0, 0, 0);
 			Vec4 volumeParams2(0, 0, 0, 0);
+			Vec4 volumeParams3(0, 0, 0, 0);
 
 			volumeInfo[curIndex].volumeTypeInfo = Vec4((float)lightInfo.volumeType, 0, 0, (float)volumeLightIndices[i][j]);
 
@@ -196,14 +191,15 @@ void CTiledShadingStage::PrepareLightVolumeInfo()
 				volumeParams0 = Vec4(Vec3(lightInfo.volumeParams0), lightInfo.volumeParams0.w * volumeScale);
 				volumeParams1 = Vec4(Vec3(lightInfo.volumeParams1), lightInfo.volumeParams1.w * volumeScale);
 				volumeParams2 = Vec4(Vec3(lightInfo.volumeParams2), lightInfo.volumeParams2.w * volumeScale);
+				volumeParams3 = Vec4(volumeParams0.w, volumeParams1.w, volumeParams2.w, 0);
 				
 				Matrix33 rotScaleMat(Vec3(volumeParams0) * volumeParams0.w, Vec3(volumeParams1) * volumeParams1.w, Vec3(volumeParams2) * volumeParams2.w);
 				Matrix34 unitVolumeToWorldMat = Matrix34::CreateTranslationMat(lightPos) * rotScaleMat;
 				worldMat = unitVolumeToWorldMat.GetTransposed();
 
-				volumeParams0 = Vec4(Vec3(volumeParams0) / volumeParams0.w, lightPos.x);
-				volumeParams1 = Vec4(Vec3(volumeParams1) / volumeParams1.w, lightPos.y);
-				volumeParams2 = Vec4(Vec3(volumeParams2) / volumeParams2.w, lightPos.z);
+				volumeParams0 = Vec4(Vec3(volumeParams0), lightPos.x);
+				volumeParams1 = Vec4(Vec3(volumeParams1), lightPos.y);
+				volumeParams2 = Vec4(Vec3(volumeParams2), lightPos.z);
 			}
 			else if (lightInfo.volumeType == CTiledShading::tlVolumeSun)
 			{
@@ -242,6 +238,7 @@ void CTiledShadingStage::PrepareLightVolumeInfo()
 			volumeInfo[curIndex].volumeParams0 = volumeParams0;
 			volumeInfo[curIndex].volumeParams1 = volumeParams1;
 			volumeInfo[curIndex].volumeParams2 = volumeParams2;
+			volumeInfo[curIndex].volumeParams3 = volumeParams3;
 			curIndex += 1;
 		}
 	}
@@ -252,18 +249,18 @@ void CTiledShadingStage::PrepareLightVolumeInfo()
 
 void CTiledShadingStage::PrepareResources()
 {
-	// On PS4 the DMA operation for ClearUAV is not blocking, so it needs to be scheduled early enough to avoid race conditions with the first pass accessing the UAV
-	if (CRenderer::CV_r_DeferredShadingTiled == 3)
+	if (CRenderer::CV_r_DeferredShadingTiled >= 3)
 	{
 		uint clearNull[4] = { 0 };
-		CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->GetComputeInterface()->ClearUAV(gcpRendD3D->GetTiledShading().m_tileOpaqueLightMaskBuf.GetDeviceUAV(), clearNull, 0, nullptr);
+		GetDeviceObjectFactory().GetCoreCommandList().GetComputeInterface()->ClearUAV(gcpRendD3D->GetTiledShading().m_tileOpaqueLightMaskBuf.GetDevBuffer()->LookupUAV(EDefaultResourceViews::UnorderedAccess), clearNull, 0, nullptr);
+		GetDeviceObjectFactory().GetCoreCommandList().GetComputeInterface()->ClearUAV(gcpRendD3D->GetTiledShading().m_tileTranspLightMaskBuf.GetDevBuffer()->LookupUAV(EDefaultResourceViews::UnorderedAccess), clearNull, 0, nullptr);
 	}
 }
 
 
 bool CTiledShadingStage::ExecuteVolumeListGen(uint32 dispatchSizeX, uint32 dispatchSizeY)
 {
-	if (CRenderer::CV_r_DeferredShadingTiled < 3)
+	if (CRenderer::CV_r_DeferredShadingTiled < 3 && !CRenderer::CV_r_GraphicsPipelineMobile)
 		return false;
 	
 	CD3D9Renderer* pRenderer = gcpRendD3D;
@@ -271,23 +268,15 @@ bool CTiledShadingStage::ExecuteVolumeListGen(uint32 dispatchSizeX, uint32 dispa
 
 	CTexture* pDepthRT = CTexture::s_ptexDepthBufferHalfQuarter;
 	assert(CRendererCVars::CV_r_VrProjectionType > 0 || (pDepthRT->GetWidth() == dispatchSizeX && pDepthRT->GetHeight() == dispatchSizeY));
-	
-	SDepthTexture depthTarget;
-	depthTarget.nWidth = pDepthRT->GetWidth();
-	depthTarget.nHeight = pDepthRT->GetHeight();
-	depthTarget.nFrameAccess = -1;
-	depthTarget.bBusy = false;
-	depthTarget.pTexture = pDepthRT;
-	depthTarget.pTarget = pDepthRT->GetDevTexture()->Get2DTexture();
-	depthTarget.pSurface = pDepthRT->GetDeviceDepthStencilView();
 
 	{
 		PROFILE_LABEL_SCOPE("COPY_DEPTH");
 
 		static CCryNameTSCRC techCopy("CopyToDeviceDepth");
+		m_passCopyDepth.SetPrimitiveFlags(CRenderPrimitive::eFlags_None);
 		m_passCopyDepth.SetTechnique(CShaderMan::s_shPostEffects, techCopy, 0);
 		m_passCopyDepth.SetRequirePerViewConstantBuffer(true);
-		m_passCopyDepth.SetDepthTarget(&depthTarget);
+		m_passCopyDepth.SetDepthTarget(pDepthRT);
 		m_passCopyDepth.SetState(GS_DEPTHWRITE | GS_DEPTHFUNC_NOTEQUAL);
 		m_passCopyDepth.SetTexture(0, CTexture::s_ptexZTargetScaled3);
 		
@@ -322,16 +311,16 @@ bool CTiledShadingStage::ExecuteVolumeListGen(uint32 dispatchSizeX, uint32 dispa
 	{
 		D3DViewPort viewport;
 		viewport.TopLeftX = viewport.TopLeftY = 0.0f;
-		viewport.Width = (float)pDepthRT->GetWidth();
-		viewport.Height = (float)pDepthRT->GetHeight();
+		viewport.Width = (float)pDepthRT->GetWidthNonVirtual();
+		viewport.Height = (float)pDepthRT->GetHeightNonVirtual();
 		viewport.MinDepth = 0.0f;
 		viewport.MaxDepth = 1.0f;
 		
-		m_passLightVolumes.SetDepthTarget(&depthTarget);
+		m_passLightVolumes.SetDepthTarget(pDepthRT);
 		m_passLightVolumes.SetViewport(viewport);
-		m_passLightVolumes.ClearPrimitives();
 		m_passLightVolumes.SetOutputUAV(0, &pTiledShading->m_tileOpaqueLightMaskBuf);
 		m_passLightVolumes.SetOutputUAV(1, &pTiledShading->m_tileTranspLightMaskBuf);
+		m_passLightVolumes.BeginAddingPrimitives();
 		
 		uint32 curIndex = 0;
 		for (uint32 pass = 0; pass < eVolumeType_Count * 2; pass++)
@@ -344,36 +333,33 @@ bool CTiledShadingStage::ExecuteVolumeListGen(uint32 dispatchSizeX, uint32 dispa
 				CRenderPrimitive& primitive = m_volumePasses[pass];
 
 				static CCryNameTSCRC techLightVolume("VolumeLightListGen");
-				primitive.SetFlags(CRenderPrimitive::eFlags_ReflectConstantBuffersFromShader);
 				primitive.SetTechnique(CShaderMan::s_shDeferredShading, techLightVolume, 0);
 				primitive.SetRenderState(bInsideVolume ? GS_NODEPTHTEST : GS_DEPTHFUNC_GEQUAL);
 				primitive.SetEnableDepthClip(!bInsideVolume);
 				primitive.SetCullMode(bInsideVolume ? eCULL_Front : eCULL_Back);
-				primitive.SetTexture(3, CTexture::s_ptexZTargetScaled3, SResourceView::DefaultView, EShaderStage_Vertex | EShaderStage_Pixel);
-				primitive.SetBuffer(1, m_lightVolumeInfoBuf, false, EShaderStage_Vertex | EShaderStage_Pixel);
+				primitive.SetTexture(3, CTexture::s_ptexZTargetScaled3, EDefaultResourceViews::Default, EShaderStage_Vertex | EShaderStage_Pixel);
+				primitive.SetBuffer(1, &m_lightVolumeInfoBuf, EDefaultResourceViews::Default, EShaderStage_Vertex | EShaderStage_Pixel);
 
 				SVolumeGeometry& volumeMesh = m_volumeMeshes[volumeType];
 				uint32 numIndices = volumeMesh.numIndices;
 				uint32 numVertices = volumeMesh.numVertices;
 				uint32 numInstances = m_numVolumesPerPass[pass];
 			
-				primitive.SetCustomVertexStream(volumeMesh.vertexBuffer, eVF_P3F_C4B_T2F, sizeof(SVF_P3F_C4B_T2F));
+				primitive.SetCustomVertexStream(volumeMesh.vertexBuffer, EDefaultInputLayouts::P3F_C4B_T2F, sizeof(SVF_P3F_C4B_T2F));
 				primitive.SetCustomIndexStream(volumeMesh.indexBuffer, Index16);
 				primitive.SetDrawInfo(eptTriangleList, 0, 0, numIndices * numInstances);
-				primitive.SetBuffer(0, volumeMesh.vertexDataBuf, false, EShaderStage_Vertex | EShaderStage_Pixel);
+				primitive.SetBuffer(0, &volumeMesh.vertexDataBuf, EDefaultResourceViews::Default, EShaderStage_Vertex | EShaderStage_Pixel);
+				primitive.Compile(m_passLightVolumes);
 
 				{
 					auto constants = primitive.GetConstantManager().BeginTypedConstantUpdate<VolumeLightListGenConstants>(eConstantBufferShaderSlot_PerBatch, EShaderStage_Vertex | EShaderStage_Pixel);
 
 					constants->screenScale = Vec4((float)pDepthRT->GetWidth(), (float)pDepthRT->GetHeight(), 0, 0);
 
-					const bool bReverseDepth = (viewInfo[0].flags & CStandardGraphicsPipeline::SViewInfo::eFlags_ReverseDepth) != 0;
-					Vec4 volumeParams(0, 0, (float)curIndex, (float)numVertices);
 					float zn = viewInfo[0].pRenderCamera->fNear;
 					float zf = viewInfo[0].pRenderCamera->fFar;
-					volumeParams.x = bReverseDepth ? zn / (zn - zf) : zf / (zf - zn);
-					volumeParams.y = bReverseDepth ? zn / (zf - zn) : zn / (zn - zf);
-					constants->params = volumeParams;
+					constants->lightIndexOffset = curIndex;
+					constants->numVertices = numVertices;
 
 					constants->matViewProj = matViewProj[0];
 					constants->viewerPos   = viewerPos[0];
@@ -403,10 +389,6 @@ bool CTiledShadingStage::ExecuteVolumeListGen(uint32 dispatchSizeX, uint32 dispa
 
 	m_passLightVolumes.Execute();
 
-	// TODO: Workaround, UAV is not getting unbound
-	pRenderer->GetGraphicsPipeline().SwitchToLegacyPipeline();
-	pRenderer->GetGraphicsPipeline().SwitchFromLegacyPipeline();
-
 	return true;
 }
 
@@ -416,10 +398,12 @@ void CTiledShadingStage::Execute()
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 	CTiledShading* pTiledShading = &rd->GetTiledShading();
 
-	// Make sure HDR target is not bound as RT any more
-	rd->FX_PushRenderTarget(0, CTexture::s_ptexSceneSpecularAccMap, NULL);
-	rd->FX_Commit();
-	rd->FX_PopRenderTarget(0);
+#if (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
+	// on dx11, some input resources might still be bound as render targets.
+	// dx11 will then just ignore the bind call
+	ID3D11RenderTargetView* nullViews[] = { nullptr, nullptr, nullptr, nullptr };
+	rd->GetDeviceContext().OMSetRenderTargets(4, nullViews, nullptr);
+#endif
 
 	int screenWidth = rd->GetWidth();
 	int screenHeight = rd->GetHeight();
@@ -433,6 +417,9 @@ void CTiledShadingStage::Execute()
 	uint32 dispatchSizeY = gridHeight / LightTileSizeY + (gridHeight % LightTileSizeY > 0 ? 1 : 0);
 
 	bool bSeparateCullingPass = ExecuteVolumeListGen(dispatchSizeX, dispatchSizeY);
+	
+	if (CRenderer::CV_r_DeferredShadingTiled == 4 || CRenderer::CV_r_GraphicsPipelineMobile)
+		return;
 	
 	uint64 rtFlags = 0;
 	if (CRenderer::CV_r_DeferredShadingTiled > 1)   // Tiled deferred
@@ -500,7 +487,7 @@ void CTiledShadingStage::Execute()
 		m_passCullingShading.SetOutputUAV(1, CTexture::s_ptexHDRTarget);
 		m_passCullingShading.SetOutputUAV(2, CTexture::s_ptexSceneTargetR11G11B10F[0]);
 
-		m_passCullingShading.SetSampler(0, m_samplerTrilinearClamp);
+		m_passCullingShading.SetSampler(0, EDefaultSamplerStates::TrilinearClamp);
 
 		m_passCullingShading.SetTexture(0, CTexture::s_ptexZTarget);
 		m_passCullingShading.SetTexture(1, CTexture::s_ptexSceneNormalsMap);
@@ -516,21 +503,23 @@ void CTiledShadingStage::Execute()
 		m_passCullingShading.SetTexture(11, pTexGiSpec);
 		m_passCullingShading.SetTexture(12, pTexCaustics);
 
-		m_passCullingShading.SetBuffer(16, &pTiledShading->m_LightShadeInfoBuf);
-		m_passCullingShading.SetTexture(17, pTiledShading->m_specularProbeAtlas.texArray);
-		m_passCullingShading.SetTexture(18, pTiledShading->m_diffuseProbeAtlas.texArray);
-		m_passCullingShading.SetTexture(19, pTiledShading->m_spotTexAtlas.texArray);
-		m_passCullingShading.SetTexture(20, CTexture::s_ptexRT_ShadowPool);
-		m_passCullingShading.SetTexture(21, CTexture::s_ptexShadowJitterMap);
-		m_passCullingShading.SetBuffer(22, bSeparateCullingPass ? &pTiledShading->m_tileOpaqueLightMaskBuf : &pTiledShading->m_lightCullInfoBuf);
-		m_passCullingShading.SetBuffer(23, &pTiledShading->m_clipVolumeInfoBuf);
+		m_passCullingShading.SetBuffer(16, bSeparateCullingPass ? &pTiledShading->m_tileOpaqueLightMaskBuf : &pTiledShading->m_lightCullInfoBuf);
+		m_passCullingShading.SetBuffer(17, &pTiledShading->m_lightShadeInfoBuf);
+		m_passCullingShading.SetBuffer(18, &pTiledShading->m_clipVolumeInfoBuf);
+		m_passCullingShading.SetTexture(19, pTiledShading->m_specularProbeAtlas.texArray);
+		m_passCullingShading.SetTexture(20, pTiledShading->m_diffuseProbeAtlas.texArray);
+		m_passCullingShading.SetTexture(21, pTiledShading->m_spotTexAtlas.texArray);
 
 		s_prevTexAOColorBleed = pTexAOColorBleed->GetID();
+		m_pTexGiDiff = pTexGiDiff;
+		m_pTexGiSpec = pTexGiSpec;
 	}
 
 	D3DViewPort viewport = { 0.f, 0.f, float(screenWidth), float(screenHeight), 0.f, 1.f };
-	rd->GetGraphicsPipeline().UpdatePerViewConstantBuffer(&viewport);
-	m_passCullingShading.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerView, rd->GetGraphicsPipeline().GetPerViewConstantBuffer());
+	CStandardGraphicsPipeline::SViewInfo viewInfo[2];
+	int viewInfoCount = rd->GetGraphicsPipeline().GetViewInfo(viewInfo, &viewport);
+	rd->GetGraphicsPipeline().UpdatePerViewConstantBuffer(viewInfo, viewInfoCount, m_pPerViewConstantBuffer);
+	m_passCullingShading.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerView, m_pPerViewConstantBuffer);
 
 	m_passCullingShading.BeginConstantUpdate();
 	{
@@ -592,7 +581,7 @@ void CTiledShadingStage::Execute()
 		PROFILE_LABEL_SCOPE("SHADING");		
 		// Prepare buffers and textures which have been used in the z-pass and post-processes for use in the compute queue
 		// Reduce resource state switching by requesting the most inclusive resource state
-		m_passCullingShading.PrepareResourcesForUse(*CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList(), EShaderStage_All);
+		m_passCullingShading.PrepareResourcesForUse(GetDeviceObjectFactory().GetCoreCommandList());
 
 		{
 			const bool bAsynchronousCompute = CRenderer::CV_r_D3D12AsynchronousCompute & BIT((eStage_TiledShading - eStage_FIRST_ASYNC_COMPUTE)) ? true : false;

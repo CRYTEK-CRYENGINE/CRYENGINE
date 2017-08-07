@@ -3282,7 +3282,7 @@ float CGameRulesObjective_Extraction::GetTimeLimit()
 							const float previousTimeLimit = m_previousTimeTaken;
 							float timeLimitIncludingPrevious = (timeLimitData->m_floatDataForTeams[primaryTeamIndex]/60.0f);
 							m_previousTimeTaken = timeLimitIncludingPrevious;
-							return MIN(m_timeLimit, timeLimitIncludingPrevious - previousTimeLimit); // To prevent sudden-death in a previous round from causing a longer starting time.
+							return std::min(m_timeLimit, timeLimitIncludingPrevious - previousTimeLimit); // To prevent sudden-death in a previous round from causing a longer starting time.
 						}
 					}
 				}

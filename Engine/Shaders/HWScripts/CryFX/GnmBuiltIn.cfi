@@ -1,0 +1,86 @@
+// CRYENGINE Source Code File
+// Copyright 2001-2017 Crytek GmbH. All rights reserved.
+
+// This file is also included on the C++ side to ensure no mismatching structures.
+// These structures are intended to be passed under SV_UserData semantic (GNM extension).
+
+struct SConstantColor
+{
+	float4 color;
+};
+
+struct SMemSet32
+{
+	RWStructuredBuffer<uint> target;
+	uint source[4];
+};
+
+struct SMemSet128
+{
+	RWStructuredBuffer<uint4> target;
+	uint4 source;
+};
+
+struct SMemCpy32
+{
+	RWStructuredBuffer<uint> target;
+	StructuredBuffer<uint> source;
+};
+
+struct SMemCpy128
+{
+	RWStructuredBuffer<uint4> target;
+	StructuredBuffer<uint4> source;
+};
+
+struct STexCpy1DIndirect
+{
+	RWTexture1DArray<uint4> target;
+	Texture1DArray<uint4> source;
+};
+
+struct STexCpy1D
+{
+	STexCpy1DIndirect* pIndirect;
+	uint targetMip;
+	uint sourceMip;
+	uint targetSlice;
+	uint sourceSlice;
+	uint targetOffset;
+	uint sourceOffset;
+	uint region;
+};
+
+struct STexCpy2DIndirect
+{
+	RWTexture2DArray<uint4> target;
+	Texture2DArray<uint4> source;
+};
+
+struct STexCpy2D
+{
+	STexCpy2DIndirect* pIndirect;
+	uint targetMip;
+	uint sourceMip;
+	uint targetSlice;
+	uint sourceSlice;
+	uint2 targetOffset;
+	uint2 sourceOffset;
+	uint2 region;
+};
+
+struct STexCpy3DIndirect
+{
+	RWTexture3D<uint4> target;
+	Texture3D<uint4> source;
+};
+
+struct STexCpy3D
+{
+	STexCpy3DIndirect* pIndirect;
+	uint targetMip;
+	uint sourceMip;
+	uint3 targetOffset;
+	uint3 sourceOffset;	
+	uint3 region;
+};

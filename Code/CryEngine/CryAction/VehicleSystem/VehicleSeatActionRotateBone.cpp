@@ -39,7 +39,7 @@ CVehicleSeatActionRotateBone::CVehicleSeatActionRotateBone() : m_pSeat(NULL)
 	, m_stopCurrentSound(0)
 	, m_rotationLockCount(0)
 {
-	CryCreateClassInstance("AnimationPoseModifier_OperatorQueue", m_poseModifier);
+	CryCreateClassInstanceForInterface(cryiidof<IAnimationOperatorQueue>(), m_poseModifier);
 }
 
 CVehicleSeatActionRotateBone::~CVehicleSeatActionRotateBone()

@@ -4,8 +4,8 @@
 
 #include <CryCore/Containers/VectorMap.h>
 
-#include <Schematyc/FundamentalTypes.h>
-#include <Schematyc/IObject.h>
+#include <CrySchematyc/FundamentalTypes.h>
+#include <CrySchematyc/IObject.h>
 
 namespace Schematyc
 {
@@ -29,7 +29,7 @@ private:
 
 public:
 
-	IObject* CreateObject(const SObjectParams& params);
+	bool     CreateObject(const Schematyc::SObjectParams& params, IObject*& pObjectOut);
 	IObject* GetObject(ObjectId objectId);
 	void     DestroyObject(ObjectId objectId);
 

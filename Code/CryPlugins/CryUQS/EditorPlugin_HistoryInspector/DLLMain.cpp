@@ -17,9 +17,9 @@
 
 #include "Editor/MainEditorWindow.h"
 
-#define UQS_EDITOR_NAME "UQS Query History Inspector"
+#define UQS_EDITOR_NAME "UQS History"
 
-REGISTER_VIEWPANE_FACTORY(CMainEditorWindow, UQS_EDITOR_NAME, "Game", true)
+REGISTER_VIEWPANE_FACTORY_AND_MENU(CMainEditorWindow, UQS_EDITOR_NAME, "Game", true, "Universal Query System")
 
 class CUqsEditorHistoryInespectorPlugin : public IPlugin
 {

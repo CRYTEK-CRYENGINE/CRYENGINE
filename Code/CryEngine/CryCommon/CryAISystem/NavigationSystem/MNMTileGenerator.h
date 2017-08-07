@@ -10,17 +10,21 @@
 
 namespace MNM
 {
+struct SBoundingVolume;
+
 namespace TileGenerator
 {
 
 //! Tile generation parameters.
 struct SExtensionParams
 {
-	::AABB                tileAabbWorld;         //!< Tile's bounding box
-	::AABB                extendedTileAabbWorld; //!< Tile's extended bounding box, which includes pieces of neighbors
-	NavigationAgentTypeID navAgentTypeId;        //!< Navigation agent type for wich the NavMesh is generated
+	::AABB                 tileAabbWorld;         //!< Tile's bounding box
+	::AABB                 extendedTileAabbWorld; //!< Tile's extended bounding box, which includes pieces of neighbors
+	NavigationAgentTypeID  navAgentTypeId;        //!< Navigation agent type for wich the NavMesh is generated
 
-	// #MNM_TODO pavloi 2016.07.20: expose boundary and exclusion volumes
+	const SBoundingVolume* pBoundaryVolume;       //!< Optional pointer to a boundary volume
+	const SBoundingVolume* pExclusionVolumes;     //!< Optional pointer to array of exclusion volumes
+	size_t                 exclusionVolumesCount; //!< Count of exclusion volumes
 };
 
 //! IMesh provides an access to the NavMesh which is being generated.

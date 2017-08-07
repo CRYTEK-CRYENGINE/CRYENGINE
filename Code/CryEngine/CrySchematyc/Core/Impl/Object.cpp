@@ -3,25 +3,31 @@
 #include "StdAfx.h"
 #include "Object.h"
 
-#include <Schematyc/Action.h>
-#include <Schematyc/Component.h>
-#include <Schematyc/IObjectProperties.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvAction.h>
-#include <Schematyc/Env/Elements/IEnvComponent.h>
-#include <Schematyc/Reflection/ActionDesc.h>
-#include <Schematyc/Reflection/ComponentDesc.h>
-#include <Schematyc/Runtime/IRuntimeClass.h>
-#include <Schematyc/Runtime/RuntimeParamMap.h>
-#include <Schematyc/Runtime/RuntimeParams.h>
-#include <Schematyc/Services/IUpdateScheduler.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/Utils/STLUtils.h>
+#include <CrySchematyc/Action.h>
+
+#include <CrySchematyc/IObjectProperties.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvAction.h>
+#include <CrySchematyc/Env/Elements/IEnvComponent.h>
+#include <CrySchematyc/Reflection/ActionDesc.h>
+#include <CrySchematyc/Runtime/IRuntimeClass.h>
+#include <CrySchematyc/Runtime/RuntimeParamMap.h>
+#include <CrySchematyc/Runtime/RuntimeParams.h>
+#include <CrySchematyc/Services/IUpdateScheduler.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/STLUtils.h>
+#include <CrySchematyc/Script/IScriptElement.h>
 
 #include "Core.h"
 #include "CVars.h"
 #include "CoreEnv/CoreEnvSignals.h"
+#include "Script/ScriptRegistry.h"
+#include "Script/Script.h"
 #include "Runtime/RuntimeRegistry.h"
+
+#include <CryEntitySystem/IEntitySystem.h>
+#include <CryEntitySystem/IEntity.h>
+#include <CryEntitySystem/IEntityComponent.h>
 
 namespace Schematyc
 {
@@ -30,22 +36,13 @@ CObject::SStateMachine::SStateMachine()
 	: stateIdx(InvalidIdx)
 {}
 
-CObject::SComponent::SComponent(const SGUID& _guid, const CComponentDesc& _desc, const CComponentPtr& _pComponent, const CTransform& _transform, IComponentPreviewer* _pPreviewer, uint32 _parentIdx)
-	: guid(_guid)
-	, desc(_desc)
-	, pComponent(_pComponent)
-	, transform(_transform)
-	, pPreviewer(_pPreviewer)
-	, parentIdx(_parentIdx)
-{}
-
 CObject::SAction::SAction(const CActionDesc& _desc, const SRuntimeActionDesc& _runtimeDesc, const CActionPtr& _ptr)
 	: desc(_desc)
 	, runtimeDesc(_runtimeDesc)
 	, ptr(_ptr)
 {}
 
-CObject::STimer::STimer(CObject* _pObject, const SGUID& _guid, TimerFlags _flags)
+CObject::STimer::STimer(CObject* _pObject, const CryGUID& _guid, TimerFlags _flags)
 	: pObject(_pObject)
 	, guid(_guid)
 	, flags(_flags)
@@ -60,37 +57,45 @@ void CObject::STimer::Activate()
 	}
 }
 
-CObject::CObject(ObjectId id)
+CObject::CObject(IEntity& entity, ObjectId id, void* pCustomData)
 	: m_id(id)
 	, m_simulationMode(ESimulationMode::Idle)
 	, m_bQueueSignals(false)
-{}
+	, m_pEntity(&entity)
+	, m_pCustomData(pCustomData)
+{
+
+}
 
 CObject::~CObject()
 {
-	Stop();
+	StopSimulation();
+	ShutdownComponents();
 	DestroyTimers();
 	DestroyActions();
 	DestroyComponents();
 	DestroyStateMachines();
+
+	if (m_pEntity != nullptr)
+	{
+		m_pEntity->OnSchematycObjectDestroyed();
+	}
 }
 
-bool CObject::Init(const CRuntimeClassConstPtr& pClass, void* pCustomData, const IObjectPropertiesConstPtr& pProperties, ESimulationMode simulationMode)
+bool CObject::Init(CryGUID classGUID, const IObjectPropertiesPtr& pProperties)
 {
-	if (!SetClass(pClass))
-	{
-		return false;
-	}
-
-	m_pCustomData = pCustomData;
 	m_pProperties = pProperties;
 
-	if (!Start(simulationMode))
+	CRuntimeClassConstPtr pClass = CCore::GetInstance().GetRuntimeRegistryImpl().GetClassImpl(classGUID);
+	CRY_ASSERT_MESSAGE(pClass, "Schematyc class '%s' couldn't be found in class registry.");
+	if (!pClass)
 	{
 		return false;
 	}
 
-	return true;
+	m_pClass = pClass;
+
+	return InitClass();
 }
 
 ObjectId CObject::GetId() const
@@ -100,8 +105,24 @@ ObjectId CObject::GetId() const
 
 const IRuntimeClass& CObject::GetClass() const
 {
-	SCHEMATYC_CORE_ASSERT(m_pClass);
+	CRY_ASSERT_MESSAGE(m_pClass, "Runtime class of Schematyc Object must be not null.");
 	return *m_pClass;
+}
+
+const char* CObject::GetScriptFile() const
+{
+	const IScriptElement* pElement = CCore::GetInstance().GetScriptRegistry().GetElement(m_pClass->GetGUID());
+	CRY_ASSERT_MESSAGE(pElement, "Script Element not found!");
+	if (pElement && pElement->GetType() == EScriptElementType::Class || pElement->GetType() == EScriptElementType::Module)
+	{
+		const IScript* pScript = pElement->GetScript();
+		CRY_ASSERT_MESSAGE(pScript, "Script Element doesn't have a script.");
+		if (pScript)
+		{
+			return pScript->GetFilePath() + sizeof("assets");
+		}
+	}
+	return nullptr;
 }
 
 void* CObject::GetCustomData() const
@@ -114,30 +135,59 @@ ESimulationMode CObject::GetSimulationMode() const
 	return m_simulationMode;
 }
 
-bool CObject::Reset(ESimulationMode simulationMode, EObjectResetPolicy resetPolicy)
+bool CObject::SetSimulationMode(ESimulationMode simulationMode, EObjectSimulationUpdatePolicy updatePolicy, bool bStartSimulation)
 {
-	if ((simulationMode != m_simulationMode) || (resetPolicy == EObjectResetPolicy::Always))
+	if (simulationMode != m_simulationMode || updatePolicy == EObjectSimulationUpdatePolicy::Always)
 	{
-		if (m_simulationMode != ESimulationMode::Idle)
-		{
-			Stop();
-		}
+		StopSimulation();
 
 		if (simulationMode != ESimulationMode::Idle)
 		{
-			CRuntimeClassConstPtr pClass = CCore::GetInstance().GetRuntimeRegistryImpl().GetClassImpl(m_pClass->GetGUID());
-			if (pClass->GetTimeStamp() > m_pClass->GetTimeStamp())
+			CRuntimeClassConstPtr pClass = CCore::GetInstance().GetRuntimeRegistryImpl().GetClassImpl(GetClass().GetGUID());
+			CRY_ASSERT_MESSAGE(pClass, "Schematyc class '%s' couldn't be found in class registry.");
+			if (pClass)
 			{
-				SetClass(pClass);
+				if (m_pClass->GetTimeStamp() < pClass->GetTimeStamp())
+				{
+					m_pClass = pClass;
+					InitClass();
+				}
 			}
-
-			if (!Start(simulationMode))
+			else
 			{
-				Stop();
 				return false;
 			}
+
+			m_scratchpad = m_pClass->GetScratchpad();
+			ResetGraphs();
+			m_simulationMode = simulationMode;
+
+			if (!ReadProperties())
+			{
+				return false;
+			}
+
+			ExecuteConstructors(simulationMode);
 		}
 	}
+
+	if (bStartSimulation)
+	{
+		switch (simulationMode)
+		{
+		case ESimulationMode::Game:
+			{
+				ExecuteSignalReceivers(SObjectSignal::FromSignalClass(SStartSignal()));
+
+				StartStateMachines(simulationMode);
+				StartTimers(simulationMode);
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
 	return true;
 }
 
@@ -190,11 +240,13 @@ void CObject::StopAction(CAction& action)
 
 EVisitResult CObject::VisitComponents(const ObjectComponentConstVisitor& visitor) const
 {
-	SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty());
-	if (!visitor.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(visitor);
+	if (visitor)
 	{
 		for (const SComponent& component : m_components)
 		{
+			if (!component.pComponent)
+				continue;
 			const EVisitStatus status = visitor(*component.pComponent);
 			switch (status)
 			{
@@ -262,11 +314,6 @@ CScratchpad& CObject::GetScratchpad()
 	return m_scratchpad;
 }
 
-CComponent* CObject::GetComponent(uint32 componentIdx)
-{
-	return componentIdx < m_components.size() ? m_components[componentIdx].pComponent.get() : nullptr;
-}
-
 bool CObject::ExecuteFunction(uint32 functionIdx, CRuntimeParamMap& params)
 {
 	const RuntimeClassFunctions& classFunctions = m_pClass->GetFunctions();
@@ -305,10 +352,14 @@ bool CObject::StartAction(uint32 actionIdx, CRuntimeParamMap& params)
 	return false;
 }
 
-bool CObject::SetClass(const CRuntimeClassConstPtr& pClass)
+IEntityComponent* CObject::GetComponent(uint32 componentIdx)
 {
-	SCHEMATYC_CORE_ASSERT(pClass)
-	if (!pClass)
+	return componentIdx < m_components.size() ? m_components[componentIdx].pComponent.get() : nullptr;
+}
+
+bool CObject::InitClass()
+{
+	if (!m_pClass)
 	{
 		return false;
 	}
@@ -320,12 +371,11 @@ bool CObject::SetClass(const CRuntimeClassConstPtr& pClass)
 
 	m_graphs.clear();
 	m_stateMachines.clear();
-	m_components.clear();
+
 	m_actions.clear();
 	m_timers.clear();
 
-	m_pClass = pClass;
-	m_scratchpad = pClass->GetScratchpad(); // #SchematycTODO : Do we still need to do this here? We also reset the scratchpad in the start function.
+	m_scratchpad = m_pClass->GetScratchpad();
 
 	CreateGraphs();
 
@@ -354,48 +404,7 @@ bool CObject::SetClass(const CRuntimeClassConstPtr& pClass)
 	return true;
 }
 
-bool CObject::Start(ESimulationMode simulationMode)
-{
-	m_scratchpad = m_pClass->GetScratchpad();
-
-	ResetGraphs();
-
-	if (!ReadProperties())
-	{
-		return false;
-	}
-
-	if (!InitComponents())
-	{
-		return false;
-	}
-
-	if (!InitActions())
-	{
-		return false;
-	}
-
-	ExecuteConstructors(simulationMode);
-	RunComponents(simulationMode);
-
-	switch (simulationMode)
-	{
-	case ESimulationMode::Game:
-		{
-			ExecuteSignalReceivers(SObjectSignal::FromSignalClass(SStartSignal()));
-
-			StartStateMachines(simulationMode);
-			StartTimers(simulationMode);
-			break;
-		}
-	}
-
-	m_simulationMode = simulationMode;
-
-	return true;
-}
-
-void CObject::Stop()
+void CObject::StopSimulation()
 {
 	StopTimers();
 	StopStateMachines();
@@ -409,15 +418,18 @@ void CObject::Stop()
 		}
 	}
 
-	ShutdownActions();
-	ShutdownComponents();
-
 	m_simulationMode = ESimulationMode::Idle;
 }
 
 void CObject::Update(const SUpdateContext& updateContext)
 {
-	ProcessSignal(SObjectSignal::FromSignalClass(SUpdateSignal(updateContext.frameTime)));
+	// TODO: Update should actually never get called for preview objects when we are in game mode.
+	const bool isInGame = gEnv->IsEditorGameMode();
+	if (!isInGame || (isInGame && m_simulationMode != ESimulationMode::Preview))
+	{
+		ProcessSignal(SObjectSignal::FromSignalClass(SUpdateSignal(updateContext.frameTime)));
+	}
+	// ~TODO
 }
 
 void CObject::CreateGraphs()
@@ -440,35 +452,8 @@ void CObject::ResetGraphs()
 
 bool CObject::ReadProperties()
 {
-	const RuntimeClassComponentInstances& classComponentInstances = m_pClass->GetComponentInstances();
-	for (uint32 componentIdx = 0, componentCount = m_components.size(); componentIdx < componentCount; ++componentIdx)
-	{
-		SComponent& component = m_components[componentIdx];
-		classComponentInstances[componentIdx].properties.Apply(component.desc, component.pComponent.get());
-	}
-
 	if (m_pProperties)
 	{
-		const RuntimeClassComponentInstances& classComponentInstances = m_pClass->GetComponentInstances();
-		for (uint32 componentIdx = 0, componentCount = m_components.size(); componentIdx < componentCount; ++componentIdx)
-		{
-			const SRuntimeClassComponentInstance& classComponentInstance = classComponentInstances[componentIdx];
-			SComponent& component = m_components[componentIdx];
-			if (classComponentInstance.bPublic)
-			{
-				const CClassProperties* pComponentProperties = m_pProperties->GetComponentProperties(classComponentInstance.guid);
-				if (pComponentProperties)
-				{
-					pComponentProperties->Apply(component.desc, component.pComponent.get());
-				}
-				else
-				{
-					SCHEMATYC_CORE_ERROR("Failed to initialize component properties: class = %s, component = %s", m_pClass->GetName(), classComponentInstance.name.c_str());
-					return false;
-				}
-			}
-		}
-
 		for (const SRuntimeClassVariable& variable : m_pClass->GetVariables())
 		{
 			if (variable.bPublic)
@@ -476,7 +461,8 @@ bool CObject::ReadProperties()
 				if (!m_pProperties->ReadVariable(*m_scratchpad.Get(variable.pos), variable.guid))
 				{
 					SCHEMATYC_CORE_ERROR("Failed to initialize variable: class = %s, variable = %s", m_pClass->GetName(), variable.name.c_str());
-					return false;
+					//return false;
+					m_pProperties->AddVariable(variable.guid, variable.name.c_str(), *m_scratchpad.Get(variable.pos));
 				}
 			}
 		}
@@ -578,63 +564,100 @@ bool CObject::CreateComponents()
 	for (const SRuntimeClassComponentInstance& classComponentInstance : classComponentInstances)
 	{
 		const IEnvComponent* pEnvComponent = gEnv->pSchematyc->GetEnvRegistry().GetComponent(classComponentInstance.componentTypeGUID);
-		if (!pEnvComponent)
+		if (pEnvComponent == nullptr)
 		{
 			return false;
 		}
 
-		CComponentPtr pComponent = pEnvComponent->CreateFromPool();
-		if (!pComponent)
+		m_components.emplace_back(classComponentInstance, pEnvComponent);
+
+		if (m_components.back().pComponent == nullptr)
 		{
+			assert(0 && "Component create from pool failed");
+			m_components.pop_back();
+
 			return false;
 		}
-
-		const CComponentDesc& componentDesc = pEnvComponent->GetDesc();
-		m_components.emplace_back(classComponentInstance.guid, componentDesc, pComponent, classComponentInstance.transform, componentDesc.GetPreviewer(), classComponentInstance.parentIdx);
 	}
-	return true;
-}
 
-bool CObject::InitComponents()
-{
-	for (SComponent& component : m_components)
+	// Add Created components to the Entity
+	if (IEntity* pEntity = GetEntity())
 	{
-		SComponentParams componentParams(component.guid, *this, component.transform);
-		componentParams.pPreviewer = component.pPreviewer;
-		componentParams.pParent = component.parentIdx != InvalidIdx ? m_components[component.parentIdx].pComponent.get() : nullptr;
-		//componentParams.pNetworkSpawnParams = pNetworkSpawnParams ? pNetworkSpawnParams->GetComponentSpawnParams(componentInstanceIdx) : INetworkSpawnParamsPtr();
-		component.pComponent->PreInit(componentParams);
-		if (!component.pComponent->Init())
+		for (auto componentIt = m_components.begin(), end = m_components.end(); componentIt != end; ++componentIt)
 		{
-			return false;
+			SComponent& component = *componentIt;
+			IEntityComponent* pParent = component.classComponentInstance.parentIdx != InvalidIdx ? m_components[component.classComponentInstance.parentIdx].pComponent.get() : nullptr;
+
+			const CEntityComponentClassDesc& classDesc = static_cast<const CEntityComponentClassDesc&>(component.classDesc);
+
+			EntityComponentFlags flags(EEntityComponentFlags::Schematyc);
+			if (component.classComponentInstance.bPublic)
+			{
+				flags.Add(EEntityComponentFlags::SchematycEditable);
+			}
+			CTransformPtr transform;
+			if (classDesc.GetComponentFlags().Check(IEntityComponent::EFlags::Transform))
+			{
+				flags.Add(EEntityComponentFlags::Transform);
+				transform = component.classComponentInstance.transform;
+			}
+
+			// Read properties
+			bool bPublicPropertiesApplied = false;
+			if (m_pProperties && component.classComponentInstance.bPublic)
+			{
+				const CClassProperties* pCompProperties = m_pProperties->GetComponentProperties(component.classComponentInstance.guid);
+				if (pCompProperties)
+				{
+					bPublicPropertiesApplied = pCompProperties->Apply(component.classDesc, component.pComponent.get());
+				}
+			}
+			if (!bPublicPropertiesApplied)
+			{
+				size_t componentIdx = std::distance(m_components.begin(), componentIt);
+				classComponentInstances[componentIdx].properties.Apply(component.classDesc, component.pComponent.get());
+			}
+
+			// Add the component
+			IEntityComponent::SInitParams initParams(
+			  pEntity,
+			  component.classComponentInstance.guid,
+			  component.classComponentInstance.name,
+			  &classDesc,
+			  flags,
+			  pParent,
+			  transform
+			  );
+
+			pEntity->AddComponent(component.pComponent, &initParams);
+		}
+
+		// Now initialize all the components
+		// This is done in a separate iteration step from adding in order to allow components to query each other in the Initialize call.
+		for (const SComponent& component : m_components)
+		{
+			component.pComponent->Initialize();
 		}
 	}
-	return true;
-}
 
-void CObject::RunComponents(ESimulationMode simulationMode)
-{
-	for (SComponent& component : m_components)
-	{
-		component.pComponent->Run(simulationMode);
-	}
+	return true;
 }
 
 void CObject::ShutdownComponents()
 {
-	for (SComponent& component : stl::reverse(m_components))
+	if (GetEntity())
 	{
-		component.pComponent->Shutdown();
+		for (SComponent& component : m_components)
+		{
+			GetEntity()->RemoveComponent(component.pComponent.get());
+		}
 	}
 }
 
 void CObject::DestroyComponents()
 {
-	for (SComponent& component : stl::reverse(m_components))
-	{
-		component.pComponent.reset();
-	}
-	// #SchematycTODO : m_components.clear()?
+	ShutdownComponents();
+	m_components.clear();
 }
 
 bool CObject::CreateActions()
@@ -776,7 +799,7 @@ void CObject::ExecuteSignalReceivers(const SObjectSignal& signal)
 			{
 				bExecute = true;
 			}
-			else if(classSignalReceiver.senderGUID == signal.senderGUID)
+			else if (classSignalReceiver.senderGUID == signal.senderGUID)
 			{
 				bExecute = true;
 			}
@@ -785,7 +808,7 @@ void CObject::ExecuteSignalReceivers(const SObjectSignal& signal)
 				SCHEMATYC_CORE_CRITICAL_ERROR("Signal sender guid expected!");
 			}
 		}
-		
+
 		if (bExecute)
 		{
 			StackRuntimeParamMap params(signal.params); // #SchematycTODO : How can we avoid copying signal parameters?

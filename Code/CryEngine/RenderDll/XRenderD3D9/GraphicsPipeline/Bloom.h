@@ -16,7 +16,4 @@ private:
 	CFullscreenPass m_pass1V;
 	CFullscreenPass m_pass2H;
 	CFullscreenPass m_pass2V;
-
-	int             m_samplerPoint;
-	int             m_samplerLinear;
 };

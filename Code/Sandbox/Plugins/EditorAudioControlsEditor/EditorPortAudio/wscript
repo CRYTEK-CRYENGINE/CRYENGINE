@@ -1,0 +1,11 @@
+# Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+
+def build(bld):	
+
+	bld.CryPlugin(
+		target          = 'EditorCryAudioImplPortAudio',
+		vs_filter       = 'Sandbox/Plugins/EditorAudioControlsEditor/Impl',
+		file_list       = 'editorportaudio.waf_files',
+		includes        = ['../common/', 'GeneratedFiles'],
+		output_sub_folder = "Audio"
+	)

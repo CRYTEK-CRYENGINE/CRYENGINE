@@ -413,7 +413,7 @@ void CScaleformRecording::PopBlendMode()
 void CScaleformRecording::SetPerspective3D(const GMatrix3D& _projMatIn)
 {
 	// Matrix44 := GMatrix3D
-	const Matrix44& projMatIn = *((Matrix44*)&_projMatIn);
+	const Matrix44f& projMatIn = *((Matrix44f*)&_projMatIn);
 
 	RECORD_CMD_1ARG(GRCBA_SetPerspective3D, CMD_VOID_RETURN, projMatIn);
 
@@ -423,7 +423,7 @@ void CScaleformRecording::SetPerspective3D(const GMatrix3D& _projMatIn)
 void CScaleformRecording::SetView3D(const GMatrix3D& _viewMatIn)
 {
 	// Matrix44 := GMatrix3D
-	const Matrix44& viewMatIn = *((Matrix44*)&_viewMatIn);
+	const Matrix44f& viewMatIn = *((Matrix44f*)&_viewMatIn);
 
 	RECORD_CMD_1ARG(GRCBA_SetView3D, CMD_VOID_RETURN, viewMatIn);
 
@@ -433,7 +433,7 @@ void CScaleformRecording::SetView3D(const GMatrix3D& _viewMatIn)
 void CScaleformRecording::SetWorld3D(const GMatrix3D* _pWorldMatIn)
 {
 	// Matrix44 := GMatrix3D
-	const Matrix44* pWorldMatIn = reinterpret_cast<const Matrix44*>(_pWorldMatIn);
+	const Matrix44f* pWorldMatIn = reinterpret_cast<const Matrix44f*>(_pWorldMatIn);
 
 	_RECORD_CMD_PREFIX
 	if (_pWorldMatIn)
@@ -785,7 +785,7 @@ void CScaleformRecording::GetStats(GStatBag* /*pBag*/, bool /*reset*/)
 
 void CScaleformRecording::ReleaseResources()
 {
-	//GetPlayback()->ReleaseResources();
+	GetPlayback()->ReleaseResources();
 }
 
 namespace CScaleformRecordingClearInternal

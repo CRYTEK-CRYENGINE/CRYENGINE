@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="__m128">
+    <DisplayString>~ f32v4: {m128_f32}</DisplayString>
+    <Expand>
+      <Item Name="0">m128_f32[0]</Item>
+      <Item Name="1">m128_f32[1]</Item>
+      <Item Name="2">m128_f32[2]</Item>
+      <Item Name="3">m128_f32[3]</Item>
+    </Expand>
+  </Type>
   <Type Name="__m128i">
     <DisplayString>~ i32v4: {m128i_i32}</DisplayString>
     <Expand>
@@ -12,7 +21,7 @@
   <!-- CryEngine math types -->
   <Type Name="Vec2_tpl&lt;*&gt;">
     <AlternativeType Name="Vec2"/>
-    <DisplayString>~ Vec2: [{x}, {y}]</DisplayString>
+    <DisplayString>[{x}, {y}]</DisplayString>
     <Expand>
       <Item Name="X">x</Item>
       <Item Name="Y">y</Item>
@@ -22,7 +31,7 @@
 
   <Type Name="Vec3_tpl&lt;*&gt;">
     <AlternativeType Name="Vec3"/>
-    <DisplayString>~ Vec3: [{x}, {y}, {z}]</DisplayString>
+    <DisplayString>[{x}, {y}, {z}]</DisplayString>
     <Expand>
       <Item Name="X">x</Item>
       <Item Name="Y">y</Item>
@@ -33,7 +42,7 @@
 
   <Type Name="Vec4_tpl&lt;*&gt;">
     <AlternativeType Name="Vec4"/>
-    <DisplayString>~ Vec4: [{x}, {y}, {z}, {w}]</DisplayString>
+    <DisplayString>[{x}, {y}, {z}, {w}]</DisplayString>
     <Expand>
       <Item Name="X">x</Item>
       <Item Name="Y">y</Item>
@@ -42,10 +51,94 @@
       <Item Name="LengthSquared">x*x+y*y+z*z+w*w</Item>
     </Expand>
   </Type>
+  
+  <Type Name="SamplerStateHandle">
+    <DisplayString Condition="value == SamplerStateHandle::Unspecified">~ SamplerState: Unspecified</DisplayString>
+    <DisplayString Condition="value &lt; EDefaultSamplerStates::PreAllocated">~ SamplerState: {(EDefaultSamplerStates::PreDefs)value}</DisplayString>
+    <DisplayString>~ SamplerState: Custom {value}</DisplayString>
+    <Expand>
+      <Item Name="Configuration" Condition="value != SamplerStateHandle::Unspecified">CDeviceObjectFactory::s_SamplerStates.m_Container[value].first</Item>
+      <Item Name="DeviceObject" Condition="value != SamplerStateHandle::Unspecified">CDeviceObjectFactory::s_SamplerStates.m_Container[value].second</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="InputLayoutHandle">
+    <DisplayString Condition="value == InputLayoutHandle::Unspecified">~ InputLayout: Unspecified</DisplayString>
+    <DisplayString Condition="value &lt; EDefaultInputLayouts::PreAllocated">~ InputLayout: {(EDefaultInputLayouts::PreDefs)value}</DisplayString>
+    <DisplayString>~ InputLayout: Custom {value}</DisplayString>
+    <Expand>
+      <Item Name="Configuration" Condition="value != InputLayoutHandle::Unspecified">CDeviceObjectFactory::s_InputLayouts.m_Container[value].first</Item>
+      <Item Name="DeviceObject" Condition="value != InputLayoutHandle::Unspecified">CDeviceObjectFactory::s_InputLayouts.m_Container[value].second</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="ResourceViewHandle">
+    <DisplayString Condition="value == ResourceViewHandle::Unspecified">~ ResourceView: Unspecified</DisplayString>
+    <DisplayString Condition="value &lt; EDefaultResourceViews::PreAllocated">~ ResourceView: {(EDefaultResourceViews::PreDefs)value}</DisplayString>
+    <DisplayString>~ ResourceView: Custom {value}</DisplayString>
+  </Type>
+
+  <Type Name="SResourceView">
+    <DisplayString>~ ResourceView Configuration: {(SResourceView::ResourceViewType)m_Desc.eViewType}</DisplayString>
+    <Expand>
+      <Synthetic Name="Common">
+        <Expand>
+          <Item Name="Type">(SResourceView::ResourceViewType)m_Desc.eViewType</Item>
+          <Item Name="Format">(DXGI_FORMAT)m_Desc.nFormat</Item>
+          <Item Name="Flags" Condition="m_Desc.eViewType == eDepthStencilView    &amp;&amp; m_Desc.nFlags == eDSV_ReadWrite"  >eDSV_ReadWrite  </Item>
+          <Item Name="Flags" Condition="m_Desc.eViewType == eDepthStencilView    &amp;&amp; m_Desc.nFlags == eDSV_ReadOnly "  >eDSV_ReadOnly   </Item>
+          <Item Name="Flags" Condition="m_Desc.eViewType == eUnorderedAccessView &amp;&amp; m_Desc.nFlags == eUAV_WriteOnly"  >eUAV_WriteOnly  </Item>
+          <Item Name="Flags" Condition="m_Desc.eViewType == eUnorderedAccessView &amp;&amp; m_Desc.nFlags == eUAV_ReadWrite"  >eUAV_ReadWrite  </Item>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="If used for Depth Textures">
+        <Expand>
+          <Item Name="Flags" Condition="m_Desc.eViewType == eShaderResourceView  &amp;&amp; m_Desc.nFlags == eSRV_DepthOnly"  >eSRV_DepthOnly  </Item>
+          <Item Name="Flags" Condition="m_Desc.eViewType == eShaderResourceView  &amp;&amp; m_Desc.nFlags == eSRV_StencilOnly">eSRV_StencilOnly</Item>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="If used for Textures">
+        <Expand>
+          <Item Name="sRGB">(bool)m_Desc.bSrgbRead</Item>
+          <Item Name="MultiSampled">(bool)m_Desc.bMultisample</Item>
+          <Item Name="FirstSlice">m_Desc.nFirstSlice</Item>
+          <Item Name="SliceCount" Condition="m_Desc.nSliceCount == 0 || m_Desc.nSliceCount == ((1 &lt;&lt; 11) - 1)">"auto"</Item>
+          <Item Name="SliceCount" Condition="m_Desc.nSliceCount != 0 &amp;&amp; m_Desc.nSliceCount != ((1 &lt;&lt; 11) - 1)">m_Desc.nSliceCount</Item>
+          <Item Name="MostDetailedMip">m_Desc.nMostDetailedMip</Item>
+          <Item Name="MipCount" Condition="m_Desc.nMipCount == 0 || m_Desc.nMipCount == ((1 &lt;&lt; 4) - 1)">"auto"</Item>
+          <Item Name="MipCount" Condition="m_Desc.nMipCount != 0 &amp;&amp; m_Desc.nMipCount != ((1 &lt;&lt; 4) - 1)">m_Desc.nMipCount</Item>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="If used for Buffers">
+        <Expand>
+          <Item Name="RAW">(bool)m_Desc.bRaw</Item>
+          <Item Name="Offset">m_Desc.nOffsetAndSize &gt;&gt; (46 - m_Desc.nOffsetBits)</Item>
+          <Item Name="Size">m_Desc.nOffsetAndSize &amp; ((1 &lt;&lt; (46 - m_Desc.nOffsetBits)) - 1)</Item>
+        </Expand>
+      </Synthetic>
+    </Expand>
+  </Type>
+
+  <Type Name="SResourceBinding">
+    <DisplayString Condition="type == SResourceBinding::EResourceType::Texture">pTexture={(uintptr_t)pTexture,h}, view {view}</DisplayString>
+    <DisplayString Condition="type == SResourceBinding::EResourceType::Buffer">pBuffer={(uintptr_t)pBuffer,h}, view {view}</DisplayString>
+    <DisplayString Condition="type == SResourceBinding::EResourceType::ConstantBuffer">pConstantBuffer={(uintptr_t)pConstantBuffer,h}</DisplayString>
+    <DisplayString Condition="type == SResourceBinding::EResourceType::Sampler">sampler={samplerState}</DisplayString>
+    <DisplayString>INVALID BINDING</DisplayString>
+  </Type>
+  <Type Name="SResourceBindPoint">
+    <DisplayString Condition="slotType==SResourceBindPoint::ESlotType::ConstantBuffer">~ : b{(unsigned int)slotNumber,d}=CB, {stages,en}, flags={(uint)flags,h}</DisplayString>
+    <DisplayString Condition="slotType==SResourceBindPoint::ESlotType::TextureAndBuffer &amp;&amp; flags &amp; EFlags::IsTexture">~ : t{(unsigned int)slotNumber,d}=tex, {stages,en}, flags={(uint)flags,h}</DisplayString>
+    <DisplayString Condition="slotType==SResourceBindPoint::ESlotType::TextureAndBuffer ">~ : t{(unsigned int)slotNumber,d}=buf, {stages,en}, flags={(uint)flags,h}</DisplayString>
+    <DisplayString Condition="slotType==SResourceBindPoint::ESlotType::Sampler">~ : s{(unsigned int)slotNumber,d}=sampler, {stages,en}, flags={(uint)flags,h}</DisplayString>
+    <DisplayString Condition="slotType==SResourceBindPoint::ESlotType::UnorderedAccessView &amp;&amp; flags &amp; EFlags::IsTexture">~ : u{(unsigned int)slotNumber,d}=buf, {stages,en}, flags={(uint)flags,h}</DisplayString>
+    <DisplayString Condition="slotType==SResourceBindPoint::ESlotType::UnorderedAccessView ">~ : u{(unsigned int)slotNumber,d}=buf, {stages,en}, flags={(uint)flags,h}</DisplayString>
+    <DisplayString>INVALID BIND POINT</DisplayString>
+  </Type>
 
   <Type Name="Quat_tpl&lt;*&gt;">
     <AlternativeType Name="Quat" />
-    <DisplayString>~ Quat: [{v.x}, {v.y}, {v.z}, {w}]</DisplayString>
+    <DisplayString>[{v.x}, {v.y}, {v.z}, {w}]</DisplayString>
     <Expand>
       <Item Name="X">v.x</Item>
       <Item Name="Y">v.y</Item>
@@ -104,7 +197,6 @@
 
   <Type Name="Matrix44_tpl&lt;*&gt;">
     <AlternativeType Name="Matrix44" />
-    <AlternativeType Name="Matrix44A" />
     <DisplayString>~ Matrix4x4</DisplayString>
     <Expand>
       <Synthetic Name="Row: 0">
@@ -119,6 +211,29 @@
       <Synthetic Name="Row: 3">
         <DisplayString>[{m30}, {m31}, {m32}, {m33}]</DisplayString>
       </Synthetic>
+    </Expand>
+  </Type>
+  
+  <Type Name="Matrix34H&lt;*&gt;">
+    <AlternativeType Name="Matrix34H" />
+    <AlternativeType Name="Matrix34A" />
+    <DisplayString>~ Matrix3x4H</DisplayString>
+    <Expand>
+      <Item Name="0">x</Item>
+      <Item Name="1">y</Item>
+      <Item Name="2">z</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="Matrix44H&lt;*&gt;">
+    <AlternativeType Name="Matrix44H" />
+    <AlternativeType Name="Matrix44A" />
+    <DisplayString>~ Matrix4x4H</DisplayString>
+    <Expand>
+      <Item Name="0">x</Item>
+      <Item Name="1">y</Item>
+      <Item Name="2">z</Item>
+      <Item Name="3">w</Item>
     </Expand>
   </Type>
 
@@ -435,4 +550,13 @@
       <Item Name="Value" Condition="m_index == 9">*($T10*)m_data.c</Item>
     </Expand>
   </Type>
+
+  <Type Name="SNetMessageDef">
+    <DisplayString>{description,s} (SNetMessageDef)</DisplayString>
+  </Type>
+
+  <Type Name="CryGUID">
+    <DisplayString>{*(GUID*)this}</DisplayString>
+  </Type>
+  
 </AutoVisualizer>

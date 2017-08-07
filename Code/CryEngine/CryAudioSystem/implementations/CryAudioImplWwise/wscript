@@ -182,4 +182,9 @@ def build(bld):
 		android_arm_profile_libpath     = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/android-9_armeabi-v7a/Profile/lib'),
 		android_arm_performance_libpath = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/android-9_armeabi-v7a/Release/lib'),
 		android_arm_release_libpath     = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/android-9_armeabi-v7a/Release/lib'),
+
+		android_arm64_debug_libpath       = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/android-21_arm64-v8a/Debug/lib'),
+		android_arm64_profile_libpath     = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/android-21_arm64-v8a/Profile/lib'),
+		android_arm64_performance_libpath = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/android-21_arm64-v8a/Release/lib'),
+		android_arm64_release_libpath     = bld.CreateRootRelativePath('Code/SDKs/Audio/wwise/SDK/android-21_arm64-v8a/Release/lib'),
 	)

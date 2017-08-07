@@ -3,7 +3,6 @@
 #include "StdAfx.h"
 #include "GoalOpStick.h"
 #include "GoalOpTrace.h"
-#include "NavRegion.h"
 #include "Puppet.h"
 #include "DebugDrawContext.h"
 
@@ -229,21 +228,20 @@ void COPStick::SSafePoint::Serialize(TSerialize ser)
 
 //
 //----------------------------------------------------------------------------------------------------------
-COPStick::SSafePoint::SSafePoint(const Vec3& pos_, CPipeUser& pipeUser, unsigned lastNavNodeIndex)
+COPStick::SSafePoint::SSafePoint(const Vec3& pos_, CPipeUser& pipeUser)
 	: pos(pos_)
 	, time(GetAISystem()->GetFrameStartTime())
 	, requesterName(pipeUser.GetName())
 	, navCapMask(pipeUser.m_movementAbility.pathfindingProperties.navCapMask)
 	, passRadius(pipeUser.m_Parameters.m_fPassRadius)
 {
-	Reset(lastNavNodeIndex);
+	Reset();
 }
 
 //
 //----------------------------------------------------------------------------------------------------------
-void COPStick::SSafePoint::Reset(unsigned lastNavNodeIndex)
+void COPStick::SSafePoint::Reset()
 {
-	nodeIndex = 0;
 	safe = false;
 }
 
@@ -286,7 +284,7 @@ void COPStick::Serialize(TSerialize ser)
 		{
 			for (uint8 i = 0, size = m_stickTargetSafePoints.Size(); i < size; ++i)
 			{
-				m_stickTargetSafePoints[i].Reset(0);
+				m_stickTargetSafePoints[i].Reset();
 			}
 		}
 		ser.Value("m_safePointInterval", m_safePointInterval);
@@ -407,21 +405,19 @@ void COPStick::UpdateStickTargetSafePoints(CPipeUser* pPipeUser)
 	if (GetAISystem()->WouldHumanBeVisible(opPos, false))
 		m_lastVisibleTime = GetAISystem()->GetFrameStartTime();
 
-	unsigned lastNavNodeIndex = m_refStickTarget.GetAIObject()->GetNavNodeIndex();
 	if (!m_stickTargetSafePoints.Empty())
 	{
 		Vec3 delta = curPos - m_stickTargetSafePoints.Front().pos;
 		float dist = delta.GetLength();
 		if (dist < m_safePointInterval)
 			return;
-		lastNavNodeIndex = m_stickTargetSafePoints.Front().nodeIndex;
 	}
 
 	int maxNumPoints = 1 + (int)(m_pathLengthForTeleport / m_safePointInterval);
 	if (m_stickTargetSafePoints.Size() >= maxNumPoints || m_stickTargetSafePoints.Full())
 		m_stickTargetSafePoints.PopBack();
 
-	m_stickTargetSafePoints.PushFront(SSafePoint(curPos, *pPipeUser, lastNavNodeIndex));
+	m_stickTargetSafePoints.PushFront(SSafePoint(curPos, *pPipeUser));
 }
 
 //===================================================================

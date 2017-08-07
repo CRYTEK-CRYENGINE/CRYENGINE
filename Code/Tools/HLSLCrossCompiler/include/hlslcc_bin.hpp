@@ -170,7 +170,7 @@ enum
 {
 	GLSL_HEADER_SIZE   = 4 * 8, // uNumSamplers, uNumImages, uNumStorageBuffers, uNumUniformBuffers, uNumImports, uNumExports, uInputHash, uSymbolsOffset
 	GLSL_SAMPLER_SIZE  = 4 * 3, // uSamplerField, uEmbeddedNormalName, uEmbeddedCompareName
-	GLSL_RESOURCE_SIZE = 4 * 2, // uBindPoint, uName
+	GLSL_RESOURCE_SIZE = 4 * 3, // uBindPoint, uName, eGroup
 	GLSL_SYMBOL_SIZE   = 4 * 3, // uType, uID, uValue
 };
 
@@ -322,6 +322,19 @@ bool DXBCCombineWithGLSL(I& kInput, O& kOutput, const GLSLShader* pShader)
 		!DXBCWriteUint32(kOutput, pShader->reflection.ui32InputHash) ||
 		!DXBCWriteUint32(kOutput, pShader->reflection.ui32SymbolsOffset))
 		return false;
+#if TODO
+	// Only texture registers that are used are written
+	for (uint32_t uTexture = 0; uTexture < MAX_RESOURCE_BINDINGS; ++uTexture)
+	{
+		uint32_t uSampler(pShader->reflection.aui32SamplerMap[uTexture]);
+		if (uSampler != MAX_RESOURCE_BINDINGS)
+		{
+			if (!DXBCWriteUint32(kOutput, uTexture) ||
+				!DXBCWriteUint32(kOutput, uSampler))
+				return false;
+		}
+	}
+#endif
 	for (uint32_t uSampler = 0; uSampler < pShader->reflection.ui32NumSamplers; ++uSampler)
 	{
 		uint32_t uSamplerField = 
@@ -352,7 +365,8 @@ bool DXBCCombineWithGLSL(I& kInput, O& kOutput, const GLSLShader* pShader)
 			(psResource->sName.ui20Offset << 12) |
 			(psResource->sName.ui12Size   <<  0);
 		if (!DXBCWriteUint32(kOutput, psResource->ui32BindPoint) ||
-			  !DXBCWriteUint32(kOutput, uEmbeddedName))
+			!DXBCWriteUint32(kOutput, uEmbeddedName) ||
+			!DXBCWriteUint32(kOutput, psResource->eGroup))
 			return false;
 	}
 	for (uint32_t uStorageBuffer = 0; uStorageBuffer < pShader->reflection.ui32NumStorageBuffers; ++uStorageBuffer)
@@ -362,7 +376,8 @@ bool DXBCCombineWithGLSL(I& kInput, O& kOutput, const GLSLShader* pShader)
 			(psResource->sName.ui20Offset << 12) |
 			(psResource->sName.ui12Size   <<  0);
 		if (!DXBCWriteUint32(kOutput, psResource->ui32BindPoint) ||
-			  !DXBCWriteUint32(kOutput, uEmbeddedName))
+			!DXBCWriteUint32(kOutput, uEmbeddedName) ||
+			!DXBCWriteUint32(kOutput, psResource->eGroup))
 			return false;
 	}
 	for (uint32_t uUniformBuffer = 0; uUniformBuffer < pShader->reflection.ui32NumUniformBuffers; ++uUniformBuffer)
@@ -372,7 +387,8 @@ bool DXBCCombineWithGLSL(I& kInput, O& kOutput, const GLSLShader* pShader)
 			(psResource->sName.ui20Offset << 12) |
 			(psResource->sName.ui12Size   <<  0);
 		if (!DXBCWriteUint32(kOutput, psResource->ui32BindPoint) ||
-			  !DXBCWriteUint32(kOutput, uEmbeddedName))
+			!DXBCWriteUint32(kOutput, uEmbeddedName) ||
+			!DXBCWriteUint32(kOutput, psResource->eGroup))
 			return false;
 	}
 	for (uint32_t uSymbol = 0; uSymbol < pShader->reflection.ui32NumImports; ++uSymbol)

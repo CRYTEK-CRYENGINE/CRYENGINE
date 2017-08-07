@@ -31,7 +31,7 @@ public:
 	CRYINTERFACE_ADD(IAnimationPoseAlignerChain)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(CPoseAlignerChain, "AnimationPoseModifier_PoseAlignerChain", 0x6de1ac5816c94c33, 0x8fecf3ee1f6bdf11)
+	CRYGENERATE_CLASS_GUID(CPoseAlignerChain, "AnimationPoseModifier_PoseAlignerChain", "6de1ac58-16c9-4c33-8fec-f3ee1f6bdf11"_cry_guid)
 
 public:
 	virtual void Initialize(LimbIKDefinitionHandle solver, int contactJointIndex) override;

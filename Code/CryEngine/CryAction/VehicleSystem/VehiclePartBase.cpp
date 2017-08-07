@@ -768,12 +768,12 @@ bool CVehiclePartBase::SetCGASlot(int jointId, IStatObj* pStatObj, bool bUpdateP
 		if (pStatObj)
 		{
 			pe_params_part pp;
-			pp.partid = AllocPartIdRange(GetEntity()->GetPhysicalEntityPartId0(m_slot), PARTID_MAX_SLOTS) | jointId;
+			pp.partid = EntityPhysicsUtils::AllocPartIdRange(GetEntity()->GetPhysicalEntityPartId0(m_slot), EntityPhysicsUtils::PARTID_MAX_SLOTS) | jointId;
 			pp.pPhysGeom = pStatObj->GetPhysGeom();
 			GetEntity()->GetPhysics()->SetParams(&pp);
 		}
 		else
-			GetEntity()->GetPhysics()->RemoveGeometry(AllocPartIdRange(GetEntity()->GetPhysicalEntityPartId0(m_slot), PARTID_MAX_SLOTS) | jointId);
+			GetEntity()->GetPhysics()->RemoveGeometry(EntityPhysicsUtils::AllocPartIdRange(GetEntity()->GetPhysicalEntityPartId0(m_slot), EntityPhysicsUtils::PARTID_MAX_SLOTS) | jointId);
 	}
 	return true;
 }

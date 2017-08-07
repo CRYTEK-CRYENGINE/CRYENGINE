@@ -2,11 +2,13 @@
 
 using System;
 using System.Globalization;
+using System.Runtime.CompilerServices;
+using System.Diagnostics;
 using CryEngine.Common;
 
 namespace CryEngine
 {
-	public struct Vector2
+	public struct Vector2 : IEquatable<Vector2>
 	{
 		public static readonly Vector2 Zero = new Vector2(0, 0);
 
@@ -36,8 +38,8 @@ namespace CryEngine
 			{
 				int hash = 17;
 
-				hash = hash * 23 + X.GetHashCode();
-				hash = hash * 23 + Y.GetHashCode();
+				hash = hash * 23 + _x.GetHashCode();
+				hash = hash * 23 + _y.GetHashCode();
 
 				return hash;
 			}
@@ -48,15 +50,21 @@ namespace CryEngine
 			if (obj == null)
 				return false;
 
-			if (obj is Vector2 || obj is Vec2)
-				return this == (Vector2)obj;
+			if (!(obj is Vector2 || obj is Vec2))
+			{
+				return false;
+			}
+			return Equals((Vector2)obj);
+		}
 
-			return false;
+		public bool Equals(Vector2 other)
+		{
+			return MathHelpers.IsEqual(_x, other.x) && MathHelpers.IsEqual(_y, other.y);
 		}
 
 		public override string ToString()
 		{
-			return string.Format(CultureInfo.CurrentCulture, "{0},{1}", X, Y);
+			return string.Format(CultureInfo.CurrentCulture, "{0},{1}", _x, _y);
 		}
 		#endregion
 
@@ -117,10 +125,7 @@ namespace CryEngine
 
 		public static bool operator ==(Vector2 left, Vector2 right)
 		{
-			if ((object)right == null)
-				return (object)left == null;
-
-			return (left.X == right.X) && (left.Y == right.Y);
+			return left.Equals(right);
 		}
 
 		public static bool operator !=(Vector2 left, Vector2 right)
@@ -132,12 +137,64 @@ namespace CryEngine
 		#region Functions
 		public float Dot(Vector2 v)
 		{
-			return X * v.X + Y * v.Y;
+			return _x * v.X + _y * v.Y;
 		}
 
+		[Obsolete("Please use IsNearlyZero")]
 		public bool IsZero(float epsilon = 0)
 		{
-			return (Math.Abs(x) <= epsilon) && (Math.Abs(y) <= epsilon);
+			return (Math.Abs(_x) <= epsilon) && (Math.Abs(_y) <= epsilon);
+		}
+
+		public bool IsNearlyZero()
+		{
+			return (Math.Abs(_x) <= MathHelpers.FloatEpsilon && Math.Abs(_y) <= MathHelpers.FloatEpsilon);
+		}
+		
+		public static Vector2 Lerp(Vector2 p, Vector2 q, float t)
+		{
+			t = Math.Max(Math.Min(1.0f, t), 0f);
+			return Vector2.LerpUnclamped(p, q, t);
+		}
+
+		public static Vector2 LerpUnclamped(Vector2 p, Vector2 q, float t)
+		{
+			return p * (1.0f - t) + q * t;
+		}
+
+		public static Vector2 Slerp(Vector2 p, Vector2 q, float t)
+		{
+			t = Math.Max(Math.Min(1.0f, t), 0f);
+			return SlerpUnclamped(p, q, t);
+		}
+
+		public static Vector2 SlerpUnclamped(Vector2 p, Vector2 q, float t)
+		{
+			CheckUnitVector(p, "p is not unit vector :"+p.ToString());
+			CheckUnitVector(q, "q is not unit vector :"+q.ToString());
+			float cosine = (p.x * q.x) + (p.y * q.y);
+
+			if (MathHelpers.IsEqual(cosine, 0.999999f, MathHelpers.Precision.Precision_6)) // vectors are almost parallel
+			{
+				// use lerp
+				Vector2 result = Lerp(p, q, t);
+				return result.Normalized;
+			}
+			float radians = (float)Math.Acos(cosine);
+			float scale_0 = (float)Math.Sin((1 - t) * radians);
+			float scale_1 = (float)Math.Sin(t * radians);
+			Vector2 result2 = (p * scale_0 + q * scale_1) / (float)Math.Sin(radians);
+			return result2.Normalized;
+		}
+
+		[Conditional("DEBUG")]
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private static void CheckUnitVector(Vector2 vector, String messageIfFalse)
+		{
+			if (1.0f - (vector.x * vector.x + vector.y * vector.y) > 0.005f)
+			{
+				Log.Always(messageIfFalse);
+			}
 		}
 		#endregion
 
@@ -146,17 +203,17 @@ namespace CryEngine
 		{
 			get
 			{
-				return (float)Math.Sqrt(X * X + Y * Y);
+				return (float)Math.Sqrt(_x * _x + _y * _y);
 			}
 			set
 			{
-				float lengthSquared = LengthSquared;
+				float lengthSquared = _x * _x + _y * _y;
 				if (lengthSquared < 0.00001f * 0.00001f)
 					return;
 
 				lengthSquared = value * MathHelpers.ISqrt(lengthSquared);
-				X *= lengthSquared;
-				Y *= lengthSquared;
+				_x *= lengthSquared;
+				_y *= lengthSquared;
 			}
 		}
 
@@ -166,7 +223,7 @@ namespace CryEngine
 		{
 			get
 			{
-				return X * X + Y * Y;
+				return _x * _x + _y * _y;
 			}
 		}
 		
@@ -174,8 +231,9 @@ namespace CryEngine
 		{
 			get
 			{
-				float fInvLen = MathHelpers.ISqrt(X * X + Y * Y);
-				return this * fInvLen;
+				//if nearly (0,0) return current
+				if (IsNearlyZero()) return this; 
+				return this * 1.0f / (float)Math.Sqrt(_x * _x + _y * _y);
 			}
 		}
 		
@@ -183,7 +241,7 @@ namespace CryEngine
 		{
 			get
 			{
-				return new Vector2(Math.Abs(X), Math.Abs(Y));
+				return new Vector2(Math.Abs(_x), Math.Abs(_y));
 			}
 		}
 
@@ -191,7 +249,7 @@ namespace CryEngine
 		{
 			get
 			{
-				return new Vector2(-X, -Y);
+				return new Vector2(-_x, -_y);
 			}
 		}
 
@@ -207,9 +265,9 @@ namespace CryEngine
 				switch (index)
 				{
 					case 0:
-						return x;
+						return _x;
 					case 1:
-						return y;
+						return _y;
 
 					default:
 						throw new ArgumentOutOfRangeException("index", "Indices must run from 0 to 1!");
@@ -220,10 +278,10 @@ namespace CryEngine
 				switch (index)
 				{
 					case 0:
-						x = value;
+						_x = value;
 						break;
 					case 1:
-						y = value;
+						_y = value;
 						break;
 
 					default:
@@ -232,6 +290,5 @@ namespace CryEngine
 			}
 		}
 		#endregion
-
 	}
 }

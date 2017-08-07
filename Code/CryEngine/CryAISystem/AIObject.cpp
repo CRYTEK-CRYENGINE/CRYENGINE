@@ -4,7 +4,6 @@
 #include "AIObject.h"
 #include "CAISystem.h"
 #include "AILog.h"
-#include "Graph.h"
 #include "Leader.h"
 #include "GoalOp.h"
 
@@ -14,6 +13,7 @@
 #include <CryNetwork/ISerialize.h>
 #include <CryAISystem/VisionMapTypes.h>
 #include "Navigation/NavigationSystem/NavigationSystem.h"
+#include "Formation/FormationManager.h"
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
@@ -25,7 +25,6 @@ CAIObject::CAIObject() :
 	m_vPosition(ZERO),
 	m_entityID(0),
 	m_bEnabled(true),
-	m_lastNavNodeIndex(0),
 	m_fRadius(.0f),
 	m_pFormation(0),
 	m_nObjectType(0),
@@ -80,8 +79,6 @@ void CAIObject::SetPos(const Vec3& pos, const Vec3& dirForw)
 
 		if (IEntity* pEntity = GetEntity())
 			GetAISystem()->NotifyAIObjectMoved(pEntity, SEntityEvent(ENTITY_EVENT_XFORM));
-
-		m_lastNavNodeIndex = 0;
 	}
 
 	if (!GetProxy())
@@ -206,8 +203,6 @@ void CAIObject::Reset(EObjectResetType type)
 	m_bUpdatedOnce = false;
 	m_bTouched = false;
 
-	m_lastNavNodeIndex = 0;
-
 	switch (type)
 	{
 	case AIOBJRESET_INIT:
@@ -220,16 +215,6 @@ void CAIObject::Reset(EObjectResetType type)
 		SetObservable(false);
 		break;
 	}
-}
-
-size_t CAIObject::GetNavNodeIndex() const
-{
-	if (m_lastNavNodeIndex)
-		return (m_lastNavNodeIndex < ~0ul) ? m_lastNavNodeIndex : 0;
-
-	m_lastNavNodeIndex = ~0ul;
-
-	return 0;
 }
 
 //
@@ -264,10 +249,6 @@ void CAIObject::Serialize(TSerialize ser)
 
 	ser.Value("m_bEnabled", m_bEnabled);
 	ser.Value("m_bTouched", m_bTouched);
-
-	// Do not cache the result of GetNavNodeIndex across serialisation
-	if (ser.IsReading())
-		m_lastNavNodeIndex = 0;
 	ser.Value("m_vLastPosition", m_vLastPosition);
 
 	int formationIndex = CFormation::INVALID_FORMATION_ID;
@@ -278,7 +259,7 @@ void CAIObject::Serialize(TSerialize ser)
 	ser.Value("formationIndex", formationIndex);
 	if (formationIndex != CFormation::INVALID_FORMATION_ID && ser.IsReading())
 	{
-		m_pFormation = GetAISystem()->GetFormation(formationIndex);
+		m_pFormation = gAIEnv.pFormationManager->GetFormation(formationIndex);
 	}
 
 	// m_movementAbility.Serialize(ser); // not needed as ability is constant
@@ -321,7 +302,7 @@ void CAIObject::Serialize(TSerialize ser)
 //------------------------------------------------------------------------------------------------------------------------
 bool CAIObject::CreateFormation(const unsigned int nCrc32ForFormationName, Vec3 vTargetPos /* = ZERO */)
 {
-	string sFormationName(GetAISystem()->GetFormationNameFromCRC32(nCrc32ForFormationName));
+	string sFormationName(gAIEnv.pFormationManager->GetFormationNameFromCRC32(nCrc32ForFormationName));
 	return CreateFormation(sFormationName.c_str(), vTargetPos);
 }
 
@@ -329,7 +310,7 @@ bool CAIObject::CreateFormation(const char* szName, Vec3 vTargetPos)
 {
 	if (m_pFormation)
 	{
-		GetAISystem()->ReleaseFormation(GetWeakRef(this), true);
+		gAIEnv.pFormationManager->ReleaseFormation(GetWeakRef(this), true);
 	}
 
 	m_pFormation = 0;
@@ -339,7 +320,7 @@ bool CAIObject::CreateFormation(const char* szName, Vec3 vTargetPos)
 
 	CCCPOINT(CAIObject_CreateFormation);
 
-	m_pFormation = GetAISystem()->CreateFormation(GetWeakRef(this), szName, vTargetPos);
+	m_pFormation = gAIEnv.pFormationManager->CreateFormation(GetWeakRef(this), szName, vTargetPos);
 	return (m_pFormation != NULL);
 }
 
@@ -350,7 +331,7 @@ bool CAIObject::ReleaseFormation(void)
 	if (m_pFormation)
 	{
 		CCCPOINT(CAIObject_ReleaseFormation);
-		GetAISystem()->ReleaseFormation(GetWeakRef(this), true);
+		gAIEnv.pFormationManager->ReleaseFormation(GetWeakRef(this), true);
 		m_pFormation = 0;
 		return true;
 	}

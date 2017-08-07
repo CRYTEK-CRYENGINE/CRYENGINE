@@ -24,7 +24,7 @@ CCryDXGLBuffer::CCryDXGLBuffer(const D3D11_BUFFER_DESC& kDesc, NCryOpenGL::SBuff
 	DXGL_INITIALIZE_INTERFACE(D3D11Buffer)
 }
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 
 CCryDXGLBuffer::CCryDXGLBuffer(const D3D11_BUFFER_DESC& kDesc, NCryOpenGL::SInitialDataCopy* pInitialData, CCryDXGLDevice* pDevice)
 	: CCryDXGLResource(D3D11_RESOURCE_DIMENSION_BUFFER, pInitialData, pDevice)
@@ -39,7 +39,7 @@ CCryDXGLBuffer::~CCryDXGLBuffer()
 {
 }
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 
 void CCryDXGLBuffer::Initialize()
 {
@@ -60,7 +60,7 @@ void CCryDXGLBuffer::Initialize()
 
 NCryOpenGL::SBuffer* CCryDXGLBuffer::GetGLBuffer()
 {
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	IF_UNLIKELY (!m_spGLResource)
 		Initialize();
 #endif

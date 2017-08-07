@@ -6,9 +6,7 @@ set(BUILD_PLATFORM Linux64)
 set(LINUX 1)
 set(LINUX64 1)
 
-if (NOT DEFINED OUTPUT_DIRECTORY)
-	set(OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/linux_x64_clang")
-endif()
+set(OUTPUT_DIRECTORY_NAME "linux_x64_clang")
 
 set(CMAKE_C_COMPILER clang-3.8)
 set(CMAKE_CXX_COMPILER clang++-3.8)
@@ -17,7 +15,7 @@ add_definitions(-DLINUX64)
 
 message(STATUS "BUILD_CPU_ARCHITECTURE = ${BUILD_CPU_ARCHITECTURE}")
 
-include (${CMAKE_CURRENT_LIST_DIR}/../../CRYENGINE-CLANG.cmake)
+include ("${CMAKE_CURRENT_LIST_DIR}/../../CRYENGINE-CLANG.cmake")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DLINUX -D__linux__ -DOPENGL" CACHE STRING "C Common Flags" FORCE)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DLINUX -D__linux__ -DOPENGL" CACHE STRING "C++ Common Flags" FORCE)

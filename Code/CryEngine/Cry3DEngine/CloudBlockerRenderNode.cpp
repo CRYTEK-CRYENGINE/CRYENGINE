@@ -11,6 +11,7 @@ CCloudBlockerRenderNode::CCloudBlockerRenderNode()
 	, m_decayEnd(0.0f)
 	, m_decayInfluence(0.0)
 	, m_bScreenspace(false)
+	, m_pOwnerEntity(nullptr)
 {
 	GetInstCount(GetRenderNodeType())++;
 

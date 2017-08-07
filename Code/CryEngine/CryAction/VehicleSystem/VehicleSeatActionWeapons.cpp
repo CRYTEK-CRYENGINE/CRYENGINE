@@ -17,8 +17,6 @@
 #include "IItem.h"
 #include "IWeapon.h"
 
-using namespace CryAudio;
-
 //#pragma optimize("", off)
 //#pragma inline_depth(0)
 
@@ -57,10 +55,13 @@ CVehicleSeatActionWeapons::~CVehicleSeatActionWeapons()
 			pWeapon->RemoveEventListener(this);
 		}
 
-		if (static_cast<CVehicle*>(m_pVehicle)->SpawnAndDeleteEntities())
-			pEntitySystem->RemoveEntity(ite->weaponEntityId, true);
+		if (ite->weaponEntityId != INVALID_ENTITYID)
+		{
+			if (static_cast<CVehicle*>(m_pVehicle)->SpawnAndDeleteEntities())
+				pEntitySystem->RemoveEntity(ite->weaponEntityId, true);
 
-		(*ite).weaponEntityId = 0;
+			(*ite).weaponEntityId = INVALID_ENTITYID;
+		}
 	}
 
 	m_pVehicle->SetObjectUpdate(this, IVehicle::eVOU_NoUpdate);
@@ -733,14 +734,14 @@ void CVehicleSeatActionWeapons::StartFire()
 		{
 			UpdateWeaponTM(vehicleWeapon);
 
-			IAudioSystem const* const pIAudioSystem = gEnv->pAudioSystem;
+			CryAudio::IAudioSystem const* const pIAudioSystem = gEnv->pAudioSystem;
 			IVehicleMovement const* const pMovement = m_pVehicle->GetMovement();
 			if (pMovement != nullptr && pWeapon->CanFire())
 			{
 				IEntityAudioComponent* const pAudioProxy = pMovement->GetAudioProxy();
 				if (pIAudioSystem != nullptr && pAudioProxy != nullptr)
 				{
-					ControlId audioControlID = InvalidControlId;
+					CryAudio::ControlId audioControlID = CryAudio::InvalidControlId;
 					if (m_attackInput == eAI_Primary)
 					{
 						audioControlID = pMovement->GetPrimaryWeaponAudioTrigger();
@@ -789,7 +790,7 @@ void CVehicleSeatActionWeapons::StopFire()
 			IEntityAudioComponent* const pAudioProxy = pMovement->GetAudioProxy();
 			if (pAudioProxy)
 			{
-				ControlId audioControlID = InvalidControlId;
+				CryAudio::ControlId audioControlID = CryAudio::InvalidControlId;
 				if (m_attackInput == eAI_Primary)
 				{
 					audioControlID = pMovement->GetPrimaryWeaponAudioStopTrigger();

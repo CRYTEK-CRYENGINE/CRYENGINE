@@ -1,5 +1,14 @@
+
+#ifdef __cplusplus
+extern "C" {
+#endif //__cplusplus
+
 #include "lua.h"
 #include "lauxlib.h"
+
+#ifdef __cplusplus
+} //extern "C" {
+#endif //__cplusplus
 
 int g_vectortag=0;
 
@@ -243,6 +252,11 @@ void vl_SetEventFunction(lua_State *L,const char *sEvent,lua_CFunction fn,int nT
 	lua_rawset(L,nTable);
 }
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif //__cplusplus
+
 LUALIB_API int vl_initvectorlib(lua_State *L)
 {
 	int nTable;
@@ -265,3 +279,6 @@ LUALIB_API int vl_initvectorlib(lua_State *L)
 	return 1;
 }
 
+#ifdef __cplusplus
+} //extern "C" {
+#endif //__cplusplus

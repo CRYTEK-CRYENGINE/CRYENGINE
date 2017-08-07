@@ -3,8 +3,6 @@
 #include "StdAfx.h"
 #include <CryFlowGraph/IFlowBaseNode.h>
 
-using namespace CryAudio;
-
 class CFlowNode_AudioPreloadData final : public CFlowBaseNode<eNCT_Instanced>
 {
 public:
@@ -81,18 +79,15 @@ public:
 
 				if (!preloadName.empty())
 				{
-					PreloadRequestId preloadRequestId = InvalidPreloadRequestId;
-
-					if (gEnv->pAudioSystem->GetAudioPreloadRequestId(preloadName.c_str(), preloadRequestId))
+					CryAudio::PreloadRequestId const preloadRequestId = CryAudio::StringToId_RunTime(preloadName.c_str());
+					
+					if (bEnable)
 					{
-						if (bEnable)
-						{
-							gEnv->pAudioSystem->PreloadSingleRequest(preloadRequestId, false);
-						}
-						else
-						{
-							gEnv->pAudioSystem->UnloadSingleRequest(preloadRequestId);
-						}
+						gEnv->pAudioSystem->PreloadSingleRequest(preloadRequestId, false);
+					}
+					else
+					{
+						gEnv->pAudioSystem->UnloadSingleRequest(preloadRequestId);
 					}
 				}
 			}

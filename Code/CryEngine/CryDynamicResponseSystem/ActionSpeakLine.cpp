@@ -302,8 +302,3 @@ void CActionCancelSpeakingInstance::Cancel()
 {
 	m_pSpeaker = nullptr;
 }
-
-//--------------------------------------------------------------------------------------------------
-
-REGISTER_DRS_ACTION(CActionSpeakLine, "SpeakLine", "00FF00");
-REGISTER_DRS_ACTION(CActionCancelSpeaking, "CancelSpeaking", DEFAULT_DRS_ACTION_COLOR);

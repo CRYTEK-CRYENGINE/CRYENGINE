@@ -74,9 +74,9 @@ SmartScriptTable CSerializeScriptTableWriterImpl::ReuseTable(const char* szName)
 	ScriptAnyValue curVal;
 	pTbl->GetValueAny(szName, curVal);
 	SmartScriptTable newTable;
-	if (curVal.type == ANY_TTABLE)
+	if (curVal.GetType() == EScriptAnyType::Table)
 	{
-		newTable = curVal.table;
+		newTable = curVal.GetScriptTable();
 	}
 	else
 	{

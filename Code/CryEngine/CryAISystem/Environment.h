@@ -31,15 +31,11 @@
 class ActorLookUp;
 struct IGoalOpFactory;
 class CObjectContainer;
-class CCodeCoverageTracker;
-class CCodeCoverageManager;
-class CCodeCoverageGUI;
 class CStatsManager;
 class CTacticalPointSystem;
 class CTargetTrackManager;
 struct IAIDebugRenderer;
 class CPipeManager;
-class CGraph;
 namespace MNM
 {
 class PathfinderNavigationSystemUser;
@@ -61,12 +57,12 @@ class CFactionMap;
 class CGroupManager;
 class CollisionAvoidanceSystem;
 class CAIObjectManager;
-class WalkabilityCacheManager;
 class NavigationSystem;
 namespace AIActionSequence {
 class SequenceManager;
 }
 class ClusterDetector;
+class CFormationManager;
 
 #ifdef CRYAISYSTEM_DEBUG
 class CAIRecorder;
@@ -81,22 +77,14 @@ struct SAIEnvironment
 	SConfiguration           configuration;
 
 	ActorLookUp*             pActorLookUp;
-	WalkabilityCacheManager* pWalkabilityCacheManager;
 	IGoalOpFactory*          pGoalOpFactory;
 	CObjectContainer*        pObjectContainer;
-
-#if !defined(_RELEASE)
-	CCodeCoverageTracker* pCodeCoverageTracker;
-	CCodeCoverageManager* pCodeCoverageManager;
-	CCodeCoverageGUI*     pCodeCoverageGUI;
-#endif
 
 	CStatsManager*                       pStatsManager;
 	CTacticalPointSystem*                pTacticalPointSystem;
 	CTargetTrackManager*                 pTargetTrackManager;
 	CAIObjectManager*                    pAIObjectManager;
 	CPipeManager*                        pPipeManager;
-	CGraph*                              pGraph; // superseded by NavigationSystem - remove when all links are cut
 	MNM::PathfinderNavigationSystemUser* pPathfinderNavigationSystemUser;
 	CMNMPathfinder*                      pMNMPathfinder; // superseded by NavigationSystem - remove when all links are cut
 	CNavigation*                         pNavigation;    // superseded by NavigationSystem - remove when all links are cut
@@ -115,6 +103,7 @@ struct SAIEnvironment
 	struct IMovementSystem*              pMovementSystem;
 	AIActionSequence::SequenceManager*   pSequenceManager;
 	ClusterDetector*                     pClusterDetector;
+	CFormationManager*                   pFormationManager;
 
 #ifdef CRYAISYSTEM_DEBUG
 	IAIBubblesSystem* pBubblesSystem;

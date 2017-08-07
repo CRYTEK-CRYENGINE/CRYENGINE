@@ -9,7 +9,7 @@
 #include <QString>
 #include <QIcon>
 
-#include <Schematyc/FundamentalTypes.h>
+#include <CrySchematyc/FundamentalTypes.h>
 
 namespace Schematyc {
 

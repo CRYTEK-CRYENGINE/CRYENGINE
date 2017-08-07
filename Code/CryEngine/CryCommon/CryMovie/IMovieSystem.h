@@ -967,6 +967,11 @@ struct IMovieListener
 	// </interfuscator:shuffle>
 };
 
+struct IMovieEngineModule : public Cry::IDefaultModule
+{
+	CRYINTERFACE_DECLARE_GUID(IMovieEngineModule, "271a9f97-7e6d-4cfa-b3ae-2a5c3227d302"_cry_guid);
+};
+
 //! Movie System interface.
 //! Main entrance point to engine movie capability.
 //! Enumerate available movies, update all movies, create animation nodes and tracks.
@@ -1232,17 +1237,17 @@ inline void SSequenceAudioTrigger::Serialize(XmlNodeRef xmlNode, bool bLoading)
 		if (xmlNode->getAttr("onStopAudioTrigger"))
 		{
 			m_onStopTriggerName = xmlNode->getAttr("onStopAudioTrigger");
-			gEnv->pAudioSystem->GetAudioTriggerId(m_onStopTriggerName.c_str(), m_onStopTrigger);
+			m_onStopTrigger = CryAudio::StringToId_RunTime(m_onStopTriggerName.c_str());
 		}
 		if (xmlNode->getAttr("onPauseAudioTrigger"))
 		{
 			m_onPauseTriggerName = xmlNode->getAttr("onPauseAudioTrigger");
-			gEnv->pAudioSystem->GetAudioTriggerId(m_onPauseTriggerName.c_str(), m_onPauseTrigger);
+			m_onPauseTrigger = CryAudio::StringToId_RunTime(m_onPauseTriggerName.c_str());
 		}
 		if (xmlNode->getAttr("onResumeAudioTrigger"))
 		{
 			m_onResumeTriggerName = xmlNode->getAttr("onResumeAudioTrigger");
-			gEnv->pAudioSystem->GetAudioTriggerId(m_onResumeTriggerName.c_str(), m_onResumeTrigger);
+			m_onResumeTrigger = CryAudio::StringToId_RunTime(m_onResumeTriggerName.c_str());
 		}
 
 	}
@@ -1271,21 +1276,21 @@ inline void SSequenceAudioTrigger::Serialize(Serialization::IArchive& ar)
 		ar(Serialization::AudioTrigger<string>(stopTriggerName), "onStopAudioTrigger", "onStop");
 		if (!stopTriggerName.empty())
 		{
-			gEnv->pAudioSystem->GetAudioTriggerId(stopTriggerName.c_str(), m_onStopTrigger);
+			m_onStopTrigger = CryAudio::StringToId_RunTime(stopTriggerName.c_str());
 		}
 
 		string pauseTriggerName;
 		ar(Serialization::AudioTrigger<string>(pauseTriggerName), "onPauseAudioTrigger", "onPause");
 		if (!pauseTriggerName.empty())
 		{
-			gEnv->pAudioSystem->GetAudioTriggerId(pauseTriggerName.c_str(), m_onPauseTrigger);
+			m_onPauseTrigger = CryAudio::StringToId_RunTime(pauseTriggerName.c_str());
 		}
 
 		string resumeTriggerName;
 		ar(Serialization::AudioTrigger<string>(resumeTriggerName), "onResumeAudioTrigger", "onResume");
 		if (!resumeTriggerName.empty())
 		{
-			gEnv->pAudioSystem->GetAudioTriggerId(resumeTriggerName.c_str(), m_onResumeTrigger);
+			m_onResumeTrigger = CryAudio::StringToId_RunTime(resumeTriggerName.c_str());
 		}
 	}
 	else

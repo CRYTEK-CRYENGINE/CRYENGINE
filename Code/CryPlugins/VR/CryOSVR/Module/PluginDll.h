@@ -14,7 +14,7 @@ class CPlugin_Osvr : public IOsvrPlugin, public ISystemEventListener
 	CRYINTERFACE_ADD(ICryPlugin)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_SINGLETONCLASS(CPlugin_Osvr, "Plugin_OSVR", 0x655D32522A6D4D09, 0xAFE82386D4566054)
+	CRYGENERATE_SINGLETONCLASS_GUID(CPlugin_Osvr, "Plugin_OSVR", "655d3252-2a6d-4d09-afe8-2386d4566054"_cry_guid)
 
 	virtual ~CPlugin_Osvr();
 

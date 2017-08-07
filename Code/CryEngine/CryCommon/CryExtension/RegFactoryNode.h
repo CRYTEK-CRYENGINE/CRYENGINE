@@ -18,6 +18,8 @@ struct ICryFactory;
 struct SRegFactoryNode;
 
 extern SRegFactoryNode* g_pHeadToRegFactories;
+extern "C" DLL_EXPORT SRegFactoryNode* GetHeadToRegFactories();
+typedef SRegFactoryNode*(*PtrFunc_GetHeadToRegFactories)();
 
 struct SRegFactoryNode
 {

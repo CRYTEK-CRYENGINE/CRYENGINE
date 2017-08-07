@@ -17,8 +17,10 @@ public:
 	CFlowData();
 	~CFlowData();
 	CFlowData(const CFlowData&);
+	CFlowData(CFlowData&&) = default;
 	void       Swap(CFlowData&);
 	CFlowData& operator=(const CFlowData& rhs);
+	CFlowData& operator=(CFlowData&&) = default;
 
 	ILINE int  GetNumOutputs() const                    { return m_nOutputs; }
 	ILINE void SetOutputFirstEdge(int output, int edge) { m_pOutputFirstEdge[output] = edge; }
@@ -28,19 +30,19 @@ public:
 	template<class T>
 	ILINE bool ActivateInputPort(TFlowPortId port, const T& value)
 	{
-		TFlowInputData* pPort = m_pInputData + port;
+		TFlowInputData* pPort = &m_pInputData[port];
 		pPort->SetUserFlag(true);
 		return pPort->SetValueWithConversion(value);
 	}
 
 	ILINE bool SetInputPort(TFlowPortId port, const TFlowInputData& value)
 	{
-		TFlowInputData* pPort = m_pInputData + port;
+		TFlowInputData* pPort = &m_pInputData[port];
 		return pPort->SetValueWithConversion(value);
 	}
 	TFlowInputData* GetInputPort(TFlowPortId port)
 	{
-		TFlowInputData* pPort = m_pInputData + port;
+		TFlowInputData* pPort = &m_pInputData[port];
 		return pPort;
 	}
 
@@ -112,6 +114,7 @@ public:
 	virtual int      GetNumInputPorts() const           { return m_nInputs; }
 	virtual int      GetNumOutputPorts() const          { return m_nOutputs; }
 	virtual EntityId GetCurrentForwardingEntity() const { return m_forwardingEntityID; }
+	virtual TFlowInputData* GetInputData() const        { return m_pInputData.get(); };
 	//////////////////////////////////////////////////////////////////////////
 	// ~IFlowNodeData
 	//////////////////////////////////////////////////////////////////////////
@@ -135,7 +138,7 @@ public:
 
 	void GetMemoryUsage(ICrySizer* pSizer) const
 	{
-		pSizer->AddObject((char*)m_pInputData - 4, (sizeof(*m_pInputData) * m_nInputs) + 4);
+		pSizer->AddObject((char*)m_pInputData.get() - 4, (sizeof(*m_pInputData.get()) * m_nInputs) + 4);
 
 		for (int i = 0; i < m_nInputs; i++)
 		{
@@ -149,8 +152,8 @@ public:
 private:
 	// REMEMBER: When adding members update CFlowData::Swap(CFlowData&)
 	// should be well packed
-	TFlowInputData* m_pInputData;
-	int* m_pOutputFirstEdge;
+	std::unique_ptr<TFlowInputData[]> m_pInputData;
+	std::unique_ptr<int[]> m_pOutputFirstEdge;
 	IFlowNodePtr m_pImpl;
 	string m_name;
 	HSCRIPTFUNCTION m_getFlowgraphForwardingEntity;
@@ -160,6 +163,7 @@ private:
 	uint16 m_typeId : TYPE_BITS;
 	uint16 m_hasEntity : 1; // note: subsequent bitfields need to have the same variable type to be packed together in msvc (it's implementation defined ch.9.6)
 	uint16 m_failedGettingFlowgraphForwardingEntity : 1;
+	CryGUID m_entityGuid;
 
 	void              DoGetConfiguration(SFlowNodeConfig& config) const;
 	bool              ForwardingActivated(IFlowNode::SActivationInfo*, IFlowNode::EFlowEvent);
@@ -176,7 +180,7 @@ ILINE void CFlowData::ClearInputActivations()
 
 ILINE void CFlowData::CompleteActivationInfo(IFlowNode::SActivationInfo* pActInfo)
 {
-	pActInfo->pInputPorts = m_pInputData + m_hasEntity;
+	pActInfo->pInputPorts = m_pInputData.get() + m_hasEntity;
 }
 
 ILINE void CFlowData::Activated(IFlowNode::SActivationInfo* pActInfo, IFlowNode::EFlowEvent event)

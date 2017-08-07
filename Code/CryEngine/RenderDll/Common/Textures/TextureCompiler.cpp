@@ -222,16 +222,29 @@ static bool CopyDummy(const char* szImposter, const char* szSrcFile, const char*
 	return success;
 }
 
-static bool CopyResult(const char* szSrcFile, const char* szDstFile)
+static bool MoveAssetFile(const char* szSrcFile, const char* szDstFile)
 {
 	bool success = true;
 
 	if (strcmp(szSrcFile, szDstFile))
 	{
-		success = true;
-
-		if (GetFileAttributes(szDstFile) != INVALID_FILE_ATTRIBUTES)
+		const auto attributes = GetFileAttributes(szDstFile);
+		if (attributes != INVALID_FILE_ATTRIBUTES)
 		{
+			if ((attributes & FILE_ATTRIBUTE_READONLY) != 0)
+			{
+				// CE-12815. Should be able to compile tiff to dds if .cryasset file is write protected.
+				if (stricmp(PathUtil::GetExt(szDstFile), "cryasset") == 0)
+				{
+					DeleteFile(szSrcFile);
+					return true;
+				}
+				else
+				{
+					iLog->LogError("Can't write to read-only file: \"%s\"\n", szDstFile);
+					return false;
+				}
+			}
 			success = success && (DeleteFile(szDstFile) != FALSE);
 		}
 
@@ -263,15 +276,20 @@ static bool CopyResult(const char* szSrcFile, const char* szDstFile)
 
 			if (!success)
 			{
-	#if defined(DEBUG) && defined(_DEBUG)
-				iLog->Log("Debug: RN: from \"%s\", to \"%s\"\n", szSrcFile, szDstFile);
-	#endif
+				iLog->LogError("Can't copy from \"%s\" to \"%s\"\n", szSrcFile, szDstFile);
 			}
 		}
 	}
 
 	return success;
 }
+
+static bool IsFileReadOnly(const char* szPath)
+{
+	const auto attributes = GetFileAttributes(szPath);
+	return (attributes != INVALID_FILE_ATTRIBUTES) && ((attributes & FILE_ATTRIBUTE_READONLY) != 0);
+}
+
 
 // RAII handler of temporary asset data.
 class CTemporaryAsset
@@ -434,7 +452,7 @@ private:
 		{
 			const string srcFile = srcPath + file;
 			const string dstFile = dstPath + file;
-			if (!CopyResult(srcFile.c_str(), dstFile.c_str()))
+			if (!MoveAssetFile(srcFile.c_str(), dstFile.c_str()))
 			{
 				return false;
 			}
@@ -744,7 +762,7 @@ bool CTextureCompiler::ProcessTextureIfNeeded(
 		}
 
 		// if both files exist, is the source file newer?
-		if (pSrcFile && pDestFile)
+		if (pSrcFile && pDestFile && !IsFileReadOnly(sFullDestFilename))
 		{
 			ICryPak::FileTime timeSrc = gEnv->pCryPak->GetModificationTime(pSrcFile);
 			ICryPak::FileTime timeDest = gEnv->pCryPak->GetModificationTime(pDestFile);

@@ -214,7 +214,7 @@ CWeapon::CWeapon()
 	m_netNextShot = 0.f;
 	m_pWeaponStats = new CWeaponStats();
 
-	CryCreateClassInstance("AnimationPoseModifier_OperatorQueue", m_BeltModifier);
+	CryCreateClassInstanceForInterface(cryiidof<IAnimationOperatorQueue>(), m_BeltModifier);
 }
 
 //------------------------------------------------------------------------1

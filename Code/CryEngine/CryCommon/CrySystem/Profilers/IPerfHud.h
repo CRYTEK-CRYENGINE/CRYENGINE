@@ -53,7 +53,7 @@ struct ICryPerfHUDWidget : public _reference_target_t
 //! Base Interface for all engine module extensions.
 struct ICryPerfHUD : public ICryUnknown
 {
-	CRYINTERFACE_DECLARE(ICryPerfHUD, 0x268d142e043d464c, 0xa0776580f81b988a);
+	CRYINTERFACE_DECLARE_GUID(ICryPerfHUD, "268d142e-043d-464c-a077-6580f81b988a"_cry_guid);
 
 	struct PerfBucket
 	{

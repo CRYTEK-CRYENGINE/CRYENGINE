@@ -58,6 +58,8 @@ private:
 };
 
 #if ENABLE_DEBUG_KIT
+#include <CryMath/MTPseudoRandom.h>
+
 class CAutoCorruptAndRestore
 {
 public:

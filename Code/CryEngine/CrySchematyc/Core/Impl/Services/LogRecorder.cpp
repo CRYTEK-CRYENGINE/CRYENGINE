@@ -3,7 +3,7 @@
 #include "StdAfx.h"
 #include "LogRecorder.h"
 
-#include <Schematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/Assert.h>
 
 namespace Schematyc
 {
@@ -25,8 +25,8 @@ namespace Schematyc
 
 	void CLogRecorder::VisitMessages(const LogMessageVisitor& visitor)
 	{
-		SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty());
-		if(!visitor.IsEmpty())
+		SCHEMATYC_CORE_ASSERT(visitor);
+		if(visitor)
 		{
 			for(auto recordedMessage : m_recordedMessages)
 			{

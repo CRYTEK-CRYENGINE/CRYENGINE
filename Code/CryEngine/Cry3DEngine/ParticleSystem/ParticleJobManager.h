@@ -73,12 +73,14 @@ public:
 public:
 	void AddEmitter(CParticleEmitter* pEmitter);
 	void AddDeferredRender(CParticleComponentRuntime* pRuntime, const SRenderContext& renderContext);
-	void ScheduleComputeVertices(CParticleComponentRuntime* pComponentRuntime, CRenderObject* pRenderObject, const SRenderContext& renderContext);
+	void ScheduleComputeVertices(IParticleComponentRuntime* pComponentRuntime, CRenderObject* pRenderObject, const SRenderContext& renderContext);
 	void KernelUpdateAll();
 	void SynchronizeUpdate();
 	void DeferredRender();
 
 	// job entry points
+	void Job_UpdateEmitter(uint componentRefIdx);
+	void Job_UpdateComponent(uint componentRefIdx);
 	void Job_AddRemoveParticles(uint componentRefIdx);
 	void Job_UpdateParticles(uint componentRefIdx, SUpdateRange updateRange);
 	void Job_PostUpdateParticles(uint componentRefIdx);
@@ -89,18 +91,14 @@ private:
 	void AddComponentRecursive(CParticleEmitter* pEmitter, size_t parentRefIdx);
 
 	void ScheduleUpdateParticles(uint componentRefIdx);
-	void ScheduleChildrenComponents(SComponentRef& componentRef);
-	void ScheduleCalculateBounds(uint componentRefIdx);
-
-	void DoAddRemove(const SComponentRef& componentRef);
-	void DoCalculateBounds(const SComponentRef& componentRef);
 
 	void ClearAll();
 
-	std::vector<SComponentRef>   m_componentRefs;
-	std::vector<size_t>          m_firstGenComponentsRef;
-	std::vector<SDeferredRender> m_deferredRenders;
-	JobManager::SJobState        m_updateState;
+	std::vector<SComponentRef>     m_componentRefs;
+	std::vector<size_t>            m_firstGenComponentsRef;
+	std::vector<CParticleEmitter*> m_emitterRefs;
+	std::vector<SDeferredRender>   m_deferredRenders;
+	JobManager::SJobState          m_updateState;
 };
 
 }

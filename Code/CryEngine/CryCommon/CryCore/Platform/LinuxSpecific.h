@@ -106,11 +106,14 @@ typedef int32_t  LONG;
 typedef uint32_t ULONG;
 typedef int      HRESULT;
 
+#if !_MSC_EXTENSIONS
 typedef int32    __int32;
-typedef uint32   __uint32;
 typedef int64    __int64;
+
+typedef uint32   __uint32;
 #if !defined(__clang__)
 typedef uint64   __uint64;
+#endif
 #endif
 
 #define THREADID_NULL 0
@@ -129,8 +132,28 @@ typedef unsigned long int threadID;
 #define _PTRDIFF_T_DEFINED 1
 
 #define _A_RDONLY (0x01)
-#define _A_HIDDEN (0x02)
 #define _A_SUBDIR (0x10)
+#define _A_HIDDEN (0x02)
+
+//////////////////////////////////////////////////////////////////////////
+// Win32 FileAttributes.
+//////////////////////////////////////////////////////////////////////////
+#define FILE_ATTRIBUTE_READONLY            0x00000001
+#define FILE_ATTRIBUTE_HIDDEN              0x00000002
+#define FILE_ATTRIBUTE_SYSTEM              0x00000004
+#define FILE_ATTRIBUTE_DIRECTORY           0x00000010
+#define FILE_ATTRIBUTE_ARCHIVE             0x00000020
+#define FILE_ATTRIBUTE_DEVICE              0x00000040
+#define FILE_ATTRIBUTE_NORMAL              0x00000080
+#define FILE_ATTRIBUTE_TEMPORARY           0x00000100
+#define FILE_ATTRIBUTE_SPARSE_FILE         0x00000200
+#define FILE_ATTRIBUTE_REPARSE_POINT       0x00000400
+#define FILE_ATTRIBUTE_COMPRESSED          0x00000800
+#define FILE_ATTRIBUTE_OFFLINE             0x00001000
+#define FILE_ATTRIBUTE_NOT_CONTENT_INDEXED 0x00002000
+#define FILE_ATTRIBUTE_ENCRYPTED           0x00004000
+
+#define INVALID_FILE_ATTRIBUTES            (-1)
 
 typedef struct in_addr_windows
 {

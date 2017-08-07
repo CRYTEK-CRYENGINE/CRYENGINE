@@ -10,6 +10,8 @@ struct IUtilityRenderPass
 	{
 		StretchRectPass = 0,
 		StretchRegionPass,
+		SharpeningUpsamplePass,
+		DownsamplePass,
 		StableDownsamplePass,
 		DepthDownsamplePass,
 		GaussianBlurPass,
@@ -61,6 +63,42 @@ protected:
 
 private:
 	static CStretchRegionPass *s_pPass;
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class CSharpeningUpsamplePass : public IUtilityRenderPass
+{
+public:
+	void Execute(CTexture* pSrcRT, CTexture* pDestRT);
+
+	static EPassId GetPassId() { return EPassId::SharpeningUpsamplePass; }
+
+private:
+	CFullscreenPass m_pass;
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class CDownsamplePass : public IUtilityRenderPass
+{
+public:
+	enum EFilterType
+	{
+		FilterType_Box,
+		FilterType_Tent,
+		FilterType_Gauss,
+		FilterType_Lanczos,
+	};
+
+	void Execute(CTexture* pSrcRT, CTexture* pDestRT, int nSrcW, int nSrcH, int nDstW, int nDstH, EFilterType eFilter);
+
+	static EPassId GetPassId() { return EPassId::DownsamplePass; }
+
+private:
+	CFullscreenPass m_pass;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -143,7 +181,7 @@ public:
 	CClearRegionPass();
 	virtual ~CClearRegionPass();
 
-	void Execute(SDepthTexture* pDepthTex, const int nFlags, const float cDepth, const uint8 cStencil, const uint numRects, const RECT* pRects);
+	void Execute(CTexture* pDepthTex, const int nFlags, const float cDepth, const uint8 cStencil, const uint numRects, const RECT* pRects);
 	void Execute(CTexture* pTex, const ColorF& cClear, const uint numRects, const RECT* pRects);
 
 	static EPassId GetPassId() { return EPassId::ClearRegionPass; }

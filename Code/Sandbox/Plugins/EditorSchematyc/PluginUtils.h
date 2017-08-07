@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <Schematyc/Utils/IString.h>
+#include <CrySchematyc/Utils/IString.h>
 
 namespace CrySchematycEditor {
 namespace Utils {

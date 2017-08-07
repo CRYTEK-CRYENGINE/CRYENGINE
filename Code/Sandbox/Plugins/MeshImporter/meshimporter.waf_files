@@ -1,0 +1,212 @@
+{
+	"NoUberFile" : {
+		"Plugin" :[
+		  "StdAfx.h",
+		  "StdAfx.cpp",
+		  "SandboxPlugin.h",
+		  "SandboxPlugin.cpp"
+		],
+		"MeshCompiler" :[
+		  "../../../CryEngine/Cry3DEngine/MeshCompiler/TangentSpaceCalculation.h",
+		  "../../../CryEngine/Cry3DEngine/MeshCompiler/TangentSpaceCalculation.cpp",
+		  "../../../CryEngine/Cry3DEngine/MeshCompiler/MeshCompiler.h",
+		  "../../../CryEngine/Cry3DEngine/MeshCompiler/MeshCompiler.cpp",
+		  "../../../CryEngine/Cry3DEngine/MeshCompiler/ForsythFaceReorderer.h",
+		  "../../../CryEngine/Cry3DEngine/MeshCompiler/ForsythFaceReorderer.cpp",
+		  "../../../SDKs/TangentBasisComputation/mikkelsen/mikktspace.cpp",
+		  "../../../SDKs/TangentBasisComputation/mikkelsen/mikktspace.h"
+		],
+		"ChunkFile" :[
+		  "../../../CryEngine/Cry3DEngine/CGF/ChunkFileWriters.cpp",
+		  "../../../CryEngine/Cry3DEngine/CGF/ChunkFileReaders.cpp",
+		  "../../../CryEngine/Cry3DEngine/CGF/ChunkFile.cpp"
+		],
+		"RcObject" :[
+		  "TempRcObject.cpp",
+		  "TempRcObject.h",
+		  "SaveRcObject.cpp",
+		  "SaveRcObject.h"
+		],
+		"Code" :[
+		  "RcLoader.h",
+		  "RcLoader.cpp",
+		  "AsyncHelper.h",
+		  "AsyncHelper.cpp",
+		  "AsyncTasks.h",
+		  "AsyncTasks.cpp",
+		  "CallRcTask.h",
+		  "CallRcTask.cpp",
+		  "RcCaller.h",
+		  "RcCaller.cpp",
+		  "CreateMaterialTask.h",
+		  "CreateMaterialTask.cpp",
+		  "TargetMesh.h",
+		  "TargetMesh.cpp",
+		  "EditorMetaData.h",
+		  "EditorMetaData.cpp",
+		  "MaterialHelpers.h",
+		  "MaterialHelpers.cpp",
+		  "TextureHelpers.h",
+		  "TextureHelpers.cpp",
+		  "GenerateCharacter.cpp",
+		  "GenerateCharacter.h",
+		  "RenderHelpers.h",
+		  "ImporterUtil.h",
+		  "ImporterUtil.cpp",
+		  "TextureManager.h",
+		  "TextureManager.cpp",
+		  "AssetImporterFBX.h",
+		  "AssetImporterFBX.cpp",
+		  "AssetImporterImage.h",
+		  "AssetImporterImage.cpp"
+		],
+		"Dialog" :[
+		  "MeshImporterEditor.h",
+		  "MeshImporterEditor.cpp",
+		  "MainDialog.h",
+		  "MainDialog.cpp",
+		  "DialogMesh/DialogMesh_SceneUserData.h",
+		  "DialogMesh/DialogMesh_SceneUserData.cpp",
+		  "DialogCommon.h",
+		  "DialogCommon.cpp",
+		  "DialogCommon_Import.cpp",
+		  "DialogCAF.h",
+		  "DialogCAF.cpp",
+		  "Viewport.h",
+		  "Viewport.cpp",
+		  "SplitViewportContainer.cpp",
+		  "DisplayOptions.h",
+		  "DisplayOptions.cpp",
+		  "SceneUserData.h",
+		  "SceneUserData.cpp",
+		  "MaterialPanel.h",
+		  "MaterialPanel.cpp"
+		],
+		"Dialog/DialogCHR" :[
+		  "DialogCHR/DialogCHR.h",
+		  "DialogCHR/DialogCHR.cpp",
+		  "DialogCHR/DialogCHR_SceneUserData.h",
+		  "DialogCHR/DialogCHR_SceneUserData.cpp"
+		],
+		"Settings" :[
+		  "GlobalImportSettings.h",
+		  "GlobalImportSettings.cpp",
+		  "MaterialSettings.h",
+		  "MaterialSettings.cpp"
+		],
+		"MaterialGenerator" :[
+		  "MaterialGenerator/MaterialGenerator.h",
+		  "MaterialGenerator/MaterialGenerator.cpp"
+		],
+		"AutoLodSettings" :[
+		  "AutoLodSettings.h",
+		  "AutoLodSettings.cpp"
+		],
+		"Serialization" :[
+		  "Serialization/Serialization.h",
+		  "Serialization/Serialization.cpp"
+		],
+		"ProxyGenerator" :[
+		  "ProxyGenerator/PhysicsProxies.h",
+		  "ProxyGenerator/PhysicsProxies.cpp",
+		  "ProxyGenerator/ProxyGenerator.h",
+		  "ProxyGenerator/ProxyGenerator.cpp",
+		  "ProxyGenerator/ProxyData.h",
+		  "ProxyGenerator/ProxyData.cpp",
+		  "ProxyGenerator/PhysProxiesControlsWidget.h",
+		  "ProxyGenerator/PhysProxiesControlsWidget.cpp",
+		  "ProxyGenerator/WriteProxies.h",
+		  "ProxyGenerator/WriteProxies.cpp"
+		],
+		"SkeletonPoser" :[
+		  "SkeletonPoser/SkeletonPoser.h",
+		  "SkeletonPoser/SkeletonPoser.cpp"
+		],
+		"AnimationHelpers" :[
+		  "AnimationHelpers/AnimationHelpers.h",
+		  "AnimationHelpers/AnimationHelpers.cpp"
+		],
+		"SkeletonHelpers" :[
+		  "SkeletonHelpers/SkeletonHelpers.h",
+		  "SkeletonHelpers/SkeletonHelpers.cpp"
+		],
+		"Scene" :[
+		  "Scene/SceneElementTypes.h",
+		  "Scene/SceneElementCommon.h",
+		  "Scene/SceneElementCommon.cpp",
+		  "Scene/SceneElementSourceNode.h",
+		  "Scene/SceneElementSourceNode.cpp",
+		  "Scene/SceneElementPhysProxies.h",
+		  "Scene/SceneElementPhysProxies.cpp",
+		  "Scene/SceneElementProxyGeom.h",
+		  "Scene/SceneElementProxyGeom.cpp",
+		  "Scene/SceneElementSkin.h",
+		  "Scene/SceneElementSkin.cpp",
+		  "Scene/Scene.h",
+		  "Scene/Scene.cpp",
+		  "Scene/SourceSceneHelper.h",
+		  "Scene/SourceSceneHelper.cpp",
+		  "Scene/ProxySceneHelper.h",
+		  "Scene/ProxySceneHelper.cpp"
+		],
+		"Model" :[
+		  "SceneModelCommon.h",
+		  "SceneModelCommon.cpp",
+		  "SceneModel.h",
+		  "SceneModel.cpp",
+		  "SceneModelSingleSelection.h",
+		  "SceneModelSingleSelection.cpp",
+		  "SceneModelSkeleton.h",
+		  "SceneModelSkeleton.cpp",
+		  "MaterialElement.h",
+		  "MaterialElement.cpp",
+		  "MaterialModel.h",
+		  "MaterialModel.cpp",
+		  "TextureModel.h",
+		  "TextureModel.cpp"
+		],
+		"View" :[
+		  "SceneView.h",
+		  "SceneView.cpp",
+		  "SceneContextMenu.h",
+		  "SceneContextMenu.cpp",
+		  "MaterialView.h",
+		  "MaterialView.cpp",
+		  "ComboBoxDelegate.h",
+		  "ComboBoxDelegate.cpp",
+		  "TextureView.h",
+		  "TextureView.cpp"
+		],
+		"ModelProperties" :[
+		  "ModelProperties/ModelProperties.h",
+		  "ModelProperties/ModelProperties.cpp"
+		  ],
+		"Resources" :[
+		  "Resources.qrc",
+		  "PlaceholderIcon.png",
+		  "Yes.png",
+		  "No.png"
+		],
+		"QtCommon" :[
+		  "QtCommon.h",
+		  "QtCommon.cpp"
+		],
+		"FbxTool/FbxTool" :[
+		  "FbxScene.h",
+		  "FbxScene.cpp",
+		  "FbxUtil.h",
+		  "FbxUtil.cpp",
+		  "FbxSdkInclude.h"
+		],
+		"FbxTool/FbxMetaData" :[
+		  "FbxMetaData.h",
+		  "FbxMetaData.cpp",
+		  "NodeProperties.h",
+		  "NodeProperties.cpp"
+		],
+		"FbxTool/Mesh" :[
+		  "CreateEngineMesh.cpp"
+		]
+	}
+}
+

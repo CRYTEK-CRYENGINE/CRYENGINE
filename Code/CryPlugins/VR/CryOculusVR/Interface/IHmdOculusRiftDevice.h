@@ -77,11 +77,10 @@ struct SHmdSubmitFrameData
 struct IOculusDevice : public IHmdDevice
 {
 public:
-	virtual bool CreateSwapTextureSetD3D11(IUnknown* d3d11Device, TextureDesc desc, STextureSwapChain* set) = 0;
-	virtual bool CreateMirrorTextureD3D11(IUnknown* d3d11Device, TextureDesc desc, STexture* texture) = 0;
-
 	virtual bool CreateSwapTextureSetD3D12(IUnknown* d3d12CommandQueue, TextureDesc desc, STextureSwapChain* set) = 0;
 	virtual bool CreateMirrorTextureD3D12(IUnknown* d3d12CommandQueue, TextureDesc desc, STexture* texture) = 0;
+	virtual bool CreateSwapTextureSetD3D11(IUnknown* d3d11Device, TextureDesc desc, STextureSwapChain* set) = 0;
+	virtual bool CreateMirrorTextureD3D11(IUnknown* d3d11Device, TextureDesc desc, STexture* texture) = 0;
 
 	virtual void DestroySwapTextureSet(STextureSwapChain* set) = 0;
 	virtual void DestroyMirrorTexture(STexture* texture) = 0;

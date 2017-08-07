@@ -1,15 +1,9 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
+using System.IO;
 using CryEngine.Resources;
 using CryEngine.UI.Components;
 
-using System.IO;
-
-/// <summary>
-/// CE#Framework's UI System, comprized of various elements, components and controllers. Any UIElement must live inside a Canvas. 
-/// A Canvas element functions as the root element for an UI entity. There is no restriction to the amount of UI entities.
-/// The Canvas Element processes input and delegates it to the element in focus. Drawing of the UI to screen or render textures is handled by the Canvas.
-/// </summary>
 namespace CryEngine.UI
 {
 	/// <summary>
@@ -19,23 +13,40 @@ namespace CryEngine.UI
 	{
 		private Panel _image;
 		private Panel _frame;
+		private string _backgroundImageUrl = Path.Combine(DataDirectory, "button.png");
+		private string _backgroundImageInvertedUrl = Path.Combine(DataDirectory, "button_inv.png");
+		private string _frameImageUrl = Path.Combine(DataDirectory, "frame.png");
+		private bool _showPressedFrame = true;
 
-		public ButtonCtrl Ctrl; ///< The controller of the button.
+		/// <summary>
+		/// The controller of the button.
+		/// </summary>
+		public ButtonCtrl Ctrl;
+
+		/// <summary>
+		/// Optional image to be shown on the clickable area.
+		/// </summary>
+		/// <value>The image.</value>
 		public ImageSource Image
 		{
 			set
 			{
-				if (_image == null)
-					_image = SceneObject.Instantiate<Panel>(this);
+				if(_image == null)
+				{
+					_image = Instantiate<Panel>(this);
+				}
 				_image.Background.Source = value;
 				_image.RectTransform.Alignment = Alignment.Center;
 				_image.RectTransform.Size = new Point(value.Width, value.Height);
 				_image.RectTransform.Padding = new Padding(1, 1);
 				_image.RectTransform.ClampMode = ClampMode.Parent;
 			}
-		} ///< Optional image to be shown on the clickable area.
+		}
 
-		private string _backgroundImageUrl = Path.Combine(UIElement.DataDirectory, "button.png");
+		/// <summary>
+		/// The path to the image that will be used for the background of this button.
+		/// </summary>
+		/// <value>The background image URL.</value>
 		public string BackgroundImageUrl
 		{
 			get { return _backgroundImageUrl; }
@@ -44,12 +55,17 @@ namespace CryEngine.UI
 				_backgroundImageUrl = value;
 
 				// Reflect change
-				if (!_frame.Active)
+				if(!_frame.Active)
+				{
 					SetUp();
+				}
 			}
 		}
 
-		private string _backgroundImageInvertedUrl = Path.Combine(UIElement.DataDirectory, "button_inv.png");
+		/// <summary>
+		/// The path to the image that will be used for the background of this button if it is pressed.
+		/// </summary>
+		/// <value>The background image inverted URL.</value>
 		public string BackgroundImageInvertedUrl
 		{
 			get { return _backgroundImageInvertedUrl; }
@@ -58,12 +74,17 @@ namespace CryEngine.UI
 				_backgroundImageInvertedUrl = value;
 
 				// Reflect change
-				if (_frame.Active)
+				if(_frame.Active)
+				{
 					SetDown();
+				}
 			}
 		}
 
-		private string _frameImageUrl = Path.Combine(UIElement.DataDirectory, "frame.png");
+		/// <summary>
+		/// The path to the image that will be shown when the button is pressed.
+		/// </summary>
+		/// <value>The frame image URL.</value>
 		public string FrameImageUrl
 		{
 			get { return _frameImageUrl; }
@@ -77,15 +98,16 @@ namespace CryEngine.UI
 		/// <summary>
 		/// If true, shows a frame around the button when it is pressed.
 		/// </summary>
-		private bool _showPressedFrame = true;
 		public bool ShowPressedFrame
 		{
 			get { return _showPressedFrame; }
 			set
 			{
 				_showPressedFrame = value;
-				if (_showPressedFrame == false)
+				if(_showPressedFrame == false)
+				{
 					_frame.Active = false;
+				}
 			}
 		}
 
@@ -95,8 +117,12 @@ namespace CryEngine.UI
 		public virtual void SetDown()
 		{
 			Background.Source = ResourceManager.ImageFromFile(_backgroundImageInvertedUrl, false);
-			if (_image != null)
+
+			if(_image != null)
+			{
 				_image.RectTransform.Padding = new Padding(1, 2);
+			}
+
 			Ctrl.Text.Offset = new Point(0, 1);
 		}
 
@@ -106,8 +132,12 @@ namespace CryEngine.UI
 		public virtual void SetUp()
 		{
 			Background.Source = ResourceManager.ImageFromFile(_backgroundImageUrl, false);
-			if (_image != null)
+
+			if(_image != null)
+			{
 				_image.RectTransform.Padding = new Padding(1, 1);
+			}
+
 			Ctrl.Text.Offset = new Point(0, 0);
 		}
 
@@ -138,7 +168,7 @@ namespace CryEngine.UI
 			Background.SliceType = SliceType.Nine;
 			Ctrl = AddComponent<ButtonCtrl>();
 
-			_frame = SceneObject.Instantiate<Panel>(this);
+			_frame = Instantiate<Panel>(this);
 			_frame.Background.Source = ResourceManager.ImageFromFile(_frameImageUrl, false);
 			_frame.Background.SliceType = SliceType.Nine;
 			_frame.Background.Color = Color.SkyBlue;
@@ -149,23 +179,21 @@ namespace CryEngine.UI
 
 			Ctrl.OnFocusEnter += () =>
 			{
-				if (ShowPressedFrame)
+				if(ShowPressedFrame)
+				{
 					_frame.Active = true;
+				}
 				SetDown();
 			};
+
 			Ctrl.OnFocusLost += () =>
 			{
 				_frame.Active = false;
 				SetUp();
 			};
-			Ctrl.OnEnterMouse += () =>
-			{
-				SetOver();
-			};
-			Ctrl.OnLeaveMouse += () =>
-			{
-				SetNormal();
-			};
+
+			Ctrl.OnEnterMouse += SetOver;
+			Ctrl.OnLeaveMouse += SetNormal;
 		}
 	}
 }

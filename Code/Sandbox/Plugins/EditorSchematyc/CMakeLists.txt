@@ -21,13 +21,16 @@ add_sources("Uber_EditorPlugin_0.cpp"
 		"CryLinkCommands.cpp"
 		"CryLinkCommands.h"
 	SOURCE_GROUP "Plugin"
-		"MainWindow.cpp"
-		"MainWindow.h"
 		"Plugin.cpp"
 		"Plugin.h"
 		"PluginUtils.cpp"
 		"PluginUtils.h"
 		"ResourceSelectors.cpp"
+	SOURCE_GROUP "AssetTypes"
+		"EntityAssetType.cpp"
+		"EntityAssetType.h"
+		"LibraryAssetType.cpp"
+		"LibraryAssetType.h"
 )
 
 add_sources("Uber_EditorPlugin_2.cpp"
@@ -50,11 +53,18 @@ add_sources("Uber_EditorPlugin_3.cpp"
 		"AbstractObjectModel.h"
 		"AbstractObjectItem.cpp"
 		"AbstractObjectItem.h"
+	SOURCE_GROUP "Script"
+		"ScriptUndo.cpp"
+		"ScriptUndo.h"
 	SOURCE_GROUP "Editor"
 		"NodeGraphRuntimeContext.cpp"
 		"NodeGraphRuntimeContext.h"
 		"NodeGraphClipboard.cpp"
 		"NodeGraphClipboard.h"
+		"SchematycUtils.cpp"
+		"SchematycUtils.h"
+		"MainWindow.cpp"
+		"MainWindow.h"
 	SOURCE_GROUP "GraphView\\\\Model"
 		"GraphViewModel.cpp"
 		"GraphViewModel.h"
@@ -82,6 +92,8 @@ add_sources("Uber_EditorPlugin_3.cpp"
 		"ComponentsModel.h"
 		"ComponentsDictionaryModel.cpp"
 		"ComponentsDictionaryModel.h"
+		"InterfacesDictionaryModel.cpp"
+		"InterfacesDictionaryModel.h"
 		"VariablesModel.cpp"
 		"VariablesModel.h"
 		"VariableItem.cpp"
@@ -118,10 +130,10 @@ target_compile_definitions(${THIS_PROJECT} PRIVATE -DSCHEMATYC_PLUGIN_EXPORTS)
 target_include_directories(${THIS_PROJECT}
 PRIVATE
 	GeneratedFiles
-	${CRYENGINE_DIR}/Code/CryEngine/CryAction
-	${CRYENGINE_DIR}/Code/CryExtensions/CryLink/Interface
-	${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/Core/Interface
-	${CRYENGINE_DIR}/Code/Sandbox/EditorQt/Include
-	${CRYENGINE_DIR}/Code/Sandbox/EditorQt
+	"${CRYENGINE_DIR}/Code/CryEngine/CryAction"
+	"${CRYENGINE_DIR}/Code/CryExtensions/CryLink/Interface"
+	"${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/Core/Interface"
+	"${CRYENGINE_DIR}/Code/Sandbox/EditorQt/Include"
+	"${CRYENGINE_DIR}/Code/Sandbox/EditorQt"
 )
 use_xt()

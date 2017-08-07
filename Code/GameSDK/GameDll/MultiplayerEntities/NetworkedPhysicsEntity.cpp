@@ -270,6 +270,8 @@ void CNetworkedPhysicsEntity::ReadPhysicsParams()
 //------------------------------------------------------------------------
 void CNetworkedPhysicsEntity::SetAuthority( bool auth )
 {
+	// This won't be called as SetAuthority is no more a part of the IGameObjectExtension.
+	// Use ENTITY_EVENT_SET_AUTHORITY instead.
 	if (auth && gEnv->bServer)
 	{
 		if (m_requestedPhysicsType != m_physicsType)

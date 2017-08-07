@@ -67,11 +67,6 @@ template<typename T, typename U> T ILINE Mul(const T& a, const U& b)            
 template<typename T, typename U> T ILINE MAdd(const T& a, const U& b, const T& c) { return a * b + c; }
 
 ///////////////////////////////////////////////////////////////////////////
-// Vectorized functions
-
-float  HMin(floatv v0);
-float  HMax(floatv v0);
-
 // Vector functions
 
 Vec3v Add(const Vec3v& a, const floatv b);
@@ -104,9 +99,14 @@ ColorFv operator*(const ColorFv& a, const ColorFv& b);
 ColorFv operator*(const ColorFv& a, floatv b);
 #endif
 
-// Special
-float  DeltaTime(float  normAge, float  frameTime);
-floatv DeltaTime(floatv normAge, floatv frameTime);
+// Return the correct update time for a particle
+template<typename T>
+T DeltaTime(T frameTime, T normAge, T lifeTime);
+
+// Return the start-time of a particle in the previous frame
+template<typename T>
+T StartTime(T curTime, T frameTime, T normAge);
+
 
 // non vectorized
 
@@ -114,5 +114,13 @@ void RotateAxes(Vec3* v0, Vec3* v1, const float angle);
 Vec3 PolarCoordToVec3(float azimuth, float altitude);
 
 }
+
+// Cry_Math_SSE extension
+template<> struct SIMD_traits<UCol>
+{
+	using scalar_t  = UCol;
+	using vector4_t = pfx2::UColv;
+};
+
 
 #include "ParticleMathImpl.h"

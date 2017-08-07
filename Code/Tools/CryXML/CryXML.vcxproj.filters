@@ -1,0 +1,102 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Source Files\XML">
+      <UniqueIdentifier>{9b4ce45b-add0-4df8-b088-5336262c193b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\XML\expat">
+      <UniqueIdentifier>{55f39952-d7aa-4294-8b99-d179def3b08c}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="CryXML.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="XMLSerializer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="XML\xml.cpp">
+      <Filter>Source Files\XML</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\SDKs\expat\lib-2.1.0\xmlparse.c">
+      <Filter>Source Files\XML\expat</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\SDKs\expat\lib-2.1.0\xmlrole.c">
+      <Filter>Source Files\XML\expat</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\SDKs\expat\lib-2.1.0\xmltok.c">
+      <Filter>Source Files\XML\expat</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="CryXML.def">
+      <Filter>Source Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ICryXML.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="IXMLSerializer.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="XMLSerializer.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="XML\xml.h">
+      <Filter>Source Files\XML</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\SDKs\expat\lib-2.1.0\ascii.h">
+      <Filter>Source Files\XML\expat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\SDKs\expat\lib-2.1.0\asciitab.h">
+      <Filter>Source Files\XML\expat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\SDKs\expat\lib-2.1.0\config.h">
+      <Filter>Source Files\XML\expat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\SDKs\expat\lib-2.1.0\expat.h">
+      <Filter>Source Files\XML\expat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\SDKs\expat\lib-2.1.0\iasciitab.h">
+      <Filter>Source Files\XML\expat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\SDKs\expat\lib-2.1.0\latin1tab.h">
+      <Filter>Source Files\XML\expat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\SDKs\expat\lib-2.1.0\nametab.h">
+      <Filter>Source Files\XML\expat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\SDKs\expat\lib-2.1.0\utf8tab.h">
+      <Filter>Source Files\XML\expat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\SDKs\expat\lib-2.1.0\winconfig.h">
+      <Filter>Source Files\XML\expat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\SDKs\expat\lib-2.1.0\xmlrole.h">
+      <Filter>Source Files\XML\expat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\SDKs\expat\lib-2.1.0\xmltok.h">
+      <Filter>Source Files\XML\expat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\SDKs\expat\lib-2.1.0\xmltok_impl.h">
+      <Filter>Source Files\XML\expat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\SDKs\expat\lib-2.1.0\xmltok_impl_inc.h">
+      <Filter>Source Files\XML\expat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\SDKs\expat\lib-2.1.0\xmltok_ns.h">
+      <Filter>Source Files\XML\expat</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

@@ -1,19 +1,8 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     03/02/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __CCRYDX12TEXTURE3D__
-	#define __CCRYDX12TEXTURE3D__
 
-	#include "DX12/Resource/CCryDX12Resource.hpp"
+#include "DX12/Resource/CCryDX12Resource.hpp"
 
 class CCryDX12Texture3D : public CCryDX12Resource<ID3D11Texture3DToImplement>
 {
@@ -23,8 +12,6 @@ public:
 	static CCryDX12Texture3D* Create(CCryDX12Device* pDevice);
 	static CCryDX12Texture3D* Create(CCryDX12Device* pDevice, CCryDX12SwapChain* pSwapChain, ID3D12Resource* pResource);
 	static CCryDX12Texture3D* Create(CCryDX12Device* pDevice, const FLOAT cClearValue[4], const D3D11_TEXTURE3D_DESC* pDesc, const D3D11_SUBRESOURCE_DATA* pInitialData);
-
-	virtual ~CCryDX12Texture3D();
 
 	#pragma region /* ICryDX12Resource implementation */
 
@@ -45,8 +32,8 @@ public:
 
 	#pragma region /* ID3D11Texture3D implementation */
 
-	virtual void STDMETHODCALLTYPE GetDesc(
-	  _Out_ D3D11_TEXTURE3D_DESC* pDesc) final
+	VIRTUALGFX void STDMETHODCALLTYPE GetDesc(
+	  _Out_ D3D11_TEXTURE3D_DESC* pDesc) FINALGFX
 	{
 		if (pDesc)
 		{
@@ -62,5 +49,3 @@ protected:
 private:
 	D3D11_TEXTURE3D_DESC m_Desc11;
 };
-
-#endif // __CCRYDX12TEXTURE3D__

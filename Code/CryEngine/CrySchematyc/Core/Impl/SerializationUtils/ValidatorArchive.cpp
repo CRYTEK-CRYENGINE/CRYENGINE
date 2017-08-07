@@ -3,9 +3,9 @@
 #include "StdAfx.h"
 #include "ValidatorArchive.h"
 
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/Services/ILog.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/Services/ILog.h>
 
 namespace Schematyc
 {
@@ -80,8 +80,8 @@ bool CValidatorArchive::operator()(Serialization::IContainer& value, const char*
 
 void CValidatorArchive::Validate(const Validator& validator) const
 {
-	SCHEMATYC_CORE_ASSERT(!validator.IsEmpty());
-	if (!validator.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(validator);
+	if (validator)
 	{
 		for (const string& warning : m_warnings)
 		{

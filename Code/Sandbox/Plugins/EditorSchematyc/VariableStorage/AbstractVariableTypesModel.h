@@ -12,13 +12,13 @@ class CDataTypeItem
 public:
 	static const CDataTypeItem& Empty();
 
-	CDataTypeItem(QString name, const QColor& color, const Schematyc::SGUID& guid);
+	CDataTypeItem(QString name, const QColor& color, const CryGUID& guid);
 	virtual ~CDataTypeItem();
 
 	const QString&          GetName() const  { return m_name; }
 	const QColor&           GetColor() const { return m_color; }
 
-	const Schematyc::SGUID& GetGUID() const  { return m_guid; }
+	const CryGUID& GetGUID() const  { return m_guid; }
 
 	bool                    operator==(const CDataTypeItem& other) const;
 	bool                    operator!=(const CDataTypeItem& other) const;
@@ -27,7 +27,7 @@ protected:
 	QString          m_name;
 	QColor           m_color;
 
-	Schematyc::SGUID m_guid;
+	CryGUID m_guid;
 };
 
 inline bool CDataTypeItem::operator==(const CDataTypeItem& other) const
@@ -46,7 +46,7 @@ inline bool CDataTypeItem::operator!=(const CDataTypeItem& other) const
 
 class CDataTypesModel
 {
-	typedef std::unordered_map<Schematyc::SGUID, CDataTypeItem*> TypesByGuid;
+	typedef std::unordered_map<CryGUID, CDataTypeItem*> TypesByGuid;
 	typedef std::vector<CDataTypeItem*>                          TypesByIndex;
 
 public:
@@ -54,7 +54,7 @@ public:
 
 	uint32                  GetTypeItemsCount() const { return m_typesByIndex.size(); }
 	CDataTypeItem*          GetTypeItemByIndex(uint32 index) const;
-	CDataTypeItem*          GetTypeItemByGuid(const Schematyc::SGUID& guid) const;
+	CDataTypeItem*          GetTypeItemByGuid(const CryGUID& guid) const;
 
 private:
 	CDataTypesModel();

@@ -292,6 +292,7 @@ public:
 		, m_fadeTimeActual(0) // physical fade time
 		, m_bUseDijkstraForLRA(true)
 		, m_bIsInitialized(false)
+		, m_bIsGpuSkinning(false)
 	{
 	}
 
@@ -307,6 +308,11 @@ public:
 	 */
 	void                 EnableSimulation(bool enable = true)   { m_config.disableSimulation = !enable; }
 	bool                 IsSimulationEnabled() const            { return !m_config.disableSimulation; }
+
+	bool				 IsGpuSkinning()						{ return m_bIsGpuSkinning; }
+	void                 SetGpuSkinning(bool bGpuSkinning)		{ m_bIsGpuSkinning=bGpuSkinning; }
+
+	bool                 IsVisible();
 
 	const SVClothParams& GetParams() const                      { return m_config; };
 	void                 SetParams(const SVClothParams& params) { m_config = params; };
@@ -384,6 +390,7 @@ private:
 	 * @return True, if distance to camera is les than value; false, otherwise.
 	 */
 	bool CheckCameraDistanceLessThan(float dist) const;
+
 	/**
 	 * Check framerate.
 	 * @return True, if framerate is less than m_config.forceSkinningFpsThreshold; false otherwise.
@@ -439,9 +446,11 @@ private:
 	int                       m_fadeInOutPhysicsDirection; //!< -1 fade out, 1 fade in
 	int                       m_doSkinningForNSteps;       //!< use skinning if any position change has occured, to keep simulation stable
 
-	Vec3                      m_externalDeltaTranslation; //!< delta translation of locator per timestep; is used to determine external influence according to velocity
-	Vec3                      m_permCollidables0Old;      //!< to determine above m_externalDeltaTranslation per step
-	QuatT                     m_location;                 //!< global location / not used in the moment
+	Vec3                      m_externalDeltaTranslation;  //!< delta translation of locator per timestep; is used to determine external influence according to velocity
+	Vec3                      m_permCollidables0Old;       //!< to determine above m_externalDeltaTranslation per step
+	QuatT                     m_location;                  //!< global location / not used in the moment
+
+	bool					  m_bIsGpuSkinning;            //!< true, if simulation is not needed (e.g., due to distance threshold), thus, the cloth can be skinned in total
 
 	// Long Range Attachments
 	std::vector<int> m_lraNotAttachedOrderedIdx; //!< not attached particles: ordered by distance to constraints

@@ -40,6 +40,14 @@ enum EAIStimulusFilterMerge
 	//!< lifetime of the existing stimulus is less than processDelay, else discard.
 };
 
+//! Subtypes of the collision stimulus type
+enum SAICollisionObjClassification
+{
+	AICOL_SMALL,
+	AICOL_MEDIUM,
+	AICOL_LARGE,
+};
+
 struct SAIStimulusParams
 {
 	EAIStimulusType type;

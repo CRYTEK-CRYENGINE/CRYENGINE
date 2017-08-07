@@ -10,50 +10,13 @@
 #include <CrySystem/ISystem.h>
 
 #if !defined(_RELEASE)
-// Define this to enable logging via CAudioLogger.
-// We disable logging for Release builds
+	#define INCLUDE_SDLMIXER_IMPL_PRODUCTION_CODE
 	#define ENABLE_AUDIO_LOGGING
 #endif // _RELEASE
 
 #include <AudioLogger.h>
 
-extern CAudioLogger g_audioImplLogger;
-
-#if !defined(_RELEASE)
-	#define INCLUDE_SDLMIXER_IMPL_PRODUCTION_CODE
-#endif
-
-// Windows (32 or 64)
-//////////////////////////////////////////////////////////////////////////
-#if CRY_PLATFORM_WINDOWS
-#endif
-
-// Windows32
-//////////////////////////////////////////////////////////////////////////
-#if CRY_PLATFORM_WINDOWS && CRY_PLATFORM_32BIT
-#endif
-
-// Windows64
-//////////////////////////////////////////////////////////////////////////
-#if CRY_PLATFORM_WINDOWS && CRY_PLATFORM_64BIT
-#endif
-
-// Mac
-//////////////////////////////////////////////////////////////////////////
-#if CRY_PLATFORM_MAC
-#endif
-
-// Android
-//////////////////////////////////////////////////////////////////////////
-#if CRY_PLATFORM_ANDROID
-#endif
-
-// iOS
-//////////////////////////////////////////////////////////////////////////
-#if CRY_PLATFORM_IOS
-#endif
-
-// Linux
-//////////////////////////////////////////////////////////////////////////
-#if CRY_PLATFORM_LINUX
-#endif
+namespace CryAudio
+{
+extern CLogger g_implLogger;
+} // namespace CryAudio

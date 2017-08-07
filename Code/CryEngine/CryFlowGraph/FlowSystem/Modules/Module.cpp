@@ -8,17 +8,15 @@
 #include "FlowModuleNodes.h"
 
 CFlowGraphModule::CFlowGraphModule(TModuleId moduleId)
-{
-	m_Id = moduleId;
-	m_type = IFlowGraphModule::eT_Global;
-	m_pRootGraph = nullptr;
-	m_nextInstanceId = 0;
-	m_pInstanceBeingCreated = nullptr;
-
-	m_startNodeTypeId = InvalidFlowNodeTypeId;
-	m_returnNodeTypeId = InvalidFlowNodeTypeId;
-	m_callNodeTypeId = InvalidFlowNodeTypeId;
-}
+	: m_Id(moduleId)
+	, m_type(IFlowGraphModule::eT_Global)
+	, m_pRootGraph(nullptr)
+	, m_nextInstanceId(0)
+	, m_pInstanceBeingCreated(nullptr)
+	, m_startNodeTypeId(InvalidFlowNodeTypeId)
+	, m_returnNodeTypeId(InvalidFlowNodeTypeId)
+	, m_callNodeTypeId(InvalidFlowNodeTypeId)
+{ }
 
 CFlowGraphModule::~CFlowGraphModule()
 {
@@ -27,6 +25,8 @@ CFlowGraphModule::~CFlowGraphModule()
 
 void CFlowGraphModule::Destroy()
 {
+	LOADING_TIME_PROFILE_SECTION_ARGS(m_name)
+
 	ClearCallNodesForInstances();
 	ClearGlobalControlNodes();
 
@@ -49,6 +49,8 @@ void CFlowGraphModule::Destroy()
 
 bool CFlowGraphModule::PreLoadModule(const char* fileName)
 {
+	LOADING_TIME_PROFILE_SECTION_ARGS(fileName);
+
 	m_fileName = fileName;
 
 	XmlNodeRef moduleRef = gEnv->pSystem->LoadXmlFromFile(fileName);
@@ -61,18 +63,19 @@ bool CFlowGraphModule::PreLoadModule(const char* fileName)
 
 	assert(!stricmp(moduleRef->getTag(), "Graph"));
 
-	bool module = false;
-	moduleRef->getAttr("isModule", module);
-	assert(module);
+	bool bIsModule = false;
+	moduleRef->getAttr("isModule", bIsModule);
+	assert(bIsModule);
+	if (!bIsModule)
+		return false;
+
+	assert(m_pRootGraph == nullptr);
 
 	XmlString tempName;
 	if (moduleRef->getAttr("moduleName", tempName))
 		m_name = tempName;
 
-	bool bResult = (m_pRootGraph != NULL);
-	assert(m_pRootGraph == NULL);
-
-	// first handle module ports
+	// module ports
 	XmlNodeRef modulePorts = moduleRef->findChild("ModuleInputsOutputs");
 	RemoveModulePorts();
 	if (modulePorts)
@@ -98,15 +101,16 @@ bool CFlowGraphModule::PreLoadModule(const char* fileName)
 		}
 	}
 
-	// and create nodes for this module (needs to be done before actual graph load, so that the
-	//	nodes can be created there)
+	// register call/start/end nodes for this module in the flowsystem (needs to be done before actual graph load)
 	RegisterNodes();
 
-	return bResult;
+	return true;
 }
 
 bool CFlowGraphModule::LoadModuleGraph(const char* moduleName, const char* fileName)
 {
+	LOADING_TIME_PROFILE_SECTION_ARGS(moduleName)
+
 	assert(m_name == moduleName);
 	assert(m_fileName == fileName);
 
@@ -120,28 +124,34 @@ bool CFlowGraphModule::LoadModuleGraph(const char* moduleName, const char* fileN
 
 	assert(!stricmp(moduleRef->getTag(), "Graph"));
 
-	bool module = false;
-	moduleRef->getAttr("isModule", module);
-	assert(module);
+	bool bIsModule = false;
+	moduleRef->getAttr("isModule", bIsModule);
+	assert(bIsModule);
+	if (!bIsModule)
+		return false;
+	assert(m_pRootGraph == nullptr);
 
-	bool bResult = (m_pRootGraph != NULL);
-	assert(m_pRootGraph == NULL);
-
+	bool bResult = false;
 	if (!m_pRootGraph)
 	{
 		IFlowSystem* pSystem = gEnv->pFlowSystem;
 		assert(pSystem);
 
-		// Create graph
+		// Create the runtime graph, to be cloned
 		m_pRootGraph = pSystem->CreateFlowGraph();
 		if (m_pRootGraph)
 		{
 			m_pRootGraph->SerializeXML(moduleRef, true);
 
+			stack_string sTemp = "[Module] ";
+			sTemp.append(moduleName);
+			m_pRootGraph->SetDebugName(sTemp);
+
 			// Root graph is for cloning, so not active!
 			m_pRootGraph->UnregisterFromFlowSystem();
 			m_pRootGraph->SetEnabled(false);
 			m_pRootGraph->SetActive(false);
+
 			bResult = true;
 		}
 	}
@@ -157,8 +167,7 @@ bool CFlowGraphModule::SaveModuleXml(XmlNodeRef saveTo)
 	saveTo->setAttr("isModule", true);
 	saveTo->setAttr("moduleName", m_name);
 
-	// NB: don't save our graph here, just the module ports (graph is saved
-	//	by the calling code)
+	// note: save only module specific data. the actual graph is serialized in CHyperFlowGraph::Serialize as usual
 
 	if (m_moduleInpPorts.size() > 0 || m_moduleOutPorts.size() > 0)
 	{
@@ -186,7 +195,7 @@ bool CFlowGraphModule::SaveModuleXml(XmlNodeRef saveTo)
 
 void CFlowGraphModule::RegisterNodes()
 {
-	IFlowGraphModuleManager* pMgr = gEnv->pFlowSystem ? gEnv->pFlowSystem->GetIModuleManager() : NULL;
+	IFlowGraphModuleManager* pMgr = gEnv->pFlowSystem ? gEnv->pFlowSystem->GetIModuleManager() : nullptr;
 	if (pMgr)
 	{
 		m_startNodeTypeId = gEnv->pFlowSystem->RegisterType(pMgr->GetStartNodeName(m_name), new CFlowModuleStartNodeFactory(this));
@@ -197,7 +206,7 @@ void CFlowGraphModule::RegisterNodes()
 
 void CFlowGraphModule::UnregisterNodes()
 {
-	IFlowGraphModuleManager* pMgr = gEnv->pFlowSystem ? gEnv->pFlowSystem->GetIModuleManager() : NULL;
+	IFlowGraphModuleManager* pMgr = gEnv->pFlowSystem ? gEnv->pFlowSystem->GetIModuleManager() : nullptr;
 	if (pMgr)
 	{
 		gEnv->pFlowSystem->UnregisterType(pMgr->GetStartNodeName(m_name));
@@ -328,8 +337,9 @@ void CFlowGraphModule::RegisterStartNodeForInstanceBeingCreated(CFlowModuleStart
 
 void CFlowGraphModule::CreateInstance(EntityId entityId, TModuleInstanceId runningInstanceId)
 {
-	CRY_PROFILE_REGION_ARG(PROFILE_ACTION, "CFlowGraphModule::CreateInstance", m_name.c_str());
+	LOADING_TIME_PROFILE_SECTION_ARGS(m_name.c_str());
 
+	assert(m_pRootGraph); // can not clone an instance if the root graph is missing to clone from
 	if (m_pRootGraph)
 	{
 		// create instance
@@ -352,6 +362,9 @@ void CFlowGraphModule::CreateInstance(EntityId entityId, TModuleInstanceId runni
 
 		// Enable the instance's inner nodes
 		pGraphClone->SetType(IFlowGraph::eFGT_Module);
+		stack_string cloneGraphName;
+		cloneGraphName.Format("%s (EntityID %u, InstanceID %u)", m_pRootGraph->GetDebugName(), entityId, runningInstanceId);
+		pGraphClone->SetDebugName(cloneGraphName);
 		pGraphClone->SetEnabled(true);
 		pGraphClone->SetActive(true);
 		pGraphClone->InitializeValues();

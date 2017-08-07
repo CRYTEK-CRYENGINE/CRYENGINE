@@ -23,6 +23,7 @@
 #include "LightEntity.h"
 #include "ObjectsTree.h"
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 bool IsAABBInsideHull(const SPlaneObject* pHullPlanes, int nPlanesNum, const AABB& aabbBox);
@@ -267,3 +268,5 @@ uint64 CObjManager::GetShadowFrustumsList(PodArray<CDLight*>* pAffectingLights, 
 	assert(nCastersListId);
 	return nCastersListId;
 }
+
+#pragma warning(pop)

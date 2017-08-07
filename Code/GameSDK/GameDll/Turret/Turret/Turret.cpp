@@ -477,12 +477,6 @@ void CTurret::SetChannelId( uint16 id )
 }
 
 
-void CTurret::SetAuthority( bool authority )
-{
-
-}
-
-
 void CTurret::GetMemoryUsage( ICrySizer* pSizer ) const
 {
 	pSizer->Add( *this );
@@ -679,9 +673,8 @@ void CTurret::OnDestroyed()
 void CTurret::OnPrePhysicsUpdate()
 {
 	IEntity* const pEntity = GetEntity();
-
-	const bool isActive = pEntity->IsActive();
-	if ( ! isActive )
+	
+	if (GetGameObject()->GetUpdateSlotEnables(this, 0) == 0)
 	{
 		const EntityId localPlayerEntityId = g_pGame->GetIGameFramework()->GetClientActorId();
 		const IEntity* const pLocalPlayerEntity = gEnv->pEntitySystem->GetEntity( localPlayerEntityId );
@@ -696,7 +689,7 @@ void CTurret::OnPrePhysicsUpdate()
 				return;
 			}
 
-			pEntity->Activate( true );
+			GetGameObject()->EnableUpdateSlot(this, 0);
 		}
 	}
 
@@ -1080,7 +1073,7 @@ void CTurret::InitMannequinUserParams()
 void CTurret::InitAimProceduralContext()
 {
 	assert( m_pActionController != NULL );
-	m_pAimProceduralContext = static_cast< const CProceduralContextTurretAimPose* >( m_pActionController->FindOrCreateProceduralContext( "ProceduralContextTurretAimPose" ) );
+	m_pAimProceduralContext = static_cast< const CProceduralContextTurretAimPose* >( m_pActionController->FindOrCreateProceduralContext(CProceduralContextTurretAimPose::GetCID()) );
 }
 
 

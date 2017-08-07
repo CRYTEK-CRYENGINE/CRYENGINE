@@ -5,7 +5,7 @@
 
 #include <CryMath/Random.h>
 #include <CrySystem/ITimer.h>
-#include <Schematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/Assert.h>
 
 namespace Schematyc
 {
@@ -17,8 +17,8 @@ CTimerSystem::CTimerSystem()
 
 TimerId CTimerSystem::CreateTimer(const STimerParams& params, const TimerCallback& callback)
 {
-	SCHEMATYC_CORE_ASSERT(!callback.IsEmpty());
-	if (!callback.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(callback);
+	if (callback)
 	{
 		uint64 time = 0;
 		const TimerId timerId = static_cast<TimerId>(ms_nextTimerId++);

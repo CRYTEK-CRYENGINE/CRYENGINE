@@ -311,7 +311,7 @@ void DXGLInitialize(uint32 uNumSharedContexts)
 	NCryOpenGL::CDevice::Configure(uNumSharedContexts);
 }
 
-	#if CRY_OPENGL_SINGLE_CONTEXT
+	#if OGL_SINGLE_CONTEXT
 
 void DXGLBindDeviceContext(ID3D11DeviceContext* pDeviceContext)
 {
@@ -442,7 +442,7 @@ void DXGLIssueFrameFences(ID3D11Device* pDevice)
 
 #endif //!DXGL_FULL_EMULATION
 
-#if defined(DXGL_USE_SDL)
+#if defined(USE_SDL2_VIDEO)
 
 DXGL_API bool DXGLCreateSDLWindow(
   const char* szTitle,
@@ -459,7 +459,7 @@ DXGL_API void DXGLDestroySDLWindow(HWND kHandle)
 	NCryOpenGL::CDevice::DestroySDLWindow(kHandle);
 }
 
-#endif //defined(DXGL_USE_SDL)
+#endif //defined(USE_SDL2_VIDEO)
 
 ////////////////////////////////////////////////////////////////////////////
 //  DxErr Logging and error functions
@@ -503,7 +503,7 @@ DXGL_API HRESULT WINAPI DXTraceW(const char* strFile, DWORD dwLine, HRESULT hr, 
 
 #if !DXGL_FULL_EMULATION
 
-	#if CRY_OPENGL_SINGLE_CONTEXT
+	#if OGL_SINGLE_CONTEXT
 
 SDXGLDeviceContextThreadLocalHandle::SDXGLDeviceContextThreadLocalHandle()
 {

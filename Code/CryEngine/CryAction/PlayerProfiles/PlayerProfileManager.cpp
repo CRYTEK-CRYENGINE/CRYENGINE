@@ -261,6 +261,7 @@ CPlayerProfileManager::~CPlayerProfileManager()
 //------------------------------------------------------------------------
 bool CPlayerProfileManager::Initialize()
 {
+	LOADING_TIME_PROFILE_SECTION;
 	if (m_bInitialized)
 		return true;
 

@@ -29,7 +29,8 @@ LINK_SYSTEM_LIBRARY("version.lib")
 	#include <CryCore/Platform/CryWindows.h>
 	#include <dbghelp.h> // requires <windows.h>
 	#pragma comment( lib, "dbghelp" )
-	#pragma warning(disable: 4244)
+	#pragma warning(push)
+	#pragma warning(disable: 4244) //conversion' conversion from 'type1' to 'type2', possible loss of data
 
 	#ifdef CRY_USE_CRASHRPT
 		#include <CrashRpt.h>
@@ -141,216 +142,219 @@ struct CCrashRptCVars
 	ICVar* sys_crashrpt_appversion = nullptr;
 } g_crashrpt_cvars;
 
-class CCrashRpt
+void CCrashRpt::RegisterCVars()
 {
-public:
-	static void RegisterCVars()
-	{
-		REGISTER_CVAR2("sys_crashrpt", &g_crashrpt_cvars.sys_crashrpt, g_crashrpt_cvars.sys_crashrpt, VF_NULL, "Enable CrashRpt crash reporting library.");
-		g_crashrpt_cvars.sys_crashrpt_server = REGISTER_STRING_CB("sys_crashrpt_server", "http://localhost:80/crashrpt/crashrpt.php", VF_NULL, "CrashRpt server url address for crash submission", &ReInstallCrashRptHandler);
-		g_crashrpt_cvars.sys_crashrpt_privacypolicy = REGISTER_STRING_CB("sys_crashrpt_privacypolicy", "privacy link", VF_NULL, "CrashRpt privacy policy description url", &ReInstallCrashRptHandler);
-		g_crashrpt_cvars.sys_crashrpt_email = REGISTER_STRING_CB("sys_crashrpt_email", "", VF_NULL, "CrashRpt default submission e-mail", &ReInstallCrashRptHandler);
-		g_crashrpt_cvars.sys_crashrpt_appname = REGISTER_STRING_CB("sys_crashrpt_appname", "", VF_NULL, "CrashRpt application name (ex: CRYENGINE)", &ReInstallCrashRptHandler);
-		g_crashrpt_cvars.sys_crashrpt_appversion = REGISTER_STRING_CB("sys_crashrpt_appversion", "", VF_NULL, "CrashRpt optional application version", &ReInstallCrashRptHandler);
-		REGISTER_COMMAND("sys_crashrpt_generate", CmdGenerateCrashReport, VF_CHEAT, "Forces CrashRpt report to be generated");
+	REGISTER_CVAR2("sys_crashrpt", &g_crashrpt_cvars.sys_crashrpt, g_crashrpt_cvars.sys_crashrpt, VF_NULL, "Enable CrashRpt crash reporting library.");
+	g_crashrpt_cvars.sys_crashrpt_server = REGISTER_STRING_CB("sys_crashrpt_server", "http://localhost:80/crashrpt/crashrpt.php", VF_NULL, "CrashRpt server url address for crash submission", &ReInstallCrashRptHandler);
+	g_crashrpt_cvars.sys_crashrpt_privacypolicy = REGISTER_STRING_CB("sys_crashrpt_privacypolicy", "privacy link", VF_NULL, "CrashRpt privacy policy description url", &ReInstallCrashRptHandler);
+	g_crashrpt_cvars.sys_crashrpt_email = REGISTER_STRING_CB("sys_crashrpt_email", "", VF_NULL, "CrashRpt default submission e-mail", &ReInstallCrashRptHandler);
+	g_crashrpt_cvars.sys_crashrpt_appname = REGISTER_STRING_CB("sys_crashrpt_appname", "", VF_NULL, "CrashRpt application name (ex: CRYENGINE)", &ReInstallCrashRptHandler);
+	g_crashrpt_cvars.sys_crashrpt_appversion = REGISTER_STRING_CB("sys_crashrpt_appversion", "", VF_NULL, "CrashRpt optional application version", &ReInstallCrashRptHandler);
+	REGISTER_COMMAND("sys_crashrpt_generate", CmdGenerateCrashReport, VF_CHEAT, "Forces CrashRpt report to be generated");
 
-		// Reinstall crash handler with updated cvar values
-		ReInstallCrashRptHandler(0);
+	// Reinstall crash handler with updated cvar values
+	ReInstallCrashRptHandler(0);
+}
+
+bool CCrashRpt::InstallHandler()
+{
+	g_bCrashRptInstalled = false;
+	if (!g_crashrpt_cvars.sys_crashrpt)
+		return false;
+
+	char appVersionBuffer[256];
+
+	// Define CrashRpt configuration parameters
+	CR_INSTALL_INFOA info;
+	memset(&info, 0, sizeof(CR_INSTALL_INFO));
+	info.cb = sizeof(CR_INSTALL_INFO);
+	info.pszAppName = NULL; //NULL == Use exe filname _T("CRYENGINE");
+	info.pszAppVersion = NULL; //NULL == Extract from the executable  _T("1.0.0");
+	if (g_crashrpt_cvars.sys_crashrpt_appname && 0 != strlen(g_crashrpt_cvars.sys_crashrpt_appname->GetString()))
+	{
+		info.pszAppName = g_crashrpt_cvars.sys_crashrpt_appname->GetString();
+	}
+	if (g_crashrpt_cvars.sys_crashrpt_appversion && 0 != strlen(g_crashrpt_cvars.sys_crashrpt_appversion->GetString()))
+	{
+		info.pszAppVersion = g_crashrpt_cvars.sys_crashrpt_appversion->GetString();
+	}
+	else
+	{
+#if CRY_PLATFORM_WINDOWS
+		SFileVersion ver = GetSystemVersionInfo();
+		ver.ToString(appVersionBuffer);
+		info.pszAppVersion = appVersionBuffer;
+#endif //CRY_PLATFORM_WINDOWS
+	}
+	info.pszEmailSubject = NULL;
+	if (g_crashrpt_cvars.sys_crashrpt_email)
+	{
+		info.pszEmailTo = g_crashrpt_cvars.sys_crashrpt_email->GetString();
+	}
+	if (g_crashrpt_cvars.sys_crashrpt_server)
+	{
+		info.pszUrl = g_crashrpt_cvars.sys_crashrpt_server->GetString();
+	}
+	info.uPriorities[CR_HTTP] = 3;  // First try send report over HTTP
+	info.uPriorities[CR_SMTP] = 2;  // Second try send report over SMTP
+	info.uPriorities[CR_SMAPI] = 1; // Third try send report over Simple MAPI
+									// Install all available exception handlers
+	info.dwFlags |= CR_INST_ALL_POSSIBLE_HANDLERS;
+	info.dwFlags |= CR_INST_SHOW_ADDITIONAL_INFO_FIELDS;
+	info.dwFlags |= CR_INST_AUTO_THREAD_HANDLERS;
+
+	// Define the Privacy Policy URL
+	if (g_crashrpt_cvars.sys_crashrpt_privacypolicy)
+	{
+		info.pszPrivacyPolicyURL = g_crashrpt_cvars.sys_crashrpt_privacypolicy->GetString();
 	}
 
-	static bool InstallHandler()
+	// Install crash reporting
+	int nResult = crInstallA(&info);
+	if (nResult != 0)
 	{
-		g_bCrashRptInstalled = false;
-		if (!g_crashrpt_cvars.sys_crashrpt)
-			return false;
+		// Something goes wrong. Get error message.
+		TCHAR szErrorMsg[512] = "";
+		crGetLastErrorMsg(szErrorMsg, 512);
+		CryLogAlways("%s\n", szErrorMsg);
+		return false;
+	}
+	g_bCrashRptInstalled = true;
 
-		char appVersionBuffer[256];
+	// Take screenshot of the app window at the moment of crash
+	//crAddScreenshot2(CR_AS_MAIN_WINDOW | CR_AS_USE_JPEG_FORMAT, 95);
 
-		// Define CrashRpt configuration parameters
-		CR_INSTALL_INFOA info;
-		memset(&info, 0, sizeof(CR_INSTALL_INFO));
-		info.cb = sizeof(CR_INSTALL_INFO);
-		info.pszAppName = NULL; //NULL == Use exe filname _T("CRYENGINE");
-		info.pszAppVersion = NULL; //NULL == Extract from the executable  _T("1.0.0");
-		if (g_crashrpt_cvars.sys_crashrpt_appname && 0 != strlen(g_crashrpt_cvars.sys_crashrpt_appname->GetString()))
-		{
-			info.pszAppName = g_crashrpt_cvars.sys_crashrpt_appname->GetString();
-		}
-		if (g_crashrpt_cvars.sys_crashrpt_appversion && 0 != strlen(g_crashrpt_cvars.sys_crashrpt_appversion->GetString()))
-		{
-			info.pszAppVersion = g_crashrpt_cvars.sys_crashrpt_appversion->GetString();
-		}
-		else
-		{
-			#if CRY_PLATFORM_WINDOWS
-				SFileVersion ver = GetSystemVersionInfo();
-				ver.ToString(appVersionBuffer);
-				info.pszAppVersion = appVersionBuffer;
-			#endif //CRY_PLATFORM_WINDOWS
-		}
-		info.pszEmailSubject = NULL;
-		if (g_crashrpt_cvars.sys_crashrpt_email)
-		{
-			info.pszEmailTo = g_crashrpt_cvars.sys_crashrpt_email->GetString();
-		}
-		if (g_crashrpt_cvars.sys_crashrpt_server)
-		{
-			info.pszUrl = g_crashrpt_cvars.sys_crashrpt_server->GetString();
-		}
-		info.uPriorities[CR_HTTP] = 3;  // First try send report over HTTP
-		info.uPriorities[CR_SMTP] = 2;  // Second try send report over SMTP
-		info.uPriorities[CR_SMAPI] = 1; // Third try send report over Simple MAPI
-		                                // Install all available exception handlers
-		info.dwFlags |= CR_INST_ALL_POSSIBLE_HANDLERS;
-		info.dwFlags |= CR_INST_SHOW_ADDITIONAL_INFO_FIELDS;
-		info.dwFlags |= CR_INST_AUTO_THREAD_HANDLERS;
-
-		// Define the Privacy Policy URL
-		if (g_crashrpt_cvars.sys_crashrpt_privacypolicy)
-		{
-			info.pszPrivacyPolicyURL = g_crashrpt_cvars.sys_crashrpt_privacypolicy->GetString();
-		}
-
-		// Install crash reporting
-		int nResult = crInstallA(&info);
-		if (nResult != 0)
-		{
-			// Something goes wrong. Get error message.
-			TCHAR szErrorMsg[512] = "";
-			crGetLastErrorMsg(szErrorMsg, 512);
-			CryLogAlways("%s\n", szErrorMsg);
-			return false;
-		}
-		g_bCrashRptInstalled = true;
-
-		// Take screenshot of the app window at the moment of crash
-		//crAddScreenshot2(CR_AS_MAIN_WINDOW | CR_AS_USE_JPEG_FORMAT, 95);
-
-		// Add our log file to the error report
+	// Add our log file to the error report
+	const char* logFileName = gEnv->pLog->GetFileName();
+	if (logFileName)
+	{
+		crAddFile2(logFileName, NULL, "Log File", CR_AF_TAKE_ORIGINAL_FILE | CR_AF_MISSING_FILE_OK | CR_AF_ALLOW_DELETE);
+	}
+	else
+	{
 		crAddFile2("game.log", NULL, "Game Log File", CR_AF_TAKE_ORIGINAL_FILE | CR_AF_MISSING_FILE_OK | CR_AF_ALLOW_DELETE);
 		crAddFile2("editor.log", NULL, "Editor Log File", CR_AF_TAKE_ORIGINAL_FILE | CR_AF_MISSING_FILE_OK | CR_AF_ALLOW_DELETE);
-		crAddFile2("error.log", NULL, "Error log", CR_AF_TAKE_ORIGINAL_FILE | CR_AF_MISSING_FILE_OK | CR_AF_ALLOW_DELETE);
-		crAddFile2("error.jpg", NULL, "Screenshot", CR_AF_TAKE_ORIGINAL_FILE | CR_AF_MISSING_FILE_OK | CR_AF_ALLOW_DELETE);
+	}
+	crAddFile2("error.log", NULL, "Error log", CR_AF_TAKE_ORIGINAL_FILE | CR_AF_MISSING_FILE_OK | CR_AF_ALLOW_DELETE);
+	crAddFile2("error.jpg", NULL, "Screenshot", CR_AF_TAKE_ORIGINAL_FILE | CR_AF_MISSING_FILE_OK | CR_AF_ALLOW_DELETE);
 
-		// Set crash callback function
-		crSetCrashCallback(&CrashCallback, NULL);
+	// Set crash callback function
+	crSetCrashCallback(&CrashCallback, NULL);
 
-		return true;
+	return true;
+}
+
+void CCrashRpt::UninstallHandler()
+{
+	if (g_bCrashRptInstalled)
+	{
+		crUninstall();
+	}
+	g_bCrashRptInstalled = false;
+}
+
+int CALLBACK CCrashRpt::CrashCallback(CR_CRASH_CALLBACK_INFO* pInfo)
+{
+	static volatile bool s_bHandleExceptionInProgressLock = false;
+	if (s_bHandleExceptionInProgressLock)
+	{
+		return CR_CB_CANCEL;
 	}
 
-	static void UninstallHandler()
+	switch (pInfo->nStage)
 	{
-		if (g_bCrashRptInstalled)
-		{
-			crUninstall();
-		}
-		g_bCrashRptInstalled = false;
-	}
-
-	static int CALLBACK CrashCallback(CR_CRASH_CALLBACK_INFO* pInfo)
+	case CR_CB_STAGE_PREPARE:
 	{
-		static volatile bool s_bHandleExceptionInProgressLock = false;
-		if (s_bHandleExceptionInProgressLock)
+		if (gEnv && gEnv->pLog)
 		{
-			return CR_CB_CANCEL;
-		}
-
-		switch (pInfo->nStage)
-		{
-		case CR_CB_STAGE_PREPARE:
-			{
-				if (gEnv && gEnv->pLog)
-				{
-					s_bHandleExceptionInProgressLock = true;
-					((DebugCallStack*)DebugCallStack::instance())->MinimalExceptionReport(pInfo->pExceptionInfo->pexcptrs);
-					s_bHandleExceptionInProgressLock = false;
-				}
-			}
-			break;
-		case CR_CB_STAGE_FINISH:
-			break;
-		}
-
-		// Proceed with crash report generation.
-		// This return code also makes CrashRpt to not call this callback function for
-		// the next crash report generation stage.
-		return CR_CB_NOTIFY_NEXT_STAGE;
-	}
-
-	static void CmdGenerateCrashReport(IConsoleCmdArgs*)
-	{
-		CR_EXCEPTION_INFO ei;
-		memset(&ei, 0, sizeof(CR_EXCEPTION_INFO));
-		ei.cb = sizeof(CR_EXCEPTION_INFO);
-		ei.exctype = CR_SEH_EXCEPTION;
-		ei.code = 1234;
-		ei.pexcptrs = NULL;
-		ei.bManual = TRUE;
-
-		int result = crGenerateErrorReport(&ei);
-		if (result != 0)
-		{
-			// If goes here, crGenerateErrorReport() has failed
-			// Get the last error message
-			char szErrorMsg[256];
-			crGetLastErrorMsg(szErrorMsg, 256);
-			CryLogAlways("%s", szErrorMsg);
+			s_bHandleExceptionInProgressLock = true;
+			((DebugCallStack*)DebugCallStack::instance())->MinimalExceptionReport(pInfo->pExceptionInfo->pexcptrs);
+			s_bHandleExceptionInProgressLock = false;
 		}
 	}
-
-	static void FatalError()
-	{
-		CR_EXCEPTION_INFO ei;
-		memset(&ei, 0, sizeof(CR_EXCEPTION_INFO));
-		ei.cb = sizeof(CR_EXCEPTION_INFO);
-		ei.exctype = CR_CPP_TERMINATE_CALL;
-		ei.code = 1;
-		ei.pexcptrs = NULL;
-		ei.bManual = TRUE;
-		crGenerateErrorReport(&ei);
-		_exit(1); // Immediate termination of process.
+	break;
+	case CR_CB_STAGE_FINISH:
+		break;
 	}
 
-	static void ReInstallCrashRptHandler(ICVar*)
+	// Proceed with crash report generation.
+	// This return code also makes CrashRpt to not call this callback function for
+	// the next crash report generation stage.
+	return CR_CB_NOTIFY_NEXT_STAGE;
+}
+
+void CCrashRpt::CmdGenerateCrashReport(IConsoleCmdArgs*)
+{
+	CR_EXCEPTION_INFO ei;
+	memset(&ei, 0, sizeof(CR_EXCEPTION_INFO));
+	ei.cb = sizeof(CR_EXCEPTION_INFO);
+	ei.exctype = CR_SEH_EXCEPTION;
+	ei.code = 1234;
+	ei.pexcptrs = NULL;
+	ei.bManual = TRUE;
+
+	int result = crGenerateErrorReport(&ei);
+	if (result != 0)
 	{
-		UninstallHandler();
-		InstallHandler();
+		// If goes here, crGenerateErrorReport() has failed
+		// Get the last error message
+		char szErrorMsg[256];
+		crGetLastErrorMsg(szErrorMsg, 256);
+		CryLogAlways("%s", szErrorMsg);
 	}
-	
-	static SFileVersion GetSystemVersionInfo()
-	{
-		SFileVersion productVersion;
+}
+
+void CCrashRpt::FatalError()
+{
+	CR_EXCEPTION_INFO ei;
+	memset(&ei, 0, sizeof(CR_EXCEPTION_INFO));
+	ei.cb = sizeof(CR_EXCEPTION_INFO);
+	ei.exctype = CR_CPP_TERMINATE_CALL;
+	ei.code = 1;
+	ei.pexcptrs = NULL;
+	ei.bManual = TRUE;
+	crGenerateErrorReport(&ei);
+	_exit(1); // Immediate termination of process.
+}
+
+void CCrashRpt::ReInstallCrashRptHandler(ICVar*)
+{
+	UninstallHandler();
+	InstallHandler();
+}
+
+SFileVersion CCrashRpt::GetSystemVersionInfo()
+{
+	SFileVersion productVersion;
 #if CRY_PLATFORM_WINDOWS
-		char moduleName[_MAX_PATH];
+	char moduleName[_MAX_PATH];
 
-		char ver[1024 * 8];
+	char ver[1024 * 8];
 
-		GetModuleFileName(NULL, moduleName, _MAX_PATH);  //retrieves the PATH for the current module
-		#ifndef _LIB
-			cry_strcpy(moduleName, "CrySystem.dll"); // we want to version from the system dll
-		#endif //_LIB
+	GetModuleFileName(NULL, moduleName, _MAX_PATH);  //retrieves the PATH for the current module
+#ifndef _LIB
+	cry_strcpy(moduleName, "CrySystem.dll"); // we want to version from the system dll
+#endif //_LIB
 
-		DWORD dwHandle(0);
-		int verSize = GetFileVersionInfoSize(moduleName, &dwHandle);
-		if (verSize > 0)
-		{
-			GetFileVersionInfo(moduleName, dwHandle, 1024 * 8, ver);
-			VS_FIXEDFILEINFO* vinfo;
-			UINT len(0);
-			VerQueryValue(ver, "\\", (void**)&vinfo, &len);
+	DWORD dwHandle(0);
+	int verSize = GetFileVersionInfoSize(moduleName, &dwHandle);
+	if (verSize > 0)
+	{
+		GetFileVersionInfo(moduleName, dwHandle, 1024 * 8, ver);
+		VS_FIXEDFILEINFO* vinfo;
+		UINT len(0);
+		VerQueryValue(ver, "\\", (void**)&vinfo, &len);
 
-			const uint32 verIndices[4] = { 0, 1, 2, 3 };
+		const uint32 verIndices[4] = { 0, 1, 2, 3 };
 
-			productVersion.v[verIndices[0]] = vinfo->dwFileVersionLS & 0xFFFF;
-			productVersion.v[verIndices[1]] = vinfo->dwFileVersionLS >> 16;
-			productVersion.v[verIndices[2]] = vinfo->dwFileVersionMS & 0xFFFF;
-			productVersion.v[verIndices[3]] = vinfo->dwFileVersionMS >> 16;
-		}
-#endif //CRY_PLATFORM_WINDOWS
-		return productVersion;
+		productVersion.v[verIndices[0]] = vinfo->dwFileVersionLS & 0xFFFF;
+		productVersion.v[verIndices[1]] = vinfo->dwFileVersionLS >> 16;
+		productVersion.v[verIndices[2]] = vinfo->dwFileVersionMS & 0xFFFF;
+		productVersion.v[verIndices[3]] = vinfo->dwFileVersionMS >> 16;
 	}
-	
-};
+#endif //CRY_PLATFORM_WINDOWS
+	return productVersion;
+}
 
 	#endif //CRY_USE_CRASHRPT
 
@@ -629,8 +633,6 @@ int DebugCallStack::updateCallStack(EXCEPTION_POINTERS* pex)
 //////////////////////////////////////////////////////////////////////////
 void DebugCallStack::FillStackTrace(int maxStackEntries, int skipNumFunctions, HANDLE hThread)
 {
-	HANDLE hProcess = GetCurrentProcess();
-
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 
@@ -666,7 +668,7 @@ void DebugCallStack::FillStackTrace(int maxStackEntries, int skipNumFunctions, H
 	//While there are still functions on the stack..
 	for (count = 0; count < maxStackEntries && b_ret == TRUE; count++)
 	{
-		b_ret = StackWalk64(MachineType, hProcess, hThread, &stack_frame, &m_context, NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL);
+		b_ret = StackWalk64(MachineType, GetCurrentProcess(), hThread, &stack_frame, &m_context, NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL);
 
 		if (count < skipNumFunctions)
 			continue;
@@ -1278,6 +1280,8 @@ void DebugCallStack::MinimalExceptionReport(EXCEPTION_POINTERS* exception_pointe
 	if (!gEnv || !gEnv->pLog)
 		return;
 
+	int prev_sys_no_crash_dialog = g_cvars.sys_no_crash_dialog;
+
 	gEnv->bIgnoreAllAsserts = true;
 	g_cvars.sys_no_crash_dialog = 1;
 	g_cvars.sys_asserts = 0;
@@ -1329,6 +1333,25 @@ void DebugCallStack::MinimalExceptionReport(EXCEPTION_POINTERS* exception_pointe
 		doneSymbols();
 	}
 	CaptureScreenshot();
+
+	g_cvars.sys_no_crash_dialog = prev_sys_no_crash_dialog;
+	const bool bQuitting = !gEnv || !gEnv->pSystem || gEnv->pSystem->IsQuitting();
+	if (g_cvars.sys_no_crash_dialog == 0 && g_bUserDialog && gEnv->IsEditor() && !bQuitting && exception_pointer)
+	{
+		EQuestionResult res = CryMessageBox("WARNING!\n\nThe engine / game / editor crashed and is now unstable.\r\nSaving may cause level corruption or further crashes.\r\n\r\nProceed with Save ? ", "Crash", eMB_YesCancel);
+		if (res == eQR_Yes)
+		{
+			// Make one additional backup.
+			if (BackupCurrentLevel())
+			{
+				CryMessageBox("Level has been successfully saved!\r\nPress Ok to terminate Editor.", "Save");
+			}
+			else
+			{
+				CryMessageBox("Error saving level.\r\nPress Ok to terminate Editor.", "Save", eMB_Error);
+			}
+		}
+	}
 
 	CrySpinLock(&s_exception_handler_lock, 1, 0);
 }
@@ -1684,7 +1707,6 @@ int __cdecl WalkStackFrames(CONTEXT& context, void** pCallstack, int maxStackEnt
 	BOOL b_ret = TRUE; //Setup stack frame
 
 	HANDLE hThread = GetCurrentThread();
-	HANDLE hProcess = GetCurrentProcess();
 
 	STACKFRAME64 stack_frame;
 
@@ -1712,7 +1734,7 @@ int __cdecl WalkStackFrames(CONTEXT& context, void** pCallstack, int maxStackEnt
 	//While there are still functions on the stack..
 	for (count = 0; count < maxStackEntries && b_ret == TRUE; count++)
 	{
-		b_ret = StackWalk64(MachineType, hProcess, hThread, &stack_frame, &context, NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL);
+		b_ret = StackWalk64(MachineType, GetCurrentProcess(), hThread, &stack_frame, &context, NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL);
 		pCallstack[count] = (void*)(stack_frame.AddrPC.Offset);
 	}
 	return count;
@@ -1728,8 +1750,6 @@ int DebugCallStack::CollectCallStackFrames(void** pCallstack, int maxStackEntrie
 	}
 
 	CONTEXT context = CaptureCurrentContext();
-
-	HANDLE hProcess = GetCurrentProcess();
 
 	int count = WalkStackFrames(context, pCallstack, maxStackEntries);
 	return count;
@@ -1818,6 +1838,8 @@ int DebugCallStack::PrintException(EXCEPTION_POINTERS* exception_pointer)
 {
 	return DialogBoxParam(gDLLHandle, MAKEINTRESOURCE(IDD_CRITICAL_ERROR), NULL, DebugCallStack::ExceptionDialogProc, (LPARAM)exception_pointer);
 }
+
+	#pragma warning(pop)
 
 #else
 void MarkThisThreadForDebugging(const char*) {}

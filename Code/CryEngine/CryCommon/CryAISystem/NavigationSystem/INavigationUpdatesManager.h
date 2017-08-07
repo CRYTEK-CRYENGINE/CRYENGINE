@@ -2,15 +2,16 @@
 
 #pragma once
 
-struct IPathGraphUpdatesManager
+struct INavigationUpdatesManager
 {
-	virtual ~IPathGraphUpdatesManager() {}
+	virtual ~INavigationUpdatesManager() {}
 
 	virtual void Update() = 0;
 
-	virtual void EntityChanged(int id, const AABB& aabb) = 0;
+	virtual void EntityChanged(int physicalEntityId, const AABB& aabb) = 0;
 	virtual void WorldChanged(const AABB& aabb) = 0;
 
+	virtual void RequestGlobalUpdate() = 0;
 	virtual void RequestGlobalUpdateForAgentType(NavigationAgentTypeID agentTypeID) = 0;
 
 	//! Allow regeneration requests to be executed. 
@@ -21,6 +22,12 @@ struct IPathGraphUpdatesManager
 	//! note: they will be buffered, but not implicitly executed when they are allowed again
 	virtual void DisableRegenerationRequestsAndBuffer() = 0;
 	virtual bool AreRegenerationRequestsDisabled() const = 0;
+
+	//! Returns true if there are any buffered regeneration requests
+	virtual bool HasBufferedRegenerationRequests() const = 0;
+
+	//! Moves buffered regeneration requests to the active requests queue
+	virtual void ApplyBufferedRegenerationRequests() = 0;
 
 	//! Clear the buffered regeneration requests that were received when execution was disabled
 	virtual void ClearBufferedRegenerationRequests() = 0;

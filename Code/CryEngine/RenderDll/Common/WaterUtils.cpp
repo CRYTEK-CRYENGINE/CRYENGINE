@@ -57,7 +57,6 @@ public:
 		  , m_bQuit(false)
 		  , m_fA(1.0f)
 		  , m_fWind(0.0f)
-		  , m_fWindScale(1.0f)
 		  , m_fWorldSizeX(1.0f)
 		  , m_fWorldSizeY(1.0f)
 		  , m_fWorldSizeXInv(1.0f)
@@ -91,11 +90,10 @@ public:
 	/////////////////////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	virtual void Create(float fA, float fWind, float fWindScale, float fWorldSizeX, float fWorldSizeY)       // Create/Initialize water simulation
+	virtual void Create(float fA, float fWind, float fWorldSizeX, float fWorldSizeY)       // Create/Initialize water simulation
 	{
 		m_fA = fA;
 		m_fWind = 0.0f;   //fWind; assume constant direction
-		m_fWindScale = fWindScale;
 		m_fWorldSizeX = fWorldSizeX;
 		m_fWorldSizeY = fWorldSizeY;
 		m_fWorldSizeXInv = 1.f / m_fWorldSizeX;
@@ -613,7 +611,6 @@ protected:
 
 	float m_fA;          // constant value
 	float m_fWind;       // window direction angle
-	float m_fWindScale;  // wind scale
 	float m_fWorldSizeX; // world dimensions
 	float m_fWorldSizeY; // world dimensions
 
@@ -638,12 +635,12 @@ void WaterAsyncUpdate(CWaterSim* pWaterSim, int nFrameID, float fTime, bool bOnl
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void CWater::Create(float fA, float fWind, float fWindScale, float fWorldSizeX, float fWorldSizeY)
+void CWater::Create(float fA, float fWind, float fWorldSizeX, float fWorldSizeY)
 {
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Water Sim");
 	Release();
 	m_pWaterSim = CryAlignedNew<CWaterSim>(); //::GetInstance();
-	m_pWaterSim->Create(fA, fWind, fWindScale, fWorldSizeX, fWorldSizeY);
+	m_pWaterSim->Create(fA, fWind, fWorldSizeX, fWorldSizeY);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////

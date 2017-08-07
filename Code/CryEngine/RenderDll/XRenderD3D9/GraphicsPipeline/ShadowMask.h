@@ -39,12 +39,6 @@ private:
 	CStandardGraphicsPipeline::SViewInfo                    m_viewInfo[2];
 	int                                                     m_viewInfoCount;
 
-	int                                                     m_samplerComparison;
-	int                                                     m_samplerPointClamp;
-	int                                                     m_samplerPointWrap;
-	int                                                     m_samplerBilinearWrap;
-	int                                                     m_samplerTrilinearBorder;
-
 	int                                                     m_sunShadowPrimitives;
 	int                                                     m_localLightPrimitives;
 };

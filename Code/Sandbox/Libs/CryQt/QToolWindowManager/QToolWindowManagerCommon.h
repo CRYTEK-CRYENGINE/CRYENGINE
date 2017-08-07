@@ -1,11 +1,12 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
-
 // Configuration option names - descriptions below are based on default implementations
 // For default values, refer to the places these are used.
 // If true, an image will be loaded from resources and used for a dragging handle in multi-tab areas.
 #define QTWM_AREA_IMAGE_HANDLE "areaUseImageHandle"
+// This should provide a path which will be loaded into a QImage to generate area image handle
+#define QTWM_AREA_IMAGE_HANDLE_IMAGE "areaImageHandle"
 // If true, sets document mode on areas.
 #define QTWM_AREA_DOCUMENT_MODE "areaUseDocumentMode"
 // If true, tabs have a close button.
@@ -37,7 +38,8 @@
 #define QTWM_BRING_ALL_TO_FRONT "bringAllToFront"
 // If true, only immediate neighbors will be given space from a widget that gets removed from a splitter.
 #define QTWM_PRESERVE_SPLITTER_SIZES "preserveSplitterSizes"
-
+// If true, together with tabs tools can be docked also to rollup bars
+#define QTWM_SUPPORT_SIMPLE_TOOLS "supportSimpleTools"
 // These should provide a QIcon. They are included in the configuration to allow for wrapping, custom paths, etc.
 #define QTWM_TAB_CLOSE_ICON "tabCloseIcon"
 #define QTWM_SINGLE_TAB_FRAME_CLOSE_ICON "tabFrameCloseIcon"
@@ -53,12 +55,17 @@
 #define QTWM_DROPTARGET_SPLIT_RIGHT "droptargetSplitRight"
 #define QTWM_DROPTARGET_COMBINE "droptargetCombine"
 
+#include <qglobal.h> // need to include here, so we know QT_VERSION
 #if QT_VERSION <= 0x050000
 #include <QVariant>
-#define Q_DECL_OVERRIDE override
+#define Q_DECL_OVERRIDE
 #endif
 
+#ifndef QTWM_DLL
 #define QTWM_DLL
+#endif // ! QTWM_DLL
+
+
 
 #if defined(_WIN32) && defined(QTWM_DLL)
 #ifdef QToolWindowManager_EXPORTS
@@ -77,6 +84,19 @@ enum QTWMReleaseCachingPolicy
 	rcpForget,// Always close and forget widgets when their tabs are closed.
 	rcpDelete // Always close widgets when their tabs are closed, and call deleteLater on them.
 };
+
+enum QTWMWrapperAreaType
+{
+	watTabs,
+	watRollups
+};
+
+enum QTWMToolType
+{
+	ttStandard,
+	ttSimple
+};
+
 
 #include <QWidget>
 #include <QMainWindow>

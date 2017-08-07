@@ -150,11 +150,6 @@ CCryDX12DepthStencilView::CCryDX12DepthStencilView(ID3D11Resource* pResource11, 
 	m_DX12View.HasDesc(false);
 }
 
-CCryDX12DepthStencilView::~CCryDX12DepthStencilView()
-{
-
-}
-
 #pragma region /* ID3D11DepthStencilView implementation */
 
 void STDMETHODCALLTYPE CCryDX12DepthStencilView::GetDesc(

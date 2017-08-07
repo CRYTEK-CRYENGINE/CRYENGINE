@@ -252,7 +252,7 @@ static bool synergyClipboard(CSynergyContext* pContext, int* pArgs, Stream* pStr
 		if (format == 0) // Is text
 		{
 			AUTO_LOCK(pContext->m_clipboardLock);
-			size = MIN(size, MAX_CLIPBOARD_SIZE - 1);
+			size = std::min(size, (int)MAX_CLIPBOARD_SIZE - 1);
 			memcpy(pContext->m_clipboardThread, pStream->GetData(), size);
 			pContext->m_clipboardThread[size] = '\0';
 		}
@@ -395,7 +395,7 @@ void CSynergyContext::ThreadEntry()
 				{
 					while (m_packetOverrun > 0)
 					{
-						if (!synergyReceiveFunc(this, s.GetBuffer(), MIN(m_packetOverrun, s.GetBufferSize()), &outLen))
+						if (!synergyReceiveFunc(this, s.GetBuffer(), std::min(m_packetOverrun, s.GetBufferSize()), &outLen))
 						{
 							bReconnect = true;
 							break;

@@ -3,7 +3,7 @@
 #include "StdAfx.h"
 #include "ScriptGraphNodeModel.h"
 
-#include <Schematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/Assert.h>
 
 namespace Schematyc
 {

@@ -132,20 +132,20 @@ struct GoalParams;
 #define AIEVENT_PLAYER_STUNT_ARMORED   109
 #define AIEVENT_PLAYER_STAMP_MELEE     110
 
-#define AIREADIBILITY_INTERESTING    5
-#define AIREADIBILITY_SEEN           10
-#define AIREADIBILITY_LOST           20
-#define AIREADIBILITY_NORMAL         30
-#define AIREADIBILITY_NOPRIORITY     1
+#define AIREADIBILITY_INTERESTING      5
+#define AIREADIBILITY_SEEN             10
+#define AIREADIBILITY_LOST             20
+#define AIREADIBILITY_NORMAL           30
+#define AIREADIBILITY_NOPRIORITY       1
 
-#define AIGOALPIPE_LOOP              0
-#define AIGOALPIPE_RUN_ONCE          1 // Todo: Not working yet - see PipeUser.cpp
-#define AIGOALPIPE_NOTDUPLICATE      2
-#define AIGOALPIPE_HIGHPRIORITY      4  // It will be not removed when a goal pipe is selected.
-#define AIGOALPIPE_SAMEPRIORITY      8  // Sets the priority to be the same as active goal pipe.
-#define AIGOALPIPE_DONT_RESET_AG     16 // Don't reset the AG Input (by default AG Action input is reset to idle).
-#define AIGOALPIPE_KEEP_LAST_SUBPIPE 32 // Keeps the last inserted subpipe.
-#define AIGOALPIPE_KEEP_ON_TOP       64 // Keeps the inserted subpipe on the top for its duration, FIFO.
+#define AIGOALPIPE_LOOP                0
+#define AIGOALPIPE_RUN_ONCE            1 // Todo: Not working yet - see PipeUser.cpp
+#define AIGOALPIPE_NOTDUPLICATE        2
+#define AIGOALPIPE_HIGHPRIORITY        4  // It will be not removed when a goal pipe is selected.
+#define AIGOALPIPE_SAMEPRIORITY        8  // Sets the priority to be the same as active goal pipe.
+#define AIGOALPIPE_DONT_RESET_AG       16 // Don't reset the AG Input (by default AG Action input is reset to idle).
+#define AIGOALPIPE_KEEP_LAST_SUBPIPE   32 // Keeps the last inserted subpipe.
+#define AIGOALPIPE_KEEP_ON_TOP         64 // Keeps the inserted subpipe on the top for its duration, FIFO.
 
 enum ESignalFilter
 {
@@ -893,30 +893,6 @@ struct IFireCommandHandler
 	// </interfuscator:shuffle>
 };
 
-//! Memento used in CanTargetPointBeReached etc.
-class CTargetPointRequest
-{
-public:
-	CTargetPointRequest()  {}
-	CTargetPointRequest(const Vec3& targetPoint, bool continueMovingAtEnd = true)
-		: targetPoint(targetPoint), pathID(-1), continueMovingAtEnd(continueMovingAtEnd), splitPoint(ZERO) {}
-	ETriState   GetResult() const        { return result; }
-	const Vec3& GetPosition() const      { return targetPoint; }
-	void        SetResult(ETriState res) { result = res; }
-private:
-	// Data is internal to AI (CNavPath)!
-	friend class CNavPath;
-	Vec3 targetPoint;
-	Vec3 splitPoint;
-	int  itIndex;
-	int  itBeforeIndex;
-
-	//! Used to identify the path this was valid for.
-	int       pathID;
-	bool      continueMovingAtEnd;
-	ETriState result;
-};
-
 struct SAIEVENT
 {
 	bool     bFuzzySight;
@@ -1219,14 +1195,14 @@ struct IPuppet
 
 	//! Gets the distance of an AI object to this, along this path.
 	//! \note Must be called with bInit=true first time and then false other time to avoid considering path regeneration after.
-	virtual float                GetDistanceAlongPath(const Vec3& pos, bool bInit) = 0;
+	virtual float                     GetDistanceAlongPath(const Vec3& pos, bool bInit) = 0;
 
-	virtual void                 EnableFire(bool enable) = 0;
-	virtual bool                 IsFireEnabled() const = 0;
-	virtual void                 EnableCoverFire(bool enable) = 0;
-	virtual bool                 IsCoverFireEnabled() const = 0;
-	virtual bool                 GetPosAlongPath(float dist, bool extrapolateBeyond, Vec3& retPos) const = 0;
-	virtual IFireCommandHandler* GetFirecommandHandler() const = 0;
+	virtual void                      EnableFire(bool enable) = 0;
+	virtual bool                      IsFireEnabled() const = 0;
+	virtual void                      EnableCoverFire(bool enable) = 0;
+	virtual bool                      IsCoverFireEnabled() const = 0;
+	virtual bool                      GetPosAlongPath(float dist, bool extrapolateBeyond, Vec3& retPos) const = 0;
+	virtual IFireCommandHandler*      GetFirecommandHandler() const = 0;
 
 	virtual const AIWeaponDescriptor& GetCurrentWeaponDescriptor() const = 0;
 
@@ -1912,7 +1888,7 @@ struct IAICommunicationHandler
 	virtual bool                IsPlayingAnimation() const = 0;
 	virtual bool                IsPlayingSound() const = 0;
 
-	virtual void                OnSoundTriggerFinishedToPlay(const CryAudio::ControlId nTriggerID) = 0;
+	virtual void                OnSoundTriggerFinishedToPlay(CryAudio::ControlId const triggerId) = 0;
 	// </interfuscator:shuffle>
 };
 

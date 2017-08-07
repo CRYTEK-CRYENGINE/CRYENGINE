@@ -248,6 +248,14 @@ void CBuffer::Execute()
 
 void CBuffer::DebugDraw()
 {
+	if (Console::GetInst().ca_DebugCommandBufferFilter)
+	{
+		if ((strcmp(Console::GetInst().ca_DebugCommandBufferFilter, "") != 0) && (strstr(m_state.m_pInstance->m_strFilePath, Console::GetInst().ca_DebugCommandBufferFilter) == nullptr))
+		{
+			return;
+		}
+	}
+
 	float charsize = 1.4f;
 	uint32 yscan = 14;
 	float fColor2[4] = { 1, 0, 1, 1 };

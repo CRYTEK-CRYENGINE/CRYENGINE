@@ -4,6 +4,7 @@
 
 #include <CrySystem/File/ICryPak.h>
 #include <CrySerialization/IArchiveHost.h>
+#include <CrySerialization/STL.h>
 #include <CryDynamicResponseSystem/IDynamicResponseSystem.h>
 
 #include "ResponseManager.h"
@@ -173,13 +174,13 @@ void CResponseManager::QueueSignal(const SSignal& signal)
 bool CResponseManager::CancelSignalProcessing(const SSignal& signalToCancel)
 {
 	bool bSomethingCanceled = false;
-	for (CResponseInstance* runningResponse : m_runningResponses)
+	for (CResponseInstance* pRunningResponse : m_runningResponses)
 	{
-		if ((runningResponse->GetOriginalSender() == signalToCancel.m_pSender || signalToCancel.m_pSender == nullptr)
-		    && (runningResponse->GetSignalName() == signalToCancel.m_signalName || !signalToCancel.m_signalName.IsValid())
-		    && (runningResponse->GetSignalInstanceId() != signalToCancel.m_id))
+		if ((pRunningResponse->GetOriginalSender() == signalToCancel.m_pSender || signalToCancel.m_pSender == nullptr)
+		    && (pRunningResponse->GetSignalName() == signalToCancel.m_signalName || !signalToCancel.m_signalName.IsValid())
+		    && (pRunningResponse->GetSignalInstanceId() != signalToCancel.m_id))
 		{
-			runningResponse->Cancel();
+			pRunningResponse->Cancel();
 			bSomethingCanceled = true;
 		}
 	}
@@ -286,22 +287,27 @@ void CResponseManager::ReleaseInstance(CResponseInstance* pInstance, bool remove
 }
 
 //--------------------------------------------------------------------------------------------------
-void CResponseManager::Reset(bool bResetExecutionCounter)
+void CResponseManager::Reset(bool bResetExecutionCounter, bool bClearAllResponseMappings /* = false */)
 {
 	m_currentlyQueuedSignals.clear();
 
-	for (ResponseInstanceList::iterator it = m_runningResponses.begin(); it != m_runningResponses.end(); ++it)
+	for (CResponseInstance* pRunningResponse : m_runningResponses)
 	{
-		(*it)->Cancel();
-		(*it)->Update();
-		ReleaseInstance(*it, false);
+		pRunningResponse->Cancel();
+		pRunningResponse->Update();
+		ReleaseInstance(pRunningResponse, false);
+	}
+
+	if (bClearAllResponseMappings)
+	{
+		m_mappedSignals.clear();
 	}
 
 	if (bResetExecutionCounter)
 	{
-		for (MappedSignals::iterator it = m_mappedSignals.begin(); it != m_mappedSignals.end(); ++it)
+		for (auto& mappedSignal : m_mappedSignals)
 		{
-			it->second->Reset();
+			mappedSignal.second->Reset();
 		}
 	}
 
@@ -327,12 +333,12 @@ void CResponseManager::Serialize(Serialization::IArchive& ar)
 {
 	if (!m_runningResponses.empty() && ar.isInput())  //easiest way to make sure, we are not modifying responses currently running -> stop all running
 	{
-		for (ResponseInstanceList::iterator it = m_runningResponses.begin(); it != m_runningResponses.end(); ++it)
+		for (CResponseInstance* pRunningResponse : m_runningResponses)
 		{
 			SET_DRS_USER_SCOPED("Reset because of ResponseManager::Serialize");
-			(*it)->Cancel();
-			(*it)->Update();
-			ReleaseInstance(*it, false);
+			pRunningResponse->Cancel();
+			pRunningResponse->Update();
+			ReleaseInstance(pRunningResponse, false);
 		}
 		m_runningResponses.clear();
 	}
@@ -343,20 +349,18 @@ void CResponseManager::Serialize(Serialization::IArchive& ar)
 		{
 			typedef std::map<string, ResponsePtr> SortedMappedSignal;
 			SortedMappedSignal sortedSignals;
-			for (MappedSignals::iterator it = m_mappedSignals.begin(); it != m_mappedSignals.end(); ++it)
+			for (auto& mappedSignal : m_mappedSignals)
 			{
-				sortedSignals[it->first.GetText()] = std::move(it->second);
+				sortedSignals[mappedSignal.first.GetText()] = std::move(mappedSignal.second);
 			}
-
-			for (SortedMappedSignal::iterator it = sortedSignals.begin(); it != sortedSignals.end(); ++it)
+			for (auto& sortedSignal : sortedSignals)
 			{
-				ar(*it->second, it->first.c_str(), it->first.c_str());
+				ar(*sortedSignal.second, sortedSignal.first.c_str(), sortedSignal.first.c_str());
 			}
-
 			m_mappedSignals.clear();
-			for (SortedMappedSignal::iterator it = sortedSignals.begin(); it != sortedSignals.end(); ++it)
+			for (auto& sortedSignal : sortedSignals)
 			{
-				m_mappedSignals[it->first] = std::move(it->second);
+				m_mappedSignals[sortedSignal.first] = std::move(sortedSignal.second);
 			}
 		}
 		else
@@ -367,7 +371,7 @@ void CResponseManager::Serialize(Serialization::IArchive& ar)
 	else
 	{
 		s_currentSignal = PathUtil::GetFileName(s_currentFilePath);
-		m_mappedSignals[s_currentSignal] = ResponsePtr(new CResponse);
+		m_mappedSignals[s_currentSignal] = std::make_shared<CryDRS::CResponse>();
 		m_mappedSignals[s_currentSignal]->Serialize(ar);
 		s_currentSignal.clear();
 	}
@@ -470,7 +474,7 @@ bool CResponseManager::AddResponse(const stack_string& signalName)
 	string copyString = signalName;
 	if (m_mappedSignals.find(copyString) != m_mappedSignals.end())
 		return false;
-	m_mappedSignals[copyString] = ResponsePtr(new CResponse);
+	m_mappedSignals[copyString] = std::make_shared<CryDRS::CResponse>();
 	return true;
 }
 
@@ -731,6 +735,49 @@ bool CResponseManager::HasMappingForSignal(const CHashedString& signalName)
 {
 	return m_mappedSignals.find(signalName) != m_mappedSignals.end();
 
+}
+
+void CryDRS::CResponseManager::OnActorRemoved(const CResponseActor* pActor)
+{
+	//We stop any response that the just removed actor might be running
+	for (ResponseInstanceList::iterator it = m_runningResponses.begin(); it != m_runningResponses.end(); )
+	{
+		CResponseInstance* pCurrent = *it;
+		if (pCurrent->GetCurrentActor() == pActor)
+		{
+			InformListenerAboutSignalProcessingFinished(pCurrent->GetSignalName()
+				, pCurrent->GetOriginalSender()
+				, pCurrent->GetContextVariablesImpl()
+				, pCurrent->GetSignalInstanceId()
+				, pCurrent
+				, IResponseManager::IListener::ProcessingResult_Canceled);
+			pCurrent->Cancel();
+			pCurrent->Update();
+			ReleaseInstance(pCurrent, false);
+			it = m_runningResponses.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
+
+	auto newEndIter = std::remove_if(m_currentlyQueuedSignals.begin(), m_currentlyQueuedSignals.end(),
+		[pActor](const SSignal& signal) { return signal.m_pSender == pActor; });
+
+	if (newEndIter != m_currentlyQueuedSignals.end())
+	{
+		// move signals away to temporary list and report their removal, as it may trigger callbacks and change m_currentlyQueuedSignals
+		SignalList tempSignalsToRemove;
+		tempSignalsToRemove.reserve(std::distance(newEndIter, m_currentlyQueuedSignals.end()));
+		std::move(newEndIter, m_currentlyQueuedSignals.end(), std::back_inserter(tempSignalsToRemove));
+		m_currentlyQueuedSignals.erase(newEndIter, m_currentlyQueuedSignals.end());
+
+		for (const auto& signal : tempSignalsToRemove)
+		{
+			InformListenerAboutSignalProcessingFinished(signal.m_signalName, signal.m_pSender, signal.m_pSignalContext, signal.m_id, nullptr, DRS::IResponseManager::IListener::ProcessingResult_Canceled);
+		}
+	}
 }
 
 //--------------------------------------------------------------------------------------------------

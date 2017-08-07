@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include <Schematyc/Script/IScriptGraph.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/Assert.h>
+#include <CrySchematyc/Script/IScriptGraph.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/Assert.h>
 
 namespace Schematyc
 {
@@ -15,11 +15,11 @@ class CScriptGraphNodeModel;
 struct SScriptGraphNodePort
 {
 	SScriptGraphNodePort();
-	SScriptGraphNodePort(const CUniqueId& _id, const char* _szName, const SGUID& _typeGUID, const ScriptGraphPortFlags& _flags, const CAnyValuePtr& _pData);
+	SScriptGraphNodePort(const CUniqueId& _id, const char* _szName, const CryGUID& _typeGUID, const ScriptGraphPortFlags& _flags, const CAnyValuePtr& _pData);
 
 	CUniqueId            id;
 	string               name;
-	SGUID                typeGUID;
+	CryGUID                typeGUID;
 	ScriptGraphPortFlags flags;
 	CAnyValuePtr         pData;
 };
@@ -41,50 +41,50 @@ public:
 
 	void                        Exchange(CScriptGraphNodeLayout& rhs);
 
-	inline void                 AddInput(const char* szName, const SGUID& typeGUID, const ScriptGraphPortFlags& flags)
+	inline void                 AddInput(const char* szName, const CryGUID& typeGUID, const ScriptGraphPortFlags& flags)
 	{
 		AddInput(CUniqueId::FromIdx(m_inputs.size()), szName, typeGUID, flags, CAnyValuePtr());
 	}
 
-	inline void AddInput(const CUniqueId& id, const char* szName, const SGUID& typeGUID, const ScriptGraphPortFlags& flags)
+	inline void AddInput(const CUniqueId& id, const char* szName, const CryGUID& typeGUID, const ScriptGraphPortFlags& flags)
 	{
 		AddInput(id, szName, typeGUID, flags, CAnyValuePtr());
 	}
 
-	inline void AddInputWithData(const char* szName, const SGUID& typeGUID, const ScriptGraphPortFlags& flags, const CAnyConstRef& value)
+	inline void AddInputWithData(const char* szName, const CryGUID& typeGUID, const ScriptGraphPortFlags& flags, const CAnyConstRef& value)
 	{
 		AddInput(CUniqueId::FromIdx(m_inputs.size()), szName, typeGUID, flags, CAnyValue::CloneShared(value));
 	}
 
-	inline void AddInputWithData(const CUniqueId& id, const char* szName, const SGUID& typeGUID, const ScriptGraphPortFlags& flags, const CAnyConstRef& value)
+	inline void AddInputWithData(const CUniqueId& id, const char* szName, const CryGUID& typeGUID, const ScriptGraphPortFlags& flags, const CAnyConstRef& value)
 	{
 		AddInput(id, szName, typeGUID, flags, CAnyValue::CloneShared(value));
 	}
 
-	inline void AddOutput(const char* szName, const SGUID& typeGUID, const ScriptGraphPortFlags& flags)
+	inline void AddOutput(const char* szName, const CryGUID& typeGUID, const ScriptGraphPortFlags& flags)
 	{
 		AddOutput(CUniqueId::FromIdx(m_outputs.size()), szName, typeGUID, flags, CAnyValuePtr());
 	}
 
-	inline void AddOutput(const CUniqueId& id, const char* szName, const SGUID& typeGUID, const ScriptGraphPortFlags& flags)
+	inline void AddOutput(const CUniqueId& id, const char* szName, const CryGUID& typeGUID, const ScriptGraphPortFlags& flags)
 	{
 		AddOutput(id, szName, typeGUID, flags, CAnyValuePtr());
 	}
 
-	inline void AddOutputWithData(const char* szName, const SGUID& typeGUID, const ScriptGraphPortFlags& flags, const CAnyConstRef& value)
+	inline void AddOutputWithData(const char* szName, const CryGUID& typeGUID, const ScriptGraphPortFlags& flags, const CAnyConstRef& value)
 	{
 		AddOutput(CUniqueId::FromIdx(m_outputs.size()), szName, typeGUID, flags, CAnyValue::CloneShared(value));
 	}
 
-	inline void AddOutputWithData(const CUniqueId& id, const char* szName, const SGUID& typeGUID, const ScriptGraphPortFlags& flags, const CAnyConstRef& value)
+	inline void AddOutputWithData(const CUniqueId& id, const char* szName, const CryGUID& typeGUID, const ScriptGraphPortFlags& flags, const CAnyConstRef& value)
 	{
 		AddOutput(id, szName, typeGUID, flags, CAnyValue::CloneShared(value));
 	}
 
 private:
 
-	void AddInput(const CUniqueId& id, const char* szName, const SGUID& typeGUID, const ScriptGraphPortFlags& flags, const CAnyValuePtr& pData);
-	void AddOutput(const CUniqueId& id, const char* szName, const SGUID& typeGUID, const ScriptGraphPortFlags& flags, const CAnyValuePtr& pData);
+	void AddInput(const CUniqueId& id, const char* szName, const CryGUID& typeGUID, const ScriptGraphPortFlags& flags, const CAnyValuePtr& pData);
+	void AddOutput(const CUniqueId& id, const char* szName, const CryGUID& typeGUID, const ScriptGraphPortFlags& flags, const CAnyValuePtr& pData);
 
 private:
 
@@ -98,15 +98,15 @@ class CScriptGraphNode : public IScriptGraphNode
 {
 public:
 
-	CScriptGraphNode(const SGUID& guid, std::unique_ptr<CScriptGraphNodeModel> pModel);                  // #SchematycTODO : Make pModel the first parameter?
-	CScriptGraphNode(const SGUID& guid, std::unique_ptr<CScriptGraphNodeModel> pModel, const Vec2& pos); // #SchematycTODO : Make pModel the first parameter?
+	CScriptGraphNode(const CryGUID& guid, std::unique_ptr<CScriptGraphNodeModel> pModel);                  // #SchematycTODO : Make pModel the first parameter?
+	CScriptGraphNode(const CryGUID& guid, std::unique_ptr<CScriptGraphNodeModel> pModel, const Vec2& pos); // #SchematycTODO : Make pModel the first parameter?
 
 	// IScriptGraphNode
 	virtual void                 Attach(IScriptGraph& graph) override;
 	virtual IScriptGraph&        GetGraph() override;
 	virtual const IScriptGraph&  GetGraph() const override;
-	virtual SGUID                GetTypeGUID() const override;
-	virtual SGUID                GetGUID() const override;
+	virtual CryGUID                GetTypeGUID() const override;
+	virtual CryGUID                GetGUID() const override;
 	virtual const char*          GetName() const override;
 	virtual const char*          GetStyleId() const override;
 	virtual ScriptGraphNodeFlags GetFlags() const override;
@@ -116,7 +116,7 @@ public:
 	virtual uint32               FindInputById(const CUniqueId& id) const override;
 	virtual CUniqueId            GetInputId(uint32 inputIdx) const override;
 	virtual const char*          GetInputName(uint32 inputIdx) const override;
-	virtual SGUID                GetInputTypeGUID(uint32 inputIdx) const override;
+	virtual CryGUID                GetInputTypeGUID(uint32 inputIdx) const override;
 	virtual ScriptGraphPortFlags GetInputFlags(uint32 inputIdx) const override;
 	virtual CAnyConstPtr         GetInputData(uint32 inputIdx) const override;
 	virtual ColorB               GetInputColor(uint32 inputIdx) const override;
@@ -124,7 +124,7 @@ public:
 	virtual uint32               FindOutputById(const CUniqueId& id) const override;
 	virtual CUniqueId            GetOutputId(uint32 outputIdx) const override;
 	virtual const char*          GetOutputName(uint32 outputIdx) const override;
-	virtual SGUID                GetOutputTypeGUID(uint32 outputIdx) const override;
+	virtual CryGUID                GetOutputTypeGUID(uint32 outputIdx) const override;
 	virtual ScriptGraphPortFlags GetOutputFlags(uint32 outputIdx) const override;
 	virtual CAnyConstPtr         GetOutputData(uint32 outputIdx) const override;
 	virtual ColorB               GetOutputColor(uint32 outputIdx) const override;
@@ -151,7 +151,7 @@ private:
 
 private:
 
-	SGUID                                  m_guid;
+	CryGUID                                  m_guid;
 	std::unique_ptr<CScriptGraphNodeModel> m_pModel;
 	Vec2                                   m_pos = Vec2(ZERO);
 	string                                 m_styleId;

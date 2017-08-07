@@ -70,7 +70,6 @@ inline void remove_trailing(string& str, char c)
 
 namespace spline
 {
-SERIALIZATION_ENUM_IMPLEMENT(ETangentType)
 
 // Float4SplineKey implementation
 

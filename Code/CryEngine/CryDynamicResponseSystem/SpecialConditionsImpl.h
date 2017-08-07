@@ -24,7 +24,6 @@ class CPlaceholderCondition final : public DRS::IResponseCondition
 {
 public:
 	CPlaceholderCondition() { m_Label = "Empty"; }
-	virtual ~CPlaceholderCondition() {}
 
 	//////////////////////////////////////////////////////////
 	// IResponseCondition implementation
@@ -44,7 +43,6 @@ class CRandomCondition final : public DRS::IResponseCondition
 public:
 	CRandomCondition() : m_randomFactor(50) {}
 	CRandomCondition(int factor) : m_randomFactor(factor) {}
-	virtual ~CRandomCondition() {}
 
 	//////////////////////////////////////////////////////////
 	// IResponseCondition implementation
@@ -64,7 +62,6 @@ class CExecutionLimitCondition final : public DRS::IResponseCondition
 public:
 	CExecutionLimitCondition() : m_minExecutions(1), m_maxExecutions(1) {}
 	CExecutionLimitCondition(int minExecutions, int maxExecutions) : m_minExecutions(minExecutions), m_maxExecutions(maxExecutions) {}
-	virtual ~CExecutionLimitCondition() {}
 
 	//////////////////////////////////////////////////////////
 	// IResponseCondition implementation
@@ -86,7 +83,6 @@ class CInheritConditionsCondition final : public DRS::IResponseCondition
 public:
 	CInheritConditionsCondition() {}
 	CInheritConditionsCondition(const CHashedString& signalToReuse) : m_responseToReuse(signalToReuse) {}
-	virtual ~CInheritConditionsCondition() {}
 
 	//////////////////////////////////////////////////////////
 	// IResponseCondition implementation
@@ -102,6 +98,7 @@ private:
 };
 
 //////////////////////////////////////////////////////////////////////////
+// Checks if the time (stored in variable) is in the specified range
 class CTimeSinceCondition final : public IVariableUsingBase, public DRS::IResponseCondition
 {
 public:
@@ -120,6 +117,7 @@ protected:
 };
 
 //////////////////////////////////////////////////////////////////////////
+// Checks if the time since execution of the specified response is in the specified range
 class CTimeSinceResponseCondition final : public DRS::IResponseCondition
 {
 public:
@@ -146,7 +144,7 @@ public:
 	CGameTokenCondition() : m_pCachedToken(nullptr), m_minValue(CVariableValue::NEG_INFINITE), m_maxValue(CVariableValue::POS_INFINITE) {}
 	CGameTokenCondition(const string& tokenName, const CVariableValue& minValue, const CVariableValue& maxValue)
 		: m_tokenName(tokenName), m_pCachedToken(nullptr), m_minValue(minValue), m_maxValue(maxValue) {}
-	virtual ~CGameTokenCondition();
+	virtual ~CGameTokenCondition() override;
 
 	//////////////////////////////////////////////////////////
 	// IResponseCondition implementation

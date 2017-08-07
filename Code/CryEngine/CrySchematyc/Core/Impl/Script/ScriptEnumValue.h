@@ -3,8 +3,8 @@
 #pragma once
 
 #include <CrySerialization/Forward.h>
-#include <Schematyc/Reflection/TypeDesc.h>
-#include <Schematyc/FundamentalTypes.h>
+#include <CrySchematyc/Reflection/TypeDesc.h>
+#include <CrySchematyc/FundamentalTypes.h>
 
 namespace Schematyc
 {

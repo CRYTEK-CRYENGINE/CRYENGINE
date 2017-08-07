@@ -38,12 +38,6 @@ SRenderPipeline::SRenderPipeline()
 
 SRenderPipeline::~SRenderPipeline()
 {
-#if defined(DIRECT3D9) || defined(DIRECT3D10)
-	for (unsigned int i = 0, n = m_CustomVD.Num(); i < n; i++)
-	{
-		delete m_CustomVD[i];
-	}
-#endif
 }
 
 //////////////////////////////////////////////////////////////////////////

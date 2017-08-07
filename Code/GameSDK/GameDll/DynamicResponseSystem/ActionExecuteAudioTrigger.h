@@ -14,8 +14,6 @@ class CActionExecuteAudioTrigger final : public DRS::IResponseAction
 {
 public:
 	CActionExecuteAudioTrigger() : m_bWaitToBeFinished(true) {}
-	CActionExecuteAudioTrigger(const string& triggerName) : m_AudioTriggerName(triggerName), m_bWaitToBeFinished(true) {}
-	virtual ~CActionExecuteAudioTrigger() {}
 
 	//////////////////////////////////////////////////////////
 	// IResponseAction implementation
@@ -35,8 +33,8 @@ private:
 class CActionExecuteAudioTriggerInstance final : public DRS::IResponseActionInstance
 {
 public:
-	CActionExecuteAudioTriggerInstance(IEntityAudioComponent* pAudioProxy, CryAudio::ControlId audioStartTriggerID);
-	virtual ~CActionExecuteAudioTriggerInstance();
+	CActionExecuteAudioTriggerInstance(DRS::IResponseActor* pActor, CryAudio::ControlId audioStartTriggerID);
+	virtual ~CActionExecuteAudioTriggerInstance() override;
 
 	//////////////////////////////////////////////////////////
 	// IResponseActionInstance implementation
@@ -47,6 +45,46 @@ public:
 	void        SetFinished();
 	static void OnAudioTriggerFinished(const CryAudio::SRequestInfo* const pAudioRequestInfo);
 private:
-	CryAudio::ControlId    m_audioStartTriggerID;
-	IEntityAudioComponent* m_pEntityAudioProxy;
+	CryAudio::ControlId  m_audioStartTriggerID;
+	DRS::IResponseActor* m_pActor;
+};
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+class CActionSetAudioSwitch final : public DRS::IResponseAction
+{
+public:
+	//////////////////////////////////////////////////////////
+	// IResponseAction implementation
+	virtual DRS::IResponseActionInstanceUniquePtr Execute(DRS::IResponseInstance* pResponseInstance) override;
+	virtual string                                GetVerboseInfo() const override;
+	virtual void                                  Serialize(Serialization::IArchive& ar) override;
+	virtual const char*                           GetType() const override { return "Set Audio Switch"; }
+	//////////////////////////////////////////////////////////
+
+private:
+	string m_switchName;
+	string m_stateName;
+};
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+class CActionSetAudioParameter final : public DRS::IResponseAction
+{
+public:
+	//////////////////////////////////////////////////////////
+	// IResponseAction implementation
+	virtual DRS::IResponseActionInstanceUniquePtr Execute(DRS::IResponseInstance* pResponseInstance) override;
+	virtual string                                GetVerboseInfo() const override;
+	virtual void                                  Serialize(Serialization::IArchive& ar) override;
+	virtual const char*                           GetType() const override { return "Set Audio Parameter"; }
+	//////////////////////////////////////////////////////////
+
+private:
+	string m_audioParameter;
+	float m_valueToSet = 1.0f;
 };

@@ -3,11 +3,11 @@
 #pragma once
 
 #ifndef MovementBlock_FollowPath_h
-	#define MovementBlock_FollowPath_h
+#define MovementBlock_FollowPath_h
 
-	#include "MovementPlan.h"
-	#include <CryAISystem/MovementStyle.h>
-	#include "MovementHelpers.h"
+#include "MovementPlan.h"
+#include <CryAISystem/MovementStyle.h>
+#include "MovementHelpers.h"
 
 namespace Movement
 {

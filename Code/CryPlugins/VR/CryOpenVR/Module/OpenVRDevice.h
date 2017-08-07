@@ -9,6 +9,7 @@
 #include "OpenVRController.h"
 
 #include <Cry3DEngine/IIndexedMesh.h>
+#include <CryRenderer/IRenderer.h>
 #include <CryRenderer/IStereoRenderer.h>
 
 struct IConsoleCmdArgs;

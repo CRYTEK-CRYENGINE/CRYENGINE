@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		class CHub;
@@ -17,24 +17,25 @@ namespace uqs
 		//
 		//===================================================================================
 
-		class CUtils : public IUtils, public IFactoryDatabaseListener<client::IItemFactory>
+		class CUtils : public IUtils, public IFactoryDatabaseListener<Client::IItemFactory>
 		{
 		public:
 			// IUtils
-			virtual client::IItemFactory*                       FindItemFactoryByType(const shared::CTypeInfo& type) const override;
+			virtual Client::IItemFactory*                           FindItemFactoryByType(const Shared::CTypeInfo& type) const override;
+			virtual const IQueryFactory&                            GetDefaultQueryFactory() const override;
 			// ~IUtils
 
-			// IFactoryDatabaseListener<client::IItemFactory>
-			virtual void                                        OnFactoryRegistered(client::IItemFactory* freshlyRegisteredFactory) override;
-			// ~IFactoryDatabaseListener<client::IItemFactory>
+			// IFactoryDatabaseListener<Client::IItemFactory>
+			virtual void                                            OnFactoryRegistered(Client::IItemFactory* pFreshlyRegisteredFactory) override;
+			// ~IFactoryDatabaseListener<Client::IItemFactory>
 
 			// - called by CHub's ctor + dtor
 			// - this is to ensure that all member variables in CHub are definitely constructed before giving CUtils access to them
-			void                                                SubscribeToStuffInHub(CHub& hub);
-			void                                                UnsubscribeFromStuffInHub(CHub& hub);
+			void                                                    SubscribeToStuffInHub(CHub& hub);
+			void                                                    UnsubscribeFromStuffInHub(CHub& hub);
 
 		private:
-			std::map<shared::CTypeInfo, client::IItemFactory*>  m_type2itemFactory;
+			std::map<Shared::CTypeInfo, Client::IItemFactory*>      m_type2itemFactory;
 		};
 
 	}

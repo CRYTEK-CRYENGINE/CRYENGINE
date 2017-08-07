@@ -25,12 +25,12 @@ public:
 	virtual void SetMatrix(const Matrix34& transform) final;
 
 	//! Gets local bounds of the render node.
-	virtual void       GetLocalBounds(AABB& bbox) final           { bbox = m_boundsLocal; }
+	virtual void       GetLocalBounds(AABB& bbox) final;
 
 	virtual Vec3       GetPos(bool bWorldOnly = true) const final { return m_matrix.GetTranslation(); };
-	virtual const AABB GetBBox() const final                      { return m_boundsWorld; }
+	virtual const AABB GetBBox() const final;
 	virtual void       FillBBox(AABB& aabb) final                 { aabb = GetBBox(); }
-	virtual void       SetBBox(const AABB& WSBBox) final          { m_boundsWorld = WSBBox; };
+	virtual void       SetBBox(const AABB& WSBBox) final          {}
 	virtual void       OffsetPosition(const Vec3& delta) final;
 	virtual void       Render(const struct SRendParams& EntDrawParams, const SRenderingPassInfo& passInfo) final;
 
@@ -38,8 +38,7 @@ public:
 	virtual bool       GetLodDistances(const SFrameLodInfo& frameLodInfo, float* distances) const final;
 
 	//! Gives access to object components.
-	virtual IMaterial*          GetEntitySlotMaterial(unsigned int nPartId, bool bReturnOnlyVisible = false, bool* pbDrawNear = NULL) final { return m_pMaterial; }
-	virtual ICharacterInstance* GetEntityCharacter(unsigned int nSlot, Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false) final {  if(pMatrix) *pMatrix = m_matrix; return m_pCharacterInstance; }
+	virtual ICharacterInstance* GetEntityCharacter(Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false) final {  if(pMatrix) *pMatrix = m_matrix; return m_pCharacterInstance; }
 
 	//! Get physical entity.
 	virtual struct IPhysicalEntity* GetPhysics() const final                 { return m_pPhysicsEntity; };
@@ -60,6 +59,10 @@ public:
 	virtual void       SetCameraSpacePos(Vec3* pCameraSpacePos) final;
 
 	virtual void       GetMemoryUsage(ICrySizer* pSizer) const final {};
+
+	virtual void       SetOwnerEntity(IEntity* pEntity) final { m_pOwnerEntity = pEntity; }
+	virtual IEntity*   GetOwnerEntity() const final           { return m_pOwnerEntity; }
+	virtual bool       IsAllocatedOutsideOf3DEngineDLL()      { return GetOwnerEntity() != nullptr; }
 
 	virtual void       UpdateStreamingPriority(const SUpdateStreamingPriorityContext& streamingContext) final;
 	//////////////////////////////////////////////////////////////////////////
@@ -88,14 +91,17 @@ private:
 	// Override Material used to render node
 	_smart_ptr<IMaterial> m_pMaterial;
 
-	// World space tranformation
+	// World space transformation
 	Matrix34 m_matrix;
-	// World space bounding box
-	AABB     m_boundsWorld;
-	// Local space bounding box
-	AABB     m_boundsLocal;
+	// Cached World space bounding box
+	mutable AABB m_cachedBoundsWorld;
+	// Cached Local space bounding box
+	mutable AABB m_cachedBoundsLocal;
 
 	QuatTS   m_renderOffset;
 
 	Vec3*    m_pCameraSpacePos = nullptr;
+
+	// When render node is created by the entity, pointer to the owner entity.
+	IEntity* m_pOwnerEntity = 0;
 };

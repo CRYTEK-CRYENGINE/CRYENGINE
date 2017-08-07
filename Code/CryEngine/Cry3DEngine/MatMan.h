@@ -89,11 +89,6 @@ public:
 	// Load all known game decal materials.
 	void PreloadDecalMaterials();
 
-	void SetSketchMode(int mode);
-	int  GetSketchMode()        { return e_sketch_mode; }
-	void SetTexelDensityDebug(int mode);
-	int  GetTexelDensityDebug() { return e_texeldensity; }
-
 	//////////////////////////////////////////////////////////////////////////
 	ISurfaceType* GetSurfaceTypeFast(int nSurfaceTypeId, const char* sWhy = NULL) { return m_pSurfaceTypeManager->GetSurfaceTypeFast(nSurfaceTypeId, sWhy); }
 
@@ -124,7 +119,7 @@ private: // --------------------------------------------------------------------
 private:
 	typedef std::map<string, IMaterial*> MtlNameMap;
 
-	CryCriticalSection                m_DelayedDeletionMtlsLock;
+	CryCriticalSection                m_AccessLock;
 
 	MtlNameMap                        m_mtlNameMap;                   //
 
@@ -137,7 +132,7 @@ private:
 
 	std::vector<_smart_ptr<CMatInfo>> m_nonRemovables;                //
 
-	std::vector<_smart_ptr<CMatInfo>> m_DelayedDeletionMtls[MATERIAL_DELETION_DELAY];
+	std::vector<CMatInfo*>            m_DelayedDeletionMtls[MATERIAL_DELETION_DELAY];
 
 	CSurfaceTypeManager*              m_pSurfaceTypeManager;          //
 
@@ -155,11 +150,6 @@ public:
 	// Global namespace "instance", not a class "instance", no member-variables, only const functions;
 	// Used to encapsulate the material-definition/io into Cry3DEngine (and make it plugable that way).
 	static MaterialHelpers s_materialHelpers;
-
-	static int             e_sketch_mode;
-	static int             e_lowspec_mode;
-	static int             e_pre_sketch_spec;
-	static int             e_texeldensity;
 };
 
 #endif // __MatMan_h__

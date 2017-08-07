@@ -34,28 +34,28 @@ const SampleId LoadSampleFromMemory(void* pMemory, const size_t size, const stri
 void           UnloadSample(const SampleId id);
 
 // Events
-SAudioTrigger* CreateEventData();
-bool           ExecuteEvent(SAudioObject* const pAudioObject, SAudioTrigger const* const pEventStaticData, SAudioEvent* const pEventInstance);
-bool           PlayFile(SAudioObject* const pAudioObject, CAudioStandaloneFile* const pFile);
-bool           StopFile(SAudioObject* const pAudioObject, CAudioStandaloneFile* const pFile);
+CTrigger* CreateTrigger();
+bool      ExecuteEvent(CObject* const pObject, CTrigger const* const pTrigger, CEvent* const pEvent);
+bool      PlayFile(CObject* const pObject, CStandaloneFile* const pStandaloneFile);
+bool      StopFile(CObject* const pObject, CStandaloneFile* const pStandaloneFile);
 
 // stops an specific event instance
-bool StopEvent(SAudioEvent const* const pEventInstance);
+bool StopEvent(CEvent const* const pEvent);
 // stops all the events associated with this trigger
-bool StopTrigger(SAudioTrigger const* const pEventData);
+bool StopTrigger(CTrigger const* const pTrigger);
 
 // Listeners
-bool SetListenerPosition(const ListenerId listenerId, const CObjectTransformation& position);
+bool SetListenerPosition(ListenerId const listenerId, CObjectTransformation const& transformation);
 
 // Audio Objects
-bool RegisterAudioObject(SAudioObject* pAudioObjectData);
-bool UnregisterAudioObject(SAudioObject const* const pAudioObjectData);
-bool SetAudioObjectPosition(SAudioObject* pAudioObjectData, const CObjectTransformation& position);
+bool RegisterObject(CObject* const pObject);
+bool UnregisterObject(CObject const* const pObject);
+bool SetObjectTransformation(CObject* const pObject, CObjectTransformation const& transformation);
 
 // Callbacks
 void RegisterEventFinishedCallback(FnEventCallback pCallbackFunction);
 void RegisterStandaloneFileFinishedCallback(FnStandaloneFileCallback pCallbackFunction);
-}
-}
-}
-}
+} // namespace SoundEngine
+} // namespace SDL_mixer
+} // namespace Impl
+} // namespace CryAudio

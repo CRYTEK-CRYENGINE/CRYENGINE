@@ -5,8 +5,6 @@
 
 #include <stdint.h>
 
-#pragma warning(disable: 4355)
-
 namespace util
 {
 //! Simple lightweight intrusive list utility.
@@ -18,10 +16,13 @@ struct list
 	list* next;
 	list* prev;
 
+#pragma warning(push)
+#pragma warning(disable: 4355) // 'this' : used in base member initializer list 
 	list()
 		: next(this)
 		, prev(this)
 	{}
+#pragma warning(pop)
 
 	//! Inserts this list into a given list item between  prev and next (note: they need to be sequential!).
 	void insert(list* _prev, list* _next)

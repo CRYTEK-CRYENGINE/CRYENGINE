@@ -12,7 +12,7 @@ class CPlugin
 {
 public:
 	CRYINTERFACE_SIMPLE(ICryPlugin)
-	CRYGENERATE_SINGLETONCLASS(CPlugin, "Plugin_Sample", 0x2711A23D38484CDD, 0xA95BE9D88FFA23B0)
+	CRYGENERATE_SINGLETONCLASS_GUID(CPlugin, "Plugin_Sample", "2711a23d-3848-4cdd-a95b-e9d88ffa23b0"_cry_guid)
 
 	virtual ~CPlugin();
 	

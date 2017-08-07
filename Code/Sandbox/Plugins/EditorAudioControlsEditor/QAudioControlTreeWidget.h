@@ -4,29 +4,9 @@
 #include <QTreeWidget.h>
 #include <QTreeView>
 #include <QDropEvent>
-#include <QStandardItem>
 #include <QMimeData>
 #include <QSortFilterProxyModel>
 #include <ACETypes.h>
-#include "ATLControlsModel.h"
-
-namespace ACE
-{
-class CATLControl;
-class CATLControlsModel;
-}
-
-class QFolderItem : public QStandardItem
-{
-public:
-	explicit QFolderItem(const QString& sName);
-};
-
-class QAudioControlItem : public QStandardItem
-{
-public:
-	QAudioControlItem(const QString& sName, ACE::CATLControl* pControl);
-};
 
 class QAudioControlSortProxy : public QSortFilterProxyModel
 {

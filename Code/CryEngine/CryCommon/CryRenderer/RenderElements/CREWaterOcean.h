@@ -35,7 +35,8 @@ public:
 	virtual bool            Compile(CRenderObject* pObj) override;
 	virtual void            DrawToCommandList(CRenderObject* pObj, const struct SGraphicsPipelinePassContext& ctx) override;
 
-	virtual void            Create(uint32 nVerticesCount, SVF_P3F_C4B_T2F* pVertices, uint32 nIndicesCount, const void* pIndices, uint32 nIndexSizeof);
+	virtual bool            RequestVerticesBuffer(SVF_P3F_C4B_T2F** pOutputVertices, uint8** pOutputIndices, uint32 nVerticesCount, uint32 nIndicesCount, uint32 nIndexSizeof);
+	virtual bool            SubmitVerticesBuffer(uint32 nVerticesCount, uint32 nIndicesCount, uint32 nIndexSizeof, SVF_P3F_C4B_T2F* pVertices, uint8* pIndices);
 	virtual Vec4*           GetDisplaceGrid() const;
 
 	virtual SHRenderTarget* GetReflectionRenderTarget();
@@ -44,6 +45,18 @@ public:
 	SWaterOceanParam m_oceanParam[RT_COMMAND_BUF_COUNT];
 
 private:
+	struct SUpdateRequest
+	{
+		uint32           nVerticesCount = 0;
+		SVF_P3F_C4B_T2F* pVertices = nullptr;
+		uint32           nIndicesCount = 0;
+		uint8*           pIndices = nullptr;
+		uint32           nIndexSizeof = 0;
+	};
+
+private:
+	void Create(uint32 nVerticesCount, SVF_P3F_C4B_T2F* pVertices, uint32 nIndicesCount, const void* pIndices, uint32 nIndexSizeof);
+	void CreateVertexAndIndexBuffer(threadID threadId);
 	void FrameUpdate();
 	void ReleaseOcean();
 
@@ -61,8 +74,10 @@ private:
 	stream_handle_t                             m_vertexBufferHandle;
 	stream_handle_t                             m_indexBufferHandle;
 
-	uint32 m_nVerticesCount;
-	uint32 m_nIndicesCount;
-	uint32 m_nIndexSizeof;
+	uint32                      m_nVerticesCount;
+	uint32                      m_nIndicesCount;
+	uint32                      m_nIndexSizeof;
+
+	std::vector<SUpdateRequest> m_verticesUpdateRequests[RT_COMMAND_BUF_COUNT];
 
 };

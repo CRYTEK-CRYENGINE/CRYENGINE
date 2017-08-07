@@ -1,0 +1,70 @@
+# Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+from waflib.TaskGen import feature, after_method
+import os
+
+def build(bld):
+
+	bld.CryResourceCompiler(
+		target    = 'ResourceCompiler',
+		vs_filter = 'RC',		
+		file_list = 'resourcecompiler.waf_files',
+		pch       = 'stdafx.cpp',
+		cxxflags  = ['/EHsc'],
+
+		features = ['feature_copy_rc_binaries', 'copy_dbghelp'],
+		use_module = ['zlib', 'md5'],
+
+		release_defines = ['NDEBUG'],
+		debug_defines   = ['_DEBUG'],
+
+		includes = [
+			'.',
+			Path('Code/Tools/CryCommonTools'),
+			Path('Code/Tools/CryXML'),
+			Path('Code/CryEngine/CrySystem/XML'),
+		],
+
+		libpath = Path('Code/Tools/CryCommonTools'),
+		lib     = 'psapi'
+	)
+
+@feature('feature_copy_rc_binaries')
+@after_method('apply_link')
+def feature_copy_rc_binaries(self):
+	bld 			= self.bld
+	platform	= bld.env['PLATFORM']
+	configuration	= bld.env['CONFIGURATION']
+			
+	if platform  == 'project_generator':
+		return
+			
+	output_folder = bld.get_output_folders(platform, configuration)[0]
+	
+	if hasattr(self, 'output_sub_folder'):
+		if os.path.isabs(self.output_sub_folder):
+			output_node = self.bld.root.make_node(self.output_sub_folder)
+		else:
+			output_node = output_folder.make_node(self.output_sub_folder)			
+	
+	# Copy rc.ini into output folder
+	self.create_task('copy_outputs', self.path.make_node('../rc.ini'), output_node.make_node('rc.ini'))
+	
+	# Copy Orbis binaries
+	if os.path.isdir(Path('Code/SDKs/Orbis/host_tools/bin')):
+		orbis_host_tools_node = bld.root.make_node(bld.CreateRootRelativePath('Code/SDKs/Orbis/host_tools/bin'))
+		orbis_bin_config = '_debug' if configuration == 'debug' else ''
+		for binary_name in ['libSceGnm', 'libSceGpuAddress']:
+			final_bin_name = binary_name + orbis_bin_config + '.dll'
+			self.create_task('copy_outputs', orbis_host_tools_node.make_node(final_bin_name), output_node.make_node(final_bin_name))
+
+	# Copy Durango binaries
+	if os.path.isdir(Path('Code/SDKs/DurangoSDK/170300/bin')):
+		durango_bin_path_node = bld.root.make_node(bld.CreateRootRelativePath('Code/SDKs/DurangoSDK/170300/bin'))
+		src_file = durango_bin_path_node.make_node('xg.dll')
+		self.create_task('copy_outputs', durango_bin_path_node.make_node('xg.dll'), output_node.make_node('xg.dll'))
+
+	# Copy PowerVR binaries
+	if os.path.isdir(Path('Code/SDKs/POWERVR/PVRTexLib/Windows_x86_64')):
+		powervr_bin_path_node = bld.root.make_node(bld.CreateRootRelativePath('Code/SDKs/POWERVR/PVRTexLib/Windows_x86_64'))
+		src_file = powervr_bin_path_node.make_node('PVRTexLib.dll')
+		self.create_task('copy_outputs', powervr_bin_path_node.make_node('PVRTexLib.dll'), output_node.make_node('PVRTexLib.dll'))

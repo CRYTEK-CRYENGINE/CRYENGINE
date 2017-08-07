@@ -248,7 +248,6 @@ CLeaderAction_Search::CLeaderAction_Search(CLeader* pLeader, const LeaderActionP
 
 	m_eActionType = LA_SEARCH;
 	m_iSearchSpotAIObjectType = params.iValue ? params.iValue : AIANCHOR_COMBAT_HIDESPOT;
-	m_bUseHideSpots = (m_iSearchSpotAIObjectType & AI_USE_HIDESPOTS) != 0;
 	m_iSearchSpotAIObjectType &= ~AI_USE_HIDESPOTS;
 
 	m_unitProperties = params.unitProperties;
@@ -366,42 +365,6 @@ void CLeaderAction_Search::PopulateSearchSpotList(Vec3& initPos)
 					m_HideSpots.insert(std::make_pair(dist2, SSearchPoint(memoryPos, pTarget->GetViewDir())));
 				}
 			}
-		}
-	}
-
-	if (m_bUseHideSpots)
-	{
-		TUnitList::iterator itu = GetUnitsList().begin();
-		if (itu != itEnd)
-		{
-			CUnitImg& unit = *itu;
-			const CAIActor* pActor = unit.m_refUnit.GetAIObject();
-
-			MultimapRangeHideSpots hidespots;
-			MapConstNodesDistance traversedNodes;
-			GetAISystem()->GetHideSpotsInRange(hidespots, traversedNodes, m_vEnemyPos, m_fSearchDistance,
-			                                   pActor->m_movementAbility.pathfindingProperties.navCapMask, pActor->GetParameters().m_fPassRadius, false);
-
-			MultimapRangeHideSpots::iterator it = hidespots.begin(), ithend = hidespots.end();
-			for (; it != ithend; ++it)
-			{
-				float distance = it->first;
-				const SHideSpot& hs = it->second;
-				Vec3 pos(hs.info.pos);
-				if (hs.info.type == SHideSpotInfo::eHST_TRIANGULAR && hs.pObstacle)
-				{
-					Vec3 dir = (pos - m_vEnemyPos).GetNormalizedSafe();
-					pos += dir * (hs.pObstacle->fApproxRadius + 0.5f + 2 * pActor->m_movementAbility.pathRadius);
-				}
-				if (!bCleared)
-				{
-					// clear the list only if some new spots are actually found around new init position
-					m_HideSpots.clear();
-					bCleared = true;
-				}
-				m_HideSpots.insert(std::make_pair(distance * distance, SSearchPoint(pos, -hs.info.dir, true)));
-			}
-
 		}
 	}
 
@@ -2136,7 +2099,6 @@ void CLeaderAction_Search::Serialize(TSerialize ser)
 	ser.Value("m_vEnemyPos", m_vEnemyPos);
 	ser.Value("m_fSearchDistance", m_fSearchDistance);
 	ser.Value("m_bInitialized", m_bInitialized);
-	ser.Value("m_bUseHideSpots", m_bUseHideSpots);
 	ser.Value("m_iSearchSpotAIObjectType", m_iSearchSpotAIObjectType);
 
 	ser.BeginGroup("HideSpots");

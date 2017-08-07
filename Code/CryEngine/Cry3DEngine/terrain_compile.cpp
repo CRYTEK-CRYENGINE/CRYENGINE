@@ -295,12 +295,12 @@ bool CTerrain::GetCompiledData(byte* pData, int nDataSize, std::vector<struct IS
 
 	pTerrainChunkHeader->nFlags2 = (Get3DEngine()->m_bAreaActivationInUse ? TCH_FLAG2_AREA_ACTIVATION_IN_USE : 0);
 	pTerrainChunkHeader->nChunkSize = nDataSize;
-	pTerrainChunkHeader->TerrainInfo.nHeightMapSize_InUnits = m_nSectorSize * GetSectorsTableSize(nSID) / m_nUnitSize;
-	pTerrainChunkHeader->TerrainInfo.nUnitSize_InMeters = m_nUnitSize;
-	pTerrainChunkHeader->TerrainInfo.nSectorSize_InMeters = m_nSectorSize;
-	pTerrainChunkHeader->TerrainInfo.nSectorsTableSize_InSectors = GetSectorsTableSize(nSID);
-	pTerrainChunkHeader->TerrainInfo.fHeightmapZRatio = m_fHeightmapZRatio;
-	pTerrainChunkHeader->TerrainInfo.fOceanWaterLevel = (m_fOceanWaterLevel > WATER_LEVEL_UNKNOWN) ? m_fOceanWaterLevel : 0;
+	pTerrainChunkHeader->TerrainInfo.heightMapSize_InUnits = int(m_nSectorSize * GetSectorsTableSize(nSID) * m_fInvUnitSize);
+	pTerrainChunkHeader->TerrainInfo.unitSize_InMeters = m_fUnitSize;
+	pTerrainChunkHeader->TerrainInfo.sectorSize_InMeters = m_nSectorSize;
+	pTerrainChunkHeader->TerrainInfo.sectorsTableSize_InSectors = GetSectorsTableSize(nSID);
+	pTerrainChunkHeader->TerrainInfo.heightmapZRatio = m_fHeightmapZRatio;
+	pTerrainChunkHeader->TerrainInfo.oceanWaterLevel = (m_fOceanWaterLevel > WATER_LEVEL_UNKNOWN) ? m_fOceanWaterLevel : 0;
 
 	SwapEndian(*pTerrainChunkHeader, eEndian);
 	UPDATE_PTR_AND_SIZE(pData, nDataSize, sizeof(STerrainChunkHeader));
@@ -496,18 +496,18 @@ bool CTerrain::Load_T(T*& f, int& nDataSize, STerrainChunkHeader* pTerrainChunkH
 		return 0;
 
 	// get terrain settings
-	m_nUnitSize = pTerrainChunkHeader->TerrainInfo.nUnitSize_InMeters;
-	m_fInvUnitSize = 1.f / m_nUnitSize;
+	m_fUnitSize = pTerrainChunkHeader->TerrainInfo.unitSize_InMeters;
+	m_fInvUnitSize = 1.f / m_fUnitSize;
 	if (!Get3DEngine()->m_pSegmentsManager)
-		m_nTerrainSize = pTerrainChunkHeader->TerrainInfo.nHeightMapSize_InUnits * pTerrainChunkHeader->TerrainInfo.nUnitSize_InMeters;
+		m_nTerrainSize = int(pTerrainChunkHeader->TerrainInfo.heightMapSize_InUnits * pTerrainChunkHeader->TerrainInfo.unitSize_InMeters);
 
-	m_nTerrainSizeDiv = (m_nTerrainSize >> m_nBitShift) - 1;
-	m_nSectorSize = pTerrainChunkHeader->TerrainInfo.nSectorSize_InMeters;
+	m_nTerrainSizeDiv = int((m_nTerrainSize * m_fInvUnitSize) - 1);
+	m_nSectorSize = pTerrainChunkHeader->TerrainInfo.sectorSize_InMeters;
 #ifndef SEG_WORLD
-	m_nSectorsTableSize = pTerrainChunkHeader->TerrainInfo.nSectorsTableSize_InSectors;
+	m_nSectorsTableSize = pTerrainChunkHeader->TerrainInfo.sectorsTableSize_InSectors;
 #endif
-	m_fHeightmapZRatio = pTerrainChunkHeader->TerrainInfo.fHeightmapZRatio;
-	m_fOceanWaterLevel = pTerrainChunkHeader->TerrainInfo.fOceanWaterLevel ? pTerrainChunkHeader->TerrainInfo.fOceanWaterLevel : WATER_LEVEL_UNKNOWN;
+	m_fHeightmapZRatio = pTerrainChunkHeader->TerrainInfo.heightmapZRatio;
+	m_fOceanWaterLevel = pTerrainChunkHeader->TerrainInfo.oceanWaterLevel ? pTerrainChunkHeader->TerrainInfo.oceanWaterLevel : WATER_LEVEL_UNKNOWN;
 
 	if (bHotUpdate)
 		Get3DEngine()->m_bAreaActivationInUse = false;
@@ -518,7 +518,7 @@ bool CTerrain::Load_T(T*& f, int& nDataSize, STerrainChunkHeader* pTerrainChunkH
 		PrintMessage("Object layers control in use");
 
 	m_nUnitsToSectorBitShift = 0;
-	while (m_nSectorSize >> m_nUnitsToSectorBitShift > m_nUnitSize)
+	while (m_nSectorSize >> m_nUnitsToSectorBitShift > m_fUnitSize)
 		m_nUnitsToSectorBitShift++;
 
 	if (bHMap && !m_pParentNodes[nSID])
@@ -969,16 +969,16 @@ void CTerrain::StreamStep_Initialize(STerrainDataLoadStatus& status, byte* pData
 	}
 
 	// get terrain settings
-	m_nUnitSize = pTerrainChunkHeader->TerrainInfo.nUnitSize_InMeters;
-	m_fInvUnitSize = 1.f / m_nUnitSize;
+	m_fUnitSize = pTerrainChunkHeader->TerrainInfo.unitSize_InMeters;
+	m_fInvUnitSize = 1.f / m_fUnitSize;
 	if (!Get3DEngine()->m_pSegmentsManager)
-		m_nTerrainSize = pTerrainChunkHeader->TerrainInfo.nHeightMapSize_InUnits * pTerrainChunkHeader->TerrainInfo.nUnitSize_InMeters;
+		m_nTerrainSize = int(float(pTerrainChunkHeader->TerrainInfo.heightMapSize_InUnits) * pTerrainChunkHeader->TerrainInfo.unitSize_InMeters);
 
-	m_nTerrainSizeDiv = (m_nTerrainSize >> m_nBitShift) - 1;
-	m_nSectorSize = pTerrainChunkHeader->TerrainInfo.nSectorSize_InMeters;
-	//m_nSectorsTableSize = pTerrainChunkHeader->TerrainInfo.nSectorsTableSize_InSectors;
-	m_fHeightmapZRatio = pTerrainChunkHeader->TerrainInfo.fHeightmapZRatio;
-	m_fOceanWaterLevel = pTerrainChunkHeader->TerrainInfo.fOceanWaterLevel ? pTerrainChunkHeader->TerrainInfo.fOceanWaterLevel : WATER_LEVEL_UNKNOWN;
+	m_nTerrainSizeDiv = int((float(m_nTerrainSize) * m_fInvUnitSize) - 1);
+	m_nSectorSize = pTerrainChunkHeader->TerrainInfo.sectorSize_InMeters;
+	//m_nSectorsTableSize = pTerrainChunkHeader->TerrainInfo.sectorsTableSize_InSectors;
+	m_fHeightmapZRatio = pTerrainChunkHeader->TerrainInfo.heightmapZRatio;
+	m_fOceanWaterLevel = pTerrainChunkHeader->TerrainInfo.oceanWaterLevel ? pTerrainChunkHeader->TerrainInfo.oceanWaterLevel : WATER_LEVEL_UNKNOWN;
 
 	Get3DEngine()->m_bAreaActivationInUse = (pTerrainChunkHeader->nFlags2 & TCH_FLAG2_AREA_ACTIVATION_IN_USE) != 0;
 
@@ -986,7 +986,7 @@ void CTerrain::StreamStep_Initialize(STerrainDataLoadStatus& status, byte* pData
 		PrintMessage("Object layers control in use");
 
 	m_nUnitsToSectorBitShift = 0;
-	while (m_nSectorSize >> m_nUnitsToSectorBitShift > m_nUnitSize)
+	while (m_nSectorSize >> m_nUnitsToSectorBitShift > m_fUnitSize)
 		m_nUnitsToSectorBitShift++;
 
 	status.loadingStep = eTDLS_BuildSectorsTree;

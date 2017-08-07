@@ -247,7 +247,7 @@ void CGameRulesCombiCaptureObjective::Init( XmlNodeRef xml )
 	if (xml->getAttr("goalCombiCaptureTime", m_goalCombiCaptureTime))
 	{
 		CryLog("CGameRulesCombiCaptureObjective::Init, goal combi capture time set to %f", m_goalCombiCaptureTime);
-		m_goalCombiCaptureTime = MAX(0.01f, m_goalCombiCaptureTime);
+		m_goalCombiCaptureTime = std::max(0.01f, m_goalCombiCaptureTime);
 	}
 
 	if (xml->getAttr("progressBankingIntervalSecs", fscratch))
@@ -981,7 +981,7 @@ void CGameRulesCombiCaptureObjective::SvDoEndOfRoundPlayerScoring(const int winn
 
 						if (timeRange > 0.f)
 						{
-							const float  ratio = MAX(0.f, MIN(1.f, (1.f - ((curTime - m_defWin_timeRemainBonus_minTime) / timeRange)) ));
+							const float  ratio = std::max(0.f, std::min(1.f, (1.f - ((curTime - m_defWin_timeRemainBonus_minTime) / timeRange)) ));
 
 							if (ratio > 0.f)
 							{
@@ -1007,7 +1007,7 @@ void CGameRulesCombiCaptureObjective::SvDoEndOfRoundPlayerScoring(const int winn
 				const float  maxScore = pScoringModule->GetPlayerPointsByType(type);
 				if (maxScore >= 1.f)
 				{
-					const float  ratio = MAX(0.f, MIN(1.f, (1.f - m_combiProgressBanked) ));
+					const float  ratio = std::max(0.f, std::min(1.f, (1.f - m_combiProgressBanked) ));
 					const TGameRulesScoreInt  score = (TGameRulesScoreInt) floorf( maxScore * ratio );
 					SGameRulesScoreInfo  scoreInfo (type, score);
 					pScoringModule->OnPlayerScoringEventToAllTeamWithInfo(defendingTeamId, &scoreInfo);
@@ -1020,7 +1020,7 @@ void CGameRulesCombiCaptureObjective::SvDoEndOfRoundPlayerScoring(const int winn
 				const float  maxScore = pScoringModule->GetPlayerPointsByType(type);
 				if (maxScore >= 1.f)
 				{
-					const float  ratio = MAX(0.f, MIN(1.f, (m_combiProgressBanked) ));
+					const float  ratio = std::max(0.f, std::min(1.f, (m_combiProgressBanked) ));
 					const TGameRulesScoreInt  score = (TGameRulesScoreInt) floorf( maxScore * ratio );
 					SGameRulesScoreInfo  scoreInfo (type, score);
 					pScoringModule->OnPlayerScoringEventToAllTeamWithInfo(m_attackingTeamId, &scoreInfo);
@@ -1620,7 +1620,7 @@ int CGameRulesCombiCaptureObjective::GetNumDesiredEnabledCaptureEnts()
 		const int  t1count = pGameRules->GetTeamPlayerCountWithStatFlags(1, flagsNeeded, false);
 		const int  t2count = pGameRules->GetTeamPlayerCountWithStatFlags(2, flagsNeeded, false);
 
-		const int  biggestTeam = MAX(t1count, t2count);
+		const int  biggestTeam = std::max(t1count, t2count);
 
 		const int  idealNumDesired = (biggestTeam + AMOUNT_OF_DESIRED_CAP_ENTS_MORE_THAN_PLAYERS);
 

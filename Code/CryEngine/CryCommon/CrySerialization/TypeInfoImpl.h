@@ -184,11 +184,11 @@ struct SPrivateTypeInfoInstanceLevel
 
 					if (strcmp(name, "Texture") == 0)
 					{
-						// TODO: Texture field
+						ar(Serialization::TextureFilename(value), name, label);
 					}
 					else if (strcmp(name, "Material") == 0)
 					{
-						// TODO: Material field
+						ar(Serialization::MaterialPicker(value), name, label);
 					}
 					else if (strcmp(name, "Geometry") == 0)
 					{
@@ -200,7 +200,7 @@ struct SPrivateTypeInfoInstanceLevel
 					}
 					else if (strcmp(name, "GeomCache") == 0)
 					{
-						// TODO: Geom cache field
+						ar(Serialization::GeomCachePicker(value), name, label);
 					}
 					else
 					{

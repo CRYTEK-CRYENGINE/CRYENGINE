@@ -31,7 +31,7 @@ public:
 
 	bool Initialize(NCryOpenGL::CContext* pContext);
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	NCryOpenGL::SShaderView* GetGLView(NCryOpenGL::CContext* pContext);
 #else
 	NCryOpenGL::SShaderView* GetGLView();

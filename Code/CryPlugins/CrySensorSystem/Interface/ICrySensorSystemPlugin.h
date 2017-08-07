@@ -8,7 +8,7 @@ struct ISensorSystem;
 
 struct ICrySensorSystemPlugin : public ICryPlugin
 {
-	CRYINTERFACE_DECLARE(ICrySensorSystemPlugin, 0x43678bb848cd4bb8, 0xae118f6b0a347d9a);
+	CRYINTERFACE_DECLARE_GUID(ICrySensorSystemPlugin, "43678bb8-48cd-4bb8-ae11-8f6b0a347d9a"_cry_guid);
 
 public:
 

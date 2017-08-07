@@ -100,6 +100,8 @@ CFlock::CFlock( IEntity *pEntity,EFlockType flockType )
 
 	m_bEntityCreated = false;
 	m_bAnyKilled = false;
+
+	m_bAIEventListenerRegistered = false;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -504,12 +506,9 @@ void CFlock::RegisterAIEventListener( bool bEnable )
 	if (!pPerceptionManager)
 		return;
 
-	m_bAIEventListenerRegistered = bEnable;
-
 	if (bEnable)
 	{
-		m_bAIEventListenerRegistered = true;
-		
+		//Re-register with possibly changed parameters
 		SAIStimulusEventListenerParams params;
 		params.pos = m_bc.flockPos;
 		params.radius = m_bc.maxVisibleDistance;
@@ -518,9 +517,10 @@ void CFlock::RegisterAIEventListener( bool bEnable )
 	}
 	else if (m_bAIEventListenerRegistered)
 	{
-		m_bAIEventListenerRegistered = false;
 		pPerceptionManager->UnregisterAIStimulusEventListener(functor(*this, &CFlock::OnStimulusReceived));
 	}
+
+	m_bAIEventListenerRegistered = bEnable;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -660,7 +660,7 @@ bool CFlock::CreateEntities()
 		boid->m_noentity = false;
 		boid->m_entity = pBoidEntity->GetId();
 
-		auto pBoidObjectProxy = pBoidEntity->CreateComponent<CBoidObjectProxy>();
+		auto pBoidObjectProxy = pBoidEntity->GetOrCreateComponent<CBoidObjectProxy>();
 		pBoidObjectProxy->SetBoid(boid);
 
 		// check if character.

@@ -427,9 +427,9 @@ public:
 	virtual void                     GenerateFarTrees(const SRenderingPassInfo& passInfo);
 	virtual float                    GetTerrainElevation(float x, float y, int nSID = GetDefSID());
 	virtual float                    GetTerrainElevation3D(Vec3 vPos);
-	virtual float                    GetTerrainZ(int x, int y);
-	virtual bool                     GetTerrainHole(int x, int y);
-	virtual int                      GetHeightMapUnitSize();
+  virtual float                    GetTerrainZ(float x, float y);
+  virtual bool                     GetTerrainHole(float x, float y);
+  virtual float                    GetHeightMapUnitSize();
 	virtual int                      GetTerrainSize();
 	virtual void                     SetSunDir(const Vec3& newSunOffset);
 	virtual Vec3                     GetSunDir() const;
@@ -847,6 +847,7 @@ public:
 	float                 m_skyboxMultiplier;
 	float                 m_dayNightIndicator;
 	bool                  m_bHeightMapAoEnabled;
+	bool                  m_bIntegrateObjectsIntoTerrain;
 
 	Vec3                  m_fogColor2;
 	Vec3                  m_fogColorRadial;
@@ -869,7 +870,6 @@ public:
 
 	float                 m_oceanWindDirection;
 	float                 m_oceanWindSpeed;
-	float                 m_oceanWavesSpeed;
 	float                 m_oceanWavesAmount;
 	float                 m_oceanWavesSize;
 
@@ -943,6 +943,7 @@ private:
 	void  LoadTimeOfDaySettingsFromXML(XmlNodeRef node);
 	char* GetXMLAttribText(XmlNodeRef pInputNode, const char* szLevel1, const char* szLevel2, const char* szDefaultValue);
 	char* GetXMLAttribText(XmlNodeRef pInputNode, const char* szLevel1, const char* szLevel2, const char* szLevel3, const char* szDefaultValue);
+	bool  GetXMLAttribBool(XmlNodeRef pInputNode, const char* szLevel1, const char* szLevel2, bool bDefaultValue);
 
 	// without calling high level functions like panorama screenshot
 	void RenderInternal(const int nRenderFlags, const SRenderingPassInfo& passInfo, const char* szDebugName);
@@ -1098,14 +1099,13 @@ public:
 	virtual int                      SaveStatObj(IStatObj* pStatObj, TSerialize ser);
 	virtual IStatObj*                LoadStatObj(TSerialize ser);
 
-	virtual bool                     CheckIntersectClouds(const Vec3& p1, const Vec3& p2);
 	virtual void                     OnRenderMeshDeleted(IRenderMesh* pRenderMesh);
 	virtual bool                     RenderMeshRayIntersection(IRenderMesh* pRenderMesh, SRayHitInfo& hitInfo, IMaterial* pCustomMtl = 0);
-
+	virtual void                     OnEntityDeleted(struct IEntity* pEntity);
 	virtual const char*              GetVoxelEditOperationName(EVoxelEditOperation eOperation);
 
-	virtual void                     SetGetLayerIdAtCallback(IGetLayerIdAtCallback* pCallBack) { m_pGetLayerIdAtCallback = pCallBack; }
-	static IGetLayerIdAtCallback* m_pGetLayerIdAtCallback;
+	virtual void                     SetEditorHeightmapCallback(IEditorHeightmap* pCallBack) { m_pEditorHeightmap = pCallBack; }
+	static IEditorHeightmap* m_pEditorHeightmap;
 
 	virtual IParticleManager* GetParticleManager() { return m_pPartManager; }
 	virtual IOpticsManager*   GetOpticsManager()   { return m_pOpticsManager; }

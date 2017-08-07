@@ -152,6 +152,8 @@ bool WorldMonitor::ShallEventPhysEntityDeletedBeHandled(const EventPhys* pPhysEv
 	assert(pPhysEvent->idval == EventPhysEntityDeleted::id);
 
 	const EventPhysEntityDeleted* event = static_cast<const EventPhysEntityDeleted*>(pPhysEvent);
+	if (event->isFromPOD)
+		return false;
 
 	bool consider = false;
 

@@ -18,6 +18,11 @@
 
 CRYREGISTER_CLASS(CEntityComponentSubstitution);
 
+CEntityComponentSubstitution::CEntityComponentSubstitution()
+{
+	m_componentFlags.Add(EEntityComponentFlags::NoSave);
+}
+
 //////////////////////////////////////////////////////////////////////////
 CEntityComponentSubstitution::~CEntityComponentSubstitution()
 {

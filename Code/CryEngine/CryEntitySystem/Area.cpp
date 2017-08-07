@@ -49,7 +49,7 @@ CArea::CArea(CAreaManager* pManager)
 	memset(&m_boxSideObstruction, 0, 6);
 
 	m_bbox_holder = s_areaBoxes.size();
-	s_areaBoxes.push_back(SBoxHolder());
+	s_areaBoxes.emplace_back();
 	s_areaBoxes[m_bbox_holder].area = this;
 }
 
@@ -81,17 +81,22 @@ void CArea::SetSoundObstructionOnAreaFace(size_t const index, bool const bObstru
 	case ENTITY_AREA_TYPE_BOX:
 		{
 			m_boxSideObstruction[index].bObstructed = bObstructs ? 1 : 0;
-
 			m_numObstructed = 0;
-			for (unsigned int i = 0; i < 6; ++i)
+
+			for (auto const& i : m_boxSideObstruction)
 			{
-				if (m_boxSideObstruction[i].bObstructed)
+				if (i.bObstructed)
+				{
 					++m_numObstructed;
+				}
 			}
 
 			m_bAllObstructed = 0;
+
 			if (m_numObstructed == 6)
+			{
 				m_bAllObstructed = 1;
+			}
 		}
 		break;
 	case ENTITY_AREA_TYPE_SHAPE:
@@ -248,51 +253,51 @@ float CArea::CalcDistToPoint(a2DPoint const& point) const
 	proximityBox.min.x = point.x - m_proximity;
 	proximityBox.min.y = point.y - m_proximity;
 
-	for (unsigned int sIdx = 0; sIdx < m_areaSegments.size(); sIdx++)
+	for (auto const pAreaSegment : m_areaSegments)
 	{
-		if (!m_areaSegments[sIdx]->bbox.BBoxOutBBox2D(proximityBox))
+		if (!pAreaSegment->bbox.BBoxOutBBox2D(proximityBox))
 		{
-			if (m_areaSegments[sIdx]->isHorizontal)
+			if (pAreaSegment->isHorizontal)
 			{
-				if (point.x < m_areaSegments[sIdx]->bbox.min.x)
-					curDist = m_areaSegments[sIdx]->bbox.min.DistSqr(point);
-				else if (point.x > m_areaSegments[sIdx]->bbox.max.x)
-					curDist = m_areaSegments[sIdx]->bbox.max.DistSqr(point);
+				if (point.x < pAreaSegment->bbox.min.x)
+					curDist = pAreaSegment->bbox.min.DistSqr(point);
+				else if (point.x > pAreaSegment->bbox.max.x)
+					curDist = pAreaSegment->bbox.max.DistSqr(point);
 				else
-					curDist = fabsf(point.y - m_areaSegments[sIdx]->bbox.max.y);
+					curDist = fabsf(point.y - pAreaSegment->bbox.max.y);
 				curDist *= curDist;
 			}
 			else
 			{
-				if (m_areaSegments[sIdx]->k == 0.0f)
+				if (pAreaSegment->k == 0.0f)
 				{
-					if (point.y < m_areaSegments[sIdx]->bbox.min.y)
-						curDist = m_areaSegments[sIdx]->bbox.min.DistSqr(point);
-					else if (point.y > m_areaSegments[sIdx]->bbox.max.y)
-						curDist = m_areaSegments[sIdx]->bbox.max.DistSqr(point);
+					if (point.y < pAreaSegment->bbox.min.y)
+						curDist = pAreaSegment->bbox.min.DistSqr(point);
+					else if (point.y > pAreaSegment->bbox.max.y)
+						curDist = pAreaSegment->bbox.max.DistSqr(point);
 					else
-						curDist = fabsf(point.x - m_areaSegments[sIdx]->b);
+						curDist = fabsf(point.x - pAreaSegment->b);
 					curDist *= curDist;
 				}
 				else
 				{
 					a2DPoint intersection;
 					float b2, k2;
-					k2 = -1.0f / m_areaSegments[sIdx]->k;
+					k2 = -1.0f / pAreaSegment->k;
 					b2 = point.y - k2 * point.x;
-					intersection.x = (b2 - m_areaSegments[sIdx]->b) / (m_areaSegments[sIdx]->k - k2);
+					intersection.x = (b2 - pAreaSegment->b) / (pAreaSegment->k - k2);
 					intersection.y = k2 * intersection.x + b2;
 
-					if (intersection.x < m_areaSegments[sIdx]->bbox.min.x)
-						if (m_areaSegments[sIdx]->k < 0)
-							curDist = point.DistSqr(m_areaSegments[sIdx]->bbox.min.x, m_areaSegments[sIdx]->bbox.max.y);
+					if (intersection.x < pAreaSegment->bbox.min.x)
+						if (pAreaSegment->k < 0)
+							curDist = point.DistSqr(pAreaSegment->bbox.min.x, pAreaSegment->bbox.max.y);
 						else
-							curDist = point.DistSqr(m_areaSegments[sIdx]->bbox.min);
-					else if (intersection.x > m_areaSegments[sIdx]->bbox.max.x)
-						if (m_areaSegments[sIdx]->k < 0)
-							curDist = point.DistSqr(m_areaSegments[sIdx]->bbox.max.x, m_areaSegments[sIdx]->bbox.min.y);
+							curDist = point.DistSqr(pAreaSegment->bbox.min);
+					else if (intersection.x > pAreaSegment->bbox.max.x)
+						if (pAreaSegment->k < 0)
+							curDist = point.DistSqr(pAreaSegment->bbox.max.x, pAreaSegment->bbox.min.y);
 						else
-							curDist = point.DistSqr(m_areaSegments[sIdx]->bbox.max);
+							curDist = point.DistSqr(pAreaSegment->bbox.max);
 					else
 						curDist = intersection.DistSqr(point);
 				}
@@ -2702,6 +2707,7 @@ void CArea::RemoveEntity(EntityGUID const entGuid)
 //////////////////////////////////////////////////////////////////////////
 void CArea::RemoveEntities()
 {
+	LOADING_TIME_PROFILE_SECTION
 	// Inform all attached entities that they have been disconnected to prevent lost entities.
 	EntityIdVector const tmpVec(std::move(m_entityIds));
 	EntityIdVector::const_iterator Iter(tmpVec.begin());
@@ -2867,9 +2873,9 @@ void CArea::LeaveArea(EntityId const entityId)
 // calls entity OnEnterNearArea which calls script OnEnterNearArea( entity(player), AreaID )
 //////////////////////////////////////////////////////////////////////////
 void CArea::EnterNearArea(
-	EntityId const entityId,
-	Vec3 const& closestPointToArea,
-	float const distance)
+  EntityId const entityId,
+  Vec3 const& closestPointToArea,
+  float const distance)
 {
 	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
 	if (m_bInitialized)
@@ -2952,9 +2958,9 @@ void CArea::OnRemovedFromAreaCache(EntityId const entityId)
 // pEntity moves in an area, which is controlled by an area with a higher priority
 //////////////////////////////////////////////////////////////////////////
 void CArea::ExclusiveUpdateAreaInside(
-	EntityId const entityId,
-	EntityId const higherAreaId,
-	float const fade)
+  EntityId const entityId,
+  EntityId const higherAreaId,
+  float const fade)
 {
 	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
 	if (m_bInitialized)
@@ -2988,10 +2994,10 @@ void CArea::ExclusiveUpdateAreaInside(
 // pEntity moves near an area, which is controlled by an area with a higher priority
 //////////////////////////////////////////////////////////////////////////
 void CArea::ExclusiveUpdateAreaNear(
-	EntityId const entityId,
-	EntityId const higherAreaId,
-	float const distance,
-	Vec3 const& position)
+  EntityId const entityId,
+  EntityId const higherAreaId,
+  float const distance,
+  Vec3 const& position)
 {
 	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
 	if (m_bInitialized)
@@ -3276,9 +3282,9 @@ void CArea::GetMemoryUsage(ICrySizer* pSizer) const
 		m_pAreaSolid->GetMemoryUsage(pSizer);
 	}
 
-	for (size_t i = 0, numSegments(m_areaSegments.size()); i < numSegments; ++i)
+	for (auto const pAreaSegment : m_areaSegments)
 	{
-		pSizer->AddObject(m_areaSegments[i], sizeof(*m_areaSegments[i]));
+		pSizer->AddObject(pAreaSegment, sizeof(*pAreaSegment));
 	}
 
 	pSizer->AddObject(this, sizeof(*this));

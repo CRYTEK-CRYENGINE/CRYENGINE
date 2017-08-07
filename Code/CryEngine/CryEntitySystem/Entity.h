@@ -55,6 +55,14 @@ struct AIObjectParams;
 struct SGridLocation;
 struct SProximityElement;
 
+namespace Schematyc
+{
+	// Forward declare interfaces.
+	struct IObjectProperties;
+	// Forward declare shared pointers.
+	DECLARE_SHARED_POINTERS(IObjectProperties)
+}
+
 // (MATT) This should really live in a minimal AI include, which right now we don't have  {2009/04/08}
 	#ifndef INVALID_AIOBJECTID
 typedef uint32 tAIObjectID;
@@ -88,7 +96,7 @@ public:
 	// IEntity interface implementation.
 	//////////////////////////////////////////////////////////////////////////
 	virtual EntityId   GetId() const final   { return m_nID; }
-	virtual EntityGUID GetGuid() const final { return m_guid; }
+	virtual const EntityGUID& GetGuid() const final { return m_guid; }
 
 	//////////////////////////////////////////////////////////////////////////
 	virtual IEntityClass*     GetClass() const final     { return m_pClass; }
@@ -121,15 +129,11 @@ public:
 	virtual IEntity* GetChild(int nIndex) const final;
 	virtual void     EnableInheritXForm(bool bEnable);
 	virtual IEntity* GetParent() const final { return m_hierarchy.pParent; }
+	virtual IEntity* GetLocalSimParent() const final { return m_hierarchy.parentBindingType == EBindingType::eBT_LocalSim ? m_hierarchy.pParent : nullptr; }
 	virtual Matrix34 GetParentAttachPointWorldTM() const final;
 	virtual bool     IsParentAttachmentValid() const final;
-	virtual IEntity* GetAdam()
-	{
-		IEntity* pParent, * pAdam = this;
-		while (pParent = pAdam->GetParent()) pAdam = pParent;
-		return pAdam;
-	}
-
+	virtual IEntity* GetAdam();
+																												
 	//////////////////////////////////////////////////////////////////////////
 	virtual void SetWorldTM(const Matrix34& tm, int nWhyFlags = 0) final;
 	virtual void SetLocalTM(const Matrix34& tm, int nWhyFlags = 0) final;
@@ -161,8 +165,8 @@ public:
 	virtual const Vec3& GetForwardDir() const final { ComputeForwardDir(); return m_vForwardDir; }
 	//////////////////////////////////////////////////////////////////////////
 
-	virtual void Activate(bool bActive) final;
-	virtual bool IsActive() const final { return m_bActive; }
+	virtual void UpdateComponentEventMask(const IEntityComponent* pComponent) final;
+	virtual bool IsActivatedForUpdates() const final { return m_bInActiveList; }
 
 	virtual void PrePhysicsActivate(bool bActive) final;
 	virtual bool IsPrePhysicsActive() final;
@@ -171,19 +175,23 @@ public:
 	virtual void Serialize(TSerialize ser, int nFlags) final;
 
 	virtual bool SendEvent(SEntityEvent& event) final;
+
 	//////////////////////////////////////////////////////////////////////////
 
 	virtual void SetTimer(int nTimerId, int nMilliSeconds) final;
 	virtual void KillTimer(int nTimerId) final;
 
-	virtual void Hide(bool bHide) final;
+	virtual void Hide(bool bHide, EEntityHideFlags hideFlags = ENTITY_HIDE_NO_FLAG) final;
+	        void SendHideEvent(bool bHide, EEntityHideFlags hideFlags);
 	virtual bool IsHidden() const final { return m_bHidden; }
+	virtual bool IsInHiddenLayer() const final { return m_bIsInHiddenLayer; }
 
 	virtual void Invisible(bool bInvisible) final;
 	virtual bool IsInvisible() const final { return m_bInvisible; }
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual IAIObject*  GetAI() final                       { return (m_aiObjectID ? GetAIObject() : NULL); }
+	virtual const IAIObject* GetAI() const final            { return m_aiObjectID ? GetAIObject() : nullptr; }
+	virtual IAIObject*  GetAI() final                       { return m_aiObjectID ? GetAIObject() : nullptr; }
 	virtual bool        HasAI() const final                 { return m_aiObjectID != 0; }
 	virtual tAIObjectID GetAIObjectID() const final         { return m_aiObjectID; }
 	virtual void        SetAIObjectID(tAIObjectID id) final { m_aiObjectID = id; }
@@ -205,12 +213,16 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual IEntityComponent* AddComponent(CryInterfaceID typeId, std::shared_ptr<IEntityComponent> pComponent,bool bAllowDuplicate) final;
+	virtual IEntityComponent* AddComponent(CryInterfaceID typeId, std::shared_ptr<IEntityComponent> pComponent,bool bAllowDuplicate,IEntityComponent::SInitParams *pInitParams) final;
 	virtual void              RemoveComponent(IEntityComponent* pComponent) final;
+	virtual void              RemoveAllComponents() final;
 	virtual IEntityComponent* GetComponentByTypeId(const CryInterfaceID& interfaceID) const final;
-
-	virtual void CloneComponentsFrom(IEntity& otherEntity) final;
-
+	virtual IEntityComponent* GetComponentByGUID(const CryGUID& guid) const final;
+	virtual void              CloneComponentsFrom(IEntity& otherEntity) final;
+	virtual void              GetComponents( DynArray<IEntityComponent*> &components ) const final;
+	virtual uint32            GetComponentsCount() const final;
+	virtual void              VisitComponents(const ComponentsVisitor &visitor) final;
+	
 	//////////////////////////////////////////////////////////////////////////
 	// Physics.
 	//////////////////////////////////////////////////////////////////////////
@@ -266,6 +278,9 @@ public:
 	virtual IMaterial*                 GetRenderMaterial(int nSlot = -1) const final;
 	virtual void                       SetSlotFlags(int nSlot, uint32 nFlags) final;
 	virtual uint32                     GetSlotFlags(int nSlot) const final;
+	virtual int                        SetSlotRenderNode(int nSlot, IRenderNode* pRenderNode) final;
+	virtual IRenderNode*               GetSlotRenderNode(int nSlot) final;
+	virtual void                       UpdateSlotForComponent(IEntityComponent *pComponent) final;
 	virtual bool                       ShouldUpdateCharacter(int nSlot) const final;
 	virtual ICharacterInstance*        GetCharacter(int nSlot) final;
 	virtual int                        SetCharacter(ICharacterInstance* pCharacter, int nSlot) final;
@@ -275,7 +290,7 @@ public:
 	virtual IGeomCacheRenderNode*      GetGeomCacheRenderNode(int nSlot) final;
 	virtual IRenderNode*               GetRenderNode(int nSlot = -1) const final;
 	virtual bool                       IsRendered() const final;
-	virtual void                       PreviewRender( SPreviewRenderParams &params) final;
+	virtual void                       PreviewRender(SEntityPreviewContext &context) final;
 
 	virtual void                       MoveSlot(IEntity* targetIEnt, int nSlot) final;
 
@@ -290,14 +305,10 @@ public:
 	int                                LoadLightImpl(int nSlot, CDLight* pLight);
 
 	virtual bool                       UpdateLightClipBounds(CDLight& light);
-	virtual int                        LoadCloud(int nSlot, const char* sFilename) override;
-	virtual int                        SetCloudMovementProperties(int nSlot, const SCloudMovementProperties& properties) override;
 	int                                LoadCloudBlocker(int nSlot, const SCloudBlockerProperties& properties);
-	int                                LoadFogVolume(int nSlot, const SFogVolumeProperties& properties);
+	virtual int                        LoadFogVolume(int nSlot, const SFogVolumeProperties& properties) override;
 
 	int                                FadeGlobalDensity(int nSlot, float fadeTime, float newGlobalDensity);
-	int                                LoadVolumeObject(int nSlot, const char* sFilename);
-	int                                SetVolumeObjectMovementProperties(int nSlot, const SVolumeObjectMovementProperties& properties);
 
 	virtual void                       SetSubObjHideMask(int nSlot, hidemask nSubObjHideMask) final        { GetEntityRender()->SetSubObjHideMask(nSlot, nSubObjHideMask); };
 	virtual hidemask                   GetSubObjHideMask(int nSlot) const final                            { return GetEntityRender()->GetSubObjHideMask(nSlot); };
@@ -313,10 +324,9 @@ public:
 	// Load/Save entity parameters in XML node.
 	virtual void         SerializeXML(XmlNodeRef& node, bool bLoading, bool bIncludeScriptProxy) final;
 
-	virtual void SerializeProperties(Serialization::IArchive& ar) final;
-
 	virtual IEntityLink* GetEntityLinks() final;
-	virtual IEntityLink* AddEntityLink(const char* sLinkName, EntityId entityId, EntityGUID entityGuid = 0) final;
+	virtual IEntityLink* AddEntityLink(const char* sLinkName, EntityId entityId, EntityGUID entityGuid) final;
+	virtual void         RenameEntityLink(IEntityLink* pLink, const char* sNewLinkName) final;
 	virtual void         RemoveEntityLink(IEntityLink* pLink) final;
 	virtual void         RemoveAllEntityLinks() final;
 	//////////////////////////////////////////////////////////////////////////
@@ -332,8 +342,6 @@ public:
 
 	// Returns true if entity was already fully initialized by this point.
 	virtual bool IsInitialized() const final { return m_bInitialized; }
-
-	virtual void DebugDraw(const SGeometryDebugDrawInfo& info) final;
 	//////////////////////////////////////////////////////////////////////////
 
 	// Get fast access to the slot, only used internally by entity components.
@@ -394,15 +402,27 @@ public:
 	void SetCloneLayerId(int cloneLayerId) { m_cloneLayerId = cloneLayerId; }
 	int  GetCloneLayerId() const           { return m_cloneLayerId; }
 
+	virtual INetEntity* AssignNetEntityLegacy(INetEntity* ptr) final;
+	virtual INetEntity* GetNetEntity() final;
+
 	//////////////////////////////////////////////////////////////////////////
 	void AddEntityEventListener(EEntityEvent event, IEntityEventListener* pListener);
 	void RemoveEntityEventListener(EEntityEvent event, IEntityEventListener* pListener);
 	void RemoveAllEventListeners();
 
-	uint32 GetEditorObjectID() const final override;
-	void   SetObjectID(uint32 ID) final override;
-	void   GetEditorObjectInfo(bool& bSelected, bool& bHighlighted) const final override;
-	void   SetEditorObjectInfo(bool bSelected, bool bHighlighted) final override;
+	virtual	uint32 GetEditorObjectID() const final override;
+	virtual	void   SetObjectID(uint32 ID) final override;
+	virtual	void   GetEditorObjectInfo(bool& bSelected, bool& bHighlighted) const final override;
+	virtual	void   SetEditorObjectInfo(bool bSelected, bool bHighlighted) final override;
+
+	void SetInHiddenLayer(bool bHiddenLayer);
+	virtual	Schematyc::IObject* GetSchematycObject() const final { return m_pSchematycObject; };
+	virtual void OnSchematycObjectDestroyed() final { m_pSchematycObject = nullptr; }
+
+	virtual EEntitySimulationMode GetSimulationMode() const final { return m_simulationMode; };
+	//~IEntity
+
+	void ShutDownComponent(IEntityComponent* pComponent);
 
 protected:
 	//////////////////////////////////////////////////////////////////////////
@@ -419,7 +439,20 @@ private:
 		return (fabsf(m_vScale.x - 1.0f) + fabsf(m_vScale.y - 1.0f) + fabsf(m_vScale.z - 1.0f)) >= threshold;
 	}
 	// Fetch the IA object from the AIObjectID, if any
-	IAIObject* GetAIObject();
+	IAIObject* GetAIObject() const;
+
+	void CreateSchematycObject(const SEntitySpawnParams& params);
+
+	//////////////////////////////////////////////////////////////////////////
+	// Component Save/Load
+	//////////////////////////////////////////////////////////////////////////
+	void LoadComponent(Serialization::IArchive& archive);
+	void SaveComponent(Serialization::IArchive& archive,IEntityComponent &component);
+	bool LoadComponentLegacy(XmlNodeRef& entityNode,XmlNodeRef& componentNode);
+	void SaveComponentLegacy(CryGUID typeId,XmlNodeRef& entityNode,XmlNodeRef& componentNode,IEntityComponent &component,bool bIncludeScriptProxy);
+	//////////////////////////////////////////////////////////////////////////
+
+	void OnComponentMaskChanged(const IEntityComponent& component, uint64 newMask);
 
 private:
 	friend class CEntitySystem;
@@ -428,13 +461,17 @@ private:
 	friend class CEntityRender;         // For faster access to internals.
 	friend class CEntityComponentTriggerBounds;
 	friend class CEntityPhysics;
+	friend class CNetEntity; // CNetEntity iterates all components on serialization.
+	friend struct SEntityComponentSerializationHelper;
 
 	enum class EBindingType
 	{
 		eBT_Pivot,
 		eBT_GeomCacheNode,
 		eBT_CharacterBone,
+		eBT_LocalSim,
 	};
+	virtual EBindingType GetParentBindingType() const final { return m_hierarchy.parentBindingType; }
 
 	// Childs structure, only allocated when any child entity is attached.
 	struct STransformHierarchy
@@ -471,12 +508,12 @@ private:
 	//////////////////////////////////////////////////////////////////////////
 	// Internal entity flags (must be first member var of CEntity) (Reduce cache misses on access to entity data).
 	//////////////////////////////////////////////////////////////////////////
-	unsigned int         m_bActive        : 1;      // Active Entities are updated every frame.
 	unsigned int         m_bInActiveList  : 1;      // Added to entity system active list.
 	unsigned int         m_bRequiresComponentUpdate  : 1; // Whether or not any components require update callbacks
 	mutable unsigned int m_bBoundsValid   : 1;      // Set when the entity bounding box is valid.
 	unsigned int         m_bInitialized   : 1;      // Set if this entity already Initialized.
 	unsigned int         m_bHidden        : 1;      // Set if this entity is hidden.
+	unsigned int         m_bIsInHiddenLayer : 1;    // Set if this entity is in a hidden layer.
 	unsigned int         m_bGarbage       : 1;      // Set if this entity is garbage and will be removed soon.
 
 	unsigned int         m_bTrigger       : 1;      // Set if entity is proximity trigger itself.
@@ -527,7 +564,16 @@ private:
 	// For tracking entity inside proximity trigger system.
 	SProximityElement* m_pProximityEntity;
 
+	//! Schematyc object associated with this entity.
+	Schematyc::IObject* m_pSchematycObject = nullptr;
+	
+	//! Public Properties of the associated Schematyc object
+	Schematyc::IObjectPropertiesPtr m_pSchematycProperties = nullptr;
+
 	std::unique_ptr<SEventListeners> m_pEventListeners;
+	
+	// NetEntity stores the network serialization configuration.
+	std::unique_ptr<INetEntity> m_pNetEntity;
 
 	CEntityRender                    m_render;
 	CEntityPhysics                   m_physics;
@@ -546,6 +592,9 @@ private:
 
 	// Entity extended flags. any combination of EEntityFlagsExtended values.
 	uint32 m_flagsExtended;
+
+	//! Simulation mode of this entity, (ex Preview, In Game, In Editor)
+	EEntitySimulationMode m_simulationMode = EEntitySimulationMode::Idle;
 
 	// Position of the entity in local space.
 	Vec3             m_vPos;

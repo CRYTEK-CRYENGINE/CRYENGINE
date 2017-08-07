@@ -17,7 +17,6 @@ class CDataImportHelper final : public DRS::IDataImportHelper
 {
 public:
 	CDataImportHelper();
-	virtual ~CDataImportHelper() {}
 
 	//////////////////////////////////////////////////////////
 	// IDataImportHelper implementation

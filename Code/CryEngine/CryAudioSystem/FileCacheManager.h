@@ -15,13 +15,14 @@ struct ICustomMemoryHeap;
 class CATLAudioFileEntry;
 
 // Filter for drawing debug info to the screen
-enum EAudioFileCacheManagerDebugFilter
+enum class EAudioFileCacheManagerDebugFilter : EnumFlagsType
 {
-	eAFCMDF_ALL             = 0,
-	eAFCMDF_GLOBALS         = BIT(6),   // a
-	eAFCMDF_LEVEL_SPECIFICS = BIT(7),   // b
-	eAFCMDF_USE_COUNTED     = BIT(8),   // c
+	All            = 0,
+	Globals        = BIT(6), // a
+	LevelSpecifics = BIT(7), // b
+	UseCounted     = BIT(8), // c
 };
+CRY_CREATE_ENUM_FLAG_OPERATORS(EAudioFileCacheManagerDebugFilter);
 
 class CFileCacheManager final : public IStreamCallback
 {
@@ -35,7 +36,7 @@ public:
 	CFileCacheManager& operator=(CFileCacheManager&&) = delete;
 
 	// Public methods
-	void           Init(Impl::IAudioImpl* const pImpl);
+	void           Init(Impl::IImpl* const pIImpl);
 	void           Release();
 	void           Update();
 	FileEntryId    TryAddFileCacheEntry(XmlNodeRef const pFileNode, EDataScope const dataScope, bool const bAutoLoad);
@@ -46,13 +47,13 @@ public:
 	ERequestStatus UnloadDataByScope(EDataScope const dataScope);
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
-	void DrawDebugInfo(IRenderAuxGeom& auxGeom, float const posX, float const posY);
+	void DrawDebugInfo(IRenderAuxGeom& auxGeom, float const posX, float posY);
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
 private:
 
 	// Internal type definitions.
-	typedef std::map<FileEntryId, CATLAudioFileEntry*> AudioFileEntries;
+	using AudioFileEntries = std::map<FileEntryId, CATLAudioFileEntry*>;
 
 	// IStreamCallback
 	virtual void StreamAsyncOnComplete(IReadStream* pStream, unsigned int nError) override;
@@ -71,7 +72,7 @@ private:
 	bool TryCacheFileCacheEntryInternal(CATLAudioFileEntry* const pAudioFileEntry, FileEntryId const audioFileEntryId, bool const bLoadSynchronously, bool const bOverrideUseCount = false, size_t const useCount = 0);
 
 	// Internal members
-	Impl::IAudioImpl*               m_pImpl;
+	Impl::IImpl*                    m_pIImpl;
 	AudioPreloadRequestLookup&      m_preloadRequests;
 	AudioFileEntries                m_audioFileEntries;
 	_smart_ptr<::ICustomMemoryHeap> m_pMemoryHeap;

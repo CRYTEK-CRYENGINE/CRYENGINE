@@ -9,24 +9,39 @@ from waflib.Utils import run_once
 @module_extension('sdl2')
 def module_extensions_sdl2(ctx, kw, entry_prefix, platform, configuration):
 
+	kw[entry_prefix + 'defines']  += ['USE_SDL2'] # SDL_Mixer, possibly renderer
+	kw[entry_prefix + 'lib']      += ['SDL2']
+
 	if platform.startswith('win_x86'):
 		kw[entry_prefix + 'includes'] += [ ctx.CreateRootRelativePath('Code/SDKs/SDL2/include/win') ]
-		kw[entry_prefix + 'lib']      += [ 'SDL2' ]
 		kw[entry_prefix + 'libpath']  += [ ctx.CreateRootRelativePath('Code/SDKs/SDL2/lib/win_x86') ]
+		kw[entry_prefix + 'defines']  += ['USE_SDL2'] # SDL_Mixer
+		kw[entry_prefix + 'lib']      += ['SDL2']
 
 	elif platform.startswith('win_x64'):
 		kw[entry_prefix + 'includes'] += [ ctx.CreateRootRelativePath('Code/SDKs/SDL2/include/win') ]
-		kw[entry_prefix + 'lib']      += [ 'SDL2' ]
 		kw[entry_prefix + 'libpath']  += [ ctx.CreateRootRelativePath('Code/SDKs/SDL2/lib/win_x64') ]
+		kw[entry_prefix + 'defines']  += ['USE_SDL2'] # SDL_Mixer
+		kw[entry_prefix + 'lib']      += ['SDL2']
 
 	elif platform.startswith('linux_x64'):
 		kw[entry_prefix + 'includes'] += [ ctx.CreateRootRelativePath('Code/SDKs/SDL2/include/linux') ]
-		kw[entry_prefix + 'lib']      += [ 'SDL2' ]
 		kw[entry_prefix + 'libpath']  += [ ctx.CreateRootRelativePath('Code/SDKs/SDL2/lib/linux_x64') ]
-	elif platform.startswith('android'):
+		kw[entry_prefix + 'defines']  += ['USE_SDL2', 'USE_SDL2_WINDOWAPI'] # SDL_Mixer, Renderer
+		kw[entry_prefix + 'lib']      += ['SDL2']
+		
+	elif platform == 'android_arm':
 		kw[entry_prefix + 'includes'] += [ ctx.CreateRootRelativePath('Code/SDKs/SDL2/include/android-armeabi-v7a') ]
-		kw[entry_prefix + 'lib']      += [ 'SDL2' ]
 		kw[entry_prefix + 'libpath']  += [ ctx.CreateRootRelativePath('Code/SDKs/SDL2/lib/android-armeabi-v7a') ]
+		kw[entry_prefix + 'defines']  += ['USE_SDL2', 'USE_SDL2_WINDOWAPI'] # SDL_Mixer, Renderer
+		kw[entry_prefix + 'lib']      += ['SDL2']
+		
+	elif platform == 'android_arm64':
+		kw[entry_prefix + 'includes'] += [ ctx.CreateRootRelativePath('Code/SDKs/SDL2/include/android-arm64-v8a') ]
+		kw[entry_prefix + 'libpath']  += [ ctx.CreateRootRelativePath('Code/SDKs/SDL2/lib/android-arm64-v8a') ]
+		kw[entry_prefix + 'defines']  += ['USE_SDL2', 'USE_SDL2_WINDOWAPI'] # SDL_Mixer, Renderer
+		kw[entry_prefix + 'lib']      += ['SDL2']
+
 	else:
 		return
 
@@ -36,10 +51,16 @@ def module_extensions_sdl2(ctx, kw, entry_prefix, platform, configuration):
 @module_extension('sdl2_ext')
 def module_extensions_sdl2_ext(ctx, kw, entry_prefix, platform, configuration):
 
-	if platform.startswith('android'):
+	if platform == 'android_arm':
 		kw[entry_prefix + 'includes'] += [ ctx.CreateRootRelativePath('Code/Tools/SDLExtension/src/include') ]
 		kw[entry_prefix + 'lib']      += [ 'SDL2Ext' ]
 		kw[entry_prefix + 'libpath']  += [ ctx.CreateRootRelativePath('Code/Tools/SDLExtension/lib/android-armeabi-v7a') ]
+
+	if platform == 'android_arm64':
+		kw[entry_prefix + 'includes'] += [ ctx.CreateRootRelativePath('Code/Tools/SDLExtension/src/include') ]
+		kw[entry_prefix + 'lib']      += [ 'SDL2Ext' ]
+		kw[entry_prefix + 'libpath']  += [ ctx.CreateRootRelativePath('Code/Tools/SDLExtension/lib/android-arm64-v8a') ]
+
 	else:
 		return		
 
@@ -64,6 +85,7 @@ def feature_copy_sdl2_binaries(self):
 	elif platform.startswith('linux_x64'):
 		files_to_copy = ['libSDL2-2.0.so.0']
 		libfolder = 'linux_x64'
+
 	elif platform.startswith('android'):
 		return # do nothing
 	

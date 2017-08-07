@@ -23,7 +23,7 @@ CCryDXGLTexture1D::CCryDXGLTexture1D(const D3D11_TEXTURE1D_DESC& kDesc, NCryOpen
 	DXGL_INITIALIZE_INTERFACE(D3D11Texture1D)
 }
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 
 CCryDXGLTexture1D::CCryDXGLTexture1D(const D3D11_TEXTURE1D_DESC& kDesc, NCryOpenGL::SInitialDataCopy* pInitialData, CCryDXGLDevice* pDevice)
 	: CCryDXGLTextureBase(D3D11_RESOURCE_DIMENSION_TEXTURE1D, pInitialData, pDevice)
@@ -38,7 +38,7 @@ CCryDXGLTexture1D::~CCryDXGLTexture1D()
 {
 }
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 
 void CCryDXGLTexture1D::Initialize()
 {

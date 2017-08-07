@@ -32,7 +32,7 @@ public:
 	CCryDXGLQuery(const D3D11_QUERY_DESC& kDesc, NCryOpenGL::SQuery* pGLQuery, CCryDXGLDevice* pDevice);
 	virtual ~CCryDXGLQuery();
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	NCryOpenGL::SQuery* GetGLQuery(NCryOpenGL::CContext* pContext);
 #else
 	NCryOpenGL::SQuery* GetGLQuery();

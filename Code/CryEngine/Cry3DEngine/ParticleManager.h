@@ -177,7 +177,7 @@ public:
 	void PrintParticleMemory();
 
 	typedef VectorMap<const IParticleEffect*, SParticleCounts> TEffectStats;
-	void CollectEffectStats(TEffectStats& mapEffectStats, float SParticleCounts::* pSortField) const;
+	void CollectEffectStats(TEffectStats& mapEffectStats, size_t iSortField) const;
 
 	//PerfHUD
 	virtual void CreatePerfHUDWidget();
@@ -341,6 +341,8 @@ private:
 	// Force features on/off depending on engine config.
 	uint32               m_nAllowedEnvironmentFlags;        // Which particle features are allowed.
 	TrinaryFlags<uint64> m_RenderFlags;                     // OS_ and FOB_ flags.
+
+	bool                 m_bParticleTessellation = false;   // tessellation feature is allowed to use.
 
 	SPhysEnviron         m_PhysEnv;                         // Per-frame computed physics area information.
 

@@ -7,27 +7,31 @@
 namespace NCryDX12
 {
 
-CSwapChain* CSwapChain::Create(CCommandListPool& commandQueue, IDXGIFactory4* pFactory, DXGI_SWAP_CHAIN_DESC* pDesc)
+CSwapChain* CSwapChain::Create(CCommandListPool& commandQueue, IDXGIFactory4ToCall* pFactory, DXGI_SWAP_CHAIN_DESC* pDesc)
 {
-	IDXGISwapChain* pDXGISwapChain = NULL;
-	IDXGISwapChain3* pDXGISwapChain3 = NULL;
+	IDXGISwapChainToCall* pDXGISwapChain = nullptr;
+	IDXGISwapChain3ToCall* pDXGISwapChain3 = nullptr;
 	ID3D12CommandQueue* pQueue12 = commandQueue.GetD3D12CommandQueue();
 
 	// If discard isn't implemented/supported/fails, try the newer swap-types
-	// - flip_discard is win 10
-	// - flip_sequentially is win 8
-	if (pDesc->SwapEffect == DXGI_SWAP_EFFECT_DISCARD)
+#if defined(__dxgi1_4_h__) || defined(__d3d11_x_h__)
+	if (pDesc->SwapEffect == DXGI_SWAP_EFFECT_SEQUENTIAL)
 	{
-		pDesc->SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-		pDesc->BufferCount = std::max(2U, pDesc->BufferCount);
-	}
-	else if (pDesc->SwapEffect == DXGI_SWAP_EFFECT_SEQUENTIAL)
-	{
+		// - flip_sequentially is win 8
 		pDesc->SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
 		pDesc->BufferCount = std::max(2U, pDesc->BufferCount);
 	}
+#ifdef __dxgi1_4_h__
+	else if (pDesc->SwapEffect == DXGI_SWAP_EFFECT_DISCARD)
+	{
+		// - flip_discard is win 10
+		pDesc->SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+		pDesc->BufferCount = std::max(2U, pDesc->BufferCount);
+	}
+#endif
+#endif
 
-#ifdef CRY_USE_DX12_MULTIADAPTER
+#ifdef DX12_LINKEDADAPTER
 	// Put swap-chain on node "0"
 	if (commandQueue.GetDevice()->IsMultiAdapter())
 	{
@@ -35,11 +39,27 @@ CSwapChain* CSwapChain::Create(CCommandListPool& commandQueue, IDXGIFactory4* pF
 	}
 #endif
 
+#ifdef __dxgi1_3_h__
+	{
+		BOOL bAllowTearing = FALSE;
+		IDXGIFactory5ToCall* pFactory5 = nullptr;
+		if (S_OK == pFactory->QueryInterface(IID_GFX_ARGS(&pFactory5)) &&
+			S_OK == pFactory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &bAllowTearing, sizeof(bAllowTearing)))
+		{
+		}
+
+		if (bAllowTearing)
+		{
+			pDesc->Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+		}
+	}
+#endif
+
 	HRESULT hr = pFactory->CreateSwapChain(pQueue12, pDesc, &pDXGISwapChain);
 
 	if (hr == S_OK && pDXGISwapChain)
 	{
-		hr = pDXGISwapChain->QueryInterface(IID_PPV_ARGS(&pDXGISwapChain3));
+		hr = pDXGISwapChain->QueryInterface(IID_GFX_ARGS(&pDXGISwapChain3));
 		pDXGISwapChain->Release();
 
 		if (hr == S_OK && pDXGISwapChain3)
@@ -52,13 +72,44 @@ CSwapChain* CSwapChain::Create(CCommandListPool& commandQueue, IDXGIFactory4* pF
 	return nullptr;
 }
 
+CSwapChain* CSwapChain::Create(CCommandListPool& commandQueue, IDXGISwapChain1ToCall* swapchain, DXGI_SWAP_CHAIN_DESC1* pDesc)
+{
+	IDXGISwapChainToCall* pDXGISwapChain = swapchain;
+	IDXGISwapChain3ToCall* pDXGISwapChain3 = nullptr;
+	ID3D12CommandQueue* pQueue12 = commandQueue.GetD3D12CommandQueue();
+
+#ifdef DX12_LINKEDADAPTER
+	// Put swap-chain on node "0"
+	if (commandQueue.GetDevice()->IsMultiAdapter())
+	{
+		pQueue12 = commandQueue.GetDevice()->GetNativeObject(pQueue12, 0);
+	}
+#endif
+
+	HRESULT hr = S_OK;
+
+	if (hr == S_OK && pDXGISwapChain)
+	{
+		hr = pDXGISwapChain->QueryInterface(IID_GFX_ARGS(&pDXGISwapChain3));
+		pDXGISwapChain->Release();
+
+		if (hr == S_OK && pDXGISwapChain3)
+		{
+			auto result = new CSwapChain(commandQueue, pDXGISwapChain3, nullptr);
+			return result;
+		}
+	}
+
+	return nullptr;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //---------------------------------------------------------------------------------------------------------------------
-CSwapChain::CSwapChain(CCommandListPool& commandQueue, IDXGISwapChain3* dxgiSwapChain, DXGI_SWAP_CHAIN_DESC* pDesc)
+CSwapChain::CSwapChain(CCommandListPool& commandQueue, IDXGISwapChain3ToCall* dxgiSwapChain, DXGI_SWAP_CHAIN_DESC* pDesc)
 	: CRefCounted()
-	, m_CurrentBackbufferIndex(dxgiSwapChain->GetCurrentBackBufferIndex())
-	, m_bPresentScheduled(false)
+	, m_bChangedBackBufferIndex(true)
+	, m_nCurrentBackBufferIndex(0)
 	, m_pCommandQueue(commandQueue)
 	, m_asyncQueue(commandQueue.GetAsyncCommandQueue())
 {
@@ -88,17 +139,24 @@ CSwapChain::~CSwapChain()
 
 HRESULT CSwapChain::ResizeTarget(const DXGI_MODE_DESC* pNewTargetParameters)
 {
+	m_bChangedBackBufferIndex = true;
+
 	return m_pDXGISwapChain->ResizeTarget(
 	  pNewTargetParameters);
 }
 
 HRESULT CSwapChain::ResizeBuffers(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT NewFormat, UINT SwapChainFlags)
 {
+	m_bChangedBackBufferIndex = true;
+
+	// DXGI ERROR: IDXGISwapChain::ResizeBuffers: Cannot add or remove the DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING flag using ResizeBuffers. 
 	m_Desc.BufferCount = BufferCount ? BufferCount : m_Desc.BufferCount;
 	m_Desc.BufferDesc.Width = Width ? Width : m_Desc.BufferDesc.Width;
 	m_Desc.BufferDesc.Height = Height ? Height : m_Desc.BufferDesc.Height;
 	m_Desc.BufferDesc.Format = NewFormat != DXGI_FORMAT_UNKNOWN ? NewFormat : m_Desc.BufferDesc.Format;
-	m_Desc.Flags = SwapChainFlags;
+#ifdef __dxgi1_3_h__
+	m_Desc.Flags = (m_Desc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) | (SwapChainFlags & ~DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING);
+#endif
 
 	return m_pDXGISwapChain->ResizeBuffers(
 	  m_Desc.BufferCount,
@@ -110,16 +168,16 @@ HRESULT CSwapChain::ResizeBuffers(UINT BufferCount, UINT Width, UINT Height, DXG
 
 void CSwapChain::AcquireBuffers()
 {
-	m_BackBuffers.reserve(m_Desc.BufferCount);
-	m_BackBufferRTVs.reserve(m_Desc.BufferCount);
-	m_BackBufferSRVs.reserve(m_Desc.BufferCount);
+	CDevice* pDevice = m_pCommandQueue.GetDevice();
 
-#ifdef CRY_USE_DX12_MULTIADAPTER
-	if (m_pCommandQueue.GetDevice()->IsMultiAdapter())
+	m_BackBuffers.reserve(m_Desc.BufferCount);
+
+#ifdef DX12_LINKEDADAPTER
+	if (pDevice->IsMultiAdapter())
 	{
 		// Buffers created using ResizeBuffers1 with a non-null pCreationNodeMask array are visible to all nodes.
 		std::vector<UINT> createNodeMasks(m_Desc.BufferCount, 0x1);
-		std::vector<IUnknown*> presentCommandQueues(m_Desc.BufferCount, m_pCommandQueue.GetDevice()->GetNativeObject(m_pCommandQueue.GetD3D12CommandQueue(), 0));
+		std::vector<IUnknown*> presentCommandQueues(m_Desc.BufferCount, pDevice->GetNativeObject(m_pCommandQueue.GetD3D12CommandQueue(), 0));
 
 		HRESULT ret = m_pDXGISwapChain->ResizeBuffers1(
 		  m_Desc.BufferCount,
@@ -137,16 +195,16 @@ void CSwapChain::AcquireBuffers()
 	for (int i = 0; i < m_Desc.BufferCount; ++i)
 	{
 		ID3D12Resource* pResource12 = nullptr;
-		if (S_OK == m_pDXGISwapChain->GetBuffer(i, IID_PPV_ARGS(&pResource12)))
+		if (S_OK == m_pDXGISwapChain->GetBuffer(i, IID_GFX_ARGS(&pResource12)))
 		{
-#ifdef CRY_USE_DX12_MULTIADAPTER
-			if (m_pCommandQueue.GetDevice()->IsMultiAdapter())
+#ifdef DX12_LINKEDADAPTER
+			if (pDevice->IsMultiAdapter())
 			{
 				ID3D12Resource* pResource12s[2] = { pResource12, nullptr };
 
-				HRESULT ret = m_pCommandQueue.GetDevice()->DuplicateNativeCommittedResource(
+				HRESULT ret = pDevice->DuplicateNativeCommittedResource(
 					1U << 1U,
-					m_pCommandQueue.GetDevice()->GetNodeMask(),
+					pDevice->GetNodeMask(),
 					pResource12s[0],
 					&pResource12s[1]);
 
@@ -160,7 +218,7 @@ void CSwapChain::AcquireBuffers()
 	#endif  // !RELEASE
 
 				// Get broadcast resource from node "0" valid for all nodes
-				pResource12 = m_pCommandQueue.GetDevice()->CreateBroadcastObject(pResource12s);
+				pResource12 = pDevice->CreateBroadcastObject(pResource12s);
 
 				ULONG refCount = pResource12s[0]->Release();
 
@@ -170,20 +228,14 @@ void CSwapChain::AcquireBuffers()
 			}
 #endif
 
-			m_BackBuffers.emplace_back(m_pCommandQueue.GetDevice());
+			m_BackBuffers.emplace_back(pDevice);
 			m_BackBuffers[i].Init(pResource12, D3D12_RESOURCE_STATE_PRESENT);
 			m_BackBuffers[i].SetDX12SwapChain(this);
-
-			m_BackBufferRTVs.emplace_back();
-			m_BackBufferRTVs[i].Init(m_BackBuffers[i], EVT_RenderTargetView);
-
-			m_BackBufferSRVs.emplace_back();
-			m_BackBufferSRVs[i].Init(m_BackBuffers[i], EVT_ShaderResourceView);
 
 			ULONG refCount = pResource12->Release();
 
 #if !defined(RELEASE) && defined(I_WONT_USE_THE_FRAME_DEBUGGER)
-			if (m_pCommandQueue.GetDevice()->IsMultiAdapter())
+			if (pDevice->IsMultiAdapter())
 			{
 				DX12_ASSERT(refCount == 1 + 0, "RefCount corruption!");
 			}
@@ -194,11 +246,9 @@ void CSwapChain::AcquireBuffers()
 #endif  // !RELEASE
 		}
 	}
-
-	m_CurrentBackbufferIndex = m_pDXGISwapChain->GetCurrentBackBufferIndex();
 }
 
-void CSwapChain::UnblockBuffers(NCryDX12::CCommandList* pCommandList)
+void CSwapChain::UnblockBuffers(CCommandList* pCommandList)
 {
 	for (int i = 0; i < m_Desc.BufferCount; ++i)
 	{
@@ -212,13 +262,15 @@ void CSwapChain::UnblockBuffers(NCryDX12::CCommandList* pCommandList)
 
 void CSwapChain::VerifyBufferCounters()
 {
+	CDevice* pDevice = m_pCommandQueue.GetDevice();
+
 #if !defined(RELEASE) && defined(I_WONT_USE_THE_FRAME_DEBUGGER)
 	for (int i = 0; i < m_Desc.BufferCount; ++i)
 	{
 		ID3D12Resource* pResource12 = m_BackBuffers[i].GetD3D12Resource();
 
-	#ifdef CRY_USE_DX12_MULTIADAPTER
-		if (m_pCommandQueue.GetDevice()->IsMultiAdapter())
+	#ifdef DX12_LINKEDADAPTER
+		if (pDevice->IsMultiAdapter())
 		{
 			;
 		}
@@ -227,7 +279,7 @@ void CSwapChain::VerifyBufferCounters()
 	#ifndef RELEASE
 		ULONG refCount = pResource12->AddRef() - 1;
 		pResource12->Release();
-		if (m_pCommandQueue.GetDevice()->IsMultiAdapter())
+		if (pDevice->IsMultiAdapter())
 		{
 			// 1x for m_BackBuffers, 1x for ReleaseHeap
 			DX12_ASSERT(refCount == 2, "RefCount corruption!");
@@ -246,8 +298,6 @@ void CSwapChain::ForfeitBuffers()
 {
 	VerifyBufferCounters();
 
-	m_BackBufferRTVs.clear();
-	m_BackBufferSRVs.clear();
 	m_BackBuffers.clear();
 }
 

@@ -1,12 +1,14 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
-#include <CryAISystem/IAIAction.h>
-
 #include "FlowGraph.h"
-#include "FlowSystem.h"
+
 #include <CryString/StringUtils.h>
+#include <CryAISystem/IAIAction.h>
+#include <CryAction/ICustomActions.h>
 #include <CryGame/IGameTokens.h>
+
+#include "FlowSystem.h"
 #include "Modules/ModuleManager.h"
 
 // Debug disabled edges in FlowGraphs
@@ -125,37 +127,45 @@ private:
 	TFlowNodeId m_id;
 };
 
+
+// CFlowGraphBase
+
+const TFlowNodeId CFlowGraphBase::NOT_MODIFIED = ~TFlowNodeId(0);
+const TFlowNodeId CFlowGraphBase::END_OF_MODIFIED_LIST = CFlowGraphBase::NOT_MODIFIED - 1;
+
+
 CFlowGraphBase::CFlowGraphBase(CFlowSystem* pSys)
 	: m_firstModifiedNode(END_OF_MODIFIED_LIST)
 	, m_firstActivatingNode(END_OF_MODIFIED_LIST)
 	, m_bInUpdate(false)
 	, m_firstFinalActivatingNode(END_OF_MODIFIED_LIST)
-	, m_bEnabled(true)
+	, m_bEnabled(false)
 	, m_bActive(true)
 	, m_bEdgesSorted(true)
 	, m_bNeedsInitialize(true)
 	, m_bNeedsUpdating(false)
 	, m_pSys(pSys)
 	, m_nRefs(0)
+	, m_pEntitySystem(nullptr)
 	, m_bSuspended(false)
 	, m_bIsAIAction(false)
-	, m_pAIAction(NULL)
+	, m_pAIAction(nullptr)
 	, m_bIsCustomAction(false)
-	, m_pCustomAction(NULL)
-	, m_pClonedFlowGraph(NULL)
+	, m_pCustomAction(nullptr)
+	, m_pClonedFlowGraph(nullptr)
+	, m_bRegistered(false)
 	, m_graphId(InvalidFlowGraphId)
 	, m_Type(IFlowGraph::eFGT_Default)
+	, m_graphTokens()
 {
 	m_pEntitySystem = gEnv->pEntitySystem;
 
 	for (int i = 0; i < MAX_GRAPH_ENTITIES; i++)
 		m_graphEntityId[i] = 0;
 
-#if defined (FLOW_DEBUG_PENDING_UPDATES)
 	CreateDebugName();
-#endif
 
-	m_graphId = m_pSys->RegisterGraph(this, InternalGetDebugName());
+	m_graphId = m_pSys->RegisterGraph(this, GetDebugName());
 	m_bRegistered = true;
 	m_pFlowGraphDebugger = GetIFlowGraphDebuggerPtr();
 }
@@ -258,25 +268,19 @@ bool CFlowGraphBase::IsSuspended() const
 
 void CFlowGraphBase::SetAIAction(IAIAction* pAIAction)
 {
-#if !defined(FLOW_DEBUG_PENDING_UPDATES)
 	m_pAIAction = pAIAction;
-	if (pAIAction)
-		m_bIsAIAction = true; // once an AIAction, always an AIAction
-#else
 	if (pAIAction)
 	{
 		m_bIsAIAction = true; // once an AIAction, always an AIAction
-		m_pAIAction = pAIAction;
-		CreateDebugName();
+		m_Type = eFGT_AIAction;
 	}
 	else
-		m_pAIAction = 0;
-#endif
-
-	if (m_bIsAIAction)
-		m_Type = eFGT_AIAction;
-	else
+	{
+		// m_bIsAIAction = false?? clearing some things but not others does not look correct, but let's not ask existential questions now
 		m_Type = eFGT_Default;
+	}
+
+	CreateDebugName();
 }
 
 IAIAction* CFlowGraphBase::GetAIAction() const
@@ -286,20 +290,15 @@ IAIAction* CFlowGraphBase::GetAIAction() const
 
 void CFlowGraphBase::SetCustomAction(ICustomAction* pCustomAction)
 {
-#if !defined(FLOW_DEBUG_PENDING_UPDATES)
 	m_pCustomAction = pCustomAction;
-	if (pCustomAction)
-		m_bIsCustomAction = true; // once an CustomAction, always an CustomAction
-#else
+
 	if (pCustomAction)
 	{
 		m_bIsCustomAction = true; // once an CustomAction, always an CustomAction
 		m_pCustomAction = pCustomAction;
 		CreateDebugName();
 	}
-	else
-		m_pCustomAction = 0;
-#endif
+	// else? same as above?
 }
 
 ICustomAction* CFlowGraphBase::GetCustomAction() const
@@ -311,7 +310,10 @@ void CFlowGraphBase::UnregisterFromFlowSystem()
 {
 	assert(m_bRegistered);
 	if (m_pSys && m_bRegistered)
+	{
+		UnregisterGraphTokens();
 		m_pSys->UnregisterGraph(this);
+	}
 
 	m_graphId = InvalidFlowGraphId;
 	m_bRegistered = false;
@@ -337,7 +339,7 @@ void CFlowGraphBase::Cleanup()
 
 CFlowGraphBase::~CFlowGraphBase()
 {
-	//	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	LOADING_TIME_PROFILE_SECTION
 
 	RemoveGraphTokens();
 
@@ -345,6 +347,63 @@ CFlowGraphBase::~CFlowGraphBase()
 		m_pSys->UnregisterGraph(this);
 
 	Cleanup();
+}
+
+
+const char* CFlowGraphBase::GetDebugName() const
+{
+#if !defined(_RELEASE)
+	return m_debugName.c_str();
+#else
+	return "";
+#endif
+}
+
+void CFlowGraphBase::SetDebugName(const char* sName)
+{
+#if !defined(_RELEASE)
+	m_debugName = sName;
+#endif
+}
+
+void CFlowGraphBase::CreateDebugName()
+{
+#if !defined(_RELEASE)
+	char* sType;
+	stack_string sExtra = "";
+
+	switch (m_Type)
+	{
+	case eFGT_Default:
+		{
+			sType = "Files";
+			IEntity *pEntity = gEnv->pEntitySystem->GetEntity(GetGraphEntity(0));
+			if (pEntity)
+			{
+				sType = "Entity";
+				sExtra.Format(" '%s'", pEntity->GetName());
+			}
+			break;
+		}
+	case eFGT_AIAction:
+		{
+			sType = "AI Action";
+			sExtra.Format(" '%s'", m_pAIAction->GetName());
+			break;
+		}
+	case eFGT_UIAction: sType = "UI Action"; break;
+	case eFGT_Module: sType = "Module"; break;
+	case eFGT_CustomAction:
+		{
+			sType = "Custom Action";
+			sExtra.Format(" '%s'", m_pCustomAction->GetCustomActionGraphName());
+			break;
+		}
+	case eFGT_MaterialFx: sType = "Material FX"; break;
+	}
+
+	m_debugName.Format("[%s] %s", sType, sExtra.c_str());
+#endif
 }
 
 #if defined (FLOW_DEBUG_PENDING_UPDATES)
@@ -370,35 +429,6 @@ string GetPrettyNodeName(IFlowGraph* pGraph, TFlowNodeId id)
 }
 };
 
-const char* CFlowGraphBase::InternalGetDebugName()
-{
-	static char buf[128];
-	bool bFit;
-
-	if (m_pAIAction != 0)
-		bFit = cry_sprintf(buf, "FG-0x%p-AIAction '%s'", this, m_pAIAction->GetName());
-	else
-	{
-		IEntity* pEntity = gEnv->pEntitySystem->GetEntity(GetGraphEntity(0));
-		if (pEntity != 0)
-			bFit = cry_sprintf(buf, "FG-0x%p-Entity '%s'", this, pEntity->GetName());
-		else
-			bFit = cry_sprintf(buf, "FG-0x%p", this);
-	}
-
-	if (!bFit)
-	{
-		buf[sizeof(buf) - 4] = '\0';
-		cry_strcat(buf, "...");
-	}
-
-	return buf;
-}
-
-void CFlowGraphBase::CreateDebugName()
-{
-	m_debugName = InternalGetDebugName();
-}
 
 void CFlowGraphBase::DebugPendingActivations()
 {
@@ -442,11 +472,7 @@ void CFlowGraphBase::DebugPendingActivations()
 		id = nextId;
 	}
 }
-#else
-const char* CFlowGraphBase::InternalGetDebugName()
-{
-	return "";
-}
+
 #endif
 
 void CFlowGraphBase::AddRef()
@@ -477,10 +503,10 @@ void CFlowGraphBase::UnregisterHook(IFlowGraphHookPtr p)
 void CFlowGraphBase::SetGraphEntity(EntityId id, int nIndex)
 {
 	if (nIndex >= 0 && nIndex < MAX_GRAPH_ENTITIES)
+	{
 		m_graphEntityId[nIndex] = id;
-#if defined (FLOW_DEBUG_PENDING_UPDATES)
-	CreateDebugName();
-#endif
+		CreateDebugName();
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -522,17 +548,22 @@ void CFlowGraphBase::CloneInner(CFlowGraphBase* pClone)
 	pClone->m_Type = m_Type;
 	// pClone->m_bActive = m_bActive;
 	// pClone->m_bSuspended = m_bSuspended;
-#if defined (FLOW_DEBUG_PENDING_UPDATES)
-	pClone->CreateDebugName();
+#if !defined (_RELEASE)
+	// copy the name as is. something else should overwrite it (such as the module manager or changing the graph's entity)
+	pClone->m_debugName = m_debugName;
 #endif
 
 	// clone graph tokens
-	for (size_t i = 0; i < GetGraphTokenCount(); ++i)
+	const size_t numTokens = GetGraphTokenCount();
+	pClone->m_graphTokens.reserve(numTokens);
+	for (size_t i = 0; i < numTokens; ++i)
 	{
 		const IFlowGraph::SGraphToken* pToken = GetGraphToken(i);
+		// the clone will copy SGraphToken and register a separate CGameToken in the GTS
 		pClone->AddGraphToken(*pToken);
 	}
 
+	// clone the individual nodes
 	IFlowNode::SActivationInfo info;
 	info.pGraph = pClone;
 	for (std::vector<CFlowData>::iterator iter = pClone->m_flowData.begin(); iter != pClone->m_flowData.end(); ++iter)
@@ -938,7 +969,7 @@ XmlNodeRef CFlowGraphBase::GetUserData(TFlowNodeId id)
 
 void CFlowGraphBase::Update()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_ACTION, m_debugName);
 
 	// Disabled or Deactivated or Suspended flow graphs shouldn't be updated!
 	if (m_bEnabled == false || m_bActive == false || m_bSuspended || m_bNeedsUpdating == false)
@@ -987,7 +1018,7 @@ void CFlowGraphBase::Update()
 
 void CFlowGraphBase::InitializeValues()
 {
-	//	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_ACTION, m_debugName);
 
 	// flush activation list
 	DoUpdate(IFlowNode::eFE_DontDoAnythingWithThisPlease);
@@ -995,8 +1026,7 @@ void CFlowGraphBase::InitializeValues()
 	// reset graph tokens
 	for (TGraphTokens::const_iterator it = m_graphTokens.begin(), end = m_graphTokens.end(); it != end; ++it)
 	{
-		SGraphToken token = *it;
-		ResetGraphToken(token);
+		ResetGraphToken(*it);
 	}
 
 	// Initially suspended flow graphs should never be initialized nor updated!
@@ -1021,8 +1051,6 @@ void CFlowGraphBase::InitializeValues()
 
 void CFlowGraphBase::DoUpdate(IFlowNode::EFlowEvent event)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
-
 	IFlowNode::SActivationInfo activationInfo(this, 0);
 
 	CRY_ASSERT(m_firstFinalActivatingNode == END_OF_MODIFIED_LIST);
@@ -1142,42 +1170,69 @@ void CFlowGraphBase::PrecacheResources()
 	}
 }
 
-//////////////////////////////////////////////////////////////////////////
 
-string CFlowGraphBase::GetGlobalNameForGraphToken(const string& tokenName) const
+//////////////////////////////////////////////////////////////////////////
+// Graph Tokens
+
+size_t CFlowGraphBase::GetGraphTokenCount() const
 {
+	return m_graphTokens.size();
+}
+
+const IFlowGraph::SGraphToken* CFlowGraphBase::GetGraphToken(size_t index) const
+{
+	if (index < m_graphTokens.size())
+	{
+		return &(m_graphTokens[index]);
+	}
+
+	return nullptr;
+}
+
+const char* CFlowGraphBase::GetGlobalNameForGraphToken(const char* tokenName) const
+{
+	assert(m_graphId != InvalidFlowGraphId);  // a graph may have an invalid id if it is not registered in the flowSystem.
+	// An unregistered graph should not be registering game tokens. Using this ID as unique identifier will surely lead to problems later.
+
 	// graph tokens are registered in the game token system using the format:
 	//	'GraphToken.Graph<id>.<tokenName>'
-	string globalName = "GraphToken.Graph";
+	static stack_string globalName;
+	globalName.Format("GraphToken.Graph%u.%s", m_graphId, tokenName);
+	return globalName.c_str();
+}
 
-	string temp;
-	temp.Format("%u.", m_graphId);
-	globalName += temp;
-	globalName += tokenName;
+void CFlowGraphBase::UnregisterGraphTokens()
+{
+	LOADING_TIME_PROFILE_SECTION
 
-	return globalName;
+	IGameTokenSystem* pGTS = gEnv->pGameFramework->GetIGameTokenSystem();
+	IF_UNLIKELY(!pGTS) return;
+
+	for (TGraphTokens::iterator it = m_graphTokens.begin(), end = m_graphTokens.end(); it != end; ++it)
+	{
+		const char* globalName = GetGlobalNameForGraphToken(it->name.c_str());
+
+		IGameToken* pToken = pGTS->FindToken(globalName);
+		assert(pToken && ((pToken->GetFlags() & EGAME_TOKEN_GRAPHVARIABLE) != 0));
+		if (pToken)
+		{
+			pGTS->DeleteToken(pToken);
+		}
+		else
+		{
+			GameWarning("Attempted to remove nonexistent GraphToken: %s", globalName);
+		}
+	}
 }
 
 void CFlowGraphBase::RemoveGraphTokens()
 {
-	for (TGraphTokens::iterator it = m_graphTokens.begin(), end = m_graphTokens.end(); it != end; ++it)
-	{
-		string globalName = GetGlobalNameForGraphToken(it->name);
+	LOADING_TIME_PROFILE_SECTION
+	if (m_graphTokens.empty()) return; //nothing to do
 
-		IGameTokenSystem* pGTS = gEnv->pGameFramework->GetIGameTokenSystem();
-		if (pGTS)
-		{
-			IGameToken* pToken = pGTS->FindToken(globalName.c_str());
-			assert(pToken && ((pToken->GetFlags() & EGAME_TOKEN_GRAPHVARIABLE) != 0));
-			if (pToken)
-			{
-				pGTS->DeleteToken(pToken);
-			}
-			else
-			{
-				GameWarning("Attempted to remove nonexistent GraphToken: %s", globalName.c_str());
-			}
-		}
+	if (m_bRegistered)
+	{
+		UnregisterGraphTokens();
 	}
 
 	stl::free_container(m_graphTokens);
@@ -1192,63 +1247,22 @@ bool CFlowGraphBase::AddGraphToken(const IFlowGraph::SGraphToken& token)
 	return true;
 }
 
-size_t CFlowGraphBase::GetGraphTokenCount() const
-{
-	return m_graphTokens.size();
-}
-
-const IFlowGraph::SGraphToken* CFlowGraphBase::GetGraphToken(size_t index) const
-{
-	if (index < m_graphTokens.size())
-	{
-		return &(m_graphTokens[index]);
-	}
-
-	return NULL;
-}
-
 void CFlowGraphBase::ResetGraphToken(const IFlowGraph::SGraphToken& token)
 {
-	string globalName = GetGlobalNameForGraphToken(token.name);
+	// if this graph is not registered in the flow system, the graph tokens should not get registered either
+	if(!m_bRegistered) return;
 
 	IGameTokenSystem* pGTS = gEnv->pGameFramework->GetIGameTokenSystem();
-	if (pGTS)
-	{
-		TFlowInputData temp;
-		switch (token.type)
-		{
-		case eFDT_String:
-			{
-				static string emptyString = "";
-				temp.SetValueWithConversion(emptyString);
-				break;
-			}
+	IF_UNLIKELY(!pGTS) return;
 
-		case eFDT_Bool:
-			temp.SetValueWithConversion(false);
-			break;
+	const char* globalName = GetGlobalNameForGraphToken(token.name);
 
-		case eFDT_Int:
-			temp.SetValueWithConversion(0);
-			break;
-
-		case eFDT_EntityId:
-			temp.SetValueWithConversion(0);
-			break;
-
-		case eFDT_Float:
-			temp.SetValueWithConversion(0.0f);
-			break;
-
-		case eFDT_Vec3:
-			temp.SetValueWithConversion(Vec3(ZERO));
-			break;
-		}
-		IGameToken* pToken = pGTS->SetOrCreateToken(globalName.c_str(), temp);
-		if (pToken)
-			pToken->SetFlags(pToken->GetFlags() | EGAME_TOKEN_GRAPHVARIABLE);
-	}
+	TFlowInputData temp = TFlowInputData::CreateDefaultInitializedForTag((int)token.type, true);
+	IGameToken* pToken = pGTS->SetOrCreateToken(globalName, temp);
+	if (pToken)
+		pToken->SetFlags(pToken->GetFlags() | EGAME_TOKEN_GRAPHVARIABLE);
 }
+
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -1600,11 +1614,14 @@ bool CFlowGraphBase::ReadXML(const XmlNodeRef& root)
 			break;
 		}
 
+		// Load Graph Tokens
+
 		XmlNodeRef graphTokens = root->findChild("GraphTokens");
 		if (graphTokens)
 		{
 			int nTokens = graphTokens->getChildCount();
 			RemoveGraphTokens();
+			m_graphTokens.reserve(nTokens);
 			for (int j = 0; j < nTokens; ++j)
 			{
 				XmlString tokenName;
@@ -1825,7 +1842,7 @@ void CFlowGraphBase::Serialize(TSerialize ser)
 				m_flowData[id].Serialize(&activationInfo, ser);
 			}
 			else
-				GameWarning("[flow] Flowgraph '%s' has changed between save-games. Can't resolve node named '%s'", InternalGetDebugName(), name.c_str());
+				GameWarning("[flow] Flowgraph '%s' has changed between save-games. Can't resolve node named '%s'", GetDebugName(), name.c_str());
 			ser.EndGroup();
 		}
 	}
@@ -2031,8 +2048,3 @@ void CFlowGraph::GetMemoryUsage(ICrySizer* s) const
 	s->Add(*this);
 	CFlowGraphBase::GetMemoryUsage(s);
 }
-
-#if defined(__GNUC__)
-const TFlowNodeId CFlowGraphBase::NOT_MODIFIED = ~TFlowNodeId(0);
-const TFlowNodeId CFlowGraphBase::END_OF_MODIFIED_LIST = NOT_MODIFIED - 1;
-#endif

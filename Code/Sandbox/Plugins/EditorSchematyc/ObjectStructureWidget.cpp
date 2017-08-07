@@ -18,6 +18,7 @@
 #include <Controls/QPopupWidget.h>
 #include <Controls/DictionaryWidget.h>
 #include <EditorFramework/BroadcastManager.h>
+#include <EditorFramework/Inspector.h>
 #include <ICommandManager.h>
 
 #include <QAbstractItemModel>
@@ -34,6 +35,7 @@
 #include <QItemSelection>
 #include <QMenu>
 #include <QVariantMap>
+#include <QCollapsibleFrame.h>
 
 namespace CrySchematycEditor {
 
@@ -414,7 +416,7 @@ private:
 	QLabel*       m_pLabel;
 };
 
-CObjectStructureWidget::CObjectStructureWidget(QWidget* pParent)
+CGraphsWidget::CGraphsWidget(QWidget* pParent)
 	: QWidget(pParent)
 	, m_pModel(nullptr)
 	, m_pFilter(nullptr)
@@ -464,11 +466,11 @@ CObjectStructureWidget::CObjectStructureWidget(QWidget* pParent)
 	pLayout->addWidget(m_pFilter);
 	pLayout->addWidget(m_pComponentsList);
 
-	QObject::connect(m_pComponentsList, &QTreeView::clicked, this, &CObjectStructureWidget::OnClicked);
-	QObject::connect(m_pComponentsList, &QTreeView::doubleClicked, this, &CObjectStructureWidget::OnDoubleClicked);
-	QObject::connect(m_pComponentsList, &QTreeView::customContextMenuRequested, this, &CObjectStructureWidget::OnContextMenu);
+	QObject::connect(m_pComponentsList, &QTreeView::clicked, this, &CGraphsWidget::OnClicked);
+	QObject::connect(m_pComponentsList, &QTreeView::doubleClicked, this, &CGraphsWidget::OnDoubleClicked);
+	QObject::connect(m_pComponentsList, &QTreeView::customContextMenuRequested, this, &CGraphsWidget::OnContextMenu);
 
-	QObject::connect(m_pAddButton, &QToolButton::clicked, this, &CObjectStructureWidget::OnAddPressed);
+	QObject::connect(m_pAddButton, &QToolButton::clicked, this, &CGraphsWidget::OnAddPressed);
 
 	setLayout(pLayout);
 
@@ -478,7 +480,7 @@ CObjectStructureWidget::CObjectStructureWidget(QWidget* pParent)
 	m_pContextMenu = new QPopupWidget("Add Component", m_pContextMenuContent, QSize(250, 400), true);
 }
 
-CObjectStructureWidget::~CObjectStructureWidget()
+CGraphsWidget::~CGraphsWidget()
 {
 	if (m_pFilterProxy)
 	{
@@ -496,7 +498,7 @@ CObjectStructureWidget::~CObjectStructureWidget()
 	delete m_pContextMenu;
 }
 
-void CObjectStructureWidget::SetModel(CAbstractObjectStructureModel* pModel)
+void CGraphsWidget::SetModel(CAbstractObjectStructureModel* pModel)
 {
 	if (m_pModel != pModel)
 	{
@@ -510,7 +512,7 @@ void CObjectStructureWidget::SetModel(CAbstractObjectStructureModel* pModel)
 
 			m_pFilter->SetModel(m_pFilterProxy);
 			m_pComponentsList->setModel(m_pFilterProxy);
-			QObject::connect(m_pComponentsList->selectionModel(), &QItemSelectionModel::selectionChanged, this, &CObjectStructureWidget::OnSelectionChanged);
+			QObject::connect(m_pComponentsList->selectionModel(), &QItemSelectionModel::selectionChanged, this, &CGraphsWidget::OnSelectionChanged);
 		}
 		else
 		{
@@ -528,7 +530,7 @@ void CObjectStructureWidget::SetModel(CAbstractObjectStructureModel* pModel)
 	}
 }
 
-void CObjectStructureWidget::OnClicked(const QModelIndex& index)
+void CGraphsWidget::OnClicked(const QModelIndex& index)
 {
 	if (index.isValid())
 	{
@@ -540,7 +542,7 @@ void CObjectStructureWidget::OnClicked(const QModelIndex& index)
 	}
 }
 
-void CObjectStructureWidget::OnDoubleClicked(const QModelIndex& index)
+void CGraphsWidget::OnDoubleClicked(const QModelIndex& index)
 {
 	if (index.isValid())
 	{
@@ -552,7 +554,7 @@ void CObjectStructureWidget::OnDoubleClicked(const QModelIndex& index)
 	}
 }
 
-void CObjectStructureWidget::OnSelectionChanged(const QItemSelection& selected, const QItemSelection& deselected)
+void CGraphsWidget::OnSelectionChanged(const QItemSelection& selected, const QItemSelection& deselected)
 {
 	QModelIndexList selectedIndexes = selected.indexes();
 	if (selectedIndexes.count())
@@ -574,25 +576,27 @@ void CObjectStructureWidget::OnSelectionChanged(const QItemSelection& selected, 
 
 			if (CBroadcastManager* pBroadcastManager = CBroadcastManager::Get(this))
 			{
-				CPropertiesWidget* pPropertiesWidget = new CPropertiesWidget(*pItem);
-				auto populateInspector = [pPropertiesWidget](const PopulateInspectorEvent&)
+				CPropertiesWidget* pPropertiesWidget = nullptr /*new CPropertiesWidget(*pItem)*/;
+				PopulateInspectorEvent popEvent([pPropertiesWidget](CInspector& inspector)
 				{
-					return pPropertiesWidget;
-				};
-				PopulateInspectorEvent populateEvent(populateInspector, "Properties");
-				pBroadcastManager->Broadcast(populateEvent);
+					QCollapsibleFrame* pInspectorWidget = new QCollapsibleFrame("Properties");
+					pInspectorWidget->SetWidget(pPropertiesWidget);
+					inspector.AddWidget(pInspectorWidget);
+				});
+
+				pBroadcastManager->Broadcast(popEvent);
 
 				if (pItem->GetType() == eObjectItemType_State)
 				{
 					CStateItem* pStateItem = static_cast<CStateItem*>(pItem);
 
-					QVariantMap params;
-					params.insert("Model", reinterpret_cast<quintptr>(static_cast<CAbstractVariablesModel*>(pStateItem)));
+					/*QVariantMap params;
+					   params.insert("Model", reinterpret_cast<quintptr>(static_cast<CAbstractVariablesModel*>(pStateItem)));
 
-					// TODO: Remove hardcoded event name!
-					CustomEditorEvent editorEvent("PopulateVariablesWidget", params);
-					// ~TODO
-					pBroadcastManager->Broadcast(editorEvent);
+					   // TODO: Remove hardcoded event name!
+					   CustomEditorEvent editorEvent("PopulateVariablesWidget", params);
+					   // ~TODO
+					   pBroadcastManager->Broadcast(editorEvent);*/
 				}
 			}
 
@@ -622,7 +626,7 @@ void CObjectStructureWidget::OnSelectionChanged(const QItemSelection& selected, 
 	}
 }
 
-void CObjectStructureWidget::OnContextMenu(const QPoint& point)
+void CGraphsWidget::OnContextMenu(const QPoint& point)
 {
 	const QPoint menuPos = m_pComponentsList->viewport()->mapToGlobal(point);
 
@@ -695,7 +699,7 @@ void CObjectStructureWidget::OnContextMenu(const QPoint& point)
 	}
 }
 
-void CObjectStructureWidget::OnAddPressed()
+void CGraphsWidget::OnAddPressed()
 {
 	const QPoint menuPos = m_pAddButton->mapToGlobal(m_pAddButton->mapFromParent(m_pAddButton->pos())) + QPoint(0, m_pAddButton->width());
 
@@ -705,7 +709,7 @@ void CObjectStructureWidget::OnAddPressed()
 	m_pContextMenu->ShowAt(menuPos, QPopupWidget::TopRight);
 }
 
-bool CObjectStructureWidget::OnDeleteEvent()
+bool CGraphsWidget::OnDeleteEvent()
 {
 	// TODO: Undo action!
 	const QModelIndex index = m_pComponentsList->selectionModel()->currentIndex();
@@ -727,7 +731,7 @@ bool CObjectStructureWidget::OnDeleteEvent()
 	return true;
 }
 
-void CObjectStructureWidget::customEvent(QEvent* pEvent)
+void CGraphsWidget::customEvent(QEvent* pEvent)
 {
 	if (pEvent->type() != SandboxEvent::Command)
 	{
@@ -746,14 +750,14 @@ void CObjectStructureWidget::customEvent(QEvent* pEvent)
 		QWidget::customEvent(pEvent);
 }
 
-void CObjectStructureWidget::EditItem(CAbstractObjectStructureModelItem& item) const
+void CGraphsWidget::EditItem(CAbstractObjectStructureModelItem& item) const
 {
 	const QModelIndex index = m_pDataModel->GetIndexForItem(item);
 	m_pComponentsList->setCurrentIndex(m_pFilterProxy->mapFromSource(index));
 	m_pComponentsList->edit(index);
 }
 
-void CObjectStructureWidget::PopulateContextMenuForItem(QMenu& menu, CStateItem& stateItem) const
+void CGraphsWidget::PopulateContextMenuForItem(QMenu& menu, CStateItem& stateItem) const
 {
 	menu.addSeparator();
 

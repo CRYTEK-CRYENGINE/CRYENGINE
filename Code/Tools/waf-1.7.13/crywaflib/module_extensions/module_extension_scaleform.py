@@ -52,6 +52,10 @@ def module_extensions_scaleform(ctx, kw, entry_prefix, platform, configuration):
 		has_shipping_lib = True
 		scaleform_lib_subfolder +=  'android-armeabi-v7a'
 		kw[entry_prefix + 'lib']  += ['gfx']
+	elif platform == 'android_arm64':
+		has_shipping_lib = True
+		scaleform_lib_subfolder +=  'android-arm64-v8a'
+		kw[entry_prefix + 'lib']  += ['gfx']
 	elif platform == 'darwin':
 		has_shipping_lib = False
 		scaleform_lib_subfolder +=  'mac'

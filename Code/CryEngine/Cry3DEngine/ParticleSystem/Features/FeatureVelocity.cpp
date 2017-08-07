@@ -26,6 +26,7 @@ public:
 	CFeatureVelocityCone()
 		: m_velocity(0.0f)
 		, m_angle(0.0f)
+		, m_axis(0.0f, 0.0f, 1.0f)
 		, CParticleFeature(gpu_pfx2::eGpuFeatureType_VelocityCone)
 	{}
 
@@ -49,6 +50,7 @@ public:
 		CParticleFeature::Serialize(ar);
 		ar(m_angle, "Angle", "Angle");
 		ar(m_velocity, "Velocity", "Velocity");
+		ar(m_axis, "Axis", "Axis");
 	}
 
 	virtual void InitParticles(const SUpdateContext& context) override
@@ -58,18 +60,17 @@ public:
 		CParticleContainer& parentContainer = context.m_parentContainer;
 		CParticleContainer& container = context.m_container;
 		const Quat defaultQuat = context.m_runtime.GetEmitter()->GetLocation().q;
-		IPidStream parentIds = container.GetIPidStream(EPDT_ParentId);
-		IQuatStream parentQuats = parentContainer.GetIQuatStream(EPQF_Orientation, defaultQuat);
+		const IPidStream parentIds = container.GetIPidStream(EPDT_ParentId);
+		const IQuatStream parentQuats = parentContainer.GetIQuatStream(EPQF_Orientation, defaultQuat);
+		const Quat axisQuat = Quat::CreateRotationV0V1(Vec3(0.0f, 0.0f, 1.0f), m_axis.GetNormalizedSafe());
 		IOVec3Stream velocities = container.GetIOVec3Stream(EPVF_Velocity);
 		const float baseAngle = m_angle.GetBaseValue();
 		const float invBaseAngle = rcp_fast(max(FLT_EPSILON, baseAngle));
 
-		STempModBuffer angles(context, m_angle);
-		STempModBuffer velocityMults(context, m_velocity);
-		angles.ModifyInit(context, m_angle, container.GetSpawnedRange());
-		velocityMults.ModifyInit(context, m_velocity, container.GetSpawnedRange());
+		STempInitBuffer<float> angles(context, m_angle);
+		STempInitBuffer<float> velocityMults(context, m_velocity);
 
-		CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
+		for (auto particleId : context.GetSpawnedRange())
 		{
 			const TParticleId parentId = parentIds.Load(particleId);
 			const Vec3 wVelocity0 = velocities.Load(particleId);
@@ -82,17 +83,17 @@ public:
 
 			float as, ac;
 			sincos(angle, &as, &ac);
-			const Vec3 dir = Vec3(disc.x * as, disc.y * as, ac);
+			const Vec3 dir = axisQuat * Vec3(disc.x * as, disc.y * as, ac);
 			const Vec3 oVelocity = dir * velocity;
 			const Vec3 wVelocity1 = wVelocity0 + wQuat * oVelocity;
 			velocities.Store(particleId, wVelocity1);
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 private:
 	CParamMod<SModParticleSpawnInit, UAngle180> m_angle;
 	CParamMod<SModParticleSpawnInit, UFloat10>  m_velocity;
+	Vec3 m_axis;
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureVelocityCone, "Velocity", "Cone", colorVelocity);
@@ -141,10 +142,9 @@ public:
 		IPidStream parentIds = container.GetIPidStream(EPDT_ParentId);
 		IOVec3Stream velocities = container.GetIOVec3Stream(EPVF_Velocity);
 		IQuatStream parentQuats = parentContainer.GetIQuatStream(EPQF_Orientation, defaultQuat);
-		STempModBuffer scales(context, m_scale);
-		scales.ModifyInit(context, m_scale, container.GetSpawnedRange());
+		STempInitBuffer<float> scales(context, m_scale);
 
-		CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
+		for (auto particleId : context.GetSpawnedRange())
 		{
 			const TParticleId parentId = parentIds.Load(particleId);
 			const Quat wQuat = parentQuats.SafeLoad(parentId);
@@ -154,7 +154,6 @@ public:
 			const Vec3 wVelocity1 = wVelocity0 + wQuat * oVelocity;
 			velocities.Store(particleId, wVelocity1);
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 private:
@@ -202,10 +201,9 @@ public:
 		CParticleContainer& container = context.m_container;
 		IOVec3Stream velocities = container.GetIOVec3Stream(EPVF_Velocity);
 
-		STempModBuffer velocityMults(context, m_velocity);
-		velocityMults.ModifyInit(context, m_velocity, container.GetSpawnedRange());
+		STempInitBuffer<float> velocityMults(context, m_velocity);
 
-		CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
+		for (auto particleId : context.GetSpawnedRange())
 		{
 			const Vec3 wVelocity0 = velocities.Load(particleId);
 			const float velocity = velocityMults.m_stream.SafeLoad(particleId);
@@ -213,7 +211,6 @@ public:
 			const Vec3 wVelocity1 = wVelocity0 + oVelocity;
 			velocities.Store(particleId, wVelocity1);
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 private:
@@ -276,10 +273,9 @@ public:
 		const IVec3Stream parentAngularVelocities = parentContainer.GetIVec3Stream(EPVF_AngularVelocity);
 		IOVec3Stream velocities = container.GetIOVec3Stream(EPVF_Velocity);
 
-		STempModBuffer scales(context, m_scale);
-		scales.ModifyInit(context, m_scale, container.GetSpawnedRange());
+		STempInitBuffer<float> scales(context, m_scale);
 
-		CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
+		for (auto particleId : context.GetSpawnedRange())
 		{
 			const float scale = scales.m_stream.SafeLoad(particleId);
 			const TParticleId parentId = parentIds.Load(particleId);
@@ -295,7 +291,6 @@ public:
 			const Vec3 wVelocity1 = wVelocity0 + wInheritVelocity * scale;
 			velocities.Store(particleId, wVelocity1);
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 private:
@@ -343,14 +338,11 @@ public:
 		IPidStream parentIds = container.GetIPidStream(EPDT_ParentId);
 		IOVec3Stream velocities = container.GetIOVec3Stream(EPVF_Velocity);
 		IQuatStream parentQuats = parentContainer.GetIQuatStream(EPQF_Orientation, defaultQuat);
-		STempModBuffer azimuths(context, m_azimuth);
-		STempModBuffer angles(context, m_angle);
-		STempModBuffer velocityValues(context, m_velocity);
-		azimuths.ModifyInit(context, m_azimuth, container.GetSpawnedRange());
-		angles.ModifyInit(context, m_angle, container.GetSpawnedRange());
-		velocityValues.ModifyInit(context, m_velocity, container.GetSpawnedRange());
+		STempInitBuffer<float> azimuths(context, m_azimuth);
+		STempInitBuffer<float> angles(context, m_angle);
+		STempInitBuffer<float> velocityValues(context, m_velocity);
 
-		CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
+		for (auto particleId : context.GetSpawnedRange())
 		{
 			const TParticleId parentId = parentIds.Load(particleId);
 			const Quat wQuat = parentQuats.SafeLoad(parentId);
@@ -362,7 +354,6 @@ public:
 			const Vec3 wVelocity1 = wVelocity0 + wQuat * oVelocity;
 			velocities.Store(particleId, wVelocity1);
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 private:

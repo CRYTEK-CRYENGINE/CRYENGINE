@@ -306,22 +306,10 @@ struct AgentType
 	{
 		Settings()
 			: voxelSize(Vec3Constants<float>::fVec3_Zero)
-			, radiusVoxelCount(0)
-			, climbableVoxelCount(0)
-			, climbableInclineGradient(0.0f)
-			, climbableStepRatio(0.0f)
-			, heightVoxelCount(0)
-			, maxWaterDepthVoxelCount(0)
 		{}
 
 		Vec3   voxelSize;
-
-		uint16 radiusVoxelCount;
-		uint16 climbableVoxelCount;
-		float  climbableInclineGradient;
-		float  climbableStepRatio;
-		uint16 heightVoxelCount;
-		uint16 maxWaterDepthVoxelCount;
+		MNM::CTileGenerator::SAgentSettings agent;
 	};
 
 	struct MeshInfo
@@ -550,7 +538,7 @@ public:
 	virtual TileGeneratorExtensionID         RegisterTileGeneratorExtension(MNM::TileGenerator::IExtension& extension) override;
 	virtual bool                             UnRegisterTileGeneratorExtension(const TileGeneratorExtensionID extensionId) override;
 
-	virtual IPathGraphUpdatesManager*        GetUpdateManager() override { return &m_updatesManager; }
+	virtual INavigationUpdatesManager*        GetUpdateManager() override { return &m_updatesManager; }
 
 	inline const WorldMonitor*               GetWorldMonitor() const
 	{
@@ -642,7 +630,7 @@ private:
 
 #if MNM_USE_EXPORT_INFORMATION
 	void ClearAllAccessibility(uint8 resetValue);
-	void ComputeAccessibility(IAIObject* pIAIObject, NavigationAgentTypeID agentTypeId = NavigationAgentTypeID(0));
+	void ComputeAccessibility(const Vec3& debugLocation, NavigationAgentTypeID agentTypeId = NavigationAgentTypeID(0));
 #endif
 
 	void GatherNavigationVolumesToSave(std::vector<NavigationVolumeID>& usedVolumes) const;

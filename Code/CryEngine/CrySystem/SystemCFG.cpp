@@ -198,21 +198,6 @@ void CSystem::LogVersion()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSystem::LogBuildInfo()
-{
-	ICVar* pGameName = m_env.pConsole->GetCVar("sys_game_name");
-	if (pGameName)
-	{
-		CryLogAlways("GameName: %s", pGameName->GetString());
-	}
-	else
-	{
-		CryLogAlways("Couldn't find game name in cvar sys_game_name");
-	}
-	CryLogAlways("BuildTime: " __DATE__ " " __TIME__);
-}
-
-//////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////
 class CCVarSaveDump : public ICVarDumpSink
@@ -309,7 +294,7 @@ bool CSystemConfiguration::OpenFile(const string& filename, CCryFile& file, int 
 	flags |= ICryPak::FOPEN_HINT_QUIET;
 
 	// Absolute paths first
-	if (gEnv->pCryPak->IsAbsPath(filename))
+	if (gEnv->pCryPak->IsAbsPath(filename) || filename[0] == '%')
 	{
 		if (file.Open(filename, "rb", flags | ICryPak::FLAGS_PATH_REAL))
 		{

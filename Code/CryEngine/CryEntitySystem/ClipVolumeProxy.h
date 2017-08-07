@@ -17,7 +17,7 @@
 //////////////////////////////////////////////////////////////////////////
 class CEntityComponentClipVolume : public IClipVolumeComponent
 {
-	CRY_ENTITY_COMPONENT_CLASS(CEntityComponentClipVolume,IClipVolumeComponent,"CEntityComponentClipVolume",0x8065253292454CD7,0xA9062E7839EBB7A4);
+	CRY_ENTITY_COMPONENT_CLASS_GUID(CEntityComponentClipVolume, IClipVolumeComponent, "CEntityComponentClipVolume", "80652532-9245-4cd7-a906-2e7839ebb7a4"_cry_guid);
 
 	CEntityComponentClipVolume();
 	virtual ~CEntityComponentClipVolume();

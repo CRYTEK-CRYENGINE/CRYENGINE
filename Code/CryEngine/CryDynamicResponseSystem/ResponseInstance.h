@@ -22,7 +22,7 @@ class CResponseInstance final : public DRS::IResponseInstance
 {
 public:
 	CResponseInstance(SSignal& signal, CResponse* pResponse);
-	virtual ~CResponseInstance();
+	virtual ~CResponseInstance() override;
 
 	void Execute();
 	bool Update();

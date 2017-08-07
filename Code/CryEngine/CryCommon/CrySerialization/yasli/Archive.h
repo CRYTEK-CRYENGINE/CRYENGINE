@@ -8,7 +8,6 @@
  */
 
 #pragma once
-#pragma warning (disable : 4100) 
 
 #include <stdarg.h>
 
@@ -71,18 +70,19 @@ struct BlackBox;
 class Archive{
 public:
 	enum ArchiveCaps{
-		INPUT = 1 << 0,
-		OUTPUT = 1 << 1,
-		TEXT = 1 << 2,
-		BINARY = 1 << 3,
-		EDIT = 1 << 4,
-		INPLACE = 1 << 5,
+		INPUT          = 1 << 0,
+		OUTPUT         = 1 << 1,
+		TEXT           = 1 << 2,
+		BINARY         = 1 << 3,
+		EDIT           = 1 << 4,
+		INPLACE        = 1 << 5,
 		NO_EMPTY_NAMES = 1 << 6,
-		VALIDATION = 1 << 7,
-		DOCUMENTATION = 1 << 8,
-		CUSTOM1 = 1 << 9,
-		CUSTOM2 = 1 << 10,
-		CUSTOM3 = 1 << 11
+		VALIDATION     = 1 << 7,
+		DOCUMENTATION  = 1 << 8,
+		XML_VERSION_1  = 1 << 9,
+		CUSTOM1        = 1 << 10,
+		CUSTOM2        = 1 << 11,
+		CUSTOM3        = 1 << 12
 	};
 
 	Archive(int caps)
@@ -161,7 +161,7 @@ public:
 	void doc(const char* docString);
 
 	// block call are osbolete, please do not use
-	virtual bool openBlock(const char* name, const char* label) { return true; }
+	virtual bool openBlock(const char* name, const char* label,const char* icon=0) { return true; }
 	virtual void closeBlock() {}
 
 	template<class T>

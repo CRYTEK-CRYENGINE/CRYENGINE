@@ -27,6 +27,7 @@ CFlashUIAction::CFlashUIAction(EUIActionType type)
 		m_pFlowGraph->UnregisterFromFlowSystem();
 		m_pFlowGraph->AddRef();
 		m_pFlowGraph->SetType(IFlowGraph::eFGT_UIAction);
+		m_pFlowGraph->SetDebugName("[UI Action] ");
 	}
 	else
 	{

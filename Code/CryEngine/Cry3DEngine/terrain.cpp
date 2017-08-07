@@ -222,7 +222,7 @@ void CTerrain::UpdateNodesIncrementaly(const SRenderingPassInfo& passInfo)
 		      sizeof(m_lstActiveTextureNodes[0]), CmpTerrainNodesImportance);
 
 		// release unimportant textures and make sure at least one texture is free for possible loading
-		while (m_lstActiveTextureNodes.Count() > GetCVars()->e_TerrainTextureStreamingPoolItemsNum - 1)
+		while (m_lstActiveTextureNodes.Count() > m_texCache[0].GetPoolItemsNum() - 1)
 		{
 			m_lstActiveTextureNodes.Last()->UnloadNodeTexture(false);
 			m_lstActiveTextureNodes.DeleteLast();
@@ -386,12 +386,12 @@ void CTerrain::ApplyForceToEnvironment(Vec3 vPos, float fRadius, float fAmountOf
 	Get3DEngine()->AddForcedWindArea(vPos, fAmountOfForce, fRadius);
 }
 
-Vec3 CTerrain::GetTerrainSurfaceNormal_Int(int x, int y, int nSID)
+Vec3 CTerrain::GetTerrainSurfaceNormal_Int(float x, float y, int nSID)
 {
 	FUNCTION_PROFILER_3DENGINE;
 
 	const int nTerrainSize = CTerrain::GetTerrainSize();
-	const int nRange = GetHeightMapUnitSize();
+	const float nRange = GetHeightMapUnitSize();
 
 	float sx;
 	if ((x + nRange) < nTerrainSize && x >= nRange)
@@ -564,12 +564,6 @@ void CTerrain::SetHeightMapMaxHeight(float fMaxHeight)
 		if (Get3DEngine()->IsSegmentSafeToUse(nSID) && m_pParentNodes[nSID])
 			InitHeightfieldPhysics(nSID);
 }
-/*
-   void CTerrain::RenaderImposterContent(class CREImposter * pImposter, const CCamera & cam)
-   {
-   pImposter->GetTerrainNode()->RenderImposterContent(pImposter, cam);
-   }
- */
 
 void SetTerrain(CTerrain& rTerrain);
 
@@ -724,7 +718,7 @@ int CTerrain::CreateSegment(Vec3 vSegmentSize, Vec3 vSegmentOrigin, const char* 
 
 	m_arrSegmentOrigns[nSID] = vSegmentOrigin;
 
-	m_arrSegmentSizeUnits[nSID] = Vec2i(((int) vSegmentSize.x) >> m_nBitShift, ((int) vSegmentSize.y) >> m_nBitShift);
+	m_arrSegmentSizeUnits[nSID] = Vec2i((int) (vSegmentSize.x * m_fInvUnitSize), (int) (vSegmentSize.y * m_fInvUnitSize));
 
 	m_arrSegmentPaths[nSID] = pcPath ? pcPath : "";
 
@@ -869,7 +863,7 @@ int CTerrain::FindSegment(Vec3 vPt)
 
 int CTerrain::FindSegment(int x, int y)
 {
-	Vec3 v((float) (x << m_nBitShift), (float) (y << m_nBitShift), 0);
+	Vec3 v((float) (x), (float) (y), 0);
 	int nSID = FindSegment(v);
 	return nSID;
 }

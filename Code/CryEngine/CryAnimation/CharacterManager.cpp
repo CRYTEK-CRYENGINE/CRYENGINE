@@ -725,8 +725,11 @@ bool CharacterManager::LoadAndLockResources(const char* szFilePath, uint32 nLoad
 			uint32 numAttachments = m_arrCacheForCDF[cdfId].m_arrAttachments.size();
 			for (uint32 a = 0; a < numAttachments; a++)
 			{
-				const char* strAttFilePath = m_arrCacheForCDF[cdfId].m_arrAttachments[a].m_strBindingPath.c_str();
-				const char* strAttFileExt = PathUtil::GetExt(strAttFilePath);
+				const CharacterAttachment& attachment = m_arrCacheForCDF[cdfId].m_arrAttachments[a];
+				const char* strAttFilePath = attachment.m_strBindingPath.c_str();
+				const char* strAttFileExt = PathUtil::GetExt(szFilePath);
+				const char* strSimFilePath = attachment.m_strSimBindingPath.c_str();
+
 				const bool isAttSKEL = stricmp(strAttFileExt, CRY_SKEL_FILE_EXT) == 0;
 				if (isAttSKEL)
 				{
@@ -735,13 +738,8 @@ bool CharacterManager::LoadAndLockResources(const char* szFilePath, uint32 nLoad
 						pModelSKEL->SetKeepInMemory(bKeep);
 				}
 
-				const bool isAttSKIN = stricmp(strAttFileExt, CRY_SKIN_FILE_EXT) == 0;
-				if (isAttSKIN)
-				{
-					CSkin* pModelSKIN = FetchModelSKIN(strAttFilePath, nLoadingFlags);
-					if (pModelSKIN)
-						pModelSKIN->SetKeepInMemory(bKeep);
-				}
+				TryLoadModelSkin(strAttFilePath, nLoadingFlags, bKeep);
+				TryLoadModelSkin(strSimFilePath, nLoadingFlags, bKeep);
 			}
 
 			return true; //success
@@ -749,6 +747,18 @@ bool CharacterManager::LoadAndLockResources(const char* szFilePath, uint32 nLoad
 	}
 
 	return false;
+}
+
+void CharacterManager::TryLoadModelSkin(const char* szFilePath, uint32 nLoadingFlags, bool bKeep)
+{
+	const char* strAttFileExt = PathUtil::GetExt(szFilePath);
+	const bool isAttSKIN = stricmp(strAttFileExt, CRY_SKIN_FILE_EXT) == 0;
+	if (isAttSKIN)
+	{
+		CSkin* pModelSKIN = FetchModelSKIN(szFilePath, nLoadingFlags);
+		if (pModelSKIN)
+			pModelSKIN->SetKeepInMemory(bKeep);
+	}
 }
 
 void CharacterManager::StreamKeepCharacterResourcesResident(const char* szFilePath, int nLod, bool bKeep, bool bUrgent)
@@ -1754,10 +1764,12 @@ void CharacterManager::Update(bool bPaused)
 		g_pAuxGeom->Draw2dLabel(1, g_YLine, 1.3f, fColor, false, "SkeletonUpdates: %d", g_SkeletonUpdates);
 		g_YLine += 16.0f;
 
-		uint32 numFSU = m_arrSkeletonUpdates.size();
+		size_t numFSU = std::count_if(begin(m_arrForceSkeletonUpdates), end(m_arrForceSkeletonUpdates), [](int i) {return i > 0; });
 		g_pAuxGeom->Draw2dLabel(1, g_YLine, 1.3f, fColor, false, "Instances with 'Force Skeleton Update': %d", numFSU);
+
 		g_YLine += 16.0f;
-		for (uint32 i = 0; i < numFSU; i++)
+		const uint32 numInstances = m_arrForceSkeletonUpdates.size();
+		for (uint32 i = 0; i < numInstances; i++)
 		{
 			g_pAuxGeom->Draw2dLabel(1, g_YLine, 1.2f, fColor, false, "Anim:(%d)  Force:(%d)  Visible:(%d)  ModelPath: %s", m_arrAnimPlaying[i], m_arrForceSkeletonUpdates[i], m_arrVisible[i], m_arrSkeletonUpdates[i].c_str());
 			g_YLine += 14.0f;
@@ -2729,7 +2741,6 @@ void CharacterManager::DummyUpdate()
 	m_nUpdateCounter++;
 }
 
-#ifdef EDITOR_PCDEBUGCODE
 void CharacterManager::GetMotionParameterDetails(SMotionParameterDetails& outDetails, EMotionParamID paramId) const
 {
 	static SMotionParameterDetails details[eMotionParamID_COUNT] = {
@@ -2754,6 +2765,7 @@ void CharacterManager::GetMotionParameterDetails(SMotionParameterDetails& outDet
 		outDetails = SMotionParameterDetails();
 }
 
+#ifdef EDITOR_PCDEBUGCODE
 bool CharacterManager::InjectCDF(const char* pathname, const char* fileContent, size_t fileLength)
 {
 	uint32 id = GetOrLoadCDFId(pathname);
@@ -2983,6 +2995,48 @@ void CharacterManager::SkelExtension(CCharInstance* pCharInstance, const char* p
 		{
 			continue;
 		}
+
+		CSkin* const pModelSKIN = static_cast<CSkin*>(LoadModelSKIN(szSkinPath, nLoadingFlags));
+		if (!pModelSKIN)
+		{
+			continue;
+		}
+
+		const uint32 mismatchingJointsCount = CompatibilityTest(pDefaultSkeleton, pModelSKIN);
+		if (mismatchingJointsCount > 0)
+		{
+			mismatchingSkins.push_back(szSkinPath);
+		}
+
+		nExtendedCRC64 += CCrc32::ComputeLowercase(szSkinPath);
+	}
+
+	if (!mismatchingSkins.empty())
+	{
+		CDefaultSkeleton* pExtDefaultSkeleton = CheckIfModelExtSKELCreated(nExtendedCRC64, nLoadingFlags);
+		if (!pExtDefaultSkeleton)
+		{
+			pExtDefaultSkeleton = CreateExtendedSkel(pCharInstance, pDefaultSkeleton, nExtendedCRC64, mismatchingSkins, nLoadingFlags);
+		}
+		if (pExtDefaultSkeleton)
+		{
+			pDefaultSkeleton->SetKeepInMemory(true);
+			pCharInstance->RuntimeInit(pExtDefaultSkeleton);
+		}
+	}
+}
+
+void CharacterManager::ExtendDefaultSkeletonWithSkinAttachments(ICharacterInstance* pCharInst, const char* szFilepathSKEL, const char** szSkinAttachments, const uint32 skinsCount, const uint32 nLoadingFlags)
+{
+	CCharInstance* pCharInstance = static_cast<CCharInstance*>(pCharInst);
+	CDefaultSkeleton* const pDefaultSkeleton = pCharInstance->m_pDefaultSkeleton;
+
+	std::vector<const char*> mismatchingSkins;
+	uint64 nExtendedCRC64 = CCrc32::ComputeLowercase(szFilepathSKEL);
+
+	for (uint32 i = 0; i < skinsCount; ++i)
+	{
+		const char* const szSkinPath = szSkinAttachments[i];
 
 		CSkin* const pModelSKIN = static_cast<CSkin*>(LoadModelSKIN(szSkinPath, nLoadingFlags));
 		if (!pModelSKIN)

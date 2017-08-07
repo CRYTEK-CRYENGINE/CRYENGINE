@@ -4,10 +4,8 @@ using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.Serialization;
+using CryEngine.UI;
 
-/// <summary>
-/// Manages assets (Scripts, Textures, etc.) which are used by application and framework.
-/// </summary>
 namespace CryEngine.Resources
 {
 	/// <summary>
@@ -16,15 +14,33 @@ namespace CryEngine.Resources
 	[DataContract]
 	public class ImageSource
 	{
-		Bitmap _rawImage = null;
-		[DataMember]
-		string _path;
-		static ImageSource _blank;
+		private static ImageSource _blank;
 
-		public UITexture Texture { get; private set; } ///< The underlying Texture object.
-		public int Width { get { return _rawImage.Width; } } ///< Height of the raw image.
-		public int Height { get { return _rawImage.Height; } } ///< Width of the raw image.
+		private readonly Bitmap _rawImage = null;
+		private readonly string _path;
 
+		/// <summary>
+		/// The underlying Texture object.
+		/// </summary>
+		/// <value>The texture.</value>
+		public Graphic Texture { get; private set; }
+
+		/// <summary>
+		/// Height of the raw image.
+		/// </summary>
+		/// <value>The width.</value>
+		public int Width { get { return _rawImage.Width; } }
+
+		/// <summary>
+		/// Width of the raw image.
+		/// </summary>
+		/// <value>The height.</value>
+		public int Height { get { return _rawImage.Height; } }
+
+		/// <summary>
+		/// Returns a static white texture.
+		/// </summary>
+		/// <value>The blank.</value>
 		public static ImageSource Blank
 		{
 			get
@@ -37,7 +53,7 @@ namespace CryEngine.Resources
 				}
 				return _blank;
 			}
-		} ///< Returns a static white texture.
+		}
 
 		/// <summary>
 		/// Creates an image from a given Bitmap.
@@ -47,7 +63,7 @@ namespace CryEngine.Resources
 		{
 			_path = "[Blank]";
 			_rawImage = bmp;
-			Texture = new UITexture(Width, Height, bmp.GetPixels());
+			Texture = new Graphic(Width, Height, bmp.GetPixels());
 		}
 
 		/// <summary>
@@ -60,29 +76,15 @@ namespace CryEngine.Resources
 			try
 			{
 				if (!System.IO.File.Exists(path))
+				{
 					throw new System.IO.FileNotFoundException("Cannot load image with path: " + path);
+				}
+
 				_path = path;
 				_rawImage = new Bitmap(path);
 
-				// Pre-processing option
-				/*Rectangle rect = new Rectangle(0, 0, _rawImage.Width, _rawImage.Height);
-				System.Drawing.Imaging.BitmapData bmpData = _rawImage.LockBits(rect, System.Drawing.Imaging.ImageLockMode.ReadWrite, _rawImage.PixelFormat);
-				IntPtr ptr = bmpData.Scan0;
-				int bytes = _rawImage.Width * _rawImage.Height * 4;
-				byte[] rgbValues = new byte[bytes];
-				System.Runtime.InteropServices.Marshal.Copy(ptr, rgbValues, 0, bytes);
-				for (int counter = 0; counter < rgbValues.Length; counter+=4)
-				{
-					byte ia = (byte)(rgbValues[counter+3]);
-					//rgbValues[counter] -= ia;
-					//rgbValues[counter+1] -= ia;
-					rgbValues[counter+3] = 128;
-				}
-				System.Runtime.InteropServices.Marshal.Copy(rgbValues, 0, ptr, bytes);
-				_rawImage.UnlockBits(bmpData);*/
-
 				Log.Info("Loaded '" + path + "' (" + Width + "x" + Height + ")");
-				Texture = new UITexture(Width, Height, _rawImage.GetPixels(), filtered);
+				Texture = new Graphic(Width, Height, _rawImage.GetPixels(), filtered);
 			}
 			catch (Exception ex)
 			{
@@ -91,9 +93,9 @@ namespace CryEngine.Resources
 		}
 
 		/// <summary>
-		/// Returns a <see cref="System.String"/> that represents the current <see cref="CryEngine.Resources.ImageSource"/>.
+		/// Returns a <see cref="string"/> that represents the current <see cref="ImageSource"/>.
 		/// </summary>
-		/// <returns>A <see cref="System.String"/> that represents the current <see cref="CryEngine.Resources.ImageSource"/>.</returns>
+		/// <returns>A <see cref="string"/> that represents the current <see cref="ImageSource"/>.</returns>
 		public override string ToString()
 		{
 			return new System.IO.FileInfo(_path).Name;

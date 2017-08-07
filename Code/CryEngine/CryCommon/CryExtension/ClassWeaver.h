@@ -291,11 +291,6 @@ public:
 		numIIDs = m_numIIDs;
 	}
 
-	virtual const SRegFactoryNode* GetRegFactoryNode() const
-	{
-		return &m_regFactory;
-	}
-
 public:
 	struct CustomDeleter
 	{
@@ -386,17 +381,12 @@ public:
       return CW::CompositeQuery::Op(*this, name);                          \
     }
 
-#define _ENFORCE_CRYFACTORY_USAGE(implclassname, cname, cidHigh, cidLow)                                            \
+#define _ENFORCE_CRYFACTORY_USAGE(implclassname, cname, cidHigh, cidLow) CRY_PP_ERROR("Deprecated macro: Use _ENFORCE_CRYFACTORY_USAGE_GUID instead. Please refer to the Migrating Guide from CRYENGINE 5.3 to CRYENGINE 5.4 for more details.")
+
+#define _ENFORCE_CRYFACTORY_USAGE_GUID(implclassname, cname, guid)                                                  \
   public:                                                                                                           \
-    static const char* GetCName()                                                                                   \
-    {                                                                                                               \
-      return cname;                                                                                                 \
-    }                                                                                                               \
-                                                                                                                    \
-    static constexpr CryClassID GetCID()                                                                            \
-    {                                                                                                               \
-         return CryClassID::Construct( (uint64) cidHigh ## LL, (uint64) cidLow ## LL );                             \
-    }                                                                                                               \
+    static const char* GetCName() { return cname; }                                                                 \
+    static constexpr CryClassID GetCID() { return guid; }                                                           \
     static std::shared_ptr<implclassname> CreateClassInstance()                                                     \
     {                                                                                                               \
       ICryUnknownPtr p = s_factory.CreateClassInstance();                                                           \
@@ -407,23 +397,30 @@ public:
   _BEFRIEND_CRYINTERFACE_CAST()   \
   _BEFRIEND_CRYCOMPOSITE_QUERY()
 
-#define CRYGENERATE_CLASS(implclassname, cname, cidHigh, cidLow) \
+#define CRYGENERATE_CLASS(implclassname, cname, cidHigh, cidLow) CRY_PP_ERROR("Deprecated macro: Use CRYGENERATE_CLASS_GUID instead. Please refer to the Migrating Guide from CRYENGINE 5.3 to CRYENGINE 5.4 for more details.")
+
+#define CRYGENERATE_CLASS_GUID(implclassname, cname, classGuid)  \
   friend struct CFactory<implclassname>::CustomDeleter;          \
   _CRYFACTORY_DECLARE(implclassname)                             \
   _BEFRIEND_OPS()                                                \
   _IMPLEMENT_ICRYUNKNOWN()                                       \
-  _ENFORCE_CRYFACTORY_USAGE(implclassname, cname, cidHigh, cidLow)
+  _ENFORCE_CRYFACTORY_USAGE_GUID(implclassname, cname, classGuid)
 
-#define CRYGENERATE_CLASS_FROM_INTERFACE(implclassname, interfaceName, cname, cidHigh, cidLow) \
+
+#define CRYGENERATE_CLASS_FROM_INTERFACE(implclassname, interfaceName, cname, cidHigh, cidLow) CRY_PP_ERROR("Deprecated macro: Use CRYGENERATE_CLASS_FROM_INTERFACE_GUID instead. Please refer to the Migrating Guide from CRYENGINE 5.3 to CRYENGINE 5.4 for more details.")
+
+#define CRYGENERATE_CLASS_FROM_INTERFACE_GUID(implclassname, interfaceName, cname, classGuid) \
   CRYINTERFACE_SIMPLE(interfaceName)                                                           \
-  CRYGENERATE_CLASS(implclassname, cname, cidHigh, cidLow)
+  CRYGENERATE_CLASS_GUID(implclassname, cname, classGuid)
 
-#define CRYGENERATE_SINGLETONCLASS(implclassname, cname, cidHigh, cidLow) \
-  friend struct CFactory<implclassname>::CustomDeleter;                   \
-  _CRYFACTORY_DECLARE_SINGLETON(implclassname)                            \
-  _BEFRIEND_OPS()                                                         \
-  _IMPLEMENT_ICRYUNKNOWN()                                                \
-  _ENFORCE_CRYFACTORY_USAGE(implclassname, cname, cidHigh, cidLow)
+#define CRYGENERATE_SINGLETONCLASS(implclassname, cname, cidHigh, cidLow) CRY_PP_ERROR("Deprecated macro: Use CRYGENERATE_SINGLETONCLASS_GUID instead. Please refer to the Migrating Guide from CRYENGINE 5.3 to CRYENGINE 5.4 for more details.")
+
+#define CRYGENERATE_SINGLETONCLASS_GUID(implclassname, cname, classGuid) \
+  friend struct CFactory<implclassname>::CustomDeleter;                  \
+  _CRYFACTORY_DECLARE_SINGLETON(implclassname)                           \
+  _BEFRIEND_OPS()                                                        \
+  _IMPLEMENT_ICRYUNKNOWN()                                               \
+  _ENFORCE_CRYFACTORY_USAGE_GUID(implclassname, cname, classGuid)
 
 #define CRYREGISTER_CLASS(implclassname) \
   CFactory<implclassname> implclassname::s_factory;

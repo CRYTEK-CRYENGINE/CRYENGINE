@@ -12,6 +12,8 @@
 #include <CryCore/Platform/platform.h>
 #include <CryString/CryName.h>
 
+#include <CrySystem/IEngineModule.h>
+
 struct ISystem;
 
 enum EModifierMask
@@ -1181,6 +1183,11 @@ struct IInputDevice
 	virtual void SetDeadZone(float fThreshold) = 0;
 	virtual void RestoreDefaultDeadZone() = 0;
 	// </interfuscator:shuffle>
+};
+
+struct IInputEngineModule : public Cry::IDefaultModule
+{
+	CRYINTERFACE_DECLARE_GUID(IInputEngineModule, "2c8744b1-6794-4fe0-8003-8fc3ade9076a"_cry_guid);
 };
 
 //! Interface to the Input system.

@@ -18,12 +18,8 @@
 
 #include "Navigation.h"
 #include "PolygonSetOps/Polygon2d.h"
-#include "FlightNavRegion2.h"
-#include "Free2DNavRegion.h"
 
-#include "Navigation/CustomNavRegion.h"
 #include "DebugDrawContext.h"
-#include "Graph.h"
 #include "CalculationStopper.h"
 #include <CrySystem/File/CryBufferedFileReader.h>
 
@@ -348,14 +344,6 @@ void CNavigation::GetPointOnPathBySegNo(const char* szPathName, Vec3& vResult, f
 	}
 
 	vResult = *cur;
-}
-
-//====================================================================
-// IsSegmentValid
-//====================================================================
-bool CNavigation::IsSegmentValid(IAISystem::tNavCapMask navCap, float rad, const Vec3& posFrom, Vec3& posTo, IAISystem::ENavigationType& navTypeFrom) const
-{
-	return CheckWalkability(posFrom, posTo, rad + 0.15f, &posTo);
 }
 
 void CNavigation::FlushAllAreas()

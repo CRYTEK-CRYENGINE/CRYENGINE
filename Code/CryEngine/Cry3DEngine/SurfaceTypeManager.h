@@ -51,8 +51,13 @@ public:
 	}
 private:
 	int                         m_lastSurfaceId;
+	int                         m_lastDefaultId;
 
 	class CMaterialSurfaceType* m_pDefaultSurfaceType;
+
+	void                        RegisterAllDefaultTypes();
+	CMaterialSurfaceType*       RegisterDefaultType(const char* szName);
+	void                        ResetSurfaceTypes();
 
 	struct SSurfaceRecord
 	{

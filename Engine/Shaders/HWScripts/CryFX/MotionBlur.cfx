@@ -694,7 +694,7 @@ float3 NRand3( float2 seed )
 	return frac(sin(dot(seed.xy, float2(34.483, 89.637))) * float3(29156.4765, 38273.5639, 47843.7546));
 }
 
-float4 MotionBlurPS(vtxOut IN) : COLOR0 
+float4 MotionBlurPS(vtxOut IN) : SV_Target0 
 {
 #if %_RT_SAMPLE2
   const int numSamples = 24; // High spec
@@ -822,7 +822,7 @@ technique PackVelocities
 
 Texture2D<float4> MB_Tex0 : register(t0);
 
-float3 VelocityTileGenPS(vtxOut IN) : COLOR0
+float4 VelocityTileGenPS(vtxOut IN) : SV_Target0
 {
 	float2 pixelCoords = IN.baseTC.xy * vMotionBlurParams.xy;
 	float2 dir = vMotionBlurParams.w == 0 ? float2(1, 0) : float2(0, 1);
@@ -834,7 +834,7 @@ float3 VelocityTileGenPS(vtxOut IN) : COLOR0
 		if (vel.b > maxVel.b) maxVel = vel;
 	}
 	
-	return maxVel;
+	return float4(maxVel, 0);
 }
 
 technique VelocityTileGen
@@ -849,7 +849,7 @@ technique VelocityTileGen
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-float3 VelocityTileNeighborhoodPS(vtxOut IN) : COLOR0
+float4 VelocityTileNeighborhoodPS(vtxOut IN) : SV_Target0
 {
 	float3 maxVel = tex2D(_tex0, IN.baseTC.xy + float2(0, 0) * vMotionBlurParams.xy).xyz;
 	float3 vel = tex2D(_tex0, IN.baseTC.xy + float2( 0, -1) * vMotionBlurParams.xy).xyz;
@@ -871,7 +871,7 @@ float3 VelocityTileNeighborhoodPS(vtxOut IN) : COLOR0
 	vel = tex2D(_tex0, IN.baseTC.xy + float2( 1,  1) * vMotionBlurParams.xy).xyz;
 	if (vel.b > maxVel.b && dot(DecodeMotionVector(vel.xy).xy, -float2( 1,  1)) > 0) maxVel = vel;
 	
-	return maxVel;
+	return float4(maxVel, 0);
 }
 
 technique VelocityTileNeighborhood

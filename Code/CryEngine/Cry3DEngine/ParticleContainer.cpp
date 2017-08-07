@@ -567,7 +567,7 @@ void CParticleContainer::UpdateParticleStates(SParticleUpdateContext& context)
 			else
 			{
 				part.Hide();
-				m_Counts.ParticlesReject++;
+				m_Counts.particles.reject++;
 			}
 		}
 		else
@@ -647,20 +647,6 @@ void CParticleContainer::UpdateEffects()
 	}
 }
 
-/* Water sorting / filtering:
-
-                  Effect:::::::::::::::::::::::::::
-   Emitter	Camera		above					both					below
-   -------	------		-----					----					-----
-   above		above			AFTER					AFTER					skip
-        below			BEFORE				BEFORE				skip
-
-   both		above			AFTER\below		AFTER[\below]	BEFORE\above
-        below			BEFORE\below	AFTER[\above]	AFTER\above
-
-   below		above			skip					BEFORE				BEFORE
-        below			skip					AFTER					AFTER
- */
 void CParticleContainer::Render(SRendParams const& RenParams, SPartRenderParams const& PRParams, const SRenderingPassInfo& passInfo)
 {
 	FUNCTION_PROFILER_CONTAINER(this);
@@ -783,7 +769,7 @@ void CParticleContainer::Render(SRendParams const& RenParams, SPartRenderParams 
 		}
 
 		SAddParticlesToSceneJob& job = CParticleManager::Instance()->GetParticlesToSceneJob(passInfo);
-		job.pPVC = this;
+		job.pVertexCreator = this;
 		job.pRenderObject = pRenderObject;
 		SRenderObjData* pOD = job.pRenderObject->GetObjData();
 
@@ -803,9 +789,9 @@ void CParticleContainer::Render(SRendParams const& RenParams, SPartRenderParams 
 		pOD->m_LightVolumeId = PRParams.m_nDeferredLightVolumeId;
 
 		if (GetMain().m_pTempData)
-			*((Vec4*)&pOD->m_fTempVars[0]) = GetMain().m_pTempData->userData.vEnvironmentProbeMults;
+			*((Vec4f*)&pOD->m_fTempVars[0]) = (const Vec4f&)(GetMain().m_pTempData->userData.vEnvironmentProbeMults);
 		else
-			*((Vec4*)&pOD->m_fTempVars[0]) = Vec4(1.0f, 1.0f, 1.0f, 1.0f);
+			*((Vec4f*)&pOD->m_fTempVars[0]) = Vec4f(1.0f, 1.0f, 1.0f, 1.0f);
 		;
 
 		// Set sort distance based on params and bounding box.
@@ -842,6 +828,7 @@ CRenderObject* CParticleContainer::CreateRenderObject(uint64 nObjFlags)
 	pRenderObject->m_pRE = gEnv->pRenderer->EF_CreateRE(eDATA_Particle);
 	pRenderObject->m_II.m_Matrix.SetIdentity();
 	pRenderObject->m_RState = uint8(nObjFlags);
+	pRenderObject->m_pCurrMaterial = pParams->pMaterial;
 	pOD->m_pParticleShaderData = &GetEffect()->GetParams().ShaderData;
 
 	IF(!!pParams->fHeatScale, 0)
@@ -1035,33 +1022,27 @@ void CParticleContainer::Reset()
 // Stat functions.
 void CParticleContainer::GetCounts(SParticleCounts& counts) const
 {
-	counts.EmittersAlloc += 1.f;
-	counts.ParticlesAlloc += m_Particles.size();
+	counts.components.alive += 1.f;
+	counts.particles.alive += m_Particles.size();
 
 	if (GetTimeToUpdate() == 0.f)
 	{
 		// Was updated this frame.
-		AddArray(FloatArray(counts), FloatArray(m_Counts));
-		counts.EmittersActive += 1.f;
-		counts.ParticlesActive += m_Particles.size();
-		counts.SubEmittersActive += m_Emitters.size();
-
-		if (m_Counts.ParticlesCollideTest)
-		{
-			counts.nCollidingEmitters += 1;
-			counts.nCollidingParticles += (int)m_Counts.ParticlesCollideTest;
-		}
+		reinterpret_cast<SContainerCounts&>(counts) += m_Counts;
+		counts.components.updated += 1.f;
+		counts.particles.updated += m_Particles.size();
+		counts.subemitters.updated += m_Emitters.size();
 
 		if ((m_nEnvFlags & REN_ANY) && !m_bbWorldDyn.IsReset())
 		{
-			counts.DynamicBoundsVolume += m_bbWorldDyn.GetVolume();
-			counts.StaticBoundsVolume += m_bbWorld.GetVolume();
+			counts.volume.dyn += m_bbWorldDyn.GetVolume();
+			counts.volume.stat += m_bbWorld.GetVolume();
 			if (!m_bbWorld.ContainsBox(m_bbWorldDyn))
 			{
 				AABB bbDynClip = m_bbWorldDyn;
 				bbDynClip.ClipToBox(m_bbWorld);
 				float fErrorVol = m_bbWorldDyn.GetVolume() - bbDynClip.GetVolume();
-				counts.ErrorBoundsVolume += fErrorVol;
+				counts.volume.error += fErrorVol;
 			}
 		}
 	}

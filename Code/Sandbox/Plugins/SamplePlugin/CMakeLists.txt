@@ -11,6 +11,10 @@ start_sources()
 sources_platform(ALL)
 add_sources("NoUberFile"
 	SOURCE_GROUP "Root"
+		"SampleAssetEditor.cpp"
+		"SampleAssetEditor.h"
+		"SampleAssetType.cpp"
+		"SampleAssetType.h"
 		"SamplePlugin.cpp"
 		"SamplePlugin.h"
 		"StdAfx.h"

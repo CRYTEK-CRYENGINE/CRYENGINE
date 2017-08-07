@@ -4,11 +4,11 @@
 #include "Script/Elements/ScriptClass.h"
 
 #include <CrySerialization/IArchiveHost.h>
-#include <Schematyc/Script/IScriptGraph.h>
-#include <Schematyc/Script/IScriptRegistry.h>
-#include <Schematyc/Script/Elements/IScriptSignalReceiver.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Script/IScriptGraph.h>
+#include <CrySchematyc/Script/IScriptRegistry.h>
+#include <CrySchematyc/Script/Elements/IScriptSignalReceiver.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
 
 #include "CVars.h"
 #include "CoreEnv/CoreEnvSignals.h"
@@ -21,13 +21,13 @@ CScriptClass::CScriptClass()
 	: CScriptElementBase(EScriptElementFlags::MustOwnScript)
 {}
 
-CScriptClass::CScriptClass(const SGUID& guid, const char* szName)
+CScriptClass::CScriptClass(const CryGUID& guid, const char* szName)
 	: CScriptElementBase(guid, szName, EScriptElementFlags::MustOwnScript)
 {}
 
 void CScriptClass::EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const {}
 
-void CScriptClass::RemapDependencies(IGUIDRemapper& guidRemapper) {}
+void CScriptClass::RemapDependencies(IGUIDRemapper& guidRemapper)                                                        {}
 
 void CScriptClass::ProcessEvent(const SScriptEvent& event)
 {
@@ -37,14 +37,13 @@ void CScriptClass::ProcessEvent(const SScriptEvent& event)
 	{
 	case EScriptEventId::EditorAdd:
 		{
-			// #SchematycTODO : Should we be doing this in editor code?
-
+			// TODO: This should happen in editor!
 			IScriptRegistry& scriptRegistry = gEnv->pSchematyc->GetScriptRegistry();
 			scriptRegistry.AddConstructor("ConstructionGraph", this);
 
-			IScriptSignalReceiver* pSignalReceiver = scriptRegistry.AddSignalReceiver("SignalGraph", EScriptSignalReceiverType::Universal, SGUID(), this);
+			IScriptSignalReceiver* pSignalReceiver = scriptRegistry.AddSignalReceiver("SignalGraph", EScriptSignalReceiverType::Universal, CryGUID(), this);
 			IScriptGraph* pGraph = static_cast<IScriptGraph*>(pSignalReceiver->GetExtensions().QueryExtension(EScriptExtensionType::Graph));
-			if(pGraph)
+			if (pGraph)
 			{
 				IScriptGraphNodePtr pStartNode = std::make_shared<CScriptGraphNode>(gEnv->pSchematyc->CreateGUID(), stl::make_unique<CScriptGraphReceiveSignalNode>(SElementId(EDomain::Env, GetTypeDesc<SStartSignal>().GetGUID()))); // #SchematycTODO : Shouldn't we be using CScriptGraphNodeFactory::CreateNode() instead of instantiating the node directly?!?
 				pStartNode->SetPos(Vec2(0.0f, 0.0f));
@@ -60,6 +59,8 @@ void CScriptClass::ProcessEvent(const SScriptEvent& event)
 			}
 
 			m_userDocumentation.SetCurrentUserAsAuthor();
+			// ~TODO
+
 			break;
 		}
 	case EScriptEventId::EditorPaste:

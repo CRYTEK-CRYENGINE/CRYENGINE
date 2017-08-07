@@ -1,0 +1,129 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Mono.Debugging.Soft</name>
+    </assembly>
+    <members>
+        <member name="M:Mono.Debugging.Soft.SoftDebuggerSession.StartListening(Mono.Debugging.Soft.SoftDebuggerStartInfo)">
+            <summary>Starts the debugger listening for a connection over TCP/IP</summary>
+        </member>
+        <member name="M:Mono.Debugging.Soft.SoftDebuggerSession.StartListening(Mono.Debugging.Soft.SoftDebuggerStartInfo,System.Int32@)">
+            <summary>Starts the debugger listening for a connection over TCP/IP</summary>
+        </member>
+        <member name="M:Mono.Debugging.Soft.SoftDebuggerSession.StartListening(Mono.Debugging.Soft.SoftDebuggerStartInfo,System.Int32@,System.Int32@)">
+            <summary>Starts the debugger listening for a connection over TCP/IP</summary>
+        </member>
+        <member name="M:Mono.Debugging.Soft.SoftDebuggerSession.StartConnecting(Mono.Debugging.Soft.SoftDebuggerStartInfo,System.Int32,System.Int32)">
+            <summary>Starts the debugger connecting to a remote IP</summary>
+        </member>
+        <member name="M:Mono.Debugging.Soft.SoftDebuggerSession.HandleConnectionCallbackErrors(System.AsyncCallback)">
+            <summary>Catches errors in async callbacks and hands off to OnConnectionError</summary>
+        </member>
+        <member name="M:Mono.Debugging.Soft.SoftDebuggerSession.OnConnectionError(System.Exception)">
+            <summary>
+            Called if an error happens while making the connection. Default terminates the session.
+            </summary>
+        </member>
+        <member name="M:Mono.Debugging.Soft.SoftDebuggerSession.ConnectionStarted(Mono.Debugger.Soft.VirtualMachine)">
+            <summary>
+            If subclasses do an async connect in OnRun, they should pass the resulting VM to this method.
+            If the vm is null, the session will be closed.
+            </summary>
+        </member>
+        <member name="M:Mono.Debugging.Soft.SoftDebuggerSession.EnsureExited">
+            <summary>This is a fallback in case the debugger agent doesn't respond to an exit call</summary>
+        </member>
+        <member name="M:Mono.Debugging.Soft.SoftDebuggerSession.ExceptionInUserCode(Mono.Debugger.Soft.ExceptionEvent)">
+            <summary>
+            Checks all frames in thread where exception occured and if any frame has user code it returns true.
+            Also notice that this method already check if Options.ProjectAssembliesOnly==false 
+            </summary>
+        </member>
+        <member name="P:Mono.Debugging.Soft.SoftDebuggerStartInfo.UserAssemblyNames">
+            <summary>
+            Names of assemblies that are user code.
+            </summary>
+        </member>
+        <member name="P:Mono.Debugging.Soft.SoftDebuggerStartInfo.AssemblyPathMap">
+            <summary>
+            A mapping of AssemblyNames to their paths.
+            </summary>
+        </member>
+        <member name="P:Mono.Debugging.Soft.SoftDebuggerStartInfo.LogMessage">
+            <summary>
+            The session will output this to the debug log as soon as it starts. It can be used to log warnings from
+            creating the SoftDebuggerStartInfo
+            </summary>
+        </member>
+        <member name="P:Mono.Debugging.Soft.SoftDebuggerStartInfo.StartArgs">
+            <summary>
+            Args for starting the debugger connection.
+            </summary>
+        </member>
+        <member name="P:Mono.Debugging.Soft.SoftDebuggerStartArgs.MaxConnectionAttempts">
+            <summary>
+            Maximum number of connection attempts. Zero or less means infinite attempts. Default is 1.
+            </summary>
+        </member>
+        <member name="P:Mono.Debugging.Soft.SoftDebuggerStartArgs.TimeBetweenConnectionAttempts">
+            <summary>
+            The time between connection attempts, in milliseconds. Default is 500.
+            </summary>
+        </member>
+        <member name="P:Mono.Debugging.Soft.SoftDebuggerRemoteArgs.Address">
+            <summary>
+            The IP address for the connection.
+            </summary>
+        </member>
+        <member name="P:Mono.Debugging.Soft.SoftDebuggerRemoteArgs.DebugPort">
+            <summary>
+            Port for the debugger connection. Zero means random port.
+            </summary>
+        </member>
+        <member name="P:Mono.Debugging.Soft.SoftDebuggerRemoteArgs.OutputPort">
+            <summary>
+            Port for the console connection. Zero means random port, less than zero means that output is not redirected.
+            </summary>
+        </member>
+        <member name="P:Mono.Debugging.Soft.SoftDebuggerRemoteArgs.AppName">
+            <summary>
+            Application name that will be shown in the debugger.
+            </summary>
+        </member>
+        <member name="T:Mono.Debugging.Soft.SoftDebuggerListenArgs">
+            <summary>
+            Args for the debugger to listen for an incoming connection from a debuggee.
+            </summary>
+        </member>
+        <member name="T:Mono.Debugging.Soft.SoftDebuggerConnectArgs">
+            <summary>
+            Args for the debugger to connect to target that is listening.
+            </summary>
+        </member>
+        <member name="T:Mono.Debugging.Soft.SoftDebuggerLaunchArgs">
+            <summary>
+            Options for the debugger to start a process directly.
+            </summary>
+        </member>
+        <member name="P:Mono.Debugging.Soft.SoftDebuggerLaunchArgs.MonoRuntimePrefix">
+            <summary>
+            Prefix into which the target Mono runtime is installed.
+            </summary>
+        </member>
+        <member name="P:Mono.Debugging.Soft.SoftDebuggerLaunchArgs.MonoRuntimeEnvironmentVariables">
+            <summary>
+            Environment variables for the Mono runtime.
+            </summary>
+        </member>
+        <member name="P:Mono.Debugging.Soft.SoftDebuggerLaunchArgs.ExternalConsoleLauncher">
+            <summary>
+            Launcher for the external console. May be null if the app does not run on an external console.
+            </summary>
+        </member>
+        <member name="P:Mono.Debugging.Soft.SoftDebuggerLaunchArgs.MonoExecutableFileName">
+            <summary>
+            Gets or sets the name of the mono executable file. e.g. "mono", "mono32", "mono64"...
+            </summary>
+        </member>
+    </members>
+</doc>

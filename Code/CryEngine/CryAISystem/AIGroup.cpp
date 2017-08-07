@@ -21,6 +21,7 @@
 #include "AIVehicle.h"
 #include <float.h>
 #include "DebugDrawContext.h"
+#include "Formation/AIFormationDescriptor.h"
 
 // Serialises a container of AI references
 // Perhaps this is too heavy on the templating and it could be virtualised

@@ -21,7 +21,7 @@
 #include "terrain_water.h"
 //#include "detail_grass.h"
 
-int CTerrain::m_nUnitSize = 2;
+float CTerrain::m_fUnitSize = 2;
 float CTerrain::m_fInvUnitSize = 1.0f / 2.0f;
 int CTerrain::m_nTerrainSize = 1024;
 int CTerrain::m_nSectorSize = 64;
@@ -79,19 +79,19 @@ void CTerrain::BuildSectorsTree(bool bBuildErrorsTable, int nSID)
 
 	if (Get3DEngine()->IsSegmentOperationInProgress())   // initialize sector AABBs
 	{
-		float fUnitSize = (float) CTerrain::GetHeightMapUnitSize();
+		float unitSize = (float) CTerrain::GetHeightMapUnitSize();
 		float z = GetWaterLevel();
 		for (int iLayer = 0; iLayer < TERRAIN_NODE_TREE_DEPTH; ++iLayer)
 		{
 			Array2d<struct CTerrainNode*>& sectorLayer = m_arrSecInfoPyramid[nSID][iLayer];
 			for (int sy = 0; sy < sectorLayer.GetSize(); ++sy)
 			{
-				float y1 = ((sy << m_nUnitsToSectorBitShift) << iLayer) * fUnitSize;
-				float y2 = (((sy + 1) << m_nUnitsToSectorBitShift) << iLayer) * fUnitSize;
+				float y1 = ((sy << m_nUnitsToSectorBitShift) << iLayer) * unitSize;
+				float y2 = (((sy + 1) << m_nUnitsToSectorBitShift) << iLayer) * unitSize;
 				for (int sx = 0; sx < sectorLayer.GetSize(); ++sx)
 				{
-					float x1 = ((sx << m_nUnitsToSectorBitShift) << iLayer) * fUnitSize;
-					float x2 = (((sx + 1) << m_nUnitsToSectorBitShift) << iLayer) * fUnitSize;
+					float x1 = ((sx << m_nUnitsToSectorBitShift) << iLayer) * unitSize;
+					float x2 = (((sx + 1) << m_nUnitsToSectorBitShift) << iLayer) * unitSize;
 					CTerrainNode* pTerrainNode = sectorLayer[sx][sy];
 					if (!pTerrainNode)
 						continue;

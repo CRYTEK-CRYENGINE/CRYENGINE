@@ -1,0 +1,30 @@
+# Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
+def build(bld): 
+
+	# FBX SDK for MSVC
+	fbx_sdk_subfolder = 'vs2012'
+	try:
+		msvc_version = bld.env['MSVC_VERSION']
+		if msvc_version == '11.0':
+			fbx_sdk_subfolder = 'vs2012'
+		if msvc_version == '12.0':
+			fbx_sdk_subfolder = 'vs2013'
+		if msvc_version == '14.0':
+			fbx_sdk_subfolder = 'vs2015'
+	except:
+		pass
+
+	# FBX Plugin Module
+	bld.CryPlugin(
+		target                      = 'MeshImporter',
+		vs_filter                   = 'Sandbox/Plugins',
+		file_list                   = 'meshimporter.waf_files',
+		defines                     = [ 'BUILDING_FBX_TOOL' ],
+		includes                    = [ Path('Code/SDKs/FbxSdk/include'), Path('Code/SDKs/FbxSdk/include'), Path('Code/Sandbox/EditorQt'), Path('Code/Sandbox/EditorQt/Include'), Path('Code/Sandbox/Plugins/MFCToolsPlugin') ],
+		use                         = [ 'Sandbox', 'MFCToolsPlugin'],
+		pch                         = 'StdAfx.cpp',
+		win_x64_debug_libpath       = Path('Code/SDKs/FbxSdk/lib/' + fbx_sdk_subfolder + '/x64/debug'),
+		win_x64_profile_libpath     = Path('Code/SDKs/FbxSdk/lib/' + fbx_sdk_subfolder + '/x64/release'),
+		lib                         = 'libfbxsdk-md',
+	)

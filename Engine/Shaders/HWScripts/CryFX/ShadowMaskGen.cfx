@@ -52,6 +52,7 @@ cbuffer CBShadowMask : register(b0)
 		float4   fShadowFadingDist;
 		float4x4 BlendTexGen;
 		float4   BlendInfo;
+		float4   lightPos;
 	} c_ShadowMaskConstants;
 };
 
@@ -74,12 +75,7 @@ struct pixout_cl
 
 struct pixout_cl_void_depth
 {
-#if !OPENGL
-	float  Depth : SV_Depth;
-#else
-	//HLSLcc compiler crash issue
-	float Depth    : COLOR3; 
-#endif
+	float Depth : SV_Depth;
 };
 
 struct app2vertStencilCull
@@ -221,11 +217,7 @@ float4 CalcShadowSpace(float4 HPos)
 		//TOFIX: concatenate this operations to the projection matrix
 		P0.z *= c_ShadowMaskConstants.fOneDivFarDist.x;
 	#endif
-
-	//we do slope scale bias during shadowgen only
-	//make constant bias for sun
-	P0.z -= c_ShadowMaskConstants.fDepthTestBias.x; 
-
+	
   return P0;
 }
 
@@ -305,6 +297,16 @@ pixout_cl DeferredShadowPS(float4 WPos : SV_POSITION)
   pOutBlend.xy = pOutBlend.xy * c_ShadowMaskConstants.BlendTcNormalize.xy + c_ShadowMaskConstants.BlendTcNormalize.zw;
   
   P0 = CalcShadowSpace(P0);
+	
+	// Apply bias
+#if %_RT_SAMPLE4
+	// Compute bias that is relative to shadow map texel world space size
+	float3 worldPos = ReconstructWorldPos(WPos.xy, SceneDepth);
+	float constBias = dot(worldPos - c_ShadowMaskConstants.lightPos.xyz, -CV_SunLightDir.xyz) * c_ShadowMaskConstants.fDepthTestBias.x;
+#else
+	float constBias = c_ShadowMaskConstants.fDepthTestBias.x;
+#endif
+	P0.z -= constBias;
 
 #if %_RT_SAMPLE1
 	const bool bContactHardening = true;

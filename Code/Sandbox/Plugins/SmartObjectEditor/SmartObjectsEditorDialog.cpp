@@ -10,7 +10,7 @@
 #include "Objects/SelectionGroup.h"
 #include "SmartObject.h"
 #include "GameEngine.h"
-#include <MFCUtil.h>
+#include "Util/MFCUtil.h"
 
 #include "AI\AIManager.h"
 #include "ItemDescriptionDlg.h"
@@ -25,6 +25,8 @@
 #include "Controls/QuestionDialog.h"
 #include "Controls/SharedFonts.h"
 #include "ClassFactory.h"
+#include "Objects/ObjectManager.h"
+#include "Util/FileUtil.h"
 
 #define SOED_DIALOGFRAME_CLASSNAME "SmartObjectsEditorDialog"
 #define CLASS_TEMPLATES_FOLDER     "Libs/SmartObjects/ClassTemplates/"
@@ -2134,7 +2136,7 @@ void CSmartObjectsEditorDialog::SinkSelection()
 	m_sFirstFilterClass.Empty();
 	SetStrings filterClasses;
 
-	CSelectionGroup* pSelection = GetIEditor()->GetObjectManager()->GetSelection();
+	const CSelectionGroup* pSelection = GetIEditor()->GetObjectManager()->GetSelection();
 	int selCount = pSelection->GetCount();
 
 	// Block UI updates
@@ -2931,7 +2933,7 @@ void CSmartObjectsEditorDialog::OnHelpersNew()
 //////////////////////////////////////////////////////////////////////////
 void CSmartObjectsEditorDialog::OnHelpersDelete()
 {
-	CSelectionGroup* pSelection = GetIEditor()->GetObjectManager()->GetSelection();
+	const CSelectionGroup* pSelection = GetIEditor()->GetObjectManager()->GetSelection();
 	int selCount = pSelection->GetCount();
 
 	if (!m_sEditedClass.IsEmpty() && selCount == 1 && pSelection->GetObject(0)->IsKindOf(RUNTIME_CLASS(CSmartObjectHelperObject)))
@@ -3377,7 +3379,7 @@ void CSmartObjectsEditorDialog::OnReportHyperlink(NMHDR* pNotifyStruct, LRESULT*
 			if (pAction)
 			{
 				CFlowGraphManager* pManager = GetIEditor()->GetFlowGraphManager();
-				CFlowGraph* pFlowGraph = pManager->FindGraphForAction(pAction);
+				CHyperFlowGraph* pFlowGraph = pManager->FindGraphForAction(pAction);
 				assert(pFlowGraph);
 				if (pFlowGraph)
 					pManager->OpenView(pFlowGraph);

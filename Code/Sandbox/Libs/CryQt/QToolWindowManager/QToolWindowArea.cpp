@@ -14,6 +14,8 @@
 #include <QStylePainter>
 #include <QStyleOptionToolBar>
 #include <QMouseEvent>
+#include <QMenu>
+#include <QAction>
 
 QToolWindowArea::QToolWindowArea(QToolWindowManager* manager, QWidget *parent /*= 0*/)
 	: QTabWidget(parent),
@@ -30,6 +32,7 @@ QToolWindowArea::QToolWindowArea(QToolWindowManager* manager, QWidget *parent /*
 	setTabPosition((QTabWidget::TabPosition)m_manager->config().value(QTWM_AREA_TAB_POSITION, QTabWidget::North).toInt());
 
 	tabBar()->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+	setFocusPolicy(Qt::StrongFocus);
 	bool areaUseImageHandle = m_manager->config().value(QTWM_AREA_IMAGE_HANDLE, false).toBool();
 	m_tabFrame = new QToolWindowSingleTabAreaFrame(manager, this);
 	m_tabFrame->hide();	
@@ -41,7 +44,7 @@ QToolWindowArea::QToolWindowArea(QToolWindowManager* manager, QWidget *parent /*
 	if (areaUseImageHandle)
 	{
 		QPixmap corner_img;
-		corner_img.load(":/QtDockLibrary/gfx/drag_handle.png");
+		corner_img.load(manager->config().value(QTWM_DROPTARGET_COMBINE, ":/QtDockLibrary/gfx/drag_handle.png").toString());
 		corner->setPixmap(corner_img);
 	}
 	else
@@ -77,7 +80,11 @@ QToolWindowArea::QToolWindowArea(QToolWindowManager* manager, QWidget *parent /*
 
 QToolWindowArea::~QToolWindowArea()
 {
-	m_manager->removeArea(this);
+	if (m_manager)
+	{
+		m_manager->removeArea(this);
+		m_manager = nullptr;
+	}
 }
 
 QPushButton* QToolWindowArea::createCloseButton()
@@ -125,6 +132,31 @@ void QToolWindowArea::addToolWindows(const QList<QWidget*>& toolWindows, int ind
 		{
 			tabBar()->setTabButton(newIndex, QTabBar::ButtonPosition::RightSide, createCloseButton());
 		}
+
+#if QT_VERSION >= 0x050000
+		connect(toolWindow, &QWidget::windowTitleChanged, this, [this, newIndex, toolWindow](const QString& title)
+		{
+			if (indexOf(toolWindow) >= 0)
+			{
+				setTabText(newIndex, title);
+			}
+			if (count() == 1)
+			{
+				setWindowTitle(title);
+			}
+		});
+		connect(toolWindow, &QWidget::windowIconChanged, this, [this, newIndex, toolWindow](const QIcon& icon)
+		{
+			if (indexOf(toolWindow) >= 0)
+			{
+				setTabIcon(newIndex, icon);
+			}
+			if (count() == 1)
+			{
+				setWindowIcon(icon);
+			}
+		});
+#endif
 	}
 	setCurrentWidget(toolWindows.first());
 }
@@ -154,10 +186,20 @@ void QToolWindowArea::closeTab(int index)
 
 void QToolWindowArea::removeToolWindow(QWidget* toolWindow)
 {
-	int i = indexOf(toolWindow);
+	toolWindow->disconnect(this);
+	const int i = indexOf(toolWindow);
 	if (i != -1)
 	{
 		removeTab(i);
+	}
+	else if (m_tabFrame->contents() == toolWindow)
+	{
+		const int i = indexOf(m_tabFrame);
+		if (i != -1)
+		{
+			removeTab(i);
+		}
+		m_tabFrame->setContents(nullptr);
 	}
 }
 
@@ -319,6 +361,30 @@ bool QToolWindowArea::shouldShowSingleTabFrame()
 	return true;
 }
 
+void QToolWindowArea::mouseReleaseEvent(QMouseEvent * e)
+{
+	if (m_manager->config().value(QTWM_SUPPORT_SIMPLE_TOOLS, false).toBool())
+	{
+		if (e->button() == Qt::RightButton)
+		{
+			int p = tabBar()->rect().height();
+
+			int tabIndex = tabBar()->tabAt(e->pos());
+			if (tabIndex == -1 && e->pos().y() >= 0 && e->pos().y() <= p)
+			{
+				QAction swap("Swap to Rollups", this);
+				e->accept();
+				connect(&swap, SIGNAL(triggered()), this, SLOT(swapToRollup()));
+				QMenu menu(this);
+				menu.addAction(&swap);
+				menu.exec(tabBar()->mapToGlobal(QPoint(e->pos().x(), e->pos().y() + 10)));
+			}
+		}
+	}
+	
+	QTabWidget::mouseReleaseEvent(e);
+}
+
 void QToolWindowArea::adjustDragVisuals()
 {
 	if (m_manager->config().value(QTWM_SINGLE_TAB_FRAME, true).toBool())
@@ -433,7 +499,7 @@ void QToolWindowArea::setCurrentWidget(QWidget* w)
 	}
 }
 
-QRect QToolWindowArea::tabBarRect() const
+QRect QToolWindowArea::combineAreaRect() const
 {
 	if (widget(0) == m_tabFrame)
 		return m_tabFrame->m_caption->rect();
@@ -465,7 +531,12 @@ void QToolWindowArea::showContextMenu(const QPoint &point)
 	}
 }
 
-QToolWindowSingleTabAreaFrame::QToolWindowSingleTabAreaFrame(QToolWindowManager* manager, QWidget* parent) 
+void QToolWindowArea::swapToRollup()
+{
+	m_manager->SwapAreaType(this, watRollups);
+}
+
+QToolWindowSingleTabAreaFrame::QToolWindowSingleTabAreaFrame(QToolWindowManager* manager, QWidget* parent)
 	: QFrame(parent)
 	, m_layout (new QGridLayout(this))
 	, m_manager (manager)

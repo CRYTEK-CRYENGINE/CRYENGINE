@@ -16,8 +16,9 @@
 
 #ifndef OPTIMIZED_READONLY_ZIP_ENTRY
 
-	#include <zlib.h> // declaration of Z_OK for ZipRawDecompress
-	#include <CryCore/Platform/CryWindows.h>
+#include <zlib.h> // declaration of Z_OK for ZipRawDecompress
+#include <CryCore/Platform/CryWindows.h>
+#include <CryMath/Random.h>
 
 using namespace ZipFile;
 

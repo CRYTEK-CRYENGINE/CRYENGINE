@@ -2,39 +2,37 @@
 
 #pragma once
 
-enum EHWShaderClass
-{
-	eHWSC_Vertex   = 0,
-	eHWSC_Pixel    = 1,
-	eHWSC_Geometry = 2,
-	eHWSC_Compute  = 3,
-	eHWSC_Domain   = 4,
-	eHWSC_Hull     = 5,
-	eHWSC_Num      = 6
-};
+#include <atomic>
+
+class CConstantBuffer;
 
 //! This class provide all necessary resources to the shader extracted from material definition.
 class CShaderResources : public IRenderShaderResources, public SBaseShaderResources
 {
+public:
 	enum EFlags
 	{
-		eFlagInvalid = BIT(0),
-		eFlagRecreateResourceSet = BIT(1)
+		eFlagInvalid             = BIT(0),
+		eFlagRecreateResourceSet = BIT(1),
+		EFlags_DynamicUpdates    = BIT(2),
+		EFlags_AnimatedSequence  = BIT(3),
 	};
+
 public:
 	stl::aligned_vector<Vec4, 256> m_Constants;
-	SEfResTexture*                 m_Textures[EFTT_MAX]; // 48 bytes
-	SDeformInfo*                   m_pDeformInfo;        // 4 bytes
-	TArray<struct SHRenderTarget*> m_RTargets;           // 4
-	CCamera*                       m_pCamera;            // 4
-	SSkyInfo*                      m_pSky;               // 4
-	SDetailDecalInfo*              m_pDetailDecalInfo;   // 4
+	SEfResTexture*                 m_Textures[EFTT_MAX];
+	SDeformInfo*                   m_pDeformInfo;
+	TArray<struct SHRenderTarget*> m_RTargets;
+	CCamera*                       m_pCamera;
+	SSkyInfo*                      m_pSky;
+	SDetailDecalInfo*              m_pDetailDecalInfo;
 	CConstantBuffer*               m_pCB;
-	uint16                         m_Id;      // 2 bytes
-	uint16                         m_IdGroup; // 2 bytes
+	uint16                         m_Id;
+	uint16                         m_IdGroup;
 
 	// @see EFlags
-	uint32 m_flags;
+	uint32            m_flags;
+	std::atomic<bool> m_bResourcesDirty;
 
 	/////////////////////////////////////////////////////
 
@@ -45,13 +43,16 @@ public:
 	uint32       m_nUpdateFrameID;
 
 	// Compiled resource set.
-	// For DX12 will prepare list of textures in the global heap.
+	CDeviceResourceSetDesc                                  m_resources;
 	std::shared_ptr<class CDeviceResourceSet>               m_pCompiledResourceSet;
 	std::shared_ptr<class CGraphicsPipelineStateLocalCache> m_pipelineStateCache;
 
 	uint8 m_nMtlLayerNoDrawFlags;
 
 public:
+	//////////////////////////////////////////////////////////////////////////
+	static bool OnTextureInvalidated(void* pThis, uint32 flags) threadsafe;
+
 	//////////////////////////////////////////////////////////////////////////
 	void AddTextureMap(int Id)
 	{
@@ -92,7 +93,6 @@ public:
 	}
 
 	CShaderResources();
-	CShaderResources& operator=(const CShaderResources& src);
 	CShaderResources(struct SInputShaderResources* pSrc);
 
 	void                               PostLoad(CShader* pSH);
@@ -120,6 +120,7 @@ public:
 	virtual uint8 GetMtlLayerNoDrawFlags() const final       { return m_nMtlLayerNoDrawFlags; }
 
 	void          RT_UpdateConstants(IShader* pSH);
+	void          RT_UpdateResourceSet();
 	void          ReleaseConstants();
 	inline float  FurAmount()
 	{
@@ -159,7 +160,9 @@ public:
 		m_pCB = NULL;
 		m_nMtlLayerNoDrawFlags = 0;
 		m_flags = 0;
+		m_bResourcesDirty = false;
 		m_nUpdateFrameID = 0;
+		m_resources.Clear();
 	}
 	bool IsEmpty(int nTSlot) const
 	{
@@ -168,6 +171,8 @@ public:
 		return false;
 	}
 	bool                  HasDynamicTexModifiers() const;
+	bool                  HasDynamicUpdates() const { return !!(m_flags & EFlags_DynamicUpdates); }
+	bool                  HasAnimatedTextures() const { return !!(m_flags & EFlags_AnimatedSequence); }
 	bool                  HasLMConstants() const { return (m_Constants.size() > 0); }
 	virtual void          SetInputLM(const CInputLightMaterial& lm) final;
 	virtual void          ToInputLM(CInputLightMaterial& lm) final;
@@ -194,5 +199,10 @@ public:
 	virtual SDetailDecalInfo* GetDetailDecalInfo() final { return m_pDetailDecalInfo; }
 
 	void                      Cleanup();
+
+	void                      ClearPipelineStateCache();
+
+private:
+	CShaderResources(const CShaderResources& src);
 };
 typedef _smart_ptr<CShaderResources> CShaderResourcesPtr;

@@ -7,6 +7,8 @@
 
 	#include <vector>   // STL vector<>
 
+struct SDynTexture_Shadow;
+
 // to combine multiple shadowmaps into one texture (e.g. GSM levels or Cubemap sides)
 class CShadowTextureGroupManager
 {

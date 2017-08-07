@@ -99,8 +99,6 @@ COpticsElement::COpticsElement(const char* name, float size, const float brightn
 	, m_bDynamics(false)
 	, m_bDynamicsInvert(false)
 {
-	m_samplerBilinearClamp       = CTexture::GetTexState(STexState(FILTER_LINEAR, true));
-	m_samplerBilinearBorderBlack = CTexture::GetTexState(STexState(FILTER_LINEAR, TADDR_BORDER, TADDR_BORDER, TADDR_BORDER, 0));
 }
 
 void COpticsElement::Load(IXmlNode* pNode)
@@ -291,8 +289,6 @@ void COpticsElement::ApplyOcclusionPattern(SShaderParamsBase& shaderParams, CRen
 	if (GetRoot() == NULL)
 		return;
 
-	static STexState bilinearTS(FILTER_LINEAR, true);
-
 	CFlareSoftOcclusionQuery* pSoftOcclusionQuery = GetRoot()->GetOcclusionQuery();
 	if (pSoftOcclusionQuery && pSoftOcclusionQuery->GetGatherTexture())
 	{
@@ -305,13 +301,13 @@ void COpticsElement::ApplyOcclusionPattern(SShaderParamsBase& shaderParams, CRen
 
 		shaderParams.occPatternInfo = Vec4((x0 + x1) * 0.5f, (y0 + y1) * 0.5f, width, height);
 		primitive.SetTexture(5, pGatherTex);
-		primitive.SetSampler(5, m_samplerBilinearClamp);
+		primitive.SetSampler(5, EDefaultSamplerStates::LinearClamp);
 	}
 	else
 	{
 		shaderParams.occPatternInfo = Vec4(ZERO);
 		primitive.SetTexture(5, CTexture::s_ptexBlack);
-		primitive.SetSampler(5, m_samplerBilinearClamp);
+		primitive.SetSampler(5, EDefaultSamplerStates::LinearClamp);
 	}
 }
 

@@ -36,7 +36,7 @@ class CResponseActor final : public DRS::IResponseActor
 {
 public:
 	CResponseActor(const string& name, EntityId linkedEntityID, const char* szGlobalVariableCollectionToUse);
-	virtual ~CResponseActor();
+	virtual ~CResponseActor() override;
 
 	//////////////////////////////////////////////////////////
 	// IResponseActor implementation
@@ -45,8 +45,8 @@ public:
 	virtual const CVariableCollection* GetLocalVariables() const override;
 	virtual EntityId                   GetLinkedEntityID() const override { return m_linkedEntityID; }
 	virtual IEntity*                   GetLinkedEntity() const override;
-	virtual void                       SetAuxAudioObjectID(CryAudio::AuxObjectId overrideAuxProxy) override { m_AuxProxyToUse = overrideAuxProxy; }
-	virtual CryAudio::AuxObjectId      GetAuxAudioObjectID() const override { return m_AuxProxyToUse; }
+	virtual void                       SetAuxAudioObjectID(CryAudio::AuxObjectId overrideAuxProxy) override { m_auxAudioObjectIdToUse = overrideAuxProxy; }
+	virtual CryAudio::AuxObjectId      GetAuxAudioObjectID() const override { return m_auxAudioObjectIdToUse; }
 	virtual DRS::SignalInstanceId      QueueSignal(const CHashedString& signalName, DRS::IVariableCollectionSharedPtr pSignalContext = nullptr, DRS::IResponseManager::IListener* pSignalListener = nullptr) override;
 	//////////////////////////////////////////////////////////
 
@@ -60,7 +60,7 @@ private:
 	const CHashedString         m_variableCollectionName;
 	const string                m_name;
 	VariableCollectionSharedPtr m_pNonGlobalVariableCollection;
-	CryAudio::AuxObjectId       m_AuxProxyToUse;
+	CryAudio::AuxObjectId       m_auxAudioObjectIdToUse;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -69,9 +69,10 @@ class CResponseSystem final : public DRS::IDynamicResponseSystem, public ISystem
 {
 public:
 	CResponseSystem();
-	virtual ~CResponseSystem();
+	virtual ~CResponseSystem() override;
 
 	static CResponseSystem* GetInstance() { return s_pInstance; }
+	static CryGUID GetSchematycPackageGUID() { return "981168e2-f16d-46b7-bfaa-e11966204d47"_cry_guid; }
 
 	//////////////////////////////////////////////////////////
 	// DRS::IDynamicResponseSystem implementation

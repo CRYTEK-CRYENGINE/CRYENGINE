@@ -6,7 +6,7 @@
 CCryDX12DepthStencilState* CCryDX12DepthStencilState::Create(const D3D11_DEPTH_STENCIL_DESC* pDepthStencilDesc)
 {
 	D3D12_DEPTH_STENCIL_DESC desc12;
-	ZeroMemory(&desc12, sizeof(D3D11_DEPTH_STENCIL_DESC));
+	ZeroMemory(&desc12, sizeof(D3D12_DEPTH_STENCIL_DESC));
 
 	desc12.BackFace.StencilDepthFailOp = static_cast<D3D12_STENCIL_OP>(pDepthStencilDesc->BackFace.StencilDepthFailOp);
 	desc12.BackFace.StencilFailOp = static_cast<D3D12_STENCIL_OP>(pDepthStencilDesc->BackFace.StencilFailOp);
@@ -34,11 +34,6 @@ CCryDX12DepthStencilState::CCryDX12DepthStencilState(const D3D11_DEPTH_STENCIL_D
 	: Super(nullptr, nullptr)
 	, m_Desc11(desc11)
 	, m_Desc12(desc12)
-{
-
-}
-
-CCryDX12DepthStencilState::~CCryDX12DepthStencilState()
 {
 
 }

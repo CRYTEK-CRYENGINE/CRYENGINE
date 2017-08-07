@@ -17,6 +17,7 @@
 
 #include <CrySystem/VR/IHMDManager.h>
 
+#include <CryMath/Cry_Camera.h>
 #include <CryRenderer/IRenderer.h>
 
 namespace CryVR

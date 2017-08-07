@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "Schematyc/Utils/Delegate.h"
-#include "Schematyc/Utils/EnumFlags.h"
+#include "CrySchematyc/Utils/Delegate.h"
+#include "CrySchematyc/Utils/EnumFlags.h"
 
 namespace Schematyc
 {
@@ -18,7 +18,7 @@ enum class EFileEnumFlags
 
 typedef CEnumFlags<EFileEnumFlags>              FileEnumFlags;
 
-typedef CDelegate<void (const char*, unsigned)> FileEnumCallback;
+typedef std::function<void (const char*, unsigned)> FileEnumCallback;
 
 void EnumFilesInFolder(const char* szFolderName, const char* szExtension, FileEnumCallback callback, const FileEnumFlags& flags = EFileEnumFlags::Recursive);
 } // FileUtils

@@ -144,12 +144,7 @@ void CFlareSoftOcclusionQuery::GetOcclusionSectorInfo(SOcclusionSectorInfo& out_
 
 float CFlareSoftOcclusionQuery::ComputeLinearDepth(const Vec3& worldPos, const Matrix44A& cameraMat, float nearDist, float farDist)
 {
-	Vec4 out, wPos4;
-	wPos4.x = worldPos.x;
-	wPos4.y = worldPos.y;
-	wPos4.z = worldPos.z;
-	wPos4.w = 1;
-	mathVec4Transform((f32*)&out, (f32*)(&cameraMat), (f32*)&wPos4);
+	Vec4 out = Vec4(worldPos, 1) * cameraMat;
 	if (out.w == 0.0f)
 		return 0;
 	const CRenderCamera& rc = gRenDev->GetRCamera();
@@ -192,7 +187,6 @@ void CFlareSoftOcclusionQuery::BatchReadResults()
 void CFlareSoftOcclusionQuery::ReadbackSoftOcclQuery()
 {
 	CTexture::s_ptexFlaresOcclusionRing[s_ringWriteIdx]->GetDevTexture()->DownloadToStagingResource(0);
-	CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->Reset();
 
 	// sync point. Move to next texture to read and write
 	s_ringReadIdx = (s_ringReadIdx + 1) % s_ringSize;
@@ -218,7 +212,7 @@ CSoftOcclusionManager::~CSoftOcclusionManager()
 	if (m_gatherVertexBuffer != ~0u)    gcpRendD3D->m_DevBufMan.Destroy(m_gatherVertexBuffer);
 }
 
-bool CSoftOcclusionManager::PrepareOcclusionPrimitive(CRenderPrimitive& primitive)
+bool CSoftOcclusionManager::PrepareOcclusionPrimitive(CRenderPrimitive& primitive, const CPrimitiveRenderPass& targetPass)
 {
 	if (m_indexBuffer == ~0u || m_occlusionVertexBuffer == ~0u)
 		return false;
@@ -257,15 +251,15 @@ bool CSoftOcclusionManager::PrepareOcclusionPrimitive(CRenderPrimitive& primitiv
 
 	static CCryNameTSCRC techRenderPlane("RenderPlane");
 
-	primitive.SetFlags(CRenderPrimitive::eFlags_ReflectConstantBuffersFromShader);
 	primitive.SetTechnique(CShaderMan::s_ShaderSoftOcclusionQuery, techRenderPlane, 0);
 	primitive.SetRenderState(GS_NODEPTHTEST);
 	primitive.SetTexture(0, CTexture::s_ptexZTargetScaled);
-	primitive.SetSampler(0, m_samplerPointBorderBlack);
+	primitive.SetSampler(0, EDefaultSamplerStates::PointBorder_Black);
 	primitive.SetPrimitiveType(CRenderPrimitive::ePrim_Triangle);
 	primitive.SetCustomIndexStream(m_indexBuffer, Index16);
-	primitive.SetCustomVertexStream(m_occlusionVertexBuffer, eVF_P3F_C4B_T2F, sizeof(SVF_P3F_C4B_T2F));
+	primitive.SetCustomVertexStream(m_occlusionVertexBuffer, EDefaultInputLayouts::P3F_C4B_T2F, sizeof(SVF_P3F_C4B_T2F));
 	primitive.SetDrawInfo(eptTriangleList, 0, 0, indexCount);
+	primitive.Compile(targetPass);
 
 	return true;
 }
@@ -297,12 +291,9 @@ void CSoftOcclusionManager::Init()
 
 		gcpRendD3D->m_DevBufMan.UpdateBuffer(m_indexBuffer, pDeviceIBAddr, maxIndexCount * sizeof(uint16));
 	}
-
-	m_samplerPointBorderBlack = CTexture::GetTexState(STexState(FILTER_POINT, TADDR_BORDER, TADDR_BORDER, TADDR_BORDER, 0));
-	m_samplerPointClamp = CTexture::GetTexState(STexState(FILTER_POINT, true));
 }
 
-bool CSoftOcclusionManager::PrepareGatherPrimitive(CRenderPrimitive& primitive, CStandardGraphicsPipeline::SViewInfo* pViewInfo, int viewInfoCount)
+bool CSoftOcclusionManager::PrepareGatherPrimitive(CRenderPrimitive& primitive, const CPrimitiveRenderPass& targetPass, CStandardGraphicsPipeline::SViewInfo* pViewInfo, int viewInfoCount)
 {
 	CRY_ASSERT(viewInfoCount >= 0);
 
@@ -344,15 +335,16 @@ bool CSoftOcclusionManager::PrepareGatherPrimitive(CRenderPrimitive& primitive, 
 	gcpRendD3D->m_DevBufMan.UpdateBuffer(m_gatherVertexBuffer, pDeviceVBAddr, vertexCount * sizeof(SVF_P3F_C4B_T2F));
 
 	static CCryNameTSCRC techGatherPlane("Gather");
-	primitive.SetFlags(CRenderPrimitive::eFlags_ReflectConstantBuffersFromShader);
+	primitive.SetFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 	primitive.SetTechnique(CShaderMan::s_ShaderSoftOcclusionQuery, techGatherPlane, 0);
 	primitive.SetRenderState(GS_NODEPTHTEST);
 	primitive.SetTexture(0, CTexture::s_ptexFlaresGather);
-	primitive.SetSampler(0, m_samplerPointClamp);
+	primitive.SetSampler(0, EDefaultSamplerStates::PointClamp);
 	primitive.SetPrimitiveType(CRenderPrimitive::ePrim_Triangle);
 	primitive.SetCustomIndexStream(m_indexBuffer, Index16);
-	primitive.SetCustomVertexStream(m_gatherVertexBuffer, eVF_P3F_C4B_T2F, sizeof(SVF_P3F_C4B_T2F));
+	primitive.SetCustomVertexStream(m_gatherVertexBuffer, EDefaultInputLayouts::P3F_C4B_T2F, sizeof(SVF_P3F_C4B_T2F));
 	primitive.SetDrawInfo(eptTriangleList, 0, 0, indexCount);
+	primitive.Compile(targetPass);
 
 	auto& constantManager = primitive.GetConstantManager();
 	constantManager.BeginNamedConstantUpdate();
@@ -397,9 +389,9 @@ bool CSoftOcclusionManager::Update(CStandardGraphicsPipeline::SViewInfo* pViewIn
 		CTexture* pOcclusionRT = CTexture::s_ptexFlaresGather;
 		CTexture* pGatherRT = CFlareSoftOcclusionQuery::GetOcclusionTex();
 
-		CDeviceCommandListPtr pCommandList = CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList();
-		pCommandList->GetGraphicsInterface()->ClearSurface(pOcclusionRT->GetSurface(0, 0), Clr_Transparent);
-		pCommandList->GetGraphicsInterface()->ClearSurface(pGatherRT->GetSurface(0, 0), Clr_Transparent);
+		CDeviceCommandListRef commandList = GetDeviceObjectFactory().GetCoreCommandList();
+		commandList.GetGraphicsInterface()->ClearSurface(pOcclusionRT->GetSurface(0, 0), Clr_Transparent);
+		commandList.GetGraphicsInterface()->ClearSurface(pGatherRT->GetSurface(0, 0), Clr_Transparent);
 
 		// occlusion pass
 		{
@@ -412,9 +404,9 @@ bool CSoftOcclusionManager::Update(CStandardGraphicsPipeline::SViewInfo* pViewIn
 
 			m_occlusionPass.SetRenderTarget(0, pOcclusionRT);
 			m_occlusionPass.SetViewport(viewport);
-			m_occlusionPass.ClearPrimitives();
+			m_occlusionPass.BeginAddingPrimitives();
 
-			if (PrepareOcclusionPrimitive(m_occlusionPrimitive))
+			if (PrepareOcclusionPrimitive(m_occlusionPrimitive, m_occlusionPass))
 			{
 				m_occlusionPass.AddPrimitive(&m_occlusionPrimitive);
 				m_occlusionPass.Execute();
@@ -432,9 +424,9 @@ bool CSoftOcclusionManager::Update(CStandardGraphicsPipeline::SViewInfo* pViewIn
 
 			m_gatherPass.SetRenderTarget(0, pGatherRT);
 			m_gatherPass.SetViewport(viewport);
-			m_gatherPass.ClearPrimitives();
+			m_gatherPass.BeginAddingPrimitives();
 
-			if (PrepareGatherPrimitive(m_gatherPrimitive, pViewInfo, viewInfoCount))
+			if (PrepareGatherPrimitive(m_gatherPrimitive, m_gatherPass, pViewInfo, viewInfoCount))
 			{
 				m_gatherPass.AddPrimitive(&m_gatherPrimitive);
 				m_gatherPass.Execute();

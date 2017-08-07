@@ -147,10 +147,10 @@ float CHeightMap::GetZApr(float xWS, float yWS, int nSID) const
 	int nX = fastftol_positive(x1);
 	int nY = fastftol_positive(y1);
 
-	int nHMSize = CTerrain::GetTerrainSize() / CTerrain::GetHeightMapUnitSize();
+	int heightMapSize = int(CTerrain::GetTerrainSize() * CTerrain::GetHeightMapUnitSizeInverted());
 
 #ifndef SEG_WORLD
-	if (!Cry3DEngineBase::GetTerrain() || nX < 1 || nY < 1 || nX >= nHMSize || nY >= nHMSize)
+	if (!Cry3DEngineBase::GetTerrain() || nX < 1 || nY < 1 || nX >= heightMapSize || nY >= heightMapSize)
 		fZ = TERRAIN_BOTTOM_LEVEL;
 	else
 #endif
@@ -192,7 +192,7 @@ float CHeightMap::GetZApr(float xWS, float yWS, int nSID) const
 float CHeightMap::GetZMax(float x0, float y0, float x1, float y1, int nSID) const
 {
 	// Convert to grid units.
-	int nGridSize = CTerrain::GetTerrainSize() / CTerrain::GetHeightMapUnitSize();
+	int nGridSize = int(CTerrain::GetTerrainSize() * CTerrain::GetHeightMapUnitSizeInverted());
 	int nX0 = clamp_tpl(int(x0 * CTerrain::GetInvUnitSize()), 0, nGridSize - 1);
 	int nY0 = clamp_tpl(int(y0 * CTerrain::GetInvUnitSize()), 0, nGridSize - 1);
 	int nX1 = clamp_tpl(int_ceil(x1 * CTerrain::GetInvUnitSize()), 0, nGridSize - 1);
@@ -214,19 +214,19 @@ bool CHeightMap::RayTrace(Vec3 const& vStart, Vec3 const& vEnd, SRayTrace* prt, 
 	SRayTrace s_rt;
 	SRayTrace& rt = prt ? *prt : s_rt;
 
-	float fUnitSize = (float)CTerrain::GetHeightMapUnitSize();
-	float fInvUnitSize = CTerrain::GetInvUnitSize();
-	int nGridSize = (int)(CTerrain::GetTerrainSize() * fInvUnitSize);
+	float unitSize = (float)CTerrain::GetHeightMapUnitSize();
+	float invUnitSize = CTerrain::GetInvUnitSize();
+	int nGridSize = (int)(CTerrain::GetTerrainSize() * invUnitSize);
 
 	// Convert to grid units.
 	Vec3 vDelta = vEnd - vStart;
 	float fMinZ = min(vStart.z, vEnd.z);
 
-	int nX = clamp_tpl(int(vStart.x * fInvUnitSize), 0, nGridSize - 1);
-	int nY = clamp_tpl(int(vStart.y * fInvUnitSize), 0, nGridSize - 1);
+	int nX = clamp_tpl(int(vStart.x * invUnitSize), 0, nGridSize - 1);
+	int nY = clamp_tpl(int(vStart.y * invUnitSize), 0, nGridSize - 1);
 
-	int nEndX = clamp_tpl(int(vEnd.x * fInvUnitSize), 0, nGridSize - 1);
-	int nEndY = clamp_tpl(int(vEnd.y * fInvUnitSize), 0, nGridSize - 1);
+	int nEndX = clamp_tpl(int(vEnd.x * invUnitSize), 0, nGridSize - 1);
+	int nEndY = clamp_tpl(int(vEnd.y * invUnitSize), 0, nGridSize - 1);
 
 	for (;; )
 	{
@@ -264,14 +264,14 @@ bool CHeightMap::RayTrace(Vec3 const& vStart, Vec3 const& vEnd, SRayTrace* prt, 
 					}
 
 					// Select common point on both tris.
-					float fX0 = nX * fUnitSize;
-					float fY0 = nY * fUnitSize;
-					Vec3 vEndRel = vEnd - Vec3(fX0 + fUnitSize, fY0, afZ[1]);
+					float fX0 = nX * unitSize;
+					float fY0 = nY * unitSize;
+					Vec3 vEndRel = vEnd - Vec3(fX0 + unitSize, fY0, afZ[1]);
 
 					//
 					// Intersect with bottom triangle.
 					//
-					Vec3 vTriDir1(afZ[0] - afZ[1], afZ[0] - afZ[2], fUnitSize);
+					Vec3 vTriDir1(afZ[0] - afZ[1], afZ[0] - afZ[2], unitSize);
 					float fET1 = vEndRel * vTriDir1;
 					if (fET1 < 0.f)
 					{
@@ -283,7 +283,7 @@ bool CHeightMap::RayTrace(Vec3 const& vStart, Vec3 const& vEnd, SRayTrace* prt, 
 							rt.vHit = vStart + vDelta * rt.fInterp;
 
 							// Check against tri boundaries.
-							if (rt.vHit.x >= fX0 && rt.vHit.y >= fY0 && rt.vHit.x + rt.vHit.y <= fX0 + fY0 + fUnitSize)
+							if (rt.vHit.x >= fX0 && rt.vHit.y >= fY0 && rt.vHit.x + rt.vHit.y <= fX0 + fY0 + unitSize)
 							{
 								rt.vNorm = vTriDir1.GetNormalized();
 								return true;
@@ -294,7 +294,7 @@ bool CHeightMap::RayTrace(Vec3 const& vStart, Vec3 const& vEnd, SRayTrace* prt, 
 					//
 					// Intersect with top triangle.
 					//
-					Vec3 vTriDir2(afZ[2] - afZ[3], afZ[1] - afZ[3], fUnitSize);
+					Vec3 vTriDir2(afZ[2] - afZ[3], afZ[1] - afZ[3], unitSize);
 					float fET2 = vEndRel * vTriDir2;
 					if (fET2 < 0.f)
 					{
@@ -306,7 +306,7 @@ bool CHeightMap::RayTrace(Vec3 const& vStart, Vec3 const& vEnd, SRayTrace* prt, 
 							rt.vHit = vStart + vDelta * rt.fInterp;
 
 							// Check against tri boundaries.
-							if (rt.vHit.x <= fX0 + fUnitSize && rt.vHit.y <= fY0 + fUnitSize && rt.vHit.x + rt.vHit.y >= fX0 + fY0 + fUnitSize)
+							if (rt.vHit.x <= fX0 + unitSize && rt.vHit.y <= fY0 + unitSize && rt.vHit.x + rt.vHit.y >= fX0 + fY0 + unitSize)
 							{
 								rt.vNorm = vTriDir2.GetNormalized();
 								return true;
@@ -320,7 +320,7 @@ bool CHeightMap::RayTrace(Vec3 const& vStart, Vec3 const& vEnd, SRayTrace* prt, 
 						if (fET1 < 0.f)
 						{
 							// Lower tri.
-							if (vEnd.x + vEnd.y <= fX0 + fY0 + fUnitSize)
+							if (vEnd.x + vEnd.y <= fX0 + fY0 + unitSize)
 							{
 								rt.fInterp = 1.f;
 								rt.vNorm = vTriDir1.GetNormalized();
@@ -332,12 +332,12 @@ bool CHeightMap::RayTrace(Vec3 const& vStart, Vec3 const& vEnd, SRayTrace* prt, 
 						if (fET2 < 0.f)
 						{
 							// Upper tri.
-							if (vEnd.x + vEnd.y >= fX0 + fY0 + fUnitSize)
+							if (vEnd.x + vEnd.y >= fX0 + fY0 + unitSize)
 							{
 								rt.fInterp = 1.f;
 								rt.vNorm = vTriDir2.GetNormalized();
 								rt.vHit = vEnd;
-								rt.vHit.z = afZ[3] - ((vEnd.x - fX0 - fUnitSize) * rt.vNorm.x + (vEnd.y - fY0 - fUnitSize) * rt.vNorm.y) / rt.vNorm.z;
+								rt.vHit.z = afZ[3] - ((vEnd.x - fX0 - unitSize) * rt.vNorm.x + (vEnd.y - fY0 - unitSize) * rt.vNorm.y) / rt.vNorm.z;
 								return true;
 							}
 						}
@@ -349,7 +349,7 @@ bool CHeightMap::RayTrace(Vec3 const& vStart, Vec3 const& vEnd, SRayTrace* prt, 
 		{
 			// Skip entire node.
 			nStepUnits = 1 << (m_nUnitsToSectorBitShift + 0 /*pNode->m_nTreeLevel*/);
-			assert(!pNode || nStepUnits == int(pNode->m_boxHeigtmapLocal.max.x - pNode->m_boxHeigtmapLocal.min.x) * fInvUnitSize);
+			assert(!pNode || nStepUnits == int(pNode->m_boxHeigtmapLocal.max.x - pNode->m_boxHeigtmapLocal.min.x) * invUnitSize);
 			assert(!pNode || pNode->m_nTreeLevel == 0);
 		}
 
@@ -414,13 +414,13 @@ bool CHeightMap::IntersectWithHeightMap(Vec3 vStartPoint, Vec3 vStopPoint, float
 	vStartPoint.y *= fInvUnitSize;
 	fDist *= fInvUnitSize;
 
-	int nHMSize = CTerrain::GetTerrainSize() / CTerrain::GetHeightMapUnitSize();
+	int heightMapSize = int(CTerrain::GetTerrainSize() * CTerrain::GetHeightMapUnitSizeInverted());
 
 	// clamp points
-	const bool cClampStart = (vStartPoint.x < 0) | (vStartPoint.y < 0) | (vStartPoint.x > nHMSize) | (vStartPoint.y > nHMSize);
+	const bool cClampStart = (vStartPoint.x < 0) | (vStartPoint.y < 0) | (vStartPoint.x > heightMapSize) | (vStartPoint.y > heightMapSize);
 	if (cClampStart)
 	{
-		const float fHMSize = (float)nHMSize;
+		const float fHMSize = (float)heightMapSize;
 		AABB boxHM(Vec3(0.f, 0.f, 0.f), Vec3(fHMSize, fHMSize, fHMSize));
 
 		Lineseg ls;
@@ -434,10 +434,10 @@ bool CHeightMap::IntersectWithHeightMap(Vec3 vStartPoint, Vec3 vStopPoint, float
 			return false;
 	}
 
-	const bool cClampStop = (vStopPoint.x < 0) | (vStopPoint.y < 0) | (vStopPoint.x > nHMSize) | (vStopPoint.y > nHMSize);
+	const bool cClampStop = (vStopPoint.x < 0) | (vStopPoint.y < 0) | (vStopPoint.x > heightMapSize) | (vStopPoint.y > heightMapSize);
 	if (cClampStop)
 	{
-		const float fHMSize = (float)nHMSize;
+		const float fHMSize = (float)heightMapSize;
 		AABB boxHM(Vec3(0.f, 0.f, 0.f), Vec3(fHMSize, fHMSize, fHMSize));
 
 		Lineseg ls;
@@ -500,11 +500,11 @@ bool CHeightMap::IntersectWithHeightMap(Vec3 vStartPoint, Vec3 vStopPoint, float
 	return false;
 }
 
-bool CHeightMap::GetHole(const int x, const int y, int nSID)  const
+bool CHeightMap::GetHole(float x, float y, int nSID) const
 {
-	int nX_units = x >> m_nBitShift;
-	int nY_units = y >> m_nBitShift;
-	int nTerrainSize_units = (CTerrain::GetTerrainSize() >> m_nBitShift);
+	int nX_units = int(float(x) * CTerrain::GetInvUnitSize());
+	int nY_units = int(float(y) * CTerrain::GetInvUnitSize());
+	int nTerrainSize_units = int((float(CTerrain::GetTerrainSize()) * CTerrain::GetInvUnitSize()));
 
 	if (nX_units < 0 || nX_units >= nTerrainSize_units || nY_units < 0 || nY_units >= nTerrainSize_units)
 		return true;
@@ -512,7 +512,7 @@ bool CHeightMap::GetHole(const int x, const int y, int nSID)  const
 	return GetSurfTypefromUnits(nX_units, nY_units, nSID) == SRangeInfo::e_hole;
 }
 
-float CHeightMap::GetZSafe(int x, int y, int nSID)
+float CHeightMap::GetZSafe(float x, float y, int nSID)
 {
 	if (x >= 0 && y >= 0 && x < CTerrain::GetTerrainSize() && y < CTerrain::GetTerrainSize())
 		return max(GetZ(x, y, nSID), (float)TERRAIN_BOTTOM_LEVEL);
@@ -520,15 +520,15 @@ float CHeightMap::GetZSafe(int x, int y, int nSID)
 	return TERRAIN_BOTTOM_LEVEL;
 }
 
-uint8 CHeightMap::GetSurfaceTypeID(int x, int y, int nSID) const
+uint8 CHeightMap::GetSurfaceTypeID(float x, float y, int nSID) const
 {
 	if (x >= 0 && y >= 0 && x <= CTerrain::GetTerrainSize() && y <= CTerrain::GetTerrainSize())
-		return GetSurfTypefromUnits(x >> m_nBitShift, y >> m_nBitShift, nSID);
+		return GetSurfTypefromUnits(int(x * CTerrain::GetInvUnitSize()), int(y * CTerrain::GetInvUnitSize()), nSID);
 
 	return SRangeInfo::e_undefined;
 }
 
-float CHeightMap::GetZ(int x, int y, int nSID, bool bUpdatePos) const
+float CHeightMap::GetZ(float x, float y, int nSID, bool bUpdatePos /*= false*/) const
 {
 #ifdef SEG_WORLD
 	if (nSID < 0 || bUpdatePos)
@@ -543,12 +543,12 @@ float CHeightMap::GetZ(int x, int y, int nSID, bool bUpdatePos) const
 	if (!Cry3DEngineBase::GetTerrain()->GetParentNode(nSID))
 		return TERRAIN_BOTTOM_LEVEL;
 
-	return GetZfromUnits(x >> m_nBitShift, y >> m_nBitShift, nSID);
+	return GetZfromUnits(int(x * CTerrain::GetInvUnitSize()), int(y * CTerrain::GetInvUnitSize()), nSID);
 }
 
-void CHeightMap::SetZ(const int x, const int y, float fHeight, int nSID)
+void CHeightMap::SetZ(const float x, const float y, float fHeight, int nSID)
 {
-	return SetZfromUnits(x >> m_nBitShift, y >> m_nBitShift, fHeight, nSID);
+	return SetZfromUnits(int(x * CTerrain::GetInvUnitSize()), int(y * CTerrain::GetInvUnitSize()), fHeight, nSID);
 }
 
 uint8 CHeightMap::GetSurfTypefromUnits(uint32 nX_units, uint32 nY_units, int nSID) const
@@ -616,7 +616,7 @@ float CHeightMap::GetZMaxFromUnits(uint32 nX0_units, uint32 nY0_units, uint32 nX
 	Array2d<struct CTerrainNode*>& sectorLayer = Cry3DEngineBase::GetTerrain()->m_arrSecInfoPyramid[nSID][0];
 	uint32 nLocalMask = (1 << m_nUnitsToSectorBitShift) - 1;
 
-	uint32 nSizeXY = Cry3DEngineBase::GetTerrain()->GetTerrainSize() >> m_nBitShift;
+	uint32 nSizeXY = int(Cry3DEngineBase::GetTerrain()->GetTerrainSize() * CTerrain::GetInvUnitSize());
 	assert(nX0_units <= nSizeXY && nY0_units <= nSizeXY);
 	assert(nX1_units <= nSizeXY && nY1_units <= nSizeXY);
 
@@ -674,18 +674,18 @@ float CHeightMap::GetZMaxFromUnits(uint32 nX0_units, uint32 nY0_units, uint32 nX
 	return fZMax;
 }
 
-bool CHeightMap::IsMeshQuadFlipped(const int x, const int y, const int nUnitSize, int nSID) const
+bool CHeightMap::IsMeshQuadFlipped(const float x, const float y, const float unitSize, const int nSID) const
 {
 	bool bFlipped = false;
 
 	// Flip winding order to prevent surface type interpolation over long edges
-	int nType10 = GetSurfaceTypeID(x + nUnitSize, y, nSID);
-	int nType01 = GetSurfaceTypeID(x, y + nUnitSize, nSID);
+	int nType10 = GetSurfaceTypeID(x + unitSize, y, nSID);
+	int nType01 = GetSurfaceTypeID(x, y + unitSize, nSID);
 
 	if (nType10 != nType01)
 	{
 		int nType00 = GetSurfaceTypeID(x, y, nSID);
-		int nType11 = GetSurfaceTypeID(x + nUnitSize, y + nUnitSize, nSID);
+		int nType11 = GetSurfaceTypeID(x + unitSize, y + unitSize, nSID);
 
 		if ((nType10 == nType00 && nType10 == nType11)
 		    || (nType01 == nType00 && nType01 == nType11))

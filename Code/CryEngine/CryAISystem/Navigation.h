@@ -35,7 +35,6 @@ public:
 	// INavigation
 	virtual float  GetNearestPointOnPath(const char* szPathName, const Vec3& vPos, Vec3& vResult, bool& bLoopPath, float& totalLength) const;
 	virtual void   GetPointOnPathBySegNo(const char* szPathName, Vec3& vResult, float segNo) const;
-	virtual bool   IsSegmentValid(IAISystem::tNavCapMask navCap, float rad, const Vec3& posFrom, Vec3& posTo, IAISystem::ENavigationType& navTypeFrom) const;
 	//~INavigation
 
 	const ShapeMap& GetDesignerPaths() const { return m_mapDesignerPaths; }

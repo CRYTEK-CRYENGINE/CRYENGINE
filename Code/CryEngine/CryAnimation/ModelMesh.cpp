@@ -255,8 +255,9 @@ _smart_ptr<IRenderMesh> CModelMesh::CreateRenderMesh(CMesh* pMesh, const char* s
 	bool bMultiGPU;
 	gEnv->pRenderer->EF_Query(EFQ_MultiGPUEnabled, bMultiGPU);
 
-	if (bMultiGPU && gEnv->pRenderer->GetRenderType() != eRT_DX12)
-	eRMType = eRMT_Dynamic;
+	if (bMultiGPU && gEnv->pRenderer->GetRenderType() != ERenderType::Direct3D12
+		          && gEnv->pRenderer->GetRenderType() != ERenderType::Vulkan)
+		eRMType = eRMT_Dynamic;
 
 	_smart_ptr<IRenderMesh> pRenderMesh = g_pIRenderer->CreateRenderMesh("Character", szFilePath, NULL, eRMType);
 	assert(pRenderMesh != 0);

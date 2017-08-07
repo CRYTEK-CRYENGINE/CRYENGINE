@@ -4,6 +4,8 @@
 
 #include "Common/GraphicsPipeline.h"
 #include "Common/GraphicsPipelineStateSet.h"
+#include "Common/Include_HLSL_CPP_Shared.h"
+#include "Common/TypedConstantBuffer.h"
 
 class CShadowMapStage;
 class CSceneGBufferStage;
@@ -25,6 +27,7 @@ class CToneMappingStage;
 class CSunShaftsStage;
 class CPostAAStage;
 class CClipVolumesStage;
+class CDeferredDecalsStage;
 class CShadowMaskStage;
 class CComputeSkinningStage;
 class CGpuParticlesStage;
@@ -35,6 +38,8 @@ class CLensOpticsStage;
 class CPostEffectStage;
 class CRainStage;
 class CSnowStage;
+class CDepthReadbackStage;
+class CMobileCompositionStage;
 class CRenderCamera;
 class CCamera;
 
@@ -66,16 +71,19 @@ enum EStandardGraphicsPipelineStage
 	eStage_DepthOfField,
 	eStage_AutoExposure,
 	eStage_Bloom,
+	eStage_ColorGrading,
 	eStage_ToneMapping,
 	eStage_Sunshafts,
 	eStage_PostAA,
 	eStage_ClipVolumes,
+	eStage_DeferredDecals,
 	eStage_ShadowMask,
-	eStage_ColorGrading,
 	eStage_LensOptics,
 	eStage_PostEffet,
 	eStage_Rain,
 	eStage_Snow,
+	eStage_DepthReadback,
+	eStage_MobileComposition,
 
 	eStage_Count
 };
@@ -130,13 +138,15 @@ public:
 	virtual void Prepare(CRenderView* pRenderView, EShaderRenderingFlags renderingFlags) override;
 	virtual void Execute() override;
 	virtual void ExecuteBillboards();
+	void         ExecuteMinimumForwardShading();
 
 	bool         CreatePipelineStates(DevicePipelineStatesArray* pStateArray,
 	                                  SGraphicsPipelineStateDescription stateDesc,
 	                                  CGraphicsPipelineStateLocalCache* pStateCache);
-	void UpdatePerViewConstantBuffer(const D3DViewPort* pCustomViewport = nullptr);
-	void UpdatePerViewConstantBuffer(const SViewInfo* pViewInfo, int viewInfoCount, CConstantBufferPtr& pPerViewBuffer);
+	void UpdateMainViewConstantBuffer();
+	void UpdatePerViewConstantBuffer(const SViewInfo* pViewInfo, int viewInfoCount, CConstantBufferPtr pPerViewBuffer);
 	bool FillCommonScenePassStates(const SGraphicsPipelineStateDescription& inputDesc, CDeviceGraphicsPSODesc& psoDesc);
+	CDeviceResourceLayoutPtr CreateScenePassLayout(const CDeviceResourceSetDesc& perPassResources);
 
 	// Partial pipeline functions, will be removed once the entire pipeline is implemented in Execute()
 	void   RenderTiledShading();
@@ -154,23 +164,28 @@ public:
 	int GetViewInfo(SViewInfo viewInfo[2], const D3DViewPort * pCustomViewport = NULL);
 	uint32 GetRenderFlags() const { return m_renderingFlags; }
 
-	CConstantBufferPtr        GetPerViewConstantBuffer()         const { return m_pPerViewConstantBuffer; }
-	CDeviceResourceSetPtr     GetDefaultMaterialResources()      const { return m_pDefaultMaterialResources; }
-	std::array<int, EFSS_MAX> GetDefaultMaterialSamplers()       const;
-	CDeviceResourceSetPtr     GetDefaultInstanceExtraResources() const { return m_pDefaultInstanceExtraResources; }
+	CConstantBufferPtr                       GetMainViewConstantBuffer()        { return m_mainViewConstantBuffer.GetDeviceConstantBuffer(); }
+	const CDeviceResourceSetDesc&            GetDefaultMaterialResources()        const { return m_defaultMaterialResources; }
+	std::array<SamplerStateHandle, EFSS_MAX> GetDefaultMaterialSamplers()         const;
+	const CDeviceResourceSetDesc&            GetDefaultInstanceExtraResources()   const { return m_defaultInstanceExtraResources; }
+	CDeviceResourceSetPtr                    GetDefaultInstanceExtraResourceSet() const { return m_pDefaultInstanceExtraResourceSet; }
 
 	CRenderView*              GetCurrentRenderView()             const { return m_pCurrentRenderView; };
 	CSceneGBufferStage*       GetGBufferStage()                        { return m_pSceneGBufferStage; }
 	CShadowMapStage*          GetShadowStage()                   const { return m_pShadowMapStage; }
+	CSceneForwardStage*       GetSceneForwardStage()             const { return m_pSceneForwardStage; }
 	CComputeSkinningStage*    GetComputeSkinningStage()          const { return m_pComputeSkinningStage; }
 	CGpuParticlesStage*       GetGpuParticlesStage()             const { return m_pGpuParticlesStage; }
+	CDeferredDecalsStage*     GetDeferredDecalsStage()           const { return m_pDeferredDecalsStage; }
 	CClipVolumesStage*        GetClipVolumesStage()              const { return m_pClipVolumesStage; }
 	CShadowMaskStage*         GetShadowMaskStage()               const { return m_pShadowMaskStage; }
+	CSceneCustomStage*        GetSceneCustomStage()              const { return m_pSceneCustomStage; }
+	CFogStage*                GetFogStage()                      const { return m_pFogStage; }
 	CVolumetricFogStage*      GetVolumetricFogStage()            const { return m_pVolumetricFogStage; }
 	CWaterRipplesStage*       GetWaterRipplesStage()             const { return m_pWaterRipplesStage; }
 	CWaterStage*              GetWaterStage()                    const { return m_pWaterStage; }
 	CLensOpticsStage*         GetLensOpticsStage()               const { return m_pLensOpticsStage; }
-	CSceneCustomStage*        GetSceneCustomStage()              const { return m_pSceneCustomStage; }
+	CDepthReadbackStage*      GetDepthReadbackStage()            const { return m_pDepthReadbackStage; }
 
 public:
 	static void ApplyShaderQuality(CDeviceGraphicsPSODesc& psoDesc, const SShaderProfile& shaderProfile);
@@ -188,8 +203,8 @@ private:
 	CVolumetricFogStage*          m_pVolumetricFogStage = nullptr;
 	CFogStage*                    m_pFogStage = nullptr;
 	CVolumetricCloudsStage*       m_pVolumetricCloudsStage = nullptr;
-	CWaterRipplesStage*           m_pWaterRipplesStage = nullptr;
 	CWaterStage*                  m_pWaterStage = nullptr;
+	CWaterRipplesStage*           m_pWaterRipplesStage = nullptr;
 	CMotionBlurStage*             m_pMotionBlurStage = nullptr;
 	CDepthOfFieldStage*           m_pDepthOfFieldStage = nullptr;
 	CSunShaftsStage*              m_pSunShaftsStage = nullptr;
@@ -197,6 +212,7 @@ private:
 	CPostAAStage*                 m_pPostAAStage = nullptr;
 	CComputeSkinningStage*        m_pComputeSkinningStage = nullptr;
 	CGpuParticlesStage*           m_pGpuParticlesStage = nullptr;
+	CDeferredDecalsStage*         m_pDeferredDecalsStage = nullptr;
 	CClipVolumesStage*            m_pClipVolumesStage = nullptr;
 	CShadowMaskStage*             m_pShadowMaskStage = nullptr;
 	CTiledShadingStage*           m_pTiledShadingStage = nullptr;
@@ -206,21 +222,28 @@ private:
 	CPostEffectStage*             m_pPostEffectStage = nullptr;
 	CRainStage*                   m_pRainStage = nullptr;
 	CSnowStage*                   m_pSnowStage = nullptr;
+	CDepthReadbackStage*          m_pDepthReadbackStage = nullptr;
+	CMobileCompositionStage*      m_pMobileCompositionStage = nullptr;
 
-	CConstantBufferPtr            m_pPerViewConstantBuffer = nullptr;
-	CDeviceResourceSetPtr         m_pDefaultMaterialResources = nullptr;
-	CDeviceResourceSetPtr         m_pDefaultInstanceExtraResources = nullptr;
+	CTypedConstantBuffer<HLSL_PerViewGlobalConstantBuffer> m_mainViewConstantBuffer;
+	CDeviceResourceSetDesc                                 m_defaultMaterialResources;
+	CDeviceResourceSetDesc                                 m_defaultInstanceExtraResources;
+	CDeviceResourceSetPtr                                  m_pDefaultInstanceExtraResourceSet;
 
 	CRenderView*                  m_pCurrentRenderView = nullptr;
 	EShaderRenderingFlags         m_renderingFlags = EShaderRenderingFlags(0);
 
 	bool                          m_bInitialized = false;
-	bool                          m_bUtilityPassesInitialized = false;
 
 	CCVarUpdateRecorder           m_changedCVars;
 
+public:
+	std::unique_ptr<CDownsamplePass        > m_DownscalePass;
+	std::unique_ptr<CSharpeningUpsamplePass> m_UpscalePass;
+
 private:
 	void ExecuteHDRPostProcessing();
+	void ExecuteMobilePipeline();
 
 	int m_numInvalidDrawcalls = 0;
 };

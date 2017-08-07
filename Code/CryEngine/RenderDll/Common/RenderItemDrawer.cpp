@@ -152,7 +152,7 @@ void ListDrawCommandRecorderJob(
 	while (cursor < endRenderItem);
 
 	(*commandList)->Close();
-	CCryDeviceWrapper::GetObjectFactory().ForfeitCommandList(std::move(*commandList));
+	GetDeviceObjectFactory().ForfeitCommandList(std::move(*commandList));
 }
 
 DECLARE_JOB("ListDrawCommandRecorder", TListDrawCommandRecorder, ListDrawCommandRecorderJob);
@@ -212,7 +212,7 @@ void CRenderItemDrawer::JobifyDrawSubmission(bool bForceImmediateExecution)
 	if (numItems <= 0)
 		return;
 
-#if defined(CRY_USE_DX12) || defined(CRY_USE_GNM_RENDERER)
+#if (CRY_RENDERER_DIRECT3D >= 120) || CRY_RENDERER_GNM || CRY_RENDERER_VULKAN
 	if (!CRenderer::CV_r_multithreadedDrawing)
 		bForceImmediateExecution = true;
 
@@ -272,7 +272,7 @@ void CRenderItemDrawer::JobifyDrawSubmission(bool bForceImmediateExecution)
 			// Should take items from passContext and be view dependent.
 			CRenderView* pRenderView = passContext.pRenderView;
 			auto& RESTRICT_REFERENCE renderItems = pRenderView->GetRenderItems(passContext.renderListId);
-			auto& RESTRICT_REFERENCE commandList = *CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList();
+			auto& RESTRICT_REFERENCE commandList = GetDeviceObjectFactory().GetCoreCommandList();
 
 			DrawCompiledRenderItemsToCommandList(
 			  &passContext,
@@ -292,12 +292,12 @@ void CRenderItemDrawer::WaitForDrawSubmission()
 	if (gcpRendD3D->m_nGraphicsPipeline < 2)
 		return;
 
-#if defined(CRY_USE_DX12) || defined(CRY_USE_GNM_RENDERER)
+#if (CRY_RENDERER_DIRECT3D >= 120) || CRY_RENDERER_GNM || CRY_RENDERER_VULKAN
 	if (CRenderer::CV_r_multithreadedDrawing == 0)
 		return;
 
 	CRY_PROFILE_FUNCTION_WAITING(PROFILE_RENDERER)
 
 	m_CoalescedContexts.WaitForJobs();
-#endif // CRY_USE_DX12
+#endif
 }

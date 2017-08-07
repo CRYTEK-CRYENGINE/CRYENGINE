@@ -1,0 +1,31 @@
+{
+	"NoUberFile":
+	{
+		"CryCommonTools":
+		[
+			"../../CryCommonTools/PathHelpers.cpp",
+			"../../CryCommonTools/StringHelpers.cpp",
+			"../../CryCommonTools/PathHelpers.h",
+			"../../CryCommonTools/StringHelpers.h"
+		],
+		"CrySystem":
+		[
+			"../../../CryEngine/CrySystem/XML/XMLBinaryNode.cpp",
+			"../../../CryEngine/CrySystem/XML/XMLBinaryReader.cpp",
+			"../../../CryEngine/CrySystem/XML/XMLBinaryWriter.cpp",
+			"../../../CryEngine/CrySystem/XML/XMLBinaryNode.h",
+			"../../../CryEngine/CrySystem/XML/XMLBinaryReader.h",
+			"../../../CryEngine/CrySystem/XML/XMLBinaryWriter.h"
+		],
+		"Source Files":
+		[
+			"../ResourceCompiler/IConfig.cpp",
+			"ResourceCompilerXML.cpp",
+			"XMLConverter.cpp",
+			"ResourceCompilerPlugin.def",
+			"stdafx.h",
+			"stdafx.cpp",
+			"XMLConverter.h"
+		]
+	}
+}

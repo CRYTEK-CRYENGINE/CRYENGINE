@@ -1094,7 +1094,7 @@ uint CREBreakableGlass::GenerateRadialCracks(const float totalEnergy, const uint
 					sincos_tpl(angle, &sinA, &cosA);
 
 					const Vec2 nextPt(pStartPt->x + cosA, pStartPt->y + sinA);
-					const Vec2 nextDir = (nextPt - *pCenterPt).Normalize();
+					const Vec2 nextDir = (nextPt - *pCenterPt).GetNormalized();
 					const float cosAngle = nextDir.Dot(initialDir);
 
 					if (cosAngle < halfCosAngleInc)
@@ -1121,7 +1121,7 @@ uint CREBreakableGlass::GenerateRadialCracks(const float totalEnergy, const uint
 				// Record initial direction
 				if (crackStepIndex == 1)
 				{
-					initialDir = (*pStartPt - *pCenterPt).Normalize();
+					initialDir = (*pStartPt - *pCenterPt).GetNormalized();
 				}
 
 				// Assert boundaries

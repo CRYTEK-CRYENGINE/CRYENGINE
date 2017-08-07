@@ -1,22 +1,12 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   EntityCVars.h
-//  Version:     v1.00
-//  Created:     18/5/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #include "stdafx.h"
 #include "EntityCVars.h"
 #include "EntitySystem.h"
 #include "AreaManager.h"
 #include <CryAnimation/ICryAnimation.h>
 #include <CryEntitySystem/IEntityComponent.h>
+#include <CryAISystem/IAISystem.h>
 
 ICVar* CVar::pDebug = NULL;
 ICVar* CVar::pCharacterIK = NULL;
@@ -52,6 +42,7 @@ ICVar* CVar::pNotSeenTimeout = NULL;
 ICVar* CVar::pDebugNotSeenTimeout = NULL;
 ICVar* CVar::pDrawAreas = NULL;
 ICVar* CVar::pDrawAreaGrid = NULL;
+ICVar* CVar::pDrawAreaGridCells = NULL;
 ICVar* CVar::pDrawAreaDebug = NULL;
 ICVar* CVar::pDrawAudioProxyZRay = NULL;
 
@@ -74,6 +65,7 @@ int CVar::es_DisableTriggers = 0;
 int CVar::es_DrawProximityTriggers = 0;
 int CVar::es_DebugEntityUsage = 0;
 const char* CVar::es_DebugEntityUsageFilter = "";
+int CVar::es_DebugEntityUsageSortMode = 0;
 int CVar::es_LayerSaveLoadSerialization = 0;
 int CVar::es_LayerDebugInfo = 0;
 int CVar::es_SaveLoadUseLUANoSaveFlag = 1;
@@ -276,6 +268,7 @@ void CVar::Init()
 	              "\nUsage: es_DebugEntityUsage update_rate"
 	              "\nupdate_rate - Time in ms to refresh memory usage calculation or 0 to disable");
 	REGISTER_CVAR(es_DebugEntityUsageFilter, "", 0, "Filter entity usage debugging to classes which have this string in their name");
+	REGISTER_CVAR(es_DebugEntityUsageSortMode, 0, 0, "Determines how es_DebugEntityUsage sorts the visual output\n0 = unsorted\n1 = sort by number of active instances\n2 = sort by memory usage");
 
 	REGISTER_CVAR(es_LayerSaveLoadSerialization, 0, VF_CHEAT,
 	              "Switches layer entity serialization: \n"
@@ -292,6 +285,7 @@ void CVar::Init()
 
 	pDrawAreas = REGISTER_INT("es_DrawAreas", 0, VF_CHEAT, "Enables drawing of Areas");
 	pDrawAreaGrid = REGISTER_INT("es_DrawAreaGrid", 0, VF_CHEAT, "Enables drawing of Area Grid");
+	pDrawAreaGridCells = REGISTER_INT("es_DrawAreaGridCells", 0, VF_CHEAT, "Enables drawing of Area Grid Cells' number and coordinates. Requires \"es_DrawAreaGrid\" to be enabled!");
 	pDrawAreaDebug = REGISTER_INT("es_DrawAreaDebug", 0, VF_CHEAT, "Enables debug drawing of Areas, set 2 for log details");
 	pDrawAudioProxyZRay = REGISTER_INT("es_DrawAudioProxyZRay", 0, VF_CHEAT, "Enables drawing of Z ray on check for Z visibility");
 
@@ -316,6 +310,8 @@ void CVar::Init()
 
 	REGISTER_COMMAND("es_debugAnim", (ConsoleCommandFunc)EnableDebugAnimText, 0, "Debug entity animation (toggle on off)");
 	gEnv->pConsole->RegisterAutoComplete("es_debugAnim", &s_entityWithCharacterInstanceAutoComplete);
+
+	REGISTER_COMMAND("es_togglelayer", &ConsoleCommandToggleLayer, VF_DEV_ONLY, "Toggles a layer (on/off)\n Usage: es_togglelayer LAYER_NAME\nPlease bear in mind that layer names are case-sensitive");
 
 	REGISTER_CVAR(es_EntityUpdatePosDelta, 0.1f, 0,
 	              "Indicates the position delta by which an entity must move before the AreaManager updates position relevant data.\n"
@@ -469,4 +465,24 @@ void CVar::SetAudioListenerOffsets(IConsoleCmdArgs* pArgs)
 	  Vec3(ZERO),
 	  Quat::CreateRotationXYZ(Ang3(fRotationOffsetX, fRotationOffsetY, fRotationOffsetZ)),
 	  Vec3(fPositionOffsetX, fPositionOffsetY, fPositionOffsetZ));
+}
+
+void CVar::ConsoleCommandToggleLayer(IConsoleCmdArgs* pArgs)
+{
+	// Note: based on Flow Node Engine:LayerSwitch
+	if (pArgs && pArgs->GetArgCount() > 1 && gEnv->pEntitySystem)
+	{
+		const char* szLayerName = pArgs->GetArg(1);
+		const bool bSerialize = false;
+		const bool bShouldBeEnabled = !gEnv->pEntitySystem->IsLayerEnabled(szLayerName, false);
+		
+		CryLogAlways("[Info][Layers] Toggling EntitySystemLayer %s to: %s", szLayerName, bShouldBeEnabled ? "Enabled" : "Disabled");
+		gEnv->pEntitySystem->EnableLayer(szLayerName, bShouldBeEnabled, bSerialize);
+		
+		if (bShouldBeEnabled && gEnv->pAISystem)
+		{
+			CryLogAlways("[Info][Layers] Toggling AISystemLayer %s to: %s", szLayerName, bShouldBeEnabled ? "Enabled" : "Disabled");
+			gEnv->pAISystem->LayerEnabled(szLayerName, bShouldBeEnabled, bSerialize);
+		}
+	}
 }

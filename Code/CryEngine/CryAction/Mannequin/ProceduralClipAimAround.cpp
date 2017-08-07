@@ -9,6 +9,8 @@
 
 #include <Mannequin/Serialization.h>
 
+#include <CryMath/Random.h>
+
 struct SAimAroundParams : public IProceduralParams
 {
 	SAimAroundParams()

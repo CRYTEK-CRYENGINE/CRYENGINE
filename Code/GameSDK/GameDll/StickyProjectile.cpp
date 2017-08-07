@@ -11,7 +11,7 @@ namespace
 	int GetJointIdFromPartId(IEntity& entity, const int partId, Vec3* pReturnPos = NULL)
 	{
 		ICharacterInstance* pCharInst = entity.GetCharacter(0);
-		int jointId = GetSlotIdx(partId, pCharInst && pCharInst->GetObjectType()==CGA);
+		int jointId = EntityPhysicsUtils::GetSlotIdx(partId, pCharInst && pCharInst->GetObjectType()==CGA);
 		CRY_ASSERT(pCharInst);
 		if(pCharInst)
 		{

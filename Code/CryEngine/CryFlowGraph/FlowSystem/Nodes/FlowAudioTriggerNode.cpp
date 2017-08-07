@@ -3,17 +3,15 @@
 #include "StdAfx.h"
 #include <CryFlowGraph/IFlowBaseNode.h>
 
-using namespace CryAudio;
-
 class CFlowNode_AudioTrigger final : public CFlowBaseNode<eNCT_Instanced>
 {
 public:
 
 	explicit CFlowNode_AudioTrigger(SActivationInfo* pActInfo)
 		: m_flags(eFlowNodeAudioTriggerFlags_None)
-		, m_playTriggerId(InvalidControlId)
-		, m_stopTriggerId(InvalidControlId)
-		, m_requestUserData(eRequestFlags_None, this)
+		, m_playTriggerId(CryAudio::InvalidControlId)
+		, m_stopTriggerId(CryAudio::InvalidControlId)
+		, m_requestUserData(CryAudio::ERequestFlags::None, this)
 	{}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -155,7 +153,7 @@ public:
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	void TriggerFinished(ControlId const audioTriggerId)
+	void TriggerFinished(CryAudio::ControlId const audioTriggerId)
 	{
 		if (audioTriggerId == m_playTriggerId)
 		{
@@ -165,23 +163,23 @@ public:
 
 private:
 
-	enum EPlayMode : EnumFlagsType
+	enum EPlayMode : CryAudio::EnumFlagsType
 	{
-		ePlayMode_None      = 0,
-		ePlayMode_Play      = 1,
-		ePlayMode_PlayStop  = 2,
+		ePlayMode_None = 0,
+		ePlayMode_Play = 1,
+		ePlayMode_PlayStop = 2,
 		ePlayMode_ForceStop = 3,
 	};
 
-	enum EFlowNodeAudioTriggerFlags : EnumFlagsType
+	enum EFlowNodeAudioTriggerFlags : CryAudio::EnumFlagsType
 	{
-		eFlowNodeAudioTriggerFlags_None       = 0,
-		eFlowNodeAudioTriggerFlags_IsPlaying  = BIT(0),
+		eFlowNodeAudioTriggerFlags_None = 0,
+		eFlowNodeAudioTriggerFlags_IsPlaying = BIT(0),
 		eFlowNodeAudioTriggerFlags_IsListener = BIT(1),
 	};
 
 	//////////////////////////////////////////////////////////////////////////
-	static void OnAudioTriggerFinished(SRequestInfo const* const pAudioRequestInfo)
+	static void OnAudioTriggerFinished(CryAudio::SRequestInfo const* const pAudioRequestInfo)
 	{
 		TFlowGraphId const id = static_cast<TFlowGraphId>(reinterpret_cast<UINT_PTR>(pAudioRequestInfo->pUserData));
 
@@ -194,14 +192,14 @@ private:
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	void GetTriggerID(SActivationInfo* const pActInfo, uint32 const portIndex, ControlId& outAudioTriggerId)
+	void GetTriggerID(SActivationInfo* const pActInfo, uint32 const portIndex, CryAudio::ControlId& outTriggerId)
 	{
-		outAudioTriggerId = InvalidControlId;
-		string const& audioTriggerName = GetPortString(pActInfo, portIndex);
+		outTriggerId = CryAudio::InvalidControlId;
+		string const& triggerName = GetPortString(pActInfo, portIndex);
 
-		if (!audioTriggerName.empty())
+		if (!triggerName.empty())
 		{
-			gEnv->pAudioSystem->GetAudioTriggerId(audioTriggerName.c_str(), outAudioTriggerId);
+			outTriggerId = CryAudio::StringToId_RunTime(triggerName.c_str());
 		}
 	}
 
@@ -230,7 +228,7 @@ private:
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	void ExecuteOnProxy(IEntity* const pIEntity, ControlId const audioTriggerId, EPlayMode const playMode)
+	void ExecuteOnProxy(IEntity* const pIEntity, CryAudio::ControlId const audioTriggerId, EPlayMode const playMode)
 	{
 		IEntityAudioComponent* const pIEntityAudioComponent = pIEntity->GetOrCreateComponent<IEntityAudioComponent>();
 
@@ -240,9 +238,9 @@ private:
 			{
 			case ePlayMode_Play:
 				{
-					SRequestUserData const userData(eRequestFlags_SyncFinishedCallback, this, reinterpret_cast<void*>(static_cast<UINT_PTR>(m_playActivationInfo.pGraph->GetGraphId())), this);
+					CryAudio::SRequestUserData const userData(CryAudio::ERequestFlags::DoneCallbackOnExternalThread, this, reinterpret_cast<void*>(static_cast<UINT_PTR>(m_playActivationInfo.pGraph->GetGraphId())), this);
 					pIEntityAudioComponent->SetCurrentEnvironments();
-					pIEntityAudioComponent->ExecuteTrigger(audioTriggerId, DefaultAuxObjectId, userData);
+					pIEntityAudioComponent->ExecuteTrigger(audioTriggerId, CryAudio::DefaultAuxObjectId, userData);
 
 					break;
 				}
@@ -268,7 +266,7 @@ private:
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	void ExecuteOnGlobalObject(ControlId const audioTriggerId, EPlayMode const playMode)
+	void ExecuteOnGlobalObject(CryAudio::ControlId const audioTriggerId, EPlayMode const playMode)
 	{
 		switch (playMode)
 		{
@@ -290,7 +288,7 @@ private:
 	//////////////////////////////////////////////////////////////////////////
 	void Play(IEntity* const pIEntity)
 	{
-		if (m_playTriggerId != InvalidControlId)
+		if (m_playTriggerId != CryAudio::InvalidControlId)
 		{
 			if (pIEntity != nullptr)
 			{
@@ -310,7 +308,7 @@ private:
 	{
 		if ((m_flags & eFlowNodeAudioTriggerFlags_IsPlaying) > 0)
 		{
-			if (m_stopTriggerId != InvalidControlId)
+			if (m_stopTriggerId != CryAudio::InvalidControlId)
 			{
 				if (pIEntity != nullptr)
 				{
@@ -340,7 +338,7 @@ private:
 	//////////////////////////////////////////////////////////////////////////
 	void AddRequestListener()
 	{
-		gEnv->pAudioSystem->AddRequestListener(&CFlowNode_AudioTrigger::OnAudioTriggerFinished, this, eSystemEvent_TriggerFinished);
+		gEnv->pAudioSystem->AddRequestListener(&CFlowNode_AudioTrigger::OnAudioTriggerFinished, this, CryAudio::ESystemEvents::TriggerFinished);
 		m_flags |= eFlowNodeAudioTriggerFlags_IsListener;
 	}
 
@@ -352,11 +350,11 @@ private:
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	EnumFlagsType          m_flags;
-	ControlId              m_playTriggerId;
-	ControlId              m_stopTriggerId;
-	SActivationInfo        m_playActivationInfo;
-	SRequestUserData const m_requestUserData;
+	CryAudio::EnumFlagsType          m_flags;
+	CryAudio::ControlId              m_playTriggerId;
+	CryAudio::ControlId              m_stopTriggerId;
+	SActivationInfo                  m_playActivationInfo;
+	CryAudio::SRequestUserData const m_requestUserData;
 };
 
 REGISTER_FLOW_NODE("Audio:Trigger", CFlowNode_AudioTrigger);

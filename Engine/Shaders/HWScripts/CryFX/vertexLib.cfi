@@ -9,18 +9,6 @@
 //    - When adding new features here, make sure they work with instancing
 
 
-#if !%TEMP_VEGETATION
-
- #define INST_STREAM_CUSTOM                          \
-  #if %_RT_INSTANCING_ATTR													 \
-    float4 InstAmbientOp  : TEXCOORDN;               \
-   #if %_RT_FOG                                      \
-    float4 InstAvgFogVolumeContrib   : TEXCOORDN;    \
-   #endif                                            \
-  #endif                                             \
-  
-#endif
-
 ///////////////// Vertex/texture modifiers //////////////////
 
 #include "ModificatorVT.cfi"
@@ -60,7 +48,7 @@ struct vert2FragGeneral
 #endif  
   float4 baseTC     : TEXCOORDN;
 
-#if %_RT_FOG || %ANISO_SPECULAR || %TEMP_EYES || %OFFSET_BUMP_MAPPING || %PARALLAX_OCCLUSION_MAPPING || %SILHOUETTE_PARALLAX_OCCLUSION_MAPPING
+#if %_RT_FOG || %ANISO_SPECULAR || %TEMP_EYES || %OFFSET_BUMP_MAPPING || %PARALLAX_OCCLUSION_MAPPING || %SILHOUETTE_PARALLAX_OCCLUSION_MAPPING || %_RT_PER_INSTANCE_CB_TEMP
   float4 vTangent  : TEXCOORDN;
   float4 vBinormal : TEXCOORDN;
 #endif
@@ -191,11 +179,6 @@ float4x4 Matrix_Inst_General_Prev(inout streamPos IN)
 	matInstPrev[1] = PerInstancePrevWorldMatrix[1];
 	matInstPrev[2] = PerInstancePrevWorldMatrix[2];
 	matInstPrev[3] = float4(0, 0, 0, 1);
-#elif %_RT_INSTANCING_ATTR
-	matInstPrev[0] = IN.InstMotionBlurData[0];
-	matInstPrev[1] = IN.InstMotionBlurData[1];
-	matInstPrev[2] = IN.InstMotionBlurData[2];
-	matInstPrev[3] = float4(0, 0, 0, 1);
 #else
 	matInstPrev[0] = MotionBlurData[0];
 	matInstPrev[1] = MotionBlurData[1];
@@ -262,18 +245,12 @@ void vs_shared_output( in app2vertGeneral IN, inout vert2FragGeneral OUT, inout 
   // Apply texture modifiers
  _TCModify(baseTC, OUT.baseTC, vertPassPos.Position, vNorm, TS_DIFFUSE);
  
-#if %_RT_FOG || %_RT_DECAL_TEXGEN_2D || %DECAL
-
+#if (%_RT_FOG || %_RT_DECAL_TEXGEN_2D || %DECAL) && !%_RT_PER_INSTANCE_CB_TEMP
   // Output ambient color - for alpha blending, recursive rendering passes, decals also require ambient.w (opacity parameter)
    OUT.Ambient = AmbientOp;
-
-  #if %_RT_INSTANCING_ATTR
-    #fetchinst (OUT.Ambient = IN.InstAmbientOp, vertPassPos.nInstance);
-  #endif
-
 #endif
 
-#if %_RT_FOG || %ANISO_SPECULAR || %TEMP_EYES || %OFFSET_BUMP_MAPPING || %PARALLAX_OCCLUSION_MAPPING || %SILHOUETTE_PARALLAX_OCCLUSION_MAPPING
+#if %_RT_FOG || %ANISO_SPECULAR || %TEMP_EYES || %OFFSET_BUMP_MAPPING || %PARALLAX_OCCLUSION_MAPPING || %SILHOUETTE_PARALLAX_OCCLUSION_MAPPING || %_RT_PER_INSTANCE_CB_TEMP
     // Output tangents only for cases that require it - alpha blending, recursive passes and anisotropic specular
     // Note: Normalization required for normal diffuse map in world space in case scale used - Do not remove
     float3 worldTangentS = normalize( mul((const float3x3)vertPassPos.InstMatrix, vertPassPos.ObjToTangentSpace[0]) );
@@ -301,15 +278,11 @@ void vs_shared_output( in app2vertGeneral IN, inout vert2FragGeneral OUT, inout 
   OUT.screenProj = HPosToScreenTC(HPosition);
 
   // Output fog into view-vector W component (to save interpolator)
-#if %_RT_FOG && !%_RT_DECAL_TEXGEN_2D
+#if %_RT_FOG && !%_RT_DECAL_TEXGEN_2D && !%_RT_PER_INSTANCE_CB_TEMP
 #if !%_RT_VOLUMETRIC_FOG
   OUT.vView.w = GetVolumetricFogDensity(OUT.vView.xyz + g_VS_WorldViewPos.xyz);
 
- #if %_RT_INSTANCING_ATTR
-   #fetchinst (OUT.AvgFogVolumeContrib = IN.InstAvgFogVolumeContrib, vertPassPos.nInstance);  
- #else
-   OUT.AvgFogVolumeContrib = AvgFogVolumeContrib;
- #endif
+  OUT.AvgFogVolumeContrib = AvgFogVolumeContrib;
 
  #if !%_RT_ALPHABLEND
     // additive blending case

@@ -625,7 +625,7 @@ public:
 		static const SInputPortConfig in_config[] = {
 			InputPortConfig<string>("mat_Material", _HELP("Material name")),
 			InputPortConfig<int>("ObjectType", 0, _HELP("Object type (render node type)"), NULL,
-				_UICONFIG("enum_int:<choose>=0,Brush=1,Vegetation=2,Light=3,Cloud=4,FogVolume=6,Decal=7,ParticleEmitter=8,WaterVolume=9,WaterWave=10,Road=11,DistanceCloud=12,VolumeObject=13,Rope=15,PrismObject=16,RenderProxy=19,GameEffect=20,BreakableGlass=21,MergedMesh=23,GeomCache=24")),
+				_UICONFIG("enum_int:<choose>=0,Brush=1,Vegetation=2,Light=3,FogVolume=6,Decal=7,ParticleEmitter=8,WaterVolume=9,WaterWave=10,Road=11,DistanceCloud=12,Rope=15,MovableBrush=19,GameEffect=20,BreakableGlass=21,MergedMesh=23,GeomCache=24")),
 			InputPortConfig<Vec3>("Position", _HELP("Position")),
 			InputPortConfig_Void("Activate", _HELP("Activate set material event")),
 			{ 0 }

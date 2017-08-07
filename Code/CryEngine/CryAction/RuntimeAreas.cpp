@@ -5,11 +5,9 @@
 #include "GameObjects/RuntimeAreaObject.h"
 #include <IGameObject.h>
 
-using namespace CryAudio;
-
 CRuntimeAreaManager::CRuntimeAreaManager()
 {
-	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this,"CRuntimeAreaManager");
+	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this, "CRuntimeAreaManager");
 
 	IEntityClassRegistry::SEntityClassDesc runtimeObjectDesc;
 	runtimeObjectDesc.sName = "RuntimeAreaObject";
@@ -75,34 +73,34 @@ void CRuntimeAreaManager::FillAudioControls()
 
 			if (pSurfaceTypeNode && _stricmp(pSurfaceTypeNode->getTag(), SXMLTags::sMergedMeshSurfaceTag) == 0)
 			{
-				char const* const sSurfaceName = pSurfaceTypeNode->getAttr(SXMLTags::sNameAttribute);
+				char const* const szSurfaceName = pSurfaceTypeNode->getAttr(SXMLTags::sNameAttribute);
 
-				if ((sSurfaceName != NULL) && (sSurfaceName[0] != '\0'))
+				if ((szSurfaceName != nullptr) && (szSurfaceName[0] != '\0'))
 				{
-					ControlId nTriggerID = InvalidControlId;
-					ControlId nRtpcID = InvalidControlId;
-
 					XmlNodeRef const pAudioNode(pSurfaceTypeNode->findChild(SXMLTags::sAudioTag));
+
 					if (pAudioNode)
 					{
-						char const* const sATLTriggerName = pAudioNode->getAttr(SXMLTags::sATLTriggerAttribute);
+						CryAudio::ControlId triggerId = CryAudio::InvalidControlId;
+						CryAudio::ControlId parameterId = CryAudio::InvalidControlId;
+						char const* const szTriggerName = pAudioNode->getAttr(SXMLTags::sATLTriggerAttribute);
 
-						if ((sATLTriggerName != NULL) && (sATLTriggerName[0] != '\0'))
+						if ((szTriggerName != nullptr) && (szTriggerName[0] != '\0'))
 						{
-							gEnv->pAudioSystem->GetAudioTriggerId(sATLTriggerName, nTriggerID);
+							triggerId = CryAudio::StringToId_RunTime(szTriggerName);
 						}
 
-						char const* const sATLRtpcName = pAudioNode->getAttr(SXMLTags::sATLRtpcAttribute);
+						char const* const szParameterName = pAudioNode->getAttr(SXMLTags::sATLRtpcAttribute);
 
-						if ((sATLRtpcName != NULL) && (sATLRtpcName[0] != '\0'))
+						if ((szParameterName != nullptr) && (szParameterName[0] != '\0'))
 						{
-							gEnv->pAudioSystem->GetAudioParameterId(sATLRtpcName, nRtpcID);
+							parameterId = CryAudio::StringToId_RunTime(szParameterName);
 						}
 
-						if ((nTriggerID != InvalidControlId) && (nRtpcID != InvalidControlId))
+						if ((triggerId != CryAudio::InvalidControlId) && (parameterId != CryAudio::InvalidControlId))
 						{
-							CRuntimeAreaObject::m_audioControls[CCrc32::ComputeLowercase(sSurfaceName)] =
-							  CRuntimeAreaObject::SAudioControls(nTriggerID, nRtpcID);
+							CRuntimeAreaObject::m_audioControls[CCrc32::ComputeLowercase(szSurfaceName)] =
+							  CRuntimeAreaObject::SAudioControls(triggerId, parameterId);
 						}
 					}
 				}
@@ -150,7 +148,7 @@ void CRuntimeAreaManager::CreateAreas()
 		areaSpawnParams.sName = szName;
 		areaSpawnParams.vPosition = cluster.extents.GetCenter() - Vec3(0.0f, 0.0f, cluster.extents.GetSize().z * 0.5f);//??
 
-		IEntityAreaComponent* pAreaProxy = NULL;
+		IEntityAreaComponent* pAreaProxy = nullptr;
 		IEntity* pNewAreaEntity = gEnv->pEntitySystem->SpawnEntity(areaSpawnParams);
 		if (pNewAreaEntity)
 		{
@@ -180,7 +178,7 @@ void CRuntimeAreaManager::CreateAreas()
 
 				IEntity* pNewAreaObjectEntity = gEnv->pEntitySystem->SpawnEntity(areaObjectSpawnParams);
 
-				if (pNewAreaObjectEntity != NULL)
+				if (pNewAreaObjectEntity != nullptr)
 				{
 					EntityId const nAreaObjectEntityID = pNewAreaObjectEntity->GetId();
 

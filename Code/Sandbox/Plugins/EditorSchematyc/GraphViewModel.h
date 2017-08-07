@@ -21,7 +21,7 @@ class CConnectionItem;
 class CNodeGraphViewModel : public CryGraphEditor::CNodeGraphViewModel
 {
 	typedef std::vector<CNodeItem*>                          NodesByIndex;
-	typedef std::unordered_map<Schematyc::SGUID, CNodeItem*> NodesByGuid;
+	typedef std::unordered_map<CryGUID, CNodeItem*> NodesByGuid;
 	typedef std::vector<CConnectionItem*>                    ConnectionsByIndex;
 
 public:
@@ -47,7 +47,7 @@ public:
 
 	Schematyc::IScriptGraph&                          GetScriptGraph() const { return m_scriptGraph; }
 
-	virtual CNodeItem*                                CreateNode(Schematyc::SGUID typeGuid);
+	virtual CNodeItem*                                CreateNode(CryGUID typeGuid);
 	void                                              Refresh();
 
 private:

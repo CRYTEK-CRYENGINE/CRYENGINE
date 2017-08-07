@@ -218,7 +218,6 @@ public:
 	virtual void                        UpdatePassenger(float frameTime, EntityId playerId = 0);
 
 	virtual void                        SetChannelId(uint16 id) {};
-	virtual void                        SetAuthority(bool auth);
 
 	virtual void                        FullSerialize(TSerialize ser);
 	virtual bool                        NetSerialize(TSerialize ser, EEntityAspects aspect, uint8 profile, int flags);

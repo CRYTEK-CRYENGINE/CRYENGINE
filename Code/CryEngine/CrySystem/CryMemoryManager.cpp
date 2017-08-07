@@ -223,13 +223,23 @@ CRYMEMORYMANAGER_API void* CryMalloc(size_t size, size_t& allocated, size_t alig
 }
 
 //////////////////////////////////////////////////////////////////////////
-CRYMEMORYMANAGER_API size_t CryGetMemSize(void* memblock, size_t sourceSize)
+CRYMEMORYMANAGER_API size_t CryGetMemSize(void* memblock, size_t alignment)
 {
 	//	ReadLock lock(g_lockMemMan);
 #ifdef DANGLING_POINTER_DETECTOR
 	memblock = DanglingPointerDetectorTransformNull(memblock);
 #endif
-	return g_GlobPageBucketAllocator.getSize(memblock);
+	
+	if (!alignment || g_GlobPageBucketAllocator.IsInAddressRange(memblock))
+	{
+		return g_GlobPageBucketAllocator.getSize(memblock);
+	}
+	else
+	{
+		uint8* pb = static_cast<uint8*>(memblock);
+		uint32 adj = reinterpret_cast<uint32*>(pb)[-1];
+		return CrySystemCrtSize(pb - adj) - adj;
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

@@ -34,7 +34,10 @@ public:
 	};
 
 	//! Used to register a HMD headset with the system for later use by the user.
-	virtual void RegisterDevice(const char* name, IHmdDevice& device) = 0;
+	virtual void RegisterDevice(const char* szDeviceName, IHmdDevice& device) = 0;
+
+	//! Used to unregister the HWD headset
+	virtual void UnregisterDevice(const char* szDeviceName) = 0;
 
 	//! Basic functionality needed to setup and destroy an HMD during system init / system shutdown.
 	virtual void SetupAction(EHmdSetupAction cmd) = 0;

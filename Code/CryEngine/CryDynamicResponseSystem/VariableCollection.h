@@ -22,7 +22,7 @@ class CVariableCollection;
 class CVariableCollectionManager
 {
 public:
-	CVariableCollectionManager() {}
+	CVariableCollectionManager() = default;
 	~CVariableCollectionManager();
 
 	CVariableCollection* CreateVariableCollection(const CHashedString& collectionName);
@@ -54,16 +54,18 @@ public:
 
 	struct VariableCooldownInfo   //used for the SetVariableValueForSomeTime functionality
 	{
-		CVariable*        variable;
+		CHashedString     variableName;
 		float             timeOfReset;
 		VariableValueData oldValue;
+
+		void                 Serialize(Serialization::IArchive& ar);
 	};
 
 	typedef std::vector<CVariable*> VariableList;
 	typedef std::vector<VariableCooldownInfo> CoolingDownVariableList;
 
 	CVariableCollection(const CHashedString& name);
-	virtual ~CVariableCollection();
+	virtual ~CVariableCollection() override;
 
 	//////////////////////////////////////////////////////////
 	// IVariableCollection implementation
@@ -105,12 +107,9 @@ public:
 private:
 	bool SetVariableValueForSomeTime(CVariable* pVariable, const CVariableValue& value, float timeBeforeReset);
 
-	const CHashedString m_name;
-
-	VariableList m_allResponseVariables;
-
+	const CHashedString     m_name;
+	VariableList            m_allResponseVariables;
 	CoolingDownVariableList m_coolingDownVariables;
-
 	string                  m_userString;
 };
 

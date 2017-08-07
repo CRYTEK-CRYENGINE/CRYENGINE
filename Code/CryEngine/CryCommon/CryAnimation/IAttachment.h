@@ -115,6 +115,7 @@ struct SVClothParams
 	string simMeshName;
 	string simBinding;
 	string material;
+	string materialLods[g_nMaxGeomLodLevels];
 	float  debugDrawVerticesRadius;
 	int    debugDrawCloth;
 	int    debugDrawLRA;       //!< Debug long range attachments (LRA).
@@ -129,7 +130,8 @@ public:
 	SVClothParams() :
 
 		// Animation Control
-		forceSkinning(false)
+		hide(false)
+		, forceSkinning(false)
 		, forceSkinningFpsThreshold(25.0f)
 		, forceSkinningTranslateThreshold(1.0f)
 		, checkAnimationRewind(true)
@@ -188,9 +190,24 @@ public:
 		, debugPrint(0)
 
 		, weights(nullptr)
-		, hide(false)
 		, disableSimulation(false)
 	{}
+};
+
+
+struct SVClothAttachmentParams
+{
+	SVClothAttachmentParams(const char* attachmentName, const SVClothParams& vclothParams, int skinLoadingFlags, int flags)
+		: attachmentName(attachmentName)
+		, skinLoadingFlags(skinLoadingFlags)
+		, flags(flags)
+		, vclothParams(vclothParams)
+	{}
+
+	const string attachmentName;
+	const SVClothParams& vclothParams;
+	const int flags;
+	const int skinLoadingFlags;
 };
 
 struct SimulationParams
@@ -339,6 +356,7 @@ struct IAttachmentManager
 	virtual uint32              LoadAttachmentList(const char* pathname) = 0;
 
 	virtual IAttachment*        CreateAttachment(const char* szName, uint32 type, const char* szJointName = 0, bool bCallProject = true) = 0;
+	virtual IAttachment*        CreateVClothAttachment(const SVClothAttachmentParams& params) = 0;
 
 	virtual int32               RemoveAttachmentByInterface(const IAttachment* pAttachment, uint32 loadingFlags = 0) = 0;
 	virtual int32               RemoveAttachmentByName(const char* szName, uint32 loadingFlags = 0) = 0;

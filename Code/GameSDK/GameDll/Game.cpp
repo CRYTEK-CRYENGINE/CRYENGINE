@@ -181,17 +181,12 @@
 #include "DynamicResponseSystem/ConditionDistanceToEntity.h"
 #include "DynamicResponseSystem/GameTokenToDrsTranslator.h"
 #include "DynamicResponseSystem/ActionExecuteAudioTrigger.h"
-#include "DynamicResponseSystem/ActionSpeakLineBasedOnVariable.h"
 #include <CrySerialization/ClassFactory.h>
 
 #include <CrySystem/Profilers/FrameProfiler/FrameProfiler.h>
 #include <CrySystem/CryUnitTest.h>
 
 #include <IPerceptionManager.h>
-
-#ifdef ENABLE_STATS_AGENT
-	#include "StatsAgent.h"
-#endif // #ifdef ENABLE_STATS_AGENT
 
 //#define GAME_DEBUG_MEM  // debug memory usage
 #undef  GAME_DEBUG_MEM
@@ -451,6 +446,7 @@ CGame::CGame()
 	m_pMatchMakingTelemetry(NULL),
 	m_pDataPatchDownloader(0),
 	m_pGameLocalizationManager(0),
+	m_pGameStateRecorder(0),
 #if USE_LAGOMETER
 	m_pLagOMeter(0),
 #endif
@@ -645,6 +641,7 @@ CGame::~CGame()
 	SAFE_DELETE(m_patchPakManager);
 	SAFE_DELETE(m_pDataPatchDownloader);
 	SAFE_DELETE(m_pGameLocalizationManager);
+	SAFE_RELEASE(m_pGameStateRecorder);
 	SAFE_DELETE(m_pGameTokenSignalCreator);
 #if USE_LAGOMETER
 	SAFE_DELETE(m_pLagOMeter);
@@ -709,7 +706,7 @@ CGame::~CGame()
 		}
 	}
 
-	gEnv->pSystem->UnloadEngineModule("CryLobby", "EngineModule_CryLobby");
+	gEnv->pSystem->UnloadEngineModule("CryLobby");
 
 	GAME_FX_SYSTEM.Destroy();
 
@@ -930,7 +927,7 @@ bool CGame::Init(/*IGameFramework* pFramework*/)
 		}
 #endif
 
-		if (!gEnv->pSystem->InitializeEngineModule("CryLobby", "EngineModule_CryLobby", false))
+		if (!gEnv->pSystem->InitializeEngineModule("CryLobby", cryiidof<ILobbyEngineModule>(), false))
 		{
 			CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "Error creating Lobby System!");
 		}
@@ -978,12 +975,6 @@ bool CGame::Init(/*IGameFramework* pFramework*/)
 
 			m_pGameLobbyManager = new CGameLobbyManager();
 		}
-	}
-
-	//perception system plugin must be loaded here by default (cryplugin.csv cannot be used because GameSDK doesn't exist as cry project yet)
-	if (!gEnv->pSystem->GetIPluginManager()->LoadPluginFromDisk(ICryPluginManager::EPluginType::EPluginType_CPP, "CryPerceptionSystem", "Plugin_CryPerceptionSystem"))
-	{
-		CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "Error loading Perception System!");
 	}
 
 	m_pGameAchievements = new CGameAchievements;  //Should be after GameLobbyManager
@@ -1237,7 +1228,8 @@ bool CGame::Init(/*IGameFramework* pFramework*/)
 	{
 		// register the custom DRS actions and conditions
 		REGISTER_DRS_CUSTOM_ACTION(CActionExecuteAudioTrigger);
-		REGISTER_DRS_CUSTOM_ACTION(CActionSpeakLineBasedOnVariable);
+		REGISTER_DRS_CUSTOM_ACTION(CActionSetAudioSwitch);
+		REGISTER_DRS_CUSTOM_ACTION(CActionSetAudioParameter);
 		REGISTER_DRS_CUSTOM_CONDITION(CConditionDistanceToEntity);
 
 		// create a special DrsActor that sends out our automatic signals every time a gametoken changes its value
@@ -2690,7 +2682,7 @@ int CGame::Update(bool haveFocus, unsigned int updateFlags) PREFAST_SUPPRESS_WAR
 			if (timeRemaining > 0.f)
 			{
 				SHUDEvent resumingEvent(eHUDEvent_OnUpdateGameResumeMessage);
-				int time = MAX(int(floor(timeRemaining + 0.5f)), 0);
+				int time = std::max(int(floor(timeRemaining + 0.5f)), 0);
 				resumingEvent.AddData(time);
 				CHUDEventDispatcher::CallEvent(resumingEvent);
 			}
@@ -2994,10 +2986,6 @@ int CGame::Update(bool haveFocus, unsigned int updateFlags) PREFAST_SUPPRESS_WAR
 		}
 	}
 #endif //#if USE_TELEMETRY_BUFFERS
-
-#ifdef ENABLE_STATS_AGENT
-	CStatsAgent::Update();
-#endif // #ifdef ENABLE_STATS_AGENT
 
 	if (m_telemetryCollector)
 	{
@@ -4038,13 +4026,13 @@ void CGame::LoadMappedLevelNames(const char* xmlPath)
 
 IGameStateRecorder* CGame::CreateGameStateRecorder(IGameplayListener* pL)
 {
-	CGameStateRecorder* pGSP = new CGameStateRecorder();
-
-	if (pGSP)
-		pGSP->RegisterListener(pL);
-
-	return (IGameStateRecorder*)pGSP;
-
+	if (!m_pGameStateRecorder)
+	{
+		m_pGameStateRecorder = new CGameStateRecorder();
+		CRY_ASSERT(m_pGameStateRecorder);
+		m_pGameStateRecorder->RegisterListener(pL);
+	}
+	return m_pGameStateRecorder;
 }
 
 CInteractiveObjectRegistry& CGame::GetInteractiveObjectsRegistry() const
@@ -4351,7 +4339,7 @@ float CGame::GetRemainingHostMigrationTimeoutTime() const
 {
 	const float timePassed = GetTimeSinceHostMigrationStateChanged();
 	const float timeRemaining = m_hostMigrationNetTimeoutLength - timePassed;
-	return MAX(timeRemaining, 0.f);
+	return std::max(timeRemaining, 0.f);
 }
 
 //------------------------------------------------------------------------
@@ -4366,7 +4354,7 @@ float CGame::GetHostMigrationTimeTillResume() const
 	{
 		const float curTime = gEnv->pTimer->GetAsyncCurTime();
 		const float timePassed = curTime - m_hostMigrationTimeStateChanged;
-		timeRemaining = MAX(g_pGameCVars->g_hostMigrationResumeTime - timePassed, 0.f);
+		timeRemaining = std::max(g_pGameCVars->g_hostMigrationResumeTime - timePassed, 0.f);
 	}
 	return timeRemaining;
 }

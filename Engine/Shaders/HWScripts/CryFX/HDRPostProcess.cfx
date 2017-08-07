@@ -384,12 +384,41 @@ pixout HDRFinalScenePS(vert2frag IN)
 	#endif
 	
 	ApplyDithering(OUT.Color.rgb, IN.baseTC.xy);
-
-#if %_RT_SAMPLE0  // FXAA
-	OUT.Color.a = dot(OUT.Color.rgb, half3(0.299h, 0.587h, 0.114h));
-#endif
  
   return OUT;
+}
+
+pixout HDRFinalSceneFixeExposurePS(vert2frag IN)
+{
+	pixout OUT = (pixout)0;
+
+	float2 ScreenTC = MapViewportToRaster(IN.baseTCScaled.xy);
+
+	float3 vAdaptedLum = float3(1.0f, 1.0f, 1.0f);
+
+	half4 cScene = tex2D(baseMap, ScreenTC);
+
+	{
+		// Compute exposure
+		const half fExposure = 1.0f;
+
+		half3 cColor = fExposure * cScene.xyz;
+
+#if 0
+		// Filmic response curve as proposed by J. Hable
+		half4 c = half4(max(cColor.rgb, 0), HDRFilmCurve.w);
+		const half ShoStren = 0.22 * HDRFilmCurve.x, LinStren = 0.3 * HDRFilmCurve.y, LinAngle = 0.1, ToeStren = 0.2, ToeNum = 0.01 * HDRFilmCurve.z, ToeDenom = 0.3;
+		half4 compressedCol = ((c * (ShoStren * c + LinAngle*LinStren) + ToeStren*ToeNum) / (c * (ShoStren * c + LinStren) + ToeStren*ToeDenom)) - (ToeNum / ToeDenom);
+		cScene.xyz = saturate(compressedCol / compressedCol.w);
+#endif
+
+		// Apply gamma correction using exact sRGB curve
+		cScene.xyz = (cScene.xyz < 0.0031308) ? 12.92h * cScene.xyz : 1.055h * pow(cScene.xyz, 1.0h / 2.4h) - half3(0.055h, 0.055h, 0.055h);
+
+		OUT.Color.rgb = cScene.xyz;
+	}
+
+	return OUT;
 }
 
 pixout HDRFinalDebugScenePS(vtxOut IN)
@@ -1060,6 +1089,14 @@ technique HDRFinalPass
   }
 }
 
+technique HDRFinalPassFixedExposure
+{
+  pass p0
+  {
+    VertexShader = TransformedVS() HDRPostProcessVS;
+    PixelShader = HDRFinalSceneFixeExposurePS() HDRPostProcessPS;
+  }
+}
 
 technique HDRFinalDebugPass
 {

@@ -33,6 +33,8 @@ public:
 	virtual bool                               HasId(QVariant id) const override;
 	// ~CryGraphEditor::CAbstractConnectionItem
 
+	Schematyc::IScriptGraphLink& GetScriptLink() const { return m_scriptGraphLink; }
+
 private:
 	Schematyc::IScriptGraphLink& m_scriptGraphLink;
 	CPinItem&                    m_sourcePin;

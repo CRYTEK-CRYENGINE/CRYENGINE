@@ -679,19 +679,19 @@ void CShadowUtils::SetShadowSamplingContextToRenderPass(
 {
 	if (pointWrapSamplerSlot >= 0)
 	{
-		pass.SetSampler(pointWrapSamplerSlot, gcpRendD3D->m_nPointWrapSampler);
+		pass.SetSampler(pointWrapSamplerSlot, EDefaultSamplerStates::PointWrap);
 	}
 	if (pointClampSamplerSlot >= 0)
 	{
-		pass.SetSampler(pointClampSamplerSlot, gcpRendD3D->m_nPointClampSampler);
+		pass.SetSampler(pointClampSamplerSlot, EDefaultSamplerStates::PointClamp);
 	}
 	if (linearClampComparisonSamplerSlot >= 0)
 	{
-		pass.SetSampler(linearClampComparisonSamplerSlot, gcpRendD3D->m_nLinearClampComparisonSampler);
+		pass.SetSampler(linearClampComparisonSamplerSlot, EDefaultSamplerStates::LinearCompare);
 	}
 	if (bilinearWrapSamplerSlot >= 0)
 	{
-		pass.SetSampler(bilinearWrapSamplerSlot, gcpRendD3D->m_nBilinearWrapSampler);
+		pass.SetSampler(bilinearWrapSamplerSlot, EDefaultSamplerStates::BilinearWrap);
 	}
 
 	if (shadowNoiseTextureSlot >= 0)

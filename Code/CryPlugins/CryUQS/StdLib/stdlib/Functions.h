@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace stdlib
+	namespace StdLib
 	{
 
 		//===================================================================================
@@ -17,7 +17,7 @@ namespace uqs
 		//
 		//===================================================================================
 
-		class CFunction_Pos3AddOfs3 : public client::CFunctionBase<CFunction_Pos3AddOfs3, Pos3, client::IFunctionFactory::ELeafFunctionKind::None>
+		class CFunction_Pos3AddOfs3 : public Client::CFunctionBase<CFunction_Pos3AddOfs3, Pos3, Client::IFunctionFactory::ELeafFunctionKind::None>
 		{
 		public:
 			struct SParams
@@ -26,8 +26,8 @@ namespace uqs
 				Ofs3      ofs;
 
 				UQS_EXPOSE_PARAMS_BEGIN
-					UQS_EXPOSE_PARAM("pos", pos);
-					UQS_EXPOSE_PARAM("ofs", ofs);
+					UQS_EXPOSE_PARAM("pos", pos, "POS ", "Original position for adding an offset to.");
+					UQS_EXPOSE_PARAM("ofs", ofs, "OFS ", "Offset to add to the position.");
 				UQS_EXPOSE_PARAMS_END
 			};
 
@@ -45,7 +45,7 @@ namespace uqs
 		//
 		//===================================================================================
 
-		class CFunction_PosFromEntity : public client::CFunctionBase<CFunction_PosFromEntity, Pos3, client::IFunctionFactory::ELeafFunctionKind::None>
+		class CFunction_PosFromEntity : public Client::CFunctionBase<CFunction_PosFromEntity, Pos3, Client::IFunctionFactory::ELeafFunctionKind::None>
 		{
 		public:
 			struct SParams
@@ -53,7 +53,7 @@ namespace uqs
 				EntityIdWrapper entityId;
 
 				UQS_EXPOSE_PARAMS_BEGIN
-					UQS_EXPOSE_PARAM("entityId", entityId);
+					UQS_EXPOSE_PARAM("entityId", entityId, "ENTI", "Entity to get the position from.");
 				UQS_EXPOSE_PARAMS_END
 			};
 

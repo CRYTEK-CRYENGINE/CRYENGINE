@@ -78,7 +78,7 @@ public:
 	// Iteratively update array of visible nodes checking if they are expired
 	void       UpdateVisibleNodes(int currentFrame, int maxNodesToCheck = MAX_NODES_CHECK_PER_FRAME);
 	void       InvalidateAll();
-
+	void       OnEntityDeleted(IEntity *pEntity);
 	Statistics GetStatistics() const;
 
 	void       ClearAll();

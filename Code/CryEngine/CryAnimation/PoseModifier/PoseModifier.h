@@ -17,7 +17,7 @@ public:
 	CRYINTERFACE_ADD(IAnimationPoseModifier)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(CPoseModifierStack, "AnimationPoseModifier_PoseModifierStack", 0xaf9efa2dfec04de4, 0xa1663950bde6a3c6)
+	CRYGENERATE_CLASS_GUID(CPoseModifierStack, "AnimationPoseModifier_PoseModifierStack", "af9efa2d-fec0-4de4-a166-3950bde6a3c6"_cry_guid)
 
 	CPoseModifierStack();
 	virtual ~CPoseModifierStack() {}
@@ -49,7 +49,7 @@ class CPoseModifierSetup :
 		CRYINTERFACE_ADD(IAnimationPoseModifierSetup)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(CPoseModifierSetup, "PoseModifierSetup", 0x18b8cca76db947cc, 0x84dd1f003e97cbee)
+	CRYGENERATE_CLASS_GUID(CPoseModifierSetup, "PoseModifierSetup", "18b8cca7-6db9-47cc-84dd-1f003e97cbee"_cry_guid)
 
 	virtual ~CPoseModifierSetup() {}
 

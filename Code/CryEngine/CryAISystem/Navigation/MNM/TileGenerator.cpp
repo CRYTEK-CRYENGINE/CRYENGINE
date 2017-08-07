@@ -126,22 +126,12 @@ static const uint8 s_PinchCornerTable[3][3][3] =
 
 /*static */ size_t CTileGenerator::BorderSizeH(const Params& params)
 {
-	// TODO pavloi 2016.03.16: inclineTestCount = (height + 1) comes from FilterWalkable
-	const size_t inclineTestCount = params.agent.climbableHeight + 1;
-
-	return (params.flags & Params::NoBorder) ? 0 : (params.agent.radius + inclineTestCount + 1);
+	return (params.flags & Params::NoBorder) ? 0 : params.agent.GetPossibleAffectedSizeH();
 }
 
 /*static */ size_t CTileGenerator::BorderSizeV(const Params& params)
 {
-	// TODO pavloi 2016.03.16: inclineTestCount = (height + 1) comes from FilterWalkable
-	const size_t inclineTestCount = params.agent.climbableHeight + 1;
-	const size_t maxZDiffInWorstCase = inclineTestCount * params.agent.climbableHeight;
-
-	// TODO pavloi 2016.03.16: agent.height is not applied here, because it's usually applied additionally in other places.
-	// Or such places just don't care.
-	// +1 just in case, I'm not fully tested this formula.
-	return (params.flags & Params::NoBorder) ? 0 : (maxZDiffInWorstCase + 1);
+	return (params.flags & Params::NoBorder) ? 0 : params.agent.GetPossibleAffectedSizeV();
 }
 
 void CTileGenerator::Clear()
@@ -240,11 +230,10 @@ bool CTileGenerator::Generate(const Params& params, STile& tile, uint32* tileHas
 			for (size_t e = 0; e < m_params.exclusionCount; ++e)
 			{
 				const BoundingVolume& volume = m_params.exclusions[e];
-				const size_t vertexCount = volume.vertices.size();
 
-				for (size_t v = 0; v < vertexCount; ++v)
+				for (const Vec3& v : volume.GetBoundaryVertices())
 				{
-					hash.Add(volume.vertices[v]);
+					hash.Add(v);
 				}
 
 				hash.Add(volume.height);
@@ -253,11 +242,10 @@ bool CTileGenerator::Generate(const Params& params, STile& tile, uint32* tileHas
 			if (m_params.boundary)
 			{
 				const BoundingVolume& volume = *m_params.boundary;
-				const size_t vertexCount = volume.vertices.size();
 
-				for (size_t v = 0; v < vertexCount; ++v)
+				for (const Vec3& v : volume.GetBoundaryVertices())
 				{
-					hash.Add(volume.vertices[v]);
+					hash.Add(v);
 				}
 
 				hash.Add(volume.height);
@@ -277,6 +265,9 @@ bool CTileGenerator::Generate(const Params& params, STile& tile, uint32* tileHas
 		extensionParams.tileAabbWorld = tileAabbWorld;
 		extensionParams.extendedTileAabbWorld = aabb;
 		extensionParams.navAgentTypeId = params.navAgentTypeId;
+		extensionParams.pBoundaryVolume = params.boundary;
+		extensionParams.pExclusionVolumes = params.exclusions;
+		extensionParams.exclusionVolumesCount = params.exclusionCount;
 
 		{
 			AUTO_READLOCK(params.pTileGeneratorExtensions->extensionsLock);
@@ -359,7 +350,7 @@ size_t CTileGenerator::VoxelizeVolume(const AABB& volume, uint32 hashValueSeed, 
 #endif // DEBUG_MNM_ENABLED
 
 	size_t triCount = voxelizer.ProcessGeometry(hashValueSeed,
-	                                            m_params.flags & Params::NoHashTest ? 0 : m_params.hashValue, hashValue, m_params.agent.callback);
+	                                            m_params.flags & Params::NoHashTest ? 0 : m_params.hashValue, hashValue, m_params.callback);
 	voxelizer.CalculateWaterDepth();
 
 	m_profiler.AddMemory(DynamicSpanGridMemory, voxelizer.GetSpanGrid().GetMemoryUsage());
@@ -387,8 +378,8 @@ struct CTileGenerator::SFilterWalkableParams
 		, heightVoxelCount(params.agent.height)
 		, climbableVoxelCount(params.agent.climbableHeight)
 		, border(CTileGenerator::BorderSizeH(params))
-		, climbableInclineGradient(params.climbableInclineGradient)
-		, climbableStepRatio(params.climbableStepRatio)
+		, climbableInclineGradient(params.agent.climbableInclineGradient)
+		, climbableStepRatio(params.agent.climbableStepRatio)
 		, inclineTestCount(climbableVoxelCount + 1)
 		, climbableInclineGradientLowerBound((size_t)floor(climbableInclineGradient))
 		, climbableInclineGradientSquared(climbableInclineGradient * climbableInclineGradient)

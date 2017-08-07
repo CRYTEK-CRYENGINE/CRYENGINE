@@ -183,6 +183,8 @@ SShaderGenBit* CShaderMan::mfCompileShaderGenProperty(char* scr)
 					shgm->m_nDependencySet |= SHGD_HW_GL4;
 				else if (!stricmp(data, "$HW_GLES3"))
 					shgm->m_nDependencySet |= SHGD_HW_GLES3;
+				else if (!stricmp(data, "$HW_VULKAN"))
+					shgm->m_nDependencySet |= SHGD_HW_VULKAN;
 
 				// backwards compatible names
 				else if (!stricmp(data, "$TEX_Bump") || !stricmp(data, "TM_Bump"))
@@ -265,6 +267,8 @@ SShaderGenBit* CShaderMan::mfCompileShaderGenProperty(char* scr)
 					shgm->m_nDependencyReset |= SHGD_HW_DURANGO;
 				else if (!stricmp(data, "$HW_ORBIS"))
 					shgm->m_nDependencyReset |= SHGD_HW_ORBIS;
+				else if (!stricmp(data, "$HW_VULKAN"))
+					shgm->m_nDependencySet |= SHGD_HW_VULKAN;
 
 				// backwards compatible names
 				else if (!stricmp(data, "$TEX_Bump") || !stricmp(data, "TM_Bump"))

@@ -31,10 +31,10 @@ end_sources()
 #END-FILE-LIST
 
 if (AUDIO_WWISE)
-	CryEngineModule(CryAudioImplWwise PCH "stdafx.cpp" SOLUTION_FOLDER "CryEngine/Audio/Implementations")
-	target_include_directories(${THIS_PROJECT} PRIVATE ../../Common ${SDK_DIR}/Audio/oculus/wwise/Include ${SDK_DIR}/Audio/wwise/SDK/include )
+	CryEngineModule(CryAudioImplWwise FORCE_SHARED PCH "stdafx.cpp" SOLUTION_FOLDER "CryEngine/Audio/Implementations")
+	target_include_directories(${THIS_PROJECT} PRIVATE ../../Common "${SDK_DIR}/Audio/oculus/wwise/Include" "${SDK_DIR}/Audio/wwise/SDK/include" )
 	
-	if(AUDIO_HRTF)
+	if(AUDIO_OCULUS_HRTF)
 		target_compile_definitions(${THIS_PROJECT} PRIVATE -DWWISE_USE_OCULUS)
 	endif()
 
@@ -93,56 +93,57 @@ if (AUDIO_WWISE)
 		AkPeakLimiterFX
 		AkPitchShifterFX
 		AkRecorderFX
+		AkReflectFX
 		AkRoomVerbFX
 		AkSilenceSource
 		AkSineSource
 		AkSoundSeedImpactFX
 		AkSoundSeedWind
 		AkSoundSeedWoosh
+		AkSpatialAudio
 		AkStereoDelayFX
+		AkSynthOne
 		AkTimeStretchFX
 		AkToneSource
 		AkTremoloFX
 		AkVorbisDecoder
 		McDSPFutzBoxFX
 		McDSPLimiterFX
-		AkSynthOne
 		)
 
 	set( WWISE_EXTRA_PLUGIN_LIBS
+		CrankcaseAudioREVModelPlayerFX
+		iZHybridReverbFX
 		iZTrashBoxModelerFX
+		iZTrashDelayFX
 		iZTrashDistortionFX
 		iZTrashDynamicsFX
-		iZTrashDelayFX
-		iZHybridReverbFX
-		CrankcaseAudioREVModelPlayerFX
-		iZTrashMultibandDistortionFX
 		iZTrashFiltersFX
+		iZTrashMultibandDistortionFX
 		AkMotionGenerator
 		AkRumble
-		IOSONOProximityMixer
 		)
 
 	set( COMMON_WWISE_LIBS ${WWISE_CORE_LIBS} ${WWISE_PLUGIN_LIBS} )
 
-	make_library(COMMON_WWISE_LIBS ${WWISE_LIB_PATH})
-	make_library(COMM_CENTRAL_LIBS ${WWISE_LIB_PATH})
+	make_library(COMMON_WWISE_LIBS "${WWISE_LIB_PATH}")
+	make_library(COMM_CENTRAL_LIBS "${WWISE_LIB_PATH}")
 
 	set( WIN_LIBS Ole32 dxguid ws2_32 Dsound XINPUT9_1_0 Msacm32 )
 	set( WIN_WWISE_LIBS ${WWISE_EXTRA_PLUGIN_LIBS} AuroHeadphoneFX AuroPannerMixer )
-	make_library(WIN_WWISE_LIBS ${WWISE_LIB_PATH})
+	make_library(WIN_WWISE_LIBS "${WWISE_LIB_PATH}")
 	set( WIN_RELEASE_LIBS ${COMMON_WWISE_LIBS} ${WIN_WWISE_LIBS} ${WIN_LIBS} )
 	set( WIN_NONRELEASE_LIBS ${COMM_CENTRAL_LIBS} ${WIN_RELEASE_LIBS} "${WWISE_LIB_PATH}SFLib.lib" )
 
 	set( DURANGO_LIBS MMDevApi Ws2_32 combase kernelx SmartGlassInterop d3dcompiler dxguid xg_x uuid xaudio2 acphal )
 	set( DURANGO_WWISE_LIBS ${WWISE_EXTRA_PLUGIN_LIBS} AuroHeadphoneFX AuroPannerMixer)
-	make_library(DURANGO_WWISE_LIBS ${WWISE_LIB_PATH})
+	make_library(DURANGO_WWISE_LIBS "${WWISE_LIB_PATH}")
 	set( DURANGO_RELEASE_LIBS ${COMMON_WWISE_LIBS} ${DURANGO_WWISE_LIBS} ${DURANGO_LIBS} )
 	set( DURANGO_NONRELEASE_LIBS ${COMM_CENTRAL_LIBS} ${DURANGO_RELEASE_LIBS} )
 
 	set( ORBIS_LIBS SceAudioOut_stub_weak SceAjm_stub_weak SceAudio3d_stub_weak SceMove_Stub_weak)
 	set( ORBIS_WWISE_LIBS ${WWISE_EXTRA_PLUGIN_LIBS} SceAudio3dEngine AuroHeadphoneFX AuroPannerMixer )
-	make_library(ORBIS_WWISE_LIBS ${WWISE_LIB_PATH})
+	make_library(ORBIS_WWISE_LIBS "${WWISE_LIB_PATH}")
 	set( ORBIS_RELEASE_LIBS ${COMMON_WWISE_LIBS} ${ORBIS_WWISE_LIBS} ${ORBIS_LIBS} )
 	set( ORBIS_NONRELEASE_LIBS ${COMM_CENTRAL_LIBS} ${ORBIS_RELEASE_LIBS} )
 	
@@ -151,12 +152,12 @@ if (AUDIO_WWISE)
 	set( LINUX_NONRELEASE_LIBS ${COMM_CENTRAL_LIBS} ${LINUX_RELEASE_LIBS} )
 	
 	set( DARWIN_WWISE_LIBS AkAACDecoder )
-	make_library(DARWIN_WWISE_LIBS ${WWISE_LIB_PATH})
+	make_library(DARWIN_WWISE_LIBS "${WWISE_LIB_PATH}")
 	set( DARWIN_RELEASE_LIBS ${COMMON_WWISE_LIBS} ${DARWIN_WWISE_LIBS} )
 	set( DARWIN_NONRELEASE_LIBS ${COMM_CENTRAL_LIBS} ${DARWIN_RELEASE_LIBS} )
 
 	set( ANDROID_WWISE_LIBS	CrankcaseAudioREVModelPlayerFX AuroHeadphoneFX AuroPannerMixer)
-	make_library(ANDROID_WWISE_LIBS ${WWISE_LIB_PATH})
+	make_library(ANDROID_WWISE_LIBS "${WWISE_LIB_PATH}")
 
 	set( ANDROID_RELEASE_LIBS ${COMMON_WWISE_LIBS} ${ANDROID_WWISE_LIBS} )
 	set( ANDROID_NONRELEASE_LIBS ${COMM_CENTRAL_LIBS} ${ANDROID_RELEASE_LIBS} )

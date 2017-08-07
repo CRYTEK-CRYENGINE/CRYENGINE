@@ -20,6 +20,7 @@ struct BlackBox
 	const char* format;
 	void* data;
 	size_t size;
+	int xmlVersion;
 	typedef void* (*Allocator)(size_t, const void*);
 	Allocator allocator;
 
@@ -28,6 +29,7 @@ struct BlackBox
 	, data(0)
 	, size(0)
 	, allocator(0)
+	, xmlVersion(0)
 	{
 	}
 
@@ -36,6 +38,7 @@ struct BlackBox
 	, data(0)
 	, size(0)
 	, allocator(0)
+	, xmlVersion(rhs.xmlVersion)
 	{
 		*this = rhs;
 	}
@@ -71,11 +74,13 @@ struct BlackBox
 		data = 0;
 		size = 0;
 		allocator = 0;
+		xmlVersion = 0;
 	}
 
 	BlackBox& operator=(const BlackBox& rhs)
 	{
 		set(rhs.format, rhs.data, rhs.size, rhs.allocator);
+		xmlVersion = rhs.xmlVersion;
 		return *this;
 	}
 

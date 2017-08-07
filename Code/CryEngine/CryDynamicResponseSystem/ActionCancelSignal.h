@@ -20,7 +20,6 @@ class CActionCancelSignal final : public DRS::IResponseAction
 public:
 	CActionCancelSignal() : m_bOnAllActors(true) {}
 	CActionCancelSignal(const CHashedString& signalName) : m_signalName(signalName), m_bOnAllActors(true) {}
-	virtual ~CActionCancelSignal() {}
 
 	//////////////////////////////////////////////////////////
 	// IResponseAction implementation

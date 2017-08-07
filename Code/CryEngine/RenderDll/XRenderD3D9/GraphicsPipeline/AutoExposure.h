@@ -19,7 +19,4 @@ private:
 	CFullscreenPass m_passLuminanceInitial;
 	CFullscreenPass m_passLuminanceIteration[NUM_HDR_TONEMAP_TEXTURES];
 	CFullscreenPass m_passAutoExposure;
-
-	int             m_samplerPoint;
-	int             m_samplerLinear;
 };

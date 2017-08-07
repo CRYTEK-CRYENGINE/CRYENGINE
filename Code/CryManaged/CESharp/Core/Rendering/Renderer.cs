@@ -1,7 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 using CryEngine.Common;
 
@@ -12,16 +9,28 @@ namespace CryEngine.Rendering
 	/// </summary>
 	public class Renderer : IGameUpdateReceiver
 	{
-		public static event EventHandler<int, int> ResolutionChanged; ///< Event fired if resolution changed
+		/// <summary>
+		/// Event fired if resolution changed
+		/// </summary>
+		public static event Action<int, int> ResolutionChanged;
 
-		public static int ScreenWidth { get { return Global.gEnv.pRenderer.GetWidth(); } } ///< Render Output Width
-		public static int ScreenHeight { get { return Global.gEnv.pRenderer.GetHeight(); } } ///< Render Output Height
-			
+		/// <summary>
+		/// Render Output Width
+		/// </summary>
+		/// <value>The width of the screen.</value>
+		public static int ScreenWidth { get { return Global.gEnv.pRenderer.GetWidth(); } }
+
+		/// <summary>
+		/// Render Output Height
+		/// </summary>
+		/// <value>The height of the screen.</value>
+		public static int ScreenHeight { get { return Global.gEnv.pRenderer.GetHeight(); } }
+
 		internal static Renderer Instance { get; set; }
 
 		int _lastWidth;
 		int _lastHeight;
-		
+
 		internal Renderer()
 		{
 			_lastWidth = ScreenWidth;
@@ -39,11 +48,11 @@ namespace CryEngine.Rendering
 		/// </summary>
 		public void OnUpdate()
 		{
-			if (_lastWidth != ScreenWidth || _lastHeight != ScreenHeight)
+			if(_lastWidth != ScreenWidth || _lastHeight != ScreenHeight)
 			{
 				_lastWidth = ScreenWidth;
 				_lastHeight = ScreenHeight;
-				if (ResolutionChanged != null)
+				if(ResolutionChanged != null)
 					ResolutionChanged(_lastWidth, _lastHeight);
 			}
 		}

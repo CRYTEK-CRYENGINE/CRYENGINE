@@ -34,39 +34,27 @@ CRainStage::~CRainStage()
 	{
 		gRenDev->m_DevBufMan.Destroy(m_rainVertexBuffer);
 	}
-
-	SAFE_RELEASE(m_pSurfaceFlowTex);
-	SAFE_RELEASE(m_pRainSpatterTex);
-	SAFE_RELEASE(m_pPuddleMaskTex);
-	SAFE_RELEASE(m_pHighFreqNoiseTex);
-	SAFE_RELEASE(m_pRainfallTex);
-	SAFE_RELEASE(m_pRainfallNormalTex);
-
-	for (auto& pTex : m_pRainRippleTex)
-	{
-		SAFE_RELEASE(pTex);
-	}
 }
 
 void CRainStage::Init()
 {
 	CRY_ASSERT(m_pSurfaceFlowTex == nullptr);
-	m_pSurfaceFlowTex = CTexture::ForName("%ENGINE%/EngineAssets/Textures/Rain/surface_flow_ddn.tif", FT_DONT_STREAM, eTF_Unknown);
+	m_pSurfaceFlowTex = CTexture::ForNamePtr("%ENGINE%/EngineAssets/Textures/Rain/surface_flow_ddn.tif", FT_DONT_STREAM, eTF_Unknown);
 
 	CRY_ASSERT(m_pRainSpatterTex == nullptr);
-	m_pRainSpatterTex = CTexture::ForName("%ENGINE%/EngineAssets/Textures/Rain/rain_spatter.tif", FT_DONT_STREAM, eTF_Unknown);
+	m_pRainSpatterTex = CTexture::ForNamePtr("%ENGINE%/EngineAssets/Textures/Rain/rain_spatter.tif", FT_DONT_STREAM, eTF_Unknown);
 
 	CRY_ASSERT(m_pPuddleMaskTex == nullptr);
-	m_pPuddleMaskTex = CTexture::ForName("%ENGINE%/EngineAssets/Textures/Rain/puddle_mask.tif", FT_DONT_STREAM, eTF_Unknown);
+	m_pPuddleMaskTex = CTexture::ForNamePtr("%ENGINE%/EngineAssets/Textures/Rain/puddle_mask.tif", FT_DONT_STREAM, eTF_Unknown);
 
 	CRY_ASSERT(m_pHighFreqNoiseTex == nullptr);
-	m_pHighFreqNoiseTex = CTexture::ForName("%ENGINE%/EngineAssets/Textures/JumpNoiseHighFrequency_x27y19.dds", FT_DONT_STREAM, eTF_Unknown);
+	m_pHighFreqNoiseTex = CTexture::ForNamePtr("%ENGINE%/EngineAssets/Textures/JumpNoiseHighFrequency_x27y19.dds", FT_DONT_STREAM, eTF_Unknown);
 
 	CRY_ASSERT(m_pRainfallTex == nullptr);
-	m_pRainfallTex = CTexture::ForName("%ENGINE%/EngineAssets/Textures/Rain/rainfall.tif", FT_DONT_STREAM, eTF_Unknown);
+	m_pRainfallTex = CTexture::ForNamePtr("%ENGINE%/EngineAssets/Textures/Rain/rainfall.tif", FT_DONT_STREAM, eTF_Unknown);
 
 	CRY_ASSERT(m_pRainfallNormalTex == nullptr);
-	m_pRainfallNormalTex = CTexture::ForName("%ENGINE%/EngineAssets/Textures/Rain/rainfall_ddn.tif", FT_DONT_STREAM, eTF_Unknown);
+	m_pRainfallNormalTex = CTexture::ForNamePtr("%ENGINE%/EngineAssets/Textures/Rain/rainfall_ddn.tif", FT_DONT_STREAM, eTF_Unknown);
 
 	const string fileNamePath = "%ENGINE%/EngineAssets/Textures/Rain/Ripple/ripple";
 	const string fileNameExt = "_ddn.tif";
@@ -75,7 +63,7 @@ void CRainStage::Init()
 	{
 		CRY_ASSERT(pTex == nullptr);
 		string fileName = fileNamePath + string().Format("%d", index) + fileNameExt;
-		pTex = CTexture::ForName(fileName.c_str(), FT_DONT_STREAM, eTF_Unknown);
+		pTex = CTexture::ForNamePtr(fileName.c_str(), FT_DONT_STREAM, eTF_Unknown);
 		++index;
 	}
 }
@@ -94,9 +82,9 @@ void CRainStage::Prepare(CRenderView* pRenderView)
 
 		for (auto& prim : m_rainPrimitives)
 		{
-			prim.SetFlags(CRenderPrimitive::eFlags_ReflectConstantBuffersFromShader);
+			prim.SetFlags(CRenderPrimitive::eFlags_ReflectShaderConstants);
 			prim.SetCullMode(eCULL_None);
-			prim.SetCustomVertexStream(m_rainVertexBuffer, eVF_P3F_C4B_T2F, vertexStride);
+			prim.SetCustomVertexStream(m_rainVertexBuffer, EDefaultInputLayouts::P3F_C4B_T2F, vertexStride);
 			prim.SetCustomIndexStream(~0u, RenderIndexType(0));
 			prim.SetDrawInfo(eptTriangleStrip, 0, 0, totalVertexCount);
 			prim.SetRenderState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
@@ -195,9 +183,7 @@ void CRainStage::ExecuteRainPreprocess()
 	// NOTE: this texture is created in SPostEffectsUtils::Create() in regular cases.
 	if (!CTexture::IsTextureExist(CTexture::s_ptexRainOcclusion))
 	{
-		if (!CTexture::s_ptexRainOcclusion->Create2DTexture(RAIN_OCC_MAP_SIZE, RAIN_OCC_MAP_SIZE, 1,
-		                                                    FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_RENDERTARGET,
-		                                                    0, eTF_R8G8B8A8, eTF_R8G8B8A8))
+		if (!CTexture::s_ptexRainOcclusion->Create2DTexture(RAIN_OCC_MAP_SIZE, RAIN_OCC_MAP_SIZE, 1, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_RENDERTARGET, nullptr, eTF_R8G8B8A8))
 		{
 			return;
 		}
@@ -247,7 +233,7 @@ void CRainStage::ExecuteDeferredRainGBuffer()
 
 	SRainParams& rainVolParams = m_RainVolParams;
 
-	CTexture* pDepthStencilTex = rd->m_DepthBufferOrigMSAA.pTexture;
+	CTexture* pDepthStencilTex = rd->m_DepthBufferOrig.pTexture;
 	CTexture* pOcclusionTex = (rainVolParams.bApplyOcclusion) ? CTexture::s_ptexRainOcclusion : CTexture::s_ptexBlack;
 
 	uint64 rtMask = 0;
@@ -265,6 +251,7 @@ void CRainStage::ExecuteDeferredRainGBuffer()
 	if (pass.InputChanged((rtMask & 0xFFFFFFFF), ((rtMask >> 32) & 0xFFFFFFFF), pDepthStencilTex->GetID()))
 	{
 		static CCryNameTSCRC techName("DeferredRainGBuffer");
+		pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 		pass.SetTechnique(CShaderMan::s_ShaderDeferredRain, techName, rtMask);
 
 		pass.SetState(GS_NODEPTHTEST);
@@ -281,19 +268,16 @@ void CRainStage::ExecuteDeferredRainGBuffer()
 		pass.SetTexture(5, m_pRainSpatterTex);
 		pass.SetTexture(6, m_pPuddleMaskTex);
 		pass.SetTexture(8, pOcclusionTex);
+		pass.SetTexture(9, pDepthStencilTex, SResourceView::eSRV_StencilOnly);
 
-		auto stencilOnlyView = SResourceView::ShaderResourceView(
-		  pDepthStencilTex->GetDstFormat(), 0, -1, 0, -1, false, false, SResourceView::eSRV_StencilOnly);
-		pass.SetTexture(9, pDepthStencilTex, stencilOnlyView.m_Desc.Key);
-
-		pass.SetSampler(0, rd->m_nPointWrapSampler);
-		pass.SetSampler(1, rd->m_nTrilinearWrapSampler);
-		pass.SetSampler(2, rd->m_nPointBorderWhiteSampler);
-		pass.SetSampler(3, rd->m_nBilinearWrapSampler);
+		pass.SetSampler(0, EDefaultSamplerStates::PointWrap);
+		pass.SetSampler(1, EDefaultSamplerStates::TrilinearWrap);
+		pass.SetSampler(2, EDefaultSamplerStates::PointBorder_White);
+		pass.SetSampler(3, EDefaultSamplerStates::BilinearWrap);
 
 		// Those texture and sampler are used in EncodeGBuffer().
 		pass.SetTexture(30, CTexture::s_ptexNormalsFitting);
-		pass.SetSampler(9, rd->m_nPointClampSampler);
+		pass.SetSampler(9, EDefaultSamplerStates::PointClamp);
 
 		pass.SetRequirePerViewConstantBuffer(true);
 	}
@@ -423,6 +407,7 @@ void CRainStage::Execute()
 			if (pass.InputChanged())
 			{
 				static CCryNameTSCRC pSceneRainOccAccTechName("SceneRainOccAccumulate");
+				pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_VS);
 				pass.SetTechnique(CShaderMan::s_shPostEffectsGame, pSceneRainOccAccTechName, 0);
 				pass.SetRenderTarget(0, CTexture::s_ptexRainSSOcclusion[0]);
 
@@ -435,8 +420,8 @@ void CRainStage::Execute()
 				pass.SetTexture(1, CTexture::s_ptexRainOcclusion);
 				pass.SetTexture(2, m_pHighFreqNoiseTex);
 
-				pass.SetSampler(0, rd->m_nPointClampSampler);
-				pass.SetSampler(1, rd->m_nTrilinearWrapSampler);
+				pass.SetSampler(0, EDefaultSamplerStates::PointClamp);
+				pass.SetSampler(1, EDefaultSamplerStates::TrilinearWrap);
 
 				pass.SetRequirePerViewConstantBuffer(true);
 			}
@@ -446,7 +431,6 @@ void CRainStage::Execute()
 			static CCryNameR pRainOccParamName("sceneRainOccMtx");
 			Vec4* pParam = (Vec4*)rainVolParams.matOccTransRender.GetData();
 			pass.SetConstantArray(pRainOccParamName, pParam, 4, eHWSC_Vertex);
-			pass.SetConstantArray(pRainOccParamName, pParam, 4, eHWSC_Pixel);
 
 			pass.Execute();
 		}
@@ -470,9 +454,9 @@ void CRainStage::Execute()
 	viewport.MaxDepth = 1.0f;
 
 	auto& pass = m_passRain;
-	pass.ClearPrimitives();
 	pass.SetRenderTarget(0, pRenderTarget);
 	pass.SetViewport(viewport);
+	pass.BeginAddingPrimitives();
 
 	static CCryNameTSCRC pSceneRainTechName("SceneRain");
 
@@ -488,13 +472,13 @@ void CRainStage::Execute()
 	uint64 rtMask = 0;
 	rtMask |= rainVolParams.bApplyOcclusion ? g_HWSR_MaskBit[HWSR_SAMPLE0] : 0;
 
-	rd->GetGraphicsPipeline().UpdatePerViewConstantBuffer(&viewport);
-	auto pPerViewCB = rd->GetGraphicsPipeline().GetPerViewConstantBuffer();
+	auto pPerViewCB = rd->GetGraphicsPipeline().GetMainViewConstantBuffer();
 
 	for (int32 nCurLayer = 0; nCurLayer < nLayers; ++nCurLayer)
 	{
 		auto& prim = m_rainPrimitives[nCurLayer];
 
+		prim.SetFlags(CRenderPrimitive::eFlags_None);
 		prim.SetTechnique(CShaderMan::s_shPostEffectsGame, pSceneRainTechName, rtMask);
 
 		prim.SetTexture(0, CTexture::s_ptexZTarget);
@@ -508,11 +492,12 @@ void CRainStage::Execute()
 		// Bind average luminance
 		prim.SetTexture(5, CTexture::s_ptexHDRToneMaps[0]);
 
-		prim.SetSampler(0, rd->m_nTrilinearWrapSampler);
-		prim.SetSampler(1, rd->m_nTrilinearClampSampler);
-		prim.SetSampler(2, rd->m_nPointClampSampler);
+		prim.SetSampler(0, EDefaultSamplerStates::TrilinearWrap);
+		prim.SetSampler(1, EDefaultSamplerStates::TrilinearClamp);
+		prim.SetSampler(2, EDefaultSamplerStates::PointClamp);
 
 		prim.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerView, pPerViewCB.get(), EShaderStage_Vertex | EShaderStage_Pixel);
+		prim.Compile(pass);
 
 		// update constant buffer
 		{
@@ -562,8 +547,6 @@ void CRainStage::ExecuteRainOcclusionGen(CRenderView* pRenderView)
 	{
 		auto& pass = m_passRainOcclusionGen;
 
-		pass.ClearPrimitives();
-
 		D3DViewPort viewport;
 		viewport.TopLeftX = 0.0f;
 		viewport.TopLeftY = 0.0f;
@@ -573,8 +556,9 @@ void CRainStage::ExecuteRainOcclusionGen(CRenderView* pRenderView)
 		viewport.MaxDepth = 1.0f;
 
 		pass.SetRenderTarget(0, CTexture::s_ptexRainOcclusion);
-		pass.SetDepthTarget(pTmpDepthSurface);
+		pass.SetDepthTarget(pTmpDepthSurface->pTexture);
 		pass.SetViewport(viewport);
+		pass.BeginAddingPrimitives();
 
 		static const Matrix44 matSs2Ps(2.f, 0.f, 0.f, -1.f,
 		                               0.f, 2.f, 0.f, -1.f,
@@ -618,9 +602,11 @@ void CRainStage::ExecuteRainOcclusionGen(CRenderView* pRenderView)
 					prim.SetCustomIndexStream(hIndexStream, (sizeof(vtx_idx) == 2 ? Index16 : Index32));
 					prim.SetDrawInfo(primType, 0, 0, numIndex);
 
+					prim.SetFlags(CRenderPrimitive::eFlags_None);
 					prim.SetTechnique(CShaderMan::s_ShaderDeferredRain, techName, 0);
 					prim.SetCullMode(eCULL_None);
 					prim.SetRenderState(GS_DEPTHFUNC_LEQUAL | GS_DEPTHWRITE);
+					prim.Compile(pass);
 
 					// update constant buffer
 					{

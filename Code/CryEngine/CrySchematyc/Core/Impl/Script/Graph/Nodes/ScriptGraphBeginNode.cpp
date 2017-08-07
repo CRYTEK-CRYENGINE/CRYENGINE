@@ -3,12 +3,12 @@
 #include "StdAfx.h"
 #include "Script/Graph/Nodes/ScriptGraphBeginNode.h"
 
-#include <Schematyc/Compiler/CompilerContext.h>
-#include <Schematyc/Compiler/IGraphNodeCompiler.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Script/IScriptRegistry.h>
-#include <Schematyc/Script/Elements/IScriptFunction.h>
-#include <Schematyc/Utils/Any.h>
+#include <CrySchematyc/Compiler/CompilerContext.h>
+#include <CrySchematyc/Compiler/IGraphNodeCompiler.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Script/IScriptRegistry.h>
+#include <CrySchematyc/Script/Elements/IScriptFunction.h>
+#include <CrySchematyc/Utils/Any.h>
 
 #include "Runtime/RuntimeClass.h"
 #include "Script/Graph/ScriptGraphNode.h"
@@ -24,7 +24,7 @@ void CScriptGraphBeginNode::Init()
 	CScriptGraphNodeModel::GetNode().SetFlags({ EScriptGraphNodeFlags::NotCopyable, EScriptGraphNodeFlags::NotRemovable });
 }
 
-SGUID CScriptGraphBeginNode::GetTypeGUID() const
+CryGUID CScriptGraphBeginNode::GetTypeGUID() const
 {
 	return ms_typeGUID;
 }
@@ -33,7 +33,7 @@ void CScriptGraphBeginNode::CreateLayout(CScriptGraphNodeLayout& layout)
 {
 	layout.SetName("Begin");
 	layout.SetStyleId("Core::FlowControl::Begin");
-	layout.AddOutput("Out", SGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::Begin });
+	layout.AddOutput("Out", CryGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::Begin });
 
 	const IScriptElement& scriptElement = CScriptGraphNodeModel::GetNode().GetGraph().GetElement();
 	switch (scriptElement.GetType())
@@ -100,12 +100,12 @@ void CScriptGraphBeginNode::Register(CScriptGraphNodeFactory& factory)
 
 		// IScriptGraphNodeCreator
 
-		virtual SGUID GetTypeGUID() const override
+		virtual CryGUID GetTypeGUID() const override
 		{
 			return CScriptGraphBeginNode::ms_typeGUID;
 		}
 
-		virtual IScriptGraphNodePtr CreateNode(const SGUID& guid) override
+		virtual IScriptGraphNodePtr CreateNode(const CryGUID& guid) override
 		{
 			return std::make_shared<CScriptGraphNode>(guid, stl::make_unique<CScriptGraphBeginNode>());
 		}
@@ -140,7 +140,7 @@ SRuntimeResult CScriptGraphBeginNode::ExecuteFunction(SRuntimeContext& context, 
 	return SRuntimeResult(ERuntimeStatus::Continue, EOutputIdx::Out);
 }
 
-const SGUID CScriptGraphBeginNode::ms_typeGUID = "12bdfa06-ba95-4e48-bb2d-bb48a7080abc"_schematyc_guid;
+const CryGUID CScriptGraphBeginNode::ms_typeGUID = "12bdfa06-ba95-4e48-bb2d-bb48a7080abc"_cry_guid;
 
 } // Schematyc
 

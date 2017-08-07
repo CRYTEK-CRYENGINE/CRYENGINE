@@ -10,105 +10,111 @@ namespace Impl
 {
 namespace SDL_mixer
 {
-
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus SAudioEvent::Stop()
+ERequestStatus CEvent::Stop()
 {
 	if (SoundEngine::StopEvent(this))
 	{
-		return eRequestStatus_Pending;
+		return ERequestStatus::Pending;
 	}
-	return eRequestStatus_Failure;
+	return ERequestStatus::Failure;
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus SAudioObject::Update()
+ERequestStatus CObject::Update()
 {
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus SAudioObject::Set3DAttributes(SObject3DAttributes const& attributes)
+ERequestStatus CObject::Set3DAttributes(SObject3DAttributes const& attributes)
 {
-	SoundEngine::SetAudioObjectPosition(this, attributes.transformation);
-	return eRequestStatus_Success;
+	SoundEngine::SetObjectTransformation(this, attributes.transformation);
+	return ERequestStatus::Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus SAudioObject::SetEnvironment(IAudioEnvironment const* const pIAudioEnvironment, float const amount)
+ERequestStatus CObject::SetEnvironment(IEnvironment const* const pIEnvironment, float const amount)
 {
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus SAudioObject::SetParameter(IParameter const* const pIAudioParameter, float const value)
+ERequestStatus CObject::SetParameter(IParameter const* const pIParameter, float const value)
 {
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus SAudioObject::SetSwitchState(IAudioSwitchState const* const pIAudioSwitchState)
+ERequestStatus CObject::SetSwitchState(ISwitchState const* const pISwitchState)
 {
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus SAudioObject::SetObstructionOcclusion(float const obstruction, float const occlusion)
+ERequestStatus CObject::SetObstructionOcclusion(float const obstruction, float const occlusion)
 {
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus SAudioObject::ExecuteTrigger(IAudioTrigger const* const pIAudioTrigger, IAudioEvent* const pIAudioEvent)
+ERequestStatus CObject::ExecuteTrigger(ITrigger const* const pITrigger, IEvent* const pIEvent)
 {
-	if ((pIAudioTrigger != nullptr) && (pIAudioEvent != nullptr))
+	if ((pITrigger != nullptr) && (pIEvent != nullptr))
 	{
-		SAudioTrigger const* const pTrigger = static_cast<SAudioTrigger const* const>(pIAudioTrigger);
-		SAudioEvent* const pEvent = static_cast<SAudioEvent* const>(pIAudioEvent);
+		CTrigger const* const pTrigger = static_cast<CTrigger const* const>(pITrigger);
+		CEvent* const pEvent = static_cast<CEvent* const>(pIEvent);
 
 		if (SoundEngine::ExecuteEvent(this, pTrigger, pEvent))
 		{
-			return eRequestStatus_Success;
+			return ERequestStatus::Success;
 		}
 	}
-	return eRequestStatus_Failure;
+	return ERequestStatus::Failure;
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus SAudioObject::StopAllTriggers()
+ERequestStatus CObject::StopAllTriggers()
 {
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus SAudioObject::PlayFile(IAudioStandaloneFile* const pIFile)
+ERequestStatus CObject::PlayFile(IStandaloneFile* const pIStandaloneFile)
 {
-	if (SoundEngine::PlayFile(this, static_cast<CAudioStandaloneFile*>(pIFile)))
+	if (SoundEngine::PlayFile(this, static_cast<CStandaloneFile*>(pIStandaloneFile)))
 	{
-		return eRequestStatus_Success;
-
+		return ERequestStatus::Success;
 	}
-	return eRequestStatus_Failure;
+
+	return ERequestStatus::Failure;
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus SAudioObject::StopFile(IAudioStandaloneFile* const pIFile)
+ERequestStatus CObject::StopFile(IStandaloneFile* const pIStandaloneFile)
 {
-	if (SoundEngine::StopFile(this, static_cast<CAudioStandaloneFile*>(pIFile)))
+	if (SoundEngine::StopFile(this, static_cast<CStandaloneFile*>(pIStandaloneFile)))
 	{
-		return eRequestStatus_Pending;
+		return ERequestStatus::Pending;
 	}
-	return eRequestStatus_Failure;
+
+	return ERequestStatus::Failure;
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus SAudioListener::Set3DAttributes(SObject3DAttributes const& attributes)
+ERequestStatus CObject::SetName(char const* const szName)
 {
-	SoundEngine::SetListenerPosition(listenerId, attributes.transformation);
-	return eRequestStatus_Success;
+	// SDL_mixer does not have the concept of audio objects and with that the debugging of such.
+	// Therefore the name is currently not needed here.
+	return ERequestStatus::Success;
 }
 
+//////////////////////////////////////////////////////////////////////////
+ERequestStatus CListener::Set3DAttributes(SObject3DAttributes const& attributes)
+{
+	SoundEngine::SetListenerPosition(m_id, attributes.transformation);
+	return ERequestStatus::Success;
 }
-
-}
-}
+} // namespace SDL_mixer
+} // namespace Impl
+} // namespace CryAudio

@@ -1,18 +1,9 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   ParticleSubEmitter.cpp
-//  Created:     20/04/2010 by Corey
-//  Description: Split out from ParticleEmitter.cpp
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #include "StdAfx.h"
 #include "ParticleSubEmitter.h"
 #include "ParticleEmitter.h"
-#include <CryAudio/IAudioSystem.h>
+#include <CryAudio/IObject.h>
 
 static const float fMIN_PULSE_PERIOD = 0.1f;
 
@@ -30,7 +21,7 @@ CParticleSubEmitter::CParticleSubEmitter(CParticleSource* pSource, CParticleCont
 	, m_stopAudioTriggerId(CryAudio::InvalidControlId)
 	, m_audioParameterId(CryAudio::InvalidControlId)
 	, m_pIAudioObject(nullptr)
-	, m_currentAudioOcclusionType(CryAudio::eOcclusionType_Ignore)
+	, m_currentAudioOcclusionType(CryAudio::EOcclusionType::Ignore)
 	, m_bExecuteAudioTrigger(false)
 {
 	assert(pCont);
@@ -306,7 +297,7 @@ void CParticleSubEmitter::EmitParticles(SParticleUpdateContext& context)
 
 							if (!EmitParticle(context, data, fPast))
 							{
-								GetContainer().GetCounts().ParticlesReject += (fPast - fMinPast) / fAgeIncrement;
+								GetContainer().GetCounts().particles.reject += (fPast - fMinPast) / fAgeIncrement;
 								break;
 							}
 						}
@@ -319,7 +310,7 @@ void CParticleSubEmitter::EmitParticles(SParticleUpdateContext& context)
 						{
 							if (!EmitParticle(context, data, fAge - m_fStartAge))
 							{
-								GetContainer().GetCounts().ParticlesReject += nEmit;
+								GetContainer().GetCounts().particles.reject += nEmit;
 								break;
 							}
 						}
@@ -619,39 +610,41 @@ void CParticleSubEmitter::UpdateAudio()
 				m_pIAudioObject->ExecuteTrigger(m_startAudioTriggerId);
 			}
 		}
-		else
+		else if (m_bExecuteAudioTrigger)
 		{
-			if (!params.sStartTrigger.empty())
+			float fAge = GetAge();
+			float fAge0 = m_fStartAge;
+			float fAge1 = m_fStopAge + GetParticleTimer()->GetFrameTime();
+			if (fAge >= fAge0 && fAge <= fAge1)
 			{
-				gEnv->pAudioSystem->GetAudioTriggerId(params.sStartTrigger.c_str(), m_startAudioTriggerId);
-			}
-
-			if (!params.sStopTrigger.empty())
-			{
-				gEnv->pAudioSystem->GetAudioTriggerId(params.sStopTrigger.c_str(), m_stopAudioTriggerId);
-			}
-
-			if (m_startAudioTriggerId != CryAudio::InvalidControlId || m_stopAudioTriggerId != CryAudio::InvalidControlId)
-			{
-				CryAudio::SCreateObjectData const objectData("ParticleSubEmitter", spawnParams.occlusionType, GetEmitTM(), INVALID_ENTITYID, true);
-				m_pIAudioObject = gEnv->pAudioSystem->CreateObject(objectData);
-				m_currentAudioOcclusionType = spawnParams.occlusionType;
-
-				if (!spawnParams.audioRtpc.empty())
+				if (!params.sStartTrigger.empty())
 				{
-					gEnv->pAudioSystem->GetAudioParameterId(spawnParams.audioRtpc.c_str(), m_audioParameterId);
+					m_startAudioTriggerId = CryAudio::StringToId_RunTime(params.sStartTrigger.c_str());
+				}
 
-					if (m_audioParameterId != CryAudio::InvalidControlId)
+				if (!params.sStopTrigger.empty())
+				{
+					m_stopAudioTriggerId = CryAudio::StringToId_RunTime(params.sStopTrigger.c_str());
+				}
+
+				if (m_startAudioTriggerId != CryAudio::InvalidControlId || m_stopAudioTriggerId != CryAudio::InvalidControlId)
+				{
+					CryAudio::SCreateObjectData const objectData("ParticleSubEmitter", spawnParams.occlusionType, GetEmitTM(), INVALID_ENTITYID, true);
+					m_pIAudioObject = gEnv->pAudioSystem->CreateObject(objectData);
+					m_currentAudioOcclusionType = spawnParams.occlusionType;
+
+					if (!spawnParams.audioRtpc.empty())
 					{
+						m_audioParameterId = CryAudio::StringToId_RunTime(spawnParams.audioRtpc.c_str());
 						float const value = params.fSoundFXParam(m_ChaosKey, GetStrength(0.0f, params.eSoundControlTime));
 						m_pIAudioObject->SetParameter(m_audioParameterId, value);
 					}
-				}
 
-				// Execute start trigger immediately.
-				if (m_startAudioTriggerId != CryAudio::InvalidControlId)
-				{
-					m_pIAudioObject->ExecuteTrigger(m_startAudioTriggerId);
+					// Execute start trigger immediately.
+					if (m_startAudioTriggerId != CryAudio::InvalidControlId)
+					{
+						m_pIAudioObject->ExecuteTrigger(m_startAudioTriggerId);
+					}
 				}
 			}
 		}

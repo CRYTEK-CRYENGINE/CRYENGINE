@@ -18,19 +18,6 @@ CUserAnalyticsSystem::CUserAnalyticsSystem()
 	: m_pUserAnalyticsPlugin(nullptr)
 	, m_pUserAnalytics(nullptr)
 {
-	ICryPluginManager* pPluginManager = GetISystem()->GetIPluginManager();
-	if (pPluginManager != nullptr)
-	{
-		const bool bSuccess = pPluginManager->LoadPluginFromDisk(ICryPluginManager::EPluginType::EPluginType_CPP, "CryUserAnalytics", "Plugin_CryUserAnalytics");
-
-		if (bSuccess)
-		{
-			pPluginManager->RegisterEventListener(cryiidof<ICryUserAnalyticsPlugin>(), this);
-
-			Initialize();
-		}
-
-	}
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -74,6 +61,8 @@ void CUserAnalyticsSystem::Initialize()
 
 		if (m_pUserAnalyticsPlugin != nullptr)
 		{
+			pPluginManager->RegisterEventListener(cryiidof<ICryUserAnalyticsPlugin>(), this);
+
 			m_pUserAnalytics = m_pUserAnalyticsPlugin->GetIUserAnalytics();
 		}
 	}
@@ -82,11 +71,7 @@ void CUserAnalyticsSystem::Initialize()
 ///////////////////////////////////////////////////////////////////////////
 void CUserAnalyticsSystem::OnPluginEvent(const CryClassID& pluginClassId, IPluginEventListener::EPluginEvent event)
 {
-	if (event == IPluginEventListener::EPluginEvent::Initialized)
-	{
-		Initialize();
-	}
-	else if (event == IPluginEventListener::EPluginEvent::Unloaded)
+	if (event == IPluginEventListener::EPluginEvent::Unloaded)
 	{
 		m_pUserAnalyticsPlugin = nullptr;
 		m_pUserAnalytics = nullptr;

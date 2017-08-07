@@ -6,9 +6,9 @@
 
 #include <CryAISystem/INavigationSystem.h>
 
-namespace uqs
+namespace UQS
 {
-	namespace stdlib
+	namespace StdLib
 	{
 
 		//===================================================================================

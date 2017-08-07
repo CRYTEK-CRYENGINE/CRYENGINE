@@ -105,7 +105,10 @@ void CMannequinObject::Reset()
 	if (!m_pAnimatedCharacter)
 	{
 		m_pAnimatedCharacter = static_cast<IAnimatedCharacter*>(pGameObject->AcquireExtension("AnimatedCharacter"));
-		assert(m_pAnimatedCharacter);
+		if (!m_pAnimatedCharacter)
+		{
+			return;
+		}
 	}
 
 	m_pAnimatedCharacter->ResetState();

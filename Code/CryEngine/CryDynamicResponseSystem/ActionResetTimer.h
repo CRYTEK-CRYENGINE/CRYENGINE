@@ -18,7 +18,7 @@ class CVariableCollection;
 class CActionResetTimerVariable final : public IVariableUsingBase, public DRS::IResponseAction
 {
 public:
-	CActionResetTimerVariable() {}
+	CActionResetTimerVariable() = default;
 	CActionResetTimerVariable(const CHashedString& collection, const CHashedString& variableName) {}
 
 	//////////////////////////////////////////////////////////

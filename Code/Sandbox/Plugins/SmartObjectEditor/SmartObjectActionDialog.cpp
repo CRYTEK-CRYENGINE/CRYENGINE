@@ -47,7 +47,7 @@ void CSmartObjectActionDialog::OnNewBtn()
 		if (pAction)
 		{
 			CFlowGraphManager* pManager = GetIEditor()->GetFlowGraphManager();
-			CFlowGraph* pFlowGraph = pManager->FindGraphForAction(pAction);
+			CHyperFlowGraph* pFlowGraph = pManager->FindGraphForAction(pAction);
 			assert(pFlowGraph);
 			if (pFlowGraph)
 				pManager->OpenView(pFlowGraph);
@@ -65,7 +65,7 @@ void CSmartObjectActionDialog::OnEditBtn()
 	if (pAction)
 	{
 		CFlowGraphManager* pManager = GetIEditor()->GetFlowGraphManager();
-		CFlowGraph* pFlowGraph = pManager->FindGraphForAction(pAction);
+		CHyperFlowGraph* pFlowGraph = pManager->FindGraphForAction(pAction);
 		assert(pFlowGraph);
 		if (pFlowGraph)
 			pManager->OpenView(pFlowGraph);

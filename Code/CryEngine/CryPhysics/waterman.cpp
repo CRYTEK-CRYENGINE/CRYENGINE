@@ -621,3 +621,22 @@ void CWaterMan::DrawHelpers(IPhysRenderer *pRenderer)
 		}
 	}
 }
+
+void CWaterMan::GetMemoryStatistics(ICrySizer *pSizer) const
+{
+	pSizer->AddObject((const char*)this, sizeof(*this));
+	int n = sqr(m_nTiles*2+1)+1;
+	pSizer->AddObject(m_pTiles, n*sizeof(m_pTiles[0]));
+	for(int i=0;i<n;i++) {
+		pSizer->AddObject(m_pTiles[i], sizeof(m_pTiles[i]));
+		pSizer->AddObject(m_pTiles[i]->ph,  sqr(m_nCells)*sizeof(m_pTiles[i]->ph[0]));
+		pSizer->AddObject(m_pTiles[i]->pvel,sqr(m_nCells)*sizeof(m_pTiles[i]->pvel[0]));
+		pSizer->AddObject(m_pTiles[i]->mv,  sqr(m_nCells)*sizeof(m_pTiles[i]->mv[0]));
+		pSizer->AddObject(m_pTiles[i]->m,   sqr(m_nCells)*sizeof(m_pTiles[i]->m[0]));
+		pSizer->AddObject(m_pTiles[i]->norm,sqr(m_nCells)*sizeof(m_pTiles[i]->norm[0]));
+	}
+	pSizer->AddObject(m_pTilesTmp, n*sizeof(m_pTilesTmp[0])); 
+	pSizer->AddObject(m_pCellMask, (n=sqr((m_nTiles*2+1)*m_nCells+2))*sizeof(m_pCellMask[0]));
+	pSizer->AddObject(m_pCellNorm, n*sizeof(m_pCellNorm[0]));
+	pSizer->AddObject(m_pCellQueue, m_szCellQueue*sizeof(m_pCellQueue[0]));
+}

@@ -5,14 +5,14 @@
 
 #include "ScriptBrowserUtils.h"
 
-#include <Schematyc/Reflection/TypeDesc.h>
+#include <CrySchematyc/Reflection/TypeDesc.h>
 
-#include <Schematyc/Script/IScriptView.h>
-#include <Schematyc/Script/IScriptRegistry.h>
+#include <CrySchematyc/Script/IScriptView.h>
+#include <CrySchematyc/Script/IScriptRegistry.h>
 
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/IEnvElement.h>
-#include <Schematyc/Env/Elements/IEnvDataType.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/IEnvElement.h>
+#include <CrySchematyc/Env/Elements/IEnvDataType.h>
 
 namespace CrySchematycEditor {
 
@@ -92,7 +92,7 @@ void CTypesDictionary::Load(const Schematyc::IScriptElement* pScriptScope)
 
 			return Schematyc::EVisitStatus::Continue;
 		};
-		pScriptView->VisitEnvDataTypes(Schematyc::EnvDataTypeConstVisitor::FromLambda(visitEnvType));
+		pScriptView->VisitEnvDataTypes(visitEnvType);
 
 		auto visitScriptEnum = [this, &pScriptView](const Schematyc::IScriptEnum& scriptEnum)
 		{
@@ -104,7 +104,7 @@ void CTypesDictionary::Load(const Schematyc::IScriptElement* pScriptScope)
 			entry.m_elementId = Schematyc::SElementId(Schematyc::EDomain::Script, scriptEnum.GetGUID());
 			m_types.push_back(entry);
 		};
-		pScriptView->VisitAccesibleEnums(Schematyc::ScriptEnumConstVisitor::FromLambda(visitScriptEnum));
+		pScriptView->VisitAccesibleEnums(visitScriptEnum);
 
 		auto visitScriptStruct = [this, &pScriptView](const Schematyc::IScriptStruct& scriptStruct)
 		{
@@ -118,7 +118,7 @@ void CTypesDictionary::Load(const Schematyc::IScriptElement* pScriptScope)
 
 			return Schematyc::EVisitStatus::Continue;
 		};
-		//pScriptView->VisitScriptStructs(ScriptEnumConstVisitor::FromLambda(visitScriptStruct), EDomainScope::Local);
+		//pScriptView->VisitScriptStructs(visitScriptStruct, EDomainScope::Local);
 	}
 }
 

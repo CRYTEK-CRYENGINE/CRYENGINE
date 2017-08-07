@@ -27,7 +27,7 @@ public:
 		, m_projectPosition(true)
 		, m_projectVelocity(true)
 		, m_projectAngles(false)
-		, m_spawnOnly(false) {}
+		, m_spawnOnly(true) {}
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
@@ -91,7 +91,7 @@ private:
 		IOVec3Stream velocities = container.GetIOVec3Stream(EPVF_Velocity);
 		IOQuatStream orientations = container.GetIOQuatStream(EPQF_Orientation);
 
-		CRY_PFX2_FOR_RANGE_PARTICLES(range)
+		for (auto particleId : range)
 		{
 			const PosNorm posNormSample = posNormArray[particleId];
 
@@ -132,7 +132,6 @@ private:
 				}
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 private:
@@ -162,13 +161,12 @@ private:
 		const IVec3Stream positions = container.GetIVec3Stream(EPVF_Position);
 		const IFStream sizes = container.GetIFStream(EPDT_Size);
 
-		CRY_PFX2_FOR_RANGE_PARTICLES(range)
+		for (auto particleId : range)
 		{
 			const Vec3 position = positions.Load(particleId);
 			const float size = sizes.Load(particleId);
 			samples[particleId] = SampleTerrain(*pTerrain, position, size);
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 	ILINE PosNorm SampleTerrain(const CTerrain& terrain, const Vec3 position, const float size) const
@@ -213,7 +211,7 @@ private:
 		auto states = container.GetTIOStream<uint8>(EPDT_State);
 		IOFStream ages = container.GetIOFStream(EPDT_NormalAge);
 
-		CRY_PFX2_FOR_RANGE_PARTICLES(range)
+		for (auto particleId : range)
 		{
 			Plane waterPlane;
 			const Vec3 position = positions.Load(particleId);
@@ -232,7 +230,6 @@ private:
 				ages.Store(particleId, 1.0f);
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 };
 

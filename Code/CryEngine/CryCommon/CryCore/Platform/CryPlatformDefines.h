@@ -24,6 +24,9 @@
 	#if defined(__ARM_NEON__)
 		#define CRY_PLATFORM_NEON 1
 	#endif
+#elif defined(__aarch64__)
+	#define CRY_PLATFORM_ARM    1
+	#define CRY_PLATFORM_64BIT  1
 #else
 	#define CRY_PLATFORM_UNKNOWNCPU 1
 #endif
@@ -81,8 +84,8 @@
 	#define CRY_PLATFORM_MOBILE  1
 	#define CRY_PLATFORM_ANDROID 1
 	#define CRY_PLATFORM_POSIX   1
-	#if !CRY_PLATFORM_ARM || !CRY_PLATFORM_32BIT
-		#error Unsupported Android CPU (the only supported is 32-bit ARM).
+	#if CRY_PLATFORM_ARM && !(CRY_PLATFORM_64BIT || CRY_PLATFORM_32BIT)
+		#error Unsupported Android CPU (only 32-bit and 64-bit ARM are supported).
 	#endif
 
 #elif defined(_WIN32)
@@ -118,9 +121,9 @@
 #if CRY_PLATFORM_AVX
 #define CRY_PLATFORM_ALIGNMENT 32
 #elif CRY_PLATFORM_SSE2 || CRY_PLATFORM_SSE4 || CRY_PLATFORM_NEON
-#define CRY_PLATFORM_ALIGNMENT 16
+#define CRY_PLATFORM_ALIGNMENT 16U
 #else
-#define CRY_PLATFORM_ALIGNMENT 1
+#define CRY_PLATFORM_ALIGNMENT 1U
 #endif
 
 // Validation

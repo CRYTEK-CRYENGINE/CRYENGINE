@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <Schematyc/Script/Elements/IScriptRoot.h>
-#include <Schematyc/SerializationUtils/MultiPassSerializer.h>
+#include <CrySchematyc/Script/Elements/IScriptRoot.h>
+#include <CrySchematyc/SerializationUtils/MultiPassSerializer.h>
 
 #include "Script/ScriptElementBase.h"
 

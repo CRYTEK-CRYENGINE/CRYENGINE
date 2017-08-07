@@ -22,7 +22,7 @@ class CProceduralContextColliderMode
 	: public IProceduralContext
 {
 public:
-	PROCEDURAL_CONTEXT( CProceduralContextColliderMode, PROCEDURAL_CONTEXT_COLLIDER_MODE_NAME, 0x2857e483964b45e4, 0x8e9e6a481db8c166 );
+	PROCEDURAL_CONTEXT(CProceduralContextColliderMode, PROCEDURAL_CONTEXT_COLLIDER_MODE_NAME, "2857e483-964b-45e4-8e9e-6a481db8c166"_cry_guid);
 
 	virtual ~CProceduralContextColliderMode() {}
 

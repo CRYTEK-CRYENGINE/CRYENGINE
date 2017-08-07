@@ -50,6 +50,7 @@ public:
 
 	virtual CPhysicalEntity *GetEntity();
 	virtual CPhysicalEntity *GetEntityFast() { return (CPhysicalEntity*)m_pEntBuddy; }
+	virtual bool IsPlaceholder() const { return true; };
 
 	virtual int AddRef() { return 0; }
 	virtual int Release() { return 0; }
@@ -97,6 +98,9 @@ public:
 	};
 	vec2dpacked m_ig[2];
 	int m_iGThunk0;
+#ifdef MULTI_GRID
+	struct SEntityGrid *m_pGrid = nullptr;
+#endif
 
 	CPhysicalPlaceholder *m_pEntBuddy;
 	volatile unsigned int m_bProcessed;

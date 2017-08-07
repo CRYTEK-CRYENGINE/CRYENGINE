@@ -321,7 +321,7 @@ end_sources()
 #END-FILE-LIST
 
 CryEngineStaticModule(alembic SOLUTION_FOLDER "Libs")
-target_include_directories(${THIS_PROJECT} PRIVATE ${SDK_DIR}/Alembic/lib )
+target_include_directories(${THIS_PROJECT} PRIVATE "${SDK_DIR}/Alembic/lib" )
 target_compile_definitions(${THIS_PROJECT} PRIVATE -DNOMINMAX) # No min/max macro (from Windows.h)
 target_compile_definitions(${THIS_PROJECT} PRIVATE -D_SCL_SECURE_NO_WARNINGS)  # Potentially unsafe use of std::copy
 target_compile_options(${THIS_PROJECT} PRIVATE /GR /EHsc ) # Enable exceptions.
@@ -332,6 +332,6 @@ target_compile_options(${THIS_PROJECT} PRIVATE /W0 ) # Disable warnings from 3rd
 # Hopefully this can be removed once Alembic code is updated to work better with VS2015.
 target_compile_options(${THIS_PROJECT} PRIVATE /FIalgorithm )
 target_link_libraries( ${THIS_PROJECT} PRIVATE hdf5 ilmbase )
-target_include_directories(${THIS_PROJECT} INTERFACE ${SDK_DIR}/Alembic/lib )
+target_include_directories(${THIS_PROJECT} INTERFACE "${SDK_DIR}/Alembic/lib" )
 
 

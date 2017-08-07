@@ -1,37 +1,32 @@
 {
-	"CryFont_Uber_0.cpp":
-	{
-		"Source Files":
-		[
-			"CryFont.cpp",
-			"FFont.cpp",
-			"FFontXML.cpp",
-			"FontRenderer.cpp",
-			"FontTexture.cpp",
-			"GlyphBitmap.cpp",
-			"GlyphCache.cpp",
-			"ICryFont.cpp",
-			"NullFont.cpp"
-		],
-		"Header Files":
-		[
-			"CryFont.h",
-			"FFont.h",
-			"FontRenderer.h",
-			"FontTexture.h",
-			"GlyphBitmap.h",
-			"GlyphCache.h",
-			"NullFont.h",
-			"resource.h",
-			"FBitmap.h"
-		]	
-	},
-	"NoUberFile":
-	{
-		"Root":
-		[
-			"StdAfx.cpp",
-			"StdAfx.h"
-		]
-	}
+  "CryFont_Uber_0.cpp": {
+    "Header Files": [
+      "CryFont.h", 
+      "FFont.h", 
+      "FontRenderer.h", 
+      "FontTexture.h", 
+      "GlyphBitmap.h", 
+      "GlyphCache.h", 
+      "NullFont.h", 
+      "resource.h", 
+      "FBitmap.h"
+    ], 
+    "Source Files": [
+      "CryFont.cpp", 
+      "FFont.cpp", 
+      "FFontXML.cpp", 
+      "FontRenderer.cpp", 
+      "FontTexture.cpp", 
+      "GlyphBitmap.cpp", 
+      "GlyphCache.cpp", 
+      "ICryFont.cpp", 
+      "NullFont.cpp"
+    ]
+  }, 
+  "NoUberFile": {
+    "Root": [
+      "StdAfx.cpp", 
+      "StdAfx.h"
+    ]
+  }
 }

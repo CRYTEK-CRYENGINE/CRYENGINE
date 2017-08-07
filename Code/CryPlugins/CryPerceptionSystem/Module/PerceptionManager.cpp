@@ -53,20 +53,24 @@ CPerceptionManager* CPerceptionManager::s_pInstance = nullptr;
 
 //-----------------------------------------------------------------------------------------------------------
 CPerceptionManager::CPerceptionManager() :
-	m_pScriptBind(nullptr)
+	m_pScriptBind(nullptr),
+	m_bRegistered(false)
 {
+	GetISystem()->GetISystemEventDispatcher()->RegisterListener(this, "CPerceptionManager");
+	
 	Reset(IAISystem::RESET_INTERNAL);
 	for (unsigned i = 0; i < AI_MAX_STIMULI; ++i)
 	{
 		m_stimulusTypes[i].Reset();
 	}
 
-	CRY_ASSERT(gEnv->pAISystem);
 	if (gEnv->pAISystem)
 	{
 		gEnv->pAISystem->RegisterSystemComponent(this);
 		gEnv->pAISystem->Callbacks().ObjectCreated().Add(functor(*this, &CPerceptionManager::OnAIObjectCreated));
 		gEnv->pAISystem->Callbacks().ObjectRemoved().Add(functor(*this, &CPerceptionManager::OnAIObjectRemoved));
+
+		m_bRegistered = true;
 	}
 
 	m_cVars.Init();
@@ -78,6 +82,8 @@ CPerceptionManager::CPerceptionManager() :
 //-----------------------------------------------------------------------------------------------------------
 CPerceptionManager::~CPerceptionManager()
 {
+	GetISystem()->GetISystemEventDispatcher()->RemoveListener(this);
+	
 	if (gEnv->pAISystem)
 	{
 		gEnv->pAISystem->Callbacks().ObjectCreated().Remove(functor(*this, &CPerceptionManager::OnAIObjectCreated));
@@ -85,6 +91,22 @@ CPerceptionManager::~CPerceptionManager()
 		gEnv->pAISystem->UnregisterSystemComponent(this);
 	}
 	delete m_pScriptBind;
+}
+
+void CPerceptionManager::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
+{
+	if (event == ESYSTEM_EVENT_CRYSYSTEM_INIT_DONE)
+	{
+		CRY_ASSERT(gEnv->pAISystem);
+		if (!m_bRegistered && gEnv->pAISystem)
+		{
+			gEnv->pAISystem->RegisterSystemComponent(this);
+			gEnv->pAISystem->Callbacks().ObjectCreated().Add(functor(*this, &CPerceptionManager::OnAIObjectCreated));
+			gEnv->pAISystem->Callbacks().ObjectRemoved().Add(functor(*this, &CPerceptionManager::OnAIObjectRemoved));
+
+			m_bRegistered = true;
+		}
+	}
 }
 
 //-----------------------------------------------------------------------------------------------------------

@@ -839,13 +839,6 @@ bool CShaderSerialize::ImportShader(CShader* pSH, CShaderManBin& binShaderMgr)
 					pT->m_REs.push_back(pLensOptics);
 				}
 				break;
-			case eDATA_Beam:
-				{
-					CREBeam* pBeam = new CREBeam;
-					pBeam->mfImport(SC, nREOffset);
-					pT->m_REs.push_back(pBeam);
-				}
-				break;
 
 			default:
 				CryFatalError("Render element not supported for shader serialising");

@@ -5,4 +5,6 @@
 #include "../Interfaces/InterfacesIncludes.h"
 
 #include "shared/UqsString.h"
+#include "shared/TimeValueUtil.h"
 #include "shared/VariantDict.h"
+#include "shared/FactoryBase.h"

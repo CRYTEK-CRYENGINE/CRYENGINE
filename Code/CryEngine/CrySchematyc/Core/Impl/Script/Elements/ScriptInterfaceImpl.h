@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <Schematyc/Script/Elements/IScriptInterfaceImpl.h>
-#include <Schematyc/SerializationUtils/MultiPassSerializer.h>
+#include <CrySchematyc/Script/Elements/IScriptInterfaceImpl.h>
+#include <CrySchematyc/SerializationUtils/MultiPassSerializer.h>
 
 #include "Script/ScriptElementBase.h"
 
@@ -17,7 +17,7 @@ class CScriptInterfaceImpl : public CScriptElementBase<IScriptInterfaceImpl>, pu
 public:
 
 	CScriptInterfaceImpl();
-	CScriptInterfaceImpl(const SGUID& guid, EDomain domain, const SGUID& refGUID);
+	CScriptInterfaceImpl(const CryGUID& guid, EDomain domain, const CryGUID& refGUID);
 
 	// IScriptElement
 	virtual void EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const override;
@@ -28,7 +28,7 @@ public:
 
 	// IScriptInterfaceImpl
 	virtual EDomain GetDomain() const override;
-	virtual SGUID   GetRefGUID() const override;
+	virtual CryGUID   GetRefGUID() const override;
 	// ~IScriptInterfaceImpl
 
 protected:
@@ -44,12 +44,12 @@ private:
 	void RefreshEnvInterfaceFunctions(const IEnvInterface& envInterface);
 	//void RefreshScriptInterfaceFunctions(const IScriptFile& interfaceFile);
 	//void RefreshScriptInterfaceTasks(const IScriptFile& iInterfaceFile);
-	//void RefreshScriptInterfaceTaskPropertiess(const IScriptFile& interfaceFile, const SGUID& taskGUID);
+	//void RefreshScriptInterfaceTaskPropertiess(const IScriptFile& interfaceFile, const CryGUID& taskGUID);
 
 private:
 
 	// #SchematycTODO : Replace m_domain and m_refGUID with SElementId!!!
 	EDomain m_domain;
-	SGUID   m_refGUID;
+	CryGUID   m_refGUID;
 };
 } // Schematyc

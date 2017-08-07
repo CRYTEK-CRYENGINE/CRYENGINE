@@ -213,8 +213,8 @@ bool CSoftwareMesh::Create(IRenderMesh& renderMesh, const DynArray<RChunk>& rend
 
 	AllocateVertices(vertexCount);
 
-	const bool texCoordsAre32Bits = renderMesh.GetVertexFormat() == eVF_P3F_C4B_T2F;
-	CRY_ASSERT(texCoordsAre32Bits || renderMesh.GetVertexFormat() == eVF_P3S_C4B_T2S);
+	const bool texCoordsAre32Bits = renderMesh.GetVertexFormat() == EDefaultInputLayouts::P3F_C4B_T2F;
+	CRY_ASSERT(texCoordsAre32Bits || renderMesh.GetVertexFormat() == EDefaultInputLayouts::P3S_C4B_T2S);
 
 	strided_pointer<Vec3> positions = GetWritePositions();
 	strided_pointer<uint32> colors = GetWriteColors();

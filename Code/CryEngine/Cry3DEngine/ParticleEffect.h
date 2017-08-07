@@ -282,6 +282,14 @@ struct FMaxEffectLife
 	OPT_VAR(float, fEmitterMaxLife)
 };
 
+struct SEffectCounts
+{
+	int nLoaded, nUsed, nEnabled, nActive;
+
+	SEffectCounts()	{ ZeroStruct(*this); }
+};
+
+
 /*!	CParticleEffect implements IParticleEffect interface and contain all components necessary to
     to create the effect
  */
@@ -312,8 +320,8 @@ public:
 	virtual stack_string      GetFullName() const;
 
 	virtual void              SetEnabled(bool bEnabled);
-	virtual bool              IsEnabled() const
-	{ return m_pParticleParams && m_pParticleParams->bEnabled; };
+	virtual bool              IsEnabled(uint options = 0) const;
+
 	virtual bool              IsTemporary() const;
 
 	//////////////////////////////////////////////////////////////////////////
@@ -374,8 +382,7 @@ public:
 	bool                   ResourcesLoaded(bool bAll) const;
 	bool                   LoadResources(bool bAll, cstr sSource = 0) const;
 	void                   UnloadResources(bool bAll) const;
-	bool                   IsActive(bool bAll = false) const;
-	uint32                 GetEnvironFlags(bool bAll) const;
+	bool                   IsActive() const { return IsEnabled(eCheckFeatures | eCheckConfig | eCheckChildren); }
 
 	CParticleEffect*       FindChild(const char* szChildName) const;
 	const CParticleEffect* FindActiveEffect(int nVersion) const;

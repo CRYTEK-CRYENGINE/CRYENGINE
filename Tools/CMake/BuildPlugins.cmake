@@ -1,16 +1,7 @@
-#Plugins
-option(PLUGIN_FPSPLUGIN "Frames per second sample plugin" OFF)
-
-if(WIN32 OR WIN64)
-	option(PLUGIN_USERANALYTICS "Enable User Analytics" ON)
-	option(PLUGIN_VR_OCULUS "Oculus support" ON)
-	option(PLUGIN_VR_OSVR "OSVR support" ON)
-	option(PLUGIN_VR_OPENVR "OpenVR support" ON)
-	option(OPTION_CRYMONO "C# support" OFF)
-endif()
-
 # CryExtensions
-add_subdirectory(Code/CryExtensions)
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Code/CryExtensions")
+	add_subdirectory(Code/CryExtensions)
+endif()
 
 # Mandatory plugin, contains entities required by the engine
 if (OPTION_ENGINE)

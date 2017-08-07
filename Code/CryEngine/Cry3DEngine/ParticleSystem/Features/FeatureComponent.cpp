@@ -114,9 +114,7 @@ public:
 	{
 		CRY_PFX2_PROFILE_DETAILS;
 
-		CVars* pCVars = static_cast<C3DEngine*>(gEnv->p3DEngine)->GetCVars();
-		const ESystemConfigSpec configSpec = gEnv->pSystem->GetConfigSpec();
-		const uint particleSpec = pCVars->e_ParticlesQuality != 0 ? pCVars->e_ParticlesQuality : configSpec;
+		const uint particleSpec = pEmitter->GetParticleSpec();
 		const bool isPc = particleSpec <= CONFIG_VERYHIGH_SPEC;
 
 		if (isPc)

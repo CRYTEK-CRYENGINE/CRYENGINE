@@ -896,7 +896,8 @@ bool CCrySteamMatchMaking::LobbyAddrIDHasPendingData()
 
 ESocketError CCrySteamMatchMaking::LobbyAddrIDSend(const uint8* buffer, uint32 size, const TNetAddress& addr)
 {
-	CSteamID steamID(boost::get<LobbyIdAddr>(&addr)->id);
+	auto lobbyIdAddr = stl::get<LobbyIdAddr>(addr);
+	CSteamID steamID(lobbyIdAddr.id);
 
 	bool sent = SteamNetworking()->SendP2PPacket(steamID, buffer, size, k_EP2PSendUnreliable);
 	if (sent)

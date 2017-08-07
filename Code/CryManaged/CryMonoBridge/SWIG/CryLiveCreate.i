@@ -9,6 +9,7 @@
 #include <CryLiveCreate/ILiveCreatePlatform.h>
 %}
 
+%ignore ILiveCreateEngineModule;
 
 %include "../../../../CryEngine/CryCommon/CryLiveCreate/ILiveCreateCommon.h"
 %include "../../../../CryEngine/CryCommon/CryLiveCreate/ILiveCreateHost.h"

@@ -33,8 +33,6 @@ struct AIConsoleVars
 	DeclareConstIntCVar(DebugDrawDynamicHideObjectsRange, 0);
 	DeclareConstIntCVar(DebugDrawVolumeVoxels, 0);
 	DeclareConstIntCVar(DebugPathFinding, 0);
-	DeclareConstIntCVar(DebugCheckWalkability, 0);
-	DeclareConstIntCVar(DebugWalkabilityCache, 0);
 	DeclareConstIntCVar(DebugDrawBannedNavsos, 0);
 	DeclareConstIntCVar(DebugDrawGroups, 0);
 	DeclareConstIntCVar(DebugDrawCoolMisses, 0);
@@ -133,9 +131,6 @@ struct AIConsoleVars
 	DeclareConstIntCVar(DebugInterest, 0);
 	DeclareConstIntCVar(InterestSystemCastRays, 1);
 
-	// Code coverage
-	DeclareConstIntCVar(CodeCoverage, 0);
-
 	// Path Follower
 	DeclareConstIntCVar(UseSmartPathFollower, 1);
 	DeclareConstIntCVar(SmartpathFollower_UseAABB_CheckWalkibility, 1);
@@ -217,7 +212,6 @@ struct AIConsoleVars
 	float       DebugDrawArrowLabelsVisibilityDistance;
 	const char* DebugDrawAStarOpenList;
 	float       DebugDrawAStarOpenListTime;
-	float       DebugCheckWalkabilityRadius;
 
 	float       CoverPredictTarget;
 	float       CoverSpacing;
@@ -251,8 +245,6 @@ struct AIConsoleVars
 	const char* DrawShooting;
 	float       BurstWhileMovingDestinationRange;
 	const char* DrawAgentStats;
-
-	const char* DebugHideSpotName;
 
 	float       SOMSpeedRelaxed;
 	float       SOMSpeedCombat;

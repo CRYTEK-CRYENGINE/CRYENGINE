@@ -7,10 +7,13 @@
 #include <CryPhysics/IPhysics.h>
 #include <CrySystem/IWindowMessageHandler.h>
 
+#include <CryMath/Random.h>
+
 #include "Timer.h"
 #include <CrySystem/CryVersion.h>
 #include "CmdLine.h"
 #include <CryString/CryName.h>
+#include <CryMath/Cry_Camera.h>
 
 #include "FrameProfileSystem.h"
 #include "MTSafeAllocator.h"
@@ -26,7 +29,6 @@ class CServerThrottle;
 struct ICryFactoryRegistryImpl;
 struct IZLibCompressor;
 class CLoadingProfilerSystem;
-class CWatchdogThread;
 struct SThreadMetaData;
 class CResourceManager;
 class CThreadManager;
@@ -54,8 +56,6 @@ namespace LiveCreate
 struct IManager;
 struct IHost;
 }
-
-struct IMonoRuntime;
 
 #if CRY_PLATFORM_ANDROID
 	#define USE_ANDROIDCONSOLE
@@ -85,11 +85,7 @@ struct IMonoRuntime;
 
 #define NUM_UPDATE_TIMES (128U)
 
-#if CRY_PLATFORM_WINDOWS
 typedef void* WIN_HMODULE;
-#else
-typedef void* WIN_HMODULE;
-#endif
 
 #if !defined(CRY_ASYNC_MEMCPY_DELEGATE_TO_CRYSYSTEM)
 CRY_ASYNC_MEMCPY_API void cryAsyncMemcpy(void* dst, const void* src, size_t size, int nFlags, volatile int* sync);
@@ -317,33 +313,33 @@ public:
 	virtual const sUpdateTimes*  GetUpdateTimeStats(uint32&, uint32&) override;
 	virtual void                 FillRandomMT(uint32* pOutWords, uint32 numWords) override;
 
-	virtual CRndGen&             GetRandomGenerator() override  { return m_randomGenerator; }
+	virtual CRndGen&             GetRandomGenerator() override   { return m_randomGenerator; }
 
-	INetwork*                    GetINetwork() override         { return m_env.pNetwork; }
-	IRenderer*                   GetIRenderer() override        { return m_env.pRenderer; }
-	IInput*                      GetIInput() override           { return m_env.pInput; }
-	ITimer*                      GetITimer() override           { return m_env.pTimer; }
-	ICryPak*                     GetIPak() override             { return m_env.pCryPak; };
-	IConsole*                    GetIConsole() override         { return m_env.pConsole; };
+	INetwork*                    GetINetwork() override          { return m_env.pNetwork; }
+	IRenderer*                   GetIRenderer() override         { return m_env.pRenderer; }
+	IInput*                      GetIInput() override            { return m_env.pInput; }
+	ITimer*                      GetITimer() override            { return m_env.pTimer; }
+	ICryPak*                     GetIPak() override              { return m_env.pCryPak; };
+	IConsole*                    GetIConsole() override          { return m_env.pConsole; };
 	IRemoteConsole*              GetIRemoteConsole() override;
-	IScriptSystem*               GetIScriptSystem() override    { return m_env.pScriptSystem; }
-	I3DEngine*                   GetI3DEngine() override        { return m_env.p3DEngine; }
-	ICharacterManager*           GetIAnimationSystem() override { return m_env.pCharacterManager; }
-	CryAudio::IAudioSystem*      GetIAudioSystem() override     { return m_env.pAudioSystem; }
-	IPhysicalWorld*              GetIPhysicalWorld() override   { return m_env.pPhysicalWorld; }
-	IMovieSystem*                GetIMovieSystem() override     { return m_env.pMovieSystem; };
-	IAISystem*                   GetAISystem() override         { return m_env.pAISystem; }
-	IMemoryManager*              GetIMemoryManager() override   { return m_pMemoryManager; }
-	IEntitySystem*               GetIEntitySystem() override    { return m_env.pEntitySystem; }
-	LiveCreate::IHost*           GetLiveCreateHost()            { return m_env.pLiveCreateHost; }
-	LiveCreate::IManager*        GetLiveCreateManager()         { return m_env.pLiveCreateManager; }
-	IThreadManager*              GetIThreadManager() override   { return m_env.pThreadManager; }
-	IMonoRuntime*                GetIMonoRuntime() override     { return m_env.pMonoRuntime; }
-	ICryFont*                    GetICryFont() override         { return m_env.pCryFont; }
-	ILog*                        GetILog() override             { return m_env.pLog; }
-	ICmdLine*                    GetICmdLine() override         { return m_pCmdLine; }
+	IScriptSystem*               GetIScriptSystem() override     { return m_env.pScriptSystem; }
+	I3DEngine*                   GetI3DEngine() override         { return m_env.p3DEngine; }
+	ICharacterManager*           GetIAnimationSystem() override  { return m_env.pCharacterManager; }
+	CryAudio::IAudioSystem*      GetIAudioSystem() override      { return m_env.pAudioSystem; }
+	IPhysicalWorld*              GetIPhysicalWorld() override    { return m_env.pPhysicalWorld; }
+	IMovieSystem*                GetIMovieSystem() override      { return m_env.pMovieSystem; };
+	IAISystem*                   GetAISystem() override          { return m_env.pAISystem; }
+	IMemoryManager*              GetIMemoryManager() override    { return m_pMemoryManager; }
+	IEntitySystem*               GetIEntitySystem() override     { return m_env.pEntitySystem; }
+	LiveCreate::IHost*           GetLiveCreateHost()             { return m_env.pLiveCreateHost; }
+	LiveCreate::IManager*        GetLiveCreateManager()          { return m_env.pLiveCreateManager; }
+	IThreadManager*              GetIThreadManager() override    { return m_env.pThreadManager; }
+	IMonoEngineModule*           GetIMonoEngineModule() override { return m_env.pMonoRuntime; }
+	ICryFont*                    GetICryFont() override          { return m_env.pCryFont; }
+	ILog*                        GetILog() override              { return m_env.pLog; }
+	ICmdLine*                    GetICmdLine() override          { return m_pCmdLine; }
 	IStreamEngine*               GetStreamEngine() override;
-	IValidator*                  GetIValidator() override       { return m_pValidator; };
+	IValidator*                  GetIValidator() override        { return m_pValidator; };
 	IPhysicsDebugRenderer*       GetIPhysicsDebugRenderer() override;
 	IPhysRenderer*               GetIPhysRenderer() override;
 	IFrameProfileSystem*         GetIProfileSystem() override         { return &m_FrameProfileSystem; }
@@ -356,7 +352,7 @@ public:
 	DRS::IDynamicResponseSystem* GetIDynamicResponseSystem()          { return m_env.pDynamicResponseSystem; }
 	IHardwareMouse*              GetIHardwareMouse() override         { return m_env.pHardwareMouse; }
 	ISystemEventDispatcher*      GetISystemEventDispatcher() override { return m_pSystemEventDispatcher; }
-	ITestSystem*                 GetITestSystem() override            { return m_pTestSystem; }
+	ITestSystem*                 GetITestSystem() override            { return m_pTestSystem.get(); }
 	IUserAnalyticsSystem*        GetIUserAnalyticsSystem() override   { return m_pUserAnalyticsSystem; }
 	ICryPluginManager*           GetIPluginManager() override         { return m_pPluginManager; }
 	IProjectManager*             GetIProjectManager() override;
@@ -422,9 +418,7 @@ public:
 	void                                 SetGCFrequency(const float fRate);
 
 	void                                 SetIProcess(IProcess* process) override;
-	IProcess*                            GetIProcess() override      { return m_pProcess; }
-
-	bool                                 IsTestMode() const override { return m_bTestMode; }
+	IProcess*                            GetIProcess() override { return m_pProcess; }
 	//@}
 
 	void                    SleepIfNeeded();
@@ -499,8 +493,9 @@ public:
 
 	void         SetVersionInfo(const char* const szVersion);
 
-	virtual bool InitializeEngineModule(const char* dllName, const char* moduleClassName, bool bQuitIfNotFound) override;
-	virtual bool UnloadEngineModule(const char* dllName, const char* moduleClassName) override;
+	virtual ICryFactory* LoadModuleWithFactory(const char* dllName, const CryInterfaceID& moduleInterfaceId) override;
+	virtual bool         InitializeEngineModule(const char* dllName, const CryInterfaceID& moduleInterfaceId, bool bQuitIfNotFound) override;
+	virtual bool         UnloadEngineModule(const char* dllName) override;
 
 #if CRY_PLATFORM_WINDOWS
 	friend LRESULT WINAPI WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -518,6 +513,9 @@ public:
 #endif
 	// ~IWindowMessageHandler
 
+	WIN_HMODULE LoadDynamicLibrary(const char* dllName, bool bQuitIfNotFound = true, bool bLogLoadingInfo = false);
+	bool        UnloadDynamicLibrary(const char* dllName);
+
 private:
 
 	// Release all resources.
@@ -525,13 +523,10 @@ private:
 
 	void SleepIfInactive();
 
-	bool LoadEngineDLLs();
-
 	//! @name Initialization routines
 	//@{
 
 	bool InitNetwork();
-	bool InitOnline();
 	bool InitInput();
 
 	bool InitConsole();
@@ -544,19 +539,21 @@ private:
 	bool InitAISystem();
 	bool InitScriptSystem();
 	bool InitFileSystem(const IGameStartup* pGameStartup);
+	void InitLog();
 	void LoadPatchPaks();
 	bool InitFileSystem_LoadEngineFolders();
 	bool InitStreamEngine();
 	bool Init3DEngine();
 	bool InitAnimationSystem();
 	bool InitMovieSystem();
+	bool InitSchematyc();
 	bool InitEntitySystem();
 	bool InitDynamicResponseSystem();
 	bool InitLiveCreate();
 	bool InitMonoBridge();
 	bool OpenRenderLibrary(int type);
 	bool OpenRenderLibrary(const char* t_rend);
-	bool CloseRenderLibrary();
+	bool CloseRenderLibrary(const char* t_rend);
 
 	//@}
 	void Strange();
@@ -579,12 +576,9 @@ private:
 	void        RenderJobStats();
 	void        RenderMemStats();
 	void        RenderThreadInfo();
-	WIN_HMODULE LoadDLL(const char* dllName, bool bQuitIfNotFound = true);
-	bool        UnloadDLL(const char* dllName);
 	void        FreeLib(WIN_HMODULE hLibModule);
 	void        QueryVersionInfo();
 	void        LogVersion();
-	void        LogBuildInfo();
 	void        SetDevMode(bool bEnable);
 	void        InitScriptDebugger();
 
@@ -601,11 +595,10 @@ private:
 	// recursive
 	// Arguments:
 	//   sPath - e.g. "Game/Config/CVarGroups"
-	void        AddCVarGroupDirectory(const string& sPath);
+	void AddCVarGroupDirectory(const string& sPath);
 
-	WIN_HMODULE LoadDynamiclibrary(const char* dllName) const;
 #if CRY_PLATFORM_WINDOWS
-	bool        GetWinGameFolder(char* szMyDocumentsPath, int maxPathSize);
+	bool GetWinGameFolder(char* szMyDocumentsPath, int maxPathSize);
 #endif
 public:
 	// interface ISystem -------------------------------------------
@@ -665,7 +658,6 @@ private: // ------------------------------------------------------
 	bool               m_bShaderCacheGenMode;   //!< true if the application runs in shader cache generation mode
 	bool               m_bRelaunch;             //!< relaunching the app or not (true beforerelaunch)
 	int                m_iLoadingMode;          //!< Game is loading w/o changing context (0 not, 1 quickloading, 2 full loading)
-	bool               m_bTestMode;             //!< If running in testing mode.
 	bool               m_bEditor;               //!< If running in Editor.
 	bool               m_bNoCrashDialog;
 	bool               m_bPreviewMode;          //!< If running in Preview mode.
@@ -778,8 +770,6 @@ private: // ------------------------------------------------------
 	// DLL names
 	ICVar* m_sys_dll_ai;
 	ICVar* m_sys_dll_response_system;
-	ICVar* m_sys_dll_game;
-	ICVar* m_sys_game_folder;
 	ICVar* m_sys_user_folder;
 
 #if !defined(_RELEASE)
@@ -800,7 +790,6 @@ private: // ------------------------------------------------------
 	ICVar* m_rFullscreenWindow;
 	ICVar* m_rDriver;
 	ICVar* m_pPhysicsLibrary;
-	ICVar* m_cvGameName;
 	ICVar* m_rDisplayInfo;
 	ICVar* m_rDisplayInfoTargetFPS;
 	ICVar* m_rOverscanBordersDrawDebugView;
@@ -831,6 +820,7 @@ private: // ------------------------------------------------------
 	ICVar* m_sys_profile_memory;
 	ICVar* m_sys_profile_sampler;
 	ICVar* m_sys_profile_sampler_max_samples;
+	ICVar* m_sys_profile_watchdog_timeout;
 	ICVar* m_sys_job_system_filter;
 	ICVar* m_sys_job_system_enable;
 	ICVar* m_sys_job_system_profiler;
@@ -942,7 +932,7 @@ public:
 	bool                        CompressDataBlock(const void* input, size_t inputSize, void* output, size_t& outputSize, int level) override;
 	bool                        DecompressDataBlock(const void* input, size_t inputSize, void* output, size_t& outputSize) override;
 
-	void                        OpenBasicPaks();
+	void                        OpenBasicPaks(bool bLoadGamePaks);
 	void                        OpenLanguagePak(char const* const szLanguage);
 	void                        OpenLanguageAudioPak(char const* const szLanguage);
 	void                        GetLocalizedPath(char const* const szLanguage, string& szLocalizedPath);
@@ -960,8 +950,8 @@ public:
 	virtual const char*                   GetLoadingProfilerCallstack() override;
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual CBootProfilerRecord* StartBootSectionProfiler(const char* name, const char* args, unsigned int& sessionIndex) override;
-	virtual void                 StopBootSectionProfiler(CBootProfilerRecord* record, const unsigned int sessionIndex) override;
+	virtual CBootProfilerRecord* StartBootSectionProfiler(const char* name, const char* args) override;
+	virtual void                 StopBootSectionProfiler(CBootProfilerRecord* record) override;
 	virtual void                 StartBootProfilerSession(const char* szName) override;
 	virtual void                 StopBootProfilerSession(const char* szName) override;
 	virtual void                 OnFrameStart(const char* szName) override;
@@ -1016,7 +1006,7 @@ public:
 protected: // -------------------------------------------------------------
 	ILoadingProgressListener*                 m_pProgressListener;
 	CCmdLine*                                 m_pCmdLine;
-	ITestSystem*                              m_pTestSystem; // needed for external test application (0 if not activated yet)
+	std::unique_ptr<ITestSystem>              m_pTestSystem; // needed for external test application (0 if not activated yet)
 	CVisRegTest*                              m_pVisRegTest;
 	CThreadManager*                           m_pThreadManager;
 	CResourceManager*                         m_pResourceManager;
@@ -1058,6 +1048,9 @@ protected: // -------------------------------------------------------------
 
 	// Keeping a copy of startup params for deferred module loading (see CryLobby).
 	const SSystemInitParams m_startupParams;
+
+	class CWatchdogThread*  m_pWatchdog = nullptr;
+	static void WatchDogTimeOutChanged(ICVar* cvar);
 };
 
 /*extern static */ bool QueryModuleMemoryInfo(SCryEngineStatsModuleInfo& moduleInfo, int index);

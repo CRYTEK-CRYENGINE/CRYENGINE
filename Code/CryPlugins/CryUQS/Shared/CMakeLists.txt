@@ -18,6 +18,9 @@ add_sources("UQS_uber_shared.cpp"
 		"shared/UqsString.cpp"
 		"shared/VariantDict.h"
 		"shared/VariantDict.cpp"
+		"shared/FactoryBase.h"
+		"shared/TimeValueUtil.h"
+		"shared/TimeValueUtil.cpp"
 )
 
 end_sources()
@@ -33,3 +36,10 @@ target_include_directories(${THIS_PROJECT}
 	PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
 	INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/../.."
 )
+
+if(OPTION_UQS_SCHEMATYC_SUPPORT)
+	target_include_directories(${THIS_PROJECT}
+		PRIVATE "${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/Core/Interface"
+		PRIVATE "${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/STDEnv/Interface"
+	)
+endif()

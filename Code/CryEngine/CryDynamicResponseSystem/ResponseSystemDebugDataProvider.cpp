@@ -95,7 +95,15 @@ void CResponseSystemDebugDataProvider::AddVariableSet(const string& variableName
 	VariableChangeInfo newEntry;
 	newEntry.timeOfChange = time;
 	newEntry.variableName = collectionName + "::" + variableName;
-	newEntry.change = "'" + oldValue.GetValueAsString() + "' to '" + newValue.GetValueAsString() + "', Type: " + newValue.GetTypeAsString();
+	if (oldValue.GetType() == eDRVT_Undefined 
+		&& oldValue.GetValue() == CVariableValue::DEFAULT_VALUE)
+	{
+		newEntry.change = "'Not Existing' to " + newValue.GetValueAsString() + "', Type: " + newValue.GetTypeAsString();
+	}
+	else
+	{
+		newEntry.change = "'" + oldValue.GetValueAsString() + "' to '" + newValue.GetValueAsString() + "', Type: " + newValue.GetTypeAsString();
+	}
 	newEntry.drsUserName = CResponseSystem::GetInstance()->GetCurrentDrsUserName();
 
 	//hard coded limit
@@ -133,7 +141,7 @@ void CResponseSystemDebugDataProvider::AddResponseStarted(const string& signalNa
 }
 
 //--------------------------------------------------------------------------------------------------
-bool CResponseSystemDebugDataProvider::AddResponseSegmentStarted(CResponseSegment* pResponseSegment)
+bool CResponseSystemDebugDataProvider::AddResponseSegmentEvaluated(CResponseSegment* pResponseSegment)
 {
 	if (m_currentResponse >= m_executedResponses.size())
 	{
@@ -149,9 +157,7 @@ bool CResponseSystemDebugDataProvider::AddResponseSegmentStarted(CResponseSegmen
 	SStartedResponsesSegment newResponseSegment;
 	newResponseSegment.bStarted = false;
 	newResponseSegment.bRunning = false;
-	newResponseSegment.segmentName = "Response: '";
-	newResponseSegment.segmentName += pResponseSegment->GetName();
-	newResponseSegment.segmentName += "' ";
+	newResponseSegment.segmentName = pResponseSegment->GetName();
 	newResponseSegment.pResponseSegment = pResponseSegment;
 	newResponseSegment.levelInHierarchy = response.currentlevelInHierarchy;
 	response.responseSegments.push_back(newResponseSegment);
@@ -198,6 +204,26 @@ bool CResponseSystemDebugDataProvider::AddConditionChecked(const CConditionsColl
 }
 
 //--------------------------------------------------------------------------------------------------
+bool CryDRS::CResponseSystemDebugDataProvider::AddResponseSegmentStarted(CResponseSegment* pResponseSegment)
+{
+	if (m_currentResponse >= m_executedResponses.size())
+	{
+		return false;
+	}
+	SStartedResponses& response = m_executedResponses[m_currentResponse];
+	for (SStartedResponsesSegment& currentSegment : response.responseSegments)
+	{
+		if (pResponseSegment == currentSegment.pResponseSegment)
+		{
+			currentSegment.bRunning = true;
+			currentSegment.bStarted = true;
+			return true;
+		}
+	}
+	return false;
+}
+
+//--------------------------------------------------------------------------------------------------
 bool CResponseSystemDebugDataProvider::AddActionStarted(const string& actionDesc, DRS::IResponseActionInstance* pInstance, DRS::IResponseActor* pActor, CResponseSegment* pResponseSegment)
 {
 	if (m_currentResponse >= m_executedResponses.size())
@@ -210,18 +236,17 @@ bool CResponseSystemDebugDataProvider::AddActionStarted(const string& actionDesc
 	newAction.pInstance = pInstance;
 	newAction.bEnded = false;
 	SStartedResponses& response = m_executedResponses[m_currentResponse];
-	for (std::vector<SStartedResponsesSegment>::iterator it = response.responseSegments.begin(); it != response.responseSegments.end(); ++it)
+	for (SStartedResponsesSegment& currentSegment : response.responseSegments)
 	{
-		if (pResponseSegment == it->pResponseSegment)
+		if (pResponseSegment == currentSegment.pResponseSegment)
 		{
 			if (m_loggingOptions & eDrsLoggingOptions_Actions)
 			{
 				CryLogAlways("<DRS> <%.3f> Action started: '%s', Actor '%s'", CResponseSystem::GetInstance()->GetCurrentDrsTime(), newAction.actionDesc.c_str(), newAction.actorName.c_str());
 			}
-
-			it->bRunning = true;
-			it->bStarted = true;
-			it->executedAction.push_back(newAction);
+			currentSegment.bRunning = true;
+			currentSegment.bStarted = true;
+			currentSegment.executedAction.push_back(newAction);
 			return true;
 		}
 	}
@@ -235,25 +260,24 @@ bool CResponseSystemDebugDataProvider::AddActionFinished(DRS::IResponseActionIns
 	{
 		return false;
 	}
+
 	SStartedResponses& response = m_executedResponses[m_currentResponse];
-	for (std::vector<SStartedResponsesSegment>::iterator itEnd = response.responseSegments.begin(); itEnd != response.responseSegments.end(); ++itEnd)
+	for (SStartedResponsesSegment& currentSegment : response.responseSegments)
 	{
-		for (std::vector<SExecutedAction>::iterator it = itEnd->executedAction.begin(); it != itEnd->executedAction.end(); ++it)
+		for (SExecutedAction& currentAction : currentSegment.executedAction)
 		{
-			if (it->pInstance == pInstance && !it->bEnded)
+			if (currentAction.pInstance == pInstance && !currentAction.bEnded)
 			{
-				it->bEnded = true;
+				currentAction.bEnded = true;
 
 				if (m_loggingOptions & eDrsLoggingOptions_Actions)
 				{
-					CryLogAlways("<DRS> <%.3f> Action finished: '%s', Source: '%s'", CResponseSystem::GetInstance()->GetCurrentDrsTime(), it->actionDesc.c_str(), itEnd->segmentName.c_str());
+					CryLogAlways("<DRS> <%.3f> Action finished: '%s', Source: '%s'", CResponseSystem::GetInstance()->GetCurrentDrsTime(), currentAction.actionDesc.c_str(), currentSegment.segmentName.c_str());
 				}
-
 				break;
 			}
 		}
 	}
-
 	return true;
 }
 
@@ -314,29 +338,38 @@ void CResponseSystemDebugDataProvider::SStartedResponses::Serialize(Serializatio
 	int numStartedResponses = 0;
 
 	bool bRunning = currentState == CResponseSystemDebugDataProvider::eER_Running;
-	ar(bRunning, "running", "!^Running:");
-	ar(timeOfEvent, "time", "^>70> Time:");
-	ar(signalName, "signal", "^<Signal:");
 
-	if (ar.openBlock("signalInfos", "- "))
+	if (ar.openBlock("signalInfos2", "+ "))
 	{
-		ar(currentState, "status", "^^>150>Status:");
-		ar(drsUserName, "source", "Source:");
-		ar(senderName, "sender", "^^Actor:");
-		ar(contextVariables, "ContextVariables", "!ContextVariables");
-		ar.closeBlock();
-	}
-
-	if (ar.isEdit())
-	{
-		for (std::vector<SStartedResponsesSegment>::const_iterator it = responseSegments.begin(); it != responseSegments.end(); ++it)
+		for (SStartedResponsesSegment& current : responseSegments)
 		{
-			if (it->bStarted)
+			if (current.bStarted)
 			{
 				++numStartedResponses;
 			}
 		}
-		ar(CryStringUtils::toString(numStartedResponses), "responses", "^StartedResponses:");
+		ar(currentState, "status", "^^>200>Status:");
+		ar(CryStringUtils::toString(numStartedResponses), "responses", "^^ StartedResponses:");
+		ar.closeBlock();
+	}
+
+	if (numStartedResponses > 0)
+	{
+		ar(timeOfEvent, "time", "^>80>Time:");
+		ar(signalName, "signal", "^< Signal:");
+	}
+	else
+	{
+		ar(timeOfEvent, "time", "!^>80>Time:");
+		ar(signalName, "signal", "!^< Signal:");
+	}
+
+	if (ar.openBlock("signalInfos2", "- "))
+	{
+		ar(senderName, "sender", "^^>200> Actor:");
+		ar(contextVariables, "ContextVariables", "^^ ContextVariables");
+		ar(drsUserName, "source", "Source:");
+		ar.closeBlock();
 	}
 
 	int currentBlockDepth = 0;
@@ -344,14 +377,21 @@ void CResponseSystemDebugDataProvider::SStartedResponses::Serialize(Serializatio
 	{
 		if (currentBlockDepth < segment.levelInHierarchy)
 		{
-			if (ar.openBlock("FollowUp", "+Follow Up Responses"))
+			if (ar.openBlock("FollowUpEx", "+ ") && ar.openBlock("FollowUp", "+ FOLLOW UP RESPONSES "))
 				currentBlockDepth++;
 		}
-
-		ar(segment, "segment", segment.segmentName);
+		if (segment.segmentUiName.empty())
+		{
+			if (segment.bStarted)
+				segment.segmentUiName.Format("+Response: '%s'", segment.segmentName.c_str());
+			else
+				segment.segmentUiName.Format("!Response: '%s'", segment.segmentName.c_str());
+		}
+		ar(segment, "segment", segment.segmentUiName);
 	}
 	for (int i = 0; i < currentBlockDepth; i++)
 	{
+		ar.closeBlock();
 		ar.closeBlock();
 	}
 
@@ -362,15 +402,9 @@ void CResponseSystemDebugDataProvider::SStartedResponses::Serialize(Serializatio
 //--------------------------------------------------------------------------------------------------
 void CResponseSystemDebugDataProvider::SStartedResponsesSegment::Serialize(Serialization::IArchive& ar)
 {
-	if (bStarted)
-	{
-		static string executedLabel = "(EXECUTED)";
-		ar(executedLabel, "started", "!^^>80>");
-	}
-
 	if (checkedConditions.empty())
 	{
-		ar(checkedConditions, "checkedConditions", "^! No conditions");
+		ar(checkedConditions, "checkedConditions", "  No conditions" );
 	}
 	else
 	{
@@ -382,25 +416,28 @@ void CResponseSystemDebugDataProvider::SStartedResponsesSegment::Serialize(Seria
 				bConditionsMet = false;
 				break;
 			}
+		}		
+		if (bConditionsMet)
+		{
+			ar(bConditionsMet, "conditionsMet", ">85>^ ConditionsMet");
 		}
-		ar(bConditionsMet, "conditionsMet", "!>85>^ ConditionsMet");
-		ar(checkedConditions, "checkedConditions", "+CheckedConditions");
+		ar(checkedConditions, "checkedConditions", (bConditionsMet) ? "+  CheckedConditions" : "!+  CheckedConditions");
 	}
 
 	if (!executedAction.empty())
 	{
-		ar(executedAction, "executedAction", "!+<ExecutedAction");
+		ar(executedAction, "executedAction", (bStarted) ? "+<  ExecutedAction" : "!+<  ExecutedAction");
 	}
 	else
 	{
-		ar(executedAction, "executedAction", "!No actions executed");
+		ar(executedAction, "executedAction", (bStarted) ? "  No actions" : "!  No actions executed");
 	}
 }
 
 //--------------------------------------------------------------------------------------------------
 void CResponseSystemDebugDataProvider::SExecutedAction::Serialize(Serialization::IArchive& ar)
 {
-	ar(bEnded, "hasEnded", "^!Done");
+	ar(bEnded, "hasEnded", (bEnded) ? "^Done" : "!^Done");
 	ar(actionDesc, "actionDesc", "<^");
 	ar(actorName, "actor", "^Actor:");
 }
@@ -408,8 +445,8 @@ void CResponseSystemDebugDataProvider::SExecutedAction::Serialize(Serialization:
 //--------------------------------------------------------------------------------------------------
 void CResponseSystemDebugDataProvider::SCheckedCondition::Serialize(Serialization::IArchive& ar)
 {
-	ar(bMet, "wasMet", "^^!Was Met");
-	ar(conditionDesc, "conditionDesc", "!^Condition:");
+	ar(bMet, "wasMet", (bMet) ? "^Was Met" : "^!Was Met");
+	ar(conditionDesc, "conditionDesc", "^ Condition:");
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -690,7 +727,7 @@ void CResponseSystemDebugDataProvider::SerializeRecentResponse(Serialization::IA
 		}
 		else
 		{
-			label = "History for signal '" + signalslist + "'";
+			label = "+History for signal '" + signalslist + "'";
 			ar(tempcopy, "ExecutedResponses", label.c_str());
 		}
 	}

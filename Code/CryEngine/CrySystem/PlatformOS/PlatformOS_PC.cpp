@@ -25,6 +25,10 @@
 	#include <CrySystem/ZLib/IZLibCompressor.h>
 	#include <CryString/StringUtils.h>
 
+#if CRY_PLATFORM_WINDOWS
+	#include <timeapi.h>
+#endif
+
 	#if USE_STEAM
 		#include "Steamworks/public/steam/steam_api.h"
 		#include "SaveReaderWriter_Steam.h"
@@ -54,9 +58,16 @@ CPlatformOS_PC::CPlatformOS_PC(const uint8 createParams)
 	#endif // !defined(_RELEASE)
 	AddListener(this, "PC");
 
+	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this, "CPlatformOS_PC_SystemEventListener");
+
 	m_cachePakStatus = 0;
 	m_cachePakUser = -1;
 	//TODO: Handle early corruption detection (createParams & IPlatformOS::eCF_EarlyCorruptionDetected ) if necessary.
+}
+
+CPlatformOS_PC::~CPlatformOS_PC()
+{
+	gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(this);
 }
 
 void CPlatformOS_PC::Tick(float realFrameTime)
@@ -745,6 +756,39 @@ void CPlatformOS_PC::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR
 		m_bLevelLoad = true;
 		m_bSaveDuringLevelLoad = false;
 		break;
+	case ESYSTEM_EVENT_LEVEL_LOAD_END:
+		m_bLevelLoad = false;
+		m_bSaveDuringLevelLoad = true;
+		break;
+	case ESYSTEM_EVENT_CHANGE_FOCUS:
+	{
+#if CRY_PLATFORM_WINDOWS
+		// Handle system timer resolution
+		// The smaller the resolution, the more accurate a thread will wake up from a suspension 
+		// Example: 
+		// Timer Resolution(1 ms): Sleep(1) -> max thread suspention time 1.99ms
+		// Timer Resolution(15 ms): Sleep(1) -> max thread suspention time 15.99ms
+		//  
+		// This is due to the scheduler running more frequently.
+		// This is a system wide global though which is set to the smallest value requested by a process.
+		// When the process dies it is set back to its original value.
+		ICVar* pSystemTimerResolution = gEnv->pConsole ? gEnv->pConsole->GetCVar("sys_system_timer_resolution") : NULL;
+		TIMECAPS tc;		
+		if (timeGetDevCaps(&tc, sizeof(TIMECAPS)) == TIMERR_NOERROR)
+		{
+			const UINT minTimerRes =  std::min(std::max((UINT)pSystemTimerResolution->GetIVal(), tc.wPeriodMin), tc.wPeriodMax);
+
+			// wparam != 0 is focused, wparam == 0 is not focused
+			timeBeginPeriod(wparam != 0 ? minTimerRes : tc.wPeriodMax);
+		}
+		else
+		{
+			CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "Warning: System Timer Resolution could not be obtained.");
+		}
+
+		break;
+#endif
+	}
 	}
 }
 

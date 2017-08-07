@@ -194,8 +194,8 @@ public:
 	};
 	enum EDrawParams
 	{
-		eDrawParam_General,
 		eDrawParam_Shadow,
+		eDrawParam_General,
 		eDrawParam_Count,
 	};
 
@@ -266,10 +266,12 @@ public:
 		, m_nNumVertexStreams(0)
 		, m_nLastVertexStreamSlot(0)
 		, m_bOwnPerInstanceCB(false)
+		, m_bRenderNearest(false)
 		, m_bIncomplete(true)
 		, m_bHasTessellation(false)
 		, m_bSharedWithShadow(false)
 		, m_bDynamicInstancingPossible(false)
+		, m_bCustomRenderElement(false)
 		, m_nInstances(0)
 		, m_TessellationPatchIDOffset(-1)
 	{
@@ -312,7 +314,10 @@ private:
 	void CompilePerInstanceExtraResources(CRenderObject* pRenderObject);
 	void CompileInstancingData(CRenderObject* pRenderObject, bool bForce);
 	void UpdatePerInstanceCB(void* pData, size_t size);
-
+#if !defined(_RELEASE)
+	void TrackStats(const SGraphicsPipelinePassContext& RESTRICT_REFERENCE passContext, CRenderObject* pRenderObject) const;
+#endif
 private:
 	static CRenderObjectsPools* s_pPools;
+	static CryCriticalSectionNonRecursive m_drawCallInfoLock;
 };

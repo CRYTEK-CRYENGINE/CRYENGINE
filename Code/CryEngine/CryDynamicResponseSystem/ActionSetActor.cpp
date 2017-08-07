@@ -101,5 +101,3 @@ void CActionSetActorByVariable::Serialize(Serialization::IArchive& ar)
 
 //--------------------------------------------------------------------------------------------------
 
-REGISTER_DRS_ACTION(CActionSetActor, "SetActor", DEFAULT_DRS_ACTION_COLOR);
-REGISTER_DRS_ACTION(CActionSetActorByVariable, "SetActorFromVariable", DEFAULT_DRS_ACTION_COLOR);

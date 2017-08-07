@@ -12,20 +12,8 @@
 
 CFlowStartNode::CFlowStartNode(SActivationInfo* pActInfo)
 {
-	m_refs = 0;
 	m_bActivated = true;
 	SetActivation(pActInfo, false);
-}
-
-void CFlowStartNode::AddRef()
-{
-	++m_refs;
-}
-
-void CFlowStartNode::Release()
-{
-	if (0 == --m_refs)
-		delete this;
 }
 
 IFlowNodePtr CFlowStartNode::Clone(SActivationInfo* pActInfo)
@@ -55,8 +43,8 @@ void CFlowStartNode::GetConfiguration(SFlowNodeConfig& config)
 bool CFlowStartNode::MayTrigger(SActivationInfo* pActInfo)
 {
 	const bool isEditor = gEnv->IsEditor();
-	const bool canTriggerInGame = *(pActInfo->pInputPorts[0].GetPtr<bool>());
-	const bool canTriggerInEditor = *(pActInfo->pInputPorts[1].GetPtr<bool>());
+	const bool canTriggerInGame = GetPortBool(pActInfo, 0);
+	const bool canTriggerInEditor = GetPortBool(pActInfo, 1);
 	const bool canTrigger = (isEditor && canTriggerInEditor) || (!isEditor && canTriggerInGame);
 	return canTrigger;
 }

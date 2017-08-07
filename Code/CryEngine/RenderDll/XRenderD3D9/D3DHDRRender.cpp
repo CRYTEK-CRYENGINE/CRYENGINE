@@ -102,22 +102,20 @@ bool CHDRPostProcess::CreateRenderTargetList()
 	for (uint32 t = 0; t < m_pRenderTargets.size(); ++t)
 	{
 		SRenderTargetInfo& drt = m_pRenderTargets[t];
-		CTexture* pTex = (*drt.lplpStorage);
-		if (!CTexture::IsTextureExist(pTex))
+		CTexture*& pTex = (*drt.lplpStorage);
+
+		if (!pTex && !(pTex = CTexture::GetOrCreateRenderTarget(drt.szName, drt.nWidth, drt.nHeight, drt.cClearColor, eTT_2D, drt.nFlags, drt.Format, drt.nCustomID)))
+			continue;
+
+		pTex->SetFlags(drt.nFlags);
+		pTex->SetWidth(drt.nWidth);
+		pTex->SetHeight(drt.nHeight);
+		pTex->CreateRenderTarget(drt.Format, drt.cClearColor);
+
+		if (!(pTex->GetFlags() & FT_FAILED))
 		{
-			pTex = CTexture::CreateRenderTarget(drt.szName, drt.nWidth, drt.nHeight, drt.cClearColor, eTT_2D, drt.nFlags, drt.Format, drt.nCustomID);
-			if (pTex)
-			{
-				pTex->Clear();
-				(*drt.lplpStorage) = pTex;
-			}
-		}
-		else
-		{
-			pTex->SetFlags(drt.nFlags);
-			pTex->SetWidth(drt.nWidth);
-			pTex->SetHeight(drt.nHeight);
-			pTex->CreateRenderTarget(drt.Format, drt.cClearColor);
+			// Clear render target surface before using it
+			pTex->Clear();
 		}
 	}
 
@@ -142,7 +140,7 @@ void CTexture::GenerateHDRMaps()
 	
 	pHDRPostProcess->ClearRenderTargetList();
 
-	ETEX_Format nHDRFormat = eTF_R16G16B16A16F; // note: for main rendertarget R11G11B10 precision/range (even with rescaling) not enough for darks vs good blooming quality
+	ETEX_Format nHDRFormat = CRenderer::CV_r_HDRTexFormat == 0 ? eTF_R11G11B10F : eTF_R16G16B16A16F;
 
 	uint32 nHDRTargetFlags = FT_DONT_RELEASE | (CRenderer::CV_r_msaa ? FT_USAGE_MSAA : 0);
 	uint32 nHDRTargetFlagsUAV = nHDRTargetFlags | (CRenderer::CV_r_msaa ? 0 : FT_USAGE_UNORDERED_ACCESS);  // UAV required for tiled deferred shading
@@ -202,11 +200,11 @@ void CTexture::GenerateHDRMaps()
 		pHDRPostProcess->AddRenderTarget(iSampleLen, iSampleLen, Clr_Dark, eTF_R16G16F, 0.7f, szName, &s_ptexHDRToneMaps[i], FT_DONT_RELEASE | (i == 0 ? FT_STAGE_READBACK : 0));
 	}
 
-	s_ptexHDRMeasuredLuminanceDummy = CTexture::CreateTextureObject("$HDRMeasuredLum_Dummy", 0, 0, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM, eTF_R16G16F, TO_HDR_MEASURED_LUMINANCE);
+	s_ptexHDRMeasuredLuminanceDummy = CTexture::GetOrCreateTextureObject("$HDRMeasuredLum_Dummy", 0, 0, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM, eTF_R16G16F, TO_HDR_MEASURED_LUMINANCE);
 	for (i = 0; i < MAX_GPU_NUM; ++i)
 	{
 		cry_sprintf(szName, "$HDRMeasuredLum_%d", i);
-		s_ptexHDRMeasuredLuminance[i] = CTexture::Create2DTexture(szName, 1, 1, 0, FT_DONT_RELEASE | FT_DONT_STREAM, NULL, eTF_R16G16F, eTF_R16G16F);
+		s_ptexHDRMeasuredLuminance[i] = CTexture::GetOrCreate2DTexture(szName, 1, 1, 0, FT_DONT_RELEASE | FT_DONT_STREAM, NULL, eTF_R16G16F);
 	}
 
 	pHDRPostProcess->CreateRenderTargetList();
@@ -274,64 +272,5 @@ void CTexture::DestroyHDRMaps()
 	for (i = 0; i < MIN_DOF_COC_K; i++)
 	{
 		SAFE_RELEASE(s_ptexSceneCoC[i]);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void CD3D9Renderer::FX_HDRRangeAdaptUpdate()
-{
-	CD3D9Renderer* rd = gcpRendD3D;
-
-	if (CRenderer::CV_r_HDRRangeAdapt)
-	{
-		// Swap current & last luminance
-		const int lumMask = (int32)(sizeof(CTexture::s_ptexHDRAdaptedLuminanceCur) / sizeof(CTexture::s_ptexHDRAdaptedLuminanceCur[0])) - 1;
-		int nCurLum = CTexture::s_nCurLumTextureIndex;
-		int nCurLumAdaptIdx = (nCurLum - 2) & lumMask;
-
-		//D3DSurface *pSrcDevSurf = pTex->GetSurface(0, 0);
-		//D3DSurface *pDstDevSurfSys = CTexture::s_ptexCurLumTextureSys->GetSurface(0, 0);
-
-		//		D3DXFLOAT16 *hSurfSys = 0;
-		float pLumInfo[2];
-		pLumInfo[0] = pLumInfo[1] = 0;
-
-		// note: RG16F - channels are swapped
-		rd->m_vSceneLuminanceInfo.x = max(0.0f, min(16.0f, pLumInfo[1])); // avg
-		rd->m_vSceneLuminanceInfo.y = max(0.0f, min(16.0f, pLumInfo[0]));//0;//pLumInfo[2];	// min - instead of min, maybe we can simplify and output maybe 4x smaller luminance
-		//rd->m_vSceneLuminanceInfo.z = ;	// max
-
-		if (_isnan(rd->m_vSceneLuminanceInfo.x))
-			rd->m_vSceneLuminanceInfo.x = 0.0f;
-		if (_isnan(rd->m_vSceneLuminanceInfo.y))
-			rd->m_vSceneLuminanceInfo.y = 0.0f;
-
-		// For night/very dark scenes boost maximum range
-		const float fStocopicThreshold = 0.01f;
-		rd->m_fScotopicSceneScale += (((rd->m_vSceneLuminanceInfo.x < fStocopicThreshold) ? 2.0f : 1.0f) - rd->m_fScotopicSceneScale) * gEnv->pTimer->GetFrameTime();
-
-		// Tweakable scene range scale.
-		// Optimaly we could rescale to take advantage of full texture format range into account, but we need to maintain acceptable range for blooming (else we get very poor bloom quality)
-		rd->m_fAdaptedSceneScale = CRenderer::CV_r_HDRRangeAdaptMax / (1e-6f + rd->m_vSceneLuminanceInfo.y);
-		rd->m_fAdaptedSceneScale = max(1.0f, min(rd->m_fAdaptedSceneScale, CRenderer::CV_r_HDRRangeAdaptMaxRange * rd->m_fScotopicSceneScale));
-
-		// todo: we need to try out different strategies for light buffers (different scales for day/night scenes? we hit top clamping too often)
-
-		// Light buffers range scale
-		rd->m_fAdaptedSceneScaleLBuffer = CRenderer::CV_r_HDRRangeAdaptLBufferMax / (1e-6f + rd->m_vSceneLuminanceInfo.y);
-		rd->m_fAdaptedSceneScaleLBuffer = max(1.0f, min(rd->m_fAdaptedSceneScaleLBuffer, CRenderer::CV_r_HDRRangeAdaptLBufferMaxRange * rd->m_fScotopicSceneScale));
-
-		//rd->m_fAdaptedSceneScaleLBuffer = max(1.0f, min(rd->m_vSceneLuminanceInfo.y, CRenderer::CV_r_HDRRangeAdaptLBufferMaxRange * rd->m_fScotopicSceneScale) );
-
-	}
-	else
-	{
-		rd->m_vSceneLuminanceInfo = Vec4(1.0f, 1.0f, 1.0f, 1.0f);
-		;
-		rd->m_fAdaptedSceneScale = 1.0f;
-		rd->m_fAdaptedSceneScaleLBuffer = 1.0f;
-		rd->m_fScotopicSceneScale = 1.0f;
 	}
 }

@@ -44,8 +44,11 @@ static const LipSyncID s_InvalidLipSyncId = -1;
 
 struct ISpeakerManager
 {
+	virtual ~ISpeakerManager() = default;
+
 	struct ILipsyncProvider
 	{
+		virtual ~ILipsyncProvider() = default;
 		virtual LipSyncID OnLineStarted(IResponseActor* pSpeaker, const IDialogLine* pLine) = 0;  //Remark: pLine can be a nullptr, if the triggered line does not exist in the database, but still 'started' to display debug text (like: "missing: 'Missing_line_ID'")
 		virtual void      OnLineEnded(LipSyncID lipsyncId, IResponseActor* pSpeaker, const IDialogLine* pLine) = 0;
 		virtual bool      Update(LipSyncID lipsyncId, IResponseActor* pSpeaker, const IDialogLine* pLine) = 0;       //returns if the lip animation has finished
@@ -109,7 +112,7 @@ struct IVariable
 
 struct IVariableCollection
 {
-	virtual ~IVariableCollection() {}
+	virtual ~IVariableCollection() = default;
 
 	/**
 	 * Creates a new variable in this VariableCollection and sets it to the specified initial value.
@@ -183,7 +186,7 @@ private:
 
 struct IResponseInstance
 {
-	virtual ~IResponseInstance() {}
+	virtual ~IResponseInstance() = default;
 
 	/**
 	 * Will return the ResponseActor that is currently active in the ResponseInstance
@@ -245,10 +248,15 @@ struct IResponseInstance
 
 //////////////////////////////////////////////////////////////////////////
 
+struct IDynamicResponseSystemEngineModule : public Cry::IDefaultModule
+{
+	CRYINTERFACE_DECLARE_GUID(IDynamicResponseSystemEngineModule, "a7c12111-e4d6-413e-afd1-bf5930dd8c6a"_cry_guid);
+};
+
 struct IDynamicResponseSystem
 {
 public:
-	virtual ~IDynamicResponseSystem() {}
+	virtual ~IDynamicResponseSystem() = default;
 
 	/**
 	 * Will load all response definitions from the folder specified in the CVAR "drs_dataPath". Will also create all needed subsystems
@@ -500,7 +508,7 @@ struct IResponseManager
 		eSF_OnlyWithoutResponses
 	};
 
-	virtual ~IResponseManager() {}
+	virtual ~IResponseManager() = default;
 
 	/**
 	 * will register the given class (derived from DRS.IResponseManager.IListener) as a listener to signal-processing. If a signalInstanceId is provided, only callbacks for that specific instance are sent
@@ -530,7 +538,7 @@ struct IResponseManager
 
 struct IResponseActor
 {
-	virtual ~IResponseActor() {}
+	virtual ~IResponseActor() = default;
 
 	/**
 	 * Will return the name of the Actor in the DRS. This is the name, with which the actor can be found.
@@ -638,7 +646,7 @@ struct SCurrentDrsUserScopeHelper
 
 struct IDialogLine
 {
-	virtual ~IDialogLine() {}
+	virtual ~IDialogLine() = default;
 	virtual const string& GetText() const = 0;
 	virtual const string& GetStartAudioTrigger() const = 0;
 	virtual const string& GetEndAudioTrigger() const = 0;
@@ -673,7 +681,7 @@ struct IDialogLineSet
 		Any = EPickModeFlags_RandomVariation | EPickModeFlags_SequentialVariationRepeat | EPickModeFlags_SequentialVariationClamp | EPickModeFlags_SequentialAllSuccessively | EPickModeFlags_SequentialVariationOnlyOnce
 	};
 
-	virtual ~IDialogLineSet() {}
+	virtual ~IDialogLineSet() = default;
 	virtual void          SetLineId(const CHashedString& lineId) = 0;
 	virtual void          SetPriority(int priority) = 0;
 	virtual void          SetFlags(uint32 flags) = 0;
@@ -695,7 +703,7 @@ struct IDialogLineSet
 
 struct IDialogLineDatabase
 {
-	virtual ~IDialogLineDatabase() {}
+	virtual ~IDialogLineDatabase() = default;
 	virtual bool                  Save(const char* szFilePath) = 0;
 	virtual IDialogLineSet*       GetLineSetById(const CHashedString& lineID) = 0;
 	virtual void                  Serialize(Serialization::IArchive& ar) = 0;
@@ -712,6 +720,7 @@ struct IDialogLineDatabase
 //! WIP
 struct IDataImportHelper
 {
+	virtual ~IDataImportHelper() = default;
 	typedef IConditionSharedPtr (*      CondtionCreatorFct)(const string&, const char* szFormatName);
 	typedef IResponseActionSharedPtr (* ActionCreatorFct)(const string&, const char* szFormatName);
 

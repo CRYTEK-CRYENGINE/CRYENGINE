@@ -218,7 +218,7 @@ public:
 		IFStream inputAlphas = m_initAlphas ? IFStream(nullptr, 1.0f) : container.GetIFStream(EPDT_Alpha);
 		IOFStream outputAlphas = container.GetIOFStream(EPDT_Alpha);
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLESGROUP(context)
+		for (auto particleGroupId : context.GetUpdateGroupRange())
 		{
 			const Vec3v position = positions.Load(particleGroupId);
 			const floatv size0 = sizes.Load(particleGroupId);
@@ -235,7 +235,6 @@ public:
 				outputAlphas.Store(particleGroupId, alpha1);
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 private:

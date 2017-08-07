@@ -12,7 +12,7 @@ struct IShaderPublicParams;
 //! Callback object which can be used to override shader params for the game side.
 struct IShaderParamCallback : public ICryUnknown
 {
-	CRYINTERFACE_DECLARE(IShaderParamCallback, 0x4fb87a5f83f74323, 0xa7e42ca947c549d8);
+	CRYINTERFACE_DECLARE_GUID(IShaderParamCallback, "4fb87a5f-83f7-4323-a7e4-2ca947c549d8"_cry_guid);
 
 	// <interfuscator:shuffle>
 	//! Setting actual object to be worked on, but should ideally all derive from a same base pointer for characters, rendermeshes, vegetation.

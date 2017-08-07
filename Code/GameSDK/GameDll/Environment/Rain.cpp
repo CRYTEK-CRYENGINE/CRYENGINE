@@ -176,11 +176,6 @@ void CRain::ProcessEvent(SEntityEvent& event)
 }
 
 //------------------------------------------------------------------------
-void CRain::SetAuthority(bool auth)
-{
-}
-
-//------------------------------------------------------------------------
 bool CRain::Reset()
 {
 	//Initialize default values before (in case ScriptTable fails)

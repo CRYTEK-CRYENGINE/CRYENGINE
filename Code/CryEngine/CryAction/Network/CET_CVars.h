@@ -19,6 +19,7 @@ public:
 	// IConsoleVarSink
 	virtual bool OnBeforeVarChange(ICVar* pVar, const char* sNewValue);
 	virtual void OnAfterVarChange(ICVar* pVar);
+	virtual void OnVarUnregister(ICVar* pVar) {}
 
 private:
 	CGameServerChannel*                m_pChannel;

@@ -1689,9 +1689,9 @@ void SnowParticle_ComputeTexCoords( in float2 baseTC, in half fRandPhase, inout 
 	OUT.baseTC.xy = baseTC * vTileSize;
 
 	// Fetch a random tile for this snowflake.
-	const float tileX = floor(nTileCount + fRandPhase * nTileCount) * vTileSize.x;
+	const float tileX = floor(fRandPhase) * vTileSize.x;
 	OUT.baseTC.x += frac(tileX);
-	OUT.baseTC.y += floor(tileX) * vTileSize.y;
+	OUT.baseTC.y += frac(floor(tileX) * vTileSize.y);
 }
 
 void SnowParticle_ComputeNormal( in half4 vPos, in half2 vSpriteExpand, out half3 vNormal )

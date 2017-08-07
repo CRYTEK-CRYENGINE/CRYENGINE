@@ -4,10 +4,6 @@
 
 //-----------------------------------------------------------------------------------------------
 
-#ifndef YASLI_CXX11
-	#define YASLI_CXX11 1
-#endif
-
 #include <CryCore/Platform/platform.h>
 #include <CrySystem/ISystem.h>  // prerequisite for IGame.h
 #include <CryGame/IGame.h>
@@ -15,7 +11,7 @@
 #include <CryExtension/ClassWeaver.h>
 #include <CryExtension/CryCreateClassInstance.h>
 
-// yasli::TypeID is used by uqs::shared::CTypeInfo
+// yasli::TypeID is used by UQS::Shared::CTypeInfo
 #include <CrySerialization/TypeID.h>
 #include <CrySerialization/ClassFactory.h>  // weird: this header includes ClassFactory.cpp (yeah, .cpp), which has some methods marked as inline (!) that we make use of, so we need to include that header to prevent unresolved symbols at link time
 
@@ -40,9 +36,9 @@
 // - this constant is used in conjunction with a bitfield inside the working data per item to represent some status information of all evaluators of a query at runtime
 #define UQS_MAX_EVALUATORS                  31
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 #if UQS_MAX_EVALUATORS == 31
@@ -60,8 +56,8 @@ namespace uqs
 
 // - these macros can be used on the client-side when registering input parameters of functions, generators and evaluators
 // - they have to be put into the SParams struct of the according class
-#define UQS_EXPOSE_PARAMS_BEGIN static void Expose(uqs::client::internal::CInputParameterRegistry& registry) {
-#define UQS_EXPOSE_PARAM(nameOfParam, memberInParamsStruct)  registry.RegisterParameterType(nameOfParam, uqs::shared::SDataTypeHelper<decltype(memberInParamsStruct)>::GetTypeInfo(), offsetof(SParams, memberInParamsStruct))
+#define UQS_EXPOSE_PARAMS_BEGIN static void Expose(UQS::Client::Internal::CInputParameterRegistry& registry) {
+#define UQS_EXPOSE_PARAM(nameOfParam, memberInParamsStruct, idAsFourCharacterString, description)  registry.RegisterParameterType(nameOfParam, idAsFourCharacterString, UQS::Shared::SDataTypeHelper<decltype(memberInParamsStruct)>::GetTypeInfo(), offsetof(SParams, memberInParamsStruct), description)
 #define UQS_EXPOSE_PARAMS_END }
 
 // UQS_TODO() macro
@@ -71,4 +67,11 @@ namespace uqs
 #define UQS_TODO(y) __pragma(message(__FILE__ "(" _UQS_STRINGANIZE1(__LINE__) ") : " "[UQS] TODO >>> " _UQS_STRINGANIZE2(y)))
 #else
 #define UQS_TODO(y)
+#endif
+
+// - this #define controls whether some additional sections in the code will be added to adapt to Schematyc
+// - it has to be set from the outside (i. e. at compiler level) to 0 or 1
+// - the reasoning behind forcing it to get set from one central place (and *not* defaulting it to some value *here*) is to detect potential configuration-related bugs as early as possible
+#ifndef UQS_SCHEMATYC_SUPPORT
+#error UQS_SCHEMATYC_SUPPORT has to be set from the outside (i. e. at compiler level) to 0 or 1 (but is not set at all)
 #endif

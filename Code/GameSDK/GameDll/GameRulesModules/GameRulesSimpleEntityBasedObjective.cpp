@@ -81,7 +81,7 @@ void CGameRulesSimpleEntityBasedObjective::LoadRandomEntitySelectData(XmlNodeRef
 {
 	if (xmlChild->getAttr("time", entityDetails.m_randomChangeTimeLength))
 	{
-		entityDetails.m_randomChangeTimeLength = MAX(entityDetails.m_randomChangeTimeLength, 1.f);
+		entityDetails.m_randomChangeTimeLength = std::max(entityDetails.m_randomChangeTimeLength, 1.f);
 
 		entityDetails.m_useRandomChangeTimer = true;
 		entityDetails.m_timeToRandomChange = entityDetails.m_randomChangeTimeLength;

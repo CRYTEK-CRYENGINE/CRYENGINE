@@ -8,7 +8,7 @@
 
 enum class ESensorTags : uint32 {};
 
-typedef Schematyc::CEnumFlags<ESensorTags> SensorTags;
+typedef CEnumFlags<ESensorTags> SensorTags;
 
 struct ISensorTagLibrary
 {

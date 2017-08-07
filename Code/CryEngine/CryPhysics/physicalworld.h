@@ -136,8 +136,6 @@ struct SThreadTaskRequest {
 	int *pbAllGroupsFinished;
 };
 
-//#define GRID_AXIS_STANDARD
-
 #ifdef ENTGRID_2LEVEL
 struct pe_entgrid {
 	pe_entgrid &operator=(const pe_entgrid &src) {
@@ -201,6 +199,70 @@ inline void DeallocateGrid(int *&grid, const Vec2i &size) { delete[] grid; }
 inline int GetGridSize(int *&grid, const Vec2i& size) { return (size.x*size.y+1)*sizeof(int); }
 #endif
 
+const int TRIGGER_PORTAL = 1<<9;
+const int TRIGGER_PORTAL_INV = 1<<10;
+inline int IsPortal(const CPhysicalPlaceholder *pobj) { return iszero(pobj->m_iSimClass-6) & pobj->m_iForeignFlags>>9; }
+inline int IsPortal(const pe_gridthunk &thunk) { return thunk.iSimClass==6 && thunk.pent->m_iForeignFlags & TRIGGER_PORTAL; }
+
+inline Vec3* transformBBox(const Vec3& ptmin, const Vec3& ptmax, Vec3* dstBBox, const QuatT& trans) {
+	Matrix33 R = Matrix33(trans.q);
+	Vec3 c = trans*((ptmin+ptmax)*0.5f), sz = R.Fabs()*(ptmax-ptmin)*0.5f;
+	dstBBox[0] = c-sz; dstBBox[1] = c+sz;
+	return dstBBox;
+}
+
+
+struct SEntityGrid : public CPhysicalPlaceholder, grid {
+	int iup;
+	float zGran,rzGran;
+	pe_entgrid cells;
+	pe_PODcell **pPODcells,dummyPODcell,*pDummyPODcell;
+	Vec2i PODstride;
+	int log2PODscale;
+	int bHasPODGrid,iActivePODCell0;
+
+	SEntityGrid *m_next,*m_prev;
+	QuatT m_transInHost,m_transW;
+	Vec3 m_velW;
+	Vec3 m_v, m_w, m_com;
+	float m_dvSleep2;
+	CPhysicalEntity *m_host;
+	QuatT GetUpdatedTransW();
+	Vec3 GetUpdatedVelW();
+
+	class CPhysicalWorld *m_pWorld = nullptr;
+	volatile mutable int m_refCount = 0;
+	virtual int AddRef() { return CryInterlockedIncrement(&m_refCount); }
+	virtual int Release();
+	virtual int SetParams(pe_params*, int bThreadSafe=1);
+	virtual int GetParams(pe_params*) const;
+
+	virtual pe_type GetType() const { return PE_GRID; }
+	void Init();
+	void Free() { if (cells) DeallocateGrid(cells,size); cells=0; if (m_host) m_host->Release(); m_host=0; }
+	void Setup(int axisz, Vec3 org, int nx,int ny, float stepx,float stepy, int log2PODscale, int bCyclic);
+	void DeactivateOnDemand();
+	void GetPODGridCellBBox(int ix,int iy, Vec3 &center,Vec3 &size) const;
+	void RegisterBBoxInPODGrid(const Vec3 *BBox, IPhysicsStreamer *pStreamer);
+	void UnregisterBBoxInPODGrid(const Vec3 *BBox);
+	int AddRefEntInPODGrid(IPhysicalEntity *_pent, const Vec3 *BBox);
+
+	pe_PODcell *getPODcell(int ix,int iy)	const {
+		int i, imask = ~negmask(ix) & ~negmask(iy) & negmask(ix - size.x) & negmask(iy - size.y);   // (x>=0 && x<m_entgrid.size.x) ? 0xffffffff : 0;
+		ix >>= log2PODscale; iy >>= log2PODscale;
+		i = (ix>>3)*PODstride.x + (iy>>3)*PODstride.y;
+		i = i + ((-1-i) & ~imask) & -bHasPODGrid;
+		INT_PTR pmask = -iszero((INT_PTR)pPODcells[i]);
+		pe_PODcell *pcell0 = (pe_PODcell*)(((INT_PTR)pPODcells[i] & ~pmask) + ((INT_PTR)pDummyPODcell & pmask));
+		imask &= -bHasPODGrid & ~pmask;
+		return pcell0 + ((ix&7)+((iy&7)<<3) & imask);
+	}
+	Vec3 vecToGrid(const Vec3& src) const { return src.GetPermutated(iup); }
+	Vec3 vecFromGrid(const Vec3& src) const { return src.GetPermutated(iup^1^iup>>1); }
+	void BBoxToGrid(const Vec3& ptmin, const Vec3& ptmax, Vec3* dst) const {	dst[0]=vecToGrid(ptmin-origin); dst[1]=vecToGrid(ptmax-origin); }
+	void BBoxFromGrid(const Vec3& ptmin, const Vec3& ptmax, Vec3* dst) const {	dst[0]=vecFromGrid(ptmin)+origin; dst[1]=vecFromGrid(ptmax)+origin; }
+};
+
 
 struct SPhysTask : public IThread {
 	SPhysTask(CPhysicalWorld *pWorld,int idx) { m_pWorld=pWorld; m_idx=idx; bStop=0; }
@@ -255,7 +317,8 @@ public:
 	virtual IGeomManager* GetGeomManager() { return this; }
 	virtual IPhysUtils* GetPhysUtils() { return this; }
 
-	virtual void SetupEntityGrid(int axisz, Vec3 org, int nx,int ny, float stepx,float stepy, int log2PODscale=0, int bCyclic=0);
+	virtual IPhysicalEntity* SetupEntityGrid(int axisz, Vec3 org, int nx,int ny, float stepx,float stepy, int log2PODscale=0, int bCyclic=0, 
+		IPhysicalEntity* pHost=nullptr, const QuatT& posInHost=QuatT(IDENTITY));
 	virtual void Cleanup();
 	virtual void DeactivateOnDemandGrid();
 	virtual void RegisterBBoxInPODGrid(const Vec3 *BBox);
@@ -274,23 +337,12 @@ public:
 		float &ric_vel_reduction, unsigned int &flags);
 	virtual PhysicsVars *GetPhysVars() { return &m_vars; }
 
-	void GetPODGridCellBBox(int ix,int iy, Vec3 &center,Vec3 &size);
-	pe_PODcell *getPODcell(int ix,int iy)	{
-		int i, imask = ~negmask(ix) & ~negmask(iy) & negmask(ix - m_entgrid.size.x) & negmask(iy - m_entgrid.size.y);   // (x>=0 && x<m_entgrid.size.x) ? 0xffffffff : 0;
-		ix >>= m_log2PODscale; iy >>= m_log2PODscale;
-		i = (ix>>3)*m_PODstride.x + (iy>>3)*m_PODstride.y;
-		i = i + ((-1-i) & ~imask) & -m_bHasPODGrid;
-		INT_PTR pmask = -iszero((INT_PTR)m_pPODCells[i]);
-		pe_PODcell *pcell0 = (pe_PODcell*)(((INT_PTR)m_pPODCells[i] & ~pmask) + ((INT_PTR)m_pDummyPODcell & pmask));
-		imask &= -m_bHasPODGrid & ~pmask;
-		return pcell0 + ((ix&7)+((iy&7)<<3) & imask);
-	}
-
 	void InitGThunksPool();
 	void AllocGThunksPool( int nNewSize );
 	void DeallocGThunksPool();
 	void FlushOldThunks();
 	void SortThunks();
+	int GetFreeThunk();
 
 	virtual IPhysicalEntity* CreatePhysicalEntity(pe_type type, pe_params* params=0, void *pForeignData=0,int iForeignData=0, int id=-1, IGeneralMemoryHeap* pHeap = NULL)
 	{ return CreatePhysicalEntity(type,0.0f,params,pForeignData,iForeignData,id, NULL, pHeap); }
@@ -662,24 +714,39 @@ public:
 	CPhysicalEntity *m_pHiddenEnts;
 	float *m_pGroupMass,*m_pMassList;
 	int *m_pGroupIds,*m_pGroupNums;
-	grid m_entgrid;
 
-#ifdef GRID_AXIS_STANDARD
-	static int const m_iEntAxisx = 0; static int const m_iEntAxisy = 1; static int const m_iEntAxisz = 2;
+	SEntityGrid m_entgrid;
+	SEntityGrid *m_pDeletedGrids = nullptr;
+#ifdef MULTI_GRID
+	SEntityGrid* GetGrid(const CPhysicalPlaceholder *pobj) { return pobj->m_pGrid; }
+	SEntityGrid* GetGrid(const IPhysicalEntity *pIEnt) { return pIEnt!=WORLD_ENTITY ? GetGrid((CPhysicalPlaceholder*)pIEnt) : &m_entgrid; }
+	SEntityGrid* SetGrid(CPhysicalPlaceholder *pobj, SEntityGrid *pgrid) { SEntityGrid *pgridPrev=GetGrid(pobj); pobj->m_pGrid=pgrid; return pgridPrev; }
+	SEntityGrid* GetHostedGrid(const CPhysicalEntity *pent) { 
+		return pent->m_pOuterEntity && pent->m_pOuterEntity->GetType()==PE_GRID ? static_cast<SEntityGrid*>((IPhysicalEntity*)pent->m_pOuterEntity) : nullptr;
+	}
+	template<typename Rot,typename Tdst> QuatT TransformToGrid(const CPhysicalPlaceholder *src, const Tdst *dst, Vec3 &offs, Rot &rot) {
+		if (GetGrid(src) != GetGrid(dst)) {
+			QuatT diff = GetGrid(dst)->m_transW.GetInverted()*GetGrid(src)->m_transW;
+			rot = Rot(diff.q)*rot;
+			offs = diff*offs;
+			return diff;
+		}
+		return QuatT(IDENTITY);
+	}
 #else
-	int m_iEntAxisx, m_iEntAxisy, m_iEntAxisz;
+	template<typename T> SEntityGrid* GetGrid(const T *pobj) { return &m_entgrid; }
+	SEntityGrid* SetGrid(CPhysicalPlaceholder *pobj, SEntityGrid *pgrid) { return &m_entgrid; }
+	SEntityGrid* GetHostedGrid(const CPhysicalEntity *pent) { return nullptr; }
+	template<typename Rot,typename Tdst> QuatT TransformToGrid(const CPhysicalPlaceholder *src, const Tdst *dst, Vec3 &offs, Rot &rot) { return QuatT(IDENTITY); }
 #endif
+	void UnlockGrid(CPhysicalPlaceholder *pobj, int val=-WRITE_LOCK_VAL) { AtomicAdd(&m_lockGrid, val); }
+	void SyncPortal(CPhysicalPlaceholder *portal);
+	SEntityGrid* DestroyGrid(SEntityGrid *pgrid);	// returns pgrid->m_next
 
-	float m_zGran,m_rzGran;
-	pe_entgrid m_pEntGrid;
 	pe_gridthunk *m_gthunks;
 	int m_thunkPoolSz,m_iFreeGThunk0;
 	pe_gridthunk *m_oldThunks;
 	volatile int m_lockOldThunks;
-	pe_PODcell **m_pPODCells,m_dummyPODcell,*m_pDummyPODcell;
-	Vec2i m_PODstride;
-	int m_log2PODscale;
-	int m_bHasPODGrid,m_iActivePODCell0;
 	int m_nEnts,m_nEntsAlloc;
 	int m_nDynamicEntitiesDeleted;
 	CPhysicalPlaceholder **m_pEntsById;
@@ -812,9 +879,10 @@ public:
 	volatile int m_lockMovedEntsList;
 	volatile int m_lockPlayerGroups;
 
+	volatile int m_lockGrid;
 	volatile int m_lockPODGrid;
 	volatile int m_lockEntIdList;
-	volatile int m_lockStep,m_lockGrid, m_lockCaller[MAX_PHYS_THREADS+1],m_lockQueue,m_lockList;
+	volatile int m_lockStep, m_lockCaller[MAX_PHYS_THREADS+1],m_lockQueue,m_lockList;
 	volatile int m_lockAreas;
 	volatile int m_lockActiveAreas;
 	volatile int m_lockEventsQueue,m_iLastLogPump, m_lockEventClients;
@@ -830,6 +898,48 @@ public:
 	volatile int m_lockWaterMan;
 };
 
+#ifdef MULTI_GRID
+template<typename Tdst> inline QuatT GridTrans(const CPhysicalPlaceholder *pentSrc, const Tdst *pentDst) {
+	return pentDst->m_pWorld->GetGrid(pentDst)->m_transW.GetInverted() * pentDst->m_pWorld->GetGrid(pentSrc)->m_transW;
+}
+#else
+template<typename Tdst> inline QuatT GridTrans(const CPhysicalPlaceholder *pentSrc, const Tdst *pentDst) { return QuatT(IDENTITY); }
+#endif
+
+template<typename Rot> inline void CPhysicalEntity::GetPartTransform(int ipart, Vec3 &offs, Rot &R, float &scale, const CPhysicalPlaceholder *trg) const 
+{
+	R = Rot(m_pNewCoords->q*m_parts[ipart].pNewCoords->q);
+	offs = m_pNewCoords->q*m_parts[ipart].pNewCoords->pos + m_pNewCoords->pos;
+	scale = m_parts[ipart].scale;
+	m_pWorld->TransformToGrid(this,trg, offs,R);
+}
+
+template<typename CTrg> inline Vec3* CPhysicalEntity::GetPartBBox(int ipart, Vec3* BBox, const CTrg *trg) const 
+{	
+	if (m_pWorld->GetGrid(this)==m_pWorld->GetGrid(trg))
+		return m_parts[ipart].BBox; 
+	QuatT trans = GridTrans(this,trg);
+	return transformBBox(m_parts[ipart].BBox[0], m_parts[ipart].BBox[1], BBox, trans);
+}
+
+inline RigidBody *CPhysicalEntity::GetRigidBodyTrans(RigidBody *pbody, int ipart, CPhysicalEntity *trg, int type, bool needIinv)
+{
+	RigidBody *pbodySrc = type==2 ? GetRigidBodyData(pbody,ipart) : GetRigidBody(ipart,type&1);
+	if (m_pWorld->GetGrid(this)==m_pWorld->GetGrid(trg))
+		return pbodySrc;
+	QuatT trans = GridTrans(this,trg);
+	pbody->v = trans.q*pbodySrc->v;
+	pbody->w = trans.q*pbodySrc->w;
+	pbody->pos = trans*pbodySrc->pos;
+	pbody->M=pbodySrc->M; pbody->Minv=pbodySrc->Minv;
+	if (needIinv)	{
+		pbody->flags = 0;
+		pbody->Iinv = Matrix33(trans.q)*pbodySrc->Iinv*Matrix33(!trans.q);
+	}
+	return pbody;
+}
+
+
 const int PHYS_FOREIGN_ID_PHYS_AREA = 12;
 
 class CRY_ALIGN(128) CPhysArea : public CPhysicalPlaceholder {
@@ -837,6 +947,7 @@ public:
 	CPhysArea(CPhysicalWorld *pWorld);
 	~CPhysArea();
 	virtual pe_type GetType() const { return PE_AREA; }
+	virtual bool IsPlaceholder() const { return false; }
 	virtual CPhysicalEntity *GetEntity();
 	virtual CPhysicalEntity *GetEntityFast() { return GetEntity(); }
 	virtual int AddRef() { return CryInterlockedIncrement(&m_lockRef); }
@@ -978,6 +1089,12 @@ struct CBlockProfiler {
 	~CBlockProfiler() { m_time = CryGetTicks()-m_time; }
 };
 
+template<class T> inline QuatT InputGridTrans(const T* input, const CPhysicalEntity *trg) {
+	return !is_unused(input->pGridRefEnt) && input->pGridRefEnt && trg->m_pWorld->GetGrid(trg)!=trg->m_pWorld->GetGrid(input->pGridRefEnt) ?
+		trg->m_pWorld->GetGrid(trg)->m_transW.GetInverted() * trg->m_pWorld->GetGrid(input->pGridRefEnt)->m_transW :
+		QuatT(IDENTITY);
+}
+
 template<class T> inline bool StructChangesPos(T*) { return false; }
 inline bool StructChangesPos(pe_params *params) {
 	pe_params_pos *pp = (pe_params_pos*)params;
@@ -1063,7 +1180,13 @@ template<class T> struct ChangeRequest {
 	T *GetQueuedStruct() { return m_pQueued; }
 };
 
-
+inline void InitEvent(EventPhysMono *ev, CPhysicalEntity *pent)	{
+	ev->pEntity = pent; ev->pForeignData = pent->m_pForeignData; ev->iForeignData = pent->m_iForeignData;
+}
+inline void InitEvent(EventPhysPostStep *ev, CPhysicalEntity *pent)	{
+	InitEvent((EventPhysMono*)ev, pent);
+	ev->pGrid = pent->m_pWorld->GetGrid(pent);
+}
 
 class CRayGeom;
 struct geom_contact;

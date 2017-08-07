@@ -6,11 +6,10 @@
 #include <CrySerialization/BlackBox.h>
 #include <CrySerialization/IArchiveHost.h>
 #include <CrySerialization/STL.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvComponent.h>
-#include <Schematyc/Reflection/ComponentDesc.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/Assert.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvComponent.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/Assert.h>
 
 #include "ObjectProperties.h"
 
@@ -54,7 +53,7 @@ SRuntimeFunction::SRuntimeFunction(uint32 _graphIdx, const SRuntimeActivationPar
 	, activationParams(_activationParams)
 {}
 
-SRuntimeClassFunction::SRuntimeClassFunction(const SGUID& _guid)
+SRuntimeClassFunction::SRuntimeClassFunction(const CryGUID& _guid)
 	: guid(_guid)
 {}
 
@@ -66,52 +65,52 @@ SRuntimeClassConstructor::SRuntimeClassConstructor(uint32 _graphIdx, const SRunt
 	: SRuntimeFunction(_graphIdx, _activationParams)
 {}
 
-SRuntimeClassStateMachine::SRuntimeClassStateMachine(const SGUID& _guid, const char* _szName)
+SRuntimeClassStateMachine::SRuntimeClassStateMachine(const CryGUID& _guid, const char* _szName)
 	: guid(_guid)
 	, name(_szName)
 {}
 
-SRuntimeClassStateTimer::SRuntimeClassStateTimer(const SGUID& _guid, const char* _szName, const STimerParams& _params)
+SRuntimeClassStateTimer::SRuntimeClassStateTimer(const CryGUID& _guid, const char* _szName, const STimerParams& _params)
 	: guid(_guid)
 	, name(_szName)
 	, params(_params)
 {}
 
-SRuntimeClassStateSignalReceiver::SRuntimeClassStateSignalReceiver(const SGUID& _signalGUID, const SGUID& _senderGUID, uint32 _graphIdx, const SRuntimeActivationParams& _activationParams)
+SRuntimeClassStateSignalReceiver::SRuntimeClassStateSignalReceiver(const CryGUID& _signalGUID, const CryGUID& _senderGUID, uint32 _graphIdx, const SRuntimeActivationParams& _activationParams)
 	: SRuntimeFunction(_graphIdx, _activationParams)
 	, signalGUID(_signalGUID)
 	, senderGUID(_senderGUID)
 {}
 
-SRuntimeClassStateTransition::SRuntimeClassStateTransition(const SGUID& _signalGUID, uint32 _graphIdx, const SRuntimeActivationParams& _activationParams)
+SRuntimeClassStateTransition::SRuntimeClassStateTransition(const CryGUID& _signalGUID, uint32 _graphIdx, const SRuntimeActivationParams& _activationParams)
 	: SRuntimeFunction(_graphIdx, _activationParams)
 	, signalGUID(_signalGUID)
 {}
 
-SRuntimeStateActionDesc::SRuntimeStateActionDesc(const SGUID& _guid, const SGUID& _typeGUID)
+SRuntimeStateActionDesc::SRuntimeStateActionDesc(const CryGUID& _guid, const CryGUID& _typeGUID)
 	: guid(_guid)
 	, typeGUID(_typeGUID)
 {}
 
-SRuntimeClassState::SRuntimeClassState(const SGUID& _guid, const char* _szName)
+SRuntimeClassState::SRuntimeClassState(const CryGUID& _guid, const char* _szName)
 	: guid(_guid)
 	, name(_szName)
 {}
 
-SRuntimeClassVariable::SRuntimeClassVariable(const SGUID& _guid, const char* _szName, bool _bPublic, uint32 _pos)
+SRuntimeClassVariable::SRuntimeClassVariable(const CryGUID& _guid, const char* _szName, bool _bPublic, uint32 _pos)
 	: guid(_guid)
 	, name(_szName)
 	, bPublic(_bPublic)
 	, pos(_pos)
 {}
 
-SRuntimeClassTimer::SRuntimeClassTimer(const SGUID& _guid, const char* _szName, const STimerParams& _params)
+SRuntimeClassTimer::SRuntimeClassTimer(const CryGUID& _guid, const char* _szName, const STimerParams& _params)
 	: guid(_guid)
 	, name(_szName)
 	, params(_params)
 {}
 
-SRuntimeClassComponentInstance::SRuntimeClassComponentInstance(const SGUID& _guid, const char* _szName, bool _bPublic, const SGUID& _componentTypeGUID, const CTransform& _transform, const CClassProperties& _properties, uint32 _parentIdx)
+SRuntimeClassComponentInstance::SRuntimeClassComponentInstance(const CryGUID& _guid, const char* _szName, bool _bPublic, const CryGUID& _componentTypeGUID, const CTransformPtr& _transform, const CClassProperties& _properties, uint32 _parentIdx)
 	: guid(_guid)
 	, name(_szName)
 	, bPublic(_bPublic)
@@ -121,18 +120,18 @@ SRuntimeClassComponentInstance::SRuntimeClassComponentInstance(const SGUID& _gui
 	, parentIdx(_parentIdx)
 {}
 
-SRuntimeActionDesc::SRuntimeActionDesc(const SGUID& _guid, const SGUID& _typeGUID)
+SRuntimeActionDesc::SRuntimeActionDesc(const CryGUID& _guid, const CryGUID& _typeGUID)
 	: guid(_guid)
 	, typeGUID(_typeGUID)
 {}
 
-SRuntimeClassSignalReceiver::SRuntimeClassSignalReceiver(const SGUID& _signalGUID, const SGUID& _senderGUID, uint32 _graphIdx, const SRuntimeActivationParams& _activationParams)
+SRuntimeClassSignalReceiver::SRuntimeClassSignalReceiver(const CryGUID& _signalGUID, const CryGUID& _senderGUID, uint32 _graphIdx, const SRuntimeActivationParams& _activationParams)
 	: SRuntimeFunction(_graphIdx, _activationParams)
 	, signalGUID(_signalGUID)
 	, senderGUID(_senderGUID)
 {}
 
-CRuntimeClass::CRuntimeClass(time_t timeStamp, const SGUID& guid, const char* szName, const SGUID& envClassGUID, const CAnyConstPtr& pEnvClassProperties)
+CRuntimeClass::CRuntimeClass(time_t timeStamp, const CryGUID& guid, const char* szName, const CryGUID& envClassGUID, const CAnyConstPtr& pEnvClassProperties)
 	: m_timeStamp(timeStamp)
 	, m_guid(guid)
 	, m_name(szName)
@@ -146,7 +145,7 @@ time_t CRuntimeClass::GetTimeStamp() const
 	return m_timeStamp;
 }
 
-SGUID CRuntimeClass::GetGUID() const
+CryGUID CRuntimeClass::GetGUID() const
 {
 	return m_guid;
 }
@@ -161,7 +160,7 @@ const IObjectProperties& CRuntimeClass::GetDefaultProperties() const
 	return *m_pDefaultProperties;
 }
 
-SGUID CRuntimeClass::GetEnvClassGUID() const
+CryGUID CRuntimeClass::GetEnvClassGUID() const
 {
 	return m_envClassGUID;
 }
@@ -176,14 +175,14 @@ const CScratchpad& CRuntimeClass::GetScratchpad() const
 	return m_scratchpad;
 }
 
-uint32 CRuntimeClass::AddGraph(const SGUID& guid, const char* szName)
+uint32 CRuntimeClass::AddGraph(const CryGUID& guid, const char* szName)
 {
 	m_graphs.reserve(20);
 	m_graphs.emplace_back(std::make_shared<CRuntimeGraph>(guid, szName));
 	return m_graphs.size() - 1;
 }
 
-uint32 CRuntimeClass::FindGraph(const SGUID& guid) const
+uint32 CRuntimeClass::FindGraph(const CryGUID& guid) const
 {
 	for (uint32 graphIdx = 0, graphCount = m_graphs.size(); graphIdx < graphCount; ++graphIdx)
 	{
@@ -217,7 +216,7 @@ uint32 CRuntimeClass::AddFunction(uint32 graphIdx, const SRuntimeActivationParam
 	return m_functions.size() - 1;
 }
 
-uint32 CRuntimeClass::AddFunction(const SGUID& guid, uint32 graphIdx, const SRuntimeActivationParams& activationParams)
+uint32 CRuntimeClass::AddFunction(const CryGUID& guid, uint32 graphIdx, const SRuntimeActivationParams& activationParams)
 {
 	const uint32 functionIdx = FindOrReserveFunction(guid);
 	SRuntimeClassFunction& function = m_functions[functionIdx];
@@ -226,7 +225,7 @@ uint32 CRuntimeClass::AddFunction(const SGUID& guid, uint32 graphIdx, const SRun
 	return functionIdx;
 }
 
-uint32 CRuntimeClass::FindOrReserveFunction(const SGUID& guid)
+uint32 CRuntimeClass::FindOrReserveFunction(const CryGUID& guid)
 {
 	const uint32 functionCount = m_functions.size();
 	for (uint32 functionIdx = 0; functionIdx < functionCount; ++functionIdx)
@@ -257,14 +256,14 @@ const RuntimeClassConstructors& CRuntimeClass::GetConstructors() const
 	return m_constructors;
 }
 
-uint32 CRuntimeClass::AddStateMachine(const SGUID& guid, const char* szName)
+uint32 CRuntimeClass::AddStateMachine(const CryGUID& guid, const char* szName)
 {
 	m_stateMachines.reserve(10);
 	m_stateMachines.emplace_back(guid, szName);
 	return m_stateMachines.size() - 1;
 }
 
-uint32 CRuntimeClass::FindStateMachine(const SGUID& guid) const
+uint32 CRuntimeClass::FindStateMachine(const CryGUID& guid) const
 {
 	for (uint32 stateMachineIdx = 0, stateMachineCount = m_stateMachines.size(); stateMachineIdx < stateMachineCount; ++stateMachineIdx)
 	{
@@ -290,14 +289,14 @@ const RuntimeClassStateMachines& CRuntimeClass::GetStateMachines() const
 	return m_stateMachines;
 }
 
-uint32 CRuntimeClass::AddState(const SGUID& guid, const char* szName)
+uint32 CRuntimeClass::AddState(const CryGUID& guid, const char* szName)
 {
 	m_states.reserve(20);
 	m_states.emplace_back(guid, szName);
 	return m_states.size() - 1;
 }
 
-uint32 CRuntimeClass::FindState(const SGUID& guid) const
+uint32 CRuntimeClass::FindState(const CryGUID& guid) const
 {
 	for (uint32 stateIdx = 0, stateCount = m_states.size(); stateIdx < stateCount; ++stateIdx)
 	{
@@ -309,7 +308,7 @@ uint32 CRuntimeClass::FindState(const SGUID& guid) const
 	return InvalidIdx;
 }
 
-void CRuntimeClass::AddStateTimer(uint32 stateIdx, const SGUID& guid, const char* szName, const STimerParams& params)
+void CRuntimeClass::AddStateTimer(uint32 stateIdx, const CryGUID& guid, const char* szName, const STimerParams& params)
 {
 	SCHEMATYC_CORE_ASSERT(stateIdx < m_states.size());
 	if (stateIdx < m_states.size())
@@ -320,7 +319,7 @@ void CRuntimeClass::AddStateTimer(uint32 stateIdx, const SGUID& guid, const char
 	}
 }
 
-void CRuntimeClass::AddStateSignalReceiver(uint32 stateIdx, const SGUID& signalGUID, const SGUID& senderGUID, uint32 graphIdx, const SRuntimeActivationParams& activationParams)
+void CRuntimeClass::AddStateSignalReceiver(uint32 stateIdx, const CryGUID& signalGUID, const CryGUID& senderGUID, uint32 graphIdx, const SRuntimeActivationParams& activationParams)
 {
 	SCHEMATYC_CORE_ASSERT(stateIdx < m_states.size());
 	if (stateIdx < m_states.size())
@@ -331,7 +330,7 @@ void CRuntimeClass::AddStateSignalReceiver(uint32 stateIdx, const SGUID& signalG
 	}
 }
 
-uint32 CRuntimeClass::AddStateAction(uint32 stateIdx, const SGUID& guid, const SGUID& typeGUID)
+uint32 CRuntimeClass::AddStateAction(uint32 stateIdx, const CryGUID& guid, const CryGUID& typeGUID)
 {
 	SCHEMATYC_CORE_ASSERT(stateIdx < m_states.size());
 	if (stateIdx < m_states.size())
@@ -344,7 +343,7 @@ uint32 CRuntimeClass::AddStateAction(uint32 stateIdx, const SGUID& guid, const S
 	return InvalidIdx;
 }
 
-void CRuntimeClass::AddStateTransition(uint32 stateIdx, const SGUID& signalGUID, uint32 graphIdx, const SRuntimeActivationParams& activationParams)
+void CRuntimeClass::AddStateTransition(uint32 stateIdx, const CryGUID& signalGUID, uint32 graphIdx, const SRuntimeActivationParams& activationParams)
 {
 	SCHEMATYC_CORE_ASSERT(stateIdx < m_states.size());
 	if (stateIdx < m_states.size())
@@ -360,7 +359,7 @@ const RuntimeClassStates& CRuntimeClass::GetStates() const
 	return m_states;
 }
 
-uint32 CRuntimeClass::AddVariable(const SGUID& guid, const char* szName, bool bPublic, const CAnyConstRef& value)
+uint32 CRuntimeClass::AddVariable(const CryGUID& guid, const char* szName, bool bPublic, const CAnyConstRef& value)
 {
 	if (bPublic)
 	{
@@ -378,7 +377,7 @@ const RuntimeClassVariables& CRuntimeClass::GetVariables() const
 	return m_variables;
 }
 
-uint32 CRuntimeClass::GetVariablePos(const SGUID& guid) const
+uint32 CRuntimeClass::GetVariablePos(const CryGUID& guid) const
 {
 	for (const SRuntimeClassVariable& variable : m_variables)
 	{
@@ -390,7 +389,7 @@ uint32 CRuntimeClass::GetVariablePos(const SGUID& guid) const
 	return InvalidIdx;
 }
 
-uint32 CRuntimeClass::AddTimer(const SGUID& guid, const char* szName, const STimerParams& params)
+uint32 CRuntimeClass::AddTimer(const CryGUID& guid, const char* szName, const STimerParams& params)
 {
 	m_timers.reserve(20);
 	m_timers.emplace_back(guid, szName, params);
@@ -402,7 +401,7 @@ const RuntimeClassTimers& CRuntimeClass::GetTimers() const
 	return m_timers;
 }
 
-uint32 CRuntimeClass::AddComponentInstance(const SGUID& guid, const char* szName, bool bPublic, const SGUID& componentTypeGUID, const CTransform& transform, const CClassProperties& properties, uint32 parentIdx)
+uint32 CRuntimeClass::AddComponentInstance(const CryGUID& guid, const char* szName, bool bPublic, const CryGUID& componentTypeGUID, const CTransformPtr& transform, const CClassProperties& properties, uint32 parentIdx)
 {
 	if (bPublic)
 	{
@@ -414,7 +413,7 @@ uint32 CRuntimeClass::AddComponentInstance(const SGUID& guid, const char* szName
 	return m_componentInstances.size() - 1;
 }
 
-uint32 CRuntimeClass::FindComponentInstance(const SGUID& guid) const
+uint32 CRuntimeClass::FindComponentInstance(const CryGUID& guid) const
 {
 	for (uint32 componentInstanceIdx = 0, componentInstanceCount = m_componentInstances.size(); componentInstanceIdx < componentInstanceCount; ++componentInstanceIdx)
 	{
@@ -431,7 +430,7 @@ const RuntimeClassComponentInstances& CRuntimeClass::GetComponentInstances() con
 	return m_componentInstances;
 }
 
-uint32 CRuntimeClass::AddSignalReceiver(const SGUID& signalGUID, const SGUID& senderGUID, uint32 graphIdx, const SRuntimeActivationParams& activationParams)
+uint32 CRuntimeClass::AddSignalReceiver(const CryGUID& signalGUID, const CryGUID& senderGUID, uint32 graphIdx, const SRuntimeActivationParams& activationParams)
 {
 	m_signalReceivers.reserve(20);
 	m_signalReceivers.emplace_back(signalGUID, senderGUID, graphIdx, activationParams);
@@ -443,7 +442,7 @@ const RuntimeClassSignalReceivers& CRuntimeClass::GetSignalReceivers() const
 	return m_signalReceivers;
 }
 
-uint32 CRuntimeClass::AddAction(const SGUID& guid, const SGUID& typeGUID)
+uint32 CRuntimeClass::AddAction(const CryGUID& guid, const CryGUID& typeGUID)
 {
 	m_actions.emplace_back(guid, typeGUID);
 	return m_actions.size() - 1;
@@ -454,7 +453,7 @@ const RuntimeActionDescs& CRuntimeClass::GetActions() const
 	return m_actions;
 }
 
-uint32 CRuntimeClass::CountSignalReceviers(const SGUID& signalGUID) const
+uint32 CRuntimeClass::CountSignalReceviers(const CryGUID& signalGUID) const
 {
 	uint32 count = 0;
 	for (const SRuntimeClassState& state : m_states)
@@ -495,21 +494,23 @@ void CRuntimeClass::FinalizeComponentInstances()
 		const IEnvComponent* pEnvComponent = envRegistry.GetComponent(componentInstance.componentTypeGUID);
 		if (pEnvComponent)
 		{
-			const CComponentDesc& componentDesc = pEnvComponent->GetDesc();
+			const CEntityComponentClassDesc& componentDesc = pEnvComponent->GetDesc();
 
 			SComponentInstanceSortRef& componentInstanceSortRef = componentInstanceSortRefs.back();
-			const uint32 componentDependencyCount = componentDesc.GetDependencyCount();
-			componentInstanceSortRef.dependencies.reserve(componentDependencyCount);
+			const DynArray<SEntityComponentRequirements>& componentInteractions = componentDesc.GetComponentInteractions();
 
-			for (uint32 componentDependencyIdx = 0; componentDependencyIdx < componentDependencyCount; ++componentDependencyIdx)
+			componentInstanceSortRef.dependencies.reserve(componentInteractions.size());
+
+			for (const SEntityComponentRequirements& componentInteraction : componentInteractions)
 			{
-				const SGUID componentDependencyGUID = componentDesc.GetDependency(componentDependencyIdx)->guid;
 				for (uint32 otherComponentInstanceIdx = 0; otherComponentInstanceIdx < componentInstanceCount; ++otherComponentInstanceIdx)
 				{
-					if (m_componentInstances[otherComponentInstanceIdx].componentTypeGUID == componentDependencyGUID)
+					if ((componentInteraction.type == SEntityComponentRequirements::EType::SoftDependency || componentInteraction.type == SEntityComponentRequirements::EType::HardDependency) &&
+						m_componentInstances[otherComponentInstanceIdx].componentTypeGUID == componentInteraction.guid)
 					{
 						componentInstanceSortRef.dependencies.push_back(otherComponentInstanceIdx);
-						break;
+						if (componentInteraction.type == SEntityComponentRequirements::EType::HardDependency)
+							break;
 					}
 				}
 			}

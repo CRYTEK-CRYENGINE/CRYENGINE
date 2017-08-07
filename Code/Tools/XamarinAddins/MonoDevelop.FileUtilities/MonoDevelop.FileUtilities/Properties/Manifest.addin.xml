@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<ExtensionModel>
+	<Extension path="/MonoDevelop/Ide/Commands">
+		<Command id="MonoDevelop.FileUtilities.Commands.ClearReadOnly" _label="_Clear read only flag" defaultHandler="MonoDevelop.FileUtilities.ClearReadOnlyCommandHandler" description="Clear read only flag from file" />
+	</Extension>
+	
+	<Extension path="/MonoDevelop/Ide/ContextMenu/DocumentTab">
+		<SeparatorItem />
+		<CommandItem id="MonoDevelop.FileUtilities.Commands.ClearReadOnly" />
+		<SeparatorItem />
+	</Extension>
+</ExtensionModel>

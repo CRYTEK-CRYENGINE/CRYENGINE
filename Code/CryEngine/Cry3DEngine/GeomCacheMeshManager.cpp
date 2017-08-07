@@ -146,7 +146,7 @@ _smart_ptr<IRenderMesh> CGeomCacheMeshManager::ConstructStaticRenderMesh(CGeomCa
 
 	_smart_ptr<IRenderMesh> pRenderMesh = gEnv->pRenderer ?
 	                                      gEnv->pRenderer->CreateRenderMeshInitialized(&vertexData[0], meshInfo.m_numVertices,
-	                                                                                   eVF_P3F_C4B_T2F, &indices[0], indices.size(), prtTriangleList, "GeomCacheConstantMesh", pFileName, eRMT_Static, 1, 0,
+	                                                                                   EDefaultInputLayouts::P3F_C4B_T2F, &indices[0], indices.size(), prtTriangleList, "GeomCacheConstantMesh", pFileName, eRMT_Static, 1, 0,
 	                                                                                   NULL, NULL, false, false, &tangentData[0]) : nullptr;
 
 	CRenderChunk chunk;

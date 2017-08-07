@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <Schematyc/SerializationUtils/IValidatorArchive.h>
+#include <CrySchematyc/SerializationUtils/IValidatorArchive.h>
 
 namespace Schematyc
 {

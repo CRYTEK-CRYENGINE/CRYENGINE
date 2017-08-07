@@ -251,13 +251,13 @@ DXGL_DECLARE_REF_COUNTED(struct, SOutputMergerView)
 		TFrameBufferRefs m_kBoundFrameBuffers;
 	};
 
-#if !CRY_OPENGL_SINGLE_CONTEXT
+#if !OGL_SINGLE_CONTEXT
 	typedef SContextData* TContextMap[MAX_NUM_CONTEXT_PER_DEVICE];
 #endif
 
 	CResourceName m_kUniqueView;
 	EGIFormat m_eFormat;
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	SContextData m_kContextData;
 #else
 	TContextMap m_kContextMap;

@@ -4,17 +4,17 @@
 #include "Script/Graph/Nodes/ScriptGraphReceiveSignalNode.h"
 
 #include <CrySerialization/Decorators/ActionButton.h>
-#include <Schematyc/IObject.h>
-#include <Schematyc/Compiler/CompilerContext.h>
-#include <Schematyc/Compiler/IGraphNodeCompiler.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvSignal.h>
-#include <Schematyc/Script/IScriptRegistry.h>
-#include <Schematyc/Script/Elements/IScriptSignal.h>
-#include <Schematyc/Script/Elements/IScriptTimer.h>
-#include <Schematyc/Script/Elements/IScriptComponentInstance.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
-#include <Schematyc/Utils/StackString.h>
+#include <CrySchematyc/IObject.h>
+#include <CrySchematyc/Compiler/CompilerContext.h>
+#include <CrySchematyc/Compiler/IGraphNodeCompiler.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvSignal.h>
+#include <CrySchematyc/Script/IScriptRegistry.h>
+#include <CrySchematyc/Script/Elements/IScriptSignal.h>
+#include <CrySchematyc/Script/Elements/IScriptTimer.h>
+#include <CrySchematyc/Script/Elements/IScriptComponentInstance.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Utils/StackString.h>
 
 #include "Runtime/RuntimeClass.h"
 #include "Script/ScriptView.h"
@@ -27,12 +27,12 @@ namespace Schematyc
 
 CScriptGraphReceiveSignalNode::CScriptGraphReceiveSignalNode() {}
 
-CScriptGraphReceiveSignalNode::CScriptGraphReceiveSignalNode(const SElementId& signalId, const SGUID& objectGUID)
+CScriptGraphReceiveSignalNode::CScriptGraphReceiveSignalNode(const SElementId& signalId, const CryGUID& objectGUID)
 	: m_signalId(signalId)
 	, m_objectGUID(objectGUID)
 {}
 
-SGUID CScriptGraphReceiveSignalNode::GetTypeGUID() const
+CryGUID CScriptGraphReceiveSignalNode::GetTypeGUID() const
 {
 	return ms_typeGUID;
 }
@@ -165,8 +165,6 @@ void CScriptGraphReceiveSignalNode::Save(Serialization::IArchive& archive, const
 
 void CScriptGraphReceiveSignalNode::Edit(Serialization::IArchive& archive, const ISerializationContext& context)
 {
-	archive(Serialization::ActionButton(functor(*this, &CScriptGraphReceiveSignalNode::GoToSignal)), "goToSignal", "^Go To Signal");
-
 	Validate(archive, context);
 }
 
@@ -216,7 +214,7 @@ void CScriptGraphReceiveSignalNode::Register(CScriptGraphNodeFactory& factory)
 		{
 		public:
 
-			CCreationCommand(const char* szSubject, const SElementId& signalId, const SGUID& objectGUID = SGUID())
+			CCreationCommand(const char* szSubject, const SElementId& signalId, const CryGUID& objectGUID = CryGUID())
 				: m_subject(szSubject)
 				, m_signalId(signalId)
 				, m_objectGUID(objectGUID)
@@ -255,19 +253,19 @@ void CScriptGraphReceiveSignalNode::Register(CScriptGraphNodeFactory& factory)
 
 			string     m_subject;
 			SElementId m_signalId;
-			SGUID      m_objectGUID;
+			CryGUID      m_objectGUID;
 		};
 
 		struct SComponent
 		{
-			inline SComponent(const SGUID& _guid, const SGUID& _typeGUID, const char* szName)
+			inline SComponent(const CryGUID& _guid, const CryGUID& _typeGUID, const char* szName)
 				: guid(_guid)
 				, typeGUID(_typeGUID)
 				, name(szName)
 			{}
 
-			SGUID  guid;
-			SGUID  typeGUID;
+			CryGUID  guid;
+			CryGUID  typeGUID;
 			string name;
 		};
 
@@ -277,12 +275,12 @@ void CScriptGraphReceiveSignalNode::Register(CScriptGraphNodeFactory& factory)
 
 		// IScriptGraphNodeCreator
 
-		virtual SGUID GetTypeGUID() const override
+		virtual CryGUID GetTypeGUID() const override
 		{
 			return CScriptGraphReceiveSignalNode::ms_typeGUID;
 		}
 
-		virtual IScriptGraphNodePtr CreateNode(const SGUID& guid) override
+		virtual IScriptGraphNodePtr CreateNode(const CryGUID& guid) override
 		{
 			return std::make_shared<CScriptGraphNode>(guid, stl::make_unique<CScriptGraphReceiveSignalNode>());
 		}
@@ -303,7 +301,7 @@ void CScriptGraphReceiveSignalNode::Register(CScriptGraphNodeFactory& factory)
 						components.emplace_back(scriptComponentInstance.GetGUID(), scriptComponentInstance.GetTypeGUID(), name.c_str());
 						return EVisitStatus::Continue;
 					};
-					scriptView.VisitScriptComponentInstances(ScriptComponentInstanceConstVisitor::FromLambda(visitScriptComponentInstance), EDomainScope::Derived);
+					scriptView.VisitScriptComponentInstances(visitScriptComponentInstance, EDomainScope::Derived);
 
 					auto visitEnvSignal = [&nodeCreationMenu, &scriptView, &components](const IEnvSignal& envSignal) -> EVisitStatus
 					{
@@ -312,8 +310,8 @@ void CScriptGraphReceiveSignalNode::Register(CScriptGraphNodeFactory& factory)
 						{
 						case EEnvElementType::Component:
 							{
-								const SGUID componentTypeGUID = pEnvScope->GetGUID();
-								for(const SComponent& component : components)
+								const CryGUID componentTypeGUID = pEnvScope->GetGUID();
+								for (const SComponent& component : components)
 								{
 									if (component.typeGUID == componentTypeGUID)
 									{
@@ -339,7 +337,7 @@ void CScriptGraphReceiveSignalNode::Register(CScriptGraphNodeFactory& factory)
 						}
 						return EVisitStatus::Continue;
 					};
-					scriptView.VisitEnvSignals(EnvSignalConstVisitor::FromLambda(visitEnvSignal));
+					scriptView.VisitEnvSignals(visitEnvSignal);
 
 					auto visitScriptSignal = [&nodeCreationMenu, &scriptView](const IScriptSignal& scriptSignal)
 					{
@@ -347,7 +345,7 @@ void CScriptGraphReceiveSignalNode::Register(CScriptGraphNodeFactory& factory)
 						scriptView.QualifyName(scriptSignal, EDomainQualifier::Global, subject);
 						nodeCreationMenu.AddCommand(std::make_shared<CCreationCommand>(subject.c_str(), SElementId(EDomain::Script, scriptSignal.GetGUID())));
 					};
-					scriptView.VisitAccesibleSignals(ScriptSignalConstVisitor::FromLambda(visitScriptSignal));
+					scriptView.VisitAccesibleSignals(visitScriptSignal);
 
 					auto visitScriptTimer = [&nodeCreationMenu, &scriptView](const IScriptTimer& scriptTimer)
 					{
@@ -355,7 +353,7 @@ void CScriptGraphReceiveSignalNode::Register(CScriptGraphNodeFactory& factory)
 						scriptView.QualifyName(scriptTimer, EDomainQualifier::Global, subject);
 						nodeCreationMenu.AddCommand(std::make_shared<CCreationCommand>(subject.c_str(), SElementId(EDomain::Script, scriptTimer.GetGUID())));
 					};
-					scriptView.VisitAccesibleTimers(ScriptTimerConstVisitor::FromLambda(visitScriptTimer));
+					scriptView.VisitAccesibleTimers(visitScriptTimer);
 
 					break;
 				}
@@ -415,7 +413,7 @@ SRuntimeResult CScriptGraphReceiveSignalNode::ExecuteReceiveScriptSignal(SRuntim
 	return SRuntimeResult(ERuntimeStatus::Continue, EOutputIdx::Out);
 }
 
-const SGUID CScriptGraphReceiveSignalNode::ms_typeGUID = "ad2aee64-0a60-4469-8ec7-38b4b720d30c"_schematyc_guid;
+const CryGUID CScriptGraphReceiveSignalNode::ms_typeGUID = "ad2aee64-0a60-4469-8ec7-38b4b720d30c"_cry_guid;
 
 } // Schematyc
 

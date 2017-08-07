@@ -73,8 +73,8 @@ void CGameObjectDispatch::RegisterInterface(SGameObjectExtensionRMI* pMessages, 
 		if (pMessages[i].lowDelay)
 			md.parallelFlags |= eMPF_NoSendDelay;
 
-		pMsgDef->push_back(md);
-		m_messages.push_back(pMessages + i);
+		pMsgDef->push_back(md); // Outgoing message definitions
+		m_messages.push_back(pMessages + i); // Incoming message definitions
 	}
 }
 
