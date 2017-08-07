@@ -5,9 +5,9 @@
 #pragma once
 
 #include <CryEntitySystem/IEntity.h>
-#include <Schematyc/Services/ILog.h>
-#include <Schematyc/Services/ILogRecorder.h>
-#include <Schematyc/Utils/CryLinkUtils.h>
+#include <CrySchematyc/Services/ILog.h>
+#include <CrySchematyc/Services/ILogRecorder.h>
+#include <CrySchematyc/Utils/CryLinkUtils.h>
 
 namespace Schematyc
 {
@@ -23,8 +23,8 @@ private:
 		ELogMessageType        messageType;
 		LogStreamId            streamId;
 		CryLinkUtils::ECommand linkCommand;
-		SGUID                  elementGUID;
-		SGUID                  detailGUID;
+		CryGUID                  elementGUID;
+		CryGUID                  detailGUID;
 		EntityId               entityId;
 		string                 function;
 		string                 message;

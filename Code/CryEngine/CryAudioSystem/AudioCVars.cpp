@@ -5,10 +5,10 @@
 #include <CrySystem/ISystem.h>
 #include <CrySystem/IConsole.h>
 
-using namespace CryAudio;
-
+namespace CryAudio
+{
 //////////////////////////////////////////////////////////////////////////
-void CAudioCVars::RegisterVariables()
+void CCVars::RegisterVariables()
 {
 #if CRY_PLATFORM_WINDOWS
 	m_fileCacheManagerSize = 384 << 10;      // 384 MiB on PC
@@ -97,6 +97,11 @@ void CAudioCVars::RegisterVariables()
 #else
 	#error "Undefined platform."
 #endif
+
+	REGISTER_CVAR2("s_DebugDistance", &m_debugDistance, m_debugDistance, VF_CHEAT | VF_CHEAT_NOCHECK,
+	               "Limits drawing of audio object debug info to the specified distance around the active listeners. Setting this cvar to 0 disables the limiting.\n"
+	               "Usage: s_DebugDistance [0/...]\n"
+	               "Default: 0 m (infinite)\n");
 
 	REGISTER_CVAR2("s_OcclusionMaxDistance", &m_occlusionMaxDistance, m_occlusionMaxDistance, VF_CHEAT | VF_CHEAT_NOCHECK,
 	               "Occlusion is not calculated for audio objects, whose distance to the listener is greater than this value. Setting this value to 0 disables obstruction/occlusion calculations.\n"
@@ -196,13 +201,13 @@ void CAudioCVars::RegisterVariables()
 	                 "otherwise, the AudioTrigger is stopped on the GlobalAudioObject\n"
 	                 "Usage: s_StopTrigger Play_chicken_idle 605 or s_StopTrigger MuteDialog\n");
 
-	REGISTER_COMMAND("s_SetRtpc", CmdSetRtpc, VF_CHEAT,
-	                 "Set an Audio RTPC value.\n"
-	                 "The first argument is the name of the AudioRtpc to be set, the second argument is the float value to be set,"
+	REGISTER_COMMAND("s_SetParameter", CmdSetParameter, VF_CHEAT,
+	                 "Set an Audio Parameter value.\n"
+	                 "The first argument is the name of the parameter to be set, the second argument is the float value to be set,"
 	                 "the third argument is an optional AudioObject ID.\n"
-	                 "If the third argument is provided, the AudioRtpc is set on the AudioObject with the given ID,\n"
-	                 "otherwise, the AudioRtpc is set on the GlobalAudioObject\n"
-	                 "Usage: s_SetRtpc character_speed  0.0  601 or s_SetRtpc volume_music 1.0\n");
+	                 "If the third argument is provided, the parameter is set on the AudioObject with the given ID,\n"
+	                 "otherwise, the AudioParameter is set on the GlobalAudioObject\n"
+	                 "Usage: s_SetParameter character_speed  0.0  601 or s_SetParameter volume_music 1.0\n");
 
 	REGISTER_COMMAND("s_SetSwitchState", CmdSetSwitchState, VF_CHEAT,
 	                 "Set an Audio Switch to a provided State.\n"
@@ -214,7 +219,7 @@ void CAudioCVars::RegisterVariables()
 
 	REGISTER_STRING("s_DefaultStandaloneFilesAudioTrigger", DoNothingTriggerName, 0,
 	                "The name of the ATL AudioTrigger which is used for playing back standalone files, when you call 'PlayFile' without specifying\n"
-	                "an override audioTriggerId that should be used instead.\n"
+	                "an override triggerId that should be used instead.\n"
 	                "Usage: s_DefaultStandaloneFilesAudioTrigger audio_trigger_name.\n"
 	                "If you change this CVar to be empty, the control will not be created automatically.\n"
 	                "Default: \"do_nothing\" \n");
@@ -233,10 +238,12 @@ void CAudioCVars::RegisterVariables()
 	               "b: Show text labels for active audio objects.\n"
 	               "c: Show trigger names for active audio objects.\n"
 	               "d: Show current states for active audio objects.\n"
-	               "e: Show RTPC values for active audio objects.\n"
+	               "e: Show Parameter values for active audio objects.\n"
 	               "f: Show Environment amounts for active audio objects.\n"
-	               "g: Draw occlusion rays.\n"
-	               "h: Show occlusion ray labels.\n"
+	               "g: Show occlusion ray labels.\n"
+	               "h: Draw occlusion rays.\n"
+	               "i: Show object standalone files.\n"
+	               "u: List standalone files.\n"
 	               "v: List active Events.\n"
 	               "w: List active Audio Objects.\n"
 	               "x: Show FileCache Manager debug info.\n"
@@ -277,21 +284,16 @@ void CAudioCVars::RegisterVariables()
 	               "Usage: s_AudioObjectsRayType [0/1/2/3/4/5]\n"
 	               "Default PC: 0, XboxOne: 0, PS4: 0, Mac: 0, Linux: 0, iOS: 0, Android: 0\n");
 
-	m_pAudioTriggersDebugFilter = REGISTER_STRING("s_AudioTriggersDebugFilter", "", 0,
-	                                              "Allows for filtered display of audio triggers by a search string.\n"
-	                                              "Usage: s_AudioTriggersDebugFilter laser\n"
-	                                              "Default: " " (all)\n");
-
-	m_pAudioObjectsDebugFilter = REGISTER_STRING("s_AudioObjectsDebugFilter", "", 0,
-	                                             "Allows for filtered display of audio objects by a search string.\n"
-	                                             "Usage: s_AudioObjectsDebugFilter spaceship.\n"
-	                                             "Default: " " (all)\n");
+	m_pDebugFilter = REGISTER_STRING("s_DebugFilter", "", 0,
+	                                 "Allows for filtered display of audio debug info by a search string.\n"
+	                                 "Usage: s_DebugFilter spaceship\n"
+	                                 "Default: " " (all)\n");
 
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioCVars::UnregisterVariables()
+void CCVars::UnregisterVariables()
 {
 	IConsole* const pConsole = gEnv->pConsole;
 
@@ -314,7 +316,7 @@ void CAudioCVars::UnregisterVariables()
 		pConsole->UnregisterVariable("s_TickWithMainThread");
 		pConsole->UnregisterVariable("s_ExecuteTrigger");
 		pConsole->UnregisterVariable("s_StopTrigger");
-		pConsole->UnregisterVariable("s_SetRtpc");
+		pConsole->UnregisterVariable("s_SetParameter");
 		pConsole->UnregisterVariable("s_SetSwitchState");
 		pConsole->UnregisterVariable("s_DefaultStandaloneFilesAudioTrigger");
 
@@ -332,117 +334,68 @@ void CAudioCVars::UnregisterVariables()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioCVars::CmdExecuteTrigger(IConsoleCmdArgs* pCmdArgs)
+void CCVars::CmdExecuteTrigger(IConsoleCmdArgs* pCmdArgs)
 {
-	ControlId audioTriggerId = InvalidControlId;
-
 	int const numArgs = pCmdArgs->GetArgCount();
 
 	if ((numArgs == 2) || (numArgs == 3))
 	{
-		gEnv->pAudioSystem->GetAudioTriggerId(pCmdArgs->GetArg(1), audioTriggerId);
-
-		if (audioTriggerId == InvalidControlId)
-		{
-			g_audioLogger.Log(eAudioLogType_Error, "Unknown trigger name: %s", pCmdArgs->GetArg(1));
-		}
-		else
-		{
-			gEnv->pAudioSystem->ExecuteTrigger(audioTriggerId);
-		}
+		ControlId const triggerId = CryAudio::StringToId_RunTime(pCmdArgs->GetArg(1));
+		gEnv->pAudioSystem->ExecuteTrigger(triggerId);
 	}
 	else
 	{
-		g_audioLogger.Log(eAudioLogType_Error, "Usage: s_ExecuteTrigger [TriggerName]");
+		g_logger.Log(ELogType::Error, "Usage: s_ExecuteTrigger [TriggerName]");
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioCVars::CmdStopTrigger(IConsoleCmdArgs* pCmdArgs)
+void CCVars::CmdStopTrigger(IConsoleCmdArgs* pCmdArgs)
 {
-	ControlId audioTriggerId = InvalidControlId;
-
 	int const numArgs = pCmdArgs->GetArgCount();
 
 	if ((numArgs == 2) || (numArgs == 3))
 	{
-		gEnv->pAudioSystem->GetAudioTriggerId(pCmdArgs->GetArg(1), audioTriggerId);
-
-		if (audioTriggerId == InvalidControlId)
-		{
-			g_audioLogger.Log(eAudioLogType_Error, "Unknown trigger name: %s", pCmdArgs->GetArg(1));
-		}
-		else
-		{
-			gEnv->pAudioSystem->StopTrigger(audioTriggerId);
-		}
+		ControlId const triggerId = CryAudio::StringToId_RunTime(pCmdArgs->GetArg(1));
+		gEnv->pAudioSystem->StopTrigger(triggerId);
 	}
 	else
 	{
-		g_audioLogger.Log(eAudioLogType_Error, "Usage: s_StopTrigger [TriggerName]");
+		g_logger.Log(ELogType::Error, "Usage: s_StopTrigger [TriggerName]");
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioCVars::CmdSetRtpc(IConsoleCmdArgs* pCmdArgs)
+void CCVars::CmdSetParameter(IConsoleCmdArgs* pCmdArgs)
 {
-	ControlId parameterId = InvalidControlId;
-
 	int const numArgs = pCmdArgs->GetArgCount();
 
 	if ((numArgs == 3) || (numArgs == 4))
 	{
-		gEnv->pAudioSystem->GetAudioParameterId(pCmdArgs->GetArg(1), parameterId);
-
+		ControlId const parameterId = CryAudio::StringToId_RunTime(pCmdArgs->GetArg(1));
 		double const value = atof(pCmdArgs->GetArg(2));
-
-		if (parameterId == InvalidControlId)
-		{
-			g_audioLogger.Log(eAudioLogType_Error, "Unknown parameter name: %s", pCmdArgs->GetArg(1));
-		}
-		else
-		{
-			gEnv->pAudioSystem->SetParameter(parameterId, static_cast<float>(value));
-		}
+		gEnv->pAudioSystem->SetParameter(parameterId, static_cast<float>(value));
 	}
 	else
 	{
-		g_audioLogger.Log(eAudioLogType_Error, "Usage: s_SetRtpc [RtpcName] [RtpcValue]");
+		g_logger.Log(ELogType::Error, "Usage: s_SetParameter [ParameterName] [ParameterValue]");
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioCVars::CmdSetSwitchState(IConsoleCmdArgs* pCmdArgs)
+void CCVars::CmdSetSwitchState(IConsoleCmdArgs* pCmdArgs)
 {
-	ControlId audioSwitchId = InvalidControlId;
-	SwitchStateId audioSwitchStateId = InvalidSwitchStateId;
-
 	int const numArgs = pCmdArgs->GetArgCount();
 
 	if ((numArgs == 3) || (numArgs == 4))
 	{
-		gEnv->pAudioSystem->GetAudioSwitchId(pCmdArgs->GetArg(1), audioSwitchId);
-
-		if (audioSwitchId != InvalidControlId)
-		{
-			gEnv->pAudioSystem->GetAudioSwitchStateId(audioSwitchId, pCmdArgs->GetArg(2), audioSwitchStateId);
-
-			if (audioSwitchStateId != InvalidSwitchStateId)
-			{
-				gEnv->pAudioSystem->SetSwitchState(audioSwitchId, audioSwitchStateId);
-			}
-			else
-			{
-				g_audioLogger.Log(eAudioLogType_Error, "Invalid  Switch State name: %s", pCmdArgs->GetArg(2));
-			}
-		}
-		else
-		{
-			g_audioLogger.Log(eAudioLogType_Error, "Unknown Switch name: %s", pCmdArgs->GetArg(1));
-		}
+		ControlId const switchId = CryAudio::StringToId_RunTime(pCmdArgs->GetArg(1));
+		SwitchStateId const switchStateId = CryAudio::StringToId_RunTime(pCmdArgs->GetArg(2));
+		gEnv->pAudioSystem->SetSwitchState(switchId, switchStateId);
 	}
 	else
 	{
-		g_audioLogger.Log(eAudioLogType_Error, "Usage: s_SetSwitchState [SwitchName] [SwitchStateName]");
+		g_logger.Log(ELogType::Error, "Usage: s_SetSwitchState [SwitchName] [SwitchStateName]");
 	}
 }
+} // namespace CryAudio

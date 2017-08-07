@@ -642,7 +642,7 @@ bool CShaderMan::mfParseFXSampler(SShaderFXParams& FXParams, SFXSampler* pr, con
 	CGpr.m_nStateHandle = pr->m_nTexState;
 	if (pr->m_Semantic.empty() && pr->m_Values.empty())
 	{
-		if (CGpr.m_nStateHandle >= 0)
+		if (CGpr.m_nStateHandle != EDefaultSamplerStates::Unspecified)
 		{
 			pParams->push_back(CGpr);
 			return true;

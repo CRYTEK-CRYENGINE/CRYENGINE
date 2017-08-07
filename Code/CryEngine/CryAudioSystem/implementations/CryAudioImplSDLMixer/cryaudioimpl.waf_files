@@ -1,28 +1,28 @@
 {
-	"NoUberFile": {
-		"Root": [
-			"stdafx.cpp"
-		]
-	},
-	"CryAudioImpl_uber_0.cpp": {
-		"Source Files": [
-			"AudioImpl.cpp",
-			"AudioImplCVars.cpp",
-			"Common.cpp",
-			"CryAudioImpl.cpp",
-			"SoundEngineTypes.cpp",
-			"SoundEngine.cpp"
-		],
-		"Header Files": [
-			"ATLEntities.h",
-			"AudioImpl.h",
-			"AudioImplCVars.h",
-			"Common.h",
-			"resource.h",
-			"SoundEngine.h",
-			"SoundEngineTypes.h",
-			"SoundEngineUtil.h",
-			"stdafx.h"
-		]
-	}
+  "CryAudioImpl_uber_0.cpp": {
+    "Header Files": [
+      "ATLEntities.h", 
+      "AudioImpl.h", 
+      "AudioImplCVars.h", 
+      "Common.h", 
+      "resource.h", 
+      "SoundEngine.h", 
+      "SoundEngineTypes.h", 
+      "SoundEngineUtil.h", 
+      "stdafx.h"
+    ], 
+    "Source Files": [
+      "AudioImpl.cpp", 
+      "AudioImplCVars.cpp", 
+      "Common.cpp", 
+      "CryAudioImpl.cpp", 
+      "SoundEngineTypes.cpp", 
+      "SoundEngine.cpp"
+    ]
+  }, 
+  "NoUberFile": {
+    "Root": [
+      "stdafx.cpp"
+    ]
+  }
 }

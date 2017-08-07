@@ -12,16 +12,28 @@ namespace CryEngine.UI.Components
 	/// </summary>
 	public class CollapseCtrl : UIComponent
 	{
-		public event EventHandler<bool> OnCollapseChanged; ///< Raised if the collapsed state changed. Bool value indicates new state.
+		/// <summary>
+		/// Raised if the collapsed state changed. Bool value indicates new state.
+		/// </summary>
+		public event Action<bool> OnCollapseChanged;
 
-		static Dictionary<Object, bool> _collapsedStateByContext = new Dictionary<object, bool>();
-		bool _collapsed = false;
-		ImageSource _arrRt = ResourceManager.ImageFromFile(Path.Combine(UIElement.DataDirectory, "arrow_rt.png"));
-		ImageSource _arrDn = ResourceManager.ImageFromFile(Path.Combine(UIElement.DataDirectory, "arrow_dn.png"));
-		Object _context;
+		private static readonly Dictionary<object, bool> _collapsedStateByContext = new Dictionary<object, bool>();
 
-		public Panel Icon { get; private set; } ///< Icon to be used for this view.
+		private bool _collapsed = false;
+		private readonly ImageSource _arrRt = ResourceManager.ImageFromFile(Path.Combine(UIElement.DataDirectory, "arrow_rt.png"));
+		private readonly ImageSource _arrDn = ResourceManager.ImageFromFile(Path.Combine(UIElement.DataDirectory, "arrow_dn.png"));
+		private object _context;
 
+		/// <summary>
+		/// Icon to be used for this view.
+		/// </summary>
+		/// <value>The icon.</value>
+		public Panel Icon { get; private set; }
+
+		/// <summary>
+		/// Indicates whether the element should be collapsed or not.
+		/// </summary>
+		/// <value><c>true</c> if collapsed; otherwise, <c>false</c>.</value>
 		public bool Collapsed
 		{
 			get
@@ -33,29 +45,38 @@ namespace CryEngine.UI.Components
 			{
 				if (_collapsed != value)
 				{
-					if (_context != null)
+					if(_context != null)
+					{
 						_collapsedStateByContext[_context] = value;
+					}
 					_collapsed = value;
-					if (OnCollapseChanged != null)
-						OnCollapseChanged(Collapsed);
+					OnCollapseChanged?.Invoke(Collapsed);
 				}
 			}
-		} ///< Indicates whether the element should be collapsed or not.
+		}
 
-		public Object Context
+		/// <summary>
+		/// Assigns the logical owner of this control, for sync with global collapsed-state memory.
+		/// </summary>
+		/// <value>The context.</value>
+		public object Context
 		{
 			set
 			{
 				_context = value;
 				bool val;
-				if (_collapsedStateByContext.TryGetValue(_context, out val))
+				if(_collapsedStateByContext.TryGetValue(_context, out val))
+				{
 					Collapsed = val;
+				}
 				else
+				{
 					val = _collapsedStateByContext[_context] = Collapsed;
+				}
 
 				Icon.Background.Source = val ? _arrRt : _arrDn;
 			}
-		} ///< Assigns the logical owner of this control, for sync with global collapsed-state memory.
+		}
 
 		/// <summary>
 		/// Called by framework. Do not call directly.
@@ -81,16 +102,22 @@ namespace CryEngine.UI.Components
 				Collapsed = !Collapsed;
 			}
 
-			if (Collapsed && Icon.Background.Source == _arrDn)
+			if(Collapsed && Icon.Background.Source == _arrDn)
+			{
 				Icon.RectTransform.Angle -= 30;
+			}
+
 			if (Icon.RectTransform.Angle <= -90)
 			{
 				Icon.Background.Source = _arrRt;
 				Icon.RectTransform.Angle = 0;
 			}
 
-			if (!Collapsed && Icon.Background.Source == _arrRt)
+			if(!Collapsed && Icon.Background.Source == _arrRt)
+			{
 				Icon.RectTransform.Angle += 30;
+			}
+
 			if (Icon.RectTransform.Angle >= 90)
 			{
 				Icon.Background.Source = _arrDn;

@@ -131,6 +131,7 @@ private:
 	typedef _context_smart_ptr<IModifier, TParamModContext> PModifier;
 
 public:
+	typedef T TValue;
 	typedef typename T::TType TType;
 
 	CParamMod(TType defaultValue = TType(1));
@@ -149,53 +150,75 @@ public:
 	void                           ModifyUpdate(const SUpdateContext& context, TType* data, SUpdateRange range) const;
 
 	TRange<TType>                  GetValues(const SUpdateContext& context, TType* data, SUpdateRange range, EModDomain domain, bool updating) const;
-	TRange<TType>                  GetValues(const SUpdateContext& context, Array<TType,uint> data, EModDomain domain, bool updating) const;
+	TRange<TType>                  GetValues(const SUpdateContext& context, TVarArray<TType> data, EModDomain domain, bool updating) const;
 	TRange<TType>                  GetValueRange(const SUpdateContext& context) const;
 	TRange<TType>                  GetValueRange() const;
 	void                           Sample(TType* samples, int numSamples) const;
 
-	bool                           HasModifiers() const { return !m_modInit.empty() || !m_modUpdate.empty(); }
-	TType                          GetBaseValue() const { return m_baseValue; }
-	static const TParamModContext& Context()            { static TParamModContext context; return context; }
+	bool                           HasInitModifiers() const   { return !m_modInit.empty(); }
+	bool                           HasUpdateModifiers() const { return !m_modUpdate.empty(); }
+	bool                           HasModifiers() const       { return !m_modInit.empty() || !m_modUpdate.empty(); }
+	TType                          GetBaseValue() const       { return m_baseValue; }
+	bool                           IsEnabled() const          { return std::isfinite(m_baseValue); }
+	static const TParamModContext& Context()                  { static TParamModContext context; return context; }
 
 private:
-	IOFStream GetParticleStream(CParticleContainer& container, EParticleDataType dataType) const;
-
+	T                       m_baseValue;
 	std::vector<PModifier>  m_modifiers;
 	std::vector<IModifier*> m_modInit;
 	std::vector<IModifier*> m_modUpdate;
-	T                       m_baseValue;
 };
 
+template<typename T>
 struct STempModBuffer
 {
 	template<typename TParamMod>
 	STempModBuffer(const SUpdateContext& context, TParamMod& paramMod)
-		: m_buffer(*context.m_pMemHeap, paramMod.HasModifiers() ? context.m_container.GetMaxParticles() : 0)
-		, m_stream(m_buffer.data(), paramMod.GetBaseValue()) {}
+		: m_buffer(*context.m_pMemHeap)
+		, m_stream(nullptr, paramMod.GetBaseValue()) {}
+
+	T* Allocate(SGroupRange range, T baseValue)
+	{
+		m_buffer.resize(range.size());
+		T* data = m_buffer.data() - +*range.begin();
+		m_stream = IFStream(data, baseValue);
+		return data;
+	}
 
 	template<typename TParamMod>
 	void ModifyInit(const SUpdateContext& context, TParamMod& paramMod, SUpdateRange range)
 	{
-		if (paramMod.HasModifiers())
-			paramMod.ModifyInit(context, m_buffer.data(), range);
+		if (paramMod.HasInitModifiers())
+		{
+			T* data = Allocate(range, paramMod.GetBaseValue());
+			paramMod.ModifyInit(context, data, range);
+		}
 	}
 
 	template<typename TParamMod>
 	void ModifyUpdate(const SUpdateContext& context, TParamMod& paramMod, SUpdateRange range)
 	{
-		if (paramMod.HasModifiers())
+		if (paramMod.HasUpdateModifiers())
 		{
-			const float baseValue = paramMod.GetBaseValue();
-			CRY_PFX2_FOR_RANGE_PARTICLES(range);
-			m_buffer[particleId] = baseValue;
-			CRY_PFX2_FOR_END;
-			paramMod.ModifyUpdate(context, m_buffer.data(), range);
+			T* data = Allocate(range, paramMod.GetBaseValue());
+			m_stream.Fill(range, paramMod.GetBaseValue());
+			paramMod.ModifyUpdate(context, data, range);
 		}
 	}
 
-	TFloatArray m_buffer;
-	IFStream    m_stream;
+	THeapArray<T> m_buffer;
+	TIStream<T>   m_stream;
+};
+
+template<typename T>
+struct STempInitBuffer: STempModBuffer<T>
+{
+	template<typename TParamMod>
+	STempInitBuffer(const SUpdateContext& context, TParamMod& paramMod)
+		: STempModBuffer<T>(context, paramMod)
+	{
+		this->ModifyInit(context, paramMod, context.GetSpawnedRange());
+	}
 };
 
 }

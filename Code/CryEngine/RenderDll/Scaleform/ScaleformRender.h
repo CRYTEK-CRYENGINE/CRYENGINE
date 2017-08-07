@@ -65,11 +65,11 @@ struct SSF_ResourcesD3D
 
 	CShader* m_pShader;
 
-	EVertexFormat m_vertexDecls[IScaleformPlayback::Vertex_Num];
+	InputLayoutHandle m_vertexDecls[IScaleformPlayback::Vertex_Num];
 	D3DVertexDeclaration* m_pVertexDecls[IScaleformPlayback::Vertex_Num];
-	D3DQuery* m_pQuery;
+	DeviceFenceHandle m_fence;
 
-	int texStateID[8];
+	SamplerStateHandle samplerStateHandles[8];
 	std::vector<CTexture*> m_renderTargets;
 
 	SSF_ResourcesD3D(CD3D9Renderer* pRenderer);
@@ -89,6 +89,7 @@ struct SSF_ResourcesD3D
 
 		CRenderPrimitive* GetUsablePrimitive(int key);
 		void FreeUsedPrimitives(int key);
+		void Clear();
 	}
 	m_PrimitiveHeap;
 

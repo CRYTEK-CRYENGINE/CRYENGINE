@@ -479,8 +479,6 @@ bool PipeUserMovementActorAdapter::PrepareNavigateSmartObject(CSmartObject* pSma
 
 void PipeUserMovementActorAdapter::InvalidateSmartObjectLink(CSmartObject* pSmartObject, OffMeshLink_SmartObject* pSmartObjectLink)
 {
-	assert(pSmartObject != NULL && pSmartObjectLink != NULL);
-	m_attachedPipeUser.InvalidateSOLink(pSmartObject, pSmartObjectLink->m_pFromHelper, pSmartObjectLink->m_pToHelper);
 }
 
 void PipeUserMovementActorAdapter::ResetActorTargetRequest()

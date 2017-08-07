@@ -5,8 +5,11 @@
 #include "VisAreas.h"
 #include "ObjMan.h"
 #include "MatMan.h"
-#include <CryAudio/IAudioSystem.h>
+#include <CryAudio/IObject.h>
 
+#include <CryEntitySystem/IEntity.h>
+
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 class TubeSurface : public _i_reference_target_t
@@ -758,7 +761,6 @@ CRopeRenderNode::CRopeRenderNode()
 	m_WSBBox.max = Vec3(1, 1, 1);
 	m_bNeedToReRegister = true;
 	m_bStaticPhysics = false;
-	m_nEntityOwnerId = 0;
 
 	gEnv->pPhysicalWorld->AddEventClient(EventPhysStateChange::id, &CRopeRenderNode::OnPhysStateChange, 1);
 }
@@ -994,7 +996,7 @@ void CRopeRenderNode::Physicalize(bool bInstant)
 		if (m_pPhysicalEntity)
 			gEnv->pPhysicalWorld->DestroyPhysicalEntity(m_pPhysicalEntity);
 		m_pPhysicalEntity = gEnv->pPhysicalWorld->CreatePhysicalEntity((m_bStaticPhysics) ? PE_STATIC : PE_ROPE,
-		                                                               NULL, (IRenderNode*)this, PHYS_FOREIGN_ID_ROPE, m_nEntityOwnerId ? (m_nEntityOwnerId & 0xFFFF) : -1);
+		                                                               NULL, (IRenderNode*)this, PHYS_FOREIGN_ID_ROPE, GetOwnerEntity() ? GetOwnerEntity()->GetId() : -1);
 		if (!m_pPhysicalEntity)
 			return;
 	}
@@ -1159,7 +1161,7 @@ void CRopeRenderNode::Physicalize(bool bInstant)
 	{
 		//////////////////////////////////////////////////////////////////////////
 		pe_params_flags par_flags;
-		par_flags.flags = pef_never_affect_triggers | pef_log_state_changes | pef_log_poststep;
+		par_flags.flags = pef_log_state_changes | pef_log_poststep;
 		if (m_params.nFlags & eRope_Subdivide)
 			par_flags.flags |= rope_subdivide_segs;
 		if (m_params.nFlags & eRope_CheckCollisinos)
@@ -1532,6 +1534,7 @@ void CRopeRenderNode::SyncWithPhysicalRope(bool bForce)
 	{
 		pe_status_rope sr;
 		sr.lock = 1;
+		sr.pGridRefEnt = WORLD_ENTITY;
 		if (!m_pPhysicalEntity->GetStatus(&sr))
 			return;
 		sr.lock = -1;
@@ -1576,7 +1579,7 @@ void CRopeRenderNode::CreateRenderMesh()
 	// make new RenderMesh
 	//////////////////////////////////////////////////////////////////////////
 	m_pRenderMesh = GetRenderer()->CreateRenderMeshInitialized(
-	  NULL, 3, eVF_P3F_C4B_T2F,
+	  NULL, 3, EDefaultInputLayouts::P3F_C4B_T2F,
 	  NULL, 3, prtTriangleList,
 	  "Rope", GetName(),
 	  eRMT_Dynamic, 1, 0, NULL, NULL, false, false);
@@ -1761,9 +1764,10 @@ void CRopeRenderNode::OnPhysicsPostStep()
 	// Re-register entity.
 	if (m_bNeedToReRegister)
 	{
-		pe_params_bbox pbb;
-		m_pPhysicalEntity->GetParams(&pbb);
-		m_WSBBox = AABB(pbb.BBox[0], pbb.BBox[1]);
+		pe_status_pos sp;
+		sp.pGridRefEnt = WORLD_ENTITY;
+		m_pPhysicalEntity->GetStatus(&sp);
+		m_WSBBox = AABB(sp.pos+sp.BBox[0], sp.pos+sp.BBox[1]);
 		Get3DEngine()->RegisterEntity(this);
 	}
 	m_bNeedToReRegister = false;
@@ -1935,3 +1939,5 @@ IMaterial* CRopeRenderNode::GetMaterial(Vec3* pHitPos) const
 {
 	return m_pMaterial;
 }
+
+#pragma warning(pop)

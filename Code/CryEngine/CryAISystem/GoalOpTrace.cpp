@@ -219,8 +219,6 @@ void COPTrace::Reset(CPipeUser* pPipeUser)
 		{
 			pPipeUser->m_bLooseAttention = false;
 		}
-
-		pPipeUser->ClearInvalidatedSOLinks();
 	}
 }
 
@@ -290,9 +288,6 @@ EGoalOpResult COPTrace::Execute(CPipeUser* pPipeUser)
 		{
 			// Kevin - Clean up residual data that is causing problems elsewhere
 			pipeUserState.fDistanceToPathEnd = 0.f;
-
-			// Done tracing, allow to try to use invalid objects again.
-			pPipeUser->ClearInvalidatedSOLinks();
 
 			if (pipeUserState.curActorTargetPhase == eATP_Error)
 			{
@@ -1474,7 +1469,7 @@ bool COPTrace::HandleAnimationPhase(CPipeUser* pPipeUser, bool bFullUpdate, bool
 				// Exact positioning and animation has been finished at navigation smart object, resurrect path.
 				pPipeUser->m_State.fDistanceToPathEnd = pPipeUser->m_Path.GetDiscardedPathLength();
 				pPipeUser->m_Path.ResurrectRemainingPath();
-				pPipeUser->m_Path.PrepareNavigationalSmartObjectsForMNM(pPipeUser);
+				pPipeUser->m_Path.PrepareNavigationalSmartObjectsForMNM(pPipeUser->GetEntity());
 				pPipeUser->AdjustPath();
 				*pbForceRegeneratePath = false;
 
@@ -1681,12 +1676,6 @@ void COPTrace::TriggerExactPositioning(CPipeUser* pPipeUser, bool* pbForceRegene
 								pPipeUser->m_Path.GetParams().inhibitPathRegeneration = true;
 								pPipeUser->CancelRequestedPath(false);
 
-#ifdef _DEBUG
-								// TODO: these are debug variables, should be perhaps initialised somewhere else.
-								pPipeUser->m_DEBUGCanTargetPointBeReached.clear();
-								pPipeUser->m_DEBUGUseTargetPointRequest.zero();
-#endif
-
 								m_bWaitingForBusySmartObject = false;
 							}
 							else // Can't navigate using this SO for some reason
@@ -1697,9 +1686,6 @@ void COPTrace::TriggerExactPositioning(CPipeUser* pPipeUser, bool* pbForceRegene
 								pipeUserActorTargetRequest.Reset();
 								m_actorTargetRequester = eTATR_None;
 								m_pendingActorTargetRequester = eTATR_None;
-
-								//Should this be used for MNM case?
-								pPipeUser->InvalidateSOLink(pSmartObject, pSOLink->m_pFromHelper, pSOLink->m_pToHelper);
 							}
 						}
 						else // We are not the closest in line
@@ -1725,12 +1711,6 @@ void COPTrace::TriggerExactPositioning(CPipeUser* pPipeUser, bool* pbForceRegene
 				// Enforce to use the current path.
 				pPipeUser->m_Path.GetParams().inhibitPathRegeneration = true;
 				pPipeUser->CancelRequestedPath(false);
-
-#ifdef _DEBUG
-				// TODO: these are debug variables, should be perhaps initialised somewhere else.
-				pPipeUser->m_DEBUGCanTargetPointBeReached.clear();
-				pPipeUser->m_DEBUGUseTargetPointRequest.zero();
-#endif
 			}
 			break;
 		}

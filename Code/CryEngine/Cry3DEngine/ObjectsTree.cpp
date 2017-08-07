@@ -26,10 +26,8 @@ FILE* COctreeNode::m_pFileForSyncRead = 0;
 int COctreeNode::m_nNodesCounterAll = 0;
 int COctreeNode::m_nNodesCounterStreamable = 0;
 int COctreeNode::m_nInstCounterLoaded = 0;
-void* COctreeNode::m_pRenderContentJobQueue = NULL;
 
 DECLARE_JOB("OctreeNodeRender", TRenderContentJob, COctreeNode::RenderContentJobEntry);
-typedef PROD_CONS_QUEUE_TYPE(TRenderContentJob, 1024) TRenderContentJobQueue;
 
 #define CHECK_OBJECTS_BOX_WARNING_SIZE (1.0e+10f)
 
@@ -384,7 +382,6 @@ void COctreeNode::CompileObjects()
 			{
 				pObj->m_nInternalFlags &= ~(IRenderNode::REQUIRES_FORWARD_RENDERING | IRenderNode::REQUIRES_NEAREST_CUBEMAP);
 				if (eRType != eERType_Light &&
-				    eRType != eERType_Cloud &&
 				    eRType != eERType_FogVolume &&
 				    eRType != eERType_Decal &&
 				    eRType != eERType_Road &&
@@ -403,33 +400,24 @@ void COctreeNode::CompileObjects()
 							pObj->m_nInternalFlags |= IRenderNode::REQUIRES_NEAREST_CUBEMAP;
 					}
 
-					if (eRType == eERType_RenderProxy)
+					if (eRType == eERType_MovableBrush)
 					{
-						int nSlotCount = pObj->GetSlotCount();
-
-						for (int s = 0; s < nSlotCount; s++)
+						if (IStatObj* pStatObj = pObj->GetEntityStatObj())
 						{
-							if (CMatInfo* pMat = (CMatInfo*)pObj->GetEntitySlotMaterial(s))
+							if (CMatInfo* pMat = (CMatInfo*)pStatObj->GetMaterial())
 							{
 								if (pMat->IsForwardRenderingRequired())
 									pObj->m_nInternalFlags |= IRenderNode::REQUIRES_FORWARD_RENDERING;
 								if (pMat->IsNearestCubemapRequired())
 									pObj->m_nInternalFlags |= IRenderNode::REQUIRES_NEAREST_CUBEMAP;
 							}
-
-							if (IStatObj* pStatObj = pObj->GetEntityStatObj(s))
-								if (CMatInfo* pMat = (CMatInfo*)pStatObj->GetMaterial())
-								{
-									if (pMat->IsForwardRenderingRequired())
-										pObj->m_nInternalFlags |= IRenderNode::REQUIRES_FORWARD_RENDERING;
-									if (pMat->IsNearestCubemapRequired())
-										pObj->m_nInternalFlags |= IRenderNode::REQUIRES_NEAREST_CUBEMAP;
-								}
 						}
 					}
 
 					if (!(pObj->m_nInternalFlags & (IRenderNode::REQUIRES_FORWARD_RENDERING | IRenderNode::REQUIRES_NEAREST_CUBEMAP)))
-						CompileCharacter(pObj->GetEntityCharacter(0), pObj->m_nInternalFlags);
+					{
+						CompileCharacter(pObj->GetEntityCharacter(), pObj->m_nInternalFlags);
+					}
 				}
 			}
 
@@ -507,7 +495,7 @@ void COctreeNode::UpdateStaticInstancing()
 			continue;
 
 		Matrix34A objMatrix;
-		CStatObj* pStatObj = (CStatObj*)pInst->GetEntityStatObj(0, 0, &objMatrix);
+		CStatObj* pStatObj = (CStatObj*)pInst->GetEntityStatObj(0, &objMatrix);
 		/*
 		   int nLodA = -1;
 		   {
@@ -1401,37 +1389,35 @@ bool COctreeNode::GetShadowCastersTimeSliced(IRenderNode* pIgnoreNode, ShadowMap
 							continue;
 
 						// find closest loaded lod
-						for (int nSlot = 0; nSlot < pNode->GetSlotCount(); ++nSlot)
+
+						bool bCanRender = false;
+
+						if (IStatObj* pStatObj = pNode->GetEntityStatObj())
 						{
-							bool bCanRender = false;
-
-							if (IStatObj* pStatObj = pNode->GetEntityStatObj(nSlot))
+							for (int i = 0; i < MAX_STATOBJ_LODS_NUM; ++i)
 							{
-								for (int i = 0; i < MAX_STATOBJ_LODS_NUM; ++i)
-								{
-									IStatObj* pLod = pStatObj->GetLodObject(i);
+								IStatObj* pLod = pStatObj->GetLodObject(i);
 
-									if (pLod && pLod->m_eStreamingStatus == ecss_Ready)
-									{
-										bCanRender = true;
-										break;
-									}
+								if (pLod && pLod->m_eStreamingStatus == ecss_Ready)
+								{
+									bCanRender = true;
+									break;
 								}
 							}
-							else if (ICharacterInstance* pCharacter = pNode->GetEntityCharacter(nSlot))
-							{
-								bCanRender = GetCVars()->e_ShadowsCacheRenderCharacters != 0;
-							}
+						}
+						else if (ICharacterInstance* pCharacter = pNode->GetEntityCharacter())
+						{
+							bCanRender = GetCVars()->e_ShadowsCacheRenderCharacters != 0;
+						}
 
-							if (bCanRender)
+						if (bCanRender)
+						{
+							if (pNode->CanExecuteRenderAsJob())
 							{
-								if (pNode->CanExecuteRenderAsJob())
-								{
-									pFrustum->jobExecutedCastersList.Add(pNode);
-								}
-								else
-									pFrustum->castersList.Add(pNode);
+								pFrustum->jobExecutedCastersList.Add(pNode);
 							}
+							else
+								pFrustum->castersList.Add(pNode);
 						}
 					}
 				}
@@ -1543,7 +1529,7 @@ void COctreeNode::GenerateStatObjAndMatTables(std::vector<IStatObj*>* pStatObjTa
 			}
 			if (eType == eERType_Character)
 			{
-				ICharacterInstance* pCharacter = pObj->GetEntityCharacter(0,nullptr,false);
+				ICharacterInstance* pCharacter = pObj->GetEntityCharacter();
 				if (pCharacter)
 					pMatTable->push_back(pCharacter->GetMaterial());
 			}
@@ -2498,23 +2484,11 @@ void COctreeNode::RenderContent(int nRenderMask, const Vec3& vAmbColor, const SR
 {
 	if (GetCVars()->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
 		GetObjManager()->AddCullJobProducer();
-	IF(m_pRenderContentJobQueue == NULL, 0)
-	{
-		m_pRenderContentJobQueue = CryAlignedNew<TRenderContentJobQueue>();
-	}
-	TRenderContentJob::packet packet(nRenderMask, vAmbColor, passInfo);
-	packet.SetClassInstance(this);
-	static_cast<TRenderContentJobQueue*>(m_pRenderContentJobQueue)->AddPacket(packet, JobManager::eHighPriority);
-}
 
-//////////////////////////////////////////////////////////////////////////
-void COctreeNode::DeallocateRenderContentQueue()
-{
-	if (m_pRenderContentJobQueue != NULL)
-	{
-		CryAlignedDelete(static_cast<TRenderContentJobQueue*>(m_pRenderContentJobQueue));
-		m_pRenderContentJobQueue = NULL;
-	}
+	TRenderContentJob renderContentJob(nRenderMask, vAmbColor, passInfo);
+	renderContentJob.SetClassInstance(this);
+	renderContentJob.SetPriorityLevel(JobManager::eHighPriority);
+	renderContentJob.Run();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2836,7 +2810,16 @@ void COctreeNode::RenderCommonObjects(TDoublyLinkedList<IRenderNode>* lstObjects
 					if (rnType == eERType_DistanceCloud || GetObjManager()->CheckOcclusion_TestAABB(objBox, fEntDistance))
 					{
 						if (pObj->CanExecuteRenderAsJob())
-							GetObjManager()->RenderObject(pObj, pAffectingLights, vAmbColor, objBox, fEntDistance, bSunOnly, eERType_RenderProxy, passInfo);
+						{
+							if (rnType == eERType_MovableBrush)
+							{
+								GetObjManager()->RenderBrush((CBrush*)pObj, pAffectingLights, pTerrainTexInfo, objBox, fEntDistance, bSunOnly, m_pVisArea, true, passInfo);
+							}
+							else
+							{
+								GetObjManager()->RenderObject(pObj, pAffectingLights, vAmbColor, objBox, fEntDistance, bSunOnly, rnType, passInfo);
+							}
+						}
 						else
 						{
 							GetObjManager()->PushIntoCullOutputQueue(SCheckOcclusionOutput::CreateCommonObjectOutput(pObj, pAffectingLights, vAmbColor, objBox, fEntDistance, bSunOnly, pTerrainTexInfo, passInfo));
@@ -3122,7 +3105,7 @@ void COctreeNode::UpdateObjects(IRenderNode* pObj)
 	const float fNewMaxViewDist = pObj->GetMaxViewDist();
 	pObj->m_fWSMaxViewDist = fNewMaxViewDist;
 
-	if (eRType != eERType_Light && eRType != eERType_Cloud && eRType != eERType_FogVolume && eRType != eERType_Decal && eRType != eERType_Road && eRType != eERType_DistanceCloud && eRType != eERType_CloudBlocker)
+	if (eRType != eERType_Light && eRType != eERType_FogVolume && eRType != eERType_Decal && eRType != eERType_Road && eRType != eERType_DistanceCloud && eRType != eERType_CloudBlocker)
 	{
 		if (eRType == eERType_ParticleEmitter)
 		{
@@ -3140,34 +3123,23 @@ void COctreeNode::UpdateObjects(IRenderNode* pObj)
 					pObj->m_nInternalFlags |= IRenderNode::REQUIRES_NEAREST_CUBEMAP;
 			}
 
-			if (eRType == eERType_RenderProxy)
+			if (eRType == eERType_MovableBrush)
 			{
-				int nSlotCount = pObj->GetSlotCount();
-
-				for (int s = 0; s < nSlotCount; s++)
+				if (IStatObj* pStatObj = pObj->GetEntityStatObj())
 				{
-					if (CMatInfo* pMat = (CMatInfo*)pObj->GetEntitySlotMaterial(s))
+					if (CMatInfo* pMat = (CMatInfo*)pStatObj->GetMaterial())
 					{
 						if (pMat->IsForwardRenderingRequired())
 							pObj->m_nInternalFlags |= IRenderNode::REQUIRES_FORWARD_RENDERING;
 						if (pMat->IsNearestCubemapRequired())
 							pObj->m_nInternalFlags |= IRenderNode::REQUIRES_NEAREST_CUBEMAP;
 					}
-
-					if (IStatObj* pStatObj = pObj->GetEntityStatObj(s))
-					{
-						if (CMatInfo* pMat = (CMatInfo*)pStatObj->GetMaterial())
-						{
-							if (pMat->IsForwardRenderingRequired())
-								pObj->m_nInternalFlags |= IRenderNode::REQUIRES_FORWARD_RENDERING;
-							if (pMat->IsNearestCubemapRequired())
-								pObj->m_nInternalFlags |= IRenderNode::REQUIRES_NEAREST_CUBEMAP;
-						}
-					}
 				}
 
 				if (!(pObj->m_nInternalFlags & (IRenderNode::REQUIRES_FORWARD_RENDERING | IRenderNode::REQUIRES_NEAREST_CUBEMAP)))
-					CompileCharacter(pObj->GetEntityCharacter(0), pObj->m_nInternalFlags);
+				{
+					CompileCharacter(pObj->GetEntityCharacter(), pObj->m_nInternalFlags);
+				}
 			}
 		}
 	}
@@ -3748,9 +3720,4 @@ bool CObjManager::IsBoxOccluded(const AABB& objBox,
 
 	return false;
 }
-
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-#include "VolumeObjectRenderNode.h"
-#include "CloudRenderNode.h"
 

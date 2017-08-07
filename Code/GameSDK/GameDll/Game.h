@@ -110,6 +110,7 @@ class CHUDMissionObjectiveSystem; // TODO : Remove me?
 class CGameBrowser;
 class CGameLobby;
 class CGameLobbyManager;
+class CGameStateRecorder;
 #if IMPLEMENT_PC_BLADES
 class CGameServerLists;
 #endif //IMPLEMENT_PC_BLADES
@@ -844,6 +845,7 @@ protected:
 	CMatchmakingTelemetry*    m_pMatchMakingTelemetry;
 	CDataPatchDownloader*     m_pDataPatchDownloader;
 	CGameLocalizationManager* m_pGameLocalizationManager;
+	CGameStateRecorder*       m_pGameStateRecorder;
 #if USE_LAGOMETER
 	CLagOMeter*               m_pLagOMeter;
 #endif

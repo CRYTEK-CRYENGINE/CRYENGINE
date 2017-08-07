@@ -142,7 +142,7 @@ CClipVolume* CClipVolumeManager::GetClipVolumeByPos(const Vec3& pos, const IClip
 
 void CClipVolumeManager::GetMemoryUsage(class ICrySizer* pSizer) const
 {
-	pSizer->AddObject(this, sizeof(this));
+	pSizer->AddObject(this, sizeof(*this));
 	for (size_t i = 0; i < m_ClipVolumes.size(); ++i)
 		pSizer->AddObject(m_ClipVolumes[i].m_pVolume);
 }

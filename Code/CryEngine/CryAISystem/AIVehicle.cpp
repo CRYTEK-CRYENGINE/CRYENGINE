@@ -8,7 +8,6 @@
 #include <CrySystem/ISystem.h>
 
 #include <CrySystem/IConsole.h>
-#include "VertexList.h"
 #include <vector>
 #include <algorithm>
 #include <CryMath/Cry_Vector2.h>

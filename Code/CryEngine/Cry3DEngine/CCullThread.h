@@ -59,11 +59,7 @@ private:
 			SwapEndianBase(reinterpret_cast<uint64*>(&rData));
 			break;
 		default:
-#if defined(__clang__) || defined(__GNUC__)
-			__builtin_unreachable();
-#else
-			__assume(0);
-#endif
+			UNREACHABLE();
 		}
 		//#endif
 		return rData;

@@ -22,7 +22,11 @@
 //////////////////////////////////////////////////////////////////////
 
 #define BASE_DYNAMIC_SURFACE_ID 100
-#define DEFAULT_MATERIAL_NAME   "mat_default"
+#define DEFAULT_MATERIAL_NAME          "mat_default"
+#define DEFAULT_MATERIAL_NAME_CONCRETE "mat_concrete"
+#define DEFAULT_MATERIAL_NAME_WATER    "mat_water"
+#define DEFAULT_MATERIAL_NAME_METAL    "mat_metal"
+#define DEFAULT_MATERIAL_NAME_CANOPY   "mat_canopy"
 
 //////////////////////////////////////////////////////////////////////////
 template<class TMap>
@@ -157,12 +161,10 @@ static void ReloadSurfaceTypes(IConsoleCmdArgs* pArgs)
 CSurfaceTypeManager::CSurfaceTypeManager()
 {
 	m_lastSurfaceId = BASE_DYNAMIC_SURFACE_ID;
+	m_lastDefaultId = 0;
 	memset(m_idToSurface, 0, sizeof(m_idToSurface));
 
-	m_pDefaultSurfaceType = new CMaterialSurfaceType(DEFAULT_MATERIAL_NAME);
-	m_pDefaultSurfaceType->m_nId = 0;
-	RegisterSurfaceType(m_pDefaultSurfaceType, true);
-	g_pDefaultSurfaceType = m_pDefaultSurfaceType;
+	RegisterAllDefaultTypes();
 
 	REGISTER_COMMAND("e_ReloadSurfaces", &ReloadSurfaceTypes, VF_NULL, "Reload physical properties of all materials");
 }
@@ -194,6 +196,51 @@ void CSurfaceTypeManager::RemoveAll()
 
 	stl::free_container(m_nameToSurface);
 	memset(m_idToSurface, 0, sizeof(m_idToSurface));
+}
+
+void CSurfaceTypeManager::RegisterAllDefaultTypes()
+{
+	//Register mat_default type
+	m_pDefaultSurfaceType = RegisterDefaultType(DEFAULT_MATERIAL_NAME);
+	g_pDefaultSurfaceType = m_pDefaultSurfaceType;
+
+	RegisterDefaultType(DEFAULT_MATERIAL_NAME_CONCRETE);
+	RegisterDefaultType(DEFAULT_MATERIAL_NAME_WATER);
+	RegisterDefaultType(DEFAULT_MATERIAL_NAME_METAL);
+	RegisterDefaultType(DEFAULT_MATERIAL_NAME_CANOPY);
+}
+
+CMaterialSurfaceType* CSurfaceTypeManager::RegisterDefaultType(const char* szName)
+{
+	CMaterialSurfaceType* pType = new CMaterialSurfaceType(szName);
+	pType->m_nId = m_lastDefaultId;
+	RegisterSurfaceType(pType, true);
+	
+	//Set up a default physic
+	pType->m_physParams.friction = 0.7f;
+	pType->m_physParams.breakable_id = -1;
+	pType->m_physParams.collType = 1 << 31; // means "use default"
+	pType->m_physParams.sound_obstruction = 0.0f;
+
+	//Set the pure typename
+	pType->m_typename = pType->m_typename.substr(4);
+
+	m_lastDefaultId++;
+
+	return pType;
+}
+
+void CSurfaceTypeManager::ResetSurfaceTypes()
+{
+	//Remove all entries
+	RemoveAll();
+
+	//Reset the counter
+	m_lastDefaultId = 0;
+	m_lastSurfaceId = BASE_DYNAMIC_SURFACE_ID;
+
+	//Register the default types again
+	RegisterAllDefaultTypes();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -284,7 +331,7 @@ bool CSurfaceTypeManager::RegisterSurfaceType(ISurfaceType* pSurfaceType, bool b
 
 	if (bDefault)
 	{
-		nId = 0;
+		nId = nSurfTypeId;
 		//m_pDefaultSurfaceType = pSurfaceType;
 	}
 	if (!pSurfaceType->Load(nId))
@@ -328,11 +375,8 @@ void CSurfaceTypeManager::LoadSurfaceTypes()
 	if (!root)
 		return;
 
-	RemoveAll();
-
-	m_lastSurfaceId = BASE_DYNAMIC_SURFACE_ID;
-	RegisterSurfaceType(m_pDefaultSurfaceType, true);
-
+	ResetSurfaceTypes();
+	
 	for (int i = 0, nChilds = root->getChildCount(); i < nChilds; i++)
 	{
 		SLICE_AND_SLEEP();

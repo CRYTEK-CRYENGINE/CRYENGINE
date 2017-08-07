@@ -90,11 +90,6 @@ CCryDX12UnorderedAccessView::CCryDX12UnorderedAccessView(ID3D11Resource* pResour
 	m_DX12View.GetUAVDesc() = desc12;
 }
 
-CCryDX12UnorderedAccessView::~CCryDX12UnorderedAccessView()
-{
-
-}
-
 #pragma region /* ID3D11UnorderedAccessView implementation */
 
 void STDMETHODCALLTYPE CCryDX12UnorderedAccessView::GetDesc(

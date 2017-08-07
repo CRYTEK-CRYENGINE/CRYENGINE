@@ -654,17 +654,17 @@ inline EIntersectionResult DetailedIntersectSegmentSegment(const VecType& a0, co
                                                            real_t& s, real_t& t)
 {
 	/*
-	   a0
-	 |
-	   s
+	          a0
+	          |
+	          s
 	   b0-----t----------b1
-	 |
-	 |
-	   a1
+	          |
+	          |
+	          a1
 
 	   Assuming
 	   da = a1 - a0
-	   db = b1 - 0
+	   db = b1 - b0
 	   we can define the equations of the two segments as
 	   a0 + s * da = 0    with s = [0...1]
 	   b0 + t * db = 0    with t = [0...1]

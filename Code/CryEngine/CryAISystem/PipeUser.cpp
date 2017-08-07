@@ -25,8 +25,8 @@
 #include "SmartPathFollower.h"
 #include <CryNetwork/ISerialize.h>
 #include "ObjectContainer.h"
-#include "CodeCoverageTracker.h"
 #include "TargetSelection/TargetTrackManager.h"
+#include "Formation/FormationManager.h"
 
 #include "Cover/CoverSystem.h"
 
@@ -37,7 +37,6 @@
 
 #pragma warning(push)
 #pragma warning(disable:4355) // 'this': used in base member initializer list
-
 CPipeUser::CPipeUser()
 	: m_fTimePassed(0)
 	, m_adjustingAim(false)
@@ -71,9 +70,6 @@ CPipeUser::CPipeUser()
 	, m_looseAttentionId(0)
 	, m_aimState(AI_AIM_NONE)
 	, m_pActorTargetRequest(0)
-#ifdef _DEBUG
-	, m_DEBUGUseTargetPointRequest(ZERO)
-#endif
 	, m_PathDestinationPos(ZERO)
 	, m_eNavSOMethod(nSOmNone)
 	, m_idLastUsedSmartObject(0)
@@ -146,7 +142,7 @@ void CPipeUser::Event(unsigned short int eType, SAIEVENT* pAIEvent)
 
 			ClearActiveGoals();
 			m_bLooseAttention = false;
-			GetAISystem()->FreeFormationPoint(GetWeakRef(this));
+			gAIEnv.pFormationManager->FreeFormationPoint(GetWeakRef(this));
 			SetAttentionTarget(NILREF);
 			m_bBlocked = false;
 		}
@@ -269,7 +265,6 @@ void CPipeUser::Reset(EObjectResetType type)
 
 	m_CurrentNodeNavType = IAISystem::NAV_UNSET;
 	m_idLastUsedSmartObject = 0;
-	ClearInvalidatedSOLinks();
 
 	m_CurrentHideObject.m_HideSmartObject.Clear();
 	m_bFirstUpdate = true;
@@ -299,10 +294,6 @@ void CPipeUser::Reset(EObjectResetType type)
 
 	m_pathAdjustmentObstacles.Reset();
 
-#ifdef _DEBUG
-	m_DEBUGCanTargetPointBeReached.clear();
-	m_DEBUGUseTargetPointRequest.zero();
-#endif
 	switch (type)
 	{
 	case AIOBJRESET_INIT:
@@ -1949,7 +1940,7 @@ void CPipeUser::RequestPathTo(
 	const MNMPathRequest request(myPos, pos, endDir, forceTargetBuildingId, endTol, endDistance,
 	                             allowDangerousDestination, functor(*this, &CPipeUser::OnMNMPathResult), GetNavigationTypeID(),
 	                             dangersFlags);
-	m_queuedPathId = gAIEnv.pMNMPathfinder->RequestPathTo(this, request);
+	m_queuedPathId = gAIEnv.pMNMPathfinder->RequestPathTo(GetEntityID(), request);
 
 	if (m_queuedPathId == 0)
 	{
@@ -1974,7 +1965,7 @@ void CPipeUser::RequestPathTo(MNMPathRequest& request)
 	assert(m_queuedPathId == 0);
 
 	request.resultCallback = functor(*this, &CPipeUser::OnMNMPathResult);
-	m_queuedPathId = gAIEnv.pMNMPathfinder->RequestPathTo(this, request);
+	m_queuedPathId = gAIEnv.pMNMPathfinder->RequestPathTo(GetEntityID(), request);
 
 	if (m_queuedPathId == 0)
 	{
@@ -2214,8 +2205,6 @@ bool CPipeUser::SelectPipe(int mode, const char* name, CWeakRef<CAIObject> refAr
 		RecordEvent(IAIRecordable::E_GOALPIPESELECTED, &recorderEventData);
 	}
 #endif  // #ifdef CRYAISYSTEM_DEBUG
-
-	ClearInvalidatedSOLinks();
 
 	CCCPOINT(CPipeUser_SelectPipe_End);
 	return true;
@@ -4342,7 +4331,7 @@ void CPipeUser::HandlePathDecision(MNMPathRequestResult& result)
 
 		if (m_cutPathAtSmartObject)
 		{
-			m_Path.PrepareNavigationalSmartObjectsForMNM(this);
+			m_Path.PrepareNavigationalSmartObjectsForMNM(GetEntity());
 		}
 
 		m_State.fDistanceToPathEnd = m_Path.GetPathLength(!IsUsing3DNavigation());
@@ -4463,21 +4452,6 @@ void CPipeUser::GetPathFollowerParams(PathFollowerParams& outParams) const
 
 EntityId CPipeUser::GetPendingSmartObjectID() const
 {
-	if (!m_Path.Empty())
-	{
-		PathPointDescriptor::SmartObjectNavDataPtr smartObjectData = m_Path.GetLastPathPointAnimNavSOData();
-		if (smartObjectData && smartObjectData->fromIndex && smartObjectData->toIndex)
-		{
-			if (gAIEnv.pGraph)
-			{
-				const GraphNode* node = gAIEnv.pGraph->GetNode(smartObjectData->fromIndex);
-				const SSmartObjectNavData* data = node ? node->GetSmartObjectNavData() : 0;
-				if (data && data->pSmartObject)
-					return data->pSmartObject->GetEntityId();
-			}
-		}
-	}
-
 	return 0;
 }
 
@@ -4507,21 +4481,6 @@ IPathFollower* CPipeUser::CreatePathFollower(const PathFollowerParams& params)
 EAimState CPipeUser::GetAimState() const
 {
 	return m_aimState;
-}
-
-void CPipeUser::ClearInvalidatedSOLinks()
-{
-	m_invalidatedSOLinks.clear();
-}
-
-void CPipeUser::InvalidateSOLink(CSmartObject* pObject, SmartObjectHelper* pFromHelper, SmartObjectHelper* pToHelper) const
-{
-	m_invalidatedSOLinks.insert(std::make_pair(pObject, std::make_pair(pFromHelper, pToHelper)));
-}
-
-bool CPipeUser::IsSOLinkInvalidated(CSmartObject* pObject, SmartObjectHelper* pFromHelper, SmartObjectHelper* pToHelper) const
-{
-	return m_invalidatedSOLinks.find(std::make_pair(pObject, std::make_pair(pFromHelper, pToHelper))) != m_invalidatedSOLinks.end();
 }
 
 void CPipeUser::SetActorTargetRequest(const SAIActorTargetRequest& req)
@@ -4644,24 +4603,6 @@ void CPipeUser::CalculatePathObstacles()
 void CPipeUser::SetLastActionStatus(bool bSucceed)
 {
 	m_bLastActionSucceed = bSucceed;
-}
-
-ETriState CPipeUser::CanTargetPointBeReached(CTargetPointRequest& request)
-{
-#ifdef _DEBUG
-	m_DEBUGCanTargetPointBeReached.push_back(request.GetPosition());
-#endif
-
-	return m_Path.CanTargetPointBeReached(request, this, true);
-}
-
-bool CPipeUser::UseTargetPointRequest(const CTargetPointRequest& request)
-{
-#ifdef _DEBUG
-	m_DEBUGUseTargetPointRequest = request.GetPosition();
-#endif
-
-	return m_Path.UseTargetPointRequest(request, this, true);
 }
 
 void CPipeUser::UpdateLookTarget(CAIObject* pTarget)
@@ -4917,16 +4858,6 @@ void CPipeUser::HandleNavSOFailure()
 	{
 		if (m_State.curActorTargetPhase == eATP_Error)
 		{
-			// Invalidate the current link
-			PathPointDescriptor::SmartObjectNavDataPtr pSmartObjectNavData = m_Path.GetLastPathPointAnimNavSOData();
-
-			if (pSmartObjectNavData)
-			{
-				const CGraphNodeManager& pGraphNodeManager = gAIEnv.pGraph->GetNodeManager();
-				const SSmartObjectNavData* pNavData = pGraphNodeManager.GetNode(pSmartObjectNavData->fromIndex)->GetSmartObjectNavData();
-				InvalidateSOLink(pNavData->pSmartObject, pNavData->pHelper, pGraphNodeManager.GetNode(pSmartObjectNavData->toIndex)->GetSmartObjectNavData()->pHelper);
-			}
-
 			// modify smart object states
 			if (!m_currentNavSOStates.IsEmpty())
 			{

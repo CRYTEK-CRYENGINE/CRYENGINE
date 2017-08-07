@@ -27,7 +27,7 @@
 #endif
 
 #ifndef YASLI_CXX11
-#define YASLI_CXX11 0
+#define YASLI_CXX11 1
 #endif
 
 // Disable C++ RTTI use (e.g. typeid())

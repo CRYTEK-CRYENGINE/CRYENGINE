@@ -1,92 +1,82 @@
 {
-	"CryScriptSystem_uber_0.cpp":
-	{
-		"Source Files":
-		[
-			"CryScriptSystem.cpp",
-			"FunctionHandler.cpp",
-			"ScriptSystem.cpp",
-			"ScriptTable.cpp",
-			"ScriptTimerMgr.cpp",
-			"BucketAllocator.h",
-			"ScriptTimerMgr.h"
-		],
-		"Header Files":
-		[
-			"FunctionHandler.h",
-			"LuaDebuggerResource.h",
-			"resource.h",
-			"ScriptSystem.h",
-			"ScriptTable.h",
-			"StackGuard.h",
-			"LuaDebugger/GoToFuncWnd.h"
-		],
-		"ScriptBindings":
-		[
-			"ScriptBindings/ScriptBinding.cpp",
-			"ScriptBindings/ScriptBind_Movie.cpp",
-			"ScriptBindings/ScriptBind_Particle.cpp",
-			"ScriptBindings/ScriptBind_Physics.cpp",
-			"ScriptBindings/ScriptBind_Script.cpp",
-			"ScriptBindings/ScriptBind_Sound.cpp",
-			"ScriptBindings/ScriptBind_System.cpp",
-			"ScriptBindings/SurfaceTypes.cpp",
-			"ScriptBindings/ScriptBind_Movie.h",
-			"ScriptBindings/ScriptBind_Particle.h",
-			"ScriptBindings/ScriptBind_Physics.h",
-			"ScriptBindings/ScriptBind_Script.h",
-			"ScriptBindings/ScriptBind_Sound.h",
-			"ScriptBindings/ScriptBind_System.h",
-			"ScriptBindings/ScriptBinding.h",
-			"ScriptBindings/SurfaceTypes.h"
-		],
-		"LuaDebugger":
-		[
-			"LuaDebugger/Coverage.cpp",
-			"LuaDebugger/FileTree.cpp",
-			"LuaDebugger/LUADBG.cpp",
-			"LuaDebugger/_TinyBrowseFolder.h",
-			"LuaDebugger/_TinyCaptionWindow.h",
-			"LuaDebugger/_TinyCoolEdit.h",
-			"LuaDebugger/_TinyFileEnum.h",
-			"LuaDebugger/_TinyImageList.h",
-			"LuaDebugger/_TinyMain.h",
-			"LuaDebugger/_TinyRegistry.h",
-			"LuaDebugger/_TinySplitter.h",
-			"LuaDebugger/_TinyStatusBar.h",
-			"LuaDebugger/_TinyTreeList.h",
-			"LuaDebugger/_TinyWindow.h",
-			"LuaDebugger/AboutWnd.h",
-			"LuaDebugger/Coverage.h",
-			"LuaDebugger/FileTree.h",
-			"LuaDebugger/GoToWnd.h",
-			"LuaDebugger/LUADBG.h"
-		],
-		"LuaRemoteDebug":
-		[
-			"LuaRemoteDebug/LuaRemoteDebug.cpp",
-			"LuaRemoteDebug/LuaRemoteDebug.h",
-			"LuaRemoteDebug/SerializationHelper.h"
-		],
-		"Resource Files":
-		[
-			"LuaDebugger.rc",
-			"LuaDebugger/LUADBG.ico",
-			"LuaDebugger/small.ico",
-			"LuaDebugger/res/toolbar1.bmp",
-			"LuaDebugger/res/TreeView.bmp"
-		]
-	},
-	"NoUberFile":
-	{
-		"Root":
-		[
-			"StdAfx.cpp",
-			"StdAfx.h"
-		],
-		"Source Files":
-		[
-			"vectorlib.c"
-		]
-	}
+  "CryScriptSystem_uber_0.cpp": {
+    "Header Files": [
+      "FunctionHandler.h", 
+      "LuaDebuggerResource.h", 
+      "resource.h", 
+      "ScriptSystem.h", 
+      "ScriptTable.h", 
+      "StackGuard.h", 
+      "LuaDebugger/GoToFuncWnd.h"
+    ], 
+    "LuaDebugger": [
+      "LuaDebugger/Coverage.cpp", 
+      "LuaDebugger/FileTree.cpp", 
+      "LuaDebugger/LUADBG.cpp", 
+      "LuaDebugger/_TinyBrowseFolder.h", 
+      "LuaDebugger/_TinyCaptionWindow.h", 
+      "LuaDebugger/_TinyCoolEdit.h", 
+      "LuaDebugger/_TinyFileEnum.h", 
+      "LuaDebugger/_TinyImageList.h", 
+      "LuaDebugger/_TinyMain.h", 
+      "LuaDebugger/_TinyRegistry.h", 
+      "LuaDebugger/_TinySplitter.h", 
+      "LuaDebugger/_TinyStatusBar.h", 
+      "LuaDebugger/_TinyTreeList.h", 
+      "LuaDebugger/_TinyWindow.h", 
+      "LuaDebugger/AboutWnd.h", 
+      "LuaDebugger/Coverage.h", 
+      "LuaDebugger/FileTree.h", 
+      "LuaDebugger/GoToWnd.h", 
+      "LuaDebugger/LUADBG.h"
+    ], 
+    "LuaRemoteDebug": [
+      "LuaRemoteDebug/LuaRemoteDebug.cpp", 
+      "LuaRemoteDebug/LuaRemoteDebug.h", 
+      "LuaRemoteDebug/SerializationHelper.h"
+    ], 
+    "Resource Files": [
+      "LuaDebugger.rc", 
+      "LuaDebugger/LUADBG.ico", 
+      "LuaDebugger/small.ico", 
+      "LuaDebugger/res/toolbar1.bmp", 
+      "LuaDebugger/res/TreeView.bmp"
+    ], 
+    "ScriptBindings": [
+      "ScriptBindings/ScriptBinding.cpp", 
+      "ScriptBindings/ScriptBind_Movie.cpp", 
+      "ScriptBindings/ScriptBind_Particle.cpp", 
+      "ScriptBindings/ScriptBind_Physics.cpp", 
+      "ScriptBindings/ScriptBind_Script.cpp", 
+      "ScriptBindings/ScriptBind_Sound.cpp", 
+      "ScriptBindings/ScriptBind_System.cpp", 
+      "ScriptBindings/SurfaceTypes.cpp", 
+      "ScriptBindings/ScriptBind_Movie.h", 
+      "ScriptBindings/ScriptBind_Particle.h", 
+      "ScriptBindings/ScriptBind_Physics.h", 
+      "ScriptBindings/ScriptBind_Script.h", 
+      "ScriptBindings/ScriptBind_Sound.h", 
+      "ScriptBindings/ScriptBind_System.h", 
+      "ScriptBindings/ScriptBinding.h", 
+      "ScriptBindings/SurfaceTypes.h"
+    ], 
+    "Source Files": [
+      "CryScriptSystem.cpp", 
+      "FunctionHandler.cpp", 
+      "ScriptSystem.cpp", 
+      "ScriptTable.cpp", 
+      "ScriptTimerMgr.cpp", 
+      "BucketAllocator.h", 
+      "ScriptTimerMgr.h"
+    ]
+  }, 
+  "NoUberFile": {
+    "Root": [
+      "StdAfx.cpp", 
+      "StdAfx.h"
+    ], 
+    "Source Files": [
+      "vectorlib.c"
+    ]
+  }
 }

@@ -44,8 +44,10 @@ public:
 	virtual void             SetBBox(const AABB& WSBBox) { m_WSBBox = WSBBox; }
 	virtual void             FillBBox(AABB& aabb);
 	virtual void             OffsetPosition(const Vec3& delta);
+	virtual void             SetOwnerEntity(IEntity* pEntity) { m_pOwnerEntity = pEntity; }
+	virtual IEntity*         GetOwnerEntity() const           { return m_pOwnerEntity; }
 
-	ILINE bool               IsAffectsThisAreaOnly() const { return m_affectsThisAreaOnly; }
+	ILINE bool               IsAffectsThisAreaOnly() const    { return m_affectsThisAreaOnly; }
 
 private:
 	static void RegisterFogVolume(const CFogVolumeRenderNode* pFogVolume);
@@ -184,6 +186,8 @@ private:
 
 	_smart_ptr<IMaterial> m_pMatFogVolEllipsoid;
 	_smart_ptr<IMaterial> m_pMatFogVolBox;
+
+	IEntity*              m_pOwnerEntity = nullptr;
 
 	CREFogVolume*         m_pFogVolumeRenderElement[RT_COMMAND_BUF_COUNT];
 	AABB                  m_WSBBox;

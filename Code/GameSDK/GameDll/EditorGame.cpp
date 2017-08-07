@@ -898,6 +898,7 @@ void MarkEntityForSerialize(TSerializationData& data, IEntity* pEntity, int reas
 
 void CEditorGame::OnSaveLevel()
 {
+	LOADING_TIME_PROFILE_SECTION;
 	ILevelInfo* pLevelInfo = m_pGame->GetIGameFramework()->GetILevelSystem()->GetCurrentLevel();
 
 	if (pLevelInfo)

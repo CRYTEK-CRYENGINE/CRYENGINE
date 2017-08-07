@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include <Schematyc/Reflection/TypeDesc.h>
-#include <Schematyc/Runtime/RuntimeGraph.h>
-#include <Schematyc/Utils/GUID.h>
+#include <CrySchematyc/Reflection/TypeDesc.h>
+#include <CrySchematyc/Runtime/RuntimeGraph.h>
+#include <CrySchematyc/Utils/GUID.h>
 
 #include "Script/Graph/ScriptGraphNodeModel.h"
 
@@ -19,7 +19,8 @@ public:
 	{
 		Self = 0,
 		Object,
-		Broadcast
+		Broadcast,
+		Entity
 	};
 
 private:
@@ -34,21 +35,21 @@ private:
 
 	struct SRuntimeData
 	{
-		SRuntimeData(const SGUID& _signalGUID);
+		SRuntimeData(const CryGUID& _signalGUID);
 		SRuntimeData(const SRuntimeData& rhs);
 
 		static void ReflectType(CTypeDesc<SRuntimeData>& desc);
 
-		SGUID       signalGUID;
+		CryGUID       signalGUID;
 	};
 
 public:
 
 	CScriptGraphSendSignalNode();
-	CScriptGraphSendSignalNode(const SGUID& signalGUID);
+	CScriptGraphSendSignalNode(const CryGUID& signalGUID);
 
 	// CScriptGraphNodeModel
-	virtual SGUID GetTypeGUID() const override;
+	virtual CryGUID GetTypeGUID() const override;
 	virtual void  CreateLayout(CScriptGraphNodeLayout& layout) override;
 	virtual void  Compile(SCompilerContext& context, IGraphNodeCompiler& compiler) const override;
 	virtual void  LoadDependencies(Serialization::IArchive& archive, const ISerializationContext& context) override;
@@ -66,15 +67,16 @@ private:
 
 	static SRuntimeResult ExecuteSendToSelf(SRuntimeContext& context, const SRuntimeActivationParams& activationParams);
 	static SRuntimeResult ExecuteSendToObject(SRuntimeContext& context, const SRuntimeActivationParams& activationParams);
+	static SRuntimeResult ExecuteSendToEntity(SRuntimeContext& context, const SRuntimeActivationParams& activationParams);
 	static SRuntimeResult ExecuteBroadcast(SRuntimeContext& context, const SRuntimeActivationParams& activationParams);
 
 public:
 
-	static const SGUID ms_typeGUID;
+	static const CryGUID ms_typeGUID;
 
 private:
 
-	SGUID   m_signalGUID;
+	CryGUID   m_signalGUID;
 	ETarget m_target;
 };
 

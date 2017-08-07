@@ -14,7 +14,7 @@ COPYRIGHT = '(C) 2016 Crytek GmbH'
 # This is a map of host -> target platforms
 PLATFORMS = {
 	'darwin': [ 'darwin_x64' ],
-	'win32':  [ 'win_x86', 'win_x64', 'durango', 'orbis', 'android_arm' ],
+	'win32' : [ 'win_x86', 'win_x64', 'durango', 'orbis', 'android_arm', 'android_arm64' ],
 	'linux':  [ 'linux_x86_gcc', 'linux_x64_gcc', 'linux_x86_clang', 'linux_x64_clang' ]
 }
 	

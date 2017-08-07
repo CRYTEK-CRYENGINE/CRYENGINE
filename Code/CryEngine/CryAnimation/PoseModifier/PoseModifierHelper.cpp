@@ -3,6 +3,7 @@
 #include "stdafx.h"
 #include "PoseModifierHelper.h"
 
+#pragma warning( push )
 #pragma warning( disable : 4244 )
 
 namespace PoseModifierHelper
@@ -534,3 +535,5 @@ void IK_SolverCCD(const Vec3& vTarget, const IKLimbType& rIKLimbType, Skeleton::
 }
 
 } // namespace PoseModifierHelper
+
+#pragma warning( pop )

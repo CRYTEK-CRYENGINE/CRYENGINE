@@ -35,8 +35,8 @@ CD3DOsvrRenderer::~CD3DOsvrRenderer()
 
 bool CD3DOsvrRenderer::Initialize()
 {
-	ID3D11Device* d3d11Device = m_pRenderer->GetDevice_Unsynchronized().GetRealDevice();
-	ID3D11DeviceContext* d3d11DeviceContext = m_pRenderer->GetDeviceContext_Unsynchronized().GetRealDeviceContext();
+	D3DDevice* d3d11Device = m_pRenderer->GetDevice_Unsynchronized().GetRealDevice();
+	D3DDeviceContext* d3d11DeviceContext = m_pRenderer->GetDeviceContext_Unsynchronized().GetRealDeviceContext();
 
 	m_eyeWidth = m_pRenderer->GetWidth();
 	m_eyeHeight = m_pRenderer->GetHeight();
@@ -69,7 +69,7 @@ void CD3DOsvrRenderer::CreateTextureSwapSets(uint32 width, uint32 height, uint32
 		{
 			sprintf_s(textureName, textureNameTemplate, eye, i);
 
-			CTexture* tex = CTexture::CreateRenderTarget(textureName, width, height, Clr_Transparent, eTT_2D, FT_DONT_STREAM | FT_USAGE_RENDERTARGET, eTF_R8G8B8A8);
+			CTexture* tex = CTexture::GetOrCreateRenderTarget(textureName, width, height, Clr_Transparent, eTT_2D, FT_DONT_STREAM | FT_USAGE_RENDERTARGET, eTF_R8G8B8A8);
 			m_scene3DRenderData[eye].textures.Add(tex);
 		}
 

@@ -1,0 +1,28 @@
+{
+	"description"                           : "Configuration to build the Resource Compiler",
+	"valid_platforms"                       : [ "win_x64" ],
+	"valid_configuration"                   : [ "debug", "release" ],
+	"visual_studio_name"                    : "ResourceCompiler",
+
+	"win_modules" :
+	[
+		"CryCommon",
+		"CryPhysicsRC",
+		"ResourceCompiler",
+		"ResourceCompilerABC",
+		"ResourceCompilerImage",
+		"ResourceCompilerPC",
+		"ResourceCompilerXML",
+		"CryXML",
+
+		"zlib",
+		"tiff",
+		"expat",
+		"alembic",
+		"astc",
+		"hdf5",
+		"szip",
+		"ilmbase",
+		"vco"
+	]
+}

@@ -14,6 +14,8 @@
 #include "StdAfx.h"
 #include <CryFlowGraph/IFlowBaseNode.h>
 
+#include <CryMath/Random.h>
+
 class CLogicNode : public CFlowBaseNode<eNCT_Instanced>
 {
 public:

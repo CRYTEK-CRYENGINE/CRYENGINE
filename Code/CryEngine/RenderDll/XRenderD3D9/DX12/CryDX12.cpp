@@ -3,10 +3,6 @@
 #include "StdAfx.h"
 #include "CryDX12.hpp"
 
-#include "GI/CCryDX12GIFactory.hpp"
-#include "Device/CCryDX12Device.hpp"
-#include "Device/CCryDX12DeviceContext.hpp"
-
 HRESULT WINAPI DX12CreateDXGIFactory1(REFIID riid, void** ppFactory)
 {
 	*ppFactory = CCryDX12GIFactory::Create();
@@ -25,7 +21,7 @@ HRESULT WINAPI DX12CreateDevice(
   D3D_FEATURE_LEVEL* pFeatureLevel,
   ID3D11DeviceContext** ppImmediateContext)
 {
-	*ppDevice = CCryDX12Device::Create(pAdapter, pFeatureLevel);
+	*ppDevice = CCryDX12Device::Create(reinterpret_cast<CCryDX12GIAdapter*>(pAdapter), pFeatureLevel);
 
 	if (!*ppDevice)
 	{

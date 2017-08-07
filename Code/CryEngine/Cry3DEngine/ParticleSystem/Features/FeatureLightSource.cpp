@@ -29,12 +29,15 @@ public:
 		: m_intensity(1.0f)
 		, m_radius(1.0f)
 		, m_affectsFog(ELightAffectsFog::Both)
-		, m_affectsThisAreaOnly(false) {}
+		, m_affectsThisAreaOnly(false)
+		, m_hasFlareOptics(false) {}
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
 		pComponent->AddToUpdateList(EUL_RenderDeferred, this);
 		pComponent->AddParticleData(EPVF_Position);
+		if (GetPSystem()->GetFlareMaterial() && !m_flareName.empty())
+			m_hasFlareOptics = gEnv->pOpticsManager->Load(m_flareName.c_str(), m_lensOpticsId);
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
@@ -44,9 +47,10 @@ public:
 		ar(m_radius, "Radius", "Radius");
 		ar(m_affectsFog, "Affectsfog", "Affects Fog");
 		ar(m_affectsThisAreaOnly, "AffectsThisAreaOnly", "Affects This Area Only");
+		ar(m_flareName, "Flare", "Flare");
 	}
 
-	virtual void Render(CParticleEmitter* pEmitter, ICommonParticleComponentRuntime* pCommonComponentRuntime, CParticleComponent* pComponent, const SRenderContext& renderContext) override
+	virtual void Render(CParticleEmitter* pEmitter, IParticleComponentRuntime* pCommonComponentRuntime, CParticleComponent* pComponent, const SRenderContext& renderContext) override
 	{
 		CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
@@ -74,8 +78,16 @@ public:
 			light.m_Flags |= DLF_VOLUMETRIC_FOG;
 		else if (m_affectsFog == ELightAffectsFog::FogOnly)
 			light.m_Flags |= DLF_VOLUMETRIC_FOG | DLF_VOLUMETRIC_FOG_ONLY;
+		
+		if (m_hasFlareOptics)
+		{
+			light.m_sName = "Wavicle";
+			IOpticsElementBase* pOptics = gEnv->pOpticsManager->GetOptics(m_lensOpticsId);
+			light.SetLensOpticsElement(pOptics);
+			light.m_Shader = GetPSystem()->GetFlareMaterial()->GetShaderItem();
+		}
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		for (auto particleId : context.GetUpdateRange())
 		{
 			const uint8 state = states.Load(particleId);
 			if (state == ES_Expired)
@@ -94,21 +106,20 @@ public:
 			light.SetPosition(position);
 			light.m_Color = ToColorF(color) * ColorF(lightIntensity);
 			light.m_fRadius = lightRadius;
+			light.m_ObjMatrix.SetTranslation(position);
 
 			const float minColorThreshold = GetFloatCVar(e_ParticlesLightMinColorThreshold);
 			const float minRadiusThreshold = GetFloatCVar(e_ParticlesLightMinRadiusThreshold);
 
 			const ColorF& cColor = light.m_Color;
 			const float spectralIntensity = cColor.r * 0.299f + cColor.g * 0.587f + cColor.b * 0.114f;
-			const Vec4* vLight = (Vec4*)&light.m_Origin.x;
-			if (spectralIntensity > minColorThreshold && vLight->w > minRadiusThreshold)
+			if (spectralIntensity > minColorThreshold && light.m_fRadius > minRadiusThreshold)
 			{
 				Get3DEngine()->SetupLightScissors(&light, passInfo);
 				light.m_n3DEngineUpdateFrameID = passInfo.GetMainFrameID();
 				Get3DEngine()->AddLightToRenderer(light, 1.0f, passInfo);
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 private:
@@ -116,6 +127,9 @@ private:
 	UFloat10         m_radius;
 	ELightAffectsFog m_affectsFog;
 	bool             m_affectsThisAreaOnly;
+	string           m_flareName;
+	int              m_lensOpticsId;
+	bool             m_hasFlareOptics;
 };
 
 static const ColorB lightColor = ColorB(230, 216, 0);

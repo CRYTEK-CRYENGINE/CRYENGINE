@@ -296,7 +296,6 @@ class CPlayAnimation_Node : public CFlowBaseNode<eNCT_Instanced>
 	uint32 m_layer;
 
 	bool   m_firedAlmostDone;
-	bool   m_bForcedActivate;
 	bool   m_bForcedUpdateActivate;
 	bool   m_manualAnimationControlledMovement;
 	bool   m_bLooping;
@@ -331,7 +330,6 @@ public:
 	CPlayAnimation_Node(SActivationInfo* pActInfo)
 	{
 		m_firedAlmostDone = false;
-		m_bForcedActivate = false;
 		m_bForcedUpdateActivate = false;
 		m_bLooping = false;
 		m_manualAnimationControlledMovement = false;
@@ -360,7 +358,6 @@ public:
 		ser.Value("m_token", m_token);
 		ser.Value("m_firedAlmostDone", m_firedAlmostDone);
 		ser.Value("m_bLooping", m_bLooping);
-		ser.Value("m_bForcedActivate", m_bForcedActivate);
 		ser.Value("m_bForcedUpdateActivate", m_bForcedUpdateActivate);
 		ser.Value("m_manualAnimationControlledMovement", m_manualAnimationControlledMovement);
 		ser.Value("m_layer", m_layer);
@@ -460,16 +457,10 @@ private:
 			m_playbackSpeedMultiplier = GetPortFloat(pActInfo, IN_PLAYBACK_SPEED_MULTIPLIER);
 			aparams.m_fPlaybackSpeed = m_playbackSpeedMultiplier;
 
-			m_bForcedActivate = false;
 			m_bForcedUpdateActivate = false;
 			if (GetPortBool(pActInfo, IN_FORCE_UPDATE))
 			{
 				aparams.m_nFlags |= CA_FORCE_SKELETON_UPDATE;
-				if (pActInfo->pEntity->IsActive() == false)
-				{
-					m_bForcedActivate = true;
-					pActInfo->pEntity->Activate(true); // maybe unforce update as well
-				}
 
 				m_bForcedUpdateActivate = true;
 				SetForceUpdate(pActInfo->pEntity->GetId(), true);
@@ -531,12 +522,6 @@ private:
 	{
 		if (pActInfo->pEntity)
 		{
-			if (m_bForcedActivate)
-			{
-				pActInfo->pEntity->Activate(false);
-				m_bForcedActivate = false;
-			}
-
 			if (m_bForcedUpdateActivate)
 			{
 				m_bForcedUpdateActivate = false;
@@ -611,12 +596,6 @@ private:
 
 			if (pActInfo->pEntity != NULL)
 			{
-				if (m_bForcedActivate)
-				{
-					pActInfo->pEntity->Activate(false);
-					m_bForcedActivate = false;
-				}
-
 				if (m_bForcedUpdateActivate)
 				{
 					m_bForcedUpdateActivate = false;

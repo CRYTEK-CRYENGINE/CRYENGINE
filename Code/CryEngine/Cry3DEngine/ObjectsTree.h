@@ -353,7 +353,6 @@ public:
 	void                Render_Object_Nodes(bool bNodeCompletelyInFrustum, int nRenderMask, const Vec3& vAmbColor, const SRenderingPassInfo& passInfo);
 	void                CheckUpdateStaticInstancing();
 	void                RenderDebug();
-	static void         DeallocateRenderContentQueue();
 	void                RenderContent(int nRenderMask, const Vec3& vAmbColor, const SRenderingPassInfo& passInfo);
 	void                RenderContentJobEntry(int nRenderMask, Vec3 vAmbColor, SRenderingPassInfo passInfo);
 	void                RenderVegetations(TDoublyLinkedList<IRenderNode>* lstObjects, int nRenderMask, bool bNodeCompletelyInFrustum, PodArray<CDLight*>* pAffectingLights, bool bSunOnly, SSectorTextureSet* pTerrainTexInfo, const SRenderingPassInfo& passInfo);
@@ -532,7 +531,6 @@ private:
 
 	float                         m_fPrevTerrainTexScale; // used to detect terrain texturing change and refresh info in object instances
 
-	static void*                  m_pRenderContentJobQueue;
 public:
 	static PodArray<COctreeNode*> m_arrEmptyNodes;
 	static int                    m_nNodesCounterAll;

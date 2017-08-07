@@ -133,11 +133,6 @@ CCryDX12ShaderResourceView::CCryDX12ShaderResourceView(ID3D11Resource* pResource
 	m_DX12View.GetSRVDesc() = desc12;
 }
 
-CCryDX12ShaderResourceView::~CCryDX12ShaderResourceView()
-{
-
-}
-
 /* ID3D11ShaderResourceView implementation */
 
 void STDMETHODCALLTYPE CCryDX12ShaderResourceView::GetDesc(

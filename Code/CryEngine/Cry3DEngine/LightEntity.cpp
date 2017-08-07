@@ -13,6 +13,7 @@
 #include "ClipVolumeManager.h"
 #include "ShadowCache.h"
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 PodArray<SPlaneObject> CLightEntity::s_lstTmpCastersHull;
@@ -42,7 +43,6 @@ CLightEntity::CLightEntity()
 
 	memset(&m_Matrix, 0, sizeof(m_Matrix));
 
-	m_pStatObj = NULL;
 	GetInstCount(GetRenderNodeType())++;
 }
 
@@ -69,8 +69,6 @@ CLightEntity::~CLightEntity()
 	SAFE_DELETE(m_pShadowMapInfo);
 
 	GetInstCount(GetRenderNodeType())--;
-
-	SAFE_RELEASE(m_pStatObj);
 }
 
 void CLightEntity::SetLayerId(uint16 nLayerId)
@@ -116,15 +114,6 @@ bool CLightEntity::IsLightAreasVisible()
 	// visible
 
 	return false; // not visible
-}
-
-//////////////////////////////////////////////////////////////////////////
-int CLightEntity::GetSlotCount() const
-{
-	if (m_pStatObj)
-		return 1;
-
-	return 0;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -713,6 +702,8 @@ void CLightEntity::CalculateShadowBias(ShadowMapFrustum* pFr, int nLod, float fG
 
 	assert(nLod >= 0 && nLod < 8);
 
+	pFr->fDepthBiasClamp = 0.001f;
+
 	if (m_light.m_Flags & DLF_SUN)
 	{
 		float fVladRatio = min(fGSMBoxSize / 2.f, 1.f);
@@ -723,9 +714,20 @@ void CLightEntity::CalculateShadowBias(ShadowMapFrustum* pFr, int nLod, float fG
 		pFr->fDepthTestBias = fVladRatio * (pFr->fFarDist - pFr->fNearDist) * (fGSMBoxSize * 0.5f * 0.5f + 0.5f) * 0.0000005f;
 		pFr->fDepthSlopeBias = fSlopeBiasRatio * (fGSMBoxSize / max(0.00001f, Get3DEngine()->m_fGsmRange)) * 0.1f;
 
+		pFr->fDepthSlopeBias *= (pFr->m_eFrustumType == ShadowMapFrustum::e_Nearest) ? 7.0f : 1.0f;
+
 		if (pFr->IsCached())
 		{
 			pFr->fDepthConstBias = min(pFr->fDepthConstBias, 0.005f); // clamp bias as for cached frustums distance between near and far can be massive
+		}
+
+		if (GetCVars()->e_ShadowsAutoBias > 0)
+		{
+			const float biasAmount = 0.6f;
+			float texelSizeScale = tan_tpl(DEG2RAD(pFr->fFOV) * 0.5f) / (float)(std::max(pFr->nTextureWidth, pFr->nTextureHeight) / 2);  // Multiplied with distance in shader
+			pFr->fDepthConstBias = biasAmount * texelSizeScale / (pFr->fFarDist - pFr->fNearDist);
+			pFr->fDepthSlopeBias = 2.5f * GetCVars()->e_ShadowsAutoBias;
+			pFr->fDepthBiasClamp = 1000.0f;
 		}
 	}
 	else
@@ -1764,7 +1766,7 @@ void CLightEntity::DetectCastersListChanges(ShadowMapFrustum* pFr, const SRender
 		uCastersListCheckSum += uint32((entBox.min.x + entBox.min.y + entBox.min.z) * 10000.f);
 		uCastersListCheckSum += uint32((entBox.max.x + entBox.max.y + entBox.max.z) * 10000.f);
 
-		ICharacterInstance* pChar = pNode->GetEntityCharacter(0);
+		ICharacterInstance* pChar = pNode->GetEntityCharacter();
 
 		if (pChar)
 		{
@@ -2098,11 +2100,13 @@ IRenderNode::EGIMode CLightEntity::GetGIMode() const
 
 void CLightEntity::SetOwnerEntity(IEntity* pEnt)
 {
-	IRenderNode::SetOwnerEntity(pEnt);
-
-	SetRndFlags(ERF_GI_MODE_BIT0, (pEnt->GetFlagsExtended() & ENTITY_FLAG_EXTENDED_GI_MODE_BIT0) != 0);
-	SetRndFlags(ERF_GI_MODE_BIT1, (pEnt->GetFlagsExtended() & ENTITY_FLAG_EXTENDED_GI_MODE_BIT1) != 0);
-	SetRndFlags(ERF_GI_MODE_BIT2, (pEnt->GetFlagsExtended() & ENTITY_FLAG_EXTENDED_GI_MODE_BIT2) != 0);
+	m_pOwnerEntity = pEnt;
+	if (pEnt)
+	{
+		SetRndFlags(ERF_GI_MODE_BIT0, (pEnt->GetFlagsExtended() & ENTITY_FLAG_EXTENDED_GI_MODE_BIT0) != 0);
+		SetRndFlags(ERF_GI_MODE_BIT1, (pEnt->GetFlagsExtended() & ENTITY_FLAG_EXTENDED_GI_MODE_BIT1) != 0);
+		SetRndFlags(ERF_GI_MODE_BIT2, (pEnt->GetFlagsExtended() & ENTITY_FLAG_EXTENDED_GI_MODE_BIT2) != 0);
+	}
 }
 
 void CLightEntity::OffsetPosition(const Vec3& delta)
@@ -2191,3 +2195,5 @@ Vec3 CLightEntity::GetPos(bool bWorldOnly) const
 	assert(bWorldOnly);
 	return m_light.m_Origin;
 }
+
+#pragma warning(pop)

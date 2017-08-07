@@ -15,8 +15,6 @@ public:
 	CGameEntityNodeFactory();
 	virtual ~CGameEntityNodeFactory();
 
-	virtual void         AddRef()  { m_nRefCount++; }
-	virtual void         Release() { if (0 == --m_nRefCount) delete this; }
 	virtual IFlowNodePtr Create(IFlowNode::SActivationInfo* pActInfo);
 
 	virtual void         GetMemoryUsage(ICrySizer* s) const
@@ -44,7 +42,6 @@ private:
 
 	friend class CFlowGameEntityNode;
 
-	int                                m_nRefCount;
 	std::vector<FlowNodeInputFunction> m_callbacks;
 	std::vector<SInputPortConfig>      m_inputs;
 	std::vector<SOutputPortConfig>     m_outputs;

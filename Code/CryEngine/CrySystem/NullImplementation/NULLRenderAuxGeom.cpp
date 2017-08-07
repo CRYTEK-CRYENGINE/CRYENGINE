@@ -6,8 +6,6 @@
 
 CNULLRenderAuxGeom* CNULLRenderAuxGeom::s_pThis = NULL;
 
-#pragma warning(disable: 4244)
-
 #ifdef ENABLE_WGL_DEBUG_RENDERER
 
 static const float PI = 3.14159265358979323f;
@@ -444,7 +442,7 @@ bool CNULLRenderAuxGeom::EnableOpenGL()
 	}
 
 	CCamera& camera = gEnv->pSystem->GetViewCamera();
-	camera.SetFrustum(W, H);
+	camera.SetFrustum(static_cast<int>(W), static_cast<int>(H));
 
 	const float FOV = camera.GetFov() / PI * 180.0f;
 	const float PNR = camera.GetNearPlane();
@@ -476,7 +474,7 @@ bool CNULLRenderAuxGeom::EnableOpenGL()
 	cry_glPolygonMode(GL_FRONT, GL_FILL);
 	cry_glEnable(GL_DEPTH_TEST);
 
-	cry_glViewport(0, 0, W, H);
+	cry_glViewport(0, 0, static_cast<GLsizei>(W), static_cast<GLsizei>(H));
 	cry_glMatrixMode(GL_PROJECTION);
 	cry_glLoadIdentity();
 	cry_gluPerspective(FOV, W / H, PNR, PFR);
@@ -524,7 +522,7 @@ CNULLRenderAuxGeom::CNULLRenderAuxGeom()
 	m_hwnd = CreateWindow(
 	  wndClassName, wndClassName,
 	  WS_CAPTION | WS_POPUP,
-	  0, 0, W, H,
+	  0, 0, static_cast<int>(W), static_cast<int>(H),
 	  NULL, NULL, wc.hInstance, NULL);
 
 	ShowWindow(m_hwnd, SW_HIDE);

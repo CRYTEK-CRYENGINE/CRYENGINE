@@ -142,6 +142,74 @@ half4 ReflectionPassPS( v2f_hs IN, half4 vNormal )
 	return OUT;
 }
 
+#include "TiledShading.cfi"
+
+Buffer<uint>                           Water_TileLightMask : register(t32);
+StructuredBuffer<STiledLightShadeInfo> Water_TiledLightsShadeInfo : register(t33);
+TextureCubeArray<float4>               Water_SpecCubeArray : register(t34);
+
+float3 GatherCubemapSpecular(float2 screenTC, float3 worldPos, float3 normal, float smoothness)
+{
+	uint2 numTiles = ceil(CV_ScreenSize.xy / float2(TILED_SHADING_TILE_SIZE_X, TILED_SHADING_TILE_SIZE_Y));
+	uint2 tileIdx = uint2(screenTC.x * numTiles.x, screenTC.y * numTiles.y);
+	uint bufferIdx = (tileIdx.y * numTiles.x + tileIdx.x) * 8;
+	
+	int lightIndex = -1;
+	uint maskIndex = 0;
+	uint curMask = Water_TileLightMask[bufferIdx];
+	
+	float probeWeightSum = 0;
+	float3 specularAcc = 0;
+	float3 viewVec = -normalize(worldPos);
+	float specCubeLod = TILED_SHADING_SPECPROBE_MAXMIP - smoothness * TILED_SHADING_SPECPROBE_MAXMIP;
+	
+	[loop]
+	for (;;)
+	{
+		while (maskIndex < 8)
+		{
+			lightIndex = GetNextTileLightIndex(curMask, lightIndex);
+			if (lightIndex >= 0) break;
+			else curMask = Water_TileLightMask[++maskIndex + bufferIdx];
+		}
+		
+		[branch]
+		if (lightIndex < 0 || Water_TiledLightsShadeInfo[lightIndex].lightType > TILEDLIGHT_TYPE_AMBIENT_AREA)
+			break;
+			
+		if (Water_TiledLightsShadeInfo[lightIndex].lightType == TILEDLIGHT_TYPE_PROBE && probeWeightSum < 1)
+		{
+			STiledLightShadeInfo light = Water_TiledLightsShadeInfo[lightIndex];
+			
+			// Compute attenuation for box
+			float3 lightVec = (light.posRad.xyz - GetWorldViewPos()) - worldPos;
+			float3 tmpLightVec;
+			tmpLightVec.x = dot(light.projectorMatrix[0].xyz, lightVec);
+			tmpLightVec.y = dot(light.projectorMatrix[1].xyz, lightVec);
+			tmpLightVec.z = dot(light.projectorMatrix[2].xyz, lightVec);
+			
+			[branch] if (abs(tmpLightVec.x) < 1 && abs(tmpLightVec.y) < 1 && abs(tmpLightVec.z) < 1)  // Required for correctness and performance
+			{
+				tmpLightVec = MapCubeToSphere(tmpLightVec);
+				float attenuation = GetAttenuation(tmpLightVec, 1, true, light.attenuationParams.y) * light.attenuationParams.x;
+				float probeWeight = (1 - probeWeightSum) * attenuation;
+		
+				// Specular
+				float tmpGloss = 0;
+				float3 tmpReflVec = reflect(-viewVec, normal);
+				CubemapBoxParallaxCorrection(tmpReflVec, worldPos, (light.posRad.xyz - GetWorldViewPos()), light.shadowMatrix[0].xyz, light.shadowMatrix[1].xyz, tmpGloss);
+				float4 specularProbe = Water_SpecCubeArray.SampleLevel(ssMaterialTrilinearClamp, float4(tmpReflVec, light.resIndex), specCubeLod);
+				specularAcc += specularProbe.rgb * light.color.rgb * light.color.a * probeWeight;
+				
+				probeWeightSum += probeWeight;
+			}
+		}
+	}
+	
+	return specularAcc;
+}
+
+
 pixout WaterReflPS(v2f_hs IN)
 {
 	pixout OUT = (pixout) 1;
@@ -179,6 +247,10 @@ pixout WaterReflPS(v2f_hs IN)
 	half3 vReflNorm = normalize( vRefl );
 
 	half3 cSpecularAcc = MatSpecColor * EnvCubeBoxProjected( IN.vPosWS.xyz, vReflNorm, half4(1,1,1,1) );
+	
+#if %_RT_TILED_SHADING
+	cSpecularAcc = MatSpecColor * GatherCubemapSpecular(screenTC, IN.vPosWS.xyz - GetWorldViewPos(), vReflNorm, MatSpecColor.w);
+#endif
 
 	// Blend in screenspace reflections
 

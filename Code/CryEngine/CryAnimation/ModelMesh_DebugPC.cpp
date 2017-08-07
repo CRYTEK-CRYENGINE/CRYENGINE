@@ -209,9 +209,10 @@ void CModelMesh::DrawDebugInfo(CDefaultSkeleton* pCSkel, int nLOD, const Matrix3
 
 	bool bNoText = DebugMode < 0;
 
-	int32 numLODs = 1;
+	const SFrameLodInfo frameLodInfo = gEnv->p3DEngine->GetFrameLodInfo();
+
+	int32 numLODs = frameLodInfo.nMaxLod;
 	int index = 0;
-	Vec3 trans = rRenderMat34.GetTranslation();
 	float color[4] = { 1, 1, 1, 1 };
 
 	int nTris = m_pIRenderMesh->GetVerticesCount();
@@ -221,6 +222,14 @@ void CModelMesh::DrawDebugInfo(CDefaultSkeleton* pCSkel, int nLOD, const Matrix3
 	string shortName = PathUtil::GetFile(pCSkel->GetModelFilePath());
 
 	IRenderAuxGeom* pAuxGeom = g_pIRenderer->GetIRenderAuxGeom();
+
+	// Convert "camera space" to "world space"
+	Matrix34 tm = rRenderMat34;	
+	if (pObj->m_ObjFlags & FOB_NEAREST)
+	{
+		tm.AddTranslation(gEnv->pRenderer->GetCamera().GetPosition());
+	}
+	Vec3 trans = tm.GetTranslation();
 
 	if (nMats)
 	{
@@ -235,8 +244,10 @@ void CModelMesh::DrawDebugInfo(CDefaultSkeleton* pCSkel, int nLOD, const Matrix3
 	switch (DebugMode)
 	{
 	case 1:
-		IRenderAuxText::DrawLabelExF(trans, 1.3f, color, true, true, "%s\n%d LOD(%i\\%i)", shortName.c_str(), nTris, nLOD + 1, numLODs);
-		pAuxGeom->DrawAABB(pCSkel->m_ModelAABB, rRenderMat34, false, ColorB(0, 255, 255, 128), eBBD_Faceted);
+		{
+			IRenderAuxText::DrawLabelExF(trans, 1.3f, color, true, true, "%s\n%d LOD(%i\\%i)", shortName.c_str(), nTris, nLOD + 1, numLODs);
+			pAuxGeom->DrawAABB(pCSkel->m_ModelAABB, rRenderMat34, false, ColorB(0, 255, 255, 128), eBBD_Faceted);
+		}
 		break;
 	case 2:
 		{
@@ -258,10 +269,9 @@ void CModelMesh::DrawDebugInfo(CDefaultSkeleton* pCSkel, int nLOD, const Matrix3
 			else
 				clr = ColorB(nTris / 10, nTris / 10, nTris / 10, 255);
 
-			//if (pMaterial)
-			//	pMaterial = pMatMan->GetDefaultHelperMaterial();
-			//if (pObj)
-			pObj->m_II.m_AmbColor = ColorF(clr.r /*/155.0f*/, clr.g /*/155.0f*/, clr.b /*/155.0f*/, 1);
+			pObj->m_nMaterialLayers = 0;
+			pObj->m_ObjFlags |= FOB_SELECTED;
+			pObj->m_data.m_nHUDSilhouetteParams = RGBA8(255.0f, clr.b, clr.g, clr.r);
 
 			if (!bNoText)
 				IRenderAuxText::DrawLabelExF(trans, 1.3f, color, true, true, "%d", nTris);
@@ -269,48 +279,9 @@ void CModelMesh::DrawDebugInfo(CDefaultSkeleton* pCSkel, int nLOD, const Matrix3
 		}
 		break;
 	case 3:
-		{
-			//////////////////////////////////////////////////////////////////////////
-			// Show Lods
-			//////////////////////////////////////////////////////////////////////////
-			ColorB clr;
-			if (numLODs < 2)
-			{
-				if (nTris <= 30)
-				{
-					clr = ColorB(50, 50, 50, 255);
-				}
-				else
-				{
-					clr = ColorB(255, 0, 0, 255);
-					float fAngle = gEnv->pTimer->GetFrameStartTime().GetPeriodicFraction(1.0f) * gf_PI2;
-					clr.g = 127 + (int)(sin(fAngle) * 120); // flashing color
-				}
-			}
-			else
-			{
-				if (nLOD == 1)
-					clr = ColorB(255, 0, 0, 255);
-				else if (nLOD == 2)
-					clr = ColorB(0, 255, 0, 255);
-				else if (nLOD == 3)
-					clr = ColorB(0, 0, 255, 255);
-				else if (nLOD == 4)
-					clr = ColorB(0, 255, 255, 255);
-				else
-					clr = ColorB(255, 255, 255, 255);
-			}
-
-			//if (pMaterial)
-			//	pMaterial = GetMatMan()->GetDefaultHelperMaterial();
-			if (pObj)
-			{
-				pObj->m_II.m_AmbColor = ColorF(clr.r, clr.g, clr.b, 1);
-			}
-
-			if (numLODs > 1 && !bNoText)
-				IRenderAuxText::DrawLabelExF(trans, 1.3f, color, true, true, "%d/%d", nLOD + 1, numLODs);
-		}
+		// Do nothing here. 
+		// Environment and character debug info has been split.
+		// 24 is for characters
 		break;
 
 	case 4:
@@ -340,7 +311,10 @@ void CModelMesh::DrawDebugInfo(CDefaultSkeleton* pCSkel, int nLOD, const Matrix3
 			else if (nRenderMats >= 11)
 				clr = ColorB(255, 255, 255, 255);
 
-			pObj->m_II.m_AmbColor = ColorF(clr.r, clr.g, clr.b, 1);
+			pObj->m_nMaterialLayers = 0;
+			pObj->m_ObjFlags |= FOB_SELECTED;
+			pObj->m_data.m_nHUDSilhouetteParams = RGBA8(127.0f, clr.b, clr.g, clr.r);
+
 
 			if (!bNoText)
 				IRenderAuxText::DrawLabelExF(trans, 1.3f, color, true, true, "%d", nRenderMats);
@@ -414,6 +388,77 @@ void CModelMesh::DrawDebugInfo(CDefaultSkeleton* pCSkel, int nLOD, const Matrix3
 			IRenderAuxText::DrawLabelExF(trans, 1.3f, color, true, true, "%d", nPhysTrisCount);
 		}
 		break;
+
+	case 24:
+	{
+		//////////////////////////////////////////////////////////////////////////
+		// Show Lods for characters
+		//////////////////////////////////////////////////////////////////////////
+		
+		if (!bNoText && isGeneralPass)
+		{
+			bool bLodFaceArea = false;
+			float distances[SMeshLodInfo::s_nMaxLodCount];
+			stack_string dist;
+			if (pRenderNode)
+			{
+				bLodFaceArea = gEnv->pConsole->GetCVar("e_LodFaceArea")->GetIVal() != 0;
+				if (bLodFaceArea)
+				{
+					bLodFaceArea = pRenderNode->GetLodDistances(frameLodInfo, distances);
+				}
+				if (bLodFaceArea)
+				{
+					for (uint32 i = 0; i < SMeshLodInfo::s_nMaxLodCount; ++i)
+					{
+						dist += stack_string().Format(",%d:%.1f", i, distances[i]);
+					}
+				}
+			}
+
+			// Change color based on LOD
+			ColorB clr;
+			switch (nLOD)
+			{
+			case 1:  { clr = ColorF(1.0f, 0.0f, 0.0f, 1.0f); } break;
+			case 2:  { clr = ColorF(0.0f, 1.0f, 0.0f, 1.0f); } break;
+			case 3:  { clr = ColorF(0.0f, 0.0f, 1.0f, 1.0f); } break;
+			case 4:  { clr = ColorF(0.0f, 1.0f, 1.0f, 1.0f); } break;
+			default: { clr = ColorF(0.8f, 0.8f, 0.8f, 1.0f); } break;
+			}
+			
+			pObj->m_nMaterialLayers = 0;
+			pObj->m_ObjFlags |= FOB_SELECTED;
+			pObj->m_data.m_nHUDSilhouetteParams = RGBA8(255.0f, clr.b, clr.g, clr.r);
+
+			IRenderNode* pRenderNode = RendParams.pRenderNode;
+			const float lodRatioNorm = pRenderNode ? pRenderNode->GetLodRatioNormalized() : -1.0f;
+			const float lodRatio = pRenderNode ? pRenderNode->GetLodRatio() : -1.0f;
+			const int   viewDistRatio = pRenderNode ? pRenderNode->GetViewDistRatioVal() : -1;
+
+			pAuxGeom->DrawAABB(pCSkel->m_ModelAABB, rRenderMat34, false, ColorB(0, 255, 255, 128), eBBD_Faceted);
+
+			float fEntDistance = -1.f;
+			string sourceName = "<Unknown>";
+			if (m_pIRenderMesh)
+			{
+				AABB bbox;
+				m_pIRenderMesh->GetBBox(bbox.min, bbox.max);
+				bbox.SetTransformedAABB(rRenderMat34, bbox);
+				trans = bbox.GetCenter();
+				const Vec3 vCamPos = g_pI3DEngine->GetRenderingCamera().GetPosition();
+				fEntDistance = sqrt_tpl(Distance::Point_AABBSq(vCamPos, bbox));
+
+				sourceName = PathUtil::GetFile(m_pIRenderMesh->GetSourceName());
+			}
+			
+			if (lodRatio >= 0.0f)
+				IRenderAuxText::DrawLabelExF(trans, 1.3f, clr, true, true, "%s\nLod[%d]vdr[%d]lr[%.1f/%.1f]\nD[%s]\nCamDist:%.2f / %.2f", sourceName.c_str(), nLOD, viewDistRatio, lodRatio, lodRatioNorm, !dist.empty() ? dist.c_str() + 1 : "-", fEntDistance, RendParams.fDistance);
+			else
+				IRenderAuxText::DrawLabelExF(trans, 1.3f, clr, true, true, "%s\nLod[%d]vdr[%d] LodRatio=0", sourceName.c_str(), nLOD, viewDistRatio);
+		}
+	}
+	break;
 
 	default:
 		break;

@@ -1,40 +1,34 @@
 {
-	"NoUberFile": 
-	{
-		"Root":
-		[
-			"CryLiveCreate.h",
-			"CryLiveCreate.cpp",
-			"LiveCreateCommands.h",
-			"StdAfx.cpp",
-			"StdAfx.h"
-		],
-		"Source":
-		[
-			"LiveCreateHost.h",
-			"LiveCreateHost.cpp",
-			"LiveCreateNativeFile.h",
-			"LiveCreateNativeFile.cpp",
-			"LiveCreateManager.h",
-			"LiveCreateManager.cpp",
-			"../CrySystem/NullImplementation/NullLiveCreate.h"	
-		],
-		"Source/Platforms":
-		[
-			"PlatformHandler_GamePC.h",
-			"PlatformHandler_GamePC.cpp",
-			"PlatformHandler_Any.h",
-			"PlatformHandler_Any.cpp",
-			"Platform_Common/PlatformHandlerBase.h",
-			"Platform_Common/PlatformHandlerBase.cpp"
-
-		],
-		"Source/Commands":
-		[
-			"LiveCreate_System.h",
-			"LiveCreate_System.cpp",
-			"LiveCreate_Objects.h",
-			"LiveCreate_Objects.cpp"
-		]
-	}
+  "NoUberFile": {
+    "Root": [
+      "CryLiveCreate.h", 
+      "CryLiveCreate.cpp", 
+      "LiveCreateCommands.h", 
+      "StdAfx.cpp", 
+      "StdAfx.h"
+    ], 
+    "Source": [
+      "LiveCreateHost.h", 
+      "LiveCreateHost.cpp", 
+      "LiveCreateNativeFile.h", 
+      "LiveCreateNativeFile.cpp", 
+      "LiveCreateManager.h", 
+      "LiveCreateManager.cpp", 
+      "../CrySystem/NullImplementation/NullLiveCreate.h"
+    ], 
+    "Source/Commands": [
+      "LiveCreate_System.h", 
+      "LiveCreate_System.cpp", 
+      "LiveCreate_Objects.h", 
+      "LiveCreate_Objects.cpp"
+    ], 
+    "Source/Platforms": [
+      "PlatformHandler_GamePC.h", 
+      "PlatformHandler_GamePC.cpp", 
+      "PlatformHandler_Any.h", 
+      "PlatformHandler_Any.cpp", 
+      "Platform_Common/PlatformHandlerBase.h", 
+      "Platform_Common/PlatformHandlerBase.cpp"
+    ]
+  }
 }

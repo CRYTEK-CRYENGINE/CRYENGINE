@@ -54,7 +54,6 @@ bool CVehicleSeatSerializer::Init(IGameObject* pGameObject)
 		if (!GetGameObject()->BindToNetworkWithParent(eBTNM_Normal, parentId))
 			return false;
 
-	GetEntity()->Activate(0);
 	GetEntity()->Hide(true);
 
 	if (!IsDemoPlayback())

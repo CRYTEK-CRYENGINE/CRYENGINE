@@ -39,6 +39,6 @@ inline void GetDistanceAngleToObject(const CObjectTransformation& listener, cons
 	const Vec3 listenerDir = listener.GetForward().GetNormalizedFast();
 	out_angle = RAD2DEG(asin_tpl(objectDir.Cross(listenerDir).Dot(n)));
 }
-}
-}
-}
+} // namespace SDL_mixer
+} // namespace Impl
+} // namespace CryAudio

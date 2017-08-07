@@ -34,10 +34,10 @@ public:
 	// ~CAbstractDictionaryEntry
 
 	QString          GetName() const { return m_name; }
-	Schematyc::SGUID GetTypeGUID()   { return m_identifier; }
+	CryGUID GetTypeGUID()   { return m_identifier; }
 
 private:
-	Schematyc::SGUID m_identifier;
+	CryGUID m_identifier;
 	QString          m_name;
 	QString          m_fullName;
 	QString          m_description;
@@ -66,6 +66,7 @@ public:
 	virtual QString                         GetColumnName(int32 index) const override;
 
 	virtual int32                           GetDefaultFilterColumn() const override { return Column_Name; }
+	virtual int32                           GetDefaultSortColumn() const override { return Column_Name; }
 	// ~CryGraphEditor::CAbstractDictionary
 
 	void Load(const Schematyc::IScriptElement* pScriptScope);

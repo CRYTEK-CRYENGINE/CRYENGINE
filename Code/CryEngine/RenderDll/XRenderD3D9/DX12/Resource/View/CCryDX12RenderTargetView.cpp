@@ -185,9 +185,4 @@ CCryDX12RenderTargetView::CCryDX12RenderTargetView(ID3D11Resource* pResource11, 
 	m_DX12View.HasDesc(false);
 }
 
-CCryDX12RenderTargetView::~CCryDX12RenderTargetView()
-{
-
-}
-
 /* ID3D11RenderTargetView implementation */

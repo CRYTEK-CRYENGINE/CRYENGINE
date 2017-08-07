@@ -4,6 +4,7 @@ def build(bld):
 	# No warnings in 3rdParty code, we can't fix them anyway
 	common_win_cflags = [ '/W0', ]
 	common_linux_cflags = ['-w']
+	common_android_cflags = ['-w']
 
 	common_defines = [
 		'OGG_MUSIC',
@@ -11,10 +12,11 @@ def build(bld):
 		'FLAC_MUSIC',
 		'MOD_MUSIC',
 		'MODPLUG_MUSIC',
+		'MODPLUG_HEADER="modplug.h"',
 		'USE_TIMIDITY_MIDI',
 		'USE_NATIVE_MIDI',
 	]
-
+	
 	common_win_defines = [
 		'WAV_MUSIC',
 		'MP3_MUSIC',
@@ -30,8 +32,12 @@ def build(bld):
 
 		output_file_name = "SDL2_mixer",
 
-		includes = [Path('Code/SDKs/SDL_mixer')],
-		win_includes = [Path('Code/SDKs/SDL_mixer/VisualC/external/include')],
+		includes = [
+			Path('Code/SDKs/SDL_mixer'),
+			Path('Code/SDKs/libmodplug/src'),
+			Path('Code/SDKs/libmodplug/src/libmodplug')],
+		win_includes = [
+			Path('Code/SDKs/SDL_mixer/VisualC/external/include')],
 
 		use_module = ['timidity',
 			'native_midi',
@@ -50,6 +56,7 @@ def build(bld):
 		win_defines = common_win_defines,
 		win_cflags  = common_win_cflags,
 		linux_cflags = common_linux_cflags,
+		android_cflags = common_android_cflags,
 
 		module_provides = dict(
 			includes = [Path('Code/SDKs/SDL_mixer')],

@@ -53,11 +53,7 @@ vert2fragCustomRender Common_CustomRenderPassVS(app2vertCustomViews IN)
 #if %_RT_PER_INSTANCE_CB_TEMP
    OUT.cVision = PerInstanceCustomData1;
 #else
-#if %_RT_INSTANCING_ATTR
-  OUT.cVision = vertPassPos.InstVisionParams;
-#else
   OUT.cVision = VisionParams;
-#endif
 #endif
 
   float4 HPosition = Pos_VS_General(g_VS_ViewProjZeroMatr, vertPassPos);

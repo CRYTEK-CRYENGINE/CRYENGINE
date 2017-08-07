@@ -2,20 +2,23 @@
 
 #pragma once
 
-#include "ATLEntities.h"
 #include <CryPhysics/IPhysics.h>
 #include <CryAudio/IAudioSystem.h>
+#include "ATLEntities.h"
 
 namespace CryAudio
 {
+class CATLAudioObject;
+struct SATLSoundPropagationData;
+
 static const size_t s_maxRayHits = 5;
 
 class CAudioRayInfo
 {
 public:
 
-	CAudioRayInfo(CATLAudioObject* _pAudioObject)
-		: pAudioObject(_pAudioObject)
+	CAudioRayInfo(CATLAudioObject* pObject_)
+		: pObject(pObject_)
 		, samplePosIndex(0)
 		, numHits(0)
 		, totalSoundOcclusion(0.0f)
@@ -30,7 +33,7 @@ public:
 
 	void Reset();
 
-	CATLAudioObject* pAudioObject;
+	CATLAudioObject* pObject;
 	size_t           samplePosIndex;
 	size_t           numHits;
 	float            totalSoundOcclusion;
@@ -60,7 +63,11 @@ public:
 	// PhysicsSystem callback
 	static int OnObstructionTest(EventPhys const* pEvent);
 
-	void       Update(float const deltaTime, float const distance, Vec3 const& audioListenerPosition);
+	void       Update(
+		float const deltaTime,
+		float const distance,
+		Vec3 const& audioListenerPosition,
+		EObjectFlags const objectFlags);
 	void       SetOcclusionType(EOcclusionType const occlusionType, Vec3 const& audioListenerPosition);
 	bool       CanRunObstructionOcclusion() const;
 	void       GetPropagationData(SATLSoundPropagationData& propagationData) const;
@@ -121,7 +128,7 @@ public:
 	static size_t s_totalSyncPhysRays;
 	static size_t s_totalAsyncPhysRays;
 
-	void           DrawObstructionRays(IRenderAuxGeom& auxGeom) const;
+	void           DrawObstructionRays(IRenderAuxGeom& auxGeom, EObjectFlags const objectFlags) const;
 	void           DrawRay(IRenderAuxGeom& auxGeom, size_t const rayIndex) const;
 	EOcclusionType GetOcclusionType() const             { return m_occlusionType; }
 	EOcclusionType GetOcclusionTypeWhenAdaptive() const { return m_occlusionTypeWhenAdaptive; }
@@ -156,4 +163,4 @@ private:
 	mutable float   m_timeSinceLastUpdateMS;
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 };
-}
+} // namespace CryAudio

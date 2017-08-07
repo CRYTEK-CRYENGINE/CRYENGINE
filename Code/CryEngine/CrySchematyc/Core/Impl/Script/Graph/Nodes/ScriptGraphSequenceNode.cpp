@@ -3,14 +3,14 @@
 #include "StdAfx.h"
 #include "Script/Graph/Nodes/ScriptGraphSequenceNode.h"
 
-#include <Schematyc/Compiler/IGraphNodeCompiler.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvDataType.h>
-#include <Schematyc/Reflection/TypeDesc.h>
-#include <Schematyc/Script/Elements/IScriptEnum.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/StackString.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Compiler/IGraphNodeCompiler.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvDataType.h>
+#include <CrySchematyc/Reflection/TypeDesc.h>
+#include <CrySchematyc/Script/Elements/IScriptEnum.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/StackString.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
 
 #include "Script/ScriptVariableData.h"
 #include "Script/ScriptView.h"
@@ -37,7 +37,7 @@ void CScriptGraphSequenceNode::SOutput::Serialize(Serialization::IArchive& archi
 	}
 }
 
-SGUID CScriptGraphSequenceNode::GetTypeGUID() const
+CryGUID CScriptGraphSequenceNode::GetTypeGUID() const
 {
 	return ms_typeGUID;
 }
@@ -47,13 +47,13 @@ void CScriptGraphSequenceNode::CreateLayout(CScriptGraphNodeLayout& layout)
 	layout.SetName("Sequence");
 	layout.SetStyleId("Core::FlowControl");
 
-	layout.AddInput("In", SGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::MultiLink });
+	layout.AddInput("In", CryGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::MultiLink });
 
 	for (const SOutput& output : m_outputs)
 	{
 		if (!output.bIsDuplicate)
 		{
-			layout.AddOutput(output.name.c_str(), SGUID(), EScriptGraphPortFlags::Flow);
+			layout.AddOutput(output.name.c_str(), CryGUID(), EScriptGraphPortFlags::Flow);
 		}
 	}
 }
@@ -129,12 +129,12 @@ void CScriptGraphSequenceNode::Register(CScriptGraphNodeFactory& factory)
 
 		// IScriptGraphNodeCreator
 
-		virtual SGUID GetTypeGUID() const override
+		virtual CryGUID GetTypeGUID() const override
 		{
 			return CScriptGraphSequenceNode::ms_typeGUID;
 		}
 
-		virtual IScriptGraphNodePtr CreateNode(const SGUID& guid) override
+		virtual IScriptGraphNodePtr CreateNode(const CryGUID& guid) override
 		{
 			return std::make_shared<CScriptGraphNode>(guid, stl::make_unique<CScriptGraphSequenceNode>());
 		}
@@ -178,7 +178,7 @@ SRuntimeResult CScriptGraphSequenceNode::Execute(SRuntimeContext& context, const
 	}
 }
 
-const SGUID CScriptGraphSequenceNode::ms_typeGUID = "87aa640f-b8c6-449f-bc37-2d5400009290"_schematyc_guid;
+const CryGUID CScriptGraphSequenceNode::ms_typeGUID = "87aa640f-b8c6-449f-bc37-2d5400009290"_cry_guid;
 } // Schematyc
 
 SCHEMATYC_REGISTER_SCRIPT_GRAPH_NODE(Schematyc::CScriptGraphSequenceNode::Register)

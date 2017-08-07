@@ -18,7 +18,7 @@ public:
 	EFlareType          GetType() override                    { return eFT_Reference; }
 	bool                IsGroup() const override              { return false; }
 
-	string              GetName() const override              { return m_name;  }
+	const char*         GetName() const override              { return m_name.c_str();  }
 	void                SetName(const char* ch_name) override { m_name = ch_name; }
 	void                Load(IXmlNode* pNode) override;
 

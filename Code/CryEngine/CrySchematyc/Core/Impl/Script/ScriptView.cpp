@@ -5,32 +5,31 @@
 #include "StdAfx.h"
 #include "ScriptView.h"
 
-#include <Schematyc/FundamentalTypes.h>
-#include <Schematyc/ICore.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvAction.h>
-#include <Schematyc/Env/Elements/IEnvClass.h>
-#include <Schematyc/Env/Elements/IEnvComponent.h>
-#include <Schematyc/Env/Elements/IEnvDataType.h>
-#include <Schematyc/Env/Elements/IEnvFunction.h>
-#include <Schematyc/Reflection/ComponentDesc.h>
-#include <Schematyc/Script/IScriptGraph.h>
-#include <Schematyc/Script/IScriptRegistry.h>
-#include <Schematyc/Script/Elements/IScriptActionInstance.h>
-#include <Schematyc/Script/Elements/IScriptBase.h>
-#include <Schematyc/Script/Elements/IScriptClass.h>
-#include <Schematyc/Script/Elements/IScriptComponentInstance.h>
-#include <Schematyc/Script/Elements/IScriptEnum.h>
-#include <Schematyc/Script/Elements/IScriptFunction.h>
-#include <Schematyc/Script/Elements/IScriptModule.h>
-#include <Schematyc/Script/Elements/IScriptSignal.h>
-#include <Schematyc/Script/Elements/IScriptState.h>
-#include <Schematyc/Script/Elements/IScriptStateMachine.h>
-#include <Schematyc/Script/Elements/IScriptStruct.h>
-#include <Schematyc/Script/Elements/IScriptTimer.h>
-#include <Schematyc/Script/Elements/IScriptVariable.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/Utils/EnumFlags.h>
+#include <CrySchematyc/FundamentalTypes.h>
+#include <CrySchematyc/ICore.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvAction.h>
+#include <CrySchematyc/Env/Elements/IEnvClass.h>
+#include <CrySchematyc/Env/Elements/IEnvComponent.h>
+#include <CrySchematyc/Env/Elements/IEnvDataType.h>
+#include <CrySchematyc/Env/Elements/IEnvFunction.h>
+#include <CrySchematyc/Script/IScriptGraph.h>
+#include <CrySchematyc/Script/IScriptRegistry.h>
+#include <CrySchematyc/Script/Elements/IScriptActionInstance.h>
+#include <CrySchematyc/Script/Elements/IScriptBase.h>
+#include <CrySchematyc/Script/Elements/IScriptClass.h>
+#include <CrySchematyc/Script/Elements/IScriptComponentInstance.h>
+#include <CrySchematyc/Script/Elements/IScriptEnum.h>
+#include <CrySchematyc/Script/Elements/IScriptFunction.h>
+#include <CrySchematyc/Script/Elements/IScriptModule.h>
+#include <CrySchematyc/Script/Elements/IScriptSignal.h>
+#include <CrySchematyc/Script/Elements/IScriptState.h>
+#include <CrySchematyc/Script/Elements/IScriptStateMachine.h>
+#include <CrySchematyc/Script/Elements/IScriptStruct.h>
+#include <CrySchematyc/Script/Elements/IScriptTimer.h>
+#include <CrySchematyc/Script/Elements/IScriptVariable.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/EnumFlags.h>
 
 #include "CVars.h"
 #include "Services/Log.h"
@@ -59,12 +58,12 @@ inline const IScriptClass* GetScriptBaseClass(const IScriptElement& scriptElemen
 		}
 		return EVisitStatus::Continue;
 	};
-	scriptElement.VisitChildren(ScriptElementConstVisitor::FromLambda(visitScriptElement));
+	scriptElement.VisitChildren(visitScriptElement);
 	return baseClassId.domain == EDomain::Script ? DynamicCast<IScriptClass>(gEnv->pSchematyc->GetScriptRegistry().GetElement(baseClassId.guid)) : nullptr;
 }
 
 // #SchematycTODO : No need to pass element type, this can be retrieved using ELEMENT::ElementType.
-template<typename ELEMENT> void VisitScriptElements(const CDelegate<EVisitStatus(const ELEMENT&)>& visitor, EScriptElementType filterElementType, EScriptElementAccessor accessor, const IScriptElement& scriptScope)
+template<typename ELEMENT> void VisitScriptElements(const std::function<EVisitStatus(const ELEMENT&)>& visitor, EScriptElementType filterElementType, EScriptElementAccessor accessor, const IScriptElement& scriptScope)
 {
 	for (const IScriptElement* pScriptElement = scriptScope.GetFirstChild(); pScriptElement; pScriptElement = pScriptElement->GetNextSibling())
 	{
@@ -83,7 +82,7 @@ template<typename ELEMENT> void VisitScriptElements(const CDelegate<EVisitStatus
 }
 
 // #SchematycTODO : No need to pass element type, this can be retrieved using ELEMENT::ElementType.
-template<typename ELEMENT> void VisitScriptElementsInClass(const CDelegate<EVisitStatus(const ELEMENT&)>& visitor, EScriptElementType elementType, EDomainScope scope, SGUID scopeGUID)
+template<typename ELEMENT> void VisitScriptElementsInClass(const std::function<EVisitStatus(const ELEMENT&)>& visitor, EScriptElementType elementType, EDomainScope scope, CryGUID scopeGUID)
 {
 	const IScriptElement* pScriptElement = gEnv->pSchematyc->GetScriptRegistry().GetElement(scopeGUID);
 	while (pScriptElement)
@@ -108,7 +107,16 @@ template<typename ELEMENT> void VisitScriptElementsInClass(const CDelegate<EVisi
 	}
 }
 
-template<typename ELEMENT> void VisitScriptElementsRecursive(const CDelegate<EVisitStatus(const ELEMENT&)>& visitor, const IScriptElement& scope, EScriptElementType type, EScriptElementAccessor accessor, const VisitFlags& flags, const IScriptElement* pSkipElement)
+template<typename ELEMENT> void VisitScriptElementsInModule(const std::function<EVisitStatus(const ELEMENT&)>& visitor, EScriptElementType elementType, CryGUID scopeGUID)
+{
+	const IScriptElement* pScriptElement = gEnv->pSchematyc->GetScriptRegistry().GetElement(scopeGUID);
+	if (pScriptElement)
+	{
+		VisitScriptElements<ELEMENT>(visitor, elementType, EScriptElementAccessor::Public, *pScriptElement);
+	}
+}
+
+template<typename ELEMENT> void VisitScriptElementsRecursive(const std::function<EVisitStatus(const ELEMENT&)>& visitor, const IScriptElement& scope, EScriptElementType type, EScriptElementAccessor accessor, const VisitFlags& flags, const IScriptElement* pSkipElement)
 {
 	for (const IScriptElement* pScriptElement = scope.GetFirstChild(); pScriptElement; pScriptElement = pScriptElement->GetNextSibling())
 	{
@@ -158,13 +166,19 @@ template<typename ELEMENT> void VisitScriptElementsRecursive(const CDelegate<EVi
 	}
 }
 
-template<typename ELEMENT> void VisitScriptElements(const CDelegate<EVisitStatus(const ELEMENT&)>& visitor, EScriptElementType type, const SGUID& scopeGUID)
+template<typename ELEMENT> void VisitScriptElements(const std::function<EVisitStatus(const ELEMENT&)>& visitor, EScriptElementType type, const CryGUID& scopeGUID)
 {
 	const IScriptElement* pScriptScope = gEnv->pSchematyc->GetScriptRegistry().GetElement(scopeGUID);
 	if (pScriptScope)
 	{
 		VisitScriptElementsRecursive<ELEMENT>(visitor, *pScriptScope, type, EScriptElementAccessor::Private, { EVisitFlags::VisitParents, EVisitFlags::VisitChildren }, nullptr);
 	}
+}
+
+template<typename ELEMENT> void VisitRootScriptElements(const std::function<EVisitStatus(const ELEMENT&)>& visitor, EScriptElementType type)
+{
+	const IScriptElement& rootElement = gEnv->pSchematyc->GetScriptRegistry().GetRootElement();
+	VisitScriptElementsRecursive<ELEMENT>(visitor, rootElement, type, EScriptElementAccessor::Public, {}, nullptr);
 }
 } // ScriptViewUtils_DEPRECATED
 
@@ -176,10 +190,9 @@ enum class EVisitFlags
 	VisitChildren = BIT(1)
 };
 
-typedef CEnumFlags<EVisitFlags>            VisitFlags;
-typedef std::vector<const IScriptElement*> ScriptAncestors;
+typedef CEnumFlags<EVisitFlags> VisitFlags;
 
-template<typename ELEMENT> void VisitElementsRecursive(const IScriptElement& scope, const CDelegate<void(const ELEMENT&)>& visitor, EScriptElementAccessor accessor, const VisitFlags& flags, const IScriptElement* pSkipElement)
+template<typename ELEMENT> void VisitElementsRecursive(const IScriptElement& scope, const std::function<void(const ELEMENT&)>& visitor, EScriptElementAccessor accessor, const VisitFlags& flags, const IScriptElement* pSkipElement)
 {
 	for (const IScriptElement* pScriptElement = scope.GetFirstChild(); pScriptElement; pScriptElement = pScriptElement->GetNextSibling())
 	{
@@ -231,7 +244,7 @@ template<typename ELEMENT> void VisitElementsRecursive(const IScriptElement& sco
 	}
 }
 
-template<typename ELEMENT> void VisitEnclosedElememts(const SGUID& scopeGUID, const CDelegate<void(const ELEMENT&)>& visitor)
+template<typename ELEMENT> void VisitEnclosedElememts(const CryGUID& scopeGUID, const std::function<void(const ELEMENT&)>& visitor)
 {
 	const IScriptElement* pScriptScope = gEnv->pSchematyc->GetScriptRegistry().GetElement(scopeGUID);
 	if (pScriptScope)
@@ -240,7 +253,7 @@ template<typename ELEMENT> void VisitEnclosedElememts(const SGUID& scopeGUID, co
 	}
 }
 
-template<typename ELEMENT> void VisitAccesibleElememts(const SGUID& scopeGUID, const CDelegate<void(const ELEMENT&)>& visitor)
+template<typename ELEMENT> void VisitAccesibleElememts(const CryGUID& scopeGUID, const std::function<void(const ELEMENT&)>& visitor)
 {
 	const IScriptElement* pScriptScope = gEnv->pSchematyc->GetScriptRegistry().GetElement(scopeGUID);
 	if (pScriptScope)
@@ -248,77 +261,13 @@ template<typename ELEMENT> void VisitAccesibleElememts(const SGUID& scopeGUID, c
 		VisitElementsRecursive<ELEMENT>(*pScriptScope, visitor, EScriptElementAccessor::Private, { EVisitFlags::VisitParents, EVisitFlags::VisitChildren }, nullptr);
 	}
 }
-
-inline void GetScriptAncestors(const IScriptElement& scriptElement, ScriptAncestors& ancestors)
-{
-	ancestors.reserve(16);
-	ancestors.push_back(&scriptElement);
-	for (const IScriptElement* pScriptScope = scriptElement.GetParent(); pScriptScope; pScriptScope = pScriptScope->GetParent())
-	{
-		ancestors.push_back(pScriptScope);
-	}
-}
-
-inline const IScriptElement* FindFirstCommonScriptAncestor(const IScriptElement& lhsScriptElement, const IScriptElement& rhsScriptElement)
-{
-	ScriptAncestors lhsScriptAncestors;
-	ScriptAncestors rhsScriptAncestors;
-	GetScriptAncestors(lhsScriptElement, lhsScriptAncestors);
-	GetScriptAncestors(rhsScriptElement, rhsScriptAncestors);
-	for (const IScriptElement* pScriptAncestor : lhsScriptAncestors)
-	{
-		if (std::find(rhsScriptAncestors.begin(), rhsScriptAncestors.end(), pScriptAncestor) != rhsScriptAncestors.end())
-		{
-			return pScriptAncestor;
-		}
-	}
-	return nullptr;
-}
-
-inline bool QualifyScriptElementName(const IScriptElement& scriptScope, const IScriptElement& scriptElement, EDomainQualifier qualifier, IString& output)
-{
-	output.clear();
-	switch (qualifier)
-	{
-	case EDomainQualifier::Global:
-		{
-			output.assign(scriptElement.GetName());
-
-			for (const IScriptElement* pScriptScope = scriptElement.GetParent(); pScriptScope && (pScriptScope->GetType() != EScriptElementType::Root); pScriptScope = pScriptScope->GetParent())
-			{
-				output.insert(0, "::");
-				output.insert(0, pScriptScope->GetName());
-			}
-			return true;
-		}
-	case EDomainQualifier::Local:
-		{
-			if (&scriptScope != &scriptElement)
-			{
-				output.assign(scriptElement.GetName());
-
-				const IScriptElement* pFirstCommonScriptAncestor = FindFirstCommonScriptAncestor(scriptScope, scriptElement);
-				for (const IScriptElement* pScriptScope = scriptElement.GetParent(); (pScriptScope != pFirstCommonScriptAncestor) && (pScriptScope->GetType() != EScriptElementType::Root); pScriptScope = pScriptScope->GetParent())
-				{
-					output.insert(0, "::");
-					output.insert(0, pScriptScope->GetName());
-				}
-			}
-			return true;
-		}
-	default:
-		{
-			return false;
-		}
-	}
-}
 } //ScriptViewUtils
 
-CScriptView::CScriptView(const SGUID& scopeGUID)
+CScriptView::CScriptView(const CryGUID& scopeGUID)
 	: m_scopeGUID(scopeGUID)
 {}
 
-const SGUID& CScriptView::GetScopeGUID() const
+const CryGUID& CScriptView::GetScopeGUID() const
 {
 	return m_scopeGUID;
 }
@@ -339,7 +288,7 @@ const IEnvClass* CScriptView::GetEnvClass() const
 			}
 			return EVisitStatus::Continue;
 		};
-		pScriptClass->VisitChildren(ScriptElementConstVisitor::FromLambda(visitScriptElement));
+		pScriptClass->VisitChildren(visitScriptElement);
 		if (baseClassId.domain == EDomain::Script)
 		{
 			pScriptClass = DynamicCast<IScriptClass>(scriptRegistry.GetElement(baseClassId.guid));
@@ -371,8 +320,8 @@ const IScriptClass* CScriptView::GetScriptClass() const
 
 void CScriptView::VisitEnvDataTypes(const EnvDataTypeConstVisitor& visitor) const
 {
-	SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty())
-	if (!visitor.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(visitor)
+	if (visitor)
 	{
 		//const IEnvClass* pEnvClass = GetEnvClass();
 		auto visitEnvDataType = [&visitor /*, &pEnvClass*/](const IEnvDataType& envDataType) -> EVisitStatus
@@ -383,14 +332,14 @@ void CScriptView::VisitEnvDataTypes(const EnvDataTypeConstVisitor& visitor) cons
 			}
 			return EVisitStatus::Continue;
 		};
-		gEnv->pSchematyc->GetEnvRegistry().VisitDataTypes(EnvDataTypeConstVisitor::FromLambda(visitEnvDataType));
+		gEnv->pSchematyc->GetEnvRegistry().VisitDataTypes(visitEnvDataType);
 	}
 }
 
 void CScriptView::VisitEnvSignals(const EnvSignalConstVisitor& visitor) const
 {
-	SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty())
-	if (!visitor.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(visitor)
+	if (visitor)
 	{
 		//const IEnvSignal* pEnvClass = GetEnvClass();
 		auto visitEnvSignal = [&visitor /*, &pEnvClass*/](const IEnvSignal& envSignal) -> EVisitStatus
@@ -401,21 +350,21 @@ void CScriptView::VisitEnvSignals(const EnvSignalConstVisitor& visitor) const
 			}
 			return EVisitStatus::Continue;
 		};
-		gEnv->pSchematyc->GetEnvRegistry().VisitSignals(EnvSignalConstVisitor::FromLambda(visitEnvSignal));
+		gEnv->pSchematyc->GetEnvRegistry().VisitSignals(visitEnvSignal);
 	}
 }
 
 void CScriptView::VisitEnvFunctions(const EnvFunctionConstVisitor& visitor) const
 {
-	SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty())
-	if (!visitor.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(visitor)
+	if (visitor)
 	{
 		auto visitEnvFunction = [&visitor](const IEnvFunction& envFunction) -> EVisitStatus
 		{
 			// #SchematycTODO : Filter based on scope!
 			return visitor(envFunction);
 		};
-		gEnv->pSchematyc->GetEnvRegistry().VisitFunctions(EnvFunctionConstVisitor::FromLambda(visitEnvFunction));
+		gEnv->pSchematyc->GetEnvRegistry().VisitFunctions(visitEnvFunction);
 	}
 }
 
@@ -426,8 +375,8 @@ void CScriptView::VisitEnvClasses(const EnvClassConstVisitor& visitor) const
 
 void CScriptView::VisitEnvInterfaces(const EnvInterfaceConstVisitor& visitor) const
 {
-	SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty())
-	if (!visitor.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(visitor)
+	if (visitor)
 	{
 		const IEnvClass* pEnvClass = GetEnvClass();
 		auto visitEnvInterface = [&visitor, &pEnvClass](const IEnvInterface& envInterface) -> EVisitStatus
@@ -438,14 +387,14 @@ void CScriptView::VisitEnvInterfaces(const EnvInterfaceConstVisitor& visitor) co
 			}
 			return EVisitStatus::Continue;
 		};
-		gEnv->pSchematyc->GetEnvRegistry().VisitInterfaces(EnvInterfaceConstVisitor::FromLambda(visitEnvInterface));
+		gEnv->pSchematyc->GetEnvRegistry().VisitInterfaces(visitEnvInterface);
 	}
 }
 
 void CScriptView::VisitEnvComponents(const EnvComponentConstVisitor& visitor) const
 {
-	SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty())
-	if (!visitor.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(visitor)
+	if (visitor)
 	{
 		typedef std::vector<const IEnvComponent*> Exclusions;
 
@@ -453,13 +402,13 @@ void CScriptView::VisitEnvComponents(const EnvComponentConstVisitor& visitor) co
 		auto visitScriptComponentInstances = [&visitor, &exclusions](const IScriptComponentInstance& componentInstance) -> EVisitStatus
 		{
 			const IEnvComponent* pEnvComponent = gEnv->pSchematyc->GetEnvRegistry().GetComponent(componentInstance.GetTypeGUID());
-			if (pEnvComponent && pEnvComponent->GetDesc().GetComponentFlags().Check(EComponentFlags::Singleton))
+			if (pEnvComponent && pEnvComponent->GetDesc().GetComponentFlags().Check(IEntityComponent::EFlags::Singleton))
 			{
 				exclusions.push_back(pEnvComponent);
 			}
 			return EVisitStatus::Continue;
 		};
-		VisitScriptComponentInstances(ScriptComponentInstanceConstVisitor::FromLambda(visitScriptComponentInstances), EDomainScope::All);
+		VisitScriptComponentInstances(visitScriptComponentInstances, EDomainScope::All);
 
 		const IEnvClass* pEnvClass = GetEnvClass();
 		auto visitEnvComponent = [&visitor, &exclusions, &pEnvClass](const IEnvComponent& envComponent) -> EVisitStatus
@@ -473,7 +422,7 @@ void CScriptView::VisitEnvComponents(const EnvComponentConstVisitor& visitor) co
 			}
 			return EVisitStatus::Continue;
 		};
-		gEnv->pSchematyc->GetEnvRegistry().VisitComponents(EnvComponentConstVisitor::FromLambda(visitEnvComponent));
+		gEnv->pSchematyc->GetEnvRegistry().VisitComponents(visitEnvComponent);
 	}
 }
 
@@ -514,6 +463,39 @@ void CScriptView::VisitScriptComponentInstances(const ScriptComponentInstanceCon
 void CScriptView::VisitScriptActionInstances(const ScriptActionInstanceConstVisitor& visitor, EDomainScope scope) const
 {
 	ScriptViewUtils_DEPRECATED::VisitScriptElementsInClass<IScriptActionInstance>(visitor, EScriptElementType::ActionInstance, scope, m_scopeGUID);
+}
+
+void CScriptView::VisitScriptModuleFunctions(const ScriptModuleFunctionsConstVisitor& visitor) const
+{
+	auto visitModules = [&, visitor](const IScriptModule& scriptModule) -> EVisitStatus
+	{
+		ScriptViewUtils_DEPRECATED::VisitScriptElements<IScriptFunction>(visitor, EScriptElementType::Function, scriptModule.GetGUID());
+		return EVisitStatus::Continue;
+	};
+
+	ScriptViewUtils_DEPRECATED::VisitRootScriptElements<IScriptModule>(visitModules, EScriptElementType::Module);
+}
+
+void CScriptView::VisitScriptModuleVariables(const ScriptModuleVariablesConstVisitor& visitor) const
+{
+	auto visitModules = [&, visitor](const IScriptModule& scriptModule) -> EVisitStatus
+	{
+		ScriptViewUtils_DEPRECATED::VisitScriptElements<IScriptVariable>(visitor, EScriptElementType::Variable, scriptModule.GetGUID());
+		return EVisitStatus::Continue;
+	};
+
+	ScriptViewUtils_DEPRECATED::VisitRootScriptElements<IScriptModule>(visitModules, EScriptElementType::Module);
+}
+
+void CScriptView::VisitScriptModuleSignals(const ScriptModuleSignalsConstVisitor& visitor) const
+{
+	auto visitModules = [&, visitor](const IScriptModule& scriptModule) -> EVisitStatus
+	{
+		ScriptViewUtils_DEPRECATED::VisitScriptElements<IScriptSignal>(visitor, EScriptElementType::Signal, scriptModule.GetGUID());
+		return EVisitStatus::Continue;
+	};
+
+	ScriptViewUtils_DEPRECATED::VisitRootScriptElements<IScriptModule>(visitModules, EScriptElementType::Module);
 }
 
 void CScriptView::VisitEnclosedEnums(const ScriptEnumConstVisitor& visitor) const
@@ -566,22 +548,22 @@ void CScriptView::VisitAccesibleTimers(const ScriptTimerConstVisitor& visitor) c
 	ScriptViewUtils::VisitAccesibleElememts<IScriptTimer>(m_scopeGUID, visitor);
 }
 
-const IScriptStateMachine* CScriptView::GetScriptStateMachine(const SGUID& guid) const
+const IScriptStateMachine* CScriptView::GetScriptStateMachine(const CryGUID& guid) const
 {
 	return nullptr;
 }
 
-const IScriptComponentInstance* CScriptView::GetScriptComponentInstance(const SGUID& guid) const
+const IScriptComponentInstance* CScriptView::GetScriptComponentInstance(const CryGUID& guid) const
 {
 	return DynamicCast<IScriptComponentInstance>(gEnv->pSchematyc->GetScriptRegistry().GetElement(guid));   // #SchematycTODO : Should we be checking to make sure the result is in scope?
 }
 
-const IScriptActionInstance* CScriptView::GetScriptActionInstance(const SGUID& guid) const
+const IScriptActionInstance* CScriptView::GetScriptActionInstance(const CryGUID& guid) const
 {
 	return nullptr;
 }
 
-const IScriptElement* CScriptView::GetScriptElement(const SGUID& guid) const
+const IScriptElement* CScriptView::GetScriptElement(const CryGUID& guid) const
 {
 	return gEnv->pSchematyc->GetScriptRegistry().GetElement(guid);   // #SchematycTODO : Should we be checking to make sure the result is in scope?
 }
@@ -662,7 +644,7 @@ bool CScriptView::QualifyName(const IScriptElement& scriptElement, EDomainQualif
 	const IScriptElement* pScriptScope = gEnv->pSchematyc->GetScriptRegistry().GetElement(m_scopeGUID);
 	if (pScriptScope)
 	{
-		return ScriptViewUtils::QualifyScriptElementName(*pScriptScope, scriptElement, qualifier, output);
+		return QualifyScriptElementName(*pScriptScope, scriptElement, qualifier, output);
 	}
 	return false;
 }

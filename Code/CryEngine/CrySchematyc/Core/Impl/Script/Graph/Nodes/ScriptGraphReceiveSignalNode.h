@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include <Schematyc/FundamentalTypes.h>
-#include <Schematyc/Reflection/TypeDesc.h>
-#include <Schematyc/Runtime/RuntimeGraph.h>
-#include <Schematyc/Utils/GUID.h>
+#include <CrySchematyc/FundamentalTypes.h>
+#include <CrySchematyc/Reflection/TypeDesc.h>
+#include <CrySchematyc/Runtime/RuntimeGraph.h>
+#include <CrySchematyc/Utils/GUID.h>
 
 #include "Script/Graph/ScriptGraphNodeModel.h"
 
@@ -28,10 +28,10 @@ private:
 public:
 
 	CScriptGraphReceiveSignalNode();
-	CScriptGraphReceiveSignalNode(const SElementId& signalId, const SGUID& objectGUID = SGUID());
+	CScriptGraphReceiveSignalNode(const SElementId& signalId, const CryGUID& objectGUID = CryGUID());
 
 	// CScriptGraphNodeModel
-	virtual SGUID GetTypeGUID() const override;
+	virtual CryGUID GetTypeGUID() const override;
 	virtual void  CreateLayout(CScriptGraphNodeLayout& layout) override;
 	virtual void  Compile(SCompilerContext& context, IGraphNodeCompiler& compiler) const override;
 	virtual void  LoadDependencies(Serialization::IArchive& archive, const ISerializationContext& context) override;
@@ -52,12 +52,12 @@ private:
 
 public:
 
-	static const SGUID ms_typeGUID;
+	static const CryGUID ms_typeGUID;
 
 private:
 
 	SElementId m_signalId;
-	SGUID      m_objectGUID;
+	CryGUID      m_objectGUID;
 };
 
 } // Schematyc

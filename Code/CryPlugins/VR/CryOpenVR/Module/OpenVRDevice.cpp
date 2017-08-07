@@ -15,6 +15,7 @@
 #include <Cry3DEngine/IIndexedMesh.h>
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <CryMath/Cry_Color.h>
+#include <CryMath/Cry_Camera.h>
 
 #include "..\CryAction\IViewSystem.h"
 #include <CryCore/Platform/CryWindows.h>

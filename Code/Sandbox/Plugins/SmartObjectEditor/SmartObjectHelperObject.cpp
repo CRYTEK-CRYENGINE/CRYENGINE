@@ -6,9 +6,9 @@
 #include "Objects/EntityObject.h"
 #include "Objects/DisplayContext.h"
 
-#include "../Viewport.h"
+#include "Viewport.h"
 #include "SmartObjectHelperObject.h"
-#include "MFCUtil.h"
+#include "Util/MFCUtil.h"
 
 REGISTER_CLASS_DESC(CSmartObjectHelperClassDesc);
 
@@ -74,18 +74,6 @@ bool CSmartObjectHelperObject::Init(CBaseObject* prev, const string& file)
 {
 	SetColor(RGB(255, 255, 0));
 	return CBaseObject::Init(prev, file);
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CSmartObjectHelperObject::BeginEditParams(int flags)
-{
-	//	CBaseObject::BeginEditParams( ie, flags );
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CSmartObjectHelperObject::EndEditParams()
-{
-	CBaseObject::EndEditParams();
 }
 
 //////////////////////////////////////////////////////////////////////////

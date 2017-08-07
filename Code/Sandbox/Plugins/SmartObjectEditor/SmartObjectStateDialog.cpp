@@ -6,7 +6,7 @@
 #include "SmartObjectStateDialog.h"
 #include "AI\AIManager.h"
 #include "Controls/QuestionDialog.h"
-#include "MFCUtil.h"
+#include "Util/MFCUtil.h"
 
 // CSmartObjectStateDialog dialog
 

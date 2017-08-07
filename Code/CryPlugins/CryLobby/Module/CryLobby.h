@@ -83,7 +83,7 @@
 #include <Socket/NetResolver.h>
 
 #if CRY_PLATFORM_ORBIS
-	#define USE_PSN         1
+	#define USE_PSN         0
 	#define USE_NPTITLE_DAT 1
 #else
 	#define USE_PSN         0

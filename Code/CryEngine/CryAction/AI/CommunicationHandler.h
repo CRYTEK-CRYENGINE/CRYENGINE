@@ -34,7 +34,7 @@ public:
 	virtual bool                IsPlayingAnimation() const override;
 	virtual bool                IsPlayingSound() const override;
 
-	virtual void                OnSoundTriggerFinishedToPlay(const CryAudio::ControlId nTriggerID) override;
+	virtual void                OnSoundTriggerFinishedToPlay(CryAudio::ControlId const triggerId) override;
 	//~IAICommunicationHandler
 
 	// IAnimationgGraphStateListener

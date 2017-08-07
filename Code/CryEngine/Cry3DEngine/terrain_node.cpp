@@ -124,7 +124,7 @@ void CTerrainNode::SetupTexturing(bool bMakeUncompressedForEditing, const SRende
 		if (CTerrainNode* pTextureSourceNode = GetReadyTexSourceNode(passInfo.IsShadowPass() ? 0 : m_cNodeNewTexMML, ett_Diffuse))
 		{
 			// update RGB and normal textures
-			if (pTextureSourceNode->m_eTextureEditingState == eTES_SectorIsModified_AtlasIsDirty && C3DEngine::m_pGetLayerIdAtCallback)
+			if (pTextureSourceNode->m_eTextureEditingState == eTES_SectorIsModified_AtlasIsDirty && C3DEngine::m_pEditorHeightmap)
 			{
 				pTextureSourceNode->UpdateNodeTextureFromEditorData();
 				pTextureSourceNode->m_eTextureEditingState = eTES_SectorIsModified_AtlasIsUpToDate;
@@ -268,11 +268,20 @@ bool CTerrainNode::CheckVis(bool bAllInside, bool bAllowRenderIntoCBuffer, const
 
 	int nSectorSize = CTerrain::GetSectorSize() << m_nTreeLevel;
 
+	int bitShift = -2;
+	float unitSize = .25;
+
+	while (unitSize < CTerrain::GetHeightMapUnitSize())
+	{
+		unitSize *= 2.f;
+		bitShift++;
+	}
+		
 	bool bContinueRecursion = false;
 	if (m_pChilds &&
 	    (m_arrfDistance[passInfo.GetRecursiveLevel()] < GetCVars()->e_TerrainLodDistRatio * (float)nSectorSize ||
-	     (m_cNewGeomMML + GetTerrain()->m_nBitShift - 1) < m_nTreeLevel ||
-	     (m_cNodeNewTexMML + GetTerrain()->m_nBitShift - 1) < m_nTreeLevel ||
+	     (m_cNewGeomMML + bitShift - 1) < m_nTreeLevel ||
+	     (m_cNodeNewTexMML + bitShift - 1) < m_nTreeLevel ||
 	     m_bMergeNotAllowed))
 		bContinueRecursion = true;
 
@@ -368,6 +377,7 @@ void CTerrainNode::Init(int x1, int y1, int nNodeSize, CTerrainNode* pParent, bo
 	//m_nNodeRenderLastFrameId=0;
 	m_nNodeTextureLastUsedSec4 = (~0);
 	m_boxHeigtmapLocal.Reset();
+	m_fBBoxExtentionByObjectsIntegration = 0;
 	m_pParent = NULL;
 	//m_nSetupTexGensFrameId=0;
 
@@ -452,6 +462,8 @@ void CTerrainNode::Init(int x1, int y1, int nNodeSize, CTerrainNode* pParent, bo
 
 CTerrainNode::~CTerrainNode()
 {
+	Get3DEngine()->FreeRenderNodeState(this);
+
 	if (GetTerrain()->m_pTerrainUpdateDispatcher)
 		GetTerrain()->m_pTerrainUpdateDispatcher->RemoveJob(this);
 
@@ -524,50 +536,57 @@ void CTerrainNode::UpdateNodeTextureFromEditorData()
 {
 	FUNCTION_PROFILER_3DENGINE;
 
-	int nTexSize = GetTerrain()->m_arrBaseTexInfos[0].m_TerrainTextureLayer[0].nSectorSizePixels;
+	int texDim = GetTerrain()->m_arrBaseTexInfos[0].m_TerrainTextureLayer[0].nSectorSizePixels;
 	ETEX_Format texFormat = GetTerrain()->m_arrBaseTexInfos[0].m_TerrainTextureLayer[0].eTexFormat;
 
 	static Array2d<ColorB> arrRGB;
-	arrRGB.Allocate(nTexSize);
+	arrRGB.Allocate(texDim);
 
-	float fMult = 1.f / gEnv->p3DEngine->GetTerrainTextureMultiplier(0);
-
-	float fBoxSize = GetBBox().GetSize().x;
-
-	for (int x = 0; x < nTexSize; x++)
+	// prepare lookup table with terrain color multiplier pre-integrated in linear space
+	const int CRY_ALIGN(128) lookupTableSize = 128;
+	byte lookupTable[lookupTableSize];
+	float rgbMult = 1.f / gEnv->p3DEngine->GetTerrainTextureMultiplier(0);
+	ColorF colR;
+	for (int i = 0; i < lookupTableSize; i++)
 	{
-		for (int y = 0; y < nTexSize; y++)
+		colR.r = 1.f / float(lookupTableSize - 1) * float(i);
+		colR.srgb2rgb();
+		colR *= rgbMult;
+		colR.Clamp();
+		colR.rgb2srgb();
+		lookupTable[i] = SATURATEB((uint32)(colR.r * 255.0f + 0.5f));
+	}
+
+	float sectorSizeM = GetBBox().GetSize().x;
+	
+	int smallestEditorTileSizeM = GetTerrain()->GetTerrainSize() / 16;
+
+	ColorB* colors = (ColorB*)alloca(sizeof(ColorB) * texDim);
+
+	float pixToMeter = sectorSizeM / texDim * (1.f + 1.f / (float)texDim);
+
+	// copy by row
+	for (int x = 0; x < texDim; x++)
+	{
+		C3DEngine::m_pEditorHeightmap->GetColorAtPosition(
+			(float)m_nOriginY + float(0) * pixToMeter, (float)m_nOriginX + float(x) * pixToMeter, colors, texDim, pixToMeter);
+
+		ColorB* dst = &arrRGB[x][0];
+		ColorB* dstEnd = dst + texDim;
+		ColorB* src = colors;
+
+		while(dst < dstEnd)
 		{
-			arrRGB[x][y] = C3DEngine::m_pGetLayerIdAtCallback->GetColorAtPosition(
-				(float)m_nOriginY + fBoxSize * float(y) / nTexSize * (1.f + 1.f / (float)nTexSize),
-				(float)m_nOriginX + fBoxSize * float(x) / nTexSize * (1.f + 1.f / (float)nTexSize),
-				true);
-
-			ColorF colRGB;
-			colRGB.r = 1.f / 255.f * arrRGB[x][y].r;
-			colRGB.g = 1.f / 255.f * arrRGB[x][y].g;
-			colRGB.b = 1.f / 255.f * arrRGB[x][y].b;
-			colRGB.a = 1.f;
-
-			{
-				// Convert to linear space
-				colRGB.srgb2rgb();
-
-				colRGB *= fMult;
-				colRGB.Clamp();
-
-				// Convert to gamma 2.2 space
-				colRGB.rgb2srgb();
-
-				arrRGB[x][y].r = (uint32)(colRGB.r * 255.0f + 0.5f);
-				arrRGB[x][y].g = (uint32)(colRGB.g * 255.0f + 0.5f);
-				arrRGB[x][y].b = (uint32)(colRGB.b * 255.0f + 0.5f);
-				arrRGB[x][y].a = 255;
-			}
+			dst->r = lookupTable[src->r >> 1];
+			dst->g = lookupTable[src->g >> 1];
+			dst->b = lookupTable[src->b >> 1];
+			dst->a = 255;
+			++dst;
+			++src;
 		}
 	}
 
-	GetRenderer()->DXTCompress((byte*)arrRGB.GetData(), nTexSize, nTexSize, texFormat, false, false, 4, SaveCompressedMipmapLevel);
+	GetRenderer()->DXTCompress((byte*)arrRGB.GetData(), texDim, texDim, texFormat, false, false, 4, SaveCompressedMipmapLevel);
 
 	m_pTerrain->m_texCache[0].UpdateTexture(gTerrainCompressedImgData.GetElements(), m_nNodeTexSet.nSlot0);
 }
@@ -592,7 +611,7 @@ void CTerrainNode::UpdateNodeNormalMapFromEditorData()
 				(float)m_nOriginX + fBoxSize * float(x) / nTexSize * (1.f + 1.f / (float)nTexSize),
 				(float)m_nOriginY + fBoxSize * float(y) / nTexSize * (1.f + 1.f / (float)nTexSize), 0);
 
-			Vec3 vNormal = GetTerrain()->GetTerrainSurfaceNormal_Int((int)vWSPos.x, (int)vWSPos.y, 0);
+			Vec3 vNormal = GetTerrain()->GetTerrainSurfaceNormal_Int(vWSPos.x, vWSPos.y, 0);
 
 			uint32 dwR = SATURATEB(uint32(vNormal.x * 127.5f + 127.5f));
 			uint32 dwB = SATURATEB(uint32(vNormal.y * 127.5f + 127.5f));
@@ -767,8 +786,8 @@ bool CTerrainNode::RenderNodeHeightmap(const SRenderingPassInfo& passInfo)
 
 float CTerrainNode::GetSurfaceTypeAmount(Vec3 vPos, int nSurfType)
 {
-	float fUnitSize = (float)GetTerrain()->GetHeightMapUnitSize();
-	vPos *= 1.f / fUnitSize;
+	float unitSize = (float)GetTerrain()->GetHeightMapUnitSize();
+	vPos *= 1.f / unitSize;
 
 	int x1 = int(vPos.x);
 	int y1 = int(vPos.y);
@@ -778,10 +797,10 @@ float CTerrainNode::GetSurfaceTypeAmount(Vec3 vPos, int nSurfType)
 	float dx = vPos.x - x1;
 	float dy = vPos.y - y1;
 
-	float s00 = GetTerrain()->GetSurfaceTypeID((int)(x1 * fUnitSize), (int)(y1 * fUnitSize), m_nSID) == nSurfType;
-	float s01 = GetTerrain()->GetSurfaceTypeID((int)(x1 * fUnitSize), (int)(y2 * fUnitSize), m_nSID) == nSurfType;
-	float s10 = GetTerrain()->GetSurfaceTypeID((int)(x2 * fUnitSize), (int)(y1 * fUnitSize), m_nSID) == nSurfType;
-	float s11 = GetTerrain()->GetSurfaceTypeID((int)(x2 * fUnitSize), (int)(y2 * fUnitSize), m_nSID) == nSurfType;
+	float s00 = GetTerrain()->GetSurfaceTypeID((x1 * unitSize), (y1 * unitSize), m_nSID) == nSurfType;
+	float s01 = GetTerrain()->GetSurfaceTypeID((x1 * unitSize), (y2 * unitSize), m_nSID) == nSurfType;
+	float s10 = GetTerrain()->GetSurfaceTypeID((x2 * unitSize), (y1 * unitSize), m_nSID) == nSurfType;
+	float s11 = GetTerrain()->GetSurfaceTypeID((x2 * unitSize), (y2 * unitSize), m_nSID) == nSurfType;
 
 	if (s00 || s01 || s10 || s11)
 	{
@@ -894,24 +913,24 @@ bool CTerrainNode::CheckUpdateProcObjects(const SRenderingPassInfo& passInfo)
 						// check slope range
 						if (pGroup->fSlopeMin != 0 || pGroup->fSlopeMax != 255)
 						{
-							int nStep = CTerrain::GetHeightMapUnitSize();
-							int x = (int)fX;
-							int y = (int)fY;
+							float stepSize = CTerrain::GetHeightMapUnitSize();
+							float x = fX;
+							float y = fY;
 
 							// calculate surface normal
 							float sx;
-							if ((x + nStep) < CTerrain::GetTerrainSize() && x >= nStep)
-								sx = GetTerrain()->GetZ(x + nStep, y, m_nSID) - GetTerrain()->GetZ(x - nStep, y, m_nSID);
+							if ((x + stepSize) < CTerrain::GetTerrainSize() && x >= stepSize)
+								sx = GetTerrain()->GetZ(x + stepSize, y, m_nSID) - GetTerrain()->GetZ(x - stepSize, y, m_nSID);
 							else
 								sx = 0;
 
 							float sy;
-							if ((y + nStep) < CTerrain::GetTerrainSize() && y >= nStep)
-								sy = GetTerrain()->GetZ(x, y + nStep, m_nSID) - GetTerrain()->GetZ(x, y - nStep, m_nSID);
+							if ((y + stepSize) < CTerrain::GetTerrainSize() && y >= stepSize)
+								sy = GetTerrain()->GetZ(x, y + stepSize, m_nSID) - GetTerrain()->GetZ(x, y - stepSize, m_nSID);
 							else
 								sy = 0;
 
-							Vec3 vNormal = Vec3(-sx, -sy, nStep * 2.0f);
+							Vec3 vNormal = Vec3(-sx, -sy, stepSize * 2.0f);
 							vNormal.NormalizeFast();
 
 							float fSlope = (1 - vNormal.z) * 255;
@@ -1170,8 +1189,9 @@ void CTerrainNode::UpdateDetailLayersInfo(bool bRecursive)
 
 		m_bHasHoles = 0;
 
-		for (int X = m_nOriginX; X <= m_nOriginX + CTerrain::GetSectorSize(); X += CTerrain::GetHeightMapUnitSize())
-			for (int Y = m_nOriginY; Y <= m_nOriginY + CTerrain::GetSectorSize(); Y += CTerrain::GetHeightMapUnitSize())
+		for (float X = m_nOriginX; X <= m_nOriginX + CTerrain::GetSectorSize(); X += CTerrain::GetHeightMapUnitSize())
+		{
+			for (float Y = m_nOriginY; Y <= m_nOriginY + CTerrain::GetSectorSize(); Y += CTerrain::GetHeightMapUnitSize())
 			{
 				uint8 ucSurfaceTypeID = GetTerrain()->GetSurfaceTypeID(X, Y, m_nSID);
 				if (SRangeInfo::e_hole == ucSurfaceTypeID)
@@ -1179,8 +1199,9 @@ void CTerrainNode::UpdateDetailLayersInfo(bool bRecursive)
 				CRY_ASSERT(ucSurfaceTypeID < SRangeInfo::e_max_surface_types);
 				arrSurfaceTypesInSector[ucSurfaceTypeID]++;
 			}
+		}
 
-		if (arrSurfaceTypesInSector[SRangeInfo::e_hole] == (CTerrain::GetSectorSize() / CTerrain::GetHeightMapUnitSize() + 1) * (CTerrain::GetSectorSize() / CTerrain::GetHeightMapUnitSize() + 1))
+		if (arrSurfaceTypesInSector[SRangeInfo::e_hole] == (CTerrain::GetSectorSize() * CTerrain::GetHeightMapUnitSizeInverted() + 1) * (CTerrain::GetSectorSize() * CTerrain::GetHeightMapUnitSizeInverted() + 1))
 			m_bHasHoles = 2; // only holes
 
 		for (int i = 0; i < m_lstSurfaceTypeInfo.Count(); i++)
@@ -1511,7 +1532,7 @@ void SSurfaceTypeInfo::DeleteRenderMeshes(IRenderer* pRend)
 int CTerrainNode::GetSectorSizeInHeightmapUnits() const
 {
 	int nSectorSize = CTerrain::GetSectorSize() << m_nTreeLevel;
-	return nSectorSize / CTerrain::GetHeightMapUnitSize();
+	return int(nSectorSize * CTerrain::GetHeightMapUnitSizeInverted());
 }
 
 SProcObjChunk::SProcObjChunk()
@@ -1531,30 +1552,6 @@ CTerrainNode* CTerrain::FindMinNodeContainingBox(const AABB& someBox, int nSID)
 	assert(nSID >= 0);
 	CTerrainNode* pParentNode = GetParentNode(nSID);
 	return pParentNode ? pParentNode->FindMinNodeContainingBox(someBox) : NULL;
-}
-
-int CTerrain::FindMinNodesContainingBox(const AABB& someBox, PodArray<CTerrainNode*>& arrNodes)
-{
-	// bad (slow) implementation, optimise if needed
-	int nCount = 0;
-	for (int nSID = 0; nSID < GetMaxSegmentsCount(); ++nSID)
-	{
-		AABB aabbSeg;
-		if (!GetSegmentBounds(nSID, aabbSeg))
-			continue;
-		if (!someBox.IsIntersectBox(aabbSeg))
-			continue;
-		AABB aabb = someBox;
-		aabb.ClipToBox(aabbSeg);
-		//aabb.Move(-aabbSeg.min);
-		CTerrainNode* pn = FindMinNodeContainingBox(aabb, nSID);
-		assert(pn);
-		if (!pn)
-			continue;
-		arrNodes.Add(pn);
-		++nCount;
-	}
-	return nCount;
 }
 
 void CTerrainNode::OffsetPosition(const Vec3& delta)

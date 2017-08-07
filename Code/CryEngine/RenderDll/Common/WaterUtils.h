@@ -28,7 +28,7 @@ public:
 	}
 
 	// Create/Initialize simulation
-	void Create(float fA, float fWind, float fWindScale, float fWorldSizeX, float fWorldSizeY);
+	void Create(float fA, float fWind, float fWorldSizeX, float fWorldSizeY);
 	void Release();
 	void SaveToDisk(const char* pszFileName);
 

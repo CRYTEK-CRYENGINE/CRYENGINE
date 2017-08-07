@@ -597,13 +597,13 @@ enum EVoxelEditOperation
 
 struct STerrainInfo
 {
-	int   nHeightMapSize_InUnits;
-	int   nUnitSize_InMeters;
-	int   nSectorSize_InMeters;
+	int   heightMapSize_InUnits;
+	float unitSize_InMeters;
+	int   sectorSize_InMeters;
 
-	int   nSectorsTableSize_InSectors;
-	float fHeightmapZRatio;
-	float fOceanWaterLevel;
+	int   sectorsTableSize_InSectors;
+	float heightmapZRatio;
+	float oceanWaterLevel;
 
 	AUTO_STRUCT_INFO;
 };
@@ -653,14 +653,14 @@ struct SOcTreeNodeChunk
 	AUTO_STRUCT_INFO;
 };
 
-struct IGetLayerIdAtCallback
+struct IEditorHeightmap
 {
 	// <interfuscator:shuffle>
-	virtual ~IGetLayerIdAtCallback(){}
+	virtual ~IEditorHeightmap(){}
 	virtual uint32 GetLayerIdAtPosition(const int x, const int y) const = 0;
 	virtual uint32 GetSurfaceTypeIdAtPosition(const int x, const int y) const = 0;
 	virtual bool   GetHoleAtPosition(const int x, const int y) const = 0;
-	virtual ColorB GetColorAtPosition(const float x, const float y, bool bBilinear) = 0;
+	virtual ColorB GetColorAtPosition(const float x, const float y, ColorB* colors = nullptr, const int colorsNum = 0, const float xStep = 0) = 0;
 	virtual float  GetElevationAtPosition(const float x, const float y) = 0;
 	virtual float  GetRGBMultiplier() = 0;
 	// </interfuscator:shuffle>
@@ -729,7 +729,7 @@ struct ITerrain
 	virtual IRenderNode* AddVegetationInstance(int nStaticGroupID, const Vec3& vPos, const float fScale, uint8 ucBright, uint8 angle, uint8 angleX = 0, uint8 angleY = 0, int nSID = DEFAULT_SID) = 0;
 
 	//! Set ocean level.
-	virtual void SetOceanWaterLevel(float fOceanWaterLevel) = 0;
+	virtual void SetOceanWaterLevel(float oceanWaterLevel) = 0;
 
 	//! Call this before any calls to CloneRegion to mark all the render nodes in the
 	//! source region(s) with the flag ERF_CLONE_SOURCE.  This ensures that the clone
@@ -837,6 +837,10 @@ struct ITerrain
 
 	//! Changes the ocean material
 	virtual void ChangeOceanMaterial(IMaterial* pMat) = 0;
+
+	//! Request heightmap mesh update in specified area
+	//! if pBox == 0 update entire heightmap
+	virtual void ResetTerrainVertBuffers(const AABB* pBox, int nSID = 0) = 0;
 };
 
 //! Callbacks interface for higher level segments management.
@@ -1142,7 +1146,7 @@ struct SDebugFPSInfo
 };
 
 //! Common scene rain parameters shared across engine and editor.
-struct SRainParams
+struct CRY_ALIGN(16) SRainParams
 {
 	SRainParams()
 		: fAmount(0.f), fCurrentAmount(0.f), fRadius(0.f), nUpdateFrameID(-1), bIgnoreVisareas(false), bDisableOcclusion(false)
@@ -1283,6 +1287,11 @@ struct SLightVolume
 };
 
 #pragma pack(pop)
+
+struct I3DEngineModule : public Cry::IDefaultModule
+{
+	CRYINTERFACE_DECLARE_GUID(I3DEngineModule, "31bd20ff-1347-4f02-b923-c3f83ba73d84"_cry_guid);
+};
 
 //! Interface to the 3d Engine.
 struct I3DEngine : public IProcess
@@ -1516,9 +1525,8 @@ struct I3DEngine : public IProcess
 
 	//! Gets ocean animation parameters.
 	//! \return 2 Vec4s which constain:
-	//!         0: x = ocean wind direction, y = wind speed, z = waves speed, w = waves amount
+	//!         0: x = ocean wind direction, y = wind speed, z = free, w = waves amount
 	//!         1: x = waves size, y = free, z = free, w = free
-
 	virtual void GetOceanAnimationParams(Vec4& pParams0, Vec4& pParams1) const = 0;
 
 	//! Gets HDR setup parameters.
@@ -1631,14 +1639,14 @@ struct I3DEngine : public IProcess
 	//! \param x X coordinate of the location.
 	//! \param y Y coordinate of the location.
 	//! \return A float which indicate the elevation level.
-	virtual float GetTerrainZ(int x, int y) = 0;
+	virtual float GetTerrainZ(float x, float y) = 0;
 
 	//! Gets the terrain hole flag for a specified location.
 	//! Only values between 0 and WORLD_SIZE.
 	//! \param x - X coordinate of the location.
 	//! \param y - Y coordinate of the location.
 	//! \return A bool which indicate is there hole or not.
-	virtual bool GetTerrainHole(int x, int y) = 0;
+	virtual bool GetTerrainHole(float x, float y) = 0;
 
 	//! Gets the terrain surface normal for a specified location.
 	//! \param vPos.x - X coordinate of the location.
@@ -1650,7 +1658,7 @@ struct I3DEngine : public IProcess
 	//! Gets the unit size of the terrain.
 	//! The value should currently be 2.
 	//! \return A int value representing the terrain unit size in meters.
-	virtual int GetHeightMapUnitSize() = 0;
+	virtual float GetHeightMapUnitSize() = 0;
 
 	//! Gets the size of the terrain.
 	//! The value should be 2048 by default.
@@ -2106,11 +2114,11 @@ struct I3DEngine : public IProcess
 	//! Loads statobj from a stream
 	virtual IStatObj* LoadStatObj(TSerialize ser) = 0;
 
-	//! \return true if input line segment intersect clouds sprites.
-	virtual bool CheckIntersectClouds(const Vec3& p1, const Vec3& p2) = 0;
-
 	//! Removes references to RenderMesh
 	virtual void OnRenderMeshDeleted(IRenderMesh* pRenderMesh) = 0;
+
+	//! Removes references to IEntity
+	virtual void OnEntityDeleted(struct IEntity* pEntity) = 0;
 
 	//! Used to highlight an object under the reticule.
 	virtual void DebugDraw_UpdateDebugNode() = 0;
@@ -2151,7 +2159,7 @@ struct I3DEngine : public IProcess
 	virtual const char* GetVoxelEditOperationName(EVoxelEditOperation eOperation) = 0;
 
 	//! Gives 3dengine access to original and most precise heighmap data in the editor
-	virtual void                SetGetLayerIdAtCallback(IGetLayerIdAtCallback* pCallBack) = 0;
+	virtual void                SetEditorHeightmapCallback(IEditorHeightmap* pCallBack) = 0;
 
 	virtual PodArray<CDLight*>* GetDynamicLightSources() = 0;
 
@@ -2247,25 +2255,25 @@ struct I3DEngine : public IProcess
 		}
 
 		// SVO data pools
-		ITexture* pTexTree;
-		ITexture* pTexOpac;
+		_smart_ptr<ITexture> pTexTree;
+		_smart_ptr<ITexture> pTexOpac;
 	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-		ITexture* pTexTris;
-		ITexture* pTexRgb0;
-		ITexture* pTexRgb1;
-		ITexture* pTexDynl;
-		ITexture* pTexRgb2;
-		ITexture* pTexRgb3;
-		ITexture* pTexRgb4;
-		ITexture* pTexNorm;
-		ITexture* pTexAldi;
+		_smart_ptr<ITexture> pTexTris;
+		_smart_ptr<ITexture> pTexRgb0;
+		_smart_ptr<ITexture> pTexRgb1;
+		_smart_ptr<ITexture> pTexDynl;
+		_smart_ptr<ITexture> pTexRgb2;
+		_smart_ptr<ITexture> pTexRgb3;
+		_smart_ptr<ITexture> pTexRgb4;
+		_smart_ptr<ITexture> pTexNorm;
+		_smart_ptr<ITexture> pTexAldi;
 
 		// mesh tracing data atlases
-		ITexture* pTexTriA;
-		ITexture* pTexTexA;
-		ITexture* pTexIndA;
+		_smart_ptr<ITexture> pTexTriA;
+		_smart_ptr<ITexture> pTexTexA;
+		_smart_ptr<ITexture> pTexIndA;
 
-		ITexture* pGlobalSpecCM;
+		_smart_ptr<ITexture> pGlobalSpecCM;
 	#endif
 
 		float  fGlobalSpecCM_Mult;

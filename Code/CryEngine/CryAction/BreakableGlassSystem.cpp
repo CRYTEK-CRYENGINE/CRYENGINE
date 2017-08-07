@@ -444,7 +444,7 @@ bool CBreakableGlassSystem::ExtractPhysDataFromEvent(const EventPhysCollision& p
 			{
 				if (IRenderNode* pBrush = (IRenderNode*)physEvent.pForeignData[PHYSEVENT_COLLIDEE])
 				{
-					pStatObj = pBrush->GetEntityStatObj(0, 0, &entityMat);
+					pStatObj = pBrush->GetEntityStatObj(0, &entityMat);
 					pRenderMat = pBrush->GetMaterial();
 					renderFlags = pBrush->GetRndFlags();
 

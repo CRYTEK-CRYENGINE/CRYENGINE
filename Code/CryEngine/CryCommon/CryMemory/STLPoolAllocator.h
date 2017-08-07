@@ -55,7 +55,7 @@ struct STLPoolAllocatorStatic
 			return reinterpret_cast<AllocatorType&>(storage);
 		}
 		constructed = true;
-		return *(new(&storage)AllocatorType(S, A, FHeap().FreeWhenEmpty(FreeWhenEmpty)));
+		return *(new(&storage)AllocatorType(S, max(A, alignof(T)), FHeap().FreeWhenEmpty(FreeWhenEmpty)));
 	}
 };
 

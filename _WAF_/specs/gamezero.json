@@ -52,6 +52,7 @@
 		"png16",
 		"jpeg",
 		"curl",
+		"spirv-cross",
 		
 		"CryGameZero"
 	],
@@ -66,6 +67,7 @@
 		"CryRenderOpenGL",
 		"CryRenderD3D11",
 		"CryRenderD3D12",
+		"CryRenderVulkan",
 
 		"CryScaleformHelper",
 
@@ -77,6 +79,7 @@
 		"CryRenderD3D11",
 		"CryRenderD3D12",
 		"CryRenderOpenGL",
+		"CryRenderVulkan",
 		"CryAudioImplSDLMixer",
 		"CryAudioImplFmod",
 		"CryAudioImplPortAudio",
@@ -139,6 +142,7 @@
 	[
 		"AndroidLauncher",
 		"CryRenderOpenGL",
+		"CryRenderVulkan",
 		"CryAudioImplSDLMixer",
 
 		"libmodplug",

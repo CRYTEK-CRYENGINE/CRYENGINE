@@ -1592,7 +1592,7 @@ int CTriMesh::RegisterIntersection(primitive *pprim1,primitive *pprim2, geometry
   int *piFeature[2];
   piFeature[0] = piFeature[1] = &iFeature_dummy;
 	int idx_prim[2] = { ((indexed_triangle*)pprim1)->idx, -1 };
-	int bNoUnprojection=0,bSurfaceSurfaceContact,bSurfaceEdgeContact,bUseLSNormal=0;
+	int bNoUnprojection=0,bSurfaceSurfaceContact=0,bSurfaceEdgeContact=0,bUseLSNormal=0;
 	int i,j,res=0,ipt,ibest,jbest,iop,nprims1,nprims2,nSmallSteps;
 	int indexed_triangle::*pidxoffs=0;
 	const int iCaller = pGTest1->iCaller;
@@ -3749,7 +3749,6 @@ float CroppedRectArea(const Vec2 &center, const Vec2 &dx,const Vec2 &dy, const V
 		area += (pt[i].x-pt[i+1].x)*(pt[i].y+pt[i+1].y);
 	return fabs_tpl(area)*0.5f;
 }
-ILINE bool NumberValid(const Vec3& x) { return true; } // fixes Vec3_tpl<Vec> compiling
 
 
 int CTriMesh::Boxify(primitives::box *pboxes,int nMaxBoxes, const SBoxificationParams &params)

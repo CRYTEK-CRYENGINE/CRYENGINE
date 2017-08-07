@@ -6,9 +6,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -183,7 +183,7 @@ namespace uqs
 		{
 		public:
 			explicit           CDebugRenderPrimitive_Text();    // default ctor required for yasli serialization
-			explicit           CDebugRenderPrimitive_Text(const Vec3& pos, float size, const char* text, const ColorF& color);
+			explicit           CDebugRenderPrimitive_Text(const Vec3& pos, float size, const char* szText, const ColorF& color);
 
 			// CDebugRenderPrimitiveBase
 			virtual void       Draw(bool bHighlight, const ColorF* pOptionalColorToOverrideWith) const override;
@@ -191,7 +191,7 @@ namespace uqs
 			virtual void       Serialize(Serialization::IArchive& ar) override;
 			// ~CDebugRenderPrimitiveBase
 
-			static void        Draw(const Vec3& pos, float size, const char* text, const ColorF& color, bool bHighlight);
+			static void        Draw(const Vec3& pos, float size, const char* szText, const ColorF& color, bool bHighlight);
 
 		private:
 			Vec3               m_pos;

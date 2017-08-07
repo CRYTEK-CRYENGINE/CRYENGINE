@@ -710,14 +710,7 @@ void CBudgetingSystem::MonitorStreaming(float& x, float& y)
 	float color[4];
 	GetColor(scale, color);
 
-	if (scale <= 1.0f)
-	{
-		DrawText(x, y, color, "Streaming throughput: %.2f KB/s (current budget is %.2f KB/s).", thp, m_streamingThroughputLimit);
-	}
-	else
-	{
-		DrawText(x, y, color, "Streaming throughput: %.2f KB/s (current budget is %.2f KB/s).", thp, m_streamingThroughputLimit);
-	}
+	DrawText(x, y, color, "Streaming throughput: %.2f KB/s (current budget is %.2f KB/s).", thp, m_streamingThroughputLimit);
 
 	DrawMeter(x, y, scale);
 #endif

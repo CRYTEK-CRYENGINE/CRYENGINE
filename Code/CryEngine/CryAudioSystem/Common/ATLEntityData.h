@@ -19,26 +19,26 @@ namespace Impl
 struct SObject3DAttributes;
 
 /**
- * An AudioImpl may use this interface to define a class for storing implementation-specific
+ * An implementation may use this interface to define a class for storing implementation-specific
  * data needed for identifying and using the corresponding CryAudio::IListener object (e.g. a middleware-specific unique ID)
  */
-struct IAudioListener
+struct IListener
 {
 	/** @cond */
-	virtual ~IAudioListener() = default;
+	virtual ~IListener() = default;
 	/** @endcond */
 
 	/**
 	 * Set the world position of the listener inside the audio middleware
 	 * @param attributes - a struct containing the audio listener's transformation and velocity
-	 * @return eRequestStatus_Success if the AudioListener's position has been successfully set, eRequestStatus_Failure otherwise
+	 * @return ERequestStatus::Success if the AudioListener's position has been successfully set, ERequestStatus::Failure otherwise
 	 */
 	virtual ERequestStatus Set3DAttributes(SObject3DAttributes const& attributes) = 0;
 };
 
 /**
- * An AudioImpl may use this interface to define a class for storing implementation-specific
- * data needed for identifying and using the corresponding IAudioParameter
+ * An implementation may use this interface to define a class for storing implementation-specific
+ * data needed for identifying and using the corresponding IParameter
  * (e.g. a middleware-specific control ID or a parameter name to be passed to an API function)
  */
 struct IParameter
@@ -49,62 +49,62 @@ struct IParameter
 };
 
 /**
- * An AudioImpl may use this interface to define a class for storing implementation-specific
- * data needed for identifying and using the corresponding IAudioSwitchState
+ * An implementation may use this interface to define a class for storing implementation-specific
+ * data needed for identifying and using the corresponding ISwitchState
  * (e.g. a middleware-specific control ID or a switch and state names to be passed to an API function)
  */
-struct IAudioSwitchState
+struct ISwitchState
 {
 	/** @cond */
-	virtual ~IAudioSwitchState() = default;
+	virtual ~ISwitchState() = default;
 	/** @endcond */
 };
 
 /**
- * An AudioImpl may use this interface to define a class for storing implementation-specific
- * data needed for identifying and using the corresponding IAudioEnvironment
+ * An implementation may use this interface to define a class for storing implementation-specific
+ * data needed for identifying and using the corresponding IEnvironment
  * (e.g. a middleware-specific bus ID or name to be passed to an API function)
  */
-struct IAudioEnvironment
+struct IEnvironment
 {
 	/** @cond */
-	virtual ~IAudioEnvironment() = default;
+	virtual ~IEnvironment() = default;
 	/** @endcond */
 };
 
 /**
- * An AudioImpl may use this interface to define a class for storing implementation-specific
- * data needed for identifying and using the corresponding IAudioEvent
+ * An implementation may use this interface to define a class for storing implementation-specific
+ * data needed for identifying and using the corresponding IEvent
  * (e.g. a middleware-specific playingID of an active event/sound for a play event)
  */
-struct IAudioEvent
+struct IEvent
 {
 	/** @cond */
-	virtual ~IAudioEvent() = default;
+	virtual ~IEvent() = default;
 	/** @endcond */
 
 	/**
 	 * Stop the playing event
-	 * @return eRequestStatus_Success if the event is stopped, eRequestStatus_Failure otherwise
+	 * @return ERequestStatus::Success if the event is stopped, ERequestStatus::Failure otherwise
 	 */
 	virtual ERequestStatus Stop() = 0;
 };
 
 /**
- * An AudioImpl may use this interface to define a class for storing implementation-specific
- * data needed for identifying and using the corresponding IAudioTrigger
+ * An implementation may use this interface to define a class for storing implementation-specific
+ * data needed for identifying and using the corresponding ITrigger
  * (e.g. a middleware-specific event ID or name, a sound-file name to be passed to an API function)
  */
-struct IAudioTrigger
+struct ITrigger
 {
 	/** @cond */
-	virtual ~IAudioTrigger() = default;
+	virtual ~ITrigger() = default;
 	/** @endcond */
 
 	/**
 	 * Load the metadata and media needed by the audio middleware to execute this trigger
 	 * Loading Triggers manually is only necessary if their data have not been loaded via PreloadRequests
-	 * @return eRequestStatus_Success if the the data was successfully loaded, eRequestStatus_Failure otherwise
+	 * @return ERequestStatus::Success if the the data was successfully loaded, ERequestStatus::Failure otherwise
 	 * @see Unload, LoadAsync, UnloadAsync
 	 */
 	virtual ERequestStatus Load() const = 0;
@@ -112,7 +112,7 @@ struct IAudioTrigger
 	/**
 	 * Release the metadata and media needed by the audio middleware to execute this trigger
 	 * Unloading Triggers manually is only necessary if their data are not managed via PreloadRequests.
-	 * @return eRequestStatus_Success if the the data was successfully unloaded, eRequestStatus_Failure otherwise
+	 * @return ERequestStatus::Success if the the data was successfully unloaded, ERequestStatus::Failure otherwise
 	 * @see Load, LoadAsync, UnloadAsync
 	 */
 	virtual ERequestStatus Unload() const = 0;
@@ -120,164 +120,173 @@ struct IAudioTrigger
 	/**
 	 * Load the metadata and media needed by the audio middleware to execute this trigger asynchronously.
 	 * Loading Triggers manually is only necessary if their data have not been loaded via PreloadRequests.
-	 * @param pAudioEvent - The callback called once the loading is done must report that this event is finished.
-	 * @return eRequestStatus_Success if the the request was successfully sent to the audio middleware, eRequestStatus_Failure otherwise	 * @see Load, Unload, UnloadAsync
+	 * @param pIEvent - The callback called once the loading is done must report that this event is finished.
+	 * @return ERequestStatus::Success if the the request was successfully sent to the audio middleware, ERequestStatus::Failure otherwise
+	 * @see Load, Unload, UnloadAsync
 	 */
-	virtual ERequestStatus LoadAsync(IAudioEvent* const pIAudioEvent) const = 0;
+	virtual ERequestStatus LoadAsync(IEvent* const pIEvent) const = 0;
 
 	/**
 	 * Release the metadata and media needed by the audio middleware to execute this trigger asynchronously.
 	 * Unloading Triggers manually is only necessary if their data have not been loaded via PreloadRequests.
-	 * @param pAudioEvent - The callback called once the loading is done must report that this event is finished.
-	 * @return eRequestStatus_Success if the the request was successfully sent to the audio middleware, eRequestStatus_Failure otherwise
+	 * @param pIEvent - The callback called once the loading is done must report that this event is finished.
+	 * @return ERequestStatus::Success if the the request was successfully sent to the audio middleware, ERequestStatus::Failure otherwise
 	 * @see Load, Unload, LoadAsync
 	 */
-	virtual ERequestStatus UnloadAsync(IAudioEvent* const pIAudioEvent) const = 0;
+	virtual ERequestStatus UnloadAsync(IEvent* const pIEvent) const = 0;
 };
 
 /**
- * An AudioImpl may use this interface to define a class for storing implementation-specific
- * data needed for identifying and using the corresponding IAudioFileEntry.
+ * An implementation may use this interface to define a class for storing implementation-specific
+ * data needed for identifying and using the corresponding IFile.
  * (e.g. a middleware-specific bank ID if the AudioFileEntry represents a soundbank)
  */
-struct IAudioFileEntry
+struct IFile
 {
 	/** @cond */
-	virtual ~IAudioFileEntry() = default;
+	virtual ~IFile() = default;
 	/** @endcond */
 };
 
 /**
  * This is a POD structure used to pass the information about a file preloaded into memory between
- * the CryAudioSystem and an AudioImpl
+ * the CryAudioSystem and an implementation
  * Note: This struct cannot define a constructor, it needs to be a POD!
  */
-struct SAudioFileEntryInfo
+struct SFileInfo
 {
-	void*            pFileData;                // pointer to the memory location of the file's contents
-	size_t           memoryBlockAlignment;     // memory alignment to be used for storing this file's contents in memory
-	size_t           size;                     // file size
-	char const*      szFileName;               // file name
-	bool             bLocalized;               // is the file localized
-	IAudioFileEntry* pImplData;                // pointer to the implementation-specific data needed for this AudioFileEntry
+	void*       pFileData;            // pointer to the memory location of the file's contents
+	size_t      memoryBlockAlignment; // memory alignment to be used for storing this file's contents in memory
+	size_t      size;                 // file size
+	char const* szFileName;           // file name
+	bool        bLocalized;           // is the file localized
+	IFile*      pImplData;            // pointer to the implementation-specific data needed for this AudioFileEntry
 };
 
 /**
- * An AudioImpl may use this interface to define a class for storing implementation-specific
- * data needed for identifying and using the corresponding IAudioStandaloneFile.
+ * An implementation may use this interface to define a class for storing implementation-specific
+ * data needed for identifying and using the corresponding IStandaloneFile.
  * (e.g. middleware-specific custom data that is associated with the standalone file)
  */
-struct IAudioStandaloneFile
+struct IStandaloneFile
 {
 	/** @cond */
-	virtual ~IAudioStandaloneFile() = default;
+	virtual ~IStandaloneFile() = default;
 	/** @endcond */
 };
 
 /**
- * An AudioImpl may use this interface to define a class for storing implementation-specific
+ * An implementation may use this interface to define a class for storing implementation-specific
  * data needed for identifying and using the corresponding audio object (e.g. a middleware-specific unique ID)
  */
-struct IAudioObject
+struct IObject
 {
 	/** @cond */
-	virtual ~IAudioObject() = default;
+	virtual ~IObject() = default;
 	/** @endcond */
 
 	/**
 	 * Performs actions that need to be executed regularly on an AudioObject. Called with every tick of the audio thread.
-	 * @return eRequestStatus_Success if the object has been successfully updated, eRequestStatus_Failure otherwise.
+	 * @return ERequestStatus::Success if the object has been successfully updated, ERequestStatus::Failure otherwise.
 	 */
 	virtual ERequestStatus Update() = 0;
 
 	/**
 	 * Set the 3D attributes of the audio object
 	 * @param attributes   - a struct containing the audio object's transformation and velocity
-	 * @return eRequestStatus_Success if the AudioObject's position has been successfully set, eRequestStatus_Failure otherwise
+	 * @return ERequestStatus::Success if the AudioObject's position has been successfully set, ERequestStatus::Failure otherwise
 	 */
 	virtual ERequestStatus Set3DAttributes(SObject3DAttributes const& attributes) = 0;
 
 	/**
 	 * Set the provided value for the specified environment on the audio object
-	 * @param pIAudioEnvironment - implementation-specific environment to set
-	 * @param amount             - the fade value for the provided IAudioEnvironment, 0.0f means no effect at all, 1.0f corresponds to the full effect
-	 * @return eRequestStatus_Success if the provided the value has been successfully set, eRequestStatus_Failure otherwise
+	 * @param pIEnvironment - implementation-specific environment to set
+	 * @param amount        - the fade value for the provided IEnvironment, 0.0f means no effect at all, 1.0f corresponds to the full effect
+	 * @return ERequestStatus::Success if the provided the value has been successfully set, ERequestStatus::Failure otherwise
 	 */
-	virtual ERequestStatus SetEnvironment(IAudioEnvironment const* const pIAudioEnvironment, float const amount) = 0;
+	virtual ERequestStatus SetEnvironment(IEnvironment const* const pIEnvironment, float const amount) = 0;
 
 	/**
 	 * Set the provided parameter to the specified value on the audio object
-	 * @param pIAudioParameter - implementation-specific parameter to set
-	 * @param value            - the value to set the parameter to
-	 * @return eRequestStatus_Success if the provided value has been successfully set on the passed IAudioParameter, eRequestStatus_Failure otherwise
+	 * @param pIParameter - implementation-specific parameter to set
+	 * @param value       - the value to set the parameter to
+	 * @return ERequestStatus::Success if the provided value has been successfully set on the passed IAudioParameter, ERequestStatus::Failure otherwise
 	 * @see ExecuteTrigger, SetSwitchState, SetEnvironment, SetListener3DAttributes
 	 */
-	virtual ERequestStatus SetParameter(IParameter const* const pIAudioParameter, float const value) = 0;
+	virtual ERequestStatus SetParameter(IParameter const* const pIParameter, float const value) = 0;
 
 	/**
 	 * Set the provided state (on a switch) on the audio object
-	 * @param pIAudioSwitchState - implementation-specific state to set
-	 * @return eRequestStatus_Success if the provided IAudioSwitchState has been successfully set, eRequestStatus_Failure otherwise
+	 * @param pISwitchState - implementation-specific state to set
+	 * @return ERequestStatus::Success if the provided ISwitchState has been successfully set, ERequestStatus::Failure otherwise
 	 * @see ExecuteTrigger, SetParameter, SetEnvironment, Set3DAttributes
 	 */
-	virtual ERequestStatus SetSwitchState(IAudioSwitchState const* const pIAudioSwitchState) = 0;
+	virtual ERequestStatus SetSwitchState(ISwitchState const* const pISwitchState) = 0;
 
 	/**
 	 * Set the provided Obstruction and Occlusion values
 	 * @param obstruction - the obstruction value to be set; it describes how much the direct sound path from the AudioObject to the Listener is obstructed
 	 * @param occlusion   - the occlusion value to be set; it describes how much all sound paths (direct and indirect) are obstructed
-	 * @return eRequestStatus_Success if the provided the values been successfully set, eRequestStatus_Failure otherwise
+	 * @return ERequestStatus::Success if the provided the values been successfully set, ERequestStatus::Failure otherwise
 	 * @see SetEnvironment
 	 */
 	virtual ERequestStatus SetObstructionOcclusion(float const obstruction, float const occlusion) = 0;
 
 	/**
 	 * Activate a trigger on this audio object
-	 * @param pIAudioTrigger - implementation-specific trigger to activate
-	 * @param pIAudioEvent   - implementation-specific event corresponding to this particular trigger activation
-	 * @return eRequestStatus_Success if the IAudioTrigger has been successfully activated by the audio middleware, eRequestStatus_Failure otherwise
+	 * @param pITrigger - implementation-specific trigger to activate
+	 * @param pIEvent   - implementation-specific event corresponding to this particular trigger activation
+	 * @return ERequestStatus::Success if the ITrigger has been successfully activated by the audio middleware, ERequestStatus::Failure otherwise
 	 * @see SetParameter, SetSwitchState
 	 */
-	virtual ERequestStatus ExecuteTrigger(IAudioTrigger const* const pIAudioTrigger, IAudioEvent* const pIAudioEvent) = 0;
+	virtual ERequestStatus ExecuteTrigger(ITrigger const* const pITrigger, IEvent* const pIEvent) = 0;
 
 	/**
 	 * Stop all triggers currently active on the audio object
-	 * @return eRequestStatus_Success if all of the triggers have been successfully stopped, eRequestStatus_Failure otherwise
+	 * @return ERequestStatus::Success if all of the triggers have been successfully stopped, ERequestStatus::Failure otherwise
 	 * @see ExecuteTrigger
 	 */
 	virtual ERequestStatus StopAllTriggers() = 0;
 
 	/**
 	 * Play a stand alone audio file
-	 * @param pIFile         - stand alone file to play
-	 * @return eRequestStatus_Success if the file started playback, eRequestStatus_Failure otherwise.
+	 * @param pIStandaloneFile         - stand alone file to play
+	 * @return ERequestStatus::Success if the file started playback, ERequestStatus::Failure otherwise.
 	 * @see StopFile
 	 */
-	virtual ERequestStatus PlayFile(IAudioStandaloneFile* const pIFile) = 0;
+	virtual ERequestStatus PlayFile(IStandaloneFile* const pIStandaloneFile) = 0;
 
 	/**
 	 * Stop currently playing standalone file
-	 * @param pIFile - file to stop playing
-	 * @return eRequestStatus_Success if the file stopped, is stopping or is not playing anymore, eRequestStatus_Failure otherwise.
+	 * @param pIStandaloneFile - file to stop playing
+	 * @return ERequestStatus::Success if the file stopped, is stopping or is not playing anymore, ERequestStatus::Failure otherwise.
 	 * @see PlayFile
 	 */
-	virtual ERequestStatus StopFile(IAudioStandaloneFile* const pIFile) = 0;
+	virtual ERequestStatus StopFile(IStandaloneFile* const pIStandaloneFile) = 0;
+
+	/**
+	 * Sets this audio object's name.
+	 * Is only used during production whenever an entity's name is changed to adjust corresponding audio objects as well.
+	 * @param szName - name to set.
+	 * @return ERequestStatus::Success if the object was renamed successfully, ERequestStatus::Failure otherwise.
+	 */
+	virtual ERequestStatus SetName(char const* const szName) = 0;
 };
 
 /**
- * This is a POD structure used to pass the information about an AudioImpl's memory usage
+ * This is a POD structure used to pass the information about an implementation's memory usage
  * Note: This struct cannot define a constructor, it needs to be a POD!
  */
-struct SAudioImplMemoryInfo
+struct SMemoryInfo
 {
-	size_t totalMemory;              // total amount of memory used by the AudioImpl in bytes
-	size_t secondaryPoolSize;        // total size in bytes of the Secondary Memory Pool used by an AudioImpl
-	size_t secondaryPoolUsedSize;    // bytes allocated inside the Secondary Memory Pool used by an AudioImpl
-	size_t secondaryPoolAllocations; // number of allocations performed in the Secondary Memory Pool used by an AudioImpl
+	size_t totalMemory;              // total amount of memory used by the implementation in bytes
+	size_t secondaryPoolSize;        // total size in bytes of the Secondary Memory Pool used by an implementation
+	size_t secondaryPoolUsedSize;    // bytes allocated inside the Secondary Memory Pool used by an implementation
+	size_t secondaryPoolAllocations; // number of allocations performed in the Secondary Memory Pool used by an implementation
 	size_t poolUsedObjects;          // total number of active pool objects
 	size_t poolConstructedObjects;   // total number of constructed pool objects
 	size_t poolUsedMemory;           // memory used by the constructed objects
 	size_t poolAllocatedMemory;      // total memory allocated by the pool allocator
 };
-}
-}
+} // namespace Impl
+} // namespace CryAudio

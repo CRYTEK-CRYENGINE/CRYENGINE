@@ -5,9 +5,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -40,13 +40,13 @@ namespace uqs
 		//
 		//===================================================================================
 
-		void CLogger::Printf(const char* fmt, ...)
+		void CLogger::Printf(const char* szFormat, ...)
 		{
 			va_list args;
 			char text[1024];
 
-			va_start(args, fmt);
-			cry_vsprintf(text, fmt, args);
+			va_start(args, szFormat);
+			cry_vsprintf(text, szFormat, args);
 			va_end(args);
 
 			const int indentLevel = CLoggerIndentation::GetCurrentIndentLevel();

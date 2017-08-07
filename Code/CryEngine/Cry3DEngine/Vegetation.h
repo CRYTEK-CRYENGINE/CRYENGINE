@@ -73,7 +73,7 @@ public:
 	bool                 IsBreakable() { pe_params_part pp; pp.ipart = 0; return m_pPhysEnt && m_pPhysEnt->GetParams(&pp) && pp.idmatBreakable >= 0; }
 	bool                 IsBending() const;
 	virtual float        GetMaxViewDist() final;
-	IStatObj*            GetEntityStatObj(unsigned int nPartId = 0, unsigned int nSubPartId = 0, Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false) final;
+	IStatObj*            GetEntityStatObj(unsigned int nSubPartId = 0, Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false) final;
 	virtual EERType      GetRenderNodeType() final;
 	virtual void         Dephysicalize(bool bKeepIfReferenced = false) final;
 	void                 Dematerialize() final;

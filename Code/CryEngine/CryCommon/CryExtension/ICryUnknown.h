@@ -9,14 +9,34 @@ struct ICryUnknown;
 
 namespace InterfaceCastSemantics
 {
+#if !defined(SWIG)
+template<class T>
+struct has_cryiidof
+{
+	typedef char(&yes)[1];
+	typedef char(&no)[2];
+
+	template <typename C> static yes check(decltype(&C::IID));
+	template <typename> static no check(...);
+
+	static constexpr bool value = sizeof(check<T>(0)) == sizeof(yes);
+};
+#endif
+
 template<class T>
 const CryInterfaceID& cryiidof()
 {
 	return T::IID();
 }
 
+#if !defined(SWIG)
+#define _BEFRIEND_CRYIIDOF() \
+  template<class T> friend const CryInterfaceID &InterfaceCastSemantics::cryiidof(); \
+  template<class T> friend struct InterfaceCastSemantics::has_cryiidof;
+#else
 #define _BEFRIEND_CRYIIDOF() \
   template<class T> friend const CryInterfaceID &InterfaceCastSemantics::cryiidof();
+#endif
 
 template<class Dst, class Src>
 Dst* cryinterface_cast(Src* p)
@@ -143,23 +163,18 @@ std::shared_ptr<const ICryUnknown> crycomposite_query(const std::shared_ptr<cons
 
 using CompositeQuerySemantics::crycomposite_query;
 
-#define _BEFRIEND_DELETER(iname) \
-  friend struct std::default_delete<iname>;
+#define CRYINTERFACE_DECLARE(iname, iidHigh, iidLow) CRY_PP_ERROR("Deprecated macro: Use CRYINTERFACE_DECLARE_GUID instead. Please refer to the Migration Guide from CRYENGINE 5.3 to CRYENGINE 5.4 for more details.")
 
-#define CRYINTERFACE_DECLARE(iname, iidHigh, iidLow)                                         \
-  _BEFRIEND_CRYIIDOF()                                                                       \
-  _BEFRIEND_DELETER(iname)                                                                   \
-private:                                                                                     \
-  static const CryInterfaceID& IID()                                                         \
-  {                                                                                          \
-    static constexpr CryInterfaceID iid = { (uint64) iidHigh ## LL, (uint64) iidLow ## LL }; \
-    return iid;                                                                              \
-  }                                                                                          \
+#define CRYINTERFACE_DECLARE_GUID(iname, guid)                                                \
+  _BEFRIEND_CRYIIDOF()                                                                        \
+  friend struct std::default_delete<iname>;                                                   \
+private:                                                                                      \
+  static const CryInterfaceID& IID() { static constexpr CryGUID sguid = guid; return sguid; } \
 public:
 
 struct ICryUnknown
 {
-	CRYINTERFACE_DECLARE(ICryUnknown, 0x1000000010001000, 0x1000100000000000);
+	CRYINTERFACE_DECLARE_GUID(ICryUnknown, "10000000-1000-1000-1000-100000000000"_cry_guid);
 
 	_BEFRIEND_CRYINTERFACE_CAST()
 	_BEFRIEND_CRYCOMPOSITE_QUERY()
@@ -174,4 +189,5 @@ protected:
 	virtual void* QueryComposite(const char* name) const = 0;
 };
 
-DECLARE_SHARED_POINTERS(ICryUnknown);
+typedef std::shared_ptr<ICryUnknown> ICryUnknownPtr;
+typedef std::shared_ptr<const ICryUnknown> ICryUnknownConstPtr;

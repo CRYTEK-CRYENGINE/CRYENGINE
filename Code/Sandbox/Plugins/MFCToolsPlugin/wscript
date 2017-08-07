@@ -5,8 +5,15 @@ def build(bld):
 		target      = 'MFCToolsPlugin',
 		vs_filter	= 'Sandbox/Plugins',
 		file_list   = 'MFCToolsPlugin.waf_files',
-		pch			= 'StdAfx.cpp',
+		pch			= 'StdAfx.cpp',		
 		use	= ['EditorCommon'],
+		use_module  = [ 'tiff' ],
 		module_extensions = ['toolkit_pro'],
-		defines = ['EDITOR_COMMON_IMPORTS']
+
+		defines 	= ['EDITOR_COMMON_IMPORTS'],
+		includes    = [ Path('Code/SDKs/squish-ccr')],
+
+		module_provides = dict(
+			includes = [ Path('Code/Sandbox/Plugins/MFCToolsPlugin') ]
+		),
 	)

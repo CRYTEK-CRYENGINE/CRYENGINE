@@ -1,8 +1,8 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-using CryEngine.Attributes;
-using CryEngine.Resources;
+using System;
 using System.Runtime.Serialization;
+using CryEngine.Resources;
 
 namespace CryEngine.UI.Components
 {
@@ -12,9 +12,12 @@ namespace CryEngine.UI.Components
 	[DataContract]
 	public class Image : UIComponent
 	{
-		public event EventHandler OnSourceChanged; ///< Invoked if the underlying ImageSource was changed.
+		/// <summary>
+		/// Invoked if the underlying ImageSource was changed.
+		/// </summary>
+		public event Action OnSourceChanged;
 
-		private UITexture _texture = null;
+		private Graphic _texture = null;
 		[DataMember]
         private ImageSource _source = null;
 		[DataMember]
@@ -22,6 +25,10 @@ namespace CryEngine.UI.Components
 		[DataMember]
         private Color _color = Color.White;
 
+		/// <summary>
+		/// Source of the image shown by this component.
+		/// </summary>
+		/// <value>The source.</value>
 		public ImageSource Source
 		{
 			set
@@ -37,14 +44,31 @@ namespace CryEngine.UI.Components
 			{
 				return _source;
 			}
-		} ///< Source of the image shown by this component.
+		}
 
-		[DataMember]
-		public bool KeepRatio { get; set; } ///< Adapts image to keep its aspect ratio considering images- and owners size.
-		public Color Color { get { return _color; } set { _color = value; if (Source == null) Source = ImageSource.Blank; } } ///< Color multiplier for the image.
-		public SliceType SliceType { get { return _sliceType; } set { _sliceType = value; } } ///< SliceType to be used on image drawing.
-		[HideFromInspector, DataMember]
-		public bool IgnoreClamping { get; set; } ///< Will disregard any clamping options derived by layout system.
+		/// <summary>
+		/// Adapts image to keep its aspect ratio considering images- and owners size.
+		/// </summary>
+		/// <value><c>true</c> if keep ratio; otherwise, <c>false</c>.</value>
+		public bool KeepRatio { get; set; }
+
+		/// <summary>
+		/// Color multiplier for the image.
+		/// </summary>
+		/// <value>The color.</value>
+		public Color Color { get { return _color; } set { _color = value; if (Source == null) Source = ImageSource.Blank; } }
+
+		/// <summary>
+		/// SliceType to be used on image drawing.
+		/// </summary>
+		/// <value>The type of the slice.</value>
+		public SliceType SliceType { get { return _sliceType; } set { _sliceType = value; } }
+
+		/// <summary>
+		/// Will disregard any clamping options derived by layout system.
+		/// </summary>
+		/// <value><c>true</c> if ignore clamping; otherwise, <c>false</c>.</value>
+		public bool IgnoreClamping { get; set; }
 
 		/// <summary>
 		/// Called by framework. Do not call directly.
@@ -63,19 +87,32 @@ namespace CryEngine.UI.Components
 		/// </summary>
 		public override void OnUpdate()
 		{
-			if (_source != null)
+			if (_source != null && _texture != null)
 			{
 				if (!IgnoreClamping)
-					_texture.ClampRect = ((Owner as UIElement).RectTransform).ClampRect;
+				{
+					var rect = Owner.GetComponent<RectTransform>();
+					if(rect != null)
+					{
+						_texture.ClampRect = rect.ClampRect;	
+					}
+				}
 				else
-					_texture.ClampRect = null;
+				{
+					_texture.ClampRect = new Rect();
+				}
 				if (Color.A > 0.05f)
 				{
-					_texture.Angle = (Owner as UIElement).RectTransform.Angle;
+					var rect = Owner.GetComponent<RectTransform>();
+					if(rect != null)
+					{
+						_texture.Angle = rect.Angle;
+					}
+
 					_texture.Color = _color;
 					_texture.TargetCanvas = ParentCanvas;
 
-					Rect r = GetAlignedRect();
+					var r = GetAlignedRect();
 					_texture.Draw(r.x, r.y, r.w, r.h, SliceType);
 				}
 			}
@@ -90,28 +127,29 @@ namespace CryEngine.UI.Components
 			if (_source == null)
 				return new Rect();
 
-			var rt = (Owner as UIElement).RectTransform;
-			var tl = rt.TopLeft;
-			if (KeepRatio)
+			var rt = Owner.GetComponent<RectTransform>();
+			if(rt == null)
 			{
-				var imageRatio = (float)_source.Width / (float)_source.Height;
+				return new Rect();
+			}
+			var tl = rt.TopLeft;
+			if(KeepRatio)
+			{
+				var imageRatio = (float)_source.Width / _source.Height;
 				var elementRatio = rt.Width / rt.Height;
 				var ctr = rt.Center;
-				if (imageRatio > elementRatio)
+
+				if(imageRatio > elementRatio)
 				{
 					var imgHeight = rt.Width / imageRatio;
 					return new Rect(tl.x, ctr.y - imgHeight / 2.0f, rt.Width, imgHeight);
 				}
-				else
-				{
-					var imgWidth = rt.Height * imageRatio;
-					return new Rect(ctr.x - imgWidth / 2.0f, tl.y, imgWidth, rt.Height);
-				}
+
+				var imgWidth = rt.Height * imageRatio;
+				return new Rect(ctr.x - imgWidth / 2.0f, tl.y, imgWidth, rt.Height);
 			}
-			else
-			{
-				return new Rect(tl.x, tl.y, rt.Width, rt.Height);
-			}
+
+			return new Rect(tl.x, tl.y, rt.Width, rt.Height);
 		}
 	}
 }

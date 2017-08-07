@@ -1,8 +1,5 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-using System;
-using System.Linq;
-using System.Reflection;
 using CryEngine.Common;
 
 namespace CryEngine
@@ -44,6 +41,16 @@ namespace CryEngine
 			return new ColorF(value.R, value.G, value.B, value.A);
 		}
 
+		public static implicit operator Color(ColorF value)
+		{
+			if(value == null)
+			{
+				return new Color();
+			}
+
+			return new Color(value.r, value.g, value.b, value.a);
+		}
+
 		/// <summary>
 		/// Creates a Color from given components.
 		/// </summary>
@@ -76,9 +83,9 @@ namespace CryEngine
 		}
 
 		/// <summary>
-		/// Returns a <see cref="System.String"/> that represents the current <see cref="CryEngine.Color"/>.
+		/// Returns a <see cref="string"/> that represents the current <see cref="Color"/>.
 		/// </summary>
-		/// <returns>A <see cref="System.String"/> that represents the current <see cref="CryEngine.Color"/>.</returns>
+		/// <returns>A <see cref="string"/> that represents the current <see cref="Color"/>.</returns>
 		public override string ToString()
 		{
 			return R.ToString("0.0") + "," + G.ToString("0.0") + "," + B.ToString("0.0");

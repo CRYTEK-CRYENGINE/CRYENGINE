@@ -1,6 +1,0 @@
-<Material MtlFlags="524288" Shader="Illum" GenMask="20000000" StringGenMask="%SUBSURFACE_SCATTERING" SurfaceType="" MatTemplate="" Diffuse="0.99110222,0.24620135,0.24620135" Specular="0,0,0" Opacity="1" Shininess="9.999999" vertModifType="0" LayerAct="1">
- <Textures>
-  <Texture Map="Diffuse" File="textures/marble_gen_068_diff.dds"/>
- </Textures>
- <PublicParams EmittanceMapGamma="1" SSSIndex="0" IndirectColor="0.25,0.25,0.25"/>
-</Material>

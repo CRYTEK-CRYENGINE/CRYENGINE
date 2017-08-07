@@ -228,7 +228,7 @@ void CExcelExportBase::SetCellFlags(XmlNodeRef cell, int flags)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CExcelExportBase::SaveToFile(const char* filename)
+bool CExcelExportBase::SaveToFile(const char* filename)
 {
 	string xml = GetXmlHeader();
 
@@ -241,5 +241,7 @@ void CExcelExportBase::SaveToFile(const char* filename)
 		fprintf(file, "%s", xml.c_str());
 		m_Workbook->saveToFile(filename, 8 * 1024 /*chunksize*/, file);
 		fclose(file);
+		return true;
 	}
+	return false;
 }

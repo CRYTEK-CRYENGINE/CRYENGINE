@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <Schematyc/Script/Elements/IScriptState.h>
-#include <Schematyc/SerializationUtils/MultiPassSerializer.h>
+#include <CrySchematyc/Script/Elements/IScriptState.h>
+#include <CrySchematyc/SerializationUtils/MultiPassSerializer.h>
 
 #include "Script/ScriptElementBase.h"
 
@@ -14,7 +14,7 @@ class CScriptState : public CScriptElementBase<IScriptState>, public CMultiPassS
 public:
 
 	CScriptState();
-	CScriptState(const SGUID& guid, const char* szName);
+	CScriptState(const CryGUID& guid, const char* szName);
 
 	// IScriptElement
 	virtual void EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const override;
@@ -24,7 +24,7 @@ public:
 	// ~IScriptElement
 
 	// IScriptState
-	virtual SGUID GetPartnerGUID() const override;
+	virtual CryGUID GetPartnerGUID() const override;
 	// ~IScriptState
 
 protected:
@@ -37,6 +37,6 @@ protected:
 
 private:
 
-	SGUID m_partnerGUID;
+	CryGUID m_partnerGUID;
 };
 } // Schematyc

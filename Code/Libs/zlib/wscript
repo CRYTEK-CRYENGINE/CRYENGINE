@@ -19,6 +19,8 @@ def build(bld):
 		linux_defines 	= ['HAVE_UNISTD_H'],
 		orbis_defines 	= ['HAVE_UNISTD_H'],
 
+		win_cflags = ['/w'],
+		durango_cflags = ['/w'],
 		orbis_cflags    = ['-Wno-shift-negative-value'],
 		linux_cflags    = ['-Wno-shift-negative-value'],
 		android_cflags  = ['-Wno-shift-negative-value'],

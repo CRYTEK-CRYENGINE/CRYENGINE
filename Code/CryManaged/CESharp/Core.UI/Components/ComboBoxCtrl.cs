@@ -1,11 +1,10 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-using CryEngine.Common;
-using CryEngine.Resources;
 using System;
-using System.IO;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using CryEngine.Resources;
 
 namespace CryEngine.UI.Components
 {
@@ -14,19 +13,34 @@ namespace CryEngine.UI.Components
 	/// </summary>
 	public class ComboBoxCtrl : UIComponent
 	{
-		public event EventHandler OnFocusEnter; ///< Raised if the ComboBox focus was entered.
-		public event EventHandler OnFocusLost; ///< Raised if the ComboBox focus was left.
-		public event EventHandler<object> SelectedItemChanged; ///< Raised if the selected item changed.
+		/// <summary>
+		/// Raised if the ComboBox focus was entered.
+		/// </summary>
+		public event Action OnFocusEnter;
 
-		int _idx = -1;
-		Text _text;
-		object _selectedItem;
-		UIElement _choiceFrame;
-		Panel _choice;
-		List<Text> _choiceLabels = new List<Text>();
-		List<object> _items = new List<object>();
-		SceneObject _choiceRoot;
+		/// <summary>
+		/// Raised if the ComboBox focus was left.
+		/// </summary>
+		public event Action OnFocusLost;
 
+		/// <summary>
+		/// Raised if the selected item changed.
+		/// </summary>
+		public event Action<object> SelectedItemChanged;
+
+		private int _idx = -1;
+		private Text _text;
+		private object _selectedItem;
+		private UIElement _choiceFrame;
+		private Panel _choice;
+		private readonly List<Text> _choiceLabels = new List<Text>();
+		private List<object> _items = new List<object>();
+		private SceneObject _choiceRoot;
+
+		/// <summary>
+		/// List of items which are shown by the ComboBox.
+		/// </summary>
+		/// <value>The items.</value>
 		public List<object> Items
 		{
 			get
@@ -39,8 +53,12 @@ namespace CryEngine.UI.Components
 				SelectedItem = null;
 				ConstructChoiceList();
 			}
-		} ///< List of items which are shown by the ComboBox.
+		}
 
+		/// <summary>
+		/// Currently selected item.
+		/// </summary>
+		/// <value>The selected item.</value>
 		public object SelectedItem
 		{
 			get
@@ -52,32 +70,40 @@ namespace CryEngine.UI.Components
 				_selectedItem = value == null ? null : Items.FirstOrDefault(x => x.Equals(value));
 				_idx = _selectedItem == null ? -1 : Items.IndexOf(_selectedItem);
 				_text.Content = _idx < 0 ? "" : _selectedItem.ToString();
-				if (SelectedItemChanged != null)
-					SelectedItemChanged(_selectedItem);
+
+				SelectedItemChanged?.Invoke(_selectedItem);
 			}
-		} ///< Currently selected item.
+		}
 
 		/// <summary>
 		/// Called by framework. Do not call directly.
 		/// </summary>
 		public override void OnAwake()
 		{
-			_text = (Owner as ComboBox).BgPanel.AddComponent<Text>();
-			_text.Offset = new Point(5, 1);
+			var comboBox = Owner as ComboBox;
+			if(comboBox != null)
+			{
+				_text = comboBox.BgPanel.AddComponent<Text>();
+				_text.Offset = new Point(5, 1);
+			}
 
 			_choiceFrame = SceneObject.Instantiate<UIElement>(Owner);
 			_choiceFrame.RectTransform.Alignment = Alignment.TopHStretch;
 
 			_choiceRoot = SceneObject.Instantiate(null, "ChoiceRoot");
 			var canvas = SceneObject.Instantiate<Canvas>(_choiceRoot);
-			var pc = (Owner as UIElement).FindParentCanvas();
-			canvas.TargetTexture = pc.TargetTexture;
-			canvas.TargetEntity = pc.TargetEntity;
+
+			var pc = Owner.GetParentWithType<Canvas>();
+			if(pc != null)
+			{	
+				canvas.SetupTargetEntity(pc.TargetEntity, pc.TargetTexture);
+			}
+
 			_choice = SceneObject.Instantiate<Panel>(canvas);
 			_choice.RectTransform.Alignment = Alignment.TopLeft;
 			_choice.Background.Source = ResourceManager.ImageFromFile(Path.Combine(UIElement.DataDirectory, "button.png"));
 			_choice.Background.IgnoreClamping = true;
-			_choice.Background.SliceType = CryEngine.Resources.SliceType.Nine;
+			_choice.Background.SliceType = SliceType.Nine;
 			_choice.RectTransform.ClampMode = ClampMode.Self;
 			_choice.RectTransform.Spacing = new Rect(0, 0, 6, 0);
 			_choice.Background.Color = Color.Gray;
@@ -97,8 +123,8 @@ namespace CryEngine.UI.Components
 		/// </summary>
 		public override void OnEnterFocus()
 		{
-			if (OnFocusEnter != null)
-				OnFocusEnter();
+			
+			OnFocusEnter?.Invoke();
 		}
 
 		/// <summary>
@@ -106,8 +132,8 @@ namespace CryEngine.UI.Components
 		/// </summary>
 		public override void OnLeaveFocus()
 		{
-			if (OnFocusLost != null)
-				OnFocusLost();
+			
+			OnFocusLost?.Invoke();
 			_choice.Active = false;
 		}
 
@@ -116,41 +142,53 @@ namespace CryEngine.UI.Components
 		/// </summary>
 		public override void OnLeftMouseDown(int x, int y)
 		{
-			if (Items.Count > 0)
+			if(Items.Count > 0)
 			{
 				var bounds = _choiceFrame.RectTransform.Bounds;
 				_choice.RectTransform.Padding = new Padding(bounds.x + bounds.w / 2, bounds.y + bounds.h / 2);
 				_choice.RectTransform.Size = new Point(bounds.w, bounds.h);
 				_choice.Active = !_choice.Active;
 
-				if (!_choice.Active && OnFocusLost != null)
-					OnFocusLost();
-				if (_choice.Active && OnFocusLost != null)
-					OnFocusEnter();
+				if(!_choice.Active)
+				{
+					OnFocusLost?.Invoke();
+				}
+				else
+				{
+					OnFocusEnter?.Invoke();
+				}
 			}
 		}
 
 		/// <summary>
 		/// Called by Canvas. Do not call directly.
 		/// </summary>
-		public override void OnKey(SInputEvent e)
+		public override void OnKey(InputEvent e)
 		{
-			if (Items.Count > 0)
+			if(Items.Count > 0)
 			{
-				if (e.KeyPressed(EKeyId.eKI_Down))
+				if(e.KeyPressed(KeyId.Down))
+				{
 					_idx = Math.Min(Items.Count - 1, _idx + 1);
-				if (e.KeyPressed(EKeyId.eKI_Up))
+				}
+				if(e.KeyPressed(KeyId.Up))
+				{
 					_idx = Math.Max(0, _idx - 1);
+				}
 			}
 			else
-				_idx = -1;
-
-			if (e.keyName.key.Length == 1)
 			{
-				var key = e.keyName.key.ToUpper();
-				var chosen = Items.FirstOrDefault(x => x.ToString().ToUpper().StartsWith(key));
-				if (chosen != null)
+				_idx = -1;
+			}
+
+			if(e.KeyName.Length == 1)
+			{
+				var key = e.KeyName.ToUpper();
+				var chosen = Items.FirstOrDefault(x => x.ToString().ToUpper().StartsWith(key, StringComparison.InvariantCultureIgnoreCase));
+				if(chosen != null)
+				{
 					_idx = Items.IndexOf(chosen);
+				}
 			}
 			SelectedItem = _idx < 0 ? null : Items[_idx];
 		}
@@ -158,7 +196,7 @@ namespace CryEngine.UI.Components
 		void ConstructChoiceList()
 		{
 			int yOfs = 5;
-			foreach (var str in _items)
+			foreach(var str in _items)
 			{
 				var l = _choice.AddComponent<Text>();
 				l.Content = str.ToString();

@@ -4,23 +4,18 @@
 
 #include <CryString/CryString.h>
 #include <IAudioConnection.h>
-#include "AudioControl.h"
+#include "AudioAssets.h"
 #include <CrySystem/XML/IXml.h>
 #include <ACETypes.h>
 
-class QStandardItemModel;
-class QStandardItem;
-
 namespace ACE
 {
-class CATLControlsModel;
-class IAudioSystemEditor;
-class QATLTreeModel;
+class CAudioAssetsManager;
 
 class CAudioControlsLoader
 {
 public:
-	CAudioControlsLoader(CATLControlsModel* pATLModel, QATLTreeModel* pLayoutModel, IAudioSystemEditor* pAudioSystemImpl);
+	CAudioControlsLoader(CAudioAssetsManager* pAssetsManager);
 	std::set<string> GetLoadedFilenamesList();
 	void             LoadAll();
 	void             LoadControls();
@@ -28,36 +23,31 @@ public:
 	uint             GetErrorCodeMask() const { return m_errorCodeMask; }
 
 private:
-	typedef std::vector<const char*> SwitchStates;
-	void           LoadAllLibrariesInFolder(const string& folderPath, const string& level);
-	void           LoadControlsLibrary(XmlNodeRef pRoot, const string& filepath, const string& level, const string& filename, uint version);
-	CATLControl*   LoadControl(XmlNodeRef pNode, QStandardItem* pFolder, Scope scope, uint version);
+	using SwitchStates = std::vector<const char*>;
+	void           LoadAllLibrariesInFolder(string const& folderPath, string const& level);
+	void           LoadControlsLibrary(XmlNodeRef pRoot, string const& filepath, string const& level, string const& filename, uint version);
+	CAudioControl* LoadControl(XmlNodeRef pNode, Scope scope, uint version, IAudioAsset* pParentItem);
 
-	void           LoadPreloadConnections(XmlNodeRef pNode, CATLControl* pControl, QStandardItem* pItem, uint version);
-	void           LoadConnections(XmlNodeRef root, CATLControl* pControl, QStandardItem* pItem);
+	void           LoadPreloadConnections(XmlNodeRef pNode, CAudioControl* pControl, uint version);
+	void           LoadConnections(XmlNodeRef root, CAudioControl* pControl);
 
 	void           CreateDefaultControls();
-	void           CreateDefaultSwitch(QStandardItem* pFolder, const char* szExternalName, const char* szInternalName, const SwitchStates& states);
+	void           CreateDefaultSwitch(IAudioAsset* pLibrary, const char* szExternalName, const char* szInternalName, SwitchStates const& states);
 
-	QStandardItem* AddControl(CATLControl* pControl, QStandardItem* pFolder);
+	void           LoadScopesImpl(string const& path);
 
-	void           LoadScopesImpl(const string& path);
+	void           LoadEditorData(XmlNodeRef pEditorDataNode, IAudioAsset* pRootItem);
+	void           LoadAllFolders(XmlNodeRef pRootFoldersNode, IAudioAsset* pParentItem);
+	void           LoadFolderData(XmlNodeRef pRootFoldersNode, IAudioAsset* pParentItem);
 
-	void           LoadEditorData(XmlNodeRef pEditorDataNode, QStandardItem* pRootItem);
-	void           LoadAllFolders(XmlNodeRef pRootFoldersNode, QStandardItem* pParentItem);
-	void           LoadFolderData(XmlNodeRef pRootFoldersNode, QStandardItem* pParentItem);
+	IAudioAsset*   AddUniqueFolderPath(IAudioAsset* pParent, QString const& path);
 
-	QStandardItem* AddUniqueFolderPath(QStandardItem* pParent, const QString& sPath);
-	QStandardItem* AddFolder(QStandardItem* pParent, const QString& sName);
+	static string const ms_controlsLevelsFolder;
+	static string const ms_levelsFolder;
+	// TODO: Move these strings to Utils
 
-	static const string ms_controlsPath;
-	static const string ms_controlsLevelsFolder;
-	static const string ms_levelsFolder;
-
-	CATLControlsModel*  m_pModel;
-	QATLTreeModel*      m_pLayout;
-	IAudioSystemEditor* m_pAudioSystemImpl;
-	std::set<string>    m_loadedFilenames;
-	uint                m_errorCodeMask;
+	CAudioAssetsManager* m_pAssetsManager;
+	std::set<string>     m_loadedFilenames;
+	uint                 m_errorCodeMask;
 };
 }

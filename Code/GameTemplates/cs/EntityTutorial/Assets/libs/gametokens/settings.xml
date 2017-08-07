@@ -1,6 +1,0 @@
-<GameTokensLibrary Name="Settings">
- <GameToken Name="InitialResources" Type="Int" Value="4000" LocalOnly="1"/>
- <GameToken Name="CameraFoV" Type="Float" Value="0.100000" LocalOnly="1"/>
- <GameToken Name="SomeBool" Type="Bool" Value="false" LocalOnly="1"/>
- <GameToken Name="SomeVec" Type="Vec3" Value="100,4,1" LocalOnly="1"/>
-</GameTokensLibrary>

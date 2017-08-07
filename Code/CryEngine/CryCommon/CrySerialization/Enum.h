@@ -205,8 +205,7 @@ cstr getEnumLabel(Enum val)
 // EnumAliasDescription createad on first call to Serialize.
 // Serialization will only work if called from the same namespace.
 
-#define SERIALIZATION_ENUM_DECLARE(Enum, sizespec, ...)                                           \
-  enum class Enum sizespec { __VA_ARGS__ };                                                       \
+#define SERIALIZATION_ENUM_IMPLEMENT(Enum, ...)                                                   \
   inline Serialization::EnumAliasDescription& makeEnumDescription(Enum*) {                        \
     static Serialization::EnumAliasDescription desc(yasli::getEnumDescription<Enum>());           \
     static char enum_str[] = # __VA_ARGS__;                                                       \
@@ -217,9 +216,10 @@ cstr getEnumLabel(Enum val)
     return makeEnumDescription(&value).serialize(ar, value, name, label);                         \
   }                                                                                               \
 
-// Legacy macros
-#define SERIALIZATION_DECLARE_ENUM(Enum, ...)     \
-  SERIALIZATION_ENUM_DECLARE(Enum, , __VA_ARGS__) \
+#define SERIALIZATION_ENUM_DECLARE(Enum, Base, ...)                                               \
+  enum class Enum Base { __VA_ARGS__ };                                                           \
+  SERIALIZATION_ENUM_IMPLEMENT(Enum, __VA_ARGS__)                                                 \
 
-#define SERIALIZATION_ENUM_DEFINE SERIALIZATION_ENUM_DECLARE
-#define SERIALIZATION_ENUM_IMPLEMENT(Enum)
+// Legacy macros
+#define SERIALIZATION_ENUM_DEFINE               SERIALIZATION_ENUM_DECLARE
+#define SERIALIZATION_DECLARE_ENUM(Enum, ...)   SERIALIZATION_ENUM_DECLARE(Enum, , __VA_ARGS__)

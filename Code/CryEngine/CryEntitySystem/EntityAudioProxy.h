@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <CryAudio/IAudioSystem.h>
+#include <CryAudio/IObject.h>
 #include <CryMemory/STLPoolAllocator.h>
 #include <CryEntitySystem/IEntityComponent.h>
 #include <CryMemory/CrySizer.h>
@@ -11,14 +11,14 @@
 // Description:
 //    Handles audio on the entity.
 //////////////////////////////////////////////////////////////////////////
-struct CEntityComponentAudio final : public IEntityAudioComponent
+class CEntityComponentAudio final : public IEntityAudioComponent
 {
-	CRY_ENTITY_COMPONENT_CLASS(CEntityComponentAudio, IEntityAudioComponent, "CEntityComponentAudio", 0x51AE5FC21B454351, 0xAC889CAF0C757B5F);
+public:
+	CRY_ENTITY_COMPONENT_CLASS_GUID(CEntityComponentAudio, IEntityAudioComponent, "CEntityComponentAudio", "51ae5fc2-1b45-4351-ac88-9caf0c757b5f"_cry_guid);
 
 	CEntityComponentAudio();
-	virtual ~CEntityComponentAudio();
+	virtual ~CEntityComponentAudio() override;
 
-public:
 	// IEntityComponent
 	virtual void         ProcessEvent(SEntityEvent& event) override;
 	virtual void         Initialize() override;
@@ -51,8 +51,9 @@ public:
 	virtual void                    SetEnvironmentAmount(CryAudio::EnvironmentId const audioEnvironmentId, float const amount, CryAudio::AuxObjectId const audioAuxObjectId = CryAudio::DefaultAuxObjectId) override;
 	virtual void                    SetCurrentEnvironments(CryAudio::AuxObjectId const audioAuxObjectId = CryAudio::DefaultAuxObjectId) override;
 	virtual void                    AudioAuxObjectsMoveWithEntity(bool const bCanMoveWithEntity) override;
-	virtual void                    AddAsListenerToAudioAuxObject(CryAudio::AuxObjectId const audioAuxObjectId, void (* func)(CryAudio::SRequestInfo const* const), CryAudio::EnumFlagsType const eventMask) override;
+	virtual void                    AddAsListenerToAudioAuxObject(CryAudio::AuxObjectId const audioAuxObjectId, void (* func)(CryAudio::SRequestInfo const* const), CryAudio::ESystemEvents const eventMask) override;
 	virtual void                    RemoveAsListenerFromAudioAuxObject(CryAudio::AuxObjectId const audioAuxObjectId, void (* func)(CryAudio::SRequestInfo const* const)) override;
+	virtual CryAudio::AuxObjectId   GetAuxObjectIdFromAudioObject(CryAudio::IObject* pObject) override;
 	// ~IEntityAudioComponent
 
 private:
@@ -70,7 +71,7 @@ private:
 			, offset(IDENTITY)
 		{}
 
-		~SAudioAuxObjectWrapper() {}
+		~SAudioAuxObjectWrapper() = default;
 
 		CryAudio::IObject* const pIObject;
 		Matrix34                 offset;
@@ -280,7 +281,7 @@ private:
 		Matrix34 const& entityPosition;
 	};
 	// ~Function objects
-
+	
 	AudioAuxObjects         m_mapAuxAudioProxies;
 	CryAudio::AuxObjectId   m_audioAuxObjectIdCounter;
 

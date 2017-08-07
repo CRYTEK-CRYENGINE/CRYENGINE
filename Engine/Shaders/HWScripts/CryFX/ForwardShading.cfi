@@ -1,0 +1,309 @@
+// CRYENGINE Source Code File
+// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+
+/////////////////////////////////////////////
+// Has to be included after VolumetricFog.cfi
+/////////////////////////////////////////////
+
+// Samplers
+SamplerState            ssFwdBilinearWrap      : register(s10);
+SamplerComparisonState  ssFwdComparison        : register(s11);
+
+// Resources
+Texture2D               Fwd_SceneTarget        : register(t25);
+Texture2D               Fwd_ShadowMap0         : register(t26);
+Texture2D               Fwd_ShadowMap1         : register(t27);
+Texture2D               Fwd_ShadowMap2         : register(t28);
+Texture2D               Fwd_ShadowMap3         : register(t29);
+Texture2D               Fwd_CloudShadowMap     : register(t30);
+Texture2D               Fwd_ShadowNoise        : register(t31);
+Texture2D               Fwd_SceneDepth         : register(t32);
+Texture2DArray<float4>  Fwd_SunShadowMask      : register(t38);
+Texture3D<float4>       Fwd_volFogTex          : register(t42);
+TextureCube<float4>     Fwd_volFogEnvTex0      : register(t43);
+TextureCube<float4>     Fwd_volFogEnvTex1      : register(t44);
+TextureCube<float4>     Fwd_GlobalProbe        : register(t45);
+
+// Constants
+cbuffer CBPerPassForward : register(b5)
+{
+	// Fog parameters
+	struct
+	{
+		float4 vfParams;
+		float4 vfRampParams;
+		float4 vfSunDir;
+		float3 vfColGradBase;
+		float  padding0;
+		float3 vfColGradDelta;
+		float  padding1;
+		float4 vfColGradParams;
+		float4 vfColGradRadial;
+		float4 vfShadowDarkening;
+		float4 vfShadowDarkeningSunAmb;
+	} cbFog;
+
+	// Voxel-based volumetric fog parameters
+	struct
+	{
+		float4 vfSamplingParams;
+		float4 vfDistributionParams;
+		float4 vfScatteringParams;
+		float4 vfScatteringBlendParams;
+		float4 vfScatteringColor;
+		float4 vfScatteringSecondaryColor;
+		float4 vfHeightDensityParams;
+		float4 vfHeightDensityRampParams;
+		float4 vfDistanceParams;
+		float4 vfGlobalEnvProbeParams0;
+		float4 vfGlobalEnvProbeParams1;
+	} cbVoxelFog;
+
+	// Forward shadow map sampling parameters
+	struct
+	{
+		float4x4 TexGen0;
+		float4x4 TexGen1;
+		float4x4 TexGen2;
+		float4x4 TexGen3;
+
+		float4 vInvShadowMapSize;
+		float4 fDepthTestBias;
+		float4 fOneDivFarDist;
+		float4 fKernelRadius;
+
+		float4 CloudShadowParams;
+		float4 CloudShadowAnimParams;
+
+		float4 irreg_kernel_2d[8];  // HALF_MAX_SHADOW_SAMPLES_NUM
+	} cbShadowSampling;
+	
+	struct
+	{
+		float4 CloudShadingColorSun;
+		float4 CloudShadingColorSky;
+	} cbMisc;
+};
+
+float Fwd_SampleSunShadowMaps(float3 worldPos)
+{
+	ShadowCascades shadowCascades;
+	shadowCascades.shadowMap0 = Fwd_ShadowMap0;
+	shadowCascades.shadowMap1 = Fwd_ShadowMap1;
+	shadowCascades.shadowMap2 = Fwd_ShadowMap2;
+	shadowCascades.shadowMap3 = Fwd_ShadowMap3;
+	shadowCascades.cloudShadowTex = Fwd_CloudShadowMap;
+	
+	ShadowSamplingContext samplingContext;
+	samplingContext.comparisonSampler = ssFwdComparison;
+	samplingContext.pointSamplerWrap = ssPointWrap;
+	samplingContext.pointSamplerClamp = ssPointClamp;
+	samplingContext.bilinearSamplerWrap = ssFwdBilinearWrap;
+	samplingContext.noiseTex = Fwd_ShadowNoise;
+	
+	return 1 - ShadowDepthTest((SShadowSamplingParams)cbShadowSampling, shadowCascades, samplingContext, worldPos);
+}
+
+SFogParams GetFogParams()
+{
+	SFogParams params;
+
+	params.viewPos.xyz = g_VS_WorldViewPos.xyz;
+	params.padding0 = 0.0f;
+
+	params.heightDensityScale = cbFog.vfParams.x;
+	params.heightDensityAtBaseHeight = cbFog.vfParams.y;
+	params.heightDiffFromBase = cbFog.vfParams.z;
+	params.expHeightDiffFromBase = cbFog.vfParams.w;
+
+	params.rampParams = cbFog.vfRampParams;
+
+	params.sunDir = cbFog.vfSunDir.xyz;
+	params.densityClamp = cbFog.vfSunDir.w;
+
+	params.colGradBase = cbFog.vfColGradBase;
+	params.padding1 = 0.0f;
+
+	params.colGradDelta = cbFog.vfColGradDelta;
+	params.padding2 = 0.0f;
+
+	params.heightColGradScale = cbFog.vfColGradParams.x;
+	params.heightColGradOffset = cbFog.vfColGradParams.y;
+	params.radialSizeCtrl = cbFog.vfColGradParams.z;
+	params.radialLobeCtrl = cbFog.vfColGradParams.w;
+
+	params.radialColor = cbFog.vfColGradRadial.xyz;
+	params.invZFar = cbFog.vfColGradRadial.w;
+
+	return params;
+}
+
+SVolumetricFogParams GetVolumetricFogParams()
+{
+	SVolumetricFogParams params;
+
+	params.sunDir = CV_SunLightDir.xyz;
+	params.padding0 = 0.0f;
+
+	params.nearDist = cbVoxelFog.vfSamplingParams.x;
+	params.invFarMinusNearDist = cbVoxelFog.vfSamplingParams.y;
+	params.maxIndex = cbVoxelFog.vfSamplingParams.z;
+	params.invMaxIndex = cbVoxelFog.vfSamplingParams.w;
+
+	params.screenSize = CV_ScreenSize.xy;
+	params.farMinusNearDist = cbVoxelFog.vfDistributionParams.y;
+	params.invMaxIndexMinusOne = cbVoxelFog.vfDistributionParams.z;
+
+	params.viewPos = g_VS_WorldViewPos.xyz;
+	params.framwCountJitter = cbVoxelFog.vfDistributionParams.w;
+
+	params.scatterCoefficient = cbVoxelFog.vfScatteringParams.x;
+	params.extinctionCoefficient = cbVoxelFog.vfScatteringParams.y;
+	params.blendFactor = cbVoxelFog.vfScatteringBlendParams.x;
+	params.blendMode = cbVoxelFog.vfScatteringBlendParams.y;
+
+	params.cDiffuse1 = cbVoxelFog.vfScatteringColor.xyz;
+	params.padding1 = 0.0f;
+
+	params.cDiffuse2 = cbVoxelFog.vfScatteringSecondaryColor.xyz;
+	params.padding2 = 0.0f;
+
+	params.anisotropy1.x = cbVoxelFog.vfScatteringParams.z;
+	params.anisotropy1.y = cbVoxelFog.vfScatteringParams.w;
+	params.anisotropy2.x = cbVoxelFog.vfScatteringColor.w;
+	params.anisotropy2.y = cbVoxelFog.vfScatteringSecondaryColor.w;
+
+	params.heightDensityScale = cbVoxelFog.vfHeightDensityParams.x;
+	params.densityAtViewer = cbVoxelFog.vfHeightDensityParams.y;
+	params.fogVisibility = cbVoxelFog.vfHeightDensityParams.z;
+	params.clampTransmittance = cbVoxelFog.vfHeightDensityParams.w;
+
+	params.rampStart = cbVoxelFog.vfHeightDensityRampParams.x;
+	params.rampEnd = cbVoxelFog.vfHeightDensityRampParams.y;
+	params.oneOverRampDiff = cbVoxelFog.vfHeightDensityRampParams.z;
+	params.rampStartOverRampDiff = cbVoxelFog.vfHeightDensityRampParams.w;
+
+	params.farDistTopLeft = cbVoxelFog.vfDistanceParams.x;
+	params.farDistTopCenter = cbVoxelFog.vfDistanceParams.y;
+	params.farDistCenterLeft = cbVoxelFog.vfDistanceParams.z;
+	params.farDistCenter = cbVoxelFog.vfDistanceParams.w;
+
+	params.globalProbeColor0 = cbVoxelFog.vfGlobalEnvProbeParams0.xyz;
+	params.globalProbeAttenuation0 = cbVoxelFog.vfGlobalEnvProbeParams0.w;
+
+	params.globalProbeColor1 = cbVoxelFog.vfGlobalEnvProbeParams1.xyz;
+	params.globalProbeAttenuation1 = cbVoxelFog.vfGlobalEnvProbeParams1.w;
+
+	params.timeParams.x = CV_AnimGenParams.z;
+	params.timeParams.y = CV_AnimGenParams.z * 0.5f;
+	params.timeParams.z = CV_AnimGenParams.y;
+	params.timeParams.w = CV_AnimGenParams.w;
+
+	return params;
+}
+
+VolumetricFogSampling GetVolumetricFogSampling()
+{
+	VolumetricFogSampling vfs;
+
+	vfs.volumetricFogTex = Fwd_volFogTex;
+	vfs.globalEnvProbeTex0 = Fwd_volFogEnvTex0;
+	vfs.globalEnvProbeTex1 = Fwd_volFogEnvTex1;
+	vfs.trilinearClampSState = ssMaterialTrilinearClamp;
+
+	return vfs;
+}
+
+void Fwd_ApplyFog(in float3 worldPos, in float3 cameraToWorldPos, in float4 WPos, inout float3 color)
+{
+#if %_RT_FOG
+	#if %_RT_VOLUMETRIC_FOG
+		SVolumetricFogParams params = GetVolumetricFogParams();
+		VolumetricFogSampling vfs = GetVolumetricFogSampling();
+		const half4 globalFogColor = GetVolumetricFogAnalyticalColor(params, vfs, cameraToWorldPos, length(cameraToWorldPos));
+		VolumetricFogTexcoord vtc = GetVolumetricFogTexcoordParamByScreenPos(params, WPos.xyzw);
+		const float4 vf = GetVolumetricFogValue(vfs, vtc);
+		ApplyVolumetricFog(params, vf, globalFogColor, vtc, color.rgb);
+	#else
+		SFogParams params = GetFogParams();
+		half4 localFogColor = GetVolumetricFogColor(params, worldPos, cameraToWorldPos);
+		color.xyz = lerp(localFogColor.xyz , color.xyz, saturate(localFogColor.w));
+	#endif
+#endif
+}
+
+float4 Fwd_GetLocalFogColor(in float3 worldPos, in float3 cameraToWorldPos)
+{
+	float4 localFogColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
+
+#if %_RT_FOG
+	#if %_RT_VOLUMETRIC_FOG
+		SVolumetricFogParams params = GetVolumetricFogParams();
+		VolumetricFogSampling vfs = GetVolumetricFogSampling();
+		localFogColor = GetVolumetricFogAnalyticalColor(params, vfs, cameraToWorldPos, length(cameraToWorldPos)).xyzw;
+	#else
+		SFogParams params = GetFogParams();
+		localFogColor = GetVolumetricFogColor(params, worldPos, cameraToWorldPos);
+	#endif
+#endif
+
+	return localFogColor;
+}
+
+void Fwd_ApplyFog(in float4 localFogColor, in float4 WPos, inout float3 color)
+{
+#if %_RT_FOG
+	#if %_RT_VOLUMETRIC_FOG
+		SVolumetricFogParams params = GetVolumetricFogParams();
+		VolumetricFogSampling vfs = GetVolumetricFogSampling();
+		VolumetricFogTexcoord vtc = GetVolumetricFogTexcoordParamByScreenPos(params, WPos.xyzw);
+		float4 vf = GetVolumetricFogValue(vfs, vtc);
+		ApplyVolumetricFog(params, vf, localFogColor, vtc, color.rgb);
+	#else
+		color.xyz = lerp(localFogColor.xyz, color.xyz, saturate(localFogColor.w));
+	#endif
+#endif
+}
+
+void Fwd_StandardOpaqueShading(in MaterialAttribsCommon commonAttribs, inout ForwardShadingAttribs fwdAttribs, inout half3 diffuseAcc, inout half3 specularAcc, bool bSunShadows = true)
+{
+	fwdAttribs.normal = commonAttribs.NormalWorld;
+	fwdAttribs.normalSpecProbe = fwdAttribs.normal;
+	fwdAttribs.reflectance = commonAttribs.Reflectance;
+	fwdAttribs.albedo = commonAttribs.Albedo;
+	fwdAttribs.smoothness = commonAttribs.Smoothness;
+	
+	// Sun shading
+	{
+		float shadowMask = 0;
+	#if !%_RT_SECONDARY_VIEW
+		if (bSunShadows)
+			shadowMask = Fwd_SunShadowMask.Load(int4(fwdAttribs.screenUV * CV_ScreenSize.xy, 0, 0)).r;
+	#endif
+		
+		ForwardLightParams lightParams;
+		lightParams.type = LT_DIRECTIONAL;
+		lightParams.lightVec = CV_SunLightDir.xyz;
+		lightParams.illuminance = CV_SunColor.xyz * (1 - shadowMask);
+		Callback_ShadingDirect(fwdAttribs, lightParams, diffuseAcc, specularAcc);
+  }
+	
+#if %_RT_SECONDARY_VIEW	
+	// Global environment probe
+	{
+		diffuseAcc += Fwd_GlobalProbe.SampleLevel(ssMaterialTrilinear, fwdAttribs.normal, 8);
+		float3 viewVec = normalize(-fwdAttribs.worldPos);
+		float NdotV = saturate(dot(viewVec, fwdAttribs.normal));
+		specularAcc += GetEnvironmentCMap(Fwd_GlobalProbe, reflect(-viewVec, fwdAttribs.normal), fwdAttribs.smoothness) * GetEnvmapFresnel(fwdAttribs.reflectance, fwdAttribs.smoothness, NdotV);
+	}
+#endif
+	
+#if %_RT_TILED_SHADING
+	#if %_RT_PER_INSTANCE_CB_TEMP
+		TiledForwardShading(fwdAttribs, diffuseAcc, specularAcc, ssFwdBilinearWrap, ssFwdComparison, true, true, true, false, true);
+	#endif
+#endif
+
+	// Apply albedo (using simple energy conservation between specular and diffuse)
+	diffuseAcc *= fwdAttribs.albedo * saturate(1 - GetLuminance(fwdAttribs.reflectance));
+}

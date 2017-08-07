@@ -5,11 +5,46 @@
 
 namespace MNM
 {
+
+void BoundingVolume::Set(const Vec3* pVtx, const size_t count, const float height)
+{
+	vertices.clear();
+	AABB aabbNew(AABB::RESET);
+
+	if (pVtx != nullptr && count > 0)
+	{
+		vertices.reserve(count);
+
+		aabbNew.Add(pVtx[0] + Vec3(0.0f, 0.0f, height));
+
+		for (size_t i = 0; i < count; ++i)
+		{
+			const Vec3& v = pVtx[i];
+			aabbNew.Add(v);
+			vertices.push_back(v);
+		}
+
+		this->pVertices = &vertices.front();
+		this->verticesCount = vertices.size();
+	}
+	else
+	{
+		this->pVertices = nullptr;
+		this->verticesCount = 0;
+	}
+
+	this->aabb = aabbNew;
+	this->height = height;
+}
+
+
 void BoundingVolume::Swap(BoundingVolume& other)
 {
 	vertices.swap(other.vertices);
 	std::swap(aabb, other.aabb);
 	std::swap(height, other.height);
+	std::swap(pVertices, other.pVertices);
+	std::swap(verticesCount, other.verticesCount);
 }
 
 bool BoundingVolume::Overlaps(const AABB& _aabb) const

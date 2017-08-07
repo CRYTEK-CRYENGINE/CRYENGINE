@@ -176,10 +176,11 @@ bool ChromaticRing::PreparePrimitives(const SPreparePrimitivesContext& context)
 		prim.SetTechnique(CShaderMan::s_ShaderLensOptics, techChromaticRing, rtFlags);
 		prim.SetRenderState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ONE | (i==0 ? 0 : GS_WIREFRAME));
 		prim.SetTexture(0, GetOrLoadSpectrumTex());
-		prim.SetSampler(0, m_samplerBilinearBorderBlack);
-		prim.SetCustomVertexStream(m_vertexBuffer, eVF_P3F_C4B_T2F, sizeof(SVF_P3F_C4B_T2F));
+		prim.SetSampler(0, EDefaultSamplerStates::LinearBorder_Black);
+		prim.SetCustomVertexStream(m_vertexBuffer, EDefaultInputLayouts::P3F_C4B_T2F, sizeof(SVF_P3F_C4B_T2F));
 		prim.SetCustomIndexStream(m_indexBuffer, Index16);
 		prim.SetDrawInfo(eptTriangleList, 0, 0, GetIndexCount());
+		prim.Compile(context.pass);
 
 		context.pass.AddPrimitive(&prim);
 	}

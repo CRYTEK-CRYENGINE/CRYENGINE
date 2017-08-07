@@ -20,6 +20,17 @@
 namespace pfx2
 {
 
+struct SEnable
+{
+public:
+	SEnable() : m_value(true) {}
+	ILINE             operator bool() const { return m_value; }
+	ILINE void        Set(bool value)       { m_value = value; }
+private:
+	ILINE friend bool Serialize(Serialization::IArchive& ar, SEnable& val, const char* name, const char* label);
+	bool m_value;
+};
+
 template<typename T>
 ILINE T RemoveNegZero(T val)
 {
@@ -32,125 +43,108 @@ ILINE float RemoveNegZero(float val)
 	return val == -0.0f ? 0.0f : val;
 }
 
-struct ConvertIdentity
+struct BaseTraits
 {
-	template<typename T>
-	static T To(T val)
-	{
-		return RemoveNegZero(val);
-	}
-	template<typename T>
-	static T From(T val)
-	{
-		return RemoveNegZero(val);
-	}
+	template<typename T> static T Default()   { return T(); }
+	template<typename T> static T HardMin()   { return std::numeric_limits<T>::lowest(); }
+	template<typename T> static T HardMax()   { return std::numeric_limits<T>::max(); }
+	template<typename T> static T To(T val)   { return RemoveNegZero(val); } // write to value
+	template<typename T> static T From(T val) { return RemoveNegZero(val); } // read from value
 };
 
-struct SEnable
-{
-public:
-	SEnable() : m_value(true) {}
-	ILINE             operator bool() const { return m_value; }
-	ILINE void        Set(bool value)       { m_value = value; }
-private:
-	ILINE friend bool Serialize(Serialization::IArchive& ar, SEnable& val, const char* name, const char* label);
-	bool m_value;
-};
-
-template<typename T, typename TLimits, typename TConvert = ConvertIdentity>
-struct TValue
+template<typename T, typename TTraits = BaseTraits>
+struct TValue: TTraits
 {
 public:
 	typedef T TType;
-	TValue(TType var = TType(0)) { Set(var); }
-	void Set(TType value) { m_value = CLAMP(TConvert::To(value), HardMin(), HardMax()); }
 
-	operator TType() const { return m_value; }
-	TType        Get() const  { return m_value; }
-	TType        Base() const { return m_value; }
-	TType        Min() const  { return m_value; }
-	TType        Max() const  { return m_value; }
+	TValue() { Set(Default()); }
+	TValue(T var) { Set(var); }
 
-	static TType HardMin()    { return TLimits::isHardMin ? TType(TLimits::minValue) : std::numeric_limits<TType>::lowest(); }
-	static TType HardMax()    { return TLimits::isHardMax ? TType(TLimits::maxValue) : std::numeric_limits<TType>::max(); }
-	static TType SoftMin()    { return TType(TLimits::minValue); }
-	static TType SoftMax()    { return TType(TLimits::maxValue); }
+	void Set(T value)
+	{
+		m_value = TTraits::To(crymath::clamp(value, HardMin(), HardMax()));
+	}
+
+	operator T() const        { return m_value; }
+	T        Get() const      { return m_value; }
+
+	static T Default()        { return TTraits::template Default<T>(); }
+	static T HardMin()        { return TTraits::template HardMin<T>(); }
+	static T HardMax()        { return TTraits::template HardMax<T>(); }
+	static bool InfiniteMax() { return HardMax() > std::numeric_limits<T>::max(); }
 
 private:
 
 	friend bool Serialize(Serialization::IArchive& ar, TValue& val, const char* name, const char* label)
 	{
-		TType v = TConvert::From(val.m_value);
-		bool res = ar(
-		  Serialization::Range(v, (TType)HardMin(), (TType)HardMax()),
-		  name, label);
-		val.m_value = TConvert::To(v);
-		return res;
+		return val.Serialize(ar, name, label);
 	}
 
-	TType m_value;
+	bool Serialize(Serialization::IArchive& ar, const char* name, const char* label);
+
+	T m_value;
 };
 
-// Specify value limits
-template<int L, int H>
-struct TLimits
+template<int iMin, typename Base = BaseTraits>
+struct THardMin: Base
 {
-	static const int minValue = L;
-	static const int maxValue = H;
+	template<typename T> static T HardMin() { return T(iMin); }
 };
 
-template<int L, int H>
-struct THardLimits : TLimits<L, H>
+template<int iMin, int iMax, typename Base = BaseTraits>
+struct THardLimits: THardMin<iMin, Base>
 {
-	static const bool isHardMin = true;
-	static const bool isHardMax = true;
+	template<typename T> static T HardMax() { return T(iMax); }
 };
 
-template<int L, int H>
-struct THardMin : TLimits<L, H>
+template<typename Base = BaseTraits>
+struct TInfinite: Base
 {
-	static const bool isHardMin = true;
-	static const bool isHardMax = false;
+	template<typename T> static T HardMax() { return std::numeric_limits<T>::infinity(); }
+	template<typename T> static T Default() { return std::numeric_limits<T>::infinity(); }
 };
 
-template<int L, int H>
-struct TSoftLimits : TLimits<L, H>
+template<typename Base = BaseTraits>
+struct TPositive: Base
 {
-	static const bool isHardMin = false;
-	static const bool isHardMax = false;
+	template<typename T> static T HardMin() { return std::numeric_limits<T>::min(); }
 };
 
-template<int H>
-struct SSoftLimit : TSoftLimits<-H, H> {};
+typedef TValue<float>                           SFloat;
+typedef TValue<float, THardMin<0>>              UFloat;
 
-template<int H>
-struct USoftLimit : TLimits<0, H>
+typedef TValue<float, THardMin<0, TInfinite<>>> UInfFloat;
+typedef TValue<float, TPositive<TInfinite<>>>   PInfFloat;
+
+typedef TValue<float, THardLimits<-1, 1>>       SUnitFloat;
+typedef TValue<float, THardLimits<0, 1>>        UUnitFloat;
+
+typedef TValue<uint, THardLimits<0, 255>>       UByte;
+typedef TValue<uint, THardLimits<1, 256>>       UBytePos;
+
+template<int iTo, int iFrom, typename Base = BaseTraits>
+struct ConvertScale: Base
 {
-	static const bool isHardMin = true;
-	static const bool isHardMax = false;
+	template<typename T> static T To(T val)	  { return Base::To(val * T(iTo) / T(iFrom)); }
+	template<typename T> static T From(T val) { return Base::From(val) * T(iFrom) / T(iTo) ; }
 };
 
-typedef TValue<float, SSoftLimit<1>>      SFloat;
-typedef TValue<float, SSoftLimit<10>>     SFloat10;
-typedef TValue<float, USoftLimit<1>>      UFloat;
-typedef TValue<float, USoftLimit<10>>     UFloat10;
-typedef TValue<float, USoftLimit<100>>    UFloat100;
-
-typedef TValue<float, THardLimits<-1, 1>> SUnitFloat;
-typedef TValue<float, THardLimits<0, 1>>  UUnitFloat;
-
-typedef TValue<uint, THardLimits<0, 255>> UByte;
-typedef TValue<uint, THardLimits<1, 256>> UBytePos;
-
-struct ConvertDegrees
+struct ConvertDegrees: BaseTraits
 {
-	static float From(float val) { return RemoveNegZero(RAD2DEG(val)); }
-	static float To(float val)   { return RemoveNegZero(DEG2RAD(val)); }
+	template<typename T> static T To(T val)	  { return BaseTraits::To(DEG2RAD(val)); }
+	template<typename T> static T From(T val) { return BaseTraits::From(RAD2DEG(val)); }
 };
-typedef TValue<float, SSoftLimit<360>, ConvertDegrees>        SAngle;
-typedef TValue<float, USoftLimit<360>, ConvertDegrees>        UAngle;
-typedef TValue<float, THardLimits<-360, 360>, ConvertDegrees> SAngle360;
-typedef TValue<float, THardLimits<0, 180>, ConvertDegrees>    UAngle180;
+
+typedef TValue<float, ConvertDegrees>                         SAngle;
+typedef TValue<float, THardMin<0, ConvertDegrees>>            UAngle;
+typedef TValue<float, THardLimits<-360, 360, ConvertDegrees>> SAngle360;
+typedef TValue<float, THardLimits<0, 180, ConvertDegrees>>    UAngle180;
+
+// Legacy
+typedef SFloat SFloat10;
+typedef UFloat UFloat10;
+typedef UFloat UFloat100;
 
 }
 

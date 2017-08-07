@@ -41,11 +41,6 @@ CCryDX12BlendState::CCryDX12BlendState(const D3D11_BLEND_DESC& desc11, const D3D
 
 }
 
-CCryDX12BlendState::~CCryDX12BlendState()
-{
-
-}
-
 #pragma region /* ID3D11BlendState implementation */
 
 void STDMETHODCALLTYPE CCryDX12BlendState::GetDesc(

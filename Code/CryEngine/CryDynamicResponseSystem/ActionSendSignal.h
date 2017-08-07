@@ -17,7 +17,6 @@ class CActionSendSignal final : public DRS::IResponseAction
 public:
 	CActionSendSignal() : m_signalName(), m_bCopyContextVariables(false) {}
 	CActionSendSignal(const CHashedString& signalName, bool copyContext) : m_signalName(signalName), m_bCopyContextVariables(copyContext){}
-	virtual ~CActionSendSignal() {}
 
 	//////////////////////////////////////////////////////////
 	// IResponseAction implementation

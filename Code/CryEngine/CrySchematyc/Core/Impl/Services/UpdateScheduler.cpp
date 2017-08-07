@@ -100,7 +100,7 @@ void CUpdateScheduler::CBucket::Update(const SUpdateContext(&frequencyUpdateCont
 		}
 		else if (observer.currentPriority <= beginPriority)
 		{
-			if (!observer.callback.IsEmpty() && (observer.filter.IsEmpty() || observer.filter()))
+			if (observer.callback && (!observer.filter || observer.filter()))
 			{
 				observer.callback(frequencyUpdateContexts[observer.frequency]);
 			}

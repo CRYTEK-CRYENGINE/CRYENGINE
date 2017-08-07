@@ -116,7 +116,7 @@ void CGameRulesStandardVictoryConditionsPlayer::Update( float frameTime )
 						}
 					}
 				}
-				float  rem = MAX(0.f, ((g_pGameCVars->g_timelimitextratime * 60.f) + timeRemaining));  // remember, timeRemaining will be negative here
+				float  rem = std::max(0.f, ((g_pGameCVars->g_timelimitextratime * 60.f) + timeRemaining));  // remember, timeRemaining will be negative here
 				WATCH_SURVONE_LV1("TIME: %.2f *** SUDDEN DEATH!! ***", rem);
 			}
 		}

@@ -13,8 +13,6 @@
 #include "StatsManager.h"
 #include "DebugDrawContext.h"
 
-#pragma warning (disable: 6313)
-
 // Useful formatting strings
 // 30 characters total are allowed for this in the standard view!
 // 20 (max) of those are usually used for the short description

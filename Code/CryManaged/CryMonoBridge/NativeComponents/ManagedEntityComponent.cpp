@@ -1,98 +1,62 @@
 #include "StdAfx.h"
 #include "ManagedEntityComponent.h"
 
-#include <CryMono/IMonoRuntime.h>
-#include <CryMono/IMonoAssembly.h>
-#include <CryMono/IMonoClass.h>
-#include <CryMono/IMonoDomain.h>
+#include "MonoRuntime.h"
+
+#include "Wrappers/MonoString.h"
+#include "Wrappers/MonoDomain.h"
+#include "Wrappers/MonoClass.h"
+#include "Wrappers/MonoMethod.h"
 
 #include <CryPhysics/physinterface.h>
 
-#include <CrySerialization/Decorators/Resources.h>
-
-CManagedEntityComponentFactory::CManagedEntityComponentFactory(std::shared_ptr<IMonoClass> pClass, CryInterfaceID id)
-	: m_pClass(pClass)
-	, m_id(id)
-	, m_eventMask(0)
-{
-	IMonoClass* pEntityComponentClass = gEnv->pMonoRuntime->GetCryCoreLibrary()->GetClass("CryEngine", "EntityComponent");
-
-	if (m_pClass->IsMethodImplemented(pEntityComponentClass, "OnTransformChanged()"))
-	{
-		m_eventMask |= BIT64(ENTITY_EVENT_XFORM);
-	}
-	if (m_pClass->IsMethodImplemented(pEntityComponentClass, "OnUpdate(single)"))
-	{
-		m_eventMask |= BIT64(ENTITY_EVENT_UPDATE);
-	}
-	if (m_pClass->IsMethodImplemented(pEntityComponentClass, "OnEditorGameModeChange(bool)"))
-	{
-		m_eventMask |= BIT64(ENTITY_EVENT_RESET);
-	}
-	if (m_pClass->IsMethodImplemented(pEntityComponentClass, "OnHide()"))
-	{
-		m_eventMask |= BIT64(ENTITY_EVENT_HIDE);
-	}
-	if (m_pClass->IsMethodImplemented(pEntityComponentClass, "OnUnhide()"))
-	{
-		m_eventMask |= BIT64(ENTITY_EVENT_UNHIDE);
-	}
-	if (m_pClass->IsMethodImplemented(pEntityComponentClass, "OnCollision(CollisionEvent)"))
-	{
-		m_eventMask |= BIT64(ENTITY_EVENT_COLLISION);
-	}
-	if (m_pClass->IsMethodImplemented(pEntityComponentClass, "OnPrePhysicsUpdate(single)"))
-	{
-		m_eventMask |= BIT64(ENTITY_EVENT_PREPHYSICSUPDATE);
-	}
-}
-
-CManagedEntityComponentFactory::SProperty::SProperty(MonoReflectionPropertyInternal* pReflectionProperty, const char* szName, const char* szLabel, const char* szDesc, EEntityPropertyType serType)
-	: pProperty(pReflectionProperty)
-	, name(szName)
-	, label(szLabel)
-	, description(szDesc)
-	, serializationType(serType)
-{
-	MonoMethod* pGetMethod = mono_property_get_get_method(pReflectionProperty->property);
-	MonoMethodSignature* pGetMethodSignature = mono_method_get_signature(pGetMethod, mono_class_get_image(pReflectionProperty->klass), mono_method_get_token(pGetMethod));
-
-	MonoType* pPropertyType = mono_signature_get_return_type(pGetMethodSignature);
-	type = (MonoTypeEnum)mono_type_get_type(pPropertyType);
-}
-
 CManagedEntityComponent::CManagedEntityComponent(const CManagedEntityComponentFactory& factory)
 	: m_factory(factory)
-	, m_eventMask(factory.GetEventMask())
+	, m_pMonoObject(m_factory.m_pClass->CreateUninitializedInstance())
 {
-	m_propertyLabel = factory.GetClass()->GetName();
-	m_propertyLabel.append(" Properties");
+	m_factory.m_pConstructorMethod->Invoke(m_pMonoObject.get());
 }
 
-void CManagedEntityComponent::Initialize()
+void CManagedEntityComponent::PreInit(const SInitParams& params)
 {
-	m_pMonoObject = m_factory.GetClass()->CreateUninitializedInstance();
+	IEntityComponent::PreInit(params);
 
-	EntityId id = GetEntity()->GetId();
+	m_pEntity = params.pEntity;
+
+	EntityId id = m_pEntity->GetId();
 
 	void* pParams[2];
 	pParams[0] = &m_pEntity;
 	pParams[1] = &id;
 
-	IMonoClass* pEntityComponentClass = gEnv->pMonoRuntime->GetCryCoreLibrary()->GetClass("CryEngine", "EntityComponent");
+	m_factory.m_pInternalSetEntityMethod->Invoke(m_pMonoObject.get(), pParams);
+}
 
-	pEntityComponentClass->InvokeMethod("Initialize", m_pMonoObject.get(), pParams, 2);
+void CManagedEntityComponent::Initialize()
+{
+	if (m_factory.m_pInitializeMethod != nullptr)
+	{
+		m_factory.m_pInitializeMethod->Invoke(m_pMonoObject.get());
+	}
 
-	m_pMonoObject->InvokeMethod(".ctor");
+	if (m_factory.m_pGameStartMethod != nullptr && !gEnv->IsEditing() && gEnv->pGameFramework->IsGameStarted())
+	{
+		m_factory.m_pGameStartMethod->Invoke(m_pMonoObject.get());
+	}
 }
 
 void CManagedEntityComponent::ProcessEvent(SEntityEvent &event)
 {
 	switch (event.event)
 	{
+		case ENTITY_EVENT_START_GAME:
+			{
+				m_factory.m_pGameStartMethod->Invoke(m_pMonoObject.get());
+			}
+			break;
 		case ENTITY_EVENT_XFORM:
 			{
-				m_pMonoObject->InvokeMethod("OnTransformChanged");
+				m_factory.m_pTransformChangedMethod->Invoke(m_pMonoObject.get());
 			}
 			break;
 		case ENTITY_EVENT_UPDATE:
@@ -100,7 +64,20 @@ void CManagedEntityComponent::ProcessEvent(SEntityEvent &event)
 				void* pParams[1];
 				pParams[0] = &((SEntityUpdateContext*)event.nParam[0])->fFrameTime;
 
-				m_pMonoObject->InvokeMethod("OnUpdate", pParams, 1);
+				if (gEnv->IsEditing())
+				{
+					if (m_factory.m_pUpdateMethodEditing != nullptr)
+					{
+						m_factory.m_pUpdateMethodEditing->Invoke(m_pMonoObject.get(), pParams);
+					}
+				}
+				else
+				{
+					if (m_factory.m_pUpdateMethod != nullptr)
+					{
+						m_factory.m_pUpdateMethod->Invoke(m_pMonoObject.get(), pParams);
+					}
+				}
 			}
 			break;
 		case ENTITY_EVENT_RESET:
@@ -108,17 +85,17 @@ void CManagedEntityComponent::ProcessEvent(SEntityEvent &event)
 				void* pParams[1];
 				pParams[0] = &event.nParam[0];
 
-				m_pMonoObject->InvokeMethod("OnEditorGameModeChange", pParams, 1);
+				m_factory.m_pGameModeChangeMethod->Invoke(m_pMonoObject.get(), pParams);
 			}
 			break;
 		case ENTITY_EVENT_HIDE:
 			{
-				m_pMonoObject->InvokeMethod("OnHide");
+				m_factory.m_pHideMethod->Invoke(m_pMonoObject.get());
 			}
 			break;
 		case ENTITY_EVENT_UNHIDE:
 			{
-				m_pMonoObject->InvokeMethod("OnUnhide");
+				m_factory.m_pUnHideMethod->Invoke(m_pMonoObject.get());
 			}
 			break;
 		case ENTITY_EVENT_COLLISION:
@@ -129,7 +106,7 @@ void CManagedEntityComponent::ProcessEvent(SEntityEvent &event)
 				pParams[0] = &pCollision->pEntity[0];
 				pParams[1] = &pCollision->pEntity[1];
 
-				m_pMonoObject->InvokeMethod("OnCollisionInternal", pParams, 2);
+				m_factory.m_pCollisionMethod->Invoke(m_pMonoObject.get(), pParams);
 			}
 			break;
 		case ENTITY_EVENT_PREPHYSICSUPDATE:
@@ -137,149 +114,86 @@ void CManagedEntityComponent::ProcessEvent(SEntityEvent &event)
 				void* pParams[1];
 				pParams[0] = &event.fParam[0];
 
-				m_pMonoObject->InvokeMethod("OnPrePhysicsUpdate", pParams, 1);
+				m_factory.m_pPrePhysicsUpdateMethod->Invoke(m_pMonoObject.get(), pParams);
+			}
+			break;
+		case ENTITY_EVENT_DONE:
+			{
+				m_factory.m_pRemoveMethod->Invoke(m_pMonoObject.get());
 			}
 			break;
 	}
 }
 
-template <typename T>
-void SerializePrimitive(Serialization::IArchive& archive, const CManagedEntityComponentFactory::SProperty& property, void* pObject)
+void CManagedEntityComponent::SendSignal(int signalId, MonoInternals::MonoArray* pParams)
 {
-	T value;
-	if (archive.isOutput())
+	if (Schematyc::IObject* pSchematycObject = m_pEntity->GetSchematycObject())
 	{
-		// TODO: Wrap into IMonoProperty and handle exceptions
-		MonoObject *pValue = mono_property_get_value(property.pProperty->property, pObject, nullptr, nullptr);
+		CManagedEntityComponentFactory::CSchematycSignal& signal = *m_factory.m_schematycSignals[signalId].get();
+		Schematyc::SObjectSignal objectSignal(signal.GetGUID(), GetGUID());
 
-		value = *(T*)mono_object_unbox(pValue);
-	}
+		size_t numParams = MonoInternals::mono_array_length(pParams);
+		objectSignal.params.ReserveInputs(numParams);
 
-	archive(value, property.name, property.label);
+		std::vector<std::shared_ptr<Schematyc::CAnyValue>> inputValues;
+		inputValues.resize(numParams);
 
-	if (archive.isInput())
-	{
-		void* pParams[1];
-		pParams[0] = &value;
-
-		mono_property_set_value(property.pProperty->property, pObject, pParams, nullptr);
-	}
-}
-
-void CManagedEntityComponent::SerializeProperties(Serialization::IArchive& archive)
-{
-	for (auto it = m_factory.GetProperties().begin(); it != m_factory.GetProperties().end(); ++it)
-	{
-		switch (it->type)
+		for (size_t i = 0; i < numParams; ++i)
 		{
-			case MONO_TYPE_BOOLEAN:
-				{
-					SerializePrimitive<bool>(archive, *it, m_pMonoObject->GetHandle());
-				}
-				break;
-			case MONO_TYPE_STRING:
-				{
-					string value;
-					if (archive.isOutput())
-					{
-						// TODO: Wrap into IMonoProperty and handle exceptions
-						MonoObject *pValue = mono_property_get_value(it->pProperty->property, m_pMonoObject->GetHandle(), nullptr, nullptr);
+			MonoInternals::MonoObject* pObject = *(MonoInternals::MonoObject**)MonoInternals::mono_array_addr_with_size(pParams, sizeof(void*), i);
+			MonoInternals::MonoType* pType = MonoInternals::mono_class_get_type(MonoInternals::mono_object_get_class(pObject));
+			MonoInternals::MonoTypeEnum type = (MonoInternals::MonoTypeEnum)MonoInternals::mono_type_get_type(pType);
 
-						value = mono_string_to_utf8((MonoString*)pValue);
-					}
+			switch (type)
+			{
+			case MonoInternals::MONO_TYPE_BOOLEAN:
+			{
+				inputValues[i] = Schematyc::CAnyValue::MakeShared(Schematyc::GetTypeDesc<bool>(), (bool*)mono_object_unbox(pObject));
+			}
+			break;
+			case MonoInternals::MONO_TYPE_STRING:
+			{
+				char* szString = MonoInternals::mono_string_to_utf8((MonoInternals::MonoString*)pObject);
+				Schematyc::CSharedString sharedString(szString);
 
-					switch (it->serializationType)
-					{
-						case EEntityPropertyType::Primitive:
-							archive(value, it->name, it->label);
-							break;
-						case EEntityPropertyType::Object:
-							archive(Serialization::ModelFilename(value), it->name, it->label);
-							break;
-						case EEntityPropertyType::Texture:
-							archive(Serialization::TextureFilename(value), it->name, it->label);
-							break;
-						case EEntityPropertyType::Particle:
-							archive(Serialization::ParticleName(value), it->name, it->label);
-							break;
-						case EEntityPropertyType::AnyFile:
-							archive(Serialization::GeneralFilename(value), it->name, it->label);
-							break;
-						case EEntityPropertyType::Sound:
-							archive(Serialization::SoundFilename(value), it->name, it->label);
-							break;
-						case EEntityPropertyType::Material:
-							archive(Serialization::MaterialPicker(value), it->name, it->label);
-							break;
-						case EEntityPropertyType::Animation:
-							archive(Serialization::CharacterAnimationPicker(value), it->name, it->label);
-							break;
-					}
+				inputValues[i] = Schematyc::CAnyValue::MakeShared(Schematyc::GetTypeDesc<Schematyc::CSharedString>(), &sharedString);
 
-					if (archive.isInput())
-					{
-						IMonoDomain* pDomain = m_pMonoObject->GetClass()->GetAssembly()->GetDomain();
+				MonoInternals::mono_free(szString);
+			}
+			break;
+			case MonoInternals::MONO_TYPE_U1:
+			case MonoInternals::MONO_TYPE_CHAR: // Char is unsigned by default for .NET
+			case MonoInternals::MONO_TYPE_U2:
+			case MonoInternals::MONO_TYPE_U4:
+			case MonoInternals::MONO_TYPE_U8:  // Losing precision! TODO: Add Schematyc support for 64?
+			{
+				inputValues[i] = Schematyc::CAnyValue::MakeShared(Schematyc::GetTypeDesc<uint32>(), (uint32*)mono_object_unbox(pObject));
+			}
+			break;
+			case MonoInternals::MONO_TYPE_I1:
+			case MonoInternals::MONO_TYPE_I2:
+			case MonoInternals::MONO_TYPE_I4:
+			case MonoInternals::MONO_TYPE_I8:  // Losing precision! TODO: Add Schematyc support for 64?
+			{
+				inputValues[i] = Schematyc::CAnyValue::MakeShared(Schematyc::GetTypeDesc<int32>(), (int32*)mono_object_unbox(pObject));
+			}
+			break;
+			
+			case MonoInternals::MONO_TYPE_R4:
+			case MonoInternals::MONO_TYPE_R8:  // Losing precision! TODO: Add Schematyc support for 64?
+			{
+				inputValues[i] = Schematyc::CAnyValue::MakeShared(Schematyc::GetTypeDesc<float>(), (float*)mono_object_unbox(pObject));
+			}
+			break;
 
-						void* pParams[1];
-						pParams[0] = pDomain->CreateManagedString(value);
+			default:
+				CRY_ASSERT_MESSAGE(false, "Tried to send Schematyc signal with non-primitive parameter type!");
+				return;
+			}
 
-						mono_property_set_value(it->pProperty->property, m_pMonoObject->GetHandle(), pParams, nullptr);
-					}
-				}
-				break;
-			case MONO_TYPE_U1:
-			case MONO_TYPE_CHAR: // Char is unsigned by default for .NET
-				{
-					SerializePrimitive<uchar>(archive, *it, m_pMonoObject->GetHandle());
-				}
-				break;
-			case MONO_TYPE_I1:
-				{
-					SerializePrimitive<char>(archive, *it, m_pMonoObject->GetHandle());
-				}
-				break;
-			case MONO_TYPE_I2:
-				{
-					SerializePrimitive<int16>(archive, *it, m_pMonoObject->GetHandle());
-				}
-				break;
-			case MONO_TYPE_U2:
-				{
-					SerializePrimitive<uint16>(archive, *it, m_pMonoObject->GetHandle());
-				}
-				break;
-			case MONO_TYPE_I4:
-				{
-					SerializePrimitive<int32>(archive, *it, m_pMonoObject->GetHandle());
-				}
-				break;
-			case MONO_TYPE_U4:
-				{
-					SerializePrimitive<uint32>(archive, *it, m_pMonoObject->GetHandle());
-				}
-				break;
-			case MONO_TYPE_I8:
-				{
-					SerializePrimitive<int64>(archive, *it, m_pMonoObject->GetHandle());
-				}
-				break;
-			case MONO_TYPE_U8:
-				{
-					SerializePrimitive<uint64>(archive, *it, m_pMonoObject->GetHandle());
-				}
-				break;
-			case MONO_TYPE_R4:
-				{
-					SerializePrimitive<float>(archive, *it, m_pMonoObject->GetHandle());
-				}
-				break;
-			case MONO_TYPE_R8:
-				{
-					SerializePrimitive<double>(archive, *it, m_pMonoObject->GetHandle());
-				}
-				break;
+			objectSignal.params.BindInput(Schematyc::CUniqueId::FromUInt32(i), inputValues[i]);
 		}
 
-		archive.doc(it->description);
+		pSchematycObject->ProcessSignal(objectSignal);
 	}
 }

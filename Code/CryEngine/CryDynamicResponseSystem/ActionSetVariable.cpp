@@ -156,8 +156,6 @@ void CActionSetVariable::Serialize(Serialization::IArchive& ar)
 //--------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------
 
-REGISTER_DRS_ACTION(CActionSetVariable, "ChangeVariable", "11DD11");
-
 namespace DRS
 {
 SERIALIZATION_ENUM_BEGIN_NESTED(CActionSetVariable, EChangeOperation, "OperationType")

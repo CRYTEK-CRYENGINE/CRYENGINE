@@ -6,18 +6,18 @@
 
 namespace CryAudio
 {
-class CAudioCVars final
+class CCVars final
 {
 public:
 
-	CAudioCVars() = default;
-	CAudioCVars(CAudioCVars const&) = delete;
-	CAudioCVars(CAudioCVars&&) = delete;
-	CAudioCVars& operator=(CAudioCVars const&) = delete;
-	CAudioCVars& operator=(CAudioCVars&&) = delete;
+	CCVars() = default;
+	CCVars(CCVars const&) = delete;
+	CCVars(CCVars&&) = delete;
+	CCVars& operator=(CCVars const&) = delete;
+	CCVars& operator=(CCVars&&) = delete;
 
-	void         RegisterVariables();
-	void         UnregisterVariables();
+	void    RegisterVariables();
+	void    UnregisterVariables();
 
 	int   m_fileCacheManagerSize = 0;
 	int   m_audioObjectPoolSize = 0;
@@ -26,6 +26,7 @@ public:
 	int   m_audioProxiesInitType = 0;
 	int   m_tickWithMainThread = 0;
 
+	float m_debugDistance = 0.0f;
 	float m_occlusionMaxDistance = 500.0f;
 	float m_occlusionMinDistance = 0.1f;
 	float m_occlusionMaxSyncDistance = 0.0f;
@@ -43,17 +44,16 @@ public:
 	int    m_audioLoggingOptions = 0;
 	int    m_showActiveAudioObjectsOnly = 0;
 	int    m_audioObjectsRayType = 0;
-	ICVar* m_pAudioTriggersDebugFilter = nullptr;
-	ICVar* m_pAudioObjectsDebugFilter = nullptr;
+	ICVar* m_pDebugFilter = nullptr;
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
 private:
 
 	static void CmdExecuteTrigger(IConsoleCmdArgs* pCmdArgs);
 	static void CmdStopTrigger(IConsoleCmdArgs* pCmdArgs);
-	static void CmdSetRtpc(IConsoleCmdArgs* pCmdArgs);
+	static void CmdSetParameter(IConsoleCmdArgs* pCmdArgs);
 	static void CmdSetSwitchState(IConsoleCmdArgs* pCmdArgs);
 };
-} // namespace CryAudio
 
-extern CryAudio::CAudioCVars g_audioCVars;
+extern CCVars g_cvars;
+} // namespace CryAudio

@@ -38,12 +38,10 @@ vert2fragZPrepass Common_ZPrepassVS(app2vertZGeneral IN_common)
 #endif
 
 #if %_RT_ALPHATEST
-    float fAlphaTest = Get_MaterialAlphaTest();
-	float fDissolve = Get_SPI_Dissolve();
-	OUT.baseTC.wz = float2(fAlphaTest,fDissolve);
+	_TCModify(vertPassPos.baseTC, OUT.baseTC, vertPassPos.Position, vertPassPos.ObjToTangentSpace[2], TS_DIFFUSE);
+	OUT.baseTC.wz = float2(Get_MaterialAlphaTest(), Get_SPI_Dissolve());
 
 	// todo: generalize alpha testing code
-	OUT.baseTC = vertPassPos.baseTC; 
 	#if %LEAVES
 		float3 worldTangentS = mul((const float3x3)vertPassPos.InstMatrix, vertPassPos.ObjToTangentSpace[0]);
 		float3 worldTangentT = mul((const float3x3)vertPassPos.InstMatrix, vertPassPos.ObjToTangentSpace[1]);

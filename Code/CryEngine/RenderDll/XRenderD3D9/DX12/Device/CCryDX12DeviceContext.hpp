@@ -1,29 +1,19 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     03/02/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __CCRYDX12DEVICECONTEXT__
-	#define __CCRYDX12DEVICECONTEXT__
 	
-	#include "DX12/CCryDX12Object.hpp"
-	#include "DX12/Misc/SCryDX11PipelineState.hpp"
+#include "DX12/CCryDX12Object.hpp"
+#include "DX12/Misc/SCryDX11PipelineState.hpp"
 
-	#include "DX12/API/DX12Base.hpp"
-	#include "DX12/API/DX12CommandList.hpp"
+#include "DX12/API/DX12Base.hpp"
+#include "DX12/API/DX12CommandScheduler.hpp"
+#include "DX12/API/DX12CommandList.hpp"
 
-	#include "DX12/Device/CCryDX12Device.hpp"
+#include "DX12/Device/CCryDX12Device.hpp"
 
 class CCryDX12DeviceContext : public CCryDX12Object<ID3D11DeviceContext1ToImplement>
 {
-	friend class CDeviceManager;
+	friend class CSubmissionQueue_DX11;
 	friend class CDeviceObjectFactory;
 
 public:
@@ -45,47 +35,24 @@ public:
 		return m_nodeMask;
 	}
 
-	bool RecreateCommandListPool(int nPoolId);
-
-	ILINE void CeaseCoreCommandList(uint32 nPoolId)
+	ILINE bool CCryDX12DeviceContext::RecreateCommandListPool(int nPoolId)
 	{
-		CeaseCommandQueue(nPoolId, false);
+		return m_Scheduler.RecreateCommandListPool(nPoolId, m_nodeMask);
 	}
 
-	ILINE void ResumeCoreCommandList(uint32 nPoolId)
-	{
-		ResumeCommandQueue(nPoolId);
-	}
+	void CeaseCommandQueueCallback(int nPoolId);
+	void ResumeCommandQueueCallback(int nPoolId);
 
-	ILINE NCryDX12::CCommandListPool& GetCoreCommandListPool(int nPoolId = CMDQUEUE_GRAPHICS)
-	{
-		return m_CmdListPools[nPoolId];
-	}
+	ILINE NCryDX12::CCommandScheduler& GetDX12Scheduler() { return m_Scheduler; }
 
-	ILINE NCryDX12::CCommandList* GetCoreCommandList(int nPoolId = CMDQUEUE_GRAPHICS)
-	{
-		return m_pCmdLists[nPoolId];
-	}
+	ILINE NCryDX12::CCommandListPool& GetCoreGraphicsCommandListPool() {
+		return m_Scheduler.GetCommandListPool(CMDQUEUE_GRAPHICS); }
+	ILINE NCryDX12::CCommandList* GetCoreGraphicsCommandList() const {
+		return m_Scheduler.GetCommandList(CMDQUEUE_GRAPHICS); }
 
-	ILINE NCryDX12::CCommandListPool& GetCoreGraphicsCommandListPool()
-	{
-		return m_CmdListPools[CMDQUEUE_GRAPHICS];
-	}
-
-	ILINE NCryDX12::CCommandList* GetCoreGraphicsCommandList() const
-	{
-		return m_pCmdLists[CMDQUEUE_GRAPHICS];
-	}
-
-	ILINE CCryDX12Device* GetDevice() const
-	{
-		return m_pDevice;
-	}
-
-	ILINE ID3D12Device* GetD3D12Device() const
-	{
-		return m_pDevice->GetD3D12Device();
-	}
+	ILINE CCryDX12Device*    GetDevice     () const { return m_pDevice; }
+	ILINE NCryDX12::CDevice* GetDX12Device () const { return m_pDevice->GetDX12Device(); }
+	ILINE ID3D12Device*      GetD3D12Device() const { return m_pDevice->GetD3D12Device(); }
 
 	ILINE CCryDX12DeviceContext* SetNode(UINT nodeMask) const
 	{
@@ -97,226 +64,226 @@ public:
 
 	#pragma region /* ID3D11DeviceChild implementation */
 
-	virtual void STDMETHODCALLTYPE GetDevice(
-	  _Out_ ID3D11Device** ppDevice) final;
+	VIRTUALGFX void STDMETHODCALLTYPE GetDevice(
+	  _Out_ ID3D11Device** ppDevice) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE GetPrivateData(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetPrivateData(
 	  _In_ REFGUID guid,
 	  _Inout_ UINT* pDataSize,
-	  _Out_writes_bytes_opt_(*pDataSize)  void* pData) final;
+	  _Out_writes_bytes_opt_(*pDataSize)  void* pData) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE SetPrivateData(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE SetPrivateData(
 	  _In_ REFGUID guid,
 	  _In_ UINT DataSize,
-	  _In_reads_bytes_opt_(DataSize)  const void* pData) final;
+	  _In_reads_bytes_opt_(DataSize)  const void* pData) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(
 	  _In_ REFGUID guid,
-	  _In_opt_ const IUnknown* pData) final;
+	  _In_opt_ const IUnknown* pData) FINALGFX;
 
 	#pragma endregion
 
 	#pragma region /* ID3D11DeviceContext implementation */
 
-	virtual void STDMETHODCALLTYPE VSSetConstantBuffers(
+	VIRTUALGFX void STDMETHODCALLTYPE VSSetConstantBuffers(
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - StartSlot)  UINT NumBuffers,
-	  _In_reads_opt_(NumBuffers)  ID3D11Buffer * const* ppConstantBuffers) final;
+	  _In_reads_opt_(NumBuffers)  ID3D11Buffer * const* ppConstantBuffers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE PSSetShaderResources(
+	VIRTUALGFX void STDMETHODCALLTYPE PSSetShaderResources(
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - StartSlot)  UINT NumViews,
-	  _In_reads_opt_(NumViews)  ID3D11ShaderResourceView * const* ppShaderResourceViews) final;
+	  _In_reads_opt_(NumViews)  ID3D11ShaderResourceView * const* ppShaderResourceViews) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE PSSetShader(
+	VIRTUALGFX void STDMETHODCALLTYPE PSSetShader(
 	  _In_opt_ ID3D11PixelShader * pPixelShader,
 	  _In_reads_opt_(NumClassInstances)  ID3D11ClassInstance * const* ppClassInstances,
-	  UINT NumClassInstances) final;
+	  UINT NumClassInstances) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE PSSetSamplers(
+	VIRTUALGFX void STDMETHODCALLTYPE PSSetSamplers(
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - StartSlot)  UINT NumSamplers,
-	  _In_reads_opt_(NumSamplers)  ID3D11SamplerState * const* ppSamplers) final;
+	  _In_reads_opt_(NumSamplers)  ID3D11SamplerState * const* ppSamplers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE VSSetShader(
+	VIRTUALGFX void STDMETHODCALLTYPE VSSetShader(
 	  _In_opt_ ID3D11VertexShader * pVertexShader,
 	  _In_reads_opt_(NumClassInstances)  ID3D11ClassInstance * const* ppClassInstances,
-	  UINT NumClassInstances) final;
+	  UINT NumClassInstances) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE DrawIndexed(
+	VIRTUALGFX void STDMETHODCALLTYPE DrawIndexed(
 	  _In_ UINT IndexCount,
 	  _In_ UINT StartIndexLocation,
-	  _In_ INT BaseVertexLocation) final;
+	  _In_ INT BaseVertexLocation) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE Draw(
+	VIRTUALGFX void STDMETHODCALLTYPE Draw(
 	  _In_ UINT VertexCount,
-	  _In_ UINT StartVertexLocation) final;
+	  _In_ UINT StartVertexLocation) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE Map(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE Map(
 	  _In_ ID3D11Resource* pResource,
 	  _In_ UINT Subresource,
 	  _In_ D3D11_MAP MapType,
 	  _In_ UINT MapFlags,
-	  _Out_ D3D11_MAPPED_SUBRESOURCE* pMappedResource) final;
+	  _Out_ D3D11_MAPPED_SUBRESOURCE* pMappedResource) FINALGFX;
 	
-	virtual HRESULT STDMETHODCALLTYPE Map(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE Map(
 	  _In_ ID3D11Resource* pResource,
 	  _In_ UINT Subresource,
 	  _In_ SIZE_T* BeginEnd,
 	  _In_ D3D11_MAP MapType,
 	  _In_ UINT MapFlags,
-	  _Out_ D3D11_MAPPED_SUBRESOURCE* pMappedResource) final;
+	  _Out_ D3D11_MAPPED_SUBRESOURCE* pMappedResource) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE Unmap(
+	VIRTUALGFX void STDMETHODCALLTYPE Unmap(
 	  _In_ ID3D11Resource* pResource,
-	  _In_ UINT Subresource) final;
+	  _In_ UINT Subresource) FINALGFX;
 	
-	virtual void STDMETHODCALLTYPE Unmap(
+	VIRTUALGFX void STDMETHODCALLTYPE Unmap(
 	  _In_ ID3D11Resource* pResource,
 	  _In_ UINT Subresource,
-	  _In_ SIZE_T* BeginEnd) final;
+	  _In_ SIZE_T* BeginEnd) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE PSSetConstantBuffers(
+	VIRTUALGFX void STDMETHODCALLTYPE PSSetConstantBuffers(
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - StartSlot)  UINT NumBuffers,
-	  _In_reads_opt_(NumBuffers)  ID3D11Buffer * const* ppConstantBuffers) final;
+	  _In_reads_opt_(NumBuffers)  ID3D11Buffer * const* ppConstantBuffers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE IASetInputLayout(
-	  _In_opt_ ID3D11InputLayout* pInputLayout) final;
+	VIRTUALGFX void STDMETHODCALLTYPE IASetInputLayout(
+	  _In_opt_ ID3D11InputLayout* pInputLayout) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE IASetVertexBuffers(
+	VIRTUALGFX void STDMETHODCALLTYPE IASetVertexBuffers(
 	  _In_range_(0, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT - StartSlot)  UINT NumBuffers,
 	  _In_reads_opt_(NumBuffers)  ID3D11Buffer * const* ppVertexBuffers,
 	  _In_reads_opt_(NumBuffers)  const UINT * pStrides,
-	  _In_reads_opt_(NumBuffers)  const UINT * pOffsets) final;
+	  _In_reads_opt_(NumBuffers)  const UINT * pOffsets) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE IASetIndexBuffer(
+	VIRTUALGFX void STDMETHODCALLTYPE IASetIndexBuffer(
 	  _In_opt_ ID3D11Buffer* pIndexBuffer,
 	  _In_ DXGI_FORMAT Format,
-	  _In_ UINT Offset) final;
+	  _In_ UINT Offset) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE DrawIndexedInstanced(
+	VIRTUALGFX void STDMETHODCALLTYPE DrawIndexedInstanced(
 	  _In_ UINT IndexCountPerInstance,
 	  _In_ UINT InstanceCount,
 	  _In_ UINT StartIndexLocation,
 	  _In_ INT BaseVertexLocation,
-	  _In_ UINT StartInstanceLocation) final;
+	  _In_ UINT StartInstanceLocation) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE DrawInstanced(
+	VIRTUALGFX void STDMETHODCALLTYPE DrawInstanced(
 	  _In_ UINT VertexCountPerInstance,
 	  _In_ UINT InstanceCount,
 	  _In_ UINT StartVertexLocation,
-	  _In_ UINT StartInstanceLocation) final;
+	  _In_ UINT StartInstanceLocation) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE GSSetConstantBuffers(
+	VIRTUALGFX void STDMETHODCALLTYPE GSSetConstantBuffers(
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - StartSlot)  UINT NumBuffers,
-	  _In_reads_opt_(NumBuffers)  ID3D11Buffer * const* ppConstantBuffers) final;
+	  _In_reads_opt_(NumBuffers)  ID3D11Buffer * const* ppConstantBuffers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE GSSetShader(
+	VIRTUALGFX void STDMETHODCALLTYPE GSSetShader(
 	  _In_opt_ ID3D11GeometryShader * pShader,
 	  _In_reads_opt_(NumClassInstances)  ID3D11ClassInstance * const* ppClassInstances,
-	  UINT NumClassInstances) final;
+	  UINT NumClassInstances) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE IASetPrimitiveTopology(
-	  _In_ D3D11_PRIMITIVE_TOPOLOGY Topology) final;
+	VIRTUALGFX void STDMETHODCALLTYPE IASetPrimitiveTopology(
+	  _In_ D3D11_PRIMITIVE_TOPOLOGY Topology) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE VSSetShaderResources(
+	VIRTUALGFX void STDMETHODCALLTYPE VSSetShaderResources(
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - StartSlot)  UINT NumViews,
-	  _In_reads_opt_(NumViews)  ID3D11ShaderResourceView * const* ppShaderResourceViews) final;
+	  _In_reads_opt_(NumViews)  ID3D11ShaderResourceView * const* ppShaderResourceViews) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE VSSetSamplers(
+	VIRTUALGFX void STDMETHODCALLTYPE VSSetSamplers(
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - StartSlot)  UINT NumSamplers,
-	  _In_reads_opt_(NumSamplers)  ID3D11SamplerState * const* ppSamplers) final;
+	  _In_reads_opt_(NumSamplers)  ID3D11SamplerState * const* ppSamplers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE Begin(
-	  _In_ ID3D11Asynchronous* pAsync) final;
+	VIRTUALGFX void STDMETHODCALLTYPE Begin(
+	  _In_ ID3D11Asynchronous* pAsync) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE End(
-	  _In_ ID3D11Asynchronous* pAsync) final;
+	VIRTUALGFX void STDMETHODCALLTYPE End(
+	  _In_ ID3D11Asynchronous* pAsync) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE GetData(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetData(
 	  _In_ ID3D11Asynchronous * pAsync,
 	  _Out_writes_bytes_opt_(DataSize)  void* pData,
 	  _In_ UINT DataSize,
-	  _In_ UINT GetDataFlags) final;
+	  _In_ UINT GetDataFlags) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE SetPredication(
+	VIRTUALGFX void STDMETHODCALLTYPE SetPredication(
 	  _In_opt_ ID3D11Predicate* pPredicate,
-	  _In_ BOOL PredicateValue) final;
+	  _In_ BOOL PredicateValue) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE GSSetShaderResources(
+	VIRTUALGFX void STDMETHODCALLTYPE GSSetShaderResources(
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - StartSlot)  UINT NumViews,
-	  _In_reads_opt_(NumViews)  ID3D11ShaderResourceView * const* ppShaderResourceViews) final;
+	  _In_reads_opt_(NumViews)  ID3D11ShaderResourceView * const* ppShaderResourceViews) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE GSSetSamplers(
+	VIRTUALGFX void STDMETHODCALLTYPE GSSetSamplers(
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - StartSlot)  UINT NumSamplers,
-	  _In_reads_opt_(NumSamplers)  ID3D11SamplerState * const* ppSamplers) final;
+	  _In_reads_opt_(NumSamplers)  ID3D11SamplerState * const* ppSamplers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE OMSetRenderTargets(
+	VIRTUALGFX void STDMETHODCALLTYPE OMSetRenderTargets(
 	  _In_range_(0, D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT)  UINT NumViews,
 	  _In_reads_opt_(NumViews)  ID3D11RenderTargetView * const* ppRenderTargetViews,
-	  _In_opt_ ID3D11DepthStencilView * pDepthStencilView) final;
+	  _In_opt_ ID3D11DepthStencilView * pDepthStencilView) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE OMSetRenderTargetsAndUnorderedAccessViews(
+	VIRTUALGFX void STDMETHODCALLTYPE OMSetRenderTargetsAndUnorderedAccessViews(
 	  _In_ UINT NumRTVs,
 	  _In_reads_opt_(NumRTVs)  ID3D11RenderTargetView * const* ppRenderTargetViews,
 	  _In_opt_ ID3D11DepthStencilView * pDepthStencilView,
 	  _In_range_(0, D3D11_1_UAV_SLOT_COUNT - 1)  UINT UAVStartSlot,
 	  _In_ UINT NumUAVs,
 	  _In_reads_opt_(NumUAVs)  ID3D11UnorderedAccessView * const* ppUnorderedAccessViews,
-	  _In_reads_opt_(NumUAVs)  const UINT * pUAVInitialCounts) final;
+	  _In_reads_opt_(NumUAVs)  const UINT * pUAVInitialCounts) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE OMSetBlendState(
+	VIRTUALGFX void STDMETHODCALLTYPE OMSetBlendState(
 	  _In_opt_ ID3D11BlendState* pBlendState,
 	  _In_opt_ const FLOAT BlendFactor[4],
-	  _In_ UINT SampleMask) final;
+	  _In_ UINT SampleMask) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE OMSetDepthStencilState(
+	VIRTUALGFX void STDMETHODCALLTYPE OMSetDepthStencilState(
 	  _In_opt_ ID3D11DepthStencilState* pDepthStencilState,
-	  _In_ UINT StencilRef) final;
+	  _In_ UINT StencilRef) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE SOSetTargets(
+	VIRTUALGFX void STDMETHODCALLTYPE SOSetTargets(
 	  _In_range_(0, D3D11_SO_BUFFER_SLOT_COUNT)  UINT NumBuffers,
 	  _In_reads_opt_(NumBuffers)  ID3D11Buffer * const* ppSOTargets,
-	  _In_reads_opt_(NumBuffers)  const UINT * pOffsets) final;
+	  _In_reads_opt_(NumBuffers)  const UINT * pOffsets) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE DrawAuto() final;
+	VIRTUALGFX void STDMETHODCALLTYPE DrawAuto() FINALGFX;
 
-	virtual void STDMETHODCALLTYPE DrawIndexedInstancedIndirect(
+	VIRTUALGFX void STDMETHODCALLTYPE DrawIndexedInstancedIndirect(
 	  _In_ ID3D11Buffer* pBufferForArgs,
-	  _In_ UINT AlignedByteOffsetForArgs) final;
+	  _In_ UINT AlignedByteOffsetForArgs) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE DrawInstancedIndirect(
+	VIRTUALGFX void STDMETHODCALLTYPE DrawInstancedIndirect(
 	  _In_ ID3D11Buffer* pBufferForArgs,
-	  _In_ UINT AlignedByteOffsetForArgs) final;
+	  _In_ UINT AlignedByteOffsetForArgs) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE Dispatch(
+	VIRTUALGFX void STDMETHODCALLTYPE Dispatch(
 	  _In_ UINT ThreadGroupCountX,
 	  _In_ UINT ThreadGroupCountY,
-	  _In_ UINT ThreadGroupCountZ) final;
+	  _In_ UINT ThreadGroupCountZ) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE DispatchIndirect(
+	VIRTUALGFX void STDMETHODCALLTYPE DispatchIndirect(
 	  _In_ ID3D11Buffer* pBufferForArgs,
-	  _In_ UINT AlignedByteOffsetForArgs) final;
+	  _In_ UINT AlignedByteOffsetForArgs) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE RSSetState(
-	  _In_opt_ ID3D11RasterizerState* pRasterizerState) final;
+	VIRTUALGFX void STDMETHODCALLTYPE RSSetState(
+	  _In_opt_ ID3D11RasterizerState* pRasterizerState) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE RSSetViewports(
+	VIRTUALGFX void STDMETHODCALLTYPE RSSetViewports(
 	  _In_range_(0, D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE)  UINT NumViewports,
-	  _In_reads_opt_(NumViewports)  const D3D11_VIEWPORT * pViewports) final;
+	  _In_reads_opt_(NumViewports)  const D3D11_VIEWPORT * pViewports) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE RSSetScissorRects(
+	VIRTUALGFX void STDMETHODCALLTYPE RSSetScissorRects(
 	  _In_range_(0, D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE)  UINT NumRects,
-	  _In_reads_opt_(NumRects)  const D3D11_RECT * pRects) final;
+	  _In_reads_opt_(NumRects)  const D3D11_RECT * pRects) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE CopySubresourceRegion(
+	VIRTUALGFX void STDMETHODCALLTYPE CopySubresourceRegion(
 	  _In_ ID3D11Resource* pDstResource,
 	  _In_ UINT DstSubresource,
 	  _In_ UINT DstX,
@@ -324,9 +291,9 @@ public:
 	  _In_ UINT DstZ,
 	  _In_ ID3D11Resource* pSrcResource,
 	  _In_ UINT SrcSubresource,
-	  _In_opt_ const D3D11_BOX* pSrcBox) final;
+	  _In_opt_ const D3D11_BOX* pSrcBox) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE CopySubresourcesRegion(
+	VIRTUALGFX void STDMETHODCALLTYPE CopySubresourcesRegion(
 		_In_ ID3D11Resource* pDstResource,
 		_In_ UINT DstSubresource,
 		_In_ UINT DstX,
@@ -335,354 +302,354 @@ public:
 		_In_ ID3D11Resource* pSrcResource,
 		_In_ UINT SrcSubresource,
 		_In_opt_ const D3D11_BOX* pSrcBox,
-		_In_ UINT NumSubresources) final;
+		_In_ UINT NumSubresources) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE CopyResource(
+	VIRTUALGFX void STDMETHODCALLTYPE CopyResource(
 	  _In_ ID3D11Resource* pDstResource,
-	  _In_ ID3D11Resource* pSrcResource) final;
+	  _In_ ID3D11Resource* pSrcResource) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE UpdateSubresource(
+	VIRTUALGFX void STDMETHODCALLTYPE UpdateSubresource(
 	  _In_ ID3D11Resource* pDstResource,
 	  _In_ UINT DstSubresource,
 	  _In_opt_ const D3D11_BOX* pDstBox,
 	  _In_ const void* pSrcData,
 	  _In_ UINT SrcRowPitch,
-	  _In_ UINT SrcDepthPitch) final;
+	  _In_ UINT SrcDepthPitch) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE CopyStructureCount(
+	VIRTUALGFX void STDMETHODCALLTYPE CopyStructureCount(
 	  _In_ ID3D11Buffer* pDstBuffer,
 	  _In_ UINT DstAlignedByteOffset,
-	  _In_ ID3D11UnorderedAccessView* pSrcView) final;
+	  _In_ ID3D11UnorderedAccessView* pSrcView) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE ClearRenderTargetView(
+	VIRTUALGFX void STDMETHODCALLTYPE ClearRenderTargetView(
 	  _In_ ID3D11RenderTargetView* pRenderTargetView,
-	  _In_ const FLOAT ColorRGBA[4]) final;
+	  _In_ const FLOAT ColorRGBA[4]) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE ClearUnorderedAccessViewUint(
+	VIRTUALGFX void STDMETHODCALLTYPE ClearUnorderedAccessViewUint(
 	  _In_ ID3D11UnorderedAccessView* pUnorderedAccessView,
-	  _In_ const UINT Values[4]) final;
+	  _In_ const UINT Values[4]) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE ClearUnorderedAccessViewFloat(
+	VIRTUALGFX void STDMETHODCALLTYPE ClearUnorderedAccessViewFloat(
 	  _In_ ID3D11UnorderedAccessView* pUnorderedAccessView,
-	  _In_ const FLOAT Values[4]) final;
+	  _In_ const FLOAT Values[4]) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE ClearDepthStencilView(
+	VIRTUALGFX void STDMETHODCALLTYPE ClearDepthStencilView(
 	  _In_ ID3D11DepthStencilView* pDepthStencilView,
 	  _In_ UINT ClearFlags,
 	  _In_ FLOAT Depth,
-	  _In_ UINT8 Stencil) final;
+	  _In_ UINT8 Stencil) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE GenerateMips(
-	  _In_ ID3D11ShaderResourceView* pShaderResourceView) final;
+	VIRTUALGFX void STDMETHODCALLTYPE GenerateMips(
+	  _In_ ID3D11ShaderResourceView* pShaderResourceView) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE SetResourceMinLOD(
+	VIRTUALGFX void STDMETHODCALLTYPE SetResourceMinLOD(
 	  _In_ ID3D11Resource* pResource,
-	  FLOAT MinLOD) final;
+	  FLOAT MinLOD) FINALGFX;
 
-	virtual FLOAT STDMETHODCALLTYPE GetResourceMinLOD(
-	  _In_ ID3D11Resource* pResource) final;
+	VIRTUALGFX FLOAT STDMETHODCALLTYPE GetResourceMinLOD(
+	  _In_ ID3D11Resource* pResource) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE ResolveSubresource(
+	VIRTUALGFX void STDMETHODCALLTYPE ResolveSubresource(
 	  _In_ ID3D11Resource* pDstResource,
 	  _In_ UINT DstSubresource,
 	  _In_ ID3D11Resource* pSrcResource,
 	  _In_ UINT SrcSubresource,
-	  _In_ DXGI_FORMAT Format) final;
+	  _In_ DXGI_FORMAT Format) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE HSSetShaderResources(
+	VIRTUALGFX void STDMETHODCALLTYPE HSSetShaderResources(
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - StartSlot)  UINT NumViews,
-	  _In_reads_opt_(NumViews)  ID3D11ShaderResourceView * const* ppShaderResourceViews) final;
+	  _In_reads_opt_(NumViews)  ID3D11ShaderResourceView * const* ppShaderResourceViews) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE HSSetShader(
+	VIRTUALGFX void STDMETHODCALLTYPE HSSetShader(
 	  _In_opt_ ID3D11HullShader * pHullShader,
 	  _In_reads_opt_(NumClassInstances)  ID3D11ClassInstance * const* ppClassInstances,
-	  UINT NumClassInstances) final;
+	  UINT NumClassInstances) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE HSSetSamplers(
+	VIRTUALGFX void STDMETHODCALLTYPE HSSetSamplers(
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - StartSlot)  UINT NumSamplers,
-	  _In_reads_opt_(NumSamplers)  ID3D11SamplerState * const* ppSamplers) final;
+	  _In_reads_opt_(NumSamplers)  ID3D11SamplerState * const* ppSamplers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE HSSetConstantBuffers(
+	VIRTUALGFX void STDMETHODCALLTYPE HSSetConstantBuffers(
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - StartSlot)  UINT NumBuffers,
-	  _In_reads_opt_(NumBuffers)  ID3D11Buffer * const* ppConstantBuffers) final;
+	  _In_reads_opt_(NumBuffers)  ID3D11Buffer * const* ppConstantBuffers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE DSSetShaderResources(
+	VIRTUALGFX void STDMETHODCALLTYPE DSSetShaderResources(
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - StartSlot)  UINT NumViews,
-	  _In_reads_opt_(NumViews)  ID3D11ShaderResourceView * const* ppShaderResourceViews) final;
+	  _In_reads_opt_(NumViews)  ID3D11ShaderResourceView * const* ppShaderResourceViews) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE DSSetShader(
+	VIRTUALGFX void STDMETHODCALLTYPE DSSetShader(
 	  _In_opt_ ID3D11DomainShader * pDomainShader,
 	  _In_reads_opt_(NumClassInstances)  ID3D11ClassInstance * const* ppClassInstances,
-	  UINT NumClassInstances) final;
+	  UINT NumClassInstances) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE DSSetSamplers(
+	VIRTUALGFX void STDMETHODCALLTYPE DSSetSamplers(
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - StartSlot)  UINT NumSamplers,
-	  _In_reads_opt_(NumSamplers)  ID3D11SamplerState * const* ppSamplers) final;
+	  _In_reads_opt_(NumSamplers)  ID3D11SamplerState * const* ppSamplers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE DSSetConstantBuffers(
+	VIRTUALGFX void STDMETHODCALLTYPE DSSetConstantBuffers(
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - StartSlot)  UINT NumBuffers,
-	  _In_reads_opt_(NumBuffers)  ID3D11Buffer * const* ppConstantBuffers) final;
+	  _In_reads_opt_(NumBuffers)  ID3D11Buffer * const* ppConstantBuffers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE CSSetShaderResources(
+	VIRTUALGFX void STDMETHODCALLTYPE CSSetShaderResources(
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - StartSlot)  UINT NumViews,
-	  _In_reads_opt_(NumViews)  ID3D11ShaderResourceView * const* ppShaderResourceViews) final;
+	  _In_reads_opt_(NumViews)  ID3D11ShaderResourceView * const* ppShaderResourceViews) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE CSSetUnorderedAccessViews(
+	VIRTUALGFX void STDMETHODCALLTYPE CSSetUnorderedAccessViews(
 	  _In_range_(0, D3D11_1_UAV_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_1_UAV_SLOT_COUNT - StartSlot)  UINT NumUAVs,
 	  _In_reads_opt_(NumUAVs)  ID3D11UnorderedAccessView * const* ppUnorderedAccessViews,
-	  _In_reads_opt_(NumUAVs)  const UINT * pUAVInitialCounts) final;
+	  _In_reads_opt_(NumUAVs)  const UINT * pUAVInitialCounts) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE CSSetShader(
+	VIRTUALGFX void STDMETHODCALLTYPE CSSetShader(
 	  _In_opt_ ID3D11ComputeShader * pComputeShader,
 	  _In_reads_opt_(NumClassInstances)  ID3D11ClassInstance * const* ppClassInstances,
-	  UINT NumClassInstances) final;
+	  UINT NumClassInstances) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE CSSetSamplers(
+	VIRTUALGFX void STDMETHODCALLTYPE CSSetSamplers(
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - StartSlot)  UINT NumSamplers,
-	  _In_reads_opt_(NumSamplers)  ID3D11SamplerState * const* ppSamplers) final;
+	  _In_reads_opt_(NumSamplers)  ID3D11SamplerState * const* ppSamplers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE CSSetConstantBuffers(
+	VIRTUALGFX void STDMETHODCALLTYPE CSSetConstantBuffers(
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - StartSlot)  UINT NumBuffers,
-	  _In_reads_opt_(NumBuffers)  ID3D11Buffer * const* ppConstantBuffers) final;
+	  _In_reads_opt_(NumBuffers)  ID3D11Buffer * const* ppConstantBuffers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE VSGetConstantBuffers(
+	VIRTUALGFX void STDMETHODCALLTYPE VSGetConstantBuffers(
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - StartSlot)  UINT NumBuffers,
-	  _Out_writes_opt_(NumBuffers)  ID3D11Buffer * *ppConstantBuffers) final;
+	  _Out_writes_opt_(NumBuffers)  ID3D11Buffer * *ppConstantBuffers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE PSGetShaderResources(
+	VIRTUALGFX void STDMETHODCALLTYPE PSGetShaderResources(
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - StartSlot)  UINT NumViews,
-	  _Out_writes_opt_(NumViews)  ID3D11ShaderResourceView * *ppShaderResourceViews) final;
+	  _Out_writes_opt_(NumViews)  ID3D11ShaderResourceView * *ppShaderResourceViews) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE PSGetShader(
+	VIRTUALGFX void STDMETHODCALLTYPE PSGetShader(
 	  _Out_ ID3D11PixelShader** ppPixelShader,
 	  _Out_writes_opt_(*pNumClassInstances)  ID3D11ClassInstance** ppClassInstances,
-	  _Inout_opt_ UINT* pNumClassInstances) final;
+	  _Inout_opt_ UINT* pNumClassInstances) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE PSGetSamplers(
+	VIRTUALGFX void STDMETHODCALLTYPE PSGetSamplers(
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - StartSlot)  UINT NumSamplers,
-	  _Out_writes_opt_(NumSamplers)  ID3D11SamplerState * *ppSamplers) final;
+	  _Out_writes_opt_(NumSamplers)  ID3D11SamplerState * *ppSamplers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE VSGetShader(
+	VIRTUALGFX void STDMETHODCALLTYPE VSGetShader(
 	  _Out_ ID3D11VertexShader** ppVertexShader,
 	  _Out_writes_opt_(*pNumClassInstances)  ID3D11ClassInstance** ppClassInstances,
-	  _Inout_opt_ UINT* pNumClassInstances) final;
+	  _Inout_opt_ UINT* pNumClassInstances) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE PSGetConstantBuffers(
+	VIRTUALGFX void STDMETHODCALLTYPE PSGetConstantBuffers(
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - StartSlot)  UINT NumBuffers,
-	  _Out_writes_opt_(NumBuffers)  ID3D11Buffer * *ppConstantBuffers) final;
+	  _Out_writes_opt_(NumBuffers)  ID3D11Buffer * *ppConstantBuffers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE IAGetInputLayout(
-	  _Out_ ID3D11InputLayout** ppInputLayout) final;
+	VIRTUALGFX void STDMETHODCALLTYPE IAGetInputLayout(
+	  _Out_ ID3D11InputLayout** ppInputLayout) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE IAGetVertexBuffers(
+	VIRTUALGFX void STDMETHODCALLTYPE IAGetVertexBuffers(
 	  _In_range_(0, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT - StartSlot)  UINT NumBuffers,
 	  _Out_writes_opt_(NumBuffers)  ID3D11Buffer * *ppVertexBuffers,
 	  _Out_writes_opt_(NumBuffers)  UINT * pStrides,
-	  _Out_writes_opt_(NumBuffers)  UINT * pOffsets) final;
+	  _Out_writes_opt_(NumBuffers)  UINT * pOffsets) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE IAGetIndexBuffer(
+	VIRTUALGFX void STDMETHODCALLTYPE IAGetIndexBuffer(
 	  _Out_opt_ ID3D11Buffer** pIndexBuffer,
 	  _Out_opt_ DXGI_FORMAT* Format,
-	  _Out_opt_ UINT* Offset) final;
+	  _Out_opt_ UINT* Offset) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE GSGetConstantBuffers(
+	VIRTUALGFX void STDMETHODCALLTYPE GSGetConstantBuffers(
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - StartSlot)  UINT NumBuffers,
-	  _Out_writes_opt_(NumBuffers)  ID3D11Buffer * *ppConstantBuffers) final;
+	  _Out_writes_opt_(NumBuffers)  ID3D11Buffer * *ppConstantBuffers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE GSGetShader(
+	VIRTUALGFX void STDMETHODCALLTYPE GSGetShader(
 	  _Out_ ID3D11GeometryShader** ppGeometryShader,
 	  _Out_writes_opt_(*pNumClassInstances)  ID3D11ClassInstance** ppClassInstances,
-	  _Inout_opt_ UINT* pNumClassInstances) final;
+	  _Inout_opt_ UINT* pNumClassInstances) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE IAGetPrimitiveTopology(
-	  _Out_ D3D11_PRIMITIVE_TOPOLOGY* pTopology) final;
+	VIRTUALGFX void STDMETHODCALLTYPE IAGetPrimitiveTopology(
+	  _Out_ D3D11_PRIMITIVE_TOPOLOGY* pTopology) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE VSGetShaderResources(
+	VIRTUALGFX void STDMETHODCALLTYPE VSGetShaderResources(
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - StartSlot)  UINT NumViews,
-	  _Out_writes_opt_(NumViews)  ID3D11ShaderResourceView * *ppShaderResourceViews) final;
+	  _Out_writes_opt_(NumViews)  ID3D11ShaderResourceView * *ppShaderResourceViews) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE VSGetSamplers(
+	VIRTUALGFX void STDMETHODCALLTYPE VSGetSamplers(
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - StartSlot)  UINT NumSamplers,
-	  _Out_writes_opt_(NumSamplers)  ID3D11SamplerState * *ppSamplers) final;
+	  _Out_writes_opt_(NumSamplers)  ID3D11SamplerState * *ppSamplers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE GetPredication(
+	VIRTUALGFX void STDMETHODCALLTYPE GetPredication(
 	  _Out_opt_ ID3D11Predicate** ppPredicate,
-	  _Out_opt_ BOOL* pPredicateValue) final;
+	  _Out_opt_ BOOL* pPredicateValue) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE GSGetShaderResources(
+	VIRTUALGFX void STDMETHODCALLTYPE GSGetShaderResources(
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - StartSlot)  UINT NumViews,
-	  _Out_writes_opt_(NumViews)  ID3D11ShaderResourceView * *ppShaderResourceViews) final;
+	  _Out_writes_opt_(NumViews)  ID3D11ShaderResourceView * *ppShaderResourceViews) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE GSGetSamplers(
+	VIRTUALGFX void STDMETHODCALLTYPE GSGetSamplers(
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - StartSlot)  UINT NumSamplers,
-	  _Out_writes_opt_(NumSamplers)  ID3D11SamplerState * *ppSamplers) final;
+	  _Out_writes_opt_(NumSamplers)  ID3D11SamplerState * *ppSamplers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE OMGetRenderTargets(
+	VIRTUALGFX void STDMETHODCALLTYPE OMGetRenderTargets(
 	  _In_range_(0, D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT)  UINT NumViews,
 	  _Out_writes_opt_(NumViews)  ID3D11RenderTargetView * *ppRenderTargetViews,
-	  _Out_opt_ ID3D11DepthStencilView * *ppDepthStencilView) final;
+	  _Out_opt_ ID3D11DepthStencilView * *ppDepthStencilView) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE OMGetRenderTargetsAndUnorderedAccessViews(
+	VIRTUALGFX void STDMETHODCALLTYPE OMGetRenderTargetsAndUnorderedAccessViews(
 	  _In_range_(0, D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT)  UINT NumRTVs,
 	  _Out_writes_opt_(NumRTVs)  ID3D11RenderTargetView * *ppRenderTargetViews,
 	  _Out_opt_ ID3D11DepthStencilView * *ppDepthStencilView,
 	  _In_range_(0, D3D11_PS_CS_UAV_REGISTER_COUNT - 1)  UINT UAVStartSlot,
 	  _In_range_(0, D3D11_PS_CS_UAV_REGISTER_COUNT - UAVStartSlot)  UINT NumUAVs,
-	  _Out_writes_opt_(NumUAVs)  ID3D11UnorderedAccessView * *ppUnorderedAccessViews) final;
+	  _Out_writes_opt_(NumUAVs)  ID3D11UnorderedAccessView * *ppUnorderedAccessViews) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE OMGetBlendState(
+	VIRTUALGFX void STDMETHODCALLTYPE OMGetBlendState(
 	  _Out_opt_ ID3D11BlendState * *ppBlendState,
 	  _Out_opt_ FLOAT BlendFactor[4],
-	  _Out_opt_ UINT * pSampleMask) final;
+	  _Out_opt_ UINT * pSampleMask) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE OMGetDepthStencilState(
+	VIRTUALGFX void STDMETHODCALLTYPE OMGetDepthStencilState(
 	  _Out_opt_ ID3D11DepthStencilState** ppDepthStencilState,
-	  _Out_opt_ UINT* pStencilRef) final;
+	  _Out_opt_ UINT* pStencilRef) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE SOGetTargets(
+	VIRTUALGFX void STDMETHODCALLTYPE SOGetTargets(
 	  _In_range_(0, D3D11_SO_BUFFER_SLOT_COUNT)  UINT NumBuffers,
-	  _Out_writes_opt_(NumBuffers)  ID3D11Buffer * *ppSOTargets) final;
+	  _Out_writes_opt_(NumBuffers)  ID3D11Buffer * *ppSOTargets) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE RSGetState(
-	  _Out_ ID3D11RasterizerState** ppRasterizerState) final;
+	VIRTUALGFX void STDMETHODCALLTYPE RSGetState(
+	  _Out_ ID3D11RasterizerState** ppRasterizerState) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE RSGetViewports(
+	VIRTUALGFX void STDMETHODCALLTYPE RSGetViewports(
 	  _Inout_ UINT* pNumViewports,
-	  _Out_writes_opt_(*pNumViewports)  D3D11_VIEWPORT* pViewports) final;
+	  _Out_writes_opt_(*pNumViewports)  D3D11_VIEWPORT* pViewports) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE RSGetScissorRects(
+	VIRTUALGFX void STDMETHODCALLTYPE RSGetScissorRects(
 	  _Inout_ UINT* pNumRects,
-	  _Out_writes_opt_(*pNumRects)  D3D11_RECT* pRects) final;
+	  _Out_writes_opt_(*pNumRects)  D3D11_RECT* pRects) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE HSGetShaderResources(
+	VIRTUALGFX void STDMETHODCALLTYPE HSGetShaderResources(
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - StartSlot)  UINT NumViews,
-	  _Out_writes_opt_(NumViews)  ID3D11ShaderResourceView * *ppShaderResourceViews) final;
+	  _Out_writes_opt_(NumViews)  ID3D11ShaderResourceView * *ppShaderResourceViews) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE HSGetShader(
+	VIRTUALGFX void STDMETHODCALLTYPE HSGetShader(
 	  _Out_ ID3D11HullShader** ppHullShader,
 	  _Out_writes_opt_(*pNumClassInstances)  ID3D11ClassInstance** ppClassInstances,
-	  _Inout_opt_ UINT* pNumClassInstances) final;
+	  _Inout_opt_ UINT* pNumClassInstances) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE HSGetSamplers(
+	VIRTUALGFX void STDMETHODCALLTYPE HSGetSamplers(
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - StartSlot)  UINT NumSamplers,
-	  _Out_writes_opt_(NumSamplers)  ID3D11SamplerState * *ppSamplers) final;
+	  _Out_writes_opt_(NumSamplers)  ID3D11SamplerState * *ppSamplers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE HSGetConstantBuffers(
+	VIRTUALGFX void STDMETHODCALLTYPE HSGetConstantBuffers(
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - StartSlot)  UINT NumBuffers,
-	  _Out_writes_opt_(NumBuffers)  ID3D11Buffer * *ppConstantBuffers) final;
+	  _Out_writes_opt_(NumBuffers)  ID3D11Buffer * *ppConstantBuffers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE DSGetShaderResources(
+	VIRTUALGFX void STDMETHODCALLTYPE DSGetShaderResources(
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - StartSlot)  UINT NumViews,
-	  _Out_writes_opt_(NumViews)  ID3D11ShaderResourceView * *ppShaderResourceViews) final;
+	  _Out_writes_opt_(NumViews)  ID3D11ShaderResourceView * *ppShaderResourceViews) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE DSGetShader(
+	VIRTUALGFX void STDMETHODCALLTYPE DSGetShader(
 	  _Out_ ID3D11DomainShader** ppDomainShader,
 	  _Out_writes_opt_(*pNumClassInstances)  ID3D11ClassInstance** ppClassInstances,
-	  _Inout_opt_ UINT* pNumClassInstances) final;
+	  _Inout_opt_ UINT* pNumClassInstances) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE DSGetSamplers(
+	VIRTUALGFX void STDMETHODCALLTYPE DSGetSamplers(
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - StartSlot)  UINT NumSamplers,
-	  _Out_writes_opt_(NumSamplers)  ID3D11SamplerState * *ppSamplers) final;
+	  _Out_writes_opt_(NumSamplers)  ID3D11SamplerState * *ppSamplers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE DSGetConstantBuffers(
+	VIRTUALGFX void STDMETHODCALLTYPE DSGetConstantBuffers(
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - StartSlot)  UINT NumBuffers,
-	  _Out_writes_opt_(NumBuffers)  ID3D11Buffer * *ppConstantBuffers) final;
+	  _Out_writes_opt_(NumBuffers)  ID3D11Buffer * *ppConstantBuffers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE CSGetShaderResources(
+	VIRTUALGFX void STDMETHODCALLTYPE CSGetShaderResources(
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - StartSlot)  UINT NumViews,
-	  _Out_writes_opt_(NumViews)  ID3D11ShaderResourceView * *ppShaderResourceViews) final;
+	  _Out_writes_opt_(NumViews)  ID3D11ShaderResourceView * *ppShaderResourceViews) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE CSGetUnorderedAccessViews(
+	VIRTUALGFX void STDMETHODCALLTYPE CSGetUnorderedAccessViews(
 	  _In_range_(0, D3D11_PS_CS_UAV_REGISTER_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_PS_CS_UAV_REGISTER_COUNT - StartSlot)  UINT NumUAVs,
-	  _Out_writes_opt_(NumUAVs)  ID3D11UnorderedAccessView * *ppUnorderedAccessViews) final;
+	  _Out_writes_opt_(NumUAVs)  ID3D11UnorderedAccessView * *ppUnorderedAccessViews) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE CSGetShader(
+	VIRTUALGFX void STDMETHODCALLTYPE CSGetShader(
 	  _Out_ ID3D11ComputeShader** ppComputeShader,
 	  _Out_writes_opt_(*pNumClassInstances)  ID3D11ClassInstance** ppClassInstances,
-	  _Inout_opt_ UINT* pNumClassInstances) final;
+	  _Inout_opt_ UINT* pNumClassInstances) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE CSGetSamplers(
+	VIRTUALGFX void STDMETHODCALLTYPE CSGetSamplers(
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - StartSlot)  UINT NumSamplers,
-	  _Out_writes_opt_(NumSamplers)  ID3D11SamplerState * *ppSamplers) final;
+	  _Out_writes_opt_(NumSamplers)  ID3D11SamplerState * *ppSamplers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE CSGetConstantBuffers(
+	VIRTUALGFX void STDMETHODCALLTYPE CSGetConstantBuffers(
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - 1)  UINT StartSlot,
 	  _In_range_(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT - StartSlot)  UINT NumBuffers,
-	  _Out_writes_opt_(NumBuffers)  ID3D11Buffer * *ppConstantBuffers) final;
+	  _Out_writes_opt_(NumBuffers)  ID3D11Buffer * *ppConstantBuffers) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE                      ClearState() final;
+	VIRTUALGFX void STDMETHODCALLTYPE                      ClearState() FINALGFX;
 
-	virtual void STDMETHODCALLTYPE                      Flush() final;
+	VIRTUALGFX void STDMETHODCALLTYPE                      Flush() FINALGFX;
 
-	virtual D3D11_DEVICE_CONTEXT_TYPE STDMETHODCALLTYPE GetType() final;
+	VIRTUALGFX D3D11_DEVICE_CONTEXT_TYPE STDMETHODCALLTYPE GetType() FINALGFX;
 
-	virtual UINT STDMETHODCALLTYPE                      GetContextFlags() final;
+	VIRTUALGFX UINT STDMETHODCALLTYPE                      GetContextFlags() FINALGFX;
 
-	virtual void STDMETHODCALLTYPE                      ExecuteCommandList(
+	VIRTUALGFX void STDMETHODCALLTYPE                      ExecuteCommandList(
 	  _In_ ID3D11CommandList* pCommandList,
-	  BOOL RestoreContextState) final;
+	  BOOL RestoreContextState) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE FinishCommandList(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE FinishCommandList(
 	  _In_ BOOL RestoreDeferredContextState,
-	  _Out_opt_ ID3D11CommandList** ppCommandList) final;
+	  _Out_opt_ ID3D11CommandList** ppCommandList) FINALGFX;
 
 	#pragma endregion
 
 	#pragma region /* D3D 11.1 specific functions */
 
-	virtual void STDMETHODCALLTYPE CopySubresourceRegion1(ID3D11Resource* pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D11Resource* pSrcResource, UINT SrcSubresource, const D3D11_BOX* pSrcBox, UINT CopyFlags) final;
-	virtual void STDMETHODCALLTYPE CopySubresourcesRegion1(ID3D11Resource* pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D11Resource* pSrcResource, UINT SrcSubresource, const D3D11_BOX* pSrcBox, UINT CopyFlags, UINT NumSubresource) final;
-	virtual void STDMETHODCALLTYPE CopyResource1(ID3D11Resource* pDstResource, ID3D11Resource* pSrcResource, UINT CopyFlags) final;
-	virtual void STDMETHODCALLTYPE UpdateSubresource1(ID3D11Resource* pDstResource, UINT DstSubresource, const D3D11_BOX* pDstBox, const void* pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch, UINT CopyFlags) final;
-	virtual void STDMETHODCALLTYPE DiscardResource(ID3D11Resource* pResource) final;
-	virtual void STDMETHODCALLTYPE DiscardView(ID3D11View* pResourceView) final;
+	VIRTUALGFX void STDMETHODCALLTYPE CopySubresourceRegion1(ID3D11Resource* pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D11Resource* pSrcResource, UINT SrcSubresource, const D3D11_BOX* pSrcBox, UINT CopyFlags) FINALGFX;
+	VIRTUALGFX void STDMETHODCALLTYPE CopySubresourcesRegion1(ID3D11Resource* pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D11Resource* pSrcResource, UINT SrcSubresource, const D3D11_BOX* pSrcBox, UINT CopyFlags, UINT NumSubresource) FINALGFX;
+	VIRTUALGFX void STDMETHODCALLTYPE CopyResource1(ID3D11Resource* pDstResource, ID3D11Resource* pSrcResource, UINT CopyFlags) FINALGFX;
+	VIRTUALGFX void STDMETHODCALLTYPE UpdateSubresource1(ID3D11Resource* pDstResource, UINT DstSubresource, const D3D11_BOX* pDstBox, const void* pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch, UINT CopyFlags) FINALGFX;
+	VIRTUALGFX void STDMETHODCALLTYPE DiscardResource(ID3D11Resource* pResource) FINALGFX;
+	VIRTUALGFX void STDMETHODCALLTYPE DiscardView(ID3D11View* pResourceView) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE VSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers, const UINT* pFirstConstant, const UINT* pNumConstants) final;
-	virtual void STDMETHODCALLTYPE HSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers, const UINT* pFirstConstant, const UINT* pNumConstants) final;
-	virtual void STDMETHODCALLTYPE DSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers, const UINT* pFirstConstant, const UINT* pNumConstants) final;
-	virtual void STDMETHODCALLTYPE GSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers, const UINT* pFirstConstant, const UINT* pNumConstants) final;
-	virtual void STDMETHODCALLTYPE PSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers, const UINT* pFirstConstant, const UINT* pNumConstants) final;
-	virtual void STDMETHODCALLTYPE CSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers, const UINT* pFirstConstant, const UINT* pNumConstants) final;
+	VIRTUALGFX void STDMETHODCALLTYPE VSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers, const UINT* pFirstConstant, const UINT* pNumConstants) FINALGFX;
+	VIRTUALGFX void STDMETHODCALLTYPE HSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers, const UINT* pFirstConstant, const UINT* pNumConstants) FINALGFX;
+	VIRTUALGFX void STDMETHODCALLTYPE DSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers, const UINT* pFirstConstant, const UINT* pNumConstants) FINALGFX;
+	VIRTUALGFX void STDMETHODCALLTYPE GSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers, const UINT* pFirstConstant, const UINT* pNumConstants) FINALGFX;
+	VIRTUALGFX void STDMETHODCALLTYPE PSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers, const UINT* pFirstConstant, const UINT* pNumConstants) FINALGFX;
+	VIRTUALGFX void STDMETHODCALLTYPE CSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers, const UINT* pFirstConstant, const UINT* pNumConstants) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE VSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer** ppConstantBuffers, UINT* pFirstConstant, UINT* pNumConstants) final;
-	virtual void STDMETHODCALLTYPE HSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer** ppConstantBuffers, UINT* pFirstConstant, UINT* pNumConstants) final;
-	virtual void STDMETHODCALLTYPE DSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer** ppConstantBuffers, UINT* pFirstConstant, UINT* pNumConstants) final;
-	virtual void STDMETHODCALLTYPE GSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer** ppConstantBuffers, UINT* pFirstConstant, UINT* pNumConstants) final;
-	virtual void STDMETHODCALLTYPE PSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer** ppConstantBuffers, UINT* pFirstConstant, UINT* pNumConstants) final;
-	virtual void STDMETHODCALLTYPE CSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer** ppConstantBuffers, UINT* pFirstConstant, UINT* pNumConstants) final;
+	VIRTUALGFX void STDMETHODCALLTYPE VSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer** ppConstantBuffers, UINT* pFirstConstant, UINT* pNumConstants) FINALGFX;
+	VIRTUALGFX void STDMETHODCALLTYPE HSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer** ppConstantBuffers, UINT* pFirstConstant, UINT* pNumConstants) FINALGFX;
+	VIRTUALGFX void STDMETHODCALLTYPE DSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer** ppConstantBuffers, UINT* pFirstConstant, UINT* pNumConstants) FINALGFX;
+	VIRTUALGFX void STDMETHODCALLTYPE GSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer** ppConstantBuffers, UINT* pFirstConstant, UINT* pNumConstants) FINALGFX;
+	VIRTUALGFX void STDMETHODCALLTYPE PSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer** ppConstantBuffers, UINT* pFirstConstant, UINT* pNumConstants) FINALGFX;
+	VIRTUALGFX void STDMETHODCALLTYPE CSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer** ppConstantBuffers, UINT* pFirstConstant, UINT* pNumConstants) FINALGFX;
 
-	virtual void STDMETHODCALLTYPE SwapDeviceContextState(ID3DDeviceContextState* pState, ID3DDeviceContextState** ppPreviousState) final;
-	virtual void STDMETHODCALLTYPE ClearView(ID3D11View* pView, const FLOAT Color[4], const D3D11_RECT* pRect, UINT NumRects) final;
-	virtual void STDMETHODCALLTYPE DiscardView1(ID3D11View* pResourceView, const D3D11_RECT* pRects, UINT NumRects) final;
+	VIRTUALGFX void STDMETHODCALLTYPE SwapDeviceContextState(ID3DDeviceContextState* pState, ID3DDeviceContextState** ppPreviousState) FINALGFX;
+	VIRTUALGFX void STDMETHODCALLTYPE ClearView(ID3D11View* pView, const FLOAT Color[4], const D3D11_RECT* pRect, UINT NumRects) FINALGFX;
+	VIRTUALGFX void STDMETHODCALLTYPE DiscardView1(ID3D11View* pResourceView, const D3D11_RECT* pRects, UINT NumRects) FINALGFX;
 
 	#pragma endregion
 
@@ -813,29 +780,29 @@ public:
 		// D3D12 WARNING: ID3D12CommandQueue::ID3D12CommandQueue::GetTimestampFrequency: Use
 		// ID3D12Device::SetStablePowerstate for reliable timestamp queries [ EXECUTION WARNING #736: UNSTABLE_POWER_STATE]
 		UINT64 Frequency = 0;
-		m_pCmdLists[CMDQUEUE_GRAPHICS]->GetD3D12CommandQueue()->GetTimestampFrequency(&Frequency);
+		m_Scheduler.GetCommandList(CMDQUEUE_GRAPHICS)->GetD3D12CommandQueue()->GetTimestampFrequency(&Frequency);
 		return Frequency;
 	}
 
 	ILINE INT ReserveTimestamp()
 	{
-		return TimestampIndex(m_pCmdLists[CMDQUEUE_GRAPHICS]);
+		return TimestampIndex(m_Scheduler.GetCommandList(CMDQUEUE_GRAPHICS));
 	}
 
 	ILINE void InsertTimestamp(INT index, INT commandQueue, NCryDX12::CCommandList* pCommandList)
 	{
 		assert(commandQueue >= CMDQUEUE_GRAPHICS && commandQueue <= CMDQUEUE_COPY);
-		InsertTimestamp(!pCommandList ? m_pCmdLists[commandQueue] : pCommandList, index);
+		InsertTimestamp(m_Scheduler.GetCommandList(commandQueue), index);
 	}
 
 	ILINE void ResolveTimestamps()
 	{
-		ResolveTimestamps(m_pCmdLists[CMDQUEUE_GRAPHICS]);
+		ResolveTimestamps(m_Scheduler.GetCommandList(CMDQUEUE_GRAPHICS));
 	}
 
 	ILINE void InsertTimestamp(INT index, void* mem)
 	{
-		QueryTimestamp(m_pCmdLists[CMDQUEUE_GRAPHICS], index, mem);
+		QueryTimestamp(m_Scheduler.GetCommandList(CMDQUEUE_GRAPHICS), index, mem);
 	}
 
 	ILINE void QueryTimestamps(INT firstIndex, INT numIndices, void* mem)
@@ -843,7 +810,7 @@ public:
 		uint32 outIndex = 0;
 		for (INT index = firstIndex; index < firstIndex + numIndices; ++index)
 		{
-			QueryTimestamp(m_pCmdLists[CMDQUEUE_GRAPHICS], index, (char*)mem + outIndex * sizeof(UINT64));
+			QueryTimestamp(m_Scheduler.GetCommandList(CMDQUEUE_GRAPHICS), index, (char*)mem + outIndex * sizeof(UINT64));
 			++outIndex;
 		}
 	}
@@ -857,28 +824,10 @@ public:
 	}
 
 	// Fence management API
-	ILINE UINT64 InsertFence()
-	{
-		return m_CmdFenceSet.GetCurrentValue(CMDQUEUE_GRAPHICS) - !m_pCmdLists[CMDQUEUE_GRAPHICS]->IsUtilized();
-	}
-
-	ILINE HRESULT FlushToFence(UINT64 fenceValue)
-	{
-		SubmitCommands(CMDQUEUE_GRAPHICS, false, fenceValue);
-		m_CmdListPools[CMDQUEUE_GRAPHICS].GetAsyncCommandQueue().Flush(fenceValue);
-		return S_OK;
-	}
-
-	ILINE HRESULT TestForFence(UINT64 fenceValue)
-	{
-		return m_CmdFenceSet.IsCompleted(fenceValue, CMDQUEUE_GRAPHICS) ? S_OK : S_FALSE;
-	}
-
-	ILINE HRESULT WaitForFence(UINT64 fenceValue)
-	{
-		m_CmdFenceSet.WaitForFence(fenceValue, CMDQUEUE_GRAPHICS);
-		return S_OK;
-	}
+	ILINE UINT64  InsertFence (                 ) { return m_Scheduler.InsertFence (          ); }
+	ILINE HRESULT FlushToFence(UINT64 fenceValue) { return m_Scheduler.FlushToFence(fenceValue); }
+	ILINE HRESULT TestForFence(UINT64 fenceValue) { return m_Scheduler.TestForFence(fenceValue); }
+	ILINE HRESULT WaitForFence(UINT64 fenceValue) { return m_Scheduler.WaitForFence(fenceValue); }
 
 	// Misc
 	void ResetCachedState(bool bGraphics = true, bool bCompute = false);
@@ -891,17 +840,6 @@ private:
 
 	bool PrepareGraphicsState();
 	bool PrepareComputeState();
-
-	void CeaseCommandQueue(int nPoolId, bool wait);
-	void ResumeCommandQueue(int nPoolId);
-	void CeaseAllCommandQueues(bool wait);
-	void ResumeAllCommandQueues();
-
-	void SubmitCommands(int nPoolId, bool wait);
-	void SubmitCommands(int nPoolId, bool wait, const UINT64 fenceValue);
-	void SubmitAllCommands(bool wait);
-	void SubmitAllCommands(bool wait, const UINT64 (&fenceValues)[CMDQUEUE_NUM]);
-	void SubmitAllCommands(bool wait, const NCryDX12::FVAL64 (&fenceValues)[CMDQUEUE_NUM]);
 
 	void BindResources(bool bGfx);
 	void BindOutputViews();
@@ -916,20 +854,8 @@ private:
 	CCryDX12Device*    m_pDevice;
 	NCryDX12::CDevice* m_pDX12Device;
 
-	#define FRAME_FENCES         32
-	#define FRAME_FENCE_LATENCY  32
-	#define FRAME_FENCE_INFLIGHT MAX_FRAMES_IN_FLIGHT
-	UINT64                                  m_FrameFenceValuesSubmitted[FRAME_FENCES][CMDQUEUE_NUM];
-	UINT64                                  m_FrameFenceValuesCompleted[FRAME_FENCES][CMDQUEUE_NUM];
-	ULONG                                   m_FrameFenceCursor;
+	NCryDX12::CCommandScheduler& m_Scheduler;
 
-	NCryDX12::CCommandListFenceSet          m_CmdFenceSet;
-	#if defined(_ALLOW_INITIALIZER_LISTS)
-	NCryDX12::CCommandListPool              m_CmdListPools[CMDQUEUE_NUM];
-	#else
-	std::vector<NCryDX12::CCommandListPool> m_CmdListPools;
-	#endif
-	DX12_PTR(NCryDX12::CCommandList) m_pCmdLists[CMDQUEUE_NUM];
 	bool m_bCmdListBegins[CMDQUEUE_NUM];
 
 	DX12_PTR(NCryDX12::CPSO) m_pCurrentPSO;
@@ -949,9 +875,6 @@ public:
 	void InsertOcclusionStop(NCryDX12::CCommandList* pCmdList, UINT index, bool counter);
 	void ResolveOcclusion(NCryDX12::CCommandList* pCmdList, UINT index, void* mem);
 
-	void PushProfilerEvent(const char* label);
-	void PopProfilerEvent();
-
 private:
 	ID3D12Resource*            m_TimestampDownloadBuffer;
 	ID3D12Resource*            m_OcclusionDownloadBuffer;
@@ -963,27 +886,14 @@ private:
 	bool                       m_OcclusionMapValid;
 	NCryDX12::CDescriptorHeap* m_pResourceHeap;
 	NCryDX12::CDescriptorHeap* m_pSamplerHeap;
-	DynArray<SSamplerGroup>    m_SamplerGroups;
-	int                        m_nResDynOffset;
-	int                        m_nFrame;
-	uint32                     m_nStencilRef;
-
-	bool                       m_bBatchComputeTasks;
 
 	NCryDX12::CQueryHeap       m_TimestampHeap;
 	NCryDX12::CQueryHeap       m_OcclusionHeap;
-
-	DynArray<const char*>      m_profilerEventStack;
 
 #ifdef DX12_STATS
 	size_t m_NumMapDiscardSkips;
 	size_t m_NumMapDiscards;
 	size_t m_NumCopyDiscardSkips;
 	size_t m_NumCopyDiscards;
-
-	size_t m_NumCommandListOverflows;
-	size_t m_NumCommandListSplits;
 #endif // DX12_STATS
 };
-
-#endif // __CCRYDX12DEVICECONTEXT__

@@ -201,17 +201,17 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 			}
 
 			// make vert array
-			int nUnitSize = GetTerrain()->GetHeightMapUnitSize();
+			float unitSize = GetTerrain()->GetHeightMapUnitSize();
 #ifndef SEG_WORLD
-			int x1 = int(WSBBox.min.x) / nUnitSize * nUnitSize;
-			int x2 = int(WSBBox.max.x) / nUnitSize * nUnitSize + nUnitSize;
-			int y1 = int(WSBBox.min.y) / nUnitSize * nUnitSize;
-			int y2 = int(WSBBox.max.y) / nUnitSize * nUnitSize + nUnitSize;
+			float x1 = std::floor(WSBBox.min.x / unitSize) * unitSize;
+			float x2 = std::floor(WSBBox.max.x / unitSize) * unitSize + unitSize;
+			float y1 = std::floor(WSBBox.min.y / unitSize) * unitSize;
+			float y2 = std::floor(WSBBox.max.y / unitSize) * unitSize + unitSize;
 #else
-			int x1 = int(WSBBox.min.x + segmentOffset.x) / nUnitSize * nUnitSize;
-			int x2 = int(WSBBox.max.x + segmentOffset.x) / nUnitSize * nUnitSize + nUnitSize;
-			int y1 = int(WSBBox.min.y + segmentOffset.y) / nUnitSize * nUnitSize;
-			int y2 = int(WSBBox.max.y + segmentOffset.y) / nUnitSize * nUnitSize + nUnitSize;
+			int x1 = floor((WSBBox.min.x + segmentOffset.x) / unitSize) * unitSize;
+			int x2 = floor((WSBBox.max.x + segmentOffset.x) / unitSize) * unitSize + unitSize;
+			int y1 = floor((WSBBox.min.y + segmentOffset.y) / unitSize) * unitSize;
+			int y2 = floor((WSBBox.max.y + segmentOffset.y) / unitSize) * unitSize + unitSize;
 			x1 -= (int)segmentOffset.x;
 			x2 -= (int)segmentOffset.x;
 			y1 -= (int)segmentOffset.y;
@@ -222,17 +222,17 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 			s_tempVertexPositions.Clear();
 			s_tempIndices.Clear();
 
-			for (int x = x1; x <= x2; x += nUnitSize)
+			for (float x = x1; x <= x2; x += unitSize)
 			{
-				for (int y = y1; y <= y2; y += nUnitSize)
+				for (float y = y1; y <= y2; y += unitSize)
 				{
 					s_tempVertexPositions.Add(Vec3((float)x, (float)y, GetTerrain()->GetZ(x, y, m_nSID, true)));
 				}
 			}
 
 			// make indices
-			int dx = (x2 - x1) / nUnitSize;
-			int dy = (y2 - y1) / nUnitSize;
+			int dx = int((x2 - x1) / unitSize);
+			int dy = int((y2 - y1) / unitSize);
 
 			for (int x = 0; x < dx; x++)
 			{
@@ -243,14 +243,14 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 					int nIdx2 = (x * (dy + 1) + y + 1);
 					int nIdx3 = (x * (dy + 1) + y + 1 + (dy + 1));
 
-					int X_in_meters = x1 + x * nUnitSize;
-					int Y_in_meters = y1 + y * nUnitSize;
+					float X_in_meters = float(x1) + float(x) * unitSize;
+					float Y_in_meters = float(y1) + float(y) * unitSize;
 
 					CTerrain* pTerrain = GetTerrain();
 
 					if (m_bIgnoreTerrainHoles || (pTerrain && !pTerrain->GetHole(X_in_meters, Y_in_meters, m_nSID)))
 					{
-						if (pTerrain && pTerrain->IsMeshQuadFlipped(X_in_meters, Y_in_meters, nUnitSize, m_nSID))
+						if (pTerrain && pTerrain->IsMeshQuadFlipped(X_in_meters, Y_in_meters, unitSize, m_nSID))
 						{
 							s_tempIndices.Add(nIdx0);
 							s_tempIndices.Add(nIdx1);
@@ -317,8 +317,6 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 			// allocate tangent array
 			s_tempTangents.Clear();
 			s_tempTangents.PreAllocate(s_tempVertexPositions.Count(), s_tempVertexPositions.Count());
-
-			int nStep = CTerrain::GetHeightMapUnitSize();
 
 			Vec3 vWSBoxCenter = m_serializedData.worldSpaceBBox.GetCenter(); //vWSBoxCenter.z=0;
 
@@ -395,7 +393,7 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 	if (m_dynamicData.indices.Count() && GetRenderer())
 	{
 		m_pRenderMesh = GetRenderer()->CreateRenderMeshInitialized(
-		  m_dynamicData.vertices.GetElements(), m_dynamicData.vertices.Count(), eVF_P3F_C4B_T2S,
+		  m_dynamicData.vertices.GetElements(), m_dynamicData.vertices.Count(), EDefaultInputLayouts::P3F_C4B_T2S,
 		  m_dynamicData.indices.GetElements(), m_dynamicData.indices.Count(), prtTriangleList,
 		  "RoadRenderNode", GetName(), eRMT_Static, 1, 0, NULL, NULL, false, true, m_dynamicData.tangents.GetElements());
 

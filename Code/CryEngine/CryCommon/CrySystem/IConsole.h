@@ -101,6 +101,9 @@ struct IConsoleVarSink
 
 	//! Called by Console after variable has changed value.
 	virtual void OnAfterVarChange(ICVar* pVar) = 0;
+
+	//! Called by Console after variable has been unregistered.
+	virtual void OnVarUnregister(ICVar* pVar) = 0;
 	// </interfuscator:shuffle>
 };
 

@@ -1,0 +1,208 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#define APSTUDIO_HIDDEN_SYMBOLS
+#include "windows.h"
+#undef APSTUDIO_HIDDEN_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_PHYSTESTBED         ICON                    "..\\..\\Sandbox\\Plugins\\EditorCommon\\Icons\\General\\Physics_Tool.ico"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Cursor
+//
+
+IDC_PHYS_PINCH          CURSOR                  "..\\..\\Sandbox\\EditorQt\\res\\phys_pinch.cur"
+
+IDC_PHYS_GRAB           CURSOR                  "..\\..\\Sandbox\\EditorQt\\res\\phys_pull.cur"
+
+IDC_PHYS_AIM            CURSOR                  "..\\..\\Sandbox\\EditorQt\\res\\phys_hit.cur"
+
+IDC_SCISSORS            CURSOR                  "..\\..\\Sandbox\\EditorQt\\res\\scissors.cur"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDC_PHYSTESTBED MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "Choose &Geometries File...",  ID_CHOOSE_GEOMETRIES
+        MENUITEM "Choose &Entities File...",    ID_CHOOSE_ENTITIES
+        MENUITEM "&Reload World and Geometries\tCtrl+R", ID_RELOADGEOMETRIES
+        MENUITEM SEPARATOR
+        MENUITEM "Choose Entities Sa&ve File...", ID_CHOOSE_ENTITIES_SAVE
+        MENUITEM "&Save World\tCtrl+S",         ID_SAVEWORLD
+        MENUITEM "&Load Saved World",           ID_RELOADWORLD1
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                       IDM_EXIT
+    END
+    POPUP "&Options"
+    BEGIN
+        MENUITEM "&Simulate\tF1",               ID_ANIMATE
+        MENUITEM "&Realtime\t0",                ID_OPTIONS_FIXEDSTEP0
+        MENUITEM "Fixed Step 0.0&1\t1",         ID_OPTIONS_FIXEDSTEP1
+        MENUITEM "Fixed Step 0.0&2\t2",         ID_OPTIONS_FIXEDSTEP2
+        MENUITEM "Fixed Step 0.0333",           ID_OPTIONS_FIXEDSTEP3
+        MENUITEM "S&ync with Rendering",        ID_SYNC_RENDERING
+        MENUITEM SEPARATOR
+        MENUITEM "&Fast Camera Movement\tF3",   ID_FASTMOVEMENT
+        MENUITEM "&Slow Camera Movement\tF4",   ID_SLOWMOVEMENT
+        MENUITEM "Set Camera Position\tCtrl+G", ID_OPTIONS_CAMPOS
+        MENUITEM "Increase View Distance\tNum+", ID_OPTIONS_VIEWDIST_INC
+        MENUITEM "Decrease View Distance\tNum-", ID_OPTIONS_VIEWDIST_DEC
+        MENUITEM SEPARATOR
+        MENUITEM "1 Thread",                    ID_OPTIONS_THREAD1
+        MENUITEM "2 Threads",                   ID_OPTIONS_THREAD2
+        MENUITEM "3 Threads",                   ID_OPTIONS_THREAD3
+        MENUITEM "4 Threads",                   ID_OPTIONS_THREAD4
+        MENUITEM SEPARATOR
+        MENUITEM "Display &Collisions\tCtrl+C", ID_DISPLAYCOLLISIONS
+        MENUITEM "Display &BBoxes",             ID_OPTIONS_DISPLAYBBOXES
+        MENUITEM "Display Code &Profiler",      ID_DISPLAYPROFILER
+        MENUITEM "Display E&ntity Profiler",    ID_DISPLAYPROFILERENT
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About...",                   IDM_ABOUT
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Accelerator
+//
+
+IDC_PHYSTESTBED ACCELERATORS
+BEGIN
+    VK_F1,          ID_ANIMATE,             VIRTKEY, NOINVERT
+    "C",            ID_DISPLAYCOLLISIONS,   VIRTKEY, CONTROL, NOINVERT
+    VK_F3,          ID_FASTMOVEMENT,        VIRTKEY, NOINVERT
+    "R",            ID_RELOADGEOMETRIES,    VIRTKEY, CONTROL, NOINVERT
+    "S",            ID_SAVEWORLD,           VIRTKEY, CONTROL, NOINVERT
+    VK_F4,          ID_SLOWMOVEMENT,        VIRTKEY, NOINVERT
+    "G",            ID_OPTIONS_CAMPOS,      VIRTKEY, CONTROL, NOINVERT
+    VK_ADD,         ID_OPTIONS_VIEWDIST_INC, VIRTKEY, NOINVERT
+    VK_SUBTRACT,    ID_OPTIONS_VIEWDIST_DEC, VIRTKEY, NOINVERT
+    "0",            ID_OPTIONS_FIXEDSTEP0,  VIRTKEY, NOINVERT
+    "1",            ID_OPTIONS_FIXEDSTEP1,  VIRTKEY, NOINVERT
+    "2",            ID_OPTIONS_FIXEDSTEP2,  VIRTKEY, NOINVERT
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUTBOX DIALOGEX 22, 17, 230, 141
+STYLE DS_SETFONT | DS_MODALFRAME | WS_CAPTION | WS_SYSMENU
+CAPTION "PhysDebugger 1.0 Crytek GmbH"
+FONT 10, "Trebuchet MS", 400, 0, 0x0
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,99,123,30,11,WS_GROUP
+    LTEXT           "Startup: PhysDebugger.exe entfile geomsfile output_entsfile\nfiles can be changed/set via menu as well\nBinary dump can be used in place of either entfile or geomsfile and replaces both",IDC_STATIC,8,8,210,34
+    LTEXT           "WASD - move the camera\nRight button + mouse move - rotate the camera\nLeft button + Shitf/Ctrl + mouse move - object manipulation\nRight button + Shift - possess/unpossess an entity",IDC_STATIC,8,44,210,33
+    LTEXT           "Arrows - navigate code profiler",IDC_STATIC,8,102,159,13
+    LTEXT           "Space - do a single simulation step\nBackSpace - roll back the last single step",IDC_STATIC,8,81,210,20
+END
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#define APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "#include ""windows.h""\r\n"
+    "#undef APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 134
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE
+BEGIN
+    IDS_APP_TITLE           "PhysDebugger"
+    IDC_PHYSTESTBED         "PHYSTESTBED"
+END
+
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

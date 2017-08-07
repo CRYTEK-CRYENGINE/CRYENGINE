@@ -339,7 +339,7 @@ void CEntityScript::EnumStates()
 		IScriptTable::Iterator iter = pStatesDefTable->BeginIteration();
 		while (pStatesDefTable->MoveNext(iter))
 		{
-			if (iter.value.type != ANY_TSTRING)
+			if (iter.value.GetType() != EScriptAnyType::String)
 				continue;
 			++nStates;
 		}
@@ -351,9 +351,9 @@ void CEntityScript::EnumStates()
 		iter = pStatesDefTable->BeginIteration();
 		while (pStatesDefTable->MoveNext(iter))
 		{
-			if (iter.value.type != ANY_TSTRING)
+			if (iter.value.GetType() != EScriptAnyType::String)
 				continue;
-			sStateName = iter.value.str;
+			sStateName = iter.value.GetString();
 
 			// Add a new state to array of states and make a name to id mapping.
 			sstate.name = sStateName;
@@ -506,12 +506,12 @@ size_t CEntityScript::CountInOutEvents(IScriptTable* pEventsTable, std::vector<S
 		HSCRIPTFUNCTION func = 0;
 		if (!bOutput)
 		{
-			if (it.value.type != ANY_TTABLE)
+			if (it.value.GetType() != EScriptAnyType::Table)
 				continue;
 		}
 		else
 		{
-			if (it.value.type != ANY_TSTRING)
+			if (it.value.GetType() != EScriptAnyType::String)
 				continue;
 		}
 
@@ -532,19 +532,19 @@ void CEntityScript::ParseInOutEvents(IScriptTable* pEventsTable, std::vector<SEn
 		HSCRIPTFUNCTION func = 0;
 		if (!bOutput)
 		{
-			if (it.value.type != ANY_TTABLE)
+			if (it.value.GetType() != EScriptAnyType::Table)
 				continue;
 
-			IScriptTable* pEventTable = it.value.table;
+			IScriptTable* pEventTable = it.value.GetScriptTable();
 			if (!pEventTable->GetAt(1, func))
 				continue;
 			pEventTable->GetAt(2, sTypeName);
 		}
 		else
 		{
-			if (it.value.type != ANY_TSTRING)
+			if (it.value.GetType() != EScriptAnyType::String)
 				continue;
-			sTypeName = it.value.str;
+			sTypeName = it.value.GetString();
 		}
 
 		// Event.
@@ -616,7 +616,7 @@ void CEntityScript::LoadEvents()
 		size_t nEvents = 0;
 		IScriptTable::Iterator it = m_pEntityTable->BeginIteration();
 		while (m_pEntityTable->MoveNext(it))
-			if (it.value.type == ANY_TFUNCTION)
+			if (it.value.GetType() == EScriptAnyType::Function)
 				if (strncmp(it.sKey, "Event_", eventLen) == 0)
 					++nEvents;
 		m_pEntityTable->EndIteration(it);
@@ -627,7 +627,7 @@ void CEntityScript::LoadEvents()
 		it = m_pEntityTable->BeginIteration();
 		while (m_pEntityTable->MoveNext(it))
 		{
-			if (it.value.type == ANY_TFUNCTION)
+			if (it.value.GetType() == EScriptAnyType::Function)
 			{
 				if (strncmp(it.sKey, "Event_", eventLen) == 0)
 				{
@@ -661,7 +661,7 @@ void CEntityScript::CallEvent(IScriptTable* pThis, const char* sEvent, float fVa
 		// Find inputs with matching name.
 		if (!m_events[i].bOutput && strcmp(m_events[i].name, sEvent) == 0)
 		{
-			Script::CallMethod(pThis, m_events[i].func, ScriptAnyValue(ANY_TNIL), fValue);
+			Script::CallMethod(pThis, m_events[i].func, ScriptAnyValue(EScriptAnyType::Nil), fValue);
 			break;
 		}
 	}
@@ -678,7 +678,7 @@ void CEntityScript::CallEvent(IScriptTable* pThis, const char* sEvent, bool bVal
 			if (m_events[i].bOldEvent && !bValue)
 				break;
 
-			Script::CallMethod(pThis, m_events[i].func, ScriptAnyValue(ANY_TNIL), bValue);
+			Script::CallMethod(pThis, m_events[i].func, ScriptAnyValue(EScriptAnyType::Nil), bValue);
 			break;
 
 			/*
@@ -709,9 +709,9 @@ void CEntityScript::CallEvent(IScriptTable* pThis, const char* sEvent, const cha
 		if (!m_events[i].bOutput && strcmp(m_events[i].name, sEvent) == 0)
 		{
 			if (sValue)
-				Script::CallMethod(pThis, m_events[i].func, ScriptAnyValue(ANY_TNIL), sValue);
+				Script::CallMethod(pThis, m_events[i].func, ScriptAnyValue(EScriptAnyType::Nil), sValue);
 			else
-				Script::CallMethod(pThis, m_events[i].func, ScriptAnyValue(ANY_TNIL));
+				Script::CallMethod(pThis, m_events[i].func, ScriptAnyValue(EScriptAnyType::Nil));
 			break;
 		}
 	}
@@ -726,9 +726,9 @@ void CEntityScript::CallEvent(IScriptTable* pThis, const char* sEvent, IScriptTa
 		if (!m_events[i].bOutput && strcmp(m_events[i].name, sEvent) == 0)
 		{
 			if (pTable)
-				Script::CallMethod(pThis, m_events[i].func, ScriptAnyValue(ANY_TNIL), pTable);
+				Script::CallMethod(pThis, m_events[i].func, ScriptAnyValue(EScriptAnyType::Nil), pTable);
 			else
-				Script::CallMethod(pThis, m_events[i].func, ScriptAnyValue(ANY_TNIL));
+				Script::CallMethod(pThis, m_events[i].func, ScriptAnyValue(EScriptAnyType::Nil));
 			break;
 		}
 	}
@@ -742,7 +742,7 @@ void CEntityScript::CallEvent(IScriptTable* pThis, const char* sEvent, const Vec
 		// Find inputs with matching name.
 		if (!m_events[i].bOutput && strcmp(m_events[i].name, sEvent) == 0)
 		{
-			Script::CallMethod(pThis, m_events[i].func, ScriptAnyValue(ANY_TNIL), vValue);
+			Script::CallMethod(pThis, m_events[i].func, ScriptAnyValue(EScriptAnyType::Nil), vValue);
 			break;
 		}
 	}

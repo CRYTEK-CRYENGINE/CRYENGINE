@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -21,7 +21,7 @@ namespace uqs
 			explicit                                      CTextualGlobalConstantParamsBlueprint();
 
 			// ITextualGlobalConstantParamsBlueprint
-			virtual void                                  AddParameter(const char* name, const char* type, const char* value, bool bAddToDebugRenderWorld, datasource::SyntaxErrorCollectorUniquePtr pSyntaxErrorCollector) override;
+			virtual void                                  AddParameter(const char* szName, const char* szTypeName, const CryGUID& typeGUID, const char* szValue, bool bAddToDebugRenderWorld, DataSource::SyntaxErrorCollectorUniquePtr pSyntaxErrorCollector) override;
 			virtual size_t                                GetParameterCount() const override;
 			virtual SParameterInfo                        GetParameter(size_t index) const override;
 			// ~ITextualGlobalConstantParamsBlueprint
@@ -29,13 +29,14 @@ namespace uqs
 		private:
 			struct SStoredParameterInfo
 			{
-				explicit                                  SStoredParameterInfo(const char* _name, const char *_type, const char* _value, bool _bAddToDebugRenderWorld, datasource::SyntaxErrorCollectorUniquePtr _pSyntaxErrorCollector);
+				explicit                                  SStoredParameterInfo(const char* _szName, const char* _szTypeName, const CryGUID& _typeGUID, const char* _szValue, bool _bAddToDebugRenderWorld, DataSource::SyntaxErrorCollectorUniquePtr _pSyntaxErrorCollector);
 				explicit                                  SStoredParameterInfo(SStoredParameterInfo&& other);
 				string                                    name;
-				string                                    type;
+				string                                    typeName;
+				CryGUID                                   typeGUID;
 				string                                    value;
 				bool                                      bAddToDebugRenderWorld;
-				datasource::SyntaxErrorCollectorUniquePtr pSyntaxErrorCollector;
+				DataSource::SyntaxErrorCollectorUniquePtr pSyntaxErrorCollector;
 			};
 
 		private:
@@ -45,17 +46,19 @@ namespace uqs
 			std::vector<SStoredParameterInfo>             m_parameters;
 		};
 
-		inline CTextualGlobalConstantParamsBlueprint::SStoredParameterInfo::SStoredParameterInfo(const char* _name, const char *_type, const char* _value, bool _bAddToDebugRenderWorld, datasource::SyntaxErrorCollectorUniquePtr _pSyntaxErrorCollector)
-			: name(_name)
-			, type(_type)
-			, value(_value)
+		inline CTextualGlobalConstantParamsBlueprint::SStoredParameterInfo::SStoredParameterInfo(const char* _szName, const char* _szTypeName, const CryGUID& _typeGUID, const char* _szValue, bool _bAddToDebugRenderWorld, DataSource::SyntaxErrorCollectorUniquePtr _pSyntaxErrorCollector)
+			: name(_szName)
+			, typeName(_szTypeName)
+			, typeGUID(_typeGUID)
+			, value(_szValue)
 			, bAddToDebugRenderWorld(_bAddToDebugRenderWorld)
 			, pSyntaxErrorCollector(std::move(_pSyntaxErrorCollector))
 		{}
 
 		inline CTextualGlobalConstantParamsBlueprint::SStoredParameterInfo::SStoredParameterInfo(SStoredParameterInfo&& other)
 			: name(std::move(other.name))
-			, type(std::move(other.type))
+			, typeName(std::move(other.typeName))
+			, typeGUID(std::move(other.typeGUID))
 			, value(std::move(other.value))
 			, bAddToDebugRenderWorld(std::move(other.bAddToDebugRenderWorld))
 			, pSyntaxErrorCollector(std::move(other.pSyntaxErrorCollector))
@@ -72,8 +75,8 @@ namespace uqs
 		public:
 			struct SParamInfo
 			{
-				explicit                        SParamInfo(client::IItemFactory* _pItemFactory, void* _pItem, bool _bAddToDebugRenderWorld);
-				client::IItemFactory*           pItemFactory;
+				explicit                        SParamInfo(Client::IItemFactory* _pItemFactory, void* _pItem, bool _bAddToDebugRenderWorld);
+				Client::IItemFactory*           pItemFactory;
 				void*                           pItem;
 				bool                            bAddToDebugRenderWorld;
 			};
@@ -84,7 +87,7 @@ namespace uqs
 
 			bool                                Resolve(const ITextualGlobalConstantParamsBlueprint& source);
 			const std::map<string, SParamInfo>& GetParams() const;
-			void                                AddSelfToDictAndReplace(shared::CVariantDict& out) const;
+			void                                AddSelfToDictAndReplace(Shared::CVariantDict& out) const;
 			void                                PrintToConsole(CLogger& logger) const;
 
 		private:
@@ -94,7 +97,7 @@ namespace uqs
 			std::map<string, SParamInfo>        m_constantParams;
 		};
 
-		inline CGlobalConstantParamsBlueprint::SParamInfo::SParamInfo(client::IItemFactory* _pItemFactory, void* _pItem, bool _bAddToDebugRenderWorld)
+		inline CGlobalConstantParamsBlueprint::SParamInfo::SParamInfo(Client::IItemFactory* _pItemFactory, void* _pItem, bool _bAddToDebugRenderWorld)
 			: pItemFactory(_pItemFactory)
 			, pItem(_pItem)
 			, bAddToDebugRenderWorld(_bAddToDebugRenderWorld)

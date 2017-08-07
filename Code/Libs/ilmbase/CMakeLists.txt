@@ -116,11 +116,11 @@ end_sources()
 #END-FILE-LIST
 
 CryEngineStaticModule(ilmbase SOLUTION_FOLDER "Libs")
-target_include_directories(${THIS_PROJECT} PRIVATE ${SDK_DIR}/ilmbase/Half ${SDK_DIR}/ilmbase/Iex ${SDK_DIR}/ilmbase/IexMath ${SDK_DIR}/ilmbase/Imath ${SDK_DIR}/ilmbase/config.windows )
+target_include_directories(${THIS_PROJECT} PRIVATE "${SDK_DIR}/ilmbase/Half" "${SDK_DIR}/ilmbase/Iex" "${SDK_DIR}/ilmbase/IexMath" "${SDK_DIR}/ilmbase/Imath" "${SDK_DIR}/ilmbase/config.windows" )
 target_compile_definitions(${THIS_PROJECT} PRIVATE -DNOMINMAX)
 target_compile_options(${THIS_PROJECT} PRIVATE /GR /EHsc ) # Enable exceptions.
 target_compile_options(${THIS_PROJECT} PRIVATE /W0 ) # Disable warnings from 3rdParty code. 
-target_include_directories(${THIS_PROJECT} INTERFACE ${SDK_DIR}/ilmbase/Half ${SDK_DIR}/ilmbase/Iex ${SDK_DIR}/ilmbase/IexMath ${SDK_DIR}/ilmbase/Imath ${SDK_DIR}/ilmbase/config.windows )
+target_include_directories(${THIS_PROJECT} INTERFACE "${SDK_DIR}/ilmbase/Half" "${SDK_DIR}/ilmbase/Iex" "${SDK_DIR}/ilmbase/IexMath" "${SDK_DIR}/ilmbase/Imath" "${SDK_DIR}/ilmbase/config.windows" )
 
 # Tool to create toFloat.h
 CryConsoleApplication(toFloat SOLUTION_FOLDER "Tools/ilm")

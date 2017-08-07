@@ -415,7 +415,7 @@ bool CAIAnimationComponent::InitMannequin( IActionController& actionController, 
 	const bool supportsMannequinAiming = ( supportsMannequinAimPoseAction && supportsMannequinAimingAction );
 	if ( supportsMannequinAiming )
 	{
-		m_pProceduralContextAim = static_cast< CProceduralContextAim* >( actionController.FindOrCreateProceduralContext( PROCEDURAL_CONTEXT_AIM_NAME ) );
+		m_pProceduralContextAim = static_cast< CProceduralContextAim* >( actionController.FindOrCreateProceduralContext(CProceduralContextAim::GetCID()) );
 
 		actionController.Queue( *new CAnimActionAIAimPose() );
 		actionController.Queue( *new CAnimActionAIAiming() );
@@ -428,7 +428,7 @@ bool CAIAnimationComponent::InitMannequin( IActionController& actionController, 
 	const bool supportsMannequinLooking = ( supportsMannequinLookPoseAction && supportsMannequinLookingAction );
 	if ( supportsMannequinLooking )
 	{
-		m_pProceduralContextLook = static_cast< CProceduralContextLook* >( actionController.FindOrCreateProceduralContext( PROCEDURAL_CONTEXT_LOOK_NAME ) );
+		m_pProceduralContextLook = static_cast< CProceduralContextLook* >( actionController.FindOrCreateProceduralContext(CProceduralContextLook::GetCID()) );
 
 		actionController.Queue( *new CAnimActionAILookPose() );
 		actionController.Queue( *new CAnimActionAILooking() );

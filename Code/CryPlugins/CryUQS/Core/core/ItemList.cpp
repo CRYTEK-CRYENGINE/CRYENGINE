@@ -5,9 +5,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		CItemList::CItemList()
@@ -26,7 +26,7 @@ namespace uqs
 			}
 		}
 
-		void CItemList::SetItemFactory(client::IItemFactory& itemFactory)
+		void CItemList::SetItemFactory(Client::IItemFactory& itemFactory)
 		{
 			assert(!m_pItemFactory);  // changing the item-factory is not supported (which use-case would it tackle?)
 			m_pItemFactory = &itemFactory;
@@ -40,7 +40,7 @@ namespace uqs
 			// ensure that no items have been created yet (we don't support recycling the item list)
 			assert(!m_pItems);
 
-			m_pItems = m_pItemFactory->CreateItems(numItemsToCreate, client::IItemFactory::EItemInitMode::UseDefaultConstructor);
+			m_pItems = m_pItemFactory->CreateItems(numItemsToCreate, Client::IItemFactory::EItemInitMode::UseDefaultConstructor);
 			m_numItems = numItemsToCreate;
 		}
 
@@ -49,7 +49,7 @@ namespace uqs
 			return m_numItems;
 		}
 
-		client::IItemFactory& CItemList::GetItemFactory() const
+		Client::IItemFactory& CItemList::GetItemFactory() const
 		{
 			assert(m_pItemFactory);    // CreateItemsByItemFactory() should have been called before; I cannot see a use-case where it would make sense the other way round
 			return *m_pItemFactory;
@@ -69,10 +69,10 @@ namespace uqs
 
 			const void* pOtherItems = other.GetItems();
 			const size_t numItemsToCopy = other.GetItemCount();
-			client::IItemFactory& otherItemFactory = other.GetItemFactory();
+			Client::IItemFactory& otherItemFactory = other.GetItemFactory();
 
 			m_pItemFactory = &otherItemFactory;
-			m_pItems = m_pItemFactory->CreateItems(numItemsToCopy, client::IItemFactory::EItemInitMode::UseDefaultConstructor);
+			m_pItems = m_pItemFactory->CreateItems(numItemsToCopy, Client::IItemFactory::EItemInitMode::UseDefaultConstructor);
 			for (size_t i = 0; i < numItemsToCopy; ++i)
 			{
 				void* pTargetItem = m_pItemFactory->GetItemAtIndex(m_pItems, i);

@@ -7,8 +7,9 @@
 #include "../ModelMesh.h"
 #include "VertexData.h"
 
-#pragma warning(disable:4700)
-#pragma warning(disable:6326)
+#pragma warning(push)
+#pragma warning(disable:4700) // uninitialized local variable
+#pragma warning(disable:6326) // potential comparison of a constant with another constant
 
 #if CRY_PLATFORM_WINDOWS || CRY_PLATFORM_DURANGO || CRY_PLATFORM_ORBIS
 	#define USE_VERTEXCOMMAND_SSE
@@ -763,3 +764,5 @@ void VertexCommandAdd::Execute(VertexCommandAdd& command, CVertexData& vertexDat
 }
 
 #endif
+
+#pragma warning(pop)

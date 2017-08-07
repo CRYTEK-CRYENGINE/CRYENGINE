@@ -7,5 +7,6 @@ def build(bld):
 		file_list   = 'DialogEditorPlugin.waf_files',
 		pch			= 'StdAfx.cpp',
 		use			= [ 'MFCToolsPlugin' ],
-		includes	= [ Path('Code/Sandbox/Plugins/MFCToolsPlugin')	]
+		module_extensions = ['toolkit_pro'],
+		includes	= [ Path('Code/Sandbox/Plugins/MFCToolsPlugin'), Path('Code/CryEngine/CryAction')]
 	)

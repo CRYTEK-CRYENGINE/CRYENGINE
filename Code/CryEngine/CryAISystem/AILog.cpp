@@ -25,7 +25,6 @@
 	#include <CrySystem/IValidator.h>
 	#include <CrySystem/IConsole.h>
 	#include "DebugDrawContext.h"
-	#include <CrySystem/ITestSystem.h>
 
 // these should all be in sync - so testing one for 0 should be the same for all
 ISystem* pSystem = 0;

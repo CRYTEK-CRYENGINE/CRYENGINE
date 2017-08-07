@@ -23,6 +23,8 @@ CRY_PFX2_DBG
 namespace pfx2
 {
 
+#if !defined(_RELEASE)
+
 namespace
 {
 
@@ -55,8 +57,8 @@ void DebugDrawEffect(CParticleEffect* pEffect, size_t effectBarIdx)
 	{
 		AABB box;
 		box.min = pos;
-		box.max.x = box.min.x + MAX(emitterSz.x, pixSz.x);
-		box.max.y = box.min.y + MAX(emitterSz.y - pixSz.y, pixSz.y);
+		box.max.x = box.min.x + std::max(emitterSz.x, pixSz.x);
+		box.max.y = box.min.y + std::max(emitterSz.y - pixSz.y, pixSz.y);
 		ColorB color = pEffect->GetEmitter(i).m_active ? red : darkRed;
 		pRenderAux->DrawAABB(box, true, color, eBBD_Faceted);
 		pos.y += emitterSz.y;
@@ -103,8 +105,8 @@ void DebugDrawComponentRuntime(CParticleComponentRuntime* pRuntime, size_t emitt
 		{
 			AABB box;
 			box.min = pos;
-			box.max.x = box.min.x + MAX(instSz.x, pixSz.x);
-			box.max.y = box.min.y + MAX(instSz.y - pixSz.y, pixSz.y);
+			box.max.x = box.min.x + std::max(instSz.x, pixSz.x);
+			box.max.y = box.min.y + std::max(instSz.y - pixSz.y, pixSz.y);
 			ColorF color = ColorF(0.0f, 0.5f, 1.0f);
 			pRenderAux->DrawAABB(box, true, ColorB(color), eBBD_Faceted);
 			pos.y += instSz.y;
@@ -113,14 +115,14 @@ void DebugDrawComponentRuntime(CParticleComponentRuntime* pRuntime, size_t emitt
 
 	// particle bars
 	pos = contLoc;
-	CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+	for (auto particleId : context.GetUpdateRange())
 	{
 		AABB box;
 		// box.min = pos;
 		box.min.x = contLoc.x;
 		box.min.y = contLoc.y + partSz.y * particleId;
-		box.max.x = box.min.x + MAX(partSz.x, pixSz.x);
-		box.max.y = box.min.y + MAX(partSz.y - pixSz.y, pixSz.y);
+		box.max.x = box.min.x + std::max(partSz.x, pixSz.x);
+		box.max.y = box.min.y + std::max(partSz.y - pixSz.y, pixSz.y);
 		ColorB color = black;
 		const uint8 state = states.Load(particleId);
 		const float age = normAges.Load(particleId);
@@ -128,16 +130,15 @@ void DebugDrawComponentRuntime(CParticleComponentRuntime* pRuntime, size_t emitt
 			color = ColorB(ColorF(age, 1.0f - age, 0.0f));
 		pRenderAux->DrawAABB(box, true, color, eBBD_Faceted);
 	}
-	CRY_PFX2_FOR_END;
 
-	if (params.IsSecondGen())
+	if (pRuntime->IsChild())
 	{
 		const CParticleContainer& parentContainer = pRuntime->GetParentContainer();
 		const Vec2 parentPartSz = Vec2(barSz, 0.9f / parentContainer.GetMaxParticles());
-		const Vec2 parentContLoc = Vec2((emitterBarIdx + params.m_parentId) * barGap + barSz * 3.0f + startPos, startPos);
+		const Vec2 parentContLoc = Vec2((emitterBarIdx /*+ params.m_parentId*/) * barGap + barSz * 3.0f + startPos, startPos);
 
 		// parenting lines
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		for (auto particleId : context.GetUpdateRange())
 		{
 			const TParticleId parentId = parentIds.Load(particleId);
 			if (parentId == gInvalidId)
@@ -146,7 +147,6 @@ void DebugDrawComponentRuntime(CParticleComponentRuntime* pRuntime, size_t emitt
 			Vec2 to = parentContLoc + parentPartSz * 0.5f + Vec2(off, parentPartSz.y * parentId);
 			pRenderAux->DrawLine(from, lightOrange, to, black, 1.0f);
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 	IRenderAuxText::Draw2dLabel(
@@ -174,14 +174,17 @@ void DebugDrawComponentCollisions(CParticleComponentRuntime* pRuntime)
 		return;
 	const TIStream<SContactPoint> contactPoints = container.GetTIStream<SContactPoint>(EPDT_ContactPoint);
 
-	CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+	for (auto particleId : context.GetUpdateRange())
 	{
 		SContactPoint contact = contactPoints.Load(particleId);
 
+		if (contact.m_totalCollisions == 0)
+			continue;
+
 		ColorB color = ColorB(0, 0, 0);
-		if (contact.m_flags & uint(EContactPointsFlags::Ignore))
+		if (contact.m_state.ignore)
 			color = ColorB(128, 128, 128);
-		else if (contact.m_flags & uint(EContactPointsFlags::Sliding))
+		else if (contact.m_state.sliding)
 			color = ColorB(255, 128, 64);
 		else
 			color = ColorB(64, 128, 255);
@@ -191,7 +194,6 @@ void DebugDrawComponentCollisions(CParticleComponentRuntime* pRuntime)
 			contact.m_point, color,
 			contact.m_point + contact.m_normal*0.25f, color);
 	}
-	CRY_PFX2_FOR_END;
 
 	pRenderAux->SetRenderFlags(prevFlags);
 }
@@ -304,8 +306,8 @@ void DebugParticleSystem(const std::vector<_smart_ptr<CParticleEmitter>>& active
 	DebugOptSpline();
 
 	CVars* pCVars = static_cast<C3DEngine*>(gEnv->p3DEngine)->GetCVars();
-	const bool debugContainers = (pCVars->e_ParticlesDebug & AlphaBit('b')) != 0;
-	const bool debugCollisions = (pCVars->e_ParticlesDebug & AlphaBit('c')) != 0;
+	const bool debugContainers = (pCVars->e_ParticlesDebug & AlphaBit('t')) != 0;
+	const bool debugCollisions = (pCVars->e_ParticlesDebug & AlphaBit('u')) != 0;
 
 	if (debugContainers || debugCollisions)
 	{
@@ -317,10 +319,9 @@ void DebugParticleSystem(const std::vector<_smart_ptr<CParticleEmitter>>& active
 		for (CParticleEmitter* pEmitter : activeEmitters)
 		{
 			CParticleEffect* pEffect = pEmitter->GetCEffect();
-			TComponentId lastComponentIt = pEffect->GetNumComponents();
-			for (TComponentId componentId = 0; componentId < lastComponentIt; ++componentId)
+			for (auto ref : pEmitter->GetRuntimes())
 			{
-				auto pComponentRuntime = pEmitter->GetRuntimes()[componentId].pRuntime->GetCpuRuntime();
+				auto pComponentRuntime = ref.pRuntime->GetCpuRuntime();
 				if (!pComponentRuntime)
 					continue;
 				if (!pComponentRuntime->GetComponent()->IsEnabled())
@@ -334,5 +335,11 @@ void DebugParticleSystem(const std::vector<_smart_ptr<CParticleEmitter>>& active
 		}
 	}
 }
+
+#else
+
+void DebugParticleSystem(const std::vector<_smart_ptr<CParticleEmitter>>& activeEmitters) {}
+
+#endif
 
 }

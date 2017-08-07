@@ -3083,7 +3083,7 @@ void CPickAndThrowWeapon::DecideGrabType()
 				ScriptAnyValue grabTypeScript;
 				propsPlayerInteractions->GetValueAny("esGrabType", grabTypeScript);
 				if (grabTypeScript.GetVarType()==svtString)
-					grabType = grabTypeScript.str;
+					grabType = grabTypeScript.GetString();
 			}
 		}
 

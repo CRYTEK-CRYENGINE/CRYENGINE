@@ -33,11 +33,6 @@ CCryDX12RasterizerState::CCryDX12RasterizerState(const D3D11_RASTERIZER_DESC& de
 
 }
 
-CCryDX12RasterizerState::~CCryDX12RasterizerState()
-{
-
-}
-
 #pragma region /* ID3D11RasterizerState implementation */
 
 void STDMETHODCALLTYPE CCryDX12RasterizerState::GetDesc(

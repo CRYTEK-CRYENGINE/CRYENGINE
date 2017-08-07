@@ -9,9 +9,10 @@
 // - not required when building a .lib
 #include <CryCore/Platform/platform_impl.inl>
 
-namespace uqs
+
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -27,7 +28,7 @@ namespace uqs
 			CRYINTERFACE_ADD(ICryPlugin)
 			CRYINTERFACE_END()
 
-			CRYGENERATE_SINGLETONCLASS(CHubPlugin, "Plugin_UQS", 0x2a2f00e0f0684baf, 0xb31bb3c8f78b3477)
+			CRYGENERATE_SINGLETONCLASS_GUID(CHubPlugin, "Plugin_UQS", "2a2f00e0-f068-4baf-b31b-b3c8f78b3477"_cry_guid)
 
 			CHubPlugin();
 			virtual ~CHubPlugin();
@@ -85,12 +86,48 @@ namespace uqs
 		{
 			// Notice: we currently do *not* yet instantiate the UQS Hub here, because some of its sub-systems rely on the presence of sub-systems of ISystem, like IInput, which
 			// are still NULL at this point in time. So instead, we instantiate the UQS Hub upon ESYSTEM_EVENT_CRYSYSTEM_INIT_DONE (see OnSystemEvent()).
+			m_updateFlags = IPluginUpdateListener::EUpdateType_Update;
 			return true;
 		}
 
 		void CHubPlugin::OnPluginUpdate(EPluginUpdateType updateType)
 		{
-			// nothing (the game or editor shall call IHub::Update() directly whenever it wants queries to get processed)
+			assert(updateType == IPluginUpdateListener::EUpdateType_Update);
+
+			if (gEnv->IsEditing())
+				return;	// leave it to the UQS editor-plugins to update the IHub
+
+			if (!m_pHub.get())
+				return;	// IHub got torn down already
+
+			if (!(m_pHub->GetOverrideFlags() & EHubOverrideFlags::CallUpdate))
+			{
+				//
+				// update the IHub to process all running queries and to do some basic on-screen 2D debug rendering
+				//
+
+				m_pHub->AutomaticUpdateBegin();
+				m_pHub->Update();
+				m_pHub->AutomaticUpdateEnd();
+			}
+
+			if (!(m_pHub->GetOverrideFlags() & EHubOverrideFlags::CallUpdateDebugRendering3D))
+			{
+				//
+				// update the 3D debug rendering of all items of all queries
+				//
+
+				CQueryHistoryManager& queryHistoryManager = m_pHub->GetQueryHistoryManager();
+				queryHistoryManager.AutomaticUpdateDebugRendering3DBegin();
+
+				const CCamera& sysCamera = gEnv->pSystem->GetViewCamera();
+				SDebugCameraView debugCameraView;
+				debugCameraView.pos = sysCamera.GetPosition();
+				debugCameraView.dir = sysCamera.GetViewdir();
+				queryHistoryManager.UpdateDebugRendering3D(&debugCameraView, IQueryHistoryManager::SEvaluatorDrawMasks::CreateAllBitsSet());
+
+				queryHistoryManager.AutomaticUpdateDebugRendering3DEnd();
+			}
 		}
 
 		void CHubPlugin::RegisterHubPluginEventListener(IHubPluginEventListener* pListenerToRegister)

@@ -32,7 +32,7 @@ private:
 
 public:
 
-	CRY_ENTITY_COMPONENT_INTERFACE_AND_CLASS(CMannequinObject, "MannequinObjectComponent", 0xB8BE725C60654EC1, 0xAFDB0BE2819FBEBB);
+	CRY_ENTITY_COMPONENT_INTERFACE_AND_CLASS_GUID(CMannequinObject, "MannequinObjectComponent", "b8be725c-6065-4ec1-afdb-0be2819fbebb"_cry_guid);
 
 	CMannequinObject();
 

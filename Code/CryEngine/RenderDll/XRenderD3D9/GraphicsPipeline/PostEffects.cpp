@@ -69,7 +69,7 @@ CTexture* CPostEffectContext::GetDestBackBufferTexture() const
 {
 	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 
-	CTexture* pOutputRT = rd->GetBackBufferTexture();
+	CTexture* pOutputRT = rd->GetCurrentTargetOutput();
 
 	if (m_bUseAltBackBuffer)
 	{
@@ -323,13 +323,14 @@ void CPostEffectStage::Execute()
 		if (pass.InputChanged(pSrcBackBufferTexture->GetID(), pOutputRT->GetID()))
 		{
 			static CCryNameTSCRC pszTechName("DebugPostAA");
+			pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 			pass.SetTechnique(CShaderMan::s_shPostAA, pszTechName, 0);
 			pass.SetState(GS_NODEPTHTEST);
 
 			pass.SetRenderTarget(0, pOutputRT);
 
 			pass.SetTexture(0, pSrcBackBufferTexture);
-			pass.SetSampler(0, rd->m_nPointClampSampler);
+			pass.SetSampler(0, EDefaultSamplerStates::PointClamp);
 		}
 
 		pass.BeginConstantUpdate();
@@ -483,8 +484,8 @@ void CUnderwaterGodRaysPass::Execute(const CPostEffectContext& context)
 
 	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 
-	static CCryNameR param0Name("PI_GodRaysParamsVS");
-	static CCryNameR param1Name("PI_GodRaysParamsPS");
+	static CCryNameR param0Name("PB_GodRaysParamsVS");
+	static CCryNameR param1Name("PB_GodRaysParamsPS");
 
 	// render god-rays into low-res render target for less fillrate hit.
 	{
@@ -501,34 +502,33 @@ void CUnderwaterGodRaysPass::Execute(const CPostEffectContext& context)
 			rtMask |= g_HWSR_MaskBit[HWSR_REVERSE_DEPTH];
 		}
 
-		auto& pass = m_passUnderwaterGodRaysGen;
 		CTexture* pSrcBackBufferTexture = context.GetSrcBackBufferTexture();
 
-		if (pass.InputChanged((rtMask & 0xFFFFFFFF), ((rtMask >> 32) & 0xFFFFFFFF)), pSrcBackBufferTexture->GetID())
+		for (int32 r = 0; r < SliceCount; ++r)
 		{
-			static CCryNameTSCRC techName("UnderwaterGodRays");
-			pass.SetTechnique(CShaderMan::s_shPostEffects, techName, rtMask);
-			pass.SetState(GS_BLSRC_ONE | GS_BLDST_ONE | GS_NODEPTHTEST);
+			auto& pass = m_passUnderwaterGodRaysGen[r];
 
-			pass.SetRenderTarget(0, CTexture::s_ptexBackBufferScaled[1]);
+			if (pass.InputChanged((rtMask & 0xFFFFFFFF), ((rtMask >> 32) & 0xFFFFFFFF)), pSrcBackBufferTexture->GetID())
+			{
+				static CCryNameTSCRC techName("UnderwaterGodRays");
+				pass.SetTechnique(CShaderMan::s_shPostEffects, techName, rtMask);
+				pass.SetState(GS_BLSRC_ONE | GS_BLDST_ONE | GS_NODEPTHTEST);
 
-			pass.SetTexture(0, pSrcBackBufferTexture);
-			pass.SetTexture(1, m_pWavesTex);
-			pass.SetTexture(2, m_pCausticsTex);
+				pass.SetRenderTarget(0, CTexture::s_ptexBackBufferScaled[1]);
 
-			pass.SetSampler(0, rd->m_nLinearClampSampler);
-			pass.SetSampler(1, rd->m_nTrilinearWrapSampler);
+				pass.SetTexture(0, pSrcBackBufferTexture);
+				pass.SetTexture(1, m_pWavesTex);
+				pass.SetTexture(2, m_pCausticsTex);
 
-			pass.SetRequirePerViewConstantBuffer(true);
-		}
+				pass.SetSampler(0, EDefaultSamplerStates::LinearClamp);
+				pass.SetSampler(1, EDefaultSamplerStates::TrilinearWrap);
 
-		const int32 nSlicesCount = 10;
+				pass.SetRequirePerViewConstantBuffer(true);
+			}
 
-		for (int32 r = 0; r < nSlicesCount; ++r)
-		{
 			pass.BeginConstantUpdate();
 
-			const Vec4 pParams = Vec4(fWatLevel, fAmount, (float)r, 1.0f / (float)nSlicesCount);
+			const Vec4 pParams = Vec4(fWatLevel, fAmount, (float)r, 1.0f / (float)SliceCount);
 			pass.SetConstant(param0Name, pParams, eHWSC_Vertex);
 			pass.SetConstant(param1Name, pParams, eHWSC_Pixel);
 
@@ -545,6 +545,7 @@ void CUnderwaterGodRaysPass::Execute(const CPostEffectContext& context)
 		if (pass.InputChanged(pOutputRT->GetID(), pSrcBackBufferTexture->GetID()))
 		{
 			static CCryNameTSCRC techName("UnderwaterGodRaysFinal");
+			pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 			pass.SetTechnique(CShaderMan::s_shPostEffects, techName, 0);
 			pass.SetState(GS_NODEPTHTEST);
 
@@ -554,8 +555,8 @@ void CUnderwaterGodRaysPass::Execute(const CPostEffectContext& context)
 			pass.SetTexture(1, m_pUnderwaterBumpTex);
 			pass.SetTexture(2, CTexture::s_ptexBackBufferScaled[1]);
 
-			pass.SetSampler(0, rd->m_nTrilinearClampSampler);
-			pass.SetSampler(1, rd->m_nTrilinearWrapSampler);
+			pass.SetSampler(0, EDefaultSamplerStates::TrilinearClamp);
+			pass.SetSampler(1, EDefaultSamplerStates::TrilinearWrap);
 		}
 
 		pass.BeginConstantUpdate();
@@ -605,6 +606,7 @@ void CWaterDropletsPass::Execute(const CPostEffectContext& context)
 	if (pass.InputChanged(pOutputRT->GetID(), pSrcBackBufferTexture->GetID()))
 	{
 		static CCryNameTSCRC techName("WaterDroplets");
+		pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 		pass.SetTechnique(CShaderMan::s_shPostEffectsGame, techName, 0);
 		pass.SetState(GS_NODEPTHTEST);
 
@@ -613,8 +615,8 @@ void CWaterDropletsPass::Execute(const CPostEffectContext& context)
 		pass.SetTexture(0, pSrcBackBufferTexture);
 		pass.SetTexture(1, m_pWaterDropletsBumpTex);
 
-		pass.SetSampler(0, rd->m_nPointClampSampler);
-		pass.SetSampler(1, rd->m_nTrilinearWrapSampler);
+		pass.SetSampler(0, EDefaultSamplerStates::PointClamp);
+		pass.SetSampler(1, EDefaultSamplerStates::TrilinearWrap);
 
 		pass.SetRequirePerViewConstantBuffer(true);
 	}
@@ -668,6 +670,7 @@ void CWaterFlowPass::Execute(const CPostEffectContext& context)
 	if (pass.InputChanged(pOutputRT->GetID(), pSrcBackBufferTexture->GetID()))
 	{
 		static CCryNameTSCRC techName("WaterFlow");
+		pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 		pass.SetTechnique(CShaderMan::s_shPostEffectsGame, techName, 0);
 		pass.SetState(GS_NODEPTHTEST);
 
@@ -676,8 +679,8 @@ void CWaterFlowPass::Execute(const CPostEffectContext& context)
 		pass.SetTexture(0, pSrcBackBufferTexture);
 		pass.SetTexture(1, m_pWaterFlowBumpTex);
 
-		pass.SetSampler(0, rd->m_nPointClampSampler);
-		pass.SetSampler(1, rd->m_nTrilinearWrapSampler);
+		pass.SetSampler(0, EDefaultSamplerStates::PointClamp);
+		pass.SetSampler(1, EDefaultSamplerStates::TrilinearWrap);
 
 		pass.SetRequirePerViewConstantBuffer(true);
 	}
@@ -727,6 +730,7 @@ void CFilterSharpeningPass::Execute(const CPostEffectContext& context)
 	if (pass.InputChanged(pOutputRT->GetID(), pSrcBackBufferTexture->GetID(), CTexture::s_ptexBackBufferScaled[0]->GetID()))
 	{
 		static CCryNameTSCRC techName("CA_Sharpening");
+		pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 		pass.SetTechnique(CShaderMan::s_shPostEffects, techName, 0);
 		pass.SetState(GS_NODEPTHTEST);
 
@@ -735,8 +739,8 @@ void CFilterSharpeningPass::Execute(const CPostEffectContext& context)
 		pass.SetTexture(0, pSrcBackBufferTexture);
 		pass.SetTexture(1, CTexture::s_ptexBackBufferScaled[0]);
 
-		pass.SetSampler(0, rd->m_nPointClampSampler);
-		pass.SetSampler(1, rd->m_nLinearClampSampler);
+		pass.SetSampler(0, EDefaultSamplerStates::PointClamp);
+		pass.SetSampler(1, EDefaultSamplerStates::LinearClamp);
 
 		pass.SetRequirePerViewConstantBuffer(true);
 	}
@@ -788,6 +792,7 @@ void CFilterBlurringPass::Execute(const CPostEffectContext& context)
 	if (pass.InputChanged(pOutputRT->GetID(), pSrcBackBufferTexture->GetID(), CTexture::s_ptexBackBufferScaled[0]->GetID()))
 	{
 		static CCryNameTSCRC techName("BlurInterpolation");
+		pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 		pass.SetTechnique(CShaderMan::s_shPostEffects, techName, 0);
 		pass.SetState(GS_NODEPTHTEST);
 
@@ -796,8 +801,8 @@ void CFilterBlurringPass::Execute(const CPostEffectContext& context)
 		pass.SetTexture(0, CTexture::s_ptexBackBufferScaled[0]);
 		pass.SetTexture(1, pSrcBackBufferTexture);
 
-		pass.SetSampler(0, rd->m_nPointClampSampler);
-		pass.SetSampler(1, rd->m_nLinearClampSampler);
+		pass.SetSampler(0, EDefaultSamplerStates::PointClamp);
+		pass.SetSampler(1, EDefaultSamplerStates::LinearClamp);
 	}
 
 	pass.BeginConstantUpdate();
@@ -857,6 +862,7 @@ void CUberGamePostEffectPass::Execute(const CPostEffectContext& context)
 		if (pass.InputChanged(pOutputRT->GetID(), pSrcBackBufferTexture->GetID(), pMaskTex->GetID(), postEffectMask))
 		{
 			static CCryNameTSCRC techName("UberGamePostProcess");
+			pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 			pass.SetTechnique(CShaderMan::s_shPostEffectsGame, techName, rtMask);
 			pass.SetState(renderState);
 
@@ -865,7 +871,7 @@ void CUberGamePostEffectPass::Execute(const CPostEffectContext& context)
 			pass.SetTexture(0, pSrcBackBufferTexture);
 			pass.SetTexture(2, pMaskTex);
 
-			pass.SetSampler(0, rd->m_nLinearClampSampler);
+			pass.SetSampler(0, EDefaultSamplerStates::LinearClamp);
 
 			pass.SetRequirePerViewConstantBuffer(true);
 		}
@@ -932,7 +938,8 @@ void CFlashBangPass::Execute(const CPostEffectContext& context)
 			// Create temporary ghost image and capture screen
 			SAFE_DELETE(postEffect.m_pGhostImage);
 
-			postEffect.m_pGhostImage = new SDynTexture(pSrcBackBufferTexture->GetWidth() >> 1, pSrcBackBufferTexture->GetHeight() >> 1, eTF_R8G8B8A8, eTT_2D, FT_STATE_CLAMP, "GhostImageTempRT");
+			const int flags = FT_USAGE_RENDERTARGET | FT_NOMIPS;
+			postEffect.m_pGhostImage = new SDynTexture(pSrcBackBufferTexture->GetWidth() >> 1, pSrcBackBufferTexture->GetHeight() >> 1, eTF_R8G8B8A8, eTT_2D, flags, "GhostImageTempRT");
 			postEffect.m_pGhostImage->Update(pSrcBackBufferTexture->GetWidth() >> 1, pSrcBackBufferTexture->GetHeight() >> 1);
 
 			if (postEffect.m_pGhostImage && postEffect.m_pGhostImage->m_pTexture)
@@ -973,6 +980,7 @@ void CFlashBangPass::Execute(const CPostEffectContext& context)
 		if (pass.InputChanged(pOutputRT->GetID(), pSrcBackBufferTexture->GetID(), postEffect.m_pGhostImage->m_pTexture->GetID()))
 		{
 			static CCryNameTSCRC techName("FlashBang");
+			pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 			pass.SetTechnique(CShaderMan::s_shPostEffectsGame, techName, 0);
 			pass.SetState(GS_NODEPTHTEST);
 
@@ -981,8 +989,8 @@ void CFlashBangPass::Execute(const CPostEffectContext& context)
 			pass.SetTexture(0, pSrcBackBufferTexture);
 			pass.SetTexture(1, postEffect.m_pGhostImage->m_pTexture);
 
-			pass.SetSampler(0, rd->m_nPointClampSampler);
-			pass.SetSampler(1, rd->m_nLinearClampSampler);
+			pass.SetSampler(0, EDefaultSamplerStates::PointClamp);
+			pass.SetSampler(1, EDefaultSamplerStates::LinearClamp);
 		}
 
 		pass.BeginConstantUpdate();
@@ -1000,7 +1008,9 @@ void CFlashBangPass::Execute(const CPostEffectContext& context)
 
 void CPostStereoPass::Init()
 {
-	m_samplerLinearMirror = CTexture::GetTexState(STexState(FILTER_LINEAR, TADDR_MIRROR, TADDR_MIRROR, TADDR_MIRROR, 0x0));
+	m_samplerLinearMirror = GetDeviceObjectFactory().GetOrCreateSamplerStateHandle(
+		SSamplerState(FILTER_LINEAR, eSamplerAddressMode_Mirror, eSamplerAddressMode_Mirror, eSamplerAddressMode_Mirror, 0x0));
+
 }
 
 void CPostStereoPass::Execute(const CPostEffectContext& context)
@@ -1036,6 +1046,7 @@ void CPostStereoPass::Execute(const CPostEffectContext& context)
 		if (pass.InputChanged(pTmpMaskTex->GetID()))
 		{
 			static CCryNameTSCRC techName("StereoNearMask");
+			pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 			pass.SetTechnique(CShaderMan::s_shPostEffects, techName, 0);
 
 			int32 nRS = GS_DEPTHFUNC_LEQUAL;
@@ -1043,7 +1054,7 @@ void CPostStereoPass::Execute(const CPostEffectContext& context)
 			pass.SetState(nRS);
 
 			pass.SetRenderTarget(0, pTmpMaskTex);
-			pass.SetDepthTarget(&(rd->m_DepthBufferOrig));
+			pass.SetDepthTarget(rd->m_pZTexture);
 		}
 
 		const float clipZ = CRenderer::CV_r_DrawNearZRange;
@@ -1063,19 +1074,20 @@ void CPostStereoPass::Execute(const CPostEffectContext& context)
 		if (pass.InputChanged(pLeftEyeTex->GetID(), pRightEyeTex->GetID(), pSrcBackBufferTexture->GetID()))
 		{
 			static CCryNameTSCRC techName("PostStereo");
+			pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 			pass.SetTechnique(CShaderMan::s_shPostEffects, techName, 0);
 			pass.SetState(GS_NODEPTHTEST);
 
 			pass.SetRenderTarget(0, pLeftEyeTex);
 			pass.SetRenderTarget(1, pRightEyeTex);
-			pass.SetDepthTarget(&(rd->m_DepthBufferOrig));
+			pass.SetDepthTarget(rd->m_pZTexture);
 
 			pass.SetTexture(0, pSrcBackBufferTexture);
 			pass.SetTexture(1, CTexture::s_ptexZTarget);
 			pass.SetTexture(2, pTmpMaskTex);
 
 			pass.SetSampler(0, m_samplerLinearMirror);
-			pass.SetSampler(1, rd->m_nPointClampSampler);
+			pass.SetSampler(1, EDefaultSamplerStates::PointClamp);
 		}
 
 		pass.BeginConstantUpdate();
@@ -1138,6 +1150,7 @@ void CKillCameraPass::Execute(const CPostEffectContext& context)
 		if (pass.InputChanged(pOutputRT->GetID(), pSrcBackBufferTexture->GetID()))
 		{
 			static CCryNameTSCRC techName("KillCameraFilter");
+			pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 			pass.SetTechnique(CShaderMan::s_shPostEffectsGame, techName, 0);
 			pass.SetState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
 
@@ -1146,8 +1159,8 @@ void CKillCameraPass::Execute(const CPostEffectContext& context)
 			pass.SetTexture(0, pSrcBackBufferTexture);
 			pass.SetTexture(1, m_pNoiseTex);
 
-			pass.SetSampler(0, rd->m_nPointClampSampler);
-			pass.SetSampler(1, rd->m_nPointWrapSampler);
+			pass.SetSampler(0, EDefaultSamplerStates::PointClamp);
+			pass.SetSampler(1, EDefaultSamplerStates::PointWrap);
 
 			pass.SetRequirePerViewConstantBuffer(true);
 		}
@@ -1277,6 +1290,7 @@ void CScreenBloodPass::Execute(const CPostEffectContext& context)
 	if (pass.InputChanged(pOutputRT->GetID()))
 	{
 		static CCryNameTSCRC techName("ScreenBlood");
+		pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 		pass.SetTechnique(CShaderMan::s_shPostEffectsGame, techName, 0);
 		pass.SetState(GS_NODEPTHTEST | GS_BLSRC_DSTCOL | GS_BLDST_SRCALPHA);
 
@@ -1284,7 +1298,7 @@ void CScreenBloodPass::Execute(const CPostEffectContext& context)
 
 		pass.SetTexture(0, m_pWaterDropletsBumpTex);
 
-		pass.SetSampler(0, rd->m_nTrilinearWrapSampler);
+		pass.SetSampler(0, EDefaultSamplerStates::TrilinearWrap);
 
 		pass.SetRequirePerViewConstantBuffer(true);
 	}
@@ -1397,7 +1411,7 @@ void CHudSilhouettesPass::ExecuteDeferredSilhouettesOptimised(const CPostEffectC
 
 			pass.SetTexture(0, CTexture::s_ptexBackBufferScaled[0]);
 
-			pass.SetSampler(0, rd->m_nLinearClampSampler);
+			pass.SetSampler(0, EDefaultSamplerStates::LinearClamp);
 
 			pass.SetRequirePerViewConstantBuffer(true);
 		}
@@ -1503,7 +1517,7 @@ void C3DHudPass::Execute(const CPostEffectContext& context)
 
 			// ensure CTexture::s_ptexBackBufferScaled[1] used in ExecuteBloomTexUpdate() can be bound to SRV slot 1 on dx11.
 			CTexture::ResetTMUs();
-			CCryDeviceWrapper::GetObjectFactory().GetCoreCommandList()->Reset();
+			GetDeviceObjectFactory().GetCoreCommandList().Reset();
 
 			// Render right eye
 			hud3d.m_maxParallax = maxParallax;
@@ -1644,8 +1658,6 @@ void C3DHudPass::ExecuteDownsampleHud4x4(const CPostEffectContext& context, clas
 	{
 		auto& pass = m_passDownsampleHud4x4;
 
-		pass.ClearPrimitives();
-
 		D3DViewPort viewport;
 		viewport.TopLeftX = 0.0f;
 		viewport.TopLeftY = 0.0f;
@@ -1656,12 +1668,13 @@ void C3DHudPass::ExecuteDownsampleHud4x4(const CPostEffectContext& context, clas
 
 		pass.SetRenderTarget(0, pDstRT);
 		pass.SetViewport(viewport);
+		pass.BeginAddingPrimitives();
 
 		auto& renderDataArray = hud3d.m_pRenderData[nThreadID];
 		uint32 nRECount = renderDataArray.size();
 		uint32 index = 0;
 
-		CConstantBufferPtr pPerViewCB = rd->GetGraphicsPipeline().GetPerViewConstantBuffer();
+		CConstantBufferPtr pPerViewCB = rd->GetGraphicsPipeline().GetMainViewConstantBuffer();
 
 		auto& primArray = m_downsamplePrimitiveArray;
 		if (primArray.size() > nRECount)
@@ -1701,7 +1714,7 @@ void C3DHudPass::ExecuteDownsampleHud4x4(const CPostEffectContext& context, clas
 
 			if (SetVertex(prim, pData))
 			{
-				prim.SetFlags(CRenderPrimitive::eFlags_ReflectConstantBuffersFromShader);
+				prim.SetFlags(CRenderPrimitive::eFlags_ReflectShaderConstants);
 				prim.SetTechnique(CShaderMan::s_sh3DHUD, hud3d.m_pDownsampleTechName, 0);
 				prim.SetCullMode(eCULL_Back);
 				prim.SetRenderState(GS_NODEPTHTEST);
@@ -1714,7 +1727,9 @@ void C3DHudPass::ExecuteDownsampleHud4x4(const CPostEffectContext& context, clas
 				{
 					prim.SetTexture(0, hud3d.m_pHUD_RT);
 				}
-				prim.SetSampler(0, rd->m_nLinearClampSampler);
+				prim.SetSampler(0, EDefaultSamplerStates::LinearClamp);
+				prim.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerView, pPerViewCB, EShaderStage_Vertex | EShaderStage_Pixel);
+				prim.Compile(pass);
 
 				// update constant buffer
 				{
@@ -1724,9 +1739,7 @@ void C3DHudPass::ExecuteDownsampleHud4x4(const CPostEffectContext& context, clas
 					auto& cm = prim.GetConstantManager();
 					cm.BeginNamedConstantUpdate();
 
-					cm.SetTypedConstantBuffer(eConstantBufferShaderSlot_PerView, pPerViewCB, EShaderStage_Vertex | EShaderStage_Pixel);
-
-					SetShaderParams(cm, pData, hud3d);
+					SetShaderParams(EShaderStage_Vertex | EShaderStage_Pixel, cm, pData, hud3d);
 
 					// Engine viewport needs to be set so that data is available when filling reflected PB constants
 					rd->RT_SetViewport((int32)viewport.TopLeftX, (int32)viewport.TopLeftY, (int32)viewport.Width, (int32)viewport.Height);
@@ -1764,8 +1777,6 @@ void C3DHudPass::ExecuteBloomTexUpdate(const CPostEffectContext& context, class 
 	{
 		auto& pass = m_passUpdateBloom;
 
-		pass.ClearPrimitives();
-
 		D3DViewPort viewport;
 		viewport.TopLeftX = 0.0f;
 		viewport.TopLeftY = 0.0f;
@@ -1776,12 +1787,13 @@ void C3DHudPass::ExecuteBloomTexUpdate(const CPostEffectContext& context, class 
 
 		pass.SetRenderTarget(0, pOutputRT);
 		pass.SetViewport(viewport);
+		pass.BeginAddingPrimitives();
 
 		auto& renderDataArray = hud3d.m_pRenderData[nThreadID];
 		uint32 nRECount = renderDataArray.size();
 		uint32 index = 0;
 
-		CConstantBufferPtr pPerViewCB = rd->GetGraphicsPipeline().GetPerViewConstantBuffer();
+		CConstantBufferPtr pPerViewCB = rd->GetGraphicsPipeline().GetMainViewConstantBuffer();
 
 		auto& primArray = m_bloomPrimitiveArray;
 		if (primArray.size() > nRECount)
@@ -1821,13 +1833,15 @@ void C3DHudPass::ExecuteBloomTexUpdate(const CPostEffectContext& context, class 
 
 			if (SetVertex(prim, pData))
 			{
-				prim.SetFlags(CRenderPrimitive::eFlags_ReflectConstantBuffersFromShader);
+				prim.SetFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_VS);
 				prim.SetTechnique(CShaderMan::s_sh3DHUD, hud3d.m_pUpdateBloomTechName, 0);
 				prim.SetCullMode(eCULL_Back);
 				prim.SetRenderState(GS_NODEPTHTEST);
 
 				prim.SetTexture(0, hud3d.m_pHUDScaled_RT);
-				prim.SetSampler(0, rd->m_nLinearClampSampler);
+				prim.SetSampler(0, EDefaultSamplerStates::LinearClamp);
+				prim.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerView, pPerViewCB, EShaderStage_Vertex | EShaderStage_Pixel);
+				prim.Compile(pass);
 
 				// update constant buffer
 				{
@@ -1837,9 +1851,7 @@ void C3DHudPass::ExecuteBloomTexUpdate(const CPostEffectContext& context, class 
 					auto& cm = prim.GetConstantManager();
 					cm.BeginNamedConstantUpdate();
 
-					cm.SetTypedConstantBuffer(eConstantBufferShaderSlot_PerView, pPerViewCB, EShaderStage_Vertex | EShaderStage_Pixel);
-
-					SetShaderParams(cm, pData, hud3d);
+					SetShaderParams(EShaderStage_Vertex, cm, pData, hud3d);
 
 					// Engine viewport needs to be set so that data is available when filling reflected PB constants
 					rd->RT_SetViewport((int32)viewport.TopLeftX, (int32)viewport.TopLeftY, (int32)viewport.Width, (int32)viewport.Height);
@@ -1863,7 +1875,6 @@ void C3DHudPass::ExecuteBloomTexUpdate(const CPostEffectContext& context, class 
 		m_passBlurGaussian.Execute(pOutputRT, pBlurDst, 1.0f, 0.85f);
 	}
 
-	// TODO: remove after removing old graphics pipeline.
 	rd->RT_SetViewport(0, 0, rd->GetWidth(), rd->GetHeight());
 }
 
@@ -1958,8 +1969,6 @@ void C3DHudPass::ExecuteFinalPass(const CPostEffectContext& context, CTexture* p
 	{
 		auto& pass = m_passRenderHud;
 
-		pass.ClearPrimitives();
-
 		D3DViewPort viewport;
 		viewport.TopLeftX = 0.0f;
 		viewport.TopLeftY = 0.0f;
@@ -1969,14 +1978,15 @@ void C3DHudPass::ExecuteFinalPass(const CPostEffectContext& context, CTexture* p
 		viewport.MaxDepth = 1.0f;
 
 		pass.SetRenderTarget(0, pOutputRT);
-		pass.SetDepthTarget(&(rd->m_DepthBufferOrig));
+		pass.SetDepthTarget(rd->m_pZTexture);
 		pass.SetViewport(viewport);
+		pass.BeginAddingPrimitives();
 
 		auto& renderDataArray = hud3d.m_pRenderData[nThreadID];
 		uint32 nRECount = renderDataArray.size();
 		uint32 index = 0;
 
-		CConstantBufferPtr pPerViewCB = rd->GetGraphicsPipeline().GetPerViewConstantBuffer();
+		CConstantBufferPtr pPerViewCB = rd->GetGraphicsPipeline().GetMainViewConstantBuffer();
 
 		auto& primArray = m_hudPrimitiveArray;
 		if (primArray.size() > nRECount)
@@ -2009,7 +2019,7 @@ void C3DHudPass::ExecuteFinalPass(const CPostEffectContext& context, CTexture* p
 			{
 				SRenderObjData* pROData = pData.pRO->GetObjData();
 
-				prim.SetFlags(CRenderPrimitive::eFlags_ReflectConstantBuffersFromShader);
+				prim.SetFlags(CRenderPrimitive::eFlags_ReflectShaderConstants);
 				prim.SetTechnique(CShaderMan::s_sh3DHUD, hud3d.m_pGeneralTechName, rtMask);
 				prim.SetCullMode(eCULL_Back);
 
@@ -2028,16 +2038,19 @@ void C3DHudPass::ExecuteFinalPass(const CPostEffectContext& context, CTexture* p
 				{
 					prim.SetTexture(0, hud3d.m_pHUD_RT);
 				}
-				prim.SetSampler(0, rd->m_nLinearClampSampler);
+				prim.SetSampler(0, EDefaultSamplerStates::LinearClamp);
 
 				prim.SetTexture(1, CTexture::s_ptexBackBufferScaled[1]);
-				prim.SetSampler(1, rd->m_nLinearClampSampler);
+				prim.SetSampler(1, EDefaultSamplerStates::LinearClamp);
 
 				if (bInterferenceApplied)
 				{
 					prim.SetTexture(2, hud3d.m_pNoise);
-					prim.SetSampler(2, rd->m_nPointWrapSampler);
+					prim.SetSampler(2, EDefaultSamplerStates::PointWrap);
 				}
+
+				prim.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerView, pPerViewCB, EShaderStage_Vertex | EShaderStage_Pixel);
+				prim.Compile(pass);
 
 				// update constant buffer
 				{
@@ -2047,9 +2060,8 @@ void C3DHudPass::ExecuteFinalPass(const CPostEffectContext& context, CTexture* p
 					auto& cm = prim.GetConstantManager();
 					cm.BeginNamedConstantUpdate();
 
-					cm.SetTypedConstantBuffer(eConstantBufferShaderSlot_PerView, pPerViewCB, EShaderStage_Vertex | EShaderStage_Pixel);
 
-					SetShaderParams(cm, pData, hud3d);
+					SetShaderParams(EShaderStage_Vertex | EShaderStage_Pixel, cm, pData, hud3d);
 
 					// Set additional parameters
 					vHudEffectParams[0].x = fCurrentDofBlend;
@@ -2140,6 +2152,7 @@ bool C3DHudPass::SetVertex(CRenderPrimitive& prim, struct SHudData& pData) const
 }
 
 void C3DHudPass::SetShaderParams(
+  EShaderStage shaderStages,
   CRenderPrimitive::ConstantManager& constantManager,
   const struct SHudData& data,
   const class C3DHud& hud3d) const
@@ -2168,17 +2181,24 @@ void C3DHudPass::SetShaderParams(
 	                               max(1.0f, (float)hud3d.m_pHUD_RT->GetWidth() / (float)data.s_nFlashWidthMax),
 	                               max(1.0f, (float)hud3d.m_pHUD_RT->GetHeight() / (float)data.s_nFlashHeightMax));
 
-	constantManager.SetNamedConstant(hud3d.m_pHudTexCoordParamName, vHudTexCoordParams, eHWSC_Vertex);
-	constantManager.SetNamedConstant(hud3d.m_pHudTexCoordParamName, vHudTexCoordParams, eHWSC_Pixel);
-
-	ColorF cDiffuse = pShaderResources->GetColorValue(EFTT_DIFFUSE);
-
-	cDiffuse *= fOpacity; // pre-multiply alpha in all cases
-	if (pShaderResources->m_ResFlags & MTL_FLAG_ADDITIVE)
+	if (shaderStages & EShaderStage_Vertex)
 	{
-		fOpacity = 0.0f;
+		constantManager.SetNamedConstant(hud3d.m_pHudTexCoordParamName, vHudTexCoordParams, eHWSC_Vertex);
 	}
 
-	Vec4 vHudParams = Vec4(cDiffuse.r, cDiffuse.g, cDiffuse.b, fOpacity) * hud3d.m_pHudColor->GetParamVec4();
-	constantManager.SetNamedConstant(hud3d.m_pHudParamName, vHudParams, eHWSC_Pixel);
+	if (shaderStages & EShaderStage_Pixel)
+	{
+		constantManager.SetNamedConstant(hud3d.m_pHudTexCoordParamName, vHudTexCoordParams, eHWSC_Pixel);
+
+		ColorF cDiffuse = pShaderResources->GetColorValue(EFTT_DIFFUSE);
+
+		cDiffuse *= fOpacity; // pre-multiply alpha in all cases
+		if (pShaderResources->m_ResFlags & MTL_FLAG_ADDITIVE)
+		{
+			fOpacity = 0.0f;
+		}
+
+		Vec4 vHudParams = Vec4(cDiffuse.r, cDiffuse.g, cDiffuse.b, fOpacity) * hud3d.m_pHudColor->GetParamVec4();
+		constantManager.SetNamedConstant(hud3d.m_pHudParamName, vHudParams, eHWSC_Pixel);
+	}
 }

@@ -125,8 +125,6 @@ uint32 SShaderItem::PostLoad()
 
 	if (pSH->m_Flags2 & EF2_PREPR_GENSPRITES)
 		nPreprocessFlags |= FSPR_GENSPRITES | FB_PREPROCESS;
-	if (pSH->m_Flags2 & EF2_PREPR_GENCLOUDS)
-		nPreprocessFlags |= FSPR_GENCLOUDS;
 	if (pSH->m_Flags2 & EF2_PREPR_SCANWATER)
 		nPreprocessFlags |= FSPR_SCANTEXWATER | FB_PREPROCESS;
 
@@ -310,10 +308,6 @@ CTexture* CShaderMan::mfCheckTemplateTexName(const char* mapname, ETEX_Type eTT)
 		TexPic = CTexture::s_ptexFromRE[6];
 	else if (!stricmp(mapname, "$FromRE7"))
 		TexPic = CTexture::s_ptexFromRE[7];
-	else if (!stricmp(mapname, "$VolObj_Density"))
-		TexPic = CTexture::s_ptexVolObj_Density;
-	else if (!stricmp(mapname, "$VolObj_Shadow"))
-		TexPic = CTexture::s_ptexVolObj_Shadow;
 	else if (!stricmp(mapname, "$ColorChart"))
 		TexPic = CTexture::s_ptexColorChart;
 	else if (!stricmp(mapname, "$FromObj"))
@@ -607,10 +601,12 @@ void CShaderMan::mfSetResourceTexState(SEfResTexture* Tex)
 {
 	if (Tex)
 	{
-		STexState ST;
+		SSamplerState ST;
+		
 		ST.SetFilterMode(Tex->m_Filter);
-		ST.SetClampMode(Tex->m_bUTile ? TADDR_WRAP : TADDR_CLAMP, Tex->m_bVTile ? TADDR_WRAP : TADDR_CLAMP, Tex->m_bUTile ? TADDR_WRAP : TADDR_CLAMP);
-		Tex->m_Sampler.m_nTexState = CTexture::GetTexState(ST);
+		ST.SetClampMode(Tex->m_bUTile ? eSamplerAddressMode_Wrap : eSamplerAddressMode_Clamp, Tex->m_bVTile ? eSamplerAddressMode_Wrap : eSamplerAddressMode_Clamp, Tex->m_bUTile ? eSamplerAddressMode_Wrap : eSamplerAddressMode_Clamp);
+
+		Tex->m_Sampler.m_nTexState = CDeviceObjectFactory::GetOrCreateSamplerStateHandle(ST);
 	}
 }
 

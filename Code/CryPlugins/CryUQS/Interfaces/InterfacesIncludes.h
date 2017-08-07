@@ -4,16 +4,24 @@
 
 #include "Prerequisites.h"
 
+#if UQS_SCHEMATYC_SUPPORT
+#include <CrySchematyc/CoreAPI.h>
+#endif
+
+#include <CrySchematyc/Utils/EnumFlags.h>
+
 #include "shared/TypeInfo.h"
 #include "shared/DataTypeHelper.h"
 #include "shared/IUqsString.h"
 #include "shared/IVariantDict.h"
+#include "shared/GUIDHelper.h"
 
 #include "core/IDebugRenderWorld.h"
 #include "core/IFactoryDatabase.h"
 #include "core/IItemDebugProxies.h"
 #include "core/IItemDebugProxyFactory.h"
 
+#include "client/IItemConverter.h"
 #include "client/IItemFactory.h"
 #include "client/IParamsHolder.h"
 #include "client/IItemMonitor.h"
@@ -37,18 +45,19 @@
 
 #include "core/IFunctionFactoryDatabase.h"
 #include "core/ItemEvaluationResult.h"
+#include "core/IScoreTransformFactory.h"
+
+#include "core/ITextualEvaluatorBlueprint.h"
 
 #include "client/IInstantEvaluator.h"
 #include "client/IInstantEvaluatorFactory.h"
 
 #include "core/IInstantEvaluatorFactoryDatabase.h"
-#include "core/IInstantEvaluatorBlueprint.h"
 
 #include "client/IDeferredEvaluator.h"
 #include "client/IDeferredEvaluatorFactory.h"
 
 #include "core/IDeferredEvaluatorFactoryDatabase.h"
-#include "core/IDeferredEvaluatorBlueprint.h"
 
 #include "client/IGenerator.h"
 #include "client/IGeneratorFactory.h"

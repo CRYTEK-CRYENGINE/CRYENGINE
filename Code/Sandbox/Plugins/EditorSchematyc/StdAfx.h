@@ -43,4 +43,4 @@
 #include <CrySchematyc/CoreAPI.h>
 
 
-Q_DECLARE_METATYPE(Schematyc::SGUID);
+Q_DECLARE_METATYPE(CryGUID);

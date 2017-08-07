@@ -7,6 +7,8 @@
 
 class CStars
 {
+friend class CSceneForwardStage;
+
 public:
 	CStars();
 	~CStars();

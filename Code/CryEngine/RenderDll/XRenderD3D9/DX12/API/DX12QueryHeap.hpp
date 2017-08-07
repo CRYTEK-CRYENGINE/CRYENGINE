@@ -1,19 +1,8 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     29/09/2015 by Niels Fröhling
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __DX12QUERYHEAP__
-	#define __DX12QUERYHEAP__
 
-	#include "DX12Base.hpp"
+#include "DX12Base.hpp"
 
 namespace NCryDX12 {
 
@@ -37,5 +26,3 @@ private:
 };
 
 }
-
-#endif // __DX12QUERYHEAP__

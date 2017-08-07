@@ -16,14 +16,16 @@ public:
 	CAudioWwiseLoader(const string& projectPath, const string& soundbanksPath, IAudioSystemItem& root);
 
 private:
-	void              LoadSoundBanks(const string& rootFolder, const bool bLocalized, IAudioSystemItem& parent);
-	void              LoadFolder(const string& folderPath, IAudioSystemItem& parent);
-	void              LoadFile(const string& filename, const string& path, IAudioSystemItem& parent);
-	void              LoadXml(XmlNodeRef root, IAudioSystemItem& parent, const string& filePath);
-	IAudioSystemItem* CreateItem(const string& name, ItemType type, IAudioSystemItem& pParent, const string& path = "");
+	void              LoadSoundBanks(string const& folderPath, bool const bLocalized, IAudioSystemItem& parent);
+	void              LoadFolder(string const& folderPath, string const& folderName, IAudioSystemItem& parent);
+	void              LoadWorkUnitFile(const string& filePath, IAudioSystemItem& parent);
+	void              LoadXml(XmlNodeRef root, IAudioSystemItem& parent);
+	IAudioSystemItem* CreateItem(const string& name, EWwiseItemTypes type, IAudioSystemItem& pParent);
 	void              LoadEventsMetadata(const string& soundbanksPath);
 
 	IAudioSystemItem* GetControlByName(const string& name, bool bIsLocalised = false, IAudioSystemItem* pParent = nullptr) const;
+
+	void              BuildFileCache(const string& folderPath);
 
 private:
 
@@ -31,10 +33,24 @@ private:
 	{
 		float maxRadius;
 	};
-	typedef std::map<uint32, SEventInfo> EventsInfoMap;
-	EventsInfoMap                    m_eventsInfoMap;
-	IAudioSystemItem&                m_root;
-	std::map<CID, IAudioSystemItem*> m_controlsCache;
-	string m_projectRoot;
+
+	typedef std::map<uint32, SEventInfo>        EventsInfoMap;
+	typedef std::map<CID, IAudioSystemItem*>    ControlsCache;
+	typedef std::map<uint32, string>            FilesCache;
+	typedef std::map<uint32, IAudioSystemItem*> Items;
+
+	EventsInfoMap     m_eventsInfoMap;
+	IAudioSystemItem& m_root;
+	ControlsCache     m_controlsCache;
+	string            m_projectRoot;
+
+	// This maps holds the items with the internal IDs given in the Wwise files.
+	Items m_items;
+
+	// Cache with the file path to each work unit file
+	FilesCache m_filesCache;
+
+	// List of already loaded work unit files
+	std::set<uint32> m_filesLoaded;
 };
 }

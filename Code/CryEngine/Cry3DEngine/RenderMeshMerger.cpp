@@ -41,8 +41,8 @@ int CRenderMeshMerger::Cmp_Materials(IMaterial* pMat1, IMaterial* pMat2)
 #endif
 
 	// vert format
-	int nVertFormat1 = shaderItem1.m_pShader->GetVertexFormat();
-	int nVertFormat2 = shaderItem2.m_pShader->GetVertexFormat();
+	InputLayoutHandle nVertFormat1 = shaderItem1.m_pShader->GetVertexFormat();
+	InputLayoutHandle nVertFormat2 = shaderItem2.m_pShader->GetVertexFormat();
 
 	if (nVertFormat1 > nVertFormat2)
 		return 1;
@@ -219,7 +219,7 @@ void CRenderMeshMerger::MakeListOfAllCRenderChunks(SMergeInfo& info)
 		byte* pNorm = 0;
 		byte* pTangs = 0;
 
-		if (pRM->GetVertexFormat() != eVF_P3S_N4B_C4B_T2S)
+		if (pRM->GetVertexFormat() != EDefaultInputLayouts::P3S_N4B_C4B_T2S)
 		{
 			pTangs = pRM->GetTangentPtr(nTangsStride, FSL_READ);
 		}
@@ -802,16 +802,16 @@ void CRenderMeshMerger::TryMergingChunks(SMergeInfo& info)
 	lstChunksMerged.clear();
 	lstChunksMerged.reserve(m_lstChunks.size());
 
-	int nCurrVertFormat = -1;
+	InputLayoutHandle nCurrVertFormat = InputLayoutHandle::Unspecified;;
 	for (int nChunkId = 0; nChunkId < m_lstChunks.Count(); nChunkId++)
 	{
 		SMergedChunk& mergChunk = m_lstChunks[nChunkId];
 
 		//		IsChunkValid(mergChunk, m_lstVerts, m_lstIndices);
 
-		int nChunkVertFormat;
+		InputLayoutHandle nChunkVertFormat;
 		if (info.pDecalClipInfo || info.bMergeToOneRenderMesh)
-			nChunkVertFormat = -1;
+			nChunkVertFormat = InputLayoutHandle::Unspecified;
 		else
 		{
 			IMaterial* pMat = mergChunk.pMaterial;
@@ -1055,10 +1055,10 @@ _smart_ptr<IRenderMesh> CRenderMeshMerger::MergeRenderMeshes(SRenderMeshInfoInpu
 
 				// detect vert format change
 				SShaderItem& shaderItemCur = mrgChunk.pMaterial->GetShaderItem();
-				EVertexFormat nNextChunkVertFormatCur = shaderItemCur.m_pShader->GetVertexFormat();
+				InputLayoutHandle nNextChunkVertFormatCur = shaderItemCur.m_pShader->GetVertexFormat();
 
 				SShaderItem& shaderItemNext = m_lstChunks[nChunkId].pMaterial->GetShaderItem();
-				EVertexFormat nNextChunkVertFormatNext = shaderItemNext.m_pShader->GetVertexFormat();
+				InputLayoutHandle nNextChunkVertFormatNext = shaderItemNext.m_pShader->GetVertexFormat();
 
 				if (nNextChunkVertFormatNext != nNextChunkVertFormatCur)
 					break;
@@ -1068,7 +1068,7 @@ _smart_ptr<IRenderMesh> CRenderMeshMerger::MergeRenderMeshes(SRenderMeshInfoInpu
 		IRenderMesh::SInitParamerers params;
 		params.pVertBuffer = m_lstNewVerts.GetElements();
 		params.nVertexCount = m_lstNewVerts.Count();
-		params.eVertexFormat = eVF_P3S_C4B_T2S;
+		params.eVertexFormat = EDefaultInputLayouts::P3S_C4B_T2S;
 		params.pIndices = m_lstNewIndices.GetElements();
 		params.nIndexCount = m_lstNewIndices.Count();
 		params.pTangents = m_lstNewTangBasises.GetElements();
@@ -1647,7 +1647,7 @@ _smart_ptr<IRenderMesh> CRenderMeshMerger::MergeRenderMeshes(SRenderMeshInfoInpu
 	IRenderMesh::SInitParamerers params;
 	params.pVertBuffer = &m_lstVerts.front();
 	params.nVertexCount = m_lstVerts.size();
-	params.eVertexFormat = eVF_P3S_C4B_T2S;
+	params.eVertexFormat = EDefaultInputLayouts::P3S_C4B_T2S;
 	params.pIndices = &m_lstNewIndices.front();
 	params.nIndexCount = m_lstNewIndices.size();
 	params.pTangents = &m_lstTangBasises.front();

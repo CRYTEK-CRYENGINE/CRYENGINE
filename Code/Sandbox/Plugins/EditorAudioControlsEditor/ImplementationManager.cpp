@@ -5,7 +5,7 @@
 #include <CrySystem/IConsole.h>
 #include <IAudioSystemEditor.h>
 #include <IEditor.h>
-#include "ATLControlsModel.h"
+#include "AudioAssetsManager.h"
 #include "AudioControlsEditorPlugin.h"
 #include "IUndoManager.h"
 
@@ -35,6 +35,8 @@ CImplementationManager::~CImplementationManager()
 bool CImplementationManager::LoadImplementation()
 {
 	signalImplementationAboutToChange();
+	GetIEditor()->GetIUndoManager()->Suspend();
+
 	bool bReturn = true;
 	ICVar* pCVar = gEnv->pConsole->GetCVar(g_sImplementationCVarName);
 	if (pCVar)
@@ -93,6 +95,7 @@ bool CImplementationManager::LoadImplementation()
 		bReturn = false;
 	}
 
+	GetIEditor()->GetIUndoManager()->Resume();
 	signalImplementationChanged();
 	return bReturn;
 }

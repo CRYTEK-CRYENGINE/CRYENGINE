@@ -1,17 +1,13 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
-#include "IPlugin.h"
 
-class CMFCToolsPlugin : public IPlugin
+//As this is not initialized as a real plugin, it needs to behave similarly to EditorCommon and be initialized manually at the right time
+namespace MFCToolsPlugin
 {
-public:
-	CMFCToolsPlugin() {}
-	~CMFCToolsPlugin() {}
+	//!Sets editor and gEnv, needs both to be initialized
+	PLUGIN_API void SetEditor(IEditor* editor);
 
-	int32       GetPluginVersion() { return 1; };
-	const char* GetPluginName() { return "MFC Tools"; };
-	const char* GetPluginDescription() { return "Legacy tools that use MFC as their UI toolkit. Windows only."; };
-
-private:
-};
+	PLUGIN_API void Initialize();
+	PLUGIN_API void Deinitialize();
+}

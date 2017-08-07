@@ -62,7 +62,7 @@ public:
 
 	void        UpdateBufferContent(const T* pData, size_t nSize) // called from multiple threads: always recreate immutable buffer
 	{
-		m_buffer.Create(nSize, sizeof(T), DXGI_FORMAT_UNKNOWN, DX11BUF_STRUCTURED | DX11BUF_BIND_SRV, (const void*)pData);
+		m_buffer.Create(nSize, sizeof(T), DXGI_FORMAT_UNKNOWN, CDeviceObjectFactory::USAGE_STRUCTURED | CDeviceObjectFactory::BIND_SHADER_RESOURCE, (const void*)pData);
 		m_size = nSize;
 	}
 
@@ -106,6 +106,8 @@ struct SPerMeshResources : public compute_skinning::IPerMeshDataSupply
 struct SPerInstanceResources
 {
 	SPerInstanceResources(const int numVertices, const int numTriangles);
+	~SPerInstanceResources();
+
 	CComputeRenderPass passDeform;
 	CComputeRenderPass passDeformWithMorphs;
 	CComputeRenderPass passTriangleTangents;
@@ -159,4 +161,5 @@ private:
 	void                                       SetupDeformPass();
 
 	compute_skinning::CStorage m_storage;
+	int32                      m_oldFrameIdExecute = -1;
 };

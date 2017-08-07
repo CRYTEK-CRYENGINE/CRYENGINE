@@ -68,11 +68,10 @@ struct SEntityAttachment
 	Vec3       pos;
 	Quat       rot;
 	Vec3       scale;
-	bool       guid;
 	int        flags;
 	string     target;
 
-	SEntityAttachment() : child(0), parent(0), parentGuid(0), pos(ZERO), rot(ZERO), scale(ZERO), guid(false), flags(0) {}
+	SEntityAttachment() : child(0), parent(0), pos(ZERO), rot(ZERO), scale(ZERO), flags(0) {}
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -283,8 +282,10 @@ public:
 	virtual void                              AddEntityEventListener(EntityId nEntity, EEntityEvent event, IEntityEventListener* pListener) final;
 	virtual void                              RemoveEntityEventListener(EntityId nEntity, EEntityEvent event, IEntityEventListener* pListener) final;
 
+	virtual void                              AddEntityLayerListener(const char* szLayerName, IEntityLayerListener* pListener, const bool bCaseSensitive = true) final;
+	virtual void                              RemoveEntityLayerListener(const char* szLayerName, IEntityLayerListener* pListener, const bool bCaseSensitive = true) final;
+
 	virtual EntityId                          FindEntityByGuid(const EntityGUID& guid) const final;
-	virtual EntityId                          FindEntityByEditorGuid(const char* pGuid) const final;
 
 	virtual EntityId                          GenerateEntityIdFromGuid(const EntityGUID& guid) final;
 
@@ -318,7 +319,6 @@ public:
 	virtual void                              LockSpawning(bool lock) final { m_bLocked = lock; }
 
 	virtual bool                              OnLoadLevel(const char* szLevelPath) final;
-	void                                      OnLevelLoadStart();
 
 	virtual IEntityLayer*                     AddLayer(const char* szName, const char* szParent, uint16 id, bool bHasPhysics, int specs, bool bDefaultLoaded) final;
 	virtual void                              LoadLayers(const char* dataFile) final;
@@ -328,15 +328,20 @@ public:
 	virtual void                              ClearLayers() final;
 	virtual void                              EnableDefaultLayers(bool isSerialized = true) final;
 	virtual void                              EnableLayer(const char* layer, bool isEnable, bool isSerialized = true) final;
-	virtual IEntityLayer*                     FindLayer(const char* szLayer) const final;
-	virtual bool                              IsLayerEnabled(const char* layer, bool bMustBeLoaded) const final;
+	virtual void                              EnableLayerSet(const char* const * pLayers, size_t layerCount, bool bIsSerialized = true, IEntityLayerSetUpdateListener* pListener = nullptr) final;
+	virtual IEntityLayer*                     FindLayer(const char* szLayerName, const bool bCaseSensitive = true) const final;
+	virtual bool                              IsLayerEnabled(const char* layer, bool bMustBeLoaded, bool bCaseSensitive = true) const final;
 	virtual bool                              ShouldSerializedEntity(IEntity* pEntity) final;
 	virtual void                              RegisterPhysicCallbacks() final;
 	virtual void                              UnregisterPhysicCallbacks() final;
 
 	// ------------------------------------------------------------------------
+	void                                      OnLevelLoadStart();
+	void                                      OnLevelLoadEnd();
+	bool                                      IsLoadingLevel() const;
 
 	CEntityLayer* GetLayerForEntity(EntityId id);
+	void EnableLayer(IEntityLayer* pLayer, bool bIsEnable, bool bIsSerialized, bool bAffectsChildren);
 
 	bool          OnBeforeSpawn(SEntitySpawnParams& params);
 	void          OnEntityReused(IEntity* pEntity, SEntitySpawnParams& params);
@@ -359,6 +364,7 @@ public:
 	// Called from CEntity implementation.
 	//////////////////////////////////////////////////////////////////////////
 	void RemoveTimerEvent(EntityId id, int nTimerId);
+	bool HasTimerEvent(EntityId id, int nTimerId);
 
 	// Puts entity into active list.
 	void ActivateEntity(CEntity* pEntity, bool bActivate);
@@ -485,7 +491,7 @@ private: // -----------------------------------------------------------------
 
 	CEntityLoadManager*    m_pEntityLoadManager;
 
-	typedef std::map<EntityGUID, EntityId> EntityGuidMap;
+	typedef std::unordered_map<EntityGUID, EntityId> EntityGuidMap;
 	EntityGuidMap                    m_guidMap;
 	EntityGuidMap                    m_genIdMap;
 
@@ -502,6 +508,10 @@ private: // -----------------------------------------------------------------
 
 	//don't spawn any entities without being forced to
 	bool m_bLocked;
+
+	bool m_bLoadingLevel = false;
+
+	bool m_bSupportLegacy64bitGuids = false;
 
 	friend class CEntityItMap;
 	class CCompareEntityIdsByClass;
@@ -523,6 +533,8 @@ private: // -----------------------------------------------------------------
 public:
 	bool m_bReseting;
 	//////////////////////////////////////////////////////////////////////////
+	
+	std::unique_ptr<class CEntityObjectDebugger> m_pEntityObjectDebugger;
 
 #ifdef ENABLE_PROFILING_CODE
 public:

@@ -6,9 +6,10 @@ using CryEngine.Common;
 
 namespace CryEngine
 {
-	public struct Quaternion
+	public struct Quaternion : IEquatable<Quaternion>
+
 	{
-		public static readonly Quaternion Identity = new Quaternion(1, new Vec3(0, 0, 0));
+		public static readonly Quaternion Identity = new Quaternion(1, new Vector3(0, 0, 0));
 
 		private Vector3 _v;
 		private float _w;
@@ -132,6 +133,7 @@ namespace CryEngine
 							sz * cy * cx - cz * sy * sx);
 		}
 
+		[Obsolete("Please use Quaternion(Vector3, Vector3, Vector3)")]
 		public Quaternion(Vec3 right, Vec3 forward, Vec3 up)
 		{
 			float s, p, tr = right.x + forward.y + up.z;
@@ -177,6 +179,51 @@ namespace CryEngine
 			}
 		}
 
+		public Quaternion(Vector3 right, Vector3 forward, Vector3 up)
+		{
+			float s, p, tr = right.x + forward.y + up.z;
+
+			_w = 1;
+			_v = new Vector3();
+
+			if (tr > 0)
+			{
+				s = (float)Math.Sqrt(tr + 1.0f);
+				p = 0.5f / s;
+				_w = s * 0.5f;
+				_v.x = (forward.z - up.y) * p;
+				_v.y = (up.x - right.z) * p;
+				_v.z = (right.y - forward.x) * p;
+			}
+			else if ((right.x >= forward.y) && (right.x >= up.z))
+			{
+				s = (float)Math.Sqrt(right.x - forward.y - up.z + 1.0f);
+				p = 0.5f / s;
+				_w = (forward.z - up.y) * p;
+				_v.x = s * 0.5f;
+				_v.y = (right.y + forward.x) * p;
+				_v.z = (right.z + up.x) * p;
+			}
+			else if ((forward.y >= right.x) && (forward.y >= up.z))
+			{
+				s = (float)Math.Sqrt(forward.y - up.z - right.x + 1.0f);
+				p = 0.5f / s;
+				_w = (up.x - right.z) * p;
+				_v.x = (forward.x + right.y) * p;
+				_v.y = s * 0.5f;
+				_v.z = (forward.z + up.y) * p;
+			}
+			else if ((up.z >= right.x) && (up.z >= forward.y))
+			{
+				s = (float)Math.Sqrt(up.z - right.x - forward.y + 1.0f);
+				p = 0.5f / s;
+				_w = (right.y - forward.x) * p;
+				_v.x = (up.x + right.z) * p;
+				_v.y = (up.y + forward.z) * p;
+				_v.z = s * 0.5f;
+			}
+		}
+
 		#region Overrides
 		public override int GetHashCode()
 		{
@@ -184,10 +231,10 @@ namespace CryEngine
 			{
 				int hash = 17;
 
-				hash = hash * 23 + X.GetHashCode();
-				hash = hash * 23 + Y.GetHashCode();
-				hash = hash * 23 + Z.GetHashCode();
-				hash = hash * 23 + W.GetHashCode();
+				hash = hash * 23 + _v.x.GetHashCode();
+				hash = hash * 23 + _v.y.GetHashCode();
+				hash = hash * 23 + _v.z.GetHashCode();
+				hash = hash * 23 + _w.GetHashCode();
 
 				return hash;
 			}
@@ -198,15 +245,20 @@ namespace CryEngine
 			if(obj == null)
 				return false;
 
-			if(obj is Quaternion || obj is Quat)
-				return this == (Quaternion)obj;
+			if(!(obj is Quaternion || obj is Quat))
+				return false;
 
-			return false;
+			return Equals((Quaternion)obj);
+		}
+
+		public bool Equals(Quaternion other)
+		{
+			return MathHelpers.IsEqual(_v.x, other.x) && MathHelpers.IsEqual(_v.y, other.y) && MathHelpers.IsEqual(_v.z, other.z) && MathHelpers.IsEqual(_w, other.w);
 		}
 
 		public override string ToString()
 		{
-			return string.Format(CultureInfo.CurrentCulture, "{0},{1},{2},{3}", X, Y, Z, W);
+			return string.Format(CultureInfo.CurrentCulture, "{0},{1},{2},{3}", _v.x, _v.y, _v.z, _w);
 		}
 		#endregion
 
@@ -304,10 +356,7 @@ namespace CryEngine
 
 		public static bool operator ==(Quaternion left, Quaternion right)
 		{
-			if((object)right == null)
-				return (object)left == null;
-
-			return ((left.X == right.X) && (left.Y == right.Y) && (left.Z == right.Z) && (left.W == right.W));
+			return left.Equals(right);
 		}
 
 		public static bool operator !=(Quaternion left, Quaternion right)
@@ -316,19 +365,22 @@ namespace CryEngine
 		}
 		#endregion
 
-		#region Functions
+		#region Methods
 		public void Normalize()
 		{
-			float inverseLength = MathHelpers.ISqrt(X * X + Y * Y + Z * Z + W * W);
-			X *= inverseLength;
-			Y *= inverseLength;
-			Z *= inverseLength;
-			W *= inverseLength;
+			if (!IsValid())
+			{
+				_w = 0;
+				_v = new Vector3(0f, 0f, 0f);
+			}
+			float inverseLength = MathHelpers.ISqrt(_v.x * _v.x + _v.y * _v.y + _v.z * _v.z + _w * _w);
+			_v *= inverseLength;
+			_w *= inverseLength;
 		}
 
 		public float Dot(Quaternion other)
 		{
-			return (V.X * V.X + V.Y * other.V.Y + V.Z * other.V.Z + W * other.W);
+			return (_v.X * _v.X + _v.Y * other.V.Y + _v.Z * other.V.Z + _w * other.W);
 		}
 
 		public Quaternion Difference(Quaternion other)
@@ -339,7 +391,7 @@ namespace CryEngine
 		public void SetLookOrientation(Vector3 forward, Vector3 up)
 		{
 			var right = forward.Cross(up);
-			CreateFromVectors(right, forward, up);
+			this = CreateFromVectors(right, forward, up);
 		}
 
 		public static Quaternion CreateFromVectors(Vector3 right, Vector3 forward, Vector3 up)
@@ -362,12 +414,12 @@ namespace CryEngine
 				_v.z = vz * d;
 				return;
 			}
-			w = 0;
-			v = fromDirection.Orthogonal.Normalized;
+			_w = 0;
+			_v = fromDirection.Orthogonal.Normalized;
 		}
 		#endregion
 
-		#region Static functions
+		#region Functions
 		public static Quaternion CreateRotationX(float radians)
 		{
 			var quat = new Quaternion();
@@ -413,6 +465,12 @@ namespace CryEngine
 		public static Quaternion CreateRotationXYZ(Angles3 angles)
 		{
 			return new Quaternion(angles);
+		}
+
+		public bool IsValid()
+		{
+			if (_v.IsNearlyZero() && Math.Abs(_w) <= MathHelpers.FloatEpsilon) return false;
+			return true;
 		}
 
 		/// <summary>
@@ -480,9 +538,9 @@ namespace CryEngine
 		#endregion
 
 		#region Properties
-		public Vector3 Right { get { return new Vector3(2 * (v.x * v.x + w * w) - 1, 2 * (v.y * v.x + v.z * w), 2 * (v.z * v.x - v.y * w)); } }
-		public Vector3 Forward { get { return new Vector3(2 * (v.x * v.y - v.z * w), 2 * (v.y * v.y + w * w) - 1, 2 * (v.z * v.y + v.x * w)); } }
-		public Vector3 Up { get { return new Vector3(2 * (v.x * v.z + v.y * w), 2 * (v.y * v.z - v.x * w), 2 * (v.z * v.z + w * w) - 1); } }
+		public Vector3 Right { get { return new Vector3(2 * (_v.x * _v.x + _w * _w) - 1, 2 * (_v.y * _v.x + _v.z * _w), 2 * (_v.z * _v.x - _v.y * _w)); } }
+		public Vector3 Forward { get { return new Vector3(2 * (_v.x * _v.y - _v.z * _w), 2 * (_v.y * _v.y + _w * _w) - 1, 2 * (_v.z * _v.y + _v.x * _w)); } }
+		public Vector3 Up { get { return new Vector3(2 * (_v.x * _v.z + _v.y * _w), 2 * (_v.y * _v.z - _v.x * _w), 2 * (_v.z * _v.z + _w * _w) - 1); } }
 
 		public Angles3 EulerAngles { get { return new Angles3(this); } }
 
@@ -498,13 +556,20 @@ namespace CryEngine
 			}
 		}
 
-		public float Length { get { return (float)Math.Sqrt(W * W + X * X + Y * Y + Z * Z); } }
+		public float Length
+		{
+			get
+			{
+				if (!IsValid()) return 0;
+				return (float)Math.Sqrt(_w * _w + _v.x * _v.x + _v.y * _v.y + _v.z * _v.z);
+			}
+		}
 
 		public float Magnitude { get { return Length; } }
 
-		public float LengthSquared { get { return W * W + X * X + Y * Y + Z * Z; } }
+		public float LengthSquared { get { return _w * _w + _v.x * _v.x + _v.y * _v.y + _v.z * _v.z; } }
 
-		public bool IsIdentity { get { return w == 1 && x == 0 && y == 0 && z == 0; } }
+		public bool IsIdentity { get { return _w == 1 && _v == Vector3.Zero; } }
 
 		public Angles3 YawPitchRoll
 		{

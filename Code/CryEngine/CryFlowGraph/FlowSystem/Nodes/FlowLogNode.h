@@ -13,8 +13,6 @@ public:
 	CFlowLogNode();
 
 	// IFlowNode
-	virtual void         AddRef();
-	virtual void         Release();
 	virtual IFlowNodePtr Clone(SActivationInfo*);
 	virtual void         GetConfiguration(SFlowNodeConfig&);
 	virtual void         ProcessEvent(EFlowEvent event, SActivationInfo*);
@@ -27,9 +25,6 @@ public:
 		s->Add(*this);
 	}
 	// ~IFlowNode
-
-private:
-	int m_refs;
 };
 
 #endif

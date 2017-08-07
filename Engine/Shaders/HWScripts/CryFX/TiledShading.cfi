@@ -35,6 +35,11 @@ struct STiledLightCullInfo
 	float4    volumeParams2;
 };
 
+struct STiledLightVolumeVertex
+{
+	float3 position;
+};
+
 struct STiledLightVolumeInfo
 {
 	float4x4  worldMat;
@@ -42,6 +47,7 @@ struct STiledLightVolumeInfo
 	float4    volumeParams0;
 	float4    volumeParams1;
 	float4    volumeParams2;
+	float4    volumeParams3;
 };
 
 struct STiledLightShadeInfo
@@ -80,20 +86,19 @@ struct STiledClipVolumeInfo
 
 ////////////////////////////////////////////////////////////////////////////
 
-StructuredBuffer<STiledLightShadeInfo> TiledLightsShadeInfo : register(t16);
-TextureCubeArray<float4> SpecCubeArray : register(t17);
-TextureCubeArray<float4> DiffuseCubeArray : register(t18);
-Texture2DArray<float4> SpotTexArray : register(t19);
-Texture2D<float4> ShadowPool : register(t20);
-Texture2D<float4> RandomRotations : register(t21)
-
-StructuredBuffer<STiledLightCullInfo> TiledLightsCullInfo : register(t22);
-Buffer<uint> TileLightMask : register(t22);
-StructuredBuffer<STiledClipVolumeInfo> TiledClipVolumeInfo : register(t23);
+Buffer<uint>                           Fwd_TileLightMask : register(t17);
+StructuredBuffer<STiledLightShadeInfo> Fwd_TiledLightsShadeInfo : register(t18);
+StructuredBuffer<STiledClipVolumeInfo> Fwd_TiledClipVolumeInfo : register(t19);
+TextureCubeArray<float4>               Fwd_SpecCubeArray : register(t20);
+TextureCubeArray<float4>               Fwd_DiffuseCubeArray : register(t21);
+Texture2DArray<float4>                 Fwd_SpotTexArray : register(t22);
+Texture2D<float4>                      Fwd_ShadowPool : register(t23);
+Texture2D<float4>                      Fwd_RandomRotations : register(t24);
+Texture2D<float4>                      Fwd_EnvironmentBRDF : register(t40);
 
 #if FEATURE_SVO_GI
-Texture2D<float4> ForwGiDiffuseRT : register(t24);
-Texture2D<float4> ForwGiSpecularRT : register(t25);
+Texture2D<float4>                      Fwd_GiDiffuseRT : register(t25);
+Texture2D<float4>                      Fwd_GiSpecularRT : register(t26);
 float4 ForwGiIntegrationMode : PB_SvoParams4;
 #endif
 
@@ -149,23 +154,38 @@ int GetNextTileLightIndex(uint lightMask, int startIndex)
 #if !TILED_DEFERRED_SHADING_TECHNIQUE
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void TiledForwardShading( inout fragPass pPass, const bool shadowHighQualityFiltering, const bool applyProbes, const bool applyNonProbes = true)
+void TiledForwardShading(in ForwardShadingAttribs attribs, inout float3 diffuseAcc, inout float3 specularAcc, SamplerState ssTrilinearClamp, SamplerComparisonState ssComparison,
+                         const bool shadowHighQualityFiltering, const bool applyProbes, const bool applyNonProbes, const bool bSkipSpecularProbes = false, const bool bOpaque = false)
 {
-	uint2 numTiles = ceil( PS_ScreenSize.xy / float2(TILED_SHADING_TILE_SIZE_X, TILED_SHADING_TILE_SIZE_Y) );
+	uint2 numTiles = ceil( CV_ScreenSize.xy / float2(TILED_SHADING_TILE_SIZE_X, TILED_SHADING_TILE_SIZE_Y) );
 	
-	float2 tcProj = pPass.IN.screenProj.xy / pPass.IN.screenProj.w;
+	float2 tcProj = attribs.screenUV;
 	uint2 tileIdx = uint2( tcProj.x * numTiles.x, tcProj.y * numTiles.y );
 	uint bufferIdx = (tileIdx.y * numTiles.x + tileIdx.x) * 8;
 	
-	fragLightPass fragLight = (fragLightPass)0;
-	
 	float probeWeightSum = 0;
-	float3 envFresnel = GetEnvmapFresnel( pPass.cSpecularMap.xyz, pPass.fGloss, pPass.fNdotE );
-	float specCubeLod = TILED_SHADING_SPECPROBE_MAXMIP - pPass.fGloss * TILED_SHADING_SPECPROBE_MAXMIP;	
+	float3 viewVec = -normalize(attribs.worldPos);
+	float specCubeLod = TILED_SHADING_SPECPROBE_MAXMIP - attribs.smoothness * TILED_SHADING_SPECPROBE_MAXMIP;
+	float NdotV = saturate(dot(viewVec, attribs.normalSpecProbe));
+	float3 envFresnel = GetEnvmapFresnel(attribs.reflectance, attribs.smoothness, NdotV);
+#if %_RT_PER_INSTANCE_CB_TEMP
+	float2 envBRDF = Fwd_EnvironmentBRDF.SampleLevel(ssTrilinearClamp, float2(NdotV, attribs.smoothness), 0).xy;
+	envFresnel = lerp(envBRDF.xxx, envBRDF.yyy, attribs.reflectance);
+#endif
+
+	float2 occlusion = float2(1, 1);
+	if (bOpaque)
+	{
+		float aoAmount = Fwd_RandomRotations[attribs.screenUV * CV_ScreenSize.xy].w;
+		float occlDiff = saturate(1 - aoAmount * 1.0);
+		float occlSpec = saturate(1 - aoAmount * 1.5);
+		occlusion.x = occlDiff * occlDiff;
+		occlusion.y = DeriveSpecularOcclusion(NdotV, max(occlSpec * occlSpec, 0.3), attribs.smoothness);
+	}
 	
 	int lightIndex = -1;
 	uint maskIndex = 0;
-	uint curMask = TileLightMask[bufferIdx];
+	uint curMask = Fwd_TileLightMask[bufferIdx];
 	
 	[loop]
 	for (;;)
@@ -174,20 +194,24 @@ void TiledForwardShading( inout fragPass pPass, const bool shadowHighQualityFilt
 		{
 			lightIndex = GetNextTileLightIndex(curMask, lightIndex);
 			if (lightIndex >= 0) break;
-			else curMask = TileLightMask[++maskIndex + bufferIdx];
+			else curMask = Fwd_TileLightMask[++maskIndex + bufferIdx];
 		}
 		
 		[branch]
-		if (lightIndex < 0 || TiledLightsShadeInfo[lightIndex].lightType > TILEDLIGHT_TYPE_AMBIENT_AREA)
+		if (lightIndex < 0 || Fwd_TiledLightsShadeInfo[lightIndex].lightType > TILEDLIGHT_TYPE_AMBIENT_AREA)
 			break;
 			
 		if (applyProbes)
 		{
-			const float clipVolumeWeight = GetClipVolumeWeightBinary(ClipVolumeParams.x, TiledLightsShadeInfo[lightIndex].stencilID);
-			if (TiledLightsShadeInfo[lightIndex].lightType == TILEDLIGHT_TYPE_PROBE && probeWeightSum < 1 && clipVolumeWeight>0 )
+		#if !%_RT_PER_INSTANCE_CB_TEMP
+			const float clipVolumeWeight = GetClipVolumeWeightBinary(ClipVolumeParams.x, Fwd_TiledLightsShadeInfo[lightIndex].stencilID);
+		#else
+			const float clipVolumeWeight = 1;  // TODO
+		#endif
+			if (Fwd_TiledLightsShadeInfo[lightIndex].lightType == TILEDLIGHT_TYPE_PROBE && probeWeightSum < 1 && clipVolumeWeight > 0)
 			{
-				STiledLightShadeInfo light = TiledLightsShadeInfo[lightIndex];
-				float3 position = pPass.IN.vView.xyz;
+				STiledLightShadeInfo light = Fwd_TiledLightsShadeInfo[lightIndex];
+				float3 position = attribs.worldPos;
 				float3 lightVec = (light.posRad.xyz - GetWorldViewPos()) - position;
 				
 				// Compute attenuation for box
@@ -202,18 +226,21 @@ void TiledForwardShading( inout fragPass pPass, const bool shadowHighQualityFilt
 					float attenuation = GetAttenuation( tmpLightVec, 1, true, light.attenuationParams.y ) * light.attenuationParams.x;
 				
 					// Diffuse
-					float4 diffuseProbe = DiffuseCubeArray.SampleLevel( TrilinearClampSamplerState, float4( pPass.vNormal.xyz, light.resIndex ), 0 );
+					float4 diffuseProbe = Fwd_DiffuseCubeArray.SampleLevel( ssTrilinearClamp, float4( attribs.normal, light.resIndex ), 0 );
 					diffuseProbe.rgb = DecodeHDRCubemap( diffuseProbe );
 					float probeWeight = (1 - probeWeightSum) * attenuation;
-					pPass.cAmbientAcc += diffuseProbe.rgb * light.color.rgb * probeWeight;
+					diffuseAcc += diffuseProbe.rgb * light.color.rgb * probeWeight * occlusion.x;
 			
-					// Specular
-					float tmpGloss = 0;
-					float3 tmpReflVec = normalize( pPass.vReflVec );
-					CubemapBoxParallaxCorrection( tmpReflVec, position, (light.posRad.xyz - GetWorldViewPos()), light.shadowMatrix[0].xyz, light.shadowMatrix[1].xyz, tmpGloss );
-					float4 specularProbe = SpecCubeArray.SampleLevel( TrilinearClampSamplerState, float4( tmpReflVec, light.resIndex ), specCubeLod );
-					specularProbe.rgb = DecodeHDRCubemap( specularProbe ) * envFresnel;
-					pPass.cSpecularAcc += specularProbe.rgb * light.color.rgb * light.color.a * probeWeight;
+					if (!bSkipSpecularProbes)
+					{
+						// Specular
+						float tmpGloss = 0;
+						float3 tmpReflVec = reflect(-viewVec, attribs.normalSpecProbe);
+						CubemapBoxParallaxCorrection( tmpReflVec, position, (light.posRad.xyz - GetWorldViewPos()), light.shadowMatrix[0].xyz, light.shadowMatrix[1].xyz, tmpGloss );
+						float4 specularProbe = Fwd_SpecCubeArray.SampleLevel( ssTrilinearClamp, float4( tmpReflVec, light.resIndex ), specCubeLod );
+						specularProbe.rgb = DecodeHDRCubemap( specularProbe ) * envFresnel;
+						specularAcc += specularProbe.rgb * light.color.rgb * light.color.a * probeWeight * occlusion.y;
+					}	
 					
 					probeWeightSum += probeWeight;
 				}
@@ -222,9 +249,11 @@ void TiledForwardShading( inout fragPass pPass, const bool shadowHighQualityFilt
 	}
 		
 #if FEATURE_SVO_GI
-	if(!pPass.bRefractionMap)
-		ApplyGI(pPass.cSpecularAcc, pPass.cAmbientAcc, pPass.cDiffuseAcc, tcProj + .5f / PS_ScreenSize.xy, pPass.fGloss, pPass.cSpecularMap,
-		        ForwGiDiffuseRT, ForwGiSpecularRT, TrilinearClampSamplerState, (int)(ForwGiIntegrationMode.y));
+#if !%_RT_PER_INSTANCE_CB_TEMP	
+	//if(!pPass.bRefractionMap)
+		ApplyGI(specularAcc, diffuseAcc, diffuseAcc, tcProj + .5f / CV_ScreenSize.xy, attribs.smoothness, attribs.reflectance,  // TODO
+		        Fwd_GiDiffuseRT, Fwd_GiSpecularRT, ssTrilinearClamp, (int)(ForwGiIntegrationMode.y));
+#endif
 #endif
 
 	for (;;)
@@ -233,28 +262,29 @@ void TiledForwardShading( inout fragPass pPass, const bool shadowHighQualityFilt
 		if (lightIndex < 0)
 			break;
 
-		const float3 position = pPass.IN.vView.xyz;
-		const float4 posRad = TiledLightsShadeInfo[lightIndex].posRad;
+		const float3 position = attribs.worldPos;
+		const float4 posRad = Fwd_TiledLightsShadeInfo[lightIndex].posRad;
 		const float3 lightVec = (posRad.xyz - GetWorldViewPos()) - position;
 		
-		if (applyNonProbes && TiledLightsShadeInfo[lightIndex].lightType > TILEDLIGHT_TYPE_AMBIENT_AREA && length( lightVec ) < posRad.w)
+		if (applyNonProbes && Fwd_TiledLightsShadeInfo[lightIndex].lightType > TILEDLIGHT_TYPE_AMBIENT_AREA && length( lightVec ) < posRad.w)
 		{
-			STiledLightShadeInfo light = TiledLightsShadeInfo[lightIndex];
+			STiledLightShadeInfo light = Fwd_TiledLightsShadeInfo[lightIndex];
 			bool skipShading = false;
 			bool shadowMap = false;
 			
-			fragLight.nType = LT_TILED;
-			fragLight.vLight = normalize( lightVec );
-			fragLight.cDiffuse = light.color.rgb;
-			fragLight.cSpecular = light.color.rgb * light.color.a;
-			fragLight.cFilter = 1;
-			fragLight.fOcclShadow = 1;
-			fragLight.fNdotL = dot( pPass.vNormal.xyz, fragLight.vLight );
+			ForwardLightParams lightParams;
+			lightParams.type = LT_TILED;
+			lightParams.lightVec = normalize(lightVec);
+			lightParams.illuminance = light.color.rgb;
 			
 			float attenuation = GetPhysicalLightAttenuation( length( lightVec ), 1.0 / light.posRad.w, light.attenuationParams.x );
-			fragLight.fFallOff = attenuation;
+			lightParams.illuminance *= attenuation;
 			
+		#if !%_RT_PER_INSTANCE_CB_TEMP	
 			const float clipVolumeWeight = GetClipVolumeWeightBinary(ClipVolumeParams.x, light.stencilID);
+		#else
+			const float clipVolumeWeight = 1;
+		#endif
 			[branch] if( clipVolumeWeight == 0.0f)
 				skipShading = true;
 
@@ -268,7 +298,7 @@ void TiledForwardShading( inout fragPass pPass, const bool shadowHighQualityFilt
 					if (projTC.w < 0 || min( projTC.x, projTC.y ) < 0 || max( projTC.x, projTC.y ) > 1)  // Avoid back-projection
 						skipShading = true;
 					else
-						fragLight.cFilter = SpotTexArray.SampleLevel( TrilinearClampSamplerState, float3(projTC.xy, light.resIndex), 0 ).xxx;
+						lightParams.illuminance *= Fwd_SpotTexArray.SampleLevel( ssTrilinearClamp, float3(projTC.xy, light.resIndex), 0 ).xxx;
 						
 					if (light.shadowParams.x > 0)
 						shadowMap = true;
@@ -288,13 +318,25 @@ void TiledForwardShading( inout fragPass pPass, const bool shadowHighQualityFilt
 				
 			if (!skipShading)
 			{
+				float shadowOccl = 1;
+				
 				if (shadowMap)
 				{
 					float4 P0 = mul( light.shadowMatrix, float4( position + GetWorldViewPos(), 1 ) );
 					P0.xy /= P0.w;
 					P0.z -= light.shadowParams.y;
 					
-					if(shadowHighQualityFiltering)
+					bool bAllowHighQualityShadows = true;
+				#if %_RT_PER_INSTANCE_CB_TEMP
+					bAllowHighQualityShadows = false;
+				#endif
+					
+					if (bOpaque)
+					{
+						int3 sampleCoords = int3(attribs.screenUV * CV_ScreenSize.xy, light.shadowMaskIndex);
+						shadowOccl = 1 - Fwd_SunShadowMask[sampleCoords];
+					}
+					else if (shadowHighQualityFiltering && bAllowHighQualityShadows)
 					{
 						float2 kernelRadius = light.shadowParams.x;
 						float2 rotScale = kernelRadius.y * 1000.0f;
@@ -302,12 +344,12 @@ void TiledForwardShading( inout fragPass pPass, const bool shadowHighQualityFilt
 						const int nRotationTextureSize = 64;
 						int2 sampleCoords = int2(P0.xy * rotScale.xy * nRotationTextureSize) % nRotationTextureSize;
 						
-						half2 rotSample = RandomRotations.Load(int3(sampleCoords, 0)).xy;
+						half2 rotSample = Fwd_RandomRotations.Load(int3(sampleCoords, 0)).xy;
 						rotSample.xy *= kernelRadius.xy * 1/512.0f;
 						float4 rot = float4(rotSample.x, -rotSample.y, rotSample.y, rotSample.x);
 						
-						fragLight.fOcclShadow = 0;
-						for(int s=0; s<SHADOW_SAMPLE_COUNT/2; s+=2) // Loop over taps
+						shadowOccl = 0;
+						for(int s = 0; s < SHADOW_SAMPLE_COUNT / 2; s += 2) // Loop over taps
 						{
 							half4 sampleDepth;
 							{
@@ -315,22 +357,27 @@ void TiledForwardShading( inout fragPass pPass, const bool shadowHighQualityFilt
 								float4 rotatedOff0 = rot.xyzw * irreg_kernel_2d[s+0].xxww +	rot.zwxy * irreg_kernel_2d[s+0].yyzz;
 								float4 rotatedOff1 = rot.xyzw * irreg_kernel_2d[s+1].xxww +	rot.zwxy * irreg_kernel_2d[s+1].yyzz;
 
-								sampleDepth.x = ShadowPool.SampleCmpLevelZero( SampStateComp, P0.xy + rotatedOff0.xy, P0.z);
-								sampleDepth.y = ShadowPool.SampleCmpLevelZero( SampStateComp, P0.xy + rotatedOff0.zw, P0.z);
-								sampleDepth.z = ShadowPool.SampleCmpLevelZero( SampStateComp, P0.xy + rotatedOff1.xy, P0.z);
-								sampleDepth.w = ShadowPool.SampleCmpLevelZero( SampStateComp, P0.xy + rotatedOff1.zw, P0.z);
+								sampleDepth.x = Fwd_ShadowPool.SampleCmpLevelZero( ssComparison, P0.xy + rotatedOff0.xy, P0.z);
+								sampleDepth.y = Fwd_ShadowPool.SampleCmpLevelZero( ssComparison, P0.xy + rotatedOff0.zw, P0.z);
+								sampleDepth.z = Fwd_ShadowPool.SampleCmpLevelZero( ssComparison, P0.xy + rotatedOff1.xy, P0.z);
+								sampleDepth.w = Fwd_ShadowPool.SampleCmpLevelZero( ssComparison, P0.xy + rotatedOff1.zw, P0.z);
 							}
 
-							fragLight.fOcclShadow += dot(sampleDepth, 1.0 / SHADOW_SAMPLE_COUNT);
+							shadowOccl += dot(sampleDepth, 1.0 / SHADOW_SAMPLE_COUNT);
 						}
 					}
 					else
 					{
-						fragLight.fOcclShadow = ShadowPool.SampleCmpLevelZero( SampStateComp, P0.xy, P0.z );
+						shadowOccl = Fwd_ShadowPool.SampleCmpLevelZero( ssComparison, P0.xy, P0.z );
 					}
 				}
 
-				frag_custom_per_light( pPass, fragLight );
+				lightParams.illuminance *= shadowOccl;
+				
+				float3 diffuse, specular;
+				Callback_ShadingDirect(attribs, lightParams, diffuse, specular);
+				diffuseAcc += diffuse;
+				specularAcc += specular;
 			}
 		}
 		
@@ -338,7 +385,7 @@ void TiledForwardShading( inout fragPass pPass, const bool shadowHighQualityFilt
 		{
 			lightIndex = GetNextTileLightIndex(curMask, lightIndex);
 			if (lightIndex >= 0) break;
-			else curMask = TileLightMask[++maskIndex + bufferIdx];
+			else curMask = Fwd_TileLightMask[++maskIndex + bufferIdx];
 		}
 	}
 }
@@ -378,6 +425,15 @@ Texture2D<float4> AOColorBleedRT : register(t9);
 Texture2D<float4> GiDiffuseRT : register(t10);
 Texture2D<float4> GiSpecularRT : register(t11);
 Texture2D<float4> CausticsRT : register(t12);
+
+Buffer<uint>                           TileLightMask : register(t16);
+StructuredBuffer<STiledLightCullInfo>  TiledLightsCullInfo : register(t16);
+StructuredBuffer<STiledLightShadeInfo> TiledLightsShadeInfo : register(t17);
+StructuredBuffer<STiledClipVolumeInfo> TiledClipVolumeInfo : register(t18);
+TextureCubeArray<float4>               SpecCubeArray : register(t19);
+TextureCubeArray<float4>               DiffuseCubeArray : register(t20);
+Texture2DArray<float4>                 SpotTexArray : register(t21);
+
 
 groupshared uint sTileLightCount;
 groupshared uint sTileLightIndices[TILED_SHADING_MAX_NUM_LIGHTS];
@@ -564,7 +620,7 @@ void TiledDeferredShadingCS( uint3 GroupID : SV_GroupID,
 						sTileLightIndices[listIndex] = lightIdx;
 					}
 				}
-		
+
 				[branch]
 				if (volumeType != TILEDLIGHT_VOLUME_SUN)
 				{
@@ -1015,15 +1071,16 @@ technique TiledDeferredShading
 
 RWBuffer<uint> VolumeOpaqueLightMaskUAV : register(u0);
 RWBuffer<uint> VolumeTranspLightMaskUAV : register(u1);
-Buffer<float3> VolumeVertexData : register(t0);
-StructuredBuffer<STiledLightVolumeInfo> TiledLightsVolumeInfo : register(t1);
+Buffer<float4> VolumeVertexData         : register(t0);
+StructuredBuffer<STiledLightVolumeInfo>   TiledLightsVolumeInfo : register(t1);
 
 cbuffer CBVolumeLightListGen : register(b0)
 {
 	struct
 	{
 		float4x4 matViewProj;
-		float4   params;
+		uint     lightIndexOffset;
+		uint     numVertices;
 		float4   screenScale;
 		float4   viewerPos;
 		float4   worldBasisX;
@@ -1034,21 +1091,23 @@ cbuffer CBVolumeLightListGen : register(b0)
 
 struct vtxOutVolumeLightListGen
 {
-  float4                WPos        : SV_Position;
+	float4                WPos        : SV_Position;
 	nointerpolation uint  lightIndex  : TEXCOORD0;
 };
 
-vtxOutVolumeLightListGen VolumeLightListGenVS(vtxInLightPrePass IN, uint VertexID : SV_VertexID)
+vtxOutVolumeLightListGen VolumeLightListGenVS(uint VertexID : SV_VertexID)
 {
 	vtxOutVolumeLightListGen OUT = (vtxOutVolumeLightListGen)0; 
 	
-	uint numVertices = (uint)cbVolumeLightListGen.params.w;
-	uint lightIndex = cbVolumeLightListGen.params.z + VertexID / numVertices;
+	const uint numVertices = cbVolumeLightListGen.numVertices;
+	const uint vertexIndex = VertexID % numVertices;
+	const uint lightIndex = VertexID / numVertices + cbVolumeLightListGen.lightIndexOffset;
 	
-	float4 pos = float4(VolumeVertexData[VertexID % numVertices], 1);
+	float4 pos = VolumeVertexData[vertexIndex];
 	pos = mul(pos, TiledLightsVolumeInfo[lightIndex].worldMat);
+	pos = mul(pos, cbVolumeLightListGen.matViewProj);
 	
-	OUT.WPos = mul(pos, cbVolumeLightListGen.matViewProj);
+	OUT.WPos = pos;
 	OUT.lightIndex = lightIndex;
 
 	return OUT;
@@ -1060,11 +1119,9 @@ void VolumeLightListGenPS(vtxOutVolumeLightListGen IN, bool bIsFrontFace : SV_Is
 	const uint lightIndex = IN.lightIndex;
 	const uint2 pixelPos = IN.WPos.xy;
 	
-	float linearDepth = cbVolumeLightListGen.params.y / (IN.WPos.z - cbVolumeLightListGen.params.x);
 	float2 depthMaxMin = DepthTex.Load(int3(pixelPos.xy, 0)).xy;
-	
-	float3 positionMax = CalcHomogeneousPos(depthMaxMin.x, pixelPos.xy, cbVolumeLightListGen.worldBasisX, cbVolumeLightListGen.worldBasisY, cbVolumeLightListGen.worldBasisZ);
-	float3 positionMin = CalcHomogeneousPos(depthMaxMin.y, pixelPos.xy, cbVolumeLightListGen.worldBasisX, cbVolumeLightListGen.worldBasisY, cbVolumeLightListGen.worldBasisZ);
+	float3 positionMax = CalcHomogeneousPos(1, pixelPos.xy, cbVolumeLightListGen.worldBasisX, cbVolumeLightListGen.worldBasisY, cbVolumeLightListGen.worldBasisZ);
+	float3 positionMin = CalcHomogeneousPos(0, pixelPos.xy, cbVolumeLightListGen.worldBasisX, cbVolumeLightListGen.worldBasisY, cbVolumeLightListGen.worldBasisZ);
 		
 	STiledLightVolumeInfo volume = TiledLightsVolumeInfo[lightIndex];
 	uint volumeType = volume.volumeTypeInfo.x;
@@ -1075,6 +1132,7 @@ void VolumeLightListGenPS(vtxOutVolumeLightListGen IN, bool bIsFrontFace : SV_Is
 	uint bufferBaseIdx = tileIdx * 8;
 	
 	bool bInVolume = (volumeType == TILEDLIGHT_VOLUME_SUN) ? true : false;
+	bool bInTranspVolume = bInVolume;
 	
 	if (volumeType == TILEDLIGHT_VOLUME_OBB)
 	{
@@ -1085,27 +1143,35 @@ void VolumeLightListGenPS(vtxOutVolumeLightListGen IN, bool bIsFrontFace : SV_Is
 		
 		float3 rayOrig = posMinLS;
 		float3 rayDir = normalize(posMaxLS - posMinLS);
-		
-		// Origin inside AABB
-		bInVolume = max(max(abs(rayOrig.x), abs(rayOrig.y)), abs(rayOrig.z)) <= 1;
 			
 		// Intersect ray with AABB
 		float3 rcpDir = rcp(rayDir);
-		float3 tneg = (-float3(1, 1, 1) - rayOrig) * rcpDir;
-		float3 tpos = ( float3(1, 1, 1) - rayOrig) * rcpDir;
+		float3 tneg = (-volume.volumeParams3.xyz - rayOrig) * rcpDir;
+		float3 tpos = ( volume.volumeParams3.xyz - rayOrig) * rcpDir;
 		float3 tmin = min(tneg, tpos);
 		float3 tmax = max(tneg, tpos);
 		float t0 = max(max(tmin.x, tmin.y), tmin.z);
 		float t1 = min(min(tmax.x, tmax.y), tmax.z);
-		if (t0 <= t1 && t0 > 0)
+		if (t0 <= t1)
 		{
-			float3 isec = rayOrig + rayDir * t0;
-			if (length(isec - rayOrig) <= length(posMaxLS - rayOrig))
-				bInVolume = true;
+			positionMin = CalcHomogeneousPos(depthMaxMin.y, pixelPos.xy, cbVolumeLightListGen.worldBasisX, cbVolumeLightListGen.worldBasisY, cbVolumeLightListGen.worldBasisZ);
+			positionMax = CalcHomogeneousPos(depthMaxMin.x, pixelPos.xy, cbVolumeLightListGen.worldBasisX, cbVolumeLightListGen.worldBasisY, cbVolumeLightListGen.worldBasisZ);
+			posMinLS = mul(float3x3(volume.volumeParams0.xyz, volume.volumeParams1.xyz, volume.volumeParams2.xyz), volumePos - positionMin.xyz);
+			posMaxLS = mul(float3x3(volume.volumeParams0.xyz, volume.volumeParams1.xyz, volume.volumeParams2.xyz), volumePos - positionMax.xyz);
+			
+			if (t0 <= length(posMaxLS - rayOrig))
+			{
+				bInTranspVolume = true;
+				if (t1 >= length(posMinLS - rayOrig))
+					bInVolume = true;
+			}
 		}
 	}
 	else if (volumeType == TILEDLIGHT_VOLUME_CONE)
 	{
+		positionMin = CalcHomogeneousPos(depthMaxMin.y, pixelPos.xy, cbVolumeLightListGen.worldBasisX, cbVolumeLightListGen.worldBasisY, cbVolumeLightListGen.worldBasisZ);
+		positionMax = CalcHomogeneousPos(depthMaxMin.x, pixelPos.xy, cbVolumeLightListGen.worldBasisX, cbVolumeLightListGen.worldBasisY, cbVolumeLightListGen.worldBasisZ);
+		
 		float3 forwardVec = volume.volumeParams1.xyz;
 		float3 upVector = abs(forwardVec.z) < 0.999 ? float3(0, 0, 1) : float3(1, 0, 0);
 		float3 tangentX = normalize(cross(upVector, forwardVec));
@@ -1132,37 +1198,39 @@ void VolumeLightListGenPS(vtxOutVolumeLightListGen IN, bool bIsFrontFace : SV_Is
 		// Far plane
 		float3 P1 = P0 - volume.volumeParams1.xyz * volume.volumeParams0.w;
 		if (dot(volume.volumeParams1.xyz, positionMin - P1) < 0 && dot(volume.volumeParams1.xyz, positionMax - P1) < 0) bInVolume = false;
+		
+		// TODO: Implement culling for transparent case - this is very inefficient now
+		bInTranspVolume = true;
 	}
-	else  // volumeType == TILEDLIGHT_VOLUME_SPHERE
+	else if (volumeType == TILEDLIGHT_VOLUME_SPHERE)
 	{
 		float3 rayOrig = positionMin;
 		float3 rayDir = normalize(positionMax - positionMin);
 		
-		// Origin inside sphere
-		float3 volumePos = volume.volumeParams0.xyz - cbVolumeLightListGen.viewerPos;
-		bInVolume = length(rayOrig - volumePos) <= volume.volumeParams0.w;
-		
 		// Intersect ray with sphere
+		float3 volumePos = volume.volumeParams0.xyz - cbVolumeLightListGen.viewerPos;
 		float3 v = volumePos - rayOrig;
 		float b = dot(v, rayDir);
-		float d = b * b + volume.volumeParams0.w * volume.volumeParams0.w - dot(v, v);
-		if (d > 0 && b > 0)
+		float radius2 = volume.volumeParams0.w * volume.volumeParams0.w;
+		float d2 = radius2 - (dot(v, v) - b * b);
+		if (d2 >= 0)
 		{
-			float t = b - sqrt(d);
-			float3 isec = rayOrig + rayDir * t;	
-			if (length(isec - rayOrig) <= length(positionMax - rayOrig))
+			float t0 = b - sqrt(d2);
+			float t1 = b + sqrt(d2);
+			
+			positionMin = CalcHomogeneousPos(depthMaxMin.y, pixelPos.xy, cbVolumeLightListGen.worldBasisX, cbVolumeLightListGen.worldBasisY, cbVolumeLightListGen.worldBasisZ);
+			
+			bInTranspVolume = true;
+			if (t1 >= length(positionMin - rayOrig))
 				bInVolume = true;
 		}
 	}
 	
-	[branch] if (bInVolume)
-	{
-		uint maskIndex = lightId / 32;
+	uint maskIndex = lightId / 32;
+	[branch] if (bInTranspVolume)
 		InterlockedOr(VolumeTranspLightMaskUAV[bufferBaseIdx + maskIndex], 1 << (lightId & 31));
-		
-		if (bIsFrontFace || linearDepth >= depthMaxMin.y)
-			InterlockedOr(VolumeOpaqueLightMaskUAV[bufferBaseIdx + maskIndex], 1 << (lightId & 31));
-	}
+	[branch] if (bInVolume)
+		InterlockedOr(VolumeOpaqueLightMaskUAV[bufferBaseIdx + maskIndex], 1 << (lightId & 31));
 }
 
 technique VolumeLightListGen

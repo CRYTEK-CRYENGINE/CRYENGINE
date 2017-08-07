@@ -44,7 +44,6 @@ public:
 	void                ClientChannelClosed();
 
 	void                GetMemoryUsage(ICrySizer* s) const;
-	bool                ControlsEntity(EntityId id) const;
 
 private:
 	CGameContext*       m_pGameContext;

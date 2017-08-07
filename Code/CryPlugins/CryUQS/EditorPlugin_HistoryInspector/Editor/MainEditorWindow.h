@@ -12,6 +12,7 @@
 #include <IEditor.h>
 #include <DockedWidget.h>
 #include <Controls/EditorDialog.h>
+#include <IPostRenderer.h>
 
 #include <CryUQS/Interfaces/InterfacesIncludes.h>
 #include <Serialization/QPropertyTree/QPropertyTree.h>
@@ -20,9 +21,26 @@ struct SQuery;
 class CHistoricQueryTreeModel;
 class CHistoricQueryTreeView;
 
-class CMainEditorWindow : public CDockableWindow, public IEditorNotifyListener, public uqs::core::IQueryHistoryListener, public uqs::core::IQueryHistoryConsumer
+class CMainEditorWindow : public CDockableWindow, public UQS::Core::IQueryHistoryListener, public UQS::Core::IQueryHistoryConsumer
 {
 	Q_OBJECT
+
+private:
+
+	class CUQSHistoryPostRenderer : public IPostRenderer
+	{
+	public:
+
+		explicit CUQSHistoryPostRenderer(CHistoricQueryTreeView& historicQueryTreeView);
+
+		// IPostRenderer
+		virtual void OnPostRender() const override;
+		// ~IPostRenderer
+
+	private:
+
+		CHistoricQueryTreeView& m_historicQueryTreeView;
+	};
 
 public:
 
@@ -34,18 +52,14 @@ public:
 	virtual IViewPaneClass::EDockingDirection GetDockingDirection() const override { return IViewPaneClass::DOCK_FLOAT; }
 	// ~CDockableWindow
 
-	// IEditorNotifyListener
-	virtual void OnEditorNotifyEvent(EEditorNotifyEvent ev) override;
-	// ~IEditorNotifyListener
-
 	// ~IQueryHistoryListener
-	virtual void OnQueryHistoryEvent(const uqs::core::IQueryHistoryListener::SEvent& ev) override;
+	virtual void OnQueryHistoryEvent(const UQS::Core::IQueryHistoryListener::SEvent& ev) override;
 	// ~IQueryHistoryListener
 
 	// IQueryHistoryConsumer
 	virtual void AddOrUpdateHistoricQuery(const SHistoricQueryOverview& overview) override;
-	virtual void AddTextLineToCurrentHistoricQuery(const ColorF& color, const char* fmt, ...) override;
-	virtual void AddTextLineToFocusedItem(const ColorF& color, const char* fmt, ...) override;
+	virtual void AddTextLineToCurrentHistoricQuery(const ColorF& color, const char* szFormat, ...) override;
+	virtual void AddTextLineToFocusedItem(const ColorF& color, const char* szFormat, ...) override;
 	virtual void AddInstantEvaluatorName(const char* szInstantEvaluatorName) override;
 	virtual void AddDeferredEvaluatorName(const char* szDeferredEvaluatorName) override;
 	// ~IQueryHistoryConsumer
@@ -58,7 +72,7 @@ private:
 	void OnTreeViewCurrentChanged(const QModelIndex &current, const QModelIndex &previous);
 
 private:
-	uqs::core::IQueryHistoryManager* m_pQueryHistoryManager;
+	UQS::Core::IQueryHistoryManager* m_pQueryHistoryManager;
 	SQuery*                          m_pFreshlyAddedOrUpdatedQuery;
 	CHistoricQueryTreeView*          m_pTreeView;
 	CHistoricQueryTreeModel*         m_pTreeModel;
@@ -67,4 +81,5 @@ private:
 	QComboBox*                       m_pComboBoxHistoryOrigin;
 	QPushButton*                     m_pButtonClearCurrentHistory;
 	QPropertyTree*                   m_pPropertyTree;
+	CUQSHistoryPostRenderer*         m_pHistoryPostRenderer;
 };

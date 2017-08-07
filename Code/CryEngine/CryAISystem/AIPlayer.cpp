@@ -18,6 +18,7 @@
 #include "DebugDrawContext.h"
 #include "MissLocationSensor.h"
 #include "Puppet.h"
+#include "Formation/FormationManager.h"
 
 #include <CryAISystem/VisionMapTypes.h>
 
@@ -43,10 +44,12 @@ CAIPlayer::CAIPlayer()
 	, m_mercyTimer(-1.0f)
 	, m_coverExposedTime(-1.0f)
 	, m_coolMissCooldown(0.0f)
-#pragma warning(disable: 4355)
+#pragma warning(push)
+#pragma warning(disable: 4355) // 'this': used in base member initializer list
 #if ENABLE_MISSLOCATION_SENSOR
 	, m_pMissLocationSensor(new CMissLocationSensor(this))
 #endif
+#pragma warning(pop)
 {
 	_fastcast_CAIPlayer = true;
 }
@@ -910,7 +913,7 @@ void CAIPlayer::Event(unsigned short eType, SAIEVENT* pEvent)
 		m_bEnabled = false;
 		GetAISystem()->RemoveFromGroup(GetGroupId(), this);
 
-		GetAISystem()->ReleaseFormationPoint(this);
+		gAIEnv.pFormationManager->ReleaseFormationPoint(this);
 		ReleaseFormation();
 
 		m_State.ClearSignals();

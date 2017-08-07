@@ -9,6 +9,7 @@
 
 typedef void CURL;
 struct curl_slist;
+struct ICVar;
 
 class CUserAnalyticsSendThread;
 
@@ -34,6 +35,8 @@ private:
 
 	void    Shutdown();
 
+	void    ReadWriteAnonymousToken();
+	void    ReadUserIdFromDisk();
 	void    PrepareAndSendEvents();
 
 	CryMT::vector<string>     m_messages; // message buffer
@@ -45,6 +48,10 @@ private:
 	curl_slist*               m_curlHeaderList;
 
 	CUserAnalyticsSendThread* m_pUserAnalyticsSendThread;
+	static ICVar*             m_userAnalyticsServerAddress;
+
+	string                    m_anonymousUserToken;
+	string                    m_userId;
 };
 #else
 class CUserAnalytics : public IUserAnalytics

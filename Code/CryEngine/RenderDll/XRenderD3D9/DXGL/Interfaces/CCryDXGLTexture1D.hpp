@@ -21,12 +21,12 @@ public:
 	DXGL_IMPLEMENT_INTERFACE(CCryDXGLTexture1D, D3D11Texture1D)
 
 	CCryDXGLTexture1D(const D3D11_TEXTURE1D_DESC& kDesc, NCryOpenGL::STexture* pGLTexture, CCryDXGLDevice* pDevice);
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	CCryDXGLTexture1D(const D3D11_TEXTURE1D_DESC& kDesc, NCryOpenGL::SInitialDataCopy* pInitialData, CCryDXGLDevice* pDevice);
 #endif
 	virtual ~CCryDXGLTexture1D();
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	virtual void Initialize();
 #endif
 

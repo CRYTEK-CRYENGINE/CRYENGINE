@@ -1412,25 +1412,40 @@ void CRenderStatsWidget::Update()
 
 	switch (gEnv->pRenderer->GetRenderType())
 	{
-	case eRT_OpenGL:
-		pRenderType = "PC - OpenGL";
+#if CRY_PLATFORM_DURANGO
+	case ERenderType::Direct3D11:
+		pRenderType = "Xbox - DX11";
 		break;
-	case eRT_DX11:
+	case ERenderType::Direct3D12:
+		pRenderType = "Xbox - DX12";
+		break;
+#else
+	case ERenderType::Direct3D11:
 		pRenderType = "PC - DX11";
 		break;
-	case eRT_DX12:
+	case ERenderType::Direct3D12:
 		pRenderType = "PC - DX12";
 		break;
-	case eRT_XboxOne:
-		pRenderType = "Xbox One";
+#endif
+#if CRY_PLATFORM_MOBILE
+	case ERenderType::OpenGL:
+		pRenderType = "Mobile - OpenGL";
 		break;
-	case eRT_PS4:
-		pRenderType = "PS4";
+	case ERenderType::Vulkan:
+		pRenderType = "Mobile - Vulkan";
 		break;
-	case eRT_Null:
-		pRenderType = "Null";
+#else
+	case ERenderType::OpenGL:
+		pRenderType = "PC - OpenGL";
 		break;
-	case eRT_Undefined:
+	case ERenderType::Vulkan:
+		pRenderType = "PC - Vulkan";
+		break;
+#endif
+	case ERenderType::GNM:
+		pRenderType = "PS4 - GNM";
+		break;
+	case ERenderType::Undefined:
 	default:
 		assert(0);
 		pRenderType = "Undefined";
@@ -1440,11 +1455,11 @@ void CRenderStatsWidget::Update()
 	const char* buildType = NULL;
 
 	#if defined(_RELEASE)
-	buildType = "RELEASE";
+		buildType = "RELEASE";
 	#elif defined(_DEBUG)
-	buildType = "DEBUG";
+		buildType = "DEBUG";
 	#else
-	buildType = "PROFILE"; //Assume profile?
+		buildType = "PROFILE"; //Assume profile?
 	#endif
 
 	char entryBuffer[CMiniInfoBox::MAX_TEXT_LENGTH];
@@ -1660,18 +1675,18 @@ void CRenderStatsWidget::Update()
 		SParticleCounts particleCounts;
 		pParticleMgr->GetCounts(particleCounts);
 
-		m_runtimeData.nParticles = (uint32)particleCounts.ParticlesRendered;
+		m_runtimeData.nParticles = (uint32)particleCounts.particles.rendered;
 
-		cry_sprintf(entryBuffer, "Num Particles Rendered: %d (%u)", (int)particleCounts.ParticlesRendered, m_particlesBudget);
+		cry_sprintf(entryBuffer, "Num Particles Rendered: %d (%u)", (int)particleCounts.particles.rendered, m_particlesBudget);
 
-		if (particleCounts.ParticlesRendered <= m_particlesBudget)
+		if (particleCounts.particles.rendered <= m_particlesBudget)
 		{
 			m_pInfoBox->AddEntry(entryBuffer, CPerfHUD::COL_NORM, CPerfHUD::TEXT_SIZE_NORM);
 		}
 		else
 		{
 			m_pInfoBox->AddEntry(entryBuffer, CPerfHUD::COL_ERROR, CPerfHUD::TEXT_SIZE_NORM);
-			CryPerfHUDWarning(1.f, "Too Many Particles: %d", (int)particleCounts.ParticlesRendered);
+			CryPerfHUDWarning(1.f, "Too Many Particles: %d", (int)particleCounts.particles.rendered);
 		}
 	}
 
@@ -2307,7 +2322,7 @@ void CRenderBatchWidget::Update_ModeBatchStats()
 
 		s_particlesBatch.Reset();
 		s_particlesBatch.name = s_strParticles;
-		s_particlesBatch.nBatches = (uint16)CurCounts.EmittersRendered;
+		s_particlesBatch.nBatches = (uint16)CurCounts.emitters.rendered;
 		s_particlesBatch.nInstances = 1;
 		s_particlesBatch.col.set(255, 255, 0, 255);
 

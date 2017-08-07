@@ -650,6 +650,20 @@ const char* CLevelInfo::GetDisplayName() const
 }
 
 //------------------------------------------------------------------------
+size_t CLevelInfo::GetGameRules(const char** pszGameRules, size_t numGameRules) const
+{
+	if (pszGameRules == nullptr)
+		return 0;
+
+	numGameRules = std::min(m_gamerules.size(), numGameRules);
+	for (size_t i = 0; i < numGameRules; ++i)
+	{
+		pszGameRules[i] = m_gamerules[i].c_str();
+	}
+	return numGameRules;
+}
+
+//------------------------------------------------------------------------
 bool CLevelInfo::GetAttribute(const char* name, TFlowInputData& val) const
 {
 	TAttributeList::const_iterator it = m_levelAttributes.find(name);
@@ -1351,12 +1365,6 @@ ILevelInfo* CLevelSystem::LoadLevel(const char* _levelName)
 			pCustomActionManager->LoadLibraryActions(CUSTOM_ACTIONS_PATH);
 		}
 
-		if (gEnv->pEntitySystem)
-		{
-			gEnv->pEntitySystem->ReserveEntityId(1);
-			gEnv->pEntitySystem->ReserveEntityId(LOCAL_PLAYER_ENTITY_ID);
-		}
-
 		CCryAction::GetCryAction()->GetIGameRulesSystem()->CreateGameRules(CCryAction::GetCryAction()->GetGameContext()->GetRequestedGameRules());
 
 		string missionXml = pLevelInfo->GetDefaultGameType()->xmlFile;
@@ -1718,15 +1726,12 @@ void CLevelSystem::OnLoadingComplete(ILevelInfo* pLevelInfo)
 	 */
 
 	// LoadLevel is not called in the editor, hence OnLoadingComplete is not invoked on the ILevelSystemListeners
-	if (gEnv->IsEditor())
+	if (gEnv->IsEditor() && pLevelInfo)
 	{
 		for (std::vector<ILevelSystemListener*>::const_iterator it = m_listeners.begin(); it != m_listeners.end(); ++it)
 		{
 			(*it)->OnLoadingComplete(pLevelInfo);
 		}
-
-		SEntityEvent loadingCompleteEvent(ENTITY_EVENT_LEVEL_LOADED);
-		gEnv->pEntitySystem->SendEventToAll(loadingCompleteEvent);
 	}
 }
 
@@ -2172,14 +2177,11 @@ void CLevelSystem::UnLoadLevel()
 		pRenderer->FlushRTCommands(true, true, true);
 
 		CryComment("Deleting Render meshes, render resources and flush texture streaming");
+		
 		// This may also release some of the materials.
-		int flags = FRR_DELETED_MESHES | FRR_FLUSH_TEXTURESTREAMING | FRR_OBJECTS | FRR_RENDERELEMENTS | FRR_RP_BUFFERS | FRR_POST_EFFECTS;
-
-		// Always keep the system resources around in the editor.
-		if (!gEnv->IsEditor())
-			flags |= FRR_SYSTEM_RESOURCES;
-
+		const int flags = gEnv->IsEditor() ? FRR_LEVEL_UNLOAD_SANDBOX : FRR_LEVEL_UNLOAD_LAUNCHER;
 		pRenderer->FreeResources(flags);
+
 		CryComment("done");
 	}
 

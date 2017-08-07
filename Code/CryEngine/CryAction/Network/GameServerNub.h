@@ -86,8 +86,6 @@ public:
 	void                BannedStatus();
 	void                UnbanPlayer(int profileId);
 
-	bool                ControlsEntity(EntityId id) const;
-
 private:
 	TServerChannelMap    m_channels;
 	TNetServerChannelMap m_netchannels;

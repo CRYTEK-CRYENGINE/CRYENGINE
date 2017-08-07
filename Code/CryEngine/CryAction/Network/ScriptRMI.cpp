@@ -646,7 +646,7 @@ bool CScriptRMI::ValidateDispatchTable(const char* clazz, SmartScriptTable dispa
 				return false;
 			}
 
-			const char* funcData = iter.value.str;
+			const char* funcData = iter.value.GetString();
 			const char* colon = strchr(funcData, ':');
 			if (colon == NULL)
 			{

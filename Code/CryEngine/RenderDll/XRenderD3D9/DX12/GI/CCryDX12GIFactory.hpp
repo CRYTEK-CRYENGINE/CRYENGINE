@@ -1,72 +1,60 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     03/02/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __CCRYDX12GIFACTORY__
-	#define __CCRYDX12GIFACTORY__
 
-	#include "DX12/CCryDX12Object.hpp"
+#include "DX12/CCryDX12Object.hpp"
 
-class CCryDX12GIFactory : public CCryDX12GIObject<IDXGIFactory4>
+class CCryDX12GIFactory : public CCryDX12GIObject<IDXGIFactory4ToImplement>
 {
 public:
-	DX12_OBJECT(CCryDX12GIFactory, CCryDX12GIObject<IDXGIFactory4> );
+	DX12_OBJECT(CCryDX12GIFactory, CCryDX12GIObject<IDXGIFactory4ToImplement> );
 
 	static CCryDX12GIFactory* Create();
 
-	virtual ~CCryDX12GIFactory();
-
-	IDXGIFactory4* GetDXGIFactory() const { return m_pDXGIFactory4; }
+	IDXGIFactory4ToCall* GetDXGIFactory() const { return m_pDXGIFactory4; }
 
 	#pragma region /* IDXGIFactory implementation */
 
-	virtual HRESULT STDMETHODCALLTYPE EnumAdapters(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE EnumAdapters(
 	  UINT Adapter,
-	  _Out_ IDXGIAdapter** ppAdapter) final;
+	  _Out_ IDXGIAdapter** ppAdapter) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE MakeWindowAssociation(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE MakeWindowAssociation(
 	  HWND WindowHandle,
-	  UINT Flags) final;
+	  UINT Flags) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE GetWindowAssociation(
-	  _Out_ HWND* pWindowHandle) final;
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetWindowAssociation(
+	  _Out_ HWND* pWindowHandle) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateSwapChain(
-	  _In_ IUnknown* pDevice,
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateSwapChain(
+	  _In_ IGfxUnknown* pDevice,
 	  _In_ DXGI_SWAP_CHAIN_DESC* pDesc,
-	  _Out_ IDXGISwapChain** ppSwapChain) final;
+	  _Out_ IDXGISwapChain** ppSwapChain) FINALGFX;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateSoftwareAdapter(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateSoftwareAdapter(
 	  HMODULE Module,
-	  _Out_ IDXGIAdapter** ppAdapter) final;
+	  _Out_ IDXGIAdapter** ppAdapter) FINALGFX;
 
 	#pragma endregion
 
 	#pragma region /* IDXGIFactory1 implementation */
 
-	virtual HRESULT STDMETHODCALLTYPE EnumAdapters1(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE EnumAdapters1(
 	  UINT Adapter,
-	  _Out_ IDXGIAdapter1** ppAdapter) final;
+	  _Out_ IDXGIAdapter1** ppAdapter) FINALGFX;
 
-	virtual BOOL STDMETHODCALLTYPE IsCurrent() final;
+	VIRTUALGFX BOOL STDMETHODCALLTYPE IsCurrent() FINALGFX;
 
 	#pragma endregion
 
 	#pragma region /* IDXGIFactory2 implementation */
+	#if defined(__dxgi1_2_h__) || defined(__d3d11_x_h__)
 
-	virtual BOOL STDMETHODCALLTYPE    IsWindowedStereoEnabled() final { abort(); return FALSE; }
+	VIRTUALGFX BOOL STDMETHODCALLTYPE    IsWindowedStereoEnabled() FINALGFX { abort(); return FALSE; }
 
-	virtual HRESULT STDMETHODCALLTYPE CreateSwapChainForHwnd(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateSwapChainForHwnd(
 	  /* [annotation][in] */
-	  _In_ IUnknown* pDevice,
+	  _In_ IGfxUnknown* pDevice,
 	  /* [annotation][in] */
 	  _In_ HWND hWnd,
 	  /* [annotation][in] */
@@ -76,11 +64,11 @@ public:
 	  /* [annotation][in] */
 	  _In_opt_ IDXGIOutput* pRestrictToOutput,
 	  /* [annotation][out] */
-	  _COM_Outptr_ IDXGISwapChain1** ppSwapChain) final { abort(); return S_OK; }
+	  _COM_Outptr_ IDXGISwapChain1** ppSwapChain) FINALGFX { abort(); return S_OK; }
 
-	virtual HRESULT STDMETHODCALLTYPE CreateSwapChainForCoreWindow(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateSwapChainForCoreWindow(
 	  /* [annotation][in] */
-	  _In_ IUnknown* pDevice,
+	  _In_ IGfxUnknown* pDevice,
 	  /* [annotation][in] */
 	  _In_ IUnknown* pWindow,
 	  /* [annotation][in] */
@@ -88,91 +76,94 @@ public:
 	  /* [annotation][in] */
 	  _In_opt_ IDXGIOutput* pRestrictToOutput,
 	  /* [annotation][out] */
-	  _COM_Outptr_ IDXGISwapChain1** ppSwapChain) final { abort(); return S_OK; }
+	  _COM_Outptr_ IDXGISwapChain1** ppSwapChain) FINALGFX { abort(); return S_OK; }
 
-	virtual HRESULT STDMETHODCALLTYPE GetSharedResourceAdapterLuid(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE GetSharedResourceAdapterLuid(
 	  /* [annotation] */
 	  _In_ HANDLE hResource,
 	  /* [annotation] */
-	  _Out_ LUID* pLuid) final { abort(); return S_OK; }
+	  _Out_ LUID* pLuid) FINALGFX { abort(); return S_OK; }
 
-	virtual HRESULT STDMETHODCALLTYPE RegisterStereoStatusWindow(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE RegisterStereoStatusWindow(
 	  /* [annotation][in] */
 	  _In_ HWND WindowHandle,
 	  /* [annotation][in] */
 	  _In_ UINT wMsg,
 	  /* [annotation][out] */
-	  _Out_ DWORD* pdwCookie) final { abort(); return S_OK; }
+	  _Out_ DWORD* pdwCookie) FINALGFX { abort(); return S_OK; }
 
-	virtual HRESULT STDMETHODCALLTYPE RegisterStereoStatusEvent(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE RegisterStereoStatusEvent(
 	  /* [annotation][in] */
 	  _In_ HANDLE hEvent,
 	  /* [annotation][out] */
-	  _Out_ DWORD* pdwCookie) final { abort(); return S_OK; }
+	  _Out_ DWORD* pdwCookie) FINALGFX { abort(); return S_OK; }
 
-	virtual void STDMETHODCALLTYPE UnregisterStereoStatus(
+	VIRTUALGFX void STDMETHODCALLTYPE UnregisterStereoStatus(
 	  /* [annotation][in] */
-	  _In_ DWORD dwCookie) final { abort(); }
+	  _In_ DWORD dwCookie) FINALGFX { abort(); }
 
-	virtual HRESULT STDMETHODCALLTYPE RegisterOcclusionStatusWindow(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE RegisterOcclusionStatusWindow(
 	  /* [annotation][in] */
 	  _In_ HWND WindowHandle,
 	  /* [annotation][in] */
 	  _In_ UINT wMsg,
 	  /* [annotation][out] */
-	  _Out_ DWORD* pdwCookie) final { abort(); return S_OK; }
+	  _Out_ DWORD* pdwCookie) FINALGFX { abort(); return S_OK; }
 
-	virtual HRESULT STDMETHODCALLTYPE RegisterOcclusionStatusEvent(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE RegisterOcclusionStatusEvent(
 	  /* [annotation][in] */
 	  _In_ HANDLE hEvent,
 	  /* [annotation][out] */
-	  _Out_ DWORD* pdwCookie) final { abort(); return S_OK; }
+	  _Out_ DWORD* pdwCookie) FINALGFX { abort(); return S_OK; }
 
-	virtual void STDMETHODCALLTYPE UnregisterOcclusionStatus(
+	VIRTUALGFX void STDMETHODCALLTYPE UnregisterOcclusionStatus(
 	  /* [annotation][in] */
-	  _In_ DWORD dwCookie) final { abort(); }
+	  _In_ DWORD dwCookie) FINALGFX { abort(); }
 
-	virtual HRESULT STDMETHODCALLTYPE CreateSwapChainForComposition(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE CreateSwapChainForComposition(
 	  /* [annotation][in] */
-	  _In_ IUnknown* pDevice,
+	  _In_ IGfxUnknown* pDevice,
 	  /* [annotation][in] */
 	  _In_ const DXGI_SWAP_CHAIN_DESC1* pDesc,
 	  /* [annotation][in] */
 	  _In_opt_ IDXGIOutput* pRestrictToOutput,
 	  /* [annotation][out] */
-	  _COM_Outptr_ IDXGISwapChain1** ppSwapChain) final { abort(); return S_OK; }
+	  _COM_Outptr_ IDXGISwapChain1** ppSwapChain) FINALGFX { abort(); return S_OK; }
 
+	#endif
 	#pragma endregion
 
 	#pragma region /* IDXGIFactory3 implementation */
+	#ifdef __dxgi1_3_h__
 
-	virtual UINT STDMETHODCALLTYPE GetCreationFlags(void) final { abort(); return 0; }
+	VIRTUALGFX UINT STDMETHODCALLTYPE GetCreationFlags(void) FINALGFX { abort(); return 0; }
 
+	#endif
 	#pragma endregion
 
 	#pragma region /* IDXGIFactory4 implementation */
+	#ifdef __dxgi1_4_h__
 
-	virtual HRESULT STDMETHODCALLTYPE EnumAdapterByLuid(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE EnumAdapterByLuid(
 	  /* [annotation] */
 	  _In_ LUID AdapterLuid,
 	  /* [annotation] */
 	  _In_ REFIID riid,
 	  /* [annotation] */
-	  _COM_Outptr_ void** ppvAdapter) final { abort(); return S_OK; }
+	  _COM_Outptr_ void** ppvAdapter) FINALGFX { abort(); return S_OK; }
 
-	virtual HRESULT STDMETHODCALLTYPE EnumWarpAdapter(
+	VIRTUALGFX HRESULT STDMETHODCALLTYPE EnumWarpAdapter(
 	  /* [annotation] */
 	  _In_ REFIID riid,
 	  /* [annotation] */
-	  _COM_Outptr_ void** ppvAdapter) final { abort(); return S_OK; }
+	  _COM_Outptr_ void** ppvAdapter) FINALGFX { abort(); return S_OK; }
 
+	#endif
 	#pragma endregion
 
 protected:
-	CCryDX12GIFactory(IDXGIFactory4* pDXGIFactory4);
+	CCryDX12GIFactory(IDXGIFactory4ToCall* pDXGIFactory4);
 
 private:
-	DX12_PTR(IDXGIFactory4) m_pDXGIFactory4;
+	DX12_PTR(IDXGIFactory4ToCall) m_pDXGIFactory4;
 };
-
-#endif // __CRYDX12GIFACTORY__

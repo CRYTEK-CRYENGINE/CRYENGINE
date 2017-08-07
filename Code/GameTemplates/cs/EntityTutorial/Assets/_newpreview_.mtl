@@ -1,6 +1,0 @@
-<Material MtlFlags="524320" Shader="Illum" GenMask="20000000" StringGenMask="%SUBSURFACE_SCATTERING" SurfaceType="mat_concrete" MatTemplate="" Diffuse="1,1,1" Specular="0.0030352699,0.0030352699,0.0030352699" Opacity="1" Shininess="10" vertModifType="0" LayerAct="1">
- <Textures>
-  <Texture Map="Diffuse" File="EngineAssets/TextureMsg/DefaultNoUVs.dds"/>
- </Textures>
- <PublicParams EmittanceMapGamma="1" SSSIndex="0"/>
-</Material>

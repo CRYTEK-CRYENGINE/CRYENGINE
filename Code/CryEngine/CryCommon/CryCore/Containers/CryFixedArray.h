@@ -38,10 +38,18 @@ struct CryFixedArrayDatum<8>
 	typedef uint64 TDatum;
 };
 
+#if CRY_PLATFORM_SSE2
+template<>
+struct CryFixedArrayDatum<16>
+{
+	typedef u32v4 TDatum;
+};
+#endif
+
 template<class T, unsigned int N> class CryFixedArray
 {
 protected:
-	enum { ALIGN = MAX(alignof(T), sizeof(unsigned int)) };   //!< ALIGN at least sizeof(unsigned int).
+	enum { ALIGN = (alignof(T) > sizeof(unsigned int)) ? alignof(T) : sizeof(unsigned int) };   //!< ALIGN at least sizeof(unsigned int).
 
 	typedef typename CryFixedArrayDatum<ALIGN>::TDatum TDatum;
 
@@ -115,11 +123,8 @@ public:
 		}
 		else
 		{
-			// Log is required now as its possible to turn off assert output logging, yet you really want to know if this is happening!.
-			CryLogAlways("CryFixedArray::at(i=%d) failed as i is out of range of curSize=%d (maxSize=%d) - forcing a crash", i, m_curSize[0], N);
-			CRY_ASSERT_MESSAGE(0, string().Format("CryFixedArray::at(i=%d) failed as i is out of range of curSize=%d (maxSize=%d)", i, m_curSize[0], N));
-			// cppcheck-suppress nullPointer.
-			return *((T*)(NULL));   // Crash on using me.
+			CryFatalError("CryFixedArray::at(i=%d) failed as i is out of range of curSize=%d (maxSize=%d) - forcing a crash", i, m_curSize[0], N);
+			UNREACHABLE();
 		}
 #else
 		return alias_cast<T*>(m_data)[i];
@@ -135,10 +140,8 @@ public:
 		}
 		else
 		{
-			// Log is required now as its possible to turn off assert output logging, yet you really want to know if this is happening!.
-			CryLogAlways("CryFixedArray::at(i=%d) failed as i is out of range of curSize=%d (maxSize=%d) - forcing a crash", i, m_curSize[0], N);
-			CRY_ASSERT_MESSAGE(0, string().Format("CryFixedArray::at(i=%d) failed as i is out of range of curSize=%d (maxSize=%d)", i, m_curSize[0], N));
-			return *((const T*)(NULL));   // Crash on using me.
+			CryFatalError("CryFixedArray::at(i=%d) failed as i is out of range of curSize=%d (maxSize=%d) - forcing a crash", i, m_curSize[0], N);
+			UNREACHABLE();
 		}
 #else
 		return alias_cast<const T*>(m_data)[i];
@@ -249,9 +252,8 @@ protected:
 		}
 		else
 		{
-			CryLogAlways("CryFixedArray::back() failed as array is empty");
-			CRY_ASSERT_MESSAGE(0, "CryFixedArray::back() failed as array is empty");
-			return *((T*)(NULL));   //!< Crash on using me.
+			CryFatalError("CryFixedArray::back() failed as array is empty");
+			UNREACHABLE();
 		}
 #else
 		return (alias_cast<T*>(m_data))[m_curSize[0] - 1];

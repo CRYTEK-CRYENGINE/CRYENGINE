@@ -2,12 +2,15 @@
 
 #include "StdAfx.h"
 #include "Hub.h"
+#include <CryUQS/DataSource_XML/DataSource_XML_Includes.h>
+#include <CryUQS/Client/ClientIncludes.h>
+#include <CryUQS/StdLib/StdLibRegistration.h>
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -18,8 +21,8 @@ namespace uqs
 
 		bool Hub_HaveConsistencyChecksBeenDoneAlready()
 		{
-			assert(g_hubImpl);
-			return g_hubImpl->HaveConsistencyChecksBeenDoneAlready();
+			assert(g_pHub);
+			return g_pHub->HaveConsistencyChecksBeenDoneAlready();
 		}
 
 		//===================================================================================
@@ -28,20 +31,25 @@ namespace uqs
 		//
 		//===================================================================================
 
-		CHub* g_hubImpl;
+		CHub* g_pHub;
 
 		CHub::CHub()
-			: m_consistencyChecksDoneAlready(false)
+			: m_bConsistencyChecksDoneAlready(false)
+			, m_bAutomaticUpdateInProgress(false)
 			, m_queryHistoryInGameGUI(m_queryHistoryManager)
 			, m_queryManager(m_queryHistoryManager)
 			, m_pEditorLibraryProvider(nullptr)
 		{
-			assert(!g_hubImpl);
-			g_hubImpl = this;
+			assert(!g_pHub);
+			g_pHub = this;
 			GetISystem()->GetISystemEventDispatcher()->RegisterListener(this,"CHub");
 			m_utils.SubscribeToStuffInHub(*this);
 
-			CQueryFactoryBase::RegisterAllInstancesInDatabase(m_queryFactoryDatabase);
+			CQueryFactoryBase::InstantiateFactories();
+			CQueryFactoryBase::RegisterAllInstancesInFactoryDatabase(m_queryFactoryDatabase);
+
+			CScoreTransformFactory::InstantiateFactories();
+			CScoreTransformFactory::RegisterAllInstancesInFactoryDatabase(m_scoreTransformFactoryDatabase);
 
 			SCvars::Register();
 			REGISTER_COMMAND("UQS_ListFactoryDatabases", CmdListFactoryDatabases, 0, "Prints all registered factories for creating items, functions, generators and evaluators to the console.");
@@ -55,19 +63,30 @@ namespace uqs
 
 		CHub::~CHub()
 		{
-			g_hubImpl = nullptr;
+#if UQS_SCHEMATYC_SUPPORT
+			if (gEnv->pSchematyc != nullptr)
+			{
+				gEnv->pSchematyc->GetEnvRegistry().DeregisterPackage(GetSchematycPackageGUID());
+			}
+#endif
+
+			g_pHub = nullptr;
 			GetISystem()->GetISystemEventDispatcher()->RemoveListener(this);
 			m_utils.UnsubscribeFromStuffInHub(*this);
 			SCvars::Unregister();
 		}
 
-		void CHub::RegisterHubEventListener(IHubEventListener* listener)
+		void CHub::RegisterHubEventListener(IHubEventListener* pListener)
 		{
-			stl::push_back_unique(m_eventListeners, listener);
+			stl::push_back_unique(m_eventListeners, pListener);
 		}
 
 		void CHub::Update()
 		{
+			// - if this assert fails, then the game code tries to do the update when it hasn't declared to do so
+			// - this check is done to prevent updating from more than one place
+			assert(gEnv->IsEditing() || (m_bAutomaticUpdateInProgress == !m_overrideFlags.Check(EHubOverrideFlags::CallUpdate)));
+
 			//
 			// query manager
 			//
@@ -92,6 +111,11 @@ namespace uqs
 
 				m_queryHistoryInGameGUI.Draw();
 			}
+		}
+
+		CEnumFlags<EHubOverrideFlags>& CHub::GetOverrideFlags()
+		{
+			return m_overrideFlags;
 		}
 
 		QueryFactoryDatabase& CHub::GetQueryFactoryDatabase()
@@ -124,6 +148,11 @@ namespace uqs
 			return m_deferredEvaluatorFactoryDatabase;
 		}
 
+		ScoreTransformFactoryDatabase& CHub::GetScoreTransformFactoryDatabase()
+		{
+			return m_scoreTransformFactoryDatabase;
+		}
+
 		CQueryBlueprintLibrary& CHub::GetQueryBlueprintLibrary()
 		{
 			return m_queryBlueprintLibrary;
@@ -154,19 +183,31 @@ namespace uqs
 			return m_itemSerializationSupport;
 		}
 
-		datasource::IEditorLibraryProvider* CHub::GetEditorLibraryProvider()
+		DataSource::IEditorLibraryProvider* CHub::GetEditorLibraryProvider()
 		{
 			return m_pEditorLibraryProvider;
 		}
 
-		void CHub::SetEditorLibraryProvider(datasource::IEditorLibraryProvider* pProvider)
+		void CHub::SetEditorLibraryProvider(DataSource::IEditorLibraryProvider* pProvider)
 		{
 			m_pEditorLibraryProvider = pProvider;
 		}
 
 		bool CHub::HaveConsistencyChecksBeenDoneAlready() const
 		{
-			return m_consistencyChecksDoneAlready;
+			return m_bConsistencyChecksDoneAlready;
+		}
+
+		void CHub::AutomaticUpdateBegin()
+		{
+			assert(!m_bAutomaticUpdateInProgress);
+			m_bAutomaticUpdateInProgress = true;
+		}
+
+		void CHub::AutomaticUpdateEnd()
+		{
+			assert(m_bAutomaticUpdateInProgress);
+			m_bAutomaticUpdateInProgress = false;
 		}
 
 		void CHub::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
@@ -174,11 +215,26 @@ namespace uqs
 			if (event == ESYSTEM_EVENT_GAME_POST_INIT_DONE)
 			{
 				//
+				// instantiate all factories from the StdLib
+				//
+
+				if (!(m_overrideFlags & EHubOverrideFlags::InstantiateStdLibFactories))
+				{
+					StdLib::CStdLibRegistration::InstantiateAllFactoriesForRegistration();
+				}
+
+				//
+				// register all factories from the StdLib (this happens implicitly)
+				//
+
+				Client::CFactoryRegistrationHelper::RegisterAllFactoryInstancesInHub(*this);
+
+				//
 				// - ask all sub-systems to register their factories (before doing the consistency checks below!!!)
 				// - the sub-systems should have used ESYSTEM_EVENT_GAME_POST_INIT (*not* the _DONE event) to subscribe to the IHub for receiving events
 				//
 
-				SendHubEventToAllListeners(uqs::core::EHubEvent::RegisterYourFactoriesNow);
+				SendHubEventToAllListeners(UQS::Core::EHubEvent::RegisterYourFactoriesNow);
 
 				//
 				// check for consistency errors (this needs to be done *after* all subsystems registered their item types, functions, generators, evaluators)
@@ -202,61 +258,107 @@ namespace uqs
 					}
 				}
 
-				// from now on, don't allow any further factory registrations (uqs::core::CFactoryDatabase<>::RegisterFactory() will assert for it)
-				m_consistencyChecksDoneAlready = true;
+				// from now on, don't allow any further factory registrations (UQS::Core::CFactoryDatabase<>::RegisterFactory() will assert for it)
+				m_bConsistencyChecksDoneAlready = true;
+
+#if UQS_SCHEMATYC_SUPPORT
+				static_assert((int)ESYSTEM_EVENT_REGISTER_SCHEMATYC_ENV == (int)ESYSTEM_EVENT_GAME_POST_INIT_DONE, "");
+
+				//
+				// register some stuff in schematyc
+				//
+
+				{
+					const char* szName = "UniversalQuerySystem";
+					const char* szDescription = "Universal Query System";
+					Schematyc::EnvPackageCallback callback = SCHEMATYC_DELEGATE(&CHub::OnRegisterSchematycEnvPackage);
+					gEnv->pSchematyc->GetEnvRegistry().RegisterPackage(SCHEMATYC_MAKE_ENV_PACKAGE(GetSchematycPackageGUID(), szName, Schematyc::g_szCrytek, szDescription, callback));
+				}
+
+				if (!(m_overrideFlags & EHubOverrideFlags::InstantiateStdLibFactories))
+				{
+					StdLib::CStdLibRegistration::RegisterInSchematyc();
+				}
+#endif
 
 				//
 				// tell the game (or whoever "owns" the UQS instance) to load the query blueprints
 				//
 
-				SendHubEventToAllListeners(EHubEvent::LoadQueryBlueprintLibrary);
+				if (m_overrideFlags & EHubOverrideFlags::InstallDatasourceAndLoadLibrary)
+				{
+					SendHubEventToAllListeners(EHubEvent::LoadQueryBlueprintLibrary);
+				}
+				else
+				{
+					m_pXmlDatasource.reset(new DataSource_XML::CXMLDatasource);
+					m_pXmlDatasource->SetupAndInstallInHub(*this, "libs/ai/uqs");
+				}
 			}
+#if UQS_SCHEMATYC_SUPPORT
+			if (event == ESYSTEM_EVENT_FULL_SHUTDOWN || event == ESYSTEM_EVENT_FAST_SHUTDOWN)
+			{
+				if (!(m_overrideFlags & EHubOverrideFlags::InstantiateStdLibFactories))
+				{
+					StdLib::CStdLibRegistration::UnregisterInSchematyc();
+					gEnv->pSchematyc->GetEnvRegistry().DeregisterPackage(GetSchematycPackageGUID());
+				}
+			}
+#endif 
 		}
 
 		void CHub::SendHubEventToAllListeners(EHubEvent ev)
 		{
 			for (std::list<IHubEventListener*>::const_iterator it = m_eventListeners.cbegin(); it != m_eventListeners.cend(); )
 			{
-				IHubEventListener* listener = *it++;
-				listener->OnUQSHubEvent(ev);
+				IHubEventListener* pListener = *it++;
+				pListener->OnUQSHubEvent(ev);
 			}
 		}
 
+#if UQS_SCHEMATYC_SUPPORT
+		void CHub::OnRegisterSchematycEnvPackage(Schematyc::IEnvRegistrar& registrar)
+		{
+			CSchematycUqsComponent::Register(registrar);
+		}
+#endif
+
 		void CHub::CmdListFactoryDatabases(IConsoleCmdArgs* pArgs)
 		{
-			if (g_hubImpl)
+			if (g_pHub)
 			{
 				CLogger logger;
-				g_hubImpl->m_queryFactoryDatabase.PrintToConsole(logger, "Query");
-				g_hubImpl->m_itemFactoryDatabase.PrintToConsole(logger, "Item");
-				g_hubImpl->m_functionFactoryDatabase.PrintToConsole(logger, "Function");
-				g_hubImpl->m_generatorFactoryDatabase.PrintToConsole(logger, "Generator");
-				g_hubImpl->m_instantEvaluatorFactoryDatabase.PrintToConsole(logger, "InstantEvaluator");
-				g_hubImpl->m_deferredEvaluatorFactoryDatabase.PrintToConsole(logger, "DeferredEvaluator");
+				g_pHub->m_queryFactoryDatabase.PrintToConsole(logger, "Query");
+				g_pHub->m_itemFactoryDatabase.PrintToConsole(logger, "Item");
+				g_pHub->m_functionFactoryDatabase.PrintToConsole(logger, "Function");
+				g_pHub->m_generatorFactoryDatabase.PrintToConsole(logger, "Generator");
+				g_pHub->m_instantEvaluatorFactoryDatabase.PrintToConsole(logger, "InstantEvaluator");
+				g_pHub->m_deferredEvaluatorFactoryDatabase.PrintToConsole(logger, "DeferredEvaluator");
+				g_pHub->m_scoreTransformFactoryDatabase.PrintToConsole(logger, "ScoreTransform");
 			}
 		}
 
 		void CHub::CmdListQueryBlueprintLibrary(IConsoleCmdArgs* pArgs)
 		{
-			if (g_hubImpl)
+			if (g_pHub)
 			{
 				CLogger logger;
-				g_hubImpl->m_queryBlueprintLibrary.PrintToConsole(logger);
+				g_pHub->m_queryBlueprintLibrary.PrintToConsole(logger);
 			}
 		}
 
 		void CHub::CmdListRunningQueries(IConsoleCmdArgs* pArgs)
 		{
-			if (g_hubImpl)
+			if (g_pHub)
 			{
 				CLogger logger;
-				g_hubImpl->m_queryManager.PrintRunningQueriesToConsole(logger);
+				g_pHub->m_queryManager.PrintRunningQueriesToConsole(logger);
 			}
 		}
 
 		void CHub::CmdDumpQueryHistory(IConsoleCmdArgs* pArgs)
 		{
-			if (g_hubImpl)
+			if (g_pHub)
 			{
 				//
 				// create an XML filename with a unique counter as part of it
@@ -279,8 +381,8 @@ namespace uqs
 					return;
 				}
 
-				shared::CUqsString error;
-				if (!g_hubImpl->m_queryHistoryManager.SerializeLiveQueryHistory(adjustedFilePath, error))
+				Shared::CUqsString error;
+				if (!g_pHub->m_queryHistoryManager.SerializeLiveQueryHistory(adjustedFilePath, error))
 				{
 					CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "%s: Serializing the live query to '%s' failed: %s", pArgs->GetArg(0), unadjustedFilePath.c_str(), error.c_str());
 					return;
@@ -292,7 +394,7 @@ namespace uqs
 
 		void CHub::CmdLoadQueryHistory(IConsoleCmdArgs* pArgs)
 		{
-			if (g_hubImpl)
+			if (g_pHub)
 			{
 				if (pArgs->GetArgCount() < 2)
 				{
@@ -300,39 +402,39 @@ namespace uqs
 					return;
 				}
 
-				const char* xmlQueryHistoryFilePath = pArgs->GetArg(1);
+				const char* szXmlQueryHistoryFilePath = pArgs->GetArg(1);
 
 				// check if the desired XML file exists at all (just for giving a more precise warning)
-				if (!gEnv->pCryPak->IsFileExist(xmlQueryHistoryFilePath))	// no need to call gEnv->pCryPak->AdjustFileName() beforehand
+				if (!gEnv->pCryPak->IsFileExist(szXmlQueryHistoryFilePath))	// no need to call gEnv->pCryPak->AdjustFileName() beforehand
 				{
-					CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "%s: File not found: '%s'", pArgs->GetArg(0), xmlQueryHistoryFilePath);
+					CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "%s: File not found: '%s'", pArgs->GetArg(0), szXmlQueryHistoryFilePath);
 					return;
 				}
 
-				shared::CUqsString error;
-				if (!g_hubImpl->m_queryHistoryManager.DeserializeQueryHistory(xmlQueryHistoryFilePath, error))
+				Shared::CUqsString error;
+				if (!g_pHub->m_queryHistoryManager.DeserializeQueryHistory(szXmlQueryHistoryFilePath, error))
 				{
-					CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "%s: Could not de-serialize the query history: ", pArgs->GetArg(0), xmlQueryHistoryFilePath, error.c_str());
+					CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "%s: Could not de-serialize the query history: ", pArgs->GetArg(0), szXmlQueryHistoryFilePath, error.c_str());
 					return;
 				}
 
-				CryLogAlways("Successfully de-serialized '%s'", xmlQueryHistoryFilePath);
+				CryLogAlways("Successfully de-serialized '%s'", szXmlQueryHistoryFilePath);
 			}
 		}
 
 		void CHub::CmdClearLiveQueryHistory(IConsoleCmdArgs* pArgs)
 		{
-			if (g_hubImpl)
+			if (g_pHub)
 			{
-				g_hubImpl->m_queryHistoryManager.ClearQueryHistory(IQueryHistoryManager::EHistoryOrigin::Live);
+				g_pHub->m_queryHistoryManager.ClearQueryHistory(IQueryHistoryManager::EHistoryOrigin::Live);
 			}
 		}
 
 		void CHub::CmdClearDeserializedQueryHistory(IConsoleCmdArgs* pArgs)
 		{
-			if (g_hubImpl)
+			if (g_pHub)
 			{
-				g_hubImpl->m_queryHistoryManager.ClearQueryHistory(IQueryHistoryManager::EHistoryOrigin::Deserialized);
+				g_pHub->m_queryHistoryManager.ClearQueryHistory(IQueryHistoryManager::EHistoryOrigin::Deserialized);
 			}
 		}
 

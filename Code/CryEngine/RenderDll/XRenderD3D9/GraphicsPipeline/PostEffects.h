@@ -81,7 +81,10 @@ public:
 	virtual void Execute(const CPostEffectContext& context) override;
 
 private:
-	CFullscreenPass m_passUnderwaterGodRaysGen;
+	static const int32 SliceCount = 10;
+
+private:
+	CFullscreenPass m_passUnderwaterGodRaysGen[SliceCount];
 	CFullscreenPass m_passUnderwaterGodRaysFinal;
 
 	CTexture*       m_pWavesTex = nullptr;
@@ -179,7 +182,7 @@ private:
 	CFullscreenPass m_passNearMask;
 	CFullscreenPass m_passPostStereo;
 
-	int32           m_samplerLinearMirror = -1;
+	SamplerStateHandle m_samplerLinearMirror = EDefaultSamplerStates::Unspecified;
 
 };
 
@@ -247,7 +250,7 @@ private:
 	void ExecuteFinalPass(const CPostEffectContext &context, CTexture* pOutputRT, class C3DHud & hud3d);
 
 	bool SetVertex(CRenderPrimitive& prim, struct SHudData& pData) const;
-	void SetShaderParams(CRenderPrimitive::ConstantManager& constantManager, const struct SHudData& data, const class C3DHud& hud3d) const;
+	void SetShaderParams(EShaderStage shaderStages, CRenderPrimitive::ConstantManager& constantManager, const struct SHudData& data, const class C3DHud& hud3d) const;
 
 private:
 	CPrimitiveRenderPass          m_passDownsampleHud4x4;

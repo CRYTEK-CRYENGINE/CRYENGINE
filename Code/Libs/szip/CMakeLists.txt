@@ -20,7 +20,7 @@ end_sources()
 #END-FILE-LIST
 
 CryEngineStaticModule(szip SOLUTION_FOLDER "Libs")
-target_include_directories(${THIS_PROJECT} PRIVATE ${SDK_DIR}szip/src)
+target_include_directories(${THIS_PROJECT} PRIVATE "${SDK_DIR}szip/src")
 target_compile_options(${THIS_PROJECT} PRIVATE /W0) # Disable warnings for 3rdParty code.
 target_compile_definitions(${THIS_PROJECT} PRIVATE -DHDF) # Because we want to support HDF in this library
-target_include_directories(${THIS_PROJECT} INTERFACE ${SDK_DIR}/szip/src)
+target_include_directories(${THIS_PROJECT} INTERFACE "${SDK_DIR}/szip/src")

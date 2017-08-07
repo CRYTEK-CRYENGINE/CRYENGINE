@@ -22,7 +22,4 @@ private:
 	CFullscreenPass  m_passGather0;
 	CFullscreenPass  m_passGather1;
 	CFullscreenPass  m_passComposition;
-
-	int32            m_samplerPoint;
-	int32            m_samplerLinear;
 };

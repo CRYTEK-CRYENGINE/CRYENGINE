@@ -42,6 +42,12 @@ CInputCVars::CInputCVars()
 	              "Usage: i_mouse_inertia [float number]\n"
 	              "Default is 0.0");
 
+#if CRY_PLATFORM_WINDOWS
+	REGISTER_CVAR(i_mouse_scroll_coordinate_origin, 0, 0,
+		"Controls the origin of mouse coordinates sent for mouse wheel scrolling events.\n"
+		"0 = Top-left of screen space (Windows default behavior), 1 = Top-left of client area, 2 = Top-left of client area, clamped to client area");
+#endif
+
 	// keyboard
 	REGISTER_CVAR(i_bufferedkeys, 1, 0,
 	              "Toggles key buffering.\n"

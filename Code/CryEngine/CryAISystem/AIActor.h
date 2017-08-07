@@ -95,27 +95,12 @@ public:
 	virtual float                       GetPathAgentPassRadius() const override;
 	virtual Vec3                        GetPathAgentPos() const override;
 	virtual Vec3                        GetPathAgentVelocity() const override;
-	virtual void                        GetPathAgentNavigationBlockers(NavigationBlockers& navigationBlockers, const struct PathfindRequest* pRequest) override;
-
-	virtual size_t                      GetNavNodeIndex() const override;
 
 	virtual const AgentMovementAbility& GetPathAgentMovementAbility() const override;
 	virtual IPathFollower*              GetPathFollower() const override;
 
-	virtual unsigned int                GetPathAgentLastNavNode() const override;
-	virtual void                        SetPathAgentLastNavNode(unsigned int lastNavNode) override;
-
 	virtual void                        SetPathToFollow(const char* pathName) override;
 	virtual void                        SetPathAttributeToFollow(bool bSpline) override;
-
-	//Path finding avoids blocker type by radius.
-	virtual void SetPFBlockerRadius(int blockerType, float radius) override;
-
-	//Can path be modified to use request.targetPoint?  Results are cacheded in request.
-	virtual ETriState CanTargetPointBeReached(CTargetPointRequest& request) override;
-
-	//Is request still valid/use able
-	virtual bool UseTargetPointRequest(const CTargetPointRequest& request) override;//??
 
 	virtual bool GetValidPositionNearby(const Vec3& proposedPosition, Vec3& adjustedPosition) const override;
 	virtual bool GetTeleportPosition(Vec3& teleportPos) const override;

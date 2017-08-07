@@ -17,6 +17,7 @@
 #define RC_EXECUTABLE "rc"
 #define USE_CRT       1
 #define SIZEOF_PTR    8
+#define TARGET_DEFAULT_ALIGN (0x8U)
 
 //////////////////////////////////////////////////////////////////////////
 // Standard includes.
@@ -71,34 +72,10 @@ typedef long long                     LONGLONG;
 typedef ULONG_PTR                     SIZE_T;
 typedef uint8                         byte;
 
-#define _A_RDONLY (0x01)
-#define _A_SUBDIR (0x10)
-#define _A_HIDDEN (0x02)
-
-//////////////////////////////////////////////////////////////////////////
-// Win32 FileAttributes.
-//////////////////////////////////////////////////////////////////////////
-#define FILE_ATTRIBUTE_READONLY            0x00000001
-#define FILE_ATTRIBUTE_HIDDEN              0x00000002
-#define FILE_ATTRIBUTE_SYSTEM              0x00000004
-#define FILE_ATTRIBUTE_DIRECTORY           0x00000010
-#define FILE_ATTRIBUTE_ARCHIVE             0x00000020
-#define FILE_ATTRIBUTE_DEVICE              0x00000040
-#define FILE_ATTRIBUTE_NORMAL              0x00000080
-#define FILE_ATTRIBUTE_TEMPORARY           0x00000100
-#define FILE_ATTRIBUTE_SPARSE_FILE         0x00000200
-#define FILE_ATTRIBUTE_REPARSE_POINT       0x00000400
-#define FILE_ATTRIBUTE_COMPRESSED          0x00000800
-#define FILE_ATTRIBUTE_OFFLINE             0x00001000
-#define FILE_ATTRIBUTE_NOT_CONTENT_INDEXED 0x00002000
-#define FILE_ATTRIBUTE_ENCRYPTED           0x00004000
-
-#define INVALID_FILE_ATTRIBUTES            (-1)
 
 #include "LinuxSpecific.h"
 
-#define TARGET_DEFAULT_ALIGN (0x8U)
+
 
 #define __assume(x)
-
 #define _msize(p) malloc_usable_size(p)

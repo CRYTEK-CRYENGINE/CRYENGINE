@@ -7,4 +7,5 @@
 %}
 
 %ignore CreateCryFontInterface;
+%ignore IFontEngineModule;
 %include "../../../../CryEngine/CryCommon/CryFont/IFont.h"

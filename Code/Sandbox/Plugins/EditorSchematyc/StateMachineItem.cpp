@@ -6,9 +6,9 @@
 #include "ScriptBrowserUtils.h"
 #include "ObjectModel.h"
 
-#include <Schematyc/Script/Elements/IScriptStateMachine.h>
-#include <Schematyc/Script/Elements/IScriptState.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/Script/Elements/IScriptStateMachine.h>
+#include <CrySchematyc/Script/Elements/IScriptState.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
 
 #include <StateItem.h>
 
@@ -16,8 +16,6 @@
 #include <QtUtil.h>
 
 namespace CrySchematycEditor {
-
-CryIcon CStateMachineItem::s_icon = CryIcon("icons:schematyc/script_state_machine.png");
 
 CStateMachineItem::CStateMachineItem(Schematyc::IScriptStateMachine& scriptStateMachine, CAbstractObjectStructureModel& model)
 	: CAbstractObjectStructureModelItem(model)
@@ -41,6 +39,17 @@ void CStateMachineItem::SetName(QString name)
 
 	m_scriptStateMachine.SetName(uniqueName);
 	m_name = m_scriptStateMachine.GetName();
+}
+
+const CryIcon* CStateMachineItem::GetIcon() const
+{
+	std::unique_ptr<CryIcon> pIcon;
+	if (pIcon.get() == nullptr)
+	{
+		pIcon = stl::make_unique<CryIcon>("icons:schematyc/script_state_machine.png");
+	}
+
+	return pIcon.get();
 }
 
 CAbstractObjectStructureModelItem* CStateMachineItem::GetChildItemByIndex(uint32 index) const
@@ -134,7 +143,7 @@ bool CStateMachineItem::RemoveState()
 	return false;
 }
 
-Schematyc::SGUID CStateMachineItem::GetGUID() const
+CryGUID CStateMachineItem::GetGUID() const
 {
 	return m_scriptStateMachine.GetGUID();
 }

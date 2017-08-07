@@ -3,5 +3,16 @@
 #include "SamplePlugin.h"
 
 #include <CryCore/Platform/platform_impl.inl>
+#include <ICommandManager.h>
+
+namespace Private_SamplePlugin
+{
+	void SampleCommand()
+	{
+		CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_WARNING, "Sample Command executed");
+	}
+}
+
+REGISTER_EDITOR_COMMAND(Private_SamplePlugin::SampleCommand, sample, sample_command, CCommandDescription(""));
 
 REGISTER_PLUGIN(CSamplePlugin);

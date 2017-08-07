@@ -67,12 +67,14 @@ public:
 	void AddEntry(CParticleComponentRuntime* pRuntime, EProfileStat type, uint value = 1);
 
 private:
+	static CVars* GetCVars() { return Cry3DEngineBase::GetCVars(); }
 	void SortEntries();
 	void WriteEntries(CCSVFileOutput& output) const;
 
-	void DrawStats();
+	void DrawPerfomanceStats();
 	void DrawStatsCounts(CStatisticsDisplay& output, Vec2 pos, uint budget);
 	void DrawStats(CStatisticsDisplay& output, Vec2 pos, EProfileStat stat, uint budget, cstr statName);
+	void DrawMemoryStats();
 
 	std::vector<TEntries> m_entries;
 };

@@ -11,7 +11,6 @@ class CD3D9Renderer;
 
 //////////////////////////////////////////////////////////////////////////
 // LIQUID VR
-//#include<d3d11.h>
 enum GpuMask
 {
 	GPUMASK_LEFT  = 0x1,
@@ -19,7 +18,7 @@ enum GpuMask
 	GPUMASK_BOTH  = (GPUMASK_LEFT | GPUMASK_RIGHT)
 };
 
-#if defined(AMD_LIQUID_VR) && !defined(OPENGL)
+#if defined(AMD_LIQUID_VR) && !CRY_RENDERER_OPENGL
 	#include <LiquidVR/public_mgpu/inc/AmdExtMgpuAppControl.h>
 	#include <LiquidVR/public_mgpu/inc/AmdDxExtMgpuAppControlApi.h>
 
@@ -110,7 +109,7 @@ public:
 	// This is called from the render thread
 	void TryInjectHmdCameraAsync(CRenderView* pRenderView);
 
-	CTexture* WrapD3DRenderTarget(D3DTexture* d3dTexture, uint32 width, uint32 height, ETEX_Format format, const char* name, bool shaderResourceView);
+	CTexture* WrapD3DRenderTarget(D3DTexture* d3dTexture, uint32 width, uint32 height, DXGI_FORMAT format, const char* name, bool shaderResourceView);
 
 public:
 	// IStereoRenderer Interface

@@ -1,19 +1,8 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     22/06/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __DX12ROOTSIGNATURE__
-	#define __DX12ROOTSIGNATURE__
 
-	#include "DX12Shader.hpp"
+#include "DX12Shader.hpp"
 
 namespace NCryDX12
 {
@@ -196,5 +185,3 @@ private:
 };
 
 }
-
-#endif // __DX12ROOTSIGNATURE__

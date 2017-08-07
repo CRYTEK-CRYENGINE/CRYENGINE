@@ -81,7 +81,6 @@ public:
 	virtual void ProcessEvent(SEntityEvent &);
 	virtual void ProcessHit(bool isMoving);
 	virtual void SetChannelId(uint16 id) {}
-	virtual void SetAuthority(bool auth){};
 	virtual void GetMemoryUsage(ICrySizer *pSizer) const { pSizer->Add(*this); }
 
 	//~IGameObjectExtension

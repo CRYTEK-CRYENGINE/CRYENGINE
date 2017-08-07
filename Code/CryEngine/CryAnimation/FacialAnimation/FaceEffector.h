@@ -268,8 +268,8 @@ public:
 		switch (m_type)
 		{
 		case CTRL_LINEAR:
-			min = MAX(-1.0f, m_fWeight);
-			max = MIN(1.0f, m_fWeight);
+			min = std::max(-1.0f, m_fWeight);
+			max = std::min(1.0f, m_fWeight);
 			return;
 		case CTRL_SPLINE:
 			// get min/max of spline points.

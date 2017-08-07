@@ -185,16 +185,8 @@ bool RandomActivate(const TFixed& chance)
 
 // Vec3 TypeInfo
 
-//! Must override Vec3 constructor to avoid polluting params with NANs.
-template<class T>
-struct Vec3_Zero : Vec3_tpl<T>
-{
-	Vec3_Zero() : Vec3_tpl<T>(ZERO) {}
-	Vec3_Zero(const Vec3& v) : Vec3_tpl<T>(v) {}
-};
-
-typedef Vec3_Zero<SFloat> Vec3S;
-typedef Vec3_Zero<UFloat> Vec3U;
+typedef Vec3_tpl<SFloat> Vec3S;
+typedef Vec3_tpl<UFloat> Vec3U;
 
 // Color specialisations.
 
@@ -905,10 +897,10 @@ struct ParticleParams
 	} TargetAttraction;                             //!< Specify target attractor behavior.
 
 	// <Group=Rotation>
-	Vec3_Zero<SAngle>     vInitAngles;              //!< Initial rotation in symmetric angles (degrees).
-	Vec3_Zero<UFullAngle> vRandomAngles;            //!< Bidirectional random angle variation.
-	Vec3S                 vRotationRate;            //!< <SoftMin=-360> $<SoftMax=360> Rotation speed (degree/sec).
-	Vec3U                 vRandomRotationRate;      //!< <SoftMax=360> Random variation of rotation speed.
+	Vec3_tpl<SAngle>     vInitAngles;               //!< Initial rotation in symmetric angles (degrees).
+	Vec3_tpl<UFullAngle> vRandomAngles;             //!< Bidirectional random angle variation.
+	Vec3S                vRotationRate;             //!< <SoftMin=-360> $<SoftMax=360> Rotation speed (degree/sec).
+	Vec3U                vRandomRotationRate;       //!< <SoftMax=360> Random variation of rotation speed.
 
 	// <Group=Collision>
 	DEFINE_ENUM(EPhysics,

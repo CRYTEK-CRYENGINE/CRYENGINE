@@ -44,7 +44,6 @@ void RegisterEvents(IGameObjectExtension& goExt, IGameObject& gameObject)
 }
 
 using namespace HazardSystem;
-using namespace CryAudio;
 
 CRY_IMPLEMENT_GTI_BASE(CProjectile);
 
@@ -139,8 +138,8 @@ CProjectile::SElectricHitTarget::SElectricHitTarget(IPhysicalEntity* pProjectile
 
 //------------------------------------------------------------------------
 CProjectile::CProjectile()
-	: m_whizTriggerID(InvalidControlId),
-	m_ricochetTriggerID(InvalidControlId),
+	: m_whizTriggerID(CryAudio::InvalidControlId),
+	m_ricochetTriggerID(CryAudio::InvalidControlId),
 	//m_trailSoundId(INVALID_SOUNDID),
 	m_trailEffectId(0),
 	m_pPhysicalEntity(0),
@@ -476,26 +475,21 @@ bool CProjectile::Init(IGameObject* pGameObject)
 
 	pEntity->SetFlags(flags | ENTITY_FLAG_NO_SAVE);
 
-	IAudioSystem const* const pIAudioSystem = gEnv->pAudioSystem;
-
-	if (pIAudioSystem != nullptr)
+	if (m_pAmmoParams->pRicochet)
 	{
-		if (m_pAmmoParams->pRicochet)
+		const string& ricochetTriggerName = m_pAmmoParams->pRicochet->audioTriggerName;
+		if (!ricochetTriggerName.empty())
 		{
-			const string& ricochetTriggerName = m_pAmmoParams->pRicochet->audioTriggerName;
-			if (!ricochetTriggerName.empty())
-			{
-				pIAudioSystem->GetAudioTriggerId(ricochetTriggerName.c_str(), m_ricochetTriggerID);
-			}
+			m_ricochetTriggerID = CryAudio::StringToId_RunTime(ricochetTriggerName.c_str());
 		}
+	}
 
-		if (m_pAmmoParams->pWhiz)
+	if (m_pAmmoParams->pWhiz)
+	{
+		const string& whizTriggerName = m_pAmmoParams->pWhiz->audioTriggerName;
+		if (!whizTriggerName.empty())
 		{
-			const string& whizTriggerName = m_pAmmoParams->pWhiz->audioTriggerName;
-			if (!whizTriggerName.empty())
-			{
-				pIAudioSystem->GetAudioTriggerId(whizTriggerName.c_str(), m_whizTriggerID);
-			}
+			m_whizTriggerID = CryAudio::StringToId_RunTime(whizTriggerName.c_str());
 		}
 	}
 
@@ -864,11 +858,6 @@ void CProjectile::ProcessEvent(SEntityEvent& event)
 		}
 		break;
 	}
-}
-
-//------------------------------------------------------------------------
-void CProjectile::SetAuthority(bool auth)
-{
 }
 
 //------------------------------------------------------------------------
@@ -1346,7 +1335,7 @@ void CProjectile::TrailSound(bool enable, const Vec3& dir)
 //------------------------------------------------------------------------
 void CProjectile::UpdateWhiz(const Vec3& pos, bool destroy)
 {
-	if (m_pAmmoParams->pWhiz && m_whizTriggerID != InvalidControlId && !IsEquivalent(m_last, pos))
+	if (m_pAmmoParams->pWhiz && m_whizTriggerID != CryAudio::InvalidControlId && !IsEquivalent(m_last, pos))
 	{
 		IActor* pClientActor = g_pGame->GetIGameFramework()->GetClientActor();
 		if (pClientActor && (m_ownerId != pClientActor->GetEntityId()))
@@ -1424,14 +1413,14 @@ void CProjectile::UpdateWhiz(const Vec3& pos, bool destroy)
 //------------------------------------------------------------------------
 void CProjectile::WhizSound(const Vec3& pos)
 {
-	SExecuteTriggerData const data("WhizBy", eOcclusionType_Ignore, pos, true, m_whizTriggerID);
+	CryAudio::SExecuteTriggerData const data("WhizBy", CryAudio::EOcclusionType::Ignore, pos, true, m_whizTriggerID);
 	gEnv->pAudioSystem->ExecuteTriggerEx(data);
 }
 
 //------------------------------------------------------------------------
 void CProjectile::RicochetSound(const Vec3& pos)
 {
-	SExecuteTriggerData const data("Ricochet", eOcclusionType_Ignore, pos, true, m_ricochetTriggerID);
+	CryAudio::SExecuteTriggerData const data("Ricochet", CryAudio::EOcclusionType::Ignore, pos, true, m_ricochetTriggerID);
 	gEnv->pAudioSystem->ExecuteTriggerEx(data);
 }
 

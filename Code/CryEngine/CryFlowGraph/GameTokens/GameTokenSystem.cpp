@@ -24,13 +24,34 @@
 #define DEBUG_GAME_TOKENS
 #undef DEBUG_GAME_TOKENS
 
-class CGameTokenIterator : public IGameTokenIt
+class IGameTokenIterator : public IGameTokenIt
 {
-public:
-	CGameTokenIterator(CGameTokenSystem* pGTS) : m_pGTS(pGTS)
+protected:
+	IGameTokenIterator(CGameTokenSystem* pGTS)
+		: m_nRefCount(0)
+		, m_pGTS(pGTS)
 	{
 		CRY_ASSERT(pGTS);
-		m_nRefCount = 0;
+	}
+	virtual ~IGameTokenIterator() {};
+
+private:
+	virtual void AddRef()  override { m_nRefCount++; }
+	virtual void Release() override { --m_nRefCount; if (m_nRefCount <= 0) { delete this; } }
+
+private:
+	int m_nRefCount;
+
+protected:
+	CGameTokenSystem* m_pGTS;
+};
+
+
+class CGameTokenIterator : public IGameTokenIterator
+{
+public:
+	CGameTokenIterator(CGameTokenSystem* pGTS) : IGameTokenIterator(pGTS)
+	{
 		MoveFirst();
 	}
 
@@ -47,7 +68,7 @@ public:
 	IGameToken* This()
 	{
 		if (IsEnd())
-			return 0;
+			return nullptr;
 		else
 			return m_it->second;
 	}
@@ -55,7 +76,7 @@ public:
 	IGameToken* Next()
 	{
 		if (IsEnd())
-			return 0;
+			return nullptr;
 		else
 		{
 			IGameToken* pCurrent = m_it->second;
@@ -70,14 +91,7 @@ public:
 			m_it = m_pGTS->m_pGameTokensMap->begin();
 	};
 
-	void AddRef()  { m_nRefCount++; }
-
-	void Release() { --m_nRefCount; if (m_nRefCount <= 0) { delete this; } }
-
 protected: // ---------------------------------------------------
-	CGameTokenSystem*                         m_pGTS;
-	int                                       m_nRefCount; //
-
 	CGameTokenSystem::GameTokensMap::iterator m_it;
 };
 
@@ -86,7 +100,7 @@ int CGameTokenSystem::m_CVarShowDebugInfo = 0;
 int CGameTokenSystem::m_CVarPosX = 0;
 int CGameTokenSystem::m_CVarPosY = 0;
 int CGameTokenSystem::m_CVarNumHistoricLines = DBG_HISTORYSIZE;
-ICVar* CGameTokenSystem::m_pCVarFilter = NULL;
+ICVar* CGameTokenSystem::m_pCVarFilter = nullptr;
 #endif
 
 //////////////////////////////////////////////////////////////////////////
@@ -115,6 +129,7 @@ CGameTokenSystem::CGameTokenSystem()
 	CGameToken::g_pGameTokenSystem = this;
 	m_pScriptBind = new CScriptBind_GameToken(this);
 	m_pGameTokensMap = new GameTokensMap();
+	m_bGoingIntoGame = false;
 
 #ifdef _GAMETOKENSDEBUGINFO
 	m_debugHistory.resize(DBG_HISTORYSIZE);
@@ -123,7 +138,7 @@ CGameTokenSystem::CGameTokenSystem()
 	REGISTER_CVAR2("gt_showPosX", &CGameTokenSystem::m_CVarPosX, 0, 0, "Defines the starting column in screen for game tokens debug info");
 	REGISTER_CVAR2("gt_showPosY", &CGameTokenSystem::m_CVarPosY, 0, 0, "Defines the starting line in screen for game tokens debug info");
 	REGISTER_CVAR2("gt_showLines", &CGameTokenSystem::m_CVarNumHistoricLines, DBG_HISTORYSIZE, 0, "How many lines is used by the historic list");
-	m_pCVarFilter = REGISTER_STRING("gt_showFilter", NULL, VF_NULL, "In the historic list only shows game tokens that include the filter string");
+	m_pCVarFilter = REGISTER_STRING("gt_showFilter", nullptr, VF_NULL, "In the historic list only shows game tokens that include the filter string");
 	REGISTER_COMMAND("gt_AddToDebugList", AddGameTokenToDebugList, VF_CHEAT, "Adds a game token by name to the list of game tokens to be shown on screen");
 	REGISTER_COMMAND("gt_RemoveFromDebugList", RemoveGameTokenFromDebugList, VF_CHEAT, "Removes a game token by name from the list of game tokens to be shown on screen");
 #endif
@@ -150,7 +165,7 @@ IGameToken* CGameTokenSystem::SetOrCreateToken(const char* sTokenName, const TFl
 	if (*sTokenName == 0) // empty string
 	{
 		GameWarning(_HELP("Creating game token with empty name"));
-		return 0;
+		return nullptr;
 	}
 
 #ifdef DEBUG_GAME_TOKENS
@@ -163,50 +178,19 @@ IGameToken* CGameTokenSystem::SetOrCreateToken(const char* sTokenName, const TFl
 	}
 #endif
 
-	// Check if token already exist, if it is return existing token.
-	CGameToken* pToken = stl::find_in_map(*m_pGameTokensMap, sTokenName, NULL);
+	CGameToken* pToken = stl::find_in_map(*m_pGameTokensMap, sTokenName, nullptr);
 	if (pToken)
 	{
+		pToken->m_value.SetUnlocked();
 		pToken->SetValue(defaultValue);
+		pToken->m_value.SetLocked();
 		return pToken;
 	}
+
 	pToken = new CGameToken;
 	pToken->m_name = sTokenName;
 	pToken->m_value = defaultValue;
-	(*m_pGameTokensMap)[pToken->m_name.c_str()] = pToken;
-
-	return pToken;
-}
-
-IGameToken* CGameTokenSystem::SetOrCreateToken(const char* sTokenName, const char* szValue)
-{
-	CRY_ASSERT(sTokenName);
-	if (*sTokenName == 0) // empty string
-	{
-		GameWarning(_HELP("Creating game token with empty name"));
-		return 0;
-	}
-
-#ifdef DEBUG_GAME_TOKENS
-	GameTokensMap::iterator iter(m_pGameTokensMap->begin());
-	CryLogAlways("GT 0x%p: DEBUG looking for token '%s'", this, sTokenName);
-	while (iter != m_pGameTokensMap->end())
-	{
-		CryLogAlways("GT 0x%p: Token key='%s' name='%s' Val='%s'", this, (*iter).first, (*iter).second->GetName(), (*iter).second->GetValueAsString());
-		++iter;
-	}
-#endif
-
-	// Check if token already exist, if it is return existing token.
-	CGameToken* pToken = stl::find_in_map(*m_pGameTokensMap, sTokenName, NULL);
-	if (pToken)
-	{
-		pToken->SetValueAsString(szValue);
-		return pToken;
-	}
-	pToken = new CGameToken;
-	pToken->m_name = sTokenName;
-	pToken->SetValueAsString(szValue, true);
+	pToken->m_value.SetLocked();
 	(*m_pGameTokensMap)[pToken->m_name.c_str()] = pToken;
 
 	return pToken;
@@ -232,9 +216,9 @@ void CGameTokenSystem::DeleteToken(IGameToken* pToken)
 IGameToken* CGameTokenSystem::FindToken(const char* sTokenName)
 {
 	if (m_pGameTokensMap)
-		return stl::find_in_map(*m_pGameTokensMap, sTokenName, NULL);
+		return stl::find_in_map(*m_pGameTokensMap, sTokenName, nullptr);
 	else
-		return NULL;
+		return nullptr;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -261,7 +245,7 @@ IGameTokenIt* CGameTokenSystem::GetGameTokenIterator()
 CGameToken* CGameTokenSystem::GetToken(const char* sTokenName)
 {
 	// Load library if not found.
-	CGameToken* pToken = stl::find_in_map(*m_pGameTokensMap, sTokenName, NULL);
+	CGameToken* pToken = stl::find_in_map(*m_pGameTokensMap, sTokenName, nullptr);
 	if (!pToken)
 	{
 		//@TODO: Load game token lib here.
@@ -318,6 +302,9 @@ void CGameTokenSystem::UnregisterListener(IGameTokenEventListener* pListener)
 //////////////////////////////////////////////////////////////////////////
 void CGameTokenSystem::Notify(EGameTokenEvent event, CGameToken* pToken)
 {
+	if (gEnv->IsEditing() || m_bGoingIntoGame)
+		return;
+
 	for (Listeners::iterator it = m_listeners.begin(); it != m_listeners.end(); ++it)
 	{
 		(*it)->OnGameTokenEvent(event, pToken);
@@ -329,13 +316,13 @@ void CGameTokenSystem::Notify(EGameTokenEvent event, CGameToken* pToken)
 	if (CGameTokenSystem::m_CVarShowDebugInfo != 0 && pToken)
 	{
 		bool filterPass = true;
-		if (m_pCVarFilter && m_pCVarFilter->GetString() != NULL && m_pCVarFilter->GetString()[0] != 0)
+		if (m_pCVarFilter && m_pCVarFilter->GetString() != nullptr && m_pCVarFilter->GetString()[0] != 0)
 		{
 			stack_string temp1 = m_pCVarFilter->GetString();
 			temp1.MakeUpper();
 			stack_string temp2 = pToken->GetName();
 			temp2.MakeUpper();
-			filterPass = strstr(temp2.c_str(), temp1.c_str()) != NULL;
+			filterPass = strstr(temp2.c_str(), temp1.c_str()) != nullptr;
 		}
 
 		if (filterPass)
@@ -365,6 +352,15 @@ void CGameTokenSystem::Notify(EGameTokenEvent event, CGameToken* pToken)
 		}
 	}
 #endif
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CGameTokenSystem::TriggerTokensAsChanged()
+{
+	for (GameTokensMap::const_iterator it = m_pGameTokensMap->begin(), itEnd = m_pGameTokensMap->end(); it != itEnd; ++it)
+	{
+		it->second->TriggerAsChanged(true);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -496,6 +492,7 @@ void CGameTokenSystem::Serialize(TSerialize ser)
 void CGameTokenSystem::LoadLibs(const char* sFileSpec)
 {
 	LOADING_TIME_PROFILE_SECTION(GetISystem());
+	m_bGoingIntoGame = true;
 
 	ICryPak* pPak = gEnv->pCryPak;
 	_finddata_t fd;
@@ -512,9 +509,13 @@ void CGameTokenSystem::LoadLibs(const char* sFileSpec)
 		while (res >= 0);
 		pPak->FindClose(handle);
 	}
+
+	TriggerTokensAsChanged();
+
+	m_bGoingIntoGame = false;
 }
 
-#if 0 // temp leave in
+#if 0 // temp leave in - support for level game tokens should be added back
 bool CGameTokenSystem::LoadLevelLibrary(const char* sFileSpec, bool bEraseLevelTokens)
 {
 	if (bEraseLevelTokens)
@@ -631,32 +632,21 @@ bool CGameTokenSystem::_InternalLoadLibrary(const char* filename, const char* ta
 		const char* sLocalOnly = node->getAttr("LocalOnly");
 		int localOnly = atoi(sLocalOnly);
 
-		EFlowDataTypes tokenType = eFDT_Any;
-		if (0 == strcmp(sType, "Int"))
-			tokenType = eFDT_Int;
-		else if (0 == strcmp(sType, "Float"))
-			tokenType = eFDT_Float;
-		else if (0 == strcmp(sType, "EntityId"))
-			tokenType = eFDT_EntityId;
-		else if (0 == strcmp(sType, "Vec3"))
-			tokenType = eFDT_Vec3;
-		else if (0 == strcmp(sType, "String"))
-			tokenType = eFDT_String;
-		else if (0 == strcmp(sType, "Bool"))
-			tokenType = eFDT_Bool;
-
-		if (tokenType == eFDT_Any)
+		EFlowDataTypes tokenType = FlowNameToType(sType);
+		if (tokenType == eFDT_Any || tokenType == eFDT_Void)
 		{
-			GameWarning(_HELP("Unknown game token type %s in token %s (%s:%d)"), sType, sName, node->getTag(), node->getLine());
+			GameWarning("While loading %s: Unsupported type '%s' for Game Token '%s' (%s:%d)",
+				libName.c_str(), sType, sName, node->getTag(), node->getLine());
 			continue;
 		}
 
-		TFlowInputData initialValue = TFlowInputData(string(sValue));
+		TFlowInputData initialValue = TFlowInputData::CreateDefaultInitializedForTag((int)tokenType, true);
+		initialValue.SetValueWithConversion(string(sValue));
 
 		string fullName(libName);
 		fullName += sName;
 
-		IGameToken* pToken = stl::find_in_map(*m_pGameTokensMap, fullName, NULL);
+		IGameToken* pToken = stl::find_in_map(*m_pGameTokensMap, fullName, nullptr);
 		if (!pToken)
 		{
 			pToken = SetOrCreateToken(fullName, initialValue);
@@ -723,7 +713,7 @@ void CGameTokenSystem::SerializeReadLevelToLevel()
 	}
 
 	pSerializer->Release();
-	m_levelToLevelSave = NULL; // this frees it
+	m_levelToLevelSave = nullptr; // this frees it
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -809,15 +799,7 @@ const char* CGameTokenSystem::GetTokenDebugString(CGameToken* pToken)
 	if (!pToken)
 		return "<TOKEN NOT FOUND>";
 
-	// TODO: this is needed because boolean gametokens change types from bool to string.
-	if (pToken->GetType() == eFDT_Bool)
-	{
-		bool val = false;
-		pToken->GetValueAs(val);
-		return val ? "true" : "false";
-	}
-	else
-		return pToken->GetValueAsString();
+	return pToken->GetValueAsString();
 }
 
 //////////////////////////////////////////////////////////////////////////

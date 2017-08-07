@@ -18,6 +18,7 @@
 #include <Cry3DEngine/I3DEngine.h>
 #include "D3DPostProcess.h"
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -378,3 +379,5 @@ void CSunShafts::Render()
 	SAFE_DELETE(pSunShaftsRT);
 	gRenDev->m_RP.m_FlagsShader_RT = nSaveFlagsShader_RT;
 }
+
+#pragma warning(pop)

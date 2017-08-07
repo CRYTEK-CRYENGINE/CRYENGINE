@@ -38,8 +38,10 @@ public:
 	virtual void             FillBBox(AABB& aabb) override;
 	virtual void             OffsetPosition(const Vec3& delta) override;
 
-	virtual void             SetEntityOwner(uint32 nEntityId) override { m_nEntityOwnerId = nEntityId; }
-	virtual uint32           GetEntityOwner() const override           { return m_nEntityOwnerId; }
+	// Set a new owner entity
+	virtual void             SetOwnerEntity(IEntity* pEntity) final { m_pEntity = pEntity; }
+	// Retrieve a pointer to the entity who owns this render node.
+	virtual IEntity*         GetOwnerEntity() const final { return m_pEntity; }
 	//////////////////////////////////////////////////////////////////////////
 
 	//////////////////////////////////////////////////////////////////////////
@@ -81,7 +83,7 @@ private:
 
 private:
 	string                  m_sName;
-	uint32                  m_nEntityOwnerId;
+	IEntity*                m_pEntity = nullptr;
 	Vec3                    m_pos;
 	AABB                    m_localBounds;
 	Matrix34                m_worldTM;

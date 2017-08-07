@@ -4,11 +4,11 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client
+	namespace Client
 	{
-		namespace internal
+		namespace Internal
 		{
 			class CInstantEvaluatorDeleter;     // below
 		}
@@ -19,7 +19,7 @@ namespace uqs
 		//
 		//===================================================================================
 
-		typedef std::unique_ptr<IInstantEvaluator, internal::CInstantEvaluatorDeleter>  InstantEvaluatorUniquePtr;
+		typedef std::unique_ptr<IInstantEvaluator, Internal::CInstantEvaluatorDeleter>  InstantEvaluatorUniquePtr;
 
 		//===================================================================================
 		//
@@ -44,6 +44,8 @@ namespace uqs
 
 			virtual                                 ~IInstantEvaluatorFactory() {}
 			virtual const char*                     GetName() const = 0;
+			virtual const CryGUID&                  GetGUID() const = 0;
+			virtual const char*                     GetDescription() const = 0;
 			virtual const IInputParameterRegistry&  GetInputParameterRegistry() const = 0;
 			virtual InstantEvaluatorUniquePtr       CreateInstantEvaluator() = 0;
 			virtual void                            DestroyInstantEvaluator(IInstantEvaluator* pInstantEvaluatorToDestroy) = 0;
@@ -52,7 +54,7 @@ namespace uqs
 			virtual IParamsHolderFactory&           GetParamsHolderFactory() const = 0;
 		};
 
-		namespace internal
+		namespace Internal
 		{
 
 			//===================================================================================
@@ -86,7 +88,7 @@ namespace uqs
 				m_pInstantEvaluatorFactory->DestroyInstantEvaluator(pInstantEvaluatorToDelete);
 			}
 
-		} // namespace internal
+		} // namespace Internal
 
 	}
 }

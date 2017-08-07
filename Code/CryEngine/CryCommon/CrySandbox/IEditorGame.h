@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <CryEntitySystem/IEntityBasicTypes.h>
+
 struct IFlowSystem;
 struct IGameTokenSystem;
 namespace Telemetry {

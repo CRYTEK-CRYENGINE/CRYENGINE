@@ -4,11 +4,11 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client
+	namespace Client
 	{
-		namespace internal
+		namespace Internal
 		{
 
 			//===================================================================================
@@ -37,7 +37,7 @@ namespace uqs
 			private:
 				string                        m_nameOfGlobalParam;               // for validation error message
 				bool                          m_bGlobalParamExists;
-				const shared::CTypeInfo*      m_pTypeOfGlobalParam;
+				const Shared::CTypeInfo*      m_pTypeOfGlobalParam;
 				const void*                   m_pValueOfGlobalParam;             // ultimately points into CQueryBase::m_globalParams (if the global param exists)
 			};
 
@@ -50,7 +50,7 @@ namespace uqs
 			{
 				assert(ctorContext.pOptionalReturnValueInCaseOfLeafFunction);
 
-				const core::ILeafFunctionReturnValue::SGlobalParamInfo globalParamInfo = ctorContext.pOptionalReturnValueInCaseOfLeafFunction->GetGlobalParam(ctorContext.blackboard);
+				const Core::ILeafFunctionReturnValue::SGlobalParamInfo globalParamInfo = ctorContext.pOptionalReturnValueInCaseOfLeafFunction->GetGlobalParam(ctorContext.blackboard);
 
 				m_nameOfGlobalParam = globalParamInfo.szNameOfGlobalParam;
 
@@ -67,7 +67,7 @@ namespace uqs
 			{
 				if (m_bGlobalParamExists)
 				{
-					const shared::CTypeInfo& expectedType = shared::SDataTypeHelper<TGlobalParam>::GetTypeInfo();
+					const Shared::CTypeInfo& expectedType = Shared::SDataTypeHelper<TGlobalParam>::GetTypeInfo();
 
 					if (expectedType == *m_pTypeOfGlobalParam)
 					{
@@ -76,13 +76,13 @@ namespace uqs
 					else
 					{
 						validationContext.error.Format("%s: global param '%s' exists, but mismatches the type (expected a '%s', but actually stored is a '%s')",
-							validationContext.nameOfFunctionBeingValidated, m_nameOfGlobalParam.c_str(), expectedType.name(), m_pTypeOfGlobalParam->name());
+							validationContext.szNameOfFunctionBeingValidated, m_nameOfGlobalParam.c_str(), expectedType.name(), m_pTypeOfGlobalParam->name());
 						return false;
 					}
 				}
 				else
 				{
-					validationContext.error.Format("%s: global param '%s' does not exist", validationContext.nameOfFunctionBeingValidated, m_nameOfGlobalParam.c_str());
+					validationContext.error.Format("%s: global param '%s' does not exist", validationContext.szNameOfFunctionBeingValidated, m_nameOfGlobalParam.c_str());
 					return false;
 				}
 			}
@@ -91,7 +91,7 @@ namespace uqs
 			TGlobalParam CFunc_GlobalParam<TGlobalParam>::DoExecute(const SExecuteContext& executeContext) const
 			{
 				assert(m_bGlobalParamExists);
-				assert(*m_pTypeOfGlobalParam == shared::SDataTypeHelper<TGlobalParam>::GetTypeInfo());	// cannot fail if the validation succeeded (presuming the caller did not cheat)
+				assert(*m_pTypeOfGlobalParam == Shared::SDataTypeHelper<TGlobalParam>::GetTypeInfo());	// cannot fail if the validation succeeded (presuming the caller did not cheat)
 				return *static_cast<const TGlobalParam*>(m_pValueOfGlobalParam);
 			}
 

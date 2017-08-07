@@ -329,7 +329,7 @@ public:
 	  REFIID riid,
 	  _COM_Outptr_ void** ppvRootSignature) final
 	{
-#if CRY_USE_DX12_MULTIADAPTER_SIMULATION
+#if DX12_LINKEDADAPTER_SIMULATION
 		// Always create on the first GPU, if running simulation
 		if (CRenderer::CV_r_StereoEnableMgpu < 0)
 			nodeMask = 1;
@@ -558,7 +558,7 @@ public:
 	  _In_ UINT nodeMask,
 	  D3D12_HEAP_TYPE heapType) final
 	{
-#if CRY_USE_DX12_MULTIADAPTER_SIMULATION
+#if DX12_LINKEDADAPTER_SIMULATION
 		// Always create on the first GPU, if running simulation
 		if (CRenderer::CV_r_StereoEnableMgpu < 0)
 			nodeMask = 1;

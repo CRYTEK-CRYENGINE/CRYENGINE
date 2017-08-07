@@ -40,7 +40,7 @@ bool JobManager::ThreadBackEnd::CThreadBackEnd::Init(uint32 nSysMaxWorker)
 	const uint32 nNumCores = 4;
 #else
 	CCpuFeatures* pCPU = ((CSystem*)gEnv->pSystem)->GetCPUFeatures();
-	const uint32 nNumCores = pCPU->GetLogicalCPUCount();
+	const uint32 nNumCores = std::max(pCPU->GetLogicalCPUCount() - 2u, 2u);
 #endif
 
 	uint32 nNumWorkerToCreate = 0;

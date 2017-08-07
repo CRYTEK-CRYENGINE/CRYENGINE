@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -26,7 +26,7 @@ namespace uqs
 			virtual void   DrawLine(const Vec3& pos1, const Vec3& pos2, const ColorF& color) const override;
 			virtual void   DrawCone(const Vec3& pos, const Vec3& dir, float baseRadius, float height, const ColorF& color) const override;
 			virtual void   DrawCylinder(const Vec3& pos, const Vec3& dir, float radius, float height, const ColorF& color) const override;
-			virtual void   DrawText(const Vec3& pos, float size, const ColorF& color, const char* fmt, ...) const override PRINTF_PARAMS(5, 6);
+			virtual void   DrawText(const Vec3& pos, float size, const ColorF& color, const char* szFormat, ...) const override PRINTF_PARAMS(5, 6);
 			virtual void   DrawQuat(const Vec3& pos, const Quat& q, float r, const ColorF& color) const override;
 			virtual void   DrawAABB(const AABB& aabb, const ColorF& color) const override;
 			virtual void   DrawOBB(const OBB& obb, const ColorF& color) const override;
@@ -87,7 +87,7 @@ namespace uqs
 			virtual void                                            AddLine(const Vec3& pos1, const Vec3& pos2, const ColorF& color) override;
 			virtual void                                            AddCone(const Vec3& pos, const Vec3& dir, float baseRadius, float height, const ColorF& color) override;
 			virtual void                                            AddCylinder(const Vec3& pos, const Vec3& dir, float radius, float height, const ColorF& color) override;
-			virtual void                                            AddText(const Vec3& pos, float size, const ColorF& color, const char* fmt, ...) override PRINTF_PARAMS(5, 6);
+			virtual void                                            AddText(const Vec3& pos, float size, const ColorF& color, const char* szFormat, ...) override PRINTF_PARAMS(5, 6);
 			virtual void                                            AddQuat(const Vec3& pos, const Quat& q, float r, const ColorF& color) override;
 			virtual void                                            AddAABB(const AABB& aabb, const ColorF& color) override;
 			virtual void                                            AddOBB(const OBB& obb, const ColorF& color) override;

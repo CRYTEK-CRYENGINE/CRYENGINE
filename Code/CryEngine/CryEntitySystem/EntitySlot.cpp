@@ -57,6 +57,11 @@ void CEntitySlot::Clear()
 //////////////////////////////////////////////////////////////////////////
 void CEntitySlot::ReleaseObjects()
 {
+	if (m_pRenderNode)
+	{
+		m_pRenderNode->SetOwnerEntity(nullptr);
+	}
+
 	if (m_pStatObj)
 	{
 		m_pStatObj->Release();
@@ -73,15 +78,16 @@ void CEntitySlot::ReleaseObjects()
 		m_pCharacter->Release();
 		m_pCharacter = nullptr;
 	}
-	else if (IParticleEmitter* pEmitter = GetParticleEmitter())
-	{
-		pEmitter->Activate(false);
-		pEmitter->SetEntity(NULL, 0);
-		pEmitter->Release();
-		m_pRenderNode = 0;
-	}
 
-	if (m_pRenderNode)
+	if (IParticleEmitter* pEmitter = GetParticleEmitter())
+	{
+		pEmitter->Kill();
+		pEmitter->Activate(false);
+		pEmitter->SetEntity(nullptr, 0);
+		pEmitter->Release();
+		m_pRenderNode = nullptr;
+	}
+	else if (m_pRenderNode)
 	{
 		if (m_bRegisteredRenderNode)
 			gEnv->p3DEngine->UnRegisterEntityDirect(m_pRenderNode);
@@ -142,13 +148,13 @@ void CEntitySlot::UpdateRenderNode(bool bForceRecreateNode)
 		// Recreate proper render node in 3d engine if not exist yet.
 		if (GetStatObj())
 		{
-			m_renderNodeType = eERType_Brush;
-			IBrush* pBrushRenderNode = static_cast<IBrush*>(gEnv->p3DEngine->CreateRenderNode(eERType_Brush));
+			m_renderNodeType = eERType_MovableBrush;
+			IBrush* pBrushRenderNode = static_cast<IBrush*>(gEnv->p3DEngine->CreateRenderNode(eERType_MovableBrush));
 			m_pRenderNode = pBrushRenderNode;
 			m_pRenderNode->SetOwnerEntity(m_pEntity);
 			pBrushRenderNode->DisablePhysicalization(true); // We physicalize render node with PhysicalProxy instead.
 			Matrix34A tm = m_worldTM;
-			m_pRenderNode->SetEntityStatObj(0, GetStatObj(), &tm);
+			m_pRenderNode->SetEntityStatObj(GetStatObj(), &tm);
 		}
 		if (GetCharacter())
 		{
@@ -240,7 +246,7 @@ void CEntitySlot::UpdateRenderNode(bool bForceRecreateNode)
 			m_pRenderNode->SetRndFlags(ERF_RAYCAST_PROXY, (pMaterial->GetFlags() & MTL_FLAG_RAYCAST_PROXY) != 0);
 		}
 
-		if (renderNodeType == eERType_Brush)
+		if (renderNodeType == eERType_MovableBrush || renderNodeType == eERType_Brush)
 		{
 			static_cast<IBrush*>(m_pRenderNode)->SetSubObjectHideMask(m_nSubObjHideMask);
 		}
@@ -305,13 +311,6 @@ bool CEntitySlot::GetLocalBounds(AABB& bounds)
 	}
 	else if (m_pRenderNode)
 	{
-		if (m_renderNodeType == eERType_Light)
-		{
-			// Special case for Lights preserver old behavior of using very small bounding box around light source
-			bounds.Add(Vec3Constants<float>::fVec3_Zero, 0.1f);
-			return true;
-		}
-
 		m_pRenderNode->GetLocalBounds(bounds);
 		return true;
 	}
@@ -362,13 +361,21 @@ bool CEntitySlot::IsRendered() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntitySlot::PreviewRender(IEntity::SPreviewRenderParams& params)
+void CEntitySlot::PreviewRender(SEntityPreviewContext& context)
 {
 	if (m_pRenderNode)
 	{
-		assert(params.pRenderParams);
-		assert(params.pPassInfo);
-		m_pRenderNode->Render(*params.pRenderParams, *params.pPassInfo);
+		if (!context.bNoRenderNodes)
+		{
+			assert(context.pRenderParams);
+			assert(context.pPassInfo);
+			m_pRenderNode->Render(*context.pRenderParams, *context.pPassInfo);
+		}
+
+		if (context.debugDrawInfo.bDrawInFront)
+		{
+			DebugDraw(context.debugDrawInfo);
+		}
 	}
 }
 
@@ -741,6 +748,8 @@ void CEntitySlot::SetRenderNode(IRenderNode* pRenderNode)
 
 	if (m_pRenderNode)
 	{
+		m_flags |= ENTITY_SLOT_RENDER;
+
 		m_renderNodeType = m_pRenderNode->GetRenderNodeType();
 
 		m_pRenderNode->SetOwnerEntity(m_pEntity);

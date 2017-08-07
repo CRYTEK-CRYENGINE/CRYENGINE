@@ -589,7 +589,7 @@ bool FindPolygonCircleSplitPoints(const Vec2* pPolygon, const int numPts, const 
 
 				// Extra mid-point lying on circle, for use with the outer polygon only
 				split.ptMid = (split.ptA + split.ptB) * 0.5f;
-				split.ptMid = splitPt + (split.ptMid - splitPt).Normalize() * splitRadius;
+				split.ptMid = splitPt + (split.ptMid - splitPt).GetNormalized() * splitRadius;
 			}
 			else
 			{

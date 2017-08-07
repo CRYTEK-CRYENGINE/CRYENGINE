@@ -1,19 +1,7 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   LipSync_FacialInstance.cpp
-//  Version:     v1.00
-//  Created:     2014-08-29 by Christian Werle.
-//  Description: Automatic start of facial animation when a sound is being played back.
-//               Legacy version that uses CryAnimation's FacialInstance.
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #include "StdAfx.h"
 #include "LipSync_FacialInstance.h"
-
-using namespace CryAudio;
 
 //=============================================================================
 //
@@ -26,13 +14,13 @@ CLipSyncProvider_FacialInstance::CLipSyncProvider_FacialInstance(EntityId entity
 {
 }
 
-void CLipSyncProvider_FacialInstance::RequestLipSync(IEntityAudioComponent* pProxy, const ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
+void CLipSyncProvider_FacialInstance::RequestLipSync(IEntityAudioComponent* pProxy, const CryAudio::ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
 {
 	// actually facial sequence is triggered in OnSoundEvent SOUND_EVENT_ON_PLAYBACK_STARTED of the CSoundProxy
 	// when playback is started, it will start facial sequence as well
 }
 
-void CLipSyncProvider_FacialInstance::StartLipSync(IEntityAudioComponent* pProxy, const ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
+void CLipSyncProvider_FacialInstance::StartLipSync(IEntityAudioComponent* pProxy, const CryAudio::ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
 {
 	if (lipSyncMethod != eLSM_None)
 	{
@@ -40,7 +28,7 @@ void CLipSyncProvider_FacialInstance::StartLipSync(IEntityAudioComponent* pProxy
 	}
 }
 
-void CLipSyncProvider_FacialInstance::PauseLipSync(IEntityAudioComponent* pProxy, const ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
+void CLipSyncProvider_FacialInstance::PauseLipSync(IEntityAudioComponent* pProxy, const CryAudio::ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
 {
 	if (lipSyncMethod != eLSM_None)
 	{
@@ -48,7 +36,7 @@ void CLipSyncProvider_FacialInstance::PauseLipSync(IEntityAudioComponent* pProxy
 	}
 }
 
-void CLipSyncProvider_FacialInstance::UnpauseLipSync(IEntityAudioComponent* pProxy, const ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
+void CLipSyncProvider_FacialInstance::UnpauseLipSync(IEntityAudioComponent* pProxy, const CryAudio::ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
 {
 	if (lipSyncMethod != eLSM_None)
 	{
@@ -56,7 +44,7 @@ void CLipSyncProvider_FacialInstance::UnpauseLipSync(IEntityAudioComponent* pPro
 	}
 }
 
-void CLipSyncProvider_FacialInstance::StopLipSync(IEntityAudioComponent* pProxy, const ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
+void CLipSyncProvider_FacialInstance::StopLipSync(IEntityAudioComponent* pProxy, const CryAudio::ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
 {
 	if (lipSyncMethod != eLSM_None)
 	{
@@ -64,7 +52,7 @@ void CLipSyncProvider_FacialInstance::StopLipSync(IEntityAudioComponent* pProxy,
 	}
 }
 
-void CLipSyncProvider_FacialInstance::UpdateLipSync(IEntityAudioComponent* pProxy, const ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
+void CLipSyncProvider_FacialInstance::UpdateLipSync(IEntityAudioComponent* pProxy, const CryAudio::ControlId audioTriggerId, const ELipSyncMethod lipSyncMethod)
 {
 }
 
@@ -74,7 +62,7 @@ void CLipSyncProvider_FacialInstance::FullSerialize(TSerialize ser)
 	ser.EndGroup();
 }
 
-void CLipSyncProvider_FacialInstance::LipSyncWithSound(const ControlId audioTriggerId, bool bStop /*= false*/)
+void CLipSyncProvider_FacialInstance::LipSyncWithSound(const CryAudio::ControlId audioTriggerId, bool bStop /*= false*/)
 {
 	if (IEntity* pEntity = gEnv->pEntitySystem->GetEntity(m_entityId))
 	{
@@ -198,10 +186,6 @@ uint64 CLipSync_FacialInstance::GetEventMask() const
 }
 
 void CLipSync_FacialInstance::SetChannelId(uint16 id)
-{
-}
-
-void CLipSync_FacialInstance::SetAuthority(bool auth)
 {
 }
 

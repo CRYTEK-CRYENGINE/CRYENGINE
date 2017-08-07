@@ -1056,6 +1056,8 @@ inline bool CheckFileExistOnDisk(const char* filename)
 
 const char* CCryPak::AdjustFileName(const char* src, char dst[g_nMaxPath], unsigned nFlags)
 {
+	CRY_ASSERT(src);
+
 	bool bSkipMods = false;
 
 	if (g_cvars.sys_filesystemCaseSensitivity > 0)
@@ -1067,8 +1069,8 @@ const char* CCryPak::AdjustFileName(const char* src, char dst[g_nMaxPath], unsig
 	    ((nFlags & FLAGS_PATH_REAL) == 0) &&
 	    ((nFlags & FLAGS_FOR_WRITING) == 0) &&
 	    (!m_arrMods.empty()) &&
-	    (*src != '%') &&                                                                   // If path starts from % it is a special alias.
-	    ((m_pPakVars->nPriority != ePakPriorityPakOnly) || (nFlags & FLAGS_NEVER_IN_PAK))) // When priority is Pak only, we only check Mods directories if we're looking for a file that can't be in a pak
+	    (*src != '%') &&                                                                   // If path starts with '%' it is a special alias.
+	    ((m_pPakVars->nPriority != ePakPriorityPakOnly) || (nFlags & FLAGS_NEVER_IN_PAK) || (*src == '%'))) // When priority is Pak only, we only check Mods directories if we're looking for a file that can't be in a pak
 	{
 		// Scan mod folders
 		std::vector<string>::reverse_iterator it;
@@ -1287,9 +1289,9 @@ const char* CCryPak::AdjustFileNameInternal(const char* src, char* dst, unsigned
 		if (filehelpers::CheckPrefix(szNewSrc, "./") ||
 		    filehelpers::CheckPrefix(szNewSrc, ".\\"))
 		{
-			const int nLen = min(sizeof(szNewSrc), strlen(szNewSrc) - 2);
-			memmove(szNewSrc, szNewSrc + 2, nLen);
-			szNewSrc[nLen] = 0;
+			size_t len = std::min<size_t>(sizeof(szNewSrc), strlen(szNewSrc) - 2);
+			memmove(szNewSrc, szNewSrc + 2, len);
+			szNewSrc[len] = 0;
 		}
 	}
 	//////////////////////////////////////////////////////////////////////////
@@ -1322,9 +1324,9 @@ const char* CCryPak::AdjustFileNameInternal(const char* src, char* dst, unsigned
 		}
 		else if (filehelpers::CheckPrefix(szNewSrc, "." CRY_NATIVE_PATH_SEPSTR))
 		{
-			const int nLen = min(sizeof(szNewSrc), strlen(szNewSrc) - 2);
-			memmove(szNewSrc, szNewSrc + 2, nLen);
-			szNewSrc[nLen] = 0;
+			size_t len = std::min<size_t>(sizeof(szNewSrc), strlen(szNewSrc) - 2);
+			memmove(szNewSrc, szNewSrc + 2, len);
+			szNewSrc[len] = 0;
 		}
 	}
 
@@ -1529,7 +1531,7 @@ FILE* CCryPak::FOpenRaw(const char* pName, const char* mode)
 //////////////////////////////////////////////////////////////////////////
 FILE* CCryPak::FOpen(const char* pName, const char* szMode, char* szFileGamePath, int nLen)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	LOADING_TIME_PROFILE_SECTION_ARGS(pName);
 
 	SAutoCollectFileAcessTime accessTime(this);
 
@@ -1555,8 +1557,7 @@ FILE* CCryPak::FOpen(const char* pName, const char* szMode, char* szFileGamePath
 //////////////////////////////////////////////////////////////////////////
 FILE* CCryPak::FOpen(const char* pName, const char* szMode, unsigned nInputFlags)
 {
-
-	LOADING_TIME_PROFILE_SECTION;
+	LOADING_TIME_PROFILE_SECTION_ARGS(pName);
 
 	if (strlen(pName) >= g_nMaxPath)
 		return 0;

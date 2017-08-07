@@ -62,7 +62,7 @@ end_sources()
 ################### libmikmod_static ###################
 CryEngineStaticModule(libmikmod_static SOLUTION_FOLDER "Libs/Audio")
 target_include_directories(${THIS_PROJECT} PUBLIC
-	${SDK_DIR}/libmikmod/include
+	"${SDK_DIR}/libmikmod/include"
 )
 target_compile_definitions(${THIS_PROJECT} PUBLIC
 	-DMIKMOD_STATIC

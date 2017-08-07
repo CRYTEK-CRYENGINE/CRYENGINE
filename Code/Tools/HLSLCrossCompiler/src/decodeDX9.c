@@ -9,7 +9,7 @@
 #include "internal_includes/hlslcc_malloc.h"
 
 #define FOURCC(a, b, c, d) ((uint32_t)(uint8_t)(a) | ((uint32_t)(uint8_t)(b) << 8) | ((uint32_t)(uint8_t)(c) << 16) | ((uint32_t)(uint8_t)(d) << 24 ))
-static enum {FOURCC_CTAB = FOURCC('C', 'T', 'A', 'B')}; //Constant table
+enum {FOURCC_CTAB = FOURCC('C', 'T', 'A', 'B')}; //Constant table
 
 #ifdef _DEBUG
 static uint64_t operandID = 0;
@@ -32,11 +32,7 @@ uint32_t DX9_DECODE_OPERAND_IS_BCONST = 0x20;
 static DECLUSAGE_DX9 aeInputUsage[MAX_INPUTS];
 static uint32_t aui32InputUsageIndex[MAX_INPUTS];
 
-static void DecodeOperandDX9(const Shader* psShader,
-														 const uint32_t ui32Token,
-														 const uint32_t ui32Token1,
-														 uint32_t ui32Flags,
-														 Operand *psOperand)
+static void DecodeOperandDX9(const Shader* psShader, const uint32_t ui32Token, const uint32_t ui32Token1, uint32_t ui32Flags, Operand *psOperand)
 {
 	const uint32_t ui32RegNum = DecodeOperandRegisterNumberDX9(ui32Token);
 	const uint32_t ui32RegType = DecodeOperandTypeDX9(ui32Token);
@@ -152,44 +148,42 @@ static void DecodeOperandDX9(const Shader* psShader,
 						psOperand->eSelMode = OPERAND_4_COMPONENT_SELECT_1_MODE;
 						psOperand->aui32Swizzle[0] = OPERAND_4_COMPONENT_Y;
 					}
+					else if (ui32Swizzle == REPLICATE_SWIZZLE_DX9(2))
+					{
+						psOperand->eSelMode = OPERAND_4_COMPONENT_SELECT_1_MODE;
+						psOperand->aui32Swizzle[0] = OPERAND_4_COMPONENT_Z;
+					}
+					else if (ui32Swizzle == REPLICATE_SWIZZLE_DX9(3))
+					{
+						psOperand->eSelMode = OPERAND_4_COMPONENT_SELECT_1_MODE;
+						psOperand->aui32Swizzle[0] = OPERAND_4_COMPONENT_W;
+					}
 					else
-						if(ui32Swizzle == REPLICATE_SWIZZLE_DX9(2))
+					{
+						for (component = 0; component < 4; component++)
 						{
-							psOperand->eSelMode = OPERAND_4_COMPONENT_SELECT_1_MODE;
-							psOperand->aui32Swizzle[0] = OPERAND_4_COMPONENT_Z;
-						}
-						else
-							if(ui32Swizzle == REPLICATE_SWIZZLE_DX9(3))
+							uint32_t ui32CompSwiz =
+								ui32Swizzle & (3 << (DX9_SWIZZLE_SHIFT + (component * 2)));
+							ui32CompSwiz >>= (DX9_SWIZZLE_SHIFT + (component * 2));
+
+							if (ui32CompSwiz == 0)
 							{
-								psOperand->eSelMode = OPERAND_4_COMPONENT_SELECT_1_MODE;
-								psOperand->aui32Swizzle[0] = OPERAND_4_COMPONENT_W;
+								psOperand->aui32Swizzle[component] = OPERAND_4_COMPONENT_X;
+							}
+							else if (ui32CompSwiz == 1)
+							{
+								psOperand->aui32Swizzle[component] = OPERAND_4_COMPONENT_Y;
+							}
+							else if (ui32CompSwiz == 2)
+							{
+								psOperand->aui32Swizzle[component] = OPERAND_4_COMPONENT_Z;
 							}
 							else
 							{
-								for (component = 0; component < 4; component++)
-								{
-									uint32_t ui32CompSwiz =
-										ui32Swizzle & (3 << (DX9_SWIZZLE_SHIFT+(component*2)));
-									ui32CompSwiz >>= (DX9_SWIZZLE_SHIFT+(component*2));
-
-									if (ui32CompSwiz == 0)
-									{
-										psOperand->aui32Swizzle[component] = OPERAND_4_COMPONENT_X;
-									}
-									else if (ui32CompSwiz == 1)
-									{
-										psOperand->aui32Swizzle[component] = OPERAND_4_COMPONENT_Y;
-									}
-									else if (ui32CompSwiz == 2)
-									{
-										psOperand->aui32Swizzle[component] = OPERAND_4_COMPONENT_Z;
-									}
-									else
-									{
-										psOperand->aui32Swizzle[component] = OPERAND_4_COMPONENT_W;
-									}
-								}
+								psOperand->aui32Swizzle[component] = OPERAND_4_COMPONENT_W;
 							}
+						}
+					}
 			}
 
 			if(bRelativeAddr)
@@ -243,7 +237,7 @@ static void DecodeOperandDX9(const Shader* psShader,
 			{
 				if(aeInputUsage[ui32RegNum] == DECLUSAGE_TEXCOORD)
 				{
-					psOperand->eType = OPERAND_TYPE_SPECIAL_TEXCOORD;
+					psOperand->eType = OPERAND_TYPE_SPECIAL_TEXCOORD_INPUT;
 					psOperand->ui32RegisterNumber = aui32InputUsageIndex[ui32RegNum];
 				}
 				else
@@ -268,7 +262,7 @@ static void DecodeOperandDX9(const Shader* psShader,
 
 			if(psShader->eShaderType == VERTEX_SHADER)
 			{
-				psOperand->eType = OPERAND_TYPE_SPECIAL_TEXCOORD;
+				psOperand->eType = OPERAND_TYPE_SPECIAL_TEXCOORD_OUTPUT;
 			}
 			break;
 		}
@@ -358,7 +352,7 @@ static void DecodeOperandDX9(const Shader* psShader,
 			//Pixel shader: texture coordinate register (a few of these)
 			if(psShader->eShaderType == PIXEL_SHADER)
 			{
-				psOperand->eType = OPERAND_TYPE_SPECIAL_TEXCOORD;
+				psOperand->eType = OPERAND_TYPE_SPECIAL_TEXCOORD_INPUT;
 			}
 			else
 			{
@@ -384,17 +378,13 @@ static void DecodeOperandDX9(const Shader* psShader,
 	}
 }
 
-static void DeclareNumTemps(Shader* psShader,
-														const uint32_t ui32NumTemps,
-														Declaration* psDecl)
+static void DeclareNumTemps(Shader* psShader, const uint32_t ui32NumTemps, Declaration* psDecl)
 {
 	psDecl->eOpcode = OPCODE_DCL_TEMPS;
 	psDecl->value.ui32NumTemps = ui32NumTemps;
 }
 
-static void SetupRegisterUsage(const Shader* psShader,
-															 const uint32_t ui32Token0,
-															 const uint32_t ui32Token1)
+static void SetupRegisterUsage(const Shader* psShader, const uint32_t ui32Token0, const uint32_t ui32Token1)
 {
 	DECLUSAGE_DX9 eUsage = DecodeUsageDX9(ui32Token0);
 	uint32_t ui32UsageIndex = DecodeUsageIndexDX9(ui32Token0);
@@ -411,8 +401,7 @@ static void SetupRegisterUsage(const Shader* psShader,
 
 //Declaring one constant from a constant buffer will cause all constants in the buffer decalared.
 //In dx9 there is only one constant buffer per shader.
-static void DeclareConstantBuffer(const Shader* psShader,
-																	Declaration* psDecl)
+static void DeclareConstantBuffer(const Shader* psShader, Declaration* psDecl)
 {
 	DECLUSAGE_DX9 eUsage = (DECLUSAGE_DX9)0;
 	uint32_t ui32UsageIndex = 0;
@@ -451,10 +440,7 @@ static void DeclareConstantBuffer(const Shader* psShader,
 	psDecl->asOperands[0].aui32ArraySizes[1] = psShader->sInfo.psConstantBuffers[0].ui32TotalSizeInBytes / 16;//Number of vec4 constants.
 }
 
-static void DecodeDeclarationDX9(const Shader* psShader,
-																 const uint32_t ui32Token0,
-																 const uint32_t ui32Token1,
-																 Declaration* psDecl)
+static void DecodeDeclarationDX9(const Shader* psShader, const uint32_t ui32Token0, const uint32_t ui32Token1, Declaration* psDecl)
 {
 	DECLUSAGE_DX9 eUsage = DecodeUsageDX9(ui32Token0);
 	uint32_t ui32UsageIndex = DecodeUsageIndexDX9(ui32Token0);
@@ -476,6 +462,7 @@ static void DecodeDeclarationDX9(const Shader* psShader,
 	{
 		const RESOURCE_DIMENSION eResDim = DecodeTextureTypeMaskDX9(ui32Token0);
 		psDecl->value.eResourceDimension = eResDim;
+		psDecl->ui32IsShadowTex = 0;
 		psDecl->eOpcode = OPCODE_DCL_RESOURCE;
 	}
 
@@ -490,16 +477,15 @@ static void DecodeDeclarationDX9(const Shader* psShader,
 			psDecl->asOperands[0].eSpecialName = NAME_POSITION;
 		}
 	}
-	else
-		if(psDecl->asOperands[0].eType == OPERAND_TYPE_CONSTANT_BUFFER)
-		{
-			psDecl->eOpcode = OPCODE_DCL_CONSTANT_BUFFER;
+	else if (psDecl->asOperands[0].eType == OPERAND_TYPE_CONSTANT_BUFFER)
+	{
+		psDecl->eOpcode = OPCODE_DCL_CONSTANT_BUFFER;
 
-			ASSERT(psShader->sInfo.ui32NumConstantBuffers);
+		ASSERT(psShader->sInfo.ui32NumConstantBuffers);
 
-			psDecl->asOperands[0].aui32ArraySizes[0] = 0;//Const buffer index
-			psDecl->asOperands[0].aui32ArraySizes[1] = psShader->sInfo.psConstantBuffers[0].ui32TotalSizeInBytes / 16;//Number of vec4 constants.
-		}
+		psDecl->asOperands[0].aui32ArraySizes[0] = 0;//Const buffer index
+		psDecl->asOperands[0].aui32ArraySizes[1] = psShader->sInfo.psConstantBuffers[0].ui32TotalSizeInBytes / 16;//Number of vec4 constants.
+	}
 }
 
 static void DefineDX9(Shader* psShader,
@@ -677,8 +663,11 @@ Shader* DecodeDX9BC(const uint32_t* pui32Tokens)
 	}
 
 	psInst = hlslcc_malloc(sizeof(Instruction) * ui32NumInstructions);
-	psShader->psInst = psInst;
-	psShader->ui32InstCount = ui32NumInstructions;
+	psShader->asPhase[MAIN_PHASE].ui32InstanceCount = 1;
+	psShader->asPhase[MAIN_PHASE].ppsInst = hlslcc_malloc(sizeof(Instruction*));
+	psShader->asPhase[MAIN_PHASE].ppsInst[0] = psInst;
+	psShader->asPhase[MAIN_PHASE].pui32InstCount = hlslcc_malloc(sizeof(uint32_t));
+	psShader->asPhase[MAIN_PHASE].pui32InstCount[0] = ui32NumInstructions;
 
 	if(psShader->eShaderType == VERTEX_SHADER)
 	{
@@ -690,8 +679,10 @@ Shader* DecodeDX9BC(const uint32_t* pui32Tokens)
 	ui32NumDeclarations++;
 
 	psDecl = hlslcc_malloc(sizeof(Declaration) * ui32NumDeclarations);
-	psShader->psDecl = psDecl;
-	psShader->ui32DeclCount = ui32NumDeclarations;
+	psShader->asPhase[MAIN_PHASE].ppsDecl = hlslcc_malloc(sizeof(Declaration*));
+	psShader->asPhase[MAIN_PHASE].ppsDecl[0] = psDecl;
+	psShader->asPhase[MAIN_PHASE].pui32DeclCount = hlslcc_malloc(sizeof(uint32_t));
+	psShader->asPhase[MAIN_PHASE].pui32DeclCount[0] = ui32NumDeclarations;
 
 	pui32CurrentToken = pui32Tokens + 1;
 
@@ -861,10 +852,14 @@ Shader* DecodeDX9BC(const uint32_t* pui32Tokens)
 
 					CreateD3D10Instruction(psShader, &psInst[inst], OPCODE_DP4, 1, 1, pui32CurrentToken);
 					memcpy(&psInst[inst].asOperands[2],&psInst[inst].asOperands[1], sizeof(Operand));
+					psInst[inst].ui32NumOperands++;
 					++inst;
 
 					CreateD3D10Instruction(psShader, &psInst[inst], OPCODE_RSQ, 0, 0, pui32CurrentToken);
-					memcpy(&psInst[inst].asOperands[0],&psInst[inst-1].asOperands[0], sizeof(Operand));
+					memcpy(&psInst[inst].asOperands[0], &psInst[inst - 1].asOperands[0], sizeof(Operand));
+					memcpy(&psInst[inst].asOperands[1], &psInst[inst - 1].asOperands[0], sizeof(Operand));
+					psInst[inst].ui32NumOperands++;
+					psInst[inst].ui32NumOperands++;
 					break;
 				}
 			case OPCODE_DX9_SINCOS:
@@ -1014,7 +1009,14 @@ Shader* DecodeDX9BC(const uint32_t* pui32Tokens)
 					// texldd, dst, src0, src1, src2, src3
 					// srcAddress[.swizzle], srcResource[.swizzle], srcSampler, XGradient, YGradient
 					CreateD3D10Instruction(psShader, &psInst[inst], OPCODE_SAMPLE_D, 1, 4, pui32CurrentToken);
-					psInst[inst].asOperands[2].ui32RegisterNumber = 0;
+
+					// Move the gradients one slot up
+					memcpy(&psInst[inst].asOperands[5], &psInst[inst].asOperands[4], sizeof(Operand));
+					memcpy(&psInst[inst].asOperands[4], &psInst[inst].asOperands[3], sizeof(Operand));
+
+					// Sampler register
+					psInst[inst].asOperands[3].ui32RegisterNumber = 0;
+					psInst[inst].ui32NumOperands = 6;
 					break;
 				}
 			case OPCODE_DX9_LRP:

@@ -8,6 +8,10 @@
 #ifndef _DEFERREDSHADING_H_
 #define _DEFERREDSHADING_H_
 
+#include "Common/RenderPipeline.h" // EShapeMeshType
+#include "Common/Textures/Texture.h" // CTexture
+#include "Common/Textures/PowerOf2BlockPacker.h" // CPowerOf2BlockPacker
+
 struct IVisArea;
 
 enum EDecalType
@@ -21,6 +25,7 @@ enum EDecalType
 	DTYP_NUM,
 };
 
+#define MAX_DEFERRED_LIGHT_SOURCES 32
 #define MAX_DEFERRED_CLIP_VOLUMES 64
 
 class CTexPoolAtlas;
@@ -66,22 +71,16 @@ public:
 
 	void        FilterGBuffer();
 	void        PrepareClipVolumeData(bool& bOutdoorVisible);
-	bool        AmbientPass(SRenderLight* pGlobalCubemap, bool& bOutdoorVisible);
+	bool        AmbientPass(const SRenderLight* pGlobalCubemap, bool& bOutdoorVisible);
 
 	bool        DeferredDecalPass(const SDeferredDecal& rDecal, uint32 indDecal);
 	bool        ShadowLightPasses(const SRenderLight& light, const int nLightID);
 	void        DrawDecalVolume(const SDeferredDecal& rDecal, Matrix44A& mDecalLightProj, ECull volumeCull);
 	void        DrawLightVolume(EShapeMeshType meshType, const Matrix44& mVolumeToWorld, const Vec4& vSphereAdjust = Vec4(ZERO));
 	void        LightPass(const SRenderLight* const __restrict pDL, bool bForceStencilDisable = false);
-	void        DeferredCubemaps(const RenderLightsArray& rCubemaps, const uint32 nStartIndex = 0);
+	void        DeferredCubemaps(const RenderLightsList& rCubemaps, uint32 nStartIndex = 0);
 	void        DeferredCubemapPass(const SRenderLight* const __restrict pDL);
-	void        ScreenSpaceReflectionPass();
-	void        ApplySSReflections();
-	void        DirectionalOcclusionPass();
-	void        HeightMapOcclusionPass(ShadowMapFrustum*& pHeightMapFrustum, CTexture*& pHeightMapAOScreenDepth, CTexture*& pHeightmapAO);
-	void        DeferredLights(RenderLightsArray& rLights, bool bCastShadows);
-
-	void        DeferredSubsurfaceScattering(CTexture* tmpTex);
+	void        DeferredLights(RenderLightsList& rLights, bool bCastShadows);
 	void        DeferredShadingPass();
 
 	void        CreateDeferredMaps();
@@ -90,7 +89,7 @@ public:
 	void        Debug();
 	void        DebugGBuffer();
 
-	uint32      AddLight(const CDLight& pDL, float fMult, const SRenderingPassInfo& passInfo);
+	RenderLightIndex AddLight(const CDLight& pDL, float fMult, const SRenderingPassInfo& passInfo);
 
 	void        AddGIClipVolume(IRenderMesh* pClipVolume, const Matrix34& mxTransform);
 	inline void ResetLights();
@@ -203,7 +202,6 @@ private:
 		, m_nRenderState(GS_BLSRC_ONE | GS_BLDST_ONE)
 		, m_nThreadID(0)
 		, m_nRecurseLevel(0)
-		, m_nBindResourceMsaa(-1)
 		, m_blockPack(0, 0)
 	{
 
@@ -213,9 +211,6 @@ private:
 		{
 			m_prevViewProj[i].SetIdentity();
 		}
-
-		m_nTexStateLinear = CTexture::GetTexState(STexState(FILTER_LINEAR, true));
-		m_nTexStatePoint = CTexture::GetTexState(STexState(FILTER_POINT, true));
 
 		for (int i = 0; i < RT_COMMAND_BUF_COUNT; ++i)
 		{
@@ -307,11 +302,6 @@ private:
 
 	int                      m_nRenderState;
 	uint32                   m_nLightsProcessedCount;
-
-	uint32                   m_nTexStateLinear;
-	uint32                   m_nTexStatePoint;
-
-	SResourceView::KeyType   m_nBindResourceMsaa;
 
 	uint32                   m_nThreadID;
 	int32                    m_nRecurseLevel;

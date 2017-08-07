@@ -128,9 +128,6 @@ protected:
 	bool     m_bDynamics           : 1;
 	bool     m_bDynamicsInvert     : 1;
 
-	int      m_samplerBilinearClamp;
-	int      m_samplerBilinearBorderBlack;
-	
 #if defined(FLARES_SUPPORT_EDITING)
 	DynArray<FuncVariableGroup> paramGroups;
 #endif
@@ -148,7 +145,7 @@ public:
 
 	RootOpticsElement* GetRoot();
 
-	string             GetName() const { return m_name; }
+	const char*        GetName() const { return m_name.c_str(); }
 	void               SetName(const char* newName)
 	{
 		m_name = newName;

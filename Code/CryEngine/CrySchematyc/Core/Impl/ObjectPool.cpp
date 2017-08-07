@@ -3,7 +3,7 @@
 #include "StdAfx.h"
 #include "ObjectPool.h"
 
-#include <Schematyc/Runtime/IRuntimeClass.h>
+#include <CrySchematyc/Runtime/IRuntimeClass.h>
 
 #include "Core.h"
 #include "Object.h"
@@ -11,26 +11,33 @@
 
 namespace Schematyc
 {
-IObject* CObjectPool::CreateObject(const SObjectParams& params)
+bool CObjectPool::CreateObject(const Schematyc::SObjectParams& params, IObject*& pObjectOut)
 {
 	CRuntimeClassConstPtr pClass = CCore::GetInstance().GetRuntimeRegistryImpl().GetClassImpl(params.classGUID);
 	if (pClass)
 	{
 		if (m_freeSlots.empty() && !AllocateSlots(m_slots.size() + 1))
 		{
-			return nullptr;
+			return false;
 		}
 
-		SSlot& slot = m_slots[m_freeSlots.back()];
-		CObjectPtr pObject = std::make_shared<CObject>(slot.objectId);
-		if (pObject->Init(pClass, params.pCustomData, params.pProperties, params.simulationMode))
+		const uint32 slodIdx = m_freeSlots.back();
+		m_freeSlots.pop_back();
+		SSlot& slot = m_slots[slodIdx];
+
+		CObjectPtr pObject = std::make_shared<CObject>(*params.pEntity, slot.objectId, params.pCustomData);
+		if (pObject->Init(params.classGUID, params.pProperties))
 		{
-			m_freeSlots.pop_back();
 			slot.pObject = pObject;
-			return pObject.get();
+			pObjectOut = pObject.get();
+			return true;
+		}
+		else
+		{
+			m_freeSlots.push_back(slodIdx);
 		}
 	}
-	return nullptr;
+	return false;
 }
 
 IObject* CObjectPool::GetObject(ObjectId objectId)

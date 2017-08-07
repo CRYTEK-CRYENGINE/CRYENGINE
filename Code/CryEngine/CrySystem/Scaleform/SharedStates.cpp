@@ -188,8 +188,6 @@ void CryGFxTextClipboard::OnTextStore(const wchar_t* szText, UPInt length)
 		// Avoid endless notification loop
 		RemoveClipboardFormatListener(reinterpret_cast<HWND>(gEnv->pSystem->GetHWND()));
 
-		EmptyClipboard();
-
 		static_assert(sizeof(wchar_t) == 2, "sizeof(wchar_t) needs to be 2 to be compatible with Scaleform.");
 		const HGLOBAL clipboardData = GlobalAlloc(GMEM_DDESHARE, sizeof(wchar_t) * (length + 1));
 

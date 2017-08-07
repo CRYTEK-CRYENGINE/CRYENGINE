@@ -129,6 +129,7 @@ public:
 	float                           fDepthTestBias;
 	float                           fDepthConstBias;
 	float                           fDepthSlopeBias;
+	float                           fDepthBiasClamp;
 
 	PodArray<struct IShadowCaster*> castersList;
 	PodArray<struct IShadowCaster*> jobExecutedCastersList;
@@ -195,6 +196,7 @@ public:
 		, fDepthTestBias(0)
 		, fDepthConstBias(0)
 		, fDepthSlopeBias(0)
+		, fDepthBiasClamp(0.001f)
 		, aabbCasters(AABB::RESET)
 		, vLightSrcRelPos(ZERO)
 		, vProjTranslation(-1000.0f, -1000.0f, -1000.0f)

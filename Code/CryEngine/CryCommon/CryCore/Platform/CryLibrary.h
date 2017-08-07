@@ -119,10 +119,7 @@ static HMODULE CryLoadLibrary(const char* libName, bool bLazy = false, bool bInM
 	#define CryGetProcAddress(libHandle, procName) NULL
 	#define CryFreeLibrary(libHandle)
 	#define GetModuleHandle(x)                     0
-
-	#ifdef CRY_PLATFORM_ORBIS
-		#define CryGetCurrentModule() ::dlopen(NULL, RTLD_LAZY)
-	#endif
+	#define CryGetCurrentModule()                  NULL
 
 #endif
 

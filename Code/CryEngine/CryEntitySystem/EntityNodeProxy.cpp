@@ -19,6 +19,11 @@
 
 CRYREGISTER_CLASS(CEntityComponentTrackViewNode);
 
+CEntityComponentTrackViewNode::CEntityComponentTrackViewNode()
+{
+	m_componentFlags.Add(EEntityComponentFlags::NoSave);
+}
+
 void CEntityComponentTrackViewNode::Initialize()
 {
 }

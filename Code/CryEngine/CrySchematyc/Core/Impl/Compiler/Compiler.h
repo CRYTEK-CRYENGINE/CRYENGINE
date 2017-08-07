@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <Schematyc/Compiler/ICompiler.h>
-#include <Schematyc/Utils/GUID.h>
+#include <CrySchematyc/Compiler/ICompiler.h>
+#include <CrySchematyc/Utils/GUID.h>
 
 namespace Schematyc
 {
@@ -29,7 +29,7 @@ class CCompiler : public ICompiler
 {
 private:
 
-	typedef std::unordered_map<SGUID, CRuntimeClassPtr> Classes;
+	typedef std::unordered_map<CryGUID, CRuntimeClassPtr> Classes;
 
 	struct SSignals
 	{
@@ -42,7 +42,7 @@ public:
 
 	// ICompiler
 	virtual void                           CompileAll() override;
-	virtual void                           CompileDependencies(const SGUID& guid) override;
+	virtual void                           CompileDependencies(const CryGUID& guid) override;
 	virtual ClassCompilationSignal::Slots& GetClassCompilationSignalSlots() override;
 	// ~ICompiler
 

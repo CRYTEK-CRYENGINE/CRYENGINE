@@ -96,11 +96,12 @@ add_sources("NoUberFile"
 
 end_sources()
 
-
+# A hack for Nsight Tegra to prevent c files compiling with -std-c++11 flag
+unset (CMAKE_CXX_STANDARD )
 
 ################# sdl_mixer_static ##################
 CryEngineStaticModule(sdl_mixer_static SOLUTION_FOLDER "Libs/Audio")
-target_include_directories(${THIS_PROJECT} PUBLIC ${SDK_DIR}/SDL_mixer)
+target_include_directories(${THIS_PROJECT} PUBLIC "${SDK_DIR}/SDL_mixer")
 target_link_libraries(${THIS_PROJECT} PRIVATE
 	SDL2
 	timidity
@@ -128,7 +129,7 @@ if(WIN32 OR WIN64)
 		-DUSE_NATIVE_MIDI
 	)
 	target_link_libraries(${THIS_PROJECT} PUBLIC Winmm native_midi)
-	target_include_directories(${THIS_PROJECT} PUBLIC ${SDK_DIR}/SDL_mixer/VisualC/external/include)
+	target_include_directories(${THIS_PROJECT} PUBLIC "${SDK_DIR}/SDL_mixer/VisualC/external/include")
 	target_compile_options(${THIS_PROJECT} PRIVATE /W0)
 elseif(LINUX OR ANDROID)
 	target_link_libraries(${THIS_PROJECT} PRIVATE libmodplug_static)
@@ -139,7 +140,7 @@ endif()
 
 ##################### timidity ######################
 CryEngineStaticModule(timidity SOLUTION_FOLDER "Libs/Audio")
-target_include_directories(${THIS_PROJECT} PUBLIC ${SDK_DIR}/SDL_mixer/timidity)
+target_include_directories(${THIS_PROJECT} PUBLIC "${SDK_DIR}/SDL_mixer/timidity")
 target_link_libraries(${THIS_PROJECT} PRIVATE SDL2)
 
 if(WIN32 OR WIN64)
@@ -152,7 +153,7 @@ endif()
 
 #################### native_midi ####################
 CryEngineStaticModule(native_midi SOLUTION_FOLDER "Libs/Audio")
-target_include_directories(${THIS_PROJECT} PUBLIC ${SDK_DIR}/SDL_mixer/native_midi)
+target_include_directories(${THIS_PROJECT} PUBLIC "${SDK_DIR}/SDL_mixer/native_midi")
 target_link_libraries(${THIS_PROJECT} PRIVATE SDL2)
 
 if(WIN32 OR WIN64)

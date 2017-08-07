@@ -4,14 +4,14 @@
 #include "Script/Elements/ScriptSignalReceiver.h"
 
 #include <CrySerialization/Decorators/ActionButton.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvSignal.h>
-#include <Schematyc/Script/IScriptRegistry.h>
-#include <Schematyc/Script/Elements/IScriptSignal.h>
-#include <Schematyc/Script/Elements/IScriptTimer.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
-#include <Schematyc/Utils/StackString.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvSignal.h>
+#include <CrySchematyc/Script/IScriptRegistry.h>
+#include <CrySchematyc/Script/Elements/IScriptSignal.h>
+#include <CrySchematyc/Script/Elements/IScriptTimer.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Utils/StackString.h>
 
 #include "Script/Graph/ScriptGraph.h"
 #include "Script/Graph/ScriptGraphNode.h"
@@ -26,7 +26,7 @@ CScriptSignalReceiver::CScriptSignalReceiver()
 	CreateGraph();
 }
 
-CScriptSignalReceiver::CScriptSignalReceiver(const SGUID& guid, const char* szName, EScriptSignalReceiverType type, const SGUID& signalGUID)
+CScriptSignalReceiver::CScriptSignalReceiver(const CryGUID& guid, const char* szName, EScriptSignalReceiverType type, const CryGUID& signalGUID)
 	: CScriptElementBase(guid, szName, EScriptElementFlags::CanOwnScript)
 	, m_type(type)
 	, m_signalGUID(signalGUID)
@@ -43,8 +43,8 @@ CScriptSignalReceiver::CScriptSignalReceiver(const SGUID& guid, const char* szNa
 
 void CScriptSignalReceiver::EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const
 {
-	SCHEMATYC_CORE_ASSERT(!enumerator.IsEmpty());
-	if (!enumerator.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(enumerator);
+	if (enumerator)
 	{
 		enumerator(m_signalGUID);
 
@@ -105,17 +105,22 @@ void CScriptSignalReceiver::ProcessEvent(const SScriptEvent& event)
 	{
 	case EScriptEventId::EditorAdd:
 		{
+			// TODO: This should happen in editor!
 			if (m_type != EScriptSignalReceiverType::Universal)
 			{
 				IScriptGraph* pGraph = static_cast<IScriptGraph*>(CScriptElementBase::GetExtensions().QueryExtension(EScriptExtensionType::Graph));
 				SCHEMATYC_CORE_ASSERT(pGraph);
 				if (pGraph)
 				{
-					pGraph->AddNode(std::make_shared<CScriptGraphNode>(gEnv->pSchematyc->CreateGUID(), stl::make_unique<CScriptGraphBeginNode>())); // #SchematycTODO : Shouldn't we be using CScriptGraphNodeFactory::CreateNode() instead of instantiating the node directly?!?
+					// TODO : Shouldn't we be using CScriptGraphNodeFactory::CreateNode() instead of instantiating the node directly?!?
+					pGraph->AddNode(std::make_shared<CScriptGraphNode>(gEnv->pSchematyc->CreateGUID(), stl::make_unique<CScriptGraphBeginNode>()));
+					// ~TODO
 				}
 			}
 
 			m_userDocumentation.SetCurrentUserAsAuthor();
+			// ~TODO
+
 			break;
 		}
 	case EScriptEventId::EditorPaste:
@@ -139,7 +144,7 @@ EScriptSignalReceiverType CScriptSignalReceiver::GetSignalReceiverType() const
 	return m_type;
 }
 
-SGUID CScriptSignalReceiver::GetSignalGUID() const
+CryGUID CScriptSignalReceiver::GetSignalGUID() const
 {
 	return m_signalGUID;
 }
@@ -172,16 +177,6 @@ void CScriptSignalReceiver::Save(Serialization::IArchive& archive, const ISerial
 void CScriptSignalReceiver::Edit(Serialization::IArchive& archive, const ISerializationContext& context)
 {
 	archive(m_userDocumentation, "userDocumentation", "Documentation");
-
-	switch (m_type)
-	{
-	case EScriptSignalReceiverType::ScriptSignal:
-	case EScriptSignalReceiverType::ScriptTimer:
-		{
-			archive(Serialization::ActionButton(functor(*this, &CScriptSignalReceiver::GoToSignal)), "goToSignal", "^Go To Signal");
-			break;
-		}
-	}
 
 	if (archive.isValidation())
 	{

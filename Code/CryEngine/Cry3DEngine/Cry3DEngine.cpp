@@ -115,10 +115,14 @@ static CSystemEventListner_3DEngine g_system_event_listener_engine;
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-class CEngineModule_Cry3DEngine : public IEngineModule
+class CEngineModule_Cry3DEngine : public I3DEngineModule
 {
-	CRYINTERFACE_SIMPLE(IEngineModule)
-	CRYGENERATE_SINGLETONCLASS(CEngineModule_Cry3DEngine, "EngineModule_Cry3DEngine", 0x2d38f12a521d43cf, 0xba18fd1fa7ea5020)
+	CRYINTERFACE_BEGIN()
+		CRYINTERFACE_ADD(Cry::IDefaultModule)
+		CRYINTERFACE_ADD(I3DEngineModule)
+	CRYINTERFACE_END()
+
+	CRYGENERATE_SINGLETONCLASS_GUID(CEngineModule_Cry3DEngine, "EngineModule_Cry3DEngine", "2d38f12a-521d-43cf-ba18-fd1fa7ea5020"_cry_guid)
 
 	virtual ~CEngineModule_Cry3DEngine()
 	{
@@ -134,8 +138,6 @@ class CEngineModule_Cry3DEngine : public IEngineModule
 	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override
 	{
 		ISystem* pSystem = env.pSystem;
-
-		ModuleInitISystem(pSystem, "Cry3DEngine");
 
 		pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_engine, "CSystemEventListner_3DEngine");
 

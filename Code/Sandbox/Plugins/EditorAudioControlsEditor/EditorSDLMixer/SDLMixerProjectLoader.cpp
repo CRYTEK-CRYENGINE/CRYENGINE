@@ -16,7 +16,6 @@ using namespace PathUtil;
 
 namespace ACE
 {
-
 CSdlMixerProjectLoader::CSdlMixerProjectLoader(const string& assetsPath, IAudioSystemItem& rootItem)
 	: m_assetsPath(assetsPath)
 {
@@ -53,8 +52,8 @@ void CSdlMixerProjectLoader::LoadFolder(const string& folderPath, IAudioSystemIt
 					if (posExtension != string::npos)
 					{
 						if (stricmp(name.data() + posExtension, ".mp3") == 0
-							|| stricmp(name.data() + posExtension, ".ogg") == 0
-							|| stricmp(name.data() + posExtension, ".wav") == 0)
+						    || stricmp(name.data() + posExtension, ".ogg") == 0
+						    || stricmp(name.data() + posExtension, ".wav") == 0)
 						{
 							// Create the event with the same name as the file
 							CreateItem(name, folderPath, eSdlMixerTypes_Event, parent);
@@ -83,5 +82,4 @@ IAudioSystemItem* CSdlMixerProjectLoader::CreateItem(const string& name, const s
 	rootItem.AddChild(pControl);
 	return pControl;
 }
-
-}
+} // namespace ACE

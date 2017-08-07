@@ -26,12 +26,12 @@ public:
 	DXGL_IMPLEMENT_INTERFACE(CCryDXGLBuffer, D3D11Buffer)
 
 	CCryDXGLBuffer(const D3D11_BUFFER_DESC& kDesc, NCryOpenGL::SBuffer* pGLBuffer, CCryDXGLDevice* pDevice);
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	CCryDXGLBuffer(const D3D11_BUFFER_DESC& kDesc, NCryOpenGL::SInitialDataCopy* pInitialDataCopy, CCryDXGLDevice* pDevice);
 #endif
 	virtual ~CCryDXGLBuffer();
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	virtual void Initialize();
 #endif
 

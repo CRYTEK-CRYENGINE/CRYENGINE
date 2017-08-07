@@ -570,7 +570,7 @@ float CMatchMakingHandler::LegacyC2MatchMakingScore( SCrySessionSearchResult* se
 	{										
 		float diff = (float) abs(skillRank - sessionSkillRank);
 		float fracDiff = diff / (float) skillRank;
-		skillSubMetric = 1.f - MIN(fracDiff, 1.f);
+		skillSubMetric = 1.f - std::min(fracDiff, 1.f);
 		skillSubMetric = (skillSubMetric * skillSubMetric);
 	}
 
@@ -673,21 +673,21 @@ void CMatchMakingHandler::NewSessionParameter( ELOBBYIDS paramID, ScriptAnyValue
 	{
 		m_sessionParams[ m_nSessionParams ].m_id = paramID;
 
-		switch( valueVal.type )
+		switch (valueVal.GetType())
 		{
-		case ANY_TNUMBER:
+		case EScriptAnyType::Number:
 			m_sessionParams[ m_nSessionParams ].m_type = eCLUDT_Int32;
-			m_sessionParams[ m_nSessionParams ].m_int32 = (int32)valueVal.number;
+			m_sessionParams[ m_nSessionParams ].m_int32 = static_cast<int32>(valueVal.GetNumber());
 			break;
 
-		case ANY_TBOOLEAN:
+		case EScriptAnyType::Boolean:
 			m_sessionParams[ m_nSessionParams ].m_type = eCLUDT_Int32;
-			m_sessionParams[ m_nSessionParams ].m_int32 = (int32)valueVal.b;
+			m_sessionParams[ m_nSessionParams ].m_int32 = valueVal.GetBool() ? 1 : 0;
 			break;
 
-		case ANY_THANDLE:
+		case EScriptAnyType::Handle:
 			m_sessionParams[ m_nSessionParams ].m_type = eCLUDT_Int32;
-			m_sessionParams[ m_nSessionParams ].m_int32 = (int32)(TRUNCATE_PTR)valueVal.ptr;
+			m_sessionParams[ m_nSessionParams ].m_int32 = static_cast<int32>(valueVal.GetScriptHandle().n);
 			break;
 
 		default:

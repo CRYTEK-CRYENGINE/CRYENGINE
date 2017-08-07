@@ -10,8 +10,6 @@ class CFlowEntityClass : public IFlowNodeFactory
 public:
 	CFlowEntityClass(IEntityClass* pEntityClass);
 	~CFlowEntityClass();
-	virtual void         AddRef()  { m_nRefCount++; }
-	virtual void         Release() { if (0 == --m_nRefCount) delete this; }
 	virtual IFlowNodePtr Create(IFlowNode::SActivationInfo*);
 
 	virtual void         GetMemoryUsage(ICrySizer* s) const
@@ -21,6 +19,9 @@ public:
 		s->AddObject(m_inputs);
 		s->AddObject(m_outputs);
 	}
+
+	// Allow overriding since this is the default flow class
+	virtual bool        AllowOverride() const { return true; }
 
 	void        GetConfiguration(SFlowNodeConfig&);
 
@@ -35,7 +36,6 @@ private:
 	void GetInputsOutputs(IEntityClass* pEntityClass);
 	friend class CFlowEntityNode;
 
-	int                            m_nRefCount;
 	//string m_classname;
 	IEntityClass*                  m_pEntityClass;
 	std::vector<SInputPortConfig>  m_inputs;
@@ -75,18 +75,12 @@ public:
 		}
 	}
 
-	// Return entity of this node.
-	ILINE IEntity* GetEntity() const
-	{
-		return gEnv->pEntitySystem->GetEntity(m_entityId);
-	}
-
 	// Return entityId of this node
 	EntityId GetEntityId(SActivationInfo* pActInfo) const
 	{
 		assert(pActInfo);
 
-		EntityId entityId = 0;
+		EntityId entityId = m_entityId;
 
 		if (pActInfo->pEntity)
 		{
@@ -94,6 +88,17 @@ public:
 		}
 
 		return entityId;
+	}
+
+	inline IEntity* GetEntity(SActivationInfo* pActInfo)
+	{
+		if (pActInfo->pEntity)
+			return pActInfo->pEntity;
+		if (m_entityId != INVALID_ENTITYID)
+		{
+			return gEnv->pEntitySystem->GetEntity(m_entityId);
+		}
+		return nullptr;
 	}
 
 	void RegisterEvent(EEntityEvent event)

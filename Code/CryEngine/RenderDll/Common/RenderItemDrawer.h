@@ -48,7 +48,7 @@ public:
 			if (pCommandLists.size())
 			{
 				gEnv->pJobManager->WaitForJob(jobState);
-				CCryDeviceWrapper::GetObjectFactory().ForfeitCommandLists(std::move(pCommandLists));
+				GetDeviceObjectFactory().ForfeitCommandLists(std::move(pCommandLists));
 			}
 		}
 
@@ -56,7 +56,7 @@ public:
 		{
 			WaitForJobs();
 
-			pCommandLists = CCryDeviceWrapper::GetObjectFactory().AcquireCommandLists(numTasks);
+			pCommandLists = GetDeviceObjectFactory().AcquireCommandLists(numTasks);
 		}
 
 		std::vector<SGraphicsPipelinePassContext> rendList;

@@ -12,7 +12,17 @@
 #include <CryCore/Containers/CryArray.h>
 #include <CryCore/BitMask.h>
 #include <CryNetwork/ISerialize.h>
+#include <CryNetwork/INetEntity.h>
 
+#include <CrySchematyc/Reflection/TypeDesc.h>
+#include <CrySchematyc/Utils/EnumFlags.h>
+
+#include <CryMath/Rotation.h>
+#include <CryMath/Transform.h>
+
+#include <CryEntitySystem/IEntityBasicTypes.h>
+
+// Forward declarations
 struct SEntitySpawnParams;
 struct SEntityEvent;
 struct SEntityUpdateContext;
@@ -29,8 +39,18 @@ struct IMaterial;
 struct IScriptTable;
 struct AABB;
 struct IRenderNode;
+struct IEntity;
+struct INetworkSpawnParams;
+struct IEntityScript;
+struct SEntityPreviewContext;
 
-typedef uint64 EntityGUID;  //!< Same as in IEntity.h.
+namespace Schematyc
+{
+	class CObject;
+}
+
+// Forward declaration of Sandbox's entity object, should be removed when IEntityComponent::Run is gone
+class CEntityObject;
 
 //! Derive from this interface to expose custom entity properties in the editor using the serialization framework.
 //! Each entity component can contain one property group, each component will be separated by label in the entity property view
@@ -70,25 +90,245 @@ enum EEntityProxy
 #define CRY_ENTITY_COMPONENT_INTERFACE(iname, iidHigh, iidLow) CRYINTERFACE_DECLARE(iname, iidHigh, iidLow)
 
 #define CRY_ENTITY_COMPONENT_CLASS(implclassname, interfaceName, cname, iidHigh, iidLow) \
-  CRYGENERATE_CLASS_FROM_INTERFACE(implclassname, interfaceName, cname, iidHigh, iidLow)
+  CRYINTERFACE_BEGIN()                                                                   \
+  CRYINTERFACE_ADD(IEntityComponent)                                                     \
+  CRYINTERFACE_ADD(interfaceName)                                                        \
+  CRYINTERFACE_END()                                                                     \
+  CRYGENERATE_CLASS(implclassname, cname, iidHigh, iidLow)
 
 #define CRY_ENTITY_COMPONENT_INTERFACE_AND_CLASS(implclassname, cname, iidHigh, iidLow) \
   CRY_ENTITY_COMPONENT_INTERFACE(implclassname, iidHigh, iidLow)                        \
-  CRYGENERATE_CLASS_FROM_INTERFACE(implclassname, implclassname, cname, iidHigh, iidLow)
+  CRY_ENTITY_COMPONENT_CLASS(implclassname, implclassname, cname, iidHigh, iidLow)
 
-//! Base interface for all entity components.
-struct IEntityComponent : public ICryUnknown
+#include <CrySchematyc/Component.h>
+
+enum class EEntityComponentFlags : uint32
+{
+	None              = 0,
+	Singleton         = BIT(0),  //!< Allow only of one instance of this component per class/object.
+	Legacy            = BIT(1),  //!< Legacy component, only for backward computability should not be accessible for creation in the UI. (Will also enable saving with LegacySerializeXML)
+	Transform         = BIT(2),  //!< Component has transform.
+	Socket            = BIT(3),  //!< Other components can be attached to socket of this component.
+	Attach            = BIT(4),  //!< This component can be attached to socket of other components.
+	Schematyc         = BIT(5),  //!< Component was created and owned by the Schematyc.
+	SchematycEditable = BIT(6),  //!< Schematyc components where properties of it can be edited per each Entity instance.
+	SchematycModified = BIT(7),  //!< Only in combination with the SchematycEditable component to indicate that some parameters where modified from Schematyc defaults by the user.
+	UserAdded         = BIT(8),  //!< This component was added in the Editor by the user
+	NoSave            = BIT(9),  //!< Not save this component under entity components list when saving/loading
+	NetNotReplicate   = BIT(10),  //!< This component should be not be network replicated.
+	HideFromInspector = BIT(11) //!< This component can not be added from the Inspector, instead requiring use in Schematyc or C++.
+};
+typedef CEnumFlags<EEntityComponentFlags> EntityComponentFlags;
+
+//////////////////////////////////////////////////////////////////////////
+//!
+//! Structure that describes how one entity component
+//! interacts with another entity component.
+//!
+//////////////////////////////////////////////////////////////////////////
+struct SEntityComponentRequirements
+{
+	enum class EType : uint32
+	{
+		Incompatibility,  //!< These components are incompatible and cannot be used together
+		SoftDependency,   //!< Dependency must be initialized before component.
+		HardDependency    //!< Dependency must exist and be initialized before component.
+	};
+
+	inline SEntityComponentRequirements(EType _type, const CryGUID& _guid)
+		: type(_type)
+		, guid(_guid)
+	{}
+
+	EType   type;
+	CryGUID guid;
+};
+
+//////////////////////////////////////////////////////////////////////////
+//!
+//! Interface used by the editor to Preview Render of the entity component
+//!
+//////////////////////////////////////////////////////////////////////////
+struct IEntityComponentPreviewer
+{
+	virtual ~IEntityComponentPreviewer() {}
+
+	//! Override this method to Edit UI properties for previewer of the component
+	virtual void SerializeProperties(Serialization::IArchive& archive) = 0;
+
+	//! Override this method to Render a preview of the Entity Component
+	//! This method is not used when entity is normally rendered
+	//! But only used for previewing the entity in the Sandbox Editor
+	virtual void Render(const IEntity& entity, const IEntityComponent& component, SEntityPreviewContext& context) const = 0;
+};
+
+//////////////////////////////////////////////////////////////////////////
+//!
+//! A class that describe and reflect members of the entity component
+//! Properties of the component are reflected using run-time class
+//! reflection system, and stored in here.
+//!
+//////////////////////////////////////////////////////////////////////////
+class CEntityComponentClassDesc : public Schematyc::CClassDesc
 {
 public:
-	typedef int ComponentEventPriority;
+	inline void SetComponentFlags(const EntityComponentFlags& flags)
+	{
+		m_flags = flags;
+	}
+
+	EntityComponentFlags GetComponentFlags() const
+	{
+		return m_flags;
+	}
+
+	inline void AddComponentInteraction(SEntityComponentRequirements::EType type, const CryGUID& guid)
+	{
+		m_interactions.emplace_back(type, guid);
+	}
+
+	inline bool IsCompatibleWith(const CryGUID& guid) const
+	{
+		for (const SEntityComponentRequirements& dependency : m_interactions)
+		{
+			if (dependency.type == SEntityComponentRequirements::EType::Incompatibility && dependency.guid == guid)
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	inline bool DependsOn(const CryGUID& guid) const
+	{
+		for (const SEntityComponentRequirements& dependency : m_interactions)
+		{
+			if ((dependency.type == SEntityComponentRequirements::EType::SoftDependency || dependency.type == SEntityComponentRequirements::EType::HardDependency)
+				&& dependency.guid == guid)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	const DynArray<SEntityComponentRequirements>& GetComponentInteractions() const { return m_interactions; }
+
+private:
+	EntityComponentFlags                  m_flags;
+	DynArray<SEntityComponentRequirements> m_interactions;
+};
+
+namespace Schematyc
+{
+struct SObjectSignal;
+//////////////////////////////////////////////////////////////////////////
+// All classes derived from IEntityComponent will be using
+// CEntityComponentClassDesc
+//////////////////////////////////////////////////////////////////////////
+namespace Helpers
+{
+template<typename TYPE> struct SIsCustomClass<TYPE, typename std::enable_if<std::is_convertible<TYPE, IEntityComponent>::value>::type>
+{
+	static const bool value = true;
+};
+}
+template<typename TYPE>
+class CTypeDesc<TYPE, typename std::enable_if<std::is_convertible<TYPE, IEntityComponent>::value>::type>
+	: public CClassDescInterface<TYPE, CEntityComponentClassDesc>
+{
+};
+
+} // Schematyc
+
+//////////////////////////////////////////////////////////////////////////
+//!
+//! Base interface for all entity components.
+//! Every entity component must derive from this interface and override
+//! public virtual methods.
+//!
+//////////////////////////////////////////////////////////////////////////
+struct IEntityComponent : public ICryUnknown
+{
+	// Helper to serialize both legacy and Schematyc properties of an entity
+	struct SPropertySerializer
+	{
+		void Serialize(Serialization::IArchive& archive)
+		{
+			// Start with the legacy properties
+			if (IEntityPropertyGroup* pPropertyGroup = pComponent->GetPropertyGroup())
+			{
+				struct SSerializeWrapper
+				{
+					void Serialize(Serialization::IArchive& archive)
+					{
+						pGroup->SerializeProperties(archive);
+					}
+
+					IEntityPropertyGroup* pGroup;
+				};
+
+				archive(SSerializeWrapper{ pPropertyGroup }, "legacy", "legacy");
+			}
+
+			// Serialize Schematyc properties
+			Schematyc::Utils::SerializeClass(archive, pComponent->GetClassDesc(), pComponent, "schematyc", "schematyc");
+		}
+
+		IEntityComponent* pComponent;
+	};
+
+public:
+	CRY_ENTITY_COMPONENT_INTERFACE(IEntityComponent, 0x6A6FFE9AA3D44CD6, 0x9EF1FC42EE649776)
+
+	typedef int                   ComponentEventPriority;
+
+	typedef EEntityComponentFlags EFlags;
+	typedef EntityComponentFlags  ComponentFlags;
+
+	static constexpr int EmptySlotId = -1;
+
+	//! SInitParams is only used from Schematyc to call PreInit to initialize Schematyc Entity Component
+	struct SInitParams
+	{
+		inline SInitParams(
+		  IEntity* pEntity_,
+		  const CryGUID& guid_,
+		  const string& name_,
+		  const CEntityComponentClassDesc* classDesc_,
+		  EntityComponentFlags flags_,
+		  IEntityComponent* pParent_,
+		  const CryTransform::CTransformPtr& transform_
+		  )
+			: pEntity(pEntity_)
+			, guid(guid_)
+			, name(name_)
+			, classDesc(classDesc_)
+			, flags(flags_)
+			, pParent(pParent_)
+			, transform(transform_)
+		{}
+
+		IEntity*                           pEntity;
+		const CryGUID                      guid;
+		const string&                      name;
+		const CEntityComponentClassDesc*   classDesc;
+		const CryTransform::CTransformPtr& transform;
+		IEntityComponent*                  pParent = nullptr;
+		INetworkSpawnParams*               pNetworkSpawnParams = nullptr;
+		EntityComponentFlags               flags;
+		bool                               bNotInitialize = false;
+	};
 
 public:
 	//~ICryUnknown
-	virtual ICryFactory* GetFactory() const { return 0; };
+	virtual ICryFactory* GetFactory() const { return nullptr; };
 
 protected:
-	virtual void* QueryInterface(const CryInterfaceID& iid) const { return 0; };
-	virtual void* QueryComposite(const char* name) const          { return 0; };
+	virtual void* QueryInterface(const CryInterfaceID& iid) const { return nullptr; };
+	virtual void* QueryComposite(const char* name) const          { return nullptr; };
 	//~ICryUnknown
 
 public:
@@ -97,10 +337,24 @@ public:
 	ILINE EntityId GetEntityId() const;
 
 public:
-	IEntityComponent() : m_pEntity(nullptr) {}
+	IEntityComponent() {}
 	virtual ~IEntityComponent() {}
 
-	virtual EEntityProxy GetProxyType() const { return ENTITY_PROXY_LAST; };
+	//! Return ClassDesc for this component
+	//! Class description is storing runtime C++ class reflection information
+	//! It contain information about member variables of the component and how to serialize them,
+	//! information how to create an instance of class and all relevant additional information to handle this class.
+	const CEntityComponentClassDesc& GetClassDesc() const;
+
+	//////////////////////////////////////////////////////////////////////////
+	// BEGIN IEntityComponent virtual interface
+	// Derived classes mostly interested in overriding these virtual methods
+	//////////////////////////////////////////////////////////////////////////
+
+protected:
+	//! Only called by system classes to initalize component.
+	//! Users must not call this method directly
+	virtual void PreInit(const SInitParams& params);
 
 	//! Called at the very first initialization of the component, at component creation time.
 	virtual void Initialize() {}
@@ -108,41 +362,250 @@ public:
 	//! Called on all Entity components right before all of the Entity Components are destructed.
 	virtual void OnShutDown() {};
 
-	// By overriding this function component will be able to handle events sent from the host Entity.
-	// Requires returning the desired event flag in GetEventMask.
-	// \param event Event structure, contains event id and parameters.
+	//! Called when the transformation of the component is changed
+	virtual void OnTransformChanged() {}
+
+	//! By overriding this function component will be able to handle events sent from the host Entity.
+	//! Requires returning the desired event flag in GetEventMask.
+	//! \param event Event structure, contains event id and parameters.
 	virtual void ProcessEvent(SEntityEvent& event) {}
 
-	//! Return bit mask of the EEntityEvent flags that we want to receive in ProcessEvent (ex: BIT64(ENTITY_EVENT_HIDE)|BIT64(ENTITY_EVENT_UNHIDE))
+	//////////////////////////////////////////////////////////////////////////
+	// REMOVE LATER!!! From Schematyc old components
+	virtual void Run(Schematyc::ESimulationMode simulationMode) {}
+	//////////////////////////////////////////////////////////////////////////
+
+public:
+	//! Return bit mask of the EEntityEvent flags that we want to receive in ProcessEvent
+	//! (ex: BIT64(ENTITY_EVENT_HIDE)|BIT64(ENTITY_EVENT_UNHIDE))
+	//! Only events matching the returned bit mask will be sent to the ProcessEvent method
 	virtual uint64                 GetEventMask() const                      { return 0; }
 
 	ComponentEventPriority         GetEventPriority() const                  { return (ComponentEventPriority)GetProxyType(); }
 	virtual ComponentEventPriority GetEventPriority(const int eventID) const { return (ComponentEventPriority)GetProxyType(); }
 
-	//! Optionally serialize component to/from XML.
-	//! For user-facing properties, see GetProperties.
-	virtual void                         LegacySerializeXML(XmlNodeRef& entityNode, XmlNodeRef& componentNode, bool bLoading) {}
+	//! \brief Network serialization. Override to provide a mask of active network aspects
+	//! used by this component. Called once during binding to network.
+	virtual NetworkAspectType GetNetSerializeAspectMask() const { return 0; }
 
-	virtual struct IEntityPropertyGroup* GetPropertyGroup()                                                                   { return nullptr; }
+	//! \brief Network serialization. Will be called for each active aspect for both reading and writing.
+	//! @param[in,out] ser Serializer for reading/writing values.
+	//! @param[in] aspect The number of the aspect being serialized.
+	//! @param[in] profile Can be ignored, used by CryPhysics only.
+	//! @param[in] flags Can be ignored, used by CryPhysics only.
+	//! \see ISerialize::Value()
+	virtual bool NetSerialize(TSerialize ser, EEntityAspects aspect, uint8 profile, int flags) { return true; };
+
+	//! \brief Call this to trigger aspect synchronization over the network. A shortcut.
+	//! \see INetEntity::MarkAspectsDirty()
+	virtual void NetMarkAspectsDirty(const NetworkAspectType aspects); // The definition is in IEntity.h
+
+	//! \brief Override this to return preview render interface for the component.
+	//! Multiple component instances can usually share the same previewer class instance.
+	//! \see IEntityComponentPreviewer
+	virtual IEntityComponentPreviewer* GetPreviewer() { return nullptr; }
+
+	//////////////////////////////////////////////////////////////////////////
+	//! END IEntityComponent virtual interface
+	//////////////////////////////////////////////////////////////////////////
+
+public:
+	//! Set flags for this component
+	void SetComponentFlags(ComponentFlags flags) { m_componentFlags = flags; };
+
+	//! Return flags for this component
+	const ComponentFlags& GetComponentFlags() const { return m_componentFlags; };
+	ComponentFlags&       GetComponentFlags()       { return m_componentFlags; };
+
+	//! Return GUID of this component.
+	//! This GUID is only guaranteed to be unique within the host entity, different entities can have components with equal GUIDs.
+	//! Each component in the entity have type guid (GetClassDesc().GetGUID()) (ex: identify EntityLightComponent class)
+	//! and a unique instance guid IEntityComponent::GetGUID() (ex: identify Light01,Light02,etc.. component)
+	const CryGUID& GetGUID() const { return m_guid; }
+
+	//! Return Parent component, only used by Schematyc components
+	//! Initialized by the PreInit call
+	IEntityComponent* GetParent() const { return m_pParent; };
+
+	//! Return Transformation of the entity component relative to the owning entity or parent component
+	const CryTransform::CTransformPtr& GetTransform() const;
+	void SetTransformMatrix(const Matrix34& transform);
+
+	//! Return Transformation of the entity component relative to the world
+	Matrix34 GetWorldTransformMatrix() const;
+
+	//! Return Calculated Transformation Matrix for current component transform
+	Matrix34 GetTransformMatrix() const;
+
+	//! Get name of this individual component, usually only Schematyc components will have names
+	const char* GetName() const { return m_name.c_str(); };
+
+	//! Set a new name for this component
+	//! Names of the components must not be unique
+	void SetName(const char* szName) { m_name = szName; };
+
+	//////////////////////////////////////////////////////////////////////////
+	// HELPER METHODS FOR WORKING WITH ENTITY SLOTS
+	//////////////////////////////////////////////////////////////////////////
+
+	//! Return optional EntitySlot id used by this Component
+	int GetEntitySlotId() const;
+
+	//! Return optional EntitySlot id used by this Component
+	//! If slot id is not allocated, new slotid will be allocated and returned
+	int GetOrMakeEntitySlotId();
+
+	//! Stores Entity slot id used by this component.
+	void SetEntitySlotId(int slotId);
+
+	//! Frees entity slot used by this component
+	void FreeEntitySlot();
+	//////////////////////////////////////////////////////////////////////////
+
+	//! Return Current simulation mode of the host Entity
+	EEntitySimulationMode GetEntitySimulationMode() const;
+
+	//! Send event to this specific component, first checking if the component is interested in the event
+	//! \param event description
+	//! \param receiving component 
+	inline void SendEvent(SEntityEvent& event)
+	{
+		if ((GetEventMask() & BIT64(event.event)) != 0)
+		{
+			ProcessEvent(event);
+		}
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+	// SCHEMATYC SIGNALS HELPERS
+	//////////////////////////////////////////////////////////////////////////
+	//void ProcessSignal( const Schematyc::SObjectSignal &signal );
+
+public:
+	//////////////////////////////////////////////////////////////////////////
+	// BEGIN Deprecated Methods
+	//////////////////////////////////////////////////////////////////////////
+	virtual void GetMemoryUsage(ICrySizer* pSizer) const {};
 
 	//! SaveGame serialization. Override to specify what to serialize in a saved game.
 	//! \param ser Serializing stream. Use IsReading() to decide read/write phase. Use Value() to read/write a property.
 	virtual void GameSerialize(TSerialize ser) {}
-
 	//! SaveGame serialization. Override to enable serialization for the component.
 	//! \return true If component needs to be serialized to/from a saved game.
-	virtual bool NeedGameSerialize()                     { return false; };
+	virtual bool NeedGameSerialize() { return false; };
 
-	virtual void GetMemoryUsage(ICrySizer* pSizer) const {};
+	//! Optionally serialize component to/from XML.
+	//! For user-facing properties, see GetProperties.
+	virtual void LegacySerializeXML(XmlNodeRef& entityNode, XmlNodeRef& componentNode, bool bLoading) {}
+
+	//! Only for backward compatibility to Release 5.3.0 for loading
+	virtual struct IEntityPropertyGroup* GetPropertyGroup() { return nullptr; }
+
+	//! Legacy, used for old entity proxies
+	virtual EEntityProxy GetProxyType() const { return ENTITY_PROXY_LAST; };
+	//////////////////////////////////////////////////////////////////////////
+	// ~END Deprecated Methods
+	//////////////////////////////////////////////////////////////////////////
 
 protected:
 	friend class CEntity;
+	// Needs access to Initialize and Run, remove when these depenencies are gone
+	friend class Schematyc::CObject;
+	// Needs access to OnShutDown to maintain legacy game object extension shutdown behavior
+	friend class CGameObject;
+	// Needs access to Run, remove when the function is gone
+	friend class CEntityObject;
 
 	// Host Entity pointer
-	IEntity* m_pEntity;
+	IEntity*       m_pEntity = nullptr;
+
+	ComponentFlags m_componentFlags;
+
+	//! Unique GUID of the instance of this component
+	CryGUID m_guid;
+
+	//! name of this component
+	string m_name;
+
+	//! Optional transformation setting for the component within the Entity object
+	CryTransform::CTransformPtr m_pTransform;
+
+	//! Optional pointer to our parent component
+	IEntityComponent* m_pParent = nullptr;
+
+	//! Reflected type description for this component
+	//! Contain description of the reflected member variables
+	const CEntityComponentClassDesc* m_pClassDesc = nullptr;
+
+	//! Optional Entity SlotId for storing component data like geometry of character
+	int m_entitySlotId = EmptySlotId;
 };
 
-struct IEntityScript;
+//////////////////////////////////////////////////////////////////////////
+inline void IEntityComponent::PreInit(const IEntityComponent::SInitParams& params)
+{
+	m_guid = params.guid;
+	m_name = params.name;
+	m_pClassDesc = params.classDesc;
+	if (m_pClassDesc)
+	{
+		m_componentFlags.Add(m_pClassDesc->GetComponentFlags());
+	}
+	m_componentFlags.Add(params.flags);
+	m_pTransform = params.transform;
+	//m_pPreviewer = params.pPreviewer;
+	m_pParent = params.pParent;
+}
+
+//////////////////////////////////////////////////////////////////////////
+inline const CryTransform::CTransformPtr& IEntityComponent::GetTransform() const
+{
+	return m_pTransform;
+	/*
+	   if (m_componentFlags.Check(EEntityComponentFlags::Transform) && m_pTransform)
+	    return *m_pTransform;
+
+	   static CryTransform::CTransform temp;
+	   return temp;
+	 */
+}
+
+//////////////////////////////////////////////////////////////////////////
+inline Matrix34 IEntityComponent::GetTransformMatrix() const
+{
+	if (m_componentFlags.Check(EEntityComponentFlags::Transform) && m_pTransform)
+	{
+		return m_pTransform->ToMatrix34();
+	}
+	return IDENTITY;
+}
+
+//////////////////////////////////////////////////////////////////////////
+inline const CEntityComponentClassDesc& IEntityComponent::GetClassDesc() const
+{
+	if (!m_pClassDesc)
+	{
+		static CEntityComponentClassDesc nullClassDesc;
+		return nullClassDesc;
+	}
+	return *m_pClassDesc;
+}
+
+//////////////////////////////////////////////////////////////////////////
+inline int IEntityComponent::GetEntitySlotId() const
+{
+	return m_entitySlotId;
+}
+
+//////////////////////////////////////////////////////////////////////////
+inline void IEntityComponent::SetEntitySlotId(int slotId)
+{
+	m_entitySlotId = slotId;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Interfaces for the most often used default entity components
+//////////////////////////////////////////////////////////////////////////
 
 //! Lua Script component interface.
 struct IEntityScriptComponent : public IEntityComponent
@@ -194,7 +657,11 @@ struct IEntityScriptComponent : public IEntityComponent
 	//! Sets physics parameters from an existing script table
 	//! \param type - one of PHYSICPARAM_... values
 	//! \param params script table containing the values to set
-	virtual void SetPhysParams(int type, IScriptTable *params) = 0;
+	virtual void SetPhysParams(int type, IScriptTable* params) = 0;
+
+	//! Determines whether or not the script should receive update callbacks
+	//! Replaces IEntity::Activate for legacy projects
+	virtual void EnableScriptUpdate(bool bEnable) = 0;
 };
 
 //! Proximity trigger component interface.
@@ -245,8 +712,9 @@ struct IEntityAudioComponent : public IEntityComponent
 	virtual void                    SetEnvironmentAmount(CryAudio::EnvironmentId const audioEnvironmentId, float const amount, CryAudio::AuxObjectId const audioAuxObjectId = CryAudio::DefaultAuxObjectId) = 0;
 	virtual void                    SetCurrentEnvironments(CryAudio::AuxObjectId const audioAuxObjectId = CryAudio::DefaultAuxObjectId) = 0;
 	virtual void                    AudioAuxObjectsMoveWithEntity(bool const bCanMoveWithEntity) = 0;
-	virtual void                    AddAsListenerToAudioAuxObject(CryAudio::AuxObjectId const audioAuxObjectId, void (* func)(CryAudio::SRequestInfo const* const), CryAudio::EnumFlagsType const eventMask) = 0;
+	virtual void                    AddAsListenerToAudioAuxObject(CryAudio::AuxObjectId const audioAuxObjectId, void (* func)(CryAudio::SRequestInfo const* const), CryAudio::ESystemEvents const eventMask) = 0;
 	virtual void                    RemoveAsListenerFromAudioAuxObject(CryAudio::AuxObjectId const audioAuxObjectId, void (* func)(CryAudio::SRequestInfo const* const)) = 0;
+	virtual CryAudio::AuxObjectId   GetAuxObjectIdFromAudioObject(CryAudio::IObject* pObject) = 0;
 };
 
 //! Flags the can be set on each of the entity object slots.
@@ -485,8 +953,8 @@ struct IEntityDynamicResponseComponent : public IEntityComponent
 {
 	CRY_ENTITY_COMPONENT_INTERFACE(IEntityDynamicResponseComponent, 0x6799464783DD41B8, 0xA098E26B4B2C95FD)
 
-	virtual void ReInit(const char* szName, const char* szGlobalVariableCollectionToUse) = 0;
-	virtual DRS::IResponseActor* GetResponseActor() const = 0;
+	virtual void                      ReInit(const char* szName, const char* szGlobalVariableCollectionToUse) = 0;
+	virtual DRS::IResponseActor*      GetResponseActor() const = 0;
 	virtual DRS::IVariableCollection* GetLocalVariableCollection() const = 0;
 };
 

@@ -15,6 +15,7 @@ ILINE T* CParticleComponentRuntime::GetSubInstanceData(size_t instanceId, TInsta
 {
 	const SComponentParams& params = GetComponentParams();
 	CRY_PFX2_ASSERT(offset < params.m_instanceDataStride);            // very likely to be an invalid offset
+	CRY_PFX2_ASSERT(instanceId < m_subInstances.size());
 	byte* pBytes = m_subInstanceData.data();
 	pBytes += params.m_instanceDataStride * instanceId + offset;
 	return reinterpret_cast<T*>(pBytes);

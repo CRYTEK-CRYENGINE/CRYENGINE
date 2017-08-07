@@ -2,15 +2,18 @@
 
 #pragma once
 
-#include "ATLEntities.h"
 #include <CryAudio/IAudioInterfacesCommonData.h>
+
+#if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
+struct IRenderAuxGeom;
+#endif //INCLUDE_AUDIO_PRODUCTION_CODE
 
 namespace CryAudio
 {
 namespace Impl
 {
-struct IAudioImpl;
-struct IAudioTrigger;
+struct IImpl;
+struct ITrigger;
 } // namespace Impl
 
 class CAudioStandaloneFileManager final
@@ -25,23 +28,22 @@ public:
 	CAudioStandaloneFileManager& operator=(CAudioStandaloneFileManager const&) = delete;
 	CAudioStandaloneFileManager& operator=(CAudioStandaloneFileManager&&) = delete;
 
-	void                         Init(Impl::IAudioImpl* const pImpl);
+	void                         Init(Impl::IImpl* const pImpl);
 	void                         Release();
 
-	CATLStandaloneFile*          ConstructStandaloneFile(char const* const szFile, bool const bLocalized, Impl::IAudioTrigger const* const pTriggerImpl = nullptr);
+	CATLStandaloneFile*          ConstructStandaloneFile(char const* const szFile, bool const bLocalized, Impl::ITrigger const* const pITrigger = nullptr);
 	void                         ReleaseStandaloneFile(CATLStandaloneFile* const pStandaloneFile);
 
 private:
 
 	std::list<CATLStandaloneFile*> m_constructedStandaloneFiles;
-
-	Impl::IAudioImpl*    m_pImpl = nullptr;
+	Impl::IImpl*                   m_pIImpl = nullptr;
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 public:
 
-	void DrawDebugInfo(IRenderAuxGeom& auxGeom, float posX, float posY) const;
+	void DrawDebugInfo(IRenderAuxGeom& auxGeom, Vec3 const& listenerPosition, float posX, float posY) const;
 
-#endif //INCLUDE_AUDIO_PRODUCTION_CODE
+#endif // INCLUDE_AUDIO_PRODUCTION_CODE
 };
 } // namespace CryAudio

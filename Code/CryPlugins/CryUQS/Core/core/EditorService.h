@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -18,11 +18,11 @@ namespace uqs
 		class CEditorService : public IEditorService
 		{
 		public:
-			virtual bool      LoadTextualQueryBlueprint(const char* queryBlueprintName, editor::IEditorServiceConsumer& callback, shared::IUqsString& error) const override;
-			virtual bool      SaveTextualQueryBlueprint(const char* queryBlueprintName, editor::IEditorServiceConsumer& callback, shared::IUqsString& error) const override;
-			virtual bool      CreateNewTextualQueryBlueprint(const char* queryBlueprintName, editor::IEditorServiceConsumer& callback, shared::IUqsString& error) const override;
-			virtual bool      RemoveQueryBlueprint(const char* queryBlueprintName, shared::IUqsString& error) const override;
-			virtual bool      ValidateTextualQueryBlueprint(editor::IEditorServiceConsumer& callback) const override;
+			virtual bool      LoadTextualQueryBlueprint(const char* szQueryBlueprintName, Editor::IEditorServiceConsumer& callback, Shared::IUqsString& error) const override;
+			virtual bool      SaveTextualQueryBlueprint(const char* szQueryBlueprintName, Editor::IEditorServiceConsumer& callback, Shared::IUqsString& error) const override;
+			virtual bool      CreateNewTextualQueryBlueprint(const char* szQueryBlueprintName, Editor::IEditorServiceConsumer& callback, Shared::IUqsString& error) const override;
+			virtual bool      RemoveQueryBlueprint(const char* szQueryBlueprintName, Shared::IUqsString& error) const override;
+			virtual bool      ValidateTextualQueryBlueprint(Editor::IEditorServiceConsumer& callback) const override;
 		};
 
 	}

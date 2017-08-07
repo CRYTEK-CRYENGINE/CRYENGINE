@@ -187,7 +187,7 @@ public:
 
 		const char* tag = GetConnectorTypeLinkName(0);
 		if (tag)
-			pEnt->AddEntityLink(tag, 0);
+			pEnt->AddEntityLink(tag, 0,CryGUID::Null());
 	}
 
 	void OnEntityEvent(IEntity* pEntity, SEntityEvent& event)

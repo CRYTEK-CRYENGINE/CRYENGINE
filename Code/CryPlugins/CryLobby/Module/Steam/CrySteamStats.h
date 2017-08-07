@@ -21,7 +21,7 @@
 
 #if USE_STEAM && USE_CRY_STATS
 
-	#include "steam\steam_api.h"
+	#include "steam/steam_api.h"
 	#include "CrySteamMatchMaking.h"
 
 ////////////////////////////////////////////////////////////////////////////////

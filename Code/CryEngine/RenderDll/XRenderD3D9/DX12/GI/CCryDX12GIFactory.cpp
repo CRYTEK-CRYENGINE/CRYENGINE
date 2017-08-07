@@ -12,12 +12,14 @@
 
 CCryDX12GIFactory* CCryDX12GIFactory::Create()
 {
-	IDXGIFactory4* pDXGIFactory4 = NULL;
+	IDXGIFactory4ToCall* pDXGIFactory4 = nullptr;
 
-	if (S_OK != CreateDXGIFactory1(IID_PPV_ARGS(&pDXGIFactory4)))
+#if CRY_PLATFORM_DESKTOP
+	if (S_OK != CreateDXGIFactory1(IID_GFX_ARGS(&pDXGIFactory4)))
+#endif
 	{
 		DX12_ASSERT("Failed to create underlying DXGI factory!");
-		return NULL;
+		return nullptr;
 	}
 
 	return DX12_NEW_RAW(CCryDX12GIFactory(pDXGIFactory4));
@@ -25,17 +27,12 @@ CCryDX12GIFactory* CCryDX12GIFactory::Create()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-CCryDX12GIFactory::CCryDX12GIFactory(IDXGIFactory4* pDXGIFactory4)
+CCryDX12GIFactory::CCryDX12GIFactory(IDXGIFactory4ToCall* pDXGIFactory4)
 	: Super()
 	, m_pDXGIFactory4(pDXGIFactory4)
 {
 	DX12_FUNC_LOG
 
-}
-
-CCryDX12GIFactory::~CCryDX12GIFactory()
-{
-	DX12_FUNC_LOG
 }
 
 HRESULT STDMETHODCALLTYPE CCryDX12GIFactory::EnumAdapters(UINT Adapter, _Out_ IDXGIAdapter** ppAdapter)
@@ -57,7 +54,7 @@ HRESULT STDMETHODCALLTYPE CCryDX12GIFactory::GetWindowAssociation(_Out_ HWND* pW
 	return m_pDXGIFactory4->GetWindowAssociation(pWindowHandle);
 }
 
-HRESULT STDMETHODCALLTYPE CCryDX12GIFactory::CreateSwapChain(_In_ IUnknown* pDevice, _In_ DXGI_SWAP_CHAIN_DESC* pDesc, _Out_ IDXGISwapChain** ppSwapChain)
+HRESULT STDMETHODCALLTYPE CCryDX12GIFactory::CreateSwapChain(_In_ IGfxUnknown* pDevice, _In_ DXGI_SWAP_CHAIN_DESC* pDesc, _Out_ IDXGISwapChain** ppSwapChain)
 {
 	DX12_FUNC_LOG
 	* ppSwapChain = CCryDX12SwapChain::Create(static_cast<CCryDX12Device*>(pDevice), m_pDXGIFactory4, pDesc);

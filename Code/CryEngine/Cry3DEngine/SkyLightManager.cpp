@@ -377,7 +377,7 @@ void CSkyLightManager::InitSkyDomeMesh()
 	assert(skyDomeIndices.size() == c_numSkyDomeIndices);
 
 	// create static buffers in renderer
-	m_pSkyDomeMesh = gEnv->pRenderer->CreateRenderMeshInitialized(&skyDomeVertices[0], c_numSkyDomeVertices, eVF_P3F_C4B_T2F,
+	m_pSkyDomeMesh = gEnv->pRenderer->CreateRenderMeshInitialized(&skyDomeVertices[0], c_numSkyDomeVertices, EDefaultInputLayouts::P3F_C4B_T2F,
 	                                                              &skyDomeIndices[0], c_numSkyDomeIndices, prtTriangleList, "SkyHDR", "SkyHDR");
 
 	m_lastFrameID = 0;

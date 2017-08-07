@@ -43,7 +43,7 @@ public:
 
 	void          ReloadFlowGraphs();
 
-	int           GetFlowGraphCount() const;
+	size_t        GetFlowGraphCount() const;
 	IFlowGraphPtr GetFlowGraph(int index, string* pFileName = NULL) const;
 	bool          LoadFG(const string& filename, IFlowGraphPtr* pGraphRet = NULL);
 

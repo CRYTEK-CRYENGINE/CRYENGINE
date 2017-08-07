@@ -41,7 +41,7 @@ public:
 	CRYINTERFACE_ADD(IAnimationPoseModifier)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(CRecoil, "AnimationPoseModifier_Recoil", 0xd7900cb9e7be4825, 0x99e1cc1211f9c561)
+	CRYGENERATE_CLASS_GUID(CRecoil, "AnimationPoseModifier_Recoil", "d7900cb9-e7be-4825-99e1-cc1211f9c561"_cry_guid)
 
 	CRecoil();
 	virtual ~CRecoil() {}

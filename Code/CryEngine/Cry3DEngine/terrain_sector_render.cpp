@@ -111,15 +111,15 @@ struct CStripsInfo
 
 	inline void Clear() { idx_array.Clear(); nNonBorderIndicesCount = 0; }
 
-	inline void AddIndex(int _x, int _y, int _step, int nSectorSize)
+	inline void AddIndex(float _x, float _y, float _step, float nSectorSize)
 	{
-		vtx_idx id = _x / _step * (nSectorSize / _step + 1) + _y / _step;
+		vtx_idx id = vtx_idx(_x / _step * (nSectorSize / _step + 1) + _y / _step);
 		idx_array.Add(id);
 	}
 
-	static vtx_idx GetIndex(int _x, int _y, int _step, int nSectorSize)
+	static vtx_idx GetIndex(float _x, float _y, float _step, float nSectorSize)
 	{
-		vtx_idx id = _x / _step * (nSectorSize / _step + 1) + _y / _step;
+		vtx_idx id = vtx_idx(_x / _step * (nSectorSize / _step + 1) + _y / _step);
 		return id;
 	}
 
@@ -193,11 +193,17 @@ bool CTerrainUpdateDispatcher::AddJob(CTerrainNode* pNode, bool executeAsJob, co
 	const unsigned alignPad = TARGET_DEFAULT_ALIGN;
 
 	// Preallocate enough temp memory to prevent reallocations
-	const int nStep = (1 << pNode->m_cNewGeomMML) * CTerrain::GetHeightMapUnitSize();
+	const float stepSize = (1 << pNode->m_cNewGeomMML) * CTerrain::GetHeightMapUnitSize();
 	const int nSectorSize = CTerrain::GetSectorSize() << pNode->m_nTreeLevel;
 
-	int nNumVerts = (nStep) ? ((nSectorSize / nStep) + 1) * ((nSectorSize / nStep) + 1) : 0;
-	int nNumIdx = (nStep) ? (nSectorSize / nStep) * (nSectorSize / nStep) * 6 : 0;
+	int nNumVerts = stepSize ? (int(nSectorSize / stepSize) + 1 + 2) * (int(nSectorSize / stepSize) + 1 + 2) : 0;
+	int nNumIdx = stepSize ? (int(nSectorSize / stepSize) + 2) * (int(nSectorSize / stepSize) + 2) * 6 : 0;
+
+	if (!pNode->m_nTreeLevel && Get3DEngine()->m_bIntegrateObjectsIntoTerrain)
+	{
+		nNumIdx = max(nNumIdx, GetCVars()->e_TerrainIntegrateObjectsMaxVertices * 3);
+		nNumVerts = max(nNumVerts, GetCVars()->e_TerrainIntegrateObjectsMaxVertices);
+	}
 
 	if (nNumVerts == 0 || nNumIdx == 0)
 		return true;
@@ -225,20 +231,10 @@ bool CTerrainUpdateDispatcher::AddJob(CTerrainNode* pNode, bool executeAsJob, co
 
 		pNode->m_pUpdateTerrainTempData = pUpdateTerrainTempData;
 
-		PodArray<CTerrainNode*>& lstNeighbourSectors = pLeafData->m_lstNeighbourSectors;
-		PodArray<uint8>& lstNeighbourLods = pLeafData->m_lstNeighbourLods;
-
-#ifdef SEG_WORLD
-		lstNeighbourSectors.reserve(128U);
-		lstNeighbourLods.PreAllocate(128U, 128U);
-#else
-		lstNeighbourSectors.reserve(64U);
-		lstNeighbourLods.PreAllocate(64U, 64U);
-#endif
-
 		// dont run async in case of editor or if we render into shadowmap
 		executeAsJob &= !gEnv->IsEditor();
 		executeAsJob &= !passInfo.IsShadowPass();
+		executeAsJob &= !Get3DEngine()->m_bIntegrateObjectsIntoTerrain; // TODO: support jobs for this mode as well
 
 		if (executeAsJob)
 		{
@@ -607,7 +603,7 @@ void CTerrainNode::UpdateRenderMesh(CStripsInfo* pArrayInfo, bool bUpdateVertice
 		gEnv->pRenderer->EF_Query(EFQ_MultiGPUEnabled, bMultiGPU);
 
 		pRenderMesh = GetRenderer()->CreateRenderMeshInitialized(
-		  m_pUpdateTerrainTempData->m_lstTmpVertArray.GetElements(), m_pUpdateTerrainTempData->m_lstTmpVertArray.Count(), eVF_P2S_N4B_C4B_T1F,
+		  m_pUpdateTerrainTempData->m_lstTmpVertArray.GetElements(), m_pUpdateTerrainTempData->m_lstTmpVertArray.Count(), EDefaultInputLayouts::P2S_N4B_C4B_T1F,
 		  pArrayInfo->idx_array.GetElements(), pArrayInfo->idx_array.Count(),
 		  prtTriangleList, "TerrainSector", "TerrainSector", eRMType, 1,
 		  m_nTexSet.nTex0, NULL, NULL, false, true, lstTangents.Count() ? lstTangents.GetElements() : NULL);
@@ -624,7 +620,7 @@ void CTerrainNode::UpdateRenderMesh(CStripsInfo* pArrayInfo, bool bUpdateVertice
 	if (!bIndicesUpdated)
 		pRenderMesh->UpdateIndices(pArrayInfo->idx_array.GetElements(), pArrayInfo->idx_array.Count(), 0, 0u);
 
-	pRenderMesh->SetChunk(GetTerrain()->m_pTerrainEf, 0, pRenderMesh->GetVerticesCount(), 0, pArrayInfo->idx_array.Count(), 1.0f, 0);
+	pRenderMesh->SetChunk(GetTerrain()->m_pTerrainEf, 0, pRenderMesh->GetVerticesCount(), 0, min(m_pUpdateTerrainTempData->m_StripsInfo.nNonBorderIndicesCount, pArrayInfo->idx_array.Count()), 1.0f, 0);
 
 	if (pRenderMesh->GetChunks().size() && pRenderMesh->GetChunks()[0].pRE)
 		pRenderMesh->GetChunks()[0].pRE->m_CustomData = GetLeafData()->m_arrTexGen[0];
@@ -673,16 +669,13 @@ void CTerrainNode::ResetHeightMapGeometry(bool bRecursive, const AABB* pBox)
 	if (pBox && !Overlap::AABB_AABB(*pBox, GetBBox()))
 		return;
 
-	if (m_pLeafData)
-		m_pLeafData->m_lstNeighbourSectors.Clear();
-
 	if (bRecursive && m_pChilds)
 		for (int i = 0; i < 4; i++)
 			m_pChilds[i].ResetHeightMapGeometry(bRecursive, pBox);
 }
 
 // fill vertex buffer
-void CTerrainNode::BuildVertices(int nStep, bool bSafetyBorder)
+void CTerrainNode::BuildVertices(float stepSize, bool bSafetyBorder)
 {
 	FUNCTION_PROFILER_3DENGINE;
 
@@ -690,22 +683,21 @@ void CTerrainNode::BuildVertices(int nStep, bool bSafetyBorder)
 
 	int nSectorSize = CTerrain::GetSectorSize() << m_nTreeLevel;
 
-	int nSafetyBorder = 0;
+	float safetyBorder = stepSize;
 
 	// keep often used variables on stack
 	const int nOriginX = m_nOriginX;
 	const int nOriginY = m_nOriginY;
 	const int nSID = m_nSID;
 	const int nTerrainSize = CTerrain::GetTerrainSize();
-	const int iLookupRadius = 2 * CTerrain::GetHeightMapUnitSize();
 	CTerrain* pTerrain = GetTerrain();
 
-	for (int x = nOriginX - nSafetyBorder; x <= nOriginX + nSectorSize + nSafetyBorder; x += nStep)
+	for (float x = float(nOriginX - safetyBorder); x <= float(nOriginX + nSectorSize + safetyBorder); x += stepSize)
 	{
-		for (int y = nOriginY - nSafetyBorder; y <= nOriginY + nSectorSize + nSafetyBorder; y += nStep)
+		for (float y = float(nOriginY - safetyBorder); y <= float(nOriginY + nSectorSize + safetyBorder); y += stepSize)
 		{
-			int _x = CLAMP(x, nOriginX, nOriginX + nSectorSize);
-			int _y = CLAMP(y, nOriginY, nOriginY + nSectorSize);
+			float _x = CLAMP(x, nOriginX, nOriginX + nSectorSize);
+			float _y = CLAMP(y, nOriginY, nOriginY + nSectorSize);
 			float _z = pTerrain->GetZ(_x, _y, nSID);
 
 			SVF_P2S_N4B_C4B_T1F vert;
@@ -713,144 +705,35 @@ void CTerrainNode::BuildVertices(int nStep, bool bSafetyBorder)
 			vert.xy = CryHalf2((float)(_x - nOriginX), (float)(_y - nOriginY));
 			vert.z = _z;
 
-			// calculate surface normal
-#ifdef SEG_WORLD
-			bool bOutOfBound = (x + iLookupRadius) >= nTerrainSize || x <= iLookupRadius;
-			float sx = pTerrain->GetZ(x + iLookupRadius, y, nSID, bOutOfBound) - pTerrain->GetZ(x - iLookupRadius, y, nSID, bOutOfBound);
-
-			bOutOfBound = (y + iLookupRadius) >= nTerrainSize || y <= iLookupRadius;
-			float sy = pTerrain->GetZ(x, y + iLookupRadius, nSID, bOutOfBound) - pTerrain->GetZ(x, y - iLookupRadius, nSID, bOutOfBound);
-#else
-			float sx;
-			if ((x + iLookupRadius) < nTerrainSize && x > iLookupRadius)
-				sx = pTerrain->GetZ(x + iLookupRadius, y, nSID) - pTerrain->GetZ(x - iLookupRadius, y, nSID);
-			else
-				sx = 0;
-
-			float sy;
-			if ((y + iLookupRadius) < nTerrainSize && y > iLookupRadius)
-				sy = pTerrain->GetZ(x, y + iLookupRadius, nSID) - pTerrain->GetZ(x, y - iLookupRadius, nSID);
-			else
-				sy = 0;
-#endif
-			// z component of normal will be used as point brightness ( for burned terrain )
-			Vec3 vNorm(-sx, -sy, iLookupRadius * 2.0f);
-			vNorm.Normalize();
-
-			vert.normal.bcolor[0] = (byte)(vNorm[0] * 127.5f + 128.0f);
-			vert.normal.bcolor[1] = (byte)(vNorm[1] * 127.5f + 128.0f);
-			vert.normal.bcolor[2] = (byte)(vNorm[2] * 127.5f + 128.0f);
-			vert.normal.bcolor[3] = 255;
-			SwapEndian(vert.normal.dcolor, eLittleEndian);
-
-			uint8 ucSurfaceTypeID = pTerrain->GetSurfaceTypeID(x, y, nSID);
-			if (ucSurfaceTypeID == SRangeInfo::e_hole)
+			if (_x != x || _y != y)
 			{
-				// in case of hole - try to find some valid surface type around
-				for (int i = -nStep; i <= nStep && (ucSurfaceTypeID == SRangeInfo::e_hole); i += nStep)
-					for (int j = -nStep; j <= nStep && (ucSurfaceTypeID == SRangeInfo::e_hole); j += nStep)
-						ucSurfaceTypeID = pTerrain->GetSurfaceTypeID(x + i, y + j, nSID);
+				vert.z -= stepSize * 0.5f;
 			}
 
-			vert.color.bcolor[0] = 255;
-			vert.color.bcolor[1] = ucSurfaceTypeID;
-			vert.color.bcolor[2] = 255;
-			vert.color.bcolor[3] = 255;
-			SwapEndian(vert.color.dcolor, eLittleEndian);
+			// set terrain surface normal
+			SetVertexNormal(x, y, stepSize, pTerrain, nTerrainSize, nSID, vert);
+
+			// set terrain surface type
+			SetVertexSurfaceType(x, y, stepSize, pTerrain, nSID, vert);
 
 			m_pUpdateTerrainTempData->m_lstTmpVertArray.Add(vert);
 		}
 	}
-}
 
-namespace Util
-{
-void AddNeighbourNode(PodArray<CTerrainNode*>* plstNeighbourSectors, CTerrainNode* pNode)
-{
-	// todo: cache this list, it is always the same
-	if (pNode && plstNeighbourSectors->Find(pNode) < 0)
-		plstNeighbourSectors->Add(pNode);
-}
-}
+	m_fBBoxExtentionByObjectsIntegration = 0;
 
-void CTerrainNode::AddIndexAliased(int _x, int _y, int _step, int nSectorSize, PodArray<CTerrainNode*>* plstNeighbourSectors, CStripsInfo* pArrayInfo, const SRenderingPassInfo& passInfo)
-{
-	int nAliasingX = 1, nAliasingY = 1;
-	int nShiftX = 0, nShiftY = 0;
-
-	CTerrain* pTerrain = GetTerrain();
-	int nHeightMapUnitSize = CTerrain::GetHeightMapUnitSize();
-
-	IF (_x && _x < nSectorSize && plstNeighbourSectors, true)
+	if (!m_nTreeLevel && Get3DEngine()->m_bIntegrateObjectsIntoTerrain)
 	{
-		IF (_y == 0, false)
-		{
-			if (CTerrainNode* pNode = pTerrain->GetSecInfo(m_nOriginX + _x, m_nOriginY + _y - _step, m_nSID))
-			{
-				int nAreaMML = pNode->GetAreaLOD(passInfo);
-				if (nAreaMML != MML_NOT_SET)
-				{
-					nAliasingX = nHeightMapUnitSize * (1 << nAreaMML);
-					nShiftX = nAliasingX / 4;
-				}
-				Util::AddNeighbourNode(plstNeighbourSectors, pNode);
-			}
-		}
-		else if (_y == nSectorSize)
-		{
-			if (CTerrainNode* pNode = pTerrain->GetSecInfo(m_nOriginX + _x, m_nOriginY + _y + _step, m_nSID))
-			{
-				int nAreaMML = pNode->GetAreaLOD(passInfo);
-				if (nAreaMML != MML_NOT_SET)
-				{
-					nAliasingX = nHeightMapUnitSize * (1 << nAreaMML);
-					nShiftX = nAliasingX / 2;
-				}
-				Util::AddNeighbourNode(plstNeighbourSectors, pNode);
-			}
-		}
+		AppendTrianglesFromObjects(nOriginX, nOriginY, pTerrain, nSID, stepSize, nTerrainSize);
 	}
-
-	IF (_y && _y < nSectorSize && plstNeighbourSectors, true)
-	{
-		IF (_x == 0, false)
-		{
-			if (CTerrainNode* pNode = pTerrain->GetSecInfo(m_nOriginX + _x - _step, m_nOriginY + _y, m_nSID))
-			{
-				int nAreaMML = pNode->GetAreaLOD(passInfo);
-				if (nAreaMML != MML_NOT_SET)
-				{
-					nAliasingY = nHeightMapUnitSize * (1 << nAreaMML);
-					nShiftY = nAliasingY / 4;
-				}
-				Util::AddNeighbourNode(plstNeighbourSectors, pNode);
-			}
-		}
-		else if (_x == nSectorSize)
-		{
-			if (CTerrainNode* pNode = pTerrain->GetSecInfo(m_nOriginX + _x + _step, m_nOriginY + _y, m_nSID))
-			{
-				int nAreaMML = pNode->GetAreaLOD(passInfo);
-				if (nAreaMML != MML_NOT_SET)
-				{
-					nAliasingY = nHeightMapUnitSize * (1 << nAreaMML);
-					nShiftY = nAliasingY / 2;
-				}
-				Util::AddNeighbourNode(plstNeighbourSectors, pNode);
-			}
-		}
-	}
-
-	int XA = nAliasingX ? (_x + nShiftX) / nAliasingX * nAliasingX : _x;
-	int YA = nAliasingY ? (_y + nShiftY) / nAliasingY * nAliasingY : _y;
-
-	assert(XA >= 0 && XA <= nSectorSize);
-	assert(YA >= 0 && YA <= nSectorSize);
-
-	pArrayInfo->AddIndex(XA, YA, _step, nSectorSize);
 }
 
-void CTerrainNode::BuildIndices(CStripsInfo& si, PodArray<CTerrainNode*>* pNeighbourSectors, bool bSafetyBorder, const SRenderingPassInfo& passInfo)
+void CTerrainNode::AddIndexAliased(float x, float y, float stepSize, float fSectorSize, CStripsInfo* pArrayInfo)
+{
+	pArrayInfo->AddIndex(x, y, stepSize, fSectorSize);
+}
+
+void CTerrainNode::BuildIndices(CStripsInfo& si, bool bSafetyBorder, const SRenderingPassInfo& passInfo)
 {
 	FUNCTION_PROFILER_3DENGINE;
 
@@ -858,46 +741,45 @@ void CTerrainNode::BuildIndices(CStripsInfo& si, PodArray<CTerrainNode*>* pNeigh
 	if (m_cNewGeomMML == MML_NOT_SET)
 		return;
 
-	int nStep = (1 << m_cNewGeomMML) * CTerrain::GetHeightMapUnitSize();
+	float stepSize = (1 << m_cNewGeomMML) * CTerrain::GetHeightMapUnitSize();
 	int nSectorSize = CTerrain::GetSectorSize() << m_nTreeLevel;
 
-	int nSafetyBorder = bSafetyBorder ? nStep : 0;
+	float fSafetyBorder = bSafetyBorder ? stepSize : 0;
 
-	int nSectorSizeSB = nSectorSize + nSafetyBorder * 2;
+	float fSectorSizeSB = nSectorSize + fSafetyBorder * 2;
 
 	si.Clear();
 
 	CStripsInfo* pSI = &si;
 	CTerrain* pTerrain = GetTerrain();
 
-	int nHalfStep = nStep / 2;
+	float halfStep = stepSize / 2;
 
-	// add non borders
-	for (int x = 0; x < nSectorSizeSB; x += nStep)
+	for (float x = 0; x < fSectorSizeSB; x += stepSize)
 	{
-		for (int y = 0; y < nSectorSizeSB; y += nStep)
+		for (float y = 0; y < fSectorSizeSB; y += stepSize)
 		{
-			if (!m_bHasHoles || !pTerrain->GetHole(m_nOriginX + x + nHalfStep, m_nOriginY + y + nHalfStep, m_nSID))
+			if (!m_bHasHoles || !pTerrain->GetHole(m_nOriginX + x + halfStep, m_nOriginY + y + halfStep, m_nSID))
 			{
-				if (pTerrain->IsMeshQuadFlipped(m_nOriginX + x, m_nOriginY + y, nStep, 0))
+				if (pTerrain->IsMeshQuadFlipped(m_nOriginX + x, m_nOriginY + y, stepSize, 0))
 				{
-					AddIndexAliased(x + nStep, y, nStep, nSectorSizeSB, pNeighbourSectors, pSI, passInfo);
-					AddIndexAliased(x + nStep, y + nStep, nStep, nSectorSizeSB, pNeighbourSectors, pSI, passInfo);
-					AddIndexAliased(x, y, nStep, nSectorSizeSB, pNeighbourSectors, pSI, passInfo);
+					AddIndexAliased(x + stepSize, y, stepSize, fSectorSizeSB, pSI);
+					AddIndexAliased(x + stepSize, y + stepSize, stepSize, fSectorSizeSB, pSI);
+					AddIndexAliased(x, y, stepSize, fSectorSizeSB, pSI);
 
-					AddIndexAliased(x, y, nStep, nSectorSizeSB, pNeighbourSectors, pSI, passInfo);
-					AddIndexAliased(x + nStep, y + nStep, nStep, nSectorSizeSB, pNeighbourSectors, pSI, passInfo);
-					AddIndexAliased(x, y + nStep, nStep, nSectorSizeSB, pNeighbourSectors, pSI, passInfo);
+					AddIndexAliased(x, y, stepSize, fSectorSizeSB, pSI);
+					AddIndexAliased(x + stepSize, y + stepSize, stepSize, fSectorSizeSB, pSI);
+					AddIndexAliased(x, y + stepSize, stepSize, fSectorSizeSB, pSI);
 				}
 				else
 				{
-					AddIndexAliased(x, y, nStep, nSectorSizeSB, pNeighbourSectors, pSI, passInfo);
-					AddIndexAliased(x + nStep, y, nStep, nSectorSizeSB, pNeighbourSectors, pSI, passInfo);
-					AddIndexAliased(x, y + nStep, nStep, nSectorSizeSB, pNeighbourSectors, pSI, passInfo);
+					AddIndexAliased(x, y, stepSize, fSectorSizeSB, pSI);
+					AddIndexAliased(x + stepSize, y, stepSize, fSectorSizeSB, pSI);
+					AddIndexAliased(x, y + stepSize, stepSize, fSectorSizeSB, pSI);
 
-					AddIndexAliased(x + nStep, y, nStep, nSectorSizeSB, pNeighbourSectors, pSI, passInfo);
-					AddIndexAliased(x + nStep, y + nStep, nStep, nSectorSizeSB, pNeighbourSectors, pSI, passInfo);
-					AddIndexAliased(x, y + nStep, nStep, nSectorSizeSB, pNeighbourSectors, pSI, passInfo);
+					AddIndexAliased(x + stepSize, y, stepSize, fSectorSizeSB, pSI);
+					AddIndexAliased(x + stepSize, y + stepSize, stepSize, fSectorSizeSB, pSI);
+					AddIndexAliased(x, y + stepSize, stepSize, fSectorSizeSB, pSI);
 				}
 			}
 		}
@@ -916,30 +798,6 @@ bool CTerrainNode::RenderSector(const SRenderingPassInfo& passInfo)
 	assert(m_cNewGeomMML == MML_NOT_SET || m_cNewGeomMML < GetTerrain()->m_nUnitsToSectorBitShift);
 
 	STerrainNodeLeafData* pLeafData = GetLeafData();
-
-	// detect if any neighbors switched lod since previous frame
-	bool bNeighbourChanged = false;
-
-	if (!passInfo.IsShadowPass())
-	{
-		for (int i = 0; i < pLeafData->m_lstNeighbourSectors.Count(); i++)
-		{
-			if (!pLeafData->m_lstNeighbourSectors[i])
-				continue;
-			int nNeighbourNewMML = pLeafData->m_lstNeighbourSectors[i]->GetAreaLOD(passInfo);
-			if (nNeighbourNewMML == MML_NOT_SET)
-				continue;
-			if (nNeighbourNewMML != pLeafData->m_lstNeighbourLods[i] && (nNeighbourNewMML > m_cNewGeomMML || pLeafData->m_lstNeighbourLods[i] > m_cNewGeomMML))
-			{
-				bNeighbourChanged = true;
-				break;
-			}
-		}
-	}
-	else
-	{
-		assert(!"Shadow-gen is not supposed to be rendered this way");
-	}
 
 	IRenderMesh * pRenderMesh = (m_nTreeLevel >= GetCVars()->e_TerrainMeshInstancingMinLod) ? GetSharedRenderMesh() : GetLeafData()->m_pRenderMesh;
 
@@ -960,7 +818,7 @@ bool CTerrainNode::RenderSector(const SRenderingPassInfo& passInfo)
 
 	if (pRenderMesh && GetCVars()->e_TerrainDrawThisSectorOnly < 2 && bDetailLayersReady)
 	{
-		if (passInfo.GetRecursiveLevel() || (m_cCurrGeomMML == m_cNewGeomMML && !bNeighbourChanged) || m_nTreeLevel >= GetCVars()->e_TerrainMeshInstancingMinLod ||
+		if (passInfo.GetRecursiveLevel() || (m_cCurrGeomMML == m_cNewGeomMML) || m_nTreeLevel >= GetCVars()->e_TerrainMeshInstancingMinLod ||
 		    (passInfo.IsCachedShadowPass() && passInfo.GetShadowMapType() == SRenderingPassInfo::SHADOW_MAP_CACHED_MGPU_COPY))
 		{
 			DrawArray(passInfo);
@@ -1059,18 +917,7 @@ void CTerrainNode::BuildIndices_Wrapper(SRenderingPassInfo passInfo)
 	if (pUpdateTerrainTempData->m_StripsInfo.idx_array.MemorySize() == 0) return;
 
 	STerrainNodeLeafData* pLeafData = GetLeafData();
-	PodArray<CTerrainNode*>& lstNeighbourSectors = pLeafData->m_lstNeighbourSectors;
-	PodArray<uint8>& lstNeighbourLods = pLeafData->m_lstNeighbourLods;
-	lstNeighbourSectors.Clear();
-	BuildIndices(pUpdateTerrainTempData->m_StripsInfo, &lstNeighbourSectors, false, passInfo);
-
-	// remember neighbor LOD's
-	for (int i = 0; i < lstNeighbourSectors.Count(); i++)
-	{
-		int nNeighbourMML = lstNeighbourSectors[i]->GetAreaLOD(passInfo);
-		assert(0 <= nNeighbourMML && nNeighbourMML <= ((uint8) - 1));
-		lstNeighbourLods[i] = nNeighbourMML;
-	}
+	BuildIndices(pUpdateTerrainTempData->m_StripsInfo, true, passInfo);
 }
 
 void CTerrainNode::BuildVertices_Wrapper()
@@ -1089,23 +936,23 @@ void CTerrainNode::BuildVertices_Wrapper()
 	if (m_cNewGeomMML == MML_NOT_SET)
 		return;
 
-	int nStep = (1 << m_cNewGeomMML) * CTerrain::GetHeightMapUnitSize();
-	int nSectorSize = CTerrain::GetSectorSize() << m_nTreeLevel;
-	assert(nStep && nStep <= nSectorSize);
-	if (nStep > nSectorSize)
-		nStep = nSectorSize;
+	float stepSize = (1 << m_cNewGeomMML) * CTerrain::GetHeightMapUnitSize();
+	float nSectorSize = float(CTerrain::GetSectorSize() << m_nTreeLevel);
+	assert(stepSize && stepSize <= nSectorSize);
+	if (stepSize > nSectorSize)
+		stepSize = nSectorSize;
 
 	// this could cost performace? to allow parallel execution, we cannot check for unchanged indices
 #if 1
-	BuildVertices(nStep, false);
+	BuildVertices(stepSize, false);
 	m_bUpdateOnlyBorders = false;
 #else
 	// update vertices if needed
-	int nVertsNumRequired = (nSectorSize / nStep) * (nSectorSize / nStep) + (nSectorSize / nStep) + (nSectorSize / nStep) + 1;
+	int nVertsNumRequired = (nSectorSize / stepSize) * (nSectorSize / stepSize) + (nSectorSize / stepSize) + (nSectorSize / stepSize) + 1;
 	if (!pRenderMesh || m_cCurrGeomMML != m_cNewGeomMML || nVertsNumRequired != pRenderMesh->GetVerticesCount() || m_bEditor || !m_cNewGeomMML)
 	{
 		if (m_pUpdateTerrainTempData->m_StripsInfo.idx_array.Count())
-			BuildVertices(nStep, false);
+			BuildVertices(stepSize, false);
 		else
 			m_pUpdateTerrainTempData->m_lstTmpVertArray.Clear();
 
@@ -1349,11 +1196,12 @@ void CTerrainNode::UpdateSurfaceRenderMeshes(const _smart_ptr<IRenderMesh> pSrcR
 		bool bMultiGPU;
 		gEnv->pRenderer->EF_Query(EFQ_MultiGPUEnabled, bMultiGPU);
 
-		if (bMultiGPU && gEnv->pRenderer->GetRenderType() != eRT_DX12)
+		if (bMultiGPU && (gEnv->pRenderer->GetRenderType() != ERenderType::Direct3D12)
+			          && (gEnv->pRenderer->GetRenderType() != ERenderType::Vulkan))
 			eRMType = eRMT_Dynamic;
 
 		pMatRM = GetRenderer()->CreateRenderMeshInitialized(
-		  NULL, 0, eVF_P2S_N4B_C4B_T1F, NULL, 0,
+		  NULL, 0, EDefaultInputLayouts::P2S_N4B_C4B_T1F, NULL, 0,
 		  prtTriangleList, szComment, szComment, eRMType, 1, 0, NULL, NULL, false, false);
 	}
 
@@ -1550,7 +1398,7 @@ _smart_ptr<IRenderMesh> CTerrainNode::GetSharedRenderMesh()
 	m_pTerrain->m_pSharedRenderMesh = GetRenderer()->CreateRenderMeshInitialized(
 		arrVertices.GetElements(),
 		arrVertices.Count(),
-		eVF_P2S_N4B_C4B_T1F,
+		EDefaultInputLayouts::P2S_N4B_C4B_T1F,
 		arrIndices.GetElements(),
 		arrIndices.Count(),
 		prtTriangleList,
@@ -1584,4 +1432,241 @@ uint32 CTerrainNode::GetMaterialsModificationId()
 	}
 
 	return nModificationId;
+}
+
+// add triangles (from marked objects) intersecting terrain
+void CTerrainNode::AppendTrianglesFromObjects(const int nOriginX, const int nOriginY, CTerrain* pTerrain, const int nSID, const float stepSize, const int nTerrainSize)
+{
+	AABB aabbTNode = GetBBox();
+	float fHeightMapMax = aabbTNode.max.z;
+	aabbTNode.max.z += GetCVars()->e_TerrainIntegrateObjectsMaxHeight;
+
+	PodArray<IRenderNode*> lstObjects;
+	Get3DEngine()->GetObjectsByTypeGlobal(lstObjects, eERType_MovableBrush, &aabbTNode);
+
+	for (int i = 0; i < lstObjects.Count(); i++)
+	{
+		IRenderNode * pRNode = (IRenderNode*)lstObjects[i];
+
+		if (pRNode->GetGIMode() != IRenderNode::eGM_IntegrateIntoTerrain)
+		{
+			continue;
+		}
+
+		IRenderMesh * pRM = pRNode->GetRenderMesh(0);
+
+		if (pRM)
+		{
+			pRM->LockForThreadAccess();
+
+			int nPosStride = 0, nTangsStride = 0;
+			int nInds = pRM->GetIndicesCount();
+			const byte* pPos = pRM->GetPosPtr(nPosStride, FSL_READ);
+			vtx_idx* pInds = pRM->GetIndexPtr(FSL_READ);
+			byte* pTangs = pRM->GetTangentPtr(nTangsStride, FSL_READ);
+
+			if (pInds && pPos && pTangs)
+			{
+				Matrix34 m34;
+				m34.SetIdentity();
+				pRNode->GetEntityStatObj(0, &m34);
+
+				IMaterial* pMat = pRNode->GetMaterial();
+
+				float unitSize2 = (float)CTerrain::GetHeightMapUnitSize() / 2;
+
+				TRenderChunkArray& Chunks = pRM->GetChunks();
+				int nChunkCount = Chunks.size();
+
+				const int nHashDim = 16;
+				PodArray<vtx_idx> arrVertHash[nHashDim][nHashDim];
+
+				for (int nChunkId = 0; nChunkId < nChunkCount; nChunkId++)
+				{
+					CRenderChunk* pChunk = &Chunks[nChunkId];
+					if (!(pChunk->m_nMatFlags & MTL_FLAG_NODRAW))
+					{
+						const SShaderItem& shaderItem = pMat->GetShaderItem(pChunk->m_nMatID);
+
+						if (!shaderItem.m_pShader || !shaderItem.m_pShaderResources)
+							continue;
+
+						if (shaderItem.m_pShader->GetFlags() & (EF_NODRAW | EF_DECAL))
+							continue;
+
+						int lastIndex = pChunk->nFirstIndexId + pChunk->nNumIndices;
+						for (int i = pChunk->nFirstIndexId; i < lastIndex; i += 3)
+						{
+							if (m_pUpdateTerrainTempData->m_lstTmpVertArray.Count() + 3 > m_pUpdateTerrainTempData->m_lstTmpVertArray.MemorySize() / (int)sizeof(SVF_P2S_N4B_C4B_T1F))
+							{
+								break;
+							}
+
+							if (m_pUpdateTerrainTempData->m_StripsInfo.idx_array.Count() + 3 > m_pUpdateTerrainTempData->m_StripsInfo.idx_array.MemorySize() / (int)sizeof(vtx_idx))
+							{
+								break;
+							}
+
+							Vec3 vPosWS[3];
+							Vec3 vNormWS[3];
+							float fElev[3];
+
+							AABB triBox;
+							triBox.Reset();
+
+							float fElevMin = 10000, fElevMax = 0;
+
+							for (int v = 0; v < 3; v++)
+							{
+								vPosWS[v] = m34.TransformPoint((*(Vec3*)&pPos[nPosStride * pInds[i + v]]));
+
+								SPipTangents & basis = *(SPipTangents*)&pTangs[nTangsStride * pInds[i + v]];
+
+								vNormWS[v] = m34.TransformVector(basis.GetN()).GetNormalized();
+
+								vPosWS[v] += vNormWS[v] * 0.02f;
+
+								triBox.Add(vPosWS[v]);
+
+								fElev[v] = GetTerrain()->GetZApr(vPosWS[v].x, vPosWS[v].y, 0);
+
+								fElevMin = min(fElevMin, fElev[v]);
+								fElevMax = max(fElevMax, fElev[v]);
+							}
+
+							if (triBox.max.z > fElevMin && triBox.min.z < fElevMax + GetCVars()->e_TerrainIntegrateObjectsMaxHeight && Overlap::AABB_AABB2D(triBox, aabbTNode))
+							{
+								m_fBBoxExtentionByObjectsIntegration = max(m_fBBoxExtentionByObjectsIntegration, triBox.max.z - fHeightMapMax);
+
+								for (int v = 0; v < 3; v++)
+								{
+									SVF_P2S_N4B_C4B_T1F vert;
+
+									vert.xy = CryHalf2((float)(vPosWS[v].x - nOriginX), (float)(vPosWS[v].y - nOriginY));
+									vert.z = vPosWS[v].z;
+
+									float x = (vPosWS[v].x + unitSize2);
+									float y = (vPosWS[v].y + unitSize2);
+									int xh = (int)(vPosWS[v].x * 64.f);
+									int yh = (int)(vPosWS[v].y * 64.f);
+
+									int nIndex = -1;
+
+									PodArray<vtx_idx> & rHashIndices = arrVertHash[xh & (nHashDim-1)][yh & (nHashDim - 1)];
+
+									for (int nElem = 0; nElem < rHashIndices.Count(); nElem++)
+									{
+										vtx_idx nId = rHashIndices[nElem];
+
+										SVF_P2S_N4B_C4B_T1F & vertCached = *(m_pUpdateTerrainTempData->m_lstTmpVertArray.GetElements() + nId);
+
+										if (IsEquivalent(vertCached.xy.x, vert.xy.x) && IsEquivalent(vertCached.xy.y, vert.xy.y) && IsEquivalent(vertCached.z, vert.z, 0.1f))
+										{
+											nIndex = nId;
+											break;
+										}	
+									}
+
+									if(nIndex < 0)
+									{
+										// set terrain surface normal
+										Vec3 vTerrainNorm;
+										SetVertexNormal(x, y, stepSize, pTerrain, nTerrainSize, nSID, vert, &vTerrainNorm);
+
+										// use terrain normal near the ground
+										float fLerp = SATURATE((vPosWS[v].z - fElev[v]) * 2.f);
+										Vec3 vNorm = Vec3::CreateLerp(vTerrainNorm, vNormWS[v], fLerp);
+										vert.normal.bcolor[0] = (byte)(vNorm[0] * 127.5f + 128.0f);
+										vert.normal.bcolor[1] = (byte)(vNorm[1] * 127.5f + 128.0f);
+										vert.normal.bcolor[2] = (byte)(vNorm[2] * 127.5f + 128.0f);
+										vert.normal.bcolor[3] = 0;
+
+										// set terrain surface type
+										SetVertexSurfaceType(x, y, stepSize, pTerrain, nSID, vert);
+
+										nIndex = m_pUpdateTerrainTempData->m_lstTmpVertArray.Count();
+
+										m_pUpdateTerrainTempData->m_lstTmpVertArray.Add(vert);
+
+										arrVertHash[xh & (nHashDim - 1)][yh & (nHashDim - 1)].Add(nIndex);
+									}
+
+									m_pUpdateTerrainTempData->m_StripsInfo.idx_array.Add(nIndex);
+								}
+							}
+						}
+					}
+				}
+			}
+
+			pRM->UnLockForThreadAccess();
+		}
+	}
+}
+
+void CTerrainNode::SetVertexNormal(float x, float y, const float iLookupRadius, CTerrain* pTerrain, const int nTerrainSize, const int nSID, SVF_P2S_N4B_C4B_T1F &vert, Vec3 * pTerrainNorm /*= nullptr*/)
+{
+#ifdef SEG_WORLD
+	bool bOutOfBound = (x + iLookupRadius) >= nTerrainSize || x <= iLookupRadius;
+	float sx = pTerrain->GetZ(x + iLookupRadius, y, nSID, bOutOfBound) - pTerrain->GetZ(x - iLookupRadius, y, nSID, bOutOfBound);
+
+	bOutOfBound = (y + iLookupRadius) >= nTerrainSize || y <= iLookupRadius;
+	float sy = pTerrain->GetZ(x, y + iLookupRadius, nSID, bOutOfBound) - pTerrain->GetZ(x, y - iLookupRadius, nSID, bOutOfBound);
+#else
+	float sx;
+	if ((x + iLookupRadius) < nTerrainSize && x > iLookupRadius)
+	{
+		sx = pTerrain->GetZ(x + iLookupRadius, y, nSID) - pTerrain->GetZ(x - iLookupRadius, y, nSID);
+	}
+	else
+	{
+		sx = 0;
+	}
+
+	float sy;
+	if ((y + iLookupRadius) < nTerrainSize && y > iLookupRadius)
+	{
+		sy = pTerrain->GetZ(x, y + iLookupRadius, nSID) - pTerrain->GetZ(x, y - iLookupRadius, nSID);
+	}
+	else
+	{
+		sy = 0;
+	}
+#endif
+	// z component of normal will be used as point brightness ( for burned terrain )
+	Vec3 vNorm(-sx, -sy, iLookupRadius * 2.0f);
+	vNorm.Normalize();
+
+	if (pTerrainNorm)
+	{
+		*pTerrainNorm = vNorm;
+	}
+
+	vert.normal.bcolor[0] = (byte)(vNorm[0] * 127.5f + 128.0f);
+	vert.normal.bcolor[1] = (byte)(vNorm[1] * 127.5f + 128.0f);
+	vert.normal.bcolor[2] = (byte)(vNorm[2] * 127.5f + 128.0f);
+	vert.normal.bcolor[3] = 255;
+	SwapEndian(vert.normal.dcolor, eLittleEndian);
+}
+
+void CTerrainNode::SetVertexSurfaceType(float x, float y, float stepSize, CTerrain* pTerrain, const int nSID, SVF_P2S_N4B_C4B_T1F &vert)
+{
+	uint8 ucSurfaceTypeID = pTerrain->GetSurfaceTypeID(x, y, nSID);
+	if (ucSurfaceTypeID == SRangeInfo::e_hole)
+	{
+		// in case of hole - try to find some valid surface type around
+		for (float i = -stepSize; i <= stepSize && (ucSurfaceTypeID == SRangeInfo::e_hole); i += stepSize)
+		{
+			for (float j = -stepSize; j <= stepSize && (ucSurfaceTypeID == SRangeInfo::e_hole); j += stepSize)
+			{
+				ucSurfaceTypeID = pTerrain->GetSurfaceTypeID(x + i, y + j, nSID);
+			}
+		}
+	}
+
+	vert.color.bcolor[0] = 255;
+	vert.color.bcolor[1] = ucSurfaceTypeID;
+	vert.color.bcolor[2] = 255;
+	vert.color.bcolor[3] = 255;
+	SwapEndian(vert.color.dcolor, eLittleEndian);
 }

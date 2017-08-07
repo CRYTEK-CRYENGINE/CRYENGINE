@@ -228,17 +228,25 @@ struct Array : STORE::template Store<T, I>
 		return *rbegin();
 	})
 
+#if defined(_DEBUG)
+#	define debug_only_assert(cond) assert(cond)
+#else
+#	define debug_only_assert(cond)
+#endif
+
 	CONST_VAR_FUNCTION(T & at(I i),
 	{
-		assert(i >= 0 && i < size());
+		debug_only_assert(i >= 0 && i < size());
 		return begin()[i];
 	})
 
 	CONST_VAR_FUNCTION(T & operator[](I i),
 	{
-		assert(i >= 0 && i < size());
+		debug_only_assert(i >= 0 && i < size());
 		return begin()[i];
 	})
+
+#	undef debug_only_assert
 
 	//! Conversion to canonical array type.
 	ILINE operator const_array() const { return const_array(begin(), size()); }

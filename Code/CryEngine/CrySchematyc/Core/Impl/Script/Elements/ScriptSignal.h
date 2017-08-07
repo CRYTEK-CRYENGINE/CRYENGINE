@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <Schematyc/Script/Elements/IScriptSignal.h>
-#include <Schematyc/SerializationUtils/MultiPassSerializer.h>
+#include <CrySchematyc/Script/Elements/IScriptSignal.h>
+#include <CrySchematyc/SerializationUtils/MultiPassSerializer.h>
 
 #include "Script/ScriptElementBase.h"
 #include "Script/ScriptParam.h"
@@ -19,7 +19,7 @@ class CScriptSignal : public CScriptElementBase<IScriptSignal>, public CMultiPas
 public:
 
 	CScriptSignal();
-	CScriptSignal(const SGUID& guid, const char* szName);
+	CScriptSignal(const CryGUID& guid, const char* szName);
 
 	// IScriptElement
 	virtual void EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const override;
@@ -32,7 +32,7 @@ public:
 	virtual const char*  GetAuthor() const override;
 	virtual const char*  GetDescription() const override;
 	virtual uint32       GetInputCount() const override;
-	virtual SGUID        GetInputGUID(uint32 inputIdx) const override;
+	virtual CryGUID        GetInputGUID(uint32 inputIdx) const override;
 	virtual const char*  GetInputName(uint32 inputIdx) const override;
 	virtual SElementId   GetInputTypeId(uint32 inputIdx) const override;
 	virtual CAnyConstPtr GetInputData(uint32 inputIdx) const override;

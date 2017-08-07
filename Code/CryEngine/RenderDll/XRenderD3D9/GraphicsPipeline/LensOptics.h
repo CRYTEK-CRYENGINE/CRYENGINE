@@ -22,8 +22,6 @@ private:
 	CPrimitiveRenderPass  m_passLensOptics;
 	CSoftOcclusionManager m_softOcclusionManager;
 
-	int             m_samplerPoint         = -1;
-	int             m_samplerLinear        = -1;
 	int             m_occlusionUpdateFrame = -1;
 	int             m_primitivesRendered   =  0;
 };

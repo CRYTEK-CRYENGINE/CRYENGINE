@@ -38,8 +38,6 @@
 // The class is implemented using a HeapAllocator.
 //---------------------------------------------------------------------------
 
-#pragma warning(disable: 4355)  // 'this' : used in base member initializer list
-
 #include "HeapAllocator.h"
 
 namespace stl
@@ -64,7 +62,15 @@ protected:
 	}
 	static size_t AllocAlign(size_t nSize, size_t nAlign)
 	{
-		return nAlign > 0 ? nAlign : min<size_t>(nSize, alignof(void*));
+		if (nAlign == 0)
+		{
+			for (nAlign = 1; nAlign < 16; nAlign <<= 1)
+			{
+				if (nSize & nAlign)
+					break;
+			}
+		}
+		return nAlign;
 	}
 
 public:

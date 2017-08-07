@@ -605,14 +605,16 @@ public:
 
 				if (pLevelInfo)
 				{
-					ILevelInfo::TStringVec gamerules = pLevelInfo->GetGameRules();
+					size_t numGameRules = pLevelInfo->GetGameRulesCount();
+					std::vector<const char*> gameRules(numGameRules);
+					numGameRules = pLevelInfo->GetGameRules(gameRules.data(), numGameRules);
+					
 					string outString = "";
-
-					for (int i = 0; i < gamerules.size(); i++)
+					for (size_t i = 0; i < numGameRules; ++i)
 					{
 						if (i > 0)
 							outString.append("|");
-						outString.append(gamerules[i]);
+						outString.append(gameRules[i]);
 					}
 					ActivateOutput(pActInfo, OUT_DONE, outString);
 				}

@@ -8,5 +8,5 @@ namespace Serialization
 {
 
 IArchiveHost* CreateArchiveHost();
-
+void RegisterArchiveHostCVars();
 }

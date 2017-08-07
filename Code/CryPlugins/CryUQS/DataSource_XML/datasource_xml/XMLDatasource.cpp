@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace datasource_xml
+	namespace DataSource_XML
 	{
 
 		CXMLDatasource* CXMLDatasource::s_pInstance;
@@ -22,7 +22,7 @@ namespace uqs
 			s_pInstance = nullptr;
 		}
 
-		void CXMLDatasource::SetupAndInstallInHub(core::IHub& hub, const char* szLibraryRootPath, const char* szFileExtension /*= "uqs"*/)
+		void CXMLDatasource::SetupAndInstallInHub(Core::IHub& hub, const char* szLibraryRootPath, const char* szFileExtension /*= "uqs"*/)
 		{
 			REGISTER_COMMAND("UQS_XML_LoadQueryBlueprintLibrary", CmdLoadQueryBlueprintLibrary, 0, "Loads all query-blueprints from disk into memory.");
 
@@ -33,7 +33,7 @@ namespace uqs
 			SLibraryConfig config;
 			config.rootPath = szLibraryRootPath;
 
-			core::IQueryBlueprintLibrary& queryBlueprintLibrary = hub.GetQueryBlueprintLibrary();
+			Core::IQueryBlueprintLibrary& queryBlueprintLibrary = hub.GetQueryBlueprintLibrary();
 			m_pLibraryLoader.reset(new CQueryBlueprintFileLibrary(config, queryBlueprintLibrary));
 
 			hub.SetEditorLibraryProvider(m_pLibraryLoader.get());

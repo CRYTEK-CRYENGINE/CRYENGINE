@@ -1,5 +1,8 @@
+// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
-#include "FlowFrameworkBaseNode.h"
+
+#include <CryFlowGraph/IFlowBaseNode.h>
 #include <CryMath/PNoise3.h>
 
 //////////////////////////////////////////////////////////////////////////

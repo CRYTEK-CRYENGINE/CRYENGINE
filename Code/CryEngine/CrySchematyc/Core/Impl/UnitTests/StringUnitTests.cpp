@@ -2,8 +2,8 @@
 
 #include "StdAfx.h"
 
-#include <Schematyc/Utils/StackString.h>
-#include <Schematyc/Utils/SharedString.h>
+#include <CrySchematyc/Utils/StackString.h>
+#include <CrySchematyc/Utils/SharedString.h>
 
 #include "UnitTests/UnitTestRegistrar.h"
 

@@ -103,7 +103,7 @@ public:
 			{
 				Properties.VisibleNodeMask = pHeapProperties->CreationNodeMask | pHeapProperties->VisibleNodeMask;
 
-#if CRY_USE_DX12_MULTIADAPTER_SIMULATION
+#if DX12_LINKEDADAPTER_SIMULATION
 				// Always create on the first GPU, if running simulation
 				if (CRenderer::CV_r_StereoEnableMgpu < 0)
 					Properties.CreationNodeMask = Properties.VisibleNodeMask = 1;
@@ -121,7 +121,7 @@ public:
 			{
 				const UINT src = countTrailingZeros32(pHeapProperties->CreationNodeMask);
 				Share(i, m_Targets[src]);
-#if CRY_USE_DX12_MULTIADAPTER_SIMULATION
+#if DX12_LINKEDADAPTER_SIMULATION
 				deltaGPUAddresses[i] = deltaGPUAddresses[src];
 #endif
 			}
@@ -183,7 +183,7 @@ public:
 			{
 				const UINT src = countTrailingZeros32(Properties.CreationNodeMask);
 				Share(i, m_Targets[src]);
-#if CRY_USE_DX12_MULTIADAPTER_SIMULATION
+#if DX12_LINKEDADAPTER_SIMULATION
 				deltaGPUAddresses[i] = deltaGPUAddresses[src];
 #endif
 			}
@@ -419,7 +419,7 @@ public:
 	  _In_opt_ const D3D12_RANGE* pReadRange,
 	  _Outptr_opt_result_bytebuffer_(_Inexpressible_("Dependent on resource"))  void** ppData) final
 	{
-#if CRY_USE_DX12_MULTIADAPTER_SIMULATION
+#if DX12_LINKEDADAPTER_SIMULATION
 		// Always create on the first GPU, if running simulation
 		if (CRenderer::CV_r_StereoEnableMgpu < 0)
 			return Pick(0, Map(Subresource, pReadRange, ppData));
@@ -454,7 +454,7 @@ public:
 	  UINT Subresource,
 	  _In_opt_ const D3D12_RANGE* pWrittenRange) final
 	{
-#if CRY_USE_DX12_MULTIADAPTER_SIMULATION
+#if DX12_LINKEDADAPTER_SIMULATION
 		// Always create on the first GPU, if running simulation
 		if (CRenderer::CV_r_StereoEnableMgpu < 0)
 			return Pick(0, Unmap(Subresource, pWrittenRange));

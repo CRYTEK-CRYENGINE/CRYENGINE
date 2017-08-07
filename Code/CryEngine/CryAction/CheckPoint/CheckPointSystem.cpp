@@ -163,8 +163,6 @@ bool CCheckpointSystem::SaveExternalEntity(EntityId id)
 		{
 			nextEntity->setAttr("id", pEntity->GetId());
 			nextEntity->setAttr("name", pEntity->GetName());
-			//save active / hidden
-			nextEntity->setAttr("active", pEntity->IsActive());
 			nextEntity->setAttr("hidden", pEntity->IsHidden());
 			//save translation and rotation (complete tm matrix for simplicity)
 			SerializeWorldTM(pEntity, nextEntity, true);
@@ -243,7 +241,7 @@ void CCheckpointSystem::WriteActorData(XmlNodeRef parentNode)
 	while (IActor* pActor = it->Next())
 	{
 		IEntity* pEntity = pActor->GetEntity();
-		if (!pEntity->IsHidden() && pEntity->IsActive())
+		if (!pEntity->IsHidden() && pEntity->IsActivatedForUpdates())
 		{
 			EntityId id = pEntity->GetId();
 			const char* name = pEntity->GetName(); //we have to rely on names, since Id's change on level reexport
@@ -507,11 +505,8 @@ void CCheckpointSystem::LoadExternalEntities(XmlNodeRef parentNode)
 			{
 				IEntity* pEntity = gEnv->pEntitySystem->GetEntity(id);
 				//setup entity
-				bool bActive = false;
 				bool bHidden = false;
-				nextEntity->getAttr("active", bActive);
 				nextEntity->getAttr("hidden", bHidden);
-				pEntity->Activate(bActive);
 				pEntity->Hide(bHidden);
 				//load matrix
 				SerializeWorldTM(pEntity, nextEntity, false);
@@ -668,7 +663,6 @@ void CCheckpointSystem::RespawnAI(XmlNodeRef data)
 		IEntity* pEntity = pActor->GetEntity();
 		//deactivate all actors
 		pEntity->Hide(true);
-		pEntity->Activate(false);
 	}
 
 	//load actorflags for active actors
@@ -691,7 +685,6 @@ void CCheckpointSystem::RespawnAI(XmlNodeRef data)
 				if (pActor)
 				{
 					pActor->GetEntity()->Hide(false);
-					pActor->GetEntity()->Activate(true);
 				}
 				else
 					CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "Failed finding actor %i from checkpoint.", (int)id);
@@ -712,7 +705,7 @@ void CCheckpointSystem::RespawnAI(XmlNodeRef data)
 			continue;
 
 		//we don't respawn deactivated actors
-		if (!pEntity->IsHidden() && pEntity->IsActive())
+		if (!pEntity->IsHidden() && pEntity->IsActivatedForUpdates())
 		{
 			pActor->SetHealth(0);
 			pActor->Respawn();

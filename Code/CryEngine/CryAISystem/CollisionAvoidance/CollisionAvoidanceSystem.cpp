@@ -2,7 +2,6 @@
 
 #include "StdAfx.h"
 #include "CollisionAvoidanceSystem.h"
-#include "Walkability/WalkabilityCacheManager.h"
 #include "Navigation/NavigationSystem/NavigationSystem.h"
 
 #include "DebugDrawContext.h"

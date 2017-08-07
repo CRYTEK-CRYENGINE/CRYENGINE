@@ -4,8 +4,8 @@
 #include "SettingsManager.h"
 
 #include <CrySerialization/IArchiveHost.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/Utils/StackString.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/StackString.h>
 
 namespace Schematyc
 {
@@ -28,8 +28,8 @@ namespace Schematyc
 
 	void CSettingsManager::VisitSettings(const SettingsVisitor& visitor) const
 	{
-		SCHEMATYC_CORE_ASSERT(!visitor.IsEmpty());
-		if(!visitor.IsEmpty())
+		SCHEMATYC_CORE_ASSERT(visitor);
+		if(visitor)
 		{
 			for(const Settings::value_type& settings : m_settings)
 			{

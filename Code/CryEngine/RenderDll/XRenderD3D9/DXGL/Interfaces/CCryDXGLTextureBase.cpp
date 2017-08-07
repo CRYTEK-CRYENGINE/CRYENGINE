@@ -19,7 +19,7 @@ CCryDXGLTextureBase::CCryDXGLTextureBase(D3D11_RESOURCE_DIMENSION eDimension, NC
 {
 }
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 
 CCryDXGLTextureBase::CCryDXGLTextureBase(D3D11_RESOURCE_DIMENSION eDimension, NCryOpenGL::SInitialDataCopy* pInitialData, CCryDXGLDevice* pDevice)
 	: CCryDXGLResource(eDimension, pInitialData, pDevice)
@@ -34,7 +34,7 @@ CCryDXGLTextureBase::~CCryDXGLTextureBase()
 
 NCryOpenGL::STexture* CCryDXGLTextureBase::GetGLTexture()
 {
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	IF_UNLIKELY (!m_spGLResource)
 		Initialize();
 #endif

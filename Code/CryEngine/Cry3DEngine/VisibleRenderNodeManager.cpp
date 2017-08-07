@@ -246,3 +246,23 @@ CVisibleRenderNodesManager::Statistics CVisibleRenderNodesManager::GetStatistics
 	stats.numUsed = m_visibleNodes.size();
 	return stats;
 }
+
+void CVisibleRenderNodesManager::OnEntityDeleted(IEntity *pEntity)
+{
+#ifdef _DEBUG
+	LOADING_TIME_PROFILE_SECTION;
+
+	for (auto* node : m_visibleNodes)
+	{
+		const bool bEntityOwnerdeleted =
+			node->userData.pOwnerNode &&
+			node->userData.pOwnerNode->GetOwnerEntity() == pEntity;
+		if (bEntityOwnerdeleted)
+		{
+			CryFatalError(
+				"%s: Dangling IEntity pointer detected in render node: %s",
+				__FUNCTION__, node->userData.pOwnerNode->GetEntityClassName());
+		}
+	}
+#endif
+}

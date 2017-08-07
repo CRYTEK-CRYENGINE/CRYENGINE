@@ -330,6 +330,9 @@ pixout DownsampleStablePS(vtxOutTexToTex IN)
 	}
 	
 	OUT.Color.rgb = 0.5 * blockCC + 0.125 * (blockTL + blockTR + blockBR + blockBL);
+	
+	// Filter out NaNs
+	OUT.Color.rgb = all(isfinite(OUT.Color.rgb)) ? OUT.Color.rgb : float3(0, 0, 0);
   
   return OUT;
 }
@@ -545,8 +548,8 @@ technique ClearScreen
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Linearize Depth technique //////////////////////////////////////////////////////////////////////
 
-Texture2D<float4>	LinearizeDepth_DepthTex		: register(t16);
-Texture2DMS<float4> LinearizeDepth_DepthTexMS 	: register(t16);
+Texture2D<float>   LinearizeDepth_DepthTex   : register(t0);
+Texture2DMS<float> LinearizeDepth_DepthTexMS : register(t0);
 
 float4 NearProjection;
 
@@ -605,7 +608,7 @@ pixout FlattenDepthPS(vtxOutTexToTex IN)
 {
 	pixout OUT = (pixout) 0;
 	float2 PixCoord = MapViewportToUnnormalizedRaster(IN.baseTC.xy);
-	OUT.Color.x = LinearizeDepth_DepthTex.Load(int3(PixCoord, 0)).x;
+	OUT.Color.x = LinearizeDepth_DepthTex.Load(int3(PixCoord, 0));
 
 	return OUT;
 }
@@ -629,16 +632,19 @@ float4 DownsampleDepth_Params;
 pixout DownsampleDepthPS(vtxOut IN)
 {
 	pixout OUT = (pixout) 0;
-
+	
+	uint2 WPos = (uint2)IN.WPos.xy;
 	float2 scaledTC = (IN.WPos.xy * 2.0) * DownsampleDepth_Params.xy;
 	
 	float4 vMaxDepths = DownsampleDepth_DepthTex.GatherRed(SampStatePoint, float3(scaledTC, 0));
 	float4 vMinDepths = DownsampleDepth_DepthTex.GatherGreen(SampStatePoint, float3(scaledTC, 0));
+	float  vPrvDepth  = DownsampleDepth_DepthTex.Load(int3(2 * WPos.x + ((WPos.y & 1) ^ 1), 2 * WPos.y + ((WPos.x & 1) ^ 1), 0));
 	
 	// Linearize depth
 #if %_RT_SAMPLE0
 	vMinDepths = CV_ProjRatio.y / (vMinDepths - CV_ProjRatio.x);
 	vMaxDepths = CV_ProjRatio.y / (vMaxDepths - CV_ProjRatio.x);
+	vPrvDepth  = CV_ProjRatio.y / (vPrvDepth  - CV_ProjRatio.x);
 #endif
 
 #if %_RT_SAMPLE1
@@ -647,9 +653,8 @@ pixout DownsampleDepthPS(vtxOut IN)
 
 	OUT.Color.x = max(max(vMaxDepths.x, vMaxDepths.y), max(vMaxDepths.z, vMaxDepths.w));
 	OUT.Color.y = min(min(vMinDepths.x, vMinDepths.y), min(vMinDepths.z, vMinDepths.w));
-	OUT.Color.z = (vMinDepths.x + vMinDepths.y + vMinDepths.z + vMinDepths.w) * 0.25;
-	uint2 WPos = (uint2)IN.WPos.xy;
-	OUT.Color.w = DownsampleDepth_DepthTex.Load(int3(2 * WPos.x + ((WPos.y & 1) ^ 1), 2 * WPos.y + ((WPos.x & 1) ^ 1), 0));
+	OUT.Color.z = (vMinDepths.x + vMinDepths.y + vMinDepths.z + vMinDepths.w) * 0.25; // Average
+	OUT.Color.w = vPrvDepth; // Rotated Grid Subsample
 
 	return OUT;
 }
@@ -714,7 +719,7 @@ technique TranspDepthFixupMerge
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// GaussBlurBilinear technique ////////////////////////////////////////////////////////////////////
 
-float4 PI_psOffsets[16] < vsregister = c4; > ;
+float4 PB_psOffsets[16] < vsregister = c4; > ;
 float4 psWeights[16];
 float4 clampTC; // minU, maxU, minV, maxV
 
@@ -747,14 +752,14 @@ vtxOutGauss GaussBlurBilinearVS(vtxIn IN)
 
 	OUT.HPosition = Get2dHPos(IN.Position);
   
-  OUT.tc0.xy = IN.baseTC.xy + PI_psOffsets[0].xy;
-  OUT.tc0.zw = IN.baseTC.xy + PI_psOffsets[1].xy;
-  OUT.tc1.xy = IN.baseTC.xy + PI_psOffsets[2].xy;
-  OUT.tc1.zw = IN.baseTC.xy + PI_psOffsets[3].xy;
-  OUT.tc2.xy = IN.baseTC.xy + PI_psOffsets[4].xy;
-  OUT.tc2.zw = IN.baseTC.xy + PI_psOffsets[5].xy;
-  OUT.tc3.xy = IN.baseTC.xy + PI_psOffsets[6].xy;
-  OUT.tc3.zw = IN.baseTC.xy + PI_psOffsets[7].xy;
+  OUT.tc0.xy = IN.baseTC.xy + PB_psOffsets[0].xy;
+  OUT.tc0.zw = IN.baseTC.xy + PB_psOffsets[1].xy;
+  OUT.tc1.xy = IN.baseTC.xy + PB_psOffsets[2].xy;
+  OUT.tc1.zw = IN.baseTC.xy + PB_psOffsets[3].xy;
+  OUT.tc2.xy = IN.baseTC.xy + PB_psOffsets[4].xy;
+  OUT.tc2.zw = IN.baseTC.xy + PB_psOffsets[5].xy;
+  OUT.tc3.xy = IN.baseTC.xy + PB_psOffsets[6].xy;
+  OUT.tc3.zw = IN.baseTC.xy + PB_psOffsets[7].xy;
 	OUT.tc4.xy = IN.baseTC.xy;  // Original coordinates
 
   return OUT;
@@ -765,14 +770,14 @@ vtxOutGaussMasked MaskedGaussBlurBilinearVS(vtxIn IN)
   vtxOutGaussMasked OUT = (vtxOutGaussMasked) 0;
 	OUT.HPosition = Get2dHPos(IN.Position);
 
-  OUT.tc0.xy = IN.baseTC.xy + PI_psOffsets[0].xy;
-  OUT.tc1.xy = IN.baseTC.xy + PI_psOffsets[1].xy;
-  OUT.tc2.xy = IN.baseTC.xy + PI_psOffsets[2].xy;
-  OUT.tc3.xy = IN.baseTC.xy + PI_psOffsets[3].xy;
-  OUT.tc4.xy = IN.baseTC.xy + PI_psOffsets[4].xy;
-  OUT.tc5.xy = IN.baseTC.xy + PI_psOffsets[5].xy;
-  OUT.tc6.xy = IN.baseTC.xy + PI_psOffsets[6].xy;
-  OUT.tc7.xy = IN.baseTC.xy + PI_psOffsets[7].xy;
+  OUT.tc0.xy = IN.baseTC.xy + PB_psOffsets[0].xy;
+  OUT.tc1.xy = IN.baseTC.xy + PB_psOffsets[1].xy;
+  OUT.tc2.xy = IN.baseTC.xy + PB_psOffsets[2].xy;
+  OUT.tc3.xy = IN.baseTC.xy + PB_psOffsets[3].xy;
+  OUT.tc4.xy = IN.baseTC.xy + PB_psOffsets[4].xy;
+  OUT.tc5.xy = IN.baseTC.xy + PB_psOffsets[5].xy;
+  OUT.tc6.xy = IN.baseTC.xy + PB_psOffsets[6].xy;
+  OUT.tc7.xy = IN.baseTC.xy + PB_psOffsets[7].xy;
 
   // special case for masked blur  - output with correct aspect ratio into wz
   OUT.tc0.wz = IN.baseTC.xy;
@@ -908,14 +913,14 @@ vtxOutAlphaBlur GaussAlphaBlurVS(vtxIn IN)
 	OUT.HPosition = Get2dHPos(IN.Position);
 
 	OUT.tc0.zw = IN.baseTC.xy;
-  OUT.tc0.xy = IN.baseTC.xy + PI_psOffsets[0].xy;
-  OUT.tc1.xy = IN.baseTC.xy + PI_psOffsets[1].xy;
-  OUT.tc2.xy = IN.baseTC.xy + PI_psOffsets[2].xy;
-  OUT.tc3.xy = IN.baseTC.xy + PI_psOffsets[3].xy;
-  OUT.tc4.xy = IN.baseTC.xy + PI_psOffsets[4].xy;
-  OUT.tc5.xy = IN.baseTC.xy + PI_psOffsets[5].xy;
-  OUT.tc6.xy = IN.baseTC.xy + PI_psOffsets[6].xy;
-  OUT.tc7.xy = IN.baseTC.xy + PI_psOffsets[7].xy;
+  OUT.tc0.xy = IN.baseTC.xy + PB_psOffsets[0].xy;
+  OUT.tc1.xy = IN.baseTC.xy + PB_psOffsets[1].xy;
+  OUT.tc2.xy = IN.baseTC.xy + PB_psOffsets[2].xy;
+  OUT.tc3.xy = IN.baseTC.xy + PB_psOffsets[3].xy;
+  OUT.tc4.xy = IN.baseTC.xy + PB_psOffsets[4].xy;
+  OUT.tc5.xy = IN.baseTC.xy + PB_psOffsets[5].xy;
+  OUT.tc6.xy = IN.baseTC.xy + PB_psOffsets[6].xy;
+  OUT.tc7.xy = IN.baseTC.xy + PB_psOffsets[7].xy;
 
   return OUT;
 }
@@ -1297,8 +1302,8 @@ float4x4 vpGodMatrixI : PB_UnProjMatrix; // invert( View * projection )
 float4 CausticParams		: PB_CausticsParams; // xy: caustics distance, zw: 1 / caustics distance
 float4 CausticSmoothSunDir	: PB_CausticsSmoothSunDirection; 
 
-float4 PI_GodRaysParamsVS;
-float4 PI_GodRaysParamsPS;
+float4 PB_GodRaysParamsVS;
+float4 PB_GodRaysParamsPS;
 
 Texture2D CausticsScreenTex : register(t0) = TS_BackBuffer;
 Texture2D WavesTex : register(t1) = "%ENGINE%/EngineAssets/Textures/oceanwaves_ddn.tif";
@@ -1332,7 +1337,7 @@ vtxOutGodRays UnderwaterGodRaysVS(uint VertexID : SV_VertexID)
 	vPos.xy *= 1.2f; // hack: make sure to cover entire screen
 
 	// Increase each slice distance
-	vPos.z = 0.1 + 0.88 * saturate(PI_GodRaysParamsVS.z * PI_GodRaysParamsVS.w);
+	vPos.z = 0.1 + 0.88 * saturate(PB_GodRaysParamsVS.z * PB_GodRaysParamsVS.w);
 	vPos.w = 1;
 
 #if %_RT_REVERSE_DEPTH
@@ -1406,7 +1411,7 @@ pixout UnderwaterGodRaysPS(vtxOutGodRays IN)
 	cCaustic.y = CausticsTex.SampleLevel(ugLinearClampSampler, causticMapR.xy * 0.525 + 0.525, 0.0f).x;
 	cCaustic.z = CausticsTex.SampleLevel(ugLinearClampSampler, causticMapR.xy * 0.5 + 0.5, 0.0f).x;
 
-	float slice_pos = PI_GodRaysParamsPS.z * PI_GodRaysParamsPS.w;
+	float slice_pos = PB_GodRaysParamsPS.z * PB_GodRaysParamsPS.w;
 
 	// sharpen up a bit
 	cCaustic *= cCaustic;
@@ -1421,9 +1426,9 @@ pixout UnderwaterGodRaysPS(vtxOutGodRays IN)
 	cCaustic += pow( cCaustic, 8 );
 
 	half4 cScreen =  CausticsScreenTex.SampleLevel(ugLinearClampSampler, IN.baseTC.xy, 0.0f);
-	cScreen.xyz = cCaustic * PI_GodRaysParamsPS.w * PI_GodRaysParamsPS.y * 0.25; //saturate( CausticParams.y  )*
+	cScreen.xyz = cCaustic * PB_GodRaysParamsPS.w * PB_GodRaysParamsPS.y * 0.25; //saturate( CausticParams.y  )*
 
-	half fDistToCam = length( WorldViewPos.xyz - IN.vPosition.xyz );
+	half fDistToCam = length( CV_WorldViewPosition.xyz - IN.vPosition.xyz );
 
 	fAtten *= ( slice_pos );
 
@@ -1443,7 +1448,7 @@ pixout UnderwaterGodRaysFinalPS(vtxOut IN)
 	cBumpy += UnderwaterBumpTex.Sample(ugTrilinearWrapSampler, IN.baseTC.yx * 0.033 - anim ) * 2 - 1;
 	cBumpy.xyz = normalize( cBumpy ).xyz;
 
-	half4 cScreen = CausticsScreenTex.SampleLevel(ugLinearClampSampler, IN.baseTC.xy + cBumpy.xy * 0.0125 * PI_GodRaysParamsPS.x, 0.0f);
+	half4 cScreen = CausticsScreenTex.SampleLevel(ugLinearClampSampler, IN.baseTC.xy + cBumpy.xy * 0.0125 * PB_GodRaysParamsPS.x, 0.0f);
 	half4 cCaustics = ScreenScaledTex.SampleLevel(ugLinearClampSampler, IN.baseTC.xy + cBumpy.xy * 0.01, 0.0f);
 
 	OUT.Color = cScreen + cCaustics;
@@ -1598,7 +1603,25 @@ technique VolumetricScatteringFinal
 Texture2D WaterRipplesTexture : register(t0);
 SamplerState WaterRipplesSState : register(s0);
 
-float4 WaterRipplesParams;
+float4   WaterRipplesParams;
+float4x4 WaterRipplesTransform; 
+
+// deprecated
+vtxOut WaterRipplesHitVS(vtxIn IN)
+{
+  vtxOut OUT = (vtxOut)0; 
+
+  float4 vPos = IN.Position;
+  OUT.HPosition = mul(vPos, WaterRipplesTransform);
+  
+  OUT.baseTC.xy = IN.baseTC.xy;
+
+  // output with correct aspect ratio into wz
+  OUT.baseTC.wz = (IN.baseTC.xy -0.5 ) * float2(0.75*(ScrSize.x/ScrSize.y), 1.0) + 0.5;
+
+  return OUT;
+}
+
 
 pixout WaterRippleHitPS(vtxOut IN)
 {
@@ -1691,7 +1714,7 @@ technique WaterRipplesHit
 {
   pass p0
   {
-    VertexShader = CustomViewPortBaseVS();
+    VertexShader = WaterRipplesHitVS();
     PixelShader = WaterRippleHitPS();    
     CullMode = None;    
   }

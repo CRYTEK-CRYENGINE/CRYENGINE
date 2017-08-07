@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <Schematyc/Services/ISettingsManager.h>
+#include <CrySchematyc/Services/ISettingsManager.h>
 
 namespace Schematyc
 {

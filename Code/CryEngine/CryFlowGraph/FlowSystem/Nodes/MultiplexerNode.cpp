@@ -67,7 +67,7 @@ public:
 					return;
 				else if (mode == eTM_PortsOnly && !bPortActive)
 					return;
-				ActivateOutput(pActInfo, 0, pActInfo->pInputPorts[port]);
+				ActivateOutput(pActInfo, 0, GetPortAny(pActInfo, port));
 			}
 		}
 		;

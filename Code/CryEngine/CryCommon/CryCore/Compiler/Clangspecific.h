@@ -72,6 +72,8 @@
 	#define CRY_FUNCTION_CONTAINS_UNDEFINED_BEHAVIOR
 #endif
 
+//! Unreachable code marker for helping error handling and optimization
+#define UNREACHABLE() __builtin_unreachable()
 
 #ifdef  _MSC_VER
 // For clang on MSBuild

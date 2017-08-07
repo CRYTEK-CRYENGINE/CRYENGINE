@@ -6,6 +6,7 @@
 #include <CryCore/Platform/platform.h>
 #include <CryThreading/IThreadManager.h>
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 #if defined(USE_DXINPUT)
@@ -652,3 +653,5 @@ void CXInputDevice::RestoreDefaultDeadZone()
 }
 
 #endif //defined(USE_DXINPUT)
+
+#pragma warning(pop)

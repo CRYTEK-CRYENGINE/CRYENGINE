@@ -7,7 +7,7 @@
 
 struct ITransformationPinning : public IAnimationPoseModifier
 {
-	CRYINTERFACE_DECLARE(ITransformationPinning, 0xcc34ddea972e47db, 0x93f9cdcb98c28c8f);
+	CRYINTERFACE_DECLARE_GUID(ITransformationPinning, "cc34ddea-972e-47db-93f9-cdcb98c28c8f"_cry_guid);
 
 	virtual void SetBlendWeight(float factor)		= 0;
 	virtual void SetJoint(uint32 jntID)				= 0;

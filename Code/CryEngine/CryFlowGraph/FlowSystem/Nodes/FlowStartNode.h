@@ -13,8 +13,6 @@ public:
 	CFlowStartNode(SActivationInfo*);
 
 	// IFlowNode
-	virtual void         AddRef();
-	virtual void         Release();
 	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo);
 	virtual void         GetConfiguration(SFlowNodeConfig& config);
 	virtual void         ProcessEvent(EFlowEvent event, SActivationInfo*);
@@ -29,7 +27,6 @@ public:
 	// ~IFlowNode
 
 private:
-	int  m_refs;
 	bool m_bActivated;
 
 	void SetActivation(SActivationInfo*, bool value);

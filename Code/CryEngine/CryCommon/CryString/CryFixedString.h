@@ -1268,8 +1268,6 @@ inline typename CryStackStringT<T, S>::size_type CryStackStringT<T, S >::rfind(v
 	}
 	else
 	{
-		if (pos == npos)
-			pos = length();
 		if (pos > length())
 		{
 			return npos;

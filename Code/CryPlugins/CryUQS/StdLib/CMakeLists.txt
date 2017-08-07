@@ -32,6 +32,7 @@ add_sources("UQS_uber_stdlib.cpp"
 		"stdlib/ItemStringConversions.h"
 		"stdlib/ItemMonitors.h"
 		"stdlib/ItemMonitors.cpp"
+		"stdlib/SchematycSupport.cpp"
 )
 
 end_sources()
@@ -47,3 +48,10 @@ target_include_directories(${THIS_PROJECT}
 	PRIVATE "stdlib"
 	PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
 )
+
+if(OPTION_UQS_SCHEMATYC_SUPPORT)
+	target_include_directories(${THIS_PROJECT}
+		PRIVATE "${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/Core/Interface"
+		PRIVATE "${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/STDEnv/Interface"
+	)
+endif()

@@ -42,6 +42,7 @@
 
 half4    MatDifColor                 : PM_MatDiffuseColor             < register = REG_PM_DIFFUSE_COL; >;
 half4    MatSpecColor                : PM_MatSpecularColor            < register = REG_PM_SPECULAR_COL; >;
+half4    MatEmissiveColor            : PM_MatEmissiveColor            < register = REG_PM_EMISSIVE_COL; >;
 float4x4 CM_MatrixTCM                : PM_MatMatrixTCM                < register = REG_PM_TCM_MATRIX; >;
 float4   CM_DeformWave               : PM_MatDeformWave               < register = REG_PM_DEFORM_WAVE; >;
 float4   CM_DetailTilingAndAlphaRef  : PM_MatDetailTilingAndAlphaRef  < register = REG_PM_DETAIL_TILING; >;
@@ -131,6 +132,7 @@ cbuffer CBPerViewGlobal : register(b13)
 	float4x4  CV_PrevViewProjNearestMatr;
 	float3x4  CV_ScreenToWorldBasis;
 	float4    CV_TessInfo;
+	float4    CV_WorldViewPosition;
 	float4    CV_CameraRightVector;
 	float4    CV_CameraFrontVector;
 	float4    CV_CameraUpVector;

@@ -508,11 +508,11 @@ void CParticleContainer::RenderGeometry(const SRendParams& RenParams, const SRen
 	// Set up shared and unique geom rendering.
 	SParticleVertexContext Context(this, passInfo);
 
-	m_Counts.EmittersRendered += 1.f;
+	m_Counts.components.rendered += 1.f;
 
 	for (const auto& part : m_Particles)
 	{
-		m_Counts.ParticlesRendered += part.RenderGeometry(RenParamsGeom, Context, passInfo);
+		m_Counts.particles.rendered += part.RenderGeometry(RenParamsGeom, Context, passInfo);
 	}
 }
 
@@ -630,8 +630,7 @@ void CParticle::AddLight(const SRendParams& RenParams, const SRenderingPassInfo&
 		const float fMinRadiusThreshold = GetFloatCVar(e_ParticlesLightMinRadiusThreshold);
 
 		const ColorF& cColor = dl.m_Color;
-		const Vec4* vLight = (Vec4*) &dl.m_Origin.x;
-		if ((cColor.r + cColor.g + cColor.b) > fMinColorThreshold && vLight->w > fMinRadiusThreshold)
+		if ((cColor.r + cColor.g + cColor.b) > fMinColorThreshold && dl.m_fRadius > fMinRadiusThreshold)
 		{
 			Get3DEngine()->SetupLightScissors(&dl, passInfo);
 			dl.m_n3DEngineUpdateFrameID = passInfo.GetMainFrameID();
@@ -1168,11 +1167,11 @@ int CParticleContainer::CullParticles(SParticleVertexContext& Context, int& nVer
 	nVertices = Context.m_nMaxParticleVertices * nParticlesRendered;
 	nIndices = Context.m_nMaxParticleIndices * nParticlesRendered;
 
-	m_Counts.ParticlesRendered += nParticlesRendered;
-	m_Counts.EmittersRendered += 1.f * !!nParticlesRendered;
-	m_Counts.PixelsProcessed += Context.m_fPixelsProcessed;
-	m_Counts.PixelsRendered += Context.m_fPixelsRendered;
-	m_Counts.ParticlesClip += (float)(Context.m_nParticlesClipped + Context.m_nParticlesCulled);
+	m_Counts.particles.rendered += nParticlesRendered;
+	m_Counts.components.rendered += 1.f * !!nParticlesRendered;
+	m_Counts.pixels.updated += Context.m_fPixelsProcessed;
+	m_Counts.pixels.rendered += Context.m_fPixelsRendered;
+	m_Counts.particles.clip += (float)(Context.m_nParticlesClipped + Context.m_nParticlesCulled);
 
 	return nParticlesRendered;
 }

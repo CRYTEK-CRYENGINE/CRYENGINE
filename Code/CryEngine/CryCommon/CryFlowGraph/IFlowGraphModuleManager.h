@@ -148,17 +148,14 @@ struct IFlowGraphModuleListener
 	//! Called once a new module instance was destroyed.
 	virtual void OnModuleInstanceDestroyed(IFlowGraphModule* module, TModuleInstanceId instanceID) = 0;
 
-	//! Called once a module was destroyed.
+	//! Called just before a module is destroyed and deleted.
 	virtual void OnModuleDestroyed(IFlowGraphModule* module) = 0;
 
-	//! Called right after a module was destroyed.
-	virtual void OnPostModuleDestroyed() = 0;
-
-	//! Called once a modules root graph has changed.
+	//! Called once a module's root graph has changed.
 	virtual void OnRootGraphChanged(IFlowGraphModule* module, ERootGraphChangeReason reason) = 0;
 
-	//! Called once the system scanned for new modules.
-	virtual void OnScannedForModules() = 0;
+	//! Called after new all modules are reloaded
+	virtual void OnModulesScannedAndReloaded() = 0;
 
 protected:
 	virtual ~IFlowGraphModuleListener() {};
@@ -172,15 +169,22 @@ struct IFlowGraphModuleManager
 	virtual bool               RegisterListener(IFlowGraphModuleListener* pListener, const char* name) = 0;
 	virtual void               UnregisterListener(IFlowGraphModuleListener* pListener) = 0;
 
+
+	//! Delete a module definition from disk and the internal registry
 	virtual bool               DeleteModuleXML(const char* moduleName) = 0;
+
+	//! Rename a module definition in disk and in the internal registry
 	virtual bool               RenameModuleXML(const char* moduleName, const char* newName) = 0;
 
-	virtual void               ScanForModules() = 0;
+	//! Get the path on disk were the module definition is saved
 	virtual const char*        GetModulePath(const char* name) = 0;
+	        const char*        GetGlobalModulesPath() const { return s_globalModulesFolder; }
+	        const char*        GetLevelModulesPath() const { return s_levelModulesFolder; }
 
 	virtual bool               SaveModule(const char* moduleName, XmlNodeRef saveTo) = 0;
 	virtual IFlowGraphModule*  LoadModuleFile(const char* moduleName, const char* fileName, bool bGlobal) = 0;
 
+	//! Getter methods
 	virtual IFlowGraphModule*  GetModule(IFlowGraphPtr pFlowgraph) const = 0;
 	virtual IFlowGraphModule*  GetModule(const char* moduleName) const = 0;
 	virtual IFlowGraphModule*  GetModule(TModuleId id) const = 0;
@@ -189,9 +193,19 @@ struct IFlowGraphModuleManager
 	virtual const char*        GetReturnNodeName(const char* moduleName) const = 0;
 	virtual const char*        GetCallerNodeName(const char* moduleName) const = 0;
 
+
+	//! Unload all loaded modules
+	virtual void               ClearModules() = 0;
+	//! Unload only the loaded level modules, not the global ones
+	virtual void               ClearLevelModules() = 0;
+
+	virtual void               ScanAndReloadModules(bool bScanGlobalModules, bool bScanLevelModules) = 0;
+
 	virtual bool               CreateModuleNodes(const char* moduleName, TModuleId moduleId) = 0;
 
 	virtual IModuleIteratorPtr CreateModuleIterator() = 0;
-	//! Unload all loaded modules
-	virtual void               ClearModules() = 0;
+
+private:
+	static constexpr const char* s_globalModulesFolder = "Libs/FlowgraphModules";
+	static constexpr const char* s_levelModulesFolder = "FlowgraphModules";
 };

@@ -4,6 +4,8 @@
 #include "entities.h"
 #include "world.h"
 
+#include <CryMath/Random.h>
+
 using namespace primitives;
 using namespace cpx;
 using namespace Helper;

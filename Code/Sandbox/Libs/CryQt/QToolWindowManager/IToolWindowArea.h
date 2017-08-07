@@ -1,7 +1,6 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
-#include <QTabWidget>
 #include <QList>
 #include <QVariantMap>
 #include "QToolWindowManagerCommon.h"
@@ -31,7 +30,6 @@ public:
 
 	virtual bool switchAutoHide(bool newValue) = 0;
 
-	//QTabWidget members
 	virtual const QPalette& palette() const = 0;
 	virtual void clear() = 0;
 	virtual QRect rect() const = 0;
@@ -51,10 +49,10 @@ public:
 	virtual QPoint mapToGlobal(const QPoint & pos) const = 0;
 	virtual void setCurrentWidget(QWidget* w) = 0;
 
-	//QTabBar wrappers
-	virtual QPoint mapTabBarFromGlobal(const QPoint & pos) const = 0;
-	virtual QRect tabBarRect() const = 0;
-	virtual QRect tabRect(int index) const = 0;
-	virtual int tabBarAt(const QPoint& pos) const = 0;
+	virtual QPoint mapCombineDropAreaFromGlobal(const QPoint & pos) const = 0;
+	virtual QRect combineAreaRect() const = 0;
+	virtual QRect combineSubWidgetRect(int index) const = 0;
+	virtual int subWidgetAt(const QPoint& pos) const = 0;
+	virtual QTWMWrapperAreaType areaType() const = 0;
 };
 Q_DECLARE_INTERFACE(IToolWindowArea, "QToolWindowManager/IToolWindowArea");

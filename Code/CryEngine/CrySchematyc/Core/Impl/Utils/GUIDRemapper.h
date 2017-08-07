@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "Schematyc/Utils/GUID.h"
-#include "Schematyc/Utils/IGUIDRemapper.h"
+#include "CrySchematyc/Utils/GUID.h"
+#include "CrySchematyc/Utils/IGUIDRemapper.h"
 
 namespace Schematyc
 {
@@ -11,14 +11,14 @@ class CGUIDRemapper : public IGUIDRemapper
 {
 private:
 
-	typedef std::unordered_map<SGUID, SGUID> GUIDs;
+	typedef std::unordered_map<CryGUID, CryGUID> GUIDs;
 
 public:
 
 	// IGUIDRemapper
 	virtual bool  Empty() const override;
-	virtual void  Bind(const SGUID& from, const SGUID& to) override;
-	virtual SGUID Remap(const SGUID& from) const override;
+	virtual void  Bind(const CryGUID& from, const CryGUID& to) override;
+	virtual CryGUID Remap(const CryGUID& from) const override;
 	// ~IGUIDRemapper
 
 private:

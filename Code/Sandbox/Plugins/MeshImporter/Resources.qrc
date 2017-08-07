@@ -1,0 +1,12 @@
+<RCC>
+  <qresource prefix="/">
+    <file alias="ImportIcon.png">PlaceholderIcon.png</file>
+    <file alias="OpenIcon.png">PlaceholderIcon.png</file>
+    <file alias="SaveIcon.png">PlaceholderIcon.png</file>
+    <file>Yes.png</file>
+    <file>No.png</file>
+    <file>Icons/load_fbx.ico</file>
+    <file>Icons/open_cgf.ico</file>
+    <file>Icons/save_cgf.ico</file>
+  </qresource>
+</RCC>

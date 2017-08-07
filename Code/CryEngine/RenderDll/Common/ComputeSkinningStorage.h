@@ -2,7 +2,7 @@
 
 #pragma once
 
-struct CGpuBuffer;
+class CGpuBuffer;
 
 namespace compute_skinning
 {

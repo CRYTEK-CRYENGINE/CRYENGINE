@@ -17,7 +17,6 @@
 //////////////////////////////////////////////////////////////////////////
 CFlowEntityClass::CFlowEntityClass(IEntityClass* pEntityClass)
 {
-	m_nRefCount = 0;
 	//m_classname = pEntityClass->GetName();
 	m_pEntityClass = pEntityClass;
 }
@@ -491,7 +490,7 @@ public:
 	{
 		CFlowEntityNodeBase::ProcessEvent(event, pActInfo);
 
-		IEntity* pEntity = GetEntity();
+		IEntity* pEntity = GetEntity(pActInfo);
 		if (!pEntity)
 			return;
 
@@ -503,24 +502,24 @@ public:
 
 				if (IsPortActive(pActInfo, IN_POS))
 				{
-					const Vec3* v = pActInfo->pInputPorts[IN_POS].GetPtr<Vec3>();
+					const Vec3 v = GetPortVec3(pActInfo, IN_POS);
 					if (coorSys == CS_WORLD)
 					{
 						Matrix34 tm = pEntity->GetWorldTM();
-						tm.SetTranslation(*v);
+						tm.SetTranslation(v);
 						pEntity->SetWorldTM(tm);
 					}
 					else
 					{
 						Matrix34 tm = pEntity->GetLocalTM();
-						tm.SetTranslation(*v);
+						tm.SetTranslation(v);
 						pEntity->SetLocalTM(tm);
 					}
 				}
 				if (IsPortActive(pActInfo, IN_ROTATE))
 				{
-					const Vec3* v = pActInfo->pInputPorts[IN_ROTATE].GetPtr<Vec3>();
-					Matrix34 tm = Matrix33(Quat::CreateRotationXYZ(Ang3(DEG2RAD(*v))));
+					const Vec3 v = GetPortVec3(pActInfo, IN_ROTATE);
+					Matrix34 tm = Matrix33(Quat::CreateRotationXYZ(Ang3(DEG2RAD(v))));
 					if (coorSys == CS_WORLD)
 					{
 						tm.SetTranslation(pEntity->GetWorldPos());
@@ -534,12 +533,11 @@ public:
 				}
 				if (IsPortActive(pActInfo, IN_SCALE))
 				{
-					const Vec3* v = pActInfo->pInputPorts[IN_SCALE].GetPtr<Vec3>();
-					Vec3 scale = *v;
-					if (scale.x == 0) scale.x = 1.0f;
-					if (scale.y == 0) scale.y = 1.0f;
-					if (scale.z == 0) scale.z = 1.0f;
-					pEntity->SetScale(scale);
+					Vec3 v = GetPortVec3(pActInfo, IN_SCALE);
+					if (v.x == 0) v.x = 1.0f;
+					if (v.y == 0) v.y = 1.0f;
+					if (v.z == 0) v.z = 1.0f;
+					pEntity->SetScale(v);
 				}
 			}
 			break;
@@ -1455,7 +1453,7 @@ public:
 
 	void SnapToTarget(SActivationInfo* pActInfo)
 	{
-		IEntity* pNodeEntity = GetEntity();
+		IEntity* pNodeEntity = GetEntity(pActInfo);
 		Matrix34 worldMat;
 
 		CalculateLookAtMatrix(pNodeEntity, worldMat);
@@ -1473,7 +1471,7 @@ public:
 		}
 		else
 		{
-			IEntity* pNodeEntity = GetEntity();
+			IEntity* pNodeEntity = GetEntity(pActInfo);
 			Matrix34 finalMat;
 			CalculateLookAtMatrix(pNodeEntity, finalMat);
 
@@ -1531,7 +1529,7 @@ public:
 	{
 		CFlowEntityNodeBase::ProcessEvent(event, pActInfo);
 
-		IEntity* pEntity = GetEntity();
+		IEntity* pEntity = GetEntity(pActInfo);
 		if (!pEntity)
 			return;
 
@@ -1893,16 +1891,16 @@ public:
 		string nextToken = key.Tokenize(".", pos);
 		while (nextToken.empty() == false)
 		{
-			if (value.type != ANY_TTABLE)
+			if (value.GetType() != EScriptAnyType::Table)
 				return 0;
 			ScriptAnyValue temp;
-			value.table->GetValueAny(token, temp);
+			value.GetScriptTable()->GetValueAny(token, temp);
 			value = temp;
 			token = nextToken;
 			nextToken = token.Tokenize(".", pos);
 		}
 		outKey = token;
-		return value.table;
+		return value.GetScriptTable();
 	}
 
 	SmartScriptTable ResolveScriptTable(IScriptTable* pTable, const char* sKey, bool bPerArchetype, string& outKey)
@@ -1964,7 +1962,7 @@ public:
 
 	void OnActivate(SActivationInfo* pActInfo)
 	{
-		IEntity* pEntity = GetEntity();
+		IEntity* pEntity = GetEntity(pActInfo);
 		if (!pEntity)
 			return;
 
@@ -2110,9 +2108,10 @@ public:
 		{
 			if (smartScriptTable->GetValueAny(propertyName.c_str(), outAnyValue))
 			{
-				if (outAnyValue.CopyFromTableToXYZ(outAnyValue.vec3.x, outAnyValue.vec3.y, outAnyValue.vec3.z))
+				Vec3 temp;
+				if (outAnyValue.CopyFromTableToXYZ(temp.x, temp.y, temp.z))
 				{
-					outAnyValue.type = ANY_TVECTOR;
+					outAnyValue.SetVector(temp);
 					return true;
 				}
 			}
@@ -2192,7 +2191,7 @@ public:
 	{
 		CFlowEntityNodeBase::ProcessEvent(event, pActInfo);
 
-		IEntity* pEntity = GetEntity();
+		IEntity* pEntity = GetEntity(pActInfo);
 		if (!pEntity)
 			return;
 
@@ -2311,15 +2310,15 @@ public:
 		int pos = 0;
 		string key = pKey;
 		string nextToken = key.Tokenize(".", pos);
-		while (!nextToken.empty() && value.type == ANY_TTABLE)
+		while (!nextToken.empty() && value.GetType() == EScriptAnyType::Table)
 		{
 			ScriptAnyValue temp;
-			value.table->GetValueAny(nextToken, temp);
+			value.GetScriptTable()->GetValueAny(nextToken, temp);
 			value = temp;
 			nextToken = key.Tokenize(".", pos);
 		}
 
-		return nextToken.empty() && (value.type == ANY_TNUMBER || value.type == ANY_TBOOLEAN || value.type == ANY_TSTRING);
+		return nextToken.empty() && (value.GetType() == EScriptAnyType::Number || value.GetType() == EScriptAnyType::Boolean || value.GetType() == EScriptAnyType::String);
 	}
 
 	virtual void GetMemoryUsage(ICrySizer* s) const
@@ -2663,7 +2662,7 @@ public:
 
 	virtual void Serialize(SActivationInfo* pActInfo, TSerialize ser)
 	{
-		IEntity* pEntity = GetEntity();
+		IEntity* pEntity = GetEntity(pActInfo);
 		if (!pEntity)
 			return;
 
@@ -2689,7 +2688,7 @@ public:
 			return;
 		}
 
-		IEntity* pEntity = GetEntity();
+		IEntity* pEntity = GetEntity(pActInfo);
 		if (!pEntity)
 		{
 			return;
@@ -3098,6 +3097,17 @@ public:
 				}
 			}
 			break;
+		case eFE_PrecacheResources:
+			{
+				if (IGame* pGame = gEnv->pGameFramework->GetIGame())
+				{
+					if (IGame::IResourcesPreCache* pResourceCache = pGame->GetResourceCache())
+					{
+						pResourceCache->QueueEntityClass(GetPortString(pActInfo, EIP_ClassName));
+					}
+				}
+			}
+			break;
 		}
 	}
 
@@ -3265,6 +3275,17 @@ public:
 					else
 						ActivateOutput(pActInfo, EOP_Succeeded, pEntity->GetId());
 					ActivateOutput(pActInfo, EOP_Done, true);
+				}
+			}
+			break;
+		case eFE_PrecacheResources:
+			{
+				if (IGame* pGame = gEnv->pGameFramework->GetIGame())
+				{
+					if (IGame::IResourcesPreCache* pResourceCache = pGame->GetResourceCache())
+					{
+						pResourceCache->QueueEntityArchetype(GetPortString(pActInfo, EIP_ArchetypeName));
+					}
 				}
 			}
 			break;
@@ -3437,8 +3458,14 @@ public:
 	{
 		if (eFE_Activate == event && IsPortActive(pActInfo, IN_GET))
 		{
-			IEntity* pGameRules = gEnv->pGameFramework->GetIGameRulesSystem()->GetCurrentGameRulesEntity();
-			ActivateOutput(pActInfo, OUT_ID, pGameRules->GetId());
+			if (IEntity* pGameRules = gEnv->pGameFramework->GetIGameRulesSystem()->GetCurrentGameRulesEntity())
+			{
+				ActivateOutput(pActInfo, OUT_ID, pGameRules->GetId());
+			}
+			else
+			{
+				ActivateOutput(pActInfo, OUT_ID, INVALID_ENTITYID);
+			}
 		}
 	}
 

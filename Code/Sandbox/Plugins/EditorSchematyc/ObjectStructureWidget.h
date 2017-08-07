@@ -25,13 +25,13 @@ class CAbstractObjectStructureModelItem;
 
 class CObjectStructureModel;
 
-class CObjectStructureWidget : public QWidget
+class CGraphsWidget : public QWidget
 {
 	Q_OBJECT;
 
 public:
-	CObjectStructureWidget(QWidget* pParent = nullptr);
-	~CObjectStructureWidget();
+	CGraphsWidget(QWidget* pParent = nullptr);
+	~CGraphsWidget();
 
 	CAbstractObjectStructureModel* GetModel() const { return m_pModel; }
 	void                           SetModel(CAbstractObjectStructureModel* pModel);

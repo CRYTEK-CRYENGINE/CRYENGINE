@@ -7,7 +7,7 @@
 
 #include "VariableStorage/AbstractVariableTypesModel.h"
 
-#include <Schematyc/Script/IScriptGraph.h>
+#include <CrySchematyc/Script/IScriptGraph.h>
 #include <NodeGraph/ConnectionWidget.h>
 
 #include <QColor>

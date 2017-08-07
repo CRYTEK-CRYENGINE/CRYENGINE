@@ -747,10 +747,6 @@ void COPSeekCover::Serialize(TSerialize ser)
 //====================================================================
 bool COPSeekCover::IsSegmentValid(IAISystem::tNavCapMask navCap, float rad, const Vec3& posFrom, Vec3& posTo, IAISystem::ENavigationType& navTypeFrom)
 {
-	int nBuildingID = -1;
-
-	navTypeFrom = gAIEnv.pNavigation->CheckNavigationType(posFrom, nBuildingID, navCap);
-
 	if (IsInDeepWater(posTo))
 		return false;
 
@@ -758,10 +754,7 @@ bool COPSeekCover::IsSegmentValid(IAISystem::tNavCapMask navCap, float rad, cons
 	if (!GetFloorPos(posTo, initPos, WalkabilityFloorUpDist, 1.0f, WalkabilityDownRadius, AICE_ALL))
 		return false;
 
-	SWalkPosition from(posFrom, true);
-	SWalkPosition to(posTo, true);
-
-	return CheckWalkabilitySimple(from, to, rad, AICE_ALL_EXCEPT_TERRAIN);
+	return true;
 }
 
 inline float Ease(float a)

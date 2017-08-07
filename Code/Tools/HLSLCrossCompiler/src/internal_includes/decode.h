@@ -3,7 +3,7 @@
 
 #include "internal_includes/structs.h"
 
-Shader* DecodeDXBC(uint32_t* data);
+Shader* DecodeDXBC(uint32_t* data, unsigned int flags, GLLang language);
 
 //You don't need to call this directly because DecodeDXBC
 //will call DecodeDX9BC if the shader looks

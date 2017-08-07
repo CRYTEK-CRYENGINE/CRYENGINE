@@ -21,8 +21,6 @@ public:
 	~CFlowScriptedNode();
 
 	// IFlowNode
-	virtual void         AddRef();
-	virtual void         Release();
 	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo);
 	virtual void         GetConfiguration(SFlowNodeConfig&);
 	virtual void         ProcessEvent(EFlowEvent event, SActivationInfo*);
@@ -35,7 +33,6 @@ public:
 	int ActivatePort(IFunctionHandler* pH, size_t nOutput, const TFlowInputData& data);
 
 private:
-	int                         m_refs;
 	SActivationInfo             m_info;
 	SmartScriptTable            m_table;
 	CFlowScriptedNodeFactoryPtr m_pFactory;
@@ -49,8 +46,6 @@ public:
 
 	bool                 Init(const char* path, const char* name);
 
-	virtual void         AddRef();
-	virtual void         Release();
 	virtual IFlowNodePtr Create(IFlowNode::SActivationInfo*);
 
 	ILINE size_t         NumInputs() const      { return m_inputs.size() - 1; }
@@ -62,7 +57,6 @@ public:
 	void                 Reset() {}
 
 private:
-	int                            m_refs;
 	SmartScriptTable               m_table;
 
 	std::set<string>               m_stringTable;
@@ -82,8 +76,6 @@ public:
 	~CFlowSimpleScriptedNode();
 
 	// IFlowNode
-	virtual void         AddRef();
-	virtual void         Release();
 	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo);
 	virtual void         GetConfiguration(SFlowNodeConfig&);
 	virtual void         ProcessEvent(EFlowEvent event, SActivationInfo*);
@@ -100,7 +92,6 @@ public:
 	}
 
 private:
-	int m_refs;
 	CFlowSimpleScriptedNodeFactoryPtr m_pFactory;
 };
 
@@ -112,8 +103,6 @@ public:
 
 	bool                 Init(const char* path, const char* name);
 
-	virtual void         AddRef();
-	virtual void         Release();
 	virtual IFlowNodePtr Create(IFlowNode::SActivationInfo*);
 
 	ILINE size_t         NumInputs() const      { return m_inputs.size() - 1; }
@@ -129,7 +118,6 @@ public:
 	void                 Reset() {}
 
 private:
-	int                            m_refs;
 	HSCRIPTFUNCTION                m_func;
 
 	std::set<string>               m_stringTable;

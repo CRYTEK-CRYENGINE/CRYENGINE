@@ -130,11 +130,6 @@ void CSnow::ProcessEvent(SEntityEvent &event)
 }
 
 //------------------------------------------------------------------------
-void CSnow::SetAuthority(bool auth)
-{
-}
-
-//------------------------------------------------------------------------
 bool CSnow::Reset()
 {
 	//Initialize default values before (in case ScriptTable fails)

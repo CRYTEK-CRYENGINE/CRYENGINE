@@ -855,10 +855,10 @@ float GetBlendMin(float2 tc0, float2 tc1, float fAverSmoothness, float fDepth0, 
 
 	if (!IsDiffuseMode())
 	{
-		float fDistTCRat = IsDiffuseMode() ? 0 : saturate(length(tc0 - tc1) / .025f);
+		float fDistTCRat = saturate(length(tc0 - tc1) / .025f);
 
-		// reduce ghosting for mirrors
-		fMinBlend = saturate(max(fMinBlend + fDistTCRat*(1.f - fMinBlend), 0.7 * saturate(fAverSmoothness)));
+		// reduce ghosting for mirrors and in case of camera movement
+		fMinBlend = saturate(max(fMinBlend + fDistTCRat*(1.f - fMinBlend), 0.7 * saturate(pow(fAverSmoothness, 3))));
 	}
 
 	fMinBlend += saturate(abs(fDepth0 - fDepth1) * PS_NearFarClipDist.y - .25);
@@ -1436,7 +1436,7 @@ pixoutMRT ConeTracePS(vtxOutWPOS IN)
 	int y = nXY.y&(GI_DIFFUSE_KERNEL_TILING - (int)1);
 	int i = x*GI_DIFFUSE_KERNEL_TILING + y;
 
-	const int nFramesNum = SVO_TargetResScale.w ? 1 : 2;
+	const int nFramesNum = (SVO_TargetResScale.w || !IsDiffuseMode()) ? 1 : 2;
 
 #if %_RT_MOTION_BLUR
 	const int nPassesNum = 2;

@@ -23,7 +23,7 @@ CCryDXGLTexture2D::CCryDXGLTexture2D(const D3D11_TEXTURE2D_DESC& kDesc, NCryOpen
 	DXGL_INITIALIZE_INTERFACE(D3D11Texture2D)
 }
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 
 CCryDXGLTexture2D::CCryDXGLTexture2D(const D3D11_TEXTURE2D_DESC& kDesc, NCryOpenGL::SInitialDataCopy* pInitialData, CCryDXGLDevice* pDevice)
 	: CCryDXGLTextureBase(D3D11_RESOURCE_DIMENSION_TEXTURE2D, pInitialData, pDevice)
@@ -38,7 +38,7 @@ CCryDXGLTexture2D::~CCryDXGLTexture2D()
 {
 }
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 
 void CCryDXGLTexture2D::Initialize()
 {

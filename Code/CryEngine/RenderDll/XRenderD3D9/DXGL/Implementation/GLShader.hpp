@@ -15,11 +15,11 @@
 
 #include "GLCommon.hpp"
 #if !DXGL_INPUT_GLSL && DXGL_GLSL_FROM_HLSLCROSSCOMPILER
-	#if defined(DXGL_USE_SDL)
+	#if defined(USE_SDL2_VIDEO)
 DXGL_TODO("Find a better way to prevent typedef conflicts between the stdint replacement in sdl and the one in hlslcc")
 		#include <stdint.h>
 		#define _PSTDINT_H_INCLUDED 1
-	#endif //defined(DXGL_USE_SDL)
+	#endif //defined(USE_SDL2_VIDEO)
 	#include "hlslcc.hpp"
 #endif //!DXGL_INPUT_GLSL && DXGL_GLSL_FROM_HLSLCROSSCOMPILER
 

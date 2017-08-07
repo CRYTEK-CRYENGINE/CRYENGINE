@@ -5,8 +5,7 @@
 #ifndef __D3DDEBUG__H__
 #define __D3DDEBUG__H__
 
-#if defined(SUPPORT_D3D_DEBUG_RUNTIME)
-
+#if defined(DX11_ALLOW_D3D_DEBUG_RUNTIME)
 enum ESeverityCombination
 {
 	ESeverity_None = 0,
@@ -52,6 +51,6 @@ private:
 	UINT ParseIDs(const char* strMsgIDList, D3D11_MESSAGE_ID arrMsgList[MAX_NUM_DEBUG_MSG_IDS]) const;
 };
 
-#endif // #if defined(SUPPORT_D3D_DEBUG_RUNTIME)
+#endif // #if defined(DX11_ALLOW_D3D_DEBUG_RUNTIME)
 
 #endif // __D3DDEBUG__H__

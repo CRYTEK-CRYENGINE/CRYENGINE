@@ -119,7 +119,6 @@ void CAIDynHideObjectManager::GetHidePositionsWithinRange(std::vector<SDynamicOb
 	query.nEntityFlags = (uint32)ENTITY_FLAG_AI_HIDEABLE; // Filter by entity flag.
 	gEnv->pEntitySystem->QueryProximity(query);
 
-	CGraph* pGraph = gAIEnv.pGraph;
 	CTimeValue curTime = GetAISystem()->GetFrameStartTime();
 
 	// Keep track of the new items added per query and limit it.

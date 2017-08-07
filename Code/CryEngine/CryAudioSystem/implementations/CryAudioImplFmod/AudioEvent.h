@@ -16,8 +16,8 @@ namespace Studio
 {
 class EventInstance;
 class ParameterInstance;
-}
-}
+} // namespace Studio
+} // namespace FMOD
 
 namespace CryAudio
 {
@@ -25,43 +25,43 @@ namespace Impl
 {
 namespace Fmod
 {
-class CAudioEnvironment;
-class CAudioObjectBase;
+class CEnvironment;
+class CObjectBase;
 
-class CAudioEvent final : public IAudioEvent, public CPoolObject<CAudioEvent, stl::PSyncNone>
+class CEvent final : public IEvent, public CPoolObject<CEvent, stl::PSyncNone>
 {
 public:
 
-	explicit CAudioEvent(CATLEvent* pAudioEvent)
-		: m_pAudioEvent(pAudioEvent)
+	explicit CEvent(CATLEvent* pEvent)
+		: m_pEvent(pEvent)
 	{}
 
-	virtual ~CAudioEvent() override;
+	virtual ~CEvent() override;
 
-	CAudioEvent(CAudioEvent const&) = delete;
-	CAudioEvent(CAudioEvent&&) = delete;
-	CAudioEvent&                 operator=(CAudioEvent const&) = delete;
-	CAudioEvent&                 operator=(CAudioEvent&&) = delete;
+	CEvent(CEvent const&) = delete;
+	CEvent(CEvent&&) = delete;
+	CEvent&                      operator=(CEvent const&) = delete;
+	CEvent&                      operator=(CEvent&&) = delete;
 
 	bool                         PrepareForOcclusion();
 	void                         SetObstructionOcclusion(float const obstruction, float const occlusion);
-	CATLEvent&                   GetATLEvent() const                                       { return *m_pAudioEvent; }
+	CATLEvent&                   GetATLEvent() const                                       { return *m_pEvent; }
 	uint32                       GetEventPathId() const                                    { return m_eventPathId; }
 	void                         SetEventPathId(uint32 const eventPathId)                  { m_eventPathId = eventPathId; }
 	FMOD::Studio::EventInstance* GetInstance() const                                       { return m_pInstance; }
 	void                         SetInstance(FMOD::Studio::EventInstance* const pInstance) { m_pInstance = pInstance; }
-	CAudioObjectBase* const      GetAudioObject()                                          { return m_pAudioObject; }
-	void                         SetAudioObject(CAudioObjectBase* const pAudioObject)      { m_pAudioObject = pAudioObject; }
-	void                         TrySetEnvironment(CAudioEnvironment const* const pEnvironment, float const value);
+	CObjectBase* const           GetObject()                                               { return m_pObject; }
+	void                         SetObject(CObjectBase* const pAudioObject)                { m_pObject = pAudioObject; }
+	void                         TrySetEnvironment(CEnvironment const* const pEnvironment, float const value);
 
-	// IAudioEvent
+	// CryAudio::Impl::IEvent
 	virtual ERequestStatus Stop() override;
-	// ~IAudioEvent
+	// ~CryAudio::Impl::IEvent
 
 private:
 
-	CATLEvent*                       m_pAudioEvent = nullptr;
-	uint32                           m_eventPathId = AUDIO_INVALID_CRC32;
+	CATLEvent*                       m_pEvent = nullptr;
+	uint32                           m_eventPathId = InvalidCRC32;
 
 	float                            m_lowpassFrequencyMax = 0.0f;
 	float                            m_lowpassFrequencyMin = 0.0f;
@@ -70,8 +70,8 @@ private:
 	FMOD::ChannelGroup*              m_pMasterTrack = nullptr;
 	FMOD::DSP*                       m_pLowpass = nullptr;
 	FMOD::Studio::ParameterInstance* m_pOcclusionParameter = nullptr;
-	CAudioObjectBase*                m_pAudioObject = nullptr;
+	CObjectBase*                     m_pObject = nullptr;
 };
-}
-}
-}
+} // namespace Fmod
+} // namespace Impl
+} // namespace CryAudio

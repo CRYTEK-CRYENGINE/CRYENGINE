@@ -322,7 +322,7 @@ void CFlowNode_FeatureTest::Update(float deltaTime)
 				for (int i = 0; i < SEQ_ENTITY_COUNT; ++i)
 				{
 					GetEntityAtIndex(i, pFollowEntity);
-					if (pFollowEntity && pFollowEntity->IsActive())
+					if (pFollowEntity && pFollowEntity->IsActivatedForUpdates())
 					{
 						break;
 					}
@@ -501,7 +501,10 @@ bool CFlowNode_FeatureTest::StartNextTestRun()
 		if (pSeqEntity)
 		{
 			pSeqEntity->Hide(false);
-			pSeqEntity->Activate(true);
+			if (IGameObject* pGameObject = gEnv->pGameFramework->GetIGameObjectSystem()->CreateGameObjectForEntity(pSeqEntity->GetId()))
+			{
+				pGameObject->ForceUpdate(true);
+			}
 
 			m_running = true;
 			m_timeRunning = 0;
@@ -942,7 +945,7 @@ public:
 
 		Log("Class", pEntity->GetClass()->GetName(), depth);  // TODO: Expand
 		Log("ForwardDir", pEntity->GetForwardDir(), depth);
-		Log("Guid", pEntity->GetGuid(), depth);
+		Log("Guid", pEntity->GetGuid().ToDebugString(), depth);
 		Log("EntityID", pEntity->GetId(), depth);
 		Log("UpdatePolicy", pEntity->GetUpdatePolicy(), depth);
 		AABB worldBounds;
@@ -1062,7 +1065,10 @@ void CFlowNode_FeatureTest::ActivateAllEntities(bool activate)
 		if (pEnt)
 		{
 			pEnt->Hide(!activate);
-			pEnt->Activate(activate);
+			if (IGameObject* pGameObject = gEnv->pGameFramework->GetGameObject(pEnt->GetId()))
+			{
+				pGameObject->ForceUpdate(activate);
+			}
 		}
 	}
 }

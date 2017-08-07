@@ -86,3 +86,7 @@ target_link_libraries(${THIS_PROJECT} PRIVATE lua)
 if (WIN32)
 	target_link_libraries(${THIS_PROJECT} PRIVATE shell32 Gdi32 wininet Ole32)
 endif()
+
+if (ANDROID)
+	set_source_files_properties("vectorlib.c" PROPERTIES LANGUAGE CXX)
+endif()

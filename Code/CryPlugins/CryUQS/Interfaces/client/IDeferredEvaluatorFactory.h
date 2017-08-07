@@ -4,11 +4,11 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client
+	namespace Client
 	{
-		namespace internal
+		namespace Internal
 		{
 			class CDeferredEvaluatorDeleter;    // below
 		}
@@ -19,7 +19,7 @@ namespace uqs
 		//
 		//===================================================================================
 
-		typedef std::unique_ptr<IDeferredEvaluator, internal::CDeferredEvaluatorDeleter>  DeferredEvaluatorUniquePtr;
+		typedef std::unique_ptr<IDeferredEvaluator, Internal::CDeferredEvaluatorDeleter>  DeferredEvaluatorUniquePtr;
 
 		//===================================================================================
 		//
@@ -31,13 +31,15 @@ namespace uqs
 		{
 			virtual                                    ~IDeferredEvaluatorFactory() {}
 			virtual const char*                        GetName() const = 0;
+			virtual const CryGUID&                     GetGUID() const = 0;
+			virtual const char*                        GetDescription() const = 0;
 			virtual const IInputParameterRegistry&     GetInputParameterRegistry() const = 0;
 			virtual DeferredEvaluatorUniquePtr         CreateDeferredEvaluator(const void* pParams) = 0;
 			virtual void                               DestroyDeferredEvaluator(IDeferredEvaluator* pDeferredEvaluatorToDestroy) = 0;
 			virtual IParamsHolderFactory&              GetParamsHolderFactory() const = 0;
 		};
 
-		namespace internal
+		namespace Internal
 		{
 
 			//===================================================================================
@@ -51,27 +53,27 @@ namespace uqs
 			public:
 				explicit                                CDeferredEvaluatorDeleter();         // default ctor is required for when smart pointer using this deleter gets implicitly constructed via nullptr (i. e. with only 1 argument for the smart pointer's ctor)
 				explicit                                CDeferredEvaluatorDeleter(IDeferredEvaluatorFactory& deferredEvaluatorFactory);
-				void                                    operator()(IDeferredEvaluator* deferredEvaluatorToDelete);
+				void                                    operator()(IDeferredEvaluator* pDeferredEvaluatorToDelete);
 
 			private:
-				IDeferredEvaluatorFactory*              m_deferredEvaluatorFactory;          // this one created the deferred-evaluator before
+				IDeferredEvaluatorFactory*              m_pDeferredEvaluatorFactory;          // this one created the deferred-evaluator before
 			};
 
 			inline CDeferredEvaluatorDeleter::CDeferredEvaluatorDeleter()
-				: m_deferredEvaluatorFactory(nullptr)
+				: m_pDeferredEvaluatorFactory(nullptr)
 			{}
 
 			inline CDeferredEvaluatorDeleter::CDeferredEvaluatorDeleter(IDeferredEvaluatorFactory& deferredEvaluatorFactory)
-				: m_deferredEvaluatorFactory(&deferredEvaluatorFactory)
+				: m_pDeferredEvaluatorFactory(&deferredEvaluatorFactory)
 			{}
 
-			inline void CDeferredEvaluatorDeleter::operator()(IDeferredEvaluator* deferredEvaluatorToDelete)
+			inline void CDeferredEvaluatorDeleter::operator()(IDeferredEvaluator* pDeferredEvaluatorToDelete)
 			{
-				assert(m_deferredEvaluatorFactory);
-				m_deferredEvaluatorFactory->DestroyDeferredEvaluator(deferredEvaluatorToDelete);
+				assert(m_pDeferredEvaluatorFactory);
+				m_pDeferredEvaluatorFactory->DestroyDeferredEvaluator(pDeferredEvaluatorToDelete);
 			}
 
-		} // namespace internal
+		} // namespace Internal
 
 	}
 }

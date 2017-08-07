@@ -95,10 +95,10 @@ if(WIN64)
 
 	target_include_directories(${THIS_PROJECT}
 	PRIVATE 
-		${CRYENGINE_DIR}/Code/Tools
-		${CRYENGINE_DIR}/Code/Tools/SphericalHarmonics
+		"${CRYENGINE_DIR}/Code/Tools"
+		"${CRYENGINE_DIR}/Code/Tools/SphericalHarmonics"
 	PUBLIC
-		${CRYENGINE_DIR}/Code/Tools/PRT
+		"${CRYENGINE_DIR}/Code/Tools/PRT"
 	)
 
 	target_compile_definitions(${THIS_PROJECT} PRIVATE -DPRT_COMPILE -DOFFLINE_COMPUTATION )

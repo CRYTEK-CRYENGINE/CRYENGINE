@@ -26,8 +26,6 @@
 #include <execinfo.h>
 #include <CrySerialization/ClassFactory.h>
 
-#include <CrySystem/ParseEngineConfig.h>
-
 // FIXME: get the correct version string from somewhere, maybe a -D supplied
 // by the build environment?
 #undef VERSION_STRING

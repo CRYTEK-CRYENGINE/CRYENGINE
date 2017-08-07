@@ -34,7 +34,6 @@ public:
 	// IGameTokenSystem
 	//////////////////////////////////////////////////////////////////////////
 	virtual IGameToken*   SetOrCreateToken(const char* sTokenName, const TFlowInputData& defaultValue) override;
-	virtual IGameToken*   SetOrCreateToken(const char* sTokenName, const char* szValue) override;
 	virtual void          DeleteToken(IGameToken* pToken) override;
 	virtual IGameToken*   FindToken(const char* sTokenName) override;
 	virtual void          RenameToken(IGameToken* pToken, const char* sNewName) override;
@@ -46,6 +45,8 @@ public:
 
 	virtual void          RegisterListener(IGameTokenEventListener* pListener) override;
 	virtual void          UnregisterListener(IGameTokenEventListener* pListener) override;
+
+	virtual void          TriggerTokensAsChanged() override;
 
 	virtual void          Reset() override;
 	virtual void          Unload() override;
@@ -61,6 +62,7 @@ public:
 
 	virtual void          GetMemoryStatistics(ICrySizer* s) override;
 
+	virtual void          SetGoingIntoGame(bool bGoingIntoGame) override { m_bGoingIntoGame = bGoingIntoGame; }
 	//////////////////////////////////////////////////////////////////////////
 
 	CGameToken* GetToken(const char* sTokenName);
@@ -82,6 +84,7 @@ private:
 	GameTokensMap*               m_pGameTokensMap; // A pointer so it can be fully unloaded on level unload
 	class CScriptBind_GameToken* m_pScriptBind;
 	XmlNodeRef                   m_levelToLevelSave;
+	bool                         m_bGoingIntoGame;
 
 #ifdef _GAMETOKENSDEBUGINFO
 	typedef std::set<string> TDebugListMap;

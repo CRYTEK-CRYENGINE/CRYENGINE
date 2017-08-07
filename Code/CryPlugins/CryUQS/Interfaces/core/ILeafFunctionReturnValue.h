@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -23,18 +23,18 @@ namespace uqs
 		{
 			struct SLiteralInfo
 			{
-				explicit                       SLiteralInfo(const shared::CTypeInfo& _type, const void* _pValue);
+				explicit                       SLiteralInfo(const Shared::CTypeInfo& _type, const void* _pValue);
 
-				const shared::CTypeInfo&       type;
+				const Shared::CTypeInfo&       type;
 				const void*                    pValue;
 			};
 
 			struct SGlobalParamInfo
 			{
-				explicit                       SGlobalParamInfo(bool _bGlobalParamExists, const shared::CTypeInfo* _pTypeOfGlobalParam, const void* _pValueOfGlobalParam, const char* _szNameOfGlobalParam);
+				explicit                       SGlobalParamInfo(bool _bGlobalParamExists, const Shared::CTypeInfo* _pTypeOfGlobalParam, const void* _pValueOfGlobalParam, const char* _szNameOfGlobalParam);
 
 				bool                           bGlobalParamExists;
-				const shared::CTypeInfo*       pTypeOfGlobalParam;    // is a nullptr if .bGlobalParamExists == false
+				const Shared::CTypeInfo*       pTypeOfGlobalParam;    // is a nullptr if .bGlobalParamExists == false
 				const void*                    pValueOfGlobalParam;   // ditto
 				const char*                    szNameOfGlobalParam;   // never a nullptr, of course
 			};
@@ -60,12 +60,12 @@ namespace uqs
 			virtual SShuttledItemsInfo         GetShuttledItems(const SQueryBlackboard& blackboard) const = 0;
 		};
 
-		inline ILeafFunctionReturnValue::SLiteralInfo::SLiteralInfo(const shared::CTypeInfo& _type, const void* _pValue)
+		inline ILeafFunctionReturnValue::SLiteralInfo::SLiteralInfo(const Shared::CTypeInfo& _type, const void* _pValue)
 			: type(_type)
 			, pValue(_pValue)
 		{}
 
-		inline ILeafFunctionReturnValue::SGlobalParamInfo::SGlobalParamInfo(bool _bGlobalParamExists, const shared::CTypeInfo* _pTypeOfGlobalParam, const void* _pValueOfGlobalParam, const char* _szNameOfGlobalParam)
+		inline ILeafFunctionReturnValue::SGlobalParamInfo::SGlobalParamInfo(bool _bGlobalParamExists, const Shared::CTypeInfo* _pTypeOfGlobalParam, const void* _pValueOfGlobalParam, const char* _szNameOfGlobalParam)
 			: bGlobalParamExists(_bGlobalParamExists)
 			, pTypeOfGlobalParam(_pTypeOfGlobalParam)
 			, pValueOfGlobalParam(_pValueOfGlobalParam)

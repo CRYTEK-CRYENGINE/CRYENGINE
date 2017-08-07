@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client
+	namespace Client
 	{
 
 		//===================================================================================
@@ -30,15 +30,17 @@ namespace uqs
 
 			virtual                                 ~IFunctionFactory() {}
 			virtual const char*                     GetName() const = 0;
+			virtual const CryGUID&                  GetGUID() const = 0;
+			virtual const char*                     GetDescription() const = 0;
 			virtual const IInputParameterRegistry&  GetInputParameterRegistry() const = 0;
-			virtual const shared::CTypeInfo&        GetReturnType() const = 0;
-			virtual const shared::CTypeInfo*        GetContainedType() const = 0;   // this is for ELeafFunctionKind::ShuttledItems functions: these functions actually return a ["pointer-to" ("list-of" "item")] and we need to get the type of that "item"
+			virtual const Shared::CTypeInfo&        GetReturnType() const = 0;
+			virtual const Shared::CTypeInfo*        GetContainedType() const = 0;   // this is for ELeafFunctionKind::ShuttledItems functions: these functions actually return a ["pointer-to" ("list-of" "item")] and we need to get the type of that "item"
 			virtual ELeafFunctionKind               GetLeafFunctionKind() const = 0;
 			virtual FunctionUniquePtr               CreateFunction(const IFunction::SCtorContext& ctorContext) = 0;
 			virtual void                            DestroyFunction(IFunction* pFunctionToDestroy) = 0;
 		};
 
-		namespace internal
+		namespace Internal
 		{
 			//===================================================================================
 			//
@@ -51,25 +53,25 @@ namespace uqs
 			public:
 				explicit                            CFunctionDeleter();       // default ctor is required for when smart pointer using this deleter gets implicitly constructed via nullptr (i. e. with only 1 argument for the smart pointer's ctor)
 				explicit                            CFunctionDeleter(IFunctionFactory& functionFactory);
-				void                                operator()(IFunction* functionToDestroy);
+				void                                operator()(IFunction* pFunctionToDestroy);
 
 			private:
-				IFunctionFactory*                   m_functionFactory;
+				IFunctionFactory*                   m_pFunctionFactory;
 			};
 
 			inline CFunctionDeleter::CFunctionDeleter()
-				: m_functionFactory(nullptr)
+				: m_pFunctionFactory(nullptr)
 			{}
 
 			inline CFunctionDeleter::CFunctionDeleter(IFunctionFactory& functionFactory)
-				: m_functionFactory(&functionFactory)
+				: m_pFunctionFactory(&functionFactory)
 			{}
 
-			inline void CFunctionDeleter::operator()(IFunction* functionToDestroy)
+			inline void CFunctionDeleter::operator()(IFunction* pFunctionToDestroy)
 			{
-				assert(m_functionFactory);
-				m_functionFactory->DestroyFunction(functionToDestroy);
+				assert(m_pFunctionFactory);
+				m_pFunctionFactory->DestroyFunction(pFunctionToDestroy);
 			}
-		} // namespace internal
+		} // namespace Internal
 	}
 }

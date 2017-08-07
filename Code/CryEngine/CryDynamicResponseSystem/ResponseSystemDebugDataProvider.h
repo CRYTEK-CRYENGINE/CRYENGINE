@@ -57,6 +57,7 @@ public:
 	void AddSignalFired(const string& signalName, const string& senderName, const string& contextVariables);
 	void AddResponseStarted(const string& signalName);
 	bool IncrementSegmentHierarchyLevel();
+	bool AddResponseSegmentEvaluated(CResponseSegment* pResponseSegment);
 	bool AddResponseSegmentStarted(CResponseSegment* pResponseSegment);
 	bool AddResponseInstanceCreated(CResponseInstance* pInstanceForCurrentID);
 	bool AddConditionChecked(const CConditionsCollection::SConditionInfo* pCondition, bool result);
@@ -96,6 +97,7 @@ private:
 		bool                           bStarted;
 		bool                           bRunning;
 		string                         segmentName;
+		string                         segmentUiName;
 		int                            levelInHierarchy;
 		CResponseSegment*              pResponseSegment;
 		std::vector<SCheckedCondition> checkedConditions;

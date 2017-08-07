@@ -92,8 +92,9 @@ size_t CMaterialLayer::GetResourceMemoryUsage(ICrySizer* pSizer)
 //////////////////////////////////////////////////////////////////////////
 CMatInfo::CMatInfo()
 	: m_bDeleted(false)
+	, m_bDeletePending(false)
 {
-	m_nRefCount = 1; // having a pointer to CMatInfo with ref count zero, results in CMatInfo being deleted from render thread
+	m_nRefCount = 0;
 	m_Flags = 0;
 	m_nModificationId = 0;
 
@@ -103,11 +104,6 @@ CMatInfo::CMatInfo()
 
 	m_ucDefautMappingAxis = 0;
 	m_fDefautMappingScale = 1.f;
-
-#ifdef SUPPORT_MATERIAL_SKETCH
-	m_pPreSketchShader = 0;
-	m_nPreSketchTechnique = 0;
-#endif
 
 #ifdef SUPPORT_MATERIAL_EDITING
 	m_pUserData = NULL;
@@ -134,6 +130,7 @@ CMatInfo::~CMatInfo()
 
 void CMatInfo::AddRef()
 {
+	CRY_ASSERT(!m_bDeletePending);
 	CryInterlockedIncrement(&m_nRefCount);
 }
 
@@ -142,10 +139,8 @@ void CMatInfo::Release()
 {
 	if (CryInterlockedDecrement(&m_nRefCount) == 0)
 	{
-		if (!(m_Flags & MTL_FLAG_DELETE_PENDING) && GetMatMan())
+		if (GetMatMan())
 		{
-			m_Flags |= MTL_FLAG_DELETE_PENDING;
-			((CMatMan*)GetMatMan())->Unregister(this);
 			((CMatMan*)GetMatMan())->DelayedDelete(this);
 		}
 		else
@@ -170,9 +165,6 @@ void CMatInfo::ShutDown()
 		}
 		SAFE_RELEASE(m_shaderItem.m_pShader);
 		SAFE_RELEASE(m_shaderItem.m_pShaderResources);
-
-		if (GetMatMan() && !(m_Flags & MTL_FLAG_DELETE_PENDING))
-			((CMatMan*)GetMatMan())->Unregister(this);
 
 		m_subMtls.clear();
 	}
@@ -293,10 +285,6 @@ void CMatInfo::SetShaderItem(const SShaderItem& _ShaderItem)
 	IncrementModificationId();
 
 	UpdateMaterialFlags();
-
-	int sketchMode = m_pMatMan->GetSketchMode();
-	if (sketchMode)
-		SetSketchMode(sketchMode);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -793,165 +781,6 @@ void CMatInfo::SetCamera(CCamera& cam)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CMatInfo::SetSketchMode(int mode)
-{
-#ifdef SUPPORT_MATERIAL_SKETCH
-	if (mode == 0)
-	{
-		if (m_pPreSketchShader)
-		{
-			m_shaderItem.m_pShader = m_pPreSketchShader;
-			m_shaderItem.m_nTechnique = m_nPreSketchTechnique;
-			m_pPreSketchShader = 0;
-			m_nPreSketchTechnique = 0;
-		}
-	}
-	else
-	{
-		if (m_shaderItem.m_pShader && m_shaderItem.m_pShader != m_pPreSketchShader)
-		{
-			EShaderType shaderType = m_shaderItem.m_pShader->GetShaderType();
-
-			//      nGenerationMask = (uint32)m_shaderItem.m_pShader->GetGenerationMask();
-
-			// Do not replace this shader types.
-			switch (shaderType)
-			{
-			case eST_Terrain:
-			case eST_Shadow:
-			case eST_Water:
-			case eST_FX:
-			case eST_PostProcess:
-			case eST_HDR:
-			case eST_Sky:
-			case eST_Particle:
-				// For this shaders do not replace them.
-				return;
-			case eST_Vegetation:
-				{
-					// in low spec mode also skip vegetation - we have low spec vegetation shader
-					if (mode == 3)
-						return;
-				}
-			}
-		}
-
-		if (!m_pPreSketchShader)
-		{
-			m_pPreSketchShader = m_shaderItem.m_pShader;
-			m_nPreSketchTechnique = m_shaderItem.m_nTechnique;
-		}
-
-		//m_shaderItem.m_pShader = ((CMatMan*)GetMatMan())->GetDefaultHelperMaterial()->GetShaderItem().m_pShader;
-		if (mode == 1)
-		{
-			m_shaderItem.m_pShader = gEnv->pRenderer->EF_LoadShader("Sketch");
-			m_shaderItem.m_nTechnique = 0;
-		}
-		else if (mode == 2)
-		{
-			m_shaderItem.m_pShader = gEnv->pRenderer->EF_LoadShader("Sketch.Fast");
-			m_shaderItem.m_nTechnique = 0;
-		}
-		else if (mode == 4)
-		{
-			SShaderItem tmp = gEnv->pRenderer->EF_LoadShaderItem("Sketch.TexelsPerMeter", false);
-			m_shaderItem.m_pShader = tmp.m_pShader;
-			m_shaderItem.m_nTechnique = tmp.m_nTechnique;
-		}
-
-		if (m_shaderItem.m_pShader)
-			m_shaderItem.m_pShader->AddRef();
-	}
-	for (int i = 0; i < (int)m_subMtls.size(); i++)
-	{
-		if (m_subMtls[i])
-		{
-			m_subMtls[i]->SetSketchMode(mode);
-		}
-	}
-#endif
-}
-
-void CMatInfo::SetTexelDensityDebug(int mode)
-{
-#ifdef SUPPORT_MATERIAL_SKETCH
-	if (m_shaderItem.m_pShader)
-	{
-		EShaderType shaderType = m_pPreSketchShader ? m_pPreSketchShader->GetShaderType() : m_shaderItem.m_pShader->GetShaderType();
-
-		switch (shaderType)
-		{
-		case eST_Terrain:
-			if (mode == 3 || mode == 4)
-			{
-				if (m_nSurfaceTypeId == 0)
-				{
-					mode = 0;
-				}
-
-				break;
-			}
-		case eST_Shadow:
-		case eST_Water:
-		case eST_FX:
-		case eST_PostProcess:
-		case eST_HDR:
-		case eST_Sky:
-		case eST_Particle:
-			// For this shaders do not replace them.
-			mode = 0;
-			break;
-		default:
-			if (mode == 1 || mode == 2)
-			{
-				break;
-			}
-			mode = 0;
-			break;
-		}
-
-		if (mode == 0)
-		{
-			if (m_pPreSketchShader)
-			{
-				m_shaderItem.m_pShader = m_pPreSketchShader;
-				m_shaderItem.m_nTechnique = m_nPreSketchTechnique;
-				m_pPreSketchShader = 0;
-				m_nPreSketchTechnique = 0;
-			}
-		}
-		else
-		{
-			if (!m_pPreSketchShader)
-			{
-				m_pPreSketchShader = m_shaderItem.m_pShader;
-				m_nPreSketchTechnique = m_shaderItem.m_nTechnique;
-			}
-
-			SShaderItem tmp;
-			if (mode == 3 || mode == 4)
-			{
-				tmp = gEnv->pRenderer->EF_LoadShaderItem("SketchTerrain.TexelDensityTerrainLayer", false);
-			}
-			else
-			{
-				tmp = gEnv->pRenderer->EF_LoadShaderItem("Sketch.TexelDensity", false);
-			}
-			m_shaderItem.m_pShader = tmp.m_pShader;
-			m_shaderItem.m_nTechnique = tmp.m_nTechnique;
-		}
-	}
-
-	for (int i = 0; i < (int)m_subMtls.size(); i++)
-	{
-		if (m_subMtls[i])
-		{
-			m_subMtls[i]->SetTexelDensityDebug(mode);
-		}
-	}
-#endif
-}
 
 const char* CMatInfo::GetLoadingCallstack()
 {

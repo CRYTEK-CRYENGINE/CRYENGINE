@@ -9,6 +9,7 @@
 #include "GraphicsPipeline/StandardGraphicsPipeline.h"
 #include "GraphicsPipeline/ShadowMap.h"
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 #if CRY_PLATFORM_DURANGO
@@ -284,24 +285,9 @@ bool CD3D9Renderer::CreateUnitVolumeMesh(t_arrDeferredMeshIndBuff& arrDeferredIn
 
 	//FIX: try default pools
 
-	D3D11_BUFFER_DESC BufDesc;
-	ZeroStruct(BufDesc);
-	D3D11_SUBRESOURCE_DATA SubResData;
-	ZeroStruct(SubResData);
-
 	if (!arrDeferredVerts.empty())
 	{
-		BufDesc.ByteWidth = arrDeferredVerts.size() * sizeof(SDeferMeshVert);
-		BufDesc.Usage = D3D11_USAGE_IMMUTABLE;
-		BufDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		BufDesc.CPUAccessFlags = 0;
-		BufDesc.MiscFlags = 0;
-
-		SubResData.pSysMem = &arrDeferredVerts[0];
-		SubResData.SysMemPitch = 0;
-		SubResData.SysMemSlicePitch = 0;
-
-		hr = GetDevice().CreateBuffer(&BufDesc, &SubResData, (ID3D11Buffer**)&pUnitFrustumVB);
+		hr = GetDeviceObjectFactory().CreateBuffer(arrDeferredVerts.size(), sizeof(SDeferMeshVert), 0, CDeviceObjectFactory::BIND_VERTEX_BUFFER, &pUnitFrustumVB, &arrDeferredVerts[0]);
 		assert(SUCCEEDED(hr));
 
 #if !defined(RELEASE) && CRY_PLATFORM_WINDOWS
@@ -311,19 +297,7 @@ bool CD3D9Renderer::CreateUnitVolumeMesh(t_arrDeferredMeshIndBuff& arrDeferredIn
 
 	if (!arrDeferredInds.empty())
 	{
-		ZeroStruct(BufDesc);
-		BufDesc.ByteWidth = arrDeferredInds.size() * sizeof(arrDeferredInds[0]);
-		BufDesc.Usage = D3D11_USAGE_IMMUTABLE;
-		BufDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-		BufDesc.CPUAccessFlags = 0;
-		BufDesc.MiscFlags = 0;
-
-		ZeroStruct(SubResData);
-		SubResData.pSysMem = &arrDeferredInds[0];
-		SubResData.SysMemPitch = 0;
-		SubResData.SysMemSlicePitch = 0;
-
-		hr = GetDevice().CreateBuffer(&BufDesc, &SubResData, &pUnitFrustumIB);
+		hr = GetDeviceObjectFactory().CreateBuffer(arrDeferredInds.size(), sizeof(arrDeferredInds[0]), 0, CDeviceObjectFactory::BIND_INDEX_BUFFER, &pUnitFrustumIB, &arrDeferredInds[0]);
 		assert(SUCCEEDED(hr));
 
 #if !defined(RELEASE) && CRY_PLATFORM_WINDOWS
@@ -346,7 +320,6 @@ void CD3D9Renderer::FX_StencilCullPass(int nStencilID, int nNumVers, int nNumInd
 		newState &= ~GS_NODEPTHTEST;
 		//	newState |= GS_NODEPTHTEST;
 		newState |= GS_DEPTHWRITE;
-		newState |= (~(0xF << GS_COLMASK_SHIFT)) & GS_COLMASK_MASK;
 
 		if (CV_r_DebugLightVolumes > 1)
 		{
@@ -588,7 +561,7 @@ void CD3D9Renderer::FX_StencilFrustumCull(int nStencilID, const SRenderLight* pL
 			//  shader pass
 			pShader->FXBeginPass(DS_SHADOW_CULL_PASS);
 
-			if (!FAILED(FX_SetVertexDeclaration(0, eVF_P3F_C4B_T2F)))
+			if (!FAILED(FX_SetVertexDeclaration(0, EDefaultInputLayouts::P3F_C4B_T2F)))
 				FX_StencilCullPass(nStencilID == -4 ? -4 : -1, m_UnitFrustVBSize[meshType], m_UnitFrustIBSize[meshType]);
 
 			pShader->FXEndPass();
@@ -649,7 +622,7 @@ void CD3D9Renderer::FX_StencilFrustumCull(int nStencilID, const SRenderLight* pL
 	//  shader pass
 	pShader->FXBeginPass(DS_SHADOW_FRUSTUM_CULL_PASS);
 
-	if (!FAILED(FX_SetVertexDeclaration(0, eVF_P3F_C4B_T2F)))
+	if (!FAILED(FX_SetVertexDeclaration(0, EDefaultInputLayouts::P3F_C4B_T2F)))
 		FX_StencilCullPass(nStencilID, m_UnitFrustVBSize[nPrimitiveID], m_UnitFrustIBSize[nPrimitiveID]);
 
 	pShader->FXEndPass();
@@ -764,3 +737,4 @@ void CD3D9Renderer::FX_CreateDeferredQuad(const SRenderLight* pLight, float mask
 	TempDynVB<SVF_P3F_T2F_T3F>::CreateFillAndBind(vQuad, 4, 0);
 }
 
+#pragma warning(pop)

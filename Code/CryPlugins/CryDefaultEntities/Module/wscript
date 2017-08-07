@@ -9,5 +9,6 @@ def build(bld) :
 
 	  pch = 'StdAfx.cpp',
 	  
-	  includes      = [ '.',  Path('Code/CryEngine/CryAction'), ]
+	  includes    = [ '.',  Path('Code/CryEngine/CryAction') ],
+	  win_lib     = [ 'Shell32', 'Ole32', 'Gdi32']
 	  )

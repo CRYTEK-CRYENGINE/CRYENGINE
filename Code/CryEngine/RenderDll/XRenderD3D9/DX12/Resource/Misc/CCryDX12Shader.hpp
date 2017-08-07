@@ -1,20 +1,9 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:
-//  Version:     v1.00
-//  Created:     15/02/2015 by Jan Pinter
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
 #pragma once
-#ifndef __CCRYDX12SHADER__
-	#define __CCRYDX12SHADER__
 
-	#include "DX12/Device/CCryDX12DeviceChild.hpp"
-	#include "DX12/API/DX12Shader.hpp"
+#include "DX12/Device/CCryDX12DeviceChild.hpp"
+#include "DX12/API/DX12Shader.hpp"
 
 class CCryDX12Shader : public CCryDX12DeviceChild<ID3D11DeviceChildToImplement>
 {
@@ -45,5 +34,3 @@ private:
 
 	D3D12_SHADER_BYTECODE m_ShaderBytecode12;
 };
-
-#endif // __CCRYDX12SHADER__

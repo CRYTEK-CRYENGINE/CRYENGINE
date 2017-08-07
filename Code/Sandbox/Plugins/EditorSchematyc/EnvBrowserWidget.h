@@ -39,9 +39,9 @@ namespace Schematyc
 	{
 	public:
 
-		CEnvBrowserItem(const SGUID& guid, const char* szName, const char* szIcon);
+		CEnvBrowserItem(const CryGUID& guid, const char* szName, const char* szIcon);
 
-		SGUID GetGUID() const;
+		CryGUID GetGUID() const;
 		const char* GetName() const;
 		const char* GetIcon() const;
 
@@ -54,7 +54,7 @@ namespace Schematyc
 
 	private:
 
-		SGUID            m_guid;
+		CryGUID            m_guid;
 		string           m_name;
 		string           m_iconName;
 		CEnvBrowserItem* m_pParent;
@@ -67,7 +67,7 @@ namespace Schematyc
 
 	private:
 
-		typedef std::unordered_map<SGUID, CEnvBrowserItem*> ItemsByGUID;
+		typedef std::unordered_map<CryGUID, CEnvBrowserItem*> ItemsByGUID;
 
 	public:
 
@@ -87,7 +87,7 @@ namespace Schematyc
 
 		QModelIndex ItemToIndex(CEnvBrowserItem* pItem, int column = 0) const;
 		CEnvBrowserItem* ItemFromIndex(const QModelIndex& index) const;
-		CEnvBrowserItem* ItemFromGUID(const SGUID& guid) const;
+		CEnvBrowserItem* ItemFromGUID(const CryGUID& guid) const;
 
 	public slots:
 

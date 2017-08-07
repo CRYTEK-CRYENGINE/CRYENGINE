@@ -12,6 +12,7 @@
 #include "FileDialogs/SystemFileDialog.h"
 #include "Dialogs/BaseFrameWnd.h"
 #include "Dialogs/QStringDialog.h"
+#include "QtViewPane.h"
 
 class CEquipPackEditor : public CBaseFrameWnd
 {

@@ -275,8 +275,6 @@ void CMaterialEffects::LoadSpreadSheet()
 {
 	m_bDataInitialized = true;
 
-	Reset(false);
-
 	CryComment("[MFX] Init");
 
 	IXmlTableReader* const pXmlTableReader = gEnv->pSystem->GetXmlUtils()->CreateXmlTableReader();
@@ -881,6 +879,8 @@ bool CMaterialEffects::PlayBreakageEffect(ISurfaceType* pSurfaceType, const char
 
 void CMaterialEffects::CompleteInit()
 {
+	LOADING_TIME_PROFILE_SECTION
+
 	if (m_bDataInitialized)
 		return;
 
@@ -906,7 +906,7 @@ void CMaterialEffects::ReloadMatFXFlowGraphs()
 	m_pMaterialFGManager->ReloadFlowGraphs();
 }
 
-int CMaterialEffects::GetMatFXFlowGraphCount() const
+size_t CMaterialEffects::GetMatFXFlowGraphCount() const
 {
 	return m_pMaterialFGManager->GetFlowGraphCount();
 }

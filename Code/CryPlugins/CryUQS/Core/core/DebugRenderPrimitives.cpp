@@ -6,11 +6,11 @@
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
 // make the global Serialize() functions available for use in yasli serialization
-using uqs::core::Serialize;
+using UQS::Core::Serialize;
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		static IRenderAuxGeom* GetRenderAuxGeom()
@@ -218,7 +218,8 @@ namespace uqs
 			{
 				pAux->SetRenderFlags(GetFlags3D());
 				pAux->DrawLine(from, color, to, color, SCvars::debugDrawLineThickness);
-				pAux->DrawCone(to, (to - from).GetNormalizedSafe(), coneRadius, coneHeight, color);
+				Vec3 dir = (to - from).GetNormalizedSafe();
+				pAux->DrawCone(to - dir * coneHeight, dir, coneRadius, coneHeight, color);
 			}
 		}
 
@@ -388,10 +389,10 @@ namespace uqs
 			, m_color(Col_Black)
 		{}
 
-		CDebugRenderPrimitive_Text::CDebugRenderPrimitive_Text(const Vec3& pos, float size, const char* text, const ColorF& color)
+		CDebugRenderPrimitive_Text::CDebugRenderPrimitive_Text(const Vec3& pos, float size, const char* szText, const ColorF& color)
 			: m_pos(pos)
 			, m_size(size)
-			, m_text(text)
+			, m_text(szText)
 			, m_color(color)
 		{}
 
@@ -414,7 +415,7 @@ namespace uqs
 			ar(m_color, "m_color");
 		}
 
-		void CDebugRenderPrimitive_Text::Draw(const Vec3& pos, float size, const char* text, const ColorF& color, bool bHighlight)
+		void CDebugRenderPrimitive_Text::Draw(const Vec3& pos, float size, const char* szText, const ColorF& color, bool bHighlight)
 		{
 			const bool bVisible = bHighlight ? (Pulsate() > 1.5f) : true;
 
@@ -432,7 +433,7 @@ namespace uqs
 				ti.color[1] = color.g;
 				ti.color[2] = color.b;
 				ti.color[3] = color.a;
-				pAux->RenderTextQueued(pos, ti, text);
+				pAux->RenderTextQueued(pos, ti, szText);
 			}
 		}
 

@@ -73,6 +73,17 @@ SPerInstanceResources::SPerInstanceResources(const int numVertices, const int nu
 	passVertexTangents.SetFlags(CComputeRenderPass::eFlags_ReflectConstantBuffersFromShader);
 }
 
+SPerInstanceResources::~SPerInstanceResources()
+{
+	verticesOut.FreeDeviceBuffer();
+	tangentsOut.FreeDeviceBuffer();
+
+	passDeform.Reset();
+	passDeformWithMorphs.Reset();
+	passTriangleTangents.Reset();
+	passVertexTangents.Reset();
+}
+
 size_t SPerInstanceResources::GetSizeBytes()
 {
 	size_t total = 0;
@@ -198,8 +209,14 @@ void CComputeSkinningStage::Prepare(CRenderView* pRenderView)
 
 void CComputeSkinningStage::Execute(CRenderView* pRenderView)
 {
-	if (pRenderView->IsRecursive())
+	int32 CurrentFrameID = gcpRendD3D.GetFrameID(false);
+
+	if (CurrentFrameID == m_oldFrameIdExecute)
+	{
 		return;
+	}
+
+	m_oldFrameIdExecute = CurrentFrameID;
 
 	PROFILE_LABEL_SCOPE("CHARACTER_DEFORMATION");
 

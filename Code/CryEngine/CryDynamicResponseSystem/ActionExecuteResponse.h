@@ -31,12 +31,12 @@ class CActionExecuteResponseInstance final : public DRS::IResponseActionInstance
 {
 public:
 	CActionExecuteResponseInstance() : m_state(CS_RUNNING), m_pStartedResponse(nullptr) {}
-	virtual ~CActionExecuteResponseInstance();
+	virtual ~CActionExecuteResponseInstance() override;
 
 	//////////////////////////////////////////////////////////
 	// IResponseActionInstance implementation
 	virtual eCurrentState Update() override;
-	virtual void                                        Cancel() override;
+	virtual void          Cancel() override;
 	//////////////////////////////////////////////////////////
 
 	//////////////////////////////////////////////////////////

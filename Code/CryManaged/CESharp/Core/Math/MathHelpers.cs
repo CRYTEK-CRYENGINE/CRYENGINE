@@ -1,9 +1,62 @@
+// Copyright 2001-2017 Crytek GmbH / CrytekGroup. All rights reserved.
+
 using System;
+using System.Runtime.CompilerServices;
 
 namespace CryEngine
 {
 	public static class MathHelpers
 	{
+		public enum Precision
+		{
+			Precision_Default,
+			Precision_1,
+			Precision_2,
+			Precision_3,
+			Precision_4,
+			Precision_5,
+			Precision_6,
+			Precision_7
+
+		}
+
+		private const float MagicNumber = 1.175494E-37f;
+		private const float FloatMinVal = float.Epsilon;
+		public static bool IsDeNormalizedFloatEnabled = (double)FloatMinVal == 0.0d;
+
+		public static readonly float FloatEpsilon = IsDeNormalizedFloatEnabled ? MagicNumber : FloatMinVal;
+		
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static bool IsEqual(float lhs, float rhs)
+		{
+			return (Math.Abs(lhs - rhs) <= FloatEpsilon) ;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static bool IsEqual(float lhs, float rhs, Precision precision)
+		{
+			if (precision == Precision.Precision_Default)
+			{
+				return IsEqual(lhs, rhs);
+			}
+			else
+			{
+				float multiplier = (float)Math.Pow(10, (double)precision);
+				float mlhs = ((int)(lhs * multiplier)) / ((float)(multiplier));
+				float mrhs = ((int)(rhs * multiplier)) / ((float)(multiplier));
+				float diffe = mlhs - mrhs;
+				diffe = Math.Abs(diffe);
+				return (diffe <= FloatEpsilon);
+			}
+			
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static float Clamp(float min, float max, float value)
+		{
+			return Math.Min(Math.Max(min, value), max);
+		}
+
 		/// <summary>
 		/// Convert degrees to radians.
 		/// </summary>
@@ -105,11 +158,18 @@ namespace CryEngine
 			return value * value;
 		}
 
-		public static float Lerp(float a, float b, float t)
+		public static float LerpUnclamped(float a, float b, float t)
 		{
 			return a + ((b - a) * t);
 		}
 
+		public static float Lerp(float a , float b, float t)
+		{
+			t = Math.Max(Math.Min(1.0f, t), 0f);
+			return Lerp(a, b, t);
+		}
+
+		[Obsolete("Please use Vector3.Lerp")]
 		public static Vector3 Lerp(Vector3 a, Vector3 b, float t)
 		{
 			return a + ((b - a) * t);

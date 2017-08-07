@@ -1,16 +1,5 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   DXGL_DXGIFormat.h
-//  Version:     v1.00
-//  Created:     20/02/2013 by Valerio Guagliumi.
-//  Description: Contains portable definition of structs and enums to match
-//               those in DXGIFormat.h in the DirectX SDK
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #ifndef __DXGL_DXGIFormat_h__
 #define __DXGL_DXGIFormat_h__
 
@@ -120,20 +109,27 @@ typedef enum DXGI_FORMAT
 	DXGI_FORMAT_BC7_UNORM_SRGB             = 99,
 
 	// Custom OpenGL formats
-	DXGI_FORMAT_EAC_R11_TYPELESS  = 200,
-	DXGI_FORMAT_EAC_R11_UNORM     = 201,
-	DXGI_FORMAT_EAC_R11_SNORM     = 202,
-	DXGI_FORMAT_EAC_RG11_TYPELESS = 203,
-	DXGI_FORMAT_EAC_RG11_UNORM    = 204,
-	DXGI_FORMAT_EAC_RG11_SNORM    = 205,
-	DXGI_FORMAT_ETC2_TYPELESS     = 206,
-	DXGI_FORMAT_ETC2_UNORM        = 207,
-	DXGI_FORMAT_ETC2_UNORM_SRGB   = 208,
-	DXGI_FORMAT_ETC2A_TYPELESS    = 209,
-	DXGI_FORMAT_ETC2A_UNORM       = 210,
-	DXGI_FORMAT_ETC2A_UNORM_SRGB  = 211,
+	DXGI_FORMAT_EAC_R11_TYPELESS           = 100,
+	DXGI_FORMAT_EAC_R11_UNORM              = 101,
+	DXGI_FORMAT_EAC_R11_SNORM              = 102,
+	DXGI_FORMAT_EAC_RG11_TYPELESS          = 103,
+	DXGI_FORMAT_EAC_RG11_UNORM             = 104,
+	DXGI_FORMAT_EAC_RG11_SNORM             = 105,
+	DXGI_FORMAT_ETC2_TYPELESS              = 106,
+	DXGI_FORMAT_ETC2_UNORM                 = 107,
+	DXGI_FORMAT_ETC2_UNORM_SRGB            = 108,
+	DXGI_FORMAT_ETC2A_TYPELESS             = 109,
+	DXGI_FORMAT_ETC2A_UNORM                = 110,
+	DXGI_FORMAT_ETC2A_UNORM_SRGB           = 111,
+		
+	DXGI_FORMAT_ASTC_4x4_TYPELESS          = 112,
+	DXGI_FORMAT_ASTC_4x4_UNORM             = 113,
+	DXGI_FORMAT_ASTC_4x4_UNORM_SRGB        = 114,
+	DXGI_FORMAT_ASTC_4x4_UINT              = 115,
 
-	DXGI_FORMAT_FORCE_UINT        = 0xffffffff
+	DXGI_FORMAT_B4G4R4A4_UNORM             = 122,
+
+	DXGI_FORMAT_FORCE_UINT                 = 0xffffffff
 } DXGI_FORMAT;
 
 #endif //__DXGL_DXGIFormat_h__

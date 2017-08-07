@@ -21,12 +21,13 @@ void PhysXWorld::Release()
 	delete this;
 }
 
-void PhysXWorld::SetupEntityGrid(int axisz, Vec3 org, int nx, int ny, float stepx, float stepy, int log2PODscale, int bCyclic) 
+IPhysicalEntity* PhysXWorld::SetupEntityGrid(int axisz, Vec3 org, int nx, int ny, float stepx, float stepy, int log2PODscale, int bCyclic, IPhysicalEntity* pHost, const QuatT& posInHost) 
 {
 	PxBroadPhaseRegion rgn;
 	rgn.bounds = PxBounds3(V(org-Vec3(0,0,100)), V(org+Vec3(nx*stepx,ny*stepy,200)));
 	g_cryPhysX.Scene()->removeBroadPhaseRegion(m_idWorldRgn);
 	m_idWorldRgn = g_cryPhysX.Scene()->addBroadPhaseRegion(rgn);
+	return nullptr;
 }
 
 IPhysicalEntity *PhysXWorld::SetHeightfieldData(const heightfield *phf, int *pMatMapping, int nMats)

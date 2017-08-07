@@ -353,12 +353,12 @@ end_sources()
 
 CryEngineModule(CryNetwork PCH "StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
 
-target_include_directories( ${THIS_PROJECT} PRIVATE ${CMAKE_SOURCE_DIR}/Code/SDKs/speex-1.0.5/include )
+target_include_directories( ${THIS_PROJECT} PRIVATE "${SDK_DIR}/speex-1.0.5/include" )
 
 if(WIN64)
-	find_library(SPEEX libspeex-1.0.5 PATHS ${SDK_DIR}/speex-1.0.5/lib/x64 )
+	find_library(SPEEX libspeex-1.0.5 PATHS "${SDK_DIR}/speex-1.0.5/lib/x64" )
 elseif(WIN32)
-	find_library(SPEEX libspeex-1.0.5 PATHS ${SDK_DIR}/speex-1.0.5/lib/win32 )
+	find_library(SPEEX libspeex-1.0.5 PATHS "${SDK_DIR}/speex-1.0.5/lib/win32" )
 endif()
 mark_as_advanced(FORCE SPEEX)
 
@@ -367,7 +367,7 @@ target_link_libraries(${THIS_PROJECT} PRIVATE bigdigits)
 if(WIN32)
 	# Exclude Default libcmt.lib library
 	set_target_properties( ${THIS_PROJECT} PROPERTIES LINK_FLAGS "/NODEFAULTLIB:libcmt.lib") 
-	target_link_libraries( ${THIS_PROJECT} PRIVATE Ws2_32 Mswsock ${SPEEX} )
+	target_link_libraries( ${THIS_PROJECT} PRIVATE Ws2_32 Mswsock "${SPEEX}" )
 endif(WIN32)
 
 if(DURANGO)

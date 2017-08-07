@@ -4,10 +4,14 @@
 #include "AudioImplCVars.h"
 #include <CrySystem/IConsole.h>
 
-using namespace CryAudio::Impl::Wwise;
-
+namespace CryAudio
+{
+namespace Impl
+{
+namespace Wwise
+{
 //////////////////////////////////////////////////////////////////////////
-void CAudioImplCVars::RegisterVariables()
+void CCVars::RegisterVariables()
 {
 #if CRY_PLATFORM_WINDOWS
 	m_secondaryMemoryPoolSize = 0;
@@ -178,11 +182,11 @@ void CAudioImplCVars::RegisterVariables()
 	               "Specifies the size (in KiB) of the Wwise monitor queue memory pool.\n"
 	               "Usage: s_WwiseMonitorQueueMemoryPoolSize [0/...]\n"
 	               "Default PC: 64, XboxOne: 64, PS4: 64, Mac: 64, Linux: 64, iOS: 64, Android: 64\n");
-#endif // INCLUDE_WWISE_IMPL_PRODUCTION_CODE
+#endif  // INCLUDE_WWISE_IMPL_PRODUCTION_CODE
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioImplCVars::UnregisterVariables()
+void CCVars::UnregisterVariables()
 {
 	IConsole* const pConsole = gEnv->pConsole;
 
@@ -206,3 +210,6 @@ void CAudioImplCVars::UnregisterVariables()
 #endif      // INCLUDE_WWISE_IMPL_PRODUCTION_CODE
 	}
 }
+} // namespace Wwise
+} // namespace Impl
+} // namespace CryAudio

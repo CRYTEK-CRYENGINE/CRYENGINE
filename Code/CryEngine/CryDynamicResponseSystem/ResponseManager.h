@@ -57,7 +57,7 @@ public:
 	typedef std::vector<std::pair<DRS::IResponseManager::IListener*, DRS::SignalInstanceId>> ListenerList;
 
 	CResponseManager();
-	~CResponseManager();
+	virtual ~CResponseManager() override;
 
 	//////////////////////////////////////////////////////////
 	// IResponseManager implementation
@@ -82,6 +82,7 @@ public:
 
 	ResponsePtr        GetResponse(const CHashedString& signalName);
 	bool			   HasMappingForSignal(const CHashedString& signalName);
+	void			   OnActorRemoved(const CResponseActor* pActor);
 
 	void               QueueSignal(const SSignal& signal);
 	bool               CancelSignalProcessing(const SSignal& signal);
@@ -93,7 +94,7 @@ public:
 
 	CResponseInstance* CreateInstance(SSignal& signal, CResponse* pResponse);
 	void               ReleaseInstance(CResponseInstance* pInstance, bool removeFromRunningInstances = true);
-	void               Reset(bool bResetExecutionCounter);
+	void               Reset(bool bResetExecutionCounter, bool bClearAllResponseMappings = false);
 	void               Serialize(Serialization::IArchive& ar);
 
 private:

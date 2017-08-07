@@ -6,7 +6,7 @@
 #include <CrySystem/ITextModeConsole.h>
 #include <CryRenderer/IRenderAuxGeom.h>
 
-#define PREVENT_ZERO_ALLOCS(x) x = MAX(x, 1)
+#define PREVENT_ZERO_ALLOCS(x) x = std::max((size_t)x, (size_t)1)
 
 #if MMM_USE_BUCKET_ALLOCATOR
 	#include <CryMemory/BucketAllocatorImpl.h>
@@ -781,7 +781,7 @@ void CMementoMemoryManager::CMementoMemoryManagerAllocator::DebugDraw(int x, int
 
 	#if MMM_USE_BUCKET_ALLOCATOR
 	DrawDebugLine(x, y++, "Memento allocator memory");
-	DrawDebugLine(x, y++, "Bucket Allocator Requested %8 " PRISIZE_T " Allocated %8 " PRISIZE_T " Storage Size %8 " PRISIZE_T " Storage Capacity %8" PRISIZE_T " pages", m_bucketTotalRequested, m_bucketTotalAllocated, m_bucketAllocator.GetBucketStorageSize(), m_bucketAllocator.GetBucketStoragePages());
+	DrawDebugLine(x, y++, "Bucket Allocator Requested %8" PRISIZE_T " Allocated %8" PRISIZE_T " Storage Size %8" PRISIZE_T " Storage Capacity %8" PRISIZE_T " pages", m_bucketTotalRequested, m_bucketTotalAllocated, m_bucketAllocator.GetBucketStorageSize(), m_bucketAllocator.GetBucketStoragePages());
 	totalAllocated += m_bucketTotalAllocated;
 	#else
 	DrawDebugLine(x, y++, "Memento allocator memory");

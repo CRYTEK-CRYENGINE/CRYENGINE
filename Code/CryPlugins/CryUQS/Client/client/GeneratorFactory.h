@@ -4,11 +4,11 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client
+	namespace Client
 	{
-		namespace internal
+		namespace Internal
 		{
 
 			//===================================================================================
@@ -17,17 +17,19 @@ namespace uqs
 			//
 			//===================================================================================
 
-			class CGeneratorFactoryBase : public IGeneratorFactory, public IParamsHolderFactory, public CFactoryBase<CGeneratorFactoryBase>
+			class CGeneratorFactoryBase : public IGeneratorFactory, public IParamsHolderFactory, public Shared::CFactoryBase<CGeneratorFactoryBase>
 			{
 			public:
 				// IGeneratorFactory
 				virtual const char*                       GetName() const override final;
+				virtual const CryGUID&                    GetGUID() const override final;
+				virtual const char*                       GetDescription() const override final;
 				virtual const IInputParameterRegistry&    GetInputParameterRegistry() const override final;
 				virtual IParamsHolderFactory&             GetParamsHolderFactory() const override final;
 				// ~IGeneratorFactory
 
 				// IGeneratorFactory: forward to derived class
-				virtual const shared::CTypeInfo&          GetTypeOfItemsToGenerate() const override = 0;
+				virtual const Shared::CTypeInfo&          GetTypeOfItemsToGenerate() const override = 0;
 				virtual GeneratorUniquePtr                CreateGenerator(const void* pParams) override = 0;
 				virtual void                              DestroyGenerator(IGenerator* pGeneratorToDestroy) override = 0;
 				// ~IGeneratorFactory
@@ -38,17 +40,19 @@ namespace uqs
 				// ~IParamsHolderFactory
 
 			protected:
-				explicit                                  CGeneratorFactoryBase(const char* generatorName);
+				explicit                                  CGeneratorFactoryBase(const char* szGeneratorName, const CryGUID& guid, const char* szDescription);
 
 			protected:
 				CInputParameterRegistry                   m_inputParameterRegistry;
 
 			private:
+				string                                    m_description;
 				IParamsHolderFactory*                     m_pParamsHolderFactory;      // points to *this; it's a trick to allow GetParamsHolderFactory() return a non-const reference to *this
 			};
 
-			inline CGeneratorFactoryBase::CGeneratorFactoryBase(const char* generatorName)
-				: CFactoryBase(generatorName)
+			inline CGeneratorFactoryBase::CGeneratorFactoryBase(const char* szGeneratorName, const CryGUID& guid, const char* szDescription)
+				: CFactoryBase(szGeneratorName, guid)
+				, m_description(szDescription)
 			{
 				m_pParamsHolderFactory = this;
 			}
@@ -56,6 +60,16 @@ namespace uqs
 			inline const char* CGeneratorFactoryBase::GetName() const
 			{
 				return CFactoryBase::GetName();
+			}
+
+			inline const CryGUID& CGeneratorFactoryBase::GetGUID() const
+			{
+				return CFactoryBase::GetGUID();
+			}
+
+			inline const char* CGeneratorFactoryBase::GetDescription() const
+			{
+				return m_description.c_str();
 			}
 
 			inline const IInputParameterRegistry& CGeneratorFactoryBase::GetInputParameterRegistry() const
@@ -68,7 +82,7 @@ namespace uqs
 				return *m_pParamsHolderFactory;
 			}
 
-		} // namespace internal
+		} // namespace Internal
 
 		//===================================================================================
 		//
@@ -77,13 +91,23 @@ namespace uqs
 		//===================================================================================
 
 		template <class TGenerator>
-		class CGeneratorFactory final : public internal::CGeneratorFactoryBase
+		class CGeneratorFactory final : public Internal::CGeneratorFactoryBase
 		{
 		public:
-			explicit                                  CGeneratorFactory(const char* generatorName);
+
+			struct SCtorParams
+			{
+				const char*                           szName = "";
+				CryGUID                               guid = CryGUID::Null();
+				const char*                           szDescription = "";
+			};
+
+		public:
+
+			explicit                                  CGeneratorFactory(const SCtorParams& ctorParams);
 
 			// IGeneratorFactory
-			virtual const shared::CTypeInfo&          GetTypeOfItemsToGenerate() const override;
+			virtual const Shared::CTypeInfo&          GetTypeOfItemsToGenerate() const override;
 			virtual GeneratorUniquePtr                CreateGenerator(const void* pParams) override;
 			virtual void                              DestroyGenerator(IGenerator* pGeneratorToDestroy) override;
 			// ~IGeneratorFactory
@@ -95,17 +119,17 @@ namespace uqs
 		};
 
 		template <class TGenerator>
-		CGeneratorFactory<TGenerator>::CGeneratorFactory(const char* generatorName)
-			: CGeneratorFactoryBase(generatorName)
+		CGeneratorFactory<TGenerator>::CGeneratorFactory(const SCtorParams& ctorParams)
+			: CGeneratorFactoryBase(ctorParams.szName, ctorParams.guid, ctorParams.szDescription)
 		{
 			typedef typename TGenerator::SParams Params;
 			Params::Expose(m_inputParameterRegistry);
 		}
 
 		template <class TGenerator>
-		const shared::CTypeInfo& CGeneratorFactory<TGenerator>::GetTypeOfItemsToGenerate() const
+		const Shared::CTypeInfo& CGeneratorFactory<TGenerator>::GetTypeOfItemsToGenerate() const
 		{
-			return shared::SDataTypeHelper<typename TGenerator::ItemType>::GetTypeInfo();
+			return Shared::SDataTypeHelper<typename TGenerator::ItemType>::GetTypeInfo();
 		}
 
 		template <class TGenerator>
@@ -118,7 +142,7 @@ namespace uqs
 			// notice: we assign the instantiated generator to its base class pointer to ensure that the generator type itself (and not accidentally another generator type) was injected at its class definition
 			CGeneratorBase<TGenerator, typename TGenerator::ItemType>* pGenerator = new TGenerator(*pActualParams);
 #endif
-			internal::CGeneratorDeleter deleter(*this);
+			Internal::CGeneratorDeleter deleter(*this);
 			return GeneratorUniquePtr(pGenerator, deleter);
 		}
 
@@ -131,7 +155,7 @@ namespace uqs
 		template <class TGenerator>
 		ParamsHolderUniquePtr CGeneratorFactory<TGenerator>::CreateParamsHolder()
 		{
-			internal::CParamsHolder<typename TGenerator::SParams>* pParamsHolder = new internal::CParamsHolder<typename TGenerator::SParams>;
+			Internal::CParamsHolder<typename TGenerator::SParams>* pParamsHolder = new Internal::CParamsHolder<typename TGenerator::SParams>;
 			CParamsHolderDeleter deleter(*this);
 			return ParamsHolderUniquePtr(pParamsHolder, deleter);
 		}

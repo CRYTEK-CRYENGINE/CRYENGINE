@@ -10,6 +10,33 @@
 #include "MaterialEffectsCVars.h"
 #include "IActorSystem.h"
 
+IParticleAttributes::EType GetAttributeType(const char* szType)
+{
+	if(!cry_stricmp(szType, "bool"))
+	{ 
+		return IParticleAttributes::ET_Boolean;
+	}
+	else if(!cry_stricmp(szType, "int"))
+	{
+		return IParticleAttributes::ET_Integer;
+	}
+	else if (!cry_stricmp(szType, "float"))
+	{
+		return IParticleAttributes::ET_Float;
+	}
+	else if (!cry_stricmp(szType, "color"))
+	{
+		return IParticleAttributes::ET_Color;
+	}
+
+	return IParticleAttributes::ET_Count;
+}
+
+ColorF ColorBToColorF(const ColorB& colorB)
+{
+	return ColorF(colorB.r / 255.0f, colorB.g / 255.0f, colorB.b / 255.0f, colorB.a / 255.0f);
+}
+
 CMFXParticleEffect::CMFXParticleEffect()
 	: CMFXEffectBase(eMFXPF_Particles)
 	, m_particleParams()
@@ -74,7 +101,52 @@ void CMFXParticleEffect::Execute(const SMFXRunTimeEffectParams& params)
 				// If not attached, just spawn the particle
 				if (particleSpawnedAndAttached == false)
 				{
-					pParticle->Spawn(true, IParticleEffect::ParticleLoc(pos, dir, truscale));
+					if (IParticleEmitter* pEmitter = pParticle->Spawn(true, IParticleEffect::ParticleLoc(pos, dir, truscale)))
+					{
+						IParticleAttributes& particleAttributes = pEmitter->GetAttributes();
+						for (const SMFXEmitterParameter& emitterParameter : it->parameters)
+						{
+							int paramIdx = particleAttributes.FindAttributeIdByName(emitterParameter.name.c_str());
+							if (paramIdx != -1)
+							{
+								IParticleAttributes::EType type = particleAttributes.GetAttributeType(paramIdx);
+
+								const SMFXEmitterParameter* paramToUse = &emitterParameter;
+
+								// Check if we have runtime param set and use it instead of the static one in the XML
+								for (const SMFXEmitterParameter& runtimeParam : params.particleParams)
+								{
+									if (runtimeParam == emitterParameter)
+									{
+										paramToUse = &runtimeParam;
+										break;
+									}
+								}
+
+								switch (type)
+								{
+								case IParticleAttributes::ET_Boolean:
+									particleAttributes.SetAsBoolean(paramIdx, stl::get<bool>(paramToUse->value));
+									break;
+
+								case IParticleAttributes::ET_Integer:
+									particleAttributes.SetAsInteger(paramIdx, stl::get<int>(paramToUse->value));
+									break;
+
+								case IParticleAttributes::ET_Float:
+									particleAttributes.SetAsFloat(paramIdx, stl::get<float>(paramToUse->value));
+									break;
+
+								case IParticleAttributes::ET_Color:
+									particleAttributes.SetAsColor(paramIdx, stl::get<ColorF>(paramToUse->value));
+									break;
+
+								default:
+									break;
+								}
+							}
+						}
+					}
 				}
 			}
 
@@ -208,7 +280,9 @@ void CMFXParticleEffect::LoadParamsFromXml(const XmlNodeRef& paramsNode)
 	// Xml data format
 	/*
 	   <Particle>
-	   <Name userdata="..." scale="..." maxdist="..." minscale="..." maxscale="..." maxscaledist="..." attach="...">particle.name</Name>
+	   <Name userdata="..." scale="..." maxdist="..." minscale="..." maxscale="..." maxscaledist="..." attach="...">particle.name
+	     <Attribute name="..." type="bool|float|int|color" value="..."/>
+	   </Name>
 	   <Direction>DirectionType</Direction>
 	   </Particle>
 	 */
@@ -241,6 +315,55 @@ void CMFXParticleEffect::LoadParamsFromXml(const XmlNodeRef& paramsNode)
 
 			if (child->haveAttr("attach"))
 				child->getAttr("attach", entry.attachToTarget);
+
+			entry.parameters.reserve(child->getChildCount());
+			for (int j = 0; j < child->getChildCount(); ++j)
+			{
+				XmlNodeRef attribute = child->getChild(j);
+				if (!strcmp(attribute->getTag(), "Attribute"))
+				{
+					SMFXEmitterParameter parameter;
+					if (attribute->haveAttr("name") && attribute->haveAttr("type") && attribute->haveAttr("value"))
+					{
+						parameter.name = attribute->getAttr("name");
+						parameter.type = GetAttributeType(attribute->getAttr("type"));
+						switch (parameter.type)
+						{
+						case IParticleAttributes::ET_Boolean:
+						{
+							bool value;
+							attribute->getAttr("value", value);
+							parameter.value.emplace<bool>(value);
+							break;
+						}
+						case IParticleAttributes::ET_Integer:
+						{
+							int value;
+							attribute->getAttr("value", value);
+							parameter.value.emplace<int>(value);
+							break;
+						}
+						case IParticleAttributes::ET_Float:
+						{
+							float value;
+							attribute->getAttr("value", value);
+							parameter.value.emplace<float>(value);
+							break;
+						}
+						case IParticleAttributes::ET_Color:
+						{
+							ColorB value;
+							attribute->getAttr("value", value);
+							parameter.value.emplace<ColorF>(ColorBToColorF(value));
+							break;
+						}
+						default:
+							break;
+						}
+						entry.parameters.emplace_back(parameter);
+					}
+				}
+			}
 
 			m_particleParams.m_entries.push_back(entry);
 		}

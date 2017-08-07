@@ -24,10 +24,9 @@ bool CManagedGameRules::OnClientConnect(int channelId, bool isReset)
 
 void CManagedGameRules::OnClientDisconnect(int channelId, EDisconnectionCause cause, const char* desc, bool keepClient)
 {
-	auto* pActorSystem = gEnv->pGameFramework->GetIActorSystem();
-	auto* pActor = pActorSystem->GetActorByChannelId(channelId);
-
-	if (pActor != nullptr)
+	IActorSystem* pActorSystem = gEnv->pGameFramework->GetIActorSystem();
+	
+	if (IActor* pActor = pActorSystem->GetActorByChannelId(channelId))
 	{
 		pActorSystem->RemoveActor(pActor->GetEntityId());
 	}

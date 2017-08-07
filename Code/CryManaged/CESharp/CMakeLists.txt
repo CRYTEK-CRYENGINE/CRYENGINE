@@ -28,6 +28,12 @@ if(OPTION_BUILD_CSHARP_WITH_MCS)
 	message(STATUS "CESharp MONO_LANGUAGE_VERSION : ${MONO_LANGUAGE_VERSION}")
 endif()
 
+if (OPTION_CRYMONO_SWIG)
+	set(MONO_SWIG_OUTPUT_ASSEMBLY_REFERENCE "-r:${OUTPUT_DIRECTORY}/CryEngine.Common.dll")
+else()
+	set(MONO_SWIG_OUTPUT_ASSEMBLY_REFERENCE "")
+endif()
+
 add_subdirectory(Core)
 add_subdirectory(Core.Tests)
 add_subdirectory(Core.UI)

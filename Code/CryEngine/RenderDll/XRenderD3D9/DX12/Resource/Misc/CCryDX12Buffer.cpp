@@ -150,7 +150,7 @@ CCryDX12Buffer* CCryDX12Buffer::Create(CCryDX12Device* pDevice, const D3D11_BUFF
 		heapProperties.CreationNodeMask = pDevice->GetCreationMask(false) | pDevice->GetVisibilityMask(false);
 		heapProperties.VisibleNodeMask = pDevice->GetVisibilityMask(false);
 
-#if CRY_USE_DX12_MULTIADAPTER_SIMULATION
+#if DX12_LINKEDADAPTER_SIMULATION
 		// Always allow getting GPUAddress (CreationMask == VisibilityMask), if running simulation
 		if (CRenderer::CV_r_StereoEnableMgpu < 0 && (heapProperties.Type == D3D12_HEAP_TYPE_UPLOAD || heapProperties.Type == D3D12_HEAP_TYPE_READBACK))
 		{
@@ -162,14 +162,31 @@ CCryDX12Buffer* CCryDX12Buffer::Create(CCryDX12Device* pDevice, const D3D11_BUFF
 
 	ID3D12Resource* resource = NULL;
 
-	if (S_OK != pDevice->GetD3D12Device()->CreateCommittedResource(
-	      &heapProperties,
-	      D3D12_HEAP_FLAG_NONE,
-	      &desc12,
-	      resourceUsage,
-	      NULL,
-	      IID_PPV_ARGS(&resource)
-	      ) || !resource)
+	HRESULT hresult = S_OK;
+	if (pDesc->MiscFlags & D3D11_RESOURCE_MISC_HIFREQ_HEAP)
+	{
+		hresult = pDevice->GetDX12Device()->CreateOrReuseCommittedResource(
+			&heapProperties,
+			D3D12_HEAP_FLAG_NONE,
+			&desc12,
+			resourceUsage,
+			NULL,
+			IID_GFX_ARGS(&resource)
+		);
+	}
+	else
+	{
+		hresult = pDevice->GetD3D12Device()->CreateCommittedResource(
+			&heapProperties,
+			D3D12_HEAP_FLAG_NONE,
+			&desc12,
+			resourceUsage,
+			NULL,
+			IID_GFX_ARGS(&resource)
+		);
+	}
+
+	if ((hresult != S_OK) || !resource)
 	{
 		DX12_ASSERT(0, "Could not create buffer resource!");
 		return NULL;
@@ -189,24 +206,19 @@ CCryDX12Buffer::CCryDX12Buffer(CCryDX12Device* pDevice, const D3D11_BUFFER_DESC&
 {
 	m_Desc11.StructureByteStride = (m_Desc11.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_STRUCTURED) ? m_Desc11.StructureByteStride : 0U;
 	m_DX12Resource.MakeConcurrentWritable(m_Desc11.MiscFlags & D3D11_RESOURCE_MISC_UAV_OVERLAP ? true : false);
+	m_DX12Resource.MakeReusableResource(m_Desc11.MiscFlags & D3D11_RESOURCE_MISC_HIFREQ_HEAP ? true : false);
 	m_DX12View.Init(m_DX12Resource, NCryDX12::EVT_ConstantBufferView, m_Desc11.ByteWidth);
 }
 
-CCryDX12Buffer::~CCryDX12Buffer()
+bool CCryDX12Buffer::SubstituteUsed()
 {
+	if (!Super::SubstituteUsed())
+	{
+		return false;
+	}
 
-}
-
-void CCryDX12Buffer::MapDiscard()
-{
-	Super::MapDiscard();
 	m_DX12View.Init(m_DX12Resource, NCryDX12::EVT_ConstantBufferView, m_Desc11.ByteWidth);
-}
-
-void CCryDX12Buffer::CopyDiscard()
-{
-	Super::CopyDiscard();
-	m_DX12View.Init(m_DX12Resource, NCryDX12::EVT_ConstantBufferView, m_Desc11.ByteWidth);
+	return true;
 }
 
 #pragma region /* ID3D11Buffer implementation */

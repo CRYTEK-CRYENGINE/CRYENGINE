@@ -42,10 +42,10 @@
 #include <CryDynamicResponseSystem/IDynamicResponseSystem.h>
 #include <Cry3DEngine/ITimeOfDay.h>
 #include <CryMono/IMonoRuntime.h>
+#include <CrySchematyc/ICore.h>
 
 #include "CryPak.h"
 #include "XConsole.h"
-#include "Log.h"
 #include "CrySizerStats.h"
 #include "CrySizerImpl.h"
 #include "NotificationNetwork.h"
@@ -82,6 +82,7 @@
 #include "RemoteConsole/RemoteConsole.h"
 #include "ImeManager.h"
 #include "BootProfiler.h"
+#include "Watchdog.h"
 #include "NullImplementation/NULLAudioSystems.h"
 #include "NullImplementation/NULLRenderAuxGeom.h"
 
@@ -111,6 +112,7 @@ WATERMARKDATA(_m);
 #include <../CryAction/IViewSystem.h>
 
 #include <CryCore/CrtDebugStats.h>
+#include "Interprocess/StatsAgent.h"
 
 // Define global cvars.
 SSystemCVars g_cvars;
@@ -219,7 +221,7 @@ CSystem::CSystem(const SSystemInitParams& startupParams)
 
 	if (m_pSystemEventDispatcher)
 	{
-		m_pSystemEventDispatcher->RegisterListener(this,"CSystem");
+		m_pSystemEventDispatcher->RegisterListener(this, "CSystem");
 	}
 
 #if CRY_PLATFORM_WINDOWS
@@ -277,86 +279,85 @@ CSystem::CSystem(const SSystemInitParams& startupParams)
 
 	m_randomGenerator.SetState(m_Time.GetAsyncTime().GetMicroSecondsAsInt64());
 
-	m_pStreamEngine = NULL;
-	m_PhysThread = 0;
+	m_pStreamEngine = nullptr;
+	m_PhysThread = nullptr;
 
-	m_pIFont = NULL;
-	m_pTestSystem = NULL;
-	m_pVisRegTest = NULL;
-	m_rWidth = NULL;
-	m_rHeight = NULL;
-	m_rColorBits = NULL;
-	m_rDepthBits = NULL;
-	m_cvSSInfo = NULL;
-	m_rStencilBits = NULL;
-	m_rFullscreen = NULL;
-	m_rDriver = NULL;
-	m_pPhysicsLibrary = NULL;
-	m_sysNoUpdate = NULL;
-	m_pMemoryManager = NULL;
-	m_pProcess = NULL;
-	m_pMtState = NULL;
+	m_pIFont = nullptr;
+	m_pTestSystem = nullptr;
+	m_pVisRegTest = nullptr;
+	m_rWidth = nullptr;
+	m_rHeight = nullptr;
+	m_rColorBits = nullptr;
+	m_rDepthBits = nullptr;
+	m_cvSSInfo = nullptr;
+	m_rStencilBits = nullptr;
+	m_rFullscreen = nullptr;
+	m_rDriver = nullptr;
+	m_pPhysicsLibrary = nullptr;
+	m_sysNoUpdate = nullptr;
+	m_pMemoryManager = nullptr;
+	m_pProcess = nullptr;
+	m_pMtState = nullptr;
 
-	m_pValidator = NULL;
-	m_pCmdLine = NULL;
-	m_pDefaultValidator = NULL;
-	m_pIBudgetingSystem = NULL;
-	m_pIZLibCompressor = NULL;
-	m_pIZLibDecompressor = NULL;
-	m_pILZ4Decompressor = NULL;
-	m_pNULLRenderAuxGeom = NULL;
-	m_pLocalizationManager = NULL;
-	m_sys_physics_enable_MT = 0;
-	m_sys_min_step = 0;
-	m_sys_max_step = 0;
+	m_pValidator = nullptr;
+	m_pCmdLine = nullptr;
+	m_pDefaultValidator = nullptr;
+	m_pIBudgetingSystem = nullptr;
+	m_pIZLibCompressor = nullptr;
+	m_pIZLibDecompressor = nullptr;
+	m_pILZ4Decompressor = nullptr;
+	m_pNULLRenderAuxGeom = nullptr;
+	m_pLocalizationManager = nullptr;
+	m_sys_physics_enable_MT = nullptr;
+	m_sys_min_step = nullptr;
+	m_sys_max_step = nullptr;
 
-	m_pNotificationNetwork = NULL;
+	m_pNotificationNetwork = nullptr;
 
-	m_cvAIUpdate = NULL;
+	m_cvAIUpdate = nullptr;
 
-	m_pUserCallback = NULL;
+	m_pUserCallback = nullptr;
 #if defined(CVARS_WHITELIST)
-	m_pCVarsWhitelist = NULL;
+	m_pCVarsWhitelist = nullptr;
 	m_pCVarsWhitelistConfigSink = &g_CVarsWhitelistConfigSink;
 #endif // defined(CVARS_WHITELIST)
-	m_sys_memory_debug = NULL;
-	m_sysWarnings = NULL;
-	m_sysKeyboard = NULL;
-	m_sys_profile = NULL;
-	m_sys_profile_deep = NULL;
-	m_sys_profile_additionalsub = NULL;
-	m_sys_profile_graphScale = NULL;
-	m_sys_profile_pagefaultsgraph = NULL;
-	m_sys_profile_graph = NULL;
-	m_sys_profile_filter = NULL;
-	m_sys_profile_filter_thread = NULL;
-	m_sys_profile_allThreads = NULL;
-	m_sys_profile_network = NULL;
-	m_sys_profile_peak = NULL;
-	m_sys_profile_peak_time = NULL;
-	m_sys_profile_memory = NULL;
-	m_sys_profile_sampler = NULL;
-	m_sys_profile_sampler_max_samples = NULL;
-	m_sys_job_system_filter = NULL;
-	m_sys_job_system_enable = NULL;
-	m_sys_job_system_profiler = NULL;
-	m_sys_job_system_max_worker = NULL;
-	m_sys_spec = NULL;
-	m_sys_firstlaunch = NULL;
-	m_sys_enable_budgetmonitoring = NULL;
-	m_sys_preload = NULL;
+	m_sys_memory_debug = nullptr;
+	m_sysWarnings = nullptr;
+	m_sysKeyboard = nullptr;
+	m_sys_profile = nullptr;
+	m_sys_profile_deep = nullptr;
+	m_sys_profile_additionalsub = nullptr;
+	m_sys_profile_graphScale = nullptr;
+	m_sys_profile_pagefaultsgraph = nullptr;
+	m_sys_profile_graph = nullptr;
+	m_sys_profile_filter = nullptr;
+	m_sys_profile_filter_thread = nullptr;
+	m_sys_profile_allThreads = nullptr;
+	m_sys_profile_network = nullptr;
+	m_sys_profile_peak = nullptr;
+	m_sys_profile_peak_time = nullptr;
+	m_sys_profile_memory = nullptr;
+	m_sys_profile_sampler = nullptr;
+	m_sys_profile_sampler_max_samples = nullptr;
+	m_sys_profile_watchdog_timeout = nullptr;
+	m_sys_job_system_filter = nullptr;
+	m_sys_job_system_enable = nullptr;
+	m_sys_job_system_profiler = nullptr;
+	m_sys_job_system_max_worker = nullptr;
+	m_sys_spec = nullptr;
+	m_sys_firstlaunch = nullptr;
+	m_sys_enable_budgetmonitoring = nullptr;
+	m_sys_preload = nullptr;
 	m_sys_use_Mono = nullptr;
 
-	//	m_sys_filecache = NULL;
-	m_gpu_particle_physics = NULL;
-	m_pCpu = NULL;
-	m_sys_game_folder = NULL;
+	//	m_sys_filecache = nullptr;
+	m_gpu_particle_physics = nullptr;
+	m_pCpu = nullptr;
 
 	m_bQuit = false;
 	m_bShaderCacheGenMode = false;
 	m_bRelaunch = false;
 	m_iLoadingMode = 0;
-	m_bTestMode = false;
 	m_bEditor = false;
 	m_bPreviewMode = false;
 	m_bIgnoreUpdates = false;
@@ -371,11 +372,11 @@ CSystem::CSystem(const SSystemInitParams& startupParams)
 
 	m_nStrangeRatio = 1000;
 	// no mem stats at the moment
-	m_pMemStats = NULL;
-	m_pSizer = NULL;
-	m_pCVarQuit = NULL;
+	m_pMemStats = nullptr;
+	m_pSizer = nullptr;
+	m_pCVarQuit = nullptr;
 
-	m_pDownloadManager = 0;
+	m_pDownloadManager = nullptr;
 	m_bForceNonDevMode = false;
 	m_bWasInDevMode = false;
 	m_bInDevMode = false;
@@ -389,23 +390,25 @@ CSystem::CSystem(const SSystemInitParams& startupParams)
 	//m_bStopPhysics = 0;
 	//m_bPhysicsActive = 0;
 
-	m_pProgressListener = 0;
+	m_pProgressListener = nullptr;
 
 	m_bPaused = false;
 	m_bNoUpdate = false;
 	m_nUpdateCounter = 0;
 	m_iApplicationInstance = -1;
 
-	m_pPhysRenderer = 0;
+	m_pPhysRenderer = nullptr;
 
 	m_pXMLUtils = new CXmlUtils(this);
 	m_pArchiveHost = Serialization::CreateArchiveHost();
-	m_pTestSystem = new CTestSystemLegacy;
+
+	m_pTestSystem = stl::make_unique<CTestSystemLegacy>(this);
+
 	m_pMemoryManager = CryGetIMemoryManager();
 	m_pResourceManager = new CResourceManager;
-	m_pTextModeConsole = NULL;
-	m_pThreadProfiler = 0;
-	m_pDiskProfiler = NULL;
+	m_pTextModeConsole = nullptr;
+	m_pThreadProfiler = nullptr;
+	m_pDiskProfiler = nullptr;
 
 #if defined(ENABLE_LOADING_PROFILER)
 	if (!startupParams.bShaderCacheGen)
@@ -416,8 +419,10 @@ CSystem::CSystem(const SSystemInitParams& startupParams)
 
 	InitThreadSystem();
 
-	m_pMiniGUI = NULL;
-	m_pPerfHUD = NULL;
+	LOADING_TIME_PROFILE_SECTION_NAMED("CSystem Boot");
+
+	m_pMiniGUI = nullptr;
+	m_pPerfHUD = nullptr;
 
 	m_pHmdManager = nullptr;
 	m_sys_vr_support = nullptr;
@@ -439,7 +444,7 @@ CSystem::CSystem(const SSystemInitParams& startupParams)
 	m_bHasRenderedErrorMessage = false;
 	m_bIsSteamInitialized = false;
 
-	m_pImeManager = NULL;
+	m_pImeManager = nullptr;
 	RegisterWindowMessageHandler(this);
 
 	m_pPluginManager = new CCryPluginManager(startupParams);
@@ -488,7 +493,9 @@ CSystem::~CSystem()
 
 	SAFE_DELETE(g_pPakHeap);
 
-	m_env.pSystem = 0;
+	m_pTestSystem.reset();
+
+	m_env.pSystem = nullptr;
 #if !defined(SYS_ENV_AS_STRUCT)
 	gEnv = 0;
 #endif
@@ -555,13 +562,15 @@ void LvlRes_export(IConsoleCmdArgs* pParams);
 ///////////////////////////////////////////////////
 void CSystem::ShutDown()
 {
-	CryLogAlways("System Shutdown");  
+	CryLogAlways("System Shutdown");
 
 	m_FrameProfileSystem.Enable(false, false);
 
 #if defined(ENABLE_LOADING_PROFILER)
 	CLoadingProfilerSystem::ShutDown();
 #endif
+
+	m_pPlatformOS.reset();
 
 	if (m_pSystemEventDispatcher)
 	{
@@ -574,6 +583,13 @@ void CSystem::ShutDown()
 	GetIRemoteConsole()->Stop();
 
 	SAFE_DELETE(m_pTextModeConsole);
+
+	//////////////////////////////////////////////////////////////////////////
+	// Interprocess Communication
+	//////////////////////////////////////////////////////////////////////////
+#if defined(ENABLE_STATS_AGENT)
+	CStatsAgent::ClosePipe();
+#endif
 
 	KillPhysicsThread();
 
@@ -659,12 +675,19 @@ void CSystem::ShutDown()
 		m_env.pPhysicalWorld->SetPhysicsEventClient(0);
 	}
 
+	UnloadEngineModule("CryFlowGraph");
 	SAFE_DELETE(m_pPluginManager);
 
-	SAFE_DELETE(gEnv->pMonoRuntime);
+	if (gEnv->pMonoRuntime != nullptr)
+	{
+		gEnv->pMonoRuntime->Shutdown();
+	}
 
 	SAFE_DELETE(m_pUserAnalyticsSystem);
-	UnloadEngineModule(m_sys_dll_response_system->GetString(), "EngineModule_CryDynamicResponseSystem");
+	if (m_sys_dll_response_system != nullptr)
+	{
+		UnloadEngineModule(m_sys_dll_response_system->GetString());
+	}
 
 #if defined(INCLUDE_SCALEFORM_SDK) || defined(CRY_FEATURE_SCALEFORM_HELPER)
 	if (m_env.pRenderer)
@@ -690,19 +713,20 @@ void CSystem::ShutDown()
 	SAFE_DELETE(m_env.pLiveCreateHost);
 	SAFE_DELETE(m_env.pLiveCreateManager);
 	SAFE_RELEASE(m_env.pHardwareMouse);
-	UnloadEngineModule("CryMovie", "EngineModule_CryMovie");
+	UnloadEngineModule("CryMovie");
 	SAFE_DELETE(m_env.pServiceNetwork);
-	UnloadEngineModule("CryAISystem", "EngineModule_CryAISystem");
-	UnloadEngineModule("CryFont", "EngineModule_CryFont");
-	UnloadEngineModule("CryNetwork", "EngineModule_CryNetwork");
-	UnloadEngineModule("CryLobby", "EngineModule_CryLobby");
+	UnloadEngineModule("CryAISystem");
+	UnloadEngineModule("CryFont");
+	UnloadEngineModule("CryNetwork");
+	UnloadEngineModule("CryLobby");
 	//	SAFE_RELEASE(m_env.pCharacterManager);
-	UnloadEngineModule("CryAnimation", "EngineModule_CryAnimation");
-	UnloadEngineModule("Cry3DEngine", "EngineModule_Cry3DEngine"); // depends on EntitySystem
-	UnloadEngineModule("CryEntitySystem", "EngineModule_CryEntitySystem");
+	UnloadEngineModule("CryAnimation");
+	UnloadEngineModule("Cry3DEngine"); // depends on EntitySystem
+	UnloadEngineModule("CrySchematyc");
+	UnloadEngineModule("CryEntitySystem");
 
 	SAFE_DELETE(m_pPhysRenderer); // Must be destroyed before unloading CryPhysics as it holds memory that was allocated by that module
-	UnloadEngineModule("CryPhysics", "EngineModule_CryPhysics");
+	UnloadEngineModule("CryPhysics");
 	if (m_env.pConsole)
 		((CXConsole*)m_env.pConsole)->FreeRenderResources();
 	SAFE_RELEASE(m_pIZLibCompressor);
@@ -711,17 +735,12 @@ void CSystem::ShutDown()
 	SAFE_RELEASE(m_pIBudgetingSystem);
 
 	SAFE_RELEASE(m_env.pRenderer);
-#if CRY_PLATFORM_DURANGO || CRY_PLATFORM_ORBIS
-	UnloadEngineModule("CryRenderD3D11", "EngineModule_CryRenderer");
-#else
-	auto r_driver = m_env.pConsole->GetCVar("r_driver")->GetString();
-	if (stricmp(r_driver, "DX11") == 0)
-		UnloadEngineModule("CryRenderD3D11", "EngineModule_CryRenderer");
-	else if (stricmp(r_driver, "DX12") == 0)
-		UnloadEngineModule("CryRenderD3D12", "EngineModule_CryRenderer");
-	else if (stricmp(r_driver, "GL") == 0)
-		UnloadEngineModule("CryRenderOpenGL", "EngineModule_CryRenderer");
-#endif
+
+	if (ICVar* pDriverCVar = m_env.pConsole->GetCVar("r_driver"))
+	{
+		const char* szRenderDriver = pDriverCVar->GetString();
+		CloseRenderLibrary(szRenderDriver);
+	}
 
 	SAFE_RELEASE(m_env.pCodeCheckpointMgr);
 
@@ -760,6 +779,7 @@ void CSystem::ShutDown()
 	SAFE_RELEASE(m_sys_profile_memory);
 	SAFE_RELEASE(m_sys_profile_sampler);
 	SAFE_RELEASE(m_sys_profile_sampler_max_samples);
+	SAFE_RELEASE(m_sys_profile_watchdog_timeout);
 	SAFE_RELEASE(m_sys_job_system_filter);
 	SAFE_RELEASE(m_sys_job_system_enable);
 	SAFE_RELEASE(m_sys_job_system_profiler);
@@ -771,15 +791,19 @@ void CSystem::ShutDown()
 	SAFE_RELEASE(m_sys_min_step);
 	SAFE_RELEASE(m_sys_max_step);
 
+	//Purposely leaking the object as we do not want to block the MainThread waiting for the Watchdog thread to join
+	if (m_pWatchdog != nullptr)
+		m_pWatchdog->SignalStopWork();
+
 	if (m_env.pInput)
 	{
 		m_env.pInput->ShutDown();
 		m_env.pInput = NULL;
 	}
-	UnloadEngineModule("CryInput", "EngineModule_CryInput");
+	UnloadEngineModule("CryInput");
 
 	SAFE_RELEASE(m_pNotificationNetwork);
-	UnloadEngineModule("CryScriptSystem", "EngineModule_CryScriptSystem");
+	UnloadEngineModule("CryScriptSystem");
 
 	SAFE_DELETE(m_pMemStats);
 	SAFE_DELETE(m_pSizer);
@@ -811,7 +835,7 @@ void CSystem::ShutDown()
 
 	// Shut down audio as late as possible but before the streaming system and console get released!
 	SAFE_RELEASE(m_env.pAudioSystem);
-	UnloadEngineModule("CryAudioSystem", "EngineModule_CryAudioSystem");
+	UnloadEngineModule("CryAudioSystem");
 
 	SAFE_DELETE(m_pProjectManager);
 
@@ -859,7 +883,7 @@ void CSystem::Quit()
 	if (GetIRenderer())
 		GetIRenderer()->RestoreGamma();
 
-	if ((m_pCVarQuit && m_pCVarQuit->GetIVal() != 0) || m_bTestMode)
+	if (m_pCVarQuit && m_pCVarQuit->GetIVal() != 0)
 	{
 		// Dispatch the fast-shutdown event so other systems can do any last minute processing.
 		if (m_pSystemEventDispatcher != NULL)
@@ -1326,7 +1350,8 @@ void CSystem::SleepIfNeeded()
 			currentTime = pTimer->GetAsyncTime().GetMicroSecondsAsInt64();
 		}
 
-		sTimeLast = pTimer->GetAsyncTime().GetMicroSecondsAsInt64() + safeMarginMS;
+		m_lastTickTime = pTimer->GetAsyncTime();
+		sTimeLast = m_lastTickTime.GetMicroSecondsAsInt64() + safeMarginMS;
 	}
 }
 
@@ -1446,6 +1471,11 @@ void CSystem::PrePhysicsUpdate()
 	//update entity system
 	if (m_env.pEntitySystem && g_cvars.sys_entitysystem)
 	{
+		if (gEnv->pSchematyc != nullptr)
+		{
+			gEnv->pSchematyc->PrePhysicsUpdate();
+		}
+
 		m_env.pEntitySystem->PrePhysicsUpdate();
 	}
 }
@@ -2088,7 +2118,18 @@ bool CSystem::Update(int updateFlags, int nPauseMode)
 	}
 #endif
 
+	//////////////////////////////////////////////////////////////////////////
+	//update stats agent
+#ifdef ENABLE_STATS_AGENT
+	CStatsAgent::Update();
+#endif // #ifdef ENABLE_STATS_AGENT
+
 	m_pSystemEventDispatcher->Update();
+
+	if (gEnv->pSchematyc != nullptr)
+	{
+		gEnv->pSchematyc->Update();
+	}
 
 	if (m_pPluginManager)
 	{
@@ -2626,11 +2667,8 @@ void CSystem::debug_GetCallStackRaw(void** callstack, uint32& callstackLength)
 void CSystem::ApplicationTest(const char* szParam)
 {
 	assert(szParam);
-
-	if (!m_pTestSystem)
-		m_pTestSystem = new CTestSystemLegacy;
-
-	m_pTestSystem->ApplicationTest(szParam);
+	if (m_pTestSystem)
+		m_pTestSystem->ApplicationTest(szParam);
 }
 
 void CSystem::ExecuteCommandLine()
@@ -3192,11 +3230,26 @@ bool CSystem::IsImeSupported() const
 
 //////////////////////////////////////////////////////////////////////////
 #if CRY_PLATFORM_WINDOWS
+
+enum class EMouseWheelOrigin
+{
+	ScreenSpace,
+	WindowSpace,
+	WindowSpaceClamped
+};
+
+#ifndef GET_X_LPARAM
+#define GET_X_LPARAM(lp) ((int)(short)LOWORD(lp))
+#endif
+#ifndef GET_Y_LPARAM
+#define GET_Y_LPARAM(lp) ((int)(short)HIWORD(lp))
+#endif
+
 bool CSystem::HandleMessage(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT* pResult)
 {
 	static bool sbInSizingModalLoop;
-	int x = LOWORD(lParam);
-	int y = HIWORD(lParam);
+	int x = GET_X_LPARAM(lParam);
+	int y = GET_Y_LPARAM(lParam);
 	EHARDWAREMOUSEEVENT event = (EHARDWAREMOUSEEVENT)-1;
 	*pResult = 0;
 	switch (uMsg)
@@ -3313,8 +3366,42 @@ bool CSystem::HandleMessage(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, 
 		event = HARDWAREMOUSEEVENT_MBUTTONDOUBLECLICK;
 		break;
 	case WM_MOUSEWHEEL:
-		event = HARDWAREMOUSEEVENT_WHEEL;
-		break;
+		{
+			event = HARDWAREMOUSEEVENT_WHEEL;
+			ICVar* cv = gEnv->pConsole->GetCVar("i_mouse_scroll_coordinate_origin");
+			if (cv)
+			{
+				switch ((EMouseWheelOrigin)cv->GetIVal())
+				{
+				case EMouseWheelOrigin::ScreenSpace:
+					// Windows default - do nothing
+					break;
+				case EMouseWheelOrigin::WindowSpace:
+					{
+						POINT p{ x, y };
+						ScreenToClient(hWnd, &p);
+						x = p.x;
+						y = p.y;
+						break;
+					}
+				case EMouseWheelOrigin::WindowSpaceClamped:
+					{
+						POINT p{ x, y };
+						ScreenToClient(hWnd, &p);
+						RECT r;
+						GetClientRect(hWnd, &r);
+						x = crymath::clamp<int>(p.x, 0, r.right - r.left);
+						y = crymath::clamp<int>(p.y, 0, r.bottom - r.top);
+						break;
+					}
+				default:
+					CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "i_mouse_scroll_coordinate_origin out of range");
+					break;
+				}
+			}
+			break;
+		}
+		
 
 	// Any other event doesn't interest us
 	default:

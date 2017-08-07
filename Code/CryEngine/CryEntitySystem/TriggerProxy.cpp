@@ -24,6 +24,7 @@ CEntityComponentTriggerBounds::CEntityComponentTriggerBounds()
 	, m_pProximityTrigger(NULL)
 	, m_aabb(AABB::RESET)
 {
+	m_componentFlags.Add(EEntityComponentFlags::NoSave);
 }
 
 //////////////////////////////////////////////////////////////////////////

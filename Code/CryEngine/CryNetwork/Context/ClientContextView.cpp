@@ -41,40 +41,24 @@ CClientContextView::CClientContextView(CNetChannel* pNetChannel, CNetContext* pN
 #endif
 
 	SetMMM(pNetChannel->GetChannelMMM());
-	SContextViewConfiguration config = {
-		NULL, // FlushMsgs
-		CServerContextView::ChangeState,
-		NULL, // ForceNextState
-		CServerContextView::FinishState,
-		CServerContextView::BeginUpdateObject,
-		CServerContextView::EndUpdateObject,
-		NULL, // ReconfigureObject
-		NULL, // SetAuthority
+
+	SContextViewConfiguration config = { 0 };
+	config.pChangeStateMsg		= CServerContextView::ChangeState;
+	config.pFinishStateMsg		= CServerContextView::FinishState;
+	config.pUpdateMsg			= CServerContextView::BeginUpdateObject;
+	config.pEndUpdateMsg		= CServerContextView::EndUpdateObject;
 #ifndef OLD_VOICE_SYSTEM_DEPRECATED
-		CServerContextView::VoiceData,
-#else
-		NULL,
+	config.pVoiceDataMsg		= CServerContextView::VoiceData;
 #endif
-		NULL, // RemoveStaticEntity
-		CServerContextView::UpdatePhysicsTime,
-		NULL, // BeginSyncFiles;
-		NULL, // BeginSyncFile;
-		NULL, // AddFileData;
-		NULL, // EndSyncFile;
-		NULL, // AllFilesSynced;
-		static_array<CServerContextView::msgPartialAspect, NumAspects>::value,
-		{ {0} }, // Set aspect profile messages.  Double braces for Clang
-		static_array<CServerContextView::msgUpdateAspect, NumAspects>::value,
-		// rmi messages
-		{
-			CServerContextView::RMI_ReliableOrdered,
-			CServerContextView::RMI_ReliableUnordered,
-			CServerContextView::RMI_UnreliableOrdered,
-			NULL,
-			// must be last
-			CServerContextView::RMI_Attachment,
-		},
-	};
+	config.pUpdatePhysicsTime	= CServerContextView::UpdatePhysicsTime;
+	config.pPartialUpdate			= static_array<CServerContextView::msgPartialAspect, NumAspects>::value;
+	config.pSetAspectProfileMsgs	= {{ 0 }};
+	config.pUpdateAspectMsgs		= static_array<CServerContextView::msgUpdateAspect, NumAspects>::value;
+	config.pRMIMsgs[eNRT_ReliableOrdered]			= CServerContextView::RMI_ReliableOrdered;
+	config.pRMIMsgs[eNRT_ReliableUnordered]			= CServerContextView::RMI_ReliableUnordered;
+	config.pRMIMsgs[eNRT_UnreliableOrdered]			= CServerContextView::RMI_UnreliableOrdered;
+	config.pRMIMsgs[eNRT_UnreliableUnordered]		= NULL;	
+	config.pRMIMsgs[eNRT_UnreliableUnordered + 1]	= CServerContextView::RMI_Attachment;
 
 	Init(pNetChannel, pNetContext, &config);
 }
@@ -331,7 +315,7 @@ bool CClientContextView::DoBeginBind(TSerialize ser, uint32 flags)
 
 		if (ContextState()->AllocateObject(ContextState()->GetSpawnedObjectId(true), CurrentObjectID(), nAspectsEnabled, false, (flags & eBBF_FlagStatic) ? eST_Static : eST_Normal, this))
 		{
-			ContextState()->GC_BoundObject(std::make_pair(ContextState()->GetContextObject(CurrentObjectID()).main->userID, nAspectsEnabled));
+			ContextState()->GC_BoundObject(ContextState()->GetContextObject(CurrentObjectID()).main->userID);
 			ContextState()->SetDelegatableMask(CurrentObjectID(), delegatableMask);
 		}
 	}

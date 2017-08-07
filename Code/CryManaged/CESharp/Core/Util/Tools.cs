@@ -10,7 +10,7 @@ namespace CryEngine
 	/// <summary>
 	/// Supportive functions for Serialization.
 	/// </summary>
-	public class Tools
+	public static class Tools
 	{
 		/// <summary>
 		/// Converts an object to JSON.
@@ -19,7 +19,7 @@ namespace CryEngine
 		/// <param name="o">Target Object</param>
 		public static string ToJSON(object o)
 		{
-			using (var ms = new MemoryStream())
+			using(var ms = new MemoryStream())
 			{
 				new DataContractJsonSerializer(o.GetType()).WriteObject(ms, o);
 				return Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Position);
@@ -45,7 +45,7 @@ namespace CryEngine
 		/// <param name="t">The target type.</param>
 		public static object FromJSON(string content, Type t)
 		{
-			using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(content)))
+			using(var ms = new MemoryStream(Encoding.UTF8.GetBytes(content)))
 				return new DataContractJsonSerializer(t).ReadObject(ms);
 		}
 	}

@@ -20,7 +20,6 @@
 #include "HideSpot.h"
 #include "Cover/CoverSystem.h"
 #include "GenericAStarSolver.h"
-#include "FlightNavRegion2.h"
 #include "ObjectContainer.h"
 
 #include "Communication/CommunicationManager.h"
@@ -192,6 +191,11 @@ IGoalOp* CGoalOpFactoryCrysis2::GetGoalOp(EGoalOperations op, GoalParameters& pa
 			pResult = new COPCrysis2Fly();
 		}
 		break;
+	case eGO_ACQUIREPOSITION:
+		{
+			pResult = new COPAcquirePosition();
+		}
+		break;
 	case eGO_CHASETARGET:
 		{
 			pResult = new COPCrysis2ChaseTarget();
@@ -200,11 +204,6 @@ IGoalOp* CGoalOpFactoryCrysis2::GetGoalOp(EGoalOperations op, GoalParameters& pa
 	case eGO_FIREWEAPONS:
 		{
 			pResult = new COPCrysis2FlightFireWeapons(static_cast<EAIRegister>(params.nValue), params.fValue, params.fValueAux, params.bValue, static_cast<uint32>(params.nValueAux));
-		}
-		break;
-	case eGO_ACQUIREPOSITION:
-		{
-			pResult = new COPAcquirePosition();
 		}
 		break;
 	default:
@@ -1731,12 +1730,12 @@ bool COPCrysis2StickPath::ExecuteState_Wait(CPuppet* pPuppet, bool bDryUpdate)
 	return true;
 }
 
-COPAcquirePosition::COPAcquirePosition() : m_target(AI_REG_NONE), m_Graph(0), m_State(C2AP_INIT), m_SubState(C2APCS_GATHERSPANS)
+COPAcquirePosition::COPAcquirePosition() : m_target(AI_REG_NONE), /*m_Graph(0),*/ m_State(C2AP_INIT), m_SubState(C2APCS_GATHERSPANS)
 {
 
 }
 
-COPAcquirePosition::COPAcquirePosition(const XmlNodeRef& node) : m_target(AI_REG_NONE), m_Graph(0), m_State(C2AP_INIT), m_SubState(C2APCS_GATHERSPANS)
+COPAcquirePosition::COPAcquirePosition(const XmlNodeRef& node) : m_target(AI_REG_NONE), /*m_Graph(0),*/ m_State(C2AP_INIT), m_SubState(C2APCS_GATHERSPANS)
 {
 	s_xml.GetRegister(node, "register", m_target);
 	s_xml.GetRegister(node, "output", m_output);
@@ -1753,7 +1752,7 @@ void COPAcquirePosition::Reset(CPipeUser* pPipeUser)
 	m_SubState = C2APCS_GATHERSPANS;
 	m_target = AI_REG_NONE;
 	m_output = AI_REG_NONE;
-	m_Graph = 0;
+	//m_Graph = 0;
 }
 
 bool COPAcquirePosition::GetTarget(CPipeUser* pPipeUser, Vec3& target)
@@ -1830,7 +1829,7 @@ EGoalOpResult COPAcquirePosition::Execute(CPipeUser* pPipeUser)
 {
 	EGoalOpResult ret = eGOR_FAILED;
 
-	if (pPipeUser)
+	/*if (pPipeUser)
 	{
 		switch (m_State)
 		{
@@ -1943,7 +1942,7 @@ EGoalOpResult COPAcquirePosition::Execute(CPipeUser* pPipeUser)
 			ret = eGOR_FAILED;
 			break;
 		}
-	}
+	}*/
 
 	return ret;
 }
@@ -1953,14 +1952,14 @@ void COPAcquirePosition::ExecuteDry(CPipeUser* pPipeUser)
 	Execute(pPipeUser);
 }
 
-COPCrysis2Fly::SolverAllocator COPCrysis2Fly::m_Solvers;
+//COPCrysis2Fly::SolverAllocator COPCrysis2Fly::m_Solvers;
 
 COPCrysis2Fly::COPCrysis2Fly()
 	: m_State(C2F_INVALID)
 	, m_target(AI_REG_NONE)
-	, m_Graph(0)
+	//, m_Graph(0)
 	, m_lookAheadDist(10.0f)
-	, m_Solver(0)
+	//, m_Solver(0)
 	, m_CurSegmentDir(ZERO)
 	, m_destination(ZERO)
 	, m_nextDestination(ZERO)
@@ -1979,9 +1978,9 @@ COPCrysis2Fly::COPCrysis2Fly()
 COPCrysis2Fly::COPCrysis2Fly(const XmlNodeRef& node)
 	: m_State(C2F_INVALID)
 	, m_target(AI_REG_NONE)
-	, m_Graph(0)
+	//, m_Graph(0)
 	, m_lookAheadDist(10.0f)
-	, m_Solver(0)
+	//, m_Solver(0)
 	, m_CurSegmentDir(ZERO)
 	, m_destination(ZERO)
 	, m_nextDestination(ZERO)
@@ -2017,8 +2016,8 @@ COPCrysis2Fly::COPCrysis2Fly(const COPCrysis2Fly& rhs)
 	m_desiredSpeed = rhs.m_desiredSpeed;
 	m_currentSpeed = rhs.m_currentSpeed;
 
-	m_Graph = 0; //rhs.m_Graph;
-	m_Solver = 0;
+	//m_Graph = 0; //rhs.m_Graph;
+	//m_Solver = 0;
 }
 
 COPCrysis2Fly::~COPCrysis2Fly()
@@ -2030,164 +2029,10 @@ void COPCrysis2Fly::ExecuteDry(CPipeUser* pPipeUser)
 	Execute(pPipeUser);
 }
 
-static const float drawPath = 0.0f;
-
-float GetNextPathPoint(std::vector<Vec3>& pathOut, const Vec3& curPos, Vec3& pos, std::vector<Vec3>* reversePath = 0)
-{
-	float ret = 0.0f;
-
-	pos = curPos;
-
-	uint32 size = pathOut.size();
-	if (size > 1)
-	{
-		std::vector<Vec3>::reverse_iterator it = pathOut.rbegin();
-		Vec3 lastPos = *it;
-
-		// current target
-		++it;
-		pos = *it;
-
-		Vec3 lastDir = pos - lastPos;
-
-		Vec3 curDir = pos - curPos;
-		float curMagnitude = curDir.GetLength();
-
-		lastDir.Normalize();
-		curDir.Normalize();
-
-		if (lastDir.dot(curDir) < 0.98f || curMagnitude < 0.5f)
-		{
-			pathOut.pop_back();
-			it = pathOut.rbegin();
-
-			if (reversePath)
-			{
-				reversePath->push_back(*it);
-			}
-
-			--size;
-
-			if (size > 1)
-			{
-				*it = curPos;
-				++it;
-				pos = *it;
-			}
-
-			curDir = pos - curPos;
-		}
-
-		if (size > 2)
-		{
-			++it;
-
-			Vec3 nextPos = *it;
-			Vec3 nextDir = nextPos - pos;
-			nextDir.Normalize();
-
-			curDir = pos - curPos;
-			curDir.Normalize();
-
-			if (nextDir.dot(curDir) < -0.3f)
-			{
-				pathOut.pop_back();
-				it = pathOut.rbegin();
-
-				if (reversePath)
-				{
-					reversePath->push_back(*it);
-				}
-
-				--size;
-
-				*it = curPos;
-				++it;
-
-				pos = *it;
-
-				curDir = pos - curPos;
-			}
-		}
-
-		ret = pos.GetDistance(curPos);
-	}
-
-	return ret;
-}
-
-void UpdatePathPos(std::vector<Vec3>& pathOut, const Vec3& curPos)
-{
-	uint32 size = pathOut.size();
-	if (size > 1)
-	{
-		std::vector<Vec3>::reverse_iterator it = pathOut.rbegin();
-		*it = curPos;
-	}
-}
-
-float GetLookAheadPoint(std::vector<Vec3>& pathOut, float dist, Vec3& pos)
-{
-	float tempDist = dist;
-	float ret = 0.0f;
-
-	Vec3 lastDir = ZERO;
-
-	uint32 size = pathOut.size();
-	if (size > 1)
-	{
-		std::vector<Vec3>::reverse_iterator it = pathOut.rbegin();
-		Vec3 startPos = *it;
-
-		while (++it != pathOut.rend())
-		{
-			Vec3 endPos = *it;
-
-			Vec3 segment = endPos - startPos;
-			segment.Normalize();
-
-			float temp = startPos.GetDistance(endPos);
-			float bonus = 1.0f - fabs(lastDir.Dot(segment));
-			bonus *= 10.0f;
-
-			temp += bonus;
-			lastDir = segment;
-
-			if (temp > tempDist)
-			{
-				Vec3 dir = (endPos - startPos);
-				dir.Normalize();
-
-				pos = startPos + tempDist * dir;
-				ret += tempDist;
-
-				tempDist = 0.0f;
-				break;
-			}
-
-			startPos = endPos;
-			tempDist -= temp;
-			ret += temp;
-		}
-
-		if (0.0f < tempDist)
-		{
-			pos = startPos;
-		}
-
-	}
-	else
-	{
-		pos = pathOut.back();
-	}
-
-	return ret;
-}
-
 void COPCrysis2Fly::Reset(CPipeUser* pPipeUser)
 {
 	m_State = C2F_INVALID;
-	m_Graph = 0;
+	//m_Graph = 0;
 	m_Length = 0xffffffff;
 	m_desiredSpeed = 50.0f;
 	m_currentSpeed = 50.0f;
@@ -2343,7 +2188,7 @@ EGoalOpResult COPCrysis2Fly::CalculateTarget(CPipeUser* pPipeUser)
 {
 	EGoalOpResult result = eGOR_FAILED;
 
-	switch (GetTarget(pPipeUser, m_destination))
+	/*switch (GetTarget(pPipeUser, m_destination))
 	{
 	case C2F_TARGET_FOUND:
 		{
@@ -2431,7 +2276,7 @@ EGoalOpResult COPCrysis2Fly::CalculateTarget(CPipeUser* pPipeUser)
 		break;
 	default:
 		break;
-	}
+	}*/
 
 	return result;
 }
@@ -2620,7 +2465,7 @@ EGoalOpResult COPCrysis2Fly::Execute(CPipeUser* pPipeUser)
 {
 	EGoalOpResult result = eGOR_FAILED;
 
-	if (Base::Execute(pPipeUser) == eGOR_DONE)
+	/*if (Base::Execute(pPipeUser) == eGOR_DONE)
 	{
 		Base::Reset(pPipeUser);
 	}
@@ -2911,9 +2756,163 @@ EGoalOpResult COPCrysis2Fly::Execute(CPipeUser* pPipeUser)
 		CFlightNavRegion2::DrawPath(m_PathOut);
 
 		CFlightNavRegion2::DrawPath(m_Reversed);
-	}
+	}*/
 
 	return result;
+}
+
+static const float drawPath = 0.0f;
+
+float GetNextPathPoint(std::vector<Vec3>& pathOut, const Vec3& curPos, Vec3& pos, std::vector<Vec3>* reversePath = 0)
+{
+	float ret = 0.0f;
+
+	pos = curPos;
+
+	uint32 size = pathOut.size();
+	if (size > 1)
+	{
+		std::vector<Vec3>::reverse_iterator it = pathOut.rbegin();
+		Vec3 lastPos = *it;
+
+		// current target
+		++it;
+		pos = *it;
+
+		Vec3 lastDir = pos - lastPos;
+
+		Vec3 curDir = pos - curPos;
+		float curMagnitude = curDir.GetLength();
+
+		lastDir.Normalize();
+		curDir.Normalize();
+
+		if (lastDir.dot(curDir) < 0.98f || curMagnitude < 0.5f)
+		{
+			pathOut.pop_back();
+			it = pathOut.rbegin();
+
+			if (reversePath)
+			{
+				reversePath->push_back(*it);
+			}
+
+			--size;
+
+			if (size > 1)
+			{
+				*it = curPos;
+				++it;
+				pos = *it;
+			}
+
+			curDir = pos - curPos;
+		}
+
+		if (size > 2)
+		{
+			++it;
+
+			Vec3 nextPos = *it;
+			Vec3 nextDir = nextPos - pos;
+			nextDir.Normalize();
+
+			curDir = pos - curPos;
+			curDir.Normalize();
+
+			if (nextDir.dot(curDir) < -0.3f)
+			{
+				pathOut.pop_back();
+				it = pathOut.rbegin();
+
+				if (reversePath)
+				{
+					reversePath->push_back(*it);
+				}
+
+				--size;
+
+				*it = curPos;
+				++it;
+
+				pos = *it;
+
+				curDir = pos - curPos;
+			}
+		}
+
+		ret = pos.GetDistance(curPos);
+	}
+
+	return ret;
+}
+
+void UpdatePathPos(std::vector<Vec3>& pathOut, const Vec3& curPos)
+{
+	uint32 size = pathOut.size();
+	if (size > 1)
+	{
+		std::vector<Vec3>::reverse_iterator it = pathOut.rbegin();
+		*it = curPos;
+	}
+}
+
+float GetLookAheadPoint(std::vector<Vec3>& pathOut, float dist, Vec3& pos)
+{
+	float tempDist = dist;
+	float ret = 0.0f;
+
+	Vec3 lastDir = ZERO;
+
+	uint32 size = pathOut.size();
+	if (size > 1)
+	{
+		std::vector<Vec3>::reverse_iterator it = pathOut.rbegin();
+		Vec3 startPos = *it;
+
+		while (++it != pathOut.rend())
+		{
+			Vec3 endPos = *it;
+
+			Vec3 segment = endPos - startPos;
+			segment.Normalize();
+
+			float temp = startPos.GetDistance(endPos);
+			float bonus = 1.0f - fabs(lastDir.Dot(segment));
+			bonus *= 10.0f;
+
+			temp += bonus;
+			lastDir = segment;
+
+			if (temp > tempDist)
+			{
+				Vec3 dir = (endPos - startPos);
+				dir.Normalize();
+
+				pos = startPos + tempDist * dir;
+				ret += tempDist;
+
+				tempDist = 0.0f;
+				break;
+			}
+
+			startPos = endPos;
+			tempDist -= temp;
+			ret += temp;
+		}
+
+		if (0.0f < tempDist)
+		{
+			pos = startPos;
+		}
+
+	}
+	else
+	{
+		pos = pathOut.back();
+	}
+
+	return ret;
 }
 
 COPCrysis2ChaseTarget::COPCrysis2ChaseTarget()
@@ -3621,11 +3620,6 @@ EGoalOpResult COPCrysis2ChaseTarget::Execute(CPipeUser* pPipeUser)
 		break;
 	}
 
-	if (gAIEnv.CVars.DebugPathFinding)
-	{
-		CFlightNavRegion2::DrawPath(m_PathOut);
-	}
-
 	return result;
 }
 
@@ -3776,7 +3770,7 @@ void COPCrysis2FlightFireWeapons::ParseParam(const char* param, const GoalParams
 			m_PausedTime = 0.0f;
 			m_PauseOverrideTime = 0.0f;
 		}
-		else if (!paused && (m_State == eFP_PAUSED) && (m_State != eFP_PAUSED_OVERRIDE))
+		else if (!paused && ((m_State == eFP_PAUSED) || (m_State == eFP_PAUSED_OVERRIDE)))
 		{
 			m_State = m_NextState;
 			m_NextState = eFP_STOP;

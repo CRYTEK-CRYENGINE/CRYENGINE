@@ -6,6 +6,8 @@
 
 #if ENABLE_DEBUG_KIT
 
+#include <CryRenderer/IRenderAuxGeom.h>
+
 CryCriticalSection CDebugKit::m_lockThis;
 CDebugKit* volatile CDebugKit::m_pThis = 0;
 

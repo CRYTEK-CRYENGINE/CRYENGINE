@@ -25,6 +25,15 @@ struct IsValidStringType<string> : std::true_type {};
 
 template<size_t Size>
 struct IsValidStringType<CryStackStringT<char, Size>> : std::true_type {};
+
+template<size_t Size>
+struct IsValidStringType<CryStackStringT<wchar_t, Size>> : std::true_type {};
+
+template<size_t Size>
+struct IsValidStringType<CryFixedStringT<Size>> : std::true_type {};
+
+template<size_t Size>
+struct IsValidStringType<CryFixedWStringT<Size>> : std::true_type {};
 }
 
 //! Convert a path to the uniform form.
@@ -215,7 +224,7 @@ inline const char* GetFile(const char* szFilepath)
 
 //! Remove extension for given file.
 template<typename TString>
-typename std::enable_if<detail::IsValidStringType<TString>::value>::type
+typename std::enable_if<detail::IsValidStringType<TString>::value, void>::type
 inline /*void*/ RemoveExtension(TString& filepath)
 {
 	const char* szFilepath = filepath.c_str();

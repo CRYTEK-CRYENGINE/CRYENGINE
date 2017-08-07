@@ -7,118 +7,132 @@
 namespace pfx2
 {
 
-#ifdef CRY_PFX2_USE_SSE
-  #define CRY_PFX2_PARTICLESGROUP_STRIDE 4 // can be 8 for AVX or 64 forGPU
-#else
-  #define CRY_PFX2_PARTICLESGROUP_STRIDE 1
-#endif
-#define CRY_PFX2_PARTICLESGROUP_LOWER(id) ((id) & ~((CRY_PFX2_PARTICLESGROUP_STRIDE - 1)))
-#define CRY_PFX2_PARTICLESGROUP_UPPER(id) ((id) | ((CRY_PFX2_PARTICLESGROUP_STRIDE - 1)))
-
 //////////////////////////////////////////////////////////////////////////
-// TIStream
+// TIStream, TIOStream
 
-template<typename T, typename Tv = T>
-struct TIStream
+template<typename T>
+struct TIOStream
 {
 public:
-	explicit TIStream(const T* pStream = nullptr, T defaultVal = T());
-	bool IsValid() const { return m_safeMask != 0; }
+	typedef vector4_t<T> Tv;
+
+	explicit TIOStream(T* pStream) : m_pStream(pStream) {}
+	bool IsValid() const { return m_pStream != 0; }
 	T    Load(TParticleId pId) const;
-	T    Load(TParticleId pId, T defaultVal) const;
-	T    SafeLoad(TParticleId pId) const;
+	void Store(TParticleId pId, T value);
+	void Fill(SUpdateRange range, T value);
 #ifdef CRY_PFX2_USE_SSE
 	Tv   Load(TParticleGroupId pgId) const;
-	Tv   Load(TParticleIdv pIdv, T defaultVal) const;
-	Tv   SafeLoad(TParticleGroupId pId) const;
+	void Store(TParticleGroupId pgId, Tv value);
 #endif
+
 protected:
-	const T* __restrict m_pStream;
+	T* __restrict m_pStream;
+};
+
+template<typename T>
+struct TIStream: public TIOStream<T>
+{
+public:
+	typedef vector4_t<T> Tv;
+
+	explicit TIStream(const T* pStream = nullptr, T defaultVal = T());
+	T    SafeLoad(TParticleId pId) const;
+#ifdef CRY_PFX2_USE_SSE
+	Tv   SafeLoad(TParticleGroupId pId) const;
+	Tv   SafeLoad(TParticleIdv pIdv) const;
+#endif
+
+private:
+	using TIOStream<T>::Store;
+	using TIOStream<T>::m_pStream;
+
 	Tv                  m_safeSink;
 	uint32              m_safeMask;
 };
 
-template<typename T, typename Tv = T>
-struct TIOStream : public TIStream<T, Tv>
-{
-private:
-	using TIStream<T, Tv>::m_pStream;
-public:
-	explicit TIOStream(const T* pStream = nullptr, T defaultVal = T()) : TIStream<T, Tv>(pStream, defaultVal) {}
-	void Store(TParticleId pId, T value);
-#ifdef CRY_PFX2_USE_SSE
-	void Store(TParticleGroupId pgId, Tv value);
-#endif
-};
+typedef TIStream<float>        IFStream;
+typedef TIOStream<float>       IOFStream;
+typedef TIStream<UCol>         IColorStream;
+typedef TIOStream<UCol>        IOColorStream;
+typedef TIStream<uint32>       IUintStream;
+typedef TIOStream<uint32>      IOUintStream;
+typedef TIStream<TParticleId>  IPidStream;
+typedef TIOStream<TParticleId> IOPidStream;
 
-typedef TIStream<float, floatv>             IFStream;
-typedef TIOStream<float, floatv>            IOFStream;
-typedef TIStream<UCol, UColv>               IColorStream;
-typedef TIOStream<UCol, UColv>              IOColorStream;
-typedef TIStream<uint32, uint32v>           IUintStream;
-typedef TIOStream<uint32>                   IOUintStream;
-typedef TIStream<TParticleId, TParticleIdv> IPidStream;
-typedef TIOStream<TParticleId>              IOPidStream;
+template<typename T, typename ID>
+ILINE T DeltaTime(T deltaTime, ID id, const IFStream& normAges, const IFStream& lifeTimes)
+{
+	const T normAge = normAges.Load(id);
+	const T lifeTime = lifeTimes.Load(id);
+	return DeltaTime(deltaTime, normAge, lifeTime);
+}
 
 //////////////////////////////////////////////////////////////////////////
 
-struct IVec3Stream
+struct IOVec3Stream
 {
 public:
-	IVec3Stream(const float* pX, const float* pY, const float* pZ, Vec3 defaultVal = Vec3());
+	IOVec3Stream(float* pX, float* pY, float* pZ);
 	Vec3  Load(TParticleId pId) const;
-	Vec3  SafeLoad(TParticleId pId) const;
-#ifdef CRY_PFX2_USE_SSE
-	Vec3v Load(TParticleGroupId pgId) const;
-	Vec3v Load(TParticleIdv pIdv, Vec3 defaultVal = Vec3(ZERO)) const;
-	Vec3v SafeLoad(TParticleGroupId pgId) const;
-#endif
-protected:
-	const Vec3v             m_safeSink;
-	const float* __restrict m_pXStream;
-	const float* __restrict m_pYStream;
-	const float* __restrict m_pZStream;
-	const uint32            m_safeMask;
-};
-
-struct IOVec3Stream : public IVec3Stream
-{
-public:
-	IOVec3Stream(float* pX, float* pY, float* pZ, Vec3 defaultVal = Vec3()) : IVec3Stream(pX, pY, pZ, defaultVal) {}
 	void  Store(TParticleId pId, Vec3 value);
 #ifdef CRY_PFX2_USE_SSE
-	void  Store(TParticleGroupId pgId, const Vec3v& value) const;
-#endif
-};
-
-struct IQuatStream
-{
-public:
-	IQuatStream(const float* pX, const float* pY, const float* pZ, const float* pW, Quat defaultVal = Quat());
-	Quat  Load(TParticleId pId) const;
-	Quat  SafeLoad(TParticleId pId) const;
-#ifdef CRY_PFX2_USE_SSE
-	Quatv Load(TParticleGroupId pgId) const;
-	Quatv Load(TParticleIdv pIdv, Quat defaultVal = Quat(IDENTITY)) const;
-	Quatv SafeLoad(TParticleGroupId pgId) const;
+	Vec3v Load(TParticleGroupId pgId) const;
+	void  Store(TParticleGroupId pgId, const Vec3v& value);
 #endif
 protected:
-	const Quat              m_safeSink;
-	const float* __restrict m_pXStream;
-	const float* __restrict m_pYStream;
-	const float* __restrict m_pZStream;
-	const float* __restrict m_pWStream;
+	float* __restrict m_pXStream;
+	float* __restrict m_pYStream;
+	float* __restrict m_pZStream;
+};
+
+struct IVec3Stream : public IOVec3Stream
+{
+public:
+	IVec3Stream(const float* pX, const float* pY, const float* pZ, Vec3 defaultVal = Vec3(ZERO));
+	Vec3  SafeLoad(TParticleId pId) const;
+#ifdef CRY_PFX2_USE_SSE
+	Vec3v SafeLoad(TParticleGroupId pgId) const;
+	Vec3v SafeLoad(TParticleIdv pIdv) const;
+#endif
+private:
+	using IOVec3Stream::Store;
+
+	const Vec3v             m_safeSink;
 	const uint32            m_safeMask;
 };
 
-struct IOQuatStream : public IQuatStream
+struct IOQuatStream
 {
 public:
-	IOQuatStream(float* pX, float* pY, float* pZ, float* pW, Quat defaultVal = Quat()) : IQuatStream(pX, pY, pZ, pW, defaultVal) {}
+	IOQuatStream(float* pX, float* pY, float* pZ, float* pW);
+	Quat  Load(TParticleId pId) const;
 	void  Store(TParticleId pId, Quat value);
 #ifdef CRY_PFX2_USE_SSE
-	void  Store(TParticleGroupId pgId, const Quatv& value) const;
+	Quatv Load(TParticleGroupId pgId) const;
+	void  Store(TParticleGroupId pgId, const Quatv& value);
 #endif
+protected:
+	float* __restrict m_pXStream;
+	float* __restrict m_pYStream;
+	float* __restrict m_pZStream;
+	float* __restrict m_pWStream;
+};
+
+struct IQuatStream : public IOQuatStream
+{
+public:
+	IQuatStream(const float* pX, const float* pY, const float* pZ, const float* pW, Quat defaultVal = Quat(IDENTITY));
+	Quat  SafeLoad(TParticleId pId) const;
+#ifdef CRY_PFX2_USE_SSE
+	Quatv SafeLoad(TParticleGroupId pgId) const;
+	Quatv SafeLoad(TParticleIdv pIdv) const;
+#endif
+private:
+	using IOQuatStream::Store;
+
+	const Quatv             m_safeSink;
+	const uint32            m_safeMask;
 };
 
 //////////////////////////////////////////////////////////////////////////

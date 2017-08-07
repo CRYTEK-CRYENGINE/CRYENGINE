@@ -105,7 +105,7 @@ protected:
 		IActor* piActor = GetRootActor();
 		if (!gEnv->bMultiplayer && m_isDeathReaction && piActor && !piActor->IsPlayer() && GetRootScope().CalculateFragmentTimeRemaining() < 0.1f )
 		{
-			IProceduralContext* piProcContext = m_rootScope->GetActionController().FindOrCreateProceduralContext( PROCEDURAL_CONTEXT_RAGDOLL_NAME );
+			IProceduralContext* piProcContext = m_rootScope->GetActionController().FindOrCreateProceduralContext(CProceduralContextRagdoll::GetCID());
 			if( piProcContext && !static_cast<CProceduralContextRagdoll*> (piProcContext)->IsInRagdoll() )
 			{
 				static_cast<CPlayer*>(piActor)->CPlayer::RagDollize( false );
@@ -130,7 +130,7 @@ protected:
 					IActor* piActor = GetRootActor();
 					if( piActor && !piActor->IsPlayer() && !piActor->IsClient() )
 					{
-						IProceduralContext* piProcContext = m_rootScope->GetActionController().FindOrCreateProceduralContext( PROCEDURAL_CONTEXT_RAGDOLL_NAME );
+						IProceduralContext* piProcContext = m_rootScope->GetActionController().FindOrCreateProceduralContext(CProceduralContextRagdoll::GetCID());
 						if( piProcContext )
 						{
 							static_cast<CProceduralContextRagdoll*> (piProcContext)->ForceRagdollFinish(piActor, true);
@@ -245,7 +245,7 @@ public:
 		}
 		if( m_rootScope && (bUseFallback || m_isForced) )
 		{
-			IProceduralContext* piProcContext = m_rootScope->GetActionController().FindOrCreateProceduralContext( PROCEDURAL_CONTEXT_RAGDOLL_NAME );
+			IProceduralContext* piProcContext = m_rootScope->GetActionController().FindOrCreateProceduralContext(CProceduralContextRagdoll::GetCID());
 			static_cast<CProceduralContextRagdoll*> (piProcContext)->EnableRagdoll( m_rootScope->GetEntityId(), false, 20.f );
 		}
 		return TBaseAction::UpdatePending(timePassed);

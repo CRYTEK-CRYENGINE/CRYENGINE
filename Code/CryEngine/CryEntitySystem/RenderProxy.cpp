@@ -92,13 +92,16 @@ bool CEntityRender::IsRendered() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntityRender::PreviewRender(IEntity::SPreviewRenderParams &params)
+void CEntityRender::PreviewRender(SEntityPreviewContext &context)
 {
-	for (CEntitySlot* pSlot : m_slots)
+	if (context.bRenderSlots)
 	{
-		if (pSlot && (pSlot->GetFlags() & ENTITY_SLOT_RENDER))
+		for (CEntitySlot* pSlot : m_slots)
 		{
-			pSlot->PreviewRender(params);
+			if (pSlot && (pSlot->GetFlags() & ENTITY_SLOT_RENDER))
+			{
+				pSlot->PreviewRender(context);
+			}
 		}
 	}
 }
@@ -149,6 +152,8 @@ void CEntityRender::FreeSlot(int nIndex)
 				m_slots.pop_back();
 		}
 		delete pSlot;
+
+		InvalidateLocalBounds();
 	}
 }
 
@@ -275,7 +280,7 @@ const Matrix34& CEntityRender::GetSlotWorldTM(int nIndex) const
 	nIndex &= ~ENTITY_SLOT_ACTUAL;
 	if (IsSlotValid(nIndex))
 		return Slot(nIndex)->GetWorldTM();
-	temp.SetIdentity();
+	temp = m_pEntity->GetWorldTM();
 	return temp;
 }
 
@@ -767,6 +772,61 @@ int CEntityRender::SetSlotGeometry(int nSlot, IStatObj* pStatObj)
 
 	ComputeLocalBounds(true);
 
+	SEntityEvent event(ENTITY_EVENT_SLOT_CHANGED);
+	event.nParam[0] = nSlot;
+	m_pEntity->SendEvent(event);
+
+	return nSlot;
+}
+
+//////////////////////////////////////////////////////////////////////////
+int CEntityRender::LoadGeometry(int nSlot, const char* szFilename, const char* szGeomName, int nLoadFlags)
+{
+	if (szFilename == nullptr|| szFilename[0] == '\0')
+	{
+		EntityWarning("[RenderProxy::LoadGeometry] Called with empty filename, Entity: %s", GetEntity()->GetEntityTextDescription().c_str());
+		return -1;
+	}
+
+	CEntitySlot* pSlot = GetOrMakeSlot(nSlot);
+
+	// Check if loading the same object.
+	if ((pSlot->GetStatObj()) && !(pSlot->GetStatObj()->GetFlags() & (STATIC_OBJECT_CLONE | STATIC_OBJECT_GENERATED)) && (pSlot->GetStatObj()->IsSameObject(szFilename, szGeomName)))
+	{
+		return nSlot;
+	}
+
+	IStatObj* pStatObj;
+	if (szGeomName != nullptr && szGeomName[0] != '\0')
+	{
+		IStatObj::SSubObject* pSubObject = nullptr;
+		pStatObj = GetI3DEngine()->LoadStatObj(szFilename, szGeomName, &pSubObject);
+		if (pStatObj == nullptr)
+		{
+			//EntityFileWarning( sFilename,"Failed to load sub-object geometry (%s)", sGeomName );
+			return -1;
+		}
+		if (pSubObject != nullptr && !pSubObject->bIdentityMatrix)
+		{
+			// Set sub object matrix into the slot transformation matrix.
+			pSlot->SetLocalTM(pSubObject->tm);
+		}
+	}
+	else
+	{
+		IRenderNode::EGIMode usageMode = (IRenderNode::EGIMode)((m_pEntity->m_flagsExtended & ENTITY_FLAG_EXTENDED_GI_MODE_BIT_MASK) >> ENTITY_FLAG_EXTENDED_GI_MODE_BIT_OFFSET);
+
+		if (usageMode == IRenderNode::eGM_IntegrateIntoTerrain)
+		{
+			// disable asynchronous mesh streaming because this mesh could be required immediately
+			nLoadFlags |= IEntity::EF_NO_STREAMING;
+		}
+
+		pStatObj = GetI3DEngine()->LoadStatObj(szFilename, nullptr, nullptr, (nLoadFlags& IEntity::EF_NO_STREAMING) == 0);
+	}
+
+	SetSlotGeometry(nSlot, pStatObj);
+
 	return nSlot;
 }
 
@@ -803,64 +863,11 @@ int CEntityRender::SetSlotCharacter(int nSlot, ICharacterInstance* pCharacter)
 	pSlot->UpdateRenderNode();
 	ComputeLocalBounds(true);
 
+	SEntityEvent event(ENTITY_EVENT_SLOT_CHANGED);
+	event.nParam[0] = nSlot;
+	m_pEntity->SendEvent(event);
+
 	return (pCharacter) ? nSlot : -1;
-}
-
-//////////////////////////////////////////////////////////////////////////
-int CEntityRender::LoadGeometry(int nSlot, const char* sFilename, const char* sGeomName, int nLoadFlags)
-{
-	CEntitySlot* pSlot = GetOrMakeSlot(nSlot);
-
-	if (!sFilename || (sFilename[0] == 0))
-	{
-		EntityWarning("[RenderProxy::LoadGeometry] Called with empty filename, Entity: %s", GetEntity()->GetEntityTextDescription().c_str());
-		return -1;
-	}
-
-	// Check if loading the same object.
-	if ((pSlot->GetStatObj()) && !(pSlot->GetStatObj()->GetFlags() & (STATIC_OBJECT_CLONE | STATIC_OBJECT_GENERATED)) && (pSlot->GetStatObj()->IsSameObject(sFilename, sGeomName)))
-	{
-		return nSlot;
-	}
-
-	IStatObj* pStatObj;
-	if (sGeomName && sGeomName[0])
-	{
-		IStatObj::SSubObject* pSubObject = 0;
-		pStatObj = GetI3DEngine()->LoadStatObj(sFilename, sGeomName, &pSubObject);
-		if (pStatObj)
-		{
-			// Will keep a reference to the stat obj.
-			pStatObj->AddRef();
-		}
-		else
-		{
-			//EntityFileWarning( sFilename,"Failed to load sub-object geometry (%s)", sGeomName );
-			return -1;
-		}
-		if (pSubObject && !pSubObject->bIdentityMatrix)
-		{
-			// Set sub object matrix into the slot transformation matrix.
-			pSlot->SetLocalTM(pSubObject->tm);
-		}
-	}
-	else
-	{
-		pStatObj = GetI3DEngine()->LoadStatObj(sFilename, NULL, NULL, (nLoadFlags& IEntity::EF_NO_STREAMING) == 0);
-		if (pStatObj)
-		{
-			pStatObj->AddRef();
-		}
-	}
-
-	pSlot->SetStatObj(pStatObj);
-	pSlot->SetRenderFlag(true);
-
-	pSlot->UpdateRenderNode();
-
-	ComputeLocalBounds(true);
-
-	return nSlot;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -899,6 +906,10 @@ int CEntityRender::SetParticleEmitter(int nSlot, IParticleEmitter* pEmitter, boo
 
 	pSlot->UpdateRenderNode();
 	ComputeLocalBounds(true);
+
+	SEntityEvent event(ENTITY_EVENT_SLOT_CHANGED);
+	event.nParam[0] = nSlot;
+	m_pEntity->SendEvent(event);
 
 	return nSlot;
 }
@@ -954,38 +965,10 @@ int CEntityRender::LoadLight(int nSlot, CDLight* pLight, uint16 layerId)
 
 	ComputeLocalBounds(true);
 
-	return nSlot;
-}
+	SEntityEvent event(ENTITY_EVENT_SLOT_CHANGED);
+	event.nParam[0] = nSlot;
+	m_pEntity->SendEvent(event);
 
-//////////////////////////////////////////////////////////////////////////
-int CEntityRender::LoadCloud(int nSlot, const char* sFilename)
-{
-	CEntitySlot* pSlot = GetOrMakeSlot(nSlot);
-
-	ICloudRenderNode* pCloud = (ICloudRenderNode*)GetI3DEngine()->CreateRenderNode(eERType_Cloud);
-
-	pSlot->SetRenderNode(pCloud);
-	pSlot->SetRenderFlag(true);
-
-	pCloud->LoadCloud(sFilename);
-
-	pSlot->UpdateRenderNode();
-
-	ComputeLocalBounds(true);
-
-	return nSlot;
-}
-
-//////////////////////////////////////////////////////////////////////////
-int CEntityRender::SetCloudMovementProperties(int nSlot, const SCloudMovementProperties& properties)
-{
-	CEntitySlot* pSlot = GetOrMakeSlot(nSlot);
-	IRenderNode* pRenderNode(pSlot->GetRenderNode());
-	if (pRenderNode && pRenderNode->GetRenderNodeType() == eERType_Cloud)
-	{
-		ICloudRenderNode* pCloud((ICloudRenderNode*)pRenderNode);
-		pCloud->SetMovementProperties(properties);
-	}
 	return nSlot;
 }
 
@@ -999,6 +982,7 @@ int CEntityRender::LoadCloudBlocker(int nSlot, const SCloudBlockerProperties& pr
 		pRenderNode = GetI3DEngine()->CreateRenderNode(eERType_CloudBlocker);
 		pSlot->SetRenderNode(pRenderNode);
 	}
+	pSlot->SetRenderFlag(true);
 
 	CRY_ASSERT(pRenderNode && pRenderNode->GetRenderNodeType() == eERType_CloudBlocker);
 	ICloudBlockerRenderNode* pCloudBlocker = static_cast<ICloudBlockerRenderNode*>(pRenderNode);
@@ -1009,6 +993,10 @@ int CEntityRender::LoadCloudBlocker(int nSlot, const SCloudBlockerProperties& pr
 	pSlot->UpdateRenderNode();
 
 	ComputeLocalBounds(true);
+
+	SEntityEvent event(ENTITY_EVENT_SLOT_CHANGED);
+	event.nParam[0] = nSlot;
+	m_pEntity->SendEvent(event);
 
 	return nSlot;
 }
@@ -1033,6 +1021,10 @@ int CEntityRender::LoadFogVolume(int nSlot, const SFogVolumeProperties& properti
 	pSlot->UpdateRenderNode();
 
 	SetLocalBounds(AABB(-properties.m_size * 0.5f, properties.m_size * 0.5f), true);
+
+	SEntityEvent event(ENTITY_EVENT_SLOT_CHANGED);
+	event.nParam[0] = nSlot;
+	m_pEntity->SendEvent(event);
 
 	return nSlot;
 }
@@ -1065,42 +1057,14 @@ int CEntityRender::LoadGeomCache(int nSlot, const char* sFilename)
 	// Update slot position.
 	pSlot->UpdateRenderNode();
 	ComputeLocalBounds(true);
+
+	SEntityEvent event(ENTITY_EVENT_SLOT_CHANGED);
+	event.nParam[0] = nSlot;
+	m_pEntity->SendEvent(event);
+
 	return nSlot;
 }
 #endif
-
-//////////////////////////////////////////////////////////////////////////
-int CEntityRender::LoadVolumeObject(int nSlot, const char* sFilename)
-{
-	CEntitySlot* pSlot = GetOrMakeSlot(nSlot);
-
-	IVolumeObjectRenderNode* pVolObj = (IVolumeObjectRenderNode*) GetI3DEngine()->CreateRenderNode(eERType_VolumeObject);
-
-	pSlot->SetRenderNode(pVolObj);
-	pSlot->SetRenderFlag(true);
-
-	pVolObj->LoadVolumeData(sFilename);
-
-	// Update slot position
-	pSlot->UpdateRenderNode();
-
-	ComputeLocalBounds(true);
-
-	return nSlot;
-}
-
-//////////////////////////////////////////////////////////////////////////
-int CEntityRender::SetVolumeObjectMovementProperties(int nSlot, const SVolumeObjectMovementProperties& properties)
-{
-	CEntitySlot* pSlot = GetOrMakeSlot(nSlot);
-	IRenderNode* pRenderNode(pSlot->GetRenderNode());
-	if (pRenderNode && pRenderNode->GetRenderNodeType() == eERType_VolumeObject)
-	{
-		IVolumeObjectRenderNode* pVolObj((IVolumeObjectRenderNode*)pRenderNode);
-		pVolObj->SetMovementProperties(properties);
-	}
-	return nSlot;
-}
 
 //////////////////////////////////////////////////////////////////////////
 ICharacterInstance* CEntityRender::GetCharacter(int nSlot)
@@ -1134,12 +1098,22 @@ IParticleEmitter* CEntityRender::GetParticleEmitter(int nSlot)
 }
 
 //////////////////////////////////////////////////////////////////////////
+int CEntityRender::SetSlotRenderNode(int nSlot, IRenderNode* pRenderNode)
+{
+	CEntitySlot* pSlot = GetOrMakeSlot(nSlot);
+
+	pSlot->SetRenderNode(pRenderNode);
+	pSlot->UpdateRenderNode();
+	return nSlot;
+}
+
+//////////////////////////////////////////////////////////////////////////
 IMaterial* CEntityRender::GetRenderMaterial(int nSlot) const
 {
 	CEntitySlot* pSlot = NULL;
 
 	if (nSlot >= 0)
-		pSlot = GetSlot(GetSlotIdx(nSlot));
+		pSlot = GetSlot(EntityPhysicsUtils::GetSlotIdx(nSlot));
 	else
 	{
 		for (uint32 i = 0; i < m_slots.size(); i++)

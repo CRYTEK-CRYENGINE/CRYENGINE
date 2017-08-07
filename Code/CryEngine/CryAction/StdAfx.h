@@ -24,7 +24,7 @@
 #endif // _MSC_VER > 1000
 
 #include <CryCore/Project/CryModuleDefs.h>
-#define eCryModule   eCryM_Action
+#define eCryModule  eCryM_Action
 #define RWI_NAME_TAG "RayWorldIntersection(Action)"
 #define PWI_NAME_TAG "PrimitiveWorldIntersection(Action)"
 
@@ -44,6 +44,7 @@ inline void GameWarning(const char*, ...) PRINTF_PARAMS(1, 2);
 #include <CryCore/StlUtils.h>
 #include <CryMath/Cry_Math.h>
 #include <CryMath/Cry_Camera.h>
+#include <CryMath/Random.h>
 #include <CrySystem/ISystem.h>
 #include <CryNetwork/INetwork.h>
 #include <CryInput/IInput.h>

@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client
+	namespace Client
 	{
 
 		struct IItemMonitor;  // below
@@ -40,7 +40,7 @@ namespace uqs
 			};
 
 			virtual               ~IItemMonitor() {}
-			virtual EHealthState  UpdateAndCheckForCorruption(shared::IUqsString& outExplanationInCaseOfCorruption) = 0;
+			virtual EHealthState  UpdateAndCheckForCorruption(Shared::IUqsString& outExplanationInCaseOfCorruption) = 0;
 
 			// All these innocently looking operator-new/delete functions do is call their global counterparts, but there's a specific reason for why we have them defined in this class:
 			// When the caller on the *client*-side instantiates an IItemMonitor, he will do so using the new-operator. Nothing fancy about that yet. Then, he will

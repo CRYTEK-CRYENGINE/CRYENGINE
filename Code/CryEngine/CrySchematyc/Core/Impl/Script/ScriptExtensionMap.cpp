@@ -4,9 +4,9 @@
 #include "Script/ScriptExtensionMap.h"
 
 #include <CrySerialization/Enum.h>
-#include <Schematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/Assert.h>
 
-SERIALIZATION_ENUM_BEGIN_NESTED(Schematyc, EScriptExtensionType, "Schematyc Script Extension Type")
+SERIALIZATION_ENUM_BEGIN_NESTED(Schematyc, EScriptExtensionType, "CrySchematyc Script Extension Type")
 SERIALIZATION_ENUM(Schematyc::EScriptExtensionType::Graph, "Graph", "Graph")
 SERIALIZATION_ENUM_END()
 

@@ -39,25 +39,6 @@ bool CryCreateClassInstance(const CryClassID& cid, std::shared_ptr<T>& p)
 }
 
 template<class T>
-bool CryCreateClassInstance(const char* cname, std::shared_ptr<T>& p)
-{
-	p = std::shared_ptr<T>();
-	ICryFactoryRegistry* pFactoryReg = gEnv->pSystem->GetCryFactoryRegistry();
-	if (pFactoryReg)
-	{
-		ICryFactory* pFactory = pFactoryReg->GetFactory(cname);
-		if (pFactory != NULL && pFactory->ClassSupports(cryiidof<T>()))
-		{
-			ICryUnknownPtr pUnk = pFactory->CreateClassInstance();
-			std::shared_ptr<T> pT = cryinterface_cast<T>(pUnk);
-			if (pT)
-				p = pT;
-		}
-	}
-	return p.get() != NULL;
-}
-
-template<class T>
 bool CryCreateClassInstanceForInterface(const CryInterfaceID& iid, std::shared_ptr<T>& p)
 {
 	p = std::shared_ptr<T>();

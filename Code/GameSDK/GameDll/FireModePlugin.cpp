@@ -13,7 +13,9 @@ Description: Fire Mode Plugins
 
 #include "FireMode.h"
 #include "Weapon.h"
+#include "VehicleWeapon.h"
 #include "Actor.h"
+#include "Player.h"
 #include <CryParticleSystem/ParticleParams.h>
 #include "EntityUtility/EntityEffects.h"
 #include "ScreenEffects.h"
@@ -96,7 +98,22 @@ bool CFireModePlugin_Overheat::Update(float frameTime, uint32 frameId)
 			m_overheat = m_pParams->duration;
 			m_isCoolingDown = true;
 
-			m_pOwnerFiremode->StopFire();
+			CWeapon* const pWeapon = m_pOwnerFiremode->GetWeapon();
+			if (pWeapon->IsVehicleWeapon())
+			{
+				CVehicleWeapon* const pVehicleWeapon = static_cast<CVehicleWeapon*>(pWeapon);
+				IVehicle* const pVehicle = pVehicleWeapon->GetVehicle();
+				CPlayer* const pPlayer = pVehicleWeapon->GetOwnerPlayer();
+				if (pVehicle && pPlayer)
+				{
+					pVehicle->OnAction(eVAI_Attack2, eAAM_OnRelease, 0.0f, pPlayer->GetEntityId());
+				}
+			}
+			else
+			{
+				m_pOwnerFiremode->StopFire();
+			}
+
 			FragmentID fragment = pWeapon->GetFragmentID(m_pParams->overheating.c_str());
 			pWeapon->PlayAction(fragment);
 

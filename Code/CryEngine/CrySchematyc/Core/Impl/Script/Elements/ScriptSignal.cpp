@@ -6,11 +6,11 @@
 #include <CrySerialization/BlackBox.h>
 #include <CrySerialization/IArchiveHost.h>
 #include <CrySerialization/STL.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/SerializationUtils/SerializationUtils.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/Assert.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/SerializationUtils/SerializationUtils.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/Assert.h>
 
 namespace Schematyc
 {
@@ -18,7 +18,7 @@ CScriptSignal::CScriptSignal()
 	: CScriptElementBase(EScriptElementFlags::CanOwnScript)
 {}
 
-CScriptSignal::CScriptSignal(const SGUID& guid, const char* szName)
+CScriptSignal::CScriptSignal(const CryGUID& guid, const char* szName)
 	: CScriptElementBase(guid, szName, EScriptElementFlags::CanOwnScript)
 {}
 
@@ -70,9 +70,9 @@ uint32 CScriptSignal::GetInputCount() const
 	return m_inputs.size();
 }
 
-SGUID CScriptSignal::GetInputGUID(uint32 inputIdx) const
+CryGUID CScriptSignal::GetInputGUID(uint32 inputIdx) const
 {
-	return inputIdx < m_inputs.size() ? m_inputs[inputIdx].guid : SGUID();
+	return inputIdx < m_inputs.size() ? m_inputs[inputIdx].guid : CryGUID();
 }
 
 const char* CScriptSignal::GetInputName(uint32 inputIdx) const
@@ -112,7 +112,7 @@ void CScriptSignal::Edit(Serialization::IArchive& archive, const ISerializationC
 	{
 		ScriptVariableData::CScopedSerializationConfig serializationConfig(archive);
 
-		const SGUID guid = GetGUID();
+		const CryGUID guid = GetGUID();
 		serializationConfig.DeclareEnvDataTypes(guid);
 		serializationConfig.DeclareScriptEnums(guid);
 		serializationConfig.DeclareScriptStructs(guid);

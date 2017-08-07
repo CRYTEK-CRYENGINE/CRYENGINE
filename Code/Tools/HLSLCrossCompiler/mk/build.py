@@ -13,7 +13,7 @@ def get_vcvarsall_path():
 	vc_dir = None
 	for root in possible_roots:
 		try:
-			key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, root + "\\Microsoft\\VisualStudio\\11.0\\Setup\\VC")
+			key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, root + "\\Microsoft\\VisualStudio\\14.0\\Setup\\VC")
 			vc_dir = winreg.QueryValueEx(key, 'ProductDir')[0]
 			key.Close()
 			break
@@ -82,7 +82,7 @@ def build(configuration, platform, lib_dir = None, exe_dir = None, portable = Fa
 		if portable:
 			flags += ' -DPORTABLE=ON'
 
-		commands = ['cmake -G "Visual Studio 11' + generator_suffix + '"'+ flags + ' "' + script_dir + '"']
+		commands = ['cmake -G "Visual Studio 14' + generator_suffix + '"'+ flags + ' "' + script_dir + '"']
 
 		vcvarsall_path = get_vcvarsall_path()
 		

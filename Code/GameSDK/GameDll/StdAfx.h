@@ -58,6 +58,8 @@
 #include <IGameplayRecorder.h>
 #include <CryNetwork/ISerialize.h>
 
+#include <CryMath/Random.h>
+
 #include "CryMacros.h"
 
 #include <CryGame/GameUtils.h>

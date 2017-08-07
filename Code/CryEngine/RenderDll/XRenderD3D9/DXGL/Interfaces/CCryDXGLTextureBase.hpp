@@ -28,7 +28,7 @@ public:
 	NCryOpenGL::STexture* GetGLTexture();
 protected:
 	CCryDXGLTextureBase(D3D11_RESOURCE_DIMENSION eDimension, NCryOpenGL::STexture* pGLTexture, CCryDXGLDevice* pDevice);
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	CCryDXGLTextureBase(D3D11_RESOURCE_DIMENSION eDimension, NCryOpenGL::SInitialDataCopy* pInitialData, CCryDXGLDevice* pDevice);
 #endif
 };

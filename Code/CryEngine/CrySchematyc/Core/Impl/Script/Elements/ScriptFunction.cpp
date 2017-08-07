@@ -3,8 +3,8 @@
 #include "StdAfx.h"
 #include "Script/Elements/ScriptFunction.h"
 
-#include <Schematyc/SerializationUtils/ISerializationContext.h>
-#include <Schematyc/Utils/Any.h>
+#include <CrySchematyc/SerializationUtils/ISerializationContext.h>
+#include <CrySchematyc/Utils/Any.h>
 
 #include "Script/Graph/ScriptGraph.h"
 #include "Script/Graph/ScriptGraphNode.h"
@@ -18,7 +18,7 @@ CScriptFunction::CScriptFunction()
 	CreateGraph();
 }
 
-CScriptFunction::CScriptFunction(const SGUID& guid, const char* szName)
+CScriptFunction::CScriptFunction(const CryGUID& guid, const char* szName)
 	: CScriptElementBase(guid, szName, EScriptElementFlags::CanOwnScript)
 {
 	CreateGraph();
@@ -44,14 +44,19 @@ void CScriptFunction::ProcessEvent(const SScriptEvent& event)
 	{
 	case EScriptEventId::EditorAdd:
 		{
+			// TODO: This should happen in editor!
 			IScriptGraph* pGraph = static_cast<IScriptGraph*>(CScriptElementBase::GetExtensions().QueryExtension(EScriptExtensionType::Graph));
 			SCHEMATYC_CORE_ASSERT(pGraph);
 			if (pGraph)
 			{
-				pGraph->AddNode(std::make_shared<CScriptGraphNode>(gEnv->pSchematyc->CreateGUID(), stl::make_unique<CScriptGraphBeginNode>())); // #SchematycTODO : Shouldn't we be using CScriptGraphNodeFactory::CreateNode() instead of instantiating the node directly?!?
+				// TODO : Shouldn't we be using CScriptGraphNodeFactory::CreateNode() instead of instantiating the node directly?!?
+				pGraph->AddNode(std::make_shared<CScriptGraphNode>(gEnv->pSchematyc->CreateGUID(), stl::make_unique<CScriptGraphBeginNode>()));
+				// ~TODO
 			}
 
 			m_userDocumentation.SetCurrentUserAsAuthor();
+			// ~TODO
+
 			break;
 		}
 	case EScriptEventId::EditorPaste:
@@ -85,9 +90,9 @@ uint32 CScriptFunction::GetInputCount() const
 	return m_inputs.size();
 }
 
-SGUID CScriptFunction::GetInputGUID(uint32 inputIdx) const
+CryGUID CScriptFunction::GetInputGUID(uint32 inputIdx) const
 {
-	return inputIdx < m_inputs.size() ? m_inputs[inputIdx].guid : SGUID();
+	return inputIdx < m_inputs.size() ? m_inputs[inputIdx].guid : CryGUID();
 }
 
 const char* CScriptFunction::GetInputName(uint32 inputIdx) const
@@ -110,9 +115,9 @@ uint32 CScriptFunction::GetOutputCount() const
 	return m_outputs.size();
 }
 
-SGUID CScriptFunction::GetOutputGUID(uint32 outputIdx) const
+CryGUID CScriptFunction::GetOutputGUID(uint32 outputIdx) const
 {
-	return outputIdx < m_outputs.size() ? m_outputs[outputIdx].guid : SGUID();
+	return outputIdx < m_outputs.size() ? m_outputs[outputIdx].guid : CryGUID();
 }
 
 const char* CScriptFunction::GetOutputName(uint32 outputIdx) const
@@ -154,7 +159,7 @@ void CScriptFunction::Edit(Serialization::IArchive& archive, const ISerializatio
 {
 	{
 		ScriptVariableData::CScopedSerializationConfig serializationConfig(archive);
-		const SGUID guid = GetGUID();
+		const CryGUID guid = GetGUID();
 		serializationConfig.DeclareEnvDataTypes(guid);
 		serializationConfig.DeclareScriptEnums(guid);
 		serializationConfig.DeclareScriptStructs(guid);

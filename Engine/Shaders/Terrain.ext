@@ -75,3 +75,19 @@ Property
   DependencySet = $UserEnabled
   Hidden
 }
+
+Property
+{
+  Name = %SOFT_DEPTH_TEST
+  Mask = 0x20000
+  Property    (Soft depth test)
+  Description (Enable smooth transition between terrain materials and objects on terrain)
+}
+
+Property
+{
+  Name = %USE_ORIGINAL_DIFFUSE_MAP
+  Mask = 0x200000
+  Property    (Use Original Diffuse Map)
+  Description (Use albedo texture directly without blending with terrain color)
+}

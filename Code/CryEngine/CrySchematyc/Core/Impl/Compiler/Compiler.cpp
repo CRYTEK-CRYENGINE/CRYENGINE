@@ -3,31 +3,32 @@
 #include "StdAfx.h"
 #include "Compiler.h"
 
-#include <Schematyc/FundamentalTypes.h>
-#include <Schematyc/Compiler/IGraphNodeCompiler.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvClass.h>
-#include <Schematyc/Env/Elements/IEnvDataType.h>
-#include <Schematyc/Runtime/RuntimeGraph.h>
-#include <Schematyc/Script/IScriptExtension.h>
-#include <Schematyc/Script/IScriptGraph.h>
-#include <Schematyc/Script/IScriptRegistry.h>
-#include <Schematyc/Script/ScriptUtils.h>
-#include <Schematyc/Script/Elements/IScriptBase.h>
-#include <Schematyc/Script/Elements/IScriptClass.h>
-#include <Schematyc/Script/Elements/IScriptComponentInstance.h>
-#include <Schematyc/Script/Elements/IScriptConstructor.h>
-#include <Schematyc/Script/Elements/IScriptEnum.h>
-#include <Schematyc/Script/Elements/IScriptSignalReceiver.h>
-#include <Schematyc/Script/Elements/IScriptState.h>
-#include <Schematyc/Script/Elements/IScriptStateMachine.h>
-#include <Schematyc/Script/Elements/IScriptStruct.h>
-#include <Schematyc/Script/Elements/IScriptTimer.h>
-#include <Schematyc/Script/Elements/IScriptVariable.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/Assert.h>
-#include <Schematyc/Utils/EnumFlags.h>
-#include <Schematyc/Utils/StackString.h>
+#include <CrySchematyc/FundamentalTypes.h>
+#include <CrySchematyc/Compiler/IGraphNodeCompiler.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvClass.h>
+#include <CrySchematyc/Env/Elements/IEnvDataType.h>
+#include <CrySchematyc/Runtime/RuntimeGraph.h>
+#include <CrySchematyc/Script/IScript.h>
+#include <CrySchematyc/Script/IScriptExtension.h>
+#include <CrySchematyc/Script/IScriptGraph.h>
+#include <CrySchematyc/Script/IScriptRegistry.h>
+#include <CrySchematyc/Script/ScriptUtils.h>
+#include <CrySchematyc/Script/Elements/IScriptBase.h>
+#include <CrySchematyc/Script/Elements/IScriptClass.h>
+#include <CrySchematyc/Script/Elements/IScriptComponentInstance.h>
+#include <CrySchematyc/Script/Elements/IScriptConstructor.h>
+#include <CrySchematyc/Script/Elements/IScriptEnum.h>
+#include <CrySchematyc/Script/Elements/IScriptSignalReceiver.h>
+#include <CrySchematyc/Script/Elements/IScriptState.h>
+#include <CrySchematyc/Script/Elements/IScriptStateMachine.h>
+#include <CrySchematyc/Script/Elements/IScriptStruct.h>
+#include <CrySchematyc/Script/Elements/IScriptTimer.h>
+#include <CrySchematyc/Script/Elements/IScriptVariable.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/Assert.h>
+#include <CrySchematyc/Utils/EnumFlags.h>
+#include <CrySchematyc/Utils/StackString.h>
 
 #include "Core.h"
 #include "Compiler/CompilerTaskList.h"
@@ -85,7 +86,7 @@ struct SGraphNode
 	CAnyValuePtr                pData;
 };
 
-typedef VectorMap<SGUID, uint32> GraphNodeLookup;
+typedef VectorMap<CryGUID, uint32> GraphNodeLookup;
 
 class CGraphNodeCompiler : public IGraphNodeCompiler
 {
@@ -138,10 +139,10 @@ void CCompiler::CompileAll()
 		}
 		return EVisitStatus::Recurse;
 	};
-	gEnv->pSchematyc->GetScriptRegistry().GetRootElement().VisitChildren(ScriptElementVisitor::FromLambda(visitScriptElement));
+	gEnv->pSchematyc->GetScriptRegistry().GetRootElement().VisitChildren(visitScriptElement);
 }
 
-void CCompiler::CompileDependencies(const SGUID& guid)
+void CCompiler::CompileDependencies(const CryGUID& guid)
 {
 	IScriptRegistry& scriptRegistry = gEnv->pSchematyc->GetScriptRegistry();
 	const IScriptElement* pScriptElement = scriptRegistry.GetElement(guid);
@@ -168,7 +169,7 @@ void CCompiler::CompileDependencies(const SGUID& guid)
 			}
 		}
 
-		auto enumerateDependency = [&scriptRegistry, &scriptClasses](const SGUID& guid)
+		auto enumerateDependency = [&scriptRegistry, &scriptClasses](const CryGUID& guid)
 		{
 			const IScriptElement* pScriptElement = scriptRegistry.GetElement(guid);
 			if (pScriptElement)
@@ -189,7 +190,7 @@ void CCompiler::CompileDependencies(const SGUID& guid)
 
 			}
 		};
-		pScriptElement->EnumerateDependencies(ScriptDependencyEnumerator::FromLambda(enumerateDependency), EScriptDependencyType::Compile);
+		pScriptElement->EnumerateDependencies(enumerateDependency, EScriptDependencyType::Compile);
 
 		// #SchematycTODO : What about dependencies of dependencies? Do we also need to consider those?
 
@@ -213,7 +214,7 @@ bool CCompiler::CompileClass(const IScriptClass& scriptClass)
 
 	// Release existing class.
 
-	const SGUID classGUID = scriptClass.GetGUID();
+	const CryGUID classGUID = scriptClass.GetGUID();
 	CCore::GetInstance().GetRuntimeRegistryImpl().ReleaseClass(classGUID);
 
 	// Build inheritance chain and find environment class.
@@ -272,10 +273,12 @@ bool CCompiler::CompileClass(const IScriptClass& scriptClass)
 		CLogMetaData logMetaData;
 		SLogScope logScope(logMetaData);
 
-		// Qualify class name.
-
-		CStackString className;
-		ScriptUtils::QualifyName(className, scriptClass, EScriptElementType::Root);
+		// Qualify class name based on script location.
+		CStackString filePath = scriptClass.GetScript()->GetFilePath();
+		uint32 begin = filePath.find('/');
+		uint32 end = filePath.find(".schematyc_");
+		CStackString className = filePath.Mid(begin + 1, end - begin - 1);
+		className.replace("/", "::");
 
 		// Create new class.
 
@@ -359,7 +362,7 @@ bool CCompiler::CompileComponentInstancesRecursive(SCompilerContext& context, CR
 			{
 				CStackString componentName;
 				ScriptUtils::QualifyName(componentName, *pScriptElement, EScriptElementType::Class);
-				
+
 				const IScriptComponentInstance& scriptComponentInstance = DynamicCast<const IScriptComponentInstance>(*pScriptElement);
 				const uint32 componentInstanceIdx = runtimeClass.AddComponentInstance(scriptComponentInstance.GetGUID(), componentName.c_str(), scriptComponentInstance.GetAccessor() == EScriptElementAccessor::Public, scriptComponentInstance.GetTypeGUID(), scriptComponentInstance.GetTransform(), scriptComponentInstance.GetProperties(), parentIdx);
 				CompileComponentInstancesRecursive(context, runtimeClass, componentInstanceIdx, *pScriptElement);
@@ -484,7 +487,7 @@ bool CCompiler::CompileSignalReceiver(SCompilerContext& context, CRuntimeClass& 
 bool CCompiler::CompileGraph(SCompilerContext& context, CRuntimeClass& runtimeClass, const IScriptGraph& scriptGraph) const
 {
 	const IScriptElement& scriptElement = scriptGraph.GetElement();
-	const SGUID graphGUID = scriptElement.GetGUID();
+	const CryGUID graphGUID = scriptElement.GetGUID();
 	const uint32 graphIdx = runtimeClass.AddGraph(graphGUID, scriptElement.GetName());
 	if (graphIdx != InvalidIdx)
 	{
@@ -555,7 +558,7 @@ bool CCompiler::CompileGraph(SCompilerContext& context, CRuntimeClass& runtimeCl
 
 			return EVisitStatus::Continue;
 		};
-		scriptGraph.VisitNodes(ScriptGraphNodeConstVisitor::FromLambda(visitScriptGraphNode));
+		scriptGraph.VisitNodes(visitScriptGraphNode);
 
 		graphNodeCount = graphNodes.size();
 
@@ -611,7 +614,7 @@ bool CCompiler::CompileGraph(SCompilerContext& context, CRuntimeClass& runtimeCl
 			return EVisitStatus::Continue;
 		};
 
-		if (scriptGraph.VisitLinks(ScriptGraphLinkConstVisitor::FromLambda(visitScriptGraphLink)) == EVisitResult::Error)
+		if (scriptGraph.VisitLinks(visitScriptGraphLink) == EVisitResult::Error)
 		{
 			// Display error message!
 			return false;

@@ -21,7 +21,9 @@
 #define RF_RES_$TOKENS 0x20
 #define RF_RES_$ (RF_RES_$TOKENS)
 
+class  CResFileLookupDataMan;
 struct SResFileLookupData;
+struct SResStreamInfo;
 
 // Resource header
 struct SFileResHeader

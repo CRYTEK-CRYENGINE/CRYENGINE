@@ -3,15 +3,15 @@
 #include "StdAfx.h"
 #include "ScriptVariableData.h"
 
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvDataType.h>
-#include <Schematyc/Script/IScriptRegistry.h>
-#include <Schematyc/Script/Elements/IScriptEnum.h>
-#include <Schematyc/Script/Elements/IScriptStruct.h>
-#include <Schematyc/Utils/Any.h>
-#include <Schematyc/Utils/AnyArray.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
-#include <Schematyc/Utils/StackString.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvDataType.h>
+#include <CrySchematyc/Script/IScriptRegistry.h>
+#include <CrySchematyc/Script/Elements/IScriptEnum.h>
+#include <CrySchematyc/Script/Elements/IScriptStruct.h>
+#include <CrySchematyc/Utils/Any.h>
+#include <CrySchematyc/Utils/AnyArray.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Utils/StackString.h>
 
 #include "Script/ScriptEnumValue.h"
 #include "Script/ScriptStructValue.h"
@@ -80,8 +80,8 @@ CAnyConstPtr CScriptVariableData::GetValue() const
 
 void CScriptVariableData::EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const
 {
-	SCHEMATYC_CORE_ASSERT(!enumerator.IsEmpty());
-	if (!enumerator.IsEmpty())
+	SCHEMATYC_CORE_ASSERT(enumerator);
+	if (enumerator)
 	{
 		if (m_typeId.domain == EDomain::Script)
 		{
@@ -134,13 +134,13 @@ CScopedSerializationConfig::CScopedSerializationConfig(Serialization::IArchive& 
 	: m_typeIdQuickSearchConfig(archive, szHeader ? szHeader : "Type", "::")
 {}
 
-void CScopedSerializationConfig::DeclareEnvDataTypes(const SGUID& scopeGUID, const EnvDataTypeFilter& filter)
+void CScopedSerializationConfig::DeclareEnvDataTypes(const CryGUID& scopeGUID, const EnvDataTypeFilter& filter)
 {
 	CScriptView scriptView(scopeGUID);
 
 	auto visitEnvDataType = [this, &scriptView, &filter](const IEnvDataType& envDataType) -> EVisitStatus
 	{
-		if (filter.IsEmpty() || filter(envDataType))
+		if (!filter || filter(envDataType))
 		{
 			CStackString fullName;
 			scriptView.QualifyName(envDataType, fullName);
@@ -149,16 +149,16 @@ void CScopedSerializationConfig::DeclareEnvDataTypes(const SGUID& scopeGUID, con
 		}
 		return EVisitStatus::Continue;
 	};
-	scriptView.VisitEnvDataTypes(EnvDataTypeConstVisitor::FromLambda(visitEnvDataType));
+	scriptView.VisitEnvDataTypes(visitEnvDataType);
 }
 
-void CScopedSerializationConfig::DeclareScriptEnums(const SGUID& scopeGUID, const ScriptEnumsFilter& filter)
+void CScopedSerializationConfig::DeclareScriptEnums(const CryGUID& scopeGUID, const ScriptEnumsFilter& filter)
 {
 	CScriptView scriptView(scopeGUID);
 
 	auto visitScriptEnum = [this, &scriptView, &filter](const IScriptEnum& scriptEnum)
 	{
-		if (filter.IsEmpty() || filter(scriptEnum))
+		if (!filter || filter(scriptEnum))
 		{
 			CStackString fullName;
 			scriptView.QualifyName(scriptEnum, EDomainQualifier::Local, fullName);
@@ -166,16 +166,16 @@ void CScopedSerializationConfig::DeclareScriptEnums(const SGUID& scopeGUID, cons
 			m_typeIdQuickSearchConfig.AddOption(scriptEnum.GetName(), SElementId(EDomain::Script, scriptEnum.GetGUID()), fullName.c_str());
 		}
 	};
-	scriptView.VisitAccesibleEnums(ScriptEnumConstVisitor::FromLambda(visitScriptEnum));
+	scriptView.VisitAccesibleEnums(visitScriptEnum);
 }
 
-void CScopedSerializationConfig::DeclareScriptStructs(const SGUID& scopeGUID, const ScriptStructFilter& filter)
+void CScopedSerializationConfig::DeclareScriptStructs(const CryGUID& scopeGUID, const ScriptStructFilter& filter)
 {
 	CScriptView scriptView(scopeGUID);
 
 	auto visitScriptStruct = [this, &scriptView, &filter](const IScriptStruct& scriptStruct)
 	{
-		if (filter.IsEmpty() || filter(scriptStruct))
+		if (!filter || filter(scriptStruct))
 		{
 			CStackString fullName;
 			scriptView.QualifyName(scriptStruct, EDomainQualifier::Local, fullName);
@@ -183,7 +183,7 @@ void CScopedSerializationConfig::DeclareScriptStructs(const SGUID& scopeGUID, co
 			m_typeIdQuickSearchConfig.AddOption(scriptStruct.GetName(), SElementId(EDomain::Script, scriptStruct.GetGUID()), fullName.c_str());
 		}
 	};
-	scriptView.VisitAccesibleStructs(ScriptStructConstVisitor::FromLambda(visitScriptStruct));
+	scriptView.VisitAccesibleStructs(visitScriptStruct);
 }
 
 CAnyValuePtr CreateData(const SElementId& typeId)

@@ -35,13 +35,13 @@ struct SProceduralClipFactoryRegistrationInfo
 template<typename T>
 inline IProceduralClipPtr CreateProceduralClip()
 {
-	return IProceduralClipPtr(new T());
+	return std::make_shared<T>();
 }
 
 template<typename T>
 inline IProceduralParamsPtr CreateProceduralParams()
 {
-	return IProceduralParamsPtr(new T());
+	return std::make_shared<T>();
 }
 
 struct IProceduralClipFactory

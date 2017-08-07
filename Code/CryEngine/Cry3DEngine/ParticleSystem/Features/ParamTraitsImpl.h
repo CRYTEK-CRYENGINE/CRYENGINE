@@ -38,10 +38,50 @@ ILINE bool Serialize(Serialization::IArchive& ar, SEnable& val, const char* name
 	return true;
 }
 
-template<typename T, typename D>
-ILINE bool IsDefault(const T& value, D defaultValue)
+template<typename T, typename TTraits>
+bool TValue<T, TTraits>::Serialize(Serialization::IArchive& ar, const char* name, const char* label)
 {
-	return (value.Min() == value.Max()) && (value.Max() == defaultValue);
+	T v = TTraits::From(m_value);
+	if (ar.isEdit() && InfiniteMax())
+	{
+		// Enable infinite values in editor via a toggle
+		struct EnabledValue
+		{
+			T& m_value;
+
+			void Serialize(Serialization::IArchive& ar)
+			{
+				bool enabled = m_value < HardMax();
+				ar(enabled, "enabled", "^");
+				if (enabled)
+				{
+					bool res = ar(
+						Serialization::Range(m_value, HardMin(), std::numeric_limits<T>::max()),
+						"value", "^");
+					if (m_value == HardMax())
+						m_value = TType(1);
+				}
+				else
+				{
+					// Tell editor to display "Infinity" (which text archives already do)
+					m_value = HardMax();
+					string infinity = "Infinity";
+					ar(infinity, "value", "!^");
+				}
+			}
+		};
+
+		if (!ar(EnabledValue {v}, name, label))
+			return false;
+	}
+	else
+	{
+		if (!ar(Serialization::Range(v, HardMin(), HardMax()), name, label))
+			return false;
+	}
+	if (ar.isInput())
+		Set(v);
+	return true;
 }
 
 }

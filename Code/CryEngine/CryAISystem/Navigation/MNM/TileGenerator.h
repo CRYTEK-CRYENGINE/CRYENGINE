@@ -72,6 +72,47 @@ public:
 		MaxTileSizeZ = 18,
 	};
 
+	struct SAgentSettings
+	{
+		SAgentSettings()
+			: radius(4)
+			, height(18)
+			, climbableHeight(4)
+			, maxWaterDepth(8)
+			, climbableInclineGradient(0.0f)
+			, climbableStepRatio(0.0f)
+		{}
+
+		//! Returns horizontal distance from any feature in voxels that could be affected during the generation process
+		size_t GetPossibleAffectedSizeH() const
+		{
+			// TODO pavloi 2016.03.16: inclineTestCount = (height + 1) comes from FilterWalkable
+			const size_t inclineTestCount = climbableHeight + 1;
+			return radius + inclineTestCount + 1;
+		}
+
+		//! Returns vertical distance from any feature in voxels that could be affected during the generation process
+		size_t GetPossibleAffectedSizeV() const
+		{
+			// TODO pavloi 2016.03.16: inclineTestCount = (height + 1) comes from FilterWalkable
+			const size_t inclineTestCount = climbableHeight + 1;
+			const size_t maxZDiffInWorstCase = inclineTestCount * climbableHeight;
+
+			// TODO pavloi 2016.03.16: agent.height is not applied here, because it's usually applied additionally in other places.
+			// Or such places just don't care.
+			// +1 just in case, I'm not fully tested this formula.
+			return maxZDiffInWorstCase + 1;
+		}
+
+		uint32 radius          : 8; //!< Agent radius in voxels count
+		uint32 height          : 8; //!< Agent height in voxels count
+		uint32 climbableHeight : 8; //!< Maximum step height that the agent can still walk through in voxels count
+		uint32 maxWaterDepth   : 8; //!< Maximum walkable water depth in voxels count
+
+		float  climbableInclineGradient; //!< The steepness of a surface to still be climbable
+		float  climbableStepRatio;
+	};
+
 	struct Params
 	{
 		Params()
@@ -80,11 +121,10 @@ public:
 			, sizeY(8)
 			, sizeZ(8)
 			, voxelSize(0.1f)
-			, climbableInclineGradient(0.0f)
-			, climbableStepRatio(0.0f)
 			, flags(0)
 			, blurAmount(0)
 			, minWalkableArea(16)
+			, callback()
 			, boundary(nullptr)
 			, exclusions(nullptr)
 			, exclusionCount(0)
@@ -101,37 +141,20 @@ public:
 			DebugInfo   = 1 << 7,
 		};
 
-		Vec3   origin;
-		Vec3   voxelSize;
-		float  climbableInclineGradient;
-		float  climbableStepRatio;
+		Vec3                                     origin;
+		Vec3                                     voxelSize;
 
-		uint16 flags;
-		uint16 minWalkableArea;
-		uint16 exclusionCount;
+		uint16                                   flags;
+		uint16                                   minWalkableArea;
+		uint16                                   exclusionCount;
 
-		uint8  blurAmount;
-		uint8  sizeX;
-		uint8  sizeY;
-		uint8  sizeZ;
+		uint8                                    blurAmount;
+		uint8                                    sizeX;
+		uint8                                    sizeY;
+		uint8                                    sizeZ;
 
-		struct AgentSettings
-		{
-			AgentSettings()
-				: radius(4)
-				, height(18)
-				, climbableHeight(4)
-				, maxWaterDepth(8)
-				, callback()
-			{}
-
-			uint32                       radius          : 8;
-			uint32                       height          : 8;
-			uint32                       climbableHeight : 8;
-			uint32                       maxWaterDepth   : 8;
-
-			NavigationMeshEntityCallback callback;
-		}                                        agent;
+		SAgentSettings                            agent;
+		NavigationMeshEntityCallback             callback;
 
 		const BoundingVolume*                    boundary;
 		const BoundingVolume*                    exclusions;

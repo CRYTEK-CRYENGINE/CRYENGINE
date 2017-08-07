@@ -12,6 +12,12 @@
 #define ASSERT_WWISE_OK(x) (CRY_ASSERT(x == AK_Success))
 #define IS_WWISE_OK(x)     (x == AK_Success)
 
+namespace CryAudio
+{
+namespace Impl
+{
+namespace Wwise
+{
 // several Wwise-specific helper functions
 //////////////////////////////////////////////////////////////////////////
 inline void FillAKVector(Vec3 const& vCryVector, AkVector& vAKVector)
@@ -22,7 +28,7 @@ inline void FillAKVector(Vec3 const& vCryVector, AkVector& vAKVector)
 }
 
 ///////////////////////////////////////////////////////////////////////////
-inline void FillAKObjectPosition(CryAudio::CObjectTransformation const& transformation, AkSoundPosition& outTransformation)
+inline void FillAKObjectPosition(CObjectTransformation const& transformation, AkSoundPosition& outTransformation)
 {
 	AkVector vec1, vec2;
 	FillAKVector(transformation.GetPosition(), vec1);
@@ -33,7 +39,7 @@ inline void FillAKObjectPosition(CryAudio::CObjectTransformation const& transfor
 }
 
 ///////////////////////////////////////////////////////////////////////////
-inline void FillAKListenerPosition(CryAudio::CObjectTransformation const& transformation, AkListenerPosition& outTransformation)
+inline void FillAKListenerPosition(CObjectTransformation const& transformation, AkListenerPosition& outTransformation)
 {
 	AkVector vec1, vec2;
 	FillAKVector(transformation.GetPosition(), vec1);
@@ -42,3 +48,6 @@ inline void FillAKListenerPosition(CryAudio::CObjectTransformation const& transf
 	FillAKVector(transformation.GetUp(), vec2);
 	outTransformation.SetOrientation(vec1, vec2);
 }
+} // namespace Wwise
+} // namespace Impl
+} // namespace CryAudio

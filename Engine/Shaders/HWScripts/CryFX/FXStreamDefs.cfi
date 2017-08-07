@@ -12,7 +12,7 @@
 #define IN_TANG_STREAM                                                               \
 #if !%_RT_SKELETON_SSD && !%_RT_SKELETON_SSD_LINEAR && !%_RT_COMPUTE_SKINNING        \
           float4 Tangent  : TANGENT;                                                 \
-          float4 Binormal : BINORMAL;                                                \
+          float4 Binormal : BITANGENT;                                               \
 #else                                                                                \
           float4 Tangent  : TANGENT;                                                 \
 #endif
@@ -102,6 +102,8 @@ struct pixout_fp
 struct pixout_gbuffer
 {
   half4 GBufferA : COLOR0;
+	
+#if !%_RT_SAMPLE0
 	half4 GBufferB : COLOR1;
 	half4 GBufferC : COLOR2;
 	
@@ -121,6 +123,7 @@ struct pixout_gbuffer
 			float fDepth : SV_DepthLessEqual;
 		#endif
 	#endif
+#endif
 #endif
 };
 

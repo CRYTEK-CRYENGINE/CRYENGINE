@@ -107,7 +107,7 @@ private:
 	};
 
 public:
-	PROCEDURAL_CONTEXT(CParticleEffectContext, "ParticleEffectContext", 0x9CED30805F8845A3, 0xF527229C51B542A8);
+	PROCEDURAL_CONTEXT(CParticleEffectContext, "ParticleEffectContext", "9ced3080-5f88-45a3-f527-229c51b542a8"_cry_guid);
 
 	virtual void Update(float timePassed) override;
 	void         StartEffect(SParticleEffectClipData& data, const SPlayParticleEffectParams& params, EntityId entityId, ICharacterInstance* pCharacterInstance, IActionController& pActionController);

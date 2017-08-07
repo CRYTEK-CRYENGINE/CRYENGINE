@@ -179,8 +179,8 @@ public:
 
 private:
 
-	bool                      PrepareOcclusionPrimitive(CRenderPrimitive& primitive);
-	bool                      PrepareGatherPrimitive(CRenderPrimitive& primitive, CStandardGraphicsPipeline::SViewInfo* pViewInfo, int viewInfoCount);
+	bool                      PrepareOcclusionPrimitive(CRenderPrimitive& primitive, const CPrimitiveRenderPass& targetPass);
+	bool                      PrepareGatherPrimitive(CRenderPrimitive& primitive, const CPrimitiveRenderPass& targetPass, CStandardGraphicsPipeline::SViewInfo* pViewInfo, int viewInfoCount);
 
 	int    m_nPos;
 	_smart_ptr<CFlareSoftOcclusionQuery> m_SoftOcclusionQueries[CFlareSoftOcclusionQuery::s_nIDMax];
@@ -190,9 +190,6 @@ private:
 
 	CPrimitiveRenderPass m_occlusionPass;
 	CPrimitiveRenderPass m_gatherPass;
-
-	int   m_samplerPointBorderBlack;
-	int   m_samplerPointClamp;
 
 	buffer_handle_t m_indexBuffer;
 	buffer_handle_t m_occlusionVertexBuffer;

@@ -72,7 +72,7 @@ MACRO(MAX_PLUGIN pluginName utilityLibDependencies)
 		LINK_MAX_SDK(${targetName} "${maxSdkPath_${maxSDK}}")
 		
 		# Copy from bin directory to max plugins folder on build completion
-		add_custom_command(TARGET ${targetName} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${targetName}> "${maxPlugingPath_${maxSDK}}/$<TARGET_FILE_NAME:${targetName}>")
+		add_custom_command(TARGET ${targetName} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:${targetName}>" "${maxPlugingPath_${maxSDK}}/$<TARGET_FILE_NAME:${targetName}>")
 		
 	ENDFOREACH()
 ENDMACRO()
@@ -83,7 +83,7 @@ MACRO(UTILITY_LIB libName)
 		
 		FILE (GLOB_RECURSE sourceFiles "*.h" "*.cpp" "*.rc")
 		add_library(${targetName} STATIC ${sourceFiles})
-		target_include_directories(${targetName} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+		target_include_directories(${targetName} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 		SORT_SOURCES("${sourceFiles}")
 		set_target_properties(${targetName} PROPERTIES FOLDER ${libName})
 

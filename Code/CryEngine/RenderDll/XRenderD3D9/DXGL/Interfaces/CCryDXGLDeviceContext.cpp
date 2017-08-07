@@ -324,7 +324,7 @@ void CCryDXGLDeviceContext::SetShaderResources(uint32 uStage, UINT StartSlot, UI
 		if (kStage.m_aspShaderResourceViews[uSlot] != pDXGLShaderResourceView)
 		{
 			kStage.m_aspShaderResourceViews[uSlot] = pDXGLShaderResourceView;
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 			m_pContext->SetShaderResourceView(pDXGLShaderResourceView == NULL ? NULL : pDXGLShaderResourceView->GetGLView(m_pContext), uStage, uSlot);
 #else
 			m_pContext->SetShaderResourceView(pDXGLShaderResourceView == NULL ? NULL : pDXGLShaderResourceView->GetGLView(), uStage, uSlot);
@@ -363,7 +363,7 @@ void CCryDXGLDeviceContext::SetUnorderedAccessViews(uint32 uStage, UINT StartSlo
 		if (kStage.m_aspUnorderedAccessViews[uSlot] != pDXGLUnorderedAccessView)
 		{
 			kStage.m_aspUnorderedAccessViews[uSlot] = pDXGLUnorderedAccessView;
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 			m_pContext->SetUnorderedAccessView(pDXGLUnorderedAccessView == NULL ? NULL : pDXGLUnorderedAccessView->GetGLView(m_pContext), uStage, uSlot);
 #else
 			m_pContext->SetUnorderedAccessView(pDXGLUnorderedAccessView == NULL ? NULL : pDXGLUnorderedAccessView->GetGLView(), uStage, uSlot);
@@ -779,7 +779,7 @@ void CCryDXGLDeviceContext::IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY Topo
 void CCryDXGLDeviceContext::Begin(ID3D11Asynchronous* pAsync)
 {
 	CheckCurrentContext(m_pContext);
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	NCryOpenGL::SQuery* pQuery(CCryDXGLQuery::FromInterface(pAsync)->GetGLQuery(m_pContext));
 #else
 	NCryOpenGL::SQuery* pQuery(CCryDXGLQuery::FromInterface(pAsync)->GetGLQuery());
@@ -791,7 +791,7 @@ void CCryDXGLDeviceContext::Begin(ID3D11Asynchronous* pAsync)
 void CCryDXGLDeviceContext::End(ID3D11Asynchronous* pAsync)
 {
 	CheckCurrentContext(m_pContext);
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	NCryOpenGL::SQuery* pQuery(CCryDXGLQuery::FromInterface(pAsync)->GetGLQuery(m_pContext));
 #else
 	NCryOpenGL::SQuery* pQuery(CCryDXGLQuery::FromInterface(pAsync)->GetGLQuery());
@@ -803,7 +803,7 @@ void CCryDXGLDeviceContext::End(ID3D11Asynchronous* pAsync)
 HRESULT CCryDXGLDeviceContext::GetData(ID3D11Asynchronous* pAsync, void* pData, UINT DataSize, UINT GetDataFlags)
 {
 	CheckCurrentContext(m_pContext);
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	NCryOpenGL::SQuery* pQuery(CCryDXGLQuery::FromInterface(pAsync)->GetGLQuery(m_pContext));
 #else
 	NCryOpenGL::SQuery* pQuery(CCryDXGLQuery::FromInterface(pAsync)->GetGLQuery());
@@ -837,7 +837,7 @@ void CCryDXGLDeviceContext::OMSetRenderTargetsAndUnorderedAccessViews(UINT NumRT
 	{
 		CCryDXGLRenderTargetView* pDXGLRenderTargetView(CCryDXGLRenderTargetView::FromInterface(ppRenderTargetViews[uRTV]));
 		m_aspRenderTargetViews[uRTV] = pDXGLRenderTargetView;
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 		apGLRenderTargetViews[uRTV] = pDXGLRenderTargetView == NULL ? NULL : pDXGLRenderTargetView->GetGLView(m_pContext);
 #else
 		apGLRenderTargetViews[uRTV] = pDXGLRenderTargetView == NULL ? NULL : pDXGLRenderTargetView->GetGLView();
@@ -862,7 +862,7 @@ void CCryDXGLDeviceContext::OMSetRenderTargetsAndUnorderedAccessViews(UINT NumRT
 	CCryDXGLDepthStencilView* pDXGLDepthStencilView(CCryDXGLDepthStencilView::FromInterface(pDepthStencilView));
 	m_spDepthStencilView = pDXGLDepthStencilView;
 	if (pDXGLDepthStencilView != NULL)
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 		pGLDepthStencilView = pDXGLDepthStencilView->GetGLView(m_pContext);
 #else
 		pGLDepthStencilView = pDXGLDepthStencilView->GetGLView();
@@ -1114,7 +1114,7 @@ void CCryDXGLDeviceContext::ClearRenderTargetView(ID3D11RenderTargetView* pRende
 {
 	CheckCurrentContext(m_pContext);
 	CCryDXGLRenderTargetView* pDXGLRenderTargetView(CCryDXGLRenderTargetView::FromInterface(pRenderTargetView));
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	m_pContext->ClearRenderTarget(pDXGLRenderTargetView == NULL ? NULL : pDXGLRenderTargetView->GetGLView(m_pContext), ColorRGBA);
 #else
 	m_pContext->ClearRenderTarget(pDXGLRenderTargetView == NULL ? NULL : pDXGLRenderTargetView->GetGLView(), ColorRGBA);
@@ -1135,7 +1135,7 @@ void CCryDXGLDeviceContext::ClearDepthStencilView(ID3D11DepthStencilView* pDepth
 {
 	CheckCurrentContext(m_pContext);
 	CCryDXGLDepthStencilView* pDXGLDepthStencilView(CCryDXGLDepthStencilView::FromInterface(pDepthStencilView));
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	m_pContext->ClearDepthStencil(pDXGLDepthStencilView == NULL ? NULL : pDXGLDepthStencilView->GetGLView(m_pContext), (ClearFlags & D3D11_CLEAR_DEPTH) != 0, (ClearFlags & D3D11_CLEAR_STENCIL) != 0, Depth, Stencil);
 #else
 	m_pContext->ClearDepthStencil(pDXGLDepthStencilView == NULL ? NULL : pDXGLDepthStencilView->GetGLView(), (ClearFlags & D3D11_CLEAR_DEPTH) != 0, (ClearFlags & D3D11_CLEAR_STENCIL) != 0, Depth, Stencil);
@@ -1145,7 +1145,7 @@ void CCryDXGLDeviceContext::ClearDepthStencilView(ID3D11DepthStencilView* pDepth
 void CCryDXGLDeviceContext::GenerateMips(ID3D11ShaderResourceView* pShaderResourceView)
 {
 	CheckCurrentContext(m_pContext);
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	NCryOpenGL::SShaderView* pGLView(CCryDXGLShaderResourceView::FromInterface(pShaderResourceView)->GetGLView(m_pContext));
 #else
 	NCryOpenGL::SShaderView* pGLView(CCryDXGLShaderResourceView::FromInterface(pShaderResourceView)->GetGLView());

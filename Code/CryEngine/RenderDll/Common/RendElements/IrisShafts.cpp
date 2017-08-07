@@ -254,7 +254,7 @@ bool IrisShafts::PreparePrimitives(const SPreparePrimitivesContext& context)
 	m_primitive.SetRenderState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ONE);
 	m_primitive.SetTexture(0, (m_bUseSpectrumTex && m_pSpectrumTex) ? m_pSpectrumTex.get() : CTexture::s_ptexBlack);
 	m_primitive.SetTexture(1, m_pBaseTex ? m_pBaseTex.get() : CTexture::s_ptexBlack);
-	m_primitive.SetSampler(0, m_samplerBilinearBorderBlack);
+	m_primitive.SetSampler(0, EDefaultSamplerStates::LinearBorder_Black);
 
 	// update constants
 	{
@@ -273,7 +273,6 @@ bool IrisShafts::PreparePrimitives(const SPreparePrimitivesContext& context)
 			if (i < context.viewInfoCount - 1)
 				constants.BeginStereoOverride(false);
 		}
-
 		m_primitive.GetConstantManager().EndTypedConstantUpdate(constants);
 	}
 
@@ -288,11 +287,12 @@ bool IrisShafts::PreparePrimitives(const SPreparePrimitivesContext& context)
 
 		ValidateMesh();
 
-		m_primitive.SetCustomVertexStream(m_vertexBuffer, eVF_P3F_C4B_T2F, sizeof(SVF_P3F_C4B_T2F));
+		m_primitive.SetCustomVertexStream(m_vertexBuffer, EDefaultInputLayouts::P3F_C4B_T2F, sizeof(SVF_P3F_C4B_T2F));
 		m_primitive.SetCustomIndexStream(m_indexBuffer, Index16);
 		m_primitive.SetDrawInfo(eptTriangleList, 0, 0, GetIndexCount());
 	}
 
+	m_primitive.Compile(context.pass);
 	context.pass.AddPrimitive(&m_primitive);
 
 	return true;

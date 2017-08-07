@@ -43,11 +43,6 @@ CCryDX12Query::CCryDX12Query(const D3D11_QUERY_DESC* pDesc)
 
 }
 
-CCryDX12Query::~CCryDX12Query()
-{
-
-}
-
 /* ID3D11Query implementation */
 
 void STDMETHODCALLTYPE CCryDX12Query::GetDesc(
@@ -64,10 +59,6 @@ CCryDX12EventQuery::CCryDX12EventQuery(const D3D11_QUERY_DESC* pDesc)
 {
 }
 
-CCryDX12EventQuery::~CCryDX12EventQuery()
-{
-}
-
 bool CCryDX12EventQuery::Init(ID3D12Device* pDevice)
 {
 	m_FenceValue = 0LL;
@@ -80,10 +71,6 @@ CCryDX12ResourceQuery::CCryDX12ResourceQuery(const D3D11_QUERY_DESC* pDesc)
 	: Super(pDesc)
 	, m_QueryIndex(0)
 	, m_pResource(nullptr)
-{
-}
-
-CCryDX12ResourceQuery::~CCryDX12ResourceQuery()
 {
 }
 

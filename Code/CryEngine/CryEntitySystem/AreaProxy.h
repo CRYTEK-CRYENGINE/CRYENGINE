@@ -13,7 +13,7 @@ struct SEntityEvent;
 //////////////////////////////////////////////////////////////////////////
 struct CEntityComponentArea : public IEntityAreaComponent
 {
-	CRY_ENTITY_COMPONENT_CLASS(CEntityComponentArea,IEntityAreaComponent,"CEntityComponentArea",0xFEB82854291C4ABA,0x9652DDD7F403F24A);
+	CRY_ENTITY_COMPONENT_CLASS_GUID(CEntityComponentArea, IEntityAreaComponent, "CEntityComponentArea", "feb82854-291c-4aba-9652-ddd7f403f24a"_cry_guid);
 
 	CEntityComponentArea();
 	virtual ~CEntityComponentArea();

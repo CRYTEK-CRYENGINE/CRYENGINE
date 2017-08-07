@@ -951,7 +951,7 @@ void CGameBrowser::InitLobbyServiceType()
 void CGameBrowser::StartFavouriteIdSearch( const CGameServerLists::EGameServerLists serverList, uint32 *pFavouriteIds, uint32 numFavouriteIds )
 {
 	CRY_ASSERT(numFavouriteIds <= CGameServerLists::k_maxServersStoredInList);
-	numFavouriteIds = MIN(numFavouriteIds, CGameServerLists::k_maxServersStoredInList);
+	numFavouriteIds = std::min(numFavouriteIds, (uint32)CGameServerLists::k_maxServersStoredInList);
 	if (numFavouriteIds <= CGameServerLists::k_maxServersStoredInList)
 	{
 		memset(m_searchFavouriteIds, INVALID_SESSION_FAVOURITE_ID, sizeof(m_searchFavouriteIds));

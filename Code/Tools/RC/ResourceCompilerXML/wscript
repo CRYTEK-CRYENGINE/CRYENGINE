@@ -1,0 +1,51 @@
+# Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+from waflib.TaskGen import feature, after_method
+import os
+
+def build(bld):
+
+	bld.CryResourceCompilerModule(
+		target    = 'ResourceCompilerXML',		
+		vs_filter = 'RC',		
+		file_list = 'resourcecompilerxml.waf_files',
+		cxxflags  = ['/EHsc'],
+
+		features = ['copy_xmlfilter'],
+
+		release_defines = ['NDEBUG'],
+		debug_defines   = ['_DEBUG'],
+
+		includes    = [
+			'.',
+			Path('Code/Tools'),
+			Path('Code/Tools/RC/ResourceCompiler'),
+			Path('Code/Tools/CryCommonTools'),
+			Path('Code/Tools/CryXML'),
+			Path('Code/CryEngine/CrySystem/XML')
+		],
+
+		libpath = Path('Code/Tools/CryCommonTools'),
+
+		export_definitions = '../ResourceCompilerImage/ImageExports.def'
+	)
+
+@feature('copy_xmlfilter')
+@after_method('apply_link')
+def feature_copy_xmlfilter(self):
+	bld 			= self.bld
+	platform	= bld.env['PLATFORM']
+	configuration = bld.env['CONFIGURATION']
+			
+	if platform  == 'project_generator':
+		return
+
+	# Copy xmlfilter.txt into output folder
+	output_folder = bld.get_output_folders(platform, configuration)[0]
+
+	if hasattr(self, 'output_sub_folder'):
+		if os.path.isabs(self.output_sub_folder):
+			output_folder = self.bld.root.make_node(self.output_sub_folder)
+		else:
+			output_folder = output_folder.make_node(self.output_sub_folder)			
+				
+	self.create_task('copy_outputs', self.path.make_node('xmlfilter.txt'), output_folder.make_node('xmlfilter.txt'))

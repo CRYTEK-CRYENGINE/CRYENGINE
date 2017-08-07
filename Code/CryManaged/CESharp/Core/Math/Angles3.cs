@@ -10,7 +10,7 @@ namespace CryEngine
 	/// Helper class to indicate 3D angles in radians
 	/// Allows for converting quaternions to human readable angles easily (and back to a quaternion)
 	/// </summary>
-	public struct Angles3
+	public struct Angles3 : IEquatable<Angles3>
 	{
 		private float _x;
 		private float _y;
@@ -53,9 +53,9 @@ namespace CryEngine
 			{
 				int hash = 17;
 
-				hash = hash * 23 + X.GetHashCode();
-				hash = hash * 23 + Y.GetHashCode();
-				hash = hash * 23 + Z.GetHashCode();
+				hash = hash * 23 + _x.GetHashCode();
+				hash = hash * 23 + _y.GetHashCode();
+				hash = hash * 23 + _z.GetHashCode();
 
 				return hash;
 			}
@@ -66,15 +66,20 @@ namespace CryEngine
 			if (obj == null)
 				return false;
 
-			if (obj is Angles3 || obj is Ang3 || obj is Vec3)
-				return this == (Angles3)obj;
+			if (!(obj is Angles3 || obj is Ang3 || obj is Vec3))
+				return false;
 
-			return false;
+			return Equals((Angles3) obj);
+		}
+
+		public bool Equals(Angles3 other)
+		{
+			return MathHelpers.IsEqual(_x, other.x) && MathHelpers.IsEqual(_y, other.y) && MathHelpers.IsEqual(_z, other.z);
 		}
 
 		public override string ToString()
 		{
-			return string.Format(CultureInfo.CurrentCulture, "{0},{1},{2}", X, Y, Z);
+			return string.Format(CultureInfo.CurrentCulture, "{0},{1},{2}", _x, _y, _z);
 		}
 		#endregion
 
@@ -154,10 +159,7 @@ namespace CryEngine
 
 		public static bool operator ==(Angles3 left, Angles3 right)
 		{
-			if ((object)right == null)
-				return (object)left == null;
-
-			return ((left.X == right.X) && (left.Y == right.Y) && (left.Z == right.Z));
+			return left.Equals(right);
 		}
 
 		public static bool operator !=(Angles3 left, Angles3 right)
@@ -171,7 +173,7 @@ namespace CryEngine
 		{
 			get
 			{
-				return new Angles3(Math.Abs(X), Math.Abs(Y), Math.Abs(Z));
+				return new Angles3(Math.Abs(_x), Math.Abs(_y), Math.Abs(_z));
 			}
 		}
 
@@ -179,7 +181,7 @@ namespace CryEngine
 		{
 			get
 			{
-				return new Angles3(-X, -Y, -Z);
+				return new Angles3(-_x, -_y, -_z);
 			}
 		}
 		
@@ -197,11 +199,11 @@ namespace CryEngine
 				switch (index)
 				{
 					case 0:
-						return x;
+						return _x;
 					case 1:
-						return y;
+						return _y;
 					case 2:
-						return z;
+						return _z;
 
 					default:
 						throw new ArgumentOutOfRangeException("index", "Indices must run from 0 to 2!");
@@ -212,13 +214,13 @@ namespace CryEngine
 				switch (index)
 				{
 					case 0:
-						x = value;
+						_x = value;
 						break;
 					case 1:
-						y = value;
+						_y = value;
 						break;
 					case 2:
-						z = value;
+						_z = value;
 						break;
 
 					default:

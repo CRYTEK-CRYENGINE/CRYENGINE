@@ -3,8 +3,8 @@
 #include "StdAfx.h"
 #include "Script/ScriptEnumValue.h"
 
-#include <Schematyc/Reflection/TypeDesc.h>
-#include <Schematyc/Script/Elements/IScriptEnum.h>
+#include <CrySchematyc/Reflection/TypeDesc.h>
+#include <CrySchematyc/Script/Elements/IScriptEnum.h>
 
 namespace Schematyc
 {
@@ -74,7 +74,7 @@ void CScriptEnumValue::ToString(IString& output) const
 
 void CScriptEnumValue::ReflectType(CTypeDesc<CScriptEnumValue>& desc)
 {
-	desc.SetGUID("6353d2e0-683d-424d-a4d9-16c4d6e350f9"_schematyc_guid);
+	desc.SetGUID("6353d2e0-683d-424d-a4d9-16c4d6e350f9"_cry_guid);
 	desc.SetToStringOperator<&CScriptEnumValue::ToString>();
 }
 

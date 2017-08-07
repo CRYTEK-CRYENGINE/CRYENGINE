@@ -163,7 +163,7 @@ void CActorManager::Update(float dt)
 			IEntity* pEntity = pActor->GetEntity();
 			const IAIObject* pAIObject = pEntity->GetAI();
 
-			if(bMultiplayer || (pAIObject && pEntity->IsActive()))
+			if(bMultiplayer || (pAIObject && pEntity->IsActivatedForUpdates()))
 			{
 				CacheDataFromActor(pActor, pEntity, pAIObject, kActorIndexMultiplier, playerFactionID, iNumActorsTracked);
 				iNumActorsTracked++;

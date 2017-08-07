@@ -15,6 +15,7 @@ CEntityLayer::CEntityLayer(const char* name, uint16 id, bool havePhysics, int sp
 	, m_havePhysics(havePhysics)
 	, m_specs(specs)
 	, m_defaultLoaded(defaultLoaded)
+	, m_listeners(4)
 	, m_pGarbageHeaps(&garbageHeaps)
 	, m_pHeap(NULL)
 {
@@ -44,7 +45,15 @@ void CEntityLayer::AddObject(EntityId id)
 {
 	IEntity* pEntity = g_pIEntitySystem->GetEntityFromID(id);
 	if (pEntity)
-		m_entities[id] = EntityProp(id, false, pEntity->IsHidden(), pEntity->IsActive());
+	{
+		bool bEnableScriptUpdate = false;
+		if (auto* pComponent = static_cast<CEntityComponentLuaScript*>(pEntity->GetComponent<IEntityScriptComponent>()))
+		{
+			bEnableScriptUpdate = pComponent->IsUpdateEnabled();
+		}
+
+		m_entities[id] = EntityProp(id, false, pEntity->IsHidden(), bEnableScriptUpdate);
+	}
 	m_wasReEnabled = false;
 }
 
@@ -60,26 +69,30 @@ bool CEntityLayer::IsSkippedBySpec() const
 	if (m_specs == eSpecType_All)
 		return false;
 
-	auto rt = gEnv->pRenderer ? gEnv->pRenderer->GetRenderType() : eRT_Null;
+	auto rt = gEnv->pRenderer ? gEnv->pRenderer->GetRenderType() : ERenderType::Undefined;
 	switch (rt)
 	{
-	case eRT_PS4:
+	case ERenderType::GNM:
 		if (m_specs & eSpecType_PS4)
 		{
 			return false;
 		}
 		break;
 
-	case eRT_XboxOne:
+#if CRY_PLATFORM_DURANGO
+	case ERenderType::Direct3D11:
+	case ERenderType::Direct3D12:
 		if (m_specs & eSpecType_XBoxOne)
 		{
 			return false;
 		}
 		break;
-
-	case eRT_OpenGL:
-	case eRT_DX11:
-	case eRT_DX12:
+#else
+	case ERenderType::Direct3D11:
+	case ERenderType::Direct3D12:
+#endif
+	case ERenderType::OpenGL:
+	case ERenderType::Vulkan:
 	default:
 		if (m_specs & eSpecType_PC)
 		{
@@ -201,11 +214,21 @@ void CEntityLayer::EnableEntities(bool isEnable)
 			if (!pEntity)
 				continue;
 
+			pEntity->SetInHiddenLayer(!isEnable);
+
 			// when is serializing (reading, as we never call this on writing), we dont want to change those values. we just use the values that come directly from serialization.
 			if (!isEnable && !gEnv->pSystem->IsSerializingFile())
 			{
 				prop.m_bIsHidden = pEntity->IsHidden();
-				prop.m_bIsActive = pEntity->IsActive();
+
+				if (auto* pComponent = static_cast<CEntityComponentLuaScript*>(pEntity->GetComponent<IEntityScriptComponent>()))
+				{
+					prop.m_bEnableScriptUpdate = pComponent->IsUpdateEnabled();
+				}
+				else
+				{
+					prop.m_bEnableScriptUpdate = false;
+				}
 			}
 
 			if (prop.m_bIsHidden)
@@ -214,7 +237,11 @@ void CEntityLayer::EnableEntities(bool isEnable)
 			if (isEnable)
 			{
 				pEntity->Hide(!isEnable);
-				pEntity->Activate(prop.m_bIsActive);
+
+				if (auto* pComponent = static_cast<CEntityComponentLuaScript*>(pEntity->GetComponent<IEntityScriptComponent>()))
+				{
+					pComponent->EnableScriptUpdate(prop.m_bEnableScriptUpdate);
+				}
 
 				if (prop.m_bIsNoAwake && pEntity->GetPhysicalProxy() && pEntity->GetPhysicalProxy()->GetPhysicalEntity())
 					pEntity->GetPhysicalProxy()->GetPhysicalEntity()->Action(&noAwake);
@@ -249,7 +276,10 @@ void CEntityLayer::EnableEntities(bool isEnable)
 						prop.m_bIsNoAwake = true;
 				}
 				pEntity->Hide(!isEnable);
-				pEntity->Activate(isEnable);
+				if (auto* pComponent = static_cast<CEntityComponentLuaScript*>(pEntity->GetComponent<IEntityScriptComponent>()))
+				{
+					pComponent->EnableScriptUpdate(isEnable);
+				}
 				if (prop.m_bIsNoAwake && pEntity->GetPhysicalProxy() && pEntity->GetPhysicalProxy()->GetPhysicalEntity())
 					pEntity->GetPhysicalProxy()->GetPhysicalEntity()->Action(&noAwake);
 			}
@@ -263,6 +293,8 @@ void CEntityLayer::EnableEntities(bool isEnable)
 			}
 		}
 		m_wasReEnabled = isEnable;
+
+		NotifyActivationToListeners(isEnable);
 	}
 
 	ReEvalNeedForHeap();
@@ -276,6 +308,15 @@ void CEntityLayer::ReEvalNeedForHeap()
 		m_pHeap = NULL;
 	}
 }
+
+void CEntityLayer::NotifyActivationToListeners(bool bActivated)
+{
+	for (TListenerSet::Notifier notifier(m_listeners); notifier.IsValid(); notifier.Next())
+	{
+		notifier->LayerEnabled(bActivated);
+	}
+}
+
 
 void CEntityLayer::GetMemoryUsage(ICrySizer* pSizer, int* pOutNumEntities)
 {
@@ -318,17 +359,17 @@ void CEntityLayer::Serialize(TSerialize ser, TLayerActivationOpVec& deferredOps)
 			EntityId id = 0;
 			bool hidden = false;
 			bool noAwake = false;
-			bool active = false;
+			bool enableScriptUpdates = false;
 			ser.Value("entityId", id);
 			ser.Value("hidden", hidden);
 			ser.Value("noAwake", noAwake);
-			ser.Value("active", active);
+			ser.Value("active", enableScriptUpdates);
 
 			EntityProp& prop = m_entities[i];
 			prop.m_id = id;
 			prop.m_bIsHidden = hidden;
 			prop.m_bIsNoAwake = noAwake;
-			prop.m_bIsActive = active;
+			prop.m_bEnableScriptUpdate = enableScriptUpdates;
 
 			ser.EndGroup();
 		}
@@ -356,11 +397,11 @@ void CEntityLayer::Serialize(TSerialize ser, TLayerActivationOpVec& deferredOps)
 			EntityId id = prop.m_id;
 			bool hidden = prop.m_bIsHidden;
 			bool noAwake = prop.m_bIsNoAwake;
-			bool active = prop.m_bIsActive;
+			bool enableScriptUpdates = prop.m_bEnableScriptUpdate;
 			ser.Value("entityId", id);
 			ser.Value("hidden", hidden);
 			ser.Value("noAwake", noAwake);
-			ser.Value("active", active);
+			ser.Value("active", enableScriptUpdates);
 			ser.EndGroup();
 		}
 	}

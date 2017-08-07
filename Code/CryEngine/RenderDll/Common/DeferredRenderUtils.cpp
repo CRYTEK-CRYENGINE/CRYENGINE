@@ -4,6 +4,7 @@
 #include "ShadowUtils.h"
 #include "DeferredRenderUtils.h"
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 void CDeferredRenderUtils::CreateUnitFrustumMesh(int tessx, int tessy, t_arrDeferredMeshIndBuff& indBuff, t_arrDeferredMeshVertBuff& vertBuff)
@@ -643,3 +644,5 @@ void CDeferredRenderUtils::CreateQuad(t_arrDeferredMeshIndBuff& indBuff, t_arrDe
 
 	indBuff.clear();
 }
+
+#pragma warning(pop)

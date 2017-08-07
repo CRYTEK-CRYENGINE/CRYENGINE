@@ -1,6 +1,9 @@
 {
   "CryAction_flowsystem_uber.cpp":{
     "Flow System/Nodes":[
+      "FlowSystem/Nodes/FlowEngineCustomNodes.cpp",
+      "FlowSystem/Nodes/FlowEntityCustomNodes.h",
+      "FlowSystem/Nodes/FlowEntityCustomNodes.cpp",
       "FlowSystem/Nodes/FlowGameNodes.cpp",
       "FlowSystem/Nodes/FlowWeaponNodes.cpp",
       "FlowSystem/Nodes/FlowInventoryNodes.cpp",
@@ -450,8 +453,7 @@
     "Network/Helpers":[
       "Network/ObjectSelector.cpp",
       "Network/NetActionSync.h",
-      "Network/ObjectSelector.h",
-      "Network/SensedInclusionSet.h"
+      "Network/ObjectSelector.h"
     ],
     "Network/Core":[
       "Network/ClassRegistryReplicator.cpp",
@@ -645,13 +647,14 @@
     ],
     "EntityContainers":
     [
-      "EntityContainers/EntityContainer.cpp",
-      "EntityContainers/EntityContainer.h",
-      "EntityContainers/EntityContainerMgr.h",
-      "EntityContainers/EntityContainerMgr.cpp",
-      "EntityContainers/IEntityContainerListener.h",
-      "EntityContainers/EntityContainerObject.cpp",
-      "EntityContainers/EntityContainerObject.h"
+		"EntityContainers/EntityContainer.cpp",
+		"EntityContainers/EntityContainerMgr.cpp",
+		"EntityContainers/EntityContainerObject.cpp",
+		"EntityContainers/EntityContainer.h",
+		"EntityContainers/EntityContainerMgr.h",
+		"EntityContainers/EntityContainerObject.h",
+		"EntityContainers/IEntityContainerListener.h",
+		"EntityContainers/FlowEntityContainerNodes.cpp"
     ]
   },
   "CryAction_main_uber_1.cpp":{
@@ -666,6 +669,7 @@
       "AIFaceManager.cpp",
       "CallbackTimer.cpp",
       "CryAction.cpp",
+      "CryAction_RMI.cpp",
       "CryActionCVars.cpp",
       "DevMode.cpp",
       "Main.cpp",

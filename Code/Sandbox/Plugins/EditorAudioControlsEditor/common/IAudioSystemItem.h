@@ -12,31 +12,15 @@ namespace ACE
 class IAudioSystemItem
 {
 public:
-	IAudioSystemItem::IAudioSystemItem()
-		: m_name("")
-		, m_id(ACE_INVALID_ID)
-		, m_type(AUDIO_SYSTEM_INVALID_TYPE)
-		, m_bPlaceholder(false)
-		, m_bLocalised(false)
-		, m_parent(nullptr)
-		, m_bConnected(false)
-		, m_radius(0.0f)
-	{
-	}
-
-	IAudioSystemItem::IAudioSystemItem(const string& name, CID id, ItemType type)
+	IAudioSystemItem() = default;
+	IAudioSystemItem(const string& name, CID id, ItemType type)
 		: m_name(name)
 		, m_id(id)
 		, m_type(type)
-		, m_bPlaceholder(false)
-		, m_bLocalised(false)
-		, m_parent(nullptr)
-		, m_bConnected(false)
-		, m_radius(0.0f)
 	{
 	}
 
-	virtual ~IAudioSystemItem() {}
+	virtual ~IAudioSystemItem() = default;
 
 	// unique id for this control
 	CID              GetId() const          { return m_id; }
@@ -54,33 +38,34 @@ public:
 		}
 	}
 
-	virtual bool      IsPlaceholder() const                { return m_bPlaceholder; }
-	void              SetPlaceholder(bool bIsPlaceholder)  { m_bPlaceholder = bIsPlaceholder; }
+	virtual bool      IsPlaceholder() const                       { return m_bPlaceholder; }
+	void              SetPlaceholder(bool bIsPlaceholder)         { m_bPlaceholder = bIsPlaceholder; }
 
-	virtual bool      IsLocalised() const                  { return m_bLocalised; }
-	void              SetLocalised(bool bIsLocalised)      { m_bLocalised = bIsLocalised; }
+	virtual bool      IsLocalised() const                         { return m_bLocalised; }
+	void              SetLocalised(bool bIsLocalised)             { m_bLocalised = bIsLocalised; }
 
-	virtual bool      IsConnected() const                  { return m_bConnected; }
-	void              SetConnected(bool bConnected)        { m_bConnected = bConnected; }
+	virtual bool      IsConnected() const                         { return m_bConnected; }
+	void              SetConnected(bool bConnected)               { m_bConnected = bConnected; }
 
-	size_t            ChildCount() const                   { return m_children.size(); }
-	void              AddChild(IAudioSystemItem* pChild)   { m_children.push_back(pChild); pChild->SetParent(this); }
-	IAudioSystemItem* GetChildAt(uint index) const         { return m_children[index]; }
-	void              SetParent(IAudioSystemItem* pParent) { m_parent = pParent; }
-	IAudioSystemItem* GetParent() const                    { return m_parent; }
+	size_t            ChildCount() const                          { return m_children.size(); }
+	void              AddChild(IAudioSystemItem* const pChild)    { m_children.push_back(pChild); pChild->SetParent(this); }
+	void              RemoveChild(IAudioSystemItem* const pChild) { stl::find_and_erase(m_children, pChild); pChild->SetParent(nullptr); }
+	IAudioSystemItem* GetChildAt(size_t const index) const        { return m_children[index]; }
+	void              SetParent(IAudioSystemItem* pParent)        { m_parent = pParent; }
+	IAudioSystemItem* GetParent() const                           { return m_parent; }
 
-	void              SetRadius(float radius)              { m_radius = radius; }
-	float             GetRadius() const                    { return m_radius; }
+	void              SetRadius(float radius)                     { m_radius = radius; }
+	float             GetRadius() const                           { return m_radius; }
 
 private:
-	CID                            m_id;
-	ItemType                       m_type;
+	CID                            m_id = ACE_INVALID_ID;
+	ItemType                       m_type = AUDIO_SYSTEM_INVALID_TYPE;
 	string                         m_name;
-	bool                           m_bPlaceholder;
-	bool                           m_bLocalised;
-	bool                           m_bConnected;
+	bool                           m_bPlaceholder = false;
+	bool                           m_bLocalised = false;
+	bool                           m_bConnected = false;
 	std::vector<IAudioSystemItem*> m_children;
-	IAudioSystemItem*              m_parent;
-	float                          m_radius;
+	IAudioSystemItem*              m_parent = nullptr;
+	float                          m_radius = 0.0f;
 };
-}
+} // namespace ACE

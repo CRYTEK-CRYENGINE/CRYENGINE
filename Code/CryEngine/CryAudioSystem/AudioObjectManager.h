@@ -34,7 +34,7 @@ public:
 	CAudioObjectManager& operator=(CAudioObjectManager const&) = delete;
 	CAudioObjectManager& operator=(CAudioObjectManager&&) = delete;
 
-	void                 Init(Impl::IAudioImpl* const pImpl);
+	void                 Init(Impl::IImpl* const pIImpl);
 	void                 Release();
 	void                 Update(float const deltaTime, Impl::SObject3DAttributes const& listenerAttributes);
 	void                 RegisterObject(CATLAudioObject* const pObject);
@@ -58,9 +58,9 @@ public:
 	  AudioSwitchLookup const& switches,
 	  AudioPreloadRequestLookup const& preloadRequests,
 	  AudioEnvironmentLookup const& environments) const;
-	void DrawDebugInfo(IRenderAuxGeom& auxGeom, float posX, float posY) const;
+	void DrawDebugInfo(IRenderAuxGeom& auxGeom, Vec3 const& listenerPosition, float const posX, float posY) const;
 
-#endif //INCLUDE_AUDIO_PRODUCTION_CODE
+#endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
 private:
 
@@ -70,7 +70,7 @@ private:
 
 	ConstructedAudioObjectsList  m_constructedAudioObjects;
 
-	Impl::IAudioImpl*            m_pImpl;
+	Impl::IImpl*                 m_pIImpl;
 	float                        m_timeSinceLastControlsUpdate;
 
 	CAudioEventManager&          m_audioEventMgr;

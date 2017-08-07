@@ -21,6 +21,8 @@
 #include <CrySystem/ISystemScheduler.h> // <> required for Interfuscator
 
 #include <CryMath/LCGRandom.h>
+#include <CryExtension/ICryFactory.h>
+#include <CryExtension/ICryUnknown.h>
 
 struct ILog;
 struct IProfileLogSystem;
@@ -46,7 +48,7 @@ struct IScriptSystem;
 struct IAISystem;
 struct IFlash;
 struct INetwork;
-struct IOnline;
+struct INetContext;
 struct ICryLobby;
 struct ICryFont;
 struct IMovieSystem;
@@ -127,7 +129,7 @@ struct IManager;
 struct IHost;
 }
 
-struct IMonoRuntime;
+struct IMonoEngineModule;
 
 struct ILocalMemoryUsage;
 
@@ -309,6 +311,9 @@ enum ESystemEvent
 	//! Called when the game framework has been initialized, not loading should happen in this event.
 	ESYSTEM_EVENT_GAME_POST_INIT_DONE,
 
+	//! Called when the sanbox has finished initialization
+	ESYSTEM_EVENT_SANDBOX_POST_INIT_DONE,
+
 	//! Sent when the system is doing a full shutdown.
 	ESYSTEM_EVENT_FULL_SHUTDOWN,
 
@@ -461,7 +466,10 @@ enum ESystemEvent
 	ESYSTEM_EVENT_REGISTER_FLOWNODES,
 
 	//! Sent if the CryAction module initialized successfully. (Remark: Sent after ESYSTEM_EVENT_CRYSYSTEM_INIT_DONE and after (potential) game init was called)
-	ESYSTEM_EVENT_GAME_FRAMEWORK_INIT_DONE
+	ESYSTEM_EVENT_GAME_FRAMEWORK_INIT_DONE,
+
+	//! Sent if the CryAction module is about to shutdown
+	ESYSTEM_EVENT_GAME_FRAMEWORK_ABOUT_TO_SHUTDOWN
 };
 
 //! User defined callback, which can be passed to ISystem.
@@ -612,7 +620,6 @@ struct SSystemInitParams
 	bool                 bEditor;             //!< When running in Editor mode.
 	bool                 bManualEngineLoop;   //!< Whether or not the engine should manage the engine loop by itself
 	bool                 bPreview;            //!< When running in Preview mode (Minimal initialization).
-	bool                 bTestMode;           //!< When running in Automated testing mode.
 	bool                 bDedicatedServer;    //!< When running a dedicated server.
 	bool                 bExecuteCommandLine; //!< can be switched of to suppress the feature or do it later during the initialization.
 	bool                 bUIFramework;
@@ -624,7 +631,7 @@ struct SSystemInitParams
 	bool                 bSkipWebsocketServer; //!< Don't create the WebSocket server.
 	bool                 bMinimal;             //!< Don't load banks.
 	bool                 bSkipInput;           //!< do not load CryInput.
-	bool                 bTesting;             //!< CryUnit.
+	bool                 bTesting;             //!< When running CryUnitTest.
 	bool                 bNoRandom;            //!< use fixed generator init/seed.
 	bool                 bShaderCacheGen;      //!< When running in shadercache gen mode.
 	bool                 bUnattendedMode;      //!< When running as part of a build on build-machines: Prevent popping up of any dialog.
@@ -667,7 +674,6 @@ struct SSystemInitParams
 		bEditor = false;
 		bManualEngineLoop = false;
 		bPreview = false;
-		bTestMode = false;
 		bDedicatedServer = false;
 		bExecuteCommandLine = true;
 		bUIFramework = false;
@@ -794,7 +800,7 @@ struct SSystemGlobalEnvironment
 	IDialogSystem*               pDialogSystem;
 	I3DEngine*                   p3DEngine;
 	INetwork*                    pNetwork;
-	IOnline*                     pOnline;
+	INetContext*                 pNetContext;
 	ICryLobby*                   pLobby;
 	IScriptSystem*               pScriptSystem;
 	IPhysicalWorld*              pPhysicalWorld;
@@ -847,7 +853,7 @@ struct SSystemGlobalEnvironment
 	LiveCreate::IManager* pLiveCreateManager;
 	LiveCreate::IHost*    pLiveCreateHost;
 
-	IMonoRuntime*         pMonoRuntime;
+	IMonoEngineModule*    pMonoRuntime;
 
 	threadID              mMainThreadId;      //!< The main thread ID is used in multiple systems so should be stored globally.
 
@@ -1262,7 +1268,7 @@ struct ISystem
 	virtual ITimer*                            GetITimer() = 0;
 
 	virtual IThreadManager*                    GetIThreadManager() = 0;
-	virtual IMonoRuntime*                      GetIMonoRuntime() = 0;
+	virtual IMonoEngineModule*                 GetIMonoEngineModule() = 0;
 
 	virtual void                               SetLoadingProgressListener(ILoadingProgressListener* pListener) = 0;
 	virtual ISystem::ILoadingProgressListener* GetLoadingProgressListener() const = 0;
@@ -1327,9 +1333,6 @@ struct ISystem
 	//! \return Pointer to the current active process.
 	virtual IProcess* GetIProcess() = 0;
 
-	//! \return true if system running in Test mode.
-	virtual bool IsTestMode() const = 0;
-
 	//! Frame profiler functions.
 	virtual void SetFrameProfiler(bool on, bool display, char* prefix) = 0;
 
@@ -1342,10 +1345,10 @@ struct ISystem
 	virtual void EndLoadingSectionProfiling(CLoadingTimeProfiler* pProfiler) = 0;
 
 	//! Starts function profiling with bootprofiler (session must be started).
-	virtual CBootProfilerRecord* StartBootSectionProfiler(const char* name, const char* args, unsigned int& sessionIndex) = 0;
+	virtual CBootProfilerRecord* StartBootSectionProfiler(const char* name, const char* args) = 0;
 
 	//! Ends function profiling with bootprofiler.
-	virtual void StopBootSectionProfiler(CBootProfilerRecord* record, const unsigned int sessionIndex) = 0;
+	virtual void StopBootSectionProfiler(CBootProfilerRecord* record) = 0;
 
 	// Summary:
 	//	 Starts bootprofiler session.
@@ -1547,11 +1550,31 @@ struct ISystem
 	//! Initializes Steam if needed and returns if it was successful.
 	virtual bool SteamInit() = 0;
 
+	//! Loads a dynamic library and returns the first factory with the specified interface id contained inside the module
+	virtual ICryFactory* LoadModuleWithFactory(const char* szDllName, const CryInterfaceID& moduleInterfaceId) = 0;
+
+	//! Loads a dynamic library and creates an instance of the first factory contained inside the module
+	template<typename T>
+	inline std::shared_ptr<T> LoadModuleAndCreateFactoryInstance(const char* szDllName, const SSystemInitParams& initParams)
+	{
+		if (ICryFactory* pFactory = LoadModuleWithFactory(szDllName, cryiidof<T>()))
+		{
+			// Create an instance of the implementation
+			std::shared_ptr<T> pModule = cryinterface_cast<T, ICryUnknown>(pFactory->CreateClassInstance());
+
+			pModule->Initialize(*GetGlobalEnvironment(), initParams);
+
+			return pModule;
+		}
+
+		return nullptr;
+	}
+
 	//! Loads a dynamic library, creates and initializes an instance of the module class
-	virtual bool InitializeEngineModule(const char* dllName, const char* moduleClassName, bool bQuitIfNotFound) = 0;
+	virtual bool InitializeEngineModule(const char* szDllName, const CryInterfaceID& moduleInterfaceId, bool bQuitIfNotFound) = 0;
 
 	//! Unloads a dynamic library as well as the corresponding instance of the module class
-	virtual bool UnloadEngineModule(const char* dllName, const char* moduleClassName) = 0;
+	virtual bool UnloadEngineModule(const char* szDllName) = 0;
 
 	//! Gets the root window message handler function.
 	//! The returned pointer is platform-specific: for Windows OS, the pointer is of type WNDPROC
@@ -1655,18 +1678,17 @@ class CSYSBootProfileBlock
 {
 	ISystem*             m_pSystem;
 	CBootProfilerRecord* m_pRecord;
-	unsigned int         m_sessionIndex;
 public:
-	CSYSBootProfileBlock(ISystem* pSystem, const char* name, const char* args = NULL) : m_pSystem(pSystem), m_sessionIndex(~0U)
+	CSYSBootProfileBlock(ISystem* pSystem, const char* name, const char* args = NULL) : m_pSystem(pSystem)
 	{
-		m_pRecord = m_pSystem ? m_pSystem->StartBootSectionProfiler(name, args, m_sessionIndex) : nullptr;
+		m_pRecord = m_pSystem ? m_pSystem->StartBootSectionProfiler(name, args) : nullptr;
 	}
 
 	~CSYSBootProfileBlock()
 	{
 		if (m_pRecord)
 		{
-			m_pSystem->StopBootSectionProfiler(m_pRecord, m_sessionIndex);
+			m_pSystem->StopBootSectionProfiler(m_pRecord);
 		}
 	}
 };
@@ -1971,7 +1993,7 @@ struct SDummyCVar : ICVar
 	void            SetOnChangeCallback(ConsoleVarFunc pChangeFunc) override       { (void)pChangeFunc; }
 	uint64          AddOnChangeFunctor(const SFunctor& /*changeFunctor*/) override { return 0;  }
 	uint64          GetNumberOfOnChangeFunctors() const override                   { return 0; }
-	const SFunctor& GetOnChangeFunctor(uint64 nFunctorIndex) const override        { InvalidAccess(); return *(const SFunctor*)NULL; }
+	const SFunctor& GetOnChangeFunctor(uint64 nFunctorIndex) const override        { InvalidAccess();  static SFunctor oDummy; return oDummy; }
 	bool            RemoveOnChangeFunctor(const uint64 nElement) override          { return true; }
 	ConsoleVarFunc  GetOnChangeCallback() const override                           { InvalidAccess(); return NULL; }
 	void            GetMemoryUsage(class ICrySizer* pSizer) const override         {}
@@ -2236,3 +2258,11 @@ CRY_ASYNC_MEMCPY_API void cryAsyncMemcpy(
 #endif
 
 #include <CrySystem/Profilers/FrameProfiler/FrameProfiler.h>
+
+inline CryGUID CryGUID::Create()
+{
+	CryGUID guid;
+	gEnv->pSystem->FillRandomMT(reinterpret_cast<uint32*>(&guid), sizeof(guid) / sizeof(uint32));
+	MEMORY_RW_REORDERING_BARRIER;
+	return guid;
+}

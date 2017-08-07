@@ -384,10 +384,9 @@ void CDecal::RenderBigDecalOnTerrain(float fAlpha, float fScale, const SRenderin
 	if (m_vPos.x >= CTerrain::GetTerrainSize() + fRadius || m_vPos.y >= CTerrain::GetTerrainSize() + fRadius)
 		return;
 
-	const int nUsintSize = CTerrain::GetHeightMapUnitSize();
-	fRadius += nUsintSize;
+	fRadius += CTerrain::GetHeightMapUnitSize();
 
-	if (fabs(m_vPos.z - Get3DEngine()->GetTerrainZ(int(m_vPos.x), int(m_vPos.y))) > fRadius)
+	if (fabs(m_vPos.z - Get3DEngine()->GetTerrainZ((m_vPos.x), (m_vPos.y))) > fRadius)
 		return; // too far from ground surface
 
 	// setup texgen
@@ -485,7 +484,7 @@ void CDecal::AddDecalToRenderView(float fDistance,
 	{
 		// transfer decal into object space
 		Matrix34A objMat;
-		IStatObj* pEntObject = pVegetation->GetEntityStatObj(0, 0, &objMat);
+		IStatObj* pEntObject = pVegetation->GetEntityStatObj(0, &objMat);
 		pRenderObject->m_II.m_Matrix = objMat;
 		pRenderObject->m_ObjFlags |= FOB_TRANS_MASK;
 		pVegetation->FillBendingData(pRenderObject);

@@ -8,21 +8,27 @@
 #include <CrySystem/IEngineModule.h>
 #include <CryExtension/ClassWeaver.h>
 
-using namespace CryAudio;
-using namespace CryAudio::Impl::SDL_mixer;
-
+namespace CryAudio
+{
+namespace Impl
+{
+namespace SDL_mixer
+{
 // Define global objects.
-CAudioLogger g_audioImplLogger;
-CAudioImplCVars CryAudio::Impl::SDL_mixer::g_audioImplCVars;
+CLogger g_implLogger;
+CCVars g_cvars;
 
 //////////////////////////////////////////////////////////////////////////
-class CEngineModule_CryAudioImplSDLMixer : public IEngineModule
+class CEngineModule_CryAudioImplSDLMixer : public IImplModule
 {
-	CRYINTERFACE_SIMPLE(IEngineModule)
-	CRYGENERATE_SINGLETONCLASS(CEngineModule_CryAudioImplSDLMixer, "EngineModule_AudioImpl", 0x8030c0d1905b4031, 0xa3785a8b53125f3f)
+	CRYINTERFACE_BEGIN()
+	CRYINTERFACE_ADD(Cry::IDefaultModule)
+	CRYINTERFACE_ADD(IImplModule)
+	CRYINTERFACE_END()
+
+	CRYGENERATE_SINGLETONCLASS_GUID(CEngineModule_CryAudioImplSDLMixer, "EngineModule_AudioImpl", "8030c0d1-905b-4031-a378-5a8b53125f3f"_cry_guid)
 
 	CEngineModule_CryAudioImplSDLMixer();
-	virtual ~CEngineModule_CryAudioImplSDLMixer() {}
 
 	//////////////////////////////////////////////////////////////////////////
 	virtual char const* GetName() const override     { return "CryAudioImplSDLMixer"; }
@@ -31,27 +37,27 @@ class CEngineModule_CryAudioImplSDLMixer : public IEngineModule
 	//////////////////////////////////////////////////////////////////////////
 	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override
 	{
-		gEnv->pAudioSystem->AddRequestListener(&CEngineModule_CryAudioImplSDLMixer::OnAudioEvent, nullptr, eSystemEvent_ImplSet);
-		SRequestUserData const data(eRequestFlags_ExecuteBlocking | eRequestFlags_SyncCallback);
-		gEnv->pAudioSystem->SetImpl(new CAudioImpl, data);
-		gEnv->pAudioSystem->RemoveRequestListener(&CEngineModule_CryAudioImplSDLMixer::OnAudioEvent, nullptr);
+		gEnv->pAudioSystem->AddRequestListener(&CEngineModule_CryAudioImplSDLMixer::OnEvent, nullptr, ESystemEvents::ImplSet);
+		SRequestUserData const data(ERequestFlags::ExecuteBlocking | ERequestFlags::CallbackOnExternalOrCallingThread);
+		gEnv->pAudioSystem->SetImpl(new CImpl, data);
+		gEnv->pAudioSystem->RemoveRequestListener(&CEngineModule_CryAudioImplSDLMixer::OnEvent, nullptr);
 
 		if (m_bSuccess)
 		{
-			g_audioImplLogger.Log(eAudioLogType_Always, "CryAudioImplSDLMixer loaded");
+			g_implLogger.Log(ELogType::Always, "CryAudioImplSDLMixer loaded");
 		}
 		else
 		{
-			g_audioImplLogger.Log(eAudioLogType_Error, "CryAudioImplSDLMixer failed to load");
+			g_implLogger.Log(ELogType::Error, "CryAudioImplSDLMixer failed to load");
 		}
 
 		return m_bSuccess;
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	static void OnAudioEvent(SRequestInfo const* const pAudioRequestInfo)
+	static void OnEvent(SRequestInfo const* const pRequestInfo)
 	{
-		m_bSuccess = pAudioRequestInfo->requestResult == eRequestResult_Success;
+		m_bSuccess = pRequestInfo->requestResult == ERequestResult::Success;
 	}
 
 	static bool m_bSuccess;
@@ -62,7 +68,9 @@ bool CEngineModule_CryAudioImplSDLMixer::m_bSuccess = false;
 
 CEngineModule_CryAudioImplSDLMixer::CEngineModule_CryAudioImplSDLMixer()
 {
-	g_audioImplCVars.RegisterVariables();
+	g_cvars.RegisterVariables();
 }
-
+} // namespace SDL_mixer
+} // namespace Impl
+} // namespace CryAudio
 #include <CryCore/CrtDebugStats.h>

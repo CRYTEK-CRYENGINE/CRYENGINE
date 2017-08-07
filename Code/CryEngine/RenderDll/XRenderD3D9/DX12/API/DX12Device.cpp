@@ -2,13 +2,15 @@
 
 #include "StdAfx.h"
 #include "DX12Device.hpp"
+#include "DX12CommandList.hpp"
+#include "DX12CommandScheduler.hpp"
 #include "DX12Resource.hpp"
 
 #define DX12_GLOBALHEAP_RESOURCES (1 << D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
 #define DX12_GLOBALHEAP_SAMPLERS  (1 << D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
 #define DX12_GLOBALHEAP_TYPES     DX12_GLOBALHEAP_RESOURCES
 
-#ifdef  CRY_USE_DX12_MULTIADAPTER
+#ifdef  DX12_LINKEDADAPTER
 	#define INCLUDE_STATICS
 	#include "Redirections/D3D12Device.inl"
 #endif
@@ -16,32 +18,43 @@
 namespace NCryDX12 {
 
 //---------------------------------------------------------------------------------------------------------------------
-CDevice* CDevice::Create(IDXGIAdapter* pAdapter, D3D_FEATURE_LEVEL* pFeatureLevel)
+CDevice* CDevice::Create(CCryDX12GIAdapter* pAdapter, D3D_FEATURE_LEVEL* pFeatureLevel)
 {
 	ID3D12Device* pDevice12 = NULL;
 
 	if (CRenderer::CV_r_EnableDebugLayer)
 	{
-		ID3D12Debug* debugInterface;
-		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface))))
+		ID3D12Debug* debugInterface = nullptr;
+		if (SUCCEEDED(D3D12GetDebugInterface(IID_GFX_ARGS(&debugInterface))))
 		{
 			debugInterface->EnableDebugLayer();
 		}
 	}
 
+	IGfxUnknown* pDXGIAdapter = pAdapter ? pAdapter->GetDXGIAdapter() : nullptr;
+
+#ifndef CRY_PLATFORM_CONSOLE
+	// On console there is only one adapter (the default one which can be reached using nullptr)
+	if (pDXGIAdapter == nullptr)
+	{
+		DX12_ASSERT(0, "No adapter available to create D3D12 Device!");
+		return NULL;
+	}
+#endif // !CRY_PLATFORM_CONSOLE
+
 	D3D_FEATURE_LEVEL level;
 	HRESULT hr =
-	  (D3D12CreateDevice(pAdapter, level = D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&pDevice12)) == S_OK) ||
-	  (D3D12CreateDevice(pAdapter, level = D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&pDevice12)) == S_OK) ||
-	  //		(D3D12CreateDevice(pAdapter, level = D3D_FEATURE_LEVEL_11_3, IID_PPV_ARGS(&pDevice12)) == S_OK) ||
-	  //		(D3D12CreateDevice(pAdapter, level = D3D_FEATURE_LEVEL_11_2, IID_PPV_ARGS(&pDevice12)) == S_OK) ||
-	  (D3D12CreateDevice(pAdapter, level = D3D_FEATURE_LEVEL_11_1, IID_PPV_ARGS(&pDevice12)) == S_OK) ||
-	  (D3D12CreateDevice(pAdapter, level = D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&pDevice12)) == S_OK) ||
-	  (D3D12CreateDevice(pAdapter, level = D3D_FEATURE_LEVEL_10_1, IID_PPV_ARGS(&pDevice12)) == S_OK) ||
-	  (D3D12CreateDevice(pAdapter, level = D3D_FEATURE_LEVEL_10_0, IID_PPV_ARGS(&pDevice12)) == S_OK) ||
-	  (D3D12CreateDevice(pAdapter, level = D3D_FEATURE_LEVEL_9_3, IID_PPV_ARGS(&pDevice12)) == S_OK) ||
-	  (D3D12CreateDevice(pAdapter, level = D3D_FEATURE_LEVEL_9_2, IID_PPV_ARGS(&pDevice12)) == S_OK) ||
-	  (D3D12CreateDevice(pAdapter, level = D3D_FEATURE_LEVEL_9_1, IID_PPV_ARGS(&pDevice12)) == S_OK) ? S_OK : S_FALSE;
+	  (D3D12CreateDevice(pDXGIAdapter, level = D3D_FEATURE_LEVEL_12_1, IID_GFX_ARGS(&pDevice12)) == S_OK) ||
+	  (D3D12CreateDevice(pDXGIAdapter, level = D3D_FEATURE_LEVEL_12_0, IID_GFX_ARGS(&pDevice12)) == S_OK) ||
+//	  (D3D12CreateDevice(pDXGIAdapter, level = D3D_FEATURE_LEVEL_11_3, IID_GFX_ARGS(&pDevice12)) == S_OK) ||
+//	  (D3D12CreateDevice(pDXGIAdapter, level = D3D_FEATURE_LEVEL_11_2, IID_GFX_ARGS(&pDevice12)) == S_OK) ||
+	  (D3D12CreateDevice(pDXGIAdapter, level = D3D_FEATURE_LEVEL_11_1, IID_GFX_ARGS(&pDevice12)) == S_OK) ||
+	  (D3D12CreateDevice(pDXGIAdapter, level = D3D_FEATURE_LEVEL_11_0, IID_GFX_ARGS(&pDevice12)) == S_OK) ||
+	  (D3D12CreateDevice(pDXGIAdapter, level = D3D_FEATURE_LEVEL_10_1, IID_GFX_ARGS(&pDevice12)) == S_OK) ||
+	  (D3D12CreateDevice(pDXGIAdapter, level = D3D_FEATURE_LEVEL_10_0, IID_GFX_ARGS(&pDevice12)) == S_OK) ||
+	  (D3D12CreateDevice(pDXGIAdapter, level = D3D_FEATURE_LEVEL_9_3 , IID_GFX_ARGS(&pDevice12)) == S_OK) ||
+	  (D3D12CreateDevice(pDXGIAdapter, level = D3D_FEATURE_LEVEL_9_2 , IID_GFX_ARGS(&pDevice12)) == S_OK) ||
+	  (D3D12CreateDevice(pDXGIAdapter, level = D3D_FEATURE_LEVEL_9_1 , IID_GFX_ARGS(&pDevice12)) == S_OK) ? S_OK : S_FALSE;
 
 	if (hr != S_OK)
 	{
@@ -52,7 +65,7 @@ CDevice* CDevice::Create(IDXGIAdapter* pAdapter, D3D_FEATURE_LEVEL* pFeatureLeve
 	UINT nodeMask = 0;
 	UINT nodeCount = 1;
 
-#ifdef CRY_USE_DX12_MULTIADAPTER
+#ifdef DX12_LINKEDADAPTER
 	nodeCount = pDevice12->GetNodeCount();
 	if (!CRenderer::CV_r_StereoDevice || !CRenderer::CV_r_StereoEnableMgpu)
 		nodeCount = 1;
@@ -90,7 +103,7 @@ CDevice* CDevice::Create(IDXGIAdapter* pAdapter, D3D_FEATURE_LEVEL* pFeatureLeve
 	return result;
 }
 
-#ifdef CRY_USE_DX12_MULTIADAPTER
+#ifdef DX12_LINKEDADAPTER
 bool CDevice::IsMultiAdapter() const
 {
 	return CRenderer::CV_r_StereoEnableMgpu && (int(m_nodeCount) > 1);
@@ -175,7 +188,7 @@ HRESULT STDMETHODCALLTYPE CDevice::DuplicateNativeCommittedResource(
 		&resourceDesc,
 		initialState,
 		nullptr,
-		IID_PPV_ARGS(&outputResource));
+		IID_GFX_ARGS(&outputResource));
 
 	if (result == S_OK && outputResource != nullptr)
 	{
@@ -187,46 +200,6 @@ HRESULT STDMETHODCALLTYPE CDevice::DuplicateNativeCommittedResource(
 	return result;
 }
 #endif
-
-//---------------------------------------------------------------------------------------------------------------------
-HRESULT STDMETHODCALLTYPE CDevice::DuplicateCommittedResource(
-  _In_ ID3D12Resource* pInputResource,
-  _In_ D3D12_RESOURCE_STATES OutputState,
-  _Out_ ID3D12Resource** ppOutputResource)
-{
-	D3D12_HEAP_PROPERTIES sHeap;
-	D3D12_RESOURCE_DESC resourceDesc = pInputResource->GetDesc();
-
-	pInputResource->GetHeapProperties(&sHeap, nullptr);
-
-	ID3D12Resource* outputResource = nullptr;
-	HRESULT result = CreateOrReuseCommittedResource(
-		&sHeap,
-		D3D12_HEAP_FLAG_NONE,
-		&resourceDesc,
-		OutputState,
-		nullptr,
-		IID_PPV_ARGS(&outputResource));
-
-	if (result == S_OK && outputResource != nullptr)
-	{
-#ifdef CRY_USE_DX12_MULTIADAPTER
-		if (IsMultiAdapter())
-		{
-			((BroadcastableD3D12Device<2>*)m_pDevice.get())->DuplicateMetaData(
-				pInputResource,
-				outputResource
-			);
-		}
-#endif
-
-		*ppOutputResource = outputResource;
-
-		return S_OK;
-	}
-
-	return result;
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -243,16 +216,26 @@ CDevice::CDevice(ID3D12Device* d3d12Device, D3D_FEATURE_LEVEL featureLevel, UINT
 	, m_RenderTargetDescriptorCache(this)
 	, m_ResourceDescriptorScratchSpace(this)
 #if defined(_ALLOW_INITIALIZER_LISTS)
-	, m_GlobalDescriptorHeaps{{ this }, {
-			this
-	  }, {
-			this
-	  }, {
-			this
-	  }}
+	// *INDENT-OFF*
+	, m_GlobalDescriptorHeaps
+	{
+#ifdef __d3d12_x_h__
+		{ this },
 #endif
+		{ this },
+		{ this },
+		{ this },
+		{ this }
+	}
+	// *INDENT-ON*
+#endif
+	// Must be constructed last as it relies on functionality from the heaps
+	, m_Scheduler(this, nodeMask)
 {
 #if !defined(_ALLOW_INITIALIZER_LISTS)
+#ifdef __d3d12_x_h__
+	m_GlobalDescriptorHeaps.emplace_back(this);
+#endif
 	m_GlobalDescriptorHeaps.emplace_back(this);
 	m_GlobalDescriptorHeaps.emplace_back(this);
 	m_GlobalDescriptorHeaps.emplace_back(this);
@@ -261,7 +244,6 @@ CDevice::CDevice(ID3D12Device* d3d12Device, D3D_FEATURE_LEVEL featureLevel, UINT
 
 	m_PSOCache.Init(this);
 	m_RootSignatureCache.Init(this);
-	m_DataStreamer.Init(this);
 
 	// init sampler cache
 	{
@@ -331,6 +313,8 @@ CDevice::CDevice(ID3D12Device* d3d12Device, D3D_FEATURE_LEVEL featureLevel, UINT
 			m_GlobalDescriptorHeaps[eType].Init(desc);
 		}
 	}
+
+	m_Scheduler.BeginScheduling();
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -353,7 +337,7 @@ void CDevice::RequestUploadHeapMemory(UINT64 size, DX12_PTR(ID3D12Resource)& res
 	      &CD3DX12_RESOURCE_DESC::Buffer(size),
 	      D3D12_RESOURCE_STATE_GENERIC_READ,
 	      nullptr,
-	      IID_PPV_ARGS(&resource)) || !resource)
+	      IID_GFX_ARGS(&resource)) || !resource)
 	{
 		DX12_ASSERT(0, "Could not create upload heap memory buffer!");
 		return;
@@ -361,6 +345,35 @@ void CDevice::RequestUploadHeapMemory(UINT64 size, DX12_PTR(ID3D12Resource)& res
 
 	result = resource;
 	resource->Release();
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+CDescriptorBlock CDevice::GetGlobalDescriptorBlock(D3D12_DESCRIPTOR_HEAP_TYPE eType, UINT size)
+{
+	CryAutoLock<CryCriticalSectionNonRecursive> m_DescriptorAllocatorTheadSafeScope(m_DescriptorAllocatorTheadSafeScope);
+
+	if (DX12_GLOBALHEAP_TYPES & (1 << eType))
+	{
+		DX12_ASSERT(int64(m_GlobalDescriptorHeaps[eType].GetCapacity()) - int64(m_GlobalDescriptorHeaps[eType].GetCursor()) >= int64(size));
+		CDescriptorBlock result(&m_GlobalDescriptorHeaps[eType], m_GlobalDescriptorHeaps[eType].GetCursor(), size);
+		m_GlobalDescriptorHeaps[eType].IncrementCursor(size);
+		return result;
+	}
+
+	CDescriptorHeap* pResourceHeap = DX12_NEW_RAW(CDescriptorHeap(this));
+
+	D3D12_DESCRIPTOR_HEAP_DESC desc = {
+		eType,
+		size,
+		(eType == D3D12_DESCRIPTOR_HEAP_TYPE_RTV || eType == D3D12_DESCRIPTOR_HEAP_TYPE_DSV ? D3D12_DESCRIPTOR_HEAP_FLAG_NONE : D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE),
+		m_nodeMask
+	};
+
+	pResourceHeap->Init(desc);
+
+	CDescriptorBlock result(pResourceHeap, pResourceHeap->GetCursor(), size);
+	pResourceHeap->Release();
+	return result;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -396,6 +409,9 @@ CryCriticalSectionNonRecursive CDevice::m_UnorderedAccessThreadSafeScope;
 CryCriticalSectionNonRecursive CDevice::m_DepthStencilThreadSafeScope;
 CryCriticalSectionNonRecursive CDevice::m_RenderTargetThreadSafeScope;
 CryCriticalSectionNonRecursive CDevice::m_DescriptorAllocatorTheadSafeScope;
+
+CryCriticalSectionNonRecursive CDevice::m_ReleaseHeapTheadSafeScope;
+CryCriticalSectionNonRecursive CDevice::m_RecycleHeapTheadSafeScope;
 
 //---------------------------------------------------------------------------------------------------------------------
 void CDevice::InvalidateSampler(const D3D12_SAMPLER_DESC* pDesc)
@@ -500,7 +516,14 @@ D3D12_CPU_DESCRIPTOR_HANDLE CDevice::CacheShaderResourceView(const D3D12_SHADER_
 {
 	CryAutoLock<CryCriticalSectionNonRecursive> lThreadSafeScope(m_ShaderResourceThreadSafeScope);
 
-	THash hHash = GetShaderResourceViewHash(pDesc, pResource);
+	// In case of null resource: make sure we have a valid format. TODO: never feed the function with UNKNOWN
+	D3D12_SHADER_RESOURCE_VIEW_DESC Desc = *pDesc;
+	if (!pResource)
+	{
+		Desc.Format = DXGI_FORMAT_R32_UINT;
+	}
+
+	THash hHash = GetShaderResourceViewHash(&Desc, pResource);
 
 	auto itCachedSRV = m_ShaderResourceDescriptorLookupTable.find(hHash);
 	if (itCachedSRV == m_ShaderResourceDescriptorLookupTable.end())
@@ -523,7 +546,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE CDevice::CacheShaderResourceView(const D3D12_SHADER_
 			m_ShaderResourceDescriptorCache.IncrementCursor();
 		}
 
-		GetD3D12Device()->CreateShaderResourceView(pResource, pDesc, dstHandle);
+		GetD3D12Device()->CreateShaderResourceView(pResource, &Desc, dstHandle);
 
 		auto insertResult = m_ShaderResourceDescriptorLookupTable.emplace(hHash, dstHandle);
 		DX12_ASSERT(insertResult.second);
@@ -648,7 +671,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE CDevice::CacheRenderTargetView(const D3D12_RENDER_TA
 HRESULT STDMETHODCALLTYPE CDevice::CreateOrReuseStagingResource(
   _In_ ID3D12Resource* pInputResource,
   _Out_ ID3D12Resource** ppStagingResource,
-  _In_ BOOL Upload)
+  _In_ BOOL Upload) threadsafe
 {
 	D3D12_HEAP_PROPERTIES sHeap;
 	D3D12_RESOURCE_DESC resourceDesc = pInputResource->GetDesc();
@@ -667,12 +690,12 @@ HRESULT STDMETHODCALLTYPE CDevice::CreateOrReuseStagingResource(
 
 	ID3D12Resource* stagingResource = NULL;
 	HRESULT result = CreateOrReuseCommittedResource(
-	  &CD3DX12_HEAP_PROPERTIES(heapType, blsi(sHeap.CreationNodeMask), sHeap.CreationNodeMask),
-	  D3D12_HEAP_FLAG_NONE,
-	  &CD3DX12_RESOURCE_DESC::Buffer(requiredSize),
-	  initialState,
-	  nullptr,
-	  IID_PPV_ARGS(&stagingResource));
+		&CD3DX12_HEAP_PROPERTIES(heapType, blsi(sHeap.CreationNodeMask), sHeap.CreationNodeMask),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(requiredSize),
+		initialState,
+		nullptr,
+		IID_GFX_ARGS(&stagingResource));
 
 	if (result == S_OK && stagingResource != nullptr)
 	{
@@ -685,14 +708,82 @@ HRESULT STDMETHODCALLTYPE CDevice::CreateOrReuseStagingResource(
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+HRESULT STDMETHODCALLTYPE CDevice::DuplicateCommittedResource(
+	_In_ ID3D12Resource* pInputResource,
+	_In_ D3D12_RESOURCE_STATES OutputState,
+	_Out_ ID3D12Resource** ppOutputResource)
+{
+	D3D12_HEAP_PROPERTIES sHeap;
+	D3D12_RESOURCE_DESC resourceDesc = pInputResource->GetDesc();
+
+	pInputResource->GetHeapProperties(&sHeap, nullptr);
+
+	ID3D12Resource* outputResource = nullptr;
+	HRESULT result = CreateOrReuseCommittedResource(
+		&sHeap,
+		D3D12_HEAP_FLAG_NONE,
+		&resourceDesc,
+		OutputState,
+		nullptr,
+		IID_GFX_ARGS(&outputResource));
+
+	if (result == S_OK && outputResource != nullptr)
+	{
+#ifdef DX12_LINKEDADAPTER
+		if (IsMultiAdapter())
+		{
+			((BroadcastableD3D12Device<2>*)m_pDevice.get())->DuplicateMetaData(
+				pInputResource,
+				outputResource
+			);
+		}
+#endif
+
+		*ppOutputResource = outputResource;
+
+		return S_OK;
+	}
+
+	return result;
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+HRESULT STDMETHODCALLTYPE CDevice::SubstituteUsedCommittedResource(
+	_In_ const FVAL64 (&fenceValues)[CMDQUEUE_NUM],
+	_In_ D3D12_RESOURCE_STATES OutputState,
+	_Inout_ ID3D12Resource** ppSubstituteResource) threadsafe
+{
+	const auto& fenceManager = GetScheduler().GetFenceManager();
+	if (fenceManager.IsCompleted(fenceValues[CMDQUEUE_GRAPHICS], CMDQUEUE_GRAPHICS) &&
+		fenceManager.IsCompleted(fenceValues[CMDQUEUE_COMPUTE], CMDQUEUE_COMPUTE) &&
+		fenceManager.IsCompleted(fenceValues[CMDQUEUE_COPY], CMDQUEUE_COPY))
+	{
+		// Can continued to be used without substitution
+		return S_FALSE;
+	}
+
+	ID3D12Resource* pDisposableResource = *ppSubstituteResource;
+	HRESULT result = DuplicateCommittedResource(pDisposableResource, OutputState, ppSubstituteResource);
+
+	if (result == S_OK && *ppSubstituteResource != nullptr)
+	{
+		ReleaseLater(fenceValues, pDisposableResource, true);
+
+		return S_OK;
+	}
+
+	return result;
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 HRESULT STDMETHODCALLTYPE CDevice::CreateOrReuseCommittedResource(
-  _In_ const D3D12_HEAP_PROPERTIES* pHeapProperties,
-  D3D12_HEAP_FLAGS HeapFlags,
-  _In_ const D3D12_RESOURCE_DESC* pResourceDesc,
-  D3D12_RESOURCE_STATES InitialResourceState,
-  _In_opt_ const D3D12_CLEAR_VALUE* pOptimizedClearValue,
-  REFIID riidResource,
-  _COM_Outptr_opt_ void** ppvResource)
+	_In_ const D3D12_HEAP_PROPERTIES* pHeapProperties,
+	_In_ D3D12_HEAP_FLAGS HeapFlags,
+	_In_ const D3D12_RESOURCE_DESC* pResourceDesc,
+	_In_ D3D12_RESOURCE_STATES InitialResourceState,
+	_In_opt_ const D3D12_CLEAR_VALUE* pOptimizedClearValue,
+	_In_ REFIID riidResource,
+	_COM_Outptr_opt_ void** ppvResource) threadsafe
 {
 	struct
 	{
@@ -715,17 +806,22 @@ HRESULT STDMETHODCALLTYPE CDevice::CreateOrReuseCommittedResource(
 
 	THash hHash = ComputeSmallHash<sizeof(hashableBlob)>(&hashableBlob);
 
-	TReuseHeap::iterator result = m_ReuseHeap.find(hHash);
-	if (result != m_ReuseHeap.end())
 	{
-		if (ppvResource)
+		CryAutoLock<CryCriticalSectionNonRecursive> lThreadSafeScope(m_RecycleHeapTheadSafeScope);
+
+		// Best-case O(1) lookup
+		TRecycleHeap::iterator result = m_RecycleHeap.find(hHash);
+		if (result != m_RecycleHeap.end())
 		{
-			*ppvResource = result->second.pObject;
+			if (ppvResource)
+			{
+				*ppvResource = result->second.pObject;
 
-			m_ReuseHeap.erase(result);
+				m_RecycleHeap.erase(result);
+			}
+
+			return S_OK;
 		}
-
-		return S_OK;
 	}
 
 	return GetD3D12Device()->CreateCommittedResource(
@@ -734,9 +830,11 @@ HRESULT STDMETHODCALLTYPE CDevice::CreateOrReuseCommittedResource(
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-void CDevice::FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM], const UINT64(&pruneFenceValues)[CMDQUEUE_NUM])
+void CDevice::FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM], const UINT64(&pruneFenceValues)[CMDQUEUE_NUM]) threadsafe
 {
 	{
+		CryAutoLock<CryCriticalSectionNonRecursive> lThreadSafeScope(m_ReleaseHeapTheadSafeScope);
+
 		TReleaseHeap::iterator it, nx;
 		for (it = m_ReleaseHeap.begin(); it != m_ReleaseHeap.end(); it = nx)
 		{
@@ -749,14 +847,17 @@ void CDevice::FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM
 			{
 				if (it->second.bFlags & 1)
 				{
-					ReuseInfo reuseInfo;
+					CryAutoLock<CryCriticalSectionNonRecursive> lThreadSafeScope(m_RecycleHeapTheadSafeScope);
 
-					reuseInfo.pObject = it->first;
-					reuseInfo.fenceValues[CMDQUEUE_GRAPHICS] = completedFenceValues[CMDQUEUE_GRAPHICS];
-					reuseInfo.fenceValues[CMDQUEUE_COMPUTE] = completedFenceValues[CMDQUEUE_COMPUTE];
-					reuseInfo.fenceValues[CMDQUEUE_COPY] = completedFenceValues[CMDQUEUE_COPY];
+					RecycleInfo recycleInfo;
 
-					m_ReuseHeap.emplace(it->second.hHash, std::move(reuseInfo));
+					recycleInfo.pObject = it->first;
+					recycleInfo.fenceValues[CMDQUEUE_GRAPHICS] = completedFenceValues[CMDQUEUE_GRAPHICS];
+					recycleInfo.fenceValues[CMDQUEUE_COMPUTE] = completedFenceValues[CMDQUEUE_COMPUTE];
+					recycleInfo.fenceValues[CMDQUEUE_COPY] = completedFenceValues[CMDQUEUE_COPY];
+
+					// TODO: could be accumulated to a local list and batch-merged in the next code-block to prevent the locking
+					m_RecycleHeap.emplace(it->second.hHash, std::move(recycleInfo));
 				}
 				else
 				{
@@ -770,8 +871,10 @@ void CDevice::FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM
 
 	//	if (0)
 	{
-		TReuseHeap::iterator it, nx;
-		for (it = m_ReuseHeap.begin(); it != m_ReuseHeap.end(); it = nx)
+		CryAutoLock<CryCriticalSectionNonRecursive> lThreadSafeScope(m_RecycleHeapTheadSafeScope);
+
+		TRecycleHeap::iterator it, nx;
+		for (it = m_RecycleHeap.begin(); it != m_RecycleHeap.end(); it = nx)
 		{
 			nx = it;
 			++nx;
@@ -786,14 +889,14 @@ void CDevice::FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM
 				// This means the ref-count here doesn't necessarily need to be 0
 				ULONG counter = it->second.pObject->Release();
 				DX12_ASSERT(counter == 0, "Ref-Counter of D3D12 resource is not 0, memory will leak!");
-				m_ReuseHeap.erase(it);
+				m_RecycleHeap.erase(it);
 			}
 		}
 	}
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-void CDevice::ReleaseLater(const FVAL64 (&fenceValues)[CMDQUEUE_NUM], ID3D12Resource* pObject, bool bReusable)
+void CDevice::ReleaseLater(const FVAL64 (&fenceValues)[CMDQUEUE_NUM], ID3D12Resource* pObject, bool bReusable) threadsafe
 {
 	if (pObject)
 	{
@@ -827,42 +930,27 @@ void CDevice::ReleaseLater(const FVAL64 (&fenceValues)[CMDQUEUE_NUM], ID3D12Reso
 		releaseInfo.fenceValues[CMDQUEUE_COMPUTE] = fenceValues[CMDQUEUE_COMPUTE];
 		releaseInfo.fenceValues[CMDQUEUE_COPY] = fenceValues[CMDQUEUE_COPY];
 
-		std::pair<TReleaseHeap::iterator, bool> result = m_ReleaseHeap.emplace(pObject, std::move(releaseInfo));
-
-		// Only count if insertion happened
-		if (result.second)
 		{
-			pObject->AddRef();
+			CryAutoLock<CryCriticalSectionNonRecursive> lThreadSafeScope(m_ReleaseHeapTheadSafeScope);
+
+			std::pair<TReleaseHeap::iterator, bool> result = m_ReleaseHeap.emplace(pObject, std::move(releaseInfo));
+
+			// Only count if insertion happened
+			if (result.second)
+			{
+				pObject->AddRef();
+			}
 		}
 	}
 }
 
-CDescriptorBlock CDevice::GetGlobalDescriptorBlock(D3D12_DESCRIPTOR_HEAP_TYPE eType, UINT size)
+//---------------------------------------------------------------------------------------------------------------------
+void CDevice::FlushAndWaitForGPU()
 {
-	CryAutoLock<CryCriticalSectionNonRecursive> m_DescriptorAllocatorTheadSafeScope(m_DescriptorAllocatorTheadSafeScope);
-
-	if (DX12_GLOBALHEAP_TYPES & (1 << eType))
-	{
-		DX12_ASSERT(int64(m_GlobalDescriptorHeaps[eType].GetCapacity()) - int64(m_GlobalDescriptorHeaps[eType].GetCursor()) >= int64(size));
-		CDescriptorBlock result(&m_GlobalDescriptorHeaps[eType], m_GlobalDescriptorHeaps[eType].GetCursor(), size);
-		m_GlobalDescriptorHeaps[eType].IncrementCursor(size);
-		return result;
-	}
-
-	CDescriptorHeap* pResourceHeap = DX12_NEW_RAW(CDescriptorHeap(this));
-
-	D3D12_DESCRIPTOR_HEAP_DESC desc = {
-		eType,
-		size,
-		(eType == D3D12_DESCRIPTOR_HEAP_TYPE_RTV || eType == D3D12_DESCRIPTOR_HEAP_TYPE_DSV ? D3D12_DESCRIPTOR_HEAP_FLAG_NONE : D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE),
-		m_nodeMask
-	};
-
-	pResourceHeap->Init(desc);
-
-	CDescriptorBlock result(pResourceHeap, pResourceHeap->GetCursor(), size);
-	pResourceHeap->Release();
-	return result;
+	// Submit pending command-lists in case there are left-overs, make sure it's flushed to and executed on the hardware
+	m_Scheduler.Flush(false);
+	m_Scheduler.GetCommandListPool(CMDQUEUE_GRAPHICS).GetAsyncCommandQueue().Flush();
+	m_Scheduler.GetCommandListPool(CMDQUEUE_GRAPHICS).WaitForFenceOnCPU();
 }
 
 }

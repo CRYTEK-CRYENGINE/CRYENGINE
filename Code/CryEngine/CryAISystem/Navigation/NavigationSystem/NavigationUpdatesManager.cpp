@@ -4,48 +4,86 @@
 #include "NavigationUpdatesManager.h"
 
 #include "Navigation/NavigationSystem/NavigationSystem.h"
+#include "DebugDrawContext.h"
 
 //------------------------------------------------------------------------
 CMNMUpdatesManager::CMNMUpdatesManager(NavigationSystem* pNavSystem)
 	: m_pNavigationSystem(pNavSystem)
-	, m_isMNMRegenerationRequestExecutionEnabled(true)
-	, m_wasMNMRegenerationRequestedThisUpdateCycle(false)
-	, m_postponeUpdatesForStabilization(false)
+	, m_bIsRegenerationRequestExecutionEnabled(true)
+	, m_bWasRegenerationRequestedThisUpdateCycle(false)
+	, m_bPostponeUpdatesForStabilization(false)
+	, m_bExplicitRegenerationToggle(false)
 	, m_lastUpdateTime(0.0f)
 {
-
-}
-
-//------------------------------------------------------------------------
-void CMNMUpdatesManager::ClearBufferedRegenerationRequests()
-{
-	m_ignoredUpdateRequestsQueue.clear();
 }
 
 //------------------------------------------------------------------------
 void CMNMUpdatesManager::Clear()
 {
 	m_activeUpdateRequestsQueue.clear();
+
+	m_postponedEntityUpdatesMap.clear();
+	m_postponedUpdateRequestsSet.clear();
+	m_ignoredUpdateRequestsSet.clear();
 }
 
 //------------------------------------------------------------------------
 void CMNMUpdatesManager::Update()
 {
-	UpdateEntityChanges();
+	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	
+	UpdatePostponedChanges();
 }
 
 //------------------------------------------------------------------------
-void CMNMUpdatesManager::UpdateEntityChanges()
+void CMNMUpdatesManager::UpdatePostponedChanges()
 {
-	if (m_postponeUpdatesForStabilization)
+	if (m_bPostponeUpdatesForStabilization)
 	{
 		if (gEnv->pTimer->GetFrameStartTime().GetDifferenceInSeconds(m_lastUpdateTime) < gAIEnv.CVars.NavmeshStabilizationTimeToUpdate)
 		{
 			return;
 		}
 	}
-	
-	for (const auto& it : m_bufferedEntityUpdatesMap)
+
+	SRequestParams queueAndState = GetRequestParamsAfterStabilization(m_bExplicitRegenerationToggle);
+
+	//tiles update requests
+	if (m_postponedUpdateRequestsSet.size())
+	{
+		if (queueAndState.status == EUpdateRequestStatus::RequestInQueue)
+		{
+			TileRequestQueue::iterator it = m_activeUpdateRequestsQueue.begin();
+			TileRequestQueue::iterator rear = m_activeUpdateRequestsQueue.end();
+			for (; it != rear; )
+			{
+				TileUpdateRequest& task = *it;
+
+				if (m_postponedUpdateRequestsSet.find(task) != m_postponedUpdateRequestsSet.end())
+				{
+					rear = rear - 1;
+					std::swap(task, *rear);
+					continue;
+				}
+				++it;
+			}
+			if (rear != m_activeUpdateRequestsQueue.end())
+			{
+				m_activeUpdateRequestsQueue.erase(rear, m_activeUpdateRequestsQueue.end());
+			}
+			m_activeUpdateRequestsQueue.insert(m_activeUpdateRequestsQueue.end(), m_postponedUpdateRequestsSet.begin(), m_postponedUpdateRequestsSet.end());
+
+			std::sort(m_activeUpdateRequestsQueue.begin(), m_activeUpdateRequestsQueue.end());
+		}
+		else
+		{
+			//m_ignoredUpdateRequestsSet.insert(m_activeUpdateRequestsQueue.end(), m_posponedUpdateRequestsSet.begin(), m_posponedUpdateRequestsSet.end());
+		}
+		m_postponedUpdateRequestsSet.clear();
+	}
+
+	//entity updates
+	for (const auto& it : m_postponedEntityUpdatesMap)
 	{
 		const EntityUpdate& entityUpdate = it.second;
 
@@ -53,51 +91,55 @@ void CMNMUpdatesManager::UpdateEntityChanges()
 		{
 			if (((entityUpdate.aabbOld.min - entityUpdate.aabbNew.min).len2() + (entityUpdate.aabbOld.max - entityUpdate.aabbNew.max).len2()) > 0.0f)
 			{
-				WorldChanged(entityUpdate.aabbOld);
-				WorldChanged(entityUpdate.aabbNew);
+				RequestQueueWorldUpdate(queueAndState, entityUpdate.aabbOld);
+				RequestQueueWorldUpdate(queueAndState, entityUpdate.aabbNew);
 			}
 		}
 		else
 		{
-			WorldChanged(entityUpdate.aabbOld);
+			RequestQueueWorldUpdate(queueAndState, entityUpdate.aabbOld);
 		}
 	}
-	m_bufferedEntityUpdatesMap.clear();
+	m_postponedEntityUpdatesMap.clear();
 }
 
 //------------------------------------------------------------------------
 void CMNMUpdatesManager::OnMeshDestroyed(NavigationMeshID meshID)
 {
+	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	
 	for (TileUpdateRequest& task : m_activeUpdateRequestsQueue)
 	{
 		if (task.meshID == meshID)
-			task.aborted = true;
+			task.stateFlags |= TileUpdateRequest::Aborted;
 	}
 	
-	TileTaskQueue::iterator it = m_ignoredUpdateRequestsQueue.begin();
-	TileTaskQueue::iterator end = m_ignoredUpdateRequestsQueue.end();
-	while(it != end)
+	RemoveMeshUpdatesFromQueue(m_ignoredUpdateRequestsSet, meshID);
+	RemoveMeshUpdatesFromQueue(m_postponedUpdateRequestsSet, meshID);
+}
+
+//------------------------------------------------------------------------
+void CMNMUpdatesManager::RemoveMeshUpdatesFromQueue(TileUpdatesSet& tileUpdatesSet, NavigationMeshID meshID)
+{
+	TileUpdatesSet::iterator it = tileUpdatesSet.begin();
+	while (it != tileUpdatesSet.end())
 	{
-		TileUpdateRequest& task = *it;
-		if (task.meshID == meshID)
+		if (it->meshID == meshID)
 		{
-			end = end - 1;
-			std::swap(task, *end);
-			continue;
+			tileUpdatesSet.erase(it++);
 		}
-		++it;
-	}
-	if (end != m_ignoredUpdateRequestsQueue.end())
-	{
-		m_ignoredUpdateRequestsQueue.erase(end, m_ignoredUpdateRequestsQueue.end());
+		else
+		{
+			++it;
+		}
 	}
 }
 
 //------------------------------------------------------------------------
-void CMNMUpdatesManager::EntityChanged(int id, const AABB& aabb)
+void CMNMUpdatesManager::EntityChanged(int physicalEntityId, const AABB& aabb)
 {
 #if NAVIGATION_SYSTEM_PC_ONLY
-	if (id == -1)
+	if (physicalEntityId == -1)
 	{
 		WorldChanged(aabb);
 		return;
@@ -105,8 +147,8 @@ void CMNMUpdatesManager::EntityChanged(int id, const AABB& aabb)
 
 	m_lastUpdateTime = gEnv->pTimer->GetFrameStartTime();
 
-	auto it = m_bufferedEntityUpdatesMap.find(id);
-	if (it != m_bufferedEntityUpdatesMap.end())
+	auto it = m_postponedEntityUpdatesMap.find(physicalEntityId);
+	if (it != m_postponedEntityUpdatesMap.end())
 	{
 		it->second.aabbNew = aabb;
 	}
@@ -116,7 +158,7 @@ void CMNMUpdatesManager::EntityChanged(int id, const AABB& aabb)
 
 		entityUpdate.aabbOld = aabb;
 		entityUpdate.aabbNew = AABB(AABB::RESET);
-		m_bufferedEntityUpdatesMap[id] = entityUpdate;
+		m_postponedEntityUpdatesMap[physicalEntityId] = entityUpdate;
 	}
 #endif //NAVIGATION_SYSTEM_PC_ONLY
 }
@@ -125,20 +167,21 @@ void CMNMUpdatesManager::EntityChanged(int id, const AABB& aabb)
 void CMNMUpdatesManager::WorldChanged(const AABB& aabb)
 {
 #if NAVIGATION_SYSTEM_PC_ONLY
-	for (const AgentType& agentType : m_pNavigationSystem->m_agentTypes)
-	{
-		for (const AgentType::MeshInfo& meshInfo : agentType.meshes)
-		{
-			const NavigationMeshID meshID = meshInfo.id;
-			const NavigationMesh& mesh = m_pNavigationSystem->m_meshes[meshID];
-			
-			if (mesh.boundary && Overlap::AABB_AABB(aabb, m_pNavigationSystem->m_volumes[mesh.boundary].aabb))
-			{
-				RequestQueueMeshUpdate(meshID, aabb);
-			}
-		}
-	}
+	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+
+	m_lastUpdateTime = gEnv->pTimer->GetFrameStartTime();
+
+	SRequestParams queueAndState = GetRequestParams(false);
+	RequestQueueWorldUpdate(queueAndState, aabb);
 #endif //NAVIGATION_SYSTEM_PC_ONLY
+}
+
+//------------------------------------------------------------------------
+void CMNMUpdatesManager::RequestGlobalUpdate()
+{
+	m_bExplicitRegenerationToggle = true;
+	m_pNavigationSystem->ClearAndNotify();
+	m_bExplicitRegenerationToggle = false;
 }
 
 //------------------------------------------------------------------------
@@ -149,6 +192,7 @@ void CMNMUpdatesManager::RequestGlobalUpdateForAgentType(NavigationAgentTypeID a
 	
 	const AgentType& agentType = m_pNavigationSystem->m_agentTypes[agentTypeID - 1];
 
+	m_bExplicitRegenerationToggle = true;
 	for (const AgentType::MeshInfo& meshInfo : agentType.meshes)
 	{
 		const NavigationMeshID meshID = meshInfo.id;
@@ -157,54 +201,115 @@ void CMNMUpdatesManager::RequestGlobalUpdateForAgentType(NavigationAgentTypeID a
 
 		if (boundaryID)
 		{
-			RequestQueueMeshUpdate(meshID, m_pNavigationSystem->m_worldAABB);
+			RequestMeshUpdate(meshID, m_pNavigationSystem->m_worldAABB);
+		}
+	}
+	m_bExplicitRegenerationToggle = false;
+}
+
+//------------------------------------------------------------------------
+CMNMUpdatesManager::EUpdateRequestStatus CMNMUpdatesManager::RequestMeshUpdate(NavigationMeshID meshID, const AABB& aabb)
+{
+	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+
+	SRequestParams requestParams = GetRequestParams(m_bExplicitRegenerationToggle);
+	if (!RequestQueueMeshUpdate(requestParams, meshID, aabb))
+	{
+		return EUpdateRequestStatus::RequestInvalid;
+	}
+	return requestParams.status;
+}
+
+//------------------------------------------------------------------------
+CMNMUpdatesManager::EUpdateRequestStatus CMNMUpdatesManager::RequestMeshDifferenceUpdate(
+	NavigationMeshID meshID,
+	const NavigationBoundingVolume& oldVolume,
+	const NavigationBoundingVolume& newVolume)
+{
+	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	
+	m_lastUpdateTime = gEnv->pTimer->GetFrameStartTime();
+	
+	SRequestParams queueAndState = GetRequestParams(m_bExplicitRegenerationToggle);
+	if (!RequestQueueMeshDifferenceUpdate(queueAndState, meshID, oldVolume, newVolume))
+	{
+		return EUpdateRequestStatus::RequestInvalid;
+	}
+	return queueAndState.status;
+}
+
+//------------------------------------------------------------------------
+CMNMUpdatesManager::SRequestParams CMNMUpdatesManager::GetRequestParams(bool bIsExplicit)
+{
+	SRequestParams params;
+	params.bExplicit = bIsExplicit;
+	if (bIsExplicit)
+	{
+		params.status = EUpdateRequestStatus::RequestInQueue;
+	}
+	else
+	{
+		if (!m_bIsRegenerationRequestExecutionEnabled)
+		{
+			params.status = EUpdateRequestStatus::RequestIgnoredAndBuffered;
+		}
+		else if (m_bPostponeUpdatesForStabilization)
+		{
+			params.status = EUpdateRequestStatus::RequestDelayedAndBuffered;
+		}
+		else
+		{
+			params.status = EUpdateRequestStatus::RequestInQueue;
+		}
+	}
+	return params;
+}
+
+//------------------------------------------------------------------------
+CMNMUpdatesManager::SRequestParams CMNMUpdatesManager::GetRequestParamsAfterStabilization(bool bIsExplicit)
+{
+	SRequestParams params;
+	params.bExplicit = bIsExplicit;
+	if (m_bIsRegenerationRequestExecutionEnabled || bIsExplicit)
+	{
+		params.status = EUpdateRequestStatus::RequestInQueue;
+	}
+	else
+	{
+		params.status = EUpdateRequestStatus::RequestIgnoredAndBuffered;
+	}
+	return params;
+}
+
+//------------------------------------------------------------------------
+void CMNMUpdatesManager::RequestQueueWorldUpdate(const SRequestParams& queueAndState, const AABB& aabb)
+{
+	for (const AgentType& agentType : m_pNavigationSystem->m_agentTypes)
+	{
+		for (const AgentType::MeshInfo& meshInfo : agentType.meshes)
+		{
+			const NavigationMeshID meshID = meshInfo.id;
+			const NavigationMesh& mesh = m_pNavigationSystem->m_meshes[meshID];
+
+			if (mesh.boundary && Overlap::AABB_AABB(aabb, m_pNavigationSystem->m_volumes[mesh.boundary].aabb))
+			{
+				RequestQueueMeshUpdate(queueAndState, meshID, aabb);
+			}
 		}
 	}
 }
 
 //------------------------------------------------------------------------
-CMNMUpdatesManager::EUpdateRequestStatus CMNMUpdatesManager::GetCurrentRequestsQueue(CMNMUpdatesManager::TileTaskQueue*& queue)
+CMNMUpdatesManager::MeshUpdateBoundaries CMNMUpdatesManager::ComputeMeshUpdateBoundaries(const NavigationMesh& mesh, const AABB& aabb)
 {
-	if (!m_isMNMRegenerationRequestExecutionEnabled)
-	{
-		queue = &m_ignoredUpdateRequestsQueue;
-		return EUpdateRequestStatus::RequestDelayedAndBuffered;
-	}
-	else
-	{
-		queue = &m_activeUpdateRequestsQueue;
-		return EUpdateRequestStatus::RequestInQueue;
-	}
-}
-
-//------------------------------------------------------------------------
-CMNMUpdatesManager::EUpdateRequestStatus CMNMUpdatesManager::RequestQueueMeshUpdate(NavigationMeshID meshID, const AABB& aabb)
-{
-	assert(meshID != 0);
-
-#if NAVIGATION_SYSTEM_PC_ONLY
-	if (!meshID || !m_pNavigationSystem->m_meshes.validate(meshID))
-	{
-		return EUpdateRequestStatus::RequestInvalid;
-	}
-
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
-
-	NavigationMesh& mesh = m_pNavigationSystem->m_meshes[meshID];
-	MNM::CNavMesh& navMesh = mesh.navMesh;
-
-	if (aabb.IsEmpty() || !mesh.boundary)
-		return EUpdateRequestStatus::RequestInvalid;
-
-	m_wasMNMRegenerationRequestedThisUpdateCycle = true;
-
+	const MNM::CNavMesh& navMesh = mesh.navMesh;
 	const MNM::CNavMesh::SGridParams& paramsGrid = navMesh.GetGridParams();
 
 	const AABB& boundary = m_pNavigationSystem->m_volumes[mesh.boundary].aabb;
 	const AgentType& agentType = m_pNavigationSystem->m_agentTypes[mesh.agentTypeID - 1];
 
-	const float extraH = std::max(paramsGrid.voxelSize.x, paramsGrid.voxelSize.y) * (agentType.settings.radiusVoxelCount + 1);
-	const float extraV = paramsGrid.voxelSize.z * (agentType.settings.heightVoxelCount + 1);
+	const float extraH = std::max(paramsGrid.voxelSize.x, paramsGrid.voxelSize.y) * agentType.settings.agent.GetPossibleAffectedSizeH();
+	const float extraV = paramsGrid.voxelSize.z * agentType.settings.agent.GetPossibleAffectedSizeV();
 	const float extraVM = paramsGrid.voxelSize.z; // tiles above are not directly influenced
 
 	Vec3 bmin(std::max(0.0f, std::max(boundary.min.x, aabb.min.x - extraH) - paramsGrid.origin.x),
@@ -215,65 +320,87 @@ CMNMUpdatesManager::EUpdateRequestStatus CMNMUpdatesManager::RequestQueueMeshUpd
 		std::max(0.0f, std::min(boundary.max.y, aabb.max.y + extraH) - paramsGrid.origin.y),
 		std::max(0.0f, std::min(boundary.max.z, aabb.max.z + extraVM) - paramsGrid.origin.z));
 
-	uint16 xmin = (uint16)(floor_tpl(bmin.x / (float)paramsGrid.tileSize.x));
-	uint16 xmax = (uint16)(floor_tpl(bmax.x / (float)paramsGrid.tileSize.x));
+	MeshUpdateBoundaries boundaries;
+	boundaries.minX = (uint16)(floor_tpl(bmin.x / (float)paramsGrid.tileSize.x));
+	boundaries.maxX = (uint16)(floor_tpl(bmax.x / (float)paramsGrid.tileSize.x));
 
-	uint16 ymin = (uint16)(floor_tpl(bmin.y / (float)paramsGrid.tileSize.y));
-	uint16 ymax = (uint16)(floor_tpl(bmax.y / (float)paramsGrid.tileSize.y));
+	boundaries.minY = (uint16)(floor_tpl(bmin.y / (float)paramsGrid.tileSize.y));
+	boundaries.maxY = (uint16)(floor_tpl(bmax.y / (float)paramsGrid.tileSize.y));
 
-	uint16 zmin = (uint16)(floor_tpl(bmin.z / (float)paramsGrid.tileSize.z));
-	uint16 zmax = (uint16)(floor_tpl(bmax.z / (float)paramsGrid.tileSize.z));
+	boundaries.minZ = (uint16)(floor_tpl(bmin.z / (float)paramsGrid.tileSize.z));
+	boundaries.maxZ = (uint16)(floor_tpl(bmax.z / (float)paramsGrid.tileSize.z));
+	return boundaries;
+}
 
-	TileTaskQueue* requestsQueue;
-	EUpdateRequestStatus result = GetCurrentRequestsQueue(requestsQueue);
 
-	TileTaskQueue::iterator it = requestsQueue->begin();
-	TileTaskQueue::iterator rear = requestsQueue->end();
+//------------------------------------------------------------------------
+CMNMUpdatesManager::MeshUpdateBoundaries CMNMUpdatesManager::ComputeMeshUpdateDifferenceBoundaries(const NavigationMesh& mesh, const AABB& oldAABB, const AABB& newAABB)
+{
+	const MNM::CNavMesh& navMesh = mesh.navMesh;
 
-	for (; it != rear; )
+	m_bWasRegenerationRequestedThisUpdateCycle = true;
+
+	const MNM::CNavMesh::SGridParams& paramsGrid = navMesh.GetGridParams();
+
+	AABB aabb = oldAABB;
+	aabb.Add(newAABB);
+
+	const AgentType& agentType = m_pNavigationSystem->m_agentTypes[mesh.agentTypeID - 1];
+
+	const float extraH = std::max(paramsGrid.voxelSize.x, paramsGrid.voxelSize.y) * agentType.settings.agent.GetPossibleAffectedSizeH();
+	const float extraV = paramsGrid.voxelSize.z * agentType.settings.agent.GetPossibleAffectedSizeV();
+	const float extraVM = paramsGrid.voxelSize.z; // tiles above are not directly influenced
+
+	Vec3 bmin(std::max(0.0f, (aabb.min.x - extraH) - paramsGrid.origin.x),
+		std::max(0.0f, (aabb.min.y - extraH) - paramsGrid.origin.y),
+		std::max(0.0f, (aabb.min.z - extraV) - paramsGrid.origin.z));
+
+	Vec3 bmax(std::max(0.0f, (aabb.max.x + extraH) - paramsGrid.origin.x),
+		std::max(0.0f, (aabb.max.y + extraH) - paramsGrid.origin.y),
+		std::max(0.0f, (aabb.max.z + extraVM) - paramsGrid.origin.z));
+
+	MeshUpdateBoundaries boundaries;
+	boundaries.minX = (uint16)(floor_tpl(bmin.x / (float)paramsGrid.tileSize.x));
+	boundaries.maxX = (uint16)(floor_tpl(bmax.x / (float)paramsGrid.tileSize.x));
+
+	boundaries.minY = (uint16)(floor_tpl(bmin.y / (float)paramsGrid.tileSize.y));
+	boundaries.maxY = (uint16)(floor_tpl(bmax.y / (float)paramsGrid.tileSize.y));
+
+	boundaries.minZ = (uint16)(floor_tpl(bmin.z / (float)paramsGrid.tileSize.z));
+	boundaries.maxZ = (uint16)(floor_tpl(bmax.z / (float)paramsGrid.tileSize.z));
+	return boundaries;
+}
+
+//------------------------------------------------------------------------
+bool CMNMUpdatesManager::RequestQueueMeshUpdate(const SRequestParams& requestParams, NavigationMeshID meshID, const AABB& aabb)
+{
+	assert(meshID != 0);
+
+#if NAVIGATION_SYSTEM_PC_ONLY
+	if (!meshID || !m_pNavigationSystem->m_meshes.validate(meshID))
 	{
-		TileUpdateRequest& task = *it;
-
-		if ((task.meshID == meshID) && (task.x >= xmin) && (task.x <= xmax) &&
-			(task.y >= ymin) && (task.y <= ymax) &&
-			(task.z >= zmin) && (task.z <= zmax))
-		{
-			rear = rear - 1;
-			std::swap(task, *rear);
-
-			continue;
-		}
-		++it;
+		return false;
 	}
 
-	if (rear != requestsQueue->end())
-	{
-		requestsQueue->erase(rear, requestsQueue->end());
-	}
+	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
 
-	for (size_t y = ymin; y <= ymax; ++y)
-	{
-		for (size_t x = xmin; x <= xmax; ++x)
-		{
-			for (size_t z = zmin; z <= zmax; ++z)
-			{
-				TileUpdateRequest task;
-				task.meshID = meshID;
-				task.x = (uint16)x;
-				task.y = (uint16)y;
-				task.z = (uint16)z;
-				requestsQueue->push_back(task);
-			}
-		}
-	}
-	return result;
+	NavigationMesh& mesh = m_pNavigationSystem->m_meshes[meshID];
+
+	if (aabb.IsEmpty() || !mesh.boundary)
+		return false;
+
+	m_bWasRegenerationRequestedThisUpdateCycle = true;
+
+	SheduleTileUpdateRequests(requestParams, meshID, ComputeMeshUpdateBoundaries(mesh, aabb));
+	return true;
 #else //!NAVIGATION_SYSTEM_PC_ONLY
-	return EUpdateRequestStatus::RequestInvalid;
+	return false;
 #endif //!NAVIGATION_SYSTEM_PC_ONLY
 }
 
 //------------------------------------------------------------------------
-CMNMUpdatesManager::EUpdateRequestStatus CMNMUpdatesManager::RequestQueueDifferenceUpdate(
+bool CMNMUpdatesManager::RequestQueueMeshDifferenceUpdate(
+	const SRequestParams& queueAndState,
 	NavigationMeshID meshID,
 	const NavigationBoundingVolume& oldVolume,
 	const NavigationBoundingVolume& newVolume)
@@ -287,292 +414,244 @@ CMNMUpdatesManager::EUpdateRequestStatus CMNMUpdatesManager::RequestQueueDiffere
 
 	if (!meshID || !m_pNavigationSystem->m_meshes.validate(meshID))
 	{
-		return EUpdateRequestStatus::RequestInvalid;
+		return false;
 	}
 
 	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
 
+	m_bWasRegenerationRequestedThisUpdateCycle = true;
+
 	NavigationMesh& mesh = m_pNavigationSystem->m_meshes[meshID];
-	MNM::CNavMesh& navMesh = mesh.navMesh;
+	MeshUpdateBoundaries bounds = ComputeMeshUpdateDifferenceBoundaries(mesh, oldVolume.aabb, newVolume.aabb);
+	SheduleTileUpdateRequests(queueAndState, meshID, bounds);
+	return true;
+#else //!NAVIGATION_SYSTEM_PC_ONLY
+	return false;
+#endif //!NAVIGATION_SYSTEM_PC_ONLY
+}
 
-	m_wasMNMRegenerationRequestedThisUpdateCycle = true;
+//------------------------------------------------------------------------
+void CMNMUpdatesManager::SheduleTileUpdateRequests(const SRequestParams& requestParams, NavigationMeshID meshID, const MeshUpdateBoundaries& bounds)
+{
+	if (requestParams.status == EUpdateRequestStatus::RequestInQueue)
+	{
+		TileRequestQueue::iterator it = m_activeUpdateRequestsQueue.begin();
+		TileRequestQueue::iterator rear = m_activeUpdateRequestsQueue.end();
+		for (; it != rear; )
+		{
+			TileUpdateRequest& task = *it;
 
-	const MNM::CNavMesh::SGridParams& paramsGrid = navMesh.GetGridParams();
+			if ((task.meshID == meshID) && (task.x >= bounds.minX) && (task.x <= bounds.maxX) &&
+				(task.y >= bounds.minY) && (task.y <= bounds.maxY) &&
+				(task.z >= bounds.minZ) && (task.z <= bounds.maxZ))
+			{
+				rear = rear - 1;
+				std::swap(task, *rear);
 
-	AABB aabb = oldVolume.aabb;
-	aabb.Add(newVolume.aabb);
+				continue;
+			}
+			++it;
+		}
+		
+		if (rear != m_activeUpdateRequestsQueue.end())
+		{
+			m_activeUpdateRequestsQueue.erase(rear, m_activeUpdateRequestsQueue.end());
+		}
 
-	const AgentType& agentType = m_pNavigationSystem->m_agentTypes[mesh.agentTypeID - 1];
+		for (uint16 y = bounds.minY; y <= bounds.maxY; ++y)
+		{
+			for (uint16 x = bounds.minX; x <= bounds.maxX; ++x)
+			{
+				for (uint16 z = bounds.minZ; z <= bounds.maxZ; ++z)
+				{
+					TileUpdateRequest task;
+					task.meshID = meshID;
+					task.stateFlags = requestParams.bExplicit ? TileUpdateRequest::EStateFlags::Explicit : 0;
+					task.x = x;
+					task.y = y;
+					task.z = z;
+					m_activeUpdateRequestsQueue.push_back(task);
 
-	const float extraH = std::max(paramsGrid.voxelSize.x, paramsGrid.voxelSize.y) * (agentType.settings.radiusVoxelCount + 1);
-	const float extraV = paramsGrid.voxelSize.z * (agentType.settings.heightVoxelCount + 1);
-	const float extraVM = paramsGrid.voxelSize.z; // tiles above are not directly influenced
+					TileUpdatesSet::const_iterator ignoredFindIt = m_ignoredUpdateRequestsSet.find(task);
+					if (ignoredFindIt != m_ignoredUpdateRequestsSet.end())
+					{
+						m_ignoredUpdateRequestsSet.erase(ignoredFindIt);
+					}
+				}
+			}
+		}
+	}
+	else if (requestParams.status == EUpdateRequestStatus::RequestDelayedAndBuffered)
+	{
+		TileRequestQueue::iterator it = m_activeUpdateRequestsQueue.begin();
+		TileRequestQueue::iterator rear = m_activeUpdateRequestsQueue.end();
+		for (; it != rear; )
+		{
+			TileUpdateRequest& task = *it;
 
-	Vec3 bmin(std::max(0.0f, (aabb.min.x - extraH) - paramsGrid.origin.x),
-		std::max(0.0f, (aabb.min.y - extraH) - paramsGrid.origin.y),
-		std::max(0.0f, (aabb.min.z - extraV) - paramsGrid.origin.z));
+			if ((task.meshID == meshID) && (task.x >= bounds.minX) && (task.x <= bounds.maxX) &&
+				(task.y >= bounds.minY) && (task.y <= bounds.maxY) &&
+				(task.z >= bounds.minZ) && (task.z <= bounds.maxZ))
+			{
+				rear = rear - 1;
+				std::swap(task, *rear);
 
-	Vec3 bmax(std::max(0.0f, (aabb.max.x + extraH) - paramsGrid.origin.x),
-		std::max(0.0f, (aabb.max.y + extraH) - paramsGrid.origin.y),
-		std::max(0.0f, (aabb.max.z + extraVM) - paramsGrid.origin.z));
+				continue;
+			}
+			++it;
+		}
+		if (rear != m_activeUpdateRequestsQueue.end())
+		{
+			m_activeUpdateRequestsQueue.erase(rear, m_activeUpdateRequestsQueue.end());
+		}
+		
+		for (uint16 y = bounds.minY; y <= bounds.maxY; ++y)
+		{
+			for (uint16 x = bounds.minX; x <= bounds.maxX; ++x)
+			{
+				for (uint16 z = bounds.minZ; z <= bounds.maxZ; ++z)
+				{
+					TileUpdateRequest task;
+					task.meshID = meshID;
+					task.stateFlags = requestParams.bExplicit ? TileUpdateRequest::EStateFlags::Explicit : 0;
+					task.x = x;
+					task.y = y;
+					task.z = z;
 
-	uint16 xmin = (uint16)(floor_tpl(bmin.x / (float)paramsGrid.tileSize.x));
-	uint16 xmax = (uint16)(floor_tpl(bmax.x / (float)paramsGrid.tileSize.x));
+					TileUpdatesSet::const_iterator ignoredFindIt = m_ignoredUpdateRequestsSet.find(task);
+					if (ignoredFindIt != m_ignoredUpdateRequestsSet.end())
+					{
+						m_ignoredUpdateRequestsSet.erase(ignoredFindIt);
+					}
+					m_postponedUpdateRequestsSet.insert(task);
+				}
+			}
+		}
+	}
+	else
+	{
+		for (uint16 y = bounds.minY; y <= bounds.maxY; ++y)
+		{
+			for (uint16 x = bounds.minX; x <= bounds.maxX; ++x)
+			{
+				for (uint16 z = bounds.minZ; z <= bounds.maxZ; ++z)
+				{
+					TileUpdateRequest task;
+					task.meshID = meshID;
+					task.stateFlags = requestParams.bExplicit ? TileUpdateRequest::EStateFlags::Explicit : 0;
+					task.x = x;
+					task.y = y;
+					task.z = z;
 
-	uint16 ymin = (uint16)(floor_tpl(bmin.y / (float)paramsGrid.tileSize.y));
-	uint16 ymax = (uint16)(floor_tpl(bmax.y / (float)paramsGrid.tileSize.y));
+					TileUpdatesSet::const_iterator posponedFindIt = m_postponedUpdateRequestsSet.find(task);
+					if (posponedFindIt == m_postponedUpdateRequestsSet.end())
+					{
+						m_ignoredUpdateRequestsSet.insert(task);
+					}
+				}
+			}
+		}
+	}
+}
 
-	uint16 zmin = (uint16)(floor_tpl(bmin.z / (float)paramsGrid.tileSize.z));
-	uint16 zmax = (uint16)(floor_tpl(bmax.z / (float)paramsGrid.tileSize.z));
+//------------------------------------------------------------------------
+bool CMNMUpdatesManager::HasBufferedRegenerationRequests() const
+{
+	return m_ignoredUpdateRequestsSet.size() > 0;
+}
 
-	TileTaskQueue* requestsQueue;
-	EUpdateRequestStatus result = GetCurrentRequestsQueue(requestsQueue);
-	
-	TileTaskQueue::iterator it = requestsQueue->begin();
-	TileTaskQueue::iterator rear = requestsQueue->end();
-
-	for (; it != rear; )
+//------------------------------------------------------------------------
+void CMNMUpdatesManager::ApplyBufferedRegenerationRequests()
+{
+	TileRequestQueue::iterator rear = m_activeUpdateRequestsQueue.end();
+	for (auto it = m_activeUpdateRequestsQueue.begin(); it != rear; )
 	{
 		TileUpdateRequest& task = *it;
 
-		if ((task.meshID == meshID) && (task.x >= xmin) && (task.x <= xmax) &&
-			(task.y >= ymin) && (task.y <= ymax) &&
-			(task.z >= zmin) && (task.z <= zmax))
+		const auto findIt = m_ignoredUpdateRequestsSet.find(task);
+		if (findIt != m_ignoredUpdateRequestsSet.end())
 		{
 			rear = rear - 1;
 			std::swap(task, *rear);
-
 			continue;
 		}
 		++it;
 	}
 
-	if (rear != requestsQueue->end())
+	if (rear != m_activeUpdateRequestsQueue.end())
 	{
-		requestsQueue->erase(rear, requestsQueue->end());
+		m_activeUpdateRequestsQueue.erase(rear, m_activeUpdateRequestsQueue.end());
 	}
 
-	for (size_t y = ymin; y <= ymax; ++y)
-	{
-		for (size_t x = xmin; x <= xmax; ++x)
-		{
-			for (size_t z = zmin; z <= zmax; ++z)
-			{
-				TileUpdateRequest task;
-				task.meshID = meshID;
-				task.x = (uint16)x;
-				task.y = (uint16)y;
-				task.z = (uint16)z;
+	m_activeUpdateRequestsQueue.insert(m_activeUpdateRequestsQueue.end(), m_ignoredUpdateRequestsSet.begin(), m_ignoredUpdateRequestsSet.end());
+	std::sort(m_activeUpdateRequestsQueue.begin(), m_activeUpdateRequestsQueue.end());
 
-				requestsQueue->push_back(task);
-			}
-		}
-	}
-	return result;
-#else //!NAVIGATION_SYSTEM_PC_ONLY
-	return EUpdateRequestStatus::RequestInvalid;
-#endif //!NAVIGATION_SYSTEM_PC_ONLY
+	m_ignoredUpdateRequestsSet.clear();
 }
 
 //------------------------------------------------------------------------
-size_t CMNMUpdatesManager::QueueMeshUpdate(NavigationMeshID meshID, const AABB& aabb)
+void CMNMUpdatesManager::ClearBufferedRegenerationRequests()
 {
-	assert(meshID != 0);
-
-	size_t affectedCount = 0;
-#if NAVIGATION_SYSTEM_PC_ONLY
-	if (meshID && m_pNavigationSystem->m_meshes.validate(meshID))
-	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
-
-		NavigationMesh& mesh = m_pNavigationSystem->m_meshes[meshID];
-		MNM::CNavMesh& navMesh = mesh.navMesh;
-
-		const MNM::CNavMesh::SGridParams& paramsGrid = navMesh.GetGridParams();
-
-		if (aabb.IsEmpty() || !mesh.boundary)
-			return 0;
-
-		const AABB& boundary = m_pNavigationSystem->m_volumes[mesh.boundary].aabb;
-		const AgentType& agentType = m_pNavigationSystem->m_agentTypes[mesh.agentTypeID - 1];
-
-		const float extraH = std::max(paramsGrid.voxelSize.x, paramsGrid.voxelSize.y) * (agentType.settings.radiusVoxelCount + 1);
-		const float extraV = paramsGrid.voxelSize.z * (agentType.settings.heightVoxelCount + 1);
-		const float extraVM = paramsGrid.voxelSize.z; // tiles above are not directly influenced
-
-		Vec3 bmin(std::max(0.0f, std::max(boundary.min.x, aabb.min.x - extraH) - paramsGrid.origin.x),
-			std::max(0.0f, std::max(boundary.min.y, aabb.min.y - extraH) - paramsGrid.origin.y),
-			std::max(0.0f, std::max(boundary.min.z, aabb.min.z - extraV) - paramsGrid.origin.z));
-
-		Vec3 bmax(std::max(0.0f, std::min(boundary.max.x, aabb.max.x + extraH) - paramsGrid.origin.x),
-			std::max(0.0f, std::min(boundary.max.y, aabb.max.y + extraH) - paramsGrid.origin.y),
-			std::max(0.0f, std::min(boundary.max.z, aabb.max.z + extraVM) - paramsGrid.origin.z));
-
-		uint16 xmin = (uint16)(floor_tpl(bmin.x / (float)paramsGrid.tileSize.x));
-		uint16 xmax = (uint16)(floor_tpl(bmax.x / (float)paramsGrid.tileSize.x));
-
-		uint16 ymin = (uint16)(floor_tpl(bmin.y / (float)paramsGrid.tileSize.y));
-		uint16 ymax = (uint16)(floor_tpl(bmax.y / (float)paramsGrid.tileSize.y));
-
-		uint16 zmin = (uint16)(floor_tpl(bmin.z / (float)paramsGrid.tileSize.z));
-		uint16 zmax = (uint16)(floor_tpl(bmax.z / (float)paramsGrid.tileSize.z));
-
-		TileTaskQueue::iterator it = m_activeUpdateRequestsQueue.begin();
-		TileTaskQueue::iterator rear = m_activeUpdateRequestsQueue.end();
-
-		for (; it != rear; )
-		{
-			TileUpdateRequest& task = *it;
-
-			if ((task.meshID == meshID) && (task.x >= xmin) && (task.x <= xmax) &&
-				(task.y >= ymin) && (task.y <= ymax) &&
-				(task.z >= zmin) && (task.z <= zmax))
-			{
-				rear = rear - 1;
-				std::swap(task, *rear);
-
-				continue;
-			}
-			++it;
-		}
-
-		if (rear != m_activeUpdateRequestsQueue.end())
-		{
-			m_activeUpdateRequestsQueue.erase(rear, m_activeUpdateRequestsQueue.end());
-		}
-
-		for (size_t y = ymin; y <= ymax; ++y)
-		{
-			for (size_t x = xmin; x <= xmax; ++x)
-			{
-				for (size_t z = zmin; z <= zmax; ++z)
-				{
-					TileUpdateRequest task;
-					task.meshID = meshID;
-					task.x = (uint16)x;
-					task.y = (uint16)y;
-					task.z = (uint16)z;
-
-					m_activeUpdateRequestsQueue.push_back(task);
-
-					++affectedCount;
-				}
-			}
-		}
-	}
-
-#endif
-	return affectedCount;
+	m_ignoredUpdateRequestsSet.clear();
 }
 
 //------------------------------------------------------------------------
-void CMNMUpdatesManager::QueueDifferenceUpdate(NavigationMeshID meshID, const NavigationBoundingVolume& oldVolume, const NavigationBoundingVolume& newVolume)
+void CMNMUpdatesManager::DisableRegenerationRequestsAndBuffer()
 {
-#if NAVIGATION_SYSTEM_PC_ONLY
+	m_bIsRegenerationRequestExecutionEnabled = false;
 
-	// TODO: implement properly by verifying what didn't change
-	// since there will be loads of volume-aabb intersection tests,
-	// this should be a new job running in a different thread
-	// producing an array of all the tiles that need updating
-	// which then gets concatenated into m_tileQueue in the main update
-	if (meshID && m_pNavigationSystem->m_meshes.validate(meshID))
+	TileRequestQueue::iterator rear = m_activeUpdateRequestsQueue.end();
+	for (auto it = m_activeUpdateRequestsQueue.begin(); it != rear; )
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		TileUpdateRequest& task = *it;
 
-		NavigationMesh& mesh = m_pNavigationSystem->m_meshes[meshID];
-		MNM::CNavMesh& navMesh = mesh.navMesh;
-
-		const MNM::CNavMesh::SGridParams& paramsGrid = navMesh.GetGridParams();
-
-		AABB aabb = oldVolume.aabb;
-		aabb.Add(newVolume.aabb);
-
-		const AgentType& agentType = m_pNavigationSystem->m_agentTypes[mesh.agentTypeID - 1];
-
-		const float extraH = std::max(paramsGrid.voxelSize.x, paramsGrid.voxelSize.y) * (agentType.settings.radiusVoxelCount + 1);
-		const float extraV = paramsGrid.voxelSize.z * (agentType.settings.heightVoxelCount + 1);
-		const float extraVM = paramsGrid.voxelSize.z; // tiles above are not directly influenced
-
-		Vec3 bmin(std::max(0.0f, (aabb.min.x - extraH) - paramsGrid.origin.x),
-			std::max(0.0f, (aabb.min.y - extraH) - paramsGrid.origin.y),
-			std::max(0.0f, (aabb.min.z - extraV) - paramsGrid.origin.z));
-
-		Vec3 bmax(std::max(0.0f, (aabb.max.x + extraH) - paramsGrid.origin.x),
-			std::max(0.0f, (aabb.max.y + extraH) - paramsGrid.origin.y),
-			std::max(0.0f, (aabb.max.z + extraVM) - paramsGrid.origin.z));
-
-		uint16 xmin = (uint16)(floor_tpl(bmin.x / (float)paramsGrid.tileSize.x));
-		uint16 xmax = (uint16)(floor_tpl(bmax.x / (float)paramsGrid.tileSize.x));
-
-		uint16 ymin = (uint16)(floor_tpl(bmin.y / (float)paramsGrid.tileSize.y));
-		uint16 ymax = (uint16)(floor_tpl(bmax.y / (float)paramsGrid.tileSize.y));
-
-		uint16 zmin = (uint16)(floor_tpl(bmin.z / (float)paramsGrid.tileSize.z));
-		uint16 zmax = (uint16)(floor_tpl(bmax.z / (float)paramsGrid.tileSize.z));
-
-		TileTaskQueue::iterator it = m_activeUpdateRequestsQueue.begin();
-		TileTaskQueue::iterator rear = m_activeUpdateRequestsQueue.end();
-
-		for (; it != rear; )
+		if (!task.IsExplicit())
 		{
-			TileUpdateRequest& task = *it;
-
-			if ((task.meshID == meshID) && (task.x >= xmin) && (task.x <= xmax) &&
-				(task.y >= ymin) && (task.y <= ymax) &&
-				(task.z >= zmin) && (task.z <= zmax))
-			{
-				rear = rear - 1;
-				std::swap(task, *rear);
-
-				continue;
-			}
-			++it;
+			rear = rear - 1;
+			std::swap(task, *rear);
+			continue;
 		}
-
-		if (rear != m_activeUpdateRequestsQueue.end())
-		{
-			m_activeUpdateRequestsQueue.erase(rear, m_activeUpdateRequestsQueue.end());
-		}
-
-		for (size_t y = ymin; y <= ymax; ++y)
-		{
-			for (size_t x = xmin; x <= xmax; ++x)
-			{
-				for (size_t z = zmin; z <= zmax; ++z)
-				{
-					TileUpdateRequest task;
-					task.meshID = meshID;
-					task.x = (uint16)x;
-					task.y = (uint16)y;
-					task.z = (uint16)z;
-
-					m_activeUpdateRequestsQueue.push_back(task);
-				}
-			}
-		}
+		++it;
 	}
-#endif
+
+	if (rear != m_activeUpdateRequestsQueue.end())
+	{
+		m_ignoredUpdateRequestsSet.insert(rear, m_activeUpdateRequestsQueue.end());
+		m_activeUpdateRequestsQueue.erase(rear, m_activeUpdateRequestsQueue.end());
+	}
 }
 
 //------------------------------------------------------------------------
 void CMNMUpdatesManager::DebugDraw()
 {
-	if (!gEnv->pRenderer)
-		return;
-
-	IRenderAuxGeom* pRenderAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom();
-	if (!pRenderAuxGeom)
-		return;
+	CDebugDrawContext dc;
 	
-	for (const auto& it : m_bufferedEntityUpdatesMap)
+	dc->Draw2dLabel(10.0f, 278.0f, 1.2f, Col_White, false, "Delayed tile update requests: %d", m_postponedUpdateRequestsSet.size());
+	dc->Draw2dLabel(10.0f, 256.0f, 1.2f, Col_White, false, "Buffered tile update requests: %d", m_ignoredUpdateRequestsSet.size());
+	
+	for (const auto& it : m_postponedEntityUpdatesMap)
 	{
 		const EntityUpdate& entityUpdate = it.second;
 
-		pRenderAuxGeom->DrawAABB(entityUpdate.aabbOld, IDENTITY, false, Col_Red, eBBD_Faceted);
+		dc->DrawAABB(entityUpdate.aabbOld, IDENTITY, false, Col_Red, eBBD_Faceted);
 
 		if (!entityUpdate.aabbNew.IsReset())
 		{
-			pRenderAuxGeom->DrawAABB(entityUpdate.aabbNew, IDENTITY, false, Col_Red, eBBD_Faceted);
+			dc->DrawAABB(entityUpdate.aabbNew, IDENTITY, false, Col_Red, eBBD_Faceted);
 		}
+	}
+
+	for (const TileUpdateRequest& tileRequest : m_postponedUpdateRequestsSet)
+	{
+		const NavigationMesh& mesh = m_pNavigationSystem->m_meshes[tileRequest.meshID];
+		const MNM::CNavMesh::SGridParams& paramsGrid = mesh.navMesh.GetGridParams();
+		const AgentType& agentType = m_pNavigationSystem->m_agentTypes[mesh.agentTypeID - 1];
+
+		AABB aabb(AABB::RESET);
+		aabb.Add(Vec3(float(tileRequest.x * paramsGrid.tileSize.x), float(tileRequest.y * paramsGrid.tileSize.y), float(tileRequest.z * paramsGrid.tileSize.z)));
+		aabb.Add(Vec3(float((tileRequest.x + 1)* paramsGrid.tileSize.x), float((tileRequest.y + 1) * paramsGrid.tileSize.y), float((tileRequest.z + 1) * paramsGrid.tileSize.z)));
+		aabb.Move(paramsGrid.origin);
+		
+		dc->DrawAABB(aabb, IDENTITY, false, Col_Red, eBBD_Faceted);
 	}
 }

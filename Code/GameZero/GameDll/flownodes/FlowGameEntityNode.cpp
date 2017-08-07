@@ -5,7 +5,6 @@
 
 CGameEntityNodeFactory::CGameEntityNodeFactory()
 {
-	m_nRefCount = 0;
 	m_activateCallback = 0;
 }
 
@@ -208,7 +207,7 @@ void CFlowGameEntityNode::ProcessEvent(EFlowEvent event, SActivationInfo* pActIn
 						assert(func);
 						if (func)
 						{
-							func(m_entityId, pActInfo->pInputPorts[i]);
+							func(m_entityId, GetPortAny(pActInfo, i));
 						}
 					}
 				}

@@ -1346,7 +1346,7 @@ bool CAIHandler::CallScript(IScriptTable* scriptTable, const char* funcName, flo
 				}
 				else
 				{
-					pScriptSystem->PushFuncParamAny(ANY_TNIL);
+					pScriptSystem->PushFuncParamAny(EScriptAnyType::Nil);
 				}
 			}
 

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ExtensionModel>
+	
+	<Extension path="/MonoDevelop/Debugging/DebuggerEngines">
+		<DebuggerEngine 
+			id="MonoDevelop.CryEngine.SoftDebugger" 
+			name="Mono Soft Debugger for CryEngine" 
+			features="Breakpoints, Pause, Stepping, DebugFile, ConditionalBreakpoints, Tracepoints, Catchpoints, Disassembly" 
+			type="MonoDevelop.CryEngine.SoftDebugger.CryEngineSoftDebuggerEngine" />
+	</Extension>
+	
+	<Runtime>
+		<Import file="Templates\Projects\EmptyProject.xpt.xml" />
+		<Import file="Templates\Projects\CryEngineGame.xpt.xml" />
+	</Runtime>
+
+	<Extension path="/MonoDevelop/Core/StockIcons">
+		<StockIcon stockid="md-platform-cry" resource="MonoDevelop.CryEngine.Icons.platform-cry-16.png" size="Menu" />
+		<StockIcon stockid="md-platform-cry-gray" resource="MonoDevelop.CryEngine.Icons.platform-cry-gray-16.png" size="Menu" />
+	</Extension>
+
+	<Extension path = "/MonoDevelop/Ide/Commands">
+			<Command id="MonoDevelop.CryEngine.Commands.OpenProjectFolder" _label="Open project folder" _description="Opens CryEngine project folder" />
+			<Command id="MonoDevelop.CryEngine.Commands.OpenEngineFolder" _label="Open engine folder" _description="Opens CryEngine project folder" />
+			<Command id="MonoDevelop.CryEngine.Commands.CompileResources" _label="Compile resources" _description="Compiles CryEngine project resources" />
+	</Extension>
+
+	<Extension path = "/MonoDevelop/Ide/ContextMenu/ProjectPad">
+		<!-- TODO: These command items should only be visible for CryEngineProjects -->
+		<Condition id="ItemType" value="DotNetProject">
+			<ItemSet _label="CryEngine">
+				<CommandItem id="MonoDevelop.CryEngine.Commands.OpenProjectFolder" />
+				<CommandItem id="MonoDevelop.CryEngine.Commands.OpenEngineFolder" />
+				<CommandItem id="MonoDevelop.CryEngine.Commands.CompileResources" />
+			</ItemSet>
+		</Condition>
+	</Extension>
+	
+	<Extension path="/MonoDevelop/Ide/ProjectTemplateWizards">
+		<Class id="CryEngineGameWizard" class="MonoDevelop.CryEngine.Projects.CryEngineGameProjectTemplateWizard" />
+	</Extension>
+	
+	<Extension path="/MonoDevelop/Ide/ProjectTemplates">
+		<ProjectTemplate id="CryEngine-EmptyProject" file="Templates/Projects/EmptyProject.xpt.xml" />
+		<ProjectTemplate id="CryEngine-GameProject" file="Templates/Projects/CryEngineGame.xpt.xml" />
+	</Extension>
+
+	<Extension path="/MonoDevelop/Ide/ProjectTemplateCategories">
+		<Category id="cry" name="CryEngine" insertbefore="other" icon="md-platform-cry-gray">
+			<Category id="cry" name="CryEngine">
+				<Category id="general" name="General" mappedCategories="C#/CryEngine" />
+			</Category>
+		</Category>
+	</Extension>
+	
+	<Extension path="/MonoDevelop/ProjectModel/ProjectModelExtensions">
+		<ProjectFlavor guid="{E7562513-36BA-4D11-A927-975E5375ED10}" type="MonoDevelop.CryEngine.Projects.CryEngineGameProjectExtension" alias="CryEngineGame" />
+	</Extension>
+	
+	<Extension path="/MonoDevelop/ProjectModel/Gui/ItemOptionPanels/Build">
+		<Condition id="FlavorType" value="MonoDevelop.CryEngine.Projects.CryEngineGameProjectExtension">
+			<Section id="CryEngineOptionsPanel" _label="CryEngine" insertafter="OutputOptionsPanel" class="MonoDevelop.CryEngine.Execution.CryEngineOptionsPanel" icon="md-platform-cry-gray" />
+		</Condition>
+	</Extension>
+	
+	<Extension path="/MonoDevelop/Core/ExecutionHandlers">
+		<ExecutionHandler id="CryEngine" class="MonoDevelop.CryEngine.Execution.CryEngineGameExecutionHandler" />
+	</Extension>
+	
+	<Extension path="/MonoDevelop/Ide/Pads/ProjectPad">
+		<NodeBuilder id="CryEngineGameProjectNodeBuilderExtension" class="MonoDevelop.CryEngine.ProjectPad.CryEngineGameProjectNodeBuilderExtension" />
+	</Extension>
+	
+</ExtensionModel>

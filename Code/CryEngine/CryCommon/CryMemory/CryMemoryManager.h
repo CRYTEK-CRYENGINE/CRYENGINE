@@ -25,18 +25,6 @@
 	#define MEMORY_ENABLE_DEBUG_HEAP 0
 #endif
 
-#if CRY_PLATFORM_ORBIS
-	#define CRYMM_THROW _THROW0()
-#else
-	#define CRYMM_THROW throw()
-#endif
-
-#if !defined(RELEASE)
-	#define CRYMM_THROW_BAD_ALLOC throw(std::bad_alloc)
-#else
-	#define CRYMM_THROW_BAD_ALLOC throw()
-#endif
-
 // Scope based heap checker macro
 #if CRY_PLATFORM_WINDOWS && MEMORY_ENABLE_DEBUG_HEAP
 	#include <crtdbg.h>
@@ -89,10 +77,10 @@ struct SStackAllocation
 //////////////////////////////////////////////////////////////////////////
 // Some compilers/platforms do not guarantee any alignment for alloca, although standard says it should be sufficient for built-in types.
 // Experimental results show that it's possible to get entirely unaligned results (ie, LSB of address set).
-#define ALLOCA_ALIGN 1
+#define ALLOCA_ALIGN 1U
 
 // Fire an assert when the allocation is large enough to risk a stack overflow
-#define ALLOCA_LIMIT (128 * 1024)
+#define ALLOCA_LIMIT (128U * 1024)
 
 // Needs to be a define, because _alloca() frees it's memory when going out of scope.
 #define CryStackAllocVector(Type, Count, Alignment)                                               \
@@ -101,7 +89,7 @@ struct SStackAllocation
 #define CryStackAllocAlignedOffs(AlignmentFunc)                                                   \
   (AlignmentFunc(1) > ALLOCA_ALIGN ? AlignmentFunc(1) - ALLOCA_ALIGN : 0)
 #define CryStackAllocAlignedPtr(Type, Size, Offset, AlignmentFunc)                                \
-  (Type*)AlignmentFunc((size_t)alloca((Size) + (Offset)))
+  (Type*)AlignmentFunc((uintptr_t)alloca((Size) + (Offset)))
 
 #define CryStackAllocWithSize(Type, Name, AlignmentFunc)                                          \
   const size_t Name ## Size = AlignmentFunc(sizeof(Type));                                        \
@@ -528,7 +516,7 @@ void CryGetMemoryInfoForModule(CryModuleMemoryInfo* pInfo);
 #endif
 
 #if defined(NOT_USE_CRY_MEMORY_MANAGER)
-CRYMM_INLINE void* CryModuleMalloc(size_t size)
+CRYMM_INLINE void* CryModuleMalloc(size_t size) noexcept
 {
 	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
 	void* ptr = malloc(size);
@@ -536,7 +524,7 @@ CRYMM_INLINE void* CryModuleMalloc(size_t size)
 	return ptr;
 }
 
-CRYMM_INLINE void* CryModuleRealloc(void* memblock, size_t size)
+CRYMM_INLINE void* CryModuleRealloc(void* memblock, size_t size) noexcept
 {
 	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
 	void* ret = realloc(memblock, size);
@@ -544,14 +532,14 @@ CRYMM_INLINE void* CryModuleRealloc(void* memblock, size_t size)
 	return ret;
 }
 
-CRYMM_INLINE void CryModuleFree(void* memblock)
+CRYMM_INLINE void CryModuleFree(void* memblock) noexcept
 {
 	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
 	free(memblock);
 	MEMREPLAY_SCOPE_FREE(memblock);
 }
 
-CRYMM_INLINE void CryModuleMemalignFree(void* memblock)
+CRYMM_INLINE void CryModuleMemalignFree(void* memblock) noexcept
 {
 	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
 	#if defined(__GNUC__) && !CRY_PLATFORM_APPLE
@@ -562,11 +550,10 @@ CRYMM_INLINE void CryModuleMemalignFree(void* memblock)
 	MEMREPLAY_SCOPE_FREE(memblock);
 }
 
-CRYMM_INLINE void* CryModuleReallocAlign(void* memblock, size_t size, size_t alignment)
+CRYMM_INLINE void* CryModuleReallocAlign(void* memblock, size_t size, size_t alignment) noexcept
 {
 	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
-	#if defined(CRY_FORCE_MALLOC_NEW_ALIGN)
-		#if defined(__GNUC__)
+	#if defined(__GNUC__)
 	// realloc makes no guarantees about the alignment of memory.  Rather than unconditionally
 	// copying data, if the new allocation we got back from realloc isn't properly aligned:
 	// 1) Create new properly aligned allocation
@@ -592,9 +579,6 @@ CRYMM_INLINE void* CryModuleReallocAlign(void* memblock, size_t size, size_t ali
 		ret = alignedAlloc;
 	}
 	return ret;
-		#else
-			#error "Not implemented"
-		#endif    // __GNUC__
 	#else
 	void* ret = _aligned_realloc(memblock, size, alignment);
 	#endif
@@ -602,7 +586,7 @@ CRYMM_INLINE void* CryModuleReallocAlign(void* memblock, size_t size, size_t ali
 	return ret;
 }
 
-CRYMM_INLINE void* CryModuleMemalign(size_t size, size_t alignment)
+CRYMM_INLINE void* CryModuleMemalign(size_t size, size_t alignment) noexcept
 {
 	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
 	#if defined(__GNUC__) && !CRY_PLATFORM_APPLE
@@ -621,16 +605,26 @@ CRYMM_INLINE void* CryModuleMemalign(size_t size, size_t alignment)
 //////////////////////////////////////////////////////////////////////////
 extern "C"
 {
-	void* CryModuleMalloc(size_t size) throw();
-	void* CryModuleRealloc(void* memblock, size_t size) throw();
-	void  CryModuleFree(void* ptr) throw();
-	void* CryModuleMemalign(size_t size, size_t alignment);
-	void* CryModuleReallocAlign(void* memblock, size_t size, size_t alignment);
-	void  CryModuleMemalignFree(void*);
-	void* CryModuleCalloc(size_t a, size_t b);
+	// Allocation set 1, uses system default alignment.
+	// Never mix with functions from set 2.
+	void* CryModuleMalloc(size_t size) noexcept;
+	void* CryModuleRealloc(void* memblock, size_t size) noexcept;
+	void  CryModuleFree(void* ptr) noexcept;
+	void* CryModuleCalloc(size_t a, size_t b) noexcept;
+
+	// Allocation set 2, uses custom alignment.
+	// You may pass alignment 0 if you want system default alignment.
+	// Never mix with functions from set 1.
+	void* CryModuleMemalign(size_t size, size_t alignment) noexcept;
+	void* CryModuleReallocAlign(void* memblock, size_t size, size_t alignment) noexcept;
+	void  CryModuleMemalignFree(void*) noexcept;
+
+	// When inspecting a block from set 1, you must pass alignment 0.
+	// When inspecting a block from set 2, you must pass in the original alignment value (which could be 0).
+	size_t CryModuleMemSize(void* ptr, size_t alignment = 0) noexcept;
 }
 
-CRYMM_INLINE void* CryModuleCRTMalloc(size_t s)
+CRYMM_INLINE void* CryModuleCRTMalloc(size_t s) noexcept
 {
 	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CrtMalloc);
 	void* ret = CryModuleMalloc(s);
@@ -638,7 +632,7 @@ CRYMM_INLINE void* CryModuleCRTMalloc(size_t s)
 	return ret;
 }
 
-CRYMM_INLINE void* CryModuleCRTRealloc(void* p, size_t s)
+CRYMM_INLINE void* CryModuleCRTRealloc(void* p, size_t s) noexcept
 {
 	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CrtMalloc);
 	void* ret = CryModuleRealloc(p, s);
@@ -646,7 +640,7 @@ CRYMM_INLINE void* CryModuleCRTRealloc(void* p, size_t s)
 	return ret;
 }
 
-CRYMM_INLINE void CryModuleCRTFree(void* p)
+CRYMM_INLINE void CryModuleCRTFree(void* p) noexcept
 {
 	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CrtMalloc);
 	CryModuleFree(p);
@@ -663,24 +657,20 @@ CRYMM_INLINE void CryModuleCRTFree(void* p)
 CRY_MEM_USAGE_API void CryModuleGetMemoryInfo(CryModuleMemoryInfo* pMemInfo);
 
 #if !defined(NOT_USE_CRY_MEMORY_MANAGER)
-	#if defined(_LIB) && !defined(NEW_OVERRIDEN)
-void* __cdecl operator new(size_t size);
+// Note: No need to override placement new, new[], delete, delete[]
+void* __cdecl operator new(std::size_t size);
+void* __cdecl operator new(std::size_t size, const std::nothrow_t& nothrow_value) noexcept;
 
-void* __cdecl operator new[](size_t size);
+void* __cdecl operator new[](std::size_t size);
+void* __cdecl operator new[](std::size_t size, const std::nothrow_t& nothrow_value) noexcept;
 
-void __cdecl  operator delete(void* p) CRYMM_THROW;
 
-void __cdecl  operator delete[](void* p) CRYMM_THROW;
+void __cdecl operator delete (void* ptr) noexcept;
+void __cdecl operator delete (void* ptr, const std::nothrow_t& nothrow_constant) noexcept;
 
-		#if CRY_PLATFORM_ORBIS
-void* operator new(_CSTD size_t size, const std::nothrow_t& nothrow) CRYMM_THROW;
-
-void  operator delete(void* p, const std::nothrow_t&) CRYMM_THROW;
-
-void  operator delete[](void* p, const std::nothrow_t&) CRYMM_THROW;
-		#endif
-	#endif // defined(_LIB) && !defined(NEW_OVERRIDEN)
-#endif   // !defined(NOT_USE_CRY_MEMORY_MANAGER)
+void __cdecl operator delete[] (void* ptr) noexcept;
+void __cdecl operator delete[] (void* ptr, const std::nothrow_t& nothrow_constant) noexcept;
+#endif
 
 //! Needed for our allocator to avoid deadlock in cleanup.
 void*  CryCrtMalloc(size_t size);

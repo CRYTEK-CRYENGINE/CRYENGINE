@@ -47,17 +47,7 @@ void CCharInstance::Render(const struct SRendParams& RendParams, const QuatTS& O
 
 	assert(RendParams.pMatrix);
 
-	Vec3 position;
-	position = RendParams.pMatrix->GetTranslation();
-	if (m_SkeletonAnim.m_AnimationDrivenMotion == 0)
-		position += Offset.t;
-
-	Matrix33 orientation;
-	orientation = Matrix33(*RendParams.pMatrix);
-	//if (m_SkeletonPose.m_physics.m_bPhysicsRelinquished)
-	//	orientation = Matrix33(m_location.q);
-
-	Matrix34 RenderMat34(orientation, position);
+	Matrix34 RenderMat34 = *RendParams.pMatrix * Matrix34(Offset);
 
 	//f32 axisX = RenderMat34.GetColumn0().GetLength();
 	//f32 axisY = RenderMat34.GetColumn1().GetLength();
@@ -124,22 +114,15 @@ void CCharInstance::Render(const struct SRendParams& RendParams, const QuatTS& O
 	
 	if (m_pDefaultSkeleton->m_ObjectType == CGA)
 	{
-		Matrix34 mRendMat34 = RenderMat34 * Matrix34(Offset);
-		RenderCGA(RendParams, mRendMat34, passInfo);
+		RenderCGA(RendParams, RenderMat34, passInfo);
 	}
 	else
 	{
-		pe_params_flags pf;
-		IPhysicalEntity* pCharPhys = m_SkeletonPose.GetCharacterPhysics();
-		if (pCharPhys && pCharPhys->GetType() == PE_ARTICULATED && pCharPhys->GetParams(&pf) && pf.flags & aef_recorded_physics)
-			RenderMat34 = RenderMat34 * Matrix34(Offset);
-
 		RenderCHR(RendParams, RenderMat34, passInfo);
 	}
 
 	// draw weapon and binded objects
 	m_AttachmentManager.DrawAttachments(attachmentRendParams, RenderMat34, passInfo, fZoomFactor, fZoomDistanceSq);
-
 }
 
 void CCharInstance::RenderCGA(const struct SRendParams& RendParams, const Matrix34& RenderMat34, const SRenderingPassInfo& passInfo)
@@ -340,7 +323,7 @@ void CCharInstance::RenderCHR(const SRendParams& RendParams, const Matrix34& rRe
 #ifndef _RELEASE
 				static ICVar* p_e_debug_draw = gEnv->pConsole->GetCVar("e_DebugDraw");
 				if (p_e_debug_draw && p_e_debug_draw->GetIVal() != 0)
-					pModelMesh->DrawDebugInfo(this->m_pDefaultSkeleton, 0, rRenderMat34, p_e_debug_draw->GetIVal(), pMaterial, pObj, RendParams, passInfo.IsGeneralPass(), (IRenderNode*)RendParams.pRenderNode, m_SkeletonPose.GetAABB());
+					pModelMesh->DrawDebugInfo(this->m_pDefaultSkeleton, m_nAnimationLOD, rRenderMat34, p_e_debug_draw->GetIVal(), pMaterial, pObj, RendParams, passInfo.IsGeneralPass(), (IRenderNode*)RendParams.pRenderNode, m_SkeletonPose.GetAABB());
 #endif
 				//	float fColor[4] = {1,0,1,1};
 				//	extern f32 g_YLine;

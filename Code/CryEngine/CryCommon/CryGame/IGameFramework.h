@@ -151,6 +151,12 @@ struct IMannequin;
 struct IScriptTable;
 struct ITimeDemoRecorder;
 
+struct SEntitySchedulingProfiles
+{
+	uint32 normal;
+	uint32 owned;
+};
+
 class ISharedParamsManager;
 
 struct INeuralNet;
@@ -750,9 +756,6 @@ struct IGameFramework
 	//! Returns the INetChannel associated with the client (or NULL)
 	virtual INetChannel* GetClientChannel() const = 0;
 
-	//! Wrapper for INetContext::DelegateAuthority()
-	virtual void DelegateAuthority(EntityId entityId, uint16 channelId) = 0;
-
 	//! Returns the (synched) time of the server (so use this for timed events, such as MP round times)
 	virtual CTimeValue GetServerTime() = 0;
 
@@ -767,6 +770,12 @@ struct IGameFramework
 	//! Retrieve a pointer to the INetChannel associated with the specified Game Server Channel Id.
 	//! \return Pointer to INetChannel associated with the specified Game Server Channel Id.
 	virtual INetChannel* GetNetChannel(uint16 channelId) = 0;
+
+	// HACK: CNetEntity calls this when binding a player's entity to the network.
+	virtual void SetServerChannelPlayerId(uint16 channelId, EntityId id) = 0;
+
+	// TODO: Move profiles into CNetEntity and get rid of this.
+	virtual const SEntitySchedulingProfiles* GetEntitySchedulerProfiles(IEntity* pEnt) = 0;
 
 	//! Retrieve an IGameObject from an entity id
 	//! \return Pointer to IGameObject of the entity if it exists (or NULL otherwise)
@@ -940,6 +949,8 @@ struct IGameFramework
 
 	virtual void AddNetworkedClientListener(INetworkedClientListener& listener) = 0;
 	virtual void RemoveNetworkedClientListener(INetworkedClientListener& listener) = 0;
+
+	virtual void DoInvokeRMI(_smart_ptr<IRMIMessageBody> pBody, unsigned where, int channel, const bool isGameObjectRmi) = 0;
 
 protected:
 	//! Retrieves an extension interface by interface id.

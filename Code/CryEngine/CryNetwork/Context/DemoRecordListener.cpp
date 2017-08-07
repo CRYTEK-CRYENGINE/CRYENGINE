@@ -13,10 +13,6 @@
 #include "Context/ServerContextView.h"
 #include <CryGame/IGameFramework.h>
 
-#ifdef _MSC_VER
-#pragma warning(disable:4355)
-#endif
-
 static const uint32 EventsNormal =
   eNOE_BindObject |
   eNOE_UnbindObject |
@@ -197,8 +193,11 @@ static std::unique_ptr<CSimpleOutputStream> CreateOutput(const char* filename)
 	return std::move(stream);
 }
 
+#pragma warning(push)
+#pragma warning(disable:4355) //'this' : used in base member initializer list
 CDemoRecordListener::CDemoRecordListener(CNetContext* pContext, const char* filename) :
 	m_pContext(pContext), m_output(CreateOutput(filename)), m_channel(this)
+#pragma warning(pop)
 {
 	//currently only the compressed version is implemented
 	if (!m_output.get())

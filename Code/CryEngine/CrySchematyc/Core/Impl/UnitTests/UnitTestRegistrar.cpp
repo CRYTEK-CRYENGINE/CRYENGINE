@@ -3,7 +3,7 @@
 #include "StdAfx.h"
 #include "UnitTests/UnitTestRegistrar.h"
 
-#include <Schematyc/Services/ILog.h>
+#include <CrySchematyc/Services/ILog.h>
 
 namespace Schematyc
 {

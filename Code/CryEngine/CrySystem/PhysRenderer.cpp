@@ -8,6 +8,7 @@
 #include <Cry3DEngine/IRenderNode.h>
 #include <Cry3DEngine/IStatObj.h>
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 ColorB CPhysRenderer::g_colorTab[9] = {
@@ -36,6 +37,7 @@ CPhysRenderer::CPhysRenderer()
 	, m_pRayGeom(nullptr)
 	, m_pRay(nullptr)
 	, m_offset(ZERO)
+	, m_qrot(IDENTITY)
 	, m_lockDrawGeometry(0)
 {
 }
@@ -96,7 +98,7 @@ const char* CPhysRenderer::GetPhysForeignName(void* pForeignData, int iForeignDa
 	if (iForeignData == PHYS_FOREIGN_ID_FOLIAGE)
 		return "**foliage rope**";
 	if (iForeignData == PHYS_FOREIGN_ID_ROPE)
-		if (IEntity* pEntity = gEnv->pEntitySystem->GetEntity(((IRopeRenderNode*)pForeignData)->GetEntityOwner()))
+		if (IEntity* pEntity = (((IRopeRenderNode*)pForeignData)->GetOwnerEntity()))
 			return pEntity->GetName();
 		else
 			return "Rope";
@@ -108,13 +110,23 @@ const char* CPhysRenderer::GetPhysForeignName(void* pForeignData, int iForeignDa
 	return "[Static]";
 }
 
-void CPhysRenderer::DrawGeometry(IGeometry* pGeom, geom_world_data* pgwd, int idxColor, int bSlowFadein, const Vec3& sweepDir)
+void CPhysRenderer::DrawGeometry(IGeometry* pGeom, geom_world_data* pgwd, int idxColor, int bSlowFadein, const Vec3& sweepDir, const ColorF& color)
 {
 	WriteLock lock(m_lockDrawGeometry);
 	if (!bSlowFadein)
 	{
-		ColorB clr = g_colorTab[idxColor & 7];
-		clr.a >>= idxColor >> 8;
+		ColorB clr;
+
+		if (!isneg(idxColor))
+		{
+			clr = g_colorTab[idxColor & 7];
+			clr.a >>= idxColor >> 8;
+		}
+		else
+		{
+			clr = color;
+		}
+
 		DrawGeometry(pGeom, pgwd, clr);
 	}
 	else
@@ -340,7 +352,8 @@ void CPhysRenderer::DrawGeometry(IGeometry* pGeom, geom_world_data* pgwd, const 
 		pos = pgwd->offset;
 		scale = pgwd->scale;
 	}
-	pos += m_offset;
+	pos = m_qrot*pos + m_offset;
+	R = Matrix33(m_qrot)*R;
 
 	pGeom->GetBBox(&bbox);
 	sz = (bbox.size * (bbox.Basis *= R.T()).Fabs()) * scale;
@@ -383,7 +396,8 @@ void CPhysRenderer::DrawGeometry(int itype, const void* pGeomData, geom_world_da
 		pos = pgwd->offset;
 		scale = pgwd->scale;
 	}
-	pos += m_offset;
+	pos = m_qrot*pos + m_offset;
+	R = Matrix33(m_qrot)*R;
 	campos = m_camera.GetPosition() * 3;
 	(ldir0 = m_camera.GetViewdir()).z = 0;
 	(ldir0 = ldir0.normalized() * 0.5f).z = (float)sqrt3 * -0.5f;
@@ -675,3 +689,5 @@ void CPhysRenderer::DrawGeometry(int itype, const void* pGeomData, geom_world_da
 	rflags.SetDrawInFrontMode(difmode);
 	aux->SetRenderFlags(rflags);
 }
+
+#pragma warning(pop)

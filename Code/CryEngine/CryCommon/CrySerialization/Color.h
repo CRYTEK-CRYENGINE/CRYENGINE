@@ -26,11 +26,17 @@ struct Vec3AsColor
 inline bool Serialize(Serialization::IArchive& ar, Vec3AsColor& c, const char* name, const char* label)
 {
 	if (ar.isEdit())
+	{
 		return ar(Serialization::SStruct(c), name, label);
-	else
+	}
+	else if (ar.caps(Serialization::IArchive::XML_VERSION_1))
 	{
 		typedef float (* Array)[3];
 		return ar(*((Array) & c.v.x), name, label);
+	}
+	else
+	{
+		return ar(Serialization::SStruct(c), name, label);
 	}
 }
 }

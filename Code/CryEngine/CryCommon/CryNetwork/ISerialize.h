@@ -394,8 +394,8 @@ public:
 		Value(name, any);
 		if (IsReading())
 		{
-			if (any.type == ANY_TTABLE)
-				pTable = any.table;
+			if (any.GetType() == EScriptAnyType::Table)
+				pTable = any.GetScriptTable();
 			else
 				pTable = SmartScriptTable();
 		}

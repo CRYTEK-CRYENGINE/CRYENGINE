@@ -48,7 +48,7 @@ public:
 		return (m_linkType == LinkDataClass::GetType()) ? static_cast<const LinkDataClass*>(this) : NULL;
 	}
 
-	virtual bool         CanUse(IEntity* pRequester, float* costMultiplier) const = 0;
+	virtual bool         CanUse(const IEntity* pRequester, float* costMultiplier) const = 0;
 
 	virtual OffMeshLink* Clone() const = 0;
 	virtual Vec3         GetStartPosition() const = 0;

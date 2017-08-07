@@ -9,26 +9,26 @@ class PropertyTree;
 #include "Settings.h"
 #include "ItemTypeName.h"
 
-namespace uqs
+namespace UQS
 {
-namespace core
+namespace Core
 {
 class CTextualQueryBlueprint;
 }
-namespace shared
+namespace Shared
 {
 class CTypeInfo;
-}   // namespace shared
-namespace datasource
+}   // namespace Shared
+namespace DataSource
 {
 struct IEditorLibraryProvider;
 }
 };
 
-namespace uqseditor
+namespace UQSEditor
 {
 class CQueryBlueprint;
-} // namespace uqseditor
+} // namespace UQSEditor
 
 struct SItemTypeName;
 class CUqsEditorContext;
@@ -52,7 +52,7 @@ public:
 
 	void                        ApplySettings(const SDocumentSettings& settings);
 
-	uqseditor::CQueryBlueprint* GetQueryBlueprintPtr() const { return m_pQueryBlueprint.get(); }
+	UQSEditor::CQueryBlueprint* GetQueryBlueprintPtr() const { return m_pQueryBlueprint.get(); }
 	const string& GetName() const              { return m_queryName; }
 	bool          IsNeverSaved() const         { return m_bNeverSaved; }
 
@@ -68,7 +68,7 @@ private:
 
 	PropertyTree* m_pTree;
 
-	std::unique_ptr<uqseditor::CQueryBlueprint> m_pQueryBlueprint;
+	std::unique_ptr<UQSEditor::CQueryBlueprint> m_pQueryBlueprint;
 	string                   m_queryName;
 
 	SDocumentSettings        m_settings;

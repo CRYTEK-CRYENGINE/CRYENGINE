@@ -32,6 +32,7 @@ class CPlatformOS_PC : public IPlatformOS, public IPlatformOS::IPlatformListener
 public:
 
 	CPlatformOS_PC(const uint8 createParams);
+	~CPlatformOS_PC();
 
 	// ~IPlatformOS
 

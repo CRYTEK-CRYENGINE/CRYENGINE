@@ -447,8 +447,8 @@ end_sources()
 CryEngineStaticModule(tomcrypt SOLUTION_FOLDER "Libs")
 
 target_include_directories(tomcrypt PUBLIC
-	${SDK_DIR}/LibTomMath
-	${SDK_DIR}/LibTomCrypt/src/headers
+	"${SDK_DIR}/LibTomMath"
+	"${SDK_DIR}/LibTomCrypt/src/headers"
 )
 
 target_compile_definitions(tomcrypt
@@ -477,8 +477,8 @@ CryEngineStaticModule(tomcrypt_staticcrt SOLUTION_FOLDER "Libs")
 force_static_crt()
 
 target_include_directories(tomcrypt_staticcrt PUBLIC
-	${SDK_DIR}/LibTomMath
-	${SDK_DIR}/LibTomCrypt/src/headers
+	"${SDK_DIR}/LibTomMath"
+	"${SDK_DIR}/LibTomCrypt/src/headers"
 )
 
 target_compile_definitions(tomcrypt_staticcrt

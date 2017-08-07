@@ -1215,6 +1215,8 @@ private:
 	CEffectParam* m_pScopeZoom;
 	int8          m_nScopeZoomTransition;
 
+	std::unique_ptr<CStretchRectPass> m_pResolvePass;
+
 	bool          m_bInit;
 };
 

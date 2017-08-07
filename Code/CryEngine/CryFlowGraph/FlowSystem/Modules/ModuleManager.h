@@ -16,6 +16,10 @@ class CFlowGraphModuleManager : public IFlowGraphModuleManager, public ISystemEv
 public:
 	CFlowGraphModuleManager();
 	virtual ~CFlowGraphModuleManager();
+	CFlowGraphModuleManager(CFlowGraphModuleManager const&) = delete;
+	CFlowGraphModuleManager& operator=(CFlowGraphModuleManager const&) = delete;
+	CFlowGraphModuleManager(CFlowGraphModuleManager &&) = delete;
+	CFlowGraphModuleManager& operator=(CFlowGraphModuleManager&& other) = delete;
 
 	// ISystemEventListener
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam);
@@ -36,29 +40,34 @@ public:
 	virtual bool               DeleteModuleXML(const char* moduleName);
 	virtual bool               RenameModuleXML(const char* moduleName, const char* newName);
 
+	virtual const char*        GetModulePath(const char* name);
+
 	virtual bool               SaveModule(const char* moduleName, XmlNodeRef saveTo);
 	IFlowGraphModule*          LoadModuleFile(const char* moduleName, const char* fileName, bool bGlobal);
-
-	virtual IModuleIteratorPtr CreateModuleIterator();
-
-	virtual const char*        GetStartNodeName(const char* moduleName) const;
-	virtual const char*        GetReturnNodeName(const char* moduleName) const;
-	virtual const char*        GetCallerNodeName(const char* moduleName) const;
-	virtual void               ScanForModules();
-	virtual const char*        GetModulePath(const char* name);
-	virtual bool               CreateModuleNodes(const char* moduleName, TModuleId moduleId);
 
 	virtual IFlowGraphModule*  GetModule(IFlowGraphPtr pFlowgraph) const;
 	virtual IFlowGraphModule*  GetModule(const char* moduleName) const;
 	virtual IFlowGraphModule*  GetModule(TModuleId id) const;
-	virtual void               ClearModules();                   // Unload all loaded modules
+
+	virtual const char*        GetStartNodeName(const char* moduleName) const;
+	virtual const char*        GetReturnNodeName(const char* moduleName) const;
+	virtual const char*        GetCallerNodeName(const char* moduleName) const;
+
+	virtual void               ClearModules();
+	virtual void               ClearLevelModules();
+	virtual void               ScanAndReloadModules(bool bScanGlobalModules, bool bScanLevelModules);
+
+
+	virtual bool               CreateModuleNodes(const char* moduleName, TModuleId moduleId);
+
+	virtual IModuleIteratorPtr CreateModuleIterator();
 	// ~IFlowGraphModuleManager
 
 	void Shutdown();
+
 	void DestroyActiveModuleInstances();
 	void RemoveCompletedModuleInstances(); // cleanup at end of update
 	void ClearModuleRequestedInstances();
-	bool AddModulePathInfo(const char* moduleName, const char* path);
 
 	void BroadcastModuleInstanceStarted(IFlowGraphModule* module, TModuleInstanceId instanceID);
 	void BroadcastModuleInstanceFinished(IFlowGraphModule* module, TModuleInstanceId instanceID);
@@ -67,18 +76,17 @@ public:
 	ICVar* fg_debugmodules_filter;
 
 private:
-	CFlowGraphModuleManager(CFlowGraphModuleManager const&) : m_listeners(1) {}
-	// cppcheck-suppress operatorEqVarError
-	CFlowGraphModuleManager& operator=(CFlowGraphModuleManager const&) { return *this; }
+	typedef VectorMap<TModuleId, CFlowGraphModule*> TModuleMap;
 
-	void                     RescanModuleNames(bool bGlobal);
-	void                     ScanFolder(const string& folderName, bool bGlobal);
+	void              DestroyModule(TModuleMap::iterator& itModule);
 
-	CFlowGraphModule*        PreLoadModuleFile(const char* moduleName, const char* fileName, bool bGlobal);
-	void                     LoadModuleGraph(const char* moduleName, const char* fileName, IFlowGraphModuleListener::ERootGraphChangeReason rootGraphChangeReason);
+	void              RescanModuleNames(bool bGlobal);
+	void              ScanFolder(const string& folderName, bool bGlobal);
+
+	CFlowGraphModule* PreLoadModuleFile(const char* moduleName, const char* fileName, bool bGlobal);
+	void              LoadModuleGraph(const char* moduleName, const char* fileName, IFlowGraphModuleListener::ERootGraphChangeReason rootGraphChangeReason);
 
 	// Loaded modules
-	typedef VectorMap<TModuleId, CFlowGraphModule*> TModuleMap;
 	TModuleMap m_Modules;
 	TModuleId  m_nextModuleId;
 

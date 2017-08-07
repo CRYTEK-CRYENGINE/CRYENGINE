@@ -10,7 +10,9 @@ public:
 	CHmdManager() : m_pHmdDevice(nullptr) {}
 	virtual ~CHmdManager();
 
-	virtual void RegisterDevice(const char* name, IHmdDevice& device) override;
+	virtual void RegisterDevice(const char* szDeviceName, IHmdDevice& device) override;
+
+	virtual void UnregisterDevice(const char* szDeviceName) override;
 
 	// basic functionality needed to setup and destroy an Hmd during system init / system shutdown
 	virtual void SetupAction(EHmdSetupAction cmd) override;

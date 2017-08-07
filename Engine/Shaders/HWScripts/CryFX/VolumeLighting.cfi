@@ -692,6 +692,8 @@ StructuredBuffer<SFogVolumeInjectInfo> FogVolumeInjectInfo : register(t8);
 StructuredBuffer<SFogVolumeCullInfo> FogVolumeCullInfo : register(t9);
 Texture2D<float> InjectFogDensityMaxDepthInput : register(t10);
 
+StructuredBuffer<STiledClipVolumeInfo> VL_TiledClipVolumeInfo : register(t23);
+
 SamplerState FogNoiseSampler : register(s0) = SS_TrilinearWrap;
 
 float4 InjectFogDensityParams;
@@ -943,7 +945,7 @@ void InjectFogDensityCS(uint3 DispatchThreadID : SV_DispatchThreadID
 #endif
 	const uint clipVolumeStencilID = vfGetClipVolumeStencilID(nStencilVal);
 	const uint clipVolumeIndex = clipVolumeStencilID & (MAX_CLIPVOLUMES-1);
-	const uint clipVolumeData = TiledClipVolumeInfo[clipVolumeIndex].data;
+	const uint clipVolumeData = VL_TiledClipVolumeInfo[clipVolumeIndex].data;
 
 	// Barycentric interpolation for reconstructing position
 	float2 vPixelUV = (pixelCoord.xy + 0.5f) * ScreenSize.zw;
@@ -1392,6 +1394,10 @@ Texture3D<float> VolumetricFogDensityInput : register(t14);
 #endif
 Texture3D<float3> VolumetricFogEmissiveInput : register(t15);
 
+TextureCubeArray<float4> VL_DiffuseCubeArray : register(t18);
+Texture2DArray<float4> VL_SpotTexArray : register(t19);
+Texture2D<float4> VL_ShadowPool : register(t20);
+
 SamplerState vfTrilinearClampSampler : register(s3) = SS_TrilinearClamp;
 
 float4 ExponentialHeightFogColor;
@@ -1442,7 +1448,7 @@ void AccumulateInscatteringRegularLights(inout float3 inscatter, in float depth,
 					float attenuation = GetAttenuation( tmpLightVec, 1, true, AttenuationFalloffMax) * light.attenuationParams.x;
 
 					// Diffuse
-					float4 diffuseProbe = DiffuseCubeArray.SampleLevel( vfTrilinearClampSampler, float4( eyeRay, light.resIndex ), 0 );
+					float4 diffuseProbe = VL_DiffuseCubeArray.SampleLevel( vfTrilinearClampSampler, float4( eyeRay, light.resIndex ), 0 );
 					diffuseProbe.rgb = DecodeHDRCubemap( diffuseProbe ).xyz;
 
 					VolumetricFogLight fragLight;
@@ -1509,7 +1515,7 @@ void AccumulateInscatteringRegularLights(inout float3 inscatter, in float depth,
 							vProjTC.xy /= vProjTC.w;
 						
 							if (vProjTC.w > 0 && max( abs(vProjTC.x * 2 - 1), abs(vProjTC.y * 2 - 1) ) < 1)  // Avoid back-projection
-								filter = SpotTexArray.SampleLevel( vfTrilinearClampSampler, float3( vProjTC.xy, light.resIndex ), 4 ).x;
+								filter = VL_SpotTexArray.SampleLevel( vfTrilinearClampSampler, float3( vProjTC.xy, light.resIndex ), 4 ).x;
 						}
 					}
 					else
@@ -1733,7 +1739,7 @@ void AccumulateInscatteringRegularLights(inout float3 inscatter, in float depth,
 							if (projTC.w < plane || min( projTC.x, projTC.y ) < 0 || max( projTC.x, projTC.y ) > 1)  // Avoid back-projection
 								flag |= SkipShading;
 							else
-								fragLight.cDiffuse *= SpotTexArray.SampleLevel( vfTrilinearClampSampler, float3(projTC.xy, light.resIndex), 4 ).xxx;
+								fragLight.cDiffuse *= VL_SpotTexArray.SampleLevel( vfTrilinearClampSampler, float3(projTC.xy, light.resIndex), 4 ).xxx;
 
 							if (light.shadowParams.x > 0)
 								flag |= ShadowMap;
@@ -1786,7 +1792,7 @@ void AccumulateInscatteringRegularLights(inout float3 inscatter, in float depth,
 
 								float4 P0 = mul( light.shadowMatrix, float4( pos, 1 ) );
 								P0.xy /= P0.w;
-								shadowing += ShadowPool.SampleCmpLevelZero( vfShadowLinearClampCompSS, P0.xy, P0.z );
+								shadowing += VL_ShadowPool.SampleCmpLevelZero( vfShadowLinearClampCompSS, P0.xy, P0.z );
 							}
 							fragLight.fFallOff *= shadowing / countShadow;
 #else
@@ -1799,7 +1805,7 @@ void AccumulateInscatteringRegularLights(inout float3 inscatter, in float depth,
 	#endif
 							float4 P0 = mul( light.shadowMatrix, float4( position, 1 ) );
 							P0.xy /= P0.w;
-							fragLight.fFallOff *= ShadowPool.SampleCmpLevelZero( vfShadowLinearClampCompSS, P0.xy, P0.z );
+							fragLight.fFallOff *= VL_ShadowPool.SampleCmpLevelZero( vfShadowLinearClampCompSS, P0.xy, P0.z );
 #endif
 						}
 
@@ -1906,7 +1912,7 @@ void InjectVolumetricInscatteringCS(uint3 DispatchThreadID : SV_DispatchThreadID
 #endif
 #endif
 	const uint clipVolumeStencilID = vfGetClipVolumeStencilID(nStencilVal);
-	const uint clipVolumeData = TiledClipVolumeInfo[clipVolumeStencilID & (MAX_CLIPVOLUMES-1)].data;
+	const uint clipVolumeData = VL_TiledClipVolumeInfo[clipVolumeStencilID & (MAX_CLIPVOLUMES-1)].data;
 
 	// Barycentric interpolation for reconstructing position
 	const float3 pixelCoord = DispatchThreadID.xyz;

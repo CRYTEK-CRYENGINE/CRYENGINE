@@ -13,7 +13,7 @@ CVehicleSeatActionWeaponsBone::CVehicleSeatActionWeaponsBone()
 	, m_positionBoneId(-1)
 	, m_forwardOffset(0.f)
 {
-	CryCreateClassInstance("AnimationPoseModifier_OperatorQueue", m_poseModifier);
+	CryCreateClassInstanceForInterface(cryiidof<IAnimationOperatorQueue>(), m_poseModifier);
 }
 
 CVehicleSeatActionWeaponsBone::~CVehicleSeatActionWeaponsBone()

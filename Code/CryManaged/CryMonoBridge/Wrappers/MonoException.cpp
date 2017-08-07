@@ -5,7 +5,7 @@
 
 #include "MonoRuntime.h"
 
-CMonoException::CMonoException(MonoException* pException)
+CMonoException::CMonoException(MonoInternals::MonoException* pException)
 	: m_pException(pException)
 {
 	CRY_ASSERT(m_pException);
@@ -13,7 +13,7 @@ CMonoException::CMonoException(MonoException* pException)
 
 void CMonoException::Throw()
 {
-	static_cast<CMonoRuntime*>(gEnv->pMonoRuntime)->HandleException((MonoObject*)m_pException);
+	GetMonoRuntime()->HandleException(m_pException);
 
-	//mono_raise_exception(m_pException);
+	//MonoInternals::mono_raise_exception(m_pException);
 }

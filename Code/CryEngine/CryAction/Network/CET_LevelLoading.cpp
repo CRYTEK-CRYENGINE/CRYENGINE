@@ -261,66 +261,6 @@ void AddResetAreas(IContextEstablisher* pEst, EContextViewState state)
 }
 
 /*
- * Lock resources
- */
-
-struct SLockResourcesState : public CMultiThreadRefCount
-{
-	SLockResourcesState() : m_bLocked(false) {}
-	bool m_bLocked;
-};
-typedef _smart_ptr<SLockResourcesState> SLockResourcesStatePtr;
-
-class CCET_LockResources : public CCET_Base
-{
-public:
-	const char* GetName() { return (m_bLock) ? "LockResources (lock)" : "LockResources (unlock)"; }
-
-	CCET_LockResources(bool bLock, SLockResourcesStatePtr pState, CGameContext* pGameContext) : m_pState(pState), m_bLock(bLock), m_pGameContext(pGameContext) {}
-
-	EContextEstablishTaskResult OnStep(SContextEstablishState& state)
-	{
-		if (m_bLock && !m_pState->m_bLocked)
-		{
-			m_pGameContext->LockResources();
-			m_pState->m_bLocked = true;
-		}
-		if (!m_bLock && m_pState->m_bLocked)
-		{
-			m_pGameContext->UnlockResources();
-			m_pState->m_bLocked = false;
-		}
-		return eCETR_Ok;
-	}
-
-	EContextEstablishTaskResult OnLeaveState(SContextEstablishState& state)
-	{
-		return eCETR_Ok;
-	}
-
-	void OnFailLoading(bool hasEntered)
-	{
-		if (m_pState->m_bLocked)
-		{
-			m_pGameContext->UnlockResources();
-			m_pState->m_bLocked = false;
-		}
-	}
-
-private:
-	SLockResourcesStatePtr m_pState;
-	bool                   m_bLock;
-	CGameContext*          m_pGameContext;
-};
-
-void AddLockResources(IContextEstablisher* pEst, EContextViewState stateBegin, EContextViewState stateEnd, CGameContext* pGameContext)
-{
-	SLockResourcesStatePtr pState = new SLockResourcesState;
-	pEst->AddTask(stateBegin, new CCET_LockResources(true, pState, pGameContext));
-	pEst->AddTask(stateEnd, new CCET_LockResources(false, pState, pGameContext));
-}
-
-/*
  * Action events
  */
 class CCET_ActionEvent : public CCET_Base

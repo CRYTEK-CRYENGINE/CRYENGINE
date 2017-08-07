@@ -221,7 +221,7 @@ void CSensorMap::Update()
 	for (const SSensorEvent& event : events)
 	{
 		SVolume* pVolume = GetVolume(event.listenerVolumeId);
-		if (pVolume && !pVolume->params.eventListener.IsEmpty())
+		if (pVolume && pVolume->params.eventListener)
 		{
 			pVolume->params.eventListener(event);
 		}

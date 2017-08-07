@@ -14,6 +14,7 @@
 #include <Cry3DEngine/I3DEngine.h>
 #include "D3DPostProcess.h"
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -678,7 +679,7 @@ void CRainDrops::DrawFinal(CTexture*& rptexCurrRT)
 	PostProcessUtils().ShSetParamPS(pParam1Name, Vec4(1.0f, 1.0f, 1.0f, 1.0f));
 
 	PostProcessUtils().SetTexture(CTexture::s_ptexBackBuffer, 0, FILTER_LINEAR);
-	PostProcessUtils().SetTexture(rptexCurrRT, 1, FILTER_LINEAR, TADDR_MIRROR);
+	PostProcessUtils().SetTexture(rptexCurrRT, 1, FILTER_LINEAR, eSamplerAddressMode_Mirror);
 
 	PostProcessUtils().DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight());
 
@@ -1184,19 +1185,19 @@ void CNanoGlass::RenderPass(bool bDebugPass, bool bIsHudRendering)
 		// Set textures
 		CTexture* pHudMaskTex = bIsHudRendering ? m_pHudMask : CTexture::s_ptexBlackAlpha;
 
-		GetUtils().SetTexture(m_pHexOutline, 0, FILTER_LINEAR, TADDR_MIRROR);
-		GetUtils().SetTexture(pHudMaskTex, 1, FILTER_LINEAR, TADDR_CLAMP, true);
-		GetUtils().SetTexture(m_pNoise, 2, FILTER_LINEAR, TADDR_WRAP);
+		GetUtils().SetTexture(m_pHexOutline, 0, FILTER_LINEAR, eSamplerAddressMode_Mirror);
+		GetUtils().SetTexture(pHudMaskTex, 1, FILTER_LINEAR, eSamplerAddressMode_Clamp, true);
+		GetUtils().SetTexture(m_pNoise, 2, FILTER_LINEAR, eSamplerAddressMode_Wrap);
 
 		if (bUsingBackBuffer)
 		{
-			GetUtils().SetTexture(CTexture::s_ptexBackBufferScaled[2], 3, FILTER_LINEAR, TADDR_CLAMP);
+			GetUtils().SetTexture(CTexture::s_ptexBackBufferScaled[2], 3, FILTER_LINEAR, eSamplerAddressMode_Clamp);
 		}
 
 		if (bAnimPlaying)
 		{
-			GetUtils().SetTexture(m_pHexRand, 4, FILTER_LINEAR, TADDR_WRAP);
-			GetUtils().SetTexture(m_pHexGrad, 5, FILTER_LINEAR, TADDR_WRAP);
+			GetUtils().SetTexture(m_pHexRand, 4, FILTER_LINEAR, eSamplerAddressMode_Wrap);
+			GetUtils().SetTexture(m_pHexGrad, 5, FILTER_LINEAR, eSamplerAddressMode_Wrap);
 		}
 
 		// Draw mesh
@@ -1259,3 +1260,5 @@ void CScreenBlood::Render()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#pragma warning(pop)

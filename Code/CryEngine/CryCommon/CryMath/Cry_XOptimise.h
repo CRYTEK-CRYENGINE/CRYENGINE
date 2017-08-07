@@ -1,28 +1,22 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
-//	File:Cry_Math.h
 //	Description: Misc mathematical functions
 //
 //	History:
+//	Formerly Cry_Math.h
 //	-Jan 31,2001: Created by Marco Corbetta
 //	-Jan 04,2003: SSE and 3DNow optimizations by Andrey Honich
 //
 //////////////////////////////////////////////////////////////////////
 
-#ifndef CRY_SIMD_H
-#define CRY_SIMD_H
-
-#if _MSC_VER > 1000
-	#pragma once
-#endif
+#pragma once
 
 inline float AngleMod(float a)
 {
 	a = (float)((360.0 / 65536) * ((int)(a * (65536 / 360.0)) & 65535));
 	return a;
 }
-
 inline float AngleModRad(float a)
 {
 	a = (float)((gf_PI2 / 65536) * ((int)(a * (65536 / gf_PI2)) & 65535));
@@ -35,19 +29,6 @@ inline unsigned short Degr2Word(float f)
 inline float Word2Degr(unsigned short s)
 {
 	return (float)s / 65536.0f * 360.0f;
-}
-
-#define mathMatrixRotationZ(pOut, angle)     (*(Matrix44*)pOut) = GetTransposed44(Matrix44(Matrix34::CreateRotationZ(angle)))
-#define mathMatrixRotationY(pOut, angle)     (*(Matrix44*)pOut) = GetTransposed44(Matrix44(Matrix34::CreateRotationY(angle)))
-#define mathMatrixRotationX(pOut, angle)     (*(Matrix44*)pOut) = GetTransposed44(Matrix44(Matrix34::CreateRotationX(angle)))
-#define mathMatrixTranslation(pOut, x, y, z) (*(Matrix44*)pOut) = GetTransposed44(Matrix44(Matrix34::CreateTranslationMat(Vec3(x, y, z))))
-#define mathMatrixScaling(pOut, sx, sy, sz)  (*(Matrix44*)pOut) = GetTransposed44(Matrix44(Matrix34::CreateScale(Vec3(sx, sy, sz))))
-
-template<class T> inline void ExchangeVals(T& X, T& Y)
-{
-	const T Tmp = X;
-	X = Y;
-	Y = Tmp;
 }
 
 inline void mathMatrixPerspectiveFov(Matrix44A* pMatr, f32 fovY, f32 Aspect, f32 zn, f32 zf)
@@ -246,7 +227,7 @@ inline bool mathMatrixPerspectiveFovInverse(Matrix44_tpl<f64>* pResult, const Ma
 	return false;
 }
 
-template<class T_out, class T_in> inline void mathMatrixLookAtInverse(Matrix44_tpl<T_out>* pResult, const Matrix44_tpl<T_in>* pLookAt)
+template<class M_out, class M_in> inline void mathMatrixLookAtInverse(M_out* pResult, const M_in* pLookAt)
 {
 	(*pResult)(0, 0) = (*pLookAt).m00;
 	(*pResult)(0, 1) = (*pLookAt).m10;
@@ -261,37 +242,11 @@ template<class T_out, class T_in> inline void mathMatrixLookAtInverse(Matrix44_t
 	(*pResult)(2, 2) = (*pLookAt).m22;
 	(*pResult)(2, 3) = (*pLookAt).m23;
 
-	(*pResult)(3, 0) = T_out(-(f64((*pLookAt).m00) * f64((*pLookAt).m30) + f64((*pLookAt).m01) * f64((*pLookAt).m31) + f64((*pLookAt).m02) * f64((*pLookAt).m32)));
-	(*pResult)(3, 1) = T_out(-(f64((*pLookAt).m10) * f64((*pLookAt).m30) + f64((*pLookAt).m11) * f64((*pLookAt).m31) + f64((*pLookAt).m12) * f64((*pLookAt).m32)));
-	(*pResult)(3, 2) = T_out(-(f64((*pLookAt).m20) * f64((*pLookAt).m30) + f64((*pLookAt).m21) * f64((*pLookAt).m31) + f64((*pLookAt).m22) * f64((*pLookAt).m32)));
+	(*pResult)(3, 0) = (-(f64((*pLookAt).m00) * f64((*pLookAt).m30) + f64((*pLookAt).m01) * f64((*pLookAt).m31) + f64((*pLookAt).m02) * f64((*pLookAt).m32)));
+	(*pResult)(3, 1) = (-(f64((*pLookAt).m10) * f64((*pLookAt).m30) + f64((*pLookAt).m11) * f64((*pLookAt).m31) + f64((*pLookAt).m12) * f64((*pLookAt).m32)));
+	(*pResult)(3, 2) = (-(f64((*pLookAt).m20) * f64((*pLookAt).m30) + f64((*pLookAt).m21) * f64((*pLookAt).m31) + f64((*pLookAt).m22) * f64((*pLookAt).m32)));
 	(*pResult)(3, 3) = (*pLookAt).m33;
 };
-
-inline void mathVec4Transform(f32 out[4], const f32 m[16], const f32 in[4])
-{
-#define M(row, col) m[col * 4 + row]
-	out[0] = M(0, 0) * in[0] + M(0, 1) * in[1] + M(0, 2) * in[2] + M(0, 3) * in[3];
-	out[1] = M(1, 0) * in[0] + M(1, 1) * in[1] + M(1, 2) * in[2] + M(1, 3) * in[3];
-	out[2] = M(2, 0) * in[0] + M(2, 1) * in[1] + M(2, 2) * in[2] + M(2, 3) * in[3];
-	out[3] = M(3, 0) * in[0] + M(3, 1) * in[1] + M(3, 2) * in[2] + M(3, 3) * in[3];
-#undef M
-}
-
-// Fix: replace by 3x4 Matrix transformation and move to crymath.
-inline void mathVec3Transform(f32 out[4], const f32 m[16], const f32 in[3])
-{
-#define M(row, col) m[col * 4 + row]
-	out[0] = M(0, 0) * in[0] + M(0, 1) * in[1] + M(0, 2) * in[2] + M(0, 3) * 1.0f;
-	out[1] = M(1, 0) * in[0] + M(1, 1) * in[1] + M(1, 2) * in[2] + M(1, 3) * 1.0f;
-	out[2] = M(2, 0) * in[0] + M(2, 1) * in[1] + M(2, 2) * in[2] + M(2, 3) * 1.0f;
-	out[3] = M(3, 0) * in[0] + M(3, 1) * in[1] + M(3, 2) * in[2] + M(3, 3) * 1.0f;
-#undef M
-}
-
-#define mathVec3TransformF(pOut, pV, pM) mathVec3Transform((f32*)pOut, (const f32*)pM, (f32*)pV)
-#define mathVec4TransformF(pOut, pV, pM) mathVec4Transform((f32*)pOut, (const f32*)pM, (f32*)pV)
-#define mathVec3NormalizeF(pOut, pV)     (*(Vec3*)pOut) = (((Vec3*)pV)->GetNormalizedSafe())
-#define mathVec2NormalizeF(pOut, pV)     (*(Vec2*)pOut) = (((Vec2*)pV)->GetNormalizedSafe())
 
 // Fix replace viewport by int16 array.
 // Fix for d3d viewport.
@@ -303,9 +258,9 @@ inline f32 mathVec3Project(Vec3* pvWin, const Vec3* pvObj, const int32 pViewport
 	in.y = pvObj->y;
 	in.z = pvObj->z;
 	in.w = 1.0f;
-	mathVec4Transform((f32*)&out, (f32*)pWorld, (f32*)&in);
-	mathVec4Transform((f32*)&in, (f32*)pView, (f32*)&out);
-	mathVec4Transform((f32*)&out, (f32*)pProjection, (f32*)&in);
+	out = in * *pWorld;
+	in = out * *pView;
+	out = in * *pProjection;
 
 	if (out.w == 0.0f)
 		return 0.f;
@@ -343,7 +298,7 @@ inline Vec3* mathVec3UnProject(Vec3* pvObj, const Vec3* pvWin, const int32 pView
 	mA = ((*pWorld) * (*pView)) * (*pProjection);
 	m = mA.GetInverted();
 
-	mathVec4Transform((f32*)&out, m.GetData(), (f32*)&in);
+	out = in * m;
 	if (out.w == 0.0f)
 		return NULL;
 
@@ -381,7 +336,7 @@ inline Vec3* mathVec3ProjectArray(Vec3* pOut, uint32 OutStride, const Vec3* pV, 
 		in.z = pvObj->z;
 		in.w = 1.0f;
 
-		mathVec4Transform((f32*)&out, m.GetData(), (f32*)&in);
+		out = in * m;
 
 		if (out.w == 0.0f)
 			return NULL;
@@ -431,7 +386,7 @@ inline Vec3* mathVec3UnprojectArray(Vec3* pOut, uint32 OutStride, const Vec3* pV
 		in.z = (pvWin->z - fViewportMinZ) / (fViewportMaxZ - fViewportMinZ);
 		in.w = 1.0f;
 
-		mathVec4Transform((f32*)&out, m.GetData(), (f32*)&in);
+		out = in * m;
 
 		CRY_MATH_ASSERT(out.w != 0.0f);
 
@@ -448,5 +403,3 @@ inline Vec3* mathVec3UnprojectArray(Vec3* pOut, uint32 OutStride, const Vec3* pV
 
 	return pOut;
 }
-
-#endif //math

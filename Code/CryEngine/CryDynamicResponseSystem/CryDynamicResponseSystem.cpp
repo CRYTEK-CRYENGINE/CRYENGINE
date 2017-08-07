@@ -11,12 +11,16 @@
 #include "VariableCollection.h"
 
 //////////////////////////////////////////////////////////////////////////
-class CEngineModule_CryDynamicResponseSystem : public IEngineModule
+class CEngineModule_CryDynamicResponseSystem : public DRS::IDynamicResponseSystemEngineModule
 {
-	CRYINTERFACE_SIMPLE(IEngineModule)
-	CRYGENERATE_SINGLETONCLASS(CEngineModule_CryDynamicResponseSystem, "EngineModule_CryDynamicResponseSystem", 0xd1ed34dda44c4c17, 0x959a46df79af5db3)
+	CRYINTERFACE_BEGIN()
+		CRYINTERFACE_ADD(Cry::IDefaultModule)
+		CRYINTERFACE_ADD(DRS::IDynamicResponseSystemEngineModule)
+	CRYINTERFACE_END()
 
-	virtual ~CEngineModule_CryDynamicResponseSystem()
+	CRYGENERATE_SINGLETONCLASS_GUID(CEngineModule_CryDynamicResponseSystem, "EngineModule_CryDynamicResponseSystem", "d1ed34dd-a44c-4c17-959a-46df79af5db3"_cry_guid)
+
+	virtual ~CEngineModule_CryDynamicResponseSystem() override
 	{
 		SAFE_DELETE(gEnv->pDynamicResponseSystem);
 	}

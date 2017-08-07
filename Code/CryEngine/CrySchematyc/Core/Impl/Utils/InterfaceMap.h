@@ -3,7 +3,7 @@
 #pragma once
 
 #include <CryCore/Containers/VectorMap.h>
-#include <Schematyc/Utils/IInterfaceMap.h>
+#include <CrySchematyc/Utils/IInterfaceMap.h>
 
 namespace Schematyc
 {

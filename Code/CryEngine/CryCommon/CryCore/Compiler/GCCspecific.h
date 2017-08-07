@@ -65,3 +65,6 @@
 
 // Suppress undefined behavior sanitizer errors on a function.
 #define CRY_FUNCTION_CONTAINS_UNDEFINED_BEHAVIOR
+
+//! Unreachable code marker for helping error handling and optimization
+#define UNREACHABLE() __builtin_unreachable()

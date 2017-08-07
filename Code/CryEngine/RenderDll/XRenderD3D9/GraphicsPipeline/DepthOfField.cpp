@@ -7,8 +7,6 @@
 
 void CDepthOfFieldStage::Init()
 {
-	m_samplerPoint = CTexture::GetTexState(STexState(FILTER_POINT, true));
-	m_samplerLinear = CTexture::GetTexState(STexState(FILTER_LINEAR, true));
 }
 
 float NGon_Rad(float theta, float n)
@@ -108,13 +106,14 @@ void CDepthOfFieldStage::Execute()
 			if (m_passLayerDownscale.InputChanged())
 			{
 				static CCryNameTSCRC techNameDownscale("DownscaleDof");
+				m_passLayerDownscale.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 				m_passLayerDownscale.SetTechnique(pShader, techNameDownscale, 0);
 				m_passLayerDownscale.SetRenderTarget(0, CTexture::s_ptexHDRDofLayers[0]);  // Near
 				m_passLayerDownscale.SetRenderTarget(1, CTexture::s_ptexHDRDofLayers[1]);  // Far
 				m_passLayerDownscale.SetRenderTarget(2, CTexture::s_ptexSceneCoC[0]);      // CoC Near/Far
 				m_passLayerDownscale.SetState(GS_NODEPTHTEST);
-				m_passLayerDownscale.SetTextureSamplerPair(0, CTexture::s_ptexZTarget, m_samplerPoint);
-				m_passLayerDownscale.SetTextureSamplerPair(1, CTexture::s_ptexHDRTarget, m_samplerLinear);
+				m_passLayerDownscale.SetTextureSamplerPair(0, CTexture::s_ptexZTarget, EDefaultSamplerStates::PointClamp);
+				m_passLayerDownscale.SetTextureSamplerPair(1, CTexture::s_ptexHDRTarget, EDefaultSamplerStates::LinearClamp);
 				m_passLayerDownscale.SetRequirePerViewConstantBuffer(true);
 			}
 
@@ -122,7 +121,6 @@ void CDepthOfFieldStage::Execute()
 			Vec4 vParams = Vec4((float)CTexture::s_ptexHDRDofLayers[0]->GetWidth(), (float)CTexture::s_ptexHDRDofLayers[0]->GetHeight(),
 			                    1.0f / (float)CTexture::s_ptexHDRDofLayers[0]->GetWidth(), 1.0f / (float)CTexture::s_ptexHDRDofLayers[0]->GetHeight());
 			m_passLayerDownscale.SetConstant(dofFocusParam0Name, vDofParams0, eHWSC_Pixel);
-			m_passLayerDownscale.SetConstant(dofFocusParam1Name, vParams, eHWSC_Vertex);
 			m_passLayerDownscale.SetConstant(dofFocusParam1Name, vDofParams1, eHWSC_Pixel);
 			m_passLayerDownscale.Execute();
 		}
@@ -135,17 +133,17 @@ void CDepthOfFieldStage::Execute()
 				if (m_passTileMinCoC[i].InputChanged())
 				{
 					static CCryNameTSCRC techNameTileMinCoC("TileMinCoC");
+					m_passTileMinCoC[i].SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_VS);
 					m_passTileMinCoC[i].SetTechnique(pShader, techNameTileMinCoC, 0);
 					m_passTileMinCoC[i].SetRenderTarget(0, CTexture::s_ptexSceneCoC[i]);  // Near
 					m_passTileMinCoC[i].SetState(GS_NODEPTHTEST);
-					m_passTileMinCoC[i].SetTextureSamplerPair(0, CTexture::s_ptexSceneCoC[i - 1], m_samplerLinear);
+					m_passTileMinCoC[i].SetTextureSamplerPair(0, CTexture::s_ptexSceneCoC[i - 1], EDefaultSamplerStates::LinearClamp);
 				}
 
 				m_passTileMinCoC[i].BeginConstantUpdate();
 				const Vec4 vParams = Vec4((float)CTexture::s_ptexSceneCoC[i - 1]->GetWidth(), (float)CTexture::s_ptexSceneCoC[i - 1]->GetHeight(),
 				                          1.0f / (float)CTexture::s_ptexSceneCoC[i - 1]->GetWidth(), 1.0f / (float)CTexture::s_ptexSceneCoC[i - 1]->GetHeight());
 				m_passTileMinCoC[i].SetConstant(dofFocusParam1Name, vParams, eHWSC_Vertex);
-				m_passTileMinCoC[i].SetConstant(dofFocusParam1Name, vDofParams1, eHWSC_Pixel);
 				m_passTileMinCoC[i].Execute();
 			}
 		}
@@ -172,17 +170,18 @@ void CDepthOfFieldStage::Execute()
 			if (m_passGather0.InputChanged())
 			{
 				static CCryNameTSCRC techDOF("Dof");
+				m_passGather0.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 				m_passGather0.SetTechnique(pShader, techDOF, 0);
 				m_passGather0.SetRenderTarget(0, pTexDofLayersTmp[0]);
 				m_passGather0.SetRenderTarget(1, pTexDofLayersTmp[1]);
 				m_passGather0.SetRenderTarget(2, CTexture::s_ptexSceneCoCTemp);
 				m_passGather0.SetState(GS_NODEPTHTEST);
 
-				m_passGather0.SetTextureSamplerPair(0, CTexture::s_ptexZTargetScaled, m_samplerPoint);
-				m_passGather0.SetTextureSamplerPair(1, CTexture::s_ptexHDRDofLayers[0], m_samplerLinear);
-				m_passGather0.SetTextureSamplerPair(2, CTexture::s_ptexHDRDofLayers[1], m_samplerLinear);
-				m_passGather0.SetTextureSamplerPair(3, CTexture::s_ptexSceneCoC[0], m_samplerLinear);
-				m_passGather0.SetTextureSamplerPair(4, CTexture::s_ptexSceneCoC[MIN_DOF_COC_K - 1], m_samplerPoint);
+				m_passGather0.SetTextureSamplerPair(0, CTexture::s_ptexZTargetScaled, EDefaultSamplerStates::PointClamp);
+				m_passGather0.SetTextureSamplerPair(1, CTexture::s_ptexHDRDofLayers[0], EDefaultSamplerStates::LinearClamp);
+				m_passGather0.SetTextureSamplerPair(2, CTexture::s_ptexHDRDofLayers[1], EDefaultSamplerStates::LinearClamp);
+				m_passGather0.SetTextureSamplerPair(3, CTexture::s_ptexSceneCoC[0], EDefaultSamplerStates::LinearClamp);
+				m_passGather0.SetTextureSamplerPair(4, CTexture::s_ptexSceneCoC[MIN_DOF_COC_K - 1], EDefaultSamplerStates::PointClamp);
 			}
 
 			m_passGather0.BeginConstantUpdate();
@@ -213,17 +212,18 @@ void CDepthOfFieldStage::Execute()
 			if (m_passGather1.InputChanged())
 			{
 				static CCryNameTSCRC techDOF("Dof");
+				m_passGather1.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 				m_passGather1.SetTechnique(pShader, techDOF, g_HWSR_MaskBit[HWSR_SAMPLE0]);
 				m_passGather1.SetRenderTarget(0, CTexture::s_ptexHDRDofLayers[0]);
 				m_passGather1.SetRenderTarget(1, CTexture::s_ptexHDRDofLayers[1]);
 				m_passGather1.SetRenderTarget(2, CTexture::s_ptexSceneCoC[0]);
 				m_passGather1.SetState(GS_NODEPTHTEST);
 
-				m_passGather1.SetTextureSamplerPair(0, CTexture::s_ptexZTargetScaled, m_samplerPoint);
-				m_passGather1.SetTextureSamplerPair(1, pTexDofLayersTmp[0], m_samplerLinear);
-				m_passGather1.SetTextureSamplerPair(2, pTexDofLayersTmp[1], m_samplerLinear);
-				m_passGather1.SetTextureSamplerPair(3, CTexture::s_ptexSceneCoCTemp, m_samplerPoint);  // TODO: Point filtering good here?
-				m_passGather1.SetTextureSamplerPair(4, CTexture::s_ptexSceneCoC[MIN_DOF_COC_K - 1], m_samplerPoint);
+				m_passGather1.SetTextureSamplerPair(0, CTexture::s_ptexZTargetScaled, EDefaultSamplerStates::PointClamp);
+				m_passGather1.SetTextureSamplerPair(1, pTexDofLayersTmp[0], EDefaultSamplerStates::LinearClamp);
+				m_passGather1.SetTextureSamplerPair(2, pTexDofLayersTmp[1], EDefaultSamplerStates::LinearClamp);
+				m_passGather1.SetTextureSamplerPair(3, CTexture::s_ptexSceneCoCTemp, EDefaultSamplerStates::PointClamp);  // TODO: Point filtering good here?
+				m_passGather1.SetTextureSamplerPair(4, CTexture::s_ptexSceneCoC[MIN_DOF_COC_K - 1], EDefaultSamplerStates::PointClamp);
 			}
 
 			m_passGather1.BeginConstantUpdate();
@@ -241,15 +241,16 @@ void CDepthOfFieldStage::Execute()
 			if (m_passComposition.InputChanged())
 			{
 				static CCryNameTSCRC techCompositeDof("CompositeDof");
+				m_passComposition.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 				m_passComposition.SetTechnique(pShader, techCompositeDof, 0);
 				m_passComposition.SetRenderTarget(0, CTexture::s_ptexHDRTarget);
 				m_passComposition.SetState(GS_NODEPTHTEST);
 
-				m_passComposition.SetTextureSamplerPair(0, CTexture::s_ptexZTarget, m_samplerPoint);
-				m_passComposition.SetTextureSamplerPair(1, CTexture::s_ptexHDRDofLayers[0], m_samplerLinear);
-				m_passComposition.SetTextureSamplerPair(2, CTexture::s_ptexHDRDofLayers[1], m_samplerLinear);
-				m_passComposition.SetTextureSamplerPair(3, CTexture::s_ptexSceneCoCTemp, m_samplerLinear);
-				m_passComposition.SetTextureSamplerPair(4, CTexture::s_ptexSceneTarget, m_samplerPoint);
+				m_passComposition.SetTextureSamplerPair(0, CTexture::s_ptexZTarget, EDefaultSamplerStates::PointClamp);
+				m_passComposition.SetTextureSamplerPair(1, CTexture::s_ptexHDRDofLayers[0], EDefaultSamplerStates::LinearClamp);
+				m_passComposition.SetTextureSamplerPair(2, CTexture::s_ptexHDRDofLayers[1], EDefaultSamplerStates::LinearClamp);
+				m_passComposition.SetTextureSamplerPair(3, CTexture::s_ptexSceneCoCTemp, EDefaultSamplerStates::LinearClamp);
+				m_passComposition.SetTextureSamplerPair(4, CTexture::s_ptexSceneTarget, EDefaultSamplerStates::PointClamp);
 			}
 
 			m_passComposition.BeginConstantUpdate();

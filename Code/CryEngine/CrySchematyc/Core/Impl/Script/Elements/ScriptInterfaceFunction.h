@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <Schematyc/Script/Elements/IScriptInterfaceFunction.h>
-#include <Schematyc/SerializationUtils/MultiPassSerializer.h>
+#include <CrySchematyc/Script/Elements/IScriptInterfaceFunction.h>
+#include <CrySchematyc/SerializationUtils/MultiPassSerializer.h>
 
 #include "Script/ScriptElementBase.h"
 #include "Script/ScriptParam.h"
@@ -19,7 +19,7 @@ class CScriptInterfaceFunction : public CScriptElementBase<IScriptInterfaceFunct
 public:
 
 	CScriptInterfaceFunction();
-	CScriptInterfaceFunction(const SGUID& guid, const char* szName);
+	CScriptInterfaceFunction(const CryGUID& guid, const char* szName);
 
 	// IScriptElement
 	virtual void EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const override;

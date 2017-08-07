@@ -5209,7 +5209,7 @@ const SSessionStats* CPersistantStats::GetPreviousGameSessionStatsForClient( uin
 uint32 CPersistantStats::GetAverageDeltaPreviousGameXp( const uint8 desiredNumGamesToAverageOver ) const
 {
 	uint32 totalXp = 0;
-	const uint32 maxCount = MIN(desiredNumGamesToAverageOver, m_clientPersistantStatHistory.size()); 
+	const uint32 maxCount = std::min((size_t)desiredNumGamesToAverageOver, (size_t)m_clientPersistantStatHistory.size()); 
 	for(uint32 i = 0; i < maxCount; ++i)
 	{
 		totalXp += m_clientPersistantStatHistory[i].m_xpHistoryDelta; 

@@ -1775,11 +1775,6 @@ void CGameRules::ProcessEvent( SEntityEvent& event)
 }
 
 //------------------------------------------------------------------------
-void CGameRules::SetAuthority( bool auth )
-{
-}
-
-//------------------------------------------------------------------------
 void CGameRules::PostUpdate( float frameTime )
 {
 	INDENT_LOG_DURING_SCOPE(true, "During CGameRules::PostUpdate");
@@ -3574,7 +3569,7 @@ void CGameRules::RenamePlayer(IActor *pActor, const char *name)
 
 		GetGameObject()->InvokeRMIWithDependentObject(ClRenameEntity(), params, eRMI_ToAllClients, params.entityId);
 
-		if (INetChannel* pNetChannel = pActor->GetGameObject()->GetNetChannel())
+		if (INetChannel* pNetChannel = gEnv->pGameFramework->GetNetChannel(pActor->GetChannelId()))
 			pNetChannel->SetNickname(fixed.c_str());
 
 		m_pGameplayRecorder->Event(pActorEntity, GameplayEvent(eGE_Renamed, fixed));
@@ -5628,7 +5623,7 @@ bool CGameRules::OnCollision(const SGameCollision& event)
 		return true;
 
 	static IEntityClass* s_pBasicEntityClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass("BasicEntity");
-	static IEntityClass* s_pDefaultClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass("Default");
+	static IEntityClass* s_pDefaultClass = gEnv->pEntitySystem->GetClassRegistry()->GetDefaultClass();
 	bool srcClassFilter = false;
 	bool trgClassFilter = false;
 
@@ -8574,7 +8569,7 @@ void CGameRules::SPlayerEndGameStatsParams::SerializeWith( TSerialize ser )
 		if (pPlayerStatsModule)
 		{
 			int numPlayerStats = pPlayerStatsModule->GetNumPlayerStats();
-			numPlayerStats = MIN(numPlayerStats, k_maxPlayerStats);
+			numPlayerStats = std::min<int>(numPlayerStats, MAX_PLAYER_LIMIT);
 
 			m_numPlayerStats = numPlayerStats;
 			ser.Value("numStats", m_numPlayerStats, 'ui5');
@@ -8976,7 +8971,8 @@ void CGameRules::OnSystemEvent( ESystemEvent event,UINT_PTR wparam,UINT_PTR lpar
 	switch(event)
 	{
 		case	ESYSTEM_EVENT_LEVEL_LOAD_END:
-			{ 				
+			{
+				LOADING_TIME_PROFILE_SECTION_NAMED("CGameRules::OnSystemEvent() ESYSTEM_EVENT_LEVEL_LOAD_END");
 				if(IGameRulesSpectatorModule * pSpectatorModule = GetSpectatorModule())
 				{
 					EntityId spectatorPositionId = pSpectatorModule->GetSpectatorLocation(0);

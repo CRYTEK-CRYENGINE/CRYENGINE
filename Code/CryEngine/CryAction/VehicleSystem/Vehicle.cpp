@@ -1291,6 +1291,20 @@ void CVehicle::ProcessEvent(SEntityEvent& entityEvent)
 			}
 		}
 		break;
+	case ENTITY_EVENT_SET_AUTHORITY:
+		{
+			m_hasAuthority = entityEvent.nParam[0] ? true : false;
+			if (m_pMovement)
+			{
+				m_pMovement->SetAuthority(m_hasAuthority);
+			}
+			if (m_hasAuthority)
+			{
+				m_clientSmoothedPosition.t = GetEntity()->GetPos();
+				m_clientSmoothedPosition.q = GetEntity()->GetRotation();
+			}
+		}
+		break;
 	}
 
 	if (m_pMovement)
@@ -1308,6 +1322,7 @@ uint64 CVehicle::GetEventMask() const
 	  BIT64(ENTITY_EVENT_UNHIDE) |
 	  BIT64(ENTITY_EVENT_ANIM_EVENT) |
 	  BIT64(ENTITY_EVENT_START_GAME) |
+	  BIT64(ENTITY_EVENT_SET_AUTHORITY) |
 	  BIT64(ENTITY_EVENT_PREPHYSICSUPDATE);
 }
 
@@ -1491,10 +1506,10 @@ void CVehicle::Reset(bool enterGame)
 		NeedsUpdate(eVUF_AwakePhysics);
 
 		// Temp Code, testing only
-		CryAudio::ControlId engineAudioTriggerId;
-		if (gEnv->pAudioSystem->GetAudioTriggerId("ENGINE_ON", engineAudioTriggerId))
+		CryAudio::ControlId triggerId;
+		if (gEnv->pAudioSystem->GetTriggerId("ENGINE_ON", triggerId))
 		{
-			m_pIEntityAudioComponent->ExecuteTrigger(engineAudioTriggerId);
+			m_pIEntityAudioComponent->ExecuteTrigger(triggerId);
 		}
 	}
 	else
@@ -1508,10 +1523,10 @@ void CVehicle::Reset(bool enterGame)
 		}
 
 		// Temp Code, testing only
-		CryAudio::ControlId engineAudioTriggerId;
-		if (gEnv->pAudioSystem->GetAudioTriggerId("ENGINE_OFF", engineAudioTriggerId))
+		CryAudio::ControlId triggerId;
+		if (gEnv->pAudioSystem->GetTriggerId("ENGINE_OFF", triggerId))
 		{
-			m_pIEntityAudioComponent->ExecuteTrigger(engineAudioTriggerId);
+			m_pIEntityAudioComponent->ExecuteTrigger(triggerId);
 		}
 	}
 
@@ -2514,21 +2529,6 @@ IFireController* CVehicle::GetFireController(uint32 controllerNum)
 		return NULL;
 
 	return m_seats[controllerNum].second;
-}
-
-//------------------------------------------------------------------------
-void CVehicle::SetAuthority(bool auth)
-{
-	m_hasAuthority = auth;
-	if (m_pMovement)
-	{
-		m_pMovement->SetAuthority(auth);
-	}
-	if (auth)
-	{
-		m_clientSmoothedPosition.t = GetEntity()->GetPos();
-		m_clientSmoothedPosition.q = GetEntity()->GetRotation();
-	}
 }
 
 //------------------------------------------------------------------------
@@ -5167,14 +5167,14 @@ int CVehicle::GetNextPhysicsSlot(bool high) const
 {
 	// use the last 9 partids of the current id range for parts without slot geometry
 	// their partid must not mix up with other entity slots
-	int idMax = (high) ? PARTID_MAX_SLOTS - 10 : -1;
+	int idMax = (high) ? EntityPhysicsUtils::PARTID_MAX_SLOTS - 10 : -1;
 
 	// get next physid not belonging to CGA range
 	for (TVehiclePartVector::const_iterator ite = m_parts.begin(); ite != m_parts.end(); ++ite)
 	{
 		int physId = ite->second->GetPhysId();
 
-		if (physId > idMax && physId < PARTID_MAX_SLOTS && physId > PARTID_MAX_SLOTS - 10)
+		if (physId > idMax && physId < EntityPhysicsUtils::PARTID_MAX_SLOTS && physId > EntityPhysicsUtils::PARTID_MAX_SLOTS - 10)
 			idMax = physId;
 	}
 

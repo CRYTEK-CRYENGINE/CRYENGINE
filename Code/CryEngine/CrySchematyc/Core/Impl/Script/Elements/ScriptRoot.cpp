@@ -6,7 +6,7 @@
 namespace Schematyc
 {
 CScriptRoot::CScriptRoot()
-	: CScriptElementBase(SGUID(), "Root", EScriptElementFlags::FixedName)
+	: CScriptElementBase(CryGUID(), "Root", EScriptElementFlags::FixedName)
 {}
 
 void CScriptRoot::EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const {}

@@ -17,6 +17,7 @@
 
 #if YASLI_CXX11
 #include <memory>
+#include <unordered_map>
 #include <CrySerialization/yasli/ClassFactory.h>
 #endif
 

@@ -2408,7 +2408,7 @@ const char * CFeatureTester::GetActorInfoString(IActor * iActor, CryFixedStringT
 			pEntity->GetPhysics() ? "" : ", NO PHYSICS",
 			gameObject->ShouldUpdate() ? "" : ", NOT UPDATING",
 			pEntity->IsHidden() ? ", hidden" : "",
-			pEntity->IsActive() ? "" : ", inactive",
+			pEntity->IsActivatedForUpdates() ? "" : ", inactive",
 			pEntity->IsInvisible() ? ", invisible" : "",
 			itemInfo.c_str(),
 			targetInfo.c_str(),
@@ -2528,7 +2528,7 @@ void CFeatureTester::SubmitResultToAutoTester(const SFeatureTest * test, float t
 							teamNum, teamNum ? gameRules->GetTeamName(teamNum) : "none",
 							pEntity->GetPhysics() ? ", has physics" : ", no physics",							
 							pEntity->IsHidden() ? ", hidden" : "",
-							pEntity->IsActive() ? "" : ", inactive",
+							pEntity->IsActivatedForUpdates() ? "" : ", inactive",
 							pEntity->IsInvisible() ? ", invisible" : "",
 							pos.x, pos.y, pos.z, dir.x, dir.y, dir.z);
 

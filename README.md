@@ -16,6 +16,8 @@ Development takes place primarily in the "main" branch. The stabilisation branch
 
 To prepare for a major (feature) release, we integrate "main" into "stabilisation", and then continue fixing bugs in "stabilisation". To prepare for a minor (stability) release, individual changes from 'main are integrated directly into "stabilisation". In each case, when the release is deemed ready, "stabilisation" is integrated to "release".
 
+Pull requests can only be accepted into the "pullrequests" branch.
+
 
 ## License
 The source code in this repository is governed by the CRYENGINE license agreement, which is contained in LICENSE.md, adjacent to this file.

@@ -27,6 +27,7 @@ template<class T> struct Color_tpl
 	ILINE Color_tpl(const unsigned int abgr);
 	ILINE Color_tpl(const f32 c);
 	ILINE Color_tpl(const ColorF& c);
+	ILINE Color_tpl(const ColorB& c);
 	ILINE Color_tpl(const ColorF& c, float fAlpha);
 	ILINE Color_tpl(const Vec3& c, float fAlpha);
 
@@ -413,12 +414,20 @@ ILINE Color_tpl<uint8>::Color_tpl(const ColorF& c)
 }
 
 template<>
-ILINE Color_tpl<f32>::Color_tpl(const ColorF& c, float fAlpha)
+ILINE Color_tpl<f32>::Color_tpl(const ColorB& c)
+{
+	r = (f32)c.r / 255.f;
+	g = (f32)c.g / 255.f;
+	b = (f32)c.b / 255.f;
+	a = (f32)c.a / 255.f;
+}
+template<>
+ILINE Color_tpl<uint8>::Color_tpl(const ColorB& c)
 {
 	r = c.r;
 	g = c.g;
 	b = c.b;
-	a = fAlpha;
+	a = c.a;
 }
 
 template<>
@@ -429,21 +438,29 @@ ILINE Color_tpl<f32>::Color_tpl(const Vec3& c, float fAlpha)
 	b = c.z;
 	a = fAlpha;
 }
-
-template<>
-ILINE Color_tpl<uint8>::Color_tpl(const ColorF& c, float fAlpha)
-{
-	r = (uint8)(c.r * 255);
-	g = (uint8)(c.g * 255);
-	b = (uint8)(c.b * 255);
-	a = (uint8)(fAlpha * 255);
-}
 template<>
 ILINE Color_tpl<uint8>::Color_tpl(const Vec3& c, float fAlpha)
 {
 	r = (uint8)(c.x * 255);
 	g = (uint8)(c.y * 255);
 	b = (uint8)(c.z * 255);
+	a = (uint8)(fAlpha * 255);
+}
+
+template<>
+ILINE Color_tpl<f32>::Color_tpl(const ColorF& c, float fAlpha)
+{
+	r = c.r;
+	g = c.g;
+	b = c.b;
+	a = fAlpha;
+}
+template<>
+ILINE Color_tpl<uint8>::Color_tpl(const ColorF& c, float fAlpha)
+{
+	r = (uint8)(c.r * 255);
+	g = (uint8)(c.g * 255);
+	b = (uint8)(c.b * 255);
 	a = (uint8)(fAlpha * 255);
 }
 

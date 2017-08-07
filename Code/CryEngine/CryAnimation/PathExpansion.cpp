@@ -3,6 +3,8 @@
 #include "stdafx.h"
 #include "PathExpansion.h"
 
+#include <CryMath/Random.h>
+
 // Expand patterns into paths. An example of a pattern before expansion:
 // animations/facial/idle_{0,1,2,3}.fsq
 // {} is used to specify options for parts of the string.

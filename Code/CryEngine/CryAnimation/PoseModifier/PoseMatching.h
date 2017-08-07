@@ -14,7 +14,7 @@ public:
 	CRYINTERFACE_ADD(IAnimationPoseMatching)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_CLASS(CPoseMatching, "AnimationPoseModifier_PoseMatching", 0x18318a272246464e, 0xa4b7adffa51a9508)
+	CRYGENERATE_CLASS_GUID(CPoseMatching, "AnimationPoseModifier_PoseMatching", "18318a27-2246-464e-a4b7-adffa51a9508"_cry_guid)
 
 	CPoseMatching();
 	virtual ~CPoseMatching() {}

@@ -273,7 +273,8 @@ void CSpawningVisTable::RemoveSpawnLocation(EntityId location)
 	}
 
 	int spawnIdx			= spawnIdxIter->second;
-	int finalSpawnIdx = m_spawnVisData.size() - 1;
+	TSpawnIndexMap::reverse_iterator finalSpawnIdxIter = m_spawnIndexMap.rbegin();
+	int finalSpawnIdx = finalSpawnIdxIter->second;
 	
 	if(m_spawnVisData[spawnIdx].rayId)
 	{
@@ -285,11 +286,7 @@ void CSpawningVisTable::RemoveSpawnLocation(EntityId location)
 		m_spawnVisData[finalSpawnIdx].CancelRaycastRequest();
 	}
 
-	const EntityId finalSpawnEntityId = m_spawnVisData[finalSpawnIdx].entityId;
-
 	//Update the map of entity Ids to spawn indices for the moved spawn data
-	TSpawnIndexMap::iterator finalSpawnIdxIter = m_spawnIndexMap.find(finalSpawnEntityId);
-	assert(m_spawnIndexMap.end() != finalSpawnIdxIter);
 	finalSpawnIdxIter->second = spawnIdx;
 
 	m_spawnVisData[spawnIdx]	= m_spawnVisData[finalSpawnIdx];

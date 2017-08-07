@@ -33,6 +33,7 @@ CRY_SRWLOCK::CRY_SRWLOCK()
 
 //////////////////////////////////////////////////////////////////////////
 CRY_CONDITION_VARIABLE::CRY_CONDITION_VARIABLE()
+	: condVar_(0)
 {
 	static_assert(sizeof(condVar_) == sizeof(PCONDITION_VARIABLE), "ConditionVariable-pointer has invalid size");
 	InitializeConditionVariable(reinterpret_cast<PCONDITION_VARIABLE>(&condVar_));

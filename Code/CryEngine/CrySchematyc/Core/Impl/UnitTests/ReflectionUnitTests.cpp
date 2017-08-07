@@ -2,10 +2,10 @@
 
 #include "StdAfx.h"
 
-#include <Schematyc/Reflection/TypeDesc.h>
+#include <CrySchematyc/Reflection/TypeDesc.h>
 
 #include "UnitTests/UnitTestRegistrar.h"
-#include "Schematyc/Reflection/ReflectionUtils.h"
+#include "CrySchematyc/Reflection/ReflectionUtils.h"
 
 namespace Schematyc
 {
@@ -27,7 +27,7 @@ struct SBaseA
 
 	static void ReflectType(CTypeDesc<SBaseA>& desc)
 	{
-		desc.SetGUID("f4c516fa-05be-4fdd-86f6-9bef1deeec8d"_schematyc_guid);
+		desc.SetGUID("f4c516fa-05be-4fdd-86f6-9bef1deeec8d"_cry_guid);
 	}
 
 	EType type;
@@ -41,7 +41,7 @@ struct SBaseB
 
 	static void ReflectType(CTypeDesc<SBaseB>& desc)
 	{
-		desc.SetGUID("c8b8de47-1fff-4ec9-8a45-462086611dcb"_schematyc_guid);
+		desc.SetGUID("c8b8de47-1fff-4ec9-8a45-462086611dcb"_cry_guid);
 	}
 
 	EType type;
@@ -55,7 +55,7 @@ struct SBaseC : public SBaseA, public SBaseB
 
 	static void ReflectType(CTypeDesc<SBaseC>& desc)
 	{
-		desc.SetGUID("618307d6-a7c5-4fd4-8859-db67ee998778"_schematyc_guid);
+		desc.SetGUID("618307d6-a7c5-4fd4-8859-db67ee998778"_cry_guid);
 		desc.AddBase<SBaseA>();
 		desc.AddBase<SBaseB>();
 	}
@@ -67,7 +67,7 @@ struct SDerived : public SBaseC
 {
 	static void ReflectType(CTypeDesc<SDerived>& desc)
 	{
-		desc.SetGUID("660a3811-7c0c-450e-bd41-5f375cd11771"_schematyc_guid);
+		desc.SetGUID("660a3811-7c0c-450e-bd41-5f375cd11771"_cry_guid);
 		desc.AddBase<SBaseC>();
 	}
 };

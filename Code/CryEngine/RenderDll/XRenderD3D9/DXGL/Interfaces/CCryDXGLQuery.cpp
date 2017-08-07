@@ -27,7 +27,7 @@ CCryDXGLQuery::~CCryDXGLQuery()
 {
 }
 
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 
 NCryOpenGL::SQuery* CCryDXGLQuery::GetGLQuery(NCryOpenGL::CContext* pContext)
 {

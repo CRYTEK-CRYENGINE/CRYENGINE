@@ -72,14 +72,6 @@ vert2fragMotionBlur Common_MotionBlurPassVS(app2vertMotionBlur IN)
 #endif
 
   float fAlpha = AmbientOp.w;
-#if %_RT_INSTANCING_ATTR
-  {
-    float4 InstanceAmbientOp;
-    #fetchinst (InstanceAmbientOp = IN.InstAmbientOp, vertPassPos.nInstance);
-    fAlpha = InstanceAmbientOp.w;
-  }
-#endif
-
 	OUT.vVelocity.z = fAlpha;
 
   return OUT;            

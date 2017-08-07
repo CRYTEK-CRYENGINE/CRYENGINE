@@ -9,8 +9,6 @@
 
 //#include <sstream>
 
-#pragma warning(disable:4355)
-
 #define CR                     '\r'
 #define LF                     '\n'
 #define CRLF                   "\r\n"
@@ -25,8 +23,11 @@ CSimpleHttpServer& CSimpleHttpServer::GetSingleton()
 	return s_singleton;
 }
 
+#pragma warning(push)
+#pragma warning(disable:4355) //'this' : used in base member initializer list
 CSimpleHttpServer::CSimpleHttpServer() : m_internal(this)
 {
+#pragma warning(pop)
 	m_pListener = NULL;
 
 #if defined(HTTP_WEBSOCKETS)

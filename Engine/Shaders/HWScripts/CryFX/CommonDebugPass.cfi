@@ -19,10 +19,6 @@ struct vert2fragDebug
 struct app2vertDebug
 {
   app2vertCommon vertCommon;
-
-  #if %_RT_INSTANCING_ATTR || %_RT_INSTANCING_CONST
-    float4 InstAmbientOp  : TEXCOORDN;
-  #endif
 };
 
 vert2fragDebug Common_DebugPassVS(app2vertDebug IN_common)
@@ -59,33 +55,40 @@ vert2fragDebug Common_DebugPassVS(app2vertDebug IN_common)
 #if %_RT_SAMPLE1  // Selection Pass
 	// We are passing the actual texture coordinate here for use in alpha testing
 	OUT.Color = float4(IN.vertCommon.baseTC.x, IN.vertCommon.baseTC.y, 0, 0);
+#elif %_RT_SAMPLE2 // DebugDraw Pass
+	OUT.Color = OUT.Color = float4(PerInstanceCustomData1.rgb, 1.0f); // SilhouetteColor contains custom debug color
 #else  // Debug Views
 	// Prepare color for wireframe
-	OUT.Color = lerp(float4(0, 0.7, 0.9, 1), float4(0.35, 0.35, 0.35, 1), saturate(HPosition.w / 100.0));
+	OUT.Color = lerp(float4(0, 0.7, 0.9, 1), float4(0.35, 0.35, 0.35, 1), saturate(HPosition.w / 100.0));	
 #endif
-	
-  return OUT;            
+
+	return OUT;            
 }
 
-Texture2D<float4> SceneDepthTex : register(t25);
+Texture2D<float4> SceneDepthTex : register(t32);
 
 pixout Common_DebugPassPS(vert2fragDebug IN)
 {
-  pixout OUT = (pixout)0;
-	
+	pixout OUT = (pixout)0;
+
+#if %_RT_ALPHATEST
+	// only access texture for alpha tested meshes
+	float alpha = GetAlphaTex(diffuseTex, IN.baseTC.xy);
+	float alphaTest =	Get_MaterialAlphaTest();
+	clip(alpha - alphaTest); //need to perform texkill just like in regular passes
+#endif 
+
 	// Debug Views
 #if !%_RT_SAMPLE1
 	[branch] if (CP_Custom_ViewMode.x == 0)  // Wireframe
 	{
-		OUT.Color.xyz = IN.Color.xyz;
+		OUT.Color = IN.Color;
 	}
 	else if (CP_Custom_ViewMode.x == 1)  // Texel density
 	{
 		float2 diffuseTexRes = 0;
-#if !OPENGL
-	diffuseTex.GetDimensions(diffuseTexRes.x, diffuseTexRes.y);
-#endif
-	
+		diffuseTex.GetDimensions(diffuseTexRes.x, diffuseTexRes.y);
+
 		float3 ddx_P = ddx(IN.vView.xyz);
 		float3 ddy_P = ddy(IN.vView.xyz);
 		float2 ddx_T = ddx(IN.baseTC.xy);
@@ -113,13 +116,6 @@ pixout Common_DebugPassPS(vert2fragDebug IN)
 	#define SELECTED_FLAG    (1)
 	#define HIGHLIGHTED_FLAG (1 << 1)
 	#define HIDDEN_FLAG      (1 << 2)
-
-#if %_RT_ALPHATEST
-  // only access texture for alpha tested meshes
-  float alpha = GetAlphaTex(diffuseTex, IN.Color.xy);
-  float alphaTest =	Get_MaterialAlphaTest();
-  clip(alpha - alphaTest); //need to perform texkill just like in regular passes
-#endif 
 
   // write the selection ID to our color with some possible modifications
   uint selectionID = asuint(PerInstanceCustomData2.x);

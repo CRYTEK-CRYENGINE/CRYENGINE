@@ -35,10 +35,6 @@
 #include "../Implementation/GLResource.hpp"
 #include "../Implementation/GLShader.hpp"
 
-#if CRY_PLATFORM_MAC || CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID
-	#include <SDL.h>
-#endif
-
 CCryDXGLDevice::CCryDXGLDevice(CCryDXGLGIAdapter* pAdapter, D3D_FEATURE_LEVEL eFeatureLevel)
 	: m_spAdapter(pAdapter)
 	, m_eFeatureLevel(eFeatureLevel)
@@ -184,11 +180,11 @@ HRESULT CCryDXGLDevice::GetGPUThreadPriority(INT* pPriority)
 struct SAutoContext
 {
 	SAutoContext(NCryOpenGL::CDevice* pDevice)
-#if !CRY_OPENGL_SINGLE_CONTEXT
+#if !OGL_SINGLE_CONTEXT
 		: m_pDevice(pDevice)
 #endif
 	{
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 		m_pContext = pDevice->GetCurrentContext();
 #else
 		m_pContext = m_pDevice->ReserveContext();
@@ -199,7 +195,7 @@ struct SAutoContext
 
 	~SAutoContext()
 	{
-#if !CRY_OPENGL_SINGLE_CONTEXT
+#if !OGL_SINGLE_CONTEXT
 		if (m_pContext != NULL)
 			m_pDevice->ReleaseContext();
 #endif
@@ -212,7 +208,7 @@ struct SAutoContext
 
 	operator bool() const
 	{
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 		return m_pContext != NULL;
 #else
 		return true;
@@ -220,7 +216,7 @@ struct SAutoContext
 	}
 
 	NCryOpenGL::CContext* m_pContext;
-#if !CRY_OPENGL_SINGLE_CONTEXT
+#if !OGL_SINGLE_CONTEXT
 	NCryOpenGL::CDevice*  m_pDevice;
 #endif
 };
@@ -242,7 +238,7 @@ HRESULT CCryDXGLDevice::CreateBuffer(const D3D11_BUFFER_DESC* pDesc, const D3D11
 			return E_FAIL;
 		CCryDXGLBuffer::ToInterface(ppBuffer, new CCryDXGLBuffer(*pDesc, spGLBuffer, this));
 	}
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	else
 	{
 		if (pInitialData != NULL)
@@ -276,7 +272,7 @@ HRESULT CCryDXGLDevice::CreateTexture1D(const D3D11_TEXTURE1D_DESC* pDesc, const
 			return E_FAIL;
 		CCryDXGLTexture1D::ToInterface(ppTexture1D, new CCryDXGLTexture1D(*pDesc, spGLTexture, this));
 	}
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	else
 	{
 		if (pInitialData != NULL)
@@ -310,7 +306,7 @@ HRESULT CCryDXGLDevice::CreateTexture2D(const D3D11_TEXTURE2D_DESC* pDesc, const
 			return E_FAIL;
 		CCryDXGLTexture2D::ToInterface(ppTexture2D, new CCryDXGLTexture2D(*pDesc, spGLTexture, this));
 	}
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	else
 	{
 		if (pInitialData != NULL)
@@ -345,7 +341,7 @@ HRESULT CCryDXGLDevice::CreateTexture3D(const D3D11_TEXTURE3D_DESC* pDesc, const
 			return E_FAIL;
 		CCryDXGLTexture3D::ToInterface(ppTexture3D, new CCryDXGLTexture3D(*pDesc, spGLTexture, this));
 	}
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	else
 	{
 		if (pInitialData != NULL)

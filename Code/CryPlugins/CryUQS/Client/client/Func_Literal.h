@@ -4,11 +4,11 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client
+	namespace Client
 	{
-		namespace internal
+		namespace Internal
 		{
 
 			//===================================================================================
@@ -44,10 +44,10 @@ namespace uqs
 			{
 				assert(ctorContext.pOptionalReturnValueInCaseOfLeafFunction);
 
-				const core::ILeafFunctionReturnValue::SLiteralInfo literalInfo = ctorContext.pOptionalReturnValueInCaseOfLeafFunction->GetLiteral(ctorContext.blackboard);
+				const Core::ILeafFunctionReturnValue::SLiteralInfo literalInfo = ctorContext.pOptionalReturnValueInCaseOfLeafFunction->GetLiteral(ctorContext.blackboard);
 
 				// if this fails then something might have gone wrong in CInputBlueprint::Resolve()
-				assert(literalInfo.type == shared::SDataTypeHelper<TLiteral>::GetTypeInfo());
+				assert(literalInfo.type == Shared::SDataTypeHelper<TLiteral>::GetTypeInfo());
 
 				m_literal = *static_cast<const TLiteral*>(literalInfo.pValue);
 			}

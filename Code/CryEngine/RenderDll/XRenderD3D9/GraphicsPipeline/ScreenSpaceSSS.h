@@ -15,7 +15,4 @@ public:
 private:
 	CFullscreenPass m_passH;
 	CFullscreenPass m_passV;
-
-	int32           m_samplerPoint;
-	int32           m_samplerLinear;
 };

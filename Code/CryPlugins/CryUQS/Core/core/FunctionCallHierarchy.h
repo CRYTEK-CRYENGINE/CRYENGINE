@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace core
+	namespace Core
 	{
 
 		//===================================================================================
@@ -22,14 +22,14 @@ namespace uqs
 		{
 		public:
 			explicit                                      CFunctionCallHierarchy() {}
-			bool                                          AddAndInstantiateFunctionBlueprint(const CFunctionBlueprint& functionBlueprintToInstantiate, const SQueryBlackboard& blackboard, shared::CUqsString& error);
-			void                                          ExecuteAll(const client::IFunction::SExecuteContext& executeContext, void* pParamsToWriteTheReturnValuesTo, const client::IInputParameterRegistry& registryToLookupParamsOffsets) const;
+			bool                                          AddAndInstantiateFunctionBlueprint(const CFunctionBlueprint& functionBlueprintToInstantiate, const SQueryBlackboard& blackboard, Shared::CUqsString& error);
+			void                                          ExecuteAll(const Client::IFunction::SExecuteContext& executeContext, void* pParamsToWriteTheReturnValuesTo, const Client::IInputParameterRegistry& registryToLookupParamsOffsets) const;
 
 		private:
 			                                              UQS_NON_COPYABLE(CFunctionCallHierarchy);
 
 		private:
-			std::vector<client::FunctionUniquePtr>        m_functionsToCall;
+			std::vector<Client::FunctionUniquePtr>        m_functionsToCall;
 		};
 
 	}

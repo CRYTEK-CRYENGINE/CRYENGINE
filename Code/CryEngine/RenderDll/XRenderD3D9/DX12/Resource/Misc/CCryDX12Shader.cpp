@@ -3,8 +3,13 @@
 #include "StdAfx.h"
 #include "CCryDX12Shader.hpp"
 
+#if CRY_PLATFORM_DURANGO
+#include <d3d11shader_x.h>
+#include <d3dcompiler_x.h>
+#else
 #include <d3d11shader.h>
 #include <d3dcompiler.h>
+#endif
 
 CCryDX12Shader* CCryDX12Shader::Create(CCryDX12Device* pDevice, const void* pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage* pClassLinkage)
 {

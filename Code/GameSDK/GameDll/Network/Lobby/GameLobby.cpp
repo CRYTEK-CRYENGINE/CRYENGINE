@@ -65,7 +65,7 @@
 #define GAME_LOBBY_DEDICATED_SERVER_DOES_MERGING 0
 #define MAX_WRITEUSERDATA_USERS 6
 #define ORIGINAL_MATCHMAKING_DESC "GAME SDK Release Matchmaking"
-#define VOTING_EXTRA_DEBUG_OUTPUT  (0 && !defined(_RELEASE))
+#define VOTING_EXTRA_DEBUG_OUTPUT 0
 
 #if VOTING_EXTRA_DEBUG_OUTPUT
 	#define VOTING_DBG_LOG(...)		CryLog(__VA_ARGS__);
@@ -925,7 +925,7 @@ void CGameLobby::Update(float dt)
 			{
 				CRY_ASSERT(s_pGameLobbyCVars->gl_checkDLCBeforeStartTime < s_pGameLobbyCVars->gl_time);
 				CRY_ASSERT(s_pGameLobbyCVars->gl_checkDLCBeforeStartTime > s_pGameLobbyCVars->gl_initialTime);
-				const float  checkDLCReqsTime = MAX(MIN(s_pGameLobbyCVars->gl_checkDLCBeforeStartTime, s_pGameLobbyCVars->gl_time), s_pGameLobbyCVars->gl_initialTime);
+				const float  checkDLCReqsTime = std::max(std::min(s_pGameLobbyCVars->gl_checkDLCBeforeStartTime, s_pGameLobbyCVars->gl_time), s_pGameLobbyCVars->gl_initialTime);
 
 				if ((m_startTimer < checkDLCReqsTime) && ((m_startTimer + dt) >= checkDLCReqsTime))
 				{
@@ -1374,7 +1374,7 @@ void CGameLobby::GetCountDownStageStatusMessage(CryFixedStringT<64> &statusStrin
 		float timeToVote = m_startTimer - s_pGameLobbyCVars->gl_votingCloseTimeBeforeStart;
 		const bool isVotingEnabled = m_votingEnabled && !m_votingClosed && timeToVote >= 0.f;
 
-		float timeLeft = isVotingEnabled ? MAX(0.f, timeToVote + 1.f) : MAX(0.f, m_startTimer + 1.f);	// Round up, don't show 0 sec
+		float timeLeft = isVotingEnabled ? std::max(0.f, timeToVote + 1.f) : std::max(0.f, m_startTimer + 1.f);	// Round up, don't show 0 sec
 		statusString.Format("%0.f", timeLeft);
 
 		if (timeLeft < 2.f)
@@ -1714,7 +1714,7 @@ void CGameLobby::SendUserListToFlash(IFlashPlayer *pFlashPlayer)
 #ifndef _RELEASE
 	if (s_pGameLobbyCVars->gl_dummyUserlist)
 	{
-		const int useSize = MIN(size+s_pGameLobbyCVars->gl_dummyUserlist, MAX_PLAYERS);
+		const int useSize = std::min(size+s_pGameLobbyCVars->gl_dummyUserlist, MAX_PLAYERS);
 
 		for (int nameIdx(size); (nameIdx<useSize); ++nameIdx)
 		{
@@ -4943,7 +4943,7 @@ void CGameLobby::SendPacket(GameUserPacketDefinitions packetType, SCryMatchMakin
 			if (packet.CreateWriteBuffer(bufferSz))
 			{
 				packet.StartWrite(packetType, true);
-				uint8 startTimer = (uint8) MAX(m_startTimer, 0.f);
+				uint8 startTimer = (uint8) std::max(m_startTimer, 0.f);
 				packet.WriteUINT8(startTimer);
 			}
 			break;
@@ -5452,7 +5452,7 @@ void CGameLobby::ReadPacket(SCryLobbyUserPacketData** ppPacketData)
 
 			int  numReservationsRequested = pPacket->ReadUINT8();
 			CRY_ASSERT(numReservationsRequested <= MAX_RESERVATIONS);
-			numReservationsRequested = MIN(numReservationsRequested, MAX_RESERVATIONS);
+			numReservationsRequested = std::min(numReservationsRequested, (int)MAX_RESERVATIONS);
 			CryLog("    numReservationsRequested = %d", numReservationsRequested);
 
 			SCryMatchMakingConnectionUID  requestedReservations[MAX_RESERVATIONS];
@@ -7136,7 +7136,7 @@ int CGameLobby::BuildReservationsRequestList(SCryMatchMakingConnectionUID reserv
 
 	int  numReservationsToRequest = (numMembers - 1);
 	CRY_ASSERT(numReservationsToRequest <= maxRequests);
-	numReservationsToRequest = MIN(numReservationsToRequest, maxRequests);
+	numReservationsToRequest = std::min(numReservationsToRequest, maxRequests);
 
 	CryLog("[tlh]   reservations needed:");
 	for (int i=0; i<numReservationsToRequest; ++i)
@@ -7198,7 +7198,7 @@ EReservationResult CGameLobby::DoReservations(const int numReservationsRequested
 
 	const int  numPrivate = lobby->GetNumPrivateSlots();
 	const int  numPublic = lobby->GetNumPublicSlots();
-	const int  numFilledExc = MAX(0, (lobby->GetSessionNames().Size() - 1));  // NOTE -1 because client in question will be in list already but we don't want them to be included in the calculations
+	const int  numFilledExc = std::max<uint32>(0, (lobby->GetSessionNames().Size() - 1));  // NOTE -1 because client in question will be in list already but we don't want them to be included in the calculations
 	const int  numEmptyExc = ((numPrivate + numPublic) - numFilledExc);
 
 	CryLog("  nums private = %d, public = %d, filled (exc. leader) = %d, empty (exc. leader) = %d, reserved = %d", numPrivate, numPublic, numFilledExc, numEmptyExc, reservedCount);
@@ -9142,14 +9142,14 @@ void CGameLobby::MatchmakingSessionDetailedInfoRequestCallback(UCryLobbyEventDat
 				pRequest->StartRead();
 				uint8 flags = pRequest->ReadUINT8();
 
-				uint8 playerCount = (uint8)MIN(DETAILED_SESSION_MAX_PLAYERS, pGameLobby->m_nameList.Size());
+				uint8 playerCount = (uint8)std::min((uint8)DETAILED_SESSION_MAX_PLAYERS, (uint8)pGameLobby->m_nameList.Size());
 
 				uint32 numCustoms = 0;
 				CPlaylistManager *pPlaylistManager = g_pGame->GetPlaylistManager();
 				if (pPlaylistManager)
 				{
 					CRY_ASSERT(pPlaylistManager->GetGameModeOptionCount() <= DETAILED_SESSION_MAX_CUSTOMS);
-					numCustoms = MIN(DETAILED_SESSION_MAX_CUSTOMS, pPlaylistManager->GetGameModeOptionCount());
+					numCustoms = std::min((uint32)DETAILED_SESSION_MAX_CUSTOMS, pPlaylistManager->GetGameModeOptionCount());
 				}
 
 				CCryLobbyPacket packet;
@@ -9261,7 +9261,7 @@ void CGameLobby::MatchmakingSessionDetailedInfoResponseCallback(CryLobbyTaskID t
 					if (flags & eDSIRF_IncludePlayers)
 					{
 						uint32 nCount = (uint32)pPacket->ReadUINT8();
-						nCount = MIN(nCount, DETAILED_SESSION_MAX_PLAYERS);
+						nCount = std::min(nCount, (uint32)DETAILED_SESSION_MAX_PLAYERS);
 						CryLog("  PlayerCount %d:", nCount);
 
 						pDetails->m_namesCount = nCount;
@@ -9276,7 +9276,7 @@ void CGameLobby::MatchmakingSessionDetailedInfoResponseCallback(CryLobbyTaskID t
 					if (flags & eDSIRF_IncludeCustomFields)
 					{
 						nCustoms = (uint32)pPacket->ReadUINT8();
-						nCustoms = MIN(nCustoms, DETAILED_SESSION_MAX_CUSTOMS);
+						nCustoms = std::min<int>(nCustoms, DETAILED_SESSION_MAX_CUSTOMS);
 						CryLog("  CustomCount %d:", nCustoms);
 
 						for (uint32 i = 0; i < (uint32)nCustoms; ++i)

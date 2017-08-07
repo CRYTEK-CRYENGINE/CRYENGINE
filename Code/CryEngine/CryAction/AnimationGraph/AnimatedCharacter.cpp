@@ -13,6 +13,8 @@
 #include "CryActionCVars.h"
 #include "Mannequin/MannequinAGState.h"
 
+#include "Animation/PoseAligner/PoseAligner.h"
+
 #include <IViewSystem.h>
 
 char* g_szMCMString[eMCM_COUNT] = { "Undefined", "Entity", "Animation", "DecoupledCatchUp", "ClampedEntity", "SmoothedEntity", "AnimationHCollision" };
@@ -210,7 +212,7 @@ CAnimatedCharacter::CAnimatedCharacter() : m_listeners(1)
 
 	m_debugHistoryManager = gEnv->pGameFramework->CreateDebugHistoryManager();
 
-	CryCreateClassInstance("AnimationPoseAlignerC3", m_pPoseAligner);
+	CryCreateClassInstance(CPoseAlignerC3::GetCID(), m_pPoseAligner);
 }
 
 CAnimatedCharacter::~CAnimatedCharacter()

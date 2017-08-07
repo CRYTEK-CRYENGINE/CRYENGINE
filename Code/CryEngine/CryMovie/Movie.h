@@ -220,6 +220,7 @@ private:
 
 	bool                  m_bStartCapture;
 	bool                  m_bEndCapture;
+	bool                  m_bPreEndCapture;
 	bool                  m_bIsInGameCutscene;
 
 	IAnimSequence*        m_captureSeq;

@@ -5,8 +5,8 @@
 #include "AudioListenerManager.h"
 #include "ATLAudioObject.h"
 
-using namespace CryAudio;
-
+namespace CryAudio
+{
 //////////////////////////////////////////////////////////////////////////
 COcclusionObstructionState::COcclusionObstructionState(SwitchStateId const stateId, CAudioListenerManager const& audioListenerManager, CATLAudioObject const& globalAudioObject)
 	: m_stateId(stateId)
@@ -23,33 +23,33 @@ ERequestStatus COcclusionObstructionState::Set(CATLAudioObject& audioObject) con
 		Vec3 const& audioListenerPosition = m_audioListenerManager.GetActiveListenerAttributes().transformation.GetPosition();
 		if (m_stateId == IgnoreStateId)
 		{
-			audioObject.HandleSetOcclusionType(eOcclusionType_Ignore, audioListenerPosition);
+			audioObject.HandleSetOcclusionType(EOcclusionType::Ignore, audioListenerPosition);
 			audioObject.SetObstructionOcclusion(0.0f, 0.0f);
 		}
 		else if (m_stateId == AdaptiveStateId)
 		{
-			audioObject.HandleSetOcclusionType(eOcclusionType_Adaptive, audioListenerPosition);
+			audioObject.HandleSetOcclusionType(EOcclusionType::Adaptive, audioListenerPosition);
 		}
 		else if (m_stateId == LowStateId)
 		{
-			audioObject.HandleSetOcclusionType(eOcclusionType_Low, audioListenerPosition);
+			audioObject.HandleSetOcclusionType(EOcclusionType::Low, audioListenerPosition);
 		}
 		else if (m_stateId == MediumStateId)
 		{
-			audioObject.HandleSetOcclusionType(eOcclusionType_Medium, audioListenerPosition);
+			audioObject.HandleSetOcclusionType(EOcclusionType::Medium, audioListenerPosition);
 		}
 		else if (m_stateId == HighStateId)
 		{
-			audioObject.HandleSetOcclusionType(eOcclusionType_High, audioListenerPosition);
+			audioObject.HandleSetOcclusionType(EOcclusionType::High, audioListenerPosition);
 		}
 		else
 		{
-			audioObject.HandleSetOcclusionType(eOcclusionType_Ignore, audioListenerPosition);
+			audioObject.HandleSetOcclusionType(EOcclusionType::Ignore, audioListenerPosition);
 			audioObject.SetObstructionOcclusion(0.0f, 0.0f);
 		}
 	}
 
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -78,7 +78,7 @@ ERequestStatus CDopplerTrackingState::Set(CATLAudioObject& audioObject) const
 		}
 	}
 
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -107,5 +107,6 @@ ERequestStatus CVelocityTrackingState::Set(CATLAudioObject& audioObject) const
 		}
 	}
 
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
+} // namespace CryAudio

@@ -30,8 +30,6 @@ public:
 	CFlowModuleStartNodeFactory(CFlowGraphModule* pModule);
 	~CFlowModuleStartNodeFactory();
 
-	virtual void         AddRef() override  { m_nRefCount++; }
-	virtual void         Release() override { if (0 == --m_nRefCount) delete this; }
 	virtual IFlowNodePtr Create(IFlowNode::SActivationInfo*) override;
 
 	virtual void         GetMemoryUsage(ICrySizer* s) const override
@@ -52,7 +50,6 @@ private:
 	CFlowGraphModule* const        m_pModule;
 
 	TModuleId                      m_moduleId;
-	int                            m_nRefCount;
 	std::vector<SOutputPortConfig> m_outputs;
 };
 
@@ -110,8 +107,6 @@ public:
 	CFlowModuleReturnNodeFactory(CFlowGraphModule* pModule);
 	~CFlowModuleReturnNodeFactory();
 
-	virtual void         AddRef() override  { m_nRefCount++; }
-	virtual void         Release() override { if (0 == --m_nRefCount) delete this; }
 	virtual IFlowNodePtr Create(IFlowNode::SActivationInfo*) override;
 
 	virtual void         GetMemoryUsage(ICrySizer* s) const override
@@ -132,7 +127,6 @@ private:
 	CFlowGraphModule* const       m_pModule;
 
 	TModuleId                     m_moduleId;
-	int                           m_nRefCount;
 	std::vector<SInputPortConfig> m_inputs;
 };
 
@@ -185,8 +179,6 @@ public:
 	CFlowModuleCallNodeFactory(CFlowGraphModule* pModule);
 	~CFlowModuleCallNodeFactory();
 
-	virtual void         AddRef() override  { m_nRefCount++; }
-	virtual void         Release() override { if (0 == --m_nRefCount) delete this; }
 	virtual IFlowNodePtr Create(IFlowNode::SActivationInfo*) override;
 
 	virtual void         GetMemoryUsage(ICrySizer* s) const override
@@ -206,7 +198,6 @@ private:
 	friend class CFlowModuleCallNode;
 	CFlowGraphModule* const        m_pModule;
 
-	int                            m_nRefCount;
 	std::vector<SInputPortConfig>  m_inputs;
 	std::vector<SOutputPortConfig> m_outputs;
 };
@@ -325,10 +316,9 @@ public:
 	//IFlowGraphModuleListener
 	virtual void OnModuleInstanceCreated(IFlowGraphModule* pModule, TModuleInstanceId instanceID);
 	virtual void OnModuleInstanceDestroyed(IFlowGraphModule* pModule, TModuleInstanceId instanceID);
-	virtual void OnPostModuleDestroyed()                                                     {}
 	virtual void OnModuleDestroyed(IFlowGraphModule* pModule)                                {}
 	virtual void OnRootGraphChanged(IFlowGraphModule* module, ERootGraphChangeReason reason) {}
-	virtual void OnScannedForModules()                                                       {}
+	virtual void OnModulesScannedAndReloaded()                                               {}
 	//~IFlowGraphModuleListener
 
 private:

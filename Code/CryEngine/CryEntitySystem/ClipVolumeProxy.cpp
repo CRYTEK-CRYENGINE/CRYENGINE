@@ -13,6 +13,7 @@ CEntityComponentClipVolume::CEntityComponentClipVolume()
 	, m_pBspTree(NULL)
 	, m_nFlags(IClipVolume::eClipVolumeAffectedBySun)
 {
+	m_componentFlags.Add(EEntityComponentFlags::Legacy);
 }
 
 CEntityComponentClipVolume::~CEntityComponentClipVolume()

@@ -13,63 +13,19 @@
 #include "StdAfx.h"
 #include "FlowTrackEventNode.h"
 
-CFlowTrackEventNode::CFlowTrackEventNode(SActivationInfo* pActInfo) :
-	m_refs(0),
-	m_pSequence(NULL),
-	m_nOutputs(1)
+CFlowTrackEventNode::CFlowTrackEventNode(SActivationInfo* pActInfo)
+	: m_outputs(1)//one empty
+	, m_actInfo(*pActInfo)
 {
-	m_outputs = new SOutputPortConfig[1];
-	m_outputs[0] = SOutputPortConfig();
 }
 
 CFlowTrackEventNode::~CFlowTrackEventNode()
 {
-	SAFE_DELETE_ARRAY(m_outputs);
-	if (NULL != m_pSequence && false == gEnv->IsEditor())
+	if (m_pSequence != nullptr && !gEnv->IsEditor())
 	{
 		m_pSequence->RemoveTrackEventListener(this);
-		m_pSequence = NULL;
+		m_pSequence = nullptr;
 	}
-}
-
-CFlowTrackEventNode::CFlowTrackEventNode(CFlowTrackEventNode const& obj) :
-	m_refs(0),
-	m_pSequence(NULL),
-	m_outputs(NULL)
-{
-	*this = obj;
-}
-
-CFlowTrackEventNode& CFlowTrackEventNode::operator=(CFlowTrackEventNode const& obj)
-{
-	if (this != &obj)
-	{
-		m_refs = 0; // New reference count
-		m_pSequence = obj.m_pSequence;
-
-		// Copy outputs
-		m_nOutputs = obj.m_nOutputs;
-		SAFE_DELETE_ARRAY(m_outputs);
-		m_outputs = new SOutputPortConfig[m_nOutputs];
-		for (int i = 0; i < m_nOutputs; ++i)
-		{
-			m_outputs[i] = obj.m_outputs[i];
-		}
-
-		m_outputStrings = obj.m_outputStrings;
-	}
-	return *this;
-}
-
-void CFlowTrackEventNode::AddRef()
-{
-	++m_refs;
-}
-
-void CFlowTrackEventNode::Release()
-{
-	if (0 == --m_refs)
-		delete this;
 }
 
 IFlowNodePtr CFlowTrackEventNode::Clone(SActivationInfo* pActInfo)
@@ -88,7 +44,7 @@ void CFlowTrackEventNode::GetConfiguration(SFlowNodeConfig& config)
 	};
 
 	config.pInputPorts = inputs;
-	config.pOutputPorts = m_outputs;
+	config.pOutputPorts = &m_outputs[0];
 	config.SetCategory(EFLN_APPROVED);
 	config.nFlags |= EFLN_DYNAMIC_OUTPUT;
 	config.nFlags |= EFLN_HIDE_UI;
@@ -96,7 +52,7 @@ void CFlowTrackEventNode::GetConfiguration(SFlowNodeConfig& config)
 
 void CFlowTrackEventNode::ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
 {
-	if (event == eFE_Initialize && false == gEnv->IsEditor())
+	if (event == eFE_Initialize && !gEnv->IsEditor())
 	{
 		AddListener(pActInfo);
 	}
@@ -104,17 +60,11 @@ void CFlowTrackEventNode::ProcessEvent(EFlowEvent event, SActivationInfo* pActIn
 
 bool CFlowTrackEventNode::SerializeXML(SActivationInfo* pActInfo, const XmlNodeRef& root, bool reading)
 {
-	if (true == reading)
+	if (reading)
 	{
 		int count = root->getChildCount();
 
-		// Resize
-		if (m_outputs)
-		{
-			SAFE_DELETE_ARRAY(m_outputs);
-		}
-		m_outputs = new SOutputPortConfig[count + 1];
-		m_nOutputs = count + 1;
+		m_outputs.resize(count + 1); //the last one is kept empty value
 
 		for (int i = 0; i < count; ++i)
 		{
@@ -122,41 +72,47 @@ bool CFlowTrackEventNode::SerializeXML(SActivationInfo* pActInfo, const XmlNodeR
 			m_outputStrings.push_back(child->getAttr("Name"));
 			m_outputs[i] = OutputPortConfig<string>(m_outputStrings[i]);
 		}
-		m_outputs[count] = SOutputPortConfig();
 	}
 	return true;
 }
 
 void CFlowTrackEventNode::Serialize(SActivationInfo* pActInfo, TSerialize ser)
 {
-	if (ser.IsReading() && false == gEnv->IsEditor())
+	if (ser.IsReading() && !gEnv->IsEditor())
 	{
 		AddListener(pActInfo);
 	}
 }
 
+void CFlowTrackEventNode::GetMemoryUsage(class ICrySizer* pSizer) const
+{
+	pSizer->AddObject(this, sizeof(*this));
+	pSizer->AddObject(m_outputStrings);
+	pSizer->AddObject(m_outputs);
+}
+
 void CFlowTrackEventNode::AddListener(SActivationInfo* pActInfo)
 {
-	CRY_ASSERT(pActInfo);
+	CRY_ASSERT(pActInfo != nullptr);
 	m_actInfo = *pActInfo;
 
 	// Remove from old
-	if (NULL != m_pSequence)
+	if (m_pSequence != nullptr)
 	{
 		m_pSequence->RemoveTrackEventListener(this);
-		m_pSequence = NULL;
+		m_pSequence = nullptr;
 	}
 
 	// Look up sequence
 	const int kSequenceName = 0;
 	const int kSequenceId = 1;
 	m_pSequence = gEnv->pMovieSystem->FindSequenceById((uint32)GetPortInt(pActInfo, kSequenceId));
-	if (NULL == m_pSequence)
+	if (m_pSequence == nullptr)
 	{
 		string name = GetPortString(pActInfo, kSequenceName);
 		m_pSequence = gEnv->pMovieSystem->FindSequence(name.c_str());
 	}
-	if (NULL != m_pSequence)
+	if (m_pSequence != nullptr)
 		m_pSequence->AddTrackEventListener(this);
 }
 
@@ -166,9 +122,9 @@ void CFlowTrackEventNode::OnTrackEvent(IAnimSequence* pSequence, int reason, con
 		return;
 
 	// Find output port and call it
-	for (int i = 0; i < m_nOutputs; ++i)
+	for (int i = 0, nOutput = m_outputs.size(); i < nOutput; ++i)
 	{
-		if (m_outputs[i].name && strcmp(m_outputs[i].name, event) == 0)
+		if (m_outputs[i].name != nullptr && strcmp(m_outputs[i].name, event) == 0)
 		{
 			// Call it
 			TFlowInputData value;

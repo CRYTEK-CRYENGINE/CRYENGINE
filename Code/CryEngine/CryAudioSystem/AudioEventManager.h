@@ -2,10 +2,17 @@
 
 #pragma once
 
-#include "ATLEntities.h"
+#if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
+struct IRenderAuxGeom;
+#endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
 namespace CryAudio
 {
+namespace Impl
+{
+struct IImpl;
+} // namespace Impl
+
 class CAudioEventManager final
 {
 public:
@@ -18,25 +25,24 @@ public:
 	CAudioEventManager& operator=(CAudioEventManager const&) = delete;
 	CAudioEventManager& operator=(CAudioEventManager&&) = delete;
 
-	void                Init(Impl::IAudioImpl* const pImpl);
+	void                Init(Impl::IImpl* const pIImpl);
 	void                Release();
 	void                Update(float const deltaTime);
 
 	CATLEvent*          ConstructAudioEvent();
-	void                ReleaseAudioEvent(CATLEvent* const pAudioEvent);
+	void                ReleaseEvent(CATLEvent* const pEvent);
 
 	size_t              GetNumConstructed() const;
 
 private:
 
 	std::list<CATLEvent*> m_constructedAudioEvents;
-
-	Impl::IAudioImpl*     m_pImpl = nullptr;
+	Impl::IImpl*          m_pIImpl = nullptr;
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 public:
 
-	void DrawDebugInfo(IRenderAuxGeom& auxGeom, float posX, float posY) const;
+	void DrawDebugInfo(IRenderAuxGeom& auxGeom, Vec3 const& listenerPosition, float const posX, float posY) const;
 
 #endif //INCLUDE_AUDIO_PRODUCTION_CODE
 };

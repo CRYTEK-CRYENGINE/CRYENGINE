@@ -28,6 +28,10 @@ struct LessStrCmp : std::binary_function<const char*, const char*, bool>
 
 class EnumDescription{
 public:
+	EnumDescription(TypeID typeId)
+		: type_(typeId)
+	{}
+
 	int value(const char* name) const;
 	int valueByIndex(int index) const;
 	int valueByLabel(const char* label) const;
@@ -69,8 +73,13 @@ private:
 
 template<class Enum>
 class EnumDescriptionImpl : public EnumDescription{
-public: static EnumDescription& the(){
-		static EnumDescriptionImpl description;
+public: 
+	EnumDescriptionImpl(TypeID typeId)
+		: EnumDescription(typeId)
+	{}
+
+	static EnumDescription& the(){
+		static EnumDescriptionImpl description(TypeID::get<Enum>());
 		return description;
 	}
 };

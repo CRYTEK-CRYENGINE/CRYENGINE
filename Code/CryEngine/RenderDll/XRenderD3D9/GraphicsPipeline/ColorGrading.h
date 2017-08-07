@@ -18,10 +18,10 @@ public:
 	void Init();
 	void Execute();
 
-	void SetStaticColorChart(_smart_ptr<CTexture> pStaticColorChart) { std::swap(m_pChartStatic, pStaticColorChart); }
+	void SetStaticColorChart(_smart_ptr<CTexture> pStaticColorChart) { AUTO_LOCK_T(CryCriticalSectionNonRecursive, m_lock); std::swap(m_pChartStatic, pStaticColorChart); }
+	CTexture* GetStaticColorChart()   const { AUTO_LOCK_T(CryCriticalSectionNonRecursive, m_lock); return m_pChartStatic; }
 
 	CTexture* GetColorChart()         const { return m_pChartToUse; }
-	CTexture* GetStaticColorChart()   const { return m_pChartStatic; }
 	CTexture* GetIdentityColorChart() const { return m_pChartIdentity; }
 
 	// TODO: remove once graphicspipeline=0 mode is not required anymore in D3DColorGradingController
@@ -31,6 +31,8 @@ public:
 private:
 	void PreparePrimitives(CColorGradingControllerD3D& controller, const SColorGradingMergeParams& mergeParams);
 
+	CryCriticalSectionNonRecursive      m_lock;
+	
 	_smart_ptr<CTexture>                m_pChartIdentity;
 	_smart_ptr<CTexture>                m_pChartStatic;
 	_smart_ptr<CTexture>                m_pChartToUse;
@@ -42,8 +44,6 @@ private:
 
 	CPrimitiveRenderPass                m_mergePass;
 	CPrimitiveRenderPass                m_colorGradingPass;
-
-	int                                 m_samplerStateLinear;
 
 	// TODO: remove once r_graphicspipeline=0 is gone
 	VertexArray                         m_vecSlicesData;

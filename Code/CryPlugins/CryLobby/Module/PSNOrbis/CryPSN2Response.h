@@ -104,7 +104,7 @@ struct SCryPSNRoomMemberDataInternal
 	SCryPSNBinAttribute        m_binAttributes[MAX_MEMBER_INTERNAL_BIN_ATTRIBUTES];
 	uint16                     m_numBinAttributes;
 
-	bool Clone(CCryLobby* pLobby, SceNpMatching2RoomMemberDataInternal& member);
+	bool Clone(CCryLobby* pLobby, SceNpMatching2RoomMemberDataInternalA& member);
 	void Release(CCryLobby* pLobby);
 };
 
@@ -132,7 +132,7 @@ struct SCryPSNRoomDataExternal
 	uint16                 m_numOpenPrivateSlots;
 	uint16                 m_numRoomMembers;
 
-	bool Clone(CCryLobby* pLobby, SceNpMatching2RoomDataExternal& roomDataExternal);
+	bool Clone(CCryLobby* pLobby, SceNpMatching2RoomDataExternalA& roomDataExternal);
 	void Release(CCryLobby* pLobby);
 };
 
@@ -165,7 +165,7 @@ struct SCryPSNRoomMemberDataInternalList
 	uint16                         m_me;
 	uint16                         m_owner;
 
-	bool Clone(CCryLobby* pLobby, SceNpMatching2RoomMemberDataInternalList& memberList);
+	bool Clone(CCryLobby* pLobby, SceNpMatching2RoomMemberDataInternalListA& memberList);
 	void Release(CCryLobby* pLobby);
 };
 
@@ -184,7 +184,7 @@ struct SCryPSNCreateJoinRoomResponse
 	SCryPSNRoomDataInternal           m_roomInfo;
 	SCryPSNRoomMemberDataInternalList m_roomMembers;
 
-	bool Clone(CCryLobby* pLobby, SceNpMatching2CreateJoinRoomResponse* pResponse);
+	bool Clone(CCryLobby* pLobby, SceNpMatching2CreateJoinRoomResponseA* pResponse);
 	void Release(CCryLobby* pLobby);
 };
 
@@ -193,7 +193,7 @@ struct SCryPSNJoinRoomResponse
 	SCryPSNRoomDataInternal           m_roomInfo;
 	SCryPSNRoomMemberDataInternalList m_roomMembers;
 
-	bool Clone(CCryLobby* pLobby, SceNpMatching2JoinRoomResponse* pResponse);
+	bool Clone(CCryLobby* pLobby, SceNpMatching2JoinRoomResponseA* pResponse);
 	void Release(CCryLobby* pLobby);
 };
 
@@ -203,8 +203,8 @@ struct SCryPSNSearchRoomResponse
 	SCryPSNRoomDataExternal* m_pRooms;
 	uint16                   m_numRooms;
 
-	bool Clone(CCryLobby* pLobby, SceNpMatching2SearchRoomResponse* pResponse);
-	bool Clone(CCryLobby* pLobby, SceNpMatching2GetRoomDataExternalListResponse* pResponse);
+	bool Clone(CCryLobby* pLobby, SceNpMatching2SearchRoomResponseA* pResponse);
+	bool Clone(CCryLobby* pLobby, SceNpMatching2GetRoomDataExternalListResponseA* pResponse);
 	void Release(CCryLobby* pLobby);
 };
 
@@ -232,8 +232,8 @@ struct SCryPSNRoomMemberUpdateInfoResponse
 	SCryPSNRoomMemberDataInternal m_member;
 	SceNpMatching2EventCause      m_eventCause;
 
-	bool Clone(CCryLobby* pLobby, SceNpMatching2RoomMemberUpdateInfo* pResponse);
-	bool Clone(CCryLobby* pLobby, SceNpMatching2RoomMemberDataInternalUpdateInfo* pResponse);
+	bool Clone(CCryLobby* pLobby, SceNpMatching2RoomMemberUpdateInfoA* pResponse);
+	bool Clone(CCryLobby* pLobby, SceNpMatching2RoomMemberDataInternalUpdateInfoA* pResponse);
 	void Release(CCryLobby* pLobby);
 };
 

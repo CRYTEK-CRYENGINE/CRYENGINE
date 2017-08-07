@@ -2,7 +2,7 @@
 
 def build(bld):
 	bld.CryEngineModule(
-		target = 'CrySchematycCore',
+		target = 'CrySchematyc',
 		vs_filter = 'CryEngine/CrySchematyc',
 		file_list = 'core.waf_files',
 		pch = 'StdAfx.cpp',
@@ -10,7 +10,6 @@ def build(bld):
 
 		includes = [ 
 			'.', 
-			Path('Code/CryEngine/CryCommon'),
 			Path('Code/CryEngine/CrySchematyc/Core/Interface') ],
 		module_provides = dict(
 			includes = [ Path('Code/CryEngine/CrySchematyc/Core/Interface') ],

@@ -22,7 +22,7 @@ public:
 		CELL_CENTERED = 0x0002,
 	};
 
-	void       SaveToFile(const char* filename);
+	bool       SaveToFile(const char* filename);
 
 	void       InitExcelWorkbook(XmlNodeRef Workbook);
 

@@ -16,7 +16,6 @@
 #include "StdAfx.h"
 #include "CAISystem.h"
 #include "AIHideObject.h"
-#include "NavRegion.h"
 #include "PipeUser.h"
 #include <math.h>
 #include "DebugDrawContext.h"
@@ -160,17 +159,6 @@ void CAIHideObject::Set(const SHideSpot* hs, const Vec3& hidePos, const Vec3& hi
 				m_objectPos = m_HideSmartObject.pObject->GetPos();
 			m_objectDir = m_HideSmartObject.pObject->GetOrientation(m_HideSmartObject.pRule->pObjectHelper);
 			m_objectCollidable = true;
-		}
-
-		if (hs->pNavNode && hs->pNavNode->navType == IAISystem::NAV_WAYPOINT_HUMAN)
-		{
-			if (hs->pNavNode->GetWaypointNavData()->type == WNT_HIDESECONDARY)
-			{
-				m_objectCollidable = false;
-				m_objectRadius = 0.05f; // Omni directional.
-			}
-			else
-				m_objectCollidable = true;
 		}
 
 		if (hs->info.type == SHideSpotInfo::eHST_DYNAMIC)

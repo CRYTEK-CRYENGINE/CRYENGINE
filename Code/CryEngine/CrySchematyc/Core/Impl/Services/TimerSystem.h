@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <Schematyc/Services/ITimerSystem.h>
-#include <Schematyc/Utils/EnumFlags.h>
+#include <CrySchematyc/Services/ITimerSystem.h>
+#include <CrySchematyc/Utils/EnumFlags.h>
 
 namespace Schematyc
 {

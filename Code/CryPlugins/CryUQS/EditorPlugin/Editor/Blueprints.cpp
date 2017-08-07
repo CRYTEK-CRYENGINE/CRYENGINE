@@ -5,6 +5,7 @@
 #include "Blueprints.h"
 #include "DocSerializationContext.h"
 #include "Settings.h"
+#include "CentralEventManager.h"
 
 #include <CrySerialization/CryStrings.h>
 #include <CrySerialization/Enum.h>
@@ -40,7 +41,7 @@ static bool IsStringEmpty(const TString& str)
 	return str.empty();
 }
 
-namespace uqseditor
+namespace UQSEditor
 {
 
 // TODO pavloi 2015.12.09: we shouldn't expose undefined type to UI, but right now I'm going to use it for debug purposes.
@@ -52,7 +53,7 @@ SERIALIZATION_ENUM_END()
 
 //////////////////////////////////////////////////////////////////////////
 
-class CSyntaxErrorCollector : public uqs::datasource::ISyntaxErrorCollector
+class CSyntaxErrorCollector : public UQS::DataSource::ISyntaxErrorCollector
 {
 public:
 	explicit CSyntaxErrorCollector(const std::shared_ptr<CErrorCollector>& pErrorCollector)
@@ -77,14 +78,14 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 
-static void DeleteSyntaxErrorCollector(uqs::datasource::ISyntaxErrorCollector* pSyntaxErrorCollectorToDelete)
+static void DeleteSyntaxErrorCollector(UQS::DataSource::ISyntaxErrorCollector* pSyntaxErrorCollectorToDelete)
 {
 	delete pSyntaxErrorCollectorToDelete;
 }
 
-static uqs::datasource::SyntaxErrorCollectorUniquePtr MakeNewSyntaxErrorCollectorUniquePtr(const std::shared_ptr<CErrorCollector>& pErrorCollector)
+static UQS::DataSource::SyntaxErrorCollectorUniquePtr MakeNewSyntaxErrorCollectorUniquePtr(const std::shared_ptr<CErrorCollector>& pErrorCollector)
 {
-	return uqs::datasource::SyntaxErrorCollectorUniquePtr(new CSyntaxErrorCollector(pErrorCollector), uqs::datasource::CSyntaxErrorCollectorDeleter(&DeleteSyntaxErrorCollector));
+	return UQS::DataSource::SyntaxErrorCollectorUniquePtr(new CSyntaxErrorCollector(pErrorCollector), UQS::DataSource::CSyntaxErrorCollectorDeleter(&DeleteSyntaxErrorCollector));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -97,18 +98,19 @@ public:
 		, m_pDeferredFactory(nullptr)
 	{}
 
-	CEvaluatorFactoryHelper(const CUqsDocSerializationContext& context, string name)
+	CEvaluatorFactoryHelper(const CUqsDocSerializationContext& context, const CryGUID& evaluatorGUID)
 		: m_pInstantFactory(nullptr)
 		, m_pDeferredFactory(nullptr)
 	{
-		m_pInstantFactory = context.GetInstantEvaluatorFactoryByName(name.c_str());
+		// FIXME: let's hope that there's never a duplicate GUID between Instant- and Deferred-Evaluators
+		m_pInstantFactory = UQS::Core::IHubPlugin::GetHub().GetInstantEvaluatorFactoryDatabase().FindFactoryByGUID(evaluatorGUID);
 		if (!m_pInstantFactory)
 		{
-			m_pDeferredFactory = context.GetDeferredEvaluatorFactoryByName(name.c_str());
+			m_pDeferredFactory = UQS::Core::IHubPlugin::GetHub().GetDeferredEvaluatorFactoryDatabase().FindFactoryByGUID(evaluatorGUID);
 		}
 	}
 
-	const uqs::client::IInputParameterRegistry& GetInputParameterRegistry() const
+	const UQS::Client::IInputParameterRegistry& GetInputParameterRegistry() const
 	{
 		assert(IsValid());
 		if (m_pInstantFactory)
@@ -144,9 +146,25 @@ public:
 		}
 	}
 
+	const char* GetDescription() const
+	{
+		if (m_pInstantFactory)
+		{
+			return m_pInstantFactory->GetDescription();
+		}
+		else if (m_pDeferredFactory)
+		{
+			return m_pDeferredFactory->GetDescription();
+		}
+		else
+		{
+			return "";
+		}
+	}
+
 private:
-	uqs::client::IInstantEvaluatorFactory*  m_pInstantFactory;
-	uqs::client::IDeferredEvaluatorFactory* m_pDeferredFactory;
+	UQS::Client::IInstantEvaluatorFactory*  m_pInstantFactory;
+	UQS::Client::IDeferredEvaluatorFactory* m_pDeferredFactory;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -231,13 +249,13 @@ CItemUniquePtr& CItemUniquePtr::operator=(CItemUniquePtr&& other)
 	return *this;
 }
 
-CItemUniquePtr::CItemUniquePtr(uqs::client::IItemFactory* pItemFactory)
+CItemUniquePtr::CItemUniquePtr(UQS::Client::IItemFactory* pItemFactory)
 	: m_pItem(nullptr)
 	, m_pItemFactory(pItemFactory)
 {
 	if (pItemFactory && pItemFactory->CanBePersistantlySerialized())
 	{
-		m_pItem = pItemFactory->CreateItems(1, uqs::client::IItemFactory::EItemInitMode::UseUserProvidedFunction);
+		m_pItem = pItemFactory->CreateItems(1, UQS::Client::IItemFactory::EItemInitMode::UseUserProvidedFunction);
 	}
 }
 
@@ -250,7 +268,7 @@ bool CItemUniquePtr::SetFromStringLiteral(const string& stringLiteral)
 {
 	if (m_pItem && m_pItemFactory)
 	{
-		return uqs::core::IHubPlugin::GetHub().GetItemSerializationSupport().DeserializeItemFromCStringLiteral(m_pItem, *m_pItemFactory, stringLiteral, nullptr);
+		return UQS::Core::IHubPlugin::GetHub().GetItemSerializationSupport().DeserializeItemFromCStringLiteral(m_pItem, *m_pItemFactory, stringLiteral, nullptr);
 	}
 	return false;
 }
@@ -260,8 +278,8 @@ void CItemUniquePtr::ConvertToStringLiteral(string& outString) const
 	outString.clear();
 	if (m_pItem && m_pItemFactory)
 	{
-		uqs::shared::CUqsString literalString;
-		if (uqs::core::IHubPlugin::GetHub().GetItemSerializationSupport().SerializeItemToStringLiteral(m_pItem, *m_pItemFactory, literalString))
+		UQS::Shared::CUqsString literalString;
+		if (UQS::Core::IHubPlugin::GetHub().GetItemSerializationSupport().SerializeItemToStringLiteral(m_pItem, *m_pItemFactory, literalString))
 		{
 			outString = literalString.c_str();
 		}
@@ -295,7 +313,7 @@ CItemLiteral::CItemLiteral()
 {}
 
 CItemLiteral::CItemLiteral(const SItemTypeName& typeName, const CUqsDocSerializationContext& context)
-	: m_item(context.GetItemFactoryByName(typeName))
+	: m_item(UQS::Core::IHubPlugin::GetHub().GetItemFactoryDatabase().FindFactoryByGUID(typeName.GetTypeGUID()))
 	, m_typeName(typeName)
 {}
 
@@ -322,21 +340,33 @@ bool Serialize(Serialization::IArchive& archive, CItemLiteral& value, const char
 
 void CFunctionSerializationHelper::CFunctionList::Build(const SItemTypeName& typeName, const CUqsDocSerializationContext& context)
 {
-	const Serialization::StringList& namesList = context.GetFunctionNamesList(typeName);
-
 	std::vector<SFunction> allFunctions;
-	allFunctions.reserve(namesList.size());
-	for (const auto& name : namesList)
-	{
-		if (uqs::client::IFunctionFactory* pFactory = context.GetFunctionFactoryByName(name.c_str()))
-		{
-			allFunctions.emplace_back();
-			SFunction& func = allFunctions.back();
 
-			func.internalName = name;
-			func.pFactory = pFactory;
-			func.leafFunctionKind = pFactory->GetLeafFunctionKind();
-			func.returnType = context.GetItemTypeNameFromType(pFactory->GetReturnType());
+	{
+		const UQS::Core::IFunctionFactoryDatabase& functionFactoryDB = UQS::Core::IHubPlugin::GetHub().GetFunctionFactoryDatabase();
+		for (size_t i = 0; i < functionFactoryDB.GetFactoryCount(); i++)
+		{
+			UQS::Client::IFunctionFactory& functionFactory = functionFactoryDB.GetFactory(i);
+			const UQS::Client::IItemFactory* pItemFactoryOfReturnType = UQS::Core::IHubPlugin::GetHub().GetUtils().FindItemFactoryByType(functionFactory.GetReturnType());
+			assert(pItemFactoryOfReturnType);
+			if (pItemFactoryOfReturnType->GetGUID() == typeName.GetTypeGUID() || !context.GetSettings().bFilterAvailableInputsByType)
+			{
+				allFunctions.emplace_back();
+				SFunction& func = allFunctions.back();
+
+				func.guid = functionFactory.GetGUID();
+				func.pFactory = &functionFactory;
+				func.leafFunctionKind = functionFactory.GetLeafFunctionKind();
+
+				if (const UQS::Client::IItemFactory* pItemFactoryOfReturnType = UQS::Core::IHubPlugin::GetHub().GetUtils().FindItemFactoryByType(functionFactory.GetReturnType()))
+				{
+					func.returnType = SItemTypeName(pItemFactoryOfReturnType->GetGUID());
+				}
+				else
+				{
+					func.returnType = SItemTypeName(CryGUID::Null());
+				}
+			}
 		}
 	}
 
@@ -352,7 +382,7 @@ void CFunctionSerializationHelper::CFunctionList::Build(const SItemTypeName& typ
 		{
 			std::vector<SFunction> functionsForIteratedItem;
 			std::copy_if(allFunctions.begin(), allFunctions.end(), std::back_inserter(functionsForIteratedItem),
-			             [](const SFunction& func) { return func.leafFunctionKind == uqs::client::IFunctionFactory::ELeafFunctionKind::IteratedItem; });
+				[](const SFunction& func) { return func.leafFunctionKind == UQS::Client::IFunctionFactory::ELeafFunctionKind::IteratedItem; });
 
 			pSelectedGeneratorContext->BuildFunctionListForAvailableGenerators(typeName, context, functionsForIteratedItem, functions);
 
@@ -380,14 +410,14 @@ void CFunctionSerializationHelper::CFunctionList::Build(const SItemTypeName& typ
 		{
 			std::vector<SFunction> functionsForGlobalParams;
 			std::copy_if(allFunctions.begin(), allFunctions.end(), std::back_inserter(functionsForGlobalParams),
-			             [](const SFunction& func) { return func.leafFunctionKind == uqs::client::IFunctionFactory::ELeafFunctionKind::GlobalParam; });
+				[](const SFunction& func) { return func.leafFunctionKind == UQS::Client::IFunctionFactory::ELeafFunctionKind::GlobalParam; });
 
 			pParams->BuildFunctionListForAvailableParameters(typeName, context, functionsForGlobalParams, globalParams);
 		}
 
 		for (SFunction& func : globalParams)
 		{
-			assert(func.leafFunctionKind == uqs::client::IFunctionFactory::ELeafFunctionKind::GlobalParam);
+			assert(func.leafFunctionKind == UQS::Client::IFunctionFactory::ELeafFunctionKind::GlobalParam);
 			assert(!func.param.empty());
 
 			functions.emplace_back(std::move(func));
@@ -402,7 +432,7 @@ void CFunctionSerializationHelper::CFunctionList::Build(const SItemTypeName& typ
 	{
 		for (const SFunction& func : allFunctions)
 		{
-			if (func.leafFunctionKind == uqs::client::IFunctionFactory::ELeafFunctionKind::Literal)
+			if (func.leafFunctionKind == UQS::Client::IFunctionFactory::ELeafFunctionKind::Literal)
 			{
 				functions.emplace_back(func);
 				SFunction& iteratedItemFunc = functions.back();
@@ -422,7 +452,7 @@ void CFunctionSerializationHelper::CFunctionList::Build(const SItemTypeName& typ
 	// TODO: the expectedShuttleType already gets properly serialized and such, but we also need a way for the user to specify the type somehow (preferably through a drop-down-list?)
 	for (const SFunction& func : allFunctions)
 	{
-		if (func.leafFunctionKind == uqs::client::IFunctionFactory::ELeafFunctionKind::ShuttledItems)
+		if (func.leafFunctionKind == UQS::Client::IFunctionFactory::ELeafFunctionKind::ShuttledItems)
 		{
 			functions.emplace_back(func);
 			SFunction& shuttledItemsFunc = functions.back();
@@ -447,33 +477,63 @@ void CFunctionSerializationHelper::CFunctionList::Build(const SItemTypeName& typ
 				functions.emplace_back(func);
 				SFunction& iteratedItemFunc = functions.back();
 
-				iteratedItemFunc.prettyName = iteratedItemFunc.internalName;
+				iteratedItemFunc.prettyName = UQS::Core::IHubPlugin::GetHub().GetFunctionFactoryDatabase().FindFactoryByGUID(iteratedItemFunc.guid)->GetName();
 			}
 		}
 	}
 
 	// Build string list
 	{
-		m_functionsStringList.clear();
-		m_functionsStringList.reserve(functions.size() + 1);
-		m_functionsStringList.push_back(string());
+		m_functionsGuidList.Clear();
+		m_functionsGuidList.AddEntry("", CryGUID::Null());
 		for (const SFunction& func : functions)
 		{
-			m_functionsStringList.push_back(func.prettyName);
+			m_functionsGuidList.AddEntry(func.prettyName.c_str(), func.guid);
 		}
 	}
 
 	m_functions = std::move(functions);
 }
 
-int CFunctionSerializationHelper::CFunctionList::SerializeName(
-  Serialization::IArchive& archive,
-  const char* szName,
-  const char* szLabel,
-  const CUqsDocSerializationContext& context,
-  const SValidatorKey& validatorKey,
-  const int oldFunctionIdx)
+int CFunctionSerializationHelper::CFunctionList::SerializeGUID(
+	Serialization::IArchive& archive,
+	const char* szName,
+	const char* szLabel,
+	const CUqsDocSerializationContext& context,
+	const SValidatorKey& validatorKey,
+	const int oldFunctionIdx)
 {
+	const bool bIsNpos = (oldFunctionIdx == CFunctionSerializationHelper::npos);
+	const string oldPrettyName = bIsNpos ? "" : m_functions[oldFunctionIdx].prettyName;
+
+	const CKeyValueStringList<CryGUID>::SSerializeResult serializeResult = m_functionsGuidList.SerializeByLabelForDisplayInDropDownList(archive, szName, szLabel, &validatorKey, oldPrettyName);
+	const int newFunctionIdx = serializeResult.newIndex - 1;	// careful: could become -2 if the drop-down-list has no entries ("I GUESS"!)
+	const bool bChanged = newFunctionIdx != oldFunctionIdx;
+
+	int resultFunctionIndex = oldFunctionIdx;
+
+	if (bChanged)
+	{
+		if (serializeResult.newIndex == -1 || serializeResult.newIndex == 0)
+		{
+			resultFunctionIndex = CFunctionSerializationHelper::npos;
+		}
+		else
+		{
+			resultFunctionIndex = newFunctionIdx;
+		}
+	}
+
+	// description of the function
+	if (resultFunctionIndex != CFunctionSerializationHelper::npos)
+	{
+		archive.doc(GetByIdx(resultFunctionIndex).pFactory->GetDescription());
+	}
+
+	return resultFunctionIndex;
+
+	// ORIGINAL CODE FOR REFERENCE
+	/*
 	const bool bIsNpos = (oldFunctionIdx == Serialization::StringList::npos);
 
 	Serialization::StringListValue strValue(m_functionsStringList, !bIsNpos ? (oldFunctionIdx + 1) : 0, validatorKey.pHandle, validatorKey.typeId);
@@ -496,7 +556,14 @@ int CFunctionSerializationHelper::CFunctionList::SerializeName(
 		}
 	}
 
+	// description of the function
+	if (resultFunctionIndex != CFunctionSerializationHelper::npos)
+	{
+		archive.doc(GetByIdx(resultFunctionIndex).pFactory->GetDescription());
+	}
+
 	return resultFunctionIndex;
+	*/
 }
 
 const CFunctionSerializationHelper::SFunction& CFunctionSerializationHelper::CFunctionList::GetByIdx(const int idx) const
@@ -509,13 +576,13 @@ const CFunctionSerializationHelper::SFunction& CFunctionSerializationHelper::CFu
 	return m_functions[idx];
 }
 
-int CFunctionSerializationHelper::CFunctionList::FindByInternalNameAndParam(const string& internalName, const string& param) const
+int CFunctionSerializationHelper::CFunctionList::FindByGUIDAndParam(const CryGUID& guid, const string& param) const
 {
 	for (int i = 0; i < m_functions.size(); ++i)
 	{
-		if (m_functions[i].internalName == internalName)
+		if (m_functions[i].guid == guid)
 		{
-			if (m_functions[i].leafFunctionKind == uqs::client::IFunctionFactory::ELeafFunctionKind::GlobalParam)
+			if (m_functions[i].leafFunctionKind == UQS::Client::IFunctionFactory::ELeafFunctionKind::GlobalParam)
 			{
 				if (m_functions[i].param == param)
 				{
@@ -540,7 +607,7 @@ void CFunctionSerializationHelper::CFunctionList::Clear()
 }
 
 CFunctionSerializationHelper::CFunctionSerializationHelper()
-	: m_funcInternalName()
+	: m_funcGUID()
 	, m_funcParam()
 	, m_itemLiteral()
 	, m_typeName()
@@ -549,8 +616,8 @@ CFunctionSerializationHelper::CFunctionSerializationHelper()
 	, m_selectedFunctionIdx(npos)
 {}
 
-CFunctionSerializationHelper::CFunctionSerializationHelper(const char* szFunctionName, const char* szParamOrReturnValue, bool bAddReturnValueToDebugRenderWorldUponExecution)
-	: m_funcInternalName(szFunctionName)
+CFunctionSerializationHelper::CFunctionSerializationHelper(const CryGUID& functionGUID, const char* szParamOrReturnValue, bool bAddReturnValueToDebugRenderWorldUponExecution)
+	: m_funcGUID(functionGUID)
 	, m_funcParam(szParamOrReturnValue)
 	, m_itemLiteral()
 	, m_typeName()
@@ -559,8 +626,8 @@ CFunctionSerializationHelper::CFunctionSerializationHelper(const char* szFunctio
 	, m_selectedFunctionIdx(npos)
 {}
 
-CFunctionSerializationHelper::CFunctionSerializationHelper(const uqs::client::IFunctionFactory& functionFactory, const CUqsDocSerializationContext& context)
-	: m_funcInternalName(functionFactory.GetName())
+CFunctionSerializationHelper::CFunctionSerializationHelper(const UQS::Client::IFunctionFactory& functionFactory, const CUqsDocSerializationContext& context)
+	: m_funcGUID(functionFactory.GetGUID())
 	, m_funcParam()
 	, m_itemLiteral()
 	, m_typeName(context.GetItemTypeNameFromType(functionFactory.GetReturnType()))
@@ -580,7 +647,7 @@ void CFunctionSerializationHelper::RebuildList(const CUqsDocSerializationContext
 
 void CFunctionSerializationHelper::UpdateSelectedFunctionIndex()
 {
-	m_selectedFunctionIdx = m_functionsList.FindByInternalNameAndParam(m_funcInternalName, m_funcParam);
+	m_selectedFunctionIdx = m_functionsList.FindByGUIDAndParam(m_funcGUID, m_funcParam);
 }
 
 void CFunctionSerializationHelper::Prepare(const CUqsDocSerializationContext& context)
@@ -613,8 +680,8 @@ void CFunctionSerializationHelper::Reset(const SItemTypeName& typeName, const CU
 		if (m_selectedFunctionIdx != npos)
 		{
 			const SFunction& function = m_functionsList.GetByIdx(m_selectedFunctionIdx);
-			const bool bIsLiteral = (function.leafFunctionKind == uqs::client::IFunctionFactory::ELeafFunctionKind::Literal);
-			
+			const bool bIsLiteral = (function.leafFunctionKind == UQS::Client::IFunctionFactory::ELeafFunctionKind::Literal);
+
 			if (bIsLiteral)
 			{
 				if (!m_itemLiteral.IsExist() || m_itemLiteral.GetTypeName() != typeName)
@@ -641,37 +708,37 @@ void CFunctionSerializationHelper::ReserializeFunctionLiteralFromParam()
 	}
 }
 
-bool CFunctionSerializationHelper::SerializeFunctionName(
-  Serialization::IArchive& archive,
-  const char* szName,
-  const char* szLabel,
-  const CUqsDocSerializationContext& context)
+bool CFunctionSerializationHelper::SerializeFunctionGUID(
+	Serialization::IArchive& archive,
+	const char* szName,
+	const char* szLabel,
+	const CUqsDocSerializationContext& context)
 {
-	bool bNameChanged = false;
+	bool bGUIDChanged = false;
 
 	if (context.GetSettings().bUseSelectionHelpers)
 	{
 		const int oldFunctionIdx = m_selectedFunctionIdx;
 		const SValidatorKey validatorKey = SValidatorKey::FromObject(*this);
-		const int functionIdx = m_functionsList.SerializeName(archive, szName, szLabel, context, validatorKey, oldFunctionIdx);
+		const int functionIdx = m_functionsList.SerializeGUID(archive, szName, szLabel, context, validatorKey, oldFunctionIdx);
 
 		if (functionIdx != oldFunctionIdx)
 		{
-			bNameChanged = true;
+			bGUIDChanged = true;
 			m_selectedFunctionIdx = functionIdx;
 			if (functionIdx != npos)
 			{
 				const SFunction& function = m_functionsList.GetByIdx(functionIdx);
-				m_funcInternalName = function.internalName;
-				
+				m_funcGUID = function.guid;
+
 				switch (function.leafFunctionKind)
 				{
-				case uqs::client::IFunctionFactory::ELeafFunctionKind::GlobalParam:
+				case UQS::Client::IFunctionFactory::ELeafFunctionKind::GlobalParam:
 					m_funcParam = function.param;
 					m_itemLiteral = CItemLiteral();
 					break;
 
-				case uqs::client::IFunctionFactory::ELeafFunctionKind::Literal:
+				case UQS::Client::IFunctionFactory::ELeafFunctionKind::Literal:
 					if (!m_itemLiteral.IsExist())
 					{
 						m_itemLiteral = CItemLiteral(function.returnType, context);
@@ -691,40 +758,39 @@ bool CFunctionSerializationHelper::SerializeFunctionName(
 			}
 			else
 			{
-				m_funcInternalName.clear();
-				
+				m_funcGUID = CryGUID::Null();
 				m_funcParam.clear();
 				m_itemLiteral = CItemLiteral();
 			}
 		}
 
-		if (m_selectedFunctionIdx == npos && !m_funcInternalName.empty())
+		if (m_selectedFunctionIdx == npos && !m_funcGUID.IsNull())
 		{
 			// TODO pavloi 2016.04.26: there is no way to pass validator key handle and type to the warning() like to error()
 
 			if (m_funcParam.empty())
 			{
-				archive.warning(*this, "Function '%s' is not a valid input.", m_funcInternalName.c_str());
+				archive.warning(*this, "Function '%s' is not a valid input.", GetFunctionInternalName());
 			}
 			else
 			{
-				archive.warning(*this, "Function '%s' with param '%s' is not a valid input.", m_funcInternalName.c_str(), m_funcParam.c_str());
+				archive.warning(*this, "Function '%s' with param '%s' is not a valid input.", GetFunctionInternalName(), m_funcParam.c_str());
 			}
 		}
 	}
 	else
 	{
-		const char* szOldName = m_funcInternalName.c_str();
-		const auto setName = [this, &bNameChanged](const char* szStr)
+		const CryGUID oldGUID = m_funcGUID;
+		const auto setGUID = [this, &bGUIDChanged](const CryGUID& newGUID)
 		{
-			m_funcInternalName = szStr;
-			bNameChanged = true;
+			m_funcGUID = newGUID;
+			bGUIDChanged = true;
 		};
 
-		SerializeStringWithSetter(archive, szName, szLabel, szOldName, setName);
+		SerializeGUIDWithSetter(archive, szName, szLabel, oldGUID, setGUID);
 	}
 
-	return bNameChanged;
+	return bGUIDChanged;
 }
 
 void CFunctionSerializationHelper::SerializeFunctionParam(Serialization::IArchive& archive, const CUqsDocSerializationContext& context)
@@ -737,7 +803,7 @@ void CFunctionSerializationHelper::SerializeFunctionParam(Serialization::IArchiv
 
 			switch (function.leafFunctionKind)
 			{
-			case uqs::client::IFunctionFactory::ELeafFunctionKind::Literal:
+			case UQS::Client::IFunctionFactory::ELeafFunctionKind::Literal:
 				if (m_itemLiteral.IsExist())
 				{
 					archive(m_itemLiteral, "returnValue", "^");
@@ -768,7 +834,7 @@ void CFunctionSerializationHelper::SerializeAddReturnValueToDebugRenderWorldUpon
 	// check for whether the item can be represented in the debug render world
 	if (const SFunction* pFunction = GetSelectedFunction())
 	{
-		if (const uqs::client::IItemFactory* pItemFactory = uqs::core::IHubPlugin::GetHub().GetUtils().FindItemFactoryByType(pFunction->pFactory->GetReturnType()))
+		if (const UQS::Client::IItemFactory* pItemFactory = UQS::Core::IHubPlugin::GetHub().GetUtils().FindItemFactoryByType(pFunction->pFactory->GetReturnType()))
 		{
 			if (pItemFactory->CanBeRepresentedInDebugRenderWorld())
 			{
@@ -777,18 +843,23 @@ void CFunctionSerializationHelper::SerializeAddReturnValueToDebugRenderWorldUpon
 		}
 	}
 
-	const char* szBasicLabel = bItemCanBeRepresentedInDebugRenderWorld ? "^Add return value to DebugRenderWorld upon execution" : "^(Item has no representation in the DebugRenderWorld)";
-
-	m_labelAddReturnValueToDebugRenderWorldUponExecution.Format("%s%s", bItemCanBeRepresentedInDebugRenderWorld ? "" : "!" , szBasicLabel);
-
-	archive(m_bAddReturnValueToDebugRenderWorldUponExecution, "addReturnValueToDebugRenderWorldUponExecution", m_labelAddReturnValueToDebugRenderWorldUponExecution.c_str());
-
-	// TODO: add some tooltip via archive.doc(), but the underlying IArchive implementation (yasli::BinOArchive) lacks the DOCUMENTAION bit in its capabilities mask
+	if (bItemCanBeRepresentedInDebugRenderWorld)
+	{
+		archive(m_bAddReturnValueToDebugRenderWorldUponExecution, "addReturnValueToDebugRenderWorldUponExecution", "^DebugRender");
+		archive.doc("If enabled, the return value is added to DebugRenderWorld upon execution. Then you can view the value in the query history.");
+	}
 }
 
-const string& CFunctionSerializationHelper::GetFunctionInternalName() const
+const char* CFunctionSerializationHelper::GetFunctionInternalName() const
 {
-	return m_funcInternalName;
+	if (const UQS::Client::IFunctionFactory* pFunctionFactory = UQS::Core::IHubPlugin::GetHub().GetFunctionFactoryDatabase().FindFactoryByGUID(m_funcGUID))
+	{
+		return pFunctionFactory->GetName();
+	}
+	else
+	{
+		return "";
+	}
 }
 
 const string& CFunctionSerializationHelper::GetFunctionParamOrReturnValue() const
@@ -804,7 +875,7 @@ const string& CFunctionSerializationHelper::GetFunctionParamOrReturnValue() cons
 	}
 }
 
-uqs::client::IFunctionFactory* CFunctionSerializationHelper::GetFunctionFactory() const
+UQS::Client::IFunctionFactory* CFunctionSerializationHelper::GetFunctionFactory() const
 {
 	if (const SFunction* pFunction = GetSelectedFunction())
 	{
@@ -829,30 +900,38 @@ const CFunctionSerializationHelper::SFunction* CFunctionSerializationHelper::Get
 
 CInputBlueprint::CInputBlueprint()
 	: m_paramName()
+	, m_paramID(UQS::Client::CInputParameterID::CreateEmpty())
+	, m_paramDescription()
 	, m_bAddReturnValueToDebugRenderWorldUponExecution(false)
 	, m_functionHelper()
 	, m_children()
 	, m_pErrorCollector(new CErrorCollector)
 {}
 
-CInputBlueprint::CInputBlueprint(const char* szParamName, const char* szFuncName, const char* szFuncReturnValueLiteral, bool bAddReturnValueToDebugRenderWorldUponExecution)
+CInputBlueprint::CInputBlueprint(const char* szParamName, const UQS::Client::CInputParameterID& paramID, const char* szParamDescription, const CryGUID& funcGUID, const char* szFuncReturnValueLiteral, bool bAddReturnValueToDebugRenderWorldUponExecution)
 	: m_paramName(szParamName)
+	, m_paramID(paramID)
+	, m_paramDescription(szParamDescription)
 	, m_bAddReturnValueToDebugRenderWorldUponExecution(bAddReturnValueToDebugRenderWorldUponExecution)
-	, m_functionHelper(szFuncName, szFuncReturnValueLiteral, bAddReturnValueToDebugRenderWorldUponExecution)
+	, m_functionHelper(funcGUID, szFuncReturnValueLiteral, bAddReturnValueToDebugRenderWorldUponExecution)
 	, m_children()
 	, m_pErrorCollector(new CErrorCollector)
 {}
 
-CInputBlueprint::CInputBlueprint(const char* szParamName)
+CInputBlueprint::CInputBlueprint(const char* szParamName, const UQS::Client::CInputParameterID& paramID, const char* szParamDescription)
 	: m_paramName(szParamName)
+	, m_paramID(paramID)
+	, m_paramDescription(szParamDescription)
 	, m_bAddReturnValueToDebugRenderWorldUponExecution(false)
 	, m_functionHelper()
 	, m_children()
 	, m_pErrorCollector(new CErrorCollector)
 {}
 
-CInputBlueprint::CInputBlueprint(const uqs::client::IFunctionFactory& functionFactory, const CUqsDocSerializationContext& context)
+CInputBlueprint::CInputBlueprint(const UQS::Client::IFunctionFactory& functionFactory, const CUqsDocSerializationContext& context)
 	: m_paramName()
+	, m_paramID(UQS::Client::CInputParameterID::CreateEmpty())
+	, m_paramDescription()
 	, m_bAddReturnValueToDebugRenderWorldUponExecution(false)
 	, m_functionHelper(functionFactory, context)
 	, m_children()
@@ -863,6 +942,7 @@ CInputBlueprint::CInputBlueprint(const uqs::client::IFunctionFactory& functionFa
 
 CInputBlueprint::CInputBlueprint(CInputBlueprint&& other)
 	: m_paramName(std::move(other.m_paramName))
+	, m_paramID(std::move(other.m_paramID))
 	, m_bAddReturnValueToDebugRenderWorldUponExecution(std::move(other.m_bAddReturnValueToDebugRenderWorldUponExecution))
 	, m_functionHelper(std::move(other.m_functionHelper))
 	, m_children(std::move(other.m_children))
@@ -874,6 +954,8 @@ CInputBlueprint& CInputBlueprint::operator=(CInputBlueprint&& other)
 	if (this != &other)
 	{
 		m_paramName = std::move(other.m_paramName);
+		m_paramID = std::move(other.m_paramID);
+		m_paramDescription = std::move(other.m_paramDescription);
 		m_bAddReturnValueToDebugRenderWorldUponExecution = std::move(other.m_bAddReturnValueToDebugRenderWorldUponExecution);
 		m_functionHelper = std::move(other.m_functionHelper);
 		m_children = std::move(other.m_children);
@@ -882,13 +964,13 @@ CInputBlueprint& CInputBlueprint::operator=(CInputBlueprint&& other)
 	return *this;
 }
 
-void CInputBlueprint::ResetChildrenFromFactory(const uqs::client::IGeneratorFactory& generatorFactory, const CUqsDocSerializationContext& context)
+void CInputBlueprint::ResetChildrenFromFactory(const UQS::Client::IGeneratorFactory& generatorFactory, const CUqsDocSerializationContext& context)
 {
 	m_children.clear();
 	SetChildrenFromFactoryInputRegistry(generatorFactory, context);
 }
 
-void CInputBlueprint::ResetChildrenFromFactory(const uqs::client::IFunctionFactory& functionFactory, const CUqsDocSerializationContext& context)
+void CInputBlueprint::ResetChildrenFromFactory(const UQS::Client::IFunctionFactory& functionFactory, const CUqsDocSerializationContext& context)
 {
 	m_children.clear();
 	SetChildrenFromFactoryInputRegistry(functionFactory, context);
@@ -900,24 +982,64 @@ void CInputBlueprint::ResetChildrenFromFactory(const CEvaluatorFactoryHelper& ev
 	SetChildrenFromFactoryInputRegistry(evaluatorFactory, context);
 }
 
+void CInputBlueprint::EnsureChildrenFromFactory(const UQS::Client::IGeneratorFactory& generatorFactory, const CUqsDocSerializationContext& context)
+{
+	SetChildrenFromFactoryInputRegistry(generatorFactory, context);
+}
+
+void CInputBlueprint::EnsureChildrenFromFactory(const UQS::Client::IFunctionFactory& functionFactory, const CUqsDocSerializationContext& context)
+{
+	SetChildrenFromFactoryInputRegistry(functionFactory, context);
+}
+
+void CInputBlueprint::EnsureChildrenFromFactory(const CEvaluatorFactoryHelper& evaluatorFactory, const CUqsDocSerializationContext& context)
+{
+	SetChildrenFromFactoryInputRegistry(evaluatorFactory, context);
+}
+
 template<typename TFactory>
 void CInputBlueprint::SetChildrenFromFactoryInputRegistry(const TFactory& factory, const CUqsDocSerializationContext& context)
 {
-	const uqs::client::IInputParameterRegistry& inputRegistry = factory.GetInputParameterRegistry();
+	const UQS::Client::IInputParameterRegistry& inputRegistry = factory.GetInputParameterRegistry();
 	const size_t paramCount = inputRegistry.GetParameterCount();
 	for (size_t i = 0; i < paramCount; ++i)
 	{
-		const uqs::client::IInputParameterRegistry::SParameterInfo paramInfo = inputRegistry.GetParameter(i);
-		const CInputBlueprint* pParam = FindChildByParamName(paramInfo.name);
+		const UQS::Client::IInputParameterRegistry::SParameterInfo paramInfo = inputRegistry.GetParameter(i);
+
+		CInputBlueprint* pParam = FindChildByParamID(paramInfo.id);
 		if (!pParam)
 		{
-			m_children.emplace_back(paramInfo.name);
-			m_children.back().SetAdditionalParamInfo(paramInfo, context);
+			m_children.emplace_back(paramInfo.szName, paramInfo.id, paramInfo.szDescription);
+			pParam = &m_children.back();
 		}
+		else
+		{
+			// patch the parameter name such that it equals the one in the InputParameterRegistry (remember: it's currently still the one provided by the ITextualInputBlueprint)
+			pParam->m_paramName = paramInfo.szName;
+		}
+		pParam->SetAdditionalParamInfo(paramInfo, context);
 	}
+
+	CRY_ASSERT(paramCount <= m_children.size());
+
+	if (paramCount < m_children.size())
+	{
+		std::set<string> paramNames;
+		for (size_t i = 0; i < paramCount; ++i)
+		{
+			const UQS::Client::IInputParameterRegistry::SParameterInfo paramInfo = inputRegistry.GetParameter(i);
+			paramNames.insert(paramInfo.szName);
+		}
+
+		auto removeIter = std::remove_if(m_children.begin(), m_children.end(),
+			[&](const CInputBlueprint& param) { return paramNames.find(param.m_paramName) == paramNames.end(); });
+		m_children.erase(removeIter, m_children.end());
+	}
+
+	CRY_ASSERT(paramCount == m_children.size());
 }
 
-void CInputBlueprint::PrepareHelpers(const uqs::client::IGeneratorFactory* pGeneratorFactory, const CUqsDocSerializationContext& context)
+void CInputBlueprint::PrepareHelpers(const UQS::Client::IGeneratorFactory* pGeneratorFactory, const CUqsDocSerializationContext& context)
 {
 	if (pGeneratorFactory)
 	{
@@ -927,7 +1049,7 @@ void CInputBlueprint::PrepareHelpers(const uqs::client::IGeneratorFactory* pGene
 	PrepareHelpersRoot(context);
 }
 
-void CInputBlueprint::PrepareHelpers(const uqs::client::IFunctionFactory* pFunctionFactory, const CUqsDocSerializationContext& context)
+void CInputBlueprint::PrepareHelpers(const UQS::Client::IFunctionFactory* pFunctionFactory, const CUqsDocSerializationContext& context)
 {
 	if (pFunctionFactory)
 	{
@@ -957,21 +1079,21 @@ void CInputBlueprint::PrepareHelpersRoot(const CUqsDocSerializationContext& cont
 
 void CInputBlueprint::PrepareHelpersChild(const CUqsDocSerializationContext& context)
 {
-	uqs::client::IFunctionFactory* pFunctionFactory = m_functionHelper.GetFunctionFactory();
+	UQS::Client::IFunctionFactory* pFunctionFactory = m_functionHelper.GetFunctionFactory();
 	PrepareHelpers(pFunctionFactory, context);
 }
 
 template<typename TFactory>
 void CInputBlueprint::DeriveChildrenInfoFromFactoryInputRegistry(const TFactory& factory, const CUqsDocSerializationContext& context)
 {
-	const uqs::client::IInputParameterRegistry& inputRegistry = factory.GetInputParameterRegistry();
+	const UQS::Client::IInputParameterRegistry& inputRegistry = factory.GetInputParameterRegistry();
 
 	const size_t paramCount = inputRegistry.GetParameterCount();
 	std::map<string, size_t> nameToParameterInfoIdx;
 	for (size_t i = 0; i < paramCount; ++i)
 	{
-		const uqs::client::IInputParameterRegistry::SParameterInfo paramInfo = inputRegistry.GetParameter(i);
-		nameToParameterInfoIdx[string(paramInfo.name)] = i;
+		const UQS::Client::IInputParameterRegistry::SParameterInfo paramInfo = inputRegistry.GetParameter(i);
+		nameToParameterInfoIdx[string(paramInfo.szName)] = i;
 	}
 
 	for (CInputBlueprint& child : m_children)
@@ -984,8 +1106,10 @@ void CInputBlueprint::DeriveChildrenInfoFromFactoryInputRegistry(const TFactory&
 	}
 }
 
-void CInputBlueprint::SetAdditionalParamInfo(const uqs::client::IInputParameterRegistry::SParameterInfo& paramInfo, const CUqsDocSerializationContext& context)
+void CInputBlueprint::SetAdditionalParamInfo(const UQS::Client::IInputParameterRegistry::SParameterInfo& paramInfo, const CUqsDocSerializationContext& context)
 {
+	m_paramID = paramInfo.id;
+	m_paramDescription = paramInfo.szDescription;
 	m_functionHelper.Reset(context.GetItemTypeNameFromType(paramInfo.type), context);
 }
 
@@ -1007,17 +1131,22 @@ void CInputBlueprint::Serialize(Serialization::IArchive& archive)
 
 	if (bUseSelectionHelpers)
 	{
-		// Prepare param (and type) name and use it as label for function
+		// Prepare param (and type) name and use it as an extra UI element to show the parameter description as tooltip
 		if (bShowInputParamTypes)
 		{
-			m_paramLabel.Format("^%s (%s)", m_paramName.c_str(), m_functionHelper.GetExpectedType().c_str());
+			m_paramLabel.Format("^!>0>%s (%s)", m_paramName.c_str(), m_functionHelper.GetExpectedType().c_str());
 		}
 		else
 		{
-			m_paramLabel.Format("^%s", m_paramName.c_str());
+			m_paramLabel.Format("^!>0>%s", m_paramName.c_str());
 		}
 
-		SerializeFunction(archive, *pContext, m_paramLabel.c_str());
+		// dummy field just for displaying the parameter's name and its description
+		string dummyValue = "";
+		archive(dummyValue, "paramLabel", m_paramLabel.c_str());
+		archive.doc(m_paramDescription.c_str());
+
+		SerializeFunction(archive, *pContext, "^");
 	}
 	else
 	{
@@ -1035,23 +1164,13 @@ void CInputBlueprint::SerializeRoot(Serialization::IArchive& archive, const char
 
 void CInputBlueprint::SerializeFunction(Serialization::IArchive& archive, const CUqsDocSerializationContext& context, const char* szParamLabel)
 {
-	uqs::client::IFunctionFactory* pFactory = nullptr;
+	UQS::Client::IFunctionFactory* pFactory = nullptr;
 
-	const bool bNameChanged = m_functionHelper.SerializeFunctionName(archive, "funcName", szParamLabel, context);
-
-	// bAddReturnValueToDebugRenderWorldUponExecution
-	{
-		m_functionHelper.SerializeAddReturnValueToDebugRenderWorldUponExecution(archive);
-
-		if (archive.isInput())
-		{
-			m_bAddReturnValueToDebugRenderWorldUponExecution = m_functionHelper.GetAddReturnValueToDebugRenderWorldUponExecution();
-		}
-	}
+	const bool bGUIDChanged = m_functionHelper.SerializeFunctionGUID(archive, "funcGUID", szParamLabel, context);
 
 	bool bIsLeafUndecided = true;
-	uqs::client::IFunctionFactory::ELeafFunctionKind leafFunctionKind =
-	  uqs::client::IFunctionFactory::ELeafFunctionKind::None;
+	UQS::Client::IFunctionFactory::ELeafFunctionKind leafFunctionKind =
+	  UQS::Client::IFunctionFactory::ELeafFunctionKind::None;
 
 	if (context.GetSettings().bUseSelectionHelpers)
 	{
@@ -1068,20 +1187,9 @@ void CInputBlueprint::SerializeFunction(Serialization::IArchive& archive, const 
 		}
 	}
 
-	if (pFactory)
+	if (pFactory && bGUIDChanged)
 	{
-		if (bNameChanged)
-		{
-			ResetChildrenFromFactory(*pFactory, context);
-		}
-	}
-
-	if (bNameChanged)
-	{
-		// Name was changed - return right now, so PropertyTree will not try
-		// to insert children of previous function into the new one.
-		// TODO pavloi 2016.04.25: #FIX_COPY
-		return;
+		ResetChildrenFromFactory(*pFactory, context);
 	}
 
 	if (bIsLeafUndecided)
@@ -1098,21 +1206,36 @@ void CInputBlueprint::SerializeFunction(Serialization::IArchive& archive, const 
 	{
 		switch (leafFunctionKind)
 		{
-		case uqs::client::IFunctionFactory::ELeafFunctionKind::None:
+		case UQS::Client::IFunctionFactory::ELeafFunctionKind::None:
 			SerializeChildren(archive, "inputs", "Inputs", context);
 			break;
 
-		case uqs::client::IFunctionFactory::ELeafFunctionKind::IteratedItem:
+		case UQS::Client::IFunctionFactory::ELeafFunctionKind::IteratedItem:
 			// do nothing
 			break;
 
-		case uqs::client::IFunctionFactory::ELeafFunctionKind::GlobalParam:
+		case UQS::Client::IFunctionFactory::ELeafFunctionKind::GlobalParam:
 			// do nothing
 			break;
 
-		case uqs::client::IFunctionFactory::ELeafFunctionKind::Literal:
+		case UQS::Client::IFunctionFactory::ELeafFunctionKind::Literal:
 			m_functionHelper.SerializeFunctionParam(archive, context);
 			break;
+		}
+	}
+
+	if (pFactory)
+	{
+		EnsureChildrenFromFactory(*pFactory, context);
+	}
+
+	// bAddReturnValueToDebugRenderWorldUponExecution
+	{
+		m_functionHelper.SerializeAddReturnValueToDebugRenderWorldUponExecution(archive);
+
+		if (archive.isInput())
+		{
+			m_bAddReturnValueToDebugRenderWorldUponExecution = m_functionHelper.GetAddReturnValueToDebugRenderWorldUponExecution();
 		}
 	}
 }
@@ -1156,9 +1279,27 @@ const char* CInputBlueprint::GetParamName() const
 	return m_paramName.c_str();
 }
 
+const UQS::Client::CInputParameterID& CInputBlueprint::GetParamID() const
+{
+	return m_paramID;
+}
+
 const char* CInputBlueprint::GetFuncName() const
 {
-	return m_functionHelper.GetFunctionInternalName().c_str();
+	return m_functionHelper.GetFunctionInternalName();
+}
+
+const CryGUID& CInputBlueprint::GetFuncGUID() const
+{
+	if (const UQS::Client::IFunctionFactory* pFunctionFactory = m_functionHelper.GetFunctionFactory())
+	{
+		return pFunctionFactory->GetGUID();
+	}
+	else
+	{
+		static const CryGUID nullGUID = CryGUID::Null();
+		return nullGUID;
+	}
 }
 
 const char* CInputBlueprint::GetFuncReturnValueLiteral() const
@@ -1171,9 +1312,10 @@ bool CInputBlueprint::GetAddReturnValueToDebugRenderWorldUponExecution() const
 	return m_bAddReturnValueToDebugRenderWorldUponExecution;
 }
 
-CInputBlueprint& CInputBlueprint::AddChild(const char* szParamName, const char* szFuncName, const char* szFuncReturnValueLiteral, bool bAddReturnValueToDebugRenderWorldUponExecution)
+CInputBlueprint& CInputBlueprint::AddChild(const char* szParamName, const UQS::Client::CInputParameterID& paramID, const CryGUID& funcGUID, const char* szFuncReturnValueLiteral, bool bAddReturnValueToDebugRenderWorldUponExecution)
 {
-	m_children.emplace_back(szParamName, szFuncName, szFuncReturnValueLiteral, bAddReturnValueToDebugRenderWorldUponExecution);
+	const char* szParamDescription = "";  // FIXME: where to get the description of the parameter from?? ... nevermind, the description eventually ends up in the UI somehow
+	m_children.emplace_back(szParamName, paramID, szParamDescription, funcGUID, szFuncReturnValueLiteral, bAddReturnValueToDebugRenderWorldUponExecution);
 	return m_children.back();
 }
 
@@ -1187,10 +1329,15 @@ const CInputBlueprint& CInputBlueprint::GetChild(size_t index) const
 	return m_children[index];
 }
 
-const CInputBlueprint* CInputBlueprint::FindChildByParamName(const char* paramName) const
+CInputBlueprint* CInputBlueprint::FindChildByParamID(const UQS::Client::CInputParameterID& paramID)
+{
+	return const_cast<CInputBlueprint*>(FindChildByParamIDConst(paramID));
+}
+
+const CInputBlueprint* CInputBlueprint::FindChildByParamIDConst(const UQS::Client::CInputParameterID& paramID) const
 {
 	auto iter = std::find_if(m_children.begin(), m_children.end(),
-	                         [paramName](const CInputBlueprint& bp) { return bp.m_paramName == paramName; });
+	                         [paramID](const CInputBlueprint& bp) { return bp.m_paramID == paramID; });
 	return iter != m_children.end() ? &*iter : nullptr;
 }
 
@@ -1203,9 +1350,9 @@ CConstParamBlueprint::SConstParam::SConstParam()
 	, pErrorCollector(new CErrorCollector)
 {}
 
-CConstParamBlueprint::SConstParam::SConstParam(const char* szName, const char* szType, CItemLiteral&& value, bool _bAddToDebugRenderWorld)
+CConstParamBlueprint::SConstParam::SConstParam(const char* szName, const CryGUID& typeGUID, CItemLiteral&& value, bool _bAddToDebugRenderWorld)
 	: name(szName)
-	, type(szType)
+	, type(typeGUID)
 	, value(std::move(value))
 	, bAddToDebugRenderWorld(_bAddToDebugRenderWorld)
 	, pErrorCollector(new CErrorCollector)
@@ -1247,7 +1394,7 @@ void CConstParamBlueprint::SConstParam::Serialize(Serialization::IArchive& archi
 			{
 				if ((name != oldName) || (type != oldType))
 				{
-					pParamsContext->SetParamsChanged(true);
+					pParamsContext->SetParamsChanged();
 				}
 			}
 		}
@@ -1277,14 +1424,25 @@ void CConstParamBlueprint::SConstParam::SerializeImpl(Serialization::IArchive& a
 		}
 	}
 
+	// description of the type
+	if (const UQS::Client::IItemFactory* pFactory = UQS::Core::IHubPlugin::GetHub().GetItemFactoryDatabase().FindFactoryByGUID(type.GetTypeGUID()))
+	{
+		archive.doc(pFactory->GetDescription());
+	}
+
 	archive(value, "value", "^Value");
 
 	bool bItemCanBeRepresentedInDebugRenderWorld = false;
-	if (const uqs::client::IItemFactory* pItemFactory = context.GetItemFactoryByName(type))
+	if (const UQS::Client::IItemFactory* pItemFactory = UQS::Core::IHubPlugin::GetHub().GetItemFactoryDatabase().FindFactoryByGUID(type.GetTypeGUID()))
 	{
 		bItemCanBeRepresentedInDebugRenderWorld = pItemFactory->CanBeRepresentedInDebugRenderWorld();
 	}
-	archive(bAddToDebugRenderWorld, "bAddToDebugRenderWorld", bItemCanBeRepresentedInDebugRenderWorld ? "^Add to DebugRenderWorld" : "!^(Item has no debug-representation)");
+
+	if (bItemCanBeRepresentedInDebugRenderWorld)
+	{
+		archive(bAddToDebugRenderWorld, "bAddToDebugRenderWorld", "^DebugRender");
+		archive.doc("If enabled, the return value is added to DebugRenderWorld upon execution. Then you can view the value in the query history.");
+	}
 }
 
 void CConstParamBlueprint::SConstParam::ClearErrors()
@@ -1298,9 +1456,9 @@ bool CConstParamBlueprint::SConstParam::IsValid() const
 	return !name.empty() && !type.Empty();
 }
 
-void CConstParamBlueprint::AddParameter(const char* szName, const char* szType, CItemLiteral&& value, bool bAddToDebugRenderWorld)
+void CConstParamBlueprint::AddParameter(const char* szName, const CryGUID& typeGUID, CItemLiteral&& value, bool bAddToDebugRenderWorld)
 {
-	m_params.emplace_back(szName, szType, std::move(value), bAddToDebugRenderWorld);
+	m_params.emplace_back(szName, typeGUID, std::move(value), bAddToDebugRenderWorld);
 }
 
 size_t CConstParamBlueprint::GetParameterCount() const
@@ -1308,13 +1466,14 @@ size_t CConstParamBlueprint::GetParameterCount() const
 	return m_params.size();
 }
 
-void CConstParamBlueprint::GetParameterInfo(size_t index, const char*& szName, const char*& szType, string& value, bool& bAddToDebugRenderWorld, std::shared_ptr<CErrorCollector>& pErrorCollector) const
+void CConstParamBlueprint::GetParameterInfo(size_t index, const char*& szName, const char*& szType, CryGUID& typeGUID, string& value, bool& bAddToDebugRenderWorld, std::shared_ptr<CErrorCollector>& pErrorCollector) const
 {
 	assert(index < m_params.size());
 
 	const SConstParam& param = m_params[index];
 	szName = param.name.c_str();
 	szType = param.type.c_str();
+	typeGUID = param.type.GetTypeGUID();
 	param.value.ConvertToStringLiteral(*&value);
 	bAddToDebugRenderWorld = param.bAddToDebugRenderWorld;
 	pErrorCollector = param.pErrorCollector;
@@ -1331,7 +1490,7 @@ void CConstParamBlueprint::Serialize(Serialization::IArchive& archive)
 		{
 			if (CParametersListContext* pParamsContext = pContext->GetParametersListContext())
 			{
-				pParamsContext->SetParamsChanged(true);
+				pParamsContext->SetParamsChanged();
 			}
 		}
 	}
@@ -1359,9 +1518,9 @@ CRuntimeParamBlueprint::SRuntimeParam::SRuntimeParam()
 	, pErrorCollector(new CErrorCollector)
 {}
 
-CRuntimeParamBlueprint::SRuntimeParam::SRuntimeParam(const char* szName, const char* szType, bool _bAddToDebugRenderWorld)
+CRuntimeParamBlueprint::SRuntimeParam::SRuntimeParam(const char* szName, const CryGUID& typeGUID, bool _bAddToDebugRenderWorld)
 	: name(szName)
-	, type(szType)
+	, type(typeGUID)
 	, bAddToDebugRenderWorld(_bAddToDebugRenderWorld)
 	, pErrorCollector(new CErrorCollector)
 {}
@@ -1400,7 +1559,7 @@ void CRuntimeParamBlueprint::SRuntimeParam::Serialize(Serialization::IArchive& a
 			{
 				if ((name != oldName) || (type != oldType))
 				{
-					pParamsContext->SetParamsChanged(true);
+					pParamsContext->SetParamsChanged();
 				}
 			}
 		}
@@ -1418,15 +1577,23 @@ void CRuntimeParamBlueprint::SRuntimeParam::SerializeImpl(Serialization::IArchiv
 	archive(name, "name", "^Name");
 	archive(type, "type", "^Type");
 
-	bool bItemCanBeRepresentedInDebugRenderWorld = false;
-	if (CUqsDocSerializationContext* pContext = archive.context<CUqsDocSerializationContext>())
+	// description of the type
+	if (const UQS::Client::IItemFactory* pFactory = UQS::Core::IHubPlugin::GetHub().GetItemFactoryDatabase().FindFactoryByGUID(type.GetTypeGUID()))
 	{
-		if (const uqs::client::IItemFactory* pItemFactory = pContext->GetItemFactoryByName(type))
-		{
-			bItemCanBeRepresentedInDebugRenderWorld = pItemFactory->CanBeRepresentedInDebugRenderWorld();
-		}
+		archive.doc(pFactory->GetDescription());
 	}
-	archive(bAddToDebugRenderWorld, "bAddToDebugRenderWorld", bItemCanBeRepresentedInDebugRenderWorld ? "^Add to DebugRenderWorld" : "!^(Item has no debug-representation)");
+
+	bool bItemCanBeRepresentedInDebugRenderWorld = false;
+	if (const UQS::Client::IItemFactory* pItemFactory = UQS::Core::IHubPlugin::GetHub().GetItemFactoryDatabase().FindFactoryByGUID(type.GetTypeGUID()))
+	{
+		bItemCanBeRepresentedInDebugRenderWorld = pItemFactory->CanBeRepresentedInDebugRenderWorld();
+	}
+
+	if (bItemCanBeRepresentedInDebugRenderWorld)
+	{
+		archive(bAddToDebugRenderWorld, "bAddToDebugRenderWorld", "^DebugRender");
+		archive.doc("If enabled, the return value is added to DebugRenderWorld upon execution. Then you can view the value in the query history.");
+	}
 }
 
 void CRuntimeParamBlueprint::SRuntimeParam::ClearErrors()
@@ -1440,9 +1607,9 @@ bool CRuntimeParamBlueprint::SRuntimeParam::IsValid() const
 	return !name.empty() && !type.Empty();
 }
 
-void CRuntimeParamBlueprint::AddParameter(const char* szName, const char* szType, bool bAddToDebugRenderWorld)
+void CRuntimeParamBlueprint::AddParameter(const char* szName, const CryGUID& typeGUID, bool bAddToDebugRenderWorld)
 {
-	m_params.emplace_back(szName, szType, bAddToDebugRenderWorld);
+	m_params.emplace_back(szName, typeGUID, bAddToDebugRenderWorld);
 }
 
 size_t CRuntimeParamBlueprint::GetParameterCount() const
@@ -1450,13 +1617,14 @@ size_t CRuntimeParamBlueprint::GetParameterCount() const
 	return m_params.size();
 }
 
-void CRuntimeParamBlueprint::GetParameterInfo(size_t index, const char*& szName, const char*& szType, bool& bAddToDebugRenderWorld, std::shared_ptr<CErrorCollector>& pErrorCollector) const
+void CRuntimeParamBlueprint::GetParameterInfo(size_t index, const char*& szName, const char*& szType, CryGUID& typeGUID, bool& bAddToDebugRenderWorld, std::shared_ptr<CErrorCollector>& pErrorCollector) const
 {
 	assert(index < m_params.size());
 
 	const SRuntimeParam& param = m_params[index];
 	szName = param.name.c_str();
 	szType = param.type.c_str();
+	typeGUID = param.type.GetTypeGUID();
 	bAddToDebugRenderWorld = param.bAddToDebugRenderWorld;
 	pErrorCollector = param.pErrorCollector;
 }
@@ -1472,7 +1640,7 @@ void CRuntimeParamBlueprint::Serialize(Serialization::IArchive& archive)
 		{
 			if (CParametersListContext* pParamsContext = pContext->GetParametersListContext())
 			{
-				pParamsContext->SetParamsChanged(true);
+				pParamsContext->SetParamsChanged();
 			}
 		}
 	}
@@ -1491,6 +1659,7 @@ void CRuntimeParamBlueprint::ClearErrors()
 	}
 }
 
+
 //////////////////////////////////////////////////////////////////////////
 // CGeneratorBlueprint
 //////////////////////////////////////////////////////////////////////////
@@ -1499,16 +1668,16 @@ CGeneratorBlueprint::CGeneratorBlueprint()
 	: m_pErrorCollector(new CErrorCollector)
 {}
 
-CGeneratorBlueprint::CGeneratorBlueprint(const uqs::client::IGeneratorFactory& factory, const CUqsDocSerializationContext& context)
-	: m_name(factory.GetName())
+CGeneratorBlueprint::CGeneratorBlueprint(const UQS::Client::IGeneratorFactory& factory, const CUqsDocSerializationContext& context)
+	: m_guid(factory.GetGUID())
 	, m_pErrorCollector(new CErrorCollector)
 {
 	m_inputs.ResetChildrenFromFactory(factory, context);
 }
 
-void CGeneratorBlueprint::SetGeneratorName(const char* szGeneratorName)
+void CGeneratorBlueprint::SetGeneratorGUID(const CryGUID& generatorGUID)
 {
-	m_name = szGeneratorName;
+	m_guid = generatorGUID;
 }
 
 CInputBlueprint& CGeneratorBlueprint::GetInputRoot()
@@ -1523,7 +1692,19 @@ const CInputBlueprint& CGeneratorBlueprint::GetInputRoot() const
 
 const char* CGeneratorBlueprint::GetGeneratorName() const
 {
-	return m_name.c_str();
+	if (const UQS::Client::IGeneratorFactory* pFactory = UQS::Core::IHubPlugin::GetHub().GetGeneratorFactoryDatabase().FindFactoryByGUID(m_guid))
+	{
+		return pFactory->GetName();
+	}
+	else
+	{
+		return "";
+	}
+}
+
+const CryGUID& CGeneratorBlueprint::GetGeneratorGUID() const
+{
+	return m_guid;
 }
 
 void CGeneratorBlueprint::Serialize(Serialization::IArchive& archive)
@@ -1532,16 +1713,43 @@ void CGeneratorBlueprint::Serialize(Serialization::IArchive& archive)
 	{
 		assert(m_pErrorCollector);
 
-		const bool bNameChanged = SerializeName(archive, "name", "^", *pContext);
+		const bool bGUIDChanged = SerializeGUID(archive, "guid", "^", *pContext);
+
+		// description of the generator
+		if (!m_guid.IsNull())
+		{
+			if (const UQS::Client::IGeneratorFactory* pFactory = UQS::Core::IHubPlugin::GetHub().GetGeneratorFactoryDatabase().FindFactoryByGUID(m_guid))
+			{
+				archive.doc(pFactory->GetDescription());
+			}
+		}
+
+		// type of items to generate
+		string itemTypeName;
+		if (!m_guid.IsNull())
+		{
+			if (const UQS::Client::IGeneratorFactory* pFactory = UQS::Core::IHubPlugin::GetHub().GetGeneratorFactoryDatabase().FindFactoryByGUID(m_guid))
+			{
+				if (const UQS::Client::IItemFactory* pItemFactory = UQS::Core::IHubPlugin::GetHub().GetUtils().FindItemFactoryByType(pFactory->GetTypeOfItemsToGenerate()))
+				{
+					itemTypeName.Format("(%s)", pItemFactory->GetName());
+				}
+				else
+				{
+					itemTypeName.Format("(%s)", pFactory->GetTypeOfItemsToGenerate().name());
+				}
+			}
+		}
+		archive(itemTypeName, "itemTypeName", "^!");
 
 		m_pErrorCollector->Serialize(archive, *this);
 
-		if (!IsStringEmpty(m_name))
+		if (!m_guid.IsNull())
 		{
-			SerializeInputs(archive, "inputs", "Inputs", bNameChanged, *pContext);
+			SerializeInputs(archive, "inputs", "Inputs", bGUIDChanged, *pContext);
 		}
 
-		if (bNameChanged)
+		if (bGUIDChanged)
 		{
 			if (pContext->GetSelectedGeneratorContext())
 			{
@@ -1551,65 +1759,59 @@ void CGeneratorBlueprint::Serialize(Serialization::IArchive& archive)
 	}
 }
 
-bool CGeneratorBlueprint::SerializeName(Serialization::IArchive& archive, const char* szName, const char* szLabel, const CUqsDocSerializationContext& context)
+bool CGeneratorBlueprint::SerializeGUID(Serialization::IArchive& archive, const char* szName, const char* szLabel, const CUqsDocSerializationContext& context)
 {
-	bool bNameChanged = false;
+	bool bGUIDChanged = false;
 
-	const char* szOldGeneratorName = m_name.c_str();
-	auto setName = [this, &bNameChanged](const char* szNewValue)
+	const CryGUID oldGeneratorGUID = m_guid;
+	auto setGUID = [this, &bGUIDChanged](const CryGUID& newGUID)
 	{
-		m_name = szNewValue;
-		bNameChanged = true;
+		m_guid = newGUID;
+		bGUIDChanged = true;
 	};
 
 	if (context.GetSettings().bUseSelectionHelpers)
 	{
-		const Serialization::StringList& namesList = context.GetGeneratorNamesList();
-
-		SerializeWithStringList(archive, szName, szLabel,
-		                        namesList, szOldGeneratorName, setName);
+		CKeyValueStringList<CryGUID> generatorGuidList;
+		generatorGuidList.FillFromFactoryDatabase(UQS::Core::IHubPlugin::GetHub().GetGeneratorFactoryDatabase(), true);
+		generatorGuidList.SerializeByData(archive, szName, szLabel, oldGeneratorGUID, setGUID);
 	}
 	else
 	{
-		SerializeStringWithSetter(archive, szName, szLabel, szOldGeneratorName, setName);
+		SerializeGUIDWithSetter(archive, szName, szLabel, oldGeneratorGUID, setGUID);
 	}
-	return bNameChanged;
+	return bGUIDChanged;
 }
 
-void CGeneratorBlueprint::SerializeInputs(Serialization::IArchive& archive, const char* szName, const char* szLabel, const bool bNameChanged, const CUqsDocSerializationContext& context)
+void CGeneratorBlueprint::SerializeInputs(Serialization::IArchive& archive, const char* szName, const char* szLabel, const bool bGUIDChanged, const CUqsDocSerializationContext& context)
 {
-	uqs::client::IGeneratorFactory* pFactory = nullptr;
+	UQS::Client::IGeneratorFactory* pFactory = nullptr;
 
 	if (context.GetSettings().bUseSelectionHelpers)
 	{
-		pFactory = context.GetGeneratorFactoryByName(m_name.c_str());
+		pFactory = UQS::Core::IHubPlugin::GetHub().GetGeneratorFactoryDatabase().FindFactoryByGUID(m_guid);
 	}
 
-	if (pFactory)
+	if (pFactory && bGUIDChanged)
 	{
-		if (bNameChanged)
-		{
-			m_inputs.ResetChildrenFromFactory(*pFactory, context);
-		}
-	}
-
-	if (bNameChanged)
-	{
-		// Name was changed - return right now, so PropertyTree will not try
-		// to insert children of previous generator into the new one.
-		return;
+		m_inputs.ResetChildrenFromFactory(*pFactory, context);
 	}
 
 	m_inputs.SerializeRoot(archive, szName, szLabel, context, SValidatorKey::FromObject(*this));
+
+	if (pFactory)
+	{
+		m_inputs.EnsureChildrenFromFactory(*pFactory, context);
+	}
 }
 
 void CGeneratorBlueprint::PrepareHelpers(CUqsDocSerializationContext& context)
 {
-	uqs::client::IGeneratorFactory* pFactory = nullptr;
+	UQS::Client::IGeneratorFactory* pFactory = nullptr;
 
 	if (context.GetSettings().bUseSelectionHelpers)
 	{
-		pFactory = context.GetGeneratorFactoryByName(m_name.c_str());
+		pFactory = UQS::Core::IHubPlugin::GetHub().GetGeneratorFactoryDatabase().FindFactoryByGUID(m_guid);
 	}
 
 	m_inputs.PrepareHelpers(pFactory, context);
@@ -1626,9 +1828,9 @@ void CGeneratorBlueprint::ClearErrors()
 // CInstantEvaluatorBlueprint
 //////////////////////////////////////////////////////////////////////////
 
-void CInstantEvaluatorBlueprint::SetEvaluatorName(const char* szEvaluatorName)
+void CInstantEvaluatorBlueprint::SetEvaluatorGUID(const CryGUID& evaluatorGUID)
 {
-	return Owner().SetEvaluatorName(szEvaluatorName);
+	return Owner().SetEvaluatorGUID(evaluatorGUID);
 }
 
 void CInstantEvaluatorBlueprint::SetWeight(float weight)
@@ -1636,9 +1838,34 @@ void CInstantEvaluatorBlueprint::SetWeight(float weight)
 	Owner().SetWeight(weight);
 }
 
+void CInstantEvaluatorBlueprint::SetScoreTransformGUID(const CryGUID& scoreTransformGUID)
+{
+	Owner().SetScoreTransformGUID(scoreTransformGUID);
+}
+
+void CInstantEvaluatorBlueprint::SetNegateDiscard(bool bNegateDiscard)
+{
+	Owner().SetNegateDiscard(bNegateDiscard);
+}
+
 float CInstantEvaluatorBlueprint::GetWeight() const
 {
 	return Owner().GetWeight();
+}
+
+const char* CInstantEvaluatorBlueprint::GetScoreTransformName() const
+{
+	return Owner().GetScoreTransformName();
+}
+
+const CryGUID& CInstantEvaluatorBlueprint::GetScoreTransformGUID() const
+{
+	return Owner().GetScoreTransformGUID();
+}
+
+bool CInstantEvaluatorBlueprint::GetNegateDiscard() const
+{
+	return Owner().GetNegateDiscard();
 }
 
 CInputBlueprint& CInstantEvaluatorBlueprint::GetInputRoot()
@@ -1656,13 +1883,18 @@ const char* CInstantEvaluatorBlueprint::GetEvaluatorName() const
 	return Owner().GetEvaluatorName();
 }
 
+const CryGUID& CInstantEvaluatorBlueprint::GetEvaluatorGUID() const
+{
+	return Owner().GetEvaluatorGUID();
+}
+
 //////////////////////////////////////////////////////////////////////////
 // CDeferredEvaluatorBlueprint
 //////////////////////////////////////////////////////////////////////////
 
-void CDeferredEvaluatorBlueprint::SetEvaluatorName(const char* szEvaluatorName)
+void CDeferredEvaluatorBlueprint::SetEvaluatorGUID(const CryGUID& evaluatorGUID)
 {
-	return Owner().SetEvaluatorName(szEvaluatorName);
+	return Owner().SetEvaluatorGUID(evaluatorGUID);
 }
 
 void CDeferredEvaluatorBlueprint::SetWeight(float weight)
@@ -1670,9 +1902,34 @@ void CDeferredEvaluatorBlueprint::SetWeight(float weight)
 	Owner().SetWeight(weight);
 }
 
+void CDeferredEvaluatorBlueprint::SetScoreTransformGUID(const CryGUID& scoreTransformGUID)
+{
+	Owner().SetScoreTransformGUID(scoreTransformGUID);
+}
+
+void CDeferredEvaluatorBlueprint::SetNegateDiscard(bool bNegateDiscard)
+{
+	Owner().SetNegateDiscard(bNegateDiscard);
+}
+
 float CDeferredEvaluatorBlueprint::GetWeight() const
 {
 	return Owner().GetWeight();
+}
+
+const char* CDeferredEvaluatorBlueprint::GetScoreTransformName() const
+{
+	return Owner().GetScoreTransformName();
+}
+
+const CryGUID& CDeferredEvaluatorBlueprint::GetScoreTransformGUID() const
+{
+	return Owner().GetScoreTransformGUID();
+}
+
+bool CDeferredEvaluatorBlueprint::GetNegateDiscard() const
+{
+	return Owner().GetNegateDiscard();
 }
 
 CInputBlueprint& CDeferredEvaluatorBlueprint::GetInputRoot()
@@ -1690,13 +1947,27 @@ const char* CDeferredEvaluatorBlueprint::GetEvaluatorName() const
 	return Owner().GetEvaluatorName();
 }
 
+const CryGUID& CDeferredEvaluatorBlueprint::GetEvaluatorGUID() const
+{
+	return Owner().GetEvaluatorGUID();
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+CEvaluator& SEvaluatorBlueprintAdapter::Owner() const
+{
+	assert(m_pOwner);
+	return *m_pOwner;
+}
+
+
 //////////////////////////////////////////////////////////////////////////
 // CEvaluator
 //////////////////////////////////////////////////////////////////////////
 
-void CEvaluator::SetEvaluatorName(const char* szEvaluatorName)
+void CEvaluator::SetEvaluatorGUID(const CryGUID& evaluatorGUID)
 {
-	m_name = szEvaluatorName;
+	m_evaluatorGUID = evaluatorGUID;
 }
 
 void CEvaluator::SetWeight(float weight)
@@ -1704,9 +1975,41 @@ void CEvaluator::SetWeight(float weight)
 	m_weight = weight;
 }
 
+void CEvaluator::SetScoreTransformGUID(const CryGUID& scoreTransformGUID)
+{
+	m_scoreTransformGUID = scoreTransformGUID;
+}
+
+void CEvaluator::SetNegateDiscard(bool bNegateDiscard)
+{
+	m_bNegateDiscard = bNegateDiscard;
+}
+
 float CEvaluator::GetWeight() const
 {
 	return m_weight;
+}
+
+const char* CEvaluator::GetScoreTransformName() const
+{
+	if (const UQS::Core::IScoreTransformFactory* pScoreTransformFactory = UQS::Core::IHubPlugin::GetHub().GetScoreTransformFactoryDatabase().FindFactoryByGUID(m_scoreTransformGUID))
+	{
+		return pScoreTransformFactory->GetName();
+	}
+	else
+	{
+		return "";
+	}
+}
+
+const CryGUID& CEvaluator::GetScoreTransformGUID() const
+{
+	return m_scoreTransformGUID;
+}
+
+bool CEvaluator::GetNegateDiscard() const
+{
+	return m_bNegateDiscard;
 }
 
 CInputBlueprint& CEvaluator::GetInputRoot()
@@ -1721,15 +2024,29 @@ const CInputBlueprint& CEvaluator::GetInputRoot() const
 
 const char* CEvaluator::GetEvaluatorName() const
 {
-	return m_name.c_str();
+	const char* szEvaluatorName = "";
+
+	if (m_evaluatorType == EEvaluatorType::Instant)
+	{
+		if (const UQS::Client::IInstantEvaluatorFactory* pInstantEvaluatorFactory = UQS::Core::IHubPlugin::GetHub().GetInstantEvaluatorFactoryDatabase().FindFactoryByGUID(m_evaluatorGUID))
+		{
+			szEvaluatorName = pInstantEvaluatorFactory->GetName();
+		}
+	}
+	else if (m_evaluatorType == EEvaluatorType::Deferred)
+	{
+		if (const UQS::Client::IDeferredEvaluatorFactory* pDeferredEvaluatorFactory = UQS::Core::IHubPlugin::GetHub().GetDeferredEvaluatorFactoryDatabase().FindFactoryByGUID(m_evaluatorGUID))
+		{
+			szEvaluatorName = pDeferredEvaluatorFactory->GetName();
+		}
+	}
+
+	return szEvaluatorName;
 }
 
-//////////////////////////////////////////////////////////////////////////
-
-CEvaluator& SEvaluatorBlueprintAdapter::Owner() const
+const CryGUID& CEvaluator::GetEvaluatorGUID() const
 {
-	assert(m_pOwner);
-	return *m_pOwner;
+	return m_evaluatorGUID;
 }
 
 CEvaluator CEvaluator::CreateInstant()
@@ -1768,8 +2085,10 @@ EEvaluatorType CEvaluator::GetType() const
 }
 
 CEvaluator::CEvaluator(const EEvaluatorType type)
-	: m_name()
+	: m_evaluatorGUID()
 	, m_weight(1.0f)
+	, m_scoreTransformGUID()
+	, m_bNegateDiscard(false)
 	, m_inputs()
 	, m_pErrorCollector(new CErrorCollector)
 	, m_evaluatorType(EEvaluatorType::Undefined)
@@ -1799,9 +2118,11 @@ void CEvaluator::SetType(EEvaluatorType type)
 }
 
 CEvaluator::CEvaluator(CEvaluator&& other)
-	: m_name(std::move(other.m_name))
+	: m_evaluatorGUID(std::move(other.m_evaluatorGUID))
 	, m_weight(other.m_weight)
 	, m_inputs(std::move(other.m_inputs))
+	, m_scoreTransformGUID(std::move(other.m_scoreTransformGUID))
+	, m_bNegateDiscard(other.m_bNegateDiscard)
 	, m_pErrorCollector(std::move(other.m_pErrorCollector))
 	, m_evaluatorType(other.m_evaluatorType)
 	, m_interfaceAdapter(std::move(other.m_interfaceAdapter))
@@ -1813,8 +2134,10 @@ CEvaluator::CEvaluator(CEvaluator&& other)
 }
 
 CEvaluator::CEvaluator()
-	: m_name()
+	: m_evaluatorGUID()
 	, m_weight(1.0f)
+	, m_scoreTransformGUID()
+	, m_bNegateDiscard(false)
 	, m_inputs()
 	, m_pErrorCollector(new CErrorCollector)
 	, m_evaluatorType(EEvaluatorType::Undefined)
@@ -1827,9 +2150,11 @@ CEvaluator& CEvaluator::operator=(CEvaluator&& other)
 {
 	if (this != &other)
 	{
-		m_name = std::move(other.m_name);
+		m_evaluatorGUID = std::move(other.m_evaluatorGUID);
 		m_weight = other.m_weight;
 		m_inputs = std::move(other.m_inputs);
+		m_scoreTransformGUID = std::move(other.m_scoreTransformGUID);
+		m_bNegateDiscard = other.m_bNegateDiscard;
 		m_pErrorCollector = std::move(other.m_pErrorCollector);
 		m_evaluatorType = other.m_evaluatorType;
 		m_interfaceAdapter = std::move(other.m_interfaceAdapter);
@@ -1847,11 +2172,11 @@ void CEvaluator::Serialize(Serialization::IArchive& archive)
 	{
 		assert(m_pErrorCollector);
 
-		const bool bNameChanged = SerializeName(archive, "name", "^", *pContext);
+		const bool bGUIDChanged = SerializeEvaluatorGUID(archive, "evaluatorGUID", "^", *pContext);
 
 		m_pErrorCollector->Serialize(archive, *this);
 
-		if (!IsStringEmpty(m_name))
+		if (!m_evaluatorGUID.IsNull())
 		{
 			CEvaluatorFactoryHelper factory;
 
@@ -1859,29 +2184,29 @@ void CEvaluator::Serialize(Serialization::IArchive& archive)
 
 			if (bUseSelectionHelpers)
 			{
-				factory = CEvaluatorFactoryHelper(*pContext, m_name);
+				factory = CEvaluatorFactoryHelper(*pContext, m_evaluatorGUID);
 			}
 
 			if (factory.IsValid())
 			{
 				SetType(factory.GetType());
-				if (bNameChanged)
+				if (bGUIDChanged)
 				{
 					m_inputs.ResetChildrenFromFactory(factory, *pContext);
 				}
+
+				// description of the evaluator
+				archive.doc(factory.GetDescription());
 			}
 
-			if (bNameChanged)
+			// Always set type from factory (if available), and only show it on output as read-only field
+			if (!bUseSelectionHelpers || archive.isOutput())
 			{
-				// Name was changed - return right now, so PropertyTree will not try
-				// to insert children of previous evaluator into the new one.
-				return;
+				const char* const szEvaluatorTypeLabel = bUseSelectionHelpers
+					? "!Evaluator type"
+					: "Evaluator type";
+				archive(m_evaluatorType, "evaluatorType", szEvaluatorTypeLabel);
 			}
-
-			const char* const szEvaluatorTypeLabel = bUseSelectionHelpers
-			                                         ? "!Evaluator type"
-			                                         : "Evaluator type";
-			archive(m_evaluatorType, "evaluatorType", szEvaluatorTypeLabel);
 
 			if (m_evaluatorType == EEvaluatorType::Undefined)
 			{
@@ -1890,34 +2215,69 @@ void CEvaluator::Serialize(Serialization::IArchive& archive)
 
 			archive(m_weight, "weight", "Weight");
 
+			SerializeScoreTransformGUID(archive, "scoreTransformGUID", "^Score Transform", *pContext);
+
+			archive(m_bNegateDiscard, "negateDiscard", "^Negate Discard");
+
 			m_inputs.SerializeRoot(archive, "inputs", "Inputs", *pContext, SValidatorKey::FromObject(*this));
+
+			if (factory.IsValid())
+			{
+				m_inputs.EnsureChildrenFromFactory(factory, *pContext);
+			}
 		}
 	}
 }
 
-bool CEvaluator::SerializeName(Serialization::IArchive& archive, const char* szName, const char* szLabel, const CUqsDocSerializationContext& context)
+bool CEvaluator::SerializeEvaluatorGUID(Serialization::IArchive& archive, const char* szName, const char* szLabel, const CUqsDocSerializationContext& context)
 {
-	bool bNameChanged = false;
+	bool bGUIDChanged = false;
 
-	const char* szOldName = m_name.c_str();
-	auto setName = [this, &bNameChanged](const char* szNewValue)
+	const CryGUID oldGUID = m_evaluatorGUID;
+	auto setGUID = [this, &bGUIDChanged](const CryGUID& newGUID)
 	{
-		m_name = szNewValue;
-		bNameChanged = true;
+		m_evaluatorGUID = newGUID;
+		bGUIDChanged = true;
 	};
 
 	if (context.GetSettings().bUseSelectionHelpers)
 	{
-		const Serialization::StringList& namesList = context.GetEvaluatorNamesList();
-
-		SerializeWithStringList(archive, szName, szLabel,
-		                        namesList, szOldName, setName);
+		CKeyValueStringList<CryGUID> evaluatorGuidList;
+		evaluatorGuidList.FillFromFactoryDatabase(UQS::Core::IHubPlugin::GetHub().GetInstantEvaluatorFactoryDatabase(), true);
+		evaluatorGuidList.FillFromFactoryDatabase(UQS::Core::IHubPlugin::GetHub().GetDeferredEvaluatorFactoryDatabase(), false);
+		evaluatorGuidList.SerializeByData(archive, szName, szLabel, oldGUID, setGUID);
 	}
 	else
 	{
-		SerializeStringWithSetter(archive, szName, szLabel, szOldName, setName);
+		SerializeGUIDWithSetter(archive, szName, szLabel, oldGUID, setGUID);
 	}
-	return bNameChanged;
+	return bGUIDChanged;
+}
+
+void CEvaluator::SerializeScoreTransformGUID(Serialization::IArchive& archive, const char* szName, const char* szLabel, const CUqsDocSerializationContext& context)
+{
+	const CryGUID oldScoreTransformGUID = m_scoreTransformGUID;
+	auto setScoreTransformGUID = [this](const CryGUID& newGUID)
+	{
+		m_scoreTransformGUID = newGUID;
+	};
+
+	if (context.GetSettings().bUseSelectionHelpers)
+	{
+		CKeyValueStringList<CryGUID> scoreTransformsList;
+		scoreTransformsList.FillFromFactoryDatabase(UQS::Core::IHubPlugin::GetHub().GetScoreTransformFactoryDatabase(), true);
+		scoreTransformsList.SerializeByData(archive, szName, szLabel, oldScoreTransformGUID, setScoreTransformGUID);
+	}
+	else
+	{
+		SerializeGUIDWithSetter(archive, szName, szLabel, oldScoreTransformGUID, setScoreTransformGUID);
+	}
+
+	// description of the score-transform
+	if (const UQS::Core::IScoreTransformFactory* pFactory = UQS::Core::IHubPlugin::GetHub().GetScoreTransformFactoryDatabase().FindFactoryByGUID(m_scoreTransformGUID))
+	{
+		archive.doc(pFactory->GetDescription());
+	}
 }
 
 void CEvaluator::PrepareHelpers(CUqsDocSerializationContext& context)
@@ -1927,7 +2287,7 @@ void CEvaluator::PrepareHelpers(CUqsDocSerializationContext& context)
 
 	if (context.GetSettings().bUseSelectionHelpers)
 	{
-		factory = CEvaluatorFactoryHelper(context, m_name);
+		factory = CEvaluatorFactoryHelper(context, m_evaluatorGUID);
 	}
 
 	if (factory.IsValid())
@@ -2072,7 +2432,7 @@ SQueryFactoryType::CTraits::CTraits()
 	: m_pQueryFactory(nullptr)
 {}
 
-SQueryFactoryType::CTraits::CTraits(const uqs::core::IQueryFactory& queryFactory)
+SQueryFactoryType::CTraits::CTraits(const UQS::Core::IQueryFactory& queryFactory)
 	: m_pQueryFactory(&queryFactory)
 {}
 
@@ -2082,9 +2442,9 @@ bool SQueryFactoryType::CTraits::operator==(const CTraits& other) const
 		return false;
 
 	return (RequiresGenerator() == other.RequiresGenerator())
-	       && (SupportsParameters() == other.SupportsParameters())
-	       && (GetMinRequiredChildren() == other.GetMinRequiredChildren())
-	       && (GetMaxAllowedChildren() == other.GetMaxAllowedChildren());
+		&& (SupportsParameters() == other.SupportsParameters())
+		&& (GetMinRequiredChildren() == other.GetMinRequiredChildren())
+		&& (GetMaxAllowedChildren() == other.GetMaxAllowedChildren());
 }
 
 bool SQueryFactoryType::CTraits::IsUndefined() const
@@ -2119,12 +2479,12 @@ size_t SQueryFactoryType::CTraits::GetMinRequiredChildren() const
 size_t SQueryFactoryType::CTraits::GetMaxAllowedChildren() const
 {
 	if (m_pQueryFactory) return m_pQueryFactory->GetMaxAllowedChildren();
-	return uqs::core::IQueryFactory::kUnlimitedChildren;
+	return UQS::Core::IQueryFactory::kUnlimitedChildren;
 }
 
 bool SQueryFactoryType::CTraits::IsUnlimitedChildren() const
 {
-	return GetMaxAllowedChildren() == uqs::core::IQueryFactory::kUnlimitedChildren;
+	return GetMaxAllowedChildren() == UQS::Core::IQueryFactory::kUnlimitedChildren;
 }
 
 bool SQueryFactoryType::CTraits::CanHaveChildren() const
@@ -2136,94 +2496,72 @@ bool SQueryFactoryType::CTraits::CanHaveChildren() const
 // SQueryFactoryType
 //////////////////////////////////////////////////////////////////////////
 
-/*static*/ const char* SQueryFactoryType::GetQueryFactoryNameByType(const EType queryFactoryType)
-{
-	switch (queryFactoryType)
-	{
-	case EType::Regular:
-		return "Regular";
-	case EType::Chained:
-		return "Chained";
-	case EType::Fallbacks:
-		return "Fallbacks";
-	case EType::Unknown:
-		return nullptr;
-
-	case EType::Count:
-	default:
-		CRY_ASSERT_MESSAGE(false, "Invalid queryFactoryType - should never get here");
-		break;
-	}
-	static_assert((uint32)EType::Count == 4, "unexpected number of different kinds of query-factories");
-	return nullptr;
-}
-
-/*static*/ SQueryFactoryType::EType SQueryFactoryType::GetQueryFactoryTypeByName(const string& queryFactoryType)
-{
-	static_assert((uint32)EType::Unknown + 1 == (uint32)EType::Count, "unexpected number of different kinds of query-factories");
-	for (uint32 i = 0; i < (uint32)EType::Unknown; ++i)
-	{
-		const EType type = (EType)i;
-		if (queryFactoryType == GetQueryFactoryNameByType(type))
-		{
-			return type;
-		}
-	}
-	return EType::Unknown;
-}
-
-SQueryFactoryType::SQueryFactoryType(const EType queryFactoryType_)
-	: queryFactoryName(GetQueryFactoryNameByType(queryFactoryType_))
-	, queryFactoryType(queryFactoryType)
-{}
-
-SQueryFactoryType::SQueryFactoryType(const char* szQueryFactoryName)
-	: queryFactoryName(szQueryFactoryName)
-	, queryFactoryType(GetQueryFactoryTypeByName(queryFactoryName))
+SQueryFactoryType::SQueryFactoryType(const CryGUID& queryFactoryGUID)
+	: m_queryFactoryGUID(queryFactoryGUID)
 {}
 
 bool SQueryFactoryType::Serialize(Serialization::IArchive& archive, const char* szName, const char* szLabel, const CUqsDocSerializationContext* pContext)
 {
-	bool bNameChanged = false;
+	bool bGUIDChanged = false;
 
-	const char* szOldName = queryFactoryName.c_str();
-	auto setName = [this, &bNameChanged](const char* szNewValue)
+	const CryGUID oldGUID = m_queryFactoryGUID;
+	auto setGUID = [this, &bGUIDChanged](const CryGUID& newGUID)
 	{
-		queryFactoryName = szNewValue;
-		bNameChanged = true;
+		m_queryFactoryGUID = newGUID;
+		bGUIDChanged = true;
 	};
 
 	if (pContext && pContext->GetSettings().bUseSelectionHelpers)
 	{
-		const Serialization::StringList& namesList = pContext->GetQueryFactoryNamesList();
-
-		SerializeWithStringList(archive, szName, szLabel,
-		                        namesList, szOldName, setName);
+		CKeyValueStringList<CryGUID> queryGuidList;
+		queryGuidList.FillFromFactoryDatabase(UQS::Core::IHubPlugin::GetHub().GetQueryFactoryDatabase(), true);
+		queryGuidList.SerializeByData(archive, szName, szLabel, oldGUID, setGUID);
 	}
 	else
 	{
-		SerializeStringWithSetter(archive, szName, szLabel, szOldName, setName);
+		SerializeGUIDWithSetter(archive, szName, szLabel, oldGUID, setGUID);
 	}
 
-	if (bNameChanged || queryTraits.IsUndefined())
+	const UQS::Core::IQueryFactory* pFactory = GetFactory(pContext);
+
+	// description of the query type
+	if (pFactory)
 	{
-		queryFactoryType = GetQueryFactoryTypeByName(queryFactoryName);
+		archive.doc(pFactory->GetDescription());
+	}
+
+	if (bGUIDChanged || m_queryTraits.IsUndefined())
+	{
 		UpdateTraits(pContext);
 	}
 
-	if (queryFactoryType == EType::Unknown && !queryFactoryName.empty())
+	if (!m_queryFactoryGUID.IsNull() && !pFactory)
 	{
-		archive.warning(szOldName, "Query factory type '%s' is unknown to the editor, helpers might be wrong.", queryFactoryName.c_str());
+		char guidAsString[37];
+		m_queryFactoryGUID.ToString(guidAsString);
+		archive.warning(oldGUID, "Query factory type with GUID = '%s' is unknown to the editor, helpers might be wrong.", guidAsString);
 	}
 
-	return bNameChanged;
+	return bGUIDChanged;
 }
 
-const uqs::core::IQueryFactory* SQueryFactoryType::GetFactory(const CUqsDocSerializationContext* pContext) const
+const char* SQueryFactoryType::GetFactoryName() const
+{
+	if (const UQS::Core::IQueryFactory* pFactory = UQS::Core::IHubPlugin::GetHub().GetQueryFactoryDatabase().FindFactoryByGUID(m_queryFactoryGUID))
+	{
+		return pFactory->GetName();
+	}
+	else
+	{
+		return "";
+	}
+}
+
+const UQS::Core::IQueryFactory* SQueryFactoryType::GetFactory(const CUqsDocSerializationContext* pContext) const
 {
 	if (pContext && pContext->GetSettings().bUseSelectionHelpers)
 	{
-		return pContext->GetQueryFactoryByName(queryFactoryName.c_str());
+		return UQS::Core::IHubPlugin::GetHub().GetQueryFactoryDatabase().FindFactoryByGUID(m_queryFactoryGUID);
 	}
 	return nullptr;
 }
@@ -2232,13 +2570,13 @@ void SQueryFactoryType::UpdateTraits(const CUqsDocSerializationContext* pContext
 {
 	if (pContext && pContext->GetSettings().bUseSelectionHelpers)
 	{
-		if (const uqs::core::IQueryFactory* pQueryFactory = pContext->GetQueryFactoryByName(queryFactoryName.c_str()))
+		if (const UQS::Core::IQueryFactory* pQueryFactory = UQS::Core::IHubPlugin::GetHub().GetQueryFactoryDatabase().FindFactoryByGUID(m_queryFactoryGUID))
 		{
-			queryTraits = CTraits(*pQueryFactory);
+			m_queryTraits = CTraits(*pQueryFactory);
 			return;
 		}
 	}
-	queryTraits = CTraits();
+	m_queryTraits = CTraits();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2247,7 +2585,7 @@ void SQueryFactoryType::UpdateTraits(const CUqsDocSerializationContext* pContext
 
 CQueryBlueprint::CQueryBlueprint()
 	: m_name()
-	, m_queryFactory(SQueryFactoryType::Regular)
+	, m_queryFactory(UQS::Core::IHubPlugin::GetHub().GetUtils().GetDefaultQueryFactory().GetGUID())
 	, m_maxItemsToKeepInResultSet(1)
 	, m_constParams()
 	, m_runtimeParams()
@@ -2258,7 +2596,7 @@ CQueryBlueprint::CQueryBlueprint()
 {
 }
 
-void CQueryBlueprint::BuildSelfFromITextualQueryBlueprint(const uqs::core::ITextualQueryBlueprint& source, CUqsDocSerializationContext& context)
+void CQueryBlueprint::BuildSelfFromITextualQueryBlueprint(const UQS::Core::ITextualQueryBlueprint& source, CUqsDocSerializationContext& context)
 {
 	// name
 	{
@@ -2267,7 +2605,7 @@ void CQueryBlueprint::BuildSelfFromITextualQueryBlueprint(const uqs::core::IText
 
 	// query factory
 	{
-		m_queryFactory = SQueryFactoryType(source.GetQueryFactoryName());
+		m_queryFactory = SQueryFactoryType(source.GetQueryFactoryGUID());
 	}
 
 	// query children
@@ -2275,7 +2613,7 @@ void CQueryBlueprint::BuildSelfFromITextualQueryBlueprint(const uqs::core::IText
 		m_queryChildren.reserve(source.GetChildCount());
 		for (size_t i = 0; i < source.GetChildCount(); ++i)
 		{
-			const uqs::core::ITextualQueryBlueprint& childQueryBP = source.GetChild(i);
+			const UQS::Core::ITextualQueryBlueprint& childQueryBP = source.GetChild(i);
 			m_queryChildren.emplace_back();
 			m_queryChildren.back().BuildSelfFromITextualQueryBlueprint(childQueryBP, context);
 		}
@@ -2288,33 +2626,33 @@ void CQueryBlueprint::BuildSelfFromITextualQueryBlueprint(const uqs::core::IText
 
 	// global constant-params
 	{
-		const uqs::core::ITextualGlobalConstantParamsBlueprint& sourceGlobalConstParams = source.GetGlobalConstantParams();
+		const UQS::Core::ITextualGlobalConstantParamsBlueprint& sourceGlobalConstParams = source.GetGlobalConstantParams();
 
 		for (size_t i = 0, n = sourceGlobalConstParams.GetParameterCount(); i < n; ++i)
 		{
-			const uqs::core::ITextualGlobalConstantParamsBlueprint::SParameterInfo pi = sourceGlobalConstParams.GetParameter(i);
-			CItemLiteral value(pi.type, context);
-			value.SetFromStringLiteral(CONST_TEMP_STRING(pi.value));
-			m_constParams.AddParameter(pi.name, pi.type, std::move(value), pi.bAddToDebugRenderWorld);
+			const UQS::Core::ITextualGlobalConstantParamsBlueprint::SParameterInfo pi = sourceGlobalConstParams.GetParameter(i);
+			CItemLiteral value(pi.typeGUID, context);
+			value.SetFromStringLiteral(CONST_TEMP_STRING(pi.szValue));
+			m_constParams.AddParameter(pi.szName, pi.typeGUID, std::move(value), pi.bAddToDebugRenderWorld);
 		}
 	}
 
 	// global runtime-params
 	{
-		const uqs::core::ITextualGlobalRuntimeParamsBlueprint& sourceGlobalRuntimeParams = source.GetGlobalRuntimeParams();
+		const UQS::Core::ITextualGlobalRuntimeParamsBlueprint& sourceGlobalRuntimeParams = source.GetGlobalRuntimeParams();
 
 		for (size_t i = 0, n = sourceGlobalRuntimeParams.GetParameterCount(); i < n; ++i)
 		{
-			const uqs::core::ITextualGlobalRuntimeParamsBlueprint::SParameterInfo pi = sourceGlobalRuntimeParams.GetParameter(i);
-			m_runtimeParams.AddParameter(pi.name, pi.type, pi.bAddToDebugRenderWorld);
+			const UQS::Core::ITextualGlobalRuntimeParamsBlueprint::SParameterInfo pi = sourceGlobalRuntimeParams.GetParameter(i);
+			m_runtimeParams.AddParameter(pi.szName, pi.typeGUID, pi.bAddToDebugRenderWorld);
 		}
 	}
 
 	// generator (optional and typically never used by composite queries)
 	{
-		if (const uqs::core::ITextualGeneratorBlueprint* pSourceGeneratorBlueprint = source.GetGenerator())
+		if (const UQS::Core::ITextualGeneratorBlueprint* pSourceGeneratorBlueprint = source.GetGenerator())
 		{
-			m_generator.SetGeneratorName(pSourceGeneratorBlueprint->GetGeneratorName());
+			m_generator.SetGeneratorGUID(pSourceGeneratorBlueprint->GetGeneratorGUID());
 
 			HelpBuildCInputBlueprintHierarchyFromITextualInputBlueprint(m_generator.GetInputRoot(), pSourceGeneratorBlueprint->GetInputRoot());
 		}
@@ -2324,11 +2662,13 @@ void CQueryBlueprint::BuildSelfFromITextualQueryBlueprint(const uqs::core::IText
 	{
 		for (size_t i = 0, n = source.GetInstantEvaluatorCount(); i < n; ++i)
 		{
-			const uqs::core::ITextualInstantEvaluatorBlueprint& sourceInstantEvaluatorBlueprint = source.GetInstantEvaluator(i);
+			const UQS::Core::ITextualEvaluatorBlueprint& sourceInstantEvaluatorBlueprint = source.GetInstantEvaluator(i);
 			CInstantEvaluatorBlueprint& targetInstantEvaluatorBlueprint = m_evaluators.AddInstantEvaluator();
 
-			targetInstantEvaluatorBlueprint.SetEvaluatorName(sourceInstantEvaluatorBlueprint.GetEvaluatorName());
+			targetInstantEvaluatorBlueprint.SetEvaluatorGUID(sourceInstantEvaluatorBlueprint.GetEvaluatorGUID());
 			targetInstantEvaluatorBlueprint.SetWeight(sourceInstantEvaluatorBlueprint.GetWeight());
+			targetInstantEvaluatorBlueprint.SetScoreTransformGUID(sourceInstantEvaluatorBlueprint.GetScoreTransformGUID());
+			targetInstantEvaluatorBlueprint.SetNegateDiscard(sourceInstantEvaluatorBlueprint.GetNegateDiscard());
 
 			HelpBuildCInputBlueprintHierarchyFromITextualInputBlueprint(targetInstantEvaluatorBlueprint.GetInputRoot(), sourceInstantEvaluatorBlueprint.GetInputRoot());
 		}
@@ -2338,18 +2678,20 @@ void CQueryBlueprint::BuildSelfFromITextualQueryBlueprint(const uqs::core::IText
 	{
 		for (size_t i = 0, n = source.GetDeferredEvaluatorCount(); i < n; ++i)
 		{
-			const uqs::core::ITextualDeferredEvaluatorBlueprint& sourceDeferredEvaluatorBlueprint = source.GetDeferredEvaluator(i);
+			const UQS::Core::ITextualEvaluatorBlueprint& sourceDeferredEvaluatorBlueprint = source.GetDeferredEvaluator(i);
 			CDeferredEvaluatorBlueprint& targetDeferredEvaluatorBlueprint = m_evaluators.AddDeferredEvaluator();
 
-			targetDeferredEvaluatorBlueprint.SetEvaluatorName(sourceDeferredEvaluatorBlueprint.GetEvaluatorName());
+			targetDeferredEvaluatorBlueprint.SetEvaluatorGUID(sourceDeferredEvaluatorBlueprint.GetEvaluatorGUID());
 			targetDeferredEvaluatorBlueprint.SetWeight(sourceDeferredEvaluatorBlueprint.GetWeight());
+			targetDeferredEvaluatorBlueprint.SetScoreTransformGUID(sourceDeferredEvaluatorBlueprint.GetScoreTransformGUID());
+			targetDeferredEvaluatorBlueprint.SetNegateDiscard(sourceDeferredEvaluatorBlueprint.GetNegateDiscard());
 
 			HelpBuildCInputBlueprintHierarchyFromITextualInputBlueprint(targetDeferredEvaluatorBlueprint.GetInputRoot(), sourceDeferredEvaluatorBlueprint.GetInputRoot());
 		}
 	}
 }
 
-void CQueryBlueprint::BuildITextualQueryBlueprintFromSelf(uqs::core::ITextualQueryBlueprint& target) const
+void CQueryBlueprint::BuildITextualQueryBlueprintFromSelf(UQS::Core::ITextualQueryBlueprint& target) const
 {
 	target.SetSyntaxErrorCollector(MakeNewSyntaxErrorCollectorUniquePtr(m_pErrorCollector));
 
@@ -2358,16 +2700,21 @@ void CQueryBlueprint::BuildITextualQueryBlueprintFromSelf(uqs::core::ITextualQue
 		target.SetName(m_name.c_str());
 	}
 
-	// query factory
+	// query factory name
 	{
-		target.SetQueryFactoryName(m_queryFactory.queryFactoryName.c_str());
+		target.SetQueryFactoryName(m_queryFactory.GetFactoryName());
+	}
+
+	// query factory GUID
+	{
+		target.SetQueryFactoryGUID(m_queryFactory.GetFactoryGUID());
 	}
 
 	// query children
 	{
 		for (const CQueryBlueprint& childQuery : m_queryChildren)
 		{
-			uqs::core::ITextualQueryBlueprint& targetChild = target.AddChild();
+			UQS::Core::ITextualQueryBlueprint& targetChild = target.AddChild();
 			childQuery.BuildITextualQueryBlueprintFromSelf(targetChild);
 		}
 	}
@@ -2379,42 +2726,45 @@ void CQueryBlueprint::BuildITextualQueryBlueprintFromSelf(uqs::core::ITextualQue
 
 	// global constant-params
 	{
-		uqs::core::ITextualGlobalConstantParamsBlueprint& targetConstParams = target.GetGlobalConstantParams();
+		UQS::Core::ITextualGlobalConstantParamsBlueprint& targetConstParams = target.GetGlobalConstantParams();
 
 		string value;
 		for (size_t i = 0, n = m_constParams.GetParameterCount(); i < n; ++i)
 		{
 			const char* szName;
 			const char* szType;
+			CryGUID typeGUID;
 			bool bAddToDebugRenderWorld;
 			value.clear();
 			std::shared_ptr<CErrorCollector> pErrorCollector;
-			m_constParams.GetParameterInfo(i, szName, szType, *&value, bAddToDebugRenderWorld, pErrorCollector);
-			targetConstParams.AddParameter(szName, szType, value.c_str(), bAddToDebugRenderWorld, MakeNewSyntaxErrorCollectorUniquePtr(pErrorCollector));
+			m_constParams.GetParameterInfo(i, szName, szType, typeGUID, *&value, bAddToDebugRenderWorld, pErrorCollector);
+			targetConstParams.AddParameter(szName, szType, typeGUID, value.c_str(), bAddToDebugRenderWorld, MakeNewSyntaxErrorCollectorUniquePtr(pErrorCollector));
 		}
 	}
 
 	// global runtime-params
 	{
-		uqs::core::ITextualGlobalRuntimeParamsBlueprint& targetRuntimeParams = target.GetGlobalRuntimeParams();
+		UQS::Core::ITextualGlobalRuntimeParamsBlueprint& targetRuntimeParams = target.GetGlobalRuntimeParams();
 
 		for (size_t i = 0, n = m_runtimeParams.GetParameterCount(); i < n; ++i)
 		{
 			const char* szName;
 			const char* szType;
+			CryGUID typeGUID;
 			bool bAddToDebugRenderWorld;
 			std::shared_ptr<CErrorCollector> pErrorCollector;
-			m_runtimeParams.GetParameterInfo(i, szName, szType, bAddToDebugRenderWorld, pErrorCollector);
-			targetRuntimeParams.AddParameter(szName, szType, bAddToDebugRenderWorld, MakeNewSyntaxErrorCollectorUniquePtr(pErrorCollector));
+			m_runtimeParams.GetParameterInfo(i, szName, szType, typeGUID, bAddToDebugRenderWorld, pErrorCollector);
+			targetRuntimeParams.AddParameter(szName, szType, typeGUID, bAddToDebugRenderWorld, MakeNewSyntaxErrorCollectorUniquePtr(pErrorCollector));
 		}
 	}
 
 	// generator
 	if (m_generator.IsSet())
 	{
-		uqs::core::ITextualGeneratorBlueprint& targetGeneratorBlueprint = target.SetGenerator();
+		UQS::Core::ITextualGeneratorBlueprint& targetGeneratorBlueprint = target.SetGenerator();
 
 		targetGeneratorBlueprint.SetGeneratorName(m_generator.GetGeneratorName());
+		targetGeneratorBlueprint.SetGeneratorGUID(m_generator.GetGeneratorGUID());
 		targetGeneratorBlueprint.SetSyntaxErrorCollector(MakeNewSyntaxErrorCollectorUniquePtr(m_generator.GetErrorCollectorSharedPtr()));
 
 		HelpBuildITextualInputBlueprintHierarchyFromCInputBlueprint(targetGeneratorBlueprint.GetInputRoot(), m_generator.GetInputRoot());
@@ -2425,10 +2775,14 @@ void CQueryBlueprint::BuildITextualQueryBlueprintFromSelf(uqs::core::ITextualQue
 		for (size_t i = 0, n = m_evaluators.GetInstantEvaluatorCount(); i < n; ++i)
 		{
 			const CInstantEvaluatorBlueprint& sourceInstantEvaluatorBlueprint = m_evaluators.GetInstantEvaluator(i);
-			uqs::core::ITextualInstantEvaluatorBlueprint& targetInstantEvaluatorBlueprint = target.AddInstantEvaluator();
+			UQS::Core::ITextualEvaluatorBlueprint& targetInstantEvaluatorBlueprint = target.AddInstantEvaluator();
 
 			targetInstantEvaluatorBlueprint.SetEvaluatorName(sourceInstantEvaluatorBlueprint.GetEvaluatorName());
+			targetInstantEvaluatorBlueprint.SetEvaluatorGUID(sourceInstantEvaluatorBlueprint.GetEvaluatorGUID());
 			targetInstantEvaluatorBlueprint.SetWeight(sourceInstantEvaluatorBlueprint.GetWeight());
+			targetInstantEvaluatorBlueprint.SetScoreTransformName(sourceInstantEvaluatorBlueprint.GetScoreTransformName());
+			targetInstantEvaluatorBlueprint.SetScoreTransformGUID(sourceInstantEvaluatorBlueprint.GetScoreTransformGUID());
+			targetInstantEvaluatorBlueprint.SetNegateDiscard(sourceInstantEvaluatorBlueprint.GetNegateDiscard());
 			targetInstantEvaluatorBlueprint.SetSyntaxErrorCollector(MakeNewSyntaxErrorCollectorUniquePtr(sourceInstantEvaluatorBlueprint.Owner().GetErrorCollectorSharedPtr()));
 
 			HelpBuildITextualInputBlueprintHierarchyFromCInputBlueprint(targetInstantEvaluatorBlueprint.GetInputRoot(), sourceInstantEvaluatorBlueprint.GetInputRoot());
@@ -2440,10 +2794,14 @@ void CQueryBlueprint::BuildITextualQueryBlueprintFromSelf(uqs::core::ITextualQue
 		for (size_t i = 0, n = m_evaluators.GetDeferredEvaluatorCount(); i < n; ++i)
 		{
 			const CDeferredEvaluatorBlueprint& sourceDeferredEvaluatorBlueprint = m_evaluators.GetDeferredEvaluator(i);
-			uqs::core::ITextualDeferredEvaluatorBlueprint& targetDeferredEvaluatorBlueprint = target.AddDeferredEvaluator();
+			UQS::Core::ITextualEvaluatorBlueprint& targetDeferredEvaluatorBlueprint = target.AddDeferredEvaluator();
 
 			targetDeferredEvaluatorBlueprint.SetEvaluatorName(sourceDeferredEvaluatorBlueprint.GetEvaluatorName());
+			targetDeferredEvaluatorBlueprint.SetEvaluatorGUID(sourceDeferredEvaluatorBlueprint.GetEvaluatorGUID());
 			targetDeferredEvaluatorBlueprint.SetWeight(sourceDeferredEvaluatorBlueprint.GetWeight());
+			targetDeferredEvaluatorBlueprint.SetScoreTransformName(sourceDeferredEvaluatorBlueprint.GetScoreTransformName());
+			targetDeferredEvaluatorBlueprint.SetScoreTransformGUID(sourceDeferredEvaluatorBlueprint.GetScoreTransformGUID());
+			targetDeferredEvaluatorBlueprint.SetNegateDiscard(sourceDeferredEvaluatorBlueprint.GetNegateDiscard());
 			targetDeferredEvaluatorBlueprint.SetSyntaxErrorCollector(MakeNewSyntaxErrorCollectorUniquePtr(sourceDeferredEvaluatorBlueprint.Owner().GetErrorCollectorSharedPtr()));
 
 			HelpBuildITextualInputBlueprintHierarchyFromCInputBlueprint(targetDeferredEvaluatorBlueprint.GetInputRoot(), sourceDeferredEvaluatorBlueprint.GetInputRoot());
@@ -2451,35 +2809,39 @@ void CQueryBlueprint::BuildITextualQueryBlueprintFromSelf(uqs::core::ITextualQue
 	}
 }
 
-void CQueryBlueprint::HelpBuildCInputBlueprintHierarchyFromITextualInputBlueprint(CInputBlueprint& targetRoot, const uqs::core::ITextualInputBlueprint& sourceRoot)
+void CQueryBlueprint::HelpBuildCInputBlueprintHierarchyFromITextualInputBlueprint(CInputBlueprint& targetRoot, const UQS::Core::ITextualInputBlueprint& sourceRoot)
 {
 	for (size_t i = 0, n = sourceRoot.GetChildCount(); i < n; ++i)
 	{
-		const uqs::core::ITextualInputBlueprint& sourceChild = sourceRoot.GetChild(i);
+		const UQS::Core::ITextualInputBlueprint& sourceChild = sourceRoot.GetChild(i);
 		const char* szParamName = sourceChild.GetParamName();
-		const char* szFuncName = sourceChild.GetFuncName();
+		const UQS::Client::CInputParameterID& paramID = sourceChild.GetParamID();
+		const CryGUID& funcGUID = sourceChild.GetFuncGUID();
+		// notice: we don't care about the Function's GUID as the Function's name is already unique
 		const char* szFuncReturnValueLiteral = sourceChild.GetFuncReturnValueLiteral();
 		bool bAddReturnValueToDebugRenderWorldUponExecution = sourceChild.GetAddReturnValueToDebugRenderWorldUponExecution();
 
-		CInputBlueprint& newChild = targetRoot.AddChild(szParamName, szFuncName, szFuncReturnValueLiteral, bAddReturnValueToDebugRenderWorldUponExecution);
+		CInputBlueprint& newChild = targetRoot.AddChild(szParamName, paramID, funcGUID, szFuncReturnValueLiteral, bAddReturnValueToDebugRenderWorldUponExecution);
 
 		// recurse down
 		HelpBuildCInputBlueprintHierarchyFromITextualInputBlueprint(newChild, sourceChild);
 	}
 }
 
-void CQueryBlueprint::HelpBuildITextualInputBlueprintHierarchyFromCInputBlueprint(uqs::core::ITextualInputBlueprint& targetRoot, const CInputBlueprint& sourceRoot)
+void CQueryBlueprint::HelpBuildITextualInputBlueprintHierarchyFromCInputBlueprint(UQS::Core::ITextualInputBlueprint& targetRoot, const CInputBlueprint& sourceRoot)
 {
 	for (size_t i = 0, n = sourceRoot.GetChildCount(); i < n; ++i)
 	{
 		const CInputBlueprint& sourceChild = sourceRoot.GetChild(i);
 		const char* szParamName = sourceChild.GetParamName();
+		const UQS::Client::CInputParameterID& paramID = sourceChild.GetParamID();
 		const char* szFuncName = sourceChild.GetFuncName();
+		const CryGUID& funcGUID = sourceChild.GetFuncGUID();
 		const char* szFuncReturnValueLiteral = sourceChild.GetFuncReturnValueLiteral();
 		bool bAddReturnValueToDebugRenderWorldUponExecution = sourceChild.GetAddReturnValueToDebugRenderWorldUponExecution();
 		const std::shared_ptr<CErrorCollector>& pErrorCollector = sourceChild.GetErrorCollectorSharedPtr();
 
-		uqs::core::ITextualInputBlueprint& newChild = targetRoot.AddChild(szParamName, szFuncName, szFuncReturnValueLiteral, bAddReturnValueToDebugRenderWorldUponExecution);
+		UQS::Core::ITextualInputBlueprint& newChild = targetRoot.AddChild(szParamName, paramID, szFuncName, funcGUID, szFuncReturnValueLiteral, bAddReturnValueToDebugRenderWorldUponExecution);
 		newChild.SetSyntaxErrorCollector(MakeNewSyntaxErrorCollectorUniquePtr(pErrorCollector));
 
 		// recurse down
@@ -2493,7 +2855,7 @@ void CQueryBlueprint::CheckQueryTraitsChange(const SQueryFactoryType::CTraits& q
 	{
 		if (oldTraits.SupportsParameters() != queryTraits.SupportsParameters())
 		{
-			paramListContext.SetParamsChanged(true);
+			paramListContext.SetParamsChanged();
 			if (!queryTraits.SupportsParameters())
 			{
 				m_constParams = CConstParamBlueprint();
@@ -2565,8 +2927,6 @@ void CQueryBlueprint::Serialize(Serialization::IArchive& archive)
 		if (paramListContext.GetParamsChanged())
 		{
 			assert(archive.isInput());
-			// Parameters were changed - stop input serialization now or else PropertyTree may discard some references to parameters.
-			// TODO pavloi 2016.04.25: #FIX_COPY
 
 			if (pContext)
 			{
@@ -2574,8 +2934,6 @@ void CQueryBlueprint::Serialize(Serialization::IArchive& archive)
 				selectedGeneratorContext.SetGeneratorProcessed(true);
 				m_evaluators.PrepareHelpers(*pContext);
 			}
-
-			return;
 		}
 
 		if (queryTraits.RequiresGenerator())
@@ -2587,14 +2945,11 @@ void CQueryBlueprint::Serialize(Serialization::IArchive& archive)
 		if (selectedGeneratorContext.GetGeneratorChanged())
 		{
 			assert(archive.isInput());
-			// Parameters were changed - stop input serialization now or else PropertyTree may discard some references to parameters.
-			// TODO pavloi 2016.04.25: #FIX_COPY
 
 			if (pContext)
 			{
 				m_evaluators.PrepareHelpers(*pContext);
 			}
-			return;
 		}
 
 		if (queryTraits.SupportsEvaluators())
@@ -2667,6 +3022,12 @@ CParametersListContext::~CParametersListContext()
 	{
 		m_pSerializationContext->PopParametersListContext(this);
 	}
+}
+
+void CParametersListContext::SetParamsChanged()
+{
+	m_bParamsChanged = true;
+	CCentralEventManager::QueryBlueprintRuntimeParamsChanged(CCentralEventManager::SQueryBlueprintRuntimeParamsChangedEventArgs(*m_pOwner));
 }
 
 void CParametersListContext::BuildFunctionListForAvailableParameters(
@@ -2773,8 +3134,8 @@ void CSelectedGeneratorContext::BuildFunctionListForAvailableGenerators(
 	if (bApplyFilter)
 	{
 		SItemTypeName generatorType;
-		const char* szGeneratorName = m_pOwner->GetGenerator().GetGeneratorName();
-		if (uqs::client::IGeneratorFactory* pFactory = context.GetGeneratorFactoryByName(szGeneratorName))
+		const CryGUID& generatorGUID = m_pOwner->GetGenerator().GetGeneratorGUID();
+		if (UQS::Client::IGeneratorFactory* pFactory = UQS::Core::IHubPlugin::GetHub().GetGeneratorFactoryDatabase().FindFactoryByGUID(generatorGUID))
 		{
 			generatorType = context.GetItemTypeNameFromType(pFactory->GetTypeOfItemsToGenerate());
 		}
@@ -2794,4 +3155,4 @@ void CSelectedGeneratorContext::BuildFunctionListForAvailableGenerators(
 	}
 }
 
-} // namespace uqseditor
+} // namespace UQSEditor

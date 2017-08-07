@@ -197,11 +197,12 @@ bool Streaks::PreparePrimitives(const SPreparePrimitivesContext& context)
 		prim.SetTechnique(CShaderMan::s_ShaderLensOptics, techName, rtFlags);
 		prim.SetRenderState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ONE);
 		prim.SetTexture(0, GetTexture());
-		prim.SetSampler(0, m_samplerBilinearBorderBlack);
+		prim.SetSampler(0, EDefaultSamplerStates::LinearBorder_Black);
 
-		prim.SetCustomVertexStream(mesh.GetVertexBuffer(), eVF_P3F_C4B_T2F, sizeof(SVF_P3F_C4B_T2F));
+		prim.SetCustomVertexStream(mesh.GetVertexBuffer(), EDefaultInputLayouts::P3F_C4B_T2F, sizeof(SVF_P3F_C4B_T2F));
 		prim.SetCustomIndexStream(m_indexBuffer, Index16);
 		prim.SetDrawInfo(eptTriangleList, 0, 0, m_meshIndices.size());
+		prim.Compile(context.pass);
 
 		context.pass.AddPrimitive(&prim);
 	}

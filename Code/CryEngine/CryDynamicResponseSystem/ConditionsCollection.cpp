@@ -87,7 +87,7 @@ void CConditionsCollection::SConditionInfo::Serialize(Serialization::IArchive& a
 		bool bCurrentlyMet = false;
 		if (s_pActorForEvaluation)
 		{
-			CryDRS::SSignal tempSignal(CHashedString::GetEmpty(), static_cast<CResponseActor*>(s_pActorForEvaluation), nullptr);
+			SSignal tempSignal(CHashedString::GetEmpty(), static_cast<CResponseActor*>(s_pActorForEvaluation), nullptr);
 			CResponseInstance tempResponseInstance(tempSignal, nullptr);
 			bCurrentlyMet = m_pCondition->IsMet(&tempResponseInstance);
 		}

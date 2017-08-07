@@ -10,7 +10,6 @@
 CPlugin_CryUserAnalytics::CPlugin_CryUserAnalytics()
 	: m_pUserAnalytics(nullptr)
 {
-	m_pThis = this;
 }
 
 CPlugin_CryUserAnalytics::~CPlugin_CryUserAnalytics()

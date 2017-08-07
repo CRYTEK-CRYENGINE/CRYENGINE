@@ -14,9 +14,9 @@ namespace CryEngine.Resources
 		/// <summary>
 		/// Called to instantiate the Singleton class or to get the current instance.
 		/// </summary>
-		public static ResourceManager Instance { get { return _instance == null ? _instance = new ResourceManager() : _instance; } }
+		public static ResourceManager Instance { get { return _instance ?? (_instance = new ResourceManager()); } }
 
-		Dictionary<string, ImageSource> _imageSources = new Dictionary<string, ImageSource>();
+		readonly Dictionary<string, ImageSource> _imageSources = new Dictionary<string, ImageSource>();
 
 		/// <summary>
 		/// Creates an ImageSource if not yet existing, hands out the existing one otherwise.

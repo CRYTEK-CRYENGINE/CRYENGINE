@@ -23,9 +23,9 @@
 	#include "AppleGPUInfoUtils.h"
 #endif
 
-#if defined(DXGL_USE_SDL)
+#if defined(USE_SDL2_VIDEO)
 	#define HANDLE_SDL_ATTRIBUTE_ERROR_BOOL(result) if (result < 0) { DXGL_ERROR("Failed to set GL attribute: %s", SDL_GetError()); return false; }
-#endif //defined(DXGL_USE_SDL)
+#endif //defined(USE_SDL2_VIDEO)
 
 #if defined(DEBUG) && !CRY_PLATFORM_MAC
 	#define DXGL_DEBUG_CONTEXT 1
@@ -115,7 +115,7 @@ _smart_ptr<SDisplayConnection> CreateDisplayConnection(
 		return NULL;
 	}
 
-	#if CRY_PLATFORM_WINDOWS && !defined(DXGL_USE_SDL)
+	#if CRY_PLATFORM_WINDOWS && !defined(USE_SDL2_VIDEO)
 	EGLNativeWindowType kWindow(WindowFromDC(kDefaultNativeDisplay));
 	#else
 		#error "Not implemented on this platform"
@@ -130,7 +130,7 @@ _smart_ptr<SDisplayConnection> CreateDisplayConnection(
 	return spDisplayConnection;
 }
 
-#elif defined(DXGL_USE_SDL)
+#elif defined(USE_SDL2_VIDEO)
 
 bool InitializeSDLAttributes()
 {
@@ -144,7 +144,7 @@ bool InitializeSDLAttributes()
 	SVersion kVersion = { 3, 2 };
 	#elif defined(DXGL_ANDROID_GL)
 	SVersion kVersion = { 4, 4 };
-	#elif defined(OPENGL_ES)
+	#elif CRY_RENDERER_OPENGLES
 	// Request OpenGL ES 3.0 context
 		#if CRY_PLATFORM_ANDROID
 	SVersion kVersion = { 3, 1 };
@@ -165,7 +165,7 @@ bool InitializeSDLAttributes()
 		iResult = SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 	else
 	#endif
-	#if defined(OPENGL_ES) && !defined(DXGL_ANDROID_GL)
+	#if CRY_RENDERER_OPENGLES && !defined(DXGL_ANDROID_GL)
 	iResult = SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 	#else
 	{
@@ -502,7 +502,7 @@ bool ResizeWindowContext(TNativeDisplay kNativeDisplay, uint32 uWidth, uint32 uH
 
 #endif
 
-#if !defined(DXGL_USE_SDL)
+#if !defined(USE_SDL2_VIDEO)
 SOutput* GetWindowOutput(SAdapter* pAdapter, const TNativeDisplay& kNativeDisplay)
 {
 	#if CRY_PLATFORM_WINDOWS
@@ -550,7 +550,7 @@ SOutput* GetWindowOutput(SAdapter* pAdapter, const TNativeDisplay& kNativeDispla
 }
 #endif
 
-#if defined(DXGL_USE_SDL)
+#if defined(USE_SDL2_VIDEO)
 
 EGIFormat SDLPixelFormatToGIFormat(uint32 uPixelFormat)
 {
@@ -633,12 +633,12 @@ void DevModeToDisplayMode(SDisplayMode* pDisplayMode, const DEVMODEA& kDevMode)
 
 #endif
 
-#if defined(DXGL_USE_SDL) || CRY_PLATFORM_WINDOWS
+#if defined(USE_SDL2_VIDEO) || CRY_PLATFORM_WINDOWS
 
 struct SDummyWindow
 {
 	TNativeDisplay          m_kNativeDisplay;
-	#if !defined(DXGL_USE_SDL)
+	#if !defined(USE_SDL2_VIDEO)
 	HWND                    m_kWndHandle;
 	ATOM                    m_kWndClassAtom;
 
@@ -646,20 +646,20 @@ struct SDummyWindow
 	{
 		return DefWindowProc(hWnd, uMsg, wParam, lParam);
 	}
-	#endif //!defined(DXGL_USE_SDL)
+	#endif //!defined(USE_SDL2_VIDEO)
 
 	SDummyWindow()
 		: m_kNativeDisplay(NULL)
-	#if !defined(DXGL_USE_SDL)
+	#if !defined(USE_SDL2_VIDEO)
 		, m_kWndHandle(NULL)
 		, m_kWndClassAtom(0)
-	#endif //!defined(DXGL_USE_SDL)
+	#endif //!defined(USE_SDL2_VIDEO)
 	{
 	}
 
 	bool Initialize(const SPixelFormatSpec* pPixelFormatSpec)
 	{
-	#if defined(DXGL_USE_SDL)
+	#if defined(USE_SDL2_VIDEO)
 		if (!InitializeSDLAttributes())
 			return false;
 
@@ -703,7 +703,7 @@ struct SDummyWindow
 
 	void Shutdown()
 	{
-	#if defined(DXGL_USE_SDL)
+	#if defined(USE_SDL2_VIDEO)
 		if (m_kNativeDisplay)
 		{
 			if (*m_kNativeDisplay)
@@ -719,7 +719,7 @@ struct SDummyWindow
 	}
 };
 
-#endif //defined(DXGL_USE_SDL) || CRY_PLATFORM_WINDOWS
+#endif //defined(USE_SDL2_VIDEO) || CRY_PLATFORM_WINDOWS
 
 ////////////////////////////////////////////////////////////////////////////
 // CDevice implementation
@@ -737,7 +737,7 @@ CDevice::CDevice(SAdapter* pAdapter, const SFeatureSpec& kFeatureSpec, const SPi
 	: m_spAdapter(pAdapter)
 	, m_kFeatureSpec(kFeatureSpec)
 	, m_kPixelFormatSpec(kPixelFormatSpec)
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	, m_bContextFenceIssued(false)
 #else
 	, m_kContextFenceIssued(false)
@@ -770,7 +770,7 @@ void CDevice::Configure(uint32 uNumSharedContexts)
 }
 #endif //!DXGL_FULL_EMULATION
 
-#if defined(DXGL_USE_SDL)
+#if defined(USE_SDL2_VIDEO)
 
 bool CDevice::CreateSDLWindow(const char* szTitle, uint32 uWidth, uint32 uHeight, bool bFullScreen, HWND* pHandle)
 {
@@ -799,7 +799,7 @@ void CDevice::DestroySDLWindow(HWND kHandle)
 	delete pWindowContext;
 }
 
-#endif //defined(DXGL_USE_SDL)
+#endif //defined(USE_SDL2_VIDEO)
 
 bool CDevice::Initialize(const TNativeDisplay& kDefaultNativeDisplay)
 {
@@ -866,7 +866,7 @@ void CDevice::Shutdown()
 		// leaks an crashes with non-nvidia drivers
 #if DXGL_USE_ES_EMULATOR
 		eglDestroyContext(m_kDefaultWindowContext->m_kDisplay, kRenderingContext);
-#elif defined(DXGL_USE_SDL)
+#elif defined(USE_SDL2_VIDEO)
 		SDL_GL_DeleteContext(kRenderingContext);
 #elif CRY_PLATFORM_WINDOWS
 		wglDeleteContext(kRenderingContext);
@@ -882,17 +882,17 @@ void CDevice::Shutdown()
 		ReleaseWindowContext(m_kDefaultWindowContext);
 	}
 
-#if defined(DXGL_USE_SDL)
+#if defined(USE_SDL2_VIDEO)
 	SDL_DestroyWindow(m_kDefaultWindowContext);
 	SDL_Quit();
-#endif //defined(DXGL_USE_SDL)
+#endif //defined(USE_SDL2_VIDEO)
 }
 
 bool CDevice::Present(const TWindowContext& kTargetWindowContext)
 {
 #if DXGL_USE_ES_EMULATOR
 	return eglSwapBuffers(kTargetWindowContext->m_kDisplay, kTargetWindowContext->m_kSurface) == EGL_TRUE;
-#elif defined(DXGL_USE_SDL)
+#elif defined(USE_SDL2_VIDEO)
 	SDL_GL_SwapWindow(kTargetWindowContext);
 	return true;
 #elif CRY_PLATFORM_WINDOWS
@@ -903,7 +903,7 @@ bool CDevice::Present(const TWindowContext& kTargetWindowContext)
 #endif
 }
 
-#if !CRY_OPENGL_SINGLE_CONTEXT
+#if !OGL_SINGLE_CONTEXT
 
 CContext* CDevice::ReserveContext()
 {
@@ -966,7 +966,7 @@ void CDevice::FreeContext(CContext* pContext)
 
 void CDevice::BindContext(CContext* pContext)
 {
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	SetCurrentContext(pContext);
 #else
 	CContext* pCurrentContext(GetCurrentContext());
@@ -979,7 +979,7 @@ void CDevice::BindContext(CContext* pContext)
 
 void CDevice::UnbindContext(CContext* pContext)
 {
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	SetCurrentContext(NULL);
 #else
 	CContext* pCurrentContext(static_cast<CContext*>(GetTLSValue(m_pCurrentContextTLS)));
@@ -1018,7 +1018,7 @@ uint32 CDevice::GetMaxContextCount()
 
 void CDevice::IssueFrameFences()
 {
-#if CRY_OPENGL_SINGLE_CONTEXT
+#if OGL_SINGLE_CONTEXT
 	Exchange(&m_bContextFenceIssued, 1);
 #else
 	for (uint32 uContext = 0; uContext < m_kContexts.size(); ++uContext)
@@ -1041,7 +1041,7 @@ bool CDevice::CreateRenderingContexts(
 	{
 		EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE
 	};
-#elif CRY_PLATFORM_WINDOWS && !defined(DXGL_USE_SDL)
+#elif CRY_PLATFORM_WINDOWS && !defined(USE_SDL2_VIDEO)
 	int32 aiAttributes[9] =
 	{
 		WGL_CONTEXT_MAJOR_VERSION_ARB, kFeatureSpec.m_kVersion.m_uMajorVersion,
@@ -1066,7 +1066,7 @@ bool CDevice::CreateRenderingContexts(
 		if (uContext > 0)
 			MakeCurrent(kWindowContext, kSharedRenderingContext);
 		TRenderingContext kRenderingContext(eglCreateContext(kWindowContext->m_kDisplay, kWindowContext->m_kConfig, kSharedRenderingContext, aiContextAttributes));
-#elif defined(DXGL_USE_SDL)
+#elif defined(USE_SDL2_VIDEO)
 		if (uContext > 0)
 		{
 			// This is required because SDL_GL_CreateContext implicitly shares the new context
@@ -1131,7 +1131,7 @@ bool CDevice::CreateRenderingContexts(
 
 bool CDevice::SetFullScreenState(const SFrameBufferSpec& kFrameBufferSpec, bool bFullScreen, SOutput* pOutput)
 {
-#if defined(DXGL_USE_SDL)
+#if defined(USE_SDL2_VIDEO)
 	if (pOutput != NULL)
 	{
 		DXGL_NOT_IMPLEMENTED;
@@ -1185,7 +1185,7 @@ bool CDevice::SetFullScreenState(const SFrameBufferSpec& kFrameBufferSpec, bool 
 
 bool CDevice::ResizeTarget(const SDisplayMode& kTargetMode)
 {
-#if defined(DXGL_USE_SDL)
+#if defined(USE_SDL2_VIDEO)
 	const SGIFormatInfo* pPixelFormatInfo(GetGIFormatInfo(kTargetMode.m_ePixelFormat));
 	if (pPixelFormatInfo == NULL || pPixelFormatInfo->m_pUncompressed == m_kPixelFormatSpec.m_pLayout)
 #elif CRY_PLATFORM_WINDOWS
@@ -1198,7 +1198,7 @@ bool CDevice::ResizeTarget(const SDisplayMode& kTargetMode)
 		DXGL_WARNING("ResizeTarget does not support changing the window pixel format");
 	}
 
-#if defined(DXGL_USE_SDL)
+#if defined(USE_SDL2_VIDEO)
 	if (m_spFullScreenOutput != NULL)
 	{
 		SDL_DisplayMode kSDLTargetMode;
@@ -1249,7 +1249,7 @@ bool CDevice::MakeCurrent(const TWindowContext& kWindowContext, TRenderingContex
 #if DXGL_USE_ES_EMULATOR
 	EGLSurface kSurface(kRenderingContext == EGL_NO_CONTEXT ? EGL_NO_SURFACE : kWindowContext->m_kSurface);
 	return eglMakeCurrent(kWindowContext->m_kDisplay, kSurface, kSurface, kRenderingContext) == EGL_TRUE;
-#elif defined(DXGL_USE_SDL)
+#elif defined(USE_SDL2_VIDEO)
 	return SDL_GL_MakeCurrent(kRenderingContext == NULL ? NULL : kWindowContext, kRenderingContext) == 0;
 #elif CRY_PLATFORM_WINDOWS
 	return wglMakeCurrent(kRenderingContext == NULL ? NULL : kWindowContext, kRenderingContext) == TRUE;
@@ -1415,7 +1415,7 @@ void CDevice::PartitionResourceIndices(
 	}
 }
 
-#if defined(DXGL_USE_SDL) || CRY_PLATFORM_WINDOWS
+#if defined(USE_SDL2_VIDEO) || CRY_PLATFORM_WINDOWS
 
 struct SDummyContext
 {
@@ -1466,7 +1466,7 @@ struct SDummyContext
 			DXGL_ERROR("Dummy DXGL context creation failed");
 			return false;
 		}
-	#elif defined(DXGL_USE_SDL)
+	#elif defined(USE_SDL2_VIDEO)
 		m_kRenderingContext = SDL_GL_CreateContext(*m_kDummyWindow.m_kNativeDisplay);
 		if (m_kRenderingContext == NULL)
 		{
@@ -1503,7 +1503,7 @@ struct SDummyContext
 				eglDestroySurface(m_kDisplay, m_kWindowSurface);
 			eglTerminate(m_kDisplay);
 		}
-	#elif defined(DXGL_USE_SDL)
+	#elif defined(USE_SDL2_VIDEO)
 		if (m_kRenderingContext != NULL)
 			SDL_GL_DeleteContext(m_kRenderingContext);
 	#else
@@ -1514,7 +1514,7 @@ struct SDummyContext
 		m_kDummyWindow.Shutdown();
 	}
 };
-#endif //defined(DXGL_USE_SDL) || CRY_PLATFORM_WINDOWS
+#endif //defined(USE_SDL2_VIDEO) || CRY_PLATFORM_WINDOWS
 
 bool FeatureLevelToFeatureSpec(SFeatureSpec& kFeatureSpec, D3D_FEATURE_LEVEL eFeatureLevel)
 {
@@ -1583,7 +1583,7 @@ bool SwapChainDescToFrameBufferSpec(SFrameBufferSpec& kFrameBufferSpec, const DX
 
 bool GetNativeDisplay(TNativeDisplay& kNativeDisplay, HWND kWindowHandle)
 {
-#if defined(DXGL_USE_SDL)
+#if defined(USE_SDL2_VIDEO)
 	kNativeDisplay = reinterpret_cast<const NCryOpenGL::TNativeDisplay>(kWindowHandle);
 	return true;
 #elif CRY_PLATFORM_WINDOWS
@@ -1609,7 +1609,7 @@ bool CreateWindowContext(
 	kWindowContext = CreateDisplayConnection(kPixelFormatSpec, kNativeDisplay);
 	if (kWindowContext == NULL)
 		return false;
-#elif defined(DXGL_USE_SDL)
+#elif defined(USE_SDL2_VIDEO)
 	if (!SetSDLAttributes(kFeatureSpec, kPixelFormatSpec))
 		return false;
 	#if defined(DXGL_SINGLEWINDOW)
@@ -2071,7 +2071,7 @@ bool DetectAdapters(std::vector<SAdapterPtr>& kAdapters)
 		if (!LoadGLESExtensionEntryPoints())
 			return false;
 		else
-#elif CRY_PLATFORM_ANDROID && defined(OPENGL_ES)
+#elif CRY_PLATFORM_ANDROID && CRY_RENDERER_OPENGLES
 		if (!android_gles_3_0_init())
 		{
 			DXGL_ERROR("Current device does not have a valid OpenGL ES 3 driver");
@@ -2098,7 +2098,7 @@ bool DetectAdapters(std::vector<SAdapterPtr>& kAdapters)
 
 bool DetectOutputs(const SAdapter& kAdapter, std::vector<SOutputPtr>& kOutputs)
 {
-#if defined(DXGL_USE_SDL)
+#if defined(USE_SDL2_VIDEO)
 	int uNumDisplays = SDL_GetNumVideoDisplays();
 	if (uNumDisplays <= 0)
 	{
@@ -2204,7 +2204,7 @@ void GetDXGIModeDesc(DXGI_MODE_DESC* pDXGIModeDesc, const SDisplayMode& kDisplay
 	pDXGIModeDesc->RefreshRate.Numerator = kDisplayMode.m_uFrequency;
 	pDXGIModeDesc->RefreshRate.Denominator = 1;
 
-#if defined(DXGL_USE_SDL)
+#if defined(USE_SDL2_VIDEO)
 	pDXGIModeDesc->Format = GetDXGIFormat(kDisplayMode.m_ePixelFormat);
 #elif CRY_PLATFORM_WINDOWS
 	DXGL_TODO("Check if there is a better way of mapping GL display modes to formats")
@@ -2234,7 +2234,7 @@ bool GetDisplayMode(SDisplayMode* pDisplayMode, const DXGI_MODE_DESC& kDXGIModeD
 		pDisplayMode->m_uFrequency = kDXGIModeDesc.RefreshRate.Numerator / kDXGIModeDesc.RefreshRate.Denominator;
 	else
 		pDisplayMode->m_uFrequency = 0;
-#if defined(DXGL_USE_SDL)
+#if defined(USE_SDL2_VIDEO)
 	pDisplayMode->m_ePixelFormat = GetGIFormat(kDXGIModeDesc.Format);
 #elif CRY_PLATFORM_WINDOWS
 	switch (kDXGIModeDesc.Format)

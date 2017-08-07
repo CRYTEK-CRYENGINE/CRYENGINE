@@ -76,5 +76,3 @@ void CryDRS::CActionExecuteResponseInstance::OnSignalProcessingStarted(SSignalIn
 {
 	m_pStartedResponse = static_cast<CResponseInstance*>(pStartedResponse);
 }
-
-REGISTER_DRS_ACTION(CActionExecuteResponse, "ExecuteResponse", DEFAULT_DRS_ACTION_COLOR);

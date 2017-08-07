@@ -10,14 +10,12 @@
 
 CWaterRipplesStage::CWaterRipplesStage()
 	: m_vertexBuffer(~0u)
-	, m_pTexWaterRipplesDDN(nullptr)
-	, m_pTempTexture(nullptr)
 	, m_pCVarWaterRipplesDebug(nullptr)
 	, m_ripplesGenTechName("WaterRipplesGen")
 	, m_ripplesHitTechName("WaterRipplesHit")
 	, m_ripplesParamName("WaterRipplesParams")
+	, m_ripplesTransformParamName("WaterRipplesTransform")
 	, m_frameID(-1)
-	, m_samplerLinearClamp(-1)
 	, m_lastSpawnTime(0.0f)
 	, m_lastUpdateTime(0.0f)
 	, m_simGridSnapRange(5.0f)
@@ -36,9 +34,6 @@ CWaterRipplesStage::~CWaterRipplesStage()
 	{
 		gRenDev->m_DevBufMan.Destroy(m_vertexBuffer);
 	}
-
-	SAFE_RELEASE(m_pTexWaterRipplesDDN);
-	SAFE_RELEASE(m_pTempTexture);
 }
 
 void CWaterRipplesStage::Init()
@@ -49,17 +44,15 @@ void CWaterRipplesStage::Init()
 	const int32 flags = FT_FORCE_MIPS | FT_DONT_STREAM | FT_USAGE_RENDERTARGET;
 
 	CRY_ASSERT(m_pTexWaterRipplesDDN == nullptr);
-	m_pTexWaterRipplesDDN = CTexture::CreateTextureObject("$WaterRipplesDDN_0", 0, 0, 1, eTT_2D, flags, eTF_Unknown);
+	m_pTexWaterRipplesDDN = CTexture::GetOrCreateTextureObjectPtr("$WaterRipplesDDN_0", 0, 0, 1, eTT_2D, flags, eTF_Unknown);
 
 	CRY_ASSERT(m_pTempTexture == nullptr);
-	m_pTempTexture = CTexture::CreateTextureObject("$WaterRippleGenTemp", 0, 0, 0, eTT_2D, flags, eTF_Unknown);
-
-	m_samplerLinearClamp = CTexture::GetTexState(STexState(FILTER_LINEAR, TADDR_CLAMP, TADDR_CLAMP, TADDR_CLAMP, 0x0));
+	m_pTempTexture = CTexture::GetOrCreateTextureObjectPtr("$WaterRippleGenTemp", 0, 0, 1, eTT_2D, flags, eTF_Unknown);
 
 	int32 vertexOffset = 0;
 	for (auto& prim : m_ripplePrimitive)
 	{
-		prim.SetFlags(CRenderPrimitive::eFlags_ReflectConstantBuffersFromShader);
+		prim.SetFlags(CRenderPrimitive::eFlags_ReflectShaderConstants);
 		prim.SetCullMode(eCULL_None);
 		prim.SetCustomVertexStream(m_vertexBuffer, sVertexFormat, sVertexStride);
 		prim.SetCustomIndexStream(~0u, RenderIndexType(0));
@@ -83,7 +76,7 @@ void CWaterRipplesStage::Prepare(CRenderView* pRenderView)
 		const int32 height = 256;
 		const int32 flags = FT_DONT_STREAM | FT_USAGE_RENDERTARGET | FT_FORCE_MIPS;
 		const ETEX_Format format = eTF_R8G8B8A8;
-		if (!m_pTexWaterRipplesDDN->Create2DTexture(width, height, 1, flags, nullptr, format, format))
+		if (!m_pTexWaterRipplesDDN->Create2DTexture(width, height, 0, flags, nullptr, format))
 		{
 			CryFatalError("Couldn't allocate texture.");
 		}
@@ -94,17 +87,24 @@ void CWaterRipplesStage::Prepare(CRenderView* pRenderView)
 		const int32 width = m_pTexWaterRipplesDDN->GetWidth();
 		const int32 height = m_pTexWaterRipplesDDN->GetHeight();
 		const auto format = m_pTexWaterRipplesDDN->GetTextureDstFormat();
-		const uint32 flags = FT_DONT_STREAM | FT_USAGE_RENDERTARGET | FT_NOMIPS;
+		const uint32 flags = FT_DONT_STREAM | FT_USAGE_RENDERTARGET | FT_FORCE_MIPS;
 
 		if (m_pTempTexture != nullptr
 		    && (!CTexture::IsTextureExist(m_pTempTexture)
 		        || m_pTempTexture->Invalidate(width, height, format)))
 		{
-			if (!m_pTempTexture->Create2DTexture(width, height, 1, flags, nullptr, format, format))
+			if (!m_pTempTexture->Create2DTexture(width, height, 0, flags, nullptr, format))
 			{
 				CryFatalError("Couldn't allocate texture.");
 			}
 		}
+
+		m_TempCopyParams =
+		{
+			{ 0, 0, 0, 0 }, // src position
+			{ 0, 0, 0, 0 }, // dst position
+			m_pTempTexture->GetDevTexture()->GetDimension()
+		};
 	}
 
 	if (!m_pCVarWaterRipplesDebug)
@@ -239,7 +239,7 @@ void CWaterRipplesStage::Execute(CRenderView* pRenderView)
 	{
 		PROFILE_LABEL_SCOPE("WATER RIPPLES GEN");
 
-		auto* pTempTex = m_pTempTexture;
+		auto* pTempTex = m_pTempTexture.get();
 
 		// Initialize sim on first frame
 		if (m_bInitializeSim)
@@ -270,7 +270,7 @@ void CWaterRipplesStage::Execute(CRenderView* pRenderView)
 				pass.SetTechnique(CShaderMan::s_shPostEffects, m_ripplesGenTechName, rtMask);
 
 				pass.SetTexture(0, m_pTexWaterRipplesDDN);
-				pass.SetSampler(0, m_samplerLinearClamp);
+				pass.SetSampler(0, EDefaultSamplerStates::LinearClamp);
 
 				pass.SetRenderTarget(0, pTempTex);
 				pass.SetViewport(viewport);
@@ -295,20 +295,17 @@ void CWaterRipplesStage::Execute(CRenderView* pRenderView)
 
 			if (pass.InputChanged())
 			{
+				pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_VS);
 				pass.SetTechnique(CShaderMan::s_shPostEffects, m_ripplesGenTechName, 0);
 
 				pass.SetTexture(0, pTempTex);
-				pass.SetSampler(0, m_samplerLinearClamp);
+				pass.SetSampler(0, EDefaultSamplerStates::LinearClamp);
 
 				pass.SetRenderTarget(0, m_pTexWaterRipplesDDN);
 				pass.SetViewport(viewport);
 
 				pass.SetState(GS_NODEPTHTEST);
 			}
-
-			pass.BeginConstantUpdate();
-
-			pass.SetConstant(m_ripplesParamName, m_shaderParam, eHWSC_Pixel);
 
 			pass.Execute();
 		}
@@ -323,7 +320,7 @@ void CWaterRipplesStage::Execute(CRenderView* pRenderView)
 
 CTexture* CWaterRipplesStage::GetWaterRippleTex() const
 {
-	return (m_pTexWaterRipplesDDN ? m_pTexWaterRipplesDDN : CTexture::s_ptexBlack);
+	return (CTexture::IsTextureExist(m_pTexWaterRipplesDDN) ? m_pTexWaterRipplesDDN.get() : CTexture::s_ptexBlack);
 }
 
 bool CWaterRipplesStage::IsVisible(CRenderView* pRenderView) const
@@ -367,9 +364,9 @@ void CWaterRipplesStage::ExecuteWaterRipples(CRenderView* pRenderView, CTexture*
 
 	{
 		auto& pass = m_passAddWaterRipples;
-		pass.ClearPrimitives();
 		pass.SetRenderTarget(0, pTargetTex);
 		pass.SetViewport(viewport);
+		pass.BeginAddingPrimitives();
 
 		Vec4 param = m_shaderParam;
 		int32 vertexOffset = 0;
@@ -425,6 +422,7 @@ void CWaterRipplesStage::ExecuteWaterRipples(CRenderView* pRenderView, CTexture*
 			auto& primitive = m_ripplePrimitive[i];
 
 			primitive.SetTechnique(CShaderMan::s_shPostEffects, m_ripplesHitTechName, 0);
+			primitive.Compile(pass);
 
 			// update constant buffer
 			{
@@ -435,6 +433,9 @@ void CWaterRipplesStage::ExecuteWaterRipples(CRenderView* pRenderView, CTexture*
 				// Pass height scale to shader
 				param.w = ripple.strength;
 				primitive.GetConstantManager().SetNamedConstant(m_ripplesParamName, param, eHWSC_Pixel);
+
+				// Pass ripples transform matrix to shader
+				primitive.GetConstantManager().SetNamedConstantArray(m_ripplesTransformParamName, (Vec4*)gcpRendD3D->m_CameraProjMatrix.GetData(), 4, eHWSC_Vertex);
 
 				// Engine viewport needs to be set so that data is available when filling reflected PB constants
 				gcpRendD3D->RT_SetViewport((int32)viewport.TopLeftX, (int32)viewport.TopLeftY, (int32)viewport.Width, (int32)viewport.Height);

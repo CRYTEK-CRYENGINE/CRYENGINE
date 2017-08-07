@@ -1,7 +1,7 @@
 <Material MtlFlags="524288" Shader="Illum" GenMask="C0000001" StringGenMask="%ALLOW_SILHOUETTE_POM%SPECULAR_MAP%SUBSURFACE_SCATTERING" SurfaceType="mat_metal" MatTemplate="" Diffuse="1,1,1" Specular="1,1,1" Emissive="0,0,0" Opacity="1" Shininess="40" vertModifType="0" LayerAct="1">
  <Textures>
-  <Texture Map="Diffuse" File="textures/defaults/grey.tif"/>
-  <Texture Map="Specular" File="textures/defaults/grey.tif"/>
+  <Texture Map="Diffuse" File="%ENGINE%/EngineAssets/Textures/grey.tif"/>
+  <Texture Map="Specular" File="%ENGINE%/EngineAssets/Textures/grey.tif"/>
  </Textures>
  <PublicParams SSSIndex="0" IndirectColor="0.25,0.25,0.25"/>
 </Material>

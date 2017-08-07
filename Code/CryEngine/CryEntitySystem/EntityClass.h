@@ -17,6 +17,8 @@
 
 #include <CryEntitySystem/IEntityClass.h>
 
+#include <CrySchematyc/Runtime/IRuntimeRegistry.h>
+
 //////////////////////////////////////////////////////////////////////////
 // Description:
 //    Standard implementation of the IEntityClass interface.
@@ -36,6 +38,7 @@ public:
 	virtual void                         SetFlags(uint32 nFlags) override  { m_nFlags = nFlags; };
 
 	virtual const char*                  GetName() const override          { return m_sName.c_str(); }
+	virtual CryGUID                      GetGUID() const final             { return m_guid; };
 	virtual const char*                  GetScriptFile() const override    { return m_sScriptFile.c_str(); }
 
 	virtual IEntityScript*               GetIEntityScript() const override { return m_pEntityScript; }
@@ -54,15 +57,24 @@ public:
 	virtual IEntityClass::SEventInfo     GetEventInfo(int nIndex) override;
 	virtual bool                         FindEventInfo(const char* sEvent, SEventInfo& event) override;
 
+	virtual const OnSpawnCallback&       GetOnSpawnCallback() const override { return m_onSpawnCallback; };
+
 	//////////////////////////////////////////////////////////////////////////
 
+	void SetClassDesc( const IEntityClassRegistry::SEntityClassDesc &classDesc );
+
 	void SetName(const char* sName);
+	void SetGUID( const CryGUID& guid );
 	void SetScriptFile(const char* sScriptFile);
 	void SetEntityScript(IEntityScript* pScript);
 
 	void SetUserProxyCreateFunc(UserProxyCreateFunc pFunc, void* pUserData = NULL);
 	void SetEventHandler(IEntityEventHandler* pEventHandler);
 	void SetScriptFileHandler(IEntityScriptFileHandler* pScriptFileHandler);
+
+	void SetOnSpawnCallback(const OnSpawnCallback &callback);
+
+	Schematyc::IRuntimeClassConstPtr GetSchematycRuntimeClass() const;
 
 	void GetMemoryUsage(ICrySizer* pSizer) const override
 	{
@@ -75,6 +87,7 @@ public:
 private:
 	uint32                    m_nFlags;
 	string                    m_sName;
+	CryGUID                   m_guid;
 	string                    m_sScriptFile;
 	IEntityScript*            m_pEntityScript;
 
@@ -87,6 +100,13 @@ private:
 	IEntityScriptFileHandler* m_pScriptFileHandler;
 
 	SEditorClassInfo          m_EditorClassInfo;
+
+	OnSpawnCallback           m_onSpawnCallback;
+	CryGUID                   m_schematycRuntimeClassGuid;
+
+	IFlowNodeFactory*         m_pIFlowNodeFactory = nullptr;
+
+	mutable Schematyc::IRuntimeClassConstPtr m_pSchematycRuntimeClass = nullptr;
 };
 
 #endif // __EntityClass_h__

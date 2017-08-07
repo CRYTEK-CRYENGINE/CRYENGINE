@@ -41,7 +41,7 @@ CVehiclePartTread::CVehiclePartTread()
 
 	m_pShaderResources = NULL;
 	m_pMaterial = NULL;
-	CryCreateClassInstance("AnimationPoseModifier_OperatorQueue", m_operatorQueue);
+	CryCreateClassInstanceForInterface(cryiidof<IAnimationOperatorQueue>(), m_operatorQueue);
 }
 
 //------------------------------------------------------------------------

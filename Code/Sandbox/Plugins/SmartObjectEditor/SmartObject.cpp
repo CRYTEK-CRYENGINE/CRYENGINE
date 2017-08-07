@@ -8,6 +8,7 @@
 #include "IIconManager.h"
 #include "SmartObjectsEditorDialog.h"
 #include <CryAISystem/IAgent.h>
+#include "Util/Math.h"
 
 REGISTER_CLASS_DESC(CSmartObjectClassDesc);
 
@@ -239,7 +240,7 @@ IStatObj* CSmartObject::GetIStatObj()
 		m_pStatObj = GetIEditor()->Get3DEngine()->LoadStatObj("Editor/Objects/" + m_pClassTemplate->model, NULL, NULL, false);
 		if (!m_pStatObj)
 		{
-			CLogFile::FormatLine("Error: Load Failed: %s", (const char*) m_pClassTemplate->model);
+			CryLog("Error: Load Failed: %s", (const char*) m_pClassTemplate->model);
 			return NULL;
 		}
 		m_pStatObj->AddRef();
@@ -277,32 +278,10 @@ void CSmartObject::GetScriptProperties(XmlNodeRef xmlEntityNode)
 {
 	__super::GetScriptProperties(xmlEntityNode);
 
-	if (m_pProperties)
+	if (m_pLuaProperties)
 	{
-		m_pProperties->AddOnSetCallback(functor(*this, &CSmartObject::OnPropertyChange));
+		m_pLuaProperties->AddOnSetCallback(functor(*this, &CSmartObject::OnPropertyChange));
 	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CSmartObject::BeginEditParams(int flags)
-{
-	if (m_pProperties)
-	{
-		m_pProperties->AddOnSetCallback(functor(*this, &CSmartObject::OnPropertyChange));
-	}
-	__super::BeginEditParams(flags);
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CSmartObject::EndEditParams()
-{
-	if (m_pProperties)
-	{
-		m_pProperties->RemoveOnSetCallback(functor(*this, &CSmartObject::OnPropertyChange));
-	}
-	__super::EndEditParams();
-
-	Reload(true);
 }
 
 void CSmartObject::OnEvent(ObjectEvent eventID)

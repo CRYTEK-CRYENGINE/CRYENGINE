@@ -75,7 +75,7 @@ end_sources()
 #END-FILE-LIST
 
 CryEngineStaticModule(lua SOLUTION_FOLDER "Libs")
-target_include_directories(${THIS_PROJECT} INTERFACE ${SDK_DIR}/Lua/src )
+target_include_directories(${THIS_PROJECT} INTERFACE "${SDK_DIR}/Lua/src" )
 
 if (WIN64)
 	CryConsoleApplication(LuaCompiler SOLUTION_FOLDER "Libs")

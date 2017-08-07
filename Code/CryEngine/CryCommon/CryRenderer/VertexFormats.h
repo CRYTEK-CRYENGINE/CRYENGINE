@@ -20,56 +20,86 @@
 //! Stream Configuration options
 #define ENABLE_NORMALSTREAM_SUPPORT 1
 
-enum EVertexFormat
+//////////////////////////////////////////////////////////////////////
+struct InputLayoutHandle
 {
-	eVF_Unknown          = 0,
+	typedef uint8 ValueType;
+	ValueType value;
 
-	// Base stream
-	eVF_P3F_C4B_T2F      = 1,
-	eVF_P3S_C4B_T2S      = 2,
-	eVF_P3S_N4B_C4B_T2S  = 3,
+	constexpr InputLayoutHandle() : value(Unspecified) { }
+	constexpr InputLayoutHandle(ValueType v) : value(v) { }
 
-	eVF_P3F_C4B_T4B_N3F2 = 4,    //!< Particles.
-	eVF_TP3F_C4B_T2F     = 5,    //!< Fonts (28 bytes).
-	eVF_TP3F_T2F_T3F     = 6,    //!< Miscellaneus.
-	eVF_P3F_T3F          = 7,    //!< Miscellaneus.
-	eVF_P3F_T2F_T3F      = 8,    //!< Miscellaneus.
+	// Test operators
+	template<typename T> bool operator ==(const T other) const { return value == other; }
+	template<typename T> bool operator !=(const T other) const { return value != other; }
+	// Range operators
+	template<typename T> bool operator <=(const T other) const { return value <= other; }
+	template<typename T> bool operator >=(const T other) const { return value >= other; }
+	// Sorting operators
+	template<typename T> bool operator < (const T other) const { return value <  other; }
+	template<typename T> bool operator > (const T other) const { return value >  other; }
 
-	// Additional streams
-	eVF_T2F              = 9,    //!< Light maps TC (8 bytes).
-	eVF_W4B_I4B          = 10,   //!< Skinned weights/indices stream.
-	eVF_C4B_C4B          = 11,   //!< SH coefficients.
-	eVF_P3F_P3F_I4B      = 12,   //!< Shape deformation stream.
-	eVF_P3F              = 13,   //!< Velocity stream.
-					     
-	eVF_C4B_T2S          = 14,   //!< General (Position is merged with Tangent stream)
+	// Auto cast for array access operator []
+	operator ValueType() const { return value; }
 
-	//! Lens effects simulation
-	eVF_P2F_T4F_C4F      = 15,   //!< primary
-	eVF_P2F_T4F_T4F_C4F  = 16,
-						 
-	eVF_P2S_N4B_C4B_T1F  = 17,
-	eVF_P3F_C4B_T2S      = 18,
-						 
-	eVF_PI               = 19,   // Int indexes.
-
-	eVF_PreAllocated,            // numbers larger than this are dynamically allocated input layouts
-	eVF_MaxRenderMesh = eVF_PreAllocated
+	// Not an enum, because of SWIG
+	static constexpr ValueType Unspecified = ValueType(~0);
 };
 
+// InputLayout API (pre-allocated sampler states)
+// TODO: Move to DeviceObjects.h
+struct EDefaultInputLayouts : InputLayoutHandle
+{
+	enum PreDefs : ValueType
+	{
+		Empty                 =  0,    //!< Empty layout for pull-model shaders
+
+		// Base stream
+		P3F_C4B_T2F           =  1,
+		P3S_C4B_T2S           =  2,
+		P3S_N4B_C4B_T2S       =  3,
+
+		P3F_C4B_T4B_N3F2      =  4,    //!< Particles.
+		TP3F_C4B_T2F          =  5,    //!< Full screen quad
+		P3F_T3F               =  6,    //!< Fog shadows
+		P3F_T2F_T3F           =  7,    //!< Mesh baker
+
+		P3F                   =  8,    //!< Raw Geometry
+
+		P2S_N4B_C4B_T1F       =  9,    //!< Terrain sector
+		P3F_C4B_T2S           = 10,    //!< Road elements
+
+		// Additional streams
+		T4F_B4F               = 11,    //!< Tangent/Bitangent
+		T4S_B4S               = 12,    //!< Tangent/Bitangent
+		Q4F                   = 13,    //!< QTangent
+		Q4S                   = 14,    //!< QTangent
+		N3F                   = 15,    //!< Normal
+		W4B_I4S               = 16,    //!< Skinned weights/indices stream
+		V3F                   = 17,    //!< Velocity stream
+		W2F                   = 18,    //!< Morph-buddy weights
+
+		V4Fi                  = 19,    //!< Instanced Vec4 stream
+
+		PreAllocated          = 20,    // from this value and up custom input layouts are assigned
+		MaxRenderMesh         = PreAllocated
+	};
+};
+
+//////////////////////////////////////////////////////////////////////
 typedef Vec4_tpl<int16> Vec4sf;   //!< Used for tangents only.
 
 //! bNeedNormals=1 - float normals; bNeedNormals=2 - byte normals
-inline EVertexFormat VertFormatForComponents(bool bNeedCol, bool bHasTC, bool bHasPS, bool bHasNormal)
+inline InputLayoutHandle VertFormatForComponents(bool bNeedCol, bool bHasTC, bool bHasPS, bool bHasNormal)
 {
-	EVertexFormat RequestedVertFormat;
+	InputLayoutHandle RequestedVertFormat;
 
 	if (bHasPS)
-		RequestedVertFormat = eVF_P3F_C4B_T4B_N3F2;
+		RequestedVertFormat = EDefaultInputLayouts::P3F_C4B_T4B_N3F2;
 	else if (bHasNormal)
-		RequestedVertFormat = eVF_P3S_N4B_C4B_T2S;
+		RequestedVertFormat = EDefaultInputLayouts::P3S_N4B_C4B_T2S;
 	else
-		RequestedVertFormat = eVF_P3S_C4B_T2S;
+		RequestedVertFormat = EDefaultInputLayouts::P3S_C4B_T2S;
 
 	return RequestedVertFormat;
 }
@@ -124,7 +154,7 @@ struct Vec3f16 : public CryHalf4
 		w = CryConvertFloatToHalf(1.0f);
 		return *this;
 	}
-	inline Vec3f16& operator=(const Vec4A& sl)
+	inline Vec3f16& operator=(const Vec4& sl)
 	{
 		x = CryConvertFloatToHalf(sl.x);
 		y = CryConvertFloatToHalf(sl.y);
@@ -151,12 +181,6 @@ struct Vec2f16 : public CryHalf2
 	{
 		x = CryConvertFloatToHalf(_x);
 		y = CryConvertFloatToHalf(_y);
-	}
-	Vec2f16& operator=(const Vec2f16& sl)
-	{
-		x = sl.x;
-		y = sl.y;
-		return *this;
 	}
 	Vec2f16& operator=(const Vec2& sl)
 	{
@@ -271,20 +295,6 @@ struct SVF_P2F_T4F_C4F
 	Vec4 st;
 	Vec4 color;
 };
-struct SVF_P3F_C4B_I4B_PS4F
-{
-	Vec3 xyz;
-	Vec2 prevXaxis;
-	Vec2 prevYaxis;
-	UCol color;
-	Vec3 prevPos;
-	struct SpriteInfo
-	{
-		uint8 tex_x, tex_y, tex_z, backlight;     //!< xyzw
-	}    info;
-	Vec2 xaxis;
-	Vec2 yaxis;
-};
 
 struct SVF_P3F_C4B_T4B_N3F2
 {
@@ -325,7 +335,23 @@ ILINE int16 tPackB2S(const int16 s)
 	return (int16)(s / 32767);
 }
 
-ILINE Vec4sf tPackF2Bv(const Vec4& v)
+#ifdef CRY_TYPE_SIMD4
+
+ILINE Vec4sf tPackF2Bv(const Vec4H<f32>& v)
+{
+	Vec4sf vs;
+
+	vs.x = tPackF2B(v.x);
+	vs.y = tPackF2B(v.y);
+	vs.z = tPackF2B(v.z);
+	vs.w = tPackF2B(v.w);
+
+	return vs;
+}
+
+#endif
+
+ILINE Vec4sf tPackF2Bv(const Vec4f& v)
 {
 	Vec4sf vs;
 
@@ -681,18 +707,18 @@ enum EStreamIDs
 //! Stream Masks (Used during updating).
 enum EStreamMasks
 {
-	VSM_GENERAL         = 1 << VSF_GENERAL,
-	VSM_TANGENTS        = ((1 << VSF_TANGENTS) | (1 << VSF_QTANGENTS)),
-	VSM_HWSKIN          = 1 << VSF_HWSKIN_INFO,
-	VSM_VERTEX_VELOCITY = 1 << VSF_VERTEX_VELOCITY,
+	VSM_GENERAL         = BIT(VSF_GENERAL),
+	VSM_TANGENTS        = BIT(VSF_TANGENTS) | BIT( VSF_QTANGENTS),
+	VSM_HWSKIN          = BIT(VSF_HWSKIN_INFO),
+	VSM_VERTEX_VELOCITY = BIT(VSF_VERTEX_VELOCITY),
 #if ENABLE_NORMALSTREAM_SUPPORT
-	VSM_NORMALS         = 1 << VSF_NORMALS,
+	VSM_NORMALS         = BIT(VSF_NORMALS),
 #endif
 
-	VSM_MORPHBUDDY = 1 << VSF_MORPHBUDDY,
-	VSM_INSTANCED  = 1 << VSF_INSTANCED,
+	VSM_MORPHBUDDY      = BIT(VSF_MORPHBUDDY),
+	VSM_INSTANCED       = BIT(VSF_INSTANCED),
 
-	VSM_MASK       = ((1 << VSF_NUM) - 1),
+	VSM_MASK            = MASK(VSF_NUM),
 };
 
 //==================================================================================================================

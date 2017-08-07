@@ -334,10 +334,10 @@ void CSkeletonPhysics::BuildPhysicalEntity(
 {
 	const Skeleton::CPoseData& poseData = GetPoseData();
 	CDefaultSkeleton& rDefaultSkeleton = *m_pInstance->m_pDefaultSkeleton;
-	partid0 = partid0 < 0 ? 0 : AllocPartIdRange(partid0, PARTID_MAX_SLOTS);
+	partid0 = partid0 < 0 ? 0 : EntityPhysicsUtils::AllocPartIdRange(partid0, EntityPhysicsUtils::PARTID_MAX_SLOTS);
 
 	float scaleOrg = mtxloc.GetColumn(0).GetLength();
-	float scale = scaleOrg / m_pInstance->m_location.s;
+	float scale = scaleOrg;// / m_pInstance->m_location.s;
 
 	//scale = m_pInstance->GetUniformScale();
 
@@ -851,9 +851,7 @@ IPhysicalEntity* CSkeletonPhysics::CreateCharacterPhysics(
 			pe_params_articulated_body pab1;
 			pab1.pivot.zero();
 			pab1.pHost = pHost;
-			pab1.posHostPivot =
-			  GetPoseData().GetJointAbsolute(getBonePhysChildIndex(0)).t *
-			  (scale / m_pInstance->m_location.s) + offset;
+			pab1.posHostPivot =	GetPoseData().GetJointAbsolute(getBonePhysChildIndex(0)).t * scale + offset;
 			pab1.qHostPivot.SetIdentity();
 			pab1.bAwake = 0;
 
@@ -1618,8 +1616,13 @@ void CSkeletonPhysics::SynchronizeWithPhysicalEntity(IPhysicalEntity* pent, cons
 	Skeleton::CPoseData& poseDataWriteable = GetPoseDataForceWriteable();
 
 	SetLocation(IDENTITY);
+	uint mode = m_pInstance->m_CharEditMode;
+	m_pInstance->m_CharEditMode |= CA_CharacterTool; // force synchronization
 	Job_SynchronizeWithPhysicsPrepare(*CharacterInstanceProcessing::GetMemoryPool());
-	SynchronizeWithPhysicalEntity(poseDataWriteable, pent, posMaster, qMaster, QuatT(IDENTITY));
+	if (pent)
+		SynchronizeWithPhysicalEntity(poseDataWriteable, pent, posMaster, qMaster, QuatT(IDENTITY));
+	Job_Physics_SynchronizeFromAux(poseDataWriteable);
+	m_pInstance->m_CharEditMode = mode;
 	//	UpdateBBox(1);
 }
 
@@ -1632,7 +1635,6 @@ void CSkeletonPhysics::CreateRagdollDefaultPose(Skeleton::CPoseData& poseData)
 	CDefaultSkeleton& rDefaultSkeleton = *m_pInstance->m_pDefaultSkeleton;
 	CDefaultSkeleton::SJoint* parrModelJoints = &rDefaultSkeleton.m_arrModelJoints[0];
 
-	float rscale = m_fScale > 0.001f ? 1.0f / m_fScale : 1.0f;
 	for (uint32 i = 0; i < numJoints; ++i)
 	{
 		int32 pidx = parrModelJoints[i].m_idxParent;
@@ -1642,7 +1644,6 @@ void CSkeletonPhysics::CreateRagdollDefaultPose(Skeleton::CPoseData& poseData)
 			m_arrPhysicsJoints[i].m_DefaultRelativeQuat = pJointAbsolute[i];
 			if (ParentIdx >= 0)
 				m_arrPhysicsJoints[i].m_DefaultRelativeQuat = pJointAbsolute[ParentIdx].GetInverted() * pJointAbsolute[i];
-			m_arrPhysicsJoints[i].m_DefaultRelativeQuat.t *= rscale;
 			int32 p, pp;
 			for (p = pp = parrModelJoints[i].m_idxParent; pp > -1 && parrModelJoints[pp].m_PhysInfo.pPhysGeom == 0; pp = parrModelJoints[pp].m_idxParent)
 				;
@@ -2426,11 +2427,11 @@ void CSkeletonPhysics::Physics_SynchronizeToEntity(IPhysicalEntity& physicalEnti
 	if (pent->GetType() == PE_ARTICULATED && physicsChildIndex > -1)
 	{
 		struct pe_status_awake statAwake;
-		offset.t = -poseData.GetJointAbsolute(physicsChildIndex).t;
+		offset.t = -poseData.GetJointAbsolute(physicsChildIndex).t * m_fScale;
 		if (!pent->GetStatus(&statAwake))
 		{
 			for (uint32 i = 0; i < (unsigned)m_nPhysJoints; ++i)
-				m_physJoints[i] = poseData.GetJointAbsolute(m_physJointsIdx[i]);
+				(m_physJoints[i] = poseData.GetJointAbsolute(m_physJointsIdx[i])).t *= m_fScale;
 
 			pe_action_batch_parts_update abpu;
 			abpu.numParts = m_nPhysJoints;
@@ -2507,7 +2508,7 @@ void CSkeletonPhysics::Physics_SynchronizeToEntityArticulated(float timeDelta)
 
 		pe_params_articulated_body pab;
 		pab.pivot.zero();
-		pab.posHostPivot = KinematicMovement.t + poseData.GetJointAbsolute(getBonePhysChildIndex(0)).t;//*m_fScale;
+		pab.posHostPivot = KinematicMovement.t + poseData.GetJointAbsolute(getBonePhysChildIndex(0)).t * m_fScale;
 		pab.qHostPivot = KinematicMovement.q;
 		pab.bRecalcJoints = m_bPhysicsAwake;
 		m_velPivot = (pab.posHostPivot - m_prevPosPivot) / max(0.001f, m_pInstance->m_fOriginalDeltaTime);
@@ -2686,7 +2687,7 @@ bool CSkeletonPhysics::BlendFromRagdoll(QuatTS& location, IPhysicalEntity*& pPhy
 		pe_params_articulated_body pab;
 		pab.bAwake = 0;
 		pab.pivot.zero();
-		pab.posHostPivot = m_vOffset + joints[rootJointIndex].t;
+		pab.posHostPivot = m_vOffset + joints[rootJointIndex].t * m_fScale;
 		pab.qHostPivot.SetIdentity();
 		pab.bRecalcJoints = 0;
 		m_pCharPhysics->SetParams(&pab);

@@ -23,7 +23,11 @@ History:
 class CPlayer;
 struct IFlashPlayer;
 
-#define DEBUG_XP_ALLOCATION !defined(_RELEASE) && !CRY_PLATFORM_ORBIS
+#if !defined(_RELEASE) && !CRY_PLATFORM_ORBIS
+	#define DEBUG_XP_ALLOCATION 1
+#else
+	#define DEBUG_XP_ALLOCATION 0
+#endif
 
 #define MAX_EXPECTED_UNLOCKS_PER_RANK 5
 

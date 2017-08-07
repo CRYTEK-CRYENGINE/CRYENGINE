@@ -19,11 +19,10 @@ namespace CryDRS
 class CVariableCollection;
 class CResponseInstance;
 
-//one concrete running instance of the actions. (There might be actions that dont need instances, because their action is instantaneously.
 class CVariable final : public DRS::IVariable
 {
 public:
-	CVariable() {}
+	CVariable() = default;
 	CVariable(const CHashedString& name) : m_name(name) {}
 	CVariable(const CHashedString& name, const CVariableValue& value) : m_name(name), m_value(value) {}
 
@@ -64,20 +63,21 @@ public:
 
 //--------------------------------------------------------------------------------------------------
 
+//one concrete running instance of the actions. (There might be actions that dont need instances, because their action is instantaneously.
 class CResponseInstance;
 
 // a basis class for every condition and action that requires a variable as an input
 struct IVariableUsingBase
 {
 	static bool s_bDoDisplayCurrentValueInDebugOutput;
-	IVariableUsingBase();
+	virtual ~IVariableUsingBase() = default;
 
-protected:
 	void                  _Serialize(Serialization::IArchive& ar, const char* szVariableDisplayName = "^Variable", const char* szCollectionDisplayName = "^Collection");
 	string                GetVariableVerboseName() const;
 	const CVariableValue& GetCurrentVariableValue(CResponseInstance* pResponseInstance);
 	CVariableCollection*  GetCurrentCollection(CResponseInstance* pResponseInstance);
 	CVariable*            GetCurrentVariable(CResponseInstance* pResponseInstance);
+	CVariable*            GetOrCreateCurrentVariable(CResponseInstance* pResponseInstance);
 
 	CHashedString         m_collectionName;
 	CHashedString         m_variableName;

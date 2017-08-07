@@ -5,14 +5,16 @@
 #include "AudioEvent.h"
 #include "AudioTrigger.h"
 
-using namespace CryAudio;
-using namespace CryAudio::Impl;
-using namespace CryAudio::Impl::PortAudio;
-
-//////////////////////////////////////////////////////////////////////////
-void CAudioObject::StopAudioEvent(uint32 const pathId)
+namespace CryAudio
 {
-	for (auto const& pEvent : m_activeEvents)
+namespace Impl
+{
+namespace PortAudio
+{
+//////////////////////////////////////////////////////////////////////////
+void CObject::StopEvent(uint32 const pathId)
+{
+	for (auto const pEvent : m_activeEvents)
 	{
 		if (pEvent->pathId == pathId)
 		{
@@ -22,114 +24,123 @@ void CAudioObject::StopAudioEvent(uint32 const pathId)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioObject::RegisterAudioEvent(CAudioEvent* const pEvent)
+void CObject::RegisterEvent(CEvent* const pEvent)
 {
 	m_activeEvents.push_back(pEvent);
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioObject::UnregisterAudioEvent(CAudioEvent* const pEvent)
+void CObject::UnregisterEvent(CEvent* const pEvent)
 {
 	m_activeEvents.erase(std::remove(m_activeEvents.begin(), m_activeEvents.end(), pEvent), m_activeEvents.end());
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus CAudioObject::Update()
+ERequestStatus CObject::Update()
 {
 	for (auto const pEvent : m_activeEvents)
 	{
 		pEvent->Update();
 	}
 
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus CAudioObject::Set3DAttributes(SObject3DAttributes const& attributes)
+ERequestStatus CObject::Set3DAttributes(SObject3DAttributes const& attributes)
 {
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus CAudioObject::SetEnvironment(IAudioEnvironment const* const pIAudioEnvironment, float const amount)
+ERequestStatus CObject::SetEnvironment(IEnvironment const* const pIEnvironment, float const amount)
 {
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus CAudioObject::SetParameter(IParameter const* const pIAudioParameter, float const value)
+ERequestStatus CObject::SetParameter(IParameter const* const pIParameter, float const value)
 {
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus CAudioObject::SetSwitchState(IAudioSwitchState const* const pIAudioSwitchState)
+ERequestStatus CObject::SetSwitchState(ISwitchState const* const pISwitchState)
 {
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus CAudioObject::SetObstructionOcclusion(float const obstruction, float const occlusion)
+ERequestStatus CObject::SetObstructionOcclusion(float const obstruction, float const occlusion)
 {
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus CAudioObject::ExecuteTrigger(IAudioTrigger const* const pIAudioTrigger, IAudioEvent* const pIAudioEvent)
+ERequestStatus CObject::ExecuteTrigger(ITrigger const* const pITrigger, IEvent* const pIEvent)
 {
-	ERequestStatus requestResult = eRequestStatus_Failure;
-	CAudioTrigger const* const pAudioTrigger = static_cast<CAudioTrigger const* const>(pIAudioTrigger);
-	CAudioEvent* const pAudioEvent = static_cast<CAudioEvent*>(pIAudioEvent);
+	ERequestStatus requestResult = ERequestStatus::Failure;
+	CTrigger const* const pTrigger = static_cast<CTrigger const* const>(pITrigger);
+	CEvent* const pEvent = static_cast<CEvent*>(pIEvent);
 
-	if ((pAudioTrigger != nullptr) && (pAudioEvent != nullptr))
+	if ((pTrigger != nullptr) && (pEvent != nullptr))
 	{
-		if (pAudioTrigger->eventType == ePortAudioEventType_Start)
+		if (pTrigger->eventType == EEventType::Start)
 		{
-			requestResult = pAudioEvent->Execute(
-			  pAudioTrigger->numLoops,
-			  pAudioTrigger->sampleRate,
-			  pAudioTrigger->filePath,
-			  pAudioTrigger->streamParameters) ? eRequestStatus_Success : eRequestStatus_Failure;
+			requestResult = pEvent->Execute(
+			  pTrigger->numLoops,
+			  pTrigger->sampleRate,
+			  pTrigger->filePath,
+			  pTrigger->streamParameters) ? ERequestStatus::Success : ERequestStatus::Failure;
 
-			if (requestResult == eRequestStatus_Success)
+			if (requestResult == ERequestStatus::Success)
 			{
-				pAudioEvent->pPAAudioObject = this;
-				pAudioEvent->pathId = pAudioTrigger->pathId;
-				RegisterAudioEvent(pAudioEvent);
+				pEvent->pObject = this;
+				pEvent->pathId = pTrigger->pathId;
+				RegisterEvent(pEvent);
 			}
 		}
 		else
 		{
-			StopAudioEvent(pAudioTrigger->pathId);
+			StopEvent(pTrigger->pathId);
 
-			// Return failure here so the ATL does not keep track of this event.
-			requestResult = eRequestStatus_Failure;
+			// Return failure here so the audio system does not keep track of this event.
+			requestResult = ERequestStatus::Failure;
 		}
 	}
 	else
 	{
-		g_audioImplLogger.Log(eAudioLogType_Error, "Invalid AudioObjectData, ATLTriggerData or EventData passed to the PortAudio implementation of ExecuteTrigger.");
+		g_implLogger.Log(ELogType::Error, "Invalid AudioObjectData, ATLTriggerData or EventData passed to the PortAudio implementation of ExecuteTrigger.");
 	}
 
 	return requestResult;
-
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus CAudioObject::StopAllTriggers()
+ERequestStatus CObject::StopAllTriggers()
 {
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus CAudioObject::PlayFile(IAudioStandaloneFile* const pIFile)
+ERequestStatus CObject::PlayFile(IStandaloneFile* const pIStandaloneFile)
 {
-	return eRequestStatus_Success;
+	return ERequestStatus::Success;
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus CAudioObject::StopFile(IAudioStandaloneFile* const pIFile)
+ERequestStatus CObject::StopFile(IStandaloneFile* const pIStandaloneFile)
 {
-	return eRequestStatus_Success;
-
+	return ERequestStatus::Success;
 }
+
+//////////////////////////////////////////////////////////////////////////
+ERequestStatus CObject::SetName(char const* const szName)
+{
+	// PortAudio does not have the concept of audio objects and with that the debugging of such.
+	// Therefore the name is currently not needed here.
+	return ERequestStatus::Success;
+}
+} // namespace PortAudio
+} // namespace Impl
+} // namespace CryAudio

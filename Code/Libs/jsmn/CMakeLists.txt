@@ -17,5 +17,5 @@ end_sources()
 
 CryEngineStaticModule(jsmn SOLUTION_FOLDER "Libs")
 
-target_include_directories(${THIS_PROJECT} PUBLIC ${SDK_DIR}/jsmn INTERFACE .)
+target_include_directories(${THIS_PROJECT} PUBLIC "${SDK_DIR}/jsmn" INTERFACE .)
 target_compile_definitions(${THIS_PROJECT} PRIVATE -DJSMN_STRICT PUBLIC -DJSMN_PARENT_LINKS)

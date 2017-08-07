@@ -191,6 +191,7 @@ struct SVoxRndDataFileHdr
 
 void CSvoEnv::ReconstructTree(bool bMultiPoint)
 {
+	LOADING_TIME_PROFILE_SECTION;
 	char szFolder[256] = "";
 	CVoxelSegment::MakeFolderName(szFolder);
 	CVoxelSegment::m_strRenderDataFileName = szFolder;
@@ -1228,7 +1229,6 @@ CSvoEnv::~CSvoEnv()
 	GetCVars()->e_svoLoadTree = 0;
 	GetCVars()->e_svoEnabled = 0;
 	gSvoEnv = NULL;
-	GetRenderer()->GetISvoRenderer()->Release();
 
 	{
 		AUTO_MODIFYLOCK(CVoxelSegment::m_arrLockedTextures.m_Lock);
@@ -1242,6 +1242,11 @@ CSvoEnv::~CSvoEnv()
 		for (int i = 0; i < CVoxelSegment::m_arrLockedMaterials.Count(); i++)
 			CVoxelSegment::m_arrLockedMaterials[i]->Release();
 		CVoxelSegment::m_arrLockedMaterials.Reset();
+	}
+
+	if (gEnv->pRenderer)
+	{
+		gEnv->pRenderer->FreeResources(FRR_SVOGI);
 	}
 }
 
@@ -2577,10 +2582,10 @@ void CSvoEnv::CollectAnalyticalOccluders()
 	Vec3 vCamPos = CVoxelSegment::m_voxCam.GetPosition();
 
 	// collect from static entities
-	if (int nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Brush, areaBox, (IRenderNode**)0, ERF_MOVES_EVERY_FRAME))
+	if (int nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_MovableBrush, areaBox, (IRenderNode**)0))
 	{
 		PodArray<IRenderNode*> arrObjects(nCount, nCount);
-		nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Brush, areaBox, arrObjects.GetElements(), ERF_MOVES_EVERY_FRAME);
+		nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_MovableBrush, areaBox, arrObjects.GetElements());
 
 		Vec3 camPos = gEnv->pSystem->GetViewCamera().GetPosition();
 
@@ -2599,10 +2604,10 @@ void CSvoEnv::CollectAnalyticalOccluders()
 	}
 
 	// collect from characters
-	if (int nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Character, areaBox, (IRenderNode**)0, ERF_MOVES_EVERY_FRAME))
+	if (int nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Character, areaBox, (IRenderNode**)0))
 	{
 		PodArray<IRenderNode*> arrObjects(nCount, nCount);
-		nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Character, areaBox, arrObjects.GetElements(), ERF_MOVES_EVERY_FRAME);
+		nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Character, areaBox, arrObjects.GetElements());
 
 		Vec3 camPos = gEnv->pSystem->GetViewCamera().GetPosition();
 
@@ -2647,7 +2652,7 @@ void CSvoEnv::AddAnalyticalOccluder(IRenderNode* pRN, Vec3 camPos)
 	Matrix34A matParent;
 
 	// make a sphere, box or capsule from geom entity
-	if (CStatObj* pStatObj = (CStatObj*)pRN->GetEntityStatObj(0, 0, &matParent, true))
+	if (CStatObj* pStatObj = (CStatObj*)pRN->GetEntityStatObj(0, &matParent, true))
 	{
 		bool bPO = (pRN->GetGIMode() == IRenderNode::eGM_AnalytPostOccluder) && GetCVars()->e_svoTI_AnalyticalOccluders;
 		bool bAO = (pRN->GetGIMode() == IRenderNode::eGM_AnalyticalProxy_Soft) && (GetCVars()->e_svoTI_AnalyticalGI || GetCVars()->e_svoTI_AnalyticalOccluders);
@@ -2713,9 +2718,9 @@ void CSvoEnv::AddAnalyticalOccluder(IRenderNode* pRN, Vec3 camPos)
 		}
 	}
 
-	if (ICharacterInstance* pCharacter = (ICharacterInstance*)pRN->GetEntityCharacter(0, &matParent))
+	if (GetCVars()->e_svoTI_AnalyticalOccluders)
 	{
-		if (GetCVars()->e_svoTI_AnalyticalOccluders)
+		if (ICharacterInstance* pCharacter = (ICharacterInstance*)pRN->GetEntityCharacter(&matParent))
 		{
 			bool bPO = true;
 

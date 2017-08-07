@@ -326,7 +326,7 @@ void CWaterWaveRenderNode::Render(const SRendParams& rParam, const SRenderingPas
 
 	m_fRECustomData[0] = p3DEngine->m_oceanWindDirection;
 	m_fRECustomData[1] = p3DEngine->m_oceanWindSpeed;
-	m_fRECustomData[2] = p3DEngine->m_oceanWavesSpeed;
+	m_fRECustomData[2] = 0.0f; // used to be m_oceanWavesSpeed
 	m_fRECustomData[3] = p3DEngine->m_oceanWavesAmount;
 	m_fRECustomData[4] = p3DEngine->m_oceanWavesSize;
 
@@ -552,7 +552,7 @@ IRenderMesh* CWaterWaveManager::CreateRenderMeshInstance(CWaterWaveRenderNode* p
 		// Finally, make render mesh
 		pRenderMesh = GetRenderer()->CreateRenderMeshInitialized(&pWaveVertices[0],
 		                                                         pWaveVertices.size(),
-		                                                         eVF_P3F_C4B_T2F,
+		                                                         EDefaultInputLayouts::P3F_C4B_T2F,
 		                                                         &pWaveIndices[0],
 		                                                         pWaveIndices.size(),
 		                                                         prtTriangleStrip,

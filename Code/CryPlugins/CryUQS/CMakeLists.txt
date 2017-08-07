@@ -1,4 +1,9 @@
-option(PLUGIN_CRYUQS "Enable CryUQS" ON)
+if(OPTION_ENGINE)
+	option(PLUGIN_CRYUQS "Enable CryUQS" ON)
+else()
+	option(PLUGIN_CRYUQS "Enable CryUQS" OFF)
+endif()
+
 if (NOT PLUGIN_CRYUQS)
 	return()
 endif()

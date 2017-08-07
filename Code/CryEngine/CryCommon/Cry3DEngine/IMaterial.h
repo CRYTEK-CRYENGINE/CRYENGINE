@@ -79,7 +79,6 @@ enum EMaterialFlags
 	MTL_FLAG_RAYCAST_PROXY             = 0x100000,
 	MTL_FLAG_REQUIRE_NEAREST_CUBEMAP   = 0x200000,       //!< Materials with alpha blending requires special processing for shadows.
 	MTL_FLAG_CONSOLE_MAT               = 0x400000,
-	MTL_FLAG_DELETE_PENDING            = 0x800000,       //!< Internal use only.
 	MTL_FLAG_BLEND_TERRAIN             = 0x1000000,
 	MTL_FLAG_TRACEABLE_TEXTURE         = 0x2000000,      //!< Diffuse texture keeps low-res copy for raytracing (in decals, for instance)
 };
@@ -358,11 +357,6 @@ struct IMaterial
 	virtual void   GetMemoryUsage(ICrySizer* pSizer) const = 0;
 
 	virtual size_t GetResourceMemoryUsage(ICrySizer* pSizer) = 0;
-
-	//! Makes this specific material enter sketch mode.
-	//! \param mode Only the following modes are supported: 0=no sketch, 1=normal sketch mode, 2=fast sketch mode.
-	//! \see I3DEngine::LoadCGF
-	virtual void SetSketchMode(int mode) = 0;
 
 	// Debug routine.
 	//! Trace leaking materials by callstack.

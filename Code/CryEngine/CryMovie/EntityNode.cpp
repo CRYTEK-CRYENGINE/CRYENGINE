@@ -109,7 +109,6 @@ void NotifyEntityScript(const IEntity* pEntity, const char* funcName, const char
 CAnimEntityNode::CAnimEntityNode(const int id) : CAnimNode(id)
 {
 	m_EntityId = 0;
-	m_entityGuid = 0;
 	m_target = NULL;
 	m_bWasTransRot = false;
 	m_bIsAnimDriven = false;
@@ -129,9 +128,7 @@ CAnimEntityNode::CAnimEntityNode(const int id) : CAnimNode(id)
 
 	m_proceduralFacialAnimationEnabledOld = true;
 
-	m_entityGuidTarget = 0;
 	m_EntityIdTarget = 0;
-	m_entityGuidSource = 0;
 	m_EntityIdSource = 0;
 
 	m_baseAnimState.m_layerPlaysAnimation[0] = m_baseAnimState.m_layerPlaysAnimation[1] = m_baseAnimState.m_layerPlaysAnimation[2] = false;
@@ -330,11 +327,11 @@ void CAnimEntityNode::FindScriptTableForParameterRec(IScriptTable* pScriptTable,
 
 	ScriptAnyValue value;
 	pScriptTable->GetValueAny(tableName.c_str(), value);
-	assert(value.type == ANY_TTABLE);
+	assert(value.GetType() == EScriptAnyType::Table);
 
-	if (value.type == ANY_TTABLE)
+	if (value.GetType() == EScriptAnyType::Table)
 	{
-		FindScriptTableForParameterRec(value.table, pathLeft, propertyName, propertyScriptTable);
+		FindScriptTableForParameterRec(value.GetScriptTable(), pathLeft, propertyName, propertyScriptTable);
 	}
 }
 
@@ -381,9 +378,9 @@ bool CAnimEntityNode::ObtainPropertyTypeInfo(const char* pKey, IScriptTable* pSc
 	paramInfo.animNodeParamInfo.valueType = eAnimValue_Unknown;
 	bool isUnknownTable = false;
 
-	switch (value.type)
+	switch (value.GetType())
 	{
-	case ANY_TNUMBER:
+	case EScriptAnyType::Number:
 		{
 			const bool hasBoolPrefix = (strlen(pKey) > 1) && (pKey[0] == 'b')
 			                           && (pKey[1] != tolower(pKey[1]));
@@ -391,22 +388,22 @@ bool CAnimEntityNode::ObtainPropertyTypeInfo(const char* pKey, IScriptTable* pSc
 		}
 		break;
 
-	case ANY_TVECTOR:
+	case EScriptAnyType::Vector:
 		paramInfo.animNodeParamInfo.valueType = eAnimValue_Vector;
 		break;
 
-	case ANY_TBOOLEAN:
+	case EScriptAnyType::Boolean:
 		paramInfo.animNodeParamInfo.valueType = eAnimValue_Bool;
 		break;
 
-	case ANY_TTABLE:
+	case EScriptAnyType::Table:
 		// Threat table as vector if it contains x, y & z
-		paramInfo.scriptTable = value.table;
+		paramInfo.scriptTable = value.GetScriptTable();
 
-		if (value.table->HaveValue("x") && value.table->HaveValue("y") && value.table->HaveValue("z"))
+		if (value.GetScriptTable()->HaveValue("x") && value.GetScriptTable()->HaveValue("y") && value.GetScriptTable()->HaveValue("z"))
 		{
 			paramInfo.animNodeParamInfo.valueType = eAnimValue_Vector;
-			paramInfo.scriptTable = value.table;
+			paramInfo.scriptTable = value.GetScriptTable();
 			paramInfo.isVectorTable = true;
 		}
 		else
@@ -738,7 +735,6 @@ void CAnimEntityNode::Animate(SAnimContext& animContext)
 	bool bScaleModified = false;
 	bool bApplyNoise = false;
 	bool bScriptPropertyModified = false;
-	bool bForceEntityActivation = false;
 
 	IAnimTrack* pPosTrack = NULL;
 	IAnimTrack* pRotTrack = NULL;
@@ -782,14 +778,14 @@ void CAnimEntityNode::Animate(SAnimContext& animContext)
 			{
 				pos = stl::get<Vec3>(pPosTrack->GetValue(animContext.time));
 
-				if (!Vec3::IsEquivalent(pos, GetPos(), 0.0001f))
+				if (!IsEquivalent(pos, GetPos(), 0.0001f))
 				{
 					entityUpdateFlags |= eUpdateEntity_Position;
 				}
 			}
 			else
 			{
-				if (!Vec3::IsEquivalent(pos, GetPos(), 0.0001f))
+				if (!IsEquivalent(pos, GetPos(), 0.0001f))
 				{
 					entityUpdateFlags |= eUpdateEntity_Position;
 					pos = m_vInterpPos;
@@ -846,7 +842,7 @@ void CAnimEntityNode::Animate(SAnimContext& animContext)
 					scale = m_scale;
 				}
 
-				if (!Vec3::IsEquivalent(scale, GetScale(), 0.001f))
+				if (!IsEquivalent(scale, GetScale(), 0.001f))
 				{
 					bScaleModified = true;
 				}
@@ -1241,8 +1237,6 @@ void CAnimEntityNode::Animate(SAnimContext& animContext)
 		case eAnimParamType_Animation:
 			if (!animContext.bResetting)
 			{
-				bForceEntityActivation = true;
-
 				if (animCharacterLayer < MAX_CHARACTER_TRACKS + ADDITIVE_LAYERS_OFFSET)
 				{
 					int index = animCharacterLayer;
@@ -1279,7 +1273,6 @@ void CAnimEntityNode::Animate(SAnimContext& animContext)
 		case eAnimParamType_Expression:
 			if (!animContext.bResetting)
 			{
-				bForceEntityActivation = true;
 				CExprTrack* pExpTrack = (CExprTrack*)pTrack;
 				AnimateExpressionTrack(pExpTrack, animContext);
 			}
@@ -1289,7 +1282,6 @@ void CAnimEntityNode::Animate(SAnimContext& animContext)
 		case eAnimParamType_FaceSequence:
 			if (!animContext.bResetting)
 			{
-				bForceEntityActivation = true;
 				CFaceSequenceTrack* pSelTrack = (CFaceSequenceTrack*)pTrack;
 				AnimateFacialSequence(pSelTrack, animContext);
 			}
@@ -1361,19 +1353,6 @@ void CAnimEntityNode::Animate(SAnimContext& animContext)
 	{
 		const bool bUsePhysics = stl::get<bool>(pPhysicalizeTrack->GetValue(m_time));
 		EnableEntityPhysics(bUsePhysics);
-	}
-
-	if (bForceEntityActivation)
-	{
-		const bool bIsCutScene = (GetSequence()->GetFlags() & IAnimSequence::eSeqFlags_CutScene) != 0;
-
-		if (bIsCutScene)
-		{
-			// Activate entity to force CEntityObject::Update which calls StartAnimationProcessing for skeletal animations.
-			// This solves problems in the first frame the entity becomes visible, because it won't be active.
-			// Only do it in cut scenes, because it is too for all sequences.
-			pEntity->Activate(true);
-		}
 	}
 
 	// [*DavidR | 6/Oct/2010] Positioning an entity when ragdollized will not look good at all :)
@@ -2651,12 +2630,12 @@ void CAnimEntityNode::Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEm
 		// Save the latest object GUID obtained from the Entity System
 		xmlNode->setAttr("EntityGUID", m_entityGuid);
 
-		if (m_entityGuidTarget)
+		if (!m_entityGuidTarget.IsNull())
 		{
 			xmlNode->setAttr("EntityGUIDTarget", m_entityGuidTarget);
 		}
 
-		if (m_entityGuidSource)
+		if (!m_entityGuidSource.IsNull())
 		{
 			xmlNode->setAttr("EntityGUIDSource", m_entityGuidSource);
 		}
@@ -3049,7 +3028,7 @@ void CAnimEntityNode::UpdateTargetCamera(IEntity* pEntity, const Quat& rotation)
 	IEntity* pEntityCamera = NULL;
 	IEntity* pEntityTarget = NULL;
 
-	if (m_entityGuidTarget)
+	if (!m_entityGuidTarget.IsNull())
 	{
 		pEntityCamera = pEntity;
 
@@ -3063,7 +3042,7 @@ void CAnimEntityNode::UpdateTargetCamera(IEntity* pEntity, const Quat& rotation)
 			pEntityTarget = gEnv->pEntitySystem->GetEntity(m_EntityIdTarget);
 		}
 	}
-	else if (m_entityGuidSource)
+	else if (!m_entityGuidSource.IsNull())
 	{
 		pEntityTarget = pEntity;
 

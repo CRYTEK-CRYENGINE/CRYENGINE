@@ -48,10 +48,13 @@ public:
 	void                                    ConnectTo(const char* pOtherName) override        {}
 	void                                    DisconnectFrom(const char* pOtherName) override   {}
 	void                                    SetGpuInterfaceNeeded(bool gpuInterface)          { m_gpuInterfaceNeeded = gpuInterface; }
+	uint                                    GetNumResources() const override                  { return 0; }
+	const char*                             GetResourceName(uint resourceId) const override   { return nullptr; }
 	gpu_pfx2::IParticleFeatureGpuInterface* GetGpuInterface() override;
 	// ~IParticleFeature
 
 	// Initialization
+	virtual bool              VersionValidate(CParticleComponent* pComponent)                           { return true; }
 	virtual void              ResolveDependency(CParticleComponent* pComponent)                         {}
 	virtual void              AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) {}
 	virtual EFeatureType      GetFeatureType()                                                          { return EFT_Generic; }
@@ -64,7 +67,7 @@ public:
 	virtual void InitSubInstance(CParticleComponentRuntime* pComponentRuntime, size_t firstInstance, size_t lastInstance) {}
 
 	// EUL_GetExtents
-	virtual void GetSpatialExtents(const SUpdateContext& context, Array<const float, uint> scales, Array<float, uint> extents) {}
+	virtual void GetSpatialExtents(const SUpdateContext& context, TConstArray<float> scales, TVarArray<float> extents) {}
 
 	// EUL_GetEmitOffset
 	virtual Vec3 GetEmitOffset(const SUpdateContext& context, TParticleId parentId) { return Vec3(0); }
@@ -79,7 +82,7 @@ public:
 	virtual void PostInitParticles(const SUpdateContext& context) {}
 
 	// EUL_KillUpdate
-	virtual void KillParticles(const SUpdateContext& context, TParticleId* pParticles, size_t count) {}
+	virtual void KillParticles(const SUpdateContext& context, TConstArray<TParticleId> particleIds) {}
 
 	// EUL_PreUpdate
 	virtual void PreUpdate(const SUpdateContext& context) {}
@@ -87,10 +90,13 @@ public:
 	// EUL_Update
 	virtual void Update(const SUpdateContext& context) {}
 
+	// EUL_PostUpdate
+	virtual void PostUpdate(const SUpdateContext& context) {}
+
 	// EUL_Render
 	virtual void PrepareRenderObjects(CParticleEmitter* pEmitter, CParticleComponent* pComponent)                                                                            {}
 	virtual void ResetRenderObjects(CParticleEmitter* pEmitter, CParticleComponent* pComponent)                                                                              {}
-	virtual void Render(CParticleEmitter* pEmitter, ICommonParticleComponentRuntime* pComponentRuntime, CParticleComponent* pComponent, const SRenderContext& renderContext) {}
+	virtual void Render(CParticleEmitter* pEmitter, IParticleComponentRuntime* pComponentRuntime, CParticleComponent* pComponent, const SRenderContext& renderContext) {}
 	virtual void ComputeVertices(CParticleComponentRuntime* pComponentRuntime, const SCameraInfo& camInfo, CREParticle* pRE, uint64 uRenderFlags, float fMaxPixels)          {}
 
 protected:
@@ -120,34 +126,36 @@ static const ColorB colorMotion     = HexToColor(0xfb9563);
 static const ColorB colorLight      = HexToColor(0xfffdd0);
 static const ColorB colorAudio      = HexToColor(0xd671f7);
 static const ColorB colorGeneral    = HexToColor(0xececec);
-static const ColorB colorSecondGen  = HexToColor(0xc0c0c0);
+static const ColorB colorChild      = HexToColor(0xc0c0c0);
 static const ColorB colorProject    = HexToColor(0xc0c0c0);
 static const ColorB colorGPU        = HexToColor(0x00e87e);
 static const ColorB colorComponent  = HexToColor(0x000000);
 
-#define CRY_PFX2_DECLARE_FEATURE                                 \
-  static const SParticleFeatureParams &GetStaticFeatureParams(); \
+#define CRY_PFX2_DECLARE_FEATURE \
+  struct SFeatureParams; \
   virtual const SParticleFeatureParams& GetFeatureParams() const override;
 
-#define CRY_PFX2_IMPLEMENT_FEATURE_INTERNAL(BaseType, Type, GroupName, FeatureName, Color, UseConnector)                \
-  static struct SInit ## Type {SInit ## Type() { GetFeatureParams().push_back(Type::GetStaticFeatureParams()); } } gInit ## Type; \
-  static IParticleFeature* Create ## Type() { return new Type(); }                                                                \
-  const SParticleFeatureParams& Type::GetStaticFeatureParams() {                                                                  \
-    static SParticleFeatureParams params;                                                                                         \
-    params.m_groupName = GroupName;                                                                                               \
-    params.m_featureName = FeatureName;                                                                                           \
-    params.m_color = Color;                                                                                                       \
-    params.m_pFactory = Create ## Type;                                                                                           \
-    params.m_hasComponentConnector = UseConnector;                                                                                \
-    return params; }                                                                                                              \
-  const SParticleFeatureParams& Type::GetFeatureParams() const { return GetStaticFeatureParams(); }                               \
-  SERIALIZATION_CLASS_NAME(BaseType, Type, GroupName FeatureName, GroupName FeatureName);
+#define CRY_PFX2_IMPLEMENT_FEATURE_INTERNAL(BaseType, Type, GroupName, FeatureName, Color, UseConnector, DefaultForType) \
+  struct Type::SFeatureParams: SParticleFeatureParams { SFeatureParams() {                                               \
+    m_groupName = GroupName;                                                                                             \
+    m_featureName = FeatureName;                                                                                         \
+    m_color = Color;                                                                                                     \
+    m_pFactory = []() -> IParticleFeature* { return new Type(); };                                                       \
+    m_hasComponentConnector = UseConnector;                                                                              \
+    m_defaultForType = DefaultForType;                                                                                   \
+  } };                                                                                                                   \
+  const SParticleFeatureParams& Type::GetFeatureParams() const { static Type::SFeatureParams params; return params; }    \
+  static bool sInit ## Type = CParticleSystem::RegisterFeature(Type::SFeatureParams());                                  \
+  SERIALIZATION_CLASS_NAME(BaseType, Type, GroupName FeatureName, GroupName FeatureName);                                \
 
 #define CRY_PFX2_IMPLEMENT_FEATURE(BaseType, Type, GroupName, FeatureName, Color) \
-  CRY_PFX2_IMPLEMENT_FEATURE_INTERNAL(BaseType, Type, GroupName, FeatureName, Color, false)
+  CRY_PFX2_IMPLEMENT_FEATURE_INTERNAL(BaseType, Type, GroupName, FeatureName, Color, false, 0)
+
+#define CRY_PFX2_IMPLEMENT_FEATURE_DEFAULT(BaseType, Type, GroupName, FeatureName, Color, ForType) \
+  CRY_PFX2_IMPLEMENT_FEATURE_INTERNAL(BaseType, Type, GroupName, FeatureName, Color, false, ForType)
 
 #define CRY_PFX2_IMPLEMENT_FEATURE_WITH_CONNECTOR(BaseType, Type, GroupName, FeatureName, Color) \
-  CRY_PFX2_IMPLEMENT_FEATURE_INTERNAL(BaseType, Type, GroupName, FeatureName, Color, true)
+  CRY_PFX2_IMPLEMENT_FEATURE_INTERNAL(BaseType, Type, GroupName, FeatureName, Color, true, 0)
 
 #define CRY_PFX2_LEGACY_FEATURE(BaseType, NewType, LegacyName)           \
 	SERIALIZATION_CLASS_NAME(BaseType, NewType, LegacyName, LegacyName);

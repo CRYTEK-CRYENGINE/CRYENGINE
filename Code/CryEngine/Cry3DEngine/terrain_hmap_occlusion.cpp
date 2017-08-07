@@ -174,72 +174,72 @@ bool CHeightMap::Intersect(Vec3 vStartPoint, Vec3 vStopPoint, float _fDist, int 
 	//  FUNCTION_PROFILER_3DENGINE;
 
 	// convert x and y into heightmap space, keep z in world space
-	float fHMSize = (float)CTerrain::GetTerrainSize() / CTerrain::GetHeightMapUnitSize();
-	float fInvUnitSize = CTerrain::GetInvUnitSize();
-	vStopPoint.x *= fInvUnitSize;
-	vStopPoint.y *= fInvUnitSize;
-	vStartPoint.x *= fInvUnitSize;
-	vStartPoint.y *= fInvUnitSize;
+	float heightMapSize = (float)CTerrain::GetTerrainSize() * CTerrain::GetHeightMapUnitSizeInverted();
+	float invUnitSize = CTerrain::GetInvUnitSize();
+	vStopPoint.x *= invUnitSize;
+	vStopPoint.y *= invUnitSize;
+	vStartPoint.x *= invUnitSize;
+	vStartPoint.y *= invUnitSize;
 
 	// clamp start
-	if (vStartPoint.x < 0 || vStartPoint.y < 0 || vStartPoint.x >= fHMSize || vStartPoint.y >= fHMSize)
+	if (vStartPoint.x < 0 || vStartPoint.y < 0 || vStartPoint.x >= heightMapSize || vStartPoint.y >= heightMapSize)
 	{
-		AABB boxHM(Vec3(0, 0, 0), Vec3(fHMSize, fHMSize, fHMSize));
+		AABB boxHM(Vec3(0, 0, 0), Vec3(heightMapSize, heightMapSize, heightMapSize));
 		Lineseg ls(vStartPoint, vStopPoint);
 		Vec3 vRes;
 		if (Intersect::Lineseg_AABB(ls, boxHM, vRes) == 0x01)
 			vStartPoint = vRes;
 		else
 		{
-			vLastVisPoint.Set(vStopPoint.x / fInvUnitSize, vStopPoint.y / fInvUnitSize, vStopPoint.z);
+			vLastVisPoint.Set(vStopPoint.x / invUnitSize, vStopPoint.y / invUnitSize, vStopPoint.z);
 			return false;
 		}
 	}
 
 	// clamp end
-	if (vStopPoint.x < 0 || vStopPoint.y < 0 || vStopPoint.x >= fHMSize || vStopPoint.y >= fHMSize)
+	if (vStopPoint.x < 0 || vStopPoint.y < 0 || vStopPoint.x >= heightMapSize || vStopPoint.y >= heightMapSize)
 	{
-		AABB boxHM(Vec3(0, 0, 0), Vec3(fHMSize, fHMSize, fHMSize));
+		AABB boxHM(Vec3(0, 0, 0), Vec3(heightMapSize, heightMapSize, heightMapSize));
 		Lineseg ls(vStopPoint, vStartPoint);
 		Vec3 vRes;
 		if (Intersect::Lineseg_AABB(ls, boxHM, vRes) == 0x01)
 			vStopPoint = vRes;
 		else
 		{
-			vLastVisPoint.Set(vStopPoint.x / fInvUnitSize, vStopPoint.y / fInvUnitSize, vStopPoint.z);
+			vLastVisPoint.Set(vStopPoint.x / invUnitSize, vStopPoint.y / invUnitSize, vStopPoint.z);
 			return false;
 		}
 	}
 
-	float fUnitSizeRatio = 2.f * CTerrain::GetInvUnitSize();
+	float unitSizeRatio = 2.f * CTerrain::GetInvUnitSize();
 
 	CVars* const __restrict pCVars = GetCVars();
 
-	float fInitStepSize = pCVars->e_TerrainOcclusionCullingStepSize * fUnitSizeRatio;
+	float initStepSize = pCVars->e_TerrainOcclusionCullingStepSize * unitSizeRatio;
 
-	float fStepSize = fInitStepSize;
+	float stepSize = initStepSize;
 	Vec3 vDir = (vStopPoint - vStartPoint);
 	float fFullDist = vDir.GetLength();
 	vDir.Normalize();
 	float fPos = 0;
 
-	float fMaxUndegroundDist = min(fFullDist, (float)nMaxTestsToScip * fInitStepSize);
+	float fMaxUndegroundDist = min(fFullDist, (float)nMaxTestsToScip * initStepSize);
 
-	for (; fPos < fMaxUndegroundDist; fPos += fStepSize)
+	for (; fPos < fMaxUndegroundDist; fPos += stepSize)
 	{
 		Vec3 vPos = vStartPoint + vDir * fPos;
 		if (!IsPointUnderGround(fastround_positive(vPos.x), fastround_positive(vPos.y), vPos.z, nSID))
 			break;
 	}
 
-	float fMaxEndUnitsToSkip = min((float)nMaxTestsToScip, 4.f * fInitStepSize);
+	float fMaxEndUnitsToSkip = min((float)nMaxTestsToScip, 4.f * initStepSize);
 
 	fFullDist -= fMaxEndUnitsToSkip;
 
-	if (fFullDist > pCVars->e_TerrainOcclusionCullingMaxDist * fUnitSizeRatio)
-		fFullDist = pCVars->e_TerrainOcclusionCullingMaxDist * fUnitSizeRatio;
+	if (fFullDist > pCVars->e_TerrainOcclusionCullingMaxDist * unitSizeRatio)
+		fFullDist = pCVars->e_TerrainOcclusionCullingMaxDist * unitSizeRatio;
 
-	for (; fPos < fFullDist; fPos += fStepSize)
+	for (; fPos < fFullDist; fPos += stepSize)
 	{
 		Vec3 vPos = vStartPoint + vDir * fPos;
 		if (IsPointUnderGround(fastround_positive(vPos.x), fastround_positive(vPos.y), vPos.z, nSID))
@@ -248,10 +248,10 @@ bool CHeightMap::Intersect(Vec3 vStartPoint, Vec3 vStopPoint, float _fDist, int 
 			return true;
 		}
 
-		fStepSize *= GetFloatCVar(e_TerrainOcclusionCullingStepSizeDelta);
+		stepSize *= GetFloatCVar(e_TerrainOcclusionCullingStepSizeDelta);
 	}
 
-	vLastVisPoint.Set(vStopPoint.x / fInvUnitSize, vStopPoint.y / fInvUnitSize, vStopPoint.z);
+	vLastVisPoint.Set(vStopPoint.x / invUnitSize, vStopPoint.y / invUnitSize, vStopPoint.z);
 	return false;
 }
 #endif// SUPP_HMAP_OCCL

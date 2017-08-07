@@ -18,6 +18,7 @@
 #include "DebugDrawContext.h"
 #include "PipeUser.h"
 #include "NavPath.h"
+#include "AIHash.h"
 
 #include <Cry3DEngine/I3DEngine.h>
 

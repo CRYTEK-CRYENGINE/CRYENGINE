@@ -18,6 +18,13 @@
 CRYREGISTER_CLASS(CEntityComponentCamera);
 
 //////////////////////////////////////////////////////////////////////////
+CEntityComponentCamera::CEntityComponentCamera()
+{
+	m_componentFlags.Add(EEntityComponentFlags::Legacy);
+	m_componentFlags.Add(EEntityComponentFlags::NoSave);
+}
+
+//////////////////////////////////////////////////////////////////////////
 void CEntityComponentCamera::Initialize()
 {
 	UpdateMaterialCamera();

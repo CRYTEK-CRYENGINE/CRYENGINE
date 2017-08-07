@@ -16,6 +16,7 @@
 
 #include "Common/RenderView.h"
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -710,3 +711,5 @@ void CPost3DRenderer::ApplyShaderQuality(EShaderType shaderType)
 		break;
 	}
 }
+
+#pragma warning(pop)

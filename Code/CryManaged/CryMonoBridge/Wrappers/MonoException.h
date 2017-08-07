@@ -2,18 +2,20 @@
 
 #pragma once
 
-#include <CryMono/IMonoException.h>
-#include <mono/metadata/object.h>
-
-class CMonoException final : public IMonoException
+#ifndef HAVE_MONO_API
+namespace MonoInternals
 {
-public:
-	CMonoException(MonoException* pException);
+	struct MonoException;
+}
+#endif
 
-	// IMonoException
-	virtual void Throw() override;
-	// ~IMonoException
+class CMonoException
+{
+	// Begin public API
+public:
+	CMonoException(MonoInternals::MonoException* pException);
+	void Throw();
 
 protected:
-	MonoException* m_pException;
+	MonoInternals::MonoException* m_pException;
 };

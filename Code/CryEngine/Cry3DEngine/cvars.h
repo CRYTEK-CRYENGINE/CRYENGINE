@@ -233,6 +233,8 @@ struct CVars : public Cry3DEngineBase
 	DeclareConstIntCVar(e_Fog, 1);
 	float e_TimeOfDay;
 	int   e_Terrain;
+	int   e_TerrainIntegrateObjectsMaxVertices;
+	int   e_TerrainIntegrateObjectsMaxHeight;
 	DeclareConstIntCVar(e_SkyBox, 1);
 	float e_CoverageBufferAABBExpand;
 	int   e_CoverageBufferEarlyOut;
@@ -340,6 +342,7 @@ struct CVars : public Cry3DEngineBase
 	DeclareConstFloatCVar(e_StreamPredictionAheadDebug);
 	float e_ShadowsSlopeBias;
 	float e_ShadowsSlopeBiasHQ;
+	float e_ShadowsAutoBias;
 	DeclareConstIntCVar(e_GsmDepthBoundsDebug, 0);
 	DeclareConstIntCVar(e_TimeOfDayDebug, 0);
 	int e_WaterTessellationAmount;
@@ -474,6 +477,7 @@ struct CVars : public Cry3DEngineBase
 	DeclareConstIntCVar(e_WaterOcean, e_WaterOceanDefault);
 	float e_ViewDistRatio;
 	float e_ViewDistRatioVegetation;
+	float e_ViewDistRatioModifierGameDecals;
 	DeclareConstIntCVar(e_ObjectLayersActivationPhysics, 1);
 	DeclareConstIntCVar(e_StreamCgfDebugHeatMap, 0);
 	DeclareConstFloatCVar(e_StreamPredictionDistanceFar);
@@ -484,6 +488,7 @@ struct CVars : public Cry3DEngineBase
 	DeclareConstIntCVar(e_TerrainOcclusionCullingMaxSteps, 50);
 	int e_ParticlesUseLevelSpecificLibs;
 	int   e_DecalsOverlapping;
+	float e_DecalsSpawnDistRatio;
 	int   e_CGFMaxFileSize;
 	int   e_MaxDrawCalls;
 	DeclareConstFloatCVar(e_ParticlesLightMinRadiusThreshold);
@@ -518,6 +523,7 @@ struct CVars : public Cry3DEngineBase
 	float  e_MergedMeshesBulletScale;
 	float  e_MergedMeshesBulletLifetime;
 	int    e_MergedMeshesOutdoorOnly;
+	int    e_MergedMeshesMaxTriangles;
 	int    e_CheckOctreeObjectsBoxSize;
 	DeclareConstIntCVar(e_GeomCaches, 1);
 	int    e_GeomCacheBufferSize;

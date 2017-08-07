@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include <Schematyc/Reflection/TypeDesc.h>
-#include <Schematyc/Runtime/RuntimeGraph.h>
-#include <Schematyc/Utils/GUID.h>
+#include <CrySchematyc/Reflection/TypeDesc.h>
+#include <CrySchematyc/Runtime/RuntimeGraph.h>
+#include <CrySchematyc/Utils/GUID.h>
 
 #include "Script/Graph/ScriptGraphNodeModel.h"
 
@@ -44,10 +44,10 @@ private:
 public:
 
 	CScriptGraphSetNode();
-	CScriptGraphSetNode(const SGUID& referenceGUID);
+	CScriptGraphSetNode(const CryGUID& referenceGUID);
 
 	// CScriptGraphNodeModel
-	virtual SGUID GetTypeGUID() const override;
+	virtual CryGUID GetTypeGUID() const override;
 	virtual void  CreateLayout(CScriptGraphNodeLayout& layout) override;
 	virtual void  Compile(SCompilerContext& context, IGraphNodeCompiler& compiler) const override;
 	virtual void  LoadDependencies(Serialization::IArchive& archive, const ISerializationContext& context) override;
@@ -61,13 +61,13 @@ public:
 private:
 
 	static SRuntimeResult Execute(SRuntimeContext& context, const SRuntimeActivationParams& activationParams);
-
+	
 public:
 
-	static const SGUID ms_typeGUID;
+	static const CryGUID ms_typeGUID;
 
 private:
 
-	SGUID m_referenceGUID;
+	CryGUID m_referenceGUID;
 };
 }

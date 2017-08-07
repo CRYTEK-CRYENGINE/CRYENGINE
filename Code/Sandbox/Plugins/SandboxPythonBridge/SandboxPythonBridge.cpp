@@ -6,12 +6,11 @@
 #include "EditorFramework/Editor.h"
 
 // Disable warnings (treated as errors) thrown by shiboken headers, causing compilation to fail.
-#pragma warning (disable : 4522)
-#pragma warning (disable : 4800)
-#pragma warning (disable : 4244)
-#pragma warning (disable : 4005)
+#pragma warning (push)
+#pragma warning (disable : 4522 4800 4244 4005)
 #include <sbkpython.h>
 #include <shiboken.h>
+#pragma warning (pop)
 #include <pyside.h>
 
 #include <pyside2_qtwidgets_python.h>
@@ -67,6 +66,8 @@ PythonWidget InstantiateWidgetFromPython(PyObject* pWidgetType)
 
 class PythonViewPaneWidget : public IPane
 {
+	friend class PythonViewPaneClass;
+
 public:
 	PythonViewPaneWidget(PyObject* pWidgetType, const char* name) : IPane()
 		, name(name)
@@ -126,7 +127,17 @@ public:
 	virtual CRuntimeClass* GetRuntimeClass() override { return 0; }
 	virtual const char* GetPaneTitle() override { return name.c_str(); }
 	virtual bool SinglePane() override { return unique; }
-	virtual IPane* CreatePane() const override { return new PythonViewPaneWidget(pWidgetType, name.c_str()); }
+	virtual IPane* CreatePane() const override
+	{ 
+		PythonViewPaneWidget* paneWidget = new PythonViewPaneWidget(pWidgetType, name.c_str());
+		if (!paneWidget->pythonWidget.pQtWidget || !paneWidget->pythonWidget.pShibokenWrapper)
+		{
+			delete paneWidget;
+			return nullptr;
+		}
+
+		return paneWidget;
+	}
 };
 
 static PyObject* RegisterWindow(PyObject *dummy, PyObject *args)

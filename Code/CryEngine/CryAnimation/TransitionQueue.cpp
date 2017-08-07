@@ -342,15 +342,7 @@ void CTransitionQueue::ManualSeekAnimation(uint index, float time2, bool bTrigge
 void CTransitionQueue::SetFirstLayer()
 {
 	m_fLayerTransitionWeight = 1.0f;
-	// if this is the first layer, the blending multiplier should not be accessed
-	m_fLayerBlendWeight = 0;
-	union
-	{
-		uint32* pU;
-		float*  pF;
-	} u;
-	u.pF = &m_fLayerBlendWeight;
-	*u.pU = F32NAN;
+	SetInvalid(m_fLayerBlendWeight);
 }
 
 void CTransitionQueue::ApplyManualMixingWeight(uint numAnims)

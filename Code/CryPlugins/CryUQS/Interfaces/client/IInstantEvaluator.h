@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace client
+	namespace Client
 	{
 
 		//===================================================================================
@@ -25,17 +25,17 @@ namespace uqs
 
 			struct SRunContext
 			{
-				explicit                        SRunContext(core::SItemEvaluationResult& _evaluationResult, const core::SQueryBlackboard& _blackboard, shared::IUqsString& _error);
-				core::SItemEvaluationResult&    evaluationResult;
-				const core::SQueryBlackboard&   blackboard;
-				shared::IUqsString&             error;
+				explicit                        SRunContext(Core::SItemEvaluationResult& _evaluationResult, const Core::SQueryBlackboard& _blackboard, Shared::IUqsString& _error);
+				Core::SItemEvaluationResult&    evaluationResult;
+				const Core::SQueryBlackboard&   blackboard;
+				Shared::IUqsString&             error;
 			};
 
 			virtual                             ~IInstantEvaluator() {}
 			virtual ERunStatus                  Run(const SRunContext& runContext, const void* pParams) const = 0;
 		};
 
-		inline IInstantEvaluator::SRunContext::SRunContext(core::SItemEvaluationResult& _evaluationResult, const core::SQueryBlackboard& _blackboard, shared::IUqsString& _error)
+		inline IInstantEvaluator::SRunContext::SRunContext(Core::SItemEvaluationResult& _evaluationResult, const Core::SQueryBlackboard& _blackboard, Shared::IUqsString& _error)
 			: evaluationResult(_evaluationResult)
 			, blackboard(_blackboard)
 			, error(_error)

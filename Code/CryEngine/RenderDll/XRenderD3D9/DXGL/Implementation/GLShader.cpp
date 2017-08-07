@@ -560,15 +560,15 @@ bool ConvertDXBCToGLSL(const void* pvSourceData, size_t uSourceSize, SGLSLConver
 	unsigned int uFlags(HLSLCC_FLAG_UNIFORM_BUFFER_OBJECT);
 	GlExtensions kExtensions = { 0 };
 
-		#if CRY_OPENGL_ADAPT_CLIP_SPACE
+		#if OGL_ADAPT_CLIP_SPACE
 	uFlags |= HLSLCC_FLAG_CONVERT_CLIP_SPACE_Z;
-			#if CRY_OPENGL_FLIP_Y
+			#if OGL_FLIP_Y
 	DXGL_TODO("Only do this if the shader is expected to be used to render into a texture so that a final blit for flipping is not required")
 	uFlags |= HLSLCC_FLAG_INVERT_CLIP_SPACE_Y;
 			#else
 	uFlags |= HLSLCC_FLAG_ORIGIN_UPPER_LEFT;
 			#endif
-		#endif //CRY_OPENGL_ADAPT_CLIP_SPACE
+		#endif //OGL_ADAPT_CLIP_SPACE
 
 	DXGL_TODO("Currently we always specify bindings at run-time (slot ranges are determined during startup), and leave the default location for resources (mainly to prevent collisions between resources with the same register index in different non-separable shader stages). Evaluate the possibility of coding them into the shader source.");
 	uFlags |= HLSLCC_FLAG_AVOID_RESOURCE_BINDINGS_AND_LOCATIONS;

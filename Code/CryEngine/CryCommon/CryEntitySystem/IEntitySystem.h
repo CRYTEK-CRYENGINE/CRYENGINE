@@ -148,9 +148,10 @@ struct IAreaManager
 	virtual IArea const* const GetArea(size_t const nAreaIndex) const = 0;
 	virtual size_t             GetOverlappingAreas(const AABB& bb, PodArray<IArea*>& list) const = 0;
 
-	//! Additional Query based on position. Returns only the areas that have AudioProxies and valid AudioEnvironmentIDs.
-	//! Needs preallocated space to write nMaxResults to pResults.
-	//! The actual number of results filled is returned in rNumResults.
+	//! Additional Query based on position. Returns only the areas that provide audio environments.
+	//! Needs preallocated space to write numMaxResults to pResults.
+	//! The number of found areas is returned in numResults.
+	//! Note: This method is currently only called by the audio thread and not thread safe!
 	//! \return True on success or false on error or if provided structure was too small.
 	virtual bool QueryAudioAreas(Vec3 const& pos, SAudioAreaInfo* const pResults, size_t const numMaxResults, size_t& numResults) = 0;
 
@@ -297,6 +298,20 @@ struct IEntityEventListener
 	// </interfuscator:shuffle>
 };
 
+struct IEntityLayerSetUpdateListener
+{
+	virtual void LayerEnablingEvent(const char* szLayerName, bool bEnabled, bool bSerialized) = 0;
+protected:
+	~IEntityLayerSetUpdateListener() {}
+};
+
+struct IEntityLayerListener
+{
+	virtual void LayerEnabled(bool bActivated) = 0;
+protected:
+	~IEntityLayerListener() {}
+};
+
 //! Structure used by proximity query in entity system.
 struct SEntityProximityQuery
 {
@@ -317,6 +332,11 @@ struct SEntityProximityQuery
 		pEntityClass = 0;
 		nEntityFlags = 0;
 	}
+};
+
+struct IEntitySystemEngineModule : public Cry::IDefaultModule
+{
+	CRYINTERFACE_DECLARE_GUID(IEntitySystemEngineModule, "bbbb58b0-ff97-49cf-bffe-254420cd166f"_cry_guid);
 };
 
 //! Interface to the system that manages the entities in the game.
@@ -483,16 +503,14 @@ struct IEntitySystem
 	virtual void AddEntityEventListener(EntityId nEntity, EEntityEvent event, IEntityEventListener* pListener) = 0;
 	virtual void RemoveEntityEventListener(EntityId nEntity, EEntityEvent event, IEntityEventListener* pListener) = 0;
 
+	//! Register entity layer listener
+	virtual void AddEntityLayerListener(const char* szLayerName, IEntityLayerListener* pListener, const bool bCaseSensitive = true) = 0;
+	virtual void RemoveEntityLayerListener(const char* szLayerName, IEntityLayerListener* pListener, const bool bCaseSensitive = true) = 0;
+
 	// Entity GUIDs
 
 	//! Finds entity by Entity GUID.
 	virtual EntityId FindEntityByGuid(const EntityGUID& guid) const = 0;
-
-	//! Finds entity by editor GUID.
-	//! This is a special case for runtime prefabs, since they use the editor guids.
-	//! It is only valid to call in between BeginCreateEntities and EndCreateEntities.
-	//! \param guid GUID string (ie {ABCD1234-...}) of the entity required.
-	virtual EntityId FindEntityByEditorGuid(const char* pGuid) const = 0;
 
 	//! Generates new entity id based on Entity GUID.
 	virtual EntityId GenerateEntityIdFromGuid(const EntityGUID& guid) = 0;
@@ -559,11 +577,14 @@ struct IEntitySystem
 	//! Enable entity layer.
 	virtual void EnableLayer(const char* layer, bool isEnable, bool isSerialized = true) = 0;
 
+	//! Enable entity layers specified in the layer set and hide all other known layers.
+	virtual void EnableLayerSet(const char* const * pLayers, size_t layerCount, bool isSerialized = true, IEntityLayerSetUpdateListener* pListener = nullptr) = 0;
+
 	//! Find a layer with a given name.
-	virtual IEntityLayer* FindLayer(const char* szLayer) const = 0;
+	virtual IEntityLayer* FindLayer(const char* szLayerName, const bool bCaseSensitive = true) const = 0;
 
 	//! Is layer with given name enabled ?.
-	virtual bool IsLayerEnabled(const char* layer, bool bMustBeLoaded) const = 0;
+	virtual bool IsLayerEnabled(const char* layer, bool bMustBeLoaded, bool bCaseSensitive = true) const = 0;
 
 	//! Returns true if entity is not in a layer or the layer is enabled/serialized.
 	virtual bool ShouldSerializedEntity(IEntity* pEntity) = 0;
@@ -610,7 +631,6 @@ struct IEntitySystem
 
 	virtual IBSPTree3D* CreateBSPTree3D(const IBSPTree3D::FaceList& faceList) = 0;
 	virtual void        ReleaseBSPTree3D(IBSPTree3D*& pTree) = 0;
-
 	// </interfuscator:shuffle>
 };
 
@@ -691,24 +711,39 @@ typedef struct IEntitySystem* (* PFNCREATEENTITYSYSTEM)(ISystem* pISystem);
 #endif
 
 template<class T>
-static IEntityClass* RegisterEntityWithDefaultComponent(const char* name, const char* editorCategory = "", const char* editorIcon = "", bool bIconOnTop = false)
+inline IEntityClass* RegisterEntityClassWithDefaultComponent(
+	const char* name,
+	const CryGUID classGUID, // This is a guid for the Entity Class, not for component
+	const CryGUID componentUniqueGUID, // This is not a class type of component guid, but a unique guid of this unique component inside entity
+	bool bIconOnTop = false,
+	IFlowNodeFactory *pOptionalFlowNodeFactory = nullptr
+)
 {
+	const CEntityComponentClassDesc* pClassDesc = &Schematyc::GetTypeDesc<T>();
+
 	IEntityClassRegistry::SEntityClassDesc clsDesc;
 	clsDesc.sName = name;
 
-	clsDesc.editorClassInfo.sCategory = editorCategory;
-	clsDesc.editorClassInfo.sIcon = editorIcon;
+	clsDesc.editorClassInfo.sCategory = pClassDesc->GetEditorCategory();
+	clsDesc.editorClassInfo.sIcon = pClassDesc->GetIcon();
 	clsDesc.editorClassInfo.bIconOnTop = bIconOnTop;
-
-	struct CObjectCreator
+	clsDesc.pIFlowNodeFactory = pOptionalFlowNodeFactory;
+	
+	auto onSpawnLambda = [componentUniqueGUID, pClassDesc](IEntity& entity, SEntitySpawnParams& params) -> bool
 	{
-		static IEntityComponent* Create(IEntity* pEntity, SEntitySpawnParams& params, void* pUserData)
-		{
-			return pEntity->CreateComponentClass<T>();
-		}
+		string componentName = pClassDesc->GetName().c_str();
+		IEntityComponent::SInitParams initParams(
+			&entity,
+			componentUniqueGUID,
+			componentName,
+			pClassDesc,
+			EEntityComponentFlags::None,
+			nullptr,
+			nullptr);
+		entity.CreateComponentByInterfaceID(pClassDesc->GetGUID(), &initParams);
+		return true;
 	};
-
-	clsDesc.pUserProxyCreateFunc = &CObjectCreator::Create;
+	clsDesc.onSpawnCallback = onSpawnLambda;
 
 	return gEnv->pEntitySystem->GetClassRegistry()->RegisterStdClass(clsDesc);
 }

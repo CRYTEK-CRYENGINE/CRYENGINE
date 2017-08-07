@@ -10,7 +10,6 @@
 #pragma once
 
 #include "GpuParticleFeatureBase.h"
-#include "CREGpuParticle.h"
 
 namespace gpu_pfx2
 {

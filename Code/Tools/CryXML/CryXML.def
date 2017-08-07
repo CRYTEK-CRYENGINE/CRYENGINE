@@ -1,0 +1,3 @@
+LIBRARY	CryXML
+EXPORTS
+	GetICryXML		@1

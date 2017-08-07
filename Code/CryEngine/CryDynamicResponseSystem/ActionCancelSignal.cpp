@@ -67,8 +67,6 @@ void CActionCancelSignal::Serialize(Serialization::IArchive& ar)
 #endif
 }
 
-REGISTER_DRS_ACTION(CActionCancelSignal, "CancelSignal", DEFAULT_DRS_ACTION_COLOR);
-
 //--------------------------------------------------------------------------------------------------
 DRS::IResponseActionInstance::eCurrentState CryDRS::CActionCancelSignalInstance::Update()
 {

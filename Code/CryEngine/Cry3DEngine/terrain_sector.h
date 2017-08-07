@@ -313,8 +313,6 @@ struct STerrainNodeLeafData
 	~STerrainNodeLeafData();
 	float                   m_arrTexGen[MAX_RECURSION_LEVELS][ARR_TEX_OFFSETS_SIZE];
 	int                     m_arrpNonBorderIdxNum[SRangeInfo::e_max_surface_types][4];
-	PodArray<CTerrainNode*> m_lstNeighbourSectors;
-	PodArray<uint8>         m_lstNeighbourLods;
 	_smart_ptr<IRenderMesh> m_pRenderMesh;
 };
 
@@ -349,7 +347,7 @@ public:
 	const AABB                         GetBBox() const;
 	virtual const AABB                 GetBBoxVirtual()                                                                                   { return GetBBox(); }
 	virtual void                       FillBBox(AABB& aabb);
-	virtual struct ICharacterInstance* GetEntityCharacter(unsigned int nSlot, Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false) { return NULL; };
+	virtual struct ICharacterInstance* GetEntityCharacter(Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false) { return NULL; };
 
 	//////////////////////////////////////////////////////////////////////////
 	// IStreamCallback
@@ -390,7 +388,6 @@ public:
 	void					UpdateNodeNormalMapFromEditorData();
 	static void   SaveCompressedMipmapLevel(const void* data, size_t size, void* userData);
 	void          CheckNodeGeomUnload(const SRenderingPassInfo& passInfo);
-	IRenderMesh*  MakeSubAreaRenderMesh(const Vec3& vPos, float fRadius, IRenderMesh* pPrevRenderMesh, IMaterial* pMaterial, bool bRecalIRenderMeshconst, const char* szLSourceName);
 	void          SetChildsLod(int nNewGeomLOD, const SRenderingPassInfo& passInfo);
 	int           GetAreaLOD(const SRenderingPassInfo& passInfo);
 	bool          RenderNodeHeightmap(const SRenderingPassInfo& passInfo);
@@ -431,15 +428,18 @@ public:
 	void                DrawArray(const SRenderingPassInfo& passInfo);
 
 	void                UpdateRenderMesh(struct CStripsInfo* pArrayInfo, bool bUpdateVertices);
-	void                BuildVertices(int step, bool bSafetyBorder);
+	void                BuildVertices(float stepSize, bool bSafetyBorder);
+	void                SetVertexSurfaceType(float x, float y, float stepSize, CTerrain* pTerrain, const int nSID, SVF_P2S_N4B_C4B_T1F &vert);
+	void                SetVertexNormal(float x, float y, const float iLookupRadius, CTerrain* pTerrain, const int nTerrainSize, const int nSID, SVF_P2S_N4B_C4B_T1F &vert, Vec3 * pTerrainNorm = nullptr);
+	void                AppendTrianglesFromObjects(const int nOriginX, const int nOriginY, CTerrain* pTerrain, const int nSID, const float stepSize, const int nTerrainSize);
 
 	int                 GetMML(int dist, int mmMin, int mmMax);
 
 	uint32                       GetLastTimeUsed() { return m_nLastTimeUsed; }
 
-	void                         AddIndexAliased(int _x, int _y, int _step, int nSectorSize, PodArray<CTerrainNode*>* plstNeighbourSectors, CStripsInfo* pArrayInfo, const SRenderingPassInfo& passInfo);
+	void AddIndexAliased(float x, float y, float stepSize, float fSectorSize, CStripsInfo* pArrayInfo);
 	static void                  GenerateIndicesForAllSurfaces(IRenderMesh* pRM, bool bOnlyBorder, int arrpNonBorderIdxNum[SRangeInfo::e_max_surface_types][4], int nBorderStartIndex, SSurfaceTypeInfo* pSurfaceTypeInfos, int nSID, CUpdateTerrainTempData* pUpdateTerrainTempData = NULL);
-	void                         BuildIndices(CStripsInfo& si, PodArray<CTerrainNode*>* pNeighbourSectors, bool bSafetyBorder, const SRenderingPassInfo& passInfo);
+	void                         BuildIndices(CStripsInfo& si, bool bSafetyBorder, const SRenderingPassInfo& passInfo);
 
 	void                         BuildIndices_Wrapper(SRenderingPassInfo passInfo);
 	void                         BuildVertices_Wrapper();
@@ -520,6 +520,7 @@ public:
 	uint16                     m_nSID;
 
 	AABB                       m_boxHeigtmapLocal;
+	float                      m_fBBoxExtentionByObjectsIntegration;
 	struct CTerrainNode*       m_pParent;
 	int                        m_nGSMFrameId;
 
@@ -588,7 +589,7 @@ struct STerrainNodeChunk
 inline const AABB CTerrainNode::GetBBox() const
 {
 	const Vec3& vOrigin = GetTerrain()->m_arrSegmentOrigns[m_nSID];
-	return AABB(m_boxHeigtmapLocal.min + vOrigin, m_boxHeigtmapLocal.max + vOrigin);
+	return AABB(m_boxHeigtmapLocal.min + vOrigin, m_boxHeigtmapLocal.max + vOrigin + Vec3(0, 0, m_fBBoxExtentionByObjectsIntegration));
 }
 
 #endif

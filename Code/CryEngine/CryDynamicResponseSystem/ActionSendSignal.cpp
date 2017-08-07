@@ -38,6 +38,3 @@ void CActionSendSignal::Serialize(Serialization::IArchive& ar)
 	ar(m_bCopyContextVariables, "copyContextVar", "^Copy Context Variable");
 }
 
-//--------------------------------------------------------------------------------------------------
-
-REGISTER_DRS_ACTION(CActionSendSignal, "SendSignal", DEFAULT_DRS_ACTION_COLOR);

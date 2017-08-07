@@ -35,8 +35,10 @@
 #include <CryMath/Cry_Math.h>
 #include <CryMemory/CrySizer.h>
 #include <CryCore/StlUtils.h>
+#include <CryCore/CryVariant.h>
 
 #include <CryRenderer/IRenderer.h>
+
 
 #if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID
 	#include <unistd.h>

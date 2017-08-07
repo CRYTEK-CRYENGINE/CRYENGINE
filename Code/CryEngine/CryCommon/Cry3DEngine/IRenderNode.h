@@ -22,7 +22,7 @@ enum EERType
 	eERType_Brush,
 	eERType_Vegetation,
 	eERType_Light,
-	eERType_Cloud,
+	eERType_Dummy_5, //!< Used to be eERType_Cloud, preserve order for compatibility.
 	eERType_Dummy_1, //!< Used to be eERType_VoxelObject, preserve order for compatibility.
 	eERType_FogVolume,
 	eERType_Decal,
@@ -31,13 +31,13 @@ enum EERType
 	eERType_WaterWave,
 	eERType_Road,
 	eERType_DistanceCloud,
-	eERType_VolumeObject,
+	eERType_Dummy_4, // Used to be eERType_VolumeObject, preserve order for compatibility.
 	eERType_Dummy_0, //!< Used to be eERType_AutoCubeMap, preserve order for compatibility.
 	eERType_Rope,
 	eERType_Dummy_3, //!< Used to be  eERType_PrismObject, preserve order for compatibility.
 	eERType_TerrainSector,
 	eERType_Dummy_2, //!< Used to be eERType_LightPropagationVolume, preserve order for compatibility.
-	eERType_RenderProxy,
+	eERType_MovableBrush,
 	eERType_GameEffect,
 	eERType_BreakableGlass,
 	eERType_CloudBlocker,
@@ -158,9 +158,8 @@ struct IShadowCaster
 	virtual void                       Render(const SRendParams& RendParams, const SRenderingPassInfo& passInfo) = 0;
 	virtual const AABB                 GetBBoxVirtual() = 0;
 	virtual void                       FillBBox(AABB& aabb) = 0;
-	virtual struct ICharacterInstance* GetEntityCharacter(unsigned int nSlot, Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false) = 0;
+	virtual struct ICharacterInstance* GetEntityCharacter(Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false) = 0;
 	virtual EERType                    GetRenderNodeType() = 0;
-	virtual bool                       IsRenderNode() { return true; }
 	// </interfuscator:shuffle>
 	uint8                              m_cStaticShadowLod;
 };
@@ -263,17 +262,15 @@ public:
 	virtual void Hide(bool bHide) { SetRndFlags(ERF_HIDDEN, bHide); }
 
 	//! Gives access to object components.
-	virtual IStatObj*  GetEntityStatObj(unsigned int nPartId = 0, unsigned int nSubPartId = 0, Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false);
-	virtual IMaterial* GetEntitySlotMaterial(unsigned int nPartId, bool bReturnOnlyVisible = false, bool* pbDrawNear = NULL) { return NULL; }
-	virtual void       SetEntityStatObj(unsigned int nSlot, IStatObj* pStatObj, const Matrix34A* pMatrix = NULL)             {};
+	virtual IStatObj*  GetEntityStatObj(unsigned int nSubPartId = 0, Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false);
+	virtual void       SetEntityStatObj(IStatObj* pStatObj, const Matrix34A* pMatrix = NULL) {}
 
 	//! Retrieve access to the character instance of the the RenderNode
-	virtual ICharacterInstance* GetEntityCharacter(unsigned int nSlot, Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false) { return 0; }
+	virtual ICharacterInstance* GetEntityCharacter(Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false) { return 0; }
 
 #if defined(USE_GEOM_CACHES)
 	virtual struct IGeomCacheRenderNode* GetGeomCacheRenderNode(unsigned int nSlot, Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false) { return NULL; }
 #endif
-	virtual int                          GetSlotCount() const                                                                                   { return 1; }
 
 	//! \return IRenderMesh of the object.
 	virtual struct IRenderMesh* GetRenderMesh(int nLod) { return 0; };
@@ -324,7 +321,7 @@ public:
 	virtual float      GetMaxViewDist() = 0;
 
 	virtual EERType    GetRenderNodeType() = 0;
-	virtual bool       IsAllocatedOutsideOf3DEngineDLL()             { return GetRenderNodeType() == eERType_RenderProxy; }
+	virtual bool       IsAllocatedOutsideOf3DEngineDLL()             { return GetOwnerEntity() != nullptr; }
 	virtual void       Dephysicalize(bool bKeepIfReferenced = false) {}
 	virtual void       Dematerialize()                               {}
 	virtual void       GetMemoryUsage(ICrySizer* pSizer) const = 0;
@@ -356,6 +353,7 @@ public:
 		eGM_AnalyticalProxy_Soft,    //!< Analytical proxy (with shadow fading)
 		eGM_AnalyticalProxy_Hard,    //!< Analytical proxy (no shadow fading)
 		eGM_AnalytPostOccluder,      //!< Analytical occluder (used with average light direction)
+		eGM_IntegrateIntoTerrain,    //!< Copy object mesh into terrain mesh and render using usual terrain materials
 	};
 
 	//! Retrieves the way object is used by GI system.
@@ -489,9 +487,9 @@ public:
 		InvalidatePermanentRenderObject();
 	}
 	// Set a new owner entity
-	virtual void   SetOwnerEntity(IEntity* pEntity) { m_pOwnerEntity = pEntity; }
+	virtual void   SetOwnerEntity(IEntity* pEntity) { assert(!"Not supported by this object type");  }
 	// Retrieve a pointer to the entity who owns this render node.
-	ILINE IEntity* GetOwnerEntity() const           { return m_pOwnerEntity; }
+	virtual IEntity* GetOwnerEntity() const         { return nullptr; }
 
 	//////////////////////////////////////////////////////////////////////////
 	// Variables
@@ -543,9 +541,6 @@ public:
 	//! The high 24 bits store the actual ID of the object. This need not be the same as CryGUID,
 	//! though the CryGUID could be used to generate it
 	uint32 m_nEditorSelectionID;
-private:
-	// When render node is created by the entity, pointer to the owner entity.
-	IEntity* m_pOwnerEntity = 0;
 };
 
 inline void IRenderNode::SetViewDistRatio(int nViewDistRatio)
@@ -560,7 +555,7 @@ inline void IRenderNode::SetViewDistRatio(int nViewDistRatio)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-inline IStatObj* IRenderNode::GetEntityStatObj(unsigned int nPartId, unsigned int nSubPartId, Matrix34A* pMatrix, bool bReturnOnlyVisible)
+inline IStatObj* IRenderNode::GetEntityStatObj(unsigned int nSubPartId, Matrix34A* pMatrix, bool bReturnOnlyVisible)
 {
 	return 0;
 }
@@ -643,25 +638,6 @@ struct ILightSource : public IRenderNode
 	virtual struct ShadowMapFrustum* GetShadowFrustum(int nId = 0) = 0;
 	virtual bool                     IsLightAreasVisible() = 0;
 	virtual void                     SetCastingException(IRenderNode* pNotCaster) = 0;
-	// </interfuscator:shuffle>
-};
-
-struct SCloudMovementProperties
-{
-	Vec3  m_speed = Vec3(ZERO);
-	Vec3  m_spaceLoopBox = Vec3(2000.0f, 2000.0f, 2000.0f);
-	float m_fadeDistance = 0.0f;
-	bool  m_autoMove = false;
-};
-
-//! Interface to the Cloud Render Node object.
-struct ICloudRenderNode : public IRenderNode
-{
-	// <interfuscator:shuffle>
-	//! Loads a cloud from a cloud description XML file.
-	virtual bool LoadCloud(const char* sCloudFilename) = 0;
-	virtual bool LoadCloudFromXml(XmlNodeRef cloudNode) = 0;
-	virtual void SetMovementProperties(const SCloudMovementProperties& properties) = 0;
 	// </interfuscator:shuffle>
 };
 
@@ -923,28 +899,6 @@ struct IDistanceCloudRenderNode : public IRenderNode
 	virtual void SetProperties(const SDistanceCloudProperties& properties) = 0;
 };
 
-struct SVolumeObjectProperties
-{
-};
-
-struct SVolumeObjectMovementProperties
-{
-	bool  m_autoMove;
-	Vec3  m_speed;
-	Vec3  m_spaceLoopBox;
-	float m_fadeDistance;
-};
-
-//! Interface to the Volume Object Render Node object.
-struct IVolumeObjectRenderNode : public IRenderNode
-{
-	// <interfuscator:shuffle>
-	virtual void LoadVolumeData(const char* filePath) = 0;
-	virtual void SetProperties(const SVolumeObjectProperties& properties) = 0;
-	virtual void SetMovementProperties(const SVolumeObjectMovementProperties& properties) = 0;
-	// </interfuscator:shuffle>
-};
-
 //////////////////////////////////////////////////////////////////////////
 struct IRopeRenderNode : public IRenderNode
 {
@@ -1018,7 +972,7 @@ struct IRopeRenderNode : public IRenderNode
 		CryAudio::ControlId      startTrigger = CryAudio::InvalidControlId;
 		CryAudio::ControlId      stopTrigger = CryAudio::InvalidControlId;
 		CryAudio::ControlId      angleParameter = CryAudio::InvalidControlId;
-		CryAudio::EOcclusionType occlusionType = CryAudio::eOcclusionType_Ignore;
+		CryAudio::EOcclusionType occlusionType = CryAudio::EOcclusionType::Ignore;
 		int                      segementToAttachTo = 1;
 		float                    offset = 0.0f;
 	};
@@ -1028,9 +982,6 @@ struct IRopeRenderNode : public IRenderNode
 
 	virtual void                                SetParams(const SRopeParams& params) = 0;
 	virtual const IRopeRenderNode::SRopeParams& GetParams() const = 0;
-
-	virtual void                                SetEntityOwner(uint32 nEntityId) = 0;
-	virtual uint32                              GetEntityOwner() const = 0;
 
 	virtual void                                SetPoints(const Vec3* pPoints, int nCount) = 0;
 	virtual int                                 GetPointsCount() const = 0;

@@ -270,7 +270,7 @@ void CSyncedFileSet::SendFilesTo(CNetChannel* pSender)
 
 		for (uint32 ofs = 0; ofs < flk.GetLength(); ofs += CSyncedFileSet::MAX_SEND_CHUNK_SIZE)
 		{
-			uint32 thisChunkLength = MIN(CSyncedFileSet::MAX_SEND_CHUNK_SIZE, flk.GetLength() - ofs);
+			uint32 thisChunkLength = std::min(CSyncedFileSet::MAX_SEND_CHUNK_SIZE, flk.GetLength() - ofs);
 			NET_ASSERT(thisChunkLength);
 			pSender->NetAddSendable(new CSend_AddFileData(pSender->GetContextView(), id, ofs, thisChunkLength, flk), 1, &shdl, &shdl);
 		}

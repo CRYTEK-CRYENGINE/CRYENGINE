@@ -390,7 +390,7 @@ pixout OceanIntoPS( v2f IN )
 	float2 tc = baseTC.xy;
 	float len = length(IN.viewDir.xyz);
 	VolumetricFogTexcoord vtc = GetVolumetricFogTexcoordParamByScreenTexcoordAndDepth(volFogParams, tc.xy, IN.hPos.w, false, len);
-	float4 vf = GetVolumetricFogValueJittered(vfs, vtc);
+	float4 vf = GetVolumetricFogValueJittered(volFogParams, vfs, vtc);
 	half4 globalFogColor = GetVolumetricFogAnalyticalColor(volFogParams, vfs, IN.viewDir.xyz, len);
 	vf.xyz *= alpha;
 	globalFogColor.xyz *= alpha;

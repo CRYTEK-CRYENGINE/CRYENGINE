@@ -346,7 +346,7 @@ void CREBreakableGlassBuffer::DrawBuffer(const uint32 cyclicId, const EBufferTyp
 	if (IsVBufferValid(buffer))
 	{
 		CD3D9Renderer* pRenderer = gcpRendD3D;
-		size_t vbOffset = 0, tbOffset = 0, ibOffset = 0;
+		buffer_size_t vbOffset = 0, tbOffset = 0, ibOffset = 0;
 
 		// Get buffers
 		D3DVertexBuffer* pVBuffer = pRenderer->m_DevBufMan.GetD3DVB(buffer.verticesHdl, &vbOffset);
@@ -359,7 +359,7 @@ void CREBreakableGlassBuffer::DrawBuffer(const uint32 cyclicId, const EBufferTyp
 			const int tanVStream = 1;
 
 			// Bind data
-			pRenderer->FX_SetVertexDeclaration(1 << VSF_TANGENTS, eVF_P3F_C4B_T2F);
+			pRenderer->FX_SetVertexDeclaration(1 << VSF_TANGENTS, EDefaultInputLayouts::P3F_C4B_T2F);
 			pRenderer->FX_SetVStream(coreVStream, pVBuffer, vbOffset, sizeof(SVF_P3F_C4B_T2F));
 			pRenderer->FX_SetVStream(tanVStream, pTBuffer, tbOffset, sizeof(SPipTangents));
 			pRenderer->FX_SetIStream(pIBuffer, ibOffset, Index16);

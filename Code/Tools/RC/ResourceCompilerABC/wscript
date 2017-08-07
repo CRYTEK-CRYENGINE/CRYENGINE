@@ -1,0 +1,24 @@
+# Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
+def build(bld):
+
+	bld.CryResourceCompilerModule(
+		target    = 'ResourceCompilerABC',
+		vs_filter = 'RC',
+		file_list = 'resourcecompilerabc.waf_files',
+		cxxflags  = ['/EHsc', '/GR'],
+		
+		use_module = ['zlib', 'lz4', 'alembic', 'ilmbase' ],
+
+		release_defines = ['NDEBUG'],
+		debug_defines   = ['_DEBUG'],
+
+		includes = [
+			'.',
+			Path('Code/Tools'),
+			Path('Code/Tools/RC/ResourceCompiler'),
+			Path('Code/Tools/CryCommonTools'),
+		],
+
+		export_definitions = 'ResourceCompilerPlugin.def'
+	)

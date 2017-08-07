@@ -20,7 +20,7 @@ bool CGraphicsPSO::Init(const SInitParams& params)
 	m_Desc = params.m_Desc;
 
 	ID3D12PipelineState* pipelineState12 = NULL;
-	HRESULT result = GetDevice()->GetD3D12Device()->CreateGraphicsPipelineState(&m_Desc, IID_PPV_ARGS(&pipelineState12));
+	HRESULT result = GetDevice()->GetD3D12Device()->CreateGraphicsPipelineState(&m_Desc, IID_GFX_ARGS(&pipelineState12));
 
 	if (result != S_OK)
 	{
@@ -40,7 +40,7 @@ bool CComputePSO::Init(const SInitParams& params)
 	m_Desc = params.m_Desc;
 
 	ID3D12PipelineState* pipelineState12 = NULL;
-	HRESULT result = GetDevice()->GetD3D12Device()->CreateComputePipelineState(&m_Desc, IID_PPV_ARGS(&pipelineState12));
+	HRESULT result = GetDevice()->GetD3D12Device()->CreateComputePipelineState(&m_Desc, IID_GFX_ARGS(&pipelineState12));
 
 	if (result != S_OK)
 	{

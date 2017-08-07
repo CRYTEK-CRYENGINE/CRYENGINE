@@ -12,89 +12,89 @@ namespace Impl
 {
 namespace Fmod
 {
+class CEvent;
+class CParameter;
+class CSwitchState;
+class CEnvironment;
+class CStandaloneFileBase;
 
-class CAudioEvent;
-class CAudioParameter;
-class CAudioSwitchState;
-class CAudioEnvironment;
-class CAudioFileBase;
-
-class CAudioObjectBase : public IAudioObject
+class CObjectBase : public IObject
 {
 public:
-	CAudioObjectBase();
-	virtual ~CAudioObjectBase();
 
-	void RemoveEvent(CAudioEvent* const pAudioEvent);
-	void RemoveParameter(CAudioParameter const* const pParameter);
-	void RemoveSwitch(CAudioSwitchState const* const pSwitch);
-	void RemoveEnvironment(CAudioEnvironment const* const pEnvironment);
-	void RemoveFile(CAudioFileBase const* const pStandaloneFile);
+	CObjectBase();
+	virtual ~CObjectBase() override;
 
-	// IAudioObject
+	void RemoveEvent(CEvent* const pEvent);
+	void RemoveParameter(CParameter const* const pParameter);
+	void RemoveSwitch(CSwitchState const* const pSwitch);
+	void RemoveEnvironment(CEnvironment const* const pEnvironment);
+	void RemoveFile(CStandaloneFileBase const* const pStandaloneFile);
+
+	// CryAudio::Impl::IObject
 	virtual ERequestStatus Update() override;
 	virtual ERequestStatus Set3DAttributes(SObject3DAttributes const& attributes) override;
-	virtual ERequestStatus ExecuteTrigger(IAudioTrigger const* const pIAudioTrigger, IAudioEvent* const pIAudioEvent) override;
+	virtual ERequestStatus ExecuteTrigger(ITrigger const* const pITrigger, IEvent* const pIEvent) override;
 	virtual ERequestStatus StopAllTriggers() override;
-	virtual ERequestStatus PlayFile(IAudioStandaloneFile* const pIFile) override;
-	virtual ERequestStatus StopFile(IAudioStandaloneFile* const pIFile) override;
-	// ~IAudioObject
+	virtual ERequestStatus PlayFile(IStandaloneFile* const pIStandaloneFile) override;
+	virtual ERequestStatus StopFile(IStandaloneFile* const pIStandaloneFile) override;
+	virtual ERequestStatus SetName(char const* const szName) override;
+	// ~CryAudio::Impl::IObject
 
 protected:
 
 	void StopEvent(uint32 const eventPathId);
-	bool SetAudioEvent(CAudioEvent* const pAudioEvent);
+	bool SetEvent(CEvent* const pEvent);
 
-	std::vector<CAudioEvent*>                        m_audioEvents;
-	std::vector<CAudioFileBase*>                     m_files;
-	std::map<CAudioParameter const* const, float>    m_audioParameters;
-	std::map<uint32 const, CAudioSwitchState const*> m_audioSwitches;
-	std::map<CAudioEnvironment const* const, float>  m_audioEnvironments;
+	std::vector<CEvent*>                        m_events;
+	std::vector<CStandaloneFileBase*>           m_files;
+	std::map<CParameter const* const, float>    m_parameters;
+	std::map<uint32 const, CSwitchState const*> m_switches;
+	std::map<CEnvironment const* const, float>  m_environments;
 
-	std::vector<CAudioEvent*>                        m_pendingAudioEvents;
-	std::vector<CAudioFileBase*>                     m_pendingFiles;
+	std::vector<CEvent*>                        m_pendingEvents;
+	std::vector<CStandaloneFileBase*>           m_pendingFiles;
 
-	FMOD_3D_ATTRIBUTES                               m_attributes;
+	FMOD_3D_ATTRIBUTES                          m_attributes;
 	float m_obstruction = 0.0f;
 	float m_occlusion = 0.0f;
 
 public:
+
 	static FMOD::Studio::System* s_pSystem;
-
 };
 
-using AudioObjects = std::vector<CAudioObjectBase*>;
+using Objects = std::vector<CObjectBase*>;
 
-class CAudioObject final : public CAudioObjectBase, public CPoolObject<CAudioObject, stl::PSyncNone>
+class CObject final : public CObjectBase, public CPoolObject<CObject, stl::PSyncNone>
 {
-
 public:
-	// IAudioObject
-	virtual ERequestStatus SetEnvironment(IAudioEnvironment const* const pIAudioEnvironment, float const amount) override;
-	virtual ERequestStatus SetParameter(IParameter const* const pIAudioParameter, float const value) override;
-	virtual ERequestStatus SetSwitchState(IAudioSwitchState const* const pIAudioSwitchState) override;
+
+	// CryAudio::Impl::IObject
+	virtual ERequestStatus SetEnvironment(IEnvironment const* const pIEnvironment, float const amount) override;
+	virtual ERequestStatus SetParameter(IParameter const* const pIParameter, float const value) override;
+	virtual ERequestStatus SetSwitchState(ISwitchState const* const pISwitchState) override;
 	virtual ERequestStatus SetObstructionOcclusion(float const obstruction, float const occlusion) override;
-	// ~IAudioObject
-
+	// ~CryAudio::Impl::IObject
 };
 
-class CGlobalAudioObject final : public CAudioObjectBase
+class CGlobalObject final : public CObjectBase
 {
 public:
-	CGlobalAudioObject(AudioObjects const& audioObjectsList)
-		: m_audioObjectsList(audioObjectsList)
+
+	CGlobalObject(Objects const& objects)
+		: m_objects(objects)
 	{}
 
-	// IAudioObject
-	virtual ERequestStatus SetEnvironment(IAudioEnvironment const* const pIAudioEnvironment, float const amount) override;
-	virtual ERequestStatus SetParameter(IParameter const* const pIAudioParameter, float const value) override;
-	virtual ERequestStatus SetSwitchState(IAudioSwitchState const* const pIAudioSwitchState) override;
+	// CryAudio::Impl::IObject
+	virtual ERequestStatus SetEnvironment(IEnvironment const* const pIEnvironment, float const amount) override;
+	virtual ERequestStatus SetParameter(IParameter const* const pIParameter, float const value) override;
+	virtual ERequestStatus SetSwitchState(ISwitchState const* const pISwitchState) override;
 	virtual ERequestStatus SetObstructionOcclusion(float const obstruction, float const occlusion) override;
-	// ~IAudioObject
+	// ~CryAudio::Impl::IObject
 
-	AudioObjects const& m_audioObjectsList;
+	Objects const& m_objects;
 };
-
-}
-}
-}
+} // namespace Fmod
+} // namespace Impl
+} // namespace CryAudio

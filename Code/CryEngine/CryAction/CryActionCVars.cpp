@@ -240,7 +240,7 @@ void CCryActionCVars::SWCommandHandler(IConsoleCmdArgs* pArgs)
 			{
 				ray_hit hit;
 				IEntity* pClientEntity = gEnv->pGameFramework->GetClientEntity();
-				if (!gEnv->pGameFramework->GetClientEntity() || (gEnv->pGameFramework->GetClientEntity()->IsActive() == false))
+				if (!gEnv->pGameFramework->GetClientEntity() || (gEnv->pGameFramework->GetClientEntity()->IsActivatedForUpdates() == false))
 					return;
 
 				AABB wBox;

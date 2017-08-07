@@ -3,15 +3,15 @@
 #include "StdAfx.h"
 #include "Script/Graph/Nodes/ScriptGraphActionNode.h"
 
-#include <Schematyc/Compiler/CompilerContext.h>
-#include <Schematyc/Compiler/IGraphNodeCompiler.h>
-#include <Schematyc/Env/EnvUtils.h>
-#include <Schematyc/Env/IEnvRegistry.h>
-#include <Schematyc/Env/Elements/IEnvAction.h>
-#include <Schematyc/Env/Elements/IEnvSignal.h>
-#include <Schematyc/Reflection/ActionDesc.h>
-#include <Schematyc/Utils/IGUIDRemapper.h>
-#include <Schematyc/Utils/StackString.h>
+#include <CrySchematyc/Compiler/CompilerContext.h>
+#include <CrySchematyc/Compiler/IGraphNodeCompiler.h>
+#include <CrySchematyc/Env/EnvUtils.h>
+#include <CrySchematyc/Env/IEnvRegistry.h>
+#include <CrySchematyc/Env/Elements/IEnvAction.h>
+#include <CrySchematyc/Env/Elements/IEnvSignal.h>
+#include <CrySchematyc/Reflection/ActionDesc.h>
+#include <CrySchematyc/Utils/IGUIDRemapper.h>
+#include <CrySchematyc/Utils/StackString.h>
 
 #include "Object.h"
 #include "Runtime/RuntimeClass.h"
@@ -33,16 +33,16 @@ CScriptGraphActionNode::SRuntimeData::SRuntimeData(const SRuntimeData& rhs)
 
 void CScriptGraphActionNode::SRuntimeData::ReflectType(CTypeDesc<CScriptGraphActionNode::SRuntimeData>& desc)
 {
-	desc.SetGUID("691015af-4d45-4644-8214-b984ab860dd2"_schematyc_guid);
+	desc.SetGUID("691015af-4d45-4644-8214-b984ab860dd2"_cry_guid);
 }
 
 CScriptGraphActionNode::CScriptGraphActionNode() {}
 
-CScriptGraphActionNode::CScriptGraphActionNode(const SGUID& actionTypeGUID)
+CScriptGraphActionNode::CScriptGraphActionNode(const CryGUID& actionTypeGUID)
 	: m_actionTypeGUID(actionTypeGUID)
 {}
 
-SGUID CScriptGraphActionNode::GetTypeGUID() const
+CryGUID CScriptGraphActionNode::GetTypeGUID() const
 {
 	return ms_typeGUID;
 }
@@ -51,7 +51,7 @@ void CScriptGraphActionNode::CreateLayout(CScriptGraphNodeLayout& layout)
 {
 	layout.SetStyleId("Core::Function"); // #SchematycTODO : Actions should have their own unique style!!!
 
-	layout.AddInput("Start", SGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::MultiLink, EScriptGraphPortFlags::End });
+	layout.AddInput("Start", CryGUID(), { EScriptGraphPortFlags::Flow, EScriptGraphPortFlags::MultiLink, EScriptGraphPortFlags::End });
 
 	const char* szSubject = nullptr;
 	const IEnvAction* pEnvAction = gEnv->pSchematyc->GetEnvRegistry().GetAction(m_actionTypeGUID);
@@ -74,7 +74,7 @@ void CScriptGraphActionNode::CreateLayout(CScriptGraphNodeLayout& layout)
 		{
 			layout.AddOutput(CUniqueId::FromGUID(envSignal.GetGUID()), envSignal.GetName(), envSignal.GetGUID(), { EScriptGraphPortFlags::Signal, EScriptGraphPortFlags::Begin });
 		};
-		EnvUtils::VisitChildren(*pEnvAction, CDelegate<void(const IEnvSignal&)>::FromLambda(visitEnvSignal));
+		EnvUtils::VisitChildren<IEnvSignal>(*pEnvAction, visitEnvSignal);
 	}
 	layout.SetName(nullptr, szSubject);
 }
@@ -87,7 +87,7 @@ void CScriptGraphActionNode::Compile(SCompilerContext& context, IGraphNodeCompil
 		const IEnvAction* pEnvAction = gEnv->pSchematyc->GetEnvRegistry().GetAction(m_actionTypeGUID);
 		if (pEnvAction)
 		{
-			const SGUID guid = CScriptGraphNodeModel::GetNode().GetGUID();
+			const CryGUID guid = CScriptGraphNodeModel::GetNode().GetGUID();
 
 			const IScriptElement* pOwner = CScriptGraphNodeModel::GetNode().GetGraph().GetElement().GetParent();
 			switch (pOwner->GetType())
@@ -104,7 +104,7 @@ void CScriptGraphActionNode::Compile(SCompilerContext& context, IGraphNodeCompil
 					{
 						pClass->AddSignalReceiver(envSignal.GetGUID(), guid, compiler.GetGraphIdx(), SRuntimeActivationParams(compiler.GetGraphNodeIdx(), outputIdx++, EActivationMode::Output));
 					};
-					EnvUtils::VisitChildren(*pEnvAction, CDelegate<void(const IEnvSignal&)>::FromLambda(visitEnvSignal));
+					EnvUtils::VisitChildren<IEnvSignal>(*pEnvAction, visitEnvSignal);
 					break;
 				}
 			case EScriptElementType::State:
@@ -122,7 +122,7 @@ void CScriptGraphActionNode::Compile(SCompilerContext& context, IGraphNodeCompil
 						{
 							pClass->AddStateSignalReceiver(stateIdx, envSignal.GetGUID(), guid, compiler.GetGraphIdx(), SRuntimeActivationParams(compiler.GetGraphNodeIdx(), outputIdx++, EActivationMode::Output));
 						};
-						EnvUtils::VisitChildren(*pEnvAction, CDelegate<void(const IEnvSignal&)>::FromLambda(visitEnvSignal));
+						EnvUtils::VisitChildren<IEnvSignal>(*pEnvAction, visitEnvSignal);
 					}
 					else
 					{
@@ -164,7 +164,7 @@ void CScriptGraphActionNode::Register(CScriptGraphNodeFactory& factory)
 		{
 		public:
 
-			CCreationCommand(const char* szSubject, const SGUID& actionTypeGUID)
+			CCreationCommand(const char* szSubject, const CryGUID& actionTypeGUID)
 				: m_subject(szSubject)
 				, m_actionTypeGUID(actionTypeGUID)
 			{}
@@ -201,19 +201,19 @@ void CScriptGraphActionNode::Register(CScriptGraphNodeFactory& factory)
 		private:
 
 			string m_subject;
-			SGUID  m_actionTypeGUID;
+			CryGUID  m_actionTypeGUID;
 		};
 
 	public:
 
 		// IScriptGraphNodeCreator
 
-		virtual SGUID GetTypeGUID() const override
+		virtual CryGUID GetTypeGUID() const override
 		{
 			return CScriptGraphActionNode::ms_typeGUID;
 		}
 
-		virtual IScriptGraphNodePtr CreateNode(const SGUID& guid) override
+		virtual IScriptGraphNodePtr CreateNode(const CryGUID& guid) override
 		{
 			return std::make_shared<CScriptGraphNode>(guid, stl::make_unique<CScriptGraphActionNode>());
 		}
@@ -229,8 +229,8 @@ void CScriptGraphActionNode::Register(CScriptGraphNodeFactory& factory)
 			{
 			case EScriptGraphType::Signal:
 				{
-					nodeCreationMenu.AddCommand(std::make_shared<CCreationCommand>("Timer", "6937eddc-f25c-44dc-a759-501d2e5da0df"_schematyc_guid));
-					nodeCreationMenu.AddCommand(std::make_shared<CCreationCommand>("DebugText", "8ea4441b-e080-4cca-8b3e-973e017404d3"_schematyc_guid));
+					nodeCreationMenu.AddCommand(std::make_shared<CCreationCommand>("Timer", "6937eddc-f25c-44dc-a759-501d2e5da0df"_cry_guid));
+					nodeCreationMenu.AddCommand(std::make_shared<CCreationCommand>("DebugText", "8ea4441b-e080-4cca-8b3e-973e017404d3"_cry_guid));
 					break;
 				}
 			}
@@ -262,7 +262,7 @@ SRuntimeResult CScriptGraphActionNode::Execute(SRuntimeContext& context, const S
 	}
 }
 
-const SGUID CScriptGraphActionNode::ms_typeGUID = "4bb42a1b-6268-4c7a-9c13-37192f874cb1"_schematyc_guid;
+const CryGUID CScriptGraphActionNode::ms_typeGUID = "4bb42a1b-6268-4c7a-9c13-37192f874cb1"_cry_guid;
 
 } // Schematyc
 

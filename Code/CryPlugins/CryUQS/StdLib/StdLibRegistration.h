@@ -6,9 +6,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace stdlib
+	namespace StdLib
 	{
 
 		//===================================================================================
@@ -19,11 +19,11 @@ namespace uqs
 		//
 		//===================================================================================
 
-		typedef client::STypeWrapper<EntityId, 1> EntityIdWrapper;
+		typedef Client::STypeWrapper<EntityId, 1> EntityIdWrapper;
 
-		typedef client::STypeWrapper<Vec3, 1>     Pos3;              // global position in the 3D world
-		typedef client::STypeWrapper<Vec3, 2>     Ofs3;              // offset on top of a Pos3; can also act as "local position"
-		typedef client::STypeWrapper<Vec3, 3>     Dir3;              // normalized 3D vector (aka "direction")
+		typedef Client::STypeWrapper<Vec3, 1>     Pos3;              // global position in the 3D world
+		typedef Client::STypeWrapper<Vec3, 2>     Ofs3;              // offset on top of a Pos3; can also act as "local position"
+		typedef Client::STypeWrapper<Vec3, 3>     Dir3;              // normalized 3D vector (aka "direction")
 
 		//===================================================================================
 		//
@@ -40,6 +40,10 @@ namespace uqs
 		{
 		public:
 			static void    InstantiateAllFactoriesForRegistration();                 // call this function once to automatically make all standard stuff available
+#if UQS_SCHEMATYC_SUPPORT
+			static void    RegisterInSchematyc();                                    // stdlib/SchematycSupport.cpp
+			static void    UnregisterInSchematyc();                                  // stdlib/SchematycSupport.cpp
+#endif
 
 		private:
 			static void    InstantiateItemFactoriesForRegistration();                // stdlib/Items.cpp

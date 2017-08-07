@@ -99,6 +99,15 @@ add_sources("UQS_uber_core.cpp"
 		"core/TimeBudget.cpp"
 		"core/LeafFunctionReturnValue.h"
 		"core/LeafFunctionReturnValue.cpp"
+		"core/SchematycSupport.h"
+		"core/SchematycSupport.cpp"
+		"core/ScoreTransformFactory.h"
+		"core/ScoreTransformFactory.cpp"
+		"core/EvaluationResultTransform.h"
+		"core/EvaluationResultTransform.cpp"
+		"core/TextualEvaluatorBlueprint.h"
+		"core/EvaluatorBlueprintBase.h"
+		"core/EvaluatorBlueprintBase.cpp"
 )
 
 end_sources()
@@ -106,9 +115,18 @@ end_sources()
 
 CryEngineModule(CryUQS_Core PCH "core/StdAfx.cpp" SOLUTION_FOLDER "CryPlugins/CryUQS")
 target_link_libraries (${THIS_PROJECT} PRIVATE CryUQS_Shared)
+target_link_libraries (${THIS_PROJECT} PRIVATE CryUQS_DataSource_XML)
+target_link_libraries (${THIS_PROJECT} PRIVATE CryUQS_StdLib)
 
 target_include_directories(${THIS_PROJECT}
 	PRIVATE core
 	PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
 	INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/../.."
 )
+
+if(OPTION_UQS_SCHEMATYC_SUPPORT)
+	target_include_directories(${THIS_PROJECT}
+		PUBLIC "${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/Core/Interface"
+		PUBLIC "${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/STDEnv/Interface"
+	)
+endif()

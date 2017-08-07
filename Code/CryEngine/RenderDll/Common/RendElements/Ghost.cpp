@@ -73,7 +73,7 @@ bool CLensGhost::PreparePrimitives(const SPreparePrimitivesContext& context)
 	m_primitive.SetRenderState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ONE);
 	m_primitive.SetPrimitiveType(CRenderPrimitive::ePrim_FullscreenQuadCentered);
 	m_primitive.SetTexture(0, pGhostTex);
-	m_primitive.SetSampler(0, m_samplerBilinearBorderBlack);
+	m_primitive.SetSampler(0, EDefaultSamplerStates::LinearBorder_Black);
 
 	// update constants
 	{
@@ -108,7 +108,8 @@ bool CLensGhost::PreparePrimitives(const SPreparePrimitivesContext& context)
 
 		m_primitive.GetConstantManager().EndTypedConstantUpdate(constants);
 	}
-
+	
+	m_primitive.Compile(context.pass);
 	context.pass.AddPrimitive(&m_primitive);
 
 	return true;

@@ -128,15 +128,10 @@ struct pixout_shadow
   half4  Normal	 : COLOR1;
 #endif
 
-#if !OPENGL
 #if %_RT_SAMPLE0
   float Depth    : SV_DepthGreaterEqual;
 #elif %_RT_HW_PCF_COMPARE && %_RT_CUBEMAP0
   float Depth    : SV_Depth;
-#endif
-#else
-  // Otherwise HLSLcc compiler crashes for OpenGL (currently shadows won't work)
-  float Depth    : COLOR3;
 #endif
 };
 

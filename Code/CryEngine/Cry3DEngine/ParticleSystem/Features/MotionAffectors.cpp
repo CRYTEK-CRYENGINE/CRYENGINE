@@ -124,7 +124,7 @@ private:
 		const float time = max(1.0f / 1024.0f, context.m_deltaTime);
 		const floatv speed = ToFloatv(m_speed * isqrt_tpl(time));
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLESGROUP(context)
+		for (auto particleGroupId : context.GetUpdateGroupRange())
 		{
 			const Vec3v position = positions.Load(particleGroupId);
 			const Vec3v accel0 = localAccelerations.Load(particleGroupId);
@@ -134,7 +134,6 @@ private:
 			const Vec3v accel1 = MAdd(Vec3v(keyX, keyY, keyZ), speed, accel0);
 			localAccelerations.Store(particleGroupId, accel1);
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 	template<typename FieldFn>
@@ -144,20 +143,17 @@ private:
 
 		CParticleContainer& container = context.m_container;
 		IOVec3Stream positions = container.GetIOVec3Stream(EPVF_Position);
-		const floatv deltaTime = ToFloatv(context.m_deltaTime);
 		const float maxSize = (float)(1 << 12);
 		const float minSize = rcp_fast(maxSize); // small enough and prevents SIMD exceptions
 		const floatv time = ToFloatv(fmodf(context.m_time * m_rate * minSize, 1.0f) * maxSize);
-		const floatv invSize = ToFloatv(rcp_fast(MAX(minSize, float(m_size))));
+		const floatv invSize = ToFloatv(rcp_fast(std::max(minSize, float(m_size))));
 		const floatv speed = ToFloatv(m_speed);
-		const floatv rate = ToFloatv(m_rate);
+		const floatv delta = ToFloatv(m_rate * context.m_deltaTime);
 		const uint octaves = m_octaves;
-		const floatv scalex = ToFloatv(m_scale.x);
-		const floatv scaley = ToFloatv(m_scale.y);
-		const floatv scalez = ToFloatv(m_scale.z);
+		const Vec3v scale = ToVec3v(m_scale);
 		const IFStream ages = container.GetIFStream(EPDT_NormalAge);
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLESGROUP(context)
+		for (auto particleGroupId : context.GetUpdateGroupRange())
 		{
 			const floatv age = ages.Load(particleGroupId);
 			const Vec3v position = positions.Load(particleGroupId);
@@ -167,16 +163,15 @@ private:
 			sample.x = Mul(position.x, invSize);
 			sample.y = Mul(position.y, invSize);
 			sample.z = Mul(position.z, invSize);
-			sample.w = MAdd(DeltaTime(age, deltaTime), rate, time);
+			sample.w = StartTime(time, delta, age);
 
 			Vec3v fieldSample = Fractal(sample, octaves, fieldFn);
-			fieldSample.x = Mul(fieldSample.x, scalex);
-			fieldSample.y = Mul(fieldSample.y, scaley);
-			fieldSample.z = Mul(fieldSample.z, scalez);
+			fieldSample.x *= scale.x;
+			fieldSample.y *= scale.y;
+			fieldSample.z *= scale.z;
 			const Vec3v velocity1 = MAdd(fieldSample, speed, velocity0);
 			localVelocities.Store(particleGroupId, velocity1);
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 	ILINE static Vec3v Potential(const Vec4v sample)
@@ -322,7 +317,7 @@ private:
 		// m_decay is actually the distance at which gravity is halved.
 		const float decay = rcp_fast(m_decay * m_decay);
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		for (auto particleId : context.GetUpdateRange())
 		{
 			const TParticleId parentId = parentIds.Load(particleId);
 			if (parentId != gInvalidId)
@@ -349,7 +344,6 @@ private:
 				localAccelerations.Store(particleId, accel1);
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 	CTargetSource m_targetSource;
@@ -423,7 +417,7 @@ public:
 		const float decay = rcp_fast(m_decay * m_decay);
 		const float speed = m_speed * (m_direction == EVortexDirection::ClockWise ? -1.0f : 1.0f);
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		for (auto particleId : context.GetUpdateRange())
 		{
 			const TParticleId parentId = parentIds.Load(particleId);
 			if (parentId != gInvalidId)
@@ -441,7 +435,6 @@ public:
 				localVelocities.Store(particleId, velocity1);
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 private:
@@ -488,7 +481,7 @@ public:
 		const float speed = m_speed.Get();
 		const float size = m_size;
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		for (auto particleId : context.GetUpdateRange())
 		{
 			const Vec3 velocity = velocities.Load(particleId);
 			const float age = normAges.Load(particleId) * lifeTimes.Load(particleId);
@@ -501,7 +494,6 @@ public:
 			const Vec3 move = xAxis * rotateCos + yAxis * rotateSin;
 			localMoves.Store(particleId, move);
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 private:

@@ -18,6 +18,7 @@
 #include "UnitAction.h"
 #include "AILog.h"
 #include "Leader.h"
+#include "Formation/AIFormationDescriptor.h"
 
 CUnitImg::CUnitImg() :
 	m_TagPoint(0, 0, 0),

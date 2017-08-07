@@ -65,63 +65,92 @@
 #include <CryMath/Cry_XOptimise.h>
 
 #define NO_CRY_STREAM
-
-#ifndef NO_CRY_STREAM
-#include "Stream.h"
-#else
-#include <CrySystem/ISystem.h>
-#include <CrySystem/ILog.h>
-
-class CStream {
-public:
-bool WriteBits(unsigned char *pBits, uint32 nSize) { return true; }
-	bool ReadBits(unsigned char *pBits, uint32 nSize) { return true; }
-	bool Write(bool b) { return true; }
-	bool Write(char c) { return true; }
-	bool Write(unsigned char uc) { return true; }
-	bool Write(float f) { return true; }
-	bool Write(unsigned short us) { return true; }
-	bool Write(short s) { return true; }
-	bool Write(int i) { return true; }
-	bool Write(unsigned int ui) { return true; }
-	bool Write(const Vec3 &v) { return true; }
-	bool Write(const Ang3 &v) { return true; }
-	bool Read(bool &b) { return true; }
-	bool Read(char &c) { return true; }
-	bool Read(unsigned char &uc) { return true; }
-	bool Read(unsigned short &us) { return true; }
-	bool Read(short &s) { return true; }
-	bool Read(int &i) { return true; }
-	bool Read(unsigned int &ui) { return true; }
-	bool Read(float &f) { return true; }
-	bool Read(Vec3 &v) { return true; }
-	bool Read(Ang3 &v) { return true; }
-	bool WriteNumberInBits(int n,size_t nSize) { return true; }
-	bool WriteNumberInBits(unsigned int n,size_t nSize) { return true; }
-	bool ReadNumberInBits(int &n,size_t nSize) { return true; }
-	bool ReadNumberInBits(unsigned int &n,size_t nSize) { return true; }
-	bool Seek(size_t dwPos = 0) { return true; }
-	size_t GetReadPos() { return 0; }
-	unsigned char *GetPtr() const { return 0; };
-	size_t GetSize() const { return 0; }
-	bool SetSize(size_t indwBitSize) { return true; }
-};
-#endif
+class CStream;
 
 #if CRY_PLATFORM_WINDOWS && CRY_PLATFORM_64BIT
 #undef min
 #undef max
 #endif
 
-
 #define ENTGRID_2LEVEL
+//#define MULTI_GRID
+
+// uncomment the following block to effectively disable validations
+/*#define VALIDATOR_LOG(pLog,str)
+#define VALIDATORS_START
+#define VALIDATOR(member)
+#define VALIDATOR_NORM(member)
+#define VALIDATOR_RANGE(member,minval,maxval)
+#define VALIDATOR_RANGE2(member,minval,maxval)
+#define VALIDATORS_END
+#define ENTITY_VALIDATE(strSource,pStructure)*/
+#if (CRY_PLATFORM_WINDOWS && CRY_PLATFORM_64BIT) || (CRY_PLATFORM_LINUX && CRY_PLATFORM_64BIT)
+#define DoBreak {__debugbreak();}
+#else
+#define DoBreak { __debugbreak(); }
+#endif
+
+ILINE bool is_valid(float op) { return op*op>=0 && op*op<1E30f; }
+ILINE bool is_valid(int op) { return true; }
+ILINE bool is_valid(unsigned int op) { return true; }
+ILINE bool is_valid(const Quat& op) { return is_valid(op|op); }
+template<class dtype> bool is_valid(const dtype &op) { return is_valid(op.x*op.x + op.y*op.y + op.z*op.z); }
+
+#define VALIDATOR_LOG(pLog,str) if (pLog) pLog->Log("%s", str) //OutputDebugString(str)
+#define VALIDATORS_START bool validate( const char *strSource, ILog *pLog, const Vec3 &pt,\
+	IPhysRenderer *pStreamer, void *param0, int param1, int param2 ) { bool res=true; char errmsg[1024];
+#define VALIDATOR(member) if (!is_unused(member) && !is_valid(member)) { \
+	res=false; cry_sprintf(errmsg,"%s: (%.50s @ %.1f,%.1f,%.1f) Validation Error: %s is invalid",strSource,\
+	pStreamer?pStreamer->GetForeignName(param0,param1,param2):"",pt.x,pt.y,pt.z,#member); \
+	VALIDATOR_LOG(pLog,errmsg); } 
+#define VALIDATOR_NORM(member) if (!is_unused(member) && !(is_valid(member) && fabs_tpl((member|member)-1.0f)<0.01f)) { \
+	res=false; cry_sprintf(errmsg,"%s: (%.50s @ %.1f,%.1f,%.1f) Validation Error: %s is invalid or unnormalized",\
+	strSource,pStreamer?pStreamer->GetForeignName(param0,param1,param2):"",pt.x,pt.y,pt.z,#member); VALIDATOR_LOG(pLog,errmsg); }
+#define VALIDATOR_NORM_MSG(member,msg,member1) if (!is_unused(member) && !(is_valid(member) && fabs_tpl((member|member)-1.0f)<0.01f)) { \
+	PREFAST_SUPPRESS_WARNING(6053) \
+	res=false; cry_sprintf(errmsg,"%s: (%.50s @ %.1f,%.1f,%.1f) Validation Error: %s is invalid or unnormalized %s",\
+	strSource,pStreamer?pStreamer->GetForeignName(param0,param1,param2):"",pt.x,pt.y,pt.z,#member,msg); \
+	PREFAST_SUPPRESS_WARNING(6053) \
+	if (!is_unused(member1)) { cry_sprintf(errmsg+strlen(errmsg),sizeof errmsg - strlen(errmsg)," "#member1": %.1f,%.1f,%.1f",member1.x,member1.y,member1.z);} \
+	VALIDATOR_LOG(pLog,errmsg); }
+#define VALIDATOR_RANGE(member,minval,maxval) if (!is_unused(member) && !(is_valid(member) && member>=minval && member<=maxval)) { \
+	res=false; cry_sprintf(errmsg,"%s: (%.50s @ %.1f,%.1f,%.1f) Validation Error: %s is invalid or out of range",\
+	strSource,pStreamer?pStreamer->GetForeignName(param0,param1,param2):"",pt.x,pt.y,pt.z,#member); VALIDATOR_LOG(pLog,errmsg); }
+#define VALIDATOR_RANGE2(member,minval,maxval) if (!is_unused(member) && !(is_valid(member) && member*member>=minval*minval && \
+		member*member<=maxval*maxval)) { \
+	res=false; cry_sprintf(errmsg,"%s: (%.50s @ %.1f,%.1f,%.1f) Validation Error: %s is invalid or out of range",\
+	strSource,pStreamer?pStreamer->GetForeignName(param0,param1,param2):"",pt.x,pt.y,pt.z,#member); VALIDATOR_LOG(pLog,errmsg); }
+#define VALIDATORS_END return res; }
+
+#define ENTITY_VALIDATE(strSource,pStructure) if (!pStructure->validate(strSource,m_pWorld->m_pLog,m_pos,\
+	m_pWorld->m_pRenderer,m_pForeignData,m_iForeignData,m_iForeignFlags)) { \
+	if (m_pWorld->m_vars.bBreakOnValidation) DoBreak return 0; }
+#define ENTITY_VALIDATE_ERRCODE(strSource,pStructure,iErrCode) if (!pStructure->validate(strSource,m_pWorld->m_pLog,m_pos, \
+	m_pWorld->m_pRenderer,m_pForeignData,m_iForeignData,m_iForeignFlags)) { \
+	if (m_pWorld->m_vars.bBreakOnValidation) DoBreak return iErrCode; }
 
 // TODO: reference additional headers your program requires here
 #include <CryMemory/CrySizer.h>
+#include <CrySystem/ISystem.h>
+#include <CrySystem/ILog.h>
 #include <CryPhysics/primitives.h>
-#include "utils.h"
 #include <CryPhysics/physinterface.h>
-
+#ifndef NO_CRY_STREAM
+#include "Stream.h"
+#else
+class CStream : public CMemStream {
+public:
+	using CMemStream::CMemStream;
+	void WriteBits(unsigned char *pBits, uint32 nSize) { Write(pBits,nSize+7>>3); }
+	void ReadBits(unsigned char *pBits, uint32 nSize) { ReadRaw(pBits,nSize+7>>3); }
+	void WriteNumberInBits(int n,size_t nSize) { Write(n); }
+	template<class T> void ReadNumberInBits(T &n,size_t nSize) { Read(n); }
+	void Seek(size_t dwPos = 0) { m_iPos = dwPos; }
+	size_t GetReadPos() { return m_iPos; }
+	size_t GetSize() const { return m_nSize; }
+};
+#endif
+#include "utils.h"
 
 #if MAX_PHYS_THREADS<=1
 extern threadID g_physThreadId;

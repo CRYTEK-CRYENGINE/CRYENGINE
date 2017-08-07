@@ -1,16 +1,5 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-   Description: Implements a seat action for sounds (ie: honk on trucks)
-
-   -------------------------------------------------------------------------
-   History:
-   - 16:11:2005: Created by Mathieu Pinard
-
-*************************************************************************/
 #include "StdAfx.h"
 #include "IVehicleSystem.h"
 #include "VehicleSeatActionSound.h"
@@ -39,8 +28,8 @@ bool CVehicleSeatActionSound::Init(IVehicle* pVehicle, IVehicleSeat* pSeat, cons
 	if (!soundTable)
 		return false;
 
-	gEnv->pAudioSystem->GetAudioTriggerId(soundTable.getAttr("startTrigger"), m_audioTriggerStartId);
-	gEnv->pAudioSystem->GetAudioTriggerId(soundTable.getAttr("stopTrigger"), m_audioTriggerStopId);
+	m_audioTriggerStartId = CryAudio::StringToId_RunTime(soundTable.getAttr("startTrigger"));
+	m_audioTriggerStopId = CryAudio::StringToId_RunTime(soundTable.getAttr("stopTrigger"));
 
 	if (soundTable.haveAttr("helper"))
 		m_pHelper = m_pVehicle->GetHelper(soundTable.getAttr("helper"));

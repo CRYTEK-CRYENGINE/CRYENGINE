@@ -1130,7 +1130,7 @@ static char* GetSpaces(int n)
 
 	if (n > spaceBufferSz)
 	{
-		spaceBufferSz = MAX(spaceBufferSz * 2, n);
+		spaceBufferSz = std::max(spaceBufferSz * 2, n);
 		delete[] spaceBuffer;
 		spaceBuffer = new char[spaceBufferSz];
 		memset(spaceBuffer, ' ', spaceBufferSz);

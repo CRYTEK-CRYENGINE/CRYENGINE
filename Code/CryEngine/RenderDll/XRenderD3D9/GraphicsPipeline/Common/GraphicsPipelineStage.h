@@ -9,6 +9,7 @@ typedef std::shared_ptr<CGraphicsPipelineStateLocalCache> CGraphicsPipelineState
 class CGraphicsPipelineStage;
 class CSceneRenderPass;
 class CRenderView;
+class CCVarUpdateRecorder;
 
 struct SGraphicsPipelinePassContext
 {
@@ -27,6 +28,8 @@ struct SGraphicsPipelinePassContext
 		, pRenderView(renderView)
 		, renderNearest(false)
 		, pCommandList(nullptr)
+		, pDrawCallInfoPerMesh(nullptr)
+		, pDrawCallInfoPerNode(nullptr)
 	{
 	}
 
@@ -59,6 +62,9 @@ struct SGraphicsPipelinePassContext
 
 	// Output command list.
 	CDeviceCommandList* pCommandList;
+
+	std::map<struct IRenderNode*, IRenderer::SDrawCallCountInfo> *pDrawCallInfoPerNode;
+	std::map<struct IRenderMesh*, IRenderer::SDrawCallCountInfo> *pDrawCallInfoPerMesh;
 };
 
 class CGraphicsPipelineStage

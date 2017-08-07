@@ -26,7 +26,7 @@ private:
 	virtual ~CFirstPersonHandIKContext() {}
 
 public:
-	PROCEDURAL_CONTEXT(CFirstPersonHandIKContext, "FirstPersonHandIK", 0xd8a55b349caa4b53, 0x89bcf1708d565bc3);
+	PROCEDURAL_CONTEXT(CFirstPersonHandIKContext, "FirstPersonHandIK", "d8a55b34-9caa-4b53-89bc-f1708d565bc3"_cry_guid);
 
 	virtual void Initialize(ICharacterInstance* pCharacterInstance);
 	virtual void Finalize();

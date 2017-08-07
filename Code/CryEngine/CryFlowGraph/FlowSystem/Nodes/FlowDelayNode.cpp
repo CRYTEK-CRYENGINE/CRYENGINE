@@ -3,6 +3,7 @@
 #include "StdAfx.h"
 #include "FlowDelayNode.h"
 
+#include <CryMath/Random.h>
 
 CFlowDelayNode::CFlowDelayNode(SActivationInfo* pActInfo) : m_actInfo(*pActInfo)
 {
@@ -153,7 +154,7 @@ void CFlowDelayNode::ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
 					m_activations.clear();
 				const float delay = GetDelayTime(pActInfo);
 				CTimeValue finishTime = gEnv->pTimer->GetFrameStartTime() + delay;
-				m_activations[(int)finishTime.GetMilliSeconds()] = SDelayData(finishTime, pActInfo->pInputPorts[0]);
+				m_activations[(int)finishTime.GetMilliSeconds()] = SDelayData(finishTime, GetPortAny(pActInfo, 0));
 				pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, true);
 			}
 			else
@@ -172,7 +173,7 @@ void CFlowDelayNode::ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
 				CTimeValue finishTime = gEnv->pTimer->GetFrameStartTime() + delay;
 				IGameFramework::TimerID timerId = gEnv->pGameFramework->AddTimer(delay, false, functor(CFlowDelayNode::OnTimer),
 				                                                                       this);
-				m_activations[timerId] = SDelayData(finishTime, pActInfo->pInputPorts[0]);
+				m_activations[timerId] = SDelayData(finishTime, GetPortAny(pActInfo, 0));
 			}
 			break;
 		}
@@ -307,7 +308,7 @@ public:
 			if (IsPortActive(pActInfo, 0))
 			{
 				pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, true);
-				m_InputData = pActInfo->pInputPorts[0];
+				m_InputData = GetPortAny(pActInfo, 0);
 				m_frameStamp = gEnv->nMainFrameID;
 			}
 			break;

@@ -20,7 +20,7 @@ struct IVariableCollection;
 
 struct IResponseCondition : public IEditorObject
 {
-	virtual ~IResponseCondition() {}
+	virtual ~IResponseCondition() = default;
 
 	typedef uint32 ConditionIdentifierHash;
 	/**

@@ -45,8 +45,6 @@ class CCompositeInteriorNode : public IFlowNode
 public:
 	CCompositeInteriorNode(CFlowCompositeNodeFactoryPtr pFactory);
 
-	virtual void         AddRef();
-	virtual void         Release();
 	virtual IFlowNodePtr Clone(SActivationInfo*);
 
 	virtual void         GetConfiguration(SFlowNodeConfig&);
@@ -58,7 +56,6 @@ public:
 	virtual void         GetMemoryUsage(ICrySizer* s) const;
 
 private:
-	int                          m_refs;
 	CFlowCompositeNodeFactoryPtr m_pFactory;
 	CFlowCompositeNode*          m_pParent;
 };
@@ -88,8 +85,6 @@ public:
 	CFlowCompositeNode(SActivationInfo* pActInfo, IFlowGraphPtr pGraph, CFlowCompositeNodeFactoryPtr pFactory);
 
 	// IFlowNode
-	virtual void         AddRef();
-	virtual void         Release();
 	virtual IFlowNodePtr Clone(SActivationInfo*);
 
 	virtual void         GetConfiguration(SFlowNodeConfig&);
@@ -104,7 +99,6 @@ public:
 	SActivationInfo* GetParentInfo() { return &m_parentInfo; }
 
 private:
-	int                          m_refs;
 	SActivationInfo              m_parentInfo;
 	IFlowGraphPtr                m_pGraph;
 	CFlowCompositeNodeFactoryPtr m_pFactory;
@@ -129,8 +123,6 @@ public:
 	ILINE size_t      GetInputPortCount(bool exterior) const { return (exterior ? m_inputsExt : m_inputsInt).size(); }
 
 	// IFlowNodeFactory
-	virtual void         AddRef();
-	virtual void         Release();
 	virtual IFlowNodePtr Create(IFlowNode::SActivationInfo* pActInfo);
 
 	virtual void         GetMemoryUsage(ICrySizer* s) const;
@@ -139,7 +131,6 @@ public:
 	// ~IFlowNodeFactory
 
 private:
-	int           m_nRefs;
 	NFlowCompositeHelpers::CCompositeGraphPtr m_pPrototypeGraph;
 	TFlowNodeId   m_interfaceNode;
 

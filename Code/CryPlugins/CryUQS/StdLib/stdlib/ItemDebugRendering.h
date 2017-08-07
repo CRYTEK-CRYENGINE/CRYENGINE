@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace stdlib
+	namespace StdLib
 	{
 
 		//===================================================================================
@@ -17,8 +17,8 @@ namespace uqs
 		//
 		//===================================================================================
 
-		void EntityId_AddToDebugRenderWorld(const EntityIdWrapper& item, core::IDebugRenderWorldPersistent& debugRW);
-		void Pos3_AddToDebugRenderWorld(const Pos3& item, core::IDebugRenderWorldPersistent& debugRW);
+		void EntityId_AddToDebugRenderWorld(const EntityIdWrapper& item, Core::IDebugRenderWorldPersistent& debugRW);
+		void Pos3_AddToDebugRenderWorld(const Pos3& item, Core::IDebugRenderWorldPersistent& debugRW);
 
 	}
 }

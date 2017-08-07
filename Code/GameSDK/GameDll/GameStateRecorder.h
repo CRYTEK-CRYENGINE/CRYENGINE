@@ -18,9 +18,7 @@
 
 
 #include "TestSystem/IGameStateRecorder.h"
-//#include "ITestSystem.h"
 #include "Actor.h"
-#include <CrySystem/ITestSystem.h>
 
 #define MAX_FIRE_MODES 10
 #define TItemName const char*

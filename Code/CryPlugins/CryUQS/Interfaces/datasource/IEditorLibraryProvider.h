@@ -4,9 +4,9 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
-namespace uqs
+namespace UQS
 {
-	namespace datasource
+	namespace DataSource
 	{
 		//===================================================================================
 		//
@@ -24,14 +24,14 @@ namespace uqs
 			};
 			virtual void GetQueriesList(IListQueriesVisitor& visitor) = 0;
 
-			virtual bool LoadTextualQueryBlueprint(const char* szQueryName, core::ITextualQueryBlueprint& outBlueprint, shared::IUqsString& error) = 0;
-			virtual bool SaveTextualQueryBlueprint(const char* szQueryName, const core::ITextualQueryBlueprint& blueprintToSave, shared::IUqsString& error) = 0;
+			virtual bool LoadTextualQueryBlueprint(const char* szQueryName, Core::ITextualQueryBlueprint& outBlueprint, Shared::IUqsString& error) = 0;
+			virtual bool SaveTextualQueryBlueprint(const char* szQueryName, const Core::ITextualQueryBlueprint& blueprintToSave, Shared::IUqsString& error) = 0;
 
-			virtual bool CreateNewTextualQueryBlueprint(const char* szQueryName, core::ITextualQueryBlueprint& outBlueprint, shared::IUqsString& error) = 0;
-			virtual bool RemoveQueryBlueprint(const char* szQueryName, shared::IUqsString& error) = 0;
+			virtual bool CreateNewTextualQueryBlueprint(const char* szQueryName, Core::ITextualQueryBlueprint& outBlueprint, Shared::IUqsString& error) = 0;
+			virtual bool RemoveQueryBlueprint(const char* szQueryName, Shared::IUqsString& error) = 0;
 			// TODO pavloi 2016.04.08: rename query
 			// TODO pavloi 2016.04.08: register listener for change monitoring
 		};
 
-	} // namespace interfaces
-} // namespace uqs
+	} // namespace DataSource
+} // namespace UQS
