@@ -46,7 +46,7 @@ public:
 	}
 
 	// Reflect type to set a unique identifier for this component
-	static void ReflectType(Schematyc::CTypeDesc<CPlayerComponent>& desc)
+	static void ReflectType(Schematyc::CTypeDesc<CBulletComponent>& desc)
 	{
 		desc.SetGUID("{B53A9A5F-F27A-42CB-82C7-B1E379C41A2A}"_cry_guid);
 	}
