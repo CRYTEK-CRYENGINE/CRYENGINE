@@ -447,7 +447,7 @@ public:
 		if (fnHandler && pThis)
 		{
 			rVal = (pThis->*fnHandler)(entityId, actionId, activationMode, value);
-			return true;
+			return rval;
 		}
 		else
 			return false;
