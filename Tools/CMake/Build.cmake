@@ -34,7 +34,7 @@ if (OPTION_SANDBOX AND WIN64)
 	set_property(GLOBAL PROPERTY AUTOGEN_TARGETS_FOLDER  "${VS_FOLDER_PREFIX}/Sandbox/AUTOGEN")
 endif()
 	
-# Only allow building legacy GameDLL's with the engine
+# Only allow building legacy GameDLL's with the engine, assuming that we're not using the project system
 if(OPTION_ENGINE AND NOT PROJECT_BUILD)
 	# 2. Games
 	add_subdirectories_glob("Code/Game*")
