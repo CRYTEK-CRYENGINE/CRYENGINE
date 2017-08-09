@@ -35,7 +35,7 @@ if (OPTION_SANDBOX AND WIN64)
 endif()
 	
 # Only allow building legacy GameDLL's with the engine
-if(OPTION_ENGINE)
+if(OPTION_ENGINE AND NOT PROJECT_BUILD)
 	# 2. Games
 	add_subdirectories_glob("Code/Game*")
 endif()
