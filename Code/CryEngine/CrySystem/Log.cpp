@@ -1175,7 +1175,7 @@ void CLog::CreateBackupFile() const
 	else
 		cry_strcpy(szPath, path);
 
-	if (!gEnv->pCryPak)
+	if (!gEnv || !gEnv->pCryPak)
 	{
 		return;
 	}

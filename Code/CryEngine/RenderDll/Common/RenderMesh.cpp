@@ -4115,6 +4115,9 @@ void CRenderMesh::UpdateModified()
 // Mesh garbage collector
 void CRenderMesh::Tick(uint numFrames)
 {
+	assert(gRenDev->m_pRT != nullptr);
+	if (!gRenDev->m_pRT)
+		return;
 	MEMORY_SCOPE_CHECK_HEAP();
 	ASSERT_IS_RENDER_THREAD(gRenDev->m_pRT)
 		bool bKeepSystem = false;
