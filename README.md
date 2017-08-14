@@ -21,3 +21,6 @@ Pull requests can only be accepted into the "pullrequests" branch.
 
 ## License
 The source code in this repository is governed by the CRYENGINE license agreement, which is contained in LICENSE.md, adjacent to this file.
+
+
+## Example for PR documentation
