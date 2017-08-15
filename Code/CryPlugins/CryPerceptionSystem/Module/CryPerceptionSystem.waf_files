@@ -3,18 +3,18 @@
 	{
 		"Interface" :
 		[
-			"../Interface/ICryPerceptionSystemPlugin.h",
-			"../Interface/IPerceptionManager.h"
+			"../Interface/IPerceptionManager.h",
+			"../Interface/ICryPerceptionSystemPlugin.h"
 		],
 		"Module" :
 		[
 			"CryPerceptionSystemPluginDLL.cpp",
-			"PerceptionManager.cpp",
-			"PerceptionManager.h",
-			"PerceptionActor.cpp",
+			"PerceptionActor.inl",
 			"PerceptionActor.h",
 			"PerceptionFlowNodes.cpp",
 			"PerceptionFlowNodes.h",
+			"PerceptionManager.cpp",
+			"PerceptionManager.h",
 			"ScriptBind_PerceptionManager.cpp",
 			"ScriptBind_PerceptionManager.h"
 		]

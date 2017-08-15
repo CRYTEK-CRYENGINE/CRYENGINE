@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -72,8 +72,6 @@ namespace CryEngine.Serialization
 					return ReadObject();
 				case SerializedObjectType.Array:
 					return ReadArray();
-                case SerializedObjectType.Assembly:
-                    return ReadAssembly();
 				case SerializedObjectType.Type:
 					return ReadTypeWithReference();
 				case SerializedObjectType.String:
@@ -177,31 +175,28 @@ namespace CryEngine.Serialization
 			for (var iField = 0; iField < numFields; iField++)
 			{
 				var fieldName = Reader.ReadString();
+				var fieldInfo = objectType.GetField(fieldName, flags);
 				var fieldValue = Read();
 
-                if (objectType != null)
-                {
-                    var fieldInfo = objectType.GetField(fieldName, flags);
-                    if (fieldInfo != null && !fieldInfo.IsLiteral)
-                    {
-                        fieldInfo.SetValue(obj, fieldValue);
-                    }
-                }
+				if (fieldInfo != null && !fieldInfo.IsLiteral && !fieldInfo.IsInitOnly)
+				{
+					fieldInfo.SetValue(obj, fieldValue);
+				}
 			}
 
 			var numEvents = Reader.ReadInt32();
 			for (var iEvent = 0; iEvent < numEvents; iEvent++)
 			{
 				var eventName = Reader.ReadString();
-				
+				var eventInfo = objectType.GetEvent(eventName, flags);
+				var eventField = objectType.GetField(eventName, flags);
+
 				if (Reader.ReadBoolean())
 				{
 					var delegateType = ReadType();
 					var functionCount = Reader.ReadInt32();
 
-                    EventInfo eventInfo = objectType != null ? objectType.GetEvent(eventName, flags) : null;
-
-                    for (int i = 0; i < functionCount; i++)
+					for (int i = 0; i < functionCount; i++)
 					{
 						var methodInfo = Read() as MethodInfo;
 						var target = Read();
@@ -217,47 +212,40 @@ namespace CryEngine.Serialization
 							parsedDelegate = Delegate.CreateDelegate(delegateType, methodInfo);
 						}
 
-                        if (eventInfo != null)
-                        {
-                            var addMethod = eventInfo.GetAddMethod(true);
-                            addMethod.Invoke(obj, new[] { parsedDelegate });
-                        }
+						eventInfo.AddEventHandler(obj, parsedDelegate);
 					}
 				}
 			}
 
-            if (objectType != null)
-            {
-                // Special case, always get native pointers for SWIG director types
-                var swigCPtr = objectType.GetField("swigCPtr", flags);
-                if (swigCPtr != null)
-                {
-                    // Start with director handling, aka support for cross-language polymorphism
-                    var swigDirectorConnect = objectType.GetMethod("SwigDirectorConnect", flags);
-                    if (swigDirectorConnect != null)
-                    {
-                        var swigCMemOwn = objectType.GetField("swigCMemOwn", flags);
+			// Special case, always get native pointers for SWIG director types
+			var swigCPtr = objectType.GetField("swigCPtr", flags);
+			if (swigCPtr != null)
+			{
+				// Start with director handling, aka support for cross-language polymorphism
+				var swigDirectorConnect = objectType.GetMethod("SwigDirectorConnect", flags);
+				if (swigDirectorConnect != null)
+				{
+					var swigCMemOwn = objectType.GetField("swigCMemOwn", flags);
 
-                        // Should not be null, if it is we need to check if something is wrong
-                        var constructor = objectType.GetConstructor(Type.EmptyTypes);
+					// Should not be null, if it is we need to check if something is wrong
+					var constructor = objectType.GetConstructor(Type.EmptyTypes);
 
-                        var newObj = constructor.Invoke(null);
+					var newObj = constructor.Invoke(null);
 
-                        swigCMemOwn.SetValue(newObj, false);
-                        swigCMemOwn.SetValue(obj, true);
+					swigCMemOwn.SetValue(newObj, false);
+					swigCMemOwn.SetValue(obj, true);
 
-                        var handleReference = new HandleRef(obj, ((HandleRef)swigCPtr.GetValue(newObj)).Handle);
+					var handleReference = new HandleRef(obj, ((HandleRef)swigCPtr.GetValue(newObj)).Handle);
 
-                        swigCPtr.SetValue(obj, handleReference);
-                        swigDirectorConnect.Invoke(obj, null);
-                    }
-                    else // Support for other types, such as Vec3 (where we should simply take ownership of the native pointer
-                    {
-                        var handleReference = new HandleRef(obj, ((HandleRef)swigCPtr.GetValue(obj)).Handle);
-                        swigCPtr.SetValue(obj, handleReference);
-                    }
-                }
-            }
+					swigCPtr.SetValue(obj, handleReference);
+					swigDirectorConnect.Invoke(obj, null);
+				}
+				else // Support for other types, such as Vec3 (where we should simply take ownership of the native pointer
+				{
+					var handleReference = new HandleRef(obj, ((HandleRef)swigCPtr.GetValue(obj)).Handle);
+					swigCPtr.SetValue(obj, handleReference);
+				}
+			}
 		}
 
 		object ReadString()
@@ -340,7 +328,9 @@ namespace CryEngine.Serialization
 		object ReadISerializable()
 		{
 			var referenceId = Reader.ReadInt32();
+
 			var type = ReadType();
+
 			var memberCount = Reader.ReadInt32();
 
 			var serInfo = new SerializationInfo(type, Converter);
@@ -350,11 +340,8 @@ namespace CryEngine.Serialization
 				var memberName = Reader.ReadString();
 				var memberType = ReadType();
 				var memberValue = Read();
-                
-                if (memberType != null)
-                {
-                    serInfo.AddValue(memberName, memberValue, memberType);
-                }
+
+				serInfo.AddValue(memberName, memberValue, memberType);
 			}
 
 			var constructor = type.GetConstructor(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(SerializationInfo), typeof(StreamingContext) }, null);
@@ -375,55 +362,44 @@ namespace CryEngine.Serialization
 			var referenceId = Reader.ReadInt32();
 			var type = ReadType();
 
-#pragma warning disable RECS0035 // Possible mistaken call to 'object.GetType()'
-            if (type != null)
-            {
-                AddReference(type.GetType(), type, referenceId);
-            }
-#pragma warning restore RECS0035 // Possible mistaken call to 'object.GetType()'
+			AddReference(type.GetType(), type, referenceId);
 
 			return type;
 		}
 
 		Type ReadType()
 		{
-			if(Reader.ReadBoolean())
+			if (Reader.ReadBoolean())
 			{
 				var elementType = ReadType();
 				return elementType.MakeArrayType();
 			}
 
-			var isGeneric = Reader.ReadBoolean();
+			bool isGeneric = Reader.ReadBoolean();
 
 			var type = GetType(Reader.ReadString());
 
-			if(isGeneric)
+			if (isGeneric)
 			{
 				var numGenericArgs = Reader.ReadInt32();
 				var genericArgs = new Type[numGenericArgs];
-				for(int i = 0; i < numGenericArgs; i++)
+				for (int i = 0; i < numGenericArgs; i++)
 					genericArgs[i] = ReadType();
 
-                if (type != null)
-                {
-                    type = type.MakeGenericType(genericArgs);
-                }
+				type = type.MakeGenericType(genericArgs);
 			}
 
 			return type;
 		}
 
+		Type _particleType = typeof(CryEngine.Common.IParticleEffect);
+
 		Type GetType(string typeName)
 		{
 			if (typeName == null)
-			{
-				throw new ArgumentNullException(nameof(typeName));
-			}
-
+				throw new ArgumentNullException("typeName");
 			if (typeName.Length == 0)
-			{
-				throw new ArgumentException(string.Format("{0} cannot have zero length!", nameof(typeName)));
-			}
+				throw new ArgumentException("typeName cannot have zero length");
 
 			if (typeName.Contains('+'))
 			{
@@ -433,7 +409,7 @@ namespace CryEngine.Serialization
 				return ownerType.Assembly.GetType(typeName);
 			}
 
-			var type = Type.GetType(typeName);
+			Type type = Type.GetType(typeName);
 			if (type != null)
 				return type;
 
@@ -444,20 +420,8 @@ namespace CryEngine.Serialization
 					return type;
 			}
 
-            return null;
+			throw new TypeLoadException(string.Format("Could not locate type with name {0}", typeName));
 		}
-
-        Assembly ReadAssembly()
-        {
-            var referenceId = Reader.ReadInt32();
-            var assembly = Assembly.LoadFrom(Reader.ReadString());
-            if(assembly != null)
-            {
-                AddReference(assembly.GetType(), assembly, referenceId);
-            }
-
-            return assembly;
-        }
-        #endregion
-    }
+		#endregion
+	}
 }

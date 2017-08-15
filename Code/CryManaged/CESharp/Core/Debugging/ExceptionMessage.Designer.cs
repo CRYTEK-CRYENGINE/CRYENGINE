@@ -1,4 +1,4 @@
-﻿namespace CryEngine
+namespace CryEngine
 {
 	partial class ExceptionMessage
 	{

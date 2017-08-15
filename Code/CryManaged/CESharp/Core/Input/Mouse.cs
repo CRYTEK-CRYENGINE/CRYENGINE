@@ -1,4 +1,10 @@
-﻿using CryEngine.Common;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+using CryEngine.Common;
+using CryEngine.EntitySystem;
 using CryEngine.Rendering;
 
 namespace CryEngine
@@ -17,10 +23,7 @@ namespace CryEngine
 			event MouseEventHandler Move;
 		}
 
-		/// <summary>
-		/// Used by all Mouse events.
-		/// </summary>
-		public delegate void MouseEventHandler(int x, int y);
+		public delegate void MouseEventHandler(int x, int y); ///< Used by all Mouse events.
 		public static event MouseEventHandler OnLeftButtonDown;
 		public static event MouseEventHandler OnLeftButtonUp;
 		public static event MouseEventHandler OnRightButtonDown;
@@ -42,52 +45,21 @@ namespace CryEngine
 		private static Vector2 _hitEntityUV = new Vector2();
 		private static bool _cursorVisible = false;
 
-		/// <summary>
-		/// Current Mouse Cursor Position, refreshed before update loop.
-		/// </summary>
-		public static Point CursorPosition { get { return new Point(_lmx, _lmy); } }
-
-		/// <summary>
-		/// Indicates whether left mouse button is Down during one update phase.
-		/// </summary>
-		public static bool LeftDown { get; private set; }
-
-		/// <summary>
-		/// Indicates whether left mouse button is Released during one update phase.
-		/// </summary>
-		public static bool LeftUp { get; private set; }
-
-		/// <summary>
-		/// Indicates whether right mouse button is Down during one update phase.
-		/// </summary>
-		public static bool RightDown { get; private set; }
-
-		/// <summary>
-		/// Indicates whether right mouse button is Released during one update phase.
-		/// </summary>
-		public static bool RightUp { get; private set; }
-
-		/// <summary>
-		/// ID of the Entity currently under the cursor position.
-		/// </summary>
-		public static uint HitEntityId
+		public static Point CursorPosition { get { return new Point(_lmx, _lmy); } } ///< Current Mouse Cursor Position, refreshed before update loop.
+		public static bool LeftDown { get; private set; } ///< Indicates whether left mouse button is Down during one update phase.
+		public static bool LeftUp { get; private set; } ///< Indicates whether left mouse button is Released during one update phase.
+		public static bool RightDown { get; private set; } ///< Indicates whether right mouse button is Down during one update phase.
+		public static bool RightUp { get; private set; } ///< Indicates whether right mouse button is Released during one update phase.
+		public static uint HitEntityId ///< ID of IEntity under cursor position.
 		{
 			get { return _hitEntityId; }
 			set { _hitEntityId = value; }
 		}
-
-		/// <summary>
-		/// UV-coordinates where the mouse-cursor is hitting an Entity.
-		/// </summary>
-		public static Vector2 HitEntityUV
+		public static Vector2 HitEntityUV ///< UV of IEntity under cursor position.
 		{
 			get { return _hitEntityUV; }
 			set { _hitEntityUV = value; }
 		}
-
-		/// <summary>
-		/// The Entity currently under the cursor position
-		/// </summary>
 		public static Entity HitEntity
 		{
 			get
@@ -96,71 +68,61 @@ namespace CryEngine
 			}
 		}
 
-		/// <summary>
-		/// Show the mouse-cursor
-		/// </summary>
 		public static void ShowCursor()
 		{
-			if(!_cursorVisible)
-			{
+			if (!_cursorVisible)
 				Global.gEnv.pHardwareMouse.IncrementCounter();
-			}
 			_cursorVisible = true;
 		}
 
-		/// <summary>
-		/// Hide the mouse-cursor
-		/// </summary>
 		public static void HideCursor()
 		{
-			if(_cursorVisible)
-			{
+			if (_cursorVisible)
 				Global.gEnv.pHardwareMouse.DecrementCounter();
-			}
 			_cursorVisible = false;
 		}
 
 		/// <summary>
 		/// Called by CryEngine. Do not call directly.
 		/// </summary>
-		/// <param name="iX">The x coordinate.</param>
-		/// <param name="iY">The y coordinate.</param>
+		/// <param name="x">The x coordinate.</param>
+		/// <param name="y">The y coordinate.</param>
 		/// <param name="eHardwareMouseEvent">Event struct.</param>
 		/// <param name="wheelDelta">Wheel delta.</param>
-		public override void OnHardwareMouseEvent(int iX, int iY, EHARDWAREMOUSEEVENT eHardwareMouseEvent, int wheelDelta)
+		public override void OnHardwareMouseEvent(int x, int y, EHARDWAREMOUSEEVENT eHardwareMouseEvent, int wheelDelta)
 		{
 			switch (eHardwareMouseEvent)
 			{
 				case EHARDWAREMOUSEEVENT.HARDWAREMOUSEEVENT_LBUTTONDOWN:
 					{
 						_updateLeftDown = true;
-						HitScenes(iX, iY);
+						HitScenes(x, y);
 						if (OnLeftButtonDown != null)
-							OnLeftButtonDown(iX, iY);
+							OnLeftButtonDown(x, y);
 						break;
 					}
 				case EHARDWAREMOUSEEVENT.HARDWAREMOUSEEVENT_LBUTTONUP:
 					{
 						_updateLeftUp = true;
-						HitScenes(iX, iY);
+						HitScenes(x, y);
 						if (OnLeftButtonUp != null)
-							OnLeftButtonUp(iX, iY);
+							OnLeftButtonUp(x, y);
 						break;
 					}
 				case EHARDWAREMOUSEEVENT.HARDWAREMOUSEEVENT_RBUTTONDOWN:
 					{
 						_updateRightDown = true;
-						HitScenes(iX, iY);
+						HitScenes(x, y);
 						if (OnRightButtonDown != null)
-							OnRightButtonDown(iX, iY);
+							OnRightButtonDown(x, y);
 						break;
 					}
 				case EHARDWAREMOUSEEVENT.HARDWAREMOUSEEVENT_RBUTTONUP:
 					{
 						_updateRightUp = true;
-						HitScenes(iX, iY);
+						HitScenes(x, y);
 						if (OnRightButtonUp != null)
-							OnRightButtonUp(iX, iY);
+							OnRightButtonUp(x, y);
 						break;
 					}
 			}
@@ -266,25 +228,15 @@ namespace CryEngine
 
 		public static void HitScenes(int x, int y)
 		{
-			if(!Global.gEnv.pGameFramework.GetILevelSystem().IsLevelLoaded())
-			{
-				return;
-			}
+            if (!Global.gEnv.pGameFramework.GetILevelSystem().IsLevelLoaded())
+                return;
 
 			HitEntityId = 0;
+			float u = 0, v = 0;
 			var mouseDir = Camera.Unproject(x, y);
-			RaycastHit hit;
-			if(Physics.Raycast(Camera.Position, mouseDir, 100, out hit))
-			{
-				HitEntityId = hit.EntityId;
-				_hitEntityUV = hit.UvPoint;
-			}
-			else
-			{
-				_hitEntityUV.x = 0;
-				_hitEntityUV.y = 0;
-			}
-			
+			HitEntityId = (uint)Global.gEnv.pRenderer.RayToUV(Camera.Position, mouseDir, ref u, ref v);
+			_hitEntityUV.x = u;
+			_hitEntityUV.y = v;
 		}
 
 		/// <summary>

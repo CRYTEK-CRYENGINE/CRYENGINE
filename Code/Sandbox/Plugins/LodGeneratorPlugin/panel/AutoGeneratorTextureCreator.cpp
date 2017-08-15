@@ -250,7 +250,7 @@ namespace LODGenerator
 				return;
 			}
 
-			CMaterial * pTemplateMaterial = GetIEditor()->GetMaterialManager()->LoadMaterial("%EDITOR%/Materials/lodgen_template.mtl");
+			CMaterial * pTemplateMaterial = GetIEditor()->GetMaterialManager()->LoadMaterial("Editor/Materials/lodgen_template.mtl");
 			if (pTemplateMaterial)
 			{
 				pTemplateMaterial->AddRef();

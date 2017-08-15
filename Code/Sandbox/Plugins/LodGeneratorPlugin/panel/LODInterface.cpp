@@ -648,7 +648,7 @@ namespace LODGenerator
 
 	CMaterial * CLodGeneratorInteractionManager::CreateMaterialFromTemplate(const string& matName)
 	{
-		CMaterial * templateMaterial = GetIEditor()->GetMaterialManager()->LoadMaterial("%EDITOR%/Materials/lodgen_template.mtl");
+		CMaterial * templateMaterial = GetIEditor()->GetMaterialManager()->LoadMaterial("Editor/Materials/lodgen_template.mtl");
 		if (templateMaterial)
 			templateMaterial->AddRef();
 
@@ -1387,7 +1387,7 @@ namespace LODGenerator
 				return;
 			}
 
-			CMaterial * pTemplateMaterial = GetIEditor()->GetMaterialManager()->LoadMaterial("%EDITOR%/Materials/lodgen_template.mtl");
+			CMaterial * pTemplateMaterial = GetIEditor()->GetMaterialManager()->LoadMaterial("Editor/Materials/lodgen_template.mtl");
 			if (pTemplateMaterial)
 			{
 				pTemplateMaterial->AddRef();
