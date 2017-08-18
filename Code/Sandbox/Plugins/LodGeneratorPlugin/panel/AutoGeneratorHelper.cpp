@@ -74,7 +74,7 @@ namespace LODGenerator
 
 	CMaterial * CAutoGeneratorHelper::CreateMaterialFromTemplate(const string& matName)
 	{
-		CMaterial * templateMaterial = GetIEditor()->GetMaterialManager()->LoadMaterial("%EDITOR%/Materials/lodgen_template.mtl");
+		CMaterial * templateMaterial = GetIEditor()->GetMaterialManager()->LoadMaterial("Editor/Materials/lodgen_template.mtl");
 		if (templateMaterial)
 			templateMaterial->AddRef();
 

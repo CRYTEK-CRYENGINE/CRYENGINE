@@ -3,6 +3,7 @@
 using System;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Diagnostics;
 using CryEngine.Common;
 
 namespace CryEngine
@@ -15,7 +16,7 @@ namespace CryEngine
 		public static readonly Vector3 Up = new Vector3(0, 0, 1);
 		public static readonly Vector3 Down = new Vector3(0, 0, -1);
 		public static readonly Vector3 Forward = new Vector3(0, 1, 0);
-		public static readonly Vector3 Back = new Vector3(0, -1, 0);
+		public static readonly Vector3 Back = new Vector3(0, 1, 0);
 		public static readonly Vector3 Left = new Vector3(-1, 0, 0);
 		public static readonly Vector3 Right = new Vector3(1, 0, 0);
 
@@ -48,11 +49,10 @@ namespace CryEngine
 			{
 				int hash = 17;
 
-#pragma warning disable RECS0025 // Non-readonly field referenced in 'GetHashCode()'
 				hash = hash * 23 + _x.GetHashCode();
 				hash = hash * 23 + _y.GetHashCode();
 				hash = hash * 23 + _z.GetHashCode();
-#pragma warning restore RECS0025 // Non-readonly field referenced in 'GetHashCode()'
+
 				return hash;
 			}
 		}
@@ -71,7 +71,7 @@ namespace CryEngine
 
 		public bool Equals(Vector3 other)
 		{
-			return MathHelpers.Approximately(_x, other.x) && MathHelpers.Approximately(_y, other.y) && MathHelpers.Approximately(_z, other.z);
+			return MathHelpers.IsEqual(_x, other.x) && MathHelpers.IsEqual(_y, other.y) && MathHelpers.IsEqual(_z, other.z);
 		}
 
 		public override string ToString()
@@ -90,30 +90,10 @@ namespace CryEngine
 		{
 			if(nativeVector == null)
 			{
-				return Zero;
+				return Vector3.Zero;
 			}
 
 			return new Vector3(nativeVector.x, nativeVector.y, nativeVector.z);
-		}
-
-		public static explicit operator Vector3(Vector2 vector)
-		{
-			return new Vector3
-			{
-				X = vector.X,
-				Y = vector.Y,
-				Z = 0.0f
-			};
-		}
-
-		public static explicit operator Vector3(Vector4 vector)
-		{
-			return new Vector3
-			{
-				X = vector.X,
-				Y = vector.Y,
-				Z = vector.Z
-			};
 		}
 		#endregion
 
@@ -167,52 +147,14 @@ namespace CryEngine
 		#endregion
 
 		#region Functions
-		/// <summary>
-		/// Returns the dot product of this Vector3 and Vector3 v.
-		/// If the vectors are normalized the value will always be between 1 (vectors are the same) and -1 (vectors are opposites).
-		/// </summary>
-		/// <returns>The dot product.</returns>
-		/// <param name="v">Other direction vector.</param>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public float Dot(Vector3 v)
 		{
-			return Dot(this, v);
+			return _x * v.X + _y * v.Y + _z * v.Z;
 		}
 
-		/// <summary>
-		/// Returns the dot product of Vector3 a and b.
-		/// If the vectors are normalized the value will always be between 1 (vectors are the same) and -1 (vectors are opposites).
-		/// </summary>
-		/// <returns>The dot product.</returns>
-		/// <param name="a">Direction vector a.</param>
-		/// <param name="b">Direction vector b.</param>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static float Dot(Vector3 a, Vector3 b)
-		{
-			return a._x * b._x + a._y * b._y + a._z * b._z;
-		}
-
-		/// <summary>
-		/// Cross this vector with the specified vector.
-		/// </summary>
-		/// <returns>The cross.</returns>
-		/// <param name="v">The other vector.</param>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public Vector3 Cross(Vector3 v)
 		{
-			return Cross(this, v);
-		}
-
-		/// <summary>
-		/// Cross the specified a and b vectors.
-		/// </summary>
-		/// <returns>The cross.</returns>
-		/// <param name="a">Vector a.</param>
-		/// <param name="b">Vector b.</param>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static Vector3 Cross(Vector3 a, Vector3 b)
-		{
-			return new Vector3(a._y * b._z - a._z * b._y, a._z * b._x - a._x * b._z, a._x * b._y - a._y * b._x);
+			return new Vector3(_y * v.Z - _z * v.Y, _z * v.X - _x * v.Z, _x * v.Y - _y * v.X);
 		}
 
 		[Obsolete("Please use IsNearlyZero")]
@@ -221,34 +163,30 @@ namespace CryEngine
 			return (Math.Abs(x) <= epsilon) && (Math.Abs(y) <= epsilon) && (Math.Abs(z) <= epsilon);
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public bool IsNearlyZero()
 		{
-			return (Math.Abs(_x) <= MathHelpers.Epsilon && Math.Abs(_y) <= MathHelpers.Epsilon) && Math.Abs(_z) <= MathHelpers.Epsilon;
+			return (Math.Abs(_x) <= MathHelpers.FloatEpsilon && Math.Abs(_y) <= MathHelpers.FloatEpsilon) && Math.Abs(_z) <= MathHelpers.FloatEpsilon;
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		
 		public static Vector3 Lerp(Vector3 p, Vector3 q, float t)
 		{
 			t = Math.Max(Math.Min(1.0f, t), 0f);
-			return LerpUnclamped(p, q, t);
+			return Vector3.LerpUnclamped(p, q, t);
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static Vector3 LerpUnclamped(Vector3 p, Vector3 q, float t)
 		{
 			Vector3 diff = q - p;
 			return p + (diff * t);
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static Vector3 Slerp(Vector3 p, Vector3 q, float t)
 		{
 			t = Math.Max(Math.Min(1.0f, t), 0f);
 			return SlerpUnclamped(p, q, t);
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static Vector3 SlerpUnclamped(Vector3 p, Vector3 q, float t)
 		{
 			bool errorFlag1 = false;
@@ -265,16 +203,16 @@ namespace CryEngine
 			}
 			float cosine = (p.x * q.x) + (p.y * q.y) + (p.z * q.z);
 			cosine = MathHelpers.Clamp(-1, 1, cosine);
-
-			if (MathHelpers.Approximately(cosine, 1, 0.000001f))
+			
+			if (MathHelpers.IsEqual(cosine-1, 0.000001f, MathHelpers.Precision.Precision_6))
 			{
 				// use lerp
-				var result = LerpUnclamped(p, q, t);
+				Vector3 result = LerpUnclamped(p, q, t);
 				return result.Normalized;
 			}
-			var radians = (float)Math.Acos(cosine);
-			var scale_0 = (float)Math.Sin((1 - t) * radians);
-			var scale_1 = (float)Math.Sin(t * radians);
+			float radians = (float)Math.Acos(cosine);
+			float scale_0 = (float)Math.Sin((1 - t) * radians);
+			float scale_1 = (float)Math.Sin(t * radians);
 			Vector3 result2 = (p * scale_0 + q * scale_1) / (float)Math.Sin(radians);
 			return result2.Normalized;
 		}
@@ -286,46 +224,13 @@ namespace CryEngine
 			{
 				#if DEBUG
 					string messageIfFalse = vector.ToString() + " not unit vector";
-					Log.Always<Vector3>(messageIfFalse);
+					Log.Always(messageIfFalse);
 				#endif	
 				errorFlag = false;
 			}
 			errorFlag = true;
 		}
 
-		/// <summary>
-		/// Returns the angle in radians between Vector3 a and b in radians.
-		/// If the magnitude of a or b is 0, it will return 0.
-		/// </summary>
-		/// <returns>The angle in radians.</returns>
-		/// <param name="a">The first Vector3.</param>
-		/// <param name="b">The second Vector3.</param>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static float Angle(Vector3 a, Vector3 b)
-		{
-			if(a.IsNearlyZero() || b.IsNearlyZero())
-			{
-				return 0.0f;
-			}
-			var normA = Math.Abs(1.0f - a.LengthSquared) > 0.005f ? a.Normalized : a;
-			var normB = Math.Abs(1.0f - b.LengthSquared) > 0.005f ? b.Normalized : b;
-			return (float)Math.Acos(Dot(normA, normB));
-		}
-
-		/// <summary>
-		/// Returns the angle in radians between Vector3 a and b, but disregards the Z-axis.
-		/// If the magnitude of a or b is 0, it will return 0.
-		/// </summary>
-		/// <returns>The angle.</returns>
-		/// <param name="a">The first Vector3.</param>
-		/// <param name="b">The second Vector3.</param>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static float FlatAngle(Vector3 a, Vector3 b)
-		{
-			float cz = a.x * b.y - a.y * b.x;
-			float c = a.x * b.x + a.y * b.y;
-			return (float)Math.Atan2(cz, c);
-		}
 #endregion
 
 #region Properties
@@ -440,7 +345,7 @@ namespace CryEngine
 						return _z;
 
 					default:
-					throw new ArgumentOutOfRangeException(nameof(index), "Indices must run from 0 to 2!");
+						throw new ArgumentOutOfRangeException("index", "Indices must run from 0 to 2!");
 				}
 			}
 			set
@@ -458,10 +363,11 @@ namespace CryEngine
 						break;
 
 					default:
-						throw new ArgumentOutOfRangeException(nameof(index), "Indices must run from 0 to 2!");
+						throw new ArgumentOutOfRangeException("index", "Indices must run from 0 to 2!");
 				}
 			}
 		}
 #endregion
+
 	}
 }

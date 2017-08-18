@@ -11,7 +11,7 @@ CPolygonMesh::CPolygonMesh()
 {
 	m_pStatObj = NULL;
 	m_pRenderNode = NULL;
-	CMaterial* pMat = GetIEditor()->GetMaterialManager()->LoadMaterial("%EDITOR%/Materials/lodgenerator");
+	CMaterial* pMat = GetIEditor()->GetMaterialManager()->LoadMaterial("Editor/Materials/lodgenerator");
 	if(pMat)
 		m_pMaterial = pMat->GetMatInfo();
 	else
