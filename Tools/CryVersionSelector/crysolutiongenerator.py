@@ -4,6 +4,7 @@ import os
 import os.path
 import uuid
 import glob
+import re
 
 from win32com.client import Dispatch
 from string import Template
@@ -161,8 +162,49 @@ def generate_csharp_project (project_file, code_directory, cs_source_directory, 
     return True
 
 def generate_cpp_cmakelists (project_name, project_file, code_directory, engine_root_directory, is_default_project=True):
+    
+    # Attempt to read cmakelists already present
+    existing_cmakelists_contents = 0
+    cmakelists_path = os.path.join(code_directory, 'CMakeLists.txt')
+    if os.path.exists(cmakelists_path):
+        cmakelists_file = open(cmakelists_path, 'r')
+        existing_cmakelists_contents = cmakelists_file.read()
+    else:
+        existing_cmakelists_contents = 0
+    
+    # Attempt to find existing project name/solution name and solution folder (if vs)
+    project_name_local = 0
+    solution_folder_name = "Project"
+    if existing_cmakelists_contents != 0:
+        if is_default_project:
+            # Find by CE_EXTENSION_NAME variable 
+            project_name_local_pattern = r'^[ \t]*set[ \t]*\([ \t]*CE_EXTENSION_NAME[ \t]*"(.+?)"[ \t]*\)*[ \t]*$'
+            match = re.search(project_name_local_pattern, existing_cmakelists_contents, re.MULTILINE)
+            if match:
+                project_name_local = str(match.group(1))
+                
+        if project_name_local == 0:
+            # Find by ProjectName variable
+            project_name_local_pattern = r'^[ \t]*set[ \t]*\([ \t]*ProjectName[ \t]*"(.+?)"[ \t]*\)*[ \t]*$'
+            match = re.search(project_name_local_pattern, existing_cmakelists_contents)
+            if match:
+                project_name_local = match.group(1)
+            else:
+                # Find by module call/project definition
+                project_name_local_pattern = r'^[ \t]*(?:project|CryEngineModule|CryFileContainer)[ \t]*\([ \t]*"*([a-zA-Z0-9_]+)"*.*?(?:SOLUTION_FOLDER "(.*?)".+?)*\)*[ \t]*$'
+                match = re.search(project_name_local_pattern, existing_cmakelists_contents, re.MULTILINE)
+                if match:
+                    if match.group(1):
+                        project_name_local = str(match.group(1))
+                    if match.group(2):
+                        solution_folder_name = str(match.group(2))
+    
+    # Default project name
+    if project_name_local == 0:
+        project_name_local = project_name
+    
+    # CMakeLists Template Data
     cmakelists_template = Template("cmake_minimum_required (VERSION 3.6.2)\n")
-
     if is_default_project:
          cmakelists_template.template += """set(CRYENGINE_DIR "$engine_root_directory")
 set(TOOLS_CMAKE_DIR "$${CRYENGINE_DIR}/Tools/CMake")
@@ -174,15 +216,26 @@ include("$${TOOLS_CMAKE_DIR}/CommonOptions.cmake")
 
 add_subdirectory("$${CRYENGINE_DIR}" "$${CMAKE_CURRENT_BINARY_DIR}/CRYENGINE")
 
-include("$${TOOLS_CMAKE_DIR}/Configure.cmake")"""
+set(CE_EXTENSION_NAME \"""" + project_name_local + """")
 
-    cmakelists_template.template += """\nstart_sources()
+include("$${TOOLS_CMAKE_DIR}/Configure.cmake")"""
+    
+    moduletemplate_container = """\n\nstart_sources()
+    
+sources_platform(ALL)
+$sources
+end_sources()
+
+CryFileContainer(""" + project_name_local + """ SOLUTION_FOLDER \"""" + solution_folder_name + """")
+"""
+    
+    moduletemplate_module = """\n\nstart_sources()
 
 sources_platform(ALL)
 $sources
 end_sources()
 
-CryEngineModule($project_name PCH "StdAfx.cpp" SOLUTION_FOLDER "Project")
+CryEngineModule(""" + project_name_local + """ PCH "StdAfx.cpp" SOLUTION_FOLDER \"""" + solution_folder_name + """")
 
 target_include_directories($${THIS_PROJECT}
 PRIVATE
@@ -192,31 +245,28 @@ PRIVATE
 	"$${CRYENGINE_DIR}/Code/CryPlugins/CryDefaultEntities/Module"
 )
 """
-
-    if is_default_project:
-        cmakelists_template.template += '''\n# Set StartUp project in Visual Studio
+    
+    debugstart_template = '''\n# Set StartUp project in Visual Studio
 set_solution_startup_target($${THIS_PROJECT})
 
 if (WIN32)
     set_visual_studio_debugger_command( $${THIS_PROJECT} "$${CRYENGINE_DIR}/bin/win_x64/GameLauncher.exe" "-project \\"$projectfile\\"" )
 endif()\n'''
-
+    
     cmakelists_path = os.path.join(code_directory, 'CMakeLists.txt')
-
+    
     custom_block_prefix = '#BEGIN-CUSTOM'
     custom_block_postfix = '#END-CUSTOM'
-
+    
     custom_contents = ""
-
+    
     standalone_directories = []
-
+    
     # Try to copy custom data
-    if os.path.exists(cmakelists_path):
-        cmakelists_file = open(cmakelists_path, 'r')
-
-        existing_cmakelists_contents = cmakelists_file.read()
-
+    if existing_cmakelists_contents != 0:
+        
         current_index = 0
+        
         while True:
             current_index = existing_cmakelists_contents.find(custom_block_prefix, current_index)
             if current_index == -1:
@@ -261,26 +311,37 @@ endif()\n'''
             current_index = end_index
     else:
         custom_contents += '\n' + custom_block_prefix + '\n# Make any custom changes here, modifications outside of the block will be discarded on regeneration.\n'+ custom_block_postfix
-
+    
     cmakelists_sources = ""
-
+    
     source_count = 0
-
-    directory_sources = add_cpp_sources(code_directory, project_name, code_directory, standalone_directories)
-    if directory_sources != "":
+    proj_type = -1
+    
+    directory_sources, proj_type = add_cpp_sources(code_directory, project_name_local, code_directory, standalone_directories)
+    
+    # Determine which module type to use.
+    if proj_type == -1:
+        # Even if default project, remake (in-case of upgrade failure)
+        if not is_default_project:
+            return
+    elif proj_type == 0:
         source_count += 1
         cmakelists_sources += directory_sources
-
-    if source_count == 0:
-        return
-
+        cmakelists_template.template += moduletemplate_container
+    else:
+        source_count += 1
+        cmakelists_sources += directory_sources
+        cmakelists_template.template += moduletemplate_module
+        if is_default_project:
+            cmakelists_template.template += debugstart_template
+    
     output_path = os.path.abspath(os.path.join(code_directory, os.pardir, "bin", "win_x64"))
 
     cmakelists_contents = cmakelists_template.substitute({
-        'sources' : cmakelists_sources,
-        'engine_root_directory': engine_root_directory.replace('\\', '/'),
-        'project_name': project_name,
-        'projectfile': project_file.replace('\\', '/'),
+        'sources' : cmakelists_sources, 
+        'engine_root_directory': engine_root_directory.replace('\\', '/'), 
+        'project_name': project_name_local,
+        'projectfile': project_file.replace('\\', '/'), 
         'project_path': os.path.abspath(os.path.dirname(project_file)).replace('\\', '/'),
 		'output_path': output_path.replace('\\', '/') })
     cmakelists_contents += custom_contents
@@ -288,10 +349,11 @@ endif()\n'''
     cmakelists_file = open(cmakelists_path, 'w')
 
     cmakelists_file.write(cmakelists_contents)
-
-
+    
+# proj_type (-1 = No sources/dont build. 0 = Headers only/container. 1 =  cpp units detected, module)
 def add_cpp_sources(directoryname, project_name, code_directory, skip_directories):
     source_count = 0
+    proj_type = 0
     sources = ""
 
     sources += '''add_sources("''' + os.path.basename(directoryname) + '''_uber.cpp"
@@ -308,8 +370,9 @@ def add_cpp_sources(directoryname, project_name, code_directory, skip_directorie
 
     for filename in glob.iglob(directoryname + "/*.cpp", recursive=False):
         source_count += 1
+        proj_type = 1
         sources += '\n\t\t"' + os.path.relpath(filename, code_directory).replace('\\', '/') + '"'
-
+        
     for filename in glob.iglob(directoryname + "/*.h", recursive=False):
         source_count += 1
         sources += '\n\t\t"' + os.path.relpath(filename, code_directory).replace('\\', '/') + '"'
@@ -320,17 +383,20 @@ def add_cpp_sources(directoryname, project_name, code_directory, skip_directorie
         if os.path.isdir(entry.path) and not os.path.basename(entry.path).startswith(".") and not os.path.exists(os.path.join(entry.path, 'CMakeCache.txt')):
             if os.path.relpath(entry.path, code_directory) in skip_directories:
                 continue
-
-            directory_sources = add_cpp_sources(entry.path, project_name, code_directory, [])
-
+            
+            proj_type_sub = -1
+            directory_sources, proj_type_sub = add_cpp_sources(entry.path, project_name, code_directory, [])
+            if proj_type < proj_type_sub:
+                proj_type = proj_type_sub
+        
             if directory_sources != "":
                 source_count += 1
                 sources += directory_sources
 
     if source_count > 0:
-        return sources
-
-    return ""
+        return sources, proj_type
+        
+    return "", -1
 
 def create_shortcut(file_path, project_file):
     if not os.path.exists(file_path):
