@@ -12,9 +12,9 @@ To compile the engine the provided WAF has to be used. See [here](http://docs.cr
 
 
 ## Branches
-Development takes place primarily in the "main" branch. The stabilization branch is used for fixing bugs in the run-up to release, and the release branch provides stable snapshots of the engine.
+Development takes place primarily in the "main" branch. The stabilisation branch is used for fixing bugs in the run-up to release, and the release branch provides stable snapshots of the engine.
 
-To prepare for a major (feature) release, we integrate "main" into "stabilization", and then continue fixing bugs in "stabilization". To prepare for a minor (stability) release, individual changes from 'main are integrated directly into "stabilization". In each case, when the release is deemed ready, "stabilization" is integrated to "release".
+To prepare for a major (feature) release, we integrate "main" into "stabilisation", and then continue fixing bugs in "stabilisation". To prepare for a minor (stability) release, individual changes from 'main are integrated directly into "stabilisation". In each case, when the release is deemed ready, "stabilisation" is integrated to "release".
 
 
 ## License
