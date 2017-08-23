@@ -119,8 +119,8 @@ public:
 			return;
 		}
 
-		TagID fragmentId = m_pAnimationContext->controllerDef.m_fragmentIDs.Find(fragmentName.c_str());
-		if (fragmentId == TAG_ID_INVALID)
+		FragmentID fragmentId = m_pAnimationContext->controllerDef.m_fragmentIDs.Find(fragmentName.c_str());
+		if (fragmentId == FRAGMENT_ID_INVALID)
 		{
 			CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "Failed to find Mannequin fragment %s in controller definition %s", fragmentName.c_str(), m_pAnimationContext->controllerDef.m_filename.c_str());
 			return;
