@@ -27,6 +27,8 @@ public:
 	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override;
 	virtual void OnPluginUpdate(EPluginUpdateType updateType) override {}
 	// ~ICryPlugin
+	
+	static CryGUID GetSchematycPackageGUID() { return "{FC9BD884-49DE-4494-9D64-191734BBB7E3}"_cry_guid; }
 
 	// ISystemEventListener
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam) override;
