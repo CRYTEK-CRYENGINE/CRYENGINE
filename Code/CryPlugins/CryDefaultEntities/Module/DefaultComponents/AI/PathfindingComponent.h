@@ -61,6 +61,7 @@ namespace Cry
 				desc.SetComponentFlags({ IEntityComponent::EFlags::Socket, IEntityComponent::EFlags::Attach });
 
 				desc.AddMember(&CPathfindingComponent::m_maxAcceleration, 'maxa', "MaxAcceleration", "Maximum Acceleration", "Maximum possible physical acceleration", 10.f);
+				desc.AddMember(&CPathfindingComponent::m_AgentType, 'agnt', "AgentType", "Agent Type", "Agent type used for navigation", "MediumSizedCharacters");
 			}
 
 			virtual void RequestMoveTo(const Vec3 &position)
@@ -101,7 +102,11 @@ namespace Cry
 			float GetMaxAcceleration() const { return m_maxAcceleration; }
 
 			virtual void SetMovementRecommendationCallback(std::function<void(const Vec3& recommendedVelocity)> callback) { m_movementRecommendationCallback = callback; }
-
+			virtual void SetNavigationAgentType(Schematyc::CSharedString agentTypeName)
+			{
+				m_AgentType = agentTypeName;
+				m_navigationAgentTypeId = gEnv->pAISystem->GetNavigationSystem()->GetAgentTypeID(m_AgentType.c_str());
+			}
 		protected:
 			// IMovementActorAdapter
 			virtual void                  OnMovementPlanProduced() final {}
@@ -243,6 +248,7 @@ namespace Cry
 
 			Schematyc::Range<0, 10000> m_maxAcceleration = 6.0f;
 			std::function<void(const Vec3& recommendedVelocity)> m_movementRecommendationCallback;
+			Schematyc::CSharedString m_AgentType;
 		};
 	}
 }
