@@ -915,31 +915,6 @@ const int32 g_nD3D10MaxSupportedSubres = (6 * 8 * 64);
 
 //=======================================================================
 
-#if CRY_COMPILER_MSVC && CRY_COMPILER_VERSION < 1800
-
-	#include <memory> // brings in TEMPLATE macros.
-	#define MAKE_UNIQUE(TEMPLATE_LIST, PADDING_LIST, LIST, COMMA, X1, X2, X3, X4) \
-	  template<class T COMMA LIST(_CLASS_TYPE)>                                   \
-	  inline std::unique_ptr<T> CryMakeUnique(LIST(_TYPE_REFREF_ARG))             \
-	  {                                                                           \
-	    return std::unique_ptr<T>(new T(LIST(_FORWARD_ARG)));                     \
-	  }
-_VARIADIC_EXPAND_0X(MAKE_UNIQUE, , , , )
-	#undef MAKE_UNIQUE
-
-#else
-
-	#include <memory>  // std::unique_ptr
-	#include <utility> // std::forward
-
-template<typename T, typename ... TArgs>
-inline std::unique_ptr<T> CryMakeUnique(TArgs&& ... args)
-{
-	return std::unique_ptr<T>(new T(std::forward<TArgs>(args) ...));
-}
-
-#endif
-
 #ifdef DEBUGALLOC
 
 	#include <crtdbg.h>

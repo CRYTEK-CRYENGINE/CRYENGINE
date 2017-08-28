@@ -49,7 +49,7 @@ CCryVKShaderReflection::CCryVKShaderReflection(const void* pShaderBytecode, size
 	const uint32* pByteCodeStart = reinterpret_cast<const uint32*>(pShaderBytecode);
 	const uint32* pByteCodeEnd = pByteCodeStart + BytecodeLength / 4;
 
-	m_pCompiler = CryMakeUnique<spirv_cross::Compiler>(std::vector<uint32>(pByteCodeStart, pByteCodeEnd));
+	m_pCompiler = stl::make_unique<spirv_cross::Compiler>(std::vector<uint32>(pByteCodeStart, pByteCodeEnd));
 	m_shaderResources = m_pCompiler->get_shader_resources();
 
 	// prepare input data

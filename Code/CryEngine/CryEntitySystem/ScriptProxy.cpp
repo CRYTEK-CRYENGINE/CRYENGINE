@@ -464,15 +464,6 @@ void CEntityComponentLuaScript::ProcessEvent(SEntityEvent& event)
 
 			break;
 		}
-	case ENTITY_EVENT_CROSS_AREA:
-		{
-			// Implement in case scripts are interested in this event.
-			if (m_bEnableSoundAreaEvents)
-			{
-			}
-
-			break;
-		}
 	case ENTITY_EVENT_PHYS_BREAK:
 		{
 			EventPhysJointBroken* pBreakEvent = (EventPhysJointBroken*)event.nParam[0];

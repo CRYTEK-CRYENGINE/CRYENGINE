@@ -146,7 +146,7 @@ void SDeviceObjectHelpers::CShaderConstantManager::Reset()
 bool SDeviceObjectHelpers::CShaderConstantManager::AllocateShaderReflection(::CShader* pShader, const CCryNameTSCRC& technique, uint64 rtFlags, EShaderStage shaderStages)
 {
 	CRY_ASSERT(!m_pShaderReflection);
-	m_pShaderReflection = CryMakeUnique<SShaderReflection>();
+	m_pShaderReflection = stl::make_unique<SShaderReflection>();
 
 	if (SShaderTechnique* pShaderTechnique = pShader->mfFindTechnique(technique))
 	{

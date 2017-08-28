@@ -477,7 +477,7 @@ void CClipVolumesStage::PrepareVolumetricFog()
 
 				for (int32 i = 0; i < depth; ++i)
 				{
-					m_jitteredDepthPassArray[i] = CryMakeUnique<CFullscreenPass>();
+					m_jitteredDepthPassArray[i] = stl::make_unique<CFullscreenPass>();
 					m_jitteredDepthPassArray[i]->SetViewport(viewport);
 					m_jitteredDepthPassArray[i]->SetFlags(CPrimitiveRenderPass::ePassFlags_None);
 				}
@@ -542,7 +542,7 @@ void CClipVolumesStage::PrepareVolumetricFog()
 
 				for (int32 i = 0; i < depth; ++i)
 				{
-					m_volumetricStencilPassArray[i] = CryMakeUnique<CFullscreenPass>();
+					m_volumetricStencilPassArray[i] = stl::make_unique<CFullscreenPass>();
 					m_volumetricStencilPassArray[i]->SetViewport(viewport);
 					m_volumetricStencilPassArray[i]->SetFlags(CPrimitiveRenderPass::ePassFlags_None);
 				}
@@ -559,7 +559,7 @@ void CClipVolumesStage::PrepareVolumetricFog()
 
 				for (int32 i = 0; i < depth; ++i)
 				{
-					m_resolveVolumetricStencilPassArray[i] = CryMakeUnique<CFullscreenPass>();
+					m_resolveVolumetricStencilPassArray[i] = stl::make_unique<CFullscreenPass>();
 					m_resolveVolumetricStencilPassArray[i]->SetViewport(viewport);
 					m_resolveVolumetricStencilPassArray[i]->SetFlags(CPrimitiveRenderPass::ePassFlags_None);
 				}
@@ -576,7 +576,7 @@ void CClipVolumesStage::PrepareVolumetricFog()
 
 				for (int32 i = 0; i < depth; ++i)
 				{
-					m_jitteredDepthPassArray[i] = CryMakeUnique<CFullscreenPass>();
+					m_jitteredDepthPassArray[i] = stl::make_unique<CFullscreenPass>();
 					m_jitteredDepthPassArray[i]->SetViewport(viewport);
 					m_jitteredDepthPassArray[i]->SetFlags(CPrimitiveRenderPass::ePassFlags_None);
 				}

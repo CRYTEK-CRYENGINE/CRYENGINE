@@ -7,6 +7,23 @@
 
 #define INVALID_AREA_GROUP_ID -1
 
+namespace Cry
+{
+namespace AreaManager
+{
+enum class EAreaState
+{
+	None,
+	Initialized       = BIT(0),
+	Hidden            = BIT(1),
+	ObstructRoof      = BIT(2),
+	ObstructFloor     = BIT(3),
+	EntityIdsResolved = BIT(4),
+};
+CRY_CREATE_ENUM_FLAG_OPERATORS(EAreaState);
+} // namespace AreaManager
+} // namespace Cry
+
 // Position type of a position compared relative to the given area
 enum EAreaPosType
 {
@@ -36,7 +53,7 @@ enum ECachedAreaData
 
 class CAreaSolid;
 
-class CArea : public IArea
+class CArea final : public IArea
 {
 
 public:
@@ -44,7 +61,7 @@ public:
 	struct a2DPoint
 	{
 		float x, y;
-		a2DPoint(void) : x(0.0f), y(0.0f) {}
+		a2DPoint() : x(0.0f), y(0.0f) {}
 		explicit a2DPoint(const Vec3& pos3D) { x = pos3D.x; y = pos3D.y; }
 		a2DPoint(float x, float y) : x(x), y(y){}
 		float DistSqr(const struct a2DPoint& point) const
@@ -145,7 +162,7 @@ public:
 		CArea*  area;
 	};
 
-	typedef std::vector<SBoxHolder> TAreaBoxes;
+	using TAreaBoxes = std::vector<SBoxHolder>;
 
 	static const TAreaBoxes& GetBoxHolders();
 
@@ -153,9 +170,9 @@ public:
 	explicit CArea(CAreaManager* pManager);
 
 	//IArea
-	virtual size_t         GetEntityAmount() const                  { return m_entityIds.size(); }
-	virtual const EntityId GetEntityByIdx(size_t const index) const { return m_entityIds[index]; }
-	virtual void           GetMinMax(Vec3** min, Vec3** max) const
+	virtual size_t         GetEntityAmount() const override                  { return m_entityIds.size(); }
+	virtual const EntityId GetEntityByIdx(size_t const index) const override { return m_entityIds[index]; }
+	virtual void           GetMinMax(Vec3** min, Vec3** max) const override
 	{
 		(*min)->x = m_areaBBox.min.x;
 		(*min)->y = m_areaBBox.min.y;
@@ -164,22 +181,17 @@ public:
 		(*max)->y = m_areaBBox.max.y;
 		(*max)->z = m_origin + m_height;
 	}
+	virtual int GetGroup() const override    { return m_areaGroupId; }
+	virtual int GetPriority() const override { return m_priority; }
+	virtual int GetID() const override       { return m_areaId; }
 	//~IArea
 
-	// Releases area.
 	void     Release();
-
 	void     SetID(const int id)              { m_areaId = id; }
-	int      GetID() const                    { return m_areaId; }
-
 	void     SetEntityID(const EntityId id)   { m_entityId = id; }
 	EntityId GetEntityID() const              { return m_entityId; }
-
 	void     SetGroup(const int id)           { m_areaGroupId = id; }
-	int      GetGroup() const                 { return m_areaGroupId; }
-
 	void     SetPriority(const int nPriority) { m_priority = nPriority; }
-	int      GetPriority() const              { return m_priority; }
 
 	// Description:
 	//    Sets sound obstruction depending on area type
@@ -230,7 +242,7 @@ public:
 	float                   GetEnvironmentFadeDistance();
 	float                   GetGreatestFadeDistance();
 
-	float                   GetInnerFadeDistance() const { return m_innerFadeDistance; }
+	float                   GetInnerFadeDistance() const               { return m_innerFadeDistance; }
 	void                    SetInnerFadeDistance(float const distance) { m_innerFadeDistance = distance; }
 
 	// Invalidations
@@ -267,25 +279,24 @@ public:
 	void SendEvent(SEntityEvent& newEvent, bool bClearCachedEvents = true);
 
 	// Inside
-	void  EnterArea(EntityId const entityId);
-	void  LeaveArea(EntityId const entityId);
-	void  ExclusiveUpdateAreaInside(
-		EntityId const entityId,
-		EntityId const higherAreaId,
-		float const fade);
-	void  ExclusiveUpdateAreaNear(
-		EntityId const entityId,
-		EntityId const higherAreaId,
-		float const distance,
-		Vec3 const& position);
+	void EnterArea(EntityId const entityId);
+	void LeaveArea(EntityId const entityId);
+	void ExclusiveUpdateAreaInside(
+	  EntityId const entityId,
+	  EntityId const higherAreaId,
+	  float const fade);
+	void ExclusiveUpdateAreaNear(
+	  EntityId const entityId,
+	  EntityId const higherAreaId,
+	  float const distance,
+	  Vec3 const& position);
 	float CalculateFade(const Vec3& pos3D);
-	void  OnAreaCrossing(EntityId const entityId);
 
 	// Near
 	void EnterNearArea(
-		EntityId const entityId,
-		Vec3 const& closestPointToArea,
-		float const distance);
+	  EntityId const entityId,
+	  Vec3 const& closestPointToArea,
+	  float const distance);
 	void LeaveNearArea(EntityId const entityId);
 
 	// Far
@@ -296,9 +307,6 @@ public:
 
 	size_t MemStat();
 
-	void   SetActive(bool bActive) { m_bIsActive = bActive; }
-	bool   IsActive() const        { return m_bIsActive; }
-
 	void   GetBBox(Vec2& vMin, Vec2& vMax) const;
 	void   GetSolidBoundBox(AABB& outBoundBox) const;
 
@@ -307,7 +315,11 @@ public:
 	char const* const GetAreaEntityName() const;
 #endif // INCLUDE_ENTITYSYSTEM_PRODUCTION_CODE
 
-	void GetMemoryUsage(ICrySizer* pSizer) const;
+	void                         GetMemoryUsage(ICrySizer* pSizer) const;
+
+	Cry::AreaManager::EAreaState GetState() const                                      { return m_state; }
+	void                         AddState(Cry::AreaManager::EAreaState const state)    { m_state |= state; }
+	void                         RemoveState(Cry::AreaManager::EAreaState const state) { m_state &= ~state; }
 
 private:
 
@@ -329,7 +341,7 @@ private:
 		bool            bPointWithin;
 	};
 
-	~CArea();
+	virtual ~CArea() override;
 
 	void           AddSegment(const a2DPoint& p0, const a2DPoint& p1, bool const nObstructSound);
 	void           UpdateSegment(a2DSegment& segment, a2DPoint const& p0, a2DPoint const& p1);
@@ -356,7 +368,7 @@ private:
 	EntityIdVector   m_entityIds;
 	EntityGuidVector m_entityGuids;
 
-	typedef std::vector<SEntityEvent> CachedEvents;
+	using CachedEvents = std::vector<SEntityEvent>;
 	CachedEvents             m_cachedEvents;
 
 	int                      m_areaId;
@@ -377,7 +389,7 @@ private:
 	a2DBBox m_areaBBox;
 	size_t  m_bbox_holder;
 	// the area segments
-	typedef std::vector<a2DSegment*> AreaSegments;
+	using AreaSegments = std::vector<a2DSegment*>;
 	AreaSegments m_areaSegments;
 
 	// for sector areas ----------------------------------------------------------------------
@@ -417,12 +429,7 @@ private:
 	float m_origin;
 	//  area height (vertical size). If (m_height<=0) - not used, only 2D check is done. Otherwise
 	//  additional check for Z to be in [m_origin, m_origin + m_height] range is done
-	float m_height;
+	float                        m_height;
 
-	bool  m_bIsActive            : 1;
-	bool  m_bInitialized         : 1;
-	bool  m_bAttachedSoundTested : 1; // can be replaced later with an OnAfterLoad
-	bool  m_bObstructRoof        : 1;
-	bool  m_bObstructFloor       : 1;
-	bool  m_bEntityIdsResolved   : 1;
+	Cry::AreaManager::EAreaState m_state = Cry::AreaManager::EAreaState::None;
 };

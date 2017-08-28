@@ -29,7 +29,7 @@
 	#define m_nCurThreadProcess 0
 #endif
 
-#define MULTITHREADED_RESOURCE_CREATION
+#undef MULTITHREADED_RESOURCE_CREATION
 
 // Only needed together with render thread.
 struct SRenderThreadLocalStorage

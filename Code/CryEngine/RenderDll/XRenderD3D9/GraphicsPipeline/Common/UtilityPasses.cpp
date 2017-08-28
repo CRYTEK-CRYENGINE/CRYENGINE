@@ -806,7 +806,7 @@ void CAnisotropicVerticalBlurPass::Execute(CTexture* pTex, int nAmount, float fS
 		return;
 	}
 
-	std::unique_ptr<SDynTexture> pBlurTempTex = CryMakeUnique<SDynTexture>(pTex->GetWidth(), pTex->GetHeight(), pTex->GetDstFormat(), eTT_2D, FT_STATE_CLAMP | FT_USAGE_RENDERTARGET, "TempBlurAnisoVertRT");
+	std::unique_ptr<SDynTexture> pBlurTempTex = stl::make_unique<SDynTexture>(pTex->GetWidth(), pTex->GetHeight(), pTex->GetDstFormat(), eTT_2D, FT_STATE_CLAMP | FT_USAGE_RENDERTARGET, "TempBlurAnisoVertRT");
 
 	if (!pBlurTempTex)
 	{

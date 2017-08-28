@@ -1,16 +1,5 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   IEntitySystem.h
-//  Version:     v1.00
-//  Created:     17/6/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #pragma once
 
 // The following ifdef block is the standard way of creating macros which make exporting
@@ -63,7 +52,7 @@ enum ESpecType
 struct IArea
 {
 	// <interfuscator:shuffle>
-	virtual ~IArea(){}
+	virtual ~IArea()= default;
 	virtual size_t         GetEntityAmount() const = 0;
 	virtual const EntityId GetEntityByIdx(size_t const index) const = 0;
 	virtual void           GetMinMax(Vec3** min, Vec3** max) const = 0;

@@ -587,7 +587,7 @@ void CRainStage::ExecuteRainOcclusionGen(CRenderView* pRenderView)
 				{
 					if (index >= countPrimitives)
 					{
-						m_rainOccluderPrimitives.emplace_back(CryMakeUnique<CRenderPrimitive>());
+						m_rainOccluderPrimitives.emplace_back(stl::make_unique<CRenderPrimitive>());
 
 						m_rainOccluderPrimitives[index].get()->AllocateTypedConstantBuffer(eConstantBufferShaderSlot_PerBatch, sizeof(SRainOccluderCB), EShaderStage_Vertex);
 					}
