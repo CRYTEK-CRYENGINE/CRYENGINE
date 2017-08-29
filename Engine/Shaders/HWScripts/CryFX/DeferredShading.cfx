@@ -330,7 +330,8 @@ poDecalsMRT DefDecalPassPS(fragInWPOS IN)
 	vProjTC.y = dot(float3(vProjTC.xy, 1), cbDecal.textureRect[1].xyz);
 
 	// Manual mip level computation
-	half NdotV = saturate(dot(cbDecal.matDecalTS[2].xyz, -normalize(vPosition)));
+	const float epsilon = 0.0001;
+	half NdotV = clamp(dot(g_mDecalTS[2].xyz, -normalize(vPosition)), epsilon, 1.0);
 	half4 mipLevels = log2((cbDecal.mipLevels * length(vPosition)) / NdotV);
 	mipLevels = max(mipLevels - lerp(1.5, 0.5, NdotV), 0);  // Very simple aniso filtering approximation
 
@@ -419,7 +420,8 @@ poDecalsMRT DecalPassPS(fragInWPOS IN)
 #endif
 
 	// Manual mip level computation
-	half NdotV = saturate(dot(g_mDecalTS[2].xyz, -normalize(vPosition)));
+	const float epsilon = 0.0001;
+	half NdotV = clamp(dot(g_mDecalTS[2].xyz, -normalize(vPosition)), epsilon, 1.0);
 	half4 mipLevels = log2((g_DecalMipLevels * length(vPosition)) / NdotV);
 	mipLevels = max(mipLevels - lerp(1.5, 0.5, NdotV), 0);  // Very simple aniso filtering approximation
 
