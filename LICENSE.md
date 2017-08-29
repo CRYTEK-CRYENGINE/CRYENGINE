@@ -68,17 +68,17 @@ Other policies which apply with respect to the CryEngine include without limitat
 2.4. Restrictions on Use: Crytek reserves all rights not expressively granted in this Agreement. Without limitation, Licensee shall not:
 
   - distribute, sublicense or exploit in any other form:
-  - the CryEngine (except for the Redistributables), e.g. as a stand-alone development engine;
-  - the CryEngine Documentation;
-  - the CryEngine Tools;
+      - the CryEngine (except for the Redistributables), e.g. as a stand-alone development engine;
+      - the CryEngine Documentation;
+      - the CryEngine Tools;
   - use the CryEngine for the development of any product other than Games, including without limitation:
-  - military projects
-  - gambling;
-  - simulation (technical, scientific, other);
-  - science;
-  - architecture;
-  - pornography;
-  - Serious Games.
+      - military projects;
+      - gambling;
+      - simulation (technical, scientific, other);
+      - science;
+      - architecture;
+      - pornography;
+      - Serious Games.
   - use the CryEngine for the development of any Games which are harmful, abusive, racially or ethnically offensive, vulgar, sexually explicit, defamatory, infringing, invasive of personal privacy or publicity rights, or in a reasonable person's view, objectionable;
   - remove any technical safeguards from the CryEngine (if any);
   - copy, replicate or mimic Crytek's games;
@@ -125,7 +125,7 @@ A. In case that German law applies:
   
   5.2.3. If Crytek is liable for damages pursuant to Section (a) above for gross negligence or intent of Crytek staff other than the managing directors then the liability is also limited to the amount set forth in Section (b).
   
-  5.2.4. Crytek is not liable for indirect or consequential damages (Mangelfolgeschäden), loss of profits or frustrated costs if such damages are not a result of gross negligence or intent of Crytek's managing directors.
+  5.2.4. Crytek is not liable for indirect or consequential damages (MangelfolgeschÃ¤den), loss of profits or frustrated costs if such damages are not a result of gross negligence or intent of Crytek's managing directors.
   
   5.2.5. The exclusion or limitation of liability pursuant to this Sec. 5 also applies with respect to claims against Crytek's staff or contractors.
   
@@ -176,7 +176,7 @@ You have the right to withdraw from this contract within 14 days without giving 
 
 The withdrawal period will expire after 14 days from the day of the conclusion of the contract .
 
-To exercise the right of withdrawal, you must inform us, Crytek GmbH, Grüneburgweg 16-18, 60322 Frankfurt am Main, fax +49 69 219 77 66 99, mail: revocation@cryengine.com, of your decision to withdraw from this contract by an unequivocal statement (e.g. a letter sent by post, fax or e-mail). You may use the attached model withdrawal form, but it is not obligatory.
+To exercise the right of withdrawal, you must inform us, Crytek GmbH, GrÃ¼neburgweg 16-18, 60322 Frankfurt am Main, fax +49 69 219 77 66 99, mail: revocation@cryengine.com, of your decision to withdraw from this contract by an unequivocal statement (e.g. a letter sent by post, fax or e-mail). You may use the attached model withdrawal form, but it is not obligatory.
 
 To meet the withdrawal deadline, it is sufficient for you to send your communication concerning your exercise of the right of withdrawal before the withdrawal period has expired.
 
@@ -185,7 +185,7 @@ If you withdraw from this contract, we shall reimburse to you all payments recei
 
 Model withdrawal form (complete and return this form only if you wish to withdraw from the contract)
 
-	To Crytek GmbH, Grüneburgweg 16-18, 60322 Frankfurt am Main, fax +49 69 219 77 66 99, mail: revocation@cryengine.com:
+	To Crytek GmbH, GrÃ¼neburgweg 16-18, 60322 Frankfurt am Main, fax +49 69 219 77 66 99, mail: revocation@cryengine.com:
 	I/We (*) hereby give notice that I/We (*) withdraw from my/our (*) contract of sale of the following goods (*)/for the provision of the following service (*),
 	Ordered on (*)/received on (*),
 	Name of consumer(s),
