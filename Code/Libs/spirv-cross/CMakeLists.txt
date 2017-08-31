@@ -11,6 +11,8 @@ add_sources("NoUberFile"
 		"../../SDKs/spirv-cross/spirv.hpp"
 		"../../SDKs/spirv-cross/spirv_cross.hpp"
 		"../../SDKs/spirv-cross/spirv_cross.cpp"
+		"../../SDKs/spirv-cross/spirv_cfg.hpp"
+		"../../SDKs/spirv-cross/spirv_cfg.cpp"
 )
 
 end_sources()
