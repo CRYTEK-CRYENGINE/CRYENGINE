@@ -31,7 +31,7 @@ void CPathfindingComponent::Initialize()
 {
 	Reset();
 
-	m_navigationAgentTypeId = gEnv->pAISystem->GetNavigationSystem()->GetAgentTypeID("MediumSizedCharacters");
+	SetNavigationAgentType(m_AgentType);
 
 	m_callbacks.queuePathRequestFunction = functor(*this, &CPathfindingComponent::RequestPathTo);
 	m_callbacks.checkOnPathfinderStateFunction = functor(*this, &CPathfindingComponent::GetPathfinderState);
