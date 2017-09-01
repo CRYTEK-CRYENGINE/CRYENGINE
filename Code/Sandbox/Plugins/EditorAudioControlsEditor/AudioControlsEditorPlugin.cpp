@@ -138,7 +138,7 @@ void CAudioControlsEditorPlugin::ExecuteTrigger(const string& sTriggerName)
 		const CCamera& camera = GetIEditor()->GetSystem()->GetViewCamera();
 		const Matrix34& cameraMatrix = camera.GetMatrix();
 		s_pIAudioObject->SetTransformation(cameraMatrix);
-		s_audioTriggerId = CryAudio::StringToId_RunTime(sTriggerName.c_str());
+		s_audioTriggerId = CryAudio::StringToId(sTriggerName.c_str());
 		s_pIAudioObject->ExecuteTrigger(s_audioTriggerId);
 	}
 }

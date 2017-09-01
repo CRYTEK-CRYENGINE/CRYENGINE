@@ -110,6 +110,7 @@ namespace UQS
 				virtual const char*                        GetName() const override final;
 				virtual const CryGUID&                     GetGUID() const override final;
 				virtual const char*                        GetDescription() const override final;
+				virtual bool                               IsContainerForShuttledItems() const override final;
 				// ~IItemFactory
 
 				// IItemFactory: forward these pure virtual methods to the derived class
@@ -137,15 +138,17 @@ namespace UQS
 				// ~IItemFactory
 
 			protected:
-				explicit                                   CItemFactoryBase(const char* szName, const CryGUID& guid, const char* szDescription);
+				explicit                                   CItemFactoryBase(const char* szName, const CryGUID& guid, const char* szDescription, bool bIsContainerForShuttledItems);
 
 			private:
 				string                                     m_description;
+				bool                                       m_bIsContainerForShuttledItems;
 			};
 
-			inline CItemFactoryBase::CItemFactoryBase(const char* szName, const CryGUID& guid, const char* szDescription)
+			inline CItemFactoryBase::CItemFactoryBase(const char* szName, const CryGUID& guid, const char* szDescription, bool bIsContainerForShuttledItems)
 				: CFactoryBase(szName, guid)
 				, m_description(szDescription)
+				, m_bIsContainerForShuttledItems(bIsContainerForShuttledItems)
 			{}
 
 			inline const char* CItemFactoryBase::GetName() const
@@ -161,6 +164,11 @@ namespace UQS
 			inline const char* CItemFactoryBase::GetDescription() const
 			{
 				return m_description.c_str();
+			}
+
+			inline bool CItemFactoryBase::IsContainerForShuttledItems() const
+			{
+				return m_bIsContainerForShuttledItems;
 			}
 
 			//===================================================================================
@@ -248,7 +256,7 @@ namespace UQS
 
 			template <class TItem>
 			CItemFactoryInternal<TItem>::CItemFactoryInternal(const char* szName, const CryGUID& guid, const char* szDescription, const SItemFactoryCallbacks<TItem>& callbacks, bool bAutoRegisterBuiltinElements)
-				: CItemFactoryBase(szName, guid, szDescription)
+				: CItemFactoryBase(szName, guid, szDescription, !bAutoRegisterBuiltinElements)
 				, m_callbacks(callbacks)
 			{
 				if (bAutoRegisterBuiltinElements)
@@ -341,8 +349,8 @@ namespace UQS
 					//
 
 					{
-						stack_string generatorName("_builtin_Gen_PropagateShuttledItems_");
-						generatorName.append(szName);
+						stack_string generatorName;
+						generatorName.Format("builtin::PropagateShuttledItems[%s]", szName);
 
 						typename CGeneratorFactory<CGen_PropagateShuttledItems<TItem>, TItem>::SCtorParams ctorParams;
 

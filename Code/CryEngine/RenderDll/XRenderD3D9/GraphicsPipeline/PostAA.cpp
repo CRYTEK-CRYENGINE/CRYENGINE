@@ -323,8 +323,6 @@ void CPostAAStage::DoFinalComposition(CTexture*& pCurrRT, uint32 aaMode)
 	}
 
 	m_passComposition.Execute();
-	// TODO: Workaround for viewport/displaycontext destruction, missing texture ref-counting
-	m_passComposition.SetRenderTarget(0, nullptr);
 }
 
 void CPostAAStage::Execute()

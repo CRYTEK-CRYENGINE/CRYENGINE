@@ -32,7 +32,6 @@ public:
 
 	// @see EFlags
 	uint32            m_flags;
-	std::atomic<bool> m_bResourcesDirty;
 
 	/////////////////////////////////////////////////////
 
@@ -50,9 +49,6 @@ public:
 	uint8 m_nMtlLayerNoDrawFlags;
 
 public:
-	//////////////////////////////////////////////////////////////////////////
-	static bool OnTextureInvalidated(void* pThis, uint32 flags) threadsafe;
-
 	//////////////////////////////////////////////////////////////////////////
 	void AddTextureMap(int Id)
 	{
@@ -160,9 +156,8 @@ public:
 		m_pCB = NULL;
 		m_nMtlLayerNoDrawFlags = 0;
 		m_flags = 0;
-		m_bResourcesDirty = false;
 		m_nUpdateFrameID = 0;
-		m_resources.Clear();
+		m_resources.ClearResources();
 	}
 	bool IsEmpty(int nTSlot) const
 	{
@@ -170,6 +165,7 @@ public:
 			return true;
 		return false;
 	}
+	bool                  HasChanges() const { return !!(m_flags & (eFlagRecreateResourceSet | EFlags_AnimatedSequence | EFlags_DynamicUpdates)) || m_resources.HasChanged() || !m_pCompiledResourceSet; }
 	bool                  HasDynamicTexModifiers() const;
 	bool                  HasDynamicUpdates() const { return !!(m_flags & EFlags_DynamicUpdates); }
 	bool                  HasAnimatedTextures() const { return !!(m_flags & EFlags_AnimatedSequence); }

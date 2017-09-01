@@ -2949,7 +2949,7 @@ CString CPropertyItem::GetTip() const
 		CString description = m_pVariable->GetDescription();
 		if (!description.IsEmpty())
 		{
-			tip += CString("\n") + description;
+			tip += CString(" ") + description;
 		}
 	}
 	return tip;

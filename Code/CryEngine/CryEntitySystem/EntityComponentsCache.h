@@ -5,6 +5,9 @@
 // Entity property cache saves the values of the component properties when switching to game mode,
 // so that they can be restored when switching our of the game mode
 // It is only used when running with the Sandbox Editor
+
+#include "CrySchematyc/Utils/ClassProperties.h"
+
 class CEntitiesComponentPropertyCache
 {
 public:

@@ -275,8 +275,8 @@ struct SAudioTriggerKey : public STrackDurationKey
 
 		if (ar.isInput())
 		{
-			m_startTriggerId = CryAudio::StringToId_RunTime(m_startTriggerName.c_str());
-			m_stopTriggerId = CryAudio::StringToId_RunTime(m_stopTriggerName.c_str());
+			m_startTriggerId = CryAudio::StringToId(m_startTriggerName.c_str());
+			m_stopTriggerId = CryAudio::StringToId(m_stopTriggerName.c_str());
 		}
 	}
 
@@ -358,8 +358,8 @@ struct SAudioSwitchKey : public STrackKey
 
 		if (ar.isInput())
 		{
-			m_audioSwitchId = CryAudio::StringToId_RunTime(m_audioSwitchName.c_str());
-			m_audioSwitchStateId = CryAudio::StringToId_RunTime(m_audioSwitchStateName.c_str());
+			m_audioSwitchId = CryAudio::StringToId(m_audioSwitchName.c_str());
+			m_audioSwitchStateId = CryAudio::StringToId(m_audioSwitchStateName.c_str());
 		}
 
 		m_keyDescription.Format("%s : %s", m_audioSwitchName.c_str(), m_audioSwitchStateName.c_str());

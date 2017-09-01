@@ -37,7 +37,7 @@ public:
 	// Gets the class of the object, queries if not already available
 	CMonoClass* GetClass();
 
-	void CopyFrom(CMonoObject& source);
+	void CopyFrom(const CMonoObject& source);
 
 	void* UnboxObject();
 	template<typename T>
@@ -49,9 +49,6 @@ public:
 protected:
 	void AssignObject(MonoInternals::MonoObject* pObject);
 
-	// GetClass needs to be aware of the object weak ptr
-	void SetWeakPointer(std::weak_ptr<CMonoObject> pObject) { m_pThis = pObject; }
-
 	void ReleaseGCHandle();
 
 protected:
@@ -59,7 +56,4 @@ protected:
 	uint32 m_gcHandle;
 
 	std::shared_ptr<CMonoClass> m_pClass;
-
-	// Only needed if the object was constructed without knowledge of its class (m_pClass is null)
-	std::weak_ptr<CMonoObject> m_pThis;
 };

@@ -78,7 +78,7 @@ void CSunShaftsStage::Execute()
 			m_passShaftsMask.SetRenderTarget(0, pFinalRT);
 			m_passShaftsMask.SetState(GS_NODEPTHTEST);
 
-			m_passShaftsMask.SetTextureSamplerPair(0, CTexture::s_ptexZTargetScaled, EDefaultSamplerStates::PointClamp);
+			m_passShaftsMask.SetTextureSamplerPair(0, CTexture::s_ptexZTargetScaled[0], EDefaultSamplerStates::PointClamp);
 			m_passShaftsMask.SetTextureSamplerPair(1, CTexture::s_ptexHDRTargetScaled[0], EDefaultSamplerStates::PointClamp);  // TODO
 		}
 

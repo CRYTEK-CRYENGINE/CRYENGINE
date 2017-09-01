@@ -393,7 +393,14 @@ void CRenderer::PostInit()
 
 	// load all default textures
 	if (!m_bShaderCacheGen && m_pTextureManager)
+	{
+		if (ISystemUserCallback* pUserCallback = gEnv->pSystem->GetUserCallback())
+		{
+			pUserCallback->OnInitProgress("Preloading default textures...");
+		}
+
 		m_pTextureManager->PreloadDefaultTextures();
+	}
 
 	if (!m_bShaderCacheGen)
 	{
@@ -402,7 +409,14 @@ void CRenderer::PostInit()
 
 		// Create system resources while in fast load phase
 		if (bIntroMoviesDuringInit == false)    // don't create resources here when we have a movies during init, else we get concurrent device context access
+		{
+			if (ISystemUserCallback* pUserCallback = gEnv->pSystem->GetUserCallback())
+			{
+				pUserCallback->OnInitProgress("Compiling default renderer resources...");
+			}
+
 			gEnv->pRenderer->InitSystemResources(FRR_SYSTEM_RESOURCES);
+		}
 	}
 
 }
@@ -768,13 +782,16 @@ void CRenderer::InitSystemResources(int nFlags)
 		CTexture::s_bPrecachePhase = false;
 
 		ForceFlushRTCommands();
+
 		m_cEF.mfPreloadBinaryShaders();
 		m_cEF.mfLoadBasicSystemShaders();
 		m_cEF.mfLoadDefaultSystemShaders();
 
 		CTexture::LoadScaleformSystemTextures();
 		CTexture::LoadDefaultSystemTextures();
+
 		m_pRT->RC_CreateRenderResources();
+
 		m_pRT->RC_PrecacheDefaultShaders();
 		m_pRT->RC_CreateSystemTargets();
 		ForceFlushRTCommands();
@@ -4647,6 +4664,9 @@ void CRenderer::ForceRemoveNodeFromDrawCallsMap(IRenderNode* pNode)
 
 void CRenderer::ClearDrawCallsInfo()
 {
+	if (&gcpRendD3D->GetGraphicsPipeline() == nullptr)
+		return;
+
 	gcpRendD3D->GetGraphicsPipeline().GetDrawCallInfoPerNode()->clear();
 	gcpRendD3D->GetGraphicsPipeline().GetDrawCallInfoPerMesh()->clear();
 }

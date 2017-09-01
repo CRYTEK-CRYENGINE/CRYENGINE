@@ -1255,7 +1255,7 @@ void C3DEngine::UpdateRenderingCamera(const char* szCallerName, const SRendering
 
 	// now we have a valid camera, we can start generation of the occlusion buffer
 	// only needed for editor here, ingame we spawn the job more early
-	if (passInfo.IsGeneralPass() && GetCVars()->e_StatObjBufferRenderTasks && JobManager::InvokeAsJob("CheckOcclusion"))
+	if (passInfo.IsGeneralPass() && IsStatObjBufferRenderTasksAllowed() && JobManager::InvokeAsJob("CheckOcclusion"))
 	{
 		if (gEnv->IsEditor())
 			GetObjManager()->PrepareCullbufferAsync(passInfo.GetCamera());
@@ -1295,7 +1295,7 @@ void C3DEngine::UpdateRenderingCamera(const char* szCallerName, const SRendering
 void C3DEngine::PrepareOcclusion(const CCamera& rCamera)
 {
 	const bool bInEditor = gEnv->IsEditor();
-	const bool bStatObjBufferRenderTasks = GetCVars()->e_StatObjBufferRenderTasks != 0;
+	const bool bStatObjBufferRenderTasks = IsStatObjBufferRenderTasksAllowed() != 0;
 	const bool bIsFMVPlaying = gEnv->IsFMVPlaying();
 	const bool bCameraAtZero = IsEquivalent(rCamera.GetPosition(), Vec3(0, 0, 0), VEC_EPSILON);
 	const bool bPost3dEnabled = GetRenderer() && GetRenderer()->IsPost3DRendererEnabled();
@@ -6320,6 +6320,17 @@ bool C3DEngine::IsTessellationAllowed(const CRenderObject* pObj, const SRenderin
 #endif   //#ifdef MESH_TESSELLATION_ENGINE
 
 	return false;
+}
+
+bool C3DEngine::IsStatObjBufferRenderTasksAllowed() const
+{
+	auto bDebugDrawEnabled = gEnv->pConsole->GetCVar("e_DebugDraw") != nullptr && gEnv->pConsole->GetCVar("e_DebugDraw")->GetIVal() != 0;
+	auto bMnDebugEnabled = gEnv->pConsole->GetCVar("mn_debug") != nullptr && strlen(gEnv->pConsole->GetCVar("mn_debug")->GetString()) != 0;
+	auto bStatObjBufferRenderTasksEnabled = 
+		gEnv->pConsole->GetCVar("e_StatObjBufferRenderTasks") != nullptr && gEnv->pConsole->GetCVar("e_StatObjBufferRenderTasks")->GetIVal() != 0;
+
+	return !bDebugDrawEnabled && !bMnDebugEnabled && bStatObjBufferRenderTasksEnabled;
+		
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -626,9 +626,6 @@ void CRenderAuxGeomD3D::DrawBufferRT(const SAuxVertex* data, int numVertices, in
 			m_textPass.Execute();
 		}
 
-		// TODO: Workaround for viewport/displaycontext destruction, missing texture ref-counting
-		m_textPass.SetRenderTarget(0, nullptr);
-
 		gcpRendD3D->m_DevBufMan.Destroy(buf);
 	}
 }
@@ -751,9 +748,6 @@ void CRenderAuxGeomD3D::DrawAuxPrimitives(CAuxGeomCB::AuxSortedPushBuffer::const
 		m_geomPass.AddPrimitive(&prim);
 		m_geomPass.Execute();
 	}
-
-	// TODO: Workaround for viewport/displaycontext destruction, missing texture ref-counting
-	m_geomPass.SetRenderTarget(0, nullptr);
 }
 
 void CRenderAuxGeomD3D::DrawAuxIndexedPrimitives(CAuxGeomCB::AuxSortedPushBuffer::const_iterator itBegin, CAuxGeomCB::AuxSortedPushBuffer::const_iterator itEnd, const Matrix44& mViewProj)
@@ -803,9 +797,6 @@ void CRenderAuxGeomD3D::DrawAuxIndexedPrimitives(CAuxGeomCB::AuxSortedPushBuffer
 		m_geomPass.AddPrimitive(&prim);
 		m_geomPass.Execute();
 	}
-
-	// TODO: Workaround for viewport/displaycontext destruction, missing texture ref-counting
-	m_geomPass.SetRenderTarget(0, nullptr);
 }
 
 void CRenderAuxGeomD3D::DrawAuxObjects(CAuxGeomCB::AuxSortedPushBuffer::const_iterator itBegin, CAuxGeomCB::AuxSortedPushBuffer::const_iterator itEnd, const Matrix44& mViewProj)
@@ -952,9 +943,6 @@ void CRenderAuxGeomD3D::DrawAuxObjects(CAuxGeomCB::AuxSortedPushBuffer::const_it
 			m_geomPass.Execute();
 		}
 	}
-
-	// TODO: Workaround for viewport/displaycontext destruction, missing texture ref-counting
-	m_geomPass.SetRenderTarget(0, nullptr);
 }
 
 void CRenderAuxGeomD3D::PrepareRendering()

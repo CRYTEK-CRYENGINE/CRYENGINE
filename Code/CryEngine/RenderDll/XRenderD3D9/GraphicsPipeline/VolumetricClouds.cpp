@@ -1433,7 +1433,7 @@ void CVolumetricCloudsStage::UpdateCloudShaderParam(::VCCloudRenderContext& cont
 	{
 		context.scaledTarget = m_pDownscaledLeftEyeTex; // left eye is re-projected to right eye.
 	}
-	context.scaledZTarget = (downscaleIndex == 0) ? CTexture::s_ptexZTargetScaled : CTexture::s_ptexZTargetScaled2;
+	context.scaledZTarget = CTexture::s_ptexZTargetScaled[downscaleIndex > 0];
 
 	// enable fast path when clouds are always rendered in low shading mode, and viewable region is covered by cloud shadow map.
 	const f32 shadingLOD = cloudMiscParams.y;

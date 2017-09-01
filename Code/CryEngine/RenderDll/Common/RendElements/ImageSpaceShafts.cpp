@@ -124,7 +124,7 @@ bool ImageSpaceShafts::PrepareOcclusion(CTexture* pDestRT, CTexture* pGoboTex, S
 	m_occlusionPrimitive.SetRenderState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ONE);
 	m_occlusionPrimitive.SetPrimitiveType(CRenderPrimitive::ePrim_FullscreenQuadCentered);
 	m_occlusionPrimitive.SetTexture(0, pGoboTex ? pGoboTex : CTexture::s_ptexBlack);
-	m_occlusionPrimitive.SetTexture(1, CTexture::s_ptexZTargetScaled);
+	m_occlusionPrimitive.SetTexture(1, CTexture::s_ptexZTargetScaled[0]);
 	m_occlusionPrimitive.SetSampler(0, samplerState);
 	m_occlusionPrimitive.Compile(m_occlusionPass);
 

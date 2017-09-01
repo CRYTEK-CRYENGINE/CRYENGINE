@@ -7,6 +7,7 @@
 struct IMeshObj;
 struct IPhysicalEntity;
 struct IGeometry;
+struct IArea;
 
 //////////////////////////////////////////////////////////////////////////
 //! Reference to one visual or physical geometry, for particle attachment.
@@ -15,11 +16,13 @@ struct GeomRef
 {
 	IMeshObj*        m_pMeshObj;    //!< Render object attachment.
 	IPhysicalEntity* m_pPhysEnt;    //!< Physics object attachment.
+	IArea*           m_pArea;       //!< Area attachment.
 
 	GeomRef()
 	{
 		m_pMeshObj = 0;
 		m_pPhysEnt = 0;
+		m_pArea = 0;
 	}
 
 	void Set(IMeshObj* pMesh)
@@ -30,6 +33,10 @@ struct GeomRef
 	{
 		m_pPhysEnt = pPhys;
 	}
+	void Set(IArea* pArea)
+	{
+		m_pArea = pArea;
+	}
 	int  Set(IEntity* pEntity, int iSlot = -1);
 
 	void AddRef() const;
@@ -37,20 +44,24 @@ struct GeomRef
 
 	operator bool() const
 	{
-		return m_pMeshObj || m_pPhysEnt;
+		return m_pMeshObj || m_pPhysEnt || m_pArea;
 	}
 	bool operator==(const GeomRef& other) const
 	{
-		return m_pMeshObj == other.m_pMeshObj && m_pPhysEnt == other.m_pPhysEnt;
+		return m_pMeshObj == other.m_pMeshObj && m_pPhysEnt == other.m_pPhysEnt && m_pArea == other.m_pArea;
 	}
 	bool operator!=(const GeomRef& other) const
 	{
-		return m_pMeshObj != other.m_pMeshObj || m_pPhysEnt != other.m_pPhysEnt;
+		return !operator==(other);
 	}
 
 	IMeshObj* GetMesh() const
 	{
 		return m_pMeshObj;
+	}
+	IArea* GetArea() const
+	{
+		return m_pArea;
 	}
 	IPhysicalEntity* GetPhysicalEntity() const;
 	IGeometry*       GetGeometry() const;

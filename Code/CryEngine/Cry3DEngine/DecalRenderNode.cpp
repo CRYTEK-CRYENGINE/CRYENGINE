@@ -538,6 +538,7 @@ IRenderNode* CDecalRenderNode::Clone() const
 	pDestDecal->m_pos = m_pos;
 	pDestDecal->m_localBounds = m_localBounds;
 	pDestDecal->m_pMaterial = m_pMaterial;
+	pDestDecal->m_pOverrideMaterial = m_pOverrideMaterial;
 	pDestDecal->m_updateRequested = true;
 	pDestDecal->m_decalProperties = m_decalProperties;
 	pDestDecal->m_WSBBox = m_WSBBox;
@@ -725,5 +726,5 @@ Vec3 CDecalRenderNode::GetPos(bool bWorldOnly) const
 
 IMaterial* CDecalRenderNode::GetMaterial(Vec3* pHitPos) const
 {
-	return m_pOverrideMaterial;
+	return m_pOverrideMaterial ? m_pOverrideMaterial : m_pMaterial;
 }

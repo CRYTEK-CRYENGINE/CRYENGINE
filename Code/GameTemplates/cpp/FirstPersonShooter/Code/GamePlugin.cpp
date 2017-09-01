@@ -21,7 +21,7 @@ CGamePlugin::~CGamePlugin()
 
 	if (gEnv->pSchematyc)
 	{
-		gEnv->pSchematyc->GetEnvRegistry().DeregisterPackage(GetSchematycPackageGUID());
+		gEnv->pSchematyc->GetEnvRegistry().DeregisterPackage(CGamePlugin::GetCID());
 	}
 }
 
@@ -52,7 +52,7 @@ void CGamePlugin::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lp
 		{
 			gEnv->pSchematyc->GetEnvRegistry().RegisterPackage(
 				stl::make_unique<Schematyc::CEnvPackage>(
-					GetSchematycPackageGUID(),
+					CGamePlugin::GetCID(),
 					"EntityComponents",
 					"Crytek GmbH",
 					"Components",
@@ -60,7 +60,8 @@ void CGamePlugin::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lp
 					)
 			);
 		}
-	}break;
+	}
+	break;
 		// Called when the game framework has initialized and we are ready for game logic to start
 	case ESYSTEM_EVENT_GAME_POST_INIT:
 	{

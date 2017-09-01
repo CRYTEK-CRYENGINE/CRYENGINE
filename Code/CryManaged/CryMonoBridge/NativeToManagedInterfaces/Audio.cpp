@@ -54,13 +54,13 @@ static void StopTrigger(uint triggerId, bool bExecuteSync)
 static uint GetAudioTriggerId(MonoInternals::MonoString* pAudioTriggerName)
 {
 	std::shared_ptr<CMonoString> pAudioTriggerNameObject = CMonoDomain::CreateString(pAudioTriggerName);
-	return CryAudio::StringToId_RunTime(pAudioTriggerNameObject->GetString());
+	return CryAudio::StringToId(pAudioTriggerNameObject->GetString());
 }
 
 static uint GetAudioParameterId(MonoInternals::MonoString* pAudioParameterName)
 {
 	std::shared_ptr<CMonoString> pAudioParameterNameObject = CMonoDomain::CreateString(pAudioParameterName);
-	return CryAudio::StringToId_RunTime(pAudioParameterNameObject->GetString());
+	return CryAudio::StringToId(pAudioParameterNameObject->GetString());
 }
 
 static void SetAudioParameter(uint parameterId, float parameterValue)
@@ -71,13 +71,13 @@ static void SetAudioParameter(uint parameterId, float parameterValue)
 static uint GetAudioSwitchId(MonoInternals::MonoString* pAudioSwitchName)
 {
 	std::shared_ptr<CMonoString> pAudioSwitchNameObject = CMonoDomain::CreateString(pAudioSwitchName);
-	return CryAudio::StringToId_RunTime(pAudioSwitchNameObject->GetString());
+	return CryAudio::StringToId(pAudioSwitchNameObject->GetString());
 }
 
 static uint GetAudioSwitchStateId(uint audioSwitchId, MonoInternals::MonoString* pAudioSwitchStateName)
 {
 	std::shared_ptr<CMonoString> pAudioSwitchStateNameObject = CMonoDomain::CreateString(pAudioSwitchStateName);
-	return CryAudio::StringToId_RunTime(pAudioSwitchStateNameObject->GetString());
+	return CryAudio::StringToId(pAudioSwitchStateNameObject->GetString());
 }
 
 static void SetAudioSwitchState(uint audioSwitchId, uint switchStateId)

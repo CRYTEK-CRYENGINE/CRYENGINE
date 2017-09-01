@@ -174,7 +174,7 @@ static MonoInternals::MonoObject* GetOrCreateComponent(IEntity* pEntity, uint64 
 	return pComponent->GetObject()->GetManagedObject();
 }
 
-static void RegisterComponentProperty(MonoInternals::MonoReflectionType* pComponentType, MonoInternals::MonoReflectionProperty* pProperty, MonoInternals::MonoString* pPropertyName, MonoInternals::MonoString* pPropertyLabel, MonoInternals::MonoString* pPropertyDescription, EEntityPropertyType type)
+static void RegisterComponentProperty(MonoInternals::MonoReflectionType* pComponentType, MonoInternals::MonoReflectionProperty* pProperty, MonoInternals::MonoString* pPropertyName, MonoInternals::MonoString* pPropertyLabel, MonoInternals::MonoString* pPropertyDescription, EEntityPropertyType type, MonoInternals::MonoObject* pDefaultValue)
 {
 	auto it = CManagedPlugin::s_pCurrentlyRegisteringFactory->find(pComponentType);
 	CRY_ASSERT(it != CManagedPlugin::s_pCurrentlyRegisteringFactory->end());
@@ -183,7 +183,7 @@ static void RegisterComponentProperty(MonoInternals::MonoReflectionType* pCompon
 	std::shared_ptr<CMonoString> pLabel = CMonoDomain::CreateString(pPropertyLabel);
 	std::shared_ptr<CMonoString> pDescription = CMonoDomain::CreateString(pPropertyDescription);
 
-	it->second->AddProperty(pProperty, pName->GetString(), pLabel->GetString(), pDescription->GetString(), type);
+	it->second->AddProperty(pProperty, pName->GetString(), pLabel->GetString(), pDescription->GetString(), type, pDefaultValue);
 }
 
 static void RegisterComponentFunction(MonoInternals::MonoReflectionType* pComponentType, MonoInternals::MonoReflectionMethod* pMethod)

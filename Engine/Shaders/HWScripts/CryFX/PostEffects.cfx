@@ -113,6 +113,18 @@ pixout TexToTexPS(vtxOutTexToTex IN)
   return OUT;
 }
 
+///////////////// pixel shader //////////////////
+pixout CubeTexToTexPS(vtxOutTexToTex IN)
+{
+	pixout OUT = (pixout)0;
+	float theta = 1.0 - IN.baseTC.x * PI * 2;
+	float phi = IN.baseTC.y * PI;
+	float3 vec = float3(cos(theta) * sin(phi), cos(phi), sin(theta) * sin(phi));
+	half4 c0 = texCUBE(_cubetex0, vec);
+	OUT.Color = c0;
+	return OUT;
+}
+
 pixout TexToTexSampledPS(vtxOutTexToTex IN)
 {
   pixout OUT = (pixout) 0;
@@ -419,6 +431,15 @@ technique TextureToTexture
   {
     VertexShader = TexToTexVS() ResolveVS;
     PixelShader = TexToTexPS() ResolvePS;
+  }
+}
+
+technique CubeTextureToTexture
+{
+  pass p0
+  {
+    VertexShader = TexToTexVS() ResolveVS;
+    PixelShader = CubeTexToTexPS() ResolvePS;
   }
 }
 

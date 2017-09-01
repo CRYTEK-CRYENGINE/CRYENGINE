@@ -24,7 +24,118 @@
 class CRenderer;
 extern CRenderer* gRenDev;
 
-class CBaseResource;
+//////////////////////////////////////////////////////////////////////
+
+#define CR_LITTLE_ENDIAN
+
+struct SWaveForm;
+
+extern bool gbRgb;
+
+inline DWORD COLCONV(DWORD clr)
+{
+	return ((clr & 0xff00ff00) | ((clr & 0xff0000) >> 16) | ((clr & 0xff) << 16));
+}
+inline void COLCONV(ColorF& col)
+{
+	float v = col[0];
+	col[0] = col[2];
+	col[2] = v;
+}
+
+inline void f2d(double* dst, float* src)
+{
+	for (int i = 0; i < 16; i++)
+	{
+		dst[i] = src[i];
+	}
+}
+
+inline void d2f(float* dst, double* src)
+{
+	for (int i = 0; i < 16; i++)
+	{
+		dst[i] = (float)src[i];
+	}
+}
+
+//////////////////////////////////////////////////////////////////////
+// Resource conventions
+
+enum EHWShaderClass
+{
+	eHWSC_Vertex   = 0,
+	eHWSC_Pixel    = 1,
+	eHWSC_Geometry = 2,
+	eHWSC_Compute  = 3,
+	eHWSC_Domain   = 4,
+	eHWSC_Hull     = 5,
+	eHWSC_Num      = 6
+};
+
+enum EShaderStage : uint8
+{
+	EShaderStage_Vertex            = BIT(eHWSC_Vertex),
+	EShaderStage_Pixel             = BIT(eHWSC_Pixel),
+	EShaderStage_Geometry          = BIT(eHWSC_Geometry),
+	EShaderStage_Compute           = BIT(eHWSC_Compute),
+	EShaderStage_Domain            = BIT(eHWSC_Domain),
+	EShaderStage_Hull              = BIT(eHWSC_Hull),
+
+	EShaderStage_Count             = eHWSC_Num,
+	EShaderStage_None              = 0,
+	EShaderStage_All               = EShaderStage_Vertex | EShaderStage_Pixel | EShaderStage_Geometry | EShaderStage_Domain | EShaderStage_Hull | EShaderStage_Compute,
+	EShaderStage_AllWithoutCompute = EShaderStage_Vertex | EShaderStage_Pixel | EShaderStage_Geometry | EShaderStage_Domain | EShaderStage_Hull
+};
+DEFINE_ENUM_FLAG_OPERATORS(EShaderStage)
+#define SHADERSTAGE_FROM_SHADERCLASS(SHADERCLASS) ::EShaderStage(BIT(SHADERCLASS))
+
+enum EConstantBufferShaderSlot
+{
+	// Scaleform
+	eConstantBufferShaderSlot_ScaleformMeshAttributes   = 0,
+	eConstantBufferShaderSlot_ScaleformRenderParameters = 0,
+
+	// Z/G-Buffer
+	eConstantBufferShaderSlot_PerBatch          = 0,
+	eConstantBufferShaderSlot_PerInstanceLegacy = 1, // Deprecated
+	eConstantBufferShaderSlot_PerMaterial       = 3,
+	eConstantBufferShaderSlot_PerPass           = 5,
+	eConstantBufferShaderSlot_SkinQuat          = 9,
+	eConstantBufferShaderSlot_SkinQuatPrev      = 10,
+	eConstantBufferShaderSlot_VrProjection      = 11,
+	eConstantBufferShaderSlot_PerInstance       = 12,
+	eConstantBufferShaderSlot_PerView           = 13,
+
+	eConstantBufferShaderSlot_Count
+};
+
+enum { InlineConstantsShaderSlot = eConstantBufferShaderSlot_PerInstance };
+
+enum EResourceLayoutSlot
+{
+	EResourceLayoutSlot_PerInstanceCB      = 0,
+	EResourceLayoutSlot_PerMaterialRS      = 1,
+	EResourceLayoutSlot_PerInstanceExtraRS = 2,
+	EResourceLayoutSlot_PerPassRS          = 3,
+	EResourceLayoutSlot_VrProjectionCB     = 4,
+
+	EResourceLayoutSlot_Max                = 7
+};
+
+enum EReservedTextureSlot
+{
+	EReservedTextureSlot_SkinExtraWeights       = 14,
+	EReservedTextureSlot_AdjacencyInfo          = 15,
+	EReservedTextureSlot_ComputeSkinVerts       = 16,
+	EReservedTextureSlot_GpuParticleStream      = 14,
+	EReservedTextureSlot_LightvolumeInfos       = 33,
+	EReservedTextureSlot_LightVolumeRanges      = 34,
+	EReservedTextureSlot_ParticlePositionStream = 35,
+	EReservedTextureSlot_ParticleAxesStream     = 36,
+	EReservedTextureSlot_ParticleColorSTStream  = 37,
+	EReservedTextureSlot_TerrainBaseMap         = 29,
+};
 
 ////////////////////////////////////////////////////////////////////////////
 // ResourceView API
@@ -55,6 +166,7 @@ struct ResourceViewHandle
 		Unspecified = ValueType(~0),
 	};
 };
+static_assert(sizeof(ResourceViewHandle::ValueType) == sizeof(ResourceViewHandle), "ResourceViewHandle is suppose to be as small as the base type");
 
 struct SResourceView
 {
@@ -145,6 +257,7 @@ struct SResourceView
 
 	ResourceViewDesc m_Desc;
 };
+static_assert(sizeof(SResourceView::KeyType) == sizeof(SResourceView), "SResourceView is suppose to be as small as the base type");
 
 // TODO: Move to DeviceObjects.h
 struct EDefaultResourceViews : ResourceViewHandle
@@ -172,6 +285,7 @@ struct EDefaultResourceViews : ResourceViewHandle
 		DepthStencil       = RasterizerTarget
 	};
 };
+static_assert(sizeof(EDefaultResourceViews::ValueType) == sizeof(EDefaultResourceViews), "EDefaultResourceViews is suppose to be as small as the base type");
 
 ////////////////////////////////////////////////////////////////////////////
 // SamplerState API (pre-allocated sampler states)
@@ -375,6 +489,7 @@ struct EDefaultSamplerStates : SamplerStateHandle
 		PreAllocated          = 17 // from this value and up custom sampler states are assigned
 	};
 };
+static_assert(sizeof(EDefaultSamplerStates::ValueType) == sizeof(EDefaultSamplerStates), "EDefaultSamplerStates is suppose to be as small as the base type");
 
 ////////////////////////////////////////////////////////////////////////////
 // InputLayout API
@@ -450,45 +565,235 @@ struct SInputLayout
 	}
 };
 
-//====================================================================
+//=================================================================
+// C++11 POD version of "typedef std::variant<void*, CBaseResource*, CTexture*, CGpuBuffer*, CConstantBuffer*> UResourceReference;"
 
-#define CR_LITTLE_ENDIAN
+class CBaseResource;
+class CTexture;
+class CGpuBuffer;
+class CConstantBuffer;
 
-struct SWaveForm;
-
-extern bool gbRgb;
-
-inline DWORD COLCONV(DWORD clr)
+union UResourceReference
 {
-	return ((clr & 0xff00ff00) | ((clr & 0xff0000) >> 16) | ((clr & 0xff) << 16));
-}
-inline void COLCONV(ColorF& col)
-{
-	float v = col[0];
-	col[0] = col[2];
-	col[2] = v;
-}
+	void*              pAnonymous;
+	CBaseResource*     pResource;
+	CTexture*          pTexture;
+	CGpuBuffer*        pBuffer;
+	CConstantBuffer*   pConstantBuffer;
+	SamplerStateHandle samplerState;
 
-inline void f2d(double* dst, float* src)
-{
-	for (int i = 0; i < 16; i++)
-	{
-		dst[i] = src[i];
-	}
-}
+	ILINE UResourceReference(void*              other) : pAnonymous     (other) { }
+	ILINE UResourceReference(CBaseResource*     other) : pResource      (other) { }
+	ILINE UResourceReference(CTexture*          other) : pTexture       (other) { }
+	ILINE UResourceReference(CGpuBuffer*        other) : pBuffer        (other) { }
+	ILINE UResourceReference(CConstantBuffer*   other) : pConstantBuffer(other) { }
+	ILINE UResourceReference(SamplerStateHandle other) : samplerState   (other) { }
 
-inline void d2f(float* dst, double* src)
-{
-	for (int i = 0; i < 16; i++)
-	{
-		dst[i] = (float)src[i];
-	}
-}
+	ILINE UResourceReference& operator=(void*              other) { pAnonymous      = other; return *this; }
+	ILINE UResourceReference& operator=(CBaseResource*     other) { pResource       = other; return *this; }
+	ILINE UResourceReference& operator=(CTexture*          other) { pTexture        = other; return *this; }
+	ILINE UResourceReference& operator=(CGpuBuffer*        other) { pBuffer         = other; return *this; }
+	ILINE UResourceReference& operator=(CConstantBuffer*   other) { pConstantBuffer = other; return *this; }
+	ILINE UResourceReference& operator=(SamplerStateHandle other) { samplerState    = other; return *this; }
+};
 
 //=================================================================
+// Resource-Binding and Invalidation API
+
+struct SResourceBindPoint;
+struct SResourceBinding;
+
+// Will notify resource's user that some data of the the resource was invalidated.
+// dirtyFlags - one or more of the EResourceDirtyFlags enum bits
+//! Dirty flags will indicate what kind of device data was invalidated
+enum EResourceDirtyFlags
+{
+	eDeviceResourceDirty     = BIT(0),
+	eDeviceResourceViewDirty = BIT(1),
+
+	eResourceDestroyed       = BIT(2),
+};
+
+struct SResourceBindPoint
+{
+	enum class EFlags : uint8
+	{
+		None         = 0,
+		IsTexture    = BIT(0), // need to distinguish between textures and buffers on vulkan
+		IsStructured = BIT(1)  // need to distinguish between structured and typed resources on vulkan as they produce different descriptors
+	};
+
+	enum class ESlotType : uint8 // NOTE: enum values need to match ResourceGroup enum from hlslcc and request enum from hlsl2spirv
+	{
+		ConstantBuffer      = 0, // HLSL b slot
+		TextureAndBuffer    = 1, // HLSL t slot
+		Sampler             = 2, // HLSL s slot
+		UnorderedAccessView = 3, // HLSL u slot
+
+		Count
+	};
+
+	SResourceBindPoint() : fastCompare(0) {}
+	SResourceBindPoint(const SResourceBinding& resource, uint8 slotNumber, EShaderStage shaderStages);
+	SResourceBindPoint(ESlotType type, uint8 slotNumber, EShaderStage shaderStages, EFlags flags = EFlags::None);
+
+	// ignore flags in all comparators (NOTE/TODO: shouldn't we ignore the stages as well?)
+	bool operator<(const SResourceBindPoint& other) const
+	{
+		constexpr uint32 flagsMask = ~(0xFF << (offsetof(SResourceBindPoint, flags) * 8));
+		return (fastCompare & flagsMask) < (other.fastCompare & flagsMask);
+	}
+
+	bool operator==(const SResourceBindPoint& other) const
+	{
+		constexpr uint32 flagsMask = ~(0xFF << (offsetof(SResourceBindPoint, flags) * 8));
+		return (fastCompare & flagsMask) == (other.fastCompare & flagsMask);
+	}
+
+	union
+	{
+		struct
+		{
+			EShaderStage    stages;
+			EFlags          flags;
+			uint8           slotNumber;
+			ESlotType       slotType;
+		};
+
+		uint32 fastCompare;
+	};
+};
+static_assert(sizeof(SResourceBindPoint::fastCompare) == sizeof(SResourceBindPoint), "Size mismatch between fastCompare and bind point struct");
+
+DEFINE_ENUM_FLAG_OPERATORS(SResourceBindPoint::EFlags)
+
+struct SResourceBinding
+{
+	typedef bool InvalidateCallbackSignature(void*, SResourceBindPoint, UResourceReference, uint32);
+	typedef std::function<InvalidateCallbackSignature> InvalidateCallbackFunction;
+
+	enum class EResourceType : uint8
+	{
+		InvalidType = 0,
+
+		ConstantBuffer,
+		Texture,
+		Buffer,
+		Sampler,
+		Resource,
+	};
+
+	inline SResourceBinding()
+		: fastCompare(0)
+		, type(SResourceBinding::EResourceType::InvalidType)
+	{}
+
+	inline SResourceBinding(CTexture* pTexture, ResourceViewHandle view)
+		: pTexture(pTexture)
+		, view(view)
+		, type(EResourceType::Texture)
+	{}
+
+	inline SResourceBinding(CGpuBuffer* pBuffer, ResourceViewHandle view)
+		: pBuffer(pBuffer)
+		, view(view)
+		, type(EResourceType::Buffer)
+	{}
+
+	inline SResourceBinding(CConstantBuffer* pConstantBuffer, ResourceViewHandle view)
+		: pConstantBuffer(pConstantBuffer)
+		, view(view)
+		, type(EResourceType::ConstantBuffer)
+	{}
+
+	inline SResourceBinding(SamplerStateHandle _samplerState)
+		: fastCompare(0)
+		, type(EResourceType::Sampler)
+	{
+		samplerState = _samplerState;
+	}
+
+	inline SResourceBinding(CBaseResource* pResource)
+		: pResource(pResource)
+		, type(EResourceType::Resource)
+	{}
+
+	bool IsValid() const;
+	bool IsVolatile() const;
+	void AddInvalidateCallback(void* pCallbackOwner, SResourceBindPoint bindPoint, const InvalidateCallbackFunction& callback)  threadsafe const;
+	void RemoveInvalidateCallback(void* pCallbackOwner, SResourceBindPoint bindPoint = SResourceBindPoint()) threadsafe const;
+
+	const std::pair<SResourceView, CDeviceResourceView*>* GetDeviceResourceViewInfo() const;
+	template<typename T> T*                               GetDeviceResourceView() const;
+	DXGI_FORMAT                                           GetResourceFormat() const;
+
+	bool operator==(const SResourceBinding& other) const { return fastCompare == other.fastCompare && view == other.view && type == other.type; }
+
+	union
+	{
+		CTexture*          pTexture;
+		CGpuBuffer*        pBuffer;
+		CConstantBuffer*   pConstantBuffer;
+		SamplerStateHandle samplerState;
+		CBaseResource*     pResource;
+
+		uintptr_t          fastCompare;
+	};
+
+	ResourceViewHandle view;
+	EResourceType      type;
+};
+
+class CResourceBindingInvalidator
+{
+
+private:
+	typedef std::pair<void*, SResourceBindPoint> SInvalidateContext;
+
+	struct SInvalidateCallback
+	{
+		int refCount;
+		SResourceBinding::InvalidateCallbackFunction callback;
+
+		SInvalidateCallback(const SResourceBinding::InvalidateCallbackFunction& cb)
+			: callback(cb)
+			, refCount(0)
+		{}
+	};
+
+	struct SHashInvalidateContext
+	{
+		size_t operator()(const SInvalidateContext& key) const
+		{
+			// void* ^ uint32, needs to be fast, not smart
+			return size_t(key.first) ^ SwapEndianValue(size_t(key.second.fastCompare), true);
+		}
+
+		bool operator()(const SInvalidateContext& key1, const SInvalidateContext& key2) const
+		{
+			return (key1.first == key2.first) & (key1.second == key2.second);
+		}
+	};
+
+	typedef std::unordered_map<SInvalidateContext, SInvalidateCallback, SHashInvalidateContext> SInvalidateRegistry;
+
+	SInvalidateRegistry m_invalidateCallbacks;
+	CryRWLock           m_invalidationLock;
+
+public:
+	CResourceBindingInvalidator() { }
+	virtual ~CResourceBindingInvalidator() { CRY_ASSERT_MESSAGE(m_invalidateCallbacks.empty(), "Make sure any clients (e.g. Renderpasses, resource sets, etc..) are released before destroying this resource"); }
+
+	size_t CountInvalidateCallbacks() threadsafe;
+	void AddInvalidateCallback(void* listener, const SResourceBindPoint bindPoint, const SResourceBinding::InvalidateCallbackFunction& callback) threadsafe;
+	void RemoveInvalidateCallbacks(void* listener, const SResourceBindPoint bindPoint = SResourceBindPoint()) threadsafe;
+	void InvalidateDeviceResource(UResourceReference pResource, uint32 dirtyFlags) threadsafe;
+};
+
+////////////////////////////////////////////////////////////////////////////
+// Resource and Resource-Directory API
 
 typedef std::map<CCryNameTSCRC, CBaseResource*>                              ResourcesMap;
-
 typedef ResourcesMap::iterator                                               ResourcesMapItor;
 
 typedef std::vector<CBaseResource*, stl::STLGlobalAllocator<CBaseResource*>> ResourcesList;
@@ -517,10 +822,9 @@ struct SResourceContainer
 };
 
 typedef std::map<CCryNameTSCRC, SResourceContainer*> ResourceClassMap;
-
 typedef ResourceClassMap::iterator                   ResourceClassMapItor;
 
-class CBaseResource
+class CBaseResource : NoCopy, public CResourceBindingInvalidator
 {
 private:
 	// Per resource variables
@@ -533,14 +837,6 @@ private:
 
 public:
 	static CryCriticalSection s_cResLock;
-
-public:
-	//! Dirty flags will indicate what kind of data was invalidated
-	enum EDirtyFlags
-	{
-		eDeviceResourceDirty     = BIT(0),
-		eDeviceResourceViewDirty = BIT(1),
-	};
 
 private:
 	void UnregisterAndDelete();
@@ -592,11 +888,9 @@ public:
 
 	// Constructors.
 	CBaseResource() : m_nRefCount(1), m_nID(0) {}
-	CBaseResource(const CBaseResource& Src);
-	CBaseResource& operator=(const CBaseResource& Src);
 
 	// Destructor.
-	virtual ~CBaseResource() {};
+	virtual ~CBaseResource() { };
 
 	CCryNameTSCRC GetNameCRC() { return m_NameCRC; }
 	//inline const char *GetName() const { return m_Name.c_str(); }
@@ -619,10 +913,6 @@ public:
 	bool                       UnRegister();
 
 	virtual void               GetMemoryUsage(ICrySizer* pSizer) const = 0;
-
-	// Will notify resource's user that some data of the the resource was invalidated.
-	// dirtyFlags - one or more of the EDirtyFlags enum bits
-	virtual void InvalidateDeviceResource(uint32 dirtyFlags) {};
 };
 
 #endif

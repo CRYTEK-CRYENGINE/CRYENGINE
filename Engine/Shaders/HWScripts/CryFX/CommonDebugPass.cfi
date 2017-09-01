@@ -57,7 +57,7 @@ vert2fragDebug Common_DebugPassVS(app2vertDebug IN_common)
 	return OUT;            
 }
 
-Texture2D   texelPerMeterTex         : register(t33)                                   = "%ENGINE%/EngineAssets/Textures/TexelsPerMeter.dds";
+Texture2D   texelPerMeterTex         : register(t33)                                   = "%ENGINE%/EngineAssets/Textures/TexelsPerMeterGrad.dds";
 
 pixout Common_DebugPassPS(vert2fragDebug IN)
 {

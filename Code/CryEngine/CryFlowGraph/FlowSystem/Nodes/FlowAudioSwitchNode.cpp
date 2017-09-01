@@ -156,7 +156,7 @@ private:
 
 		if (!switchName.empty())
 		{
-			m_switchId = CryAudio::StringToId_RunTime(switchName.c_str());
+			m_switchId = CryAudio::StringToId(switchName.c_str());
 		}
 	}
 
@@ -167,7 +167,7 @@ private:
 
 		if (!stateName.empty() && (m_switchId != CryAudio::InvalidControlId))
 		{
-			m_switchStates[stateIndex - eIn_SwitchStateNameFirst] = CryAudio::StringToId_RunTime(stateName.c_str());
+			m_switchStates[stateIndex - eIn_SwitchStateNameFirst] = CryAudio::StringToId(stateName.c_str());
 		}
 	}
 

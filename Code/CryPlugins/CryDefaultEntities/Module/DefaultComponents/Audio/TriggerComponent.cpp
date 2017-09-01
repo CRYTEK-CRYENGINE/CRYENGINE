@@ -39,6 +39,13 @@ void CTriggerComponent::Register(Schematyc::CEnvRegistrationScope& componentScop
 		pFunction->SetFlags(Schematyc::EEnvFunctionFlags::Construction);
 		componentScope.Register(pFunction);
 	}
+	{
+		auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&CTriggerComponent::GetActivityRadius, "F70A0C3D-50EC-4858-A470-2855FFEC25E2"_cry_guid, "GetActivityRadius");
+		pFunction->SetDescription("Retrieves the activity radius of this component.");
+		pFunction->SetFlags(Schematyc::EEnvFunctionFlags::Construction);
+		pFunction->BindOutput(1, 'radi', "Radius");
+		componentScope.Register(pFunction);
+	}
 
 	componentScope.Register(SCHEMATYC_MAKE_ENV_SIGNAL(CTriggerComponent::SFinishedSignal));
 }
@@ -88,6 +95,8 @@ void CTriggerComponent::Initialize()
 	{
 		Play();
 	}
+
+	DetermineActivityRadius();
 
 #if defined(INCLUDE_DEFAULT_PLUGINS_PRODUCTION_CODE)
 	m_playButton = Serialization::ActionButton(std::function<void()>([this]() { Play(); }));
@@ -178,6 +187,8 @@ void CTriggerComponent::ProcessEvent(SEntityEvent& event)
 					{
 						Play();
 					}
+
+					DetermineActivityRadius();
 				}
 				else if (m_previousStopTriggerId != m_stopTrigger.m_id)
 				{
@@ -190,6 +201,8 @@ void CTriggerComponent::ProcessEvent(SEntityEvent& event)
 					{
 						Stop();
 					}
+
+					DetermineActivityRadius();
 				}
 
 				m_previousPlayTriggerId = m_playTrigger.m_id;
@@ -204,6 +217,20 @@ void CTriggerComponent::ProcessEvent(SEntityEvent& event)
 //////////////////////////////////////////////////////////////////////////
 void CTriggerComponent::SetAutoPlay(bool const bEnable)
 {
+	// Initialize is called before this, disable potentially playing audio upon deactivation.
+	if (!bEnable)
+	{
+		if (m_playTrigger.m_id != CryAudio::InvalidControlId)
+		{
+			m_pIEntityAudioComponent->StopTrigger(m_playTrigger.m_id, m_auxObjectId);
+		}
+
+		if (m_stopTrigger.m_id != CryAudio::InvalidControlId)
+		{
+			m_pIEntityAudioComponent->StopTrigger(m_stopTrigger.m_id, m_auxObjectId);
+		}
+	}
+
 	m_bAutoPlay = bEnable;
 }
 
@@ -232,6 +259,31 @@ void CTriggerComponent::Stop()
 			m_pIEntityAudioComponent->StopTrigger(m_playTrigger.m_id, m_auxObjectId);
 		}
 	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CTriggerComponent::DetermineActivityRadius()
+{
+	CryAudio::STriggerData playTriggerData;
+	CryAudio::STriggerData stopTriggerData;
+
+	if (m_playTrigger.m_id != CryAudio::InvalidControlId)
+	{
+		gEnv->pAudioSystem->GetTriggerData(m_playTrigger.m_id, playTriggerData);
+	}
+
+	if (m_stopTrigger.m_id != CryAudio::InvalidControlId)
+	{
+		gEnv->pAudioSystem->GetTriggerData(m_stopTrigger.m_id, stopTriggerData);
+	}
+
+	m_activityRadius = std::max(playTriggerData.radius, stopTriggerData.radius);
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CTriggerComponent::GetActivityRadius(float& radius)
+{
+	radius = m_activityRadius;
 }
 } // namespace DefaultComponents
 } // namespace Audio

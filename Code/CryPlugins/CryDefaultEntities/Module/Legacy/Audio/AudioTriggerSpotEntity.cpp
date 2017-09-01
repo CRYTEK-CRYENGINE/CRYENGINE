@@ -102,8 +102,8 @@ void CAudioTriggerSpotEntity::OnResetState()
 	auto& audioProxy = *(entity.GetOrCreateComponent<IEntityAudioComponent>());
 
 	// Get properties
-	m_playTriggerId = CryAudio::StringToId_RunTime(m_playTriggerName.c_str());
-	m_stopTriggerId = CryAudio::StringToId_RunTime(m_stopTriggerName.c_str());
+	m_playTriggerId = CryAudio::StringToId(m_playTriggerName.c_str());
+	m_stopTriggerId = CryAudio::StringToId(m_stopTriggerName.c_str());
 
 	// Reset values to their default
 	audioProxy.SetAudioAuxObjectOffset(Matrix34(IDENTITY));

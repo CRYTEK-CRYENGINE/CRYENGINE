@@ -3,7 +3,7 @@
 block_cipher = None
 
 
-a = Analysis(['cryrun.py', 'cryproject.py', 'cryregistry.py', 'release_project.py', 'crysolutiongenerator.py', 'cryrun_gui.py'],
+a = Analysis(['cryrun_exe.py'],
              pathex=['CryVersionSelector'],
              binaries=[],
              datas=[('editor_icon16.ico', '.')],

@@ -5,9 +5,6 @@
 #include "Wrappers/MonoProperty.h"
 #include "Wrappers/MonoMethod.h"
 
-#include <mono/metadata/class.h>
-#include <mono/metadata/object.h>
-
 #include <CrySchematyc/CoreAPI.h>
 #include <CrySchematyc/Env/Elements/EnvComponent.h>
 
@@ -29,11 +26,10 @@ struct CManagedEntityComponentFactory final : public Schematyc::CEnvElementBase<
 public:
 	struct SProperty : public Schematyc::CCommonTypeDesc
 	{
-		SProperty(uint32 membOffset, std::shared_ptr<CMonoProperty> pMonoProperty, EEntityPropertyType serType, MonoInternals::MonoTypeEnum type);
-		
+		SProperty(size_t memberOffset, MonoInternals::MonoReflectionProperty* pReflectionProperty, std::shared_ptr<CMonoProperty> pMonoProperty, EEntityPropertyType serType,  MonoInternals::MonoTypeEnum type, CMonoClass& typeClass, std::shared_ptr<CMonoObject> pDefaultValue);
+
 		SProperty(const SProperty& other)
-			: memberOffset(other.memberOffset)
-			, pProperty(other.pProperty)
+			: pProperty(other.pProperty)
 			, monoType(other.monoType)
 			, serializationType(other.serializationType)
 		{
@@ -47,8 +43,8 @@ public:
 		static bool Serialize(Serialization::IArchive& archive, void* pValue, const char* szName, const char* szLabel);
 		static void ToString(Schematyc::IString& output, const void* pInput);
 
-		uint32 memberOffset;
 		std::shared_ptr<CMonoProperty> pProperty;
+		size_t offsetFromComponent;
 
 		MonoInternals::MonoTypeEnum monoType;
 		EEntityPropertyType serializationType;
@@ -79,7 +75,7 @@ public:
 	virtual std::shared_ptr<IEntityComponent> CreateFromPool() const override;
 	// ~Schematyc::IEnvComponent
 
-	void AddProperty(MonoInternals::MonoReflectionProperty* pProperty, const char* szPropertyName, const char* szPropertyLabel, const char* szPropertyDesc, EEntityPropertyType type);
+	void AddProperty(MonoInternals::MonoReflectionProperty* pProperty, const char* szPropertyName, const char* szPropertyLabel, const char* szPropertyDesc, EEntityPropertyType type, MonoInternals::MonoObject* pDefaultValue);
 	void AddFunction(MonoInternals::MonoReflectionMethod* pMethod);
 	int AddSignal(const char* szEventName);
 	void AddSignalParameter(int signalId, const char* szParameter, MonoInternals::MonoReflectionType* pType);
@@ -89,7 +85,7 @@ public:
 	public:
 		Schematyc::CClassMemberDesc& AddMember(const Schematyc::CCommonTypeDesc& typeDesc, ptrdiff_t offset, uint32 id, const char* szName, const char* szLabel, const char* szDescription, Schematyc::Utils::IDefaultValuePtr&& pDefaultValue)
 		{
-			return CEntityComponentClassDesc::AddMember(typeDesc, offset, id, szName, szLabel, szDescription, Schematyc::Utils::IDefaultValuePtr());
+			return CEntityComponentClassDesc::AddMember(typeDesc, offset, id, szName, szLabel, szDescription, std::forward<Schematyc::Utils::IDefaultValuePtr>(pDefaultValue));
 		}
 
 		bool AddBase(const Schematyc::CCommonTypeDesc& typeDesc)

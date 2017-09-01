@@ -578,7 +578,7 @@ void CTexture::StreamAssignPoolItem(STexPoolItem* pItem, int nMinMip)
 	CryInterlockedAdd(&s_nStatsStreamPoolBoundMem, pItem->m_nDevTextureSize);
 	CryInterlockedAdd(&s_nStatsStreamPoolBoundPersMem, nPersSize);
 
-	InvalidateDeviceResource(eDeviceResourceDirty | eDeviceResourceViewDirty);
+	InvalidateDeviceResource(this, eDeviceResourceDirty | eDeviceResourceViewDirty);
 }
 
 STexPool* CTexture::StreamGetPool(int nStartMip, int nMips)

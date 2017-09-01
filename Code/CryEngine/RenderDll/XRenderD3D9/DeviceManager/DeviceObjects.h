@@ -2,22 +2,12 @@
 
 #pragma once
 
-enum EHWShaderClass
-{
-	eHWSC_Vertex = 0,
-	eHWSC_Pixel = 1,
-	eHWSC_Geometry = 2,
-	eHWSC_Compute = 3,
-	eHWSC_Domain = 4,
-	eHWSC_Hull = 5,
-	eHWSC_Num = 6
-};
-
 #include <CryCore/Containers/VectorMap.h>   // VectorMap
 #include <CryRenderer/VertexFormats.h>
 #include <CryRenderer/ITexture.h>
 #include <array>
 #include <bitset>
+#include <atomic>
 
 #include "DeviceResources.h"                // CDeviceBuffer, CDeviceTexture, CDeviceInputStream
 #include "Common/CommonRender.h"            // SResourceView, SSamplerState, SInputLayout
@@ -37,73 +27,6 @@ struct SComputePipelineStateDescription;
 class CDeviceRenderPass;
 typedef std::shared_ptr<CDeviceRenderPass> CDeviceRenderPassPtr;
 /////////////////////////////////////////////////////////////////////////////////
-
-enum EConstantBufferShaderSlot
-{
-	// Scaleform
-	eConstantBufferShaderSlot_ScaleformMeshAttributes   = 0,
-	eConstantBufferShaderSlot_ScaleformRenderParameters = 0,
-
-	// Z/G-Buffer
-	eConstantBufferShaderSlot_PerBatch          = 0,
-	eConstantBufferShaderSlot_PerInstanceLegacy = 1, // Deprecated
-	eConstantBufferShaderSlot_PerMaterial       = 3,
-	eConstantBufferShaderSlot_PerPass           = 5,
-	eConstantBufferShaderSlot_SkinQuat          = 9,
-	eConstantBufferShaderSlot_SkinQuatPrev      = 10,
-	eConstantBufferShaderSlot_VrProjection      = 11,
-	eConstantBufferShaderSlot_PerInstance       = 12,
-	eConstantBufferShaderSlot_PerView           = 13,
-
-	eConstantBufferShaderSlot_Count
-};
-
-enum EResourceLayoutSlot
-{
-	EResourceLayoutSlot_PerInstanceCB      = 0,
-	EResourceLayoutSlot_PerMaterialRS      = 1,
-	EResourceLayoutSlot_PerInstanceExtraRS = 2,
-	EResourceLayoutSlot_PerPassRS          = 3,
-	EResourceLayoutSlot_VrProjectionCB     = 4,
-
-	EResourceLayoutSlot_Max                = 7
-};
-
-enum EReservedTextureSlot
-{
-	EReservedTextureSlot_SkinExtraWeights       = 14,
-	EReservedTextureSlot_AdjacencyInfo          = 15,
-	EReservedTextureSlot_ComputeSkinVerts       = 16,
-	EReservedTextureSlot_GpuParticleStream      = 14,
-	EReservedTextureSlot_LightvolumeInfos       = 33,
-	EReservedTextureSlot_LightVolumeRanges      = 34,
-	EReservedTextureSlot_ParticlePositionStream = 35,
-	EReservedTextureSlot_ParticleAxesStream     = 36,
-	EReservedTextureSlot_ParticleColorSTStream  = 37,
-	EReservedTextureSlot_TerrainBaseMap         = 29,
-};
-
-enum EShaderStage : uint8
-{
-	EShaderStage_Vertex            = BIT(eHWSC_Vertex),
-	EShaderStage_Pixel             = BIT(eHWSC_Pixel),
-	EShaderStage_Geometry          = BIT(eHWSC_Geometry),
-	EShaderStage_Compute           = BIT(eHWSC_Compute),
-	EShaderStage_Domain            = BIT(eHWSC_Domain),
-	EShaderStage_Hull              = BIT(eHWSC_Hull),
-
-	EShaderStage_Count             = eHWSC_Num,
-	EShaderStage_None              = 0,
-	EShaderStage_All               = EShaderStage_Vertex | EShaderStage_Pixel | EShaderStage_Geometry | EShaderStage_Domain | EShaderStage_Hull | EShaderStage_Compute,
-	EShaderStage_AllWithoutCompute = EShaderStage_Vertex | EShaderStage_Pixel | EShaderStage_Geometry | EShaderStage_Domain | EShaderStage_Hull
-};
-DEFINE_ENUM_FLAG_OPERATORS(EShaderStage)
-#define SHADERSTAGE_FROM_SHADERCLASS(SHADERCLASS) ::EShaderStage(BIT(SHADERCLASS))
-
-enum { InlineConstantsShaderSlot = eConstantBufferShaderSlot_PerInstance };
-const int ResourceSetBufferCount = 8;
-
-typedef std::bitset<EResourceLayoutSlot_Max + 1> UsedBindSlotSet;
 
 struct SProfilingStats
 {
@@ -237,114 +160,12 @@ struct STexturePayload
 
 ////////////////////////////////////////////////////////////////////////////
 
-class CConstantBuffer;
-class CGpuBuffer;
-class CTexture;
-
-// Will notify resource's user that some data of the the resource was invalidated.
-// dirtyFlags - one or more of the EDeviceDirtyFlags enum bits
-//! Dirty flags will indicate what kind of device data was invalidated
-enum EDeviceDirtyFlags
-{
-	eDeviceResourceDirty     = BIT(0),
-	eDeviceResourceViewDirty = BIT(1),
-	eResourceDestroyed       = BIT(2)
-};
-
-struct SResourceBinding
-{
-	typedef bool InvalidateCallbackSignature(void*, uint32);
-	typedef std::function<InvalidateCallbackSignature> InvalidateCallbackFunction;
-
-	enum class EResourceType : uint32
-	{
-		ConstantBuffer,
-		Texture,
-		Buffer,
-		Sampler,
-		InvalidType,
-	};
-
-	SResourceBinding();
-	SResourceBinding(CTexture* pTexture, ResourceViewHandle view);
-	SResourceBinding(const CGpuBuffer* pBuffer, ResourceViewHandle view);
-	SResourceBinding(SamplerStateHandle samplerState);
-	SResourceBinding(CConstantBuffer* pConstantBuffer);
-
-	bool IsValid() const;
-	void AddInvalidateCallback(void* pCallbackOwner, const InvalidateCallbackFunction& callback) const;
-	void RemoveInvalidateCallback(void* pCallbackOwner) const;
-
-	const std::pair<SResourceView, CDeviceResourceView*>* GetDeviceResourceViewInfo() const;
-	template<typename T> T*                               GetDeviceResourceView() const;
-	DXGI_FORMAT                                           GetResourceFormat() const;
-
-	bool operator==(const SResourceBinding& other) const { return fastCompare == other.fastCompare && view == other.view && type == other.type; }
-
-	union
-	{
-		CTexture*          pTexture;
-		const CGpuBuffer*  pBuffer;
-		CConstantBuffer*   pConstantBuffer;
-		SamplerStateHandle samplerState;
-		uintptr_t          fastCompare;
-	};
-
-	ResourceViewHandle view;
-	EResourceType      type;
-};
-
-struct SResourceBindPoint
-{
-	enum class EFlags : uint8
-	{
-		None             = 0,
-		IsTexture        = BIT(0), // need to distinguish between textures and buffers on vulkan
-		IsStructured     = BIT(1)  // need to distinguish between structured and typed resources on vulkan as they produce different descriptors
-	};
-
-	enum class ESlotType : uint8 // NOTE: enum values need to match ResourceGroup enum from hlslcc and request enum from hlsl2spirv
-	{
-		ConstantBuffer      = 0,          // HLSL b slot
-		TextureAndBuffer    = 1,          // HLSL t slot
-		Sampler             = 2,          // HLSL s slot
-		UnorderedAccessView = 3,          // HLSL u slot
-
-		Count
-	};
-
-	SResourceBindPoint() : fastCompare(0) {}
-	SResourceBindPoint(const SResourceBinding& resource, uint8 slotNumber, EShaderStage shaderStages);
-	SResourceBindPoint(ESlotType type, uint8 slotNumber, EShaderStage shaderStages, EFlags flags = EFlags::None);
-	
-	bool operator<(const SResourceBindPoint& other) const
-	{
-		// ignore flags here
-		constexpr uint32 flagsMask = ~(0xFF << (offsetof(SResourceBindPoint, flags) * 8));
-		return (fastCompare & flagsMask) < (other.fastCompare & flagsMask);
-	}
-
-	union
-	{
-		struct
-		{
-			EShaderStage    stages;
-			EFlags          flags;
-			uint8           slotNumber;
-			ESlotType       slotType;
-		};
-
-		uint32 fastCompare;
-	};
-};
-static_assert(sizeof(SResourceBindPoint::fastCompare) == sizeof(SResourceBindPoint), "Size mismatch between fastCompare and bind point struct");
-
-DEFINE_ENUM_FLAG_OPERATORS(SResourceBindPoint::EFlags)
+const int ResourceSetBufferCount = 8;
 
 class CDeviceResourceSetDesc : NoCopy
 {
 public:
-	enum class EDirtyFlags
+	enum EDirtyFlags : uint32
 	{
 		eNone           = 0,
 		eDirtyBindPoint = BIT(0),
@@ -354,32 +175,46 @@ public:
 	};
 
 public:
+	CDeviceResourceSetDesc();
 	CDeviceResourceSetDesc(void* pInvalidateCallbackOwner, const SResourceBinding::InvalidateCallbackFunction& invalidateCallback);
+	CDeviceResourceSetDesc(const CDeviceResourceSetDesc& other);
 	CDeviceResourceSetDesc(const CDeviceResourceSetDesc& other, void* pInvalidateCallbackOwner, const SResourceBinding::InvalidateCallbackFunction& invalidateCallback);
 	~CDeviceResourceSetDesc();
+
+	bool IsEmpty() const;
+	EDirtyFlags GetDirtyFlags() const;
+	bool HasChanged() const;
+	void AcceptAllChanges();
+
+	void MarkBindingChanged();
+
+	bool HasChangedBindPoints();
+	void AcceptChangedBindPoints();
 
 	EDirtyFlags SetTexture(int shaderSlot, CTexture* pTexture, ResourceViewHandle hView, ::EShaderStage shaderStages);
 	EDirtyFlags SetSampler(int shaderSlot, SamplerStateHandle hState, ::EShaderStage shaderStages);
 	EDirtyFlags SetConstantBuffer(int shaderSlot, CConstantBuffer* pBuffer, ::EShaderStage shaderStages);
-	EDirtyFlags SetBuffer(int shaderSlot, const CGpuBuffer* pBuffer, ResourceViewHandle hView, ::EShaderStage shaderStages);
-
-	template<SResourceBinding::EResourceType resourceType>
-	EDirtyFlags UpdateResource(const SResourceBindPoint& bindPoint, const SResourceBinding& binding);
-
-	EDirtyFlags RemoveResource(const SResourceBindPoint& bindPoint);
-
-	bool IsEmpty() const { return m_resources.empty(); }
-	void Clear();
+	EDirtyFlags SetBuffer(int shaderSlot, CGpuBuffer* pBuffer, ResourceViewHandle hView, ::EShaderStage shaderStages);
+	EDirtyFlags ClearResources();
 
 	const VectorMap <SResourceBindPoint, SResourceBinding>& GetResources() const { return m_resources; }
+
+	static bool OnResourceInvalidated(void* pThis, SResourceBindPoint bindPoint, UResourceReference pResource, uint32 flags) threadsafe;
+
+protected:
+	EDirtyFlags SetResources(const CDeviceResourceSetDesc& other);
+
+	template<SResourceBinding::EResourceType resourceType>
+	EDirtyFlags UpdateResource(SResourceBindPoint bindPoint, const SResourceBinding& binding);
 
 private:
 	VectorMap <SResourceBindPoint, SResourceBinding> m_resources;
 	SResourceBinding::InvalidateCallbackFunction     m_invalidateCallback;
 	void*                                            m_invalidateCallbackOwner;
+
+	std::atomic<uint32>                              m_dirtyFlags;
 };
 DEFINE_ENUM_FLAG_OPERATORS(CDeviceResourceSetDesc::EDirtyFlags)
-
 
 class CDeviceResourceSet : NoCopy
 {
@@ -402,7 +237,8 @@ public:
 	bool         IsValid()  const { return m_bValid; }
 	EFlags       GetFlags() const { return m_Flags;  }
 
-	bool         Update(const CDeviceResourceSetDesc& desc, CDeviceResourceSetDesc::EDirtyFlags dirtyFlags = CDeviceResourceSetDesc::EDirtyFlags::eDirtyAll);
+	bool         Update(CDeviceResourceSetDesc& desc);
+	static bool  UpdateWithReevaluation(std::shared_ptr<CDeviceResourceSet>/*CDeviceResourceSetPtr*/& pRenderPass, CDeviceResourceSetDesc& desc);
 
 protected:
 	virtual bool UpdateImpl(const CDeviceResourceSetDesc& desc, CDeviceResourceSetDesc::EDirtyFlags dirtyFlags) = 0;
@@ -418,6 +254,8 @@ DEFINE_ENUM_FLAG_OPERATORS(CDeviceResourceSet::EFlags)
 typedef std::shared_ptr<CDeviceResourceSet> CDeviceResourceSetPtr;
 
 ////////////////////////////////////////////////////////////////////////////
+
+typedef std::bitset<EResourceLayoutSlot_Max + 1> UsedBindSlotSet;
 
 struct SDeviceResourceLayoutDesc
 {
@@ -906,32 +744,41 @@ public:
 	struct SEqual { bool   operator() (const CDeviceRenderPassDesc& lhs, const CDeviceRenderPassDesc& rhs) const; };
 
 public:
+	CDeviceRenderPassDesc();
 	CDeviceRenderPassDesc(void* pInvalidateCallbackOwner, const SResourceBinding::InvalidateCallbackFunction& invalidateCallback);
+	CDeviceRenderPassDesc(const CDeviceRenderPassDesc& other);
 	CDeviceRenderPassDesc(const CDeviceRenderPassDesc& other, void* pInvalidateCallbackOwner, const SResourceBinding::InvalidateCallbackFunction& invalidateCallback);
 	~CDeviceRenderPassDesc();
+
+	bool HasChanged() const { return m_bResourcesInvalidated; }
+	void AcceptAllChanges() { m_bResourcesInvalidated = false; }
 
 	bool SetRenderTarget(uint32 slot, CTexture* pTexture, ResourceViewHandle hView = EDefaultResourceViews::RenderTarget);
 	bool SetDepthTarget(CTexture* pTexture, ResourceViewHandle hView = EDefaultResourceViews::DepthStencil);
 	bool SetOutputUAV(uint32 slot, CGpuBuffer* pBuffer);
-
-	void Clear();
+	bool SetResources(const CDeviceRenderPassDesc& other);
+	bool ClearResources() threadsafe;
 
 	bool GetDeviceRendertargetViews(std::array<D3DSurface*, MaxRendertargetCount>& views, int& viewCount) const;
 	bool GetDeviceDepthstencilView(D3DDepthSurface*& pView) const;
 
 	const std::array<SResourceBinding, MaxRendertargetCount>& GetRenderTargets()           const { return m_renderTargets; }
-	const SResourceBinding&                                   GetDepthTarget()             const { return m_depthTarget; }
+	const            SResourceBinding&                        GetDepthTarget()             const { return m_depthTarget; }
 	const std::array<SResourceBinding, MaxOutputUAVCount>&    GetOutputUAVs()              const { return m_outputUAVs;  }
 
-protected:
-	bool UpdateResource(SResourceBinding& dstResource, const SResourceBinding& srcResource);
+	static bool OnResourceInvalidated(void* pThis, SResourceBindPoint bindPoint, UResourceReference pResource, uint32 flags) threadsafe;
 
+protected:
+	bool UpdateResource(SResourceBindPoint bindPoint, SResourceBinding& dstResource, const SResourceBinding& srcResource);
+	
 	std::array<SResourceBinding, MaxRendertargetCount> m_renderTargets;
 	std::array<SResourceBinding, MaxOutputUAVCount>    m_outputUAVs;
 	SResourceBinding                                   m_depthTarget;
 
 	SResourceBinding::InvalidateCallbackFunction       m_invalidateCallback;
 	void*                                              m_invalidateCallbackOwner;
+
+	std::atomic<bool>                                  m_bResourcesInvalidated;
 };
 
 class CDeviceRenderPass_Base : public NoCopy
@@ -941,10 +788,13 @@ class CDeviceRenderPass_Base : public NoCopy
 public:
 	CDeviceRenderPass_Base();
 	virtual ~CDeviceRenderPass_Base() {};
-	bool         Update(const CDeviceRenderPassDesc& passDesc);
+
 	bool         IsValid() const { return m_bValid; }
 	void         Invalidate()    { m_bValid = false; }
 	uint64       GetHash() const { return m_nHash; }
+
+	bool         Update(const CDeviceRenderPassDesc& passDesc);
+	static bool  UpdateWithReevaluation(CDeviceRenderPassPtr& pRenderPass, CDeviceRenderPassDesc& passDesc);
 
 private:
 	virtual bool UpdateImpl(const CDeviceRenderPassDesc& passDesc) = 0;
@@ -958,6 +808,7 @@ protected:
 	std::array<DXGI_FORMAT, CDeviceRenderPassDesc::MaxRendertargetCount+1>  m_targetFormats;
 #endif
 };
+
 ////////////////////////////////////////////////////////////////////////////
 // Device Object Factory
 
@@ -1238,7 +1089,7 @@ public:
 	static bool CanUseCoreCommandList();
 
 private:
-	static bool OnRenderPassInvalidated(void* pRenderPass, uint32 flags);
+	static bool OnRenderPassInvalidated(void* pRenderPass, SResourceBindPoint bindPoint, UResourceReference pResource, uint32 flags);
 
 	void ReleaseResources();
 	void ReleaseResourcesImpl();

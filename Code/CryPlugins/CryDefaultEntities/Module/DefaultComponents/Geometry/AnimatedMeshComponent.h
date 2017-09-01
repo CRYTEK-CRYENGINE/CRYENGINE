@@ -79,6 +79,9 @@ namespace Cry
 			// Applies the character to the entity
 			virtual void ResetObject();
 
+			// Helper to allow exposing derived function to Schematyc
+			virtual void SetMeshType(EMeshType type) { SetType(type); }
+
 		protected:
 			CryCharAnimationParams m_animationParams;
 

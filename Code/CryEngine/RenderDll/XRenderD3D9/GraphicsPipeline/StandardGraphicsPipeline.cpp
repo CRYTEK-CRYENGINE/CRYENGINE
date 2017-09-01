@@ -35,6 +35,7 @@
 #include "Rain.h"
 #include "Snow.h"
 #include "MobileComposition.h"
+#include "OmniCamera.h"
 
 #include "DepthReadback.h"
 #include "Common/TypedConstantBuffer.h"
@@ -227,19 +228,25 @@ CRenderView* CGraphicsPipelineStage::RenderView()
 
 CStandardGraphicsPipeline::CStandardGraphicsPipeline()
 	: m_changedCVars(gEnv->pConsole)
-	, m_defaultMaterialResources(nullptr, nullptr)
-	, m_defaultInstanceExtraResources(nullptr, nullptr)
+	, m_defaultMaterialBindPoints()
+	, m_defaultInstanceExtraResources()
 {}
 
 void CStandardGraphicsPipeline::Init()
 {
-	// default material resources
+	// Initialize all subsequently created passes with the correct stereo-resources
+	if (gcpRendD3D->GetS3DRend().IsStereoEnabled())
 	{
-		m_defaultMaterialResources.SetConstantBuffer(eConstantBufferShaderSlot_PerMaterial, CDeviceBufferManager::GetNullConstantBuffer(), EShaderStage_AllWithoutCompute);
+		gcpRendD3D->m_RP.m_nRendFlags |= (SHDF_STEREO_LEFT_EYE | SHDF_STEREO_RIGHT_EYE);
+	}
+
+	// default material bind points
+	{
+		m_defaultMaterialBindPoints.SetConstantBuffer(eConstantBufferShaderSlot_PerMaterial, CDeviceBufferManager::GetNullConstantBuffer(), EShaderStage_AllWithoutCompute);
 
 		for (EEfResTextures texType = EFTT_DIFFUSE; texType < EFTT_MAX; texType = EEfResTextures(texType + 1))
 		{
-			m_defaultMaterialResources.SetTexture(texType, CTexture::s_pTexNULL, EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
+			m_defaultMaterialBindPoints.SetTexture(texType, CTexture::s_pTexNULL, EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
 		}
 	}
 
@@ -296,6 +303,7 @@ void CStandardGraphicsPipeline::Init()
 	RegisterStage<CSnowStage>(m_pSnowStage, eStage_Snow);
 	RegisterStage<CDepthReadbackStage>(m_pDepthReadbackStage, eStage_DepthReadback);
 	RegisterStage<CMobileCompositionStage>(m_pMobileCompositionStage, eStage_MobileComposition);
+	RegisterStage<COmniCameraStage>(m_pOmniCameraStage, eStage_OmniCamera);
 
 	// Now init stages
 	InitStages();
@@ -303,6 +311,11 @@ void CStandardGraphicsPipeline::Init()
 	// Out-of-pipeline passes for display
 	m_DownscalePass.reset(new CDownsamplePass);
 	m_UpscalePass  .reset(new CSharpeningUpsamplePass);
+
+	if (gcpRendD3D->GetS3DRend().IsStereoEnabled())
+	{
+		gcpRendD3D->m_RP.m_nRendFlags &= ~(SHDF_STEREO_LEFT_EYE | SHDF_STEREO_RIGHT_EYE);
+	}
 }
 
 void CStandardGraphicsPipeline::Prepare(CRenderView* pRenderView, EShaderRenderingFlags renderingFlags)
@@ -716,7 +729,7 @@ CDeviceResourceLayoutPtr CStandardGraphicsPipeline::CreateScenePassLayout(const 
 {
 	SDeviceResourceLayoutDesc layoutDesc;
 	layoutDesc.SetConstantBuffer(EResourceLayoutSlot_PerInstanceCB, eConstantBufferShaderSlot_PerInstance, EShaderStage_Vertex | EShaderStage_Pixel | EShaderStage_Domain);
-	layoutDesc.SetResourceSet(EResourceLayoutSlot_PerMaterialRS, GetDefaultMaterialResources());
+	layoutDesc.SetResourceSet(EResourceLayoutSlot_PerMaterialRS, GetDefaultMaterialBindPoints());
 	layoutDesc.SetResourceSet(EResourceLayoutSlot_PerInstanceExtraRS, GetDefaultInstanceExtraResources());
 	layoutDesc.SetResourceSet(EResourceLayoutSlot_PerPassRS, perPassResources);
 
@@ -1076,9 +1089,6 @@ void CStandardGraphicsPipeline::Execute()
 		gcpRendD3D->GetS3DRend().SkipEyeTargetClears();
 	}
 
-	// Prepare tiled shading resources early to give DMA operations enough time to finish
-	m_pTiledShadingStage->ExecutePreprocess();
-
 	if (!m_pCurrentRenderView->IsRecursive() && pRenderer->m_CurRenderEye != RIGHT_EYE)
 	{
 		// compile shadow renderitems. needs to happen before gbuffer pass accesses renderitems
@@ -1127,10 +1137,14 @@ void CStandardGraphicsPipeline::Execute()
 		pSourceDepth = pZTexture;  // On Durango reading device depth is faster since it is in ESRAM
 #endif
 
-		GetOrCreateUtilityPass<CDepthDownsamplePass>()->Execute(pSourceDepth, CTexture::s_ptexZTargetScaled, (pSourceDepth == pZTexture), true);
-		GetOrCreateUtilityPass<CDepthDownsamplePass>()->Execute(CTexture::s_ptexZTargetScaled, CTexture::s_ptexZTargetScaled2, false, false);
-		GetOrCreateUtilityPass<CDepthDownsamplePass>()->Execute(CTexture::s_ptexZTargetScaled2, CTexture::s_ptexZTargetScaled3, false, false);
+		GetOrCreateUtilityPass<CDepthDownsamplePass>()->Execute(pSourceDepth, CTexture::s_ptexZTargetScaled[0], (pSourceDepth == pZTexture), true);
+		GetOrCreateUtilityPass<CDepthDownsamplePass>()->Execute(CTexture::s_ptexZTargetScaled[0], CTexture::s_ptexZTargetScaled[1], false, false);
+		GetOrCreateUtilityPass<CDepthDownsamplePass>()->Execute(CTexture::s_ptexZTargetScaled[1], CTexture::s_ptexZTargetScaled[2], false, false);
 	}
+
+	// Prepare tiled shading resources early to give DMA operations enough time to finish
+	// Requires quater-res depth buffer (CTexture::s_ptexZTargetScaled[2])
+	m_pTiledShadingStage->ExecutePreprocess();
 
 	// Depth readback (for occlusion culling)
 	m_pDepthReadbackStage->Execute();
@@ -1302,14 +1316,13 @@ void CStandardGraphicsPipeline::Execute()
 		m_pSceneForwardStage->Execute_TransparentDepthFixup();
 	}
 
-#if defined(RENDERER_ENABLE_LEGACY_PIPELINE)
 	// Half-res particles
+	if (CRenderer::CV_r_ParticlesHalfRes)
 	{
-		SwitchToLegacyPipeline();
-		pRenderer->FX_ProcessHalfResParticlesRenderList(m_pCurrentRenderView, EFSLIST_HALFRES_PARTICLES, pRenderFunc, true);
-		SwitchFromLegacyPipeline();
+		m_pSceneForwardStage->Execute_TransparentLoRes(1 + crymath::clamp<int>(CRenderer::CV_r_ParticlesHalfResAmount, 0, 1));
 	}
 
+#if defined(RENDERER_ENABLE_LEGACY_PIPELINE)
 	pRenderer->m_CameraProjMatrixPrev = pRenderer->m_CameraProjMatrix;
 #endif
 
@@ -1342,15 +1355,7 @@ void CStandardGraphicsPipeline::Execute()
 		{
 			pRenderer->m_RP.m_PersFlags1 &= ~RBPF1_SKIP_AFTER_POST_PROCESS;
 
-#if defined(RENDERER_ENABLE_LEGACY_PIPELINE)
-			if (pRenderer->m_nGraphicsPipeline < 3)
-			{
-				SwitchToLegacyPipeline();
-				pRenderer->FX_ProcessRenderList(EFSLIST_AFTER_HDRPOSTPROCESS, pRenderFunc, false);
-				SwitchFromLegacyPipeline();
-			}
-#endif
-
+			m_pSceneForwardStage->Execute_AfterPostProcessHDR();
 			m_pPostEffectStage->Execute();
 
 			pRenderer->RT_SetViewport(0, 0, pRenderer->GetWidth(), pRenderer->GetHeight());
@@ -1360,18 +1365,7 @@ void CStandardGraphicsPipeline::Execute()
 		bool bDrawAfterPostProcess = !(pRenderer->m_RP.m_PersFlags1 & RBPF1_SKIP_AFTER_POST_PROCESS);
 		if (bDrawAfterPostProcess)
 		{
-			if (pRenderer->m_nGraphicsPipeline >= 3)
-			{
-				m_pSceneForwardStage->Execute_AfterPostProcess();
-			}
-			else
-			{
-#if defined(RENDERER_ENABLE_LEGACY_PIPELINE)
-				SwitchToLegacyPipeline();
-				pRenderer->FX_ProcessRenderList(EFSLIST_AFTER_POSTPROCESS, pRenderFunc, false);
-				SwitchFromLegacyPipeline();
-#endif
-			}
+			m_pSceneForwardStage->Execute_AfterPostProcessLDR();
 		}
 
 		m_pSceneCustomStage->Execute();
@@ -1391,6 +1385,8 @@ void CStandardGraphicsPipeline::Execute()
 #endif
 		}
 	}
+
+	m_pOmniCameraStage->Execute();
 
 	PROFILE_LABEL_POP("GRAPHICS_PIPELINE");
 

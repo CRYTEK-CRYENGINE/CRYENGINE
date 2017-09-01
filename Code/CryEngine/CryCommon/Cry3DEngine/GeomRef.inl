@@ -35,7 +35,6 @@ int GeomRef::Set(IEntity* pEntity, int iSlot)
 		return -1;
 	}
 
-	m_pPhysEnt = pEntity->GetPhysics();
 	m_pMeshObj = nullptr;
 	int iStart = iSlot < 0 ? 0 : iSlot;
 	int iEnd = iSlot < 0 ? pEntity->GetSlotCount() : iSlot + 1;
@@ -53,6 +52,13 @@ int GeomRef::Set(IEntity* pEntity, int iSlot)
 			}
 		}
 	}
+
+	m_pPhysEnt = pEntity->GetPhysics();
+	if (auto pAreaComp = static_cast<IEntityAreaComponent*>(pEntity->GetProxy(ENTITY_PROXY_AREA)))
+	{
+		m_pArea = pAreaComp->GetArea();
+	}
+
 	return iSlot;
 }
 
@@ -98,6 +104,8 @@ void GeomRef::GetAABB(AABB& bb, EGeomType eAttachType, QuatTS const& tLoc, bool 
 			bb.Move(-bb.GetCenter());
 		bb.SetTransformedAABB(Matrix34(tLoc), bb);
 	}
+	else if (m_pArea)
+		bb = m_pArea->GetAABB();
 }
 
 float GeomRef::GetExtent(EGeomType eAttachType, EGeomForm eForm) const
@@ -121,6 +129,8 @@ float GeomRef::GetExtent(EGeomType eAttachType, EGeomForm eForm) const
 	// Use render objects if requested, or if no physics objects
 	if (m_pMeshObj)
 		return m_pMeshObj->GetExtent(eForm);
+	else if (m_pArea)
+		return m_pArea->GetExtent(eForm);
 
 	return 0.f;
 }
@@ -159,6 +169,8 @@ void GeomRef::GetRandomPos(PosNorm& ran, CRndGen seed, EGeomType eAttachType, EG
 		ran <<= tWorld;
 		return;
 	}
+	else if (m_pArea)
+		return m_pArea->GetRandomPos(ran, seed, eForm);
 
 	ran.zero();
 }

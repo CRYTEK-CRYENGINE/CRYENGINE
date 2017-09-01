@@ -257,6 +257,45 @@ void CSharpeningUpsamplePass::Execute(CTexture* pSrcRT, CTexture* pDestRT)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// CNearestDepthUpsamplePass
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void CNearestDepthUpsamplePass::Execute(CTexture* pOrgDS, CTexture* pSrcRT, CTexture* pSrcDS, CTexture* pDestRT, bool bAlphaBased)
+{
+	PROFILE_LABEL_SCOPE("UPSAMPLE_DEPTH");
+	CFullscreenPass& pPass = m_pass[bAlphaBased];
+
+	if (!pOrgDS || !pSrcRT || !pSrcDS || !pDestRT)
+		return;
+
+	if (!pPass.InputChanged(pOrgDS->GetTextureID(), pSrcRT->GetTextureID(), pSrcDS->GetTextureID(), pDestRT->GetTextureID()))
+	{
+		pPass.Execute();
+		return;
+	}
+
+	static CCryNameTSCRC techName("NearestDepthUpsample");
+	static CCryNameR param0Name("texToTexParams0");
+
+	Vec4 params0;
+	params0.x = (float)pOrgDS->GetWidth();
+	params0.y = (float)pOrgDS->GetHeight();
+	params0.z = (float)pSrcDS->GetWidth();
+	params0.w = (float)pSrcDS->GetHeight();
+
+	pPass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
+	pPass.SetRenderTarget(0, pDestRT);
+	pPass.SetTechnique(CShaderMan::s_shPostEffects, techName, 0);
+	pPass.SetState(GS_NODEPTHTEST | GS_NOCOLMASK_A | GS_BLSRC_ONE | (bAlphaBased ? GS_BLDST_SRCALPHA : GS_BLDST_ONE));
+	pPass.SetTextureSamplerPair(1, pSrcRT, EDefaultSamplerStates::LinearClamp);
+	pPass.SetTextureSamplerPair(2, pOrgDS, EDefaultSamplerStates::PointClamp);
+	pPass.SetTextureSamplerPair(3, pSrcDS, EDefaultSamplerStates::PointClamp);
+	pPass.BeginConstantUpdate();
+	pPass.SetConstant(param0Name, params0, eHWSC_Pixel);
+	pPass.Execute();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CDownsamplePass
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -767,7 +806,7 @@ void CAnisotropicVerticalBlurPass::Execute(CTexture* pTex, int nAmount, float fS
 		return;
 	}
 
-	std::unique_ptr<SDynTexture> pBlurTempTex = CryMakeUnique<SDynTexture>(pTex->GetWidth(), pTex->GetHeight(), pTex->GetDstFormat(), eTT_2D, FT_STATE_CLAMP | FT_USAGE_RENDERTARGET, "TempBlurAnisoVertRT");
+	std::unique_ptr<SDynTexture> pBlurTempTex = stl::make_unique<SDynTexture>(pTex->GetWidth(), pTex->GetHeight(), pTex->GetDstFormat(), eTT_2D, FT_STATE_CLAMP | FT_USAGE_RENDERTARGET, "TempBlurAnisoVertRT");
 
 	if (!pBlurTempTex)
 	{

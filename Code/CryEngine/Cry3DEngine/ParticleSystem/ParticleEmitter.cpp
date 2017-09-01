@@ -131,7 +131,7 @@ void CParticleEmitter::Update()
 	++m_currentSeed;
 
 	m_pEffect->Compile();
-	if (m_editVersion != m_pEffect->GetEditVersion())
+	if (m_active && m_editVersion != m_pEffect->GetEditVersion())
 	{
 		m_attributeInstance.Reset(m_pEffect->GetAttributeTable(), EAttributeScope::PerEmitter);
 		UpdateRuntimeRefs();

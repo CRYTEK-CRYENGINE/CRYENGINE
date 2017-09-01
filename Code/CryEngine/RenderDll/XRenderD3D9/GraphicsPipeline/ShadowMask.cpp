@@ -175,8 +175,8 @@ CShadowMaskStage::CShadowMaskStage()
 	, m_localLightPrimitives(0)
 	, m_viewInfoCount(0)
 {
-	m_pSunShadows = CryMakeUnique<ShadowMaskInternal::CSunShadows>(*this);
-	m_pLocalLightShadows = CryMakeUnique<ShadowMaskInternal::CLocalLightShadows>(*this);
+	m_pSunShadows = stl::make_unique<ShadowMaskInternal::CSunShadows>(*this);
+	m_pLocalLightShadows = stl::make_unique<ShadowMaskInternal::CLocalLightShadows>(*this);
 }
 
 void CShadowMaskStage::Init()

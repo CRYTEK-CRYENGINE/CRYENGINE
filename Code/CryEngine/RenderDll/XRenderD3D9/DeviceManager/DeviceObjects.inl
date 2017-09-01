@@ -1,46 +1,40 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-inline SResourceBinding::SResourceBinding()
-	: fastCompare(0)
-	, type(SResourceBinding::EResourceType::InvalidType)
-{}
 
-inline SResourceBinding::SResourceBinding(CTexture* pTexture, ResourceViewHandle view)
-	: pTexture(pTexture)
-	, view(view)
-	, type(EResourceType::Texture)
-{}
+inline bool CDeviceResourceSetDesc::IsEmpty() const { return m_resources.empty(); }
+inline CDeviceResourceSetDesc::EDirtyFlags CDeviceResourceSetDesc::GetDirtyFlags() const { return (CDeviceResourceSetDesc::EDirtyFlags)m_dirtyFlags.load(); }
+inline bool CDeviceResourceSetDesc::HasChanged() const { return m_dirtyFlags != CDeviceResourceSetDesc::EDirtyFlags::eNone; }
+inline void CDeviceResourceSetDesc::AcceptAllChanges() { m_dirtyFlags = CDeviceResourceSetDesc::EDirtyFlags::eNone; }
 
-inline SResourceBinding::SResourceBinding(const CGpuBuffer* pBuffer, ResourceViewHandle view)
-	: pBuffer(pBuffer)
-	, view(view)
-	, type(EResourceType::Buffer)
-{}
+inline void CDeviceResourceSetDesc::MarkBindingChanged() { m_dirtyFlags |= CDeviceResourceSetDesc::EDirtyFlags::eDirtyBinding; }
 
-inline SResourceBinding::SResourceBinding(SamplerStateHandle _samplerState)
-	: fastCompare(0)
-	, type(EResourceType::Sampler)
+inline bool CDeviceResourceSetDesc::HasChangedBindPoints() { return m_dirtyFlags & CDeviceResourceSetDesc::EDirtyFlags::eDirtyBindPoint; }
+inline void CDeviceResourceSetDesc::AcceptChangedBindPoints() { m_dirtyFlags &= ~CDeviceResourceSetDesc::EDirtyFlags::eDirtyBindPoint; }
+
+template<typename S>
+static inline ResourceViewHandle GetConstantBufferView_ForceTwoPhase(S* pBuffer) { return pBuffer->m_nUpdCount; }
+
+inline CDeviceResourceSetDesc::CDeviceResourceSetDesc()
 {
-	samplerState = _samplerState;
+	m_invalidateCallbackOwner = this;
+	m_invalidateCallback      = OnResourceInvalidated;
+
+	m_dirtyFlags              = eDirtyAll;
 }
-
-inline SResourceBinding::SResourceBinding(CConstantBuffer* pConstantBuffer)
-	: pConstantBuffer(pConstantBuffer)
-	, type(EResourceType::ConstantBuffer)
-{}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 inline CDeviceResourceSetDesc::CDeviceResourceSetDesc(void* pInvalidateCallbackOwner, const SResourceBinding::InvalidateCallbackFunction& invalidateCallback)
 {
 	m_invalidateCallbackOwner = pInvalidateCallbackOwner;
 	m_invalidateCallback      = invalidateCallback;
+
+	m_dirtyFlags              = eDirtyAll;
 }
 
 inline CDeviceResourceSetDesc::EDirtyFlags CDeviceResourceSetDesc::SetConstantBuffer(int shaderSlot, CConstantBuffer* pBuffer, ::EShaderStage shaderStages)
 {
-	SResourceBinding resource(pBuffer);
+	// NOTE: temporary work-around for not having views for constant buffers
+	SResourceBinding resource(pBuffer, GetConstantBufferView_ForceTwoPhase<CConstantBuffer>(pBuffer));
 	SResourceBindPoint bindPoint(resource, shaderSlot, shaderStages);
 
 	return UpdateResource<SResourceBinding::EResourceType::ConstantBuffer>(bindPoint, resource);
@@ -62,7 +56,7 @@ inline CDeviceResourceSetDesc::EDirtyFlags CDeviceResourceSetDesc::SetSampler(in
 	return UpdateResource<SResourceBinding::EResourceType::Sampler>(bindPoint, resource);
 }
 
-inline CDeviceResourceSetDesc::EDirtyFlags CDeviceResourceSetDesc::SetBuffer(int shaderSlot, const CGpuBuffer* pBuffer, ResourceViewHandle hView, ::EShaderStage shaderStages)
+inline CDeviceResourceSetDesc::EDirtyFlags CDeviceResourceSetDesc::SetBuffer(int shaderSlot, CGpuBuffer* pBuffer, ResourceViewHandle hView, ::EShaderStage shaderStages)
 {
 	SResourceBinding resource(pBuffer, hView);
 	SResourceBindPoint bindPoint(resource, shaderSlot, shaderStages);
@@ -81,6 +75,22 @@ inline bool SDeviceResourceLayoutDesc::SLayoutBindPoint::operator<(const SLayout
 		return slotType < other.slotType;
 
 	return layoutSlot < other.layoutSlot;
+}
+
+inline CDeviceRenderPassDesc::CDeviceRenderPassDesc()
+{
+	m_invalidateCallback      = OnResourceInvalidated;
+	m_invalidateCallbackOwner = this;
+
+	m_bResourcesInvalidated   = true;
+}
+
+inline CDeviceRenderPassDesc::CDeviceRenderPassDesc(void* pInvalidateCallbackOwner, const SResourceBinding::InvalidateCallbackFunction& invalidateCallback)
+{
+	m_invalidateCallback      = invalidateCallback;
+	m_invalidateCallbackOwner = pInvalidateCallbackOwner;
+
+	m_bResourcesInvalidated   = true;
 }
 
 template <class Impl> inline void CDeviceTimestampGroup_Base<Impl>::Init()

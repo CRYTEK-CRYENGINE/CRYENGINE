@@ -39,6 +39,13 @@ void CAnimatedMeshComponent::Register(Schematyc::CEnvRegistrationScope& componen
 		pFunction->BindInput(1, 'layr', "Layer");
 		componentScope.Register(pFunction);
 	}
+	{
+		auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&CAnimatedMeshComponent::SetMeshType, "{2C8885E0-79F4-42A3-B67A-2F450DDBDFD0}"_cry_guid, "SetType");
+		pFunction->BindInput(1, 'type', "Type");
+		pFunction->SetDescription("Changes the type of the object");
+		pFunction->SetFlags({ Schematyc::EEnvFunctionFlags::Member });
+		componentScope.Register(pFunction);
+	}
 }
 
 void CAnimatedMeshComponent::Initialize()

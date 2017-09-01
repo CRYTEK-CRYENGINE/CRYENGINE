@@ -69,7 +69,7 @@ inline void SParameterSerializeHelper::Serialize(Serialization::IArchive& archiv
 
 	if (archive.isInput())
 	{
-		m_id = CryAudio::StringToId_RunTime(m_name.c_str());
+		m_id = CryAudio::StringToId(m_name.c_str());
 	}
 }
 } // namespace DefaultComponents

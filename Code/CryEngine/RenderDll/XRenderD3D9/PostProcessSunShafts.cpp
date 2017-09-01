@@ -167,7 +167,7 @@ bool CSunShafts::SunShaftsGen(CTexture* pSunShafts, CTexture* pPingPongRT)
 	CShaderMan::s_shPostSunShafts->FXSetPSFloat(pParam3Name, &pParams0, 1);
 	CShaderMan::s_shPostSunShafts->FXSetPSFloat(pParam4Name, &pParams1, 1);
 
-	PostProcessUtils().SetTexture(CTexture::s_ptexZTargetScaled, 0, FILTER_POINT);
+	PostProcessUtils().SetTexture(CTexture::s_ptexZTargetScaled[0], 0, FILTER_POINT);
 	PostProcessUtils().SetTexture(CTexture::s_ptexHDRTargetScaled[0], 1, (gRenDev->m_RP.m_eQuality >= eRQ_High) ? FILTER_POINT : FILTER_LINEAR);
 
 	gcpRendD3D->FX_SetState(GS_NODEPTHTEST);

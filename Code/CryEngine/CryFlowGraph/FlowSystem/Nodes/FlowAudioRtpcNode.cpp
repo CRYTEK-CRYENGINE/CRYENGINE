@@ -114,7 +114,7 @@ private:
 
 		if (!parameterName.empty())
 		{
-			m_parameterId = CryAudio::StringToId_RunTime(parameterName.c_str());
+			m_parameterId = CryAudio::StringToId(parameterName.c_str());
 		}
 	}
 

@@ -40,6 +40,7 @@ void CParticleRenderBase::AddToComponent(CParticleComponent* pComponent, SCompon
 	if (m_waterCulling)
 		m_renderObjectBeforeWaterId = pEffect->AddRenderObjectId();
 	m_renderObjectAfterWaterId = pEffect->AddRenderObjectId();
+	pParams->m_requiredShaderType = eST_Particle;
 }
 
 void CParticleRenderBase::PrepareRenderObjects(CParticleEmitter* pEmitter, CParticleComponent* pComponent)

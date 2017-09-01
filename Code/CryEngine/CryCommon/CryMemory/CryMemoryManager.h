@@ -214,6 +214,9 @@ public:
 
 	size_type max_size() const           { return stack_capacity / sizeof(value_type); }
 
+	template<class U, class... Args>
+	void construct(U* p, Args&&... args) { new (p) U(std::forward<Args>(args)...); }
+
 	void      destroy(pointer p)         { p->~value_type(); }
 
 	void      cleanup()                  {}

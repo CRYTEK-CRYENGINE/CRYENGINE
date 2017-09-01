@@ -2,6 +2,7 @@
 
 #include "StdAfx.h"
 #include "MonoProperty.h"
+#include "MonoMethod.h"
 #include "MonoRuntime.h"
 
 CMonoProperty::CMonoProperty(MonoInternals::MonoProperty* pProperty)
@@ -24,9 +25,7 @@ std::shared_ptr<CMonoObject> CMonoProperty::Get(MonoInternals::MonoObject* pObje
 	{
 		if (pResult != nullptr)
 		{
-			auto pResultObject = std::make_shared<CMonoObject>(pResult);
-			pResultObject->SetWeakPointer(pResultObject);
-			return pResultObject;
+			return std::make_shared<CMonoObject>(pResult);
 		}
 		else
 		{
@@ -40,7 +39,15 @@ std::shared_ptr<CMonoObject> CMonoProperty::Get(MonoInternals::MonoObject* pObje
 
 void CMonoProperty::Set(MonoInternals::MonoObject* pObject, MonoInternals::MonoObject* pValue, bool &bEncounteredException) const
 {
-	void* pParams[1] = { pValue };
+	void* pParams[1];
+	if (MonoInternals::mono_class_is_valuetype(mono_object_get_class(pValue)) != 0)
+	{
+		pParams[0] = MonoInternals::mono_object_unbox(pValue);
+	}
+	else
+	{
+		pParams[0] = pValue;
+	}
 	Set(pObject, pParams, bEncounteredException);
 }
 
@@ -64,4 +71,21 @@ CMonoMethod CMonoProperty::GetGetMethod() const
 CMonoMethod CMonoProperty::GetSetMethod() const
 {
 	return CMonoMethod(MonoInternals::mono_property_get_set_method(m_pProperty));
+}
+
+MonoInternals::MonoType* CMonoProperty::GetUnderlyingType(MonoInternals::MonoReflectionProperty* pReflectionProperty) const
+{
+	InternalMonoReflectionType* pInternalProperty = (InternalMonoReflectionType*)pReflectionProperty;
+	CRY_ASSERT(m_pProperty == pInternalProperty->property);
+
+	MonoInternals::MonoMethod* pGetMethod = mono_property_get_get_method(m_pProperty);
+	MonoInternals::MonoMethodSignature* pGetMethodSignature = mono_method_get_signature(pGetMethod, mono_class_get_image(pInternalProperty->klass), mono_method_get_token(pGetMethod));
+
+	return mono_signature_get_return_type(pGetMethodSignature);
+}
+
+MonoInternals::MonoClass* CMonoProperty::GetUnderlyingClass(MonoInternals::MonoReflectionProperty* pReflectionProperty) const
+{
+	MonoInternals::MonoType* pPropertyType = GetUnderlyingType(pReflectionProperty);
+	return MonoInternals::mono_class_from_mono_type(pPropertyType);
 }

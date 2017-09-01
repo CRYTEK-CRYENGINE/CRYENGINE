@@ -328,20 +328,20 @@ public:
 
 	void SetRTPC(const char* name, float value)
 	{
-		CryAudio::ControlId const parameterId = CryAudio::StringToId_RunTime(name);
+		CryAudio::ControlId const parameterId = CryAudio::StringToId(name);
 		m_pIAudioObject->SetParameter(parameterId, value);
 	}
 
 	void SetSwitch(const char* name, const char* state)
 	{
-		CryAudio::ControlId const switchId = CryAudio::StringToId_RunTime(name);
-		CryAudio::SwitchStateId const stateId = CryAudio::StringToId_RunTime(state);
+		CryAudio::ControlId const switchId = CryAudio::StringToId(name);
+		CryAudio::SwitchStateId const stateId = CryAudio::StringToId(state);
 		m_pIAudioObject->SetSwitchState(switchId, stateId);
 	}
 
 	void PlayTrigger(const char* trigger, Vec3 const& pos)
 	{
-		CryAudio::ControlId const triggerId = CryAudio::StringToId_RunTime(trigger);
+		CryAudio::ControlId const triggerId = CryAudio::StringToId(trigger);
 		m_pIAudioObject->SetTransformation(pos);
 		m_pIAudioObject->ExecuteTrigger(triggerId);
 	}

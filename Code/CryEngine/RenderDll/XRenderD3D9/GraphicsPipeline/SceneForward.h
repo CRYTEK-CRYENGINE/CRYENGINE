@@ -49,7 +49,9 @@ public:
 	void         Execute_TransparentBelowWater();
 	void         Execute_TransparentAboveWater();
 	void         Execute_TransparentDepthFixup();
-	void         Execute_AfterPostProcess();
+	void         Execute_TransparentLoRes(int subRes);
+	void         Execute_AfterPostProcessHDR();
+	void         Execute_AfterPostProcessLDR();
 	void         Execute_Minimum();
 
 	void         SetSkyRE(CRESky* pSkyRE, CREHDRSky* pHDRSkyRE);
@@ -83,6 +85,8 @@ private:
 	CSceneRenderPass         m_forwardOverlayPass;
 	CSceneRenderPass         m_forwardTransparentBWPass;
 	CSceneRenderPass         m_forwardTransparentAWPass;
+	CSceneRenderPass         m_forwardTransparentLoResPass;
+	CSceneRenderPass         m_forwardHDRPass;
 	CSceneRenderPass         m_forwardLDRPass;
 	CSceneRenderPass         m_forwardEyeOverlayPass;
 
@@ -93,13 +97,14 @@ private:
 	CStretchRectPass         m_copySceneTargetBWPass;
 	CStretchRectPass         m_copySceneTargetAWPass;
 
-	CFullscreenPass          m_depthFixupPass;
-	CFullscreenPass          m_skyPass;
-	CRenderPrimitive         m_starsPrimitive;
-	CPrimitiveRenderPass     m_starsPass;
-	CRESky*                  m_pSkyRE = nullptr;
-	CREHDRSky*               m_pHDRSkyRE = nullptr;
-	Vec4                     m_paramMoonTexGenRight;
-	Vec4                     m_paramMoonTexGenUp;
-	Vec4                     m_paramMoonDirSize;
+	CFullscreenPass           m_depthFixupPass;
+	CNearestDepthUpsamplePass m_depthUpscalePass;
+	CFullscreenPass           m_skyPass;
+	CRenderPrimitive          m_starsPrimitive;
+	CPrimitiveRenderPass      m_starsPass;
+	CRESky*                   m_pSkyRE = nullptr;
+	CREHDRSky*                m_pHDRSkyRE = nullptr;
+	Vec4                      m_paramMoonTexGenRight;
+	Vec4                      m_paramMoonTexGenUp;
+	Vec4                      m_paramMoonDirSize;
 };

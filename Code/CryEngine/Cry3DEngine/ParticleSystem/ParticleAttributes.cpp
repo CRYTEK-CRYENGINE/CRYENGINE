@@ -385,7 +385,8 @@ void CAttributeInstance::TransferInto(IParticleAttributes* pReceiver) const
 auto CAttributeInstance::FindAttributeIdByName(cstr name) const->TAttributeId
 {
 	auto pAttributeTable = m_pAttributeTable.lock();
-	CRY_PFX2_ASSERT(pAttributeTable); // this instance over-lived the table
+	if (!pAttributeTable)
+		return gInvalidId;
 
 	auto it = std::find_if(
 	  m_attributeIndices.begin(), m_attributeIndices.end(),

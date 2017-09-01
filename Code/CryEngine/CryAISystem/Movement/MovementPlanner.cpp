@@ -98,7 +98,7 @@ void GenericPlanner::CancelCurrentRequest(MovementActor& actor)
 {
 	//
 	// The request has been canceled but the plan remains intact.
-	// This means that if the actor is running along a path he will keep
+	// This means that if the actor is running along a path he will
 	// keep running along that path.
 	//
 	// The idea is that an actor should only stop if a stop is
@@ -292,7 +292,7 @@ void GenericPlanner::CheckOnPathfinder(const MovementUpdateContext& context, OUT
 				m_pendingPathReplanning.bSuddenNonInterruptibleBlock = true;
 			}
 		}
-		else
+		else /*state == CouldNotFindPath || state == Canceled*/
 		{
 			status.SetPathfinderFailed(m_requestId);
 		}

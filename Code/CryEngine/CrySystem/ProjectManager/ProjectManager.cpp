@@ -130,7 +130,17 @@ bool CProjectManager::ParseProjectFile()
 		m_project.filePath = projectFile.c_str();
 	}
 
-	if (gEnv->pSystem->GetArchiveHost()->LoadJsonFile(Serialization::SStruct(m_project), m_project.filePath, true))
+	CCryFile file;
+	file.Open(m_project.filePath.c_str(), "rb", ICryPak::FOPEN_ONDISK);
+	std::vector<char> projectFileJson;
+	if (file.GetHandle() != nullptr)
+	{
+		projectFileJson.resize(file.GetLength());
+	}
+
+	if (projectFileJson.size() > 0 &&
+		file.ReadRaw(projectFileJson.data(), projectFileJson.size()) == projectFileJson.size() &&
+		gEnv->pSystem->GetArchiveHost()->LoadJsonBuffer(Serialization::SStruct(m_project), projectFileJson.data(), projectFileJson.size()))
 	{
 		if (m_project.version > LatestProjectFileVersion)
 		{
@@ -165,9 +175,18 @@ bool CProjectManager::ParseProjectFile()
 		m_sys_game_folder->Set(m_project.assetDirectory);
 		m_sys_game_name->Set(m_project.name);
 
-		for (SProject::SConsoleVariable& consoleVariable : m_project.consoleVariables)
+		for (SProject::SConsoleInstruction& consoleVariable : m_project.consoleVariables)
 		{
 			gEnv->pConsole->LoadConfigVar(consoleVariable.key, consoleVariable.value);
+		}
+
+		for (SProject::SConsoleInstruction& consoleCommand : m_project.consoleCommands)
+		{
+			stack_string command = consoleCommand.key;
+			command.append(" ");
+			command.append(consoleCommand.value.c_str());
+			
+			gEnv->pConsole->ExecuteString(command.c_str(), false, true);
 		}
 
 		auto gameDllIt = m_project.legacyGameDllPaths.find("any");

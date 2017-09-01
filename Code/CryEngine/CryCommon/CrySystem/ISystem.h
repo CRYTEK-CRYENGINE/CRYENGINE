@@ -1115,6 +1115,9 @@ struct ISystem
 	//! Returns pointer to the global environment structure.
 	virtual SSystemGlobalEnvironment* GetGlobalEnvironment() = 0;
 
+	//! Returns the user-defined callback, notifies of system initialization flow.
+	virtual ISystemUserCallback* GetUserCallback() const = 0;
+
 	//! Returns the root folder specified by the command line option "-root <path>".
 	virtual const char* GetRootFolder() const = 0;
 

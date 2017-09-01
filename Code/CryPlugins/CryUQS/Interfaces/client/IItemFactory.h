@@ -27,6 +27,7 @@ namespace UQS
 			virtual const char*                       GetName() const = 0;
 			virtual const CryGUID&                    GetGUID() const = 0;
 			virtual const char*                       GetDescription() const = 0;
+			virtual bool                              IsContainerForShuttledItems() const = 0;
 
 #if UQS_SCHEMATYC_SUPPORT
 			virtual const IItemConverterCollection&   GetFromForeignTypeConverters() const = 0;

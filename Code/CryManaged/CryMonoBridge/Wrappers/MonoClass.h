@@ -35,6 +35,8 @@ public:
 	std::shared_ptr<CMonoObject> CreateInstance(void** pConstructorParams = nullptr, int numParams = 0);
 	std::shared_ptr<CMonoObject> CreateInstanceWithDesc(const char* parameterDesc, void** pConstructorParams);
 
+	std::shared_ptr<CMonoObject> CreateFromMonoObject(MonoInternals::MonoObject* pObject);
+
 	// Searches the specified class for the method
 	// Will NOT search in base classes, see FindMethodInInheritedClasses
 	std::shared_ptr<CMonoMethod> FindMethod(const char* szName, int numParams = 0);
@@ -55,6 +57,7 @@ public:
 	static std::shared_ptr<CMonoProperty> MakeProperty(MonoInternals::MonoReflectionProperty* pProperty);
 
 	MonoInternals::MonoClass* GetMonoClass() const { return m_pClass; }
+	bool IsValueType() const;
 
 	bool IsVoid() const { return m_pClass == MonoInternals::mono_get_void_class(); }
 

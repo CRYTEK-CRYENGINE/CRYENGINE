@@ -119,6 +119,7 @@ void SComponentParams::Reset()
 	m_maxParticleLifeTime = 0.0f;
 	m_particleRange = 0;
 	m_renderStateFlags = OS_ALPHA_BLEND;
+	m_requiredShaderType = eST_All;
 	m_maxParticleSize = 0.0f;
 	m_meshCentered = false;
 	m_diffuseMap = "%ENGINE%/EngineAssets/Textures/white.dds";
@@ -135,12 +136,22 @@ void SComponentParams::MakeMaterial(CParticleComponent* pComponent)
 		eGpuParticlesVertexShaderFlags_FacingVelocity = 0x2000
 	};
 
+	if (m_requiredShaderType != eST_All)
+	{
+		if (m_pMaterial)
+		{
+			IShader* pShader = m_pMaterial->GetShaderItem().m_pShader;
+			if (!pShader || pShader->GetShaderType() != m_requiredShaderType)
+				m_pMaterial = nullptr;
+		}
+	}
+
 	if (m_pMaterial)
 		return;
-		
+
 	const gpu_pfx2::SComponentParams& params = pComponent->GetGPUComponentParams();
 	const char* shaderName = params.usesGpuImplementation ? "Particles.ParticlesGpu" : "Particles";
-	string materialName = string(pComponent->GetEffect()->GetName()) + pComponent->GetName();
+	string materialName = string(pComponent->GetEffect()->GetName()) + ":" + pComponent->GetName();
 	m_pMaterial = gEnv->p3DEngine->GetMaterialManager()->CreateMaterial(materialName);
 	if (gEnv->pRenderer)
 	{

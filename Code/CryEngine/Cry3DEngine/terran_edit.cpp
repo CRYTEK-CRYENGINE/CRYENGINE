@@ -670,6 +670,8 @@ void CTerrain::SetTerrainElevation(int X1, int Y1, int nSizeX, int nSizeY, float
 
 	m_bHeightMapModified = 0;
 
+	m_bTerrainPaintingInProgress = true;
+
 #endif // _RELEASE
 }
 

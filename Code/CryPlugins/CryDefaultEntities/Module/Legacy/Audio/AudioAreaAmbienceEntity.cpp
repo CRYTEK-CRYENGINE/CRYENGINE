@@ -139,11 +139,11 @@ void CAudioAreaAmbienceEntity::OnResetState()
 
 	auto& audioProxy = *(entity.GetOrCreateComponent<IEntityAudioComponent>());
 
-	m_playTriggerId = CryAudio::StringToId_RunTime(m_playTriggerName.c_str());
-	m_stopTriggerId = CryAudio::StringToId_RunTime(m_stopTriggerName.c_str());
-	m_rtpcId = CryAudio::StringToId_RunTime(m_rtpcName.c_str());
-	m_globalRtpcId = CryAudio::StringToId_RunTime(m_globalRtpcName.c_str());
-	m_environmentId = CryAudio::StringToId_RunTime(m_environmentName.c_str());
+	m_playTriggerId = CryAudio::StringToId(m_playTriggerName.c_str());
+	m_stopTriggerId = CryAudio::StringToId(m_stopTriggerName.c_str());
+	m_rtpcId = CryAudio::StringToId(m_rtpcName.c_str());
+	m_globalRtpcId = CryAudio::StringToId(m_globalRtpcName.c_str());
+	m_environmentId = CryAudio::StringToId(m_environmentName.c_str());
 
 	const auto& stateIds = AudioEntitiesUtils::GetObstructionOcclusionStateIds();
 	audioProxy.SetSwitchState(AudioEntitiesUtils::GetObstructionOcclusionSwitch(), stateIds[IntegralValue(m_occlusionType)]);

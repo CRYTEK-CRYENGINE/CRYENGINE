@@ -234,21 +234,21 @@ public:
 		{
 			if (!params.audioParameter.empty())
 			{
-				m_audioParameterId = CryAudio::StringToId_RunTime(params.audioParameter.c_str());
+				m_audioParameterId = CryAudio::StringToId(params.audioParameter.c_str());
 				m_audioParameterValue = params.audioParameterValue;
 				m_context->SetAudioParameter(m_audioParameterId, m_audioParameterValue);
 			}
 
 			if (!params.startTrigger.empty())
 			{
-				m_audioTriggerStartId = CryAudio::StringToId_RunTime(params.startTrigger.c_str());
+				m_audioTriggerStartId = CryAudio::StringToId(params.startTrigger.c_str());
 				m_audioOcclusionType = params.audioOcclusionType;
 				m_context->ExecuteAudioTrigger(m_audioTriggerStartId, m_audioOcclusionType, playFacial);
 			}
 
 			if (!params.stopTrigger.empty())
 			{
-				m_audioTriggerStopId = CryAudio::StringToId_RunTime(params.stopTrigger.c_str());
+				m_audioTriggerStopId = CryAudio::StringToId(params.stopTrigger.c_str());
 			}
 		}
 	}

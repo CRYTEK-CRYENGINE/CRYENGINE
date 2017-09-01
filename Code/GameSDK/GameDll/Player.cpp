@@ -662,11 +662,11 @@ CPlayer::CPlayer()
 
 	CALL_PLAYER_EVENT_LISTENERS(OnToggleThirdPerson(this,m_stats.isThirdPerson));
 
-	m_waterEnter = CryAudio::StringToId_CompileTime("water_enter");
-	m_waterExit = CryAudio::StringToId_CompileTime("water_exit");
-	m_waterDiveIn = CryAudio::StringToId_CompileTime("water_dive_in");
-	m_waterDiveOut = CryAudio::StringToId_CompileTime("water_dive_out");
-	m_waterInOutSpeed = CryAudio::StringToId_CompileTime("water_in_out_speed");
+	m_waterEnter = CryAudio::StringToId("water_enter");
+	m_waterExit = CryAudio::StringToId("water_exit");
+	m_waterDiveIn = CryAudio::StringToId("water_dive_in");
+	m_waterDiveOut = CryAudio::StringToId("water_dive_out");
+	m_waterInOutSpeed = CryAudio::StringToId("water_in_out_speed");
 }
 
 CPlayer::~CPlayer()
@@ -7438,7 +7438,7 @@ void CPlayer::AnimationEvent(ICharacterInstance *pCharacter, const AnimEventInst
 						m_pIEntityAudioComponent->SetAudioAuxObjectOffset(Matrix34(pSkeletonPose->GetAbsJointByID(nJointID)), auxObjectId);
 					}
 				}
-				CryAudio::ControlId const triggerId = CryAudio::StringToId_RunTime(event.m_CustomParameter);
+				CryAudio::ControlId const triggerId = CryAudio::StringToId(event.m_CustomParameter);
 				m_pIEntityAudioComponent->ExecuteTrigger(triggerId, auxObjectId);
 
 				REINST("needs verification!");

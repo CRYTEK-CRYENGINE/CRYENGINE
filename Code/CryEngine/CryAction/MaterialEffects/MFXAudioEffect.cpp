@@ -7,9 +7,9 @@
 
 namespace MaterialEffectsUtils
 {
-	static constexpr CryAudio::ControlId switchId = CryAudio::StringToId_CompileTime("1stOr3rdP");
-	static constexpr CryAudio::SwitchStateId fpStateId = CryAudio::StringToId_CompileTime("1stP");
-	static constexpr CryAudio::SwitchStateId tpStateId = CryAudio::StringToId_CompileTime("3rdP");
+	static constexpr CryAudio::ControlId switchId = CryAudio::StringToId("1stOr3rdP");
+	static constexpr CryAudio::SwitchStateId fpStateId = CryAudio::StringToId("1stP");
+	static constexpr CryAudio::SwitchStateId tpStateId = CryAudio::StringToId("3rdP");
 
 template<typename AudioObjectType>
 void PrepareForAudioTriggerExecution(AudioObjectType* pIAudioObject, const SMFXAudioEffectParams& audioParams, const SMFXRunTimeEffectParams& runtimeParams)
@@ -27,7 +27,7 @@ void PrepareForAudioTriggerExecution(AudioObjectType* pIAudioObject, const SMFXA
 
 		if (szParameterName != nullptr && szParameterName[0] != '\0')
 		{
-			CryAudio::ControlId const parameterId = CryAudio::StringToId_RunTime(szParameterName);
+			CryAudio::ControlId const parameterId = CryAudio::StringToId(szParameterName);
 			pIAudioObject->SetParameter(parameterId, runtimeParams.audioRtpcs[i].rtpcValue);
 		}
 	}
@@ -39,7 +39,7 @@ void PrepareForAudioTriggerExecution(AudioObjectType* pIAudioObject, const SMFXA
 void SAudioTriggerWrapper::Init(const char* triggerName)
 {
 	CRY_ASSERT(triggerName != nullptr);
-	m_triggerID = CryAudio::StringToId_RunTime(triggerName);
+	m_triggerID = CryAudio::StringToId(triggerName);
 
 #if defined(MATERIAL_EFFECTS_DEBUG)
 	m_triggerName = triggerName;
@@ -50,8 +50,8 @@ void SAudioSwitchWrapper::Init(const char* switchName, const char* switchStateNa
 {
 	CRY_ASSERT(switchName != nullptr);
 	CRY_ASSERT(switchStateName != nullptr);
-	m_switchID = CryAudio::StringToId_RunTime(switchName);
-	m_switchStateID = CryAudio::StringToId_RunTime(switchStateName);
+	m_switchID = CryAudio::StringToId(switchName);
+	m_switchStateID = CryAudio::StringToId(switchStateName);
 
 #if defined(MATERIAL_EFFECTS_DEBUG)
 	m_switchName = switchName;

@@ -19,6 +19,8 @@ namespace OpenVR {
 
 CPlugin_OpenVR::~CPlugin_OpenVR()
 {
+	gEnv->pSystem->GetHmdManager()->UnregisterDevice(GetName());
+
 	CryVR::OpenVR::Resources::Shutdown();
 
 	if (IConsole* const pConsole = gEnv->pConsole)

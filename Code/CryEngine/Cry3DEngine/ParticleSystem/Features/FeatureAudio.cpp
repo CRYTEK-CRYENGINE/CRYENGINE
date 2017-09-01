@@ -212,7 +212,7 @@ private:
 
 		void Resolve()
 		{
-			m_id = CryAudio::StringToId_RunTime(m_name.c_str());
+			m_id = CryAudio::StringToId(m_name.c_str());
 		}
 		bool HasName() const                 { return !m_name.empty(); }
 		operator CryAudio::ControlId() const { return m_id; }
@@ -240,7 +240,7 @@ public:
 	{
 		if (!m_parameterName.empty())
 		{
-			m_parameterId = CryAudio::StringToId_RunTime(m_parameterName.c_str());
+			m_parameterId = CryAudio::StringToId(m_parameterName.c_str());
 			pComponent->AddToUpdateList(EUL_MainPreUpdate, this);
 			m_value.AddToComponent(pComponent, this);
 		}

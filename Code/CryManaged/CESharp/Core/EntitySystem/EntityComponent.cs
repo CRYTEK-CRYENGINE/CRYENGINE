@@ -1,10 +1,12 @@
 using System;
+using System.ComponentModel;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
 using System.Text;
 using CryEngine.Common;
 using CryEngine.EntitySystem;
@@ -248,7 +250,22 @@ namespace CryEngine
                 if (attribute == null)
                     continue;
 
-                NativeInternals.Entity.RegisterComponentProperty(entityComponentType, propertyInfo, propertyInfo.Name, propertyInfo.Name, attribute.Description, attribute.Type);
+				object defaultValue;
+				var defaultValueAttribute = (DefaultValueAttribute)propertyInfo.GetCustomAttributes(typeof(DefaultValueAttribute), false).FirstOrDefault();
+				if(defaultValueAttribute != null)
+				{
+					defaultValue = defaultValueAttribute.Value;
+				}
+				else if(propertyInfo.PropertyType.IsValueType || propertyInfo.PropertyType.GetConstructor(Type.EmptyTypes) != null)
+				{
+					defaultValue = Activator.CreateInstance(propertyInfo.PropertyType);
+				}
+				else
+				{
+					defaultValue = FormatterServices.GetUninitializedObject(propertyInfo.PropertyType);
+				}
+
+				NativeInternals.Entity.RegisterComponentProperty(entityComponentType, propertyInfo, propertyInfo.Name, propertyInfo.Name, attribute.Description, attribute.Type, defaultValue);
             }
 
             // Register all Schematyc functions
@@ -283,7 +300,6 @@ namespace CryEngine
 
                     parameters.Add(p);
                 }
-
                 if(typeInfo.signals == null)
                 {
                     typeInfo.signals = new List<TypeInfo.Signal>();

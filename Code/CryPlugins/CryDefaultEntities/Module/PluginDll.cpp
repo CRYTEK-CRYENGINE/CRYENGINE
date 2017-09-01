@@ -4,17 +4,22 @@
 #include "PluginDll.h"
 
 #include "DefaultComponents/AI/PathfindingComponent.h"
+#include "DefaultComponents/Audio/AreaComponent.h"
 #include "DefaultComponents/Audio/ListenerComponent.h"
 #include "DefaultComponents/Audio/ParameterComponent.h"
+#include "DefaultComponents/Audio/PreloadComponent.h"
 #include "DefaultComponents/Audio/SwitchComponent.h"
 #include "DefaultComponents/Audio/TriggerComponent.h"
 #include "DefaultComponents/Cameras/CameraComponent.h"
 #include "DefaultComponents/Constraints/LineConstraint.h"
 #include "DefaultComponents/Constraints/PlaneConstraint.h"
 #include "DefaultComponents/Constraints/PointConstraint.h"
+#include "DefaultComponents/Constraints/BreakableJoint.h"
 #include "DefaultComponents/Debug/DebugDrawComponent.h"
 #include "DefaultComponents/Effects/DecalComponent.h"
 #include "DefaultComponents/Effects/FogComponent.h"
+#include "DefaultComponents/Effects/WaterRippleComponent.h"
+#include "DefaultComponents/Effects/RainComponent.h"
 #include "DefaultComponents/Effects/ParticleComponent.h"
 #include "DefaultComponents/Geometry/AdvancedAnimationComponent.h"
 #include "DefaultComponents/Geometry/AlembicComponent.h"
@@ -55,7 +60,7 @@ CPlugin_CryDefaultEntities::~CPlugin_CryDefaultEntities()
 {
 	if (gEnv->pSchematyc != nullptr)
 	{
-		gEnv->pSchematyc->GetEnvRegistry().DeregisterPackage(GetSchematycPackageGUID());
+		gEnv->pSchematyc->GetEnvRegistry().DeregisterPackage(CPlugin_CryDefaultEntities::GetCID());
 	}
 
 	gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(this);
@@ -79,12 +84,20 @@ void CPlugin_CryDefaultEntities::RegisterComponents(Schematyc::IEnvRegistrar& re
 			Cry::DefaultComponents::CPathfindingComponent::Register(componentScope);
 		}
 		{
+			Schematyc::CEnvRegistrationScope componentScope = scope.Register(SCHEMATYC_MAKE_ENV_COMPONENT(Cry::Audio::DefaultComponents::CAreaComponent));
+			Cry::Audio::DefaultComponents::CAreaComponent::Register(componentScope);
+		}
+		{
 			Schematyc::CEnvRegistrationScope componentScope = scope.Register(SCHEMATYC_MAKE_ENV_COMPONENT(Cry::Audio::DefaultComponents::CListenerComponent));
 			Cry::Audio::DefaultComponents::CListenerComponent::Register(componentScope);
 		}
 		{
 			Schematyc::CEnvRegistrationScope componentScope = scope.Register(SCHEMATYC_MAKE_ENV_COMPONENT(Cry::Audio::DefaultComponents::CParameterComponent));
 			Cry::Audio::DefaultComponents::CParameterComponent::Register(componentScope);
+		}
+		{
+			Schematyc::CEnvRegistrationScope componentScope = scope.Register(SCHEMATYC_MAKE_ENV_COMPONENT(Cry::Audio::DefaultComponents::CPreloadComponent));
+			Cry::Audio::DefaultComponents::CPreloadComponent::Register(componentScope);
 		}
 		{
 			Schematyc::CEnvRegistrationScope componentScope = scope.Register(SCHEMATYC_MAKE_ENV_COMPONENT(Cry::Audio::DefaultComponents::CSwitchComponent));
@@ -109,6 +122,10 @@ void CPlugin_CryDefaultEntities::RegisterComponents(Schematyc::IEnvRegistrar& re
 		{
 			Schematyc::CEnvRegistrationScope componentScope = scope.Register(SCHEMATYC_MAKE_ENV_COMPONENT(Cry::DefaultComponents::CPointConstraintComponent));
 			Cry::DefaultComponents::CPointConstraintComponent::Register(componentScope);
+		}
+		{
+			Schematyc::CEnvRegistrationScope componentScope = scope.Register(SCHEMATYC_MAKE_ENV_COMPONENT(Cry::DefaultComponents::CBreakableJointComponent));
+			Cry::DefaultComponents::CBreakableJointComponent::Register(componentScope);
 		}
 		{
 			Schematyc::CEnvRegistrationScope componentScope = scope.Register(SCHEMATYC_MAKE_ENV_COMPONENT(Cry::DefaultComponents::CDebugDrawComponent));
@@ -187,6 +204,14 @@ void CPlugin_CryDefaultEntities::RegisterComponents(Schematyc::IEnvRegistrar& re
 			Cry::DefaultComponents::CSpherePrimitiveComponent::Register(componentScope);
 		}
 		{
+			Schematyc::CEnvRegistrationScope componentScope = scope.Register(SCHEMATYC_MAKE_ENV_COMPONENT(Cry::DefaultComponents::CWaterRippleComponent));
+			Cry::DefaultComponents::CWaterRippleComponent::Register(componentScope);
+		}
+		{
+			Schematyc::CEnvRegistrationScope componentScope = scope.Register(SCHEMATYC_MAKE_ENV_COMPONENT(Cry::DefaultComponents::CRainComponent));
+			Cry::DefaultComponents::CRainComponent::Register(componentScope);
+		}
+		{
 			Schematyc::CEnvRegistrationScope componentScope = scope.Register(SCHEMATYC_MAKE_ENV_COMPONENT(Cry::DefaultComponents::CAreaComponent));
 			Cry::DefaultComponents::CAreaComponent::Register(componentScope);
 		}
@@ -248,7 +273,7 @@ void CPlugin_CryDefaultEntities::OnSystemEvent(ESystemEvent event, UINT_PTR wpar
 
 			gEnv->pSchematyc->GetEnvRegistry().RegisterPackage(
 			  stl::make_unique<Schematyc::CEnvPackage>(
-			    GetSchematycPackageGUID(),
+			    CPlugin_CryDefaultEntities::GetCID(),
 			    "EntityComponents",
 			    "Crytek GmbH",
 			    "CRYENGINE Default Entity Components",

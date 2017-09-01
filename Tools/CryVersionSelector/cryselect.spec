@@ -3,10 +3,10 @@
 block_cipher = None
 
 
-a = Analysis(['cryselect.py', 'cryproject.py', 'cryregistry.py'],
+a = Analysis(['cryselect_exe.py'],
              pathex=['CryVersionSelector'],
              binaries=[],
-             datas=[],
+             datas=[('editor_icon16.ico', '.')],
              hiddenimports=[],
              hookspath=[],
              runtime_hooks=[],

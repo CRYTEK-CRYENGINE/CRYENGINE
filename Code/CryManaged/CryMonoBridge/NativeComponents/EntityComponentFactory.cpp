@@ -10,6 +10,16 @@
 #include <CrySerialization/Decorators/Resources.h>
 #include <array>
 
+class CManagedEntityPropertyDefaultValue final : public Schematyc::Utils::IDefaultValue
+{
+public:
+	CManagedEntityPropertyDefaultValue(const CManagedEntityComponent::SProperty& property) : m_property(property) {}
+	virtual ~CManagedEntityPropertyDefaultValue() {}
+	virtual const void* Get() const override { return &m_property; }
+
+	CManagedEntityComponent::SProperty m_property;
+};
+
 CManagedEntityComponentFactory::CManagedEntityComponentFactory(std::shared_ptr<CMonoClass> pMonoClass, const CryGUID& guid, const Schematyc::SSourceFileInfo& managedSourceFileInfo, const char* szName, const char* szUiCategory, const char* szUiDescription, const char* szIcon)
 	: Schematyc::CEnvElementBase<Schematyc::IEnvComponent>(guid, pMonoClass->GetName(), managedSourceFileInfo)
 	, m_pClass(pMonoClass)
@@ -81,15 +91,22 @@ std::shared_ptr<IEntityComponent> CManagedEntityComponentFactory::CreateFromPool
 	// We allocate extra memory for entity components in order to support getting properties from the Schematyc callbacks at the end of this file.
 	// This allows us to get both the property being processed and the component itself from one pointer currently being handled by Schematyc
 	// Otherwise we would need to refactor Schematyc to utilize std::function, introducing extra overhead in terms of both memory and performance.
-	uint32 entityComponentSize = sizeof(CManagedEntityComponent) + sizeof(SProperty) * m_properties.size();
+	uint32 entityComponentSize = sizeof(CManagedEntityComponent) + sizeof(CManagedEntityComponent::SProperty) * m_properties.size();
 	CManagedEntityComponent* pRawComponent = (CManagedEntityComponent*)CryModuleMalloc(entityComponentSize);
 	
 	struct CustomDeleter
 	{
 		void operator()(CManagedEntityComponent* p)
 		{
+			for (size_t i = 0, n = p->GetManagedFactory().m_properties.size(); i < n; ++i)
+			{
+				CManagedEntityComponent::SProperty* pPropertyObject = (CManagedEntityComponent::SProperty*)((uintptr_t)p + sizeof(CManagedEntityComponent) + i * sizeof(CManagedEntityComponent::SProperty));
+				pPropertyObject->~SProperty();
+			}
+
 			// Explicit call to the destructor
 			p->~CManagedEntityComponent();
+
 			// Memory aligned free
 			CryModuleFree(p);
 		}
@@ -99,25 +116,38 @@ std::shared_ptr<IEntityComponent> CManagedEntityComponentFactory::CreateFromPool
 
 	for(auto it = m_properties.begin(); it != m_properties.end(); ++it)
 	{
-		SProperty* pProperty = (SProperty*)((uintptr_t)pComponent.get() + sizeof(CManagedEntityComponent) + std::distance(m_properties.begin(), it) * sizeof(SProperty));
-		new(pProperty) SProperty(*it->get());
+		size_t offsetFromParent = sizeof(CManagedEntityComponent) + std::distance(m_properties.begin(), it) * sizeof(CManagedEntityComponent::SProperty);
+		CManagedEntityComponent::SProperty* pPropertyObject = (CManagedEntityComponent::SProperty*)((uintptr_t)pComponent.get() + offsetFromParent);
+		
+		new(pPropertyObject) CManagedEntityComponent::SProperty{ (uint16)std::distance(m_properties.begin(), it), offsetFromParent, it->get()->monoType, it->get()->serializationType, nullptr };
 	}
 
 	return pComponent;
 }
 
-void CManagedEntityComponentFactory::AddProperty(MonoInternals::MonoReflectionProperty* pReflectionProperty, const char* szPropertyName, const char* szPropertyLabel, const char* szPropertyDesc, EEntityPropertyType type)
+void CManagedEntityComponentFactory::AddProperty(MonoInternals::MonoReflectionProperty* pReflectionProperty, const char* szPropertyName, const char* szPropertyLabel, const char* szPropertyDesc, EEntityPropertyType type, MonoInternals::MonoObject* pDefaultValue)
 {
 	std::shared_ptr<CMonoProperty> pProperty = CMonoClass::MakeProperty(pReflectionProperty);
 
 	MonoInternals::MonoTypeEnum monoType = (MonoInternals::MonoTypeEnum)MonoInternals::mono_type_get_type(MonoInternals::mono_signature_get_return_type(pProperty->GetGetMethod().GetSignature()));
-
-	// Calculate offset of member from CManagedEntityComponent pointer, 0 being start of the component
-	uint32 memberOffset = sizeof(CManagedEntityComponent) + sizeof(SProperty) * m_properties.size();
-
-	m_properties.emplace_back(stl::make_unique<SProperty>(memberOffset, pProperty, type, monoType));
 	
-	m_classDescription.AddMember(*m_properties.back().get(), memberOffset, m_properties.size(), szPropertyName, szPropertyLabel, szPropertyDesc, nullptr);
+	// Calculate offset of member from CManagedEntityComponent pointer, 0 being start of the component
+	uint32 memberOffset = sizeof(CManagedEntityComponent) + sizeof(CManagedEntityComponent::SProperty) * m_properties.size();
+	uint16 propertyIndex = (uint16)m_properties.size();
+
+	MonoInternals::MonoClass* pUnderlyingClass = pProperty->GetUnderlyingClass(pReflectionProperty);
+	MonoInternals::MonoImage* pClassImage = MonoInternals::mono_class_get_image(pUnderlyingClass);
+	MonoInternals::MonoAssembly* pClassAssembly = MonoInternals::mono_image_get_assembly(pClassImage);
+
+	CMonoLibrary& classLibrary = GetMonoRuntime()->GetActiveDomain()->GetLibraryFromMonoAssembly(pClassAssembly);
+	std::shared_ptr<CMonoClass> pMonoClass = classLibrary.GetClassFromMonoClass(pUnderlyingClass);
+
+	std::shared_ptr<CMonoObject> pDefaultValueObject = pMonoClass->CreateFromMonoObject(pDefaultValue);
+
+	m_properties.emplace_back(stl::make_unique<SProperty>(m_properties.size(), pReflectionProperty, pProperty, type, monoType, *pMonoClass, pDefaultValueObject));
+
+	m_classDescription.AddMember(*m_properties.back().get(), memberOffset, m_properties.size(), szPropertyName, szPropertyLabel, szPropertyDesc, 
+		stl::make_unique<CManagedEntityPropertyDefaultValue>(CManagedEntityComponent::SProperty{ propertyIndex, memberOffset, m_properties.back()->monoType, m_properties.back()->serializationType, pDefaultValueObject }));
 }
 
 const int hash_value = 29;
@@ -196,16 +226,19 @@ Schematyc::ETypeCategory GetSchematycPropertyType(MonoInternals::MonoTypeEnum ty
 }
 
 template <typename T>
-static bool SerializePrimitive(Serialization::IArchive& archive, const CMonoProperty* pProperty, const char* szName, const char* szLabel, MonoInternals::MonoObject* pObject, MonoInternals::MonoClass* pClass)
+static bool SerializePrimitive(Serialization::IArchive& archive, const CMonoProperty* pProperty, std::shared_ptr<CMonoObject> pPropertyValue, const char* szName, const char* szLabel, MonoInternals::MonoObject* pComponentObject, MonoInternals::MonoClass* pClass)
 {
 	T value;
 	if (archive.isOutput())
 	{
-		bool bEncounteredException;
-		std::shared_ptr<CMonoObject> pPropertyValue = std::static_pointer_cast<CMonoObject>(pProperty->Get(pObject, bEncounteredException));
-		if (bEncounteredException || pPropertyValue == nullptr)
+		if (pProperty != nullptr)
 		{
-			return false;
+			bool bEncounteredException;
+			pPropertyValue = pProperty->Get(pComponentObject, bEncounteredException);
+			if (bEncounteredException || pPropertyValue == nullptr)
+			{
+				return false;
+			}
 		}
 
 		value = *pPropertyValue->Unbox<T>();
@@ -218,21 +251,29 @@ static bool SerializePrimitive(Serialization::IArchive& archive, const CMonoProp
 		void* pParams[1];
 		pParams[0] = &value;
 
-		bool bEncounteredException;
-		pProperty->Set(pObject, pParams, bEncounteredException);
-
-		return !bEncounteredException;
+		if (pProperty != nullptr)
+		{
+			bool bEncounteredException;
+			pProperty->Set(pComponentObject, pParams, bEncounteredException);
+			return !bEncounteredException;
+		}
+		else
+		{
+			MonoInternals::MonoObject* pNewValue = MonoInternals::mono_value_box(MonoInternals::mono_domain_get(), pPropertyValue->GetClass()->GetMonoClass(), pParams[0]);
+			MonoInternals::mono_gc_wbarrier_object_copy(pPropertyValue->GetManagedObject(), pNewValue);
+			return true;
+		}
 	}
 
 	return true;
 }
 
-CManagedEntityComponentFactory::SProperty::SProperty(uint32 membOffset, std::shared_ptr<CMonoProperty> pMonoProperty, EEntityPropertyType serType, MonoInternals::MonoTypeEnum type)
+CManagedEntityComponentFactory::SProperty::SProperty(size_t memberOffset, MonoInternals::MonoReflectionProperty* pReflectionProperty, std::shared_ptr<CMonoProperty> pMonoProperty, EEntityPropertyType serType, MonoInternals::MonoTypeEnum type, CMonoClass& typeClass, std::shared_ptr<CMonoObject> pDefaultValue)
 	: Schematyc::CCommonTypeDesc(GetSchematycPropertyType(type))
-	, memberOffset(membOffset)
 	, pProperty(pMonoProperty)
 	, serializationType(serType)
 	, monoType(type)
+	, offsetFromComponent(memberOffset)
 {
 	m_operators.defaultConstruct = &SProperty::DefaultConstruct;
 	m_operators.destruct = &SProperty::Destroy;
@@ -241,56 +282,153 @@ CManagedEntityComponentFactory::SProperty::SProperty(uint32 membOffset, std::sha
 	m_operators.equals = &SProperty::Equals;
 	m_operators.serialize = &SProperty::Serialize;
 	m_operators.toString = &SProperty::ToString;
+
+	m_size = sizeof(CManagedEntityComponent::SProperty);
+	m_pDefaultValue = stl::make_unique<CManagedEntityPropertyDefaultValue>(CManagedEntityComponent::SProperty{ 0, memberOffset, type, serType, pDefaultValue });
 }
 
-void CManagedEntityComponentFactory::SProperty::DefaultConstruct(void* pComponentAddress)
+void CManagedEntityComponentFactory::SProperty::DefaultConstruct(void* pPropertyAddress)
 {
 	// Not implemented, catch if this is actually used
 	CRY_ASSERT(false);
+
+	CManagedEntityComponent::SProperty* pPropertyObject = static_cast<CManagedEntityComponent::SProperty*>(pPropertyAddress);
 }
 
-void CManagedEntityComponentFactory::SProperty::Destroy(void* pComponentAddress)
+void CManagedEntityComponentFactory::SProperty::Destroy(void* pPropertyAddress)
 {
-	// Not implemented, catch if this is actually used
-	CRY_ASSERT(false);
+	CManagedEntityComponent::SProperty* pPropertyObject = static_cast<CManagedEntityComponent::SProperty*>(pPropertyAddress);
+	pPropertyObject->pTempObject.reset();
 }
 
-void CManagedEntityComponentFactory::SProperty::CopyConstruct(void* pTargetComponentAddress, const void* pSourceComponentAddress)
+void CManagedEntityComponentFactory::SProperty::CopyConstruct(void* pTargetPropertyAddress, const void* pSourcePropertyAddress)
 {
-	// Not implemented, catch if this is actually used
-	CRY_ASSERT(false);
+	CManagedEntityComponent::SProperty* pTargetPropertyObject = static_cast<CManagedEntityComponent::SProperty*>(pTargetPropertyAddress);
+	const CManagedEntityComponent::SProperty* pSourcePropertyObject = static_cast<const CManagedEntityComponent::SProperty*>(pSourcePropertyAddress);
+
+	new(pTargetPropertyObject) CManagedEntityComponent::SProperty(*pSourcePropertyObject);
+	
+	std::shared_ptr<CMonoObject> pClonedObject = pTargetPropertyObject->pTempObject->GetClass()->CreateUninitializedInstance();
+	pClonedObject->CopyFrom(*pTargetPropertyObject->pTempObject);
+	pTargetPropertyObject->pTempObject = pClonedObject;
 }
 
-void CManagedEntityComponentFactory::SProperty::CopyAssign(void* pTargetComponentAddress, const void* pSourceComponentAddress)
+void CManagedEntityComponentFactory::SProperty::CopyAssign(void* pTargetPropertyAddress, const void* pSourcePropertyAddress)
 {
-	CManagedEntityComponent* pTargetComponent = static_cast<CManagedEntityComponent*>(pTargetComponentAddress);
-	const CManagedEntityComponent* pSourceComponent = static_cast<const CManagedEntityComponent*>(pSourceComponentAddress);
+	CManagedEntityComponent::SProperty* pTargetPropertyObject = static_cast<CManagedEntityComponent::SProperty*>(pTargetPropertyAddress);
+	const CManagedEntityComponent::SProperty* pSourcePropertyObject = static_cast<const CManagedEntityComponent::SProperty*>(pSourcePropertyAddress);
 
-	pTargetComponent->GetObject()->CopyFrom(*pSourceComponent->GetObject());
+	if (pTargetPropertyObject->pTempObject != nullptr)
+	{
+		if (pSourcePropertyObject->pTempObject != nullptr)
+		{
+			pTargetPropertyObject->pTempObject->CopyFrom(*pSourcePropertyObject->pTempObject.get());
+		}
+		else
+		{
+			const CManagedEntityComponent* pSourceComponent = (const CManagedEntityComponent*)((uintptr_t)pSourcePropertyAddress - pSourcePropertyObject->offsetFromComponent);
+			CManagedEntityComponentFactory::SProperty& sourcePropertyInfo = *pSourceComponent->GetManagedFactory().m_properties[pSourcePropertyObject->index].get();
+
+			bool bException;
+			std::shared_ptr<CMonoObject> pSourceObject = sourcePropertyInfo.pProperty->Get(pSourceComponent->GetObject()->GetManagedObject(), bException);
+
+			CRY_ASSERT(pTargetPropertyObject->pTempObject->GetClass() == pSourceObject->GetClass());
+
+			pTargetPropertyObject->pTempObject->CopyFrom(*pSourceObject.get());
+		}
+	}
+	else
+	{
+		bool bException;
+		std::shared_ptr<CMonoObject> pSourceObject;
+
+		if (pSourcePropertyObject->pTempObject != nullptr)
+		{
+			pSourceObject = pSourcePropertyObject->pTempObject;
+		}
+		else
+		{
+			const CManagedEntityComponent* pSourceComponent = (const CManagedEntityComponent*)((uintptr_t)pSourcePropertyAddress - pSourcePropertyObject->offsetFromComponent);
+			CManagedEntityComponentFactory::SProperty& sourcePropertyInfo = *pSourceComponent->GetManagedFactory().m_properties[pSourcePropertyObject->index].get();
+
+			pSourceObject = sourcePropertyInfo.pProperty->Get(pSourceComponent->GetObject()->GetManagedObject(), bException);
+		}
+
+		const CManagedEntityComponent* pTargetComponent = (const CManagedEntityComponent*)((uintptr_t)pTargetPropertyAddress - pTargetPropertyObject->offsetFromComponent);
+		CManagedEntityComponentFactory::SProperty& targetPropertyInfo = *pTargetComponent->GetManagedFactory().m_properties[pTargetPropertyObject->index].get();
+		targetPropertyInfo.pProperty->Set(pTargetComponent->GetObject()->GetManagedObject(), pSourceObject->GetManagedObject(), bException);
+	}
 }
 
-bool CManagedEntityComponentFactory::SProperty::Equals(const void* pLeftComponentAddress, const void* pRightComponentAddress)
+bool CManagedEntityComponentFactory::SProperty::Equals(const void* pLeftPropertyAddress, const void* pRightPropertyAddress)
 {
-	const CManagedEntityComponent* pLeftComponent = static_cast<const CManagedEntityComponent*>(pLeftComponentAddress);
-	const CManagedEntityComponent* pRightComponent = static_cast<const CManagedEntityComponent*>(pRightComponentAddress);
+	bool bException;
+	std::shared_ptr<CMonoObject> pLeftObject, pRightObject;
 
-	// Horrible string comparison check, we should find a way to compare through Mono somehow if even possible
-	std::shared_ptr<CMonoString> pLeftString = pLeftComponent->GetObject()->ToString();
-	std::shared_ptr<CMonoString> pRightString = pRightComponent->GetObject()->ToString();
+	const CManagedEntityComponent::SProperty* pLeftPropertyObject = static_cast<const CManagedEntityComponent::SProperty*>(pLeftPropertyAddress);
+	if (pLeftPropertyObject->pTempObject != nullptr)
+	{
+		pLeftObject = pLeftPropertyObject->pTempObject;
+	}
+	else
+	{
+		const CManagedEntityComponent* pLeftComponent = (const CManagedEntityComponent*)((uintptr_t)pLeftPropertyAddress - pLeftPropertyObject->offsetFromComponent);
+		CManagedEntityComponentFactory::SProperty& leftPropertyInfo = *pLeftComponent->GetManagedFactory().m_properties[pLeftPropertyObject->index].get();
 
-	return !strcmp(pLeftString->GetString(), pRightString->GetString());
+		pLeftObject = leftPropertyInfo.pProperty->Get(pLeftComponent->GetObject()->GetManagedObject(), bException);
+	}
+
+	const CManagedEntityComponent::SProperty* pRightPropertyObject = static_cast<const CManagedEntityComponent::SProperty*>(pRightPropertyAddress);
+	if (pRightPropertyObject->pTempObject != nullptr)
+	{
+		pRightObject = pRightPropertyObject->pTempObject;
+	}
+	else
+	{
+		const CManagedEntityComponent* pRightComponent = (const CManagedEntityComponent*)((uintptr_t)pRightPropertyAddress - pRightPropertyObject->offsetFromComponent);
+		CManagedEntityComponentFactory::SProperty& rightPropertyInfo = *pRightComponent->GetManagedFactory().m_properties[pRightPropertyObject->index].get();
+
+		pRightObject = rightPropertyInfo.pProperty->Get(pRightComponent->GetObject()->GetManagedObject(), bException);
+	}
+
+	if (pLeftObject != nullptr && pRightObject != nullptr)
+	{
+		std::shared_ptr<CMonoString> pLeftString = pLeftObject->ToString();
+		std::shared_ptr<CMonoString> pRightString = pRightObject->ToString();
+
+		// Horrible string comparison check, we should find a way to compare through Mono somehow if even possible
+		return !strcmp(pLeftString->GetString(), pRightString->GetString());
+	}
+
+	return false;
 }
 
-bool CManagedEntityComponentFactory::SProperty::Serialize(Serialization::IArchive& archive, void* pComponentAddress, const char* szName, const char* szLabel)
+bool CManagedEntityComponentFactory::SProperty::Serialize(Serialization::IArchive& archive, void* pPropertyAddress, const char* szName, const char* szLabel)
 {
-	const CManagedEntityComponentFactory::SProperty* pProperty = static_cast<const CManagedEntityComponentFactory::SProperty*>(pComponentAddress);
-	const CManagedEntityComponent* pComponent = (const CManagedEntityComponent*)((uintptr_t)pProperty - pProperty->memberOffset);
+	CManagedEntityComponent::SProperty* pPropertyObject = static_cast<CManagedEntityComponent::SProperty*>(pPropertyAddress);
+	
+	std::shared_ptr<CMonoObject> pPropertyValue = pPropertyObject->pTempObject;
+	const CMonoProperty* pProperty;
+	CMonoObject* pComponentObject;
 
-	switch (pProperty->monoType)
+	if (pPropertyObject->pTempObject == nullptr)
+	{
+		CManagedEntityComponent* pComponent = (CManagedEntityComponent*)((uintptr_t)pPropertyAddress - pPropertyObject->offsetFromComponent);
+		CManagedEntityComponentFactory::SProperty& propertyInfo = *pComponent->GetManagedFactory().m_properties[pPropertyObject->index].get();
+
+		pProperty = propertyInfo.pProperty.get();
+		pComponentObject = pComponent->GetObject();
+	}
+	else
+	{
+		pProperty = nullptr;
+	}
+
+	switch (pPropertyObject->monoType)
 	{
 	case MonoInternals::MONO_TYPE_BOOLEAN:
 	{
-		return SerializePrimitive<bool>(archive, pProperty->pProperty.get(), szName, szLabel, pComponent->GetObject()->GetManagedObject(), MonoInternals::mono_get_boolean_class());
+		return SerializePrimitive<bool>(archive, pProperty, pPropertyValue, szName, szLabel, pComponentObject->GetManagedObject(), MonoInternals::mono_get_boolean_class());
 	}
 	break;
 	case MonoInternals::MONO_TYPE_STRING:
@@ -299,17 +437,22 @@ bool CManagedEntityComponentFactory::SProperty::Serialize(Serialization::IArchiv
 		if (archive.isOutput())
 		{
 			bool bEncounteredException;
-			std::shared_ptr<CMonoObject> pPropertyValue = std::static_pointer_cast<CMonoObject>(pProperty->pProperty->Get(pComponent->GetObject()->GetManagedObject(), bEncounteredException));
+			std::shared_ptr<CMonoObject> pPropertyValue = std::static_pointer_cast<CMonoObject>(pProperty->Get(pComponentObject->GetManagedObject(), bEncounteredException));
 			if (bEncounteredException || pPropertyValue == nullptr)
 			{
-				return false;
+				bool bEncounteredException;
+				pPropertyValue = pProperty->Get(pComponentObject->GetManagedObject(), bEncounteredException);
+				if (bEncounteredException || pPropertyValue == nullptr)
+				{
+					return false;
+				}
 			}
 
 			std::shared_ptr<CMonoString> pValue = pPropertyValue->ToString();
 			value = pValue->GetString();
 		}
 
-		switch (pProperty->serializationType)
+		switch (pPropertyObject->serializationType)
 		{
 		case EEntityPropertyType::Primitive:
 			archive(value, szName, szLabel);
@@ -339,14 +482,26 @@ bool CManagedEntityComponentFactory::SProperty::Serialize(Serialization::IArchiv
 
 		if (archive.isInput())
 		{
-			CMonoDomain* pDomain = pComponent->GetObject()->GetClass()->GetAssembly()->GetDomain();
+			CMonoDomain* pDomain = pComponentObject->GetClass()->GetAssembly()->GetDomain();
 
 			std::shared_ptr<CMonoString> pValue = pDomain->CreateString(value);
 
-			bool bEncounteredException;
-			pProperty->pProperty->Set(pComponent->GetObject()->GetManagedObject(), (MonoInternals::MonoObject*)pValue->GetManagedObject(), bEncounteredException);
+			if (pProperty != nullptr)
+			{
+				void *pParams[1];
+				pParams[0] = pValue->GetManagedObject();
 
-			return !bEncounteredException;
+				bool bEncounteredException;
+				pProperty->Set(pComponentObject->GetManagedObject(), pParams, bEncounteredException);
+
+				return !bEncounteredException;
+			}
+			else
+			{
+				MonoInternals::MonoObject* pNewValue = MonoInternals::mono_value_box(MonoInternals::mono_domain_get(), pPropertyValue->GetClass()->GetMonoClass(), pValue->GetManagedObject());
+				MonoInternals::mono_gc_wbarrier_object_copy(pPropertyValue->GetManagedObject(), pNewValue);
+				return true;
+			}
 		}
 
 		return true;
@@ -355,52 +510,52 @@ bool CManagedEntityComponentFactory::SProperty::Serialize(Serialization::IArchiv
 	case MonoInternals::MONO_TYPE_U1:
 	case MonoInternals::MONO_TYPE_CHAR: // Char is unsigned by default for .NET
 	{
-		return SerializePrimitive<uchar>(archive, pProperty->pProperty.get(), szName, szLabel, pComponent->GetObject()->GetManagedObject(), MonoInternals::mono_get_char_class());
+		return SerializePrimitive<uchar>(archive, pProperty, pPropertyValue, szName, szLabel, pComponentObject->GetManagedObject(), MonoInternals::mono_get_char_class());
 	}
 	break;
 	case MonoInternals::MONO_TYPE_I1:
 	{
-		return SerializePrimitive<char>(archive, pProperty->pProperty.get(), szName, szLabel, pComponent->GetObject()->GetManagedObject(), MonoInternals::mono_get_byte_class());
+		return SerializePrimitive<char>(archive, pProperty, pPropertyValue, szName, szLabel, pComponentObject->GetManagedObject(), MonoInternals::mono_get_byte_class());
 	}
 	break;
 	case MonoInternals::MONO_TYPE_I2:
 	{
-		return SerializePrimitive<int16>(archive, pProperty->pProperty.get(), szName, szLabel, pComponent->GetObject()->GetManagedObject(), MonoInternals::mono_get_int16_class());
+		return SerializePrimitive<int16>(archive, pProperty, pPropertyValue, szName, szLabel, pComponentObject->GetManagedObject(), MonoInternals::mono_get_int16_class());
 	}
 	break;
 	case MonoInternals::MONO_TYPE_U2:
 	{
-		return SerializePrimitive<uint16>(archive, pProperty->pProperty.get(), szName, szLabel, pComponent->GetObject()->GetManagedObject(), MonoInternals::mono_get_uint16_class());
+		return SerializePrimitive<uint16>(archive, pProperty, pPropertyValue, szName, szLabel, pComponentObject->GetManagedObject(), MonoInternals::mono_get_uint16_class());
 	}
 	break;
 	case MonoInternals::MONO_TYPE_I4:
 	{
-		return SerializePrimitive<int32>(archive, pProperty->pProperty.get(), szName, szLabel, pComponent->GetObject()->GetManagedObject(), MonoInternals::mono_get_int32_class());
+		return SerializePrimitive<int32>(archive, pProperty, pPropertyValue, szName, szLabel, pComponentObject->GetManagedObject(), MonoInternals::mono_get_int32_class());
 	}
 	break;
 	case MonoInternals::MONO_TYPE_U4:
 	{
-		return SerializePrimitive<uint32>(archive, pProperty->pProperty.get(), szName, szLabel, pComponent->GetObject()->GetManagedObject(), MonoInternals::mono_get_uint32_class());
+		return SerializePrimitive<uint32>(archive, pProperty, pPropertyValue, szName, szLabel, pComponentObject->GetManagedObject(), MonoInternals::mono_get_uint32_class());
 	}
 	break;
 	case MonoInternals::MONO_TYPE_I8:
 	{
-		return SerializePrimitive<int64>(archive, pProperty->pProperty.get(), szName, szLabel, pComponent->GetObject()->GetManagedObject(), MonoInternals::mono_get_int64_class());
+		return SerializePrimitive<int64>(archive, pProperty, pPropertyValue, szName, szLabel, pComponentObject->GetManagedObject(), MonoInternals::mono_get_int64_class());
 	}
 	break;
 	case MonoInternals::MONO_TYPE_U8:
 	{
-		return SerializePrimitive<uint64>(archive, pProperty->pProperty.get(), szName, szLabel, pComponent->GetObject()->GetManagedObject(), MonoInternals::mono_get_uint64_class());
+		return SerializePrimitive<uint64>(archive, pProperty, pPropertyValue, szName, szLabel, pComponentObject->GetManagedObject(), MonoInternals::mono_get_uint64_class());
 	}
 	break;
 	case MonoInternals::MONO_TYPE_R4:
 	{
-		return SerializePrimitive<float>(archive, pProperty->pProperty.get(), szName, szLabel, pComponent->GetObject()->GetManagedObject(), MonoInternals::mono_get_single_class());
+		return SerializePrimitive<float>(archive, pProperty, pPropertyValue, szName, szLabel, pComponentObject->GetManagedObject(), MonoInternals::mono_get_single_class());
 	}
 	break;
 	case MonoInternals::MONO_TYPE_R8:
 	{
-		return SerializePrimitive<double>(archive, pProperty->pProperty.get(), szName, szLabel, pComponent->GetObject()->GetManagedObject(), MonoInternals::mono_get_double_class());
+		return SerializePrimitive<double>(archive, pProperty, pPropertyValue, szName, szLabel, pComponentObject->GetManagedObject(), MonoInternals::mono_get_double_class());
 	}
 	break;
 	}
@@ -408,17 +563,32 @@ bool CManagedEntityComponentFactory::SProperty::Serialize(Serialization::IArchiv
 	return false;
 }
 
-void CManagedEntityComponentFactory::SProperty::ToString(Schematyc::IString& output, const void* pComponentAddress)
+void CManagedEntityComponentFactory::SProperty::ToString(Schematyc::IString& output, const void* pPropertyAddress)
 {
-	const CManagedEntityComponentFactory::SProperty* pProperty = static_cast<const CManagedEntityComponentFactory::SProperty*>(pComponentAddress);
-	const CManagedEntityComponent* pComponent = (const CManagedEntityComponent*)((uintptr_t)pProperty - pProperty->memberOffset);
+	std::shared_ptr<CMonoObject> pObject;
 
-	bool bEncounteredException;
-	std::shared_ptr<CMonoObject> pPropertyValue = std::static_pointer_cast<CMonoObject>(pProperty->pProperty->Get(pComponent->GetObject()->GetManagedObject(), bEncounteredException));
-	if (!bEncounteredException)
+	const CManagedEntityComponent::SProperty* pPropertyObject = static_cast<const CManagedEntityComponent::SProperty*>(pPropertyAddress);
+	if (pPropertyObject->pTempObject != nullptr)
 	{
-		std::shared_ptr<CMonoString> pValue = pPropertyValue->ToString();
+		pObject = pPropertyObject->pTempObject;
+	}
+	else
+	{
+		const CManagedEntityComponent* pComponent = (const CManagedEntityComponent*)((uintptr_t)pPropertyAddress - pPropertyObject->offsetFromComponent);
+		CManagedEntityComponentFactory::SProperty& propertyInfo = *pComponent->GetManagedFactory().m_properties[pPropertyObject->index].get();
+
+		bool bException;
+		pObject = propertyInfo.pProperty->Get(pComponent->GetObject()->GetManagedObject(), bException);
+	}
+
+	if (pObject != nullptr)
+	{
+		std::shared_ptr<CMonoString> pValue = pObject->ToString();
 		output.assign(pValue->GetString());
+	}
+	else
+	{
+		output.clear();
 	}
 }
 

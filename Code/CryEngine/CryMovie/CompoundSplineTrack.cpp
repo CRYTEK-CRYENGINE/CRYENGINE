@@ -78,18 +78,6 @@ bool CCompoundSplineTrack::Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bL
 	return true;
 }
 
-bool CCompoundSplineTrack::SerializeKeys(XmlNodeRef& xmlNode, bool bLoading, std::vector<SAnimTime>& keys, const SAnimTime time)
-{
-	for (int i = 0; i < m_nDimensions; i++)
-	{
-		XmlNodeRef subTrackNode;
-		PrepareNodeForSubTrackSerialization(subTrackNode, xmlNode, i, bLoading);
-		m_subTracks[i]->SerializeKeys(subTrackNode, bLoading, keys, time);
-	}
-
-	return true;
-}
-
 TMovieSystemValue CCompoundSplineTrack::GetValue(SAnimTime time) const
 {
 	switch (m_valueType)

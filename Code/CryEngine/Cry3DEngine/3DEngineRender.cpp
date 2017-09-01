@@ -1655,7 +1655,7 @@ void C3DEngine::RenderScene(const int nRenderFlags, const SRenderingPassInfo& pa
 	////////////////////////////////////////////////////////////////////////////////////////
 	// Add render elements for indoor
 	////////////////////////////////////////////////////////////////////////////////////////
-	if (passInfo.IsGeneralPass() && GetCVars()->e_StatObjBufferRenderTasks && JobManager::InvokeAsJob("CheckOcclusion"))
+	if (passInfo.IsGeneralPass() && IsStatObjBufferRenderTasksAllowed() && JobManager::InvokeAsJob("CheckOcclusion"))
 		m_pObjManager->BeginOcclusionCulling(passInfo);
 
 	// draw objects inside visible vis areas
@@ -1793,7 +1793,7 @@ void C3DEngine::RenderScene(const int nRenderFlags, const SRenderingPassInfo& pa
 		m_pDecalManager->Render(passInfo);
 
 	// tell the occlusion culler that no new work will be submitted
-	if (GetCVars()->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
+	if (IsStatObjBufferRenderTasksAllowed() && GetCVars()->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
 		GetObjManager()->PushIntoCullQueue(SCheckOcclusionJobData::CreateQuitJobData());
 
 	// fill shadow list here to allow more time between starting and waiting for the occlusion buffer
@@ -1802,7 +1802,7 @@ void C3DEngine::RenderScene(const int nRenderFlags, const SRenderingPassInfo& pa
 	if (passInfo.IsGeneralPass())
 		gEnv->pSystem->DoWorkDuringOcclusionChecks();
 
-	if (passInfo.IsGeneralPass() && GetCVars()->e_StatObjBufferRenderTasks && JobManager::InvokeAsJob("CheckOcclusion"))
+	if (passInfo.IsGeneralPass() && IsStatObjBufferRenderTasksAllowed() && JobManager::InvokeAsJob("CheckOcclusion"))
 		m_pObjManager->RenderBufferedRenderMeshes(passInfo);
 
 	// Call postrender on the meshes that require it.

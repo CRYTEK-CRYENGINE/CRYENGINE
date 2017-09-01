@@ -687,6 +687,13 @@ ERequestStatus CATLAudioObject::HandleSetTransformation(CObjectTransformation co
 			m_previousTime = 0.0f;  // ...in that case we force an update to the new position
 			HandleSetTransformation(transformation, 0.0f);
 		}
+		else
+		{
+			// No time has passed meaning different transformations were set during the same main frame.
+			// TODO: update velocity accordingly!
+			m_attributes.transformation = transformation;
+			m_previousAttributes = m_attributes;
+		}
 
 		status = m_pImplData->Set3DAttributes(m_attributes);
 	}
@@ -928,11 +935,11 @@ void CATLAudioObject::UpdateControls(float const deltaTime, Impl::SObject3DAttri
 ///////////////////////////////////////////////////////////////////////////
 bool CATLAudioObject::CanBeReleased() const
 {
-	return (m_flags & EObjectFlags::InUse) == 0 &&
+	return (m_flags& EObjectFlags::InUse) == 0 &&
 	       m_activeEvents.empty() &&
 	       m_activeStandaloneFiles.empty() &&
 	       !m_propagationProcessor.HasPendingRays() &&
-		   m_numPendingSyncCallbacks == 0;
+	       m_numPendingSyncCallbacks == 0;
 }
 
 ///////////////////////////////////////////////////////////////////////////

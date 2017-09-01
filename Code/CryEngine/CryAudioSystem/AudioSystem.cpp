@@ -700,7 +700,7 @@ void CSystem::OnLoadLevel(char const* const szLevelName)
 	request2.flags = ERequestFlags::ExecuteBlocking;
 	PushRequest(request2);
 
-	PreloadRequestId const preloadRequestId = CryAudio::StringToId_RunTime(szLevelName);
+	PreloadRequestId const preloadRequestId = CryAudio::StringToId(szLevelName);
 	SAudioManagerRequestData<EAudioManagerRequestType::PreloadSingleRequest> requestData3(preloadRequestId, true);
 	CAudioRequest request3(&requestData3);
 	request3.flags = ERequestFlags::ExecuteBlocking;

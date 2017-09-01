@@ -186,7 +186,7 @@ bool CVehicleMovementBase::Init(IVehicle* pVehicle, const CVehicleParams& table)
 	IEntityAudioComponent* pIEntityAudioComponent = GetAudioProxy();
 	assert(pIEntityAudioComponent);
 
-	CryAudio::SwitchStateId const surfaceStateId = CryAudio::StringToId_CompileTime("concrete");
+	CryAudio::SwitchStateId const surfaceStateId = CryAudio::StringToId("concrete");
 	pIEntityAudioComponent->SetSwitchState(m_audioControlIDs[eSID_VehicleSurface], surfaceStateId);
 	pIEntityAudioComponent->SetAudioAuxObjectOffset(Matrix34(IDENTITY, m_enginePos));
 
@@ -1214,8 +1214,8 @@ void CVehicleMovementBase::OnVehicleEvent(EVehicleEvent event, const SVehicleEve
 				}
 			}
 					
-			CryAudio::SwitchStateId const outStateId = CryAudio::StringToId_CompileTime("outside");
-			CryAudio::SwitchStateId const inStateId = CryAudio::StringToId_CompileTime("inside");
+			CryAudio::SwitchStateId const outStateId = CryAudio::StringToId("outside");
+			CryAudio::SwitchStateId const inStateId = CryAudio::StringToId("inside");
 			IEntityAudioComponent* const pIEntityAudioComponent = GetAudioProxy();
 
 			if (pIEntityAudioComponent != nullptr)
@@ -2307,27 +2307,27 @@ void CVehicleMovementBase::CacheAudioControlIDs()
 	string triggerName = "";
 	const char* szVehicleName = m_pVehicle->GetEntity()->GetClass()->GetName();
 
-	m_audioControlIDs[eSID_Start] = CryAudio::StringToId_RunTime(triggerName.Format("Play_%s_start", szVehicleName).c_str());
-	m_audioControlIDs[eSID_Run] = CryAudio::StringToId_RunTime(triggerName.Format("Play_%s_run", szVehicleName).c_str());
-	m_audioControlIDs[eSID_Stop] = CryAudio::StringToId_RunTime(triggerName.Format("Play_%s_stop", szVehicleName).c_str());
-	m_audioControlIDs[eSID_Ambience] = CryAudio::StringToId_RunTime(triggerName.Format("Play_%s_ambience", szVehicleName).c_str());
-	m_audioControlIDs[eSID_Bump] = CryAudio::StringToId_RunTime(triggerName.Format("Play_%s_bump", szVehicleName).c_str());
-	m_audioControlIDs[eSID_Splash] = CryAudio::StringToId_RunTime(triggerName.Format("Play_%s_splash", szVehicleName).c_str());
-	m_audioControlIDs[eSID_Gear] = CryAudio::StringToId_RunTime(triggerName.Format("Play_%s_gear", szVehicleName).c_str());
-	m_audioControlIDs[eSID_Slip] = CryAudio::StringToId_RunTime(triggerName.Format("Play_%s_slip", szVehicleName).c_str());
-	m_audioControlIDs[eSID_Acceleration] = CryAudio::StringToId_RunTime(triggerName.Format("Play_%s_acceleration", szVehicleName).c_str());
-	m_audioControlIDs[eSID_Boost] = CryAudio::StringToId_RunTime(triggerName.Format("Play_%s_boost", szVehicleName).c_str());
-	m_audioControlIDs[eSID_Damage] = CryAudio::StringToId_RunTime(triggerName.Format("Play_%s_damage", szVehicleName).c_str());
-	m_audioControlIDs[eSID_StopDamage] = CryAudio::StringToId_RunTime(triggerName.Format("Stop_%s_damage", szVehicleName).c_str());
+	m_audioControlIDs[eSID_Start] = CryAudio::StringToId(triggerName.Format("Play_%s_start", szVehicleName).c_str());
+	m_audioControlIDs[eSID_Run] = CryAudio::StringToId(triggerName.Format("Play_%s_run", szVehicleName).c_str());
+	m_audioControlIDs[eSID_Stop] = CryAudio::StringToId(triggerName.Format("Play_%s_stop", szVehicleName).c_str());
+	m_audioControlIDs[eSID_Ambience] = CryAudio::StringToId(triggerName.Format("Play_%s_ambience", szVehicleName).c_str());
+	m_audioControlIDs[eSID_Bump] = CryAudio::StringToId(triggerName.Format("Play_%s_bump", szVehicleName).c_str());
+	m_audioControlIDs[eSID_Splash] = CryAudio::StringToId(triggerName.Format("Play_%s_splash", szVehicleName).c_str());
+	m_audioControlIDs[eSID_Gear] = CryAudio::StringToId(triggerName.Format("Play_%s_gear", szVehicleName).c_str());
+	m_audioControlIDs[eSID_Slip] = CryAudio::StringToId(triggerName.Format("Play_%s_slip", szVehicleName).c_str());
+	m_audioControlIDs[eSID_Acceleration] = CryAudio::StringToId(triggerName.Format("Play_%s_acceleration", szVehicleName).c_str());
+	m_audioControlIDs[eSID_Boost] = CryAudio::StringToId(triggerName.Format("Play_%s_boost", szVehicleName).c_str());
+	m_audioControlIDs[eSID_Damage] = CryAudio::StringToId(triggerName.Format("Play_%s_damage", szVehicleName).c_str());
+	m_audioControlIDs[eSID_StopDamage] = CryAudio::StringToId(triggerName.Format("Stop_%s_damage", szVehicleName).c_str());
 
-	m_audioControlIDs[eSID_VehicleRPM] = CryAudio::StringToId_CompileTime("vehicle_rpm");
-	m_audioControlIDs[eSID_VehicleSpeed] = CryAudio::StringToId_CompileTime("vehicle_speed");
-	m_audioControlIDs[eSID_VehicleDamage] = CryAudio::StringToId_CompileTime("vehicle_damage");
-	m_audioControlIDs[eSID_VehicleSlip] = CryAudio::StringToId_CompileTime("vehicle_slip");
-	m_audioControlIDs[eSID_VehicleStroke] = CryAudio::StringToId_CompileTime("vehicle_stroke");
+	m_audioControlIDs[eSID_VehicleRPM] = CryAudio::StringToId("vehicle_rpm");
+	m_audioControlIDs[eSID_VehicleSpeed] = CryAudio::StringToId("vehicle_speed");
+	m_audioControlIDs[eSID_VehicleDamage] = CryAudio::StringToId("vehicle_damage");
+	m_audioControlIDs[eSID_VehicleSlip] = CryAudio::StringToId("vehicle_slip");
+	m_audioControlIDs[eSID_VehicleStroke] = CryAudio::StringToId("vehicle_stroke");
 
-	m_audioControlIDs[eSID_VehicleSurface] = CryAudio::StringToId_CompileTime("SurfaceType");
-	m_audioControlIDs[eSID_VehicleINOUT] = CryAudio::StringToId_CompileTime("in_out");
+	m_audioControlIDs[eSID_VehicleSurface] = CryAudio::StringToId("SurfaceType");
+	m_audioControlIDs[eSID_VehicleINOUT] = CryAudio::StringToId("in_out");
 }
 
 void CVehicleMovementBase::ResetAudioParams()

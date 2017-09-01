@@ -9,7 +9,7 @@
 #include "Common/TypedConstantBuffer.h"
 
 CSceneCustomStage::CSceneCustomStage()
-	: m_perPassResources(nullptr, nullptr)
+	: m_perPassResources()
 {}
  
 void CSceneCustomStage::Init()
@@ -28,6 +28,9 @@ void CSceneCustomStage::Init()
 
 	// Create resource layout
 	m_pResourceLayout = gcpRendD3D->GetGraphicsPipeline().CreateScenePassLayout(m_perPassResources);
+
+	// Freeze resource-set layout (assert will fire when violating the constraint)
+	m_perPassResources.AcceptChangedBindPoints();
 
 	// Debug View Pass
 	m_debugViewPass.SetLabel("CUSTOM_DEBUGVIEW");
@@ -162,22 +165,20 @@ bool CSceneCustomStage::SetAndBuildPerPassResources(bool bOnInit)
 
 	assert(m_pPerPassConstantBuffer);
 	
-	CDeviceResourceSetDesc::EDirtyFlags dirtyFlags = CDeviceResourceSetDesc::EDirtyFlags::eNone;
-
 	// Samplers
 	{
 		auto materialSamplers = pRenderer->GetGraphicsPipeline().GetDefaultMaterialSamplers();
 		for (int i = 0; i < materialSamplers.size(); ++i)
 		{
-			dirtyFlags |= m_perPassResources.SetSampler(EEfResSamplers(i), materialSamplers[i], EShaderStage_AllWithoutCompute);
+			m_perPassResources.SetSampler(EEfResSamplers(i), materialSamplers[i], EShaderStage_AllWithoutCompute);
 		}
 		// Hardcoded point samplers
-		dirtyFlags |= m_perPassResources.SetSampler(8, EDefaultSamplerStates::PointWrap, EShaderStage_AllWithoutCompute);
-		dirtyFlags |= m_perPassResources.SetSampler(9, EDefaultSamplerStates::PointClamp, EShaderStage_AllWithoutCompute);
+		m_perPassResources.SetSampler(8, EDefaultSamplerStates::PointWrap, EShaderStage_AllWithoutCompute);
+		m_perPassResources.SetSampler(9, EDefaultSamplerStates::PointClamp, EShaderStage_AllWithoutCompute);
 
 		// Required by particles
-		dirtyFlags |= m_perPassResources.SetSampler(10, EDefaultSamplerStates::BilinearWrap, EShaderStage_AllWithoutCompute);
-		dirtyFlags |= m_perPassResources.SetSampler(11, EDefaultSamplerStates::LinearCompare, EShaderStage_AllWithoutCompute);
+		m_perPassResources.SetSampler(10, EDefaultSamplerStates::BilinearWrap, EShaderStage_AllWithoutCompute);
+		m_perPassResources.SetSampler(11, EDefaultSamplerStates::LinearCompare, EShaderStage_AllWithoutCompute);
 	}
 
 	// Textures
@@ -186,45 +187,45 @@ bool CSceneCustomStage::SetAndBuildPerPassResources(bool bOnInit)
 		if (gEnv->p3DEngine && gEnv->p3DEngine->GetITerrain())
 			gEnv->p3DEngine->GetITerrain()->GetAtlasTexId(nTerrainTex0, nTerrainTex1, nTerrainTex2);
 
-		dirtyFlags |= m_perPassResources.SetTexture(ePerPassTexture_PerlinNoiseMap, CTexture::s_ptexPerlinNoiseMap, EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
-		dirtyFlags |= m_perPassResources.SetTexture(ePerPassTexture_WindGrid, CTexture::s_ptexWindGrid, EDefaultResourceViews::Default, EShaderStage_Vertex);
-		dirtyFlags |= m_perPassResources.SetTexture(ePerPassTexture_TerrainElevMap, CTexture::GetByID(nTerrainTex2), EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
-		dirtyFlags |= m_perPassResources.SetTexture(ePerPassTexture_TerrainNormMap, CTexture::GetByID(nTerrainTex1), EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
-		dirtyFlags |= m_perPassResources.SetTexture(ePerPassTexture_TerrainBaseMap, CTexture::GetByID(nTerrainTex0), EDefaultResourceViews::sRGB, EShaderStage_AllWithoutCompute);
-		dirtyFlags |= m_perPassResources.SetTexture(ePerPassTexture_NormalsFitting, CTexture::s_ptexNormalsFitting, EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
-		dirtyFlags |= m_perPassResources.SetTexture(ePerPassTexture_DissolveNoise, CTexture::s_ptexDissolveNoiseMap, EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
-		dirtyFlags |= m_perPassResources.SetTexture(ePerPassTexture_SceneLinearDepth, CTexture::s_ptexZTarget, EDefaultResourceViews::Default, EShaderStage_Pixel);
-		dirtyFlags |= m_perPassResources.SetTexture(ePerPassTexture_PaletteTexelsPerMeter, CTexture::s_ptexPaletteTexelsPerMeter, EDefaultResourceViews::Default, EShaderStage_Pixel);
+		m_perPassResources.SetTexture(ePerPassTexture_PerlinNoiseMap, CTexture::s_ptexPerlinNoiseMap, EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
+		m_perPassResources.SetTexture(ePerPassTexture_WindGrid, CTexture::s_ptexWindGrid, EDefaultResourceViews::Default, EShaderStage_Vertex);
+		m_perPassResources.SetTexture(ePerPassTexture_TerrainElevMap, CTexture::GetByID(nTerrainTex2), EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
+		m_perPassResources.SetTexture(ePerPassTexture_TerrainNormMap, CTexture::GetByID(nTerrainTex1), EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
+		m_perPassResources.SetTexture(ePerPassTexture_TerrainBaseMap, CTexture::GetByID(nTerrainTex0), EDefaultResourceViews::sRGB, EShaderStage_AllWithoutCompute);
+		m_perPassResources.SetTexture(ePerPassTexture_NormalsFitting, CTexture::s_ptexNormalsFitting, EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
+		m_perPassResources.SetTexture(ePerPassTexture_DissolveNoise, CTexture::s_ptexDissolveNoiseMap, EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
+		m_perPassResources.SetTexture(ePerPassTexture_SceneLinearDepth, CTexture::s_ptexZTarget, EDefaultResourceViews::Default, EShaderStage_Pixel);
+		m_perPassResources.SetTexture(ePerPassTexture_PaletteTexelsPerMeter, CTexture::s_ptexPaletteTexelsPerMeter, EDefaultResourceViews::Default, EShaderStage_Pixel);
 	}
 
 	// particle resources
 	{
 		if (bOnInit)
 		{
-			dirtyFlags |= m_perPassResources.SetBuffer(
+			m_perPassResources.SetBuffer(
 				EReservedTextureSlot_ParticlePositionStream, CDeviceBufferManager::GetNullBufferStructured(),
 				EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
-			dirtyFlags |= m_perPassResources.SetBuffer(
+			m_perPassResources.SetBuffer(
 				EReservedTextureSlot_ParticleAxesStream, CDeviceBufferManager::GetNullBufferStructured(),
 				EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
-			dirtyFlags |= m_perPassResources.SetBuffer(
+			m_perPassResources.SetBuffer(
 				EReservedTextureSlot_ParticleColorSTStream, CDeviceBufferManager::GetNullBufferStructured(),
 				EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
 		}
 		else
 		{
 			const CParticleBufferSet& particleBuffer = pRenderer->m_RP.m_particleBuffer;
-			dirtyFlags |= m_perPassResources.SetBuffer(
+			m_perPassResources.SetBuffer(
 				EReservedTextureSlot_ParticlePositionStream,
-				&particleBuffer.GetPositionStream(),
+				const_cast<CGpuBuffer*>(&particleBuffer.GetPositionStream()),
 				EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
-			dirtyFlags |= m_perPassResources.SetBuffer(
+			m_perPassResources.SetBuffer(
 				EReservedTextureSlot_ParticleAxesStream,
-				&particleBuffer.GetAxesStream(),
+				const_cast<CGpuBuffer*>(&particleBuffer.GetAxesStream()),
 				EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
-			dirtyFlags |= m_perPassResources.SetBuffer(
+			m_perPassResources.SetBuffer(
 				EReservedTextureSlot_ParticleColorSTStream,
-				&particleBuffer.GetColorSTsStream(),
+				const_cast<CGpuBuffer*>(&particleBuffer.GetColorSTsStream()),
 				EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
 		}
 	}
@@ -237,17 +238,15 @@ bool CSceneCustomStage::SetAndBuildPerPassResources(bool bOnInit)
 		else
 			pPerViewCB = pRenderer->GetGraphicsPipeline().GetMainViewConstantBuffer();
 
-		dirtyFlags |= m_perPassResources.SetConstantBuffer(eConstantBufferShaderSlot_PerView, pPerViewCB, EShaderStage_AllWithoutCompute);
-		dirtyFlags |= m_perPassResources.SetConstantBuffer(eConstantBufferShaderSlot_PerPass, m_pPerPassConstantBuffer.get(), EShaderStage_AllWithoutCompute);
-
-		if (bOnInit)
-			return true;
+		m_perPassResources.SetConstantBuffer(eConstantBufferShaderSlot_PerView, pPerViewCB, EShaderStage_AllWithoutCompute);
+		m_perPassResources.SetConstantBuffer(eConstantBufferShaderSlot_PerPass, m_pPerPassConstantBuffer.get(), EShaderStage_AllWithoutCompute);
 	}
 
-	CRY_ASSERT(bOnInit || uint8(dirtyFlags & CDeviceResourceSetDesc::EDirtyFlags::eDirtyBindPoint) == 0); // Cannot change resource layout after init. It is baked into the shaders
+	if (bOnInit)
+		return true;
 
-	m_pPerPassResourceSet->Update(m_perPassResources, dirtyFlags);
-	return m_pPerPassResourceSet->IsValid();
+	CRY_ASSERT(!m_perPassResources.HasChangedBindPoints()); // Cannot change resource layout after init. It is baked into the shaders
+	return m_pPerPassResourceSet->Update(m_perPassResources);
 }
 
 struct CHighlightPredicate
@@ -564,10 +563,4 @@ void CSceneCustomStage::ExecuteHelperPass()
 
 	RenderView()->GetDrawer().JobifyDrawSubmission();
 	RenderView()->GetDrawer().WaitForDrawSubmission();
-
-	// TODO: This is a workaround for missing ref-count handling for SRVs/RTVs/DSVs in the
-	// device-objects, but the ref-counting is necessary because the secondary viewports
-	// are being destroyd very frequent and the resize of the viewport produces rapid
-	// invalidation of backbuffer resources
-	m_debugViewPass.ExchangeRenderTarget(0, nullptr);
 }

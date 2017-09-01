@@ -22,6 +22,13 @@ void CStaticMeshComponent::Register(Schematyc::CEnvRegistrationScope& componentS
 		pFunction->SetFlags({ Schematyc::EEnvFunctionFlags::Member, Schematyc::EEnvFunctionFlags::Construction });
 		componentScope.Register(pFunction);
 	}
+	{
+		auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&CStaticMeshComponent::SetMeshType, "{6C4F6C80-2F84-4C9B-ADBF-5C131EFDD98A}"_cry_guid, "SetType");
+		pFunction->BindInput(1, 'type', "Type");
+		pFunction->SetDescription("Changes the type of the object");
+		pFunction->SetFlags({ Schematyc::EEnvFunctionFlags::Member });
+		componentScope.Register(pFunction);
+	}
 }
 
 void CStaticMeshComponent::Initialize()

@@ -34,9 +34,11 @@ void CPlayerComponent::Initialize()
 	// Load the character and Mannequin data from file
 	m_pAnimationComponent->LoadFromDisk();
 
-	// Acquire tag identifiers to avoid doing so each update
-	m_walkTagId = m_pAnimationComponent->GetTagId("Walk");
-	
+	// Acquire fragment and tag identifiers to avoid doing so each update
+	m_idleFragmentId = m_pAnimationComponent->GetFragmentId("Idle");
+	m_walkFragmentId = m_pAnimationComponent->GetFragmentId("Walk");
+	m_rotateTagId = m_pAnimationComponent->GetTagId("Rotate");
+
 	// Get the input component, wraps access to action mapping so we can easily get callbacks when inputs are triggered
 	m_pInputComponent = m_pEntity->GetOrCreateComponent<Cry::DefaultComponents::CInputComponent>();
 
@@ -123,6 +125,9 @@ void CPlayerComponent::ProcessEvent(SEntityEvent& event)
 		// This results in the physical representation of the character moving
 		UpdateMovementRequest(pCtx->fFrameTime);
 
+		// Process mouse input to update look orientation.
+		UpdateLookDirectionRequest(pCtx->fFrameTime);
+
 		// Update the animation state of the character
 		UpdateAnimation(pCtx->fFrameTime);
 
@@ -163,21 +168,68 @@ void CPlayerComponent::UpdateMovementRequest(float frameTime)
 	m_pCharacterController->AddVelocity(GetEntity()->GetWorldRotation() * velocity);
 }
 
+void CPlayerComponent::UpdateLookDirectionRequest(float frameTime)
+{
+	const float rotationSpeed = 0.002f;
+	const float rotationLimitsMinPitch = -0.84f;
+	const float rotationLimitsMaxPitch = 1.5f;
+
+	// Apply smoothing filter to the mouse input
+	m_mouseDeltaRotation = m_mouseDeltaSmoothingFilter.Push(m_mouseDeltaRotation).Get();
+
+	// Update angular velocity metrics
+	m_horizontalAngularVelocity = (m_mouseDeltaRotation.x * rotationSpeed) / frameTime;
+	m_averagedHorizontalAngularVelocity.Push(m_horizontalAngularVelocity);
+
+	// Start with updating look orientation from the latest input
+	Ang3 ypr = CCamera::CreateAnglesYPR(Matrix33(m_lookOrientation));
+
+	// Yaw
+	ypr.x += m_mouseDeltaRotation.x * rotationSpeed;
+
+	// Pitch
+	// TODO: Perform soft clamp here instead of hard wall, should reduce rot speed in this direction when close to limit.
+	ypr.y = CLAMP(ypr.y + m_mouseDeltaRotation.y * rotationSpeed, rotationLimitsMinPitch, rotationLimitsMaxPitch);
+
+	// Roll (skip)
+	ypr.z = 0;
+
+	m_lookOrientation = Quat(CCamera::CreateOrientationYPR(ypr));
+
+	// Reset the mouse delta accumulator every frame
+	m_mouseDeltaRotation = ZERO;
+}
+
 void CPlayerComponent::UpdateAnimation(float frameTime)
 {
-	Ang3 ypr = CCamera::CreateAnglesYPR(Matrix33(m_lookOrientation));
+	const float angularVelocityTurningThreshold = 0.174; // [rad/s]
+
+	// Update tags and motion parameters used for turning
+	const bool isTurning = std::abs(m_averagedHorizontalAngularVelocity.Get()) > angularVelocityTurningThreshold;
+	m_pAnimationComponent->SetTagWithId(m_rotateTagId, isTurning);
+	if (isTurning)
+	{
+		// TODO: This is a very rough predictive estimation of eMotionParamID_TurnAngle that could easily be replaced with accurate reactive motion 
+		// if we introduced IK look/aim setup to the character's model and decoupled entity's orientation from the look direction derived from mouse input.
+
+		const float turnDuration = 1.0f; // Expect the turning motion to take approximately one second.
+		m_pAnimationComponent->SetMotionParameter(eMotionParamID_TurnAngle, m_horizontalAngularVelocity * turnDuration);
+	}
+
+	// Update active fragment
+	const auto& desiredFragmentId = m_pCharacterController->IsWalking() ? m_walkFragmentId : m_idleFragmentId;
+	if (m_activeFragmentId != desiredFragmentId)
+	{
+		m_activeFragmentId = desiredFragmentId;
+		m_pAnimationComponent->QueueFragmentWithId(m_activeFragmentId);
+	}
 
 	// Update entity rotation as the player turns
 	// We only want to affect Z-axis rotation, zero pitch and roll
+	Ang3 ypr = CCamera::CreateAnglesYPR(Matrix33(m_lookOrientation));
 	ypr.y = 0;
-
-	// Re-calculate the quaternion based on the corrected look orientation
-	Quat correctedOrientation = Quat(CCamera::CreateOrientationYPR(ypr));
-
-	ICharacterInstance *pCharacter = m_pAnimationComponent->GetCharacter();
-
-	// Update the Mannequin tags
-	m_pAnimationComponent->SetTagWithId(m_walkTagId, m_pCharacterController->IsWalking());
+	ypr.z = 0;
+	const Quat correctedOrientation = Quat(CCamera::CreateOrientationYPR(ypr));
 
 	// Send updated transform to the entity, only orientation changes
 	GetEntity()->SetPosRotScale(GetEntity()->GetWorldPos(), correctedOrientation, Vec3(1, 1, 1));
@@ -185,25 +237,7 @@ void CPlayerComponent::UpdateAnimation(float frameTime)
 
 void CPlayerComponent::UpdateCamera(float frameTime)
 {
-	// Start with updating look orientation from the latest input
 	Ang3 ypr = CCamera::CreateAnglesYPR(Matrix33(m_lookOrientation));
-
-	const float rotationSpeed = 0.002f;
-
-	ypr.x += m_mouseDeltaRotation.x * rotationSpeed;
-
-	const float rotationLimitsMinPitch = -0.84f;
-	const float rotationLimitsMaxPitch = 1.5f;
-
-	// TODO: Perform soft clamp here instead of hard wall, should reduce rot speed in this direction when close to limit.
-	ypr.y = CLAMP(ypr.y + m_mouseDeltaRotation.y * rotationSpeed, rotationLimitsMinPitch, rotationLimitsMaxPitch);
-	// Skip roll
-	ypr.z = 0;
-
-	m_lookOrientation = Quat(CCamera::CreateOrientationYPR(ypr));
-
-	// Reset every frame
-	m_mouseDeltaRotation = ZERO;
 
 	// Ignore z-axis rotation, that's set by CPlayerAnimations
 	ypr.x = 0;
@@ -212,11 +246,10 @@ void CPlayerComponent::UpdateCamera(float frameTime)
 	Matrix34 localTransform = IDENTITY;
 	localTransform.SetRotation33(CCamera::CreateOrientationYPR(ypr));
 
-	const float viewOffsetForward = -1.5f;
-	const float viewOffsetUp = 2.f;
-
 	// Offset the player along the forward axis (normally back)
 	// Also offset upwards
+	const float viewOffsetForward = -1.5f;
+	const float viewOffsetUp = 2.f;
 	localTransform.SetTranslation(Vec3(0, viewOffsetForward, viewOffsetUp));
 
 	m_pCameraComponent->SetTransformMatrix(localTransform);
@@ -240,7 +273,13 @@ void CPlayerComponent::Revive()
 	// Reset input now that the player respawned
 	m_inputFlags = 0;
 	m_mouseDeltaRotation = ZERO;
+	m_mouseDeltaSmoothingFilter.Reset();
+
+	m_activeFragmentId = FRAGMENT_ID_INVALID;
+
 	m_lookOrientation = IDENTITY;
+	m_horizontalAngularVelocity = 0.0f;
+	m_averagedHorizontalAngularVelocity.Reset();
 }
 
 void CPlayerComponent::SpawnAtSpawnPoint()

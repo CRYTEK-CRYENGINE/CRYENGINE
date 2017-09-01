@@ -3045,7 +3045,10 @@ bool CSystem::Init()
 			CryLogAlways("Renderer initialization");
 
 			if (!InitRenderer((m_startupParams.bEditor) ? (WIN_HWND)1 : m_hWnd))
+			{
+				CryFatalError("Renderer initialization failed.");
 				return false;
+			}
 			assert(IsHeapValid());
 			if (m_env.pRenderer)
 			{
@@ -3227,6 +3230,11 @@ bool CSystem::Init()
 		//////////////////////////////////////////////////////////////////////////
 		if (m_env.pRenderer)
 		{
+			if (m_pUserCallback != nullptr)
+			{
+				m_pUserCallback->OnInitProgress("Initializing Renderer...");
+			}
+
 			m_env.pRenderer->PostInit();
 
 			if (!m_startupParams.bShaderCacheGen)

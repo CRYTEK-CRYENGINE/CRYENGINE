@@ -58,8 +58,7 @@ CRenderPrimitive::SPrimitiveGeometry::SPrimitiveGeometry()
 CRenderPrimitive::CRenderPrimitive(CRenderPrimitive&& other)
 	: SCompiledRenderPrimitive(std::move(other))
 	, m_flags(std::move(other.m_flags))
-	, m_dirtyMask(std::move(other.m_dirtyMask))
-	, m_bResourcesInvalidated(false)
+	, m_dirtyMask(other.m_dirtyMask)
 	, m_renderState(std::move(other.m_renderState))
 	, m_stencilState(std::move(other.m_stencilState))
 	, m_stencilReadMask(std::move(other.m_stencilReadMask))
@@ -70,7 +69,7 @@ CRenderPrimitive::CRenderPrimitive(CRenderPrimitive&& other)
 	, m_rtMask(std::move(other.m_rtMask))
 	, m_primitiveType(std::move(other.m_primitiveType))
 	, m_primitiveGeometry(std::move(other.m_primitiveGeometry))
-	, m_resourceDesc(other.m_resourceDesc, this, OnResourceInvalidated)
+	, m_resourceDesc(other.m_resourceDesc)
 	, m_constantManager(std::move(other.m_constantManager))
 	, m_currentPsoUpdateCount(std::move(other.m_currentPsoUpdateCount))
 	, m_renderPassHash(std::move(other.m_renderPassHash))
@@ -91,7 +90,7 @@ CRenderPrimitive::CRenderPrimitive(EPrimitiveFlags flags)
 	, m_currentPsoUpdateCount(0)
 	, m_renderPassHash(0)
 	, m_bDepthClip(true)
-	, m_resourceDesc(this, OnResourceInvalidated)
+	, m_resourceDesc()
 {
 	m_instances.resize(1);
 }
@@ -102,7 +101,6 @@ void CRenderPrimitive::Reset(EPrimitiveFlags flags)
 
 	m_flags = flags;
 	m_dirtyMask = eDirty_All;
-	m_bResourcesInvalidated = false;
 	m_renderState = 0;
 	m_stencilState = STENC_FUNC(FSS_STENCFUNC_ALWAYS) | STENCOP_FAIL(FSS_STENCOP_KEEP) | STENCOP_ZFAIL(FSS_STENCOP_KEEP) | STENCOP_PASS(FSS_STENCOP_KEEP);
 	m_stencilReadMask = 0xFF;
@@ -114,7 +112,7 @@ void CRenderPrimitive::Reset(EPrimitiveFlags flags)
 	m_rtMask = 0;
 	m_primitiveType = ePrim_Triangle;
 	m_primitiveGeometry = SPrimitiveGeometry();
-	m_resourceDesc.Clear();
+	m_resourceDesc.ClearResources();
 	m_constantManager.Reset();
 	m_currentPsoUpdateCount = 0;
 	m_renderPassHash = 0;
@@ -129,7 +127,10 @@ void CRenderPrimitive::AllocateTypedConstantBuffer(EConstantBufferShaderSlot sha
 
 bool CRenderPrimitive::IsDirty() const
 {
-	if (m_dirtyMask != eDirty_None || m_bResourcesInvalidated)
+	// Merge local and remote dirty flags to test for changes
+	EDirtyFlags dirtyMask = m_dirtyMask | (EDirtyFlags)m_resourceDesc.GetDirtyFlags();
+
+	if (dirtyMask != eDirty_None)
 		return true;
 
 	if (m_currentPsoUpdateCount != m_pPipelineState->GetUpdateCount())
@@ -143,22 +144,22 @@ CRenderPrimitive::EDirtyFlags CRenderPrimitive::Compile(const CPrimitiveRenderPa
 	CRY_ASSERT_MESSAGE(targetPass.GetRenderPass() && targetPass.GetRenderPass()->IsValid(), 
 		"Target pass needs to have a valid renderpass for compilation. Call CPrimitiveRenderPass::BeginAddingPrimitives first");
 
+	// Merge local and remote dirty flags to test for changes
+	EDirtyFlags dirtyMask = m_dirtyMask | (EDirtyFlags)m_resourceDesc.GetDirtyFlags();
+
 	// TODO: This comparison detects a change even when CRenderPrimitivePass's format doesn't change. It's excessive for dx12.
 	const uint64 targetPassHash = targetPass.GetRenderPass()->GetHash();
 	if (targetPassHash != m_renderPassHash)
 	{
-		m_dirtyMask |=  eDirty_RenderPass;
+		dirtyMask |=  eDirty_RenderPass;
 	}
 
-	if (IsDirty())
+	if ((dirtyMask != eDirty_None) || (m_currentPsoUpdateCount != m_pPipelineState->GetUpdateCount()))
 	{
+		EDirtyFlags revertMask = dirtyMask;
+
 		CD3D9Renderer* const __restrict rd = gcpRendD3D;
 		auto& instance = m_instances.front();
-		
-		EDirtyFlags dirtyMask = m_dirtyMask;
-		dirtyMask |= m_bResourcesInvalidated ? eDirty_Resources : eDirty_None;
-
-		m_bResourcesInvalidated = false;
 
 		if (dirtyMask & eDirty_Geometry)
 		{
@@ -188,16 +189,8 @@ CRenderPrimitive::EDirtyFlags CRenderPrimitive::Compile(const CPrimitiveRenderPa
 
 		if (dirtyMask & eDirty_Resources)
 		{
-			if (!m_resourceDesc.IsEmpty())
-			{
-				if (m_pResources == nullptr)
-				{
-					m_pResources = GetDeviceObjectFactory().CreateResourceSet(CDeviceResourceSet::EFlags_ForceSetAllState);
-				}
-
-				if (!m_pResources->Update(m_resourceDesc, CDeviceResourceSetDesc::EDirtyFlags(dirtyMask & (eDirty_Resources | eDirty_ResourceLayout))))
-					return (m_dirtyMask = dirtyMask);
-			}
+			if (!CDeviceResourceSet::UpdateWithReevaluation(m_pResources, m_resourceDesc))
+				return (EDirtyFlags)(m_dirtyMask |= revertMask);
 		}
 
 		if (dirtyMask & (eDirty_Technique | eDirty_ResourceLayout))
@@ -232,7 +225,7 @@ CRenderPrimitive::EDirtyFlags CRenderPrimitive::Compile(const CPrimitiveRenderPa
 			m_pResourceLayout = GetDeviceObjectFactory().CreateResourceLayout(resourceLayoutDesc);
 
 			if (!m_pResourceLayout)
-				return (m_dirtyMask = dirtyMask);
+				return (EDirtyFlags)(m_dirtyMask |= revertMask);
 		}
 
 		if (dirtyMask & (eDirty_Technique | eDirty_RenderState | eDirty_ResourceLayout | eDirty_RenderPass | eDirty_Topology))
@@ -257,7 +250,7 @@ CRenderPrimitive::EDirtyFlags CRenderPrimitive::Compile(const CPrimitiveRenderPa
 			
 			m_pPipelineState = GetDeviceObjectFactory().CreateGraphicsPSO(psoDesc);
 			if (!m_pPipelineState || !m_pPipelineState->IsValid())
-				return (m_dirtyMask = dirtyMask);
+				return (EDirtyFlags)(m_dirtyMask |= revertMask);
 
 			m_currentPsoUpdateCount = m_pPipelineState->GetUpdateCount();
 
@@ -269,10 +262,10 @@ CRenderPrimitive::EDirtyFlags CRenderPrimitive::Compile(const CPrimitiveRenderPa
 			instance.constantBuffers = m_constantManager.GetBuffers();
 		}
 
-		m_dirtyMask = eDirty_None;
+		m_dirtyMask = dirtyMask = eDirty_None;
 	}
 
-	return m_dirtyMask;
+	return dirtyMask;
 }
 
 void CRenderPrimitive::AddPrimitiveGeometryCacheUser()
@@ -409,11 +402,9 @@ CPrimitiveRenderPass::CPrimitiveRenderPass(bool createGeometryCache)
 	, m_bAddingPrimitives(false)
 	, m_passFlags(ePassFlags_None)
 	, m_clearMask(0)
-	, m_outputResources(this, OnResourceInvalidated)
-	, m_outputNULLResources(this, OnResourceInvalidated)
-	, m_renderPassDesc(this, OnResourceInvalidated)
-	, m_bOutputsDirty(true)
-	, m_bResourcesInvalidated(false)
+	, m_outputResources()
+	, m_outputNULLResources()
+	, m_renderPassDesc()
 {
 	ZeroStruct(m_viewport);
 	ZeroStruct(m_scissor);
@@ -434,9 +425,9 @@ void CPrimitiveRenderPass::Reset()
 	m_pOutputResourceSet.reset();
 	m_pOutputNULLResourceSet.reset();
 
-	m_renderPassDesc.Clear();
-	m_outputResources.Clear();
-	m_outputNULLResources.Clear();
+	m_renderPassDesc.ClearResources();
+	m_outputResources.ClearResources();
+	m_outputNULLResources.ClearResources();
 	m_compiledPrimitives.clear();
 
 	ZeroStruct(m_viewport);
@@ -444,16 +435,7 @@ void CPrimitiveRenderPass::Reset()
 
 	m_scissorEnabled = false;
 	m_bAddingPrimitives = false;
-	m_bOutputsDirty = true;
-	m_bResourcesInvalidated = false;
 	m_clearMask = 0;
-}
-
-inline bool CPrimitiveRenderPass::OnResourceInvalidated(void* pThis, uint32 flags)
-{
-	reinterpret_cast<CPrimitiveRenderPass*>(pThis)->m_bResourcesInvalidated = true;
-	// Don't keep the callback when the resource goes out of scope
-	return !(flags & eResourceDestroyed);
 }
 
 CPrimitiveRenderPass::~CPrimitiveRenderPass()
@@ -467,16 +449,14 @@ CPrimitiveRenderPass::CPrimitiveRenderPass(CPrimitiveRenderPass&& other)
 	, m_bAddingPrimitives(std::move(other.m_bAddingPrimitives))
 	, m_passFlags(ePassFlags_None)
 	, m_pRenderPass(std::move(other.m_pRenderPass))
-	, m_renderPassDesc(std::move(other.m_renderPassDesc), this, OnResourceInvalidated)
-	, m_outputResources(std::move(other.m_outputResources), this, OnResourceInvalidated)
-	, m_outputNULLResources(std::move(other.m_outputNULLResources), this, OnResourceInvalidated)
+	, m_renderPassDesc(std::move(other.m_renderPassDesc))
+	, m_outputResources(std::move(other.m_outputResources))
+	, m_outputNULLResources(std::move(other.m_outputNULLResources))
 	, m_pOutputResourceSet(std::move(other.m_pOutputResourceSet))
 	, m_pOutputNULLResourceSet(std::move(other.m_pOutputNULLResourceSet))
 	, m_viewport(std::move(other.m_viewport))
 	, m_scissor(std::move(other.m_scissor))
 	, m_compiledPrimitives(std::move(other.m_compiledPrimitives))
-	, m_bOutputsDirty(std::move(other.m_bOutputsDirty))
-	, m_bResourcesInvalidated(other.m_bResourcesInvalidated.load())
 {}
 
 void CPrimitiveRenderPass::SetViewport(const D3DViewPort& viewport)
@@ -512,13 +492,18 @@ void CPrimitiveRenderPass::SetTargetClearMask(uint32 clearMask)
 	m_clearMask = clearMask;
 }
 
+void CPrimitiveRenderPass::ClearPrimitives()
+{
+	m_compiledPrimitives.clear();
+}
+
 void CPrimitiveRenderPass::BeginAddingPrimitives(bool bClearPrimitiveList)
 {
 	Compile();
 
 	if (bClearPrimitiveList)
 	{
-		m_compiledPrimitives.clear();
+		ClearPrimitives();
 	}
 
 	m_bAddingPrimitives = true;
@@ -551,32 +536,15 @@ bool CPrimitiveRenderPass::AddPrimitive(SCompiledRenderPrimitive* pPrimitive)
 
 void CPrimitiveRenderPass::Compile()
 {
-	bool bResourcesInvalidated = m_bResourcesInvalidated;
-	bool bOutputsDirty = m_bOutputsDirty;
-
-	// request new render pass in case resource layout has changed
-	if (bOutputsDirty)
-	{
-		m_bOutputsDirty = false;
-		m_pRenderPass = GetDeviceObjectFactory().GetOrCreateRenderPass(m_renderPassDesc);
-	}
-
-	// make sure render pass is up to date
-	if (bResourcesInvalidated || !m_pRenderPass->IsValid())
-	{
-		m_bResourcesInvalidated = false;
-		m_pRenderPass->Update(m_renderPassDesc);
-	}
+	bool bOutputsDirty = CDeviceRenderPass::UpdateWithReevaluation(m_pRenderPass, m_renderPassDesc);
 
 	// update output resource set whenever something changed
-	if (bOutputsDirty || bResourcesInvalidated)
+	if (bOutputsDirty)
 	{
 		const auto& outputUAVs = m_renderPassDesc.GetOutputUAVs();
 		if (outputUAVs[0].IsValid())
 		{
-			if (!m_pOutputResourceSet)     m_pOutputResourceSet = GetDeviceObjectFactory().CreateResourceSet();
-			if (!m_pOutputNULLResourceSet) m_pOutputNULLResourceSet = GetDeviceObjectFactory().CreateResourceSet();
-
+			// TODO: respect dirty flags, currently a RT-change invalidates the UAV resource sets
 			for (int i = 0; i < outputUAVs.size(); ++i)
 			{
 				if (!outputUAVs[i].IsValid())
@@ -586,11 +554,17 @@ void CPrimitiveRenderPass::Compile()
 				m_outputNULLResources.SetBuffer(i, gcpRendD3D->m_DevBufMan.GetNullBufferTyped(), EDefaultResourceViews::UnorderedAccess, EShaderStage_Pixel);
 			}
 
-			m_pOutputResourceSet->Update(m_outputResources);
-			m_pOutputNULLResourceSet->Update(m_outputNULLResources);
+			if (m_outputResources.HasChanged())
+			{
+				CDeviceResourceSet::UpdateWithReevaluation(m_pOutputResourceSet, m_outputResources);
+				CRY_ASSERT(m_pOutputResourceSet->IsValid());
+			}
 
-			CRY_ASSERT(m_pOutputResourceSet->IsValid());
-			CRY_ASSERT(m_pOutputNULLResourceSet->IsValid());
+			if (m_outputNULLResources.HasChanged())
+			{
+				CDeviceResourceSet::UpdateWithReevaluation(m_pOutputNULLResourceSet, m_outputNULLResources);
+				CRY_ASSERT(m_pOutputNULLResourceSet->IsValid());
+			}
 		}
 	}
 }

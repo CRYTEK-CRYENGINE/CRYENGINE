@@ -1748,7 +1748,7 @@ void CSvoRenderer::GetRsmTextures(_smart_ptr<CTexture>& pRsmColorMap, _smart_ptr
 	if (!m_pRsmColorMap) m_pRsmColorMap = CTexture::GetOrCreateTextureObjectPtr("SVO_SUN_RSM_COLOR",  0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
 	if (!m_pRsmNormlMap) m_pRsmNormlMap = CTexture::GetOrCreateTextureObjectPtr("SVO_SUN_RSM_NORMAL", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
 	if (!m_pRsmPoolCol)  m_pRsmPoolCol  = CTexture::GetOrCreateTextureObjectPtr("SVO_PRJ_RSM_COLOR",  0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
-	if (!m_pRsmPoolCol)  m_pRsmPoolCol  = CTexture::GetOrCreateTextureObjectPtr("SVO_PRJ_RSM_NORMAL", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
+	if (!m_pRsmPoolNor)  m_pRsmPoolNor  = CTexture::GetOrCreateTextureObjectPtr("SVO_PRJ_RSM_NORMAL", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
 
 	pRsmColorMap = m_pRsmColorMap;
 	pRsmNormlMap = m_pRsmNormlMap;

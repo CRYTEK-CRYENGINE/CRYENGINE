@@ -1,44 +1,40 @@
 {
-	"NoUberFile":
-	{
-		"client":
-		[
-			"client/StdAfx.cpp",
-			"client/StdAfx.h"
-		]
-	},
-	"UQS_uber_client.cpp":
-	{
-		"Root":
-		[
-			"ClientIncludes.h"
-		],
-		"client":
-		[
-			"client/ItemFactory.h",
-			"client/ItemListProxy.h",
-			"client/InputParameterRegistry.h",
-			"client/InputParameterRegistry.cpp",
-			"client/FunctionBase.h",
-			"client/ContainedTypeRetriever.h",
-			"client/FunctionFactory.h",
-			"client/Func_GlobalParam.h",
-			"client/Func_IteratedItem.h",
-			"client/Func_Literal.h",
-			"client/Func_ShuttledItems.h",
-			"client/InstantEvaluatorBase.h",
-			"client/InstantEvaluatorFactory.h",
-			"client/DeferredEvaluatorBase.h",
-			"client/DeferredEvaluatorFactory.h",
-			"client/GeneratorBase.h",
-			"client/GeneratorFactory.h",
-			"client/ParamsHolder.h",
-			"client/FactoryRegistrationHelper.h",
-			"client/FactoryRegistrationHelper.cpp",
-			"client/TypeWrapper.h",
-			"client/ItemConverter.h",
-			"client/QueryHost.h",
-			"client/QueryHost.cpp"
-		]
-	}
+    "NoUberFile": {
+        "client": [
+            "client/StdAfx.cpp", 
+            "client/StdAfx.h"
+        ]
+    }, 
+    "UQS_uber_client.cpp": {
+        "Root": [
+            "ClientIncludes.h"
+        ], 
+        "client": [
+            "client/ItemFactory.h", 
+            "client/ItemListProxy.h", 
+            "client/InputParameterRegistry.h", 
+            "client/InputParameterRegistry.cpp", 
+            "client/FunctionBase.h", 
+            "client/ContainedTypeRetriever.h", 
+            "client/FunctionFactory.h", 
+            "client/Func_GlobalParam.h", 
+            "client/Func_IteratedItem.h", 
+            "client/Func_Literal.h", 
+            "client/Func_ShuttledItems.h", 
+            "client/Gen_PropagateShuttledItems.h", 
+            "client/InstantEvaluatorBase.h", 
+            "client/InstantEvaluatorFactory.h", 
+            "client/DeferredEvaluatorBase.h", 
+            "client/DeferredEvaluatorFactory.h", 
+            "client/GeneratorBase.h", 
+            "client/GeneratorFactory.h", 
+            "client/ParamsHolder.h", 
+            "client/FactoryRegistrationHelper.h", 
+            "client/FactoryRegistrationHelper.cpp", 
+            "client/TypeWrapper.h", 
+            "client/ItemConverter.h", 
+            "client/QueryHost.h", 
+            "client/QueryHost.cpp"
+        ]
+    }
 }

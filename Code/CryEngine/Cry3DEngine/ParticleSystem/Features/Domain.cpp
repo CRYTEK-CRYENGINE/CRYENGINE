@@ -59,7 +59,8 @@ void CDomain::SerializeInplace(Serialization::IArchive& ar)
 	case EDomain::Speed:
 		if (m_sourceOwner == EDomainOwner::_None)
 			m_sourceOwner = EDomainOwner::Self;
-		ar(m_sourceOwner, "Owner", "Owner");
+		if (context.GetDomain() == EMD_PerParticle)
+			ar(m_sourceOwner, "Owner", "Owner");
 		break;
 	case EDomain::Attribute:
 		ar(m_attributeName, "AttributeName", "Attribute Name");

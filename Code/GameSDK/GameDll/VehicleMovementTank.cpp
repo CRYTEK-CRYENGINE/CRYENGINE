@@ -37,13 +37,13 @@ bool CVehicleMovementTank::Init(IVehicle* pVehicle, const CVehicleParams& table)
 {
 	if (inherited::Init(pVehicle, table))
 	{
-		m_audioControlIDs[eSID_TankTurnTurret] = CryAudio::StringToId_CompileTime("Play_abrams_cannon_turn");
-		m_turretTurnRtpcId = CryAudio::StringToId_CompileTime("vehicle_rotation_speed");
+		m_audioControlIDs[eSID_TankTurnTurret] = CryAudio::StringToId("Play_abrams_cannon_turn");
+		m_turretTurnRtpcId = CryAudio::StringToId("vehicle_rotation_speed");
 
-		m_audioControlIDs[eSID_VehiclePrimaryWeapon] = CryAudio::StringToId_CompileTime("Play_w_tank_cannon_fire");
+		m_audioControlIDs[eSID_VehiclePrimaryWeapon] = CryAudio::StringToId("Play_w_tank_cannon_fire");
 		m_audioControlIDs[eSID_VehicleStopPrimaryWeapon] = CryAudio::DoNothingTriggerId;
-		m_audioControlIDs[eSID_VehicleSecondaryWeapon] = CryAudio::StringToId_CompileTime("Play_w_tank_machinegun_fire");
-		m_audioControlIDs[eSID_VehicleStopSecondaryWeapon] = CryAudio::StringToId_CompileTime("Stop_w_tank_machinegun_fire");
+		m_audioControlIDs[eSID_VehicleSecondaryWeapon] = CryAudio::StringToId("Play_w_tank_machinegun_fire");
+		m_audioControlIDs[eSID_VehicleStopSecondaryWeapon] = CryAudio::StringToId("Stop_w_tank_machinegun_fire");
 
 		return true;
 	}

@@ -87,9 +87,16 @@ CMonoClass* CMonoObject::GetClass()
 	return m_pClass.get();
 }
 
-void CMonoObject::CopyFrom(CMonoObject& source)
+void CMonoObject::CopyFrom(const CMonoObject& source)
 {
-	MonoInternals::mono_gc_wbarrier_object_copy(m_pObject, source.GetManagedObject());
+	if (m_pClass->IsValueType())
+	{
+		MonoInternals::mono_gc_wbarrier_object_copy(m_pObject, source.GetManagedObject());
+	}
+	else
+	{
+		MonoInternals::mono_gc_wbarrier_generic_store(&m_pObject, source.GetManagedObject());
+	}
 }
 
 void* CMonoObject::UnboxObject()

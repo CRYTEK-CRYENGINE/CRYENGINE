@@ -54,6 +54,7 @@
 
 #include <ProxyModels/DeepFilterProxyModel.h>
 #include <EditorFramework/BroadcastManager.h>
+#include <Controls/QuestionDialog.h>
 
 namespace Schematyc
 {
@@ -1832,21 +1833,34 @@ void CScriptBrowserWidget::OnRemoveItem()
 					}
 				}
 
-				if (ScriptBrowserUtils::RemoveScriptElement(*pScriptElement))
+				if (ScriptBrowserUtils::CanRemoveScriptElement(*pScriptElement))
 				{
-					if (szElementType && m_pModel)
+					CStackString question = "Are you sure you want to remove '";
+					question.append(pScriptElement->GetName());
+					question.append("'?");
+
+					CQuestionDialog dialog;
+					dialog.SetupQuestion("Remove", question.c_str(), QDialogButtonBox::Yes | QDialogButtonBox::No);
+
+					QDialogButtonBox::StandardButton result = dialog.Execute();
+
+					if (result == QDialogButtonBox::Yes)
 					{
-						Schematyc::IScriptElement* pRootElement = m_pModel->GetRootElement();
+						if (szElementType && m_pModel)
+						{
+							Schematyc::IScriptElement* pRootElement = m_pModel->GetRootElement();
 
-						GetIEditor()->GetIUndoManager()->Begin();
-						stack_string desc("Added ");
-						desc.append(szElementType);
-						CrySchematycEditor::CScriptUndoObject* pUndoObject = new CrySchematycEditor::CScriptUndoObject(desc.c_str(), m_editor);
-						CUndo::Record(pUndoObject);
-						GetIEditor()->GetIUndoManager()->Accept(pUndoObject->GetDescription());
+							GetIEditor()->GetIUndoManager()->Begin();
+							stack_string desc("Added ");
+							desc.append(szElementType);
+							CrySchematycEditor::CScriptUndoObject* pUndoObject = new CrySchematycEditor::CScriptUndoObject(desc.c_str(), m_editor);
+							CUndo::Record(pUndoObject);
+							GetIEditor()->GetIUndoManager()->Accept(pUndoObject->GetDescription());
+						}
+
+						OnScriptElementRemoved(*pScriptElement);
+						gEnv->pSchematyc->GetScriptRegistry().RemoveElement(pScriptElement->GetGUID());
 					}
-
-					OnScriptElementRemoved(*pScriptElement);
 
 					if (CBroadcastManager* pBroadcastManager = CBroadcastManager::Get(this))
 					{

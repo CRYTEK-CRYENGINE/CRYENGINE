@@ -23,6 +23,17 @@ public:
 
 	void SendSignal(int signalId, MonoInternals::MonoArray* pParams);
 
+	struct SProperty
+	{
+		uint16 index;
+		size_t offsetFromComponent;
+		MonoInternals::MonoTypeEnum monoType;
+		EEntityPropertyType serializationType;
+
+		// Temporary object containing the value of the property
+		std::shared_ptr<CMonoObject> pTempObject;
+	};
+
 protected:
 	const CManagedEntityComponentFactory& m_factory;
 	std::shared_ptr<CMonoObject> m_pMonoObject;

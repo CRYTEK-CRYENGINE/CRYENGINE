@@ -50,6 +50,9 @@ public:
 	virtual void SetObject(IStatObj* pObject, bool bSetDefaultMass = false);
 	virtual void ResetObject();
 
+	// Helper to allow exposing derived function to Schematyc
+	virtual void SetMeshType(EMeshType type) { SetType(type); }
+
 protected:
 	Schematyc::GeomFileName m_filePath = "%ENGINE%/EngineAssets/Objects/Default.cgf";
 	Schematyc::MaterialFileName m_materialPath;

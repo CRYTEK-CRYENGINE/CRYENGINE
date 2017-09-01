@@ -122,11 +122,6 @@ public:
 	  Vec3 const& onLowerHull,
 	  AreaEnvironments& areaEnvironments);
 
-	void NotifyAreas(
-	  CArea* const __restrict pArea,
-	  SAreasCache const* const pAreaCache,
-	  EntityId const entityId);
-
 	virtual void DrawLinkedAreas(EntityId linkedId) const override;
 	size_t       GetLinkedAreas(EntityId linkedId, int areaId, std::vector<CArea*>& areas) const;
 
@@ -248,7 +243,7 @@ private:
 
 	// We need two lists, one for the main thread access and one for the audio thread access.
 	enum Threads : uint8 { Main = 0, Audio = 1, Num };
-	TAreaPointers m_areasAtPos[Threads::Num];
+	TAreaPointers                  m_areasAtPos[Threads::Num];
 	CryCriticalSectionNonRecursive m_accessAreas;
 
 #if defined(DEBUG_AREAMANAGER)

@@ -432,6 +432,13 @@ void CSkeletonAnim::UpdateAnimationTime(CAnimation& rAnimation, uint32 nLayer, u
 				}
 
 				rAnimation.m_DynFlags[idx] |= CA_LOOPED_THIS_UPDATE;
+				
+				// Update motion parameter for next iteration
+				for (uint32 i{0}; i<MAX_LMG_DIMENSIONS; ++i)
+				{
+					pParametric->m_MotionParameter[i] = pParametric->m_MotionParameterForNextIteration[i];
+					pParametric->m_MotionParameterFlags[i] |= CA_Dim_Initialized;
+				}
 			}
 			else
 			{

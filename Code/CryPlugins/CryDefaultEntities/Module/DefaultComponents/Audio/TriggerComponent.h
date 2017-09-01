@@ -48,6 +48,8 @@ public:
 	void SetAutoPlay(bool const bEnable);
 	void Play();
 	void Stop();
+	void DetermineActivityRadius();
+	void GetActivityRadius(float& radius);
 
 	struct SFinishedSignal
 	{
@@ -60,6 +62,7 @@ protected:
 	IEntityAudioComponent* m_pIEntityAudioComponent = nullptr;
 	bool                   m_bAutoPlay = true;
 	uint32                 m_numActiveTriggerInstances = 0;
+	float                  m_activityRadius = 0.0f;
 
 	// Properties exposed to UI
 	STriggerSerializeHelper m_playTrigger;
@@ -86,7 +89,7 @@ inline void STriggerSerializeHelper::Serialize(Serialization::IArchive& archive)
 
 	if (archive.isInput())
 	{
-		m_id = CryAudio::StringToId_RunTime(m_name.c_str());
+		m_id = CryAudio::StringToId(m_name.c_str());
 	}
 }
 } // namespace DefaultComponents

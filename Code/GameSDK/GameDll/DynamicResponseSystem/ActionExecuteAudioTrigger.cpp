@@ -10,7 +10,7 @@ static const char* ActionPlaySoundId = "ExecuteAudioTriggerAction";
 
 DRS::IResponseActionInstanceUniquePtr CActionExecuteAudioTrigger::Execute(DRS::IResponseInstance* pResponseInstance)
 {
-	CryAudio::ControlId const startTriggerId = CryAudio::StringToId_RunTime(m_AudioTriggerName.c_str());
+	CryAudio::ControlId const startTriggerId = CryAudio::StringToId(m_AudioTriggerName.c_str());
 	IEntity* const pIEntity = pResponseInstance->GetCurrentActor()->GetLinkedEntity();
 
 	if (pIEntity != nullptr)
@@ -132,8 +132,8 @@ DRS::IResponseActionInstanceUniquePtr CActionSetAudioSwitch::Execute(DRS::IRespo
 
 	if (pIEntity != nullptr)
 	{
-		CryAudio::ControlId const switchID = CryAudio::StringToId_RunTime(m_switchName.c_str());
-		CryAudio::SwitchStateId const switchStateID = CryAudio::StringToId_RunTime(m_stateName.c_str());
+		CryAudio::ControlId const switchID = CryAudio::StringToId(m_switchName.c_str());
+		CryAudio::SwitchStateId const switchStateID = CryAudio::StringToId(m_stateName.c_str());
 		IEntityAudioComponent* const pEntityAudioProxy = pIEntity->GetOrCreateComponent<IEntityAudioComponent>();
 		pEntityAudioProxy->SetSwitchState(switchID, switchStateID, pResponseInstance->GetCurrentActor()->GetAuxAudioObjectID());
 	}
@@ -164,7 +164,7 @@ DRS::IResponseActionInstanceUniquePtr CActionSetAudioParameter::Execute(DRS::IRe
 
 	if (pIEntity != nullptr)
 	{
-		CryAudio::ControlId const parameterId = CryAudio::StringToId_RunTime(m_audioParameter.c_str());
+		CryAudio::ControlId const parameterId = CryAudio::StringToId(m_audioParameter.c_str());
 		IEntityAudioComponent* const pEntityAudioProxy = pIEntity->GetOrCreateComponent<IEntityAudioComponent>();
 		pEntityAudioProxy->SetParameter(parameterId, m_valueToSet, pResponseInstance->GetCurrentActor()->GetAuxAudioObjectID());
 	}

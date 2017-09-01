@@ -1469,9 +1469,11 @@ bool CShaderManBin::ParseBinFX_Global_Annotations(CParserBin& Parser, SParserFra
 			ef->m_Flags2 |= EF2_FORCE_DRAWAFTERWATER;
 			break;
 		case eT_DepthFixup:
+#if !CRY_PLATFORM_ORBIS
 			if (!ef)
 				break;
 			ef->m_Flags2 |= EF2_DEPTH_FIXUP;
+#endif
 			break;
 		case eT_SingleLightPass:
 			if (!ef)
@@ -5223,15 +5225,18 @@ bool STexSamplerRT::Update()
 		uint32 m = (uint32)(gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_RealTime / m_pAnimInfo->m_Time) % (m_pAnimInfo->m_NumAnimTexs);
 		assert(m < (uint32)m_pAnimInfo->m_TexPics.Num());
 
-		if (m_pTex)
+		if (m_pTex != m_pAnimInfo->m_TexPics[m])
 		{
-			m_pTex->Release();
+			if (m_pTex)
+			{
+				m_pTex->Release();
+			}
+
+			m_pTex = m_pAnimInfo->m_TexPics[m];
+			m_pTex->AddRef();
+
+			return true;
 		}
-
-		m_pTex = m_pAnimInfo->m_TexPics[m];
-		m_pTex->AddRef();
-
-		return true;
 	}
 
 	return false;

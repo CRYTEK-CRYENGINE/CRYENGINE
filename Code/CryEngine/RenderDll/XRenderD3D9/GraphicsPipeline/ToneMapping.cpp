@@ -200,13 +200,6 @@ void CToneMappingStage::ExecuteFixedExposure()
 #endif
 
 	pass.Execute();
-
-	// TODO: This is a workaround for missing ref-count handling for SRVs/RTVs/DSVs in the
-	// device-objects, but the ref-counting is necessary because the secondary viewports
-	// are being destroyd very frequent and the resize of the viewport produces rapid
-	// invalidation of backbuffer resources
-	pass.SetRenderTarget(0, nullptr);
-	pass.SetTextureSamplerPair(0, nullptr, EDefaultSamplerStates::LinearClamp);
 }
 
 void CToneMappingStage::DisplayDebugInfo()

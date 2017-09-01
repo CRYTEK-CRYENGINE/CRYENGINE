@@ -45,8 +45,12 @@
             "AudioSystemModel.cpp", 
             "QAudioSystemSettingsDialog.h", 
             "QAudioSystemSettingsDialog.cpp", 
-            "AudioAdvancedTreeView.cpp", 
-            "AudioAdvancedTreeView.h"
+            "AdvancedTreeView.cpp", 
+            "AdvancedTreeView.h", 
+            "FileMonitor.cpp", 
+            "FileMonitor.h", 
+            "ResourceSelectorModel.cpp", 
+            "ResourceSelectorModel.h"
         ]
     }, 
     "NoUberFile": {

@@ -480,7 +480,7 @@ bool CProjectile::Init(IGameObject* pGameObject)
 		const string& ricochetTriggerName = m_pAmmoParams->pRicochet->audioTriggerName;
 		if (!ricochetTriggerName.empty())
 		{
-			m_ricochetTriggerID = CryAudio::StringToId_RunTime(ricochetTriggerName.c_str());
+			m_ricochetTriggerID = CryAudio::StringToId(ricochetTriggerName.c_str());
 		}
 	}
 
@@ -489,7 +489,7 @@ bool CProjectile::Init(IGameObject* pGameObject)
 		const string& whizTriggerName = m_pAmmoParams->pWhiz->audioTriggerName;
 		if (!whizTriggerName.empty())
 		{
-			m_whizTriggerID = CryAudio::StringToId_RunTime(whizTriggerName.c_str());
+			m_whizTriggerID = CryAudio::StringToId(whizTriggerName.c_str());
 		}
 	}
 

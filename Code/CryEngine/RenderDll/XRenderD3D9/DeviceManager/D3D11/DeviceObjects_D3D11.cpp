@@ -1359,7 +1359,7 @@ CDeviceCommandListUPtr CDeviceObjectFactory::AcquireCommandList(EQueueType eQueu
 	// TODO: implement deferred contexts
 	__debugbreak();
 
-	return CryMakeUnique<CDeviceCommandList>();
+	return stl::make_unique<CDeviceCommandList>();
 }
 
 std::vector<CDeviceCommandListUPtr> CDeviceObjectFactory::AcquireCommandLists(uint32 listCount, EQueueType eQueueType /*= eQueue_Graphics*/)

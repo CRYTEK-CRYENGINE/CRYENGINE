@@ -619,12 +619,12 @@ void CParticleSubEmitter::UpdateAudio()
 			{
 				if (!params.sStartTrigger.empty())
 				{
-					m_startAudioTriggerId = CryAudio::StringToId_RunTime(params.sStartTrigger.c_str());
+					m_startAudioTriggerId = CryAudio::StringToId(params.sStartTrigger.c_str());
 				}
 
 				if (!params.sStopTrigger.empty())
 				{
-					m_stopAudioTriggerId = CryAudio::StringToId_RunTime(params.sStopTrigger.c_str());
+					m_stopAudioTriggerId = CryAudio::StringToId(params.sStopTrigger.c_str());
 				}
 
 				if (m_startAudioTriggerId != CryAudio::InvalidControlId || m_stopAudioTriggerId != CryAudio::InvalidControlId)
@@ -635,7 +635,7 @@ void CParticleSubEmitter::UpdateAudio()
 
 					if (!spawnParams.audioRtpc.empty())
 					{
-						m_audioParameterId = CryAudio::StringToId_RunTime(spawnParams.audioRtpc.c_str());
+						m_audioParameterId = CryAudio::StringToId(spawnParams.audioRtpc.c_str());
 						float const value = params.fSoundFXParam(m_ChaosKey, GetStrength(0.0f, params.eSoundControlTime));
 						m_pIAudioObject->SetParameter(m_audioParameterId, value);
 					}

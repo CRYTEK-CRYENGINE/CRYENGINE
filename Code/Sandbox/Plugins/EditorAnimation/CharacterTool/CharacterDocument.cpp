@@ -893,14 +893,14 @@ void CharacterDocument::LoadCharacter(const char* filename)
 
 	ExplorerEntries selectedEntries;
 	GetSelectedExplorerEntries(&selectedEntries);
-	if (activeCharacterEntry && (selectedEntries.empty() ||
-	                             (selectedEntries.size() == 1 && m_system->characterList->OwnsAssetEntry(selectedEntries[0]))))
+	if (activeCharacterEntry && (selectedEntries.empty() || (selectedEntries.size() == 1 && m_system->characterList->OwnsAssetEntry(selectedEntries[0]))))
+	{
 		SetSelectedExplorerEntries(ExplorerEntries(1, activeCharacterEntry), 0);
+	}
 	else
+	{
 		SetSelectedExplorerEntries(ExplorerEntries(), 0);
-
-	TriggerAnimationPreview(0);
-
+	}
 }
 
 void CharacterDocument::ReleaseObject()

@@ -296,7 +296,8 @@ inline bool TAnimTrack<KeyType >::SerializeKeys(XmlNodeRef& xmlNode, bool bLoadi
 		{
 			XmlNodeRef keyNode = xmlNode->getChild(i);
 			m_keys[numCur + i].m_time.Serialize(keyNode, bLoading, "timeTicks", "time");
-			if (i == 0)
+			if ((i == 0) && (numNew == 1))		//numNew == 1 condition means: place a new key under mouse only during single key selection
+												//during multiple selection - place key as it is
 			{
 				timeOffset = (time - m_keys[numCur + i].m_time);
 			}

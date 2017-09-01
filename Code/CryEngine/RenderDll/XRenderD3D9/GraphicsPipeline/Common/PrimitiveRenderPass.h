@@ -60,7 +60,7 @@ public:
 		ePrim_First = ePrim_Triangle
 	};
 
-	enum EDirtyFlags
+	enum EDirtyFlags : uint32
 	{
 		eDirty_ResourceLayout = BIT(0),
 		eDirty_Resources      = BIT(1),
@@ -108,7 +108,7 @@ public:
 	void          SetTexture(uint32 shaderSlot, CTexture* pTexture, ResourceViewHandle resourceViewID = EDefaultResourceViews::Default, EShaderStage shaderStages = EShaderStage_Pixel);
 	void          SetSampler(uint32 shaderSlot, SamplerStateHandle sampler, EShaderStage shaderStages = EShaderStage_Pixel);
 	void          SetConstantBuffer(uint32 shaderSlot, CConstantBuffer* pBuffer, EShaderStage shaderStages = EShaderStage_Pixel);
-	void          SetBuffer(uint32 shaderSlot, const CGpuBuffer* pBuffer, ResourceViewHandle resourceViewID = EDefaultResourceViews::Default, EShaderStage shaderStages = EShaderStage_Pixel);
+	void          SetBuffer(uint32 shaderSlot, CGpuBuffer* pBuffer, ResourceViewHandle resourceViewID = EDefaultResourceViews::Default, EShaderStage shaderStages = EShaderStage_Pixel);
 	void          SetInlineConstantBuffer(EConstantBufferShaderSlot shaderSlot, CConstantBuffer* pBuffer, EShaderStage shaderStages = EShaderStage_Pixel);
 	void          SetPrimitiveType(EPrimitiveType primitiveType);
 	void          SetCustomVertexStream(buffer_handle_t vertexBuffer, InputLayoutHandle vertexFormat, uint32 vertexStride);
@@ -149,12 +149,9 @@ private:
 		SPrimitiveGeometry();
 	};
 
-	static bool OnResourceInvalidated(void* pThis, uint32 flags) threadsafe;
-
 private:
 	EPrimitiveFlags           m_flags;
 	EDirtyFlags               m_dirtyMask;
-	std::atomic<bool>         m_bResourcesInvalidated;
 	uint32                    m_renderState;
 	uint32                    m_stencilState;
 	uint8                     m_stencilReadMask;
@@ -220,12 +217,15 @@ public:
 	void   SetScissor(bool bEnable, const D3DRectangle& scissor);
 	void   SetTargetClearMask(uint32 clearMask);
 
+	bool   IsOutputDirty() const { return m_renderPassDesc.HasChanged(); }
+
 	void   Reset();
 
 	void   BeginAddingPrimitives(bool bClearPrimitiveList = true);
 	bool   AddPrimitive(CRenderPrimitive* pPrimitive);
 	bool   AddPrimitive(SCompiledRenderPrimitive* pPrimitive);
 	void   UndoAddPrimitive() { CRY_ASSERT(!m_compiledPrimitives.empty()); m_compiledPrimitives.pop_back(); }
+	void   ClearPrimitives();
 
 	uint32                     GetPrimitiveCount()            const { return m_compiledPrimitives.size(); }
 	CTexture*                  GetRenderTarget(int index)     const { return m_renderPassDesc.GetRenderTargets()[index].pTexture; }
@@ -243,7 +243,7 @@ protected:
 	void   Prepare(CDeviceCommandListRef RESTRICT_REFERENCE commandList);
 	void   Compile();
 
-	static bool OnResourceInvalidated(void* pThis, uint32 flags);
+	static bool OnResourceInvalidated(void* pThis, SResourceBindPoint bindPoint, UResourceReference pResource, uint32 flags) threadsafe;
 
 protected:
 	EPrimitivePassFlags                     m_passFlags;
@@ -257,21 +257,12 @@ protected:
 	D3DRectangle                            m_scissor;
 	bool                                    m_scissorEnabled;
 	bool                                    m_bAddingPrimitives;
-	bool                                    m_bOutputsDirty;
-	std::atomic<bool>                       m_bResourcesInvalidated;
 	uint32                                  m_clearMask;
 	std::vector<SCompiledRenderPrimitive*>  m_compiledPrimitives;
 };
 
 
 ///////////////////////////////////// Inline functions for CRenderPrimitive /////////////////////////////////////
-
-inline bool CRenderPrimitive::OnResourceInvalidated(void* pThis, uint32 flags)
-{
-	reinterpret_cast<CRenderPrimitive*>(pThis)->m_bResourcesInvalidated = true;
-	// Don't keep the callback when the resource goes out of scope
-	return !(flags & eResourceDestroyed);
-}
 
 #define ASSIGN_VALUE(dst, src, dirtyFlag)                     \
   m_dirtyMask |= !((dst)==(src)) ? (dirtyFlag) : eDirty_None; \
@@ -315,26 +306,6 @@ inline void CRenderPrimitive::SetTechnique(CShader* pShader, const CCryNameTSCRC
 		m_dirtyMask |= eDirty_Technique;
 }
 
-inline void CRenderPrimitive::SetTexture(uint32 shaderSlot, CTexture* pTexture, ResourceViewHandle resourceViewID, EShaderStage shaderStages)
-{
-	m_dirtyMask |= (EDirtyFlags)m_resourceDesc.SetTexture(shaderSlot, pTexture, resourceViewID, shaderStages);
-}
-
-inline void CRenderPrimitive::SetSampler(uint32 shaderSlot, SamplerStateHandle sampler, EShaderStage shaderStages)
-{
-	m_dirtyMask |= (EDirtyFlags)m_resourceDesc.SetSampler(shaderSlot, sampler, shaderStages);
-}
-
-inline void CRenderPrimitive::SetConstantBuffer(uint32 shaderSlot, CConstantBuffer* pBuffer, EShaderStage shaderStages)
-{
-	m_dirtyMask |= (EDirtyFlags)m_resourceDesc.SetConstantBuffer(shaderSlot, pBuffer, shaderStages);
-}
-
-inline void CRenderPrimitive::SetBuffer(uint32 shaderSlot, const CGpuBuffer* pBuffer, ResourceViewHandle resourceViewID, EShaderStage shaderStages)
-{
-	m_dirtyMask |= (EDirtyFlags)m_resourceDesc.SetBuffer(shaderSlot, pBuffer, resourceViewID, shaderStages);
-}
-
 inline void CRenderPrimitive::SetInlineConstantBuffer(EConstantBufferShaderSlot shaderSlot, CConstantBuffer* pBuffer, EShaderStage shaderStages)
 {
 	if (m_constantManager.SetTypedConstantBuffer(shaderSlot, pBuffer, shaderStages))
@@ -376,18 +347,40 @@ inline void CRenderPrimitive::SetDrawTopology(ERenderPrimitiveType primType)
 
 #undef ASSIGN_VALUE
 
+// ------------------------------------------------------------------------
+
+inline void CRenderPrimitive::SetTexture(uint32 shaderSlot, CTexture* pTexture, ResourceViewHandle resourceViewID, EShaderStage shaderStages)
+{
+	m_resourceDesc.SetTexture(shaderSlot, pTexture, resourceViewID, shaderStages);
+}
+
+inline void CRenderPrimitive::SetSampler(uint32 shaderSlot, SamplerStateHandle sampler, EShaderStage shaderStages)
+{
+	m_resourceDesc.SetSampler(shaderSlot, sampler, shaderStages);
+}
+
+inline void CRenderPrimitive::SetConstantBuffer(uint32 shaderSlot, CConstantBuffer* pBuffer, EShaderStage shaderStages)
+{
+	m_resourceDesc.SetConstantBuffer(shaderSlot, pBuffer, shaderStages);
+}
+
+inline void CRenderPrimitive::SetBuffer(uint32 shaderSlot, CGpuBuffer* pBuffer, ResourceViewHandle resourceViewID, EShaderStage shaderStages)
+{
+	m_resourceDesc.SetBuffer(shaderSlot, pBuffer, resourceViewID, shaderStages);
+}
+
 ///////////////////////////////////// Inline functions for CRenderPrimitiveRenderPass /////////////////////////////////////
 inline void CPrimitiveRenderPass::SetRenderTarget(uint32 slot, CTexture* pRenderTarget, ResourceViewHandle hRenderTargetView)
 {
-	m_bOutputsDirty |= m_renderPassDesc.SetRenderTarget(slot, pRenderTarget, hRenderTargetView);
+	m_renderPassDesc.SetRenderTarget(slot, pRenderTarget, hRenderTargetView);
 }
 
 inline void CPrimitiveRenderPass::SetOutputUAV(uint32 slot, CGpuBuffer* pBuffer)
 {
-	m_bOutputsDirty |= m_renderPassDesc.SetOutputUAV(slot, pBuffer);
+	m_renderPassDesc.SetOutputUAV(slot, pBuffer);
 }
 
 inline void CPrimitiveRenderPass::SetDepthTarget(CTexture* pDepthTarget, ResourceViewHandle hDepthTargetView)
 {
-	m_bOutputsDirty |= m_renderPassDesc.SetDepthTarget(pDepthTarget, hDepthTargetView);
+	m_renderPassDesc.SetDepthTarget(pDepthTarget, hDepthTargetView);
 }

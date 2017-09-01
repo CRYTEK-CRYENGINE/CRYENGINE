@@ -905,6 +905,9 @@ struct ITerrain
 	//! Request heightmap mesh update in specified area
 	//! if pBox == 0 update entire heightmap
 	virtual void ResetTerrainVertBuffers(const AABB* pBox, int nSID = 0) = 0;
+
+	//! Inform terrain engine about terrain painting/sculpting action finish
+	virtual void OnTerrainPaintActionComplete() = 0;
 };
 
 //! Callbacks interface for higher level segments management.

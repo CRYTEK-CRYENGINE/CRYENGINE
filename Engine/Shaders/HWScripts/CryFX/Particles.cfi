@@ -869,13 +869,19 @@ pixoutParticle ParticlePS(OutputVS IN)
 		particleParams.diffuseLighting, particleParams.emissiveLighting, particleParams.backLighting);
 
 #if %_RT_ENVIRONMENT_CUBEMAP
-	const uint envMapIndex = Fwd_TiledLightsShadeInfo[particleInstance.envCubemapIndex].resIndex;
-	const float4 envMapColor = Fwd_TiledLightsShadeInfo[particleInstance.envCubemapIndex].color;
-	float3 envDiffuseColor = Fwd_DiffuseCubeArray.SampleLevel(
-		TrilinearClampSamplerState,
-		float4(vNormal.xyz, envMapIndex), 0.0).rgb;
-	envDiffuseColor *= envMapColor.rgb * particleParams.diffuseLighting;
-	cDiffuseAcc.rgb += envDiffuseColor;
+	uint envMapIndex;
+	float4 envMapColor;
+	
+	if (particleInstance.envCubemapIndex < TILED_SHADING_MAX_NUM_LIGHTS)
+	{
+		envMapIndex = Fwd_TiledLightsShadeInfo[particleInstance.envCubemapIndex].resIndex;
+		envMapColor = Fwd_TiledLightsShadeInfo[particleInstance.envCubemapIndex].color;
+		float3 envDiffuseColor = Fwd_DiffuseCubeArray.SampleLevel(
+			TrilinearClampSamplerState,
+			float4(vNormal.xyz, envMapIndex), 0.0).rgb;
+		envDiffuseColor *= envMapColor.rgb * particleParams.diffuseLighting;
+		cDiffuseAcc.rgb += envDiffuseColor;
+	}
 #endif  
 
 	half4 cFinal = float4(cDiffuseAcc.rgb, cDiffuseMap.a);
@@ -898,15 +904,16 @@ pixoutParticle ParticlePS(OutputVS IN)
 			half fGloss = MatSpecColor.w;
 
 			#if %_RT_ENVIRONMENT_CUBEMAP
-				half fNdotE = saturate( dot(vView.xyz, vNormal.xyz));                                        // 1 alu
-				half3 vReflVec = (2.0h * fNdotE * vNormal.xyz) - vView.xyz;
-				// #PFX2_TODO : copy-pasted from ShadeLib.cfi. tileShading also uses the exact same thing. Make it consistent.
-				const float numCMapMips = 6.0;
-				const float fGlossinessLod = numCMapMips - fGloss * numCMapMips;
-				cSpecularAcc.rgb = Fwd_SpecCubeArray.SampleLevel(
-					TrilinearClampSamplerState,
-					float4(vNormal.xyz, envMapIndex), fGlossinessLod).rgb;
-				cSpecularAcc.rgb *= envMapColor.rgb * envMapColor.a;
+				if (particleInstance.envCubemapIndex < TILED_SHADING_MAX_NUM_LIGHTS)
+				{
+					half fNdotE = saturate( dot(vView.xyz, vNormal.xyz));
+					half3 vReflVec = (2.0h * fNdotE * vNormal.xyz) - vView.xyz;
+					// #PFX2_TODO : copy-pasted from ShadeLib.cfi. tileShading also uses the exact same thing. Make it consistent.
+					const float numCMapMips = 6.0;
+					const float fGlossinessLod = numCMapMips - fGloss * numCMapMips;
+					cSpecularAcc.rgb = Fwd_SpecCubeArray.SampleLevel(TrilinearClampSamplerState, float4(vNormal.xyz, envMapIndex), fGlossinessLod).rgb;
+					cSpecularAcc.rgb *= envMapColor.rgb * envMapColor.a;
+				}
 			#endif	
 			
 			// sun spec

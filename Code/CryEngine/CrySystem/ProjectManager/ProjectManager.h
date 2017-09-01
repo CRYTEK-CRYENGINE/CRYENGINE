@@ -65,10 +65,10 @@ namespace Cry
 
 			std::unordered_map<string, string, stl::hash_strcmp<string>> legacyGameDllPaths;
 
-			struct SConsoleVariable
+			struct SConsoleInstruction
 			{
-				SConsoleVariable() {}
-				SConsoleVariable(const char* szKey, const char* szValue)
+				SConsoleInstruction() {}
+				SConsoleInstruction(const char* szKey, const char* szValue)
 					: key(szKey)
 					, value(szValue) {}
 
@@ -83,7 +83,9 @@ namespace Cry
 			};
 
 			// Specialized CVar values for the project
-			std::vector<SConsoleVariable> consoleVariables;
+			std::vector<SConsoleInstruction> consoleVariables;
+			// Specialized console commands for the project
+			std::vector<SConsoleInstruction> consoleCommands;
 		};
 
 		template<int version> struct SProjectFileParser {};
@@ -195,6 +197,7 @@ namespace Cry
 				ar(SContent(project), "content", "content");
 				ar(SRequire(project), "require", "require");
 				ar(project.consoleVariables, "console_variables", "console_variables");
+				ar(project.consoleCommands, "console_commands", "console_commands");
 			}
 		};
 	}
@@ -244,7 +247,7 @@ protected:
 	string LoadTemplateFile(const char* szPath, std::function<string(const char* szAlias)> aliasReplacementFunc) const;
 	void FindSourceFilesInDirectoryRecursive(const char* szDirectory, const char* szExtension, std::vector<string>& sourceFiles) const;
 
-	bool CanMigrateFromLegacyWorkflow() const { return m_project.version == 0 && strlen(gEnv->pCryPak->GetGameFolder()) > 0; }
+	bool CanMigrateFromLegacyWorkflow() const { return m_project.version == 0 && m_sys_game_folder->GetString()[0] != '\0'; }
 
 protected:
 	Cry::ProjectManagerInternals::SProject m_project;

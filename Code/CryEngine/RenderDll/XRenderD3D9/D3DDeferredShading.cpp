@@ -2703,9 +2703,9 @@ void CDeferredShading::CreateDeferredMaps()
 			SD3DPostEffectsUtils::GetOrCreateRenderTarget("$VelocityObject_R", CTexture::s_ptexVelocityObjects[1], width, height, Clr_Transparent, true, false, eTF_R16G16F, -1, nFTFlags);
 		}
 
-		SD3DPostEffectsUtils::GetOrCreateRenderTarget("$ZTargetScaled", CTexture::s_ptexZTargetScaled, width_r2, height_r2, Clr_FarPlane, 1, 0, fmtZScaled, TO_DOWNSCALED_ZTARGET_FOR_AO);
-		SD3DPostEffectsUtils::GetOrCreateRenderTarget("$ZTargetScaled2", CTexture::s_ptexZTargetScaled2, width_r4, height_r4, Clr_FarPlane, 1, 0, fmtZScaled, TO_QUARTER_ZTARGET_FOR_AO);
-		SD3DPostEffectsUtils::GetOrCreateRenderTarget("$ZTargetScaled3", CTexture::s_ptexZTargetScaled3, width_r8, height_r8, Clr_FarPlane, 1, 0, fmtZScaled);
+		SD3DPostEffectsUtils::GetOrCreateRenderTarget("$ZTargetScaled" , CTexture::s_ptexZTargetScaled[0], width_r2, height_r2, Clr_FarPlane, 1, 0, fmtZScaled, TO_DOWNSCALED_ZTARGET_FOR_AO);
+		SD3DPostEffectsUtils::GetOrCreateRenderTarget("$ZTargetScaled2", CTexture::s_ptexZTargetScaled[1], width_r4, height_r4, Clr_FarPlane, 1, 0, fmtZScaled, TO_QUARTER_ZTARGET_FOR_AO);
+		SD3DPostEffectsUtils::GetOrCreateRenderTarget("$ZTargetScaled3", CTexture::s_ptexZTargetScaled[2], width_r8, height_r8, Clr_FarPlane, 1, 0, fmtZScaled);
 
 		SD3DPostEffectsUtils::GetOrCreateDepthStencil("$DepthBufferQuarter", CTexture::s_ptexDepthBufferQuarter, width_r4, height_r4, Clr_FarPlane, false, false, eTF_D32F, -1, FT_USAGE_DEPTHSTENCIL);
 		SD3DPostEffectsUtils::GetOrCreateDepthStencil("$DepthBufferHalfQuarter", CTexture::s_ptexDepthBufferHalfQuarter, width_r8, height_r8, Clr_FarPlane, false, false, eTF_D32F, -1, FT_USAGE_DEPTHSTENCIL);

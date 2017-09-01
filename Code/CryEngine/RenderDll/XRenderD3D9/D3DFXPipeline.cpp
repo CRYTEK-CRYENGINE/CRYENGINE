@@ -3808,20 +3808,21 @@ bool CD3D9Renderer::FX_UpdateAnimatedShaderResources(CShaderResources* shaderRes
 		{
 			if (SEfResTexture* pTex = rsr->m_Textures[texType])
 			{
-				_smart_ptr<CTexture> previousTex = pTex->m_Sampler.m_pTex; // keep reference to previous texture here as it might get released inside Update call
-
+				// Update() returns true if texture has been swapped out by a different one
 				if (pTex->m_Sampler.Update())
 				{
-					if (previousTex)
-					{
-						previousTex->RemoveInvalidateCallbacks((void*)shaderResources);
-					}
+					bUpdated = true;
 				}
 			}
 		}
 	}
 
-	shaderResources->m_bResourcesDirty = bUpdated;
+	if (bUpdated)
+	{
+		// Don't register the new texture, just trigger RT_UpdateResourceSet
+		shaderResources->m_resources.MarkBindingChanged();
+	}
+
 	return bUpdated;
 }
 

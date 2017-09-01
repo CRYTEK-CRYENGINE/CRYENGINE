@@ -45,7 +45,7 @@ void CHeightMapAOStage::Execute(ShadowMapFrustum*& pHeightMapFrustum, CTexture*&
 		PROFILE_LABEL_SCOPE("HEIGHTMAP_OCC");
 
 		const int resolutionIndex = clamp_tpl(CRenderer::CV_r_HeightMapAO - 1, 0, 2);
-		CTexture* pDepthTextures[] = { CTexture::s_ptexZTargetScaled2, CTexture::s_ptexZTargetScaled, CTexture::s_ptexZTarget };
+		CTexture* pDepthTextures[] = { CTexture::s_ptexZTargetScaled[1], CTexture::s_ptexZTargetScaled[0], CTexture::s_ptexZTarget };
 		CTexture* pDestRT = CTexture::s_ptexHeightMapAO[0];
 
 		if (pHeightmapRenderView->GetRenderItems(0).size() > 0)

@@ -9,15 +9,34 @@
 #include "../Audio/ListenerComponent.h"
 #include <CryExtension/ICryPluginManager.h>
 
-#include "PluginDll.h"
+#include "../../IDefaultComponentsPlugin.h"
+#include "ICameraManager.h"
 
 namespace Cry
 {
 	namespace DefaultComponents
 	{
+		enum class ECameraType
+		{
+			Default = 0,
+			Omnidirectional
+		};
+
+		static void ReflectType(Schematyc::CTypeDesc<ECameraType>& desc)
+		{
+			desc.SetGUID("{E4DC6A37-2FAE-4DFF-AB21-3C4308A266D6}"_cry_guid);
+			desc.SetLabel("Camera Type");
+			desc.SetDefaultValue(ECameraType::Default);
+			desc.AddConstant(ECameraType::Default, "Default", "Default");
+			desc.AddConstant(ECameraType::Omnidirectional, "Omnidirectional", "Omnidirectional");
+		}
+
 		class CCameraComponent
 			: public IEntityComponent
 			, public IHmdDevice::IAsyncCameraCallback
+#ifndef RELEASE
+			, public IEntityComponentPreviewer
+#endif
 		{
 		protected:
 			friend CPlugin_CryDefaultEntities;
@@ -44,9 +63,7 @@ namespace Cry
 				{
 					const CCamera& systemCamera = gEnv->pSystem->GetViewCamera();
 
-					const float farPlane = gEnv->p3DEngine->GetMaxViewDistance();
-
-					m_camera.SetFrustum(systemCamera.GetViewSurfaceX(), systemCamera.GetViewSurfaceZ(), m_fieldOfView.ToRadians(), m_nearPlane, farPlane, systemCamera.GetPixelAspectRatio());
+					m_camera.SetFrustum(systemCamera.GetViewSurfaceX(), systemCamera.GetViewSurfaceZ(), m_fieldOfView.ToRadians(), m_nearPlane, m_farPlane, systemCamera.GetPixelAspectRatio());
 					m_camera.SetMatrix(GetWorldTransformMatrix());
 
 					gEnv->pSystem->SetViewCamera(m_camera);
@@ -67,7 +84,18 @@ namespace Cry
 
 				return bitFlags;
 			}
+
+#ifndef RELEASE
+			virtual IEntityComponentPreviewer* GetPreviewer() final { return this; }
+#endif
 			// ~IEntityComponent
+
+#ifndef RELEASE
+			// IEntityComponentPreviewer
+			virtual void SerializeProperties(Serialization::IArchive& archive) final {}
+			virtual void Render(const IEntity& entity, const IEntityComponent& component, SEntityPreviewContext &context) const final;
+			// ~IEntityComponentPreviewer
+#endif
 
 			// IAsyncCameraCallback
 			virtual bool OnAsyncCameraCallback(const HmdTrackingState& sensorState, IHmdDevice::AsyncCameraContext& context) override
@@ -109,8 +137,10 @@ namespace Cry
 				desc.SetIcon("icons:General/Camera.ico");
 				desc.SetComponentFlags({ IEntityComponent::EFlags::Transform, IEntityComponent::EFlags::Socket, IEntityComponent::EFlags::Attach, IEntityComponent::EFlags::ClientOnly });
 
+				desc.AddMember(&CCameraComponent::m_type, 'type', "Type", "Type", "Method of rendering to use for the camera", ECameraType::Default);
 				desc.AddMember(&CCameraComponent::m_bActivateOnCreate, 'actv', "Active", "Active", "Whether or not this camera should be activated on component creation", true);
 				desc.AddMember(&CCameraComponent::m_nearPlane, 'near', "NearPlane", "Near Plane", nullptr, 0.25f);
+				desc.AddMember(&CCameraComponent::m_farPlane, 'far', "FarPlane", "Far Plane", nullptr, 1024.f);
 				desc.AddMember(&CCameraComponent::m_fieldOfView, 'fov', "FieldOfView", "Field of View", nullptr, 75.0_degrees);
 			}
 
@@ -147,15 +177,22 @@ namespace Cry
 			virtual void SetNearPlane(float nearPlane) { m_nearPlane = nearPlane; }
 			float GetNearPlane() const { return m_nearPlane; }
 
+			virtual void SetFarPlane(float farPlane) { m_farPlane = farPlane; }
+			float GetFarPlane() const { return m_farPlane; }
+
 			virtual void SetFieldOfView(CryTransform::CAngle angle) { m_fieldOfView = angle; }
 			CryTransform::CAngle GetFieldOfView() const { return m_fieldOfView; }
+
+			ECameraType GetType() const { return m_type; }
 
 			virtual CCamera& GetCamera() { return m_camera; }
 			const CCamera& GetCamera() const { return m_camera; }
 
 		protected:
+			ECameraType m_type = ECameraType::Default;
 			bool m_bActivateOnCreate = true;
 			Schematyc::Range<0, 32768> m_nearPlane = 0.25f;
+			Schematyc::Range<0, 32768> m_farPlane = 1024;
 			CryTransform::CClampedAngle<20, 360> m_fieldOfView = 75.0_degrees;
 
 			ICameraManager* m_pCameraManager = nullptr;

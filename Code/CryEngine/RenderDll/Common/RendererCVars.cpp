@@ -2859,12 +2859,12 @@ void CRendererCVars::InitCVars()
 	               "+4=Tiled-Shading (default off),\n"
 	               "+8=Volumetric-Clouds (default off)\n"
 	               "Usage: r_D3D12SubmissionThread [0-15]");
-	REGISTER_CVAR3("r_D3D12HardwareComputeQueue", CV_r_D3D12HardwareComputeQueue, 0 /*1*/, VF_NULL,
+	REGISTER_CVAR3("r_D3D12HardwareComputeQueue", CV_r_D3D12HardwareComputeQueue, 1, VF_NULL,
 	               "Selects the hardware queue on which compute tasks run.\n"
 	               "0=Direct Queue,\n"
 	               "1=Compute Queue\n"
 	               "Usage: r_D3D12HardwareComputeQueue [0-1]");
-	REGISTER_CVAR3("r_D3D12HardwareCopyQueue", CV_r_D3D12HardwareCopyQueue, 0 /*2*/, VF_NULL,
+	REGISTER_CVAR3("r_D3D12HardwareCopyQueue", CV_r_D3D12HardwareCopyQueue, 2, VF_NULL,
 	               "Selects the hardware queue on which copy tasks run.\n"
 	               "0=Direct Queue,\n"
 	               "1=Compute Queue,\n"

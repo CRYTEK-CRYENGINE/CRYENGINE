@@ -3,7 +3,11 @@
 import os
 import json
 
-from win32com.shell import shell, shellcon
+has_win_modules = True
+try:
+    from win32com.shell import shell, shellcon
+except ImportError:
+    has_win_modules = False
 
 ENGINE_FILENAME = 'cryengine.json'
 ENGINE_EXTENSION = '.cryengine'
@@ -14,10 +18,12 @@ def paths_enginedb():
 
 # For backwards compatibility the old paths are still looked up to load data, but saving is only done to paths_enginedb.
 def paths_enginedb_old():
-	return (
-		os.path.join (shell.SHGetFolderPath (0, shellcon.CSIDL_COMMON_APPDATA, None, 0), 'Crytek', 'CRYENGINE', ENGINE_FILENAME),
-		os.path.join (shell.SHGetFolderPath (0, shellcon.CSIDL_LOCAL_APPDATA, None, 0), 'Crytek', 'CRYENGINE', ENGINE_FILENAME)
-	)
+    if has_win_modules:
+        return [
+            os.path.join (shell.SHGetFolderPath (0, shellcon.CSIDL_COMMON_APPDATA, None, 0), 'Crytek', 'CRYENGINE', ENGINE_FILENAME),
+            os.path.join (shell.SHGetFolderPath (0, shellcon.CSIDL_LOCAL_APPDATA, None, 0), 'Crytek', 'CRYENGINE', ENGINE_FILENAME)
+        ]
+    return []
 
 def delete():
 	for registry_path in paths_enginedb_old():

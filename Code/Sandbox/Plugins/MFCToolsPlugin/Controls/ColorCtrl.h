@@ -5,8 +5,6 @@
 	#pragma once
 #endif // _MSC_VER >= 1000
 
-#include "Controls/TemplDef.h" // message map extensions for templates
-
 ///////////////////////////////////////////////////////////////////////////////
 // class CColorCtrl
 //
@@ -148,7 +146,7 @@ protected:
 	afx_msg int    OnCreate(LPCREATESTRUCT lpCreateStruct);
 	//}}AFX_MSG
 
-	DECLARE_TEMPLATE_MESSAGE_MAP()
+	DECLARE_MESSAGE_MAP()
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -186,7 +184,7 @@ CColorCtrl<BASE_TYPE>::CColorCtrl()
 	m_rgbBlinkBk[1] = m_rgbBk;
 }
 
-BEGIN_TEMPLATE_MESSAGE_MAP_CUSTOM(class BASE_TYPE, CColorCtrl<BASE_TYPE>, BASE_TYPE)
+BEGIN_TEMPLATE_MESSAGE_MAP(CColorCtrl, BASE_TYPE, BASE_TYPE)
 //{{AFX_MSG_MAP(CColorCtrl)
 ON_WM_CTLCOLOR_REFLECT()
 ON_WM_CTLCOLOR()
@@ -194,7 +192,7 @@ ON_WM_DESTROY()
 ON_WM_TIMER()
 ON_WM_CREATE()
 //}}AFX_MSG_MAP
-END_TEMPLATE_MESSAGE_MAP_CUSTOM()
+END_MESSAGE_MAP()
 
 template<class BASE_TYPE>
 void CColorCtrl<BASE_TYPE >::SetTextColor(COLORREF rgbText)
@@ -556,16 +554,16 @@ protected:
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	//}}AFX_MSG
 
-	DECLARE_TEMPLATE_MESSAGE_MAP()
+	DECLARE_MESSAGE_MAP()
 };
 
 // cppcheck-suppress syntaxError
-BEGIN_TEMPLATE_MESSAGE_MAP_CUSTOM(class BASE_TYPE, CColorPushButton<BASE_TYPE>, BASE_TYPE)
+BEGIN_TEMPLATE_MESSAGE_MAP(CColorPushButton, BASE_TYPE, BASE_TYPE)
 //{{AFX_MSG_MAP(CColorPushButton)
 ON_WM_CREATE()
 ON_WM_LBUTTONDOWN()
 //}}AFX_MSG_MAP
-END_TEMPLATE_MESSAGE_MAP_CUSTOM()
+END_MESSAGE_MAP()
 
 template<class BASE_TYPE>
 CColorPushButton<BASE_TYPE>::CColorPushButton()

@@ -239,7 +239,7 @@ void COctreeNode::Render_Object_Nodes(bool bNodeCompletelyInFrustum, int nRender
 	if (HasAnyRenderableCandidates(passInfo))
 	{
 		// when using the occlusion culler, push the work to the jobs doing the occlusion checks, else just compute in main thread
-		if (GetCVars()->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
+		if (Get3DEngine()->IsStatObjBufferRenderTasksAllowed() && GetCVars()->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
 		{
 			// make sure the affected lights array is init before starting parallel execution
 			CheckInitAffectingLights(passInfo);
@@ -2482,7 +2482,7 @@ bool COctreeNode::HasObjects()
 //////////////////////////////////////////////////////////////////////////
 void COctreeNode::RenderContent(int nRenderMask, const Vec3& vAmbColor, const SRenderingPassInfo& passInfo)
 {
-	if (GetCVars()->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
+	if (Get3DEngine()->IsStatObjBufferRenderTasksAllowed() && GetCVars()->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
 		GetObjManager()->AddCullJobProducer();
 
 	TRenderContentJob renderContentJob(nRenderMask, vAmbColor, passInfo);
@@ -2543,7 +2543,7 @@ void COctreeNode::RenderContentJobEntry(int nRenderMask, Vec3 vAmbColor, SRender
 	if (m_arrObjects[eRNListType_Unknown].m_pFirstNode)
 		this->RenderCommonObjects(&m_arrObjects[eRNListType_Unknown], nRenderMask, vAmbColor, m_bNodeCompletelyInFrustum != 0, pAffectingLights, bSunOnly, pTerrainTexInfo, passInfo);
 
-	if (GetCVars()->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
+	if (Get3DEngine()->IsStatObjBufferRenderTasksAllowed() && GetCVars()->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
 	{
 		GetObjManager()->RemoveCullJobProducer();
 	}
@@ -2654,7 +2654,7 @@ void COctreeNode::RenderBrushes(TDoublyLinkedList<IRenderNode>* lstObjects, bool
 			assert(fEntDistance >= 0 && _finite(fEntDistance));
 			if (fEntDistance < pObj->m_fWSMaxViewDist)
 			{
-				if (pCVars->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
+				if (Get3DEngine()->IsStatObjBufferRenderTasksAllowed() && pCVars->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
 				{
 					// if object is visible, start CBrush::Render Job
 					if (!bCheckPerObjectOcclusion || GetObjManager()->CheckOcclusion_TestAABB(objBox, fEntDistance))
@@ -2711,7 +2711,7 @@ void COctreeNode::RenderDecalsAndRoads(TDoublyLinkedList<IRenderNode>* lstObject
 					continue;
 #endif  // _RELEASE
 
-				if (pCVars->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
+				if (Get3DEngine()->IsStatObjBufferRenderTasksAllowed() && pCVars->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
 				{
 					// if object is visible, write to output queue for main thread processing
 					if (GetObjManager()->CheckOcclusion_TestAABB(objBox, fEntDistance))
@@ -2804,7 +2804,7 @@ void COctreeNode::RenderCommonObjects(TDoublyLinkedList<IRenderNode>* lstObjects
 						continue;
 				}
 
-				if (pCVars->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
+				if (Get3DEngine()->IsStatObjBufferRenderTasksAllowed() && pCVars->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
 				{
 					// if object is visible, write to output queue for main thread processing
 					if (rnType == eERType_DistanceCloud || GetObjManager()->CheckOcclusion_TestAABB(objBox, fEntDistance))

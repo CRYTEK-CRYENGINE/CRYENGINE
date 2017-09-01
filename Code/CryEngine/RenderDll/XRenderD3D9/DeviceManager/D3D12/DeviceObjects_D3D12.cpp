@@ -1880,7 +1880,7 @@ CDeviceCommandListUPtr CDeviceObjectFactory::AcquireCommandList(EQueueType eQueu
 	pQueue.AcquireCommandList(pCL);
 
 	m_pDX12Scheduler->ResumeAllCommandQueues();
-	auto pResult = CryMakeUnique<CDeviceCommandList>();
+	auto pResult = stl::make_unique<CDeviceCommandList>();
 	pResult->m_sharedState.pCommandList = pCL;
 	return pResult;
 }
@@ -1903,7 +1903,7 @@ std::vector<CDeviceCommandListUPtr> CDeviceObjectFactory::AcquireCommandLists(ui
 
 		for (uint32 b = 0; b < chunkCount; ++b)
 		{
-			pCommandLists.emplace_back(CryMakeUnique<CDeviceCommandList>());
+			pCommandLists.emplace_back(stl::make_unique<CDeviceCommandList>());
 			pCommandLists.back()->m_sharedState.pCommandList = pCLs[b];
 		}
 	}

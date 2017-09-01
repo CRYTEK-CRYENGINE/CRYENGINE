@@ -5,8 +5,14 @@ import os.path
 import uuid
 import glob
 
-from win32com.client import Dispatch
 from string import Template
+
+has_win_modules = True
+try:
+    from win32com.client import Dispatch
+except ImportError:
+    has_win_modules = False
+
 
 def generate_solution (project_file, code_directory, engine_root_directory):
     project_name = os.path.splitext(os.path.basename(project_file))[0]
@@ -58,7 +64,6 @@ EndGlobal""")
 
     if len(projects) > 0:
         solution_file_contents = solution_file_template.substitute({ 'projects': projects, 'project_configurations': project_configurations})
-
         solution_file_path = os.path.join(code_directory, project_name + ".sln")
         solution_file = open(solution_file_path, 'w')
         solution_file.write(solution_file_contents)
@@ -195,7 +200,26 @@ PRIVATE
 
     if is_default_project:
         cmakelists_template.template += '''\n# Set StartUp project in Visual Studio
-set_solution_startup_target($${THIS_PROJECT})
+
+add_library(GameLauncher STATIC "$${CRYENGINE_DIR}/Code/CryEngine/CryCommon/CryCore/Platform/platform.h")
+set_target_properties(GameLauncher PROPERTIES LINKER_LANGUAGE CXX)
+if (WIN32)
+    set_visual_studio_debugger_command(GameLauncher "$${CRYENGINE_DIR}/bin/win_x64/GameLauncher.exe" "-project \\"$projectfile\\"")
+endif()
+
+add_library(Sandbox STATIC "$${CRYENGINE_DIR}/Code/CryEngine/CryCommon/CryCore/Platform/platform.h")
+set_target_properties(Sandbox PROPERTIES LINKER_LANGUAGE CXX)
+if (WIN32)
+    set_visual_studio_debugger_command(Sandbox "$${CRYENGINE_DIR}/bin/win_x64/Sandbox.exe" "-project \\"$projectfile\\"")
+endif()
+
+add_library(GameServer STATIC "$${CRYENGINE_DIR}/Code/CryEngine/CryCommon/CryCore/Platform/platform.h")
+set_target_properties(GameServer PROPERTIES LINKER_LANGUAGE CXX)
+if (WIN32)
+    set_visual_studio_debugger_command(GameServer "$${CRYENGINE_DIR}/bin/win_x64/Game_Server.exe" "-project \\"$projectfile\\"")
+endif()
+
+set_solution_startup_target(GameLauncher)
 
 if (WIN32)
     set_visual_studio_debugger_command( $${THIS_PROJECT} "$${CRYENGINE_DIR}/bin/win_x64/GameLauncher.exe" "-project \\"$projectfile\\"" )
@@ -333,6 +357,9 @@ def add_cpp_sources(directoryname, project_name, code_directory, skip_directorie
     return ""
 
 def create_shortcut(file_path, project_file):
+    if not has_win_modules:
+        return
+
     if not os.path.exists(file_path):
         return
 

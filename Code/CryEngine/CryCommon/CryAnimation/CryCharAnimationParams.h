@@ -455,11 +455,12 @@ struct CRY_ALIGN(8) CryCharAnimationParams
 
 struct SParametricSampler
 {
-	uint8         m_nParametricType;                          //!< Type of Group: i.e. I2M, M2I, MOVE, Idle-Step, Idle-Rot, etc.
-	uint8         m_numDimensions;                            //!< How many dimensions are used in this Parametric Group.
-	f32           m_MotionParameter[MAX_LMG_DIMENSIONS];      //!< We have only 4 dimensions per blend-space.
-	uint8         m_MotionParameterID[MAX_LMG_DIMENSIONS];    //!< We have only 4 dimensions per blend-space.
-	uint8         m_MotionParameterFlags[MAX_LMG_DIMENSIONS]; //!< We have only 4 dimensions per blend-space.
+	uint8         m_nParametricType;                                      //!< Type of Group: i.e. I2M, M2I, MOVE, Idle-Step, Idle-Rot, etc.
+	uint8         m_numDimensions;                                        //!< How many dimensions are used in this Parametric Group.
+	f32           m_MotionParameter[MAX_LMG_DIMENSIONS];                  //!< The motion parameter value.
+	f32           m_MotionParameterForNextIteration[MAX_LMG_DIMENSIONS];  //!< This motion parameter is applied on the next iteration in case of looping animations. Has no effect otherwise.
+	uint8         m_MotionParameterID[MAX_LMG_DIMENSIONS];                //!< The motion parameter id/name.
+	uint8         m_MotionParameterFlags[MAX_LMG_DIMENSIONS];             //!< Flags relevant to this motion parameter. /see CA_Dimension_Flags
 	virtual uint8 GetCurrentSegmentIndexBSpace() const = 0;
 	virtual ~SParametricSampler() {};
 };

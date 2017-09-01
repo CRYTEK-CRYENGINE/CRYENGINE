@@ -48,12 +48,12 @@ const std::array<const char*, numOcclusionTypes>& AudioEntitiesUtils::GetObstruc
 void AudioEntitiesUtils::Init()
 {
 	// Update the switch ID
-	m_obstructionOcclusionSwitch = CryAudio::StringToId_CompileTime("ObstrOcclCalcType");
+	m_obstructionOcclusionSwitch = CryAudio::StringToId("ObstrOcclCalcType");
 
 	// Update the state IDs
 	for (int i = 0; i < numOcclusionTypes; ++i)
 	{
-		m_obstructionStateIds[i] = CryAudio::StringToId_RunTime(m_obstructionNames[i]);
+		m_obstructionStateIds[i] = CryAudio::StringToId(m_obstructionNames[i]);
 	}
 }
 

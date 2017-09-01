@@ -457,7 +457,11 @@ void CFunctionSerializationHelper::CFunctionList::Build(const SItemTypeName& typ
 			functions.emplace_back(func);
 			SFunction& shuttledItemsFunc = functions.back();
 
-			shuttledItemsFunc.prettyName.Format("SHUTTLE: %s", shuttledItemsFunc.returnType.c_str());
+			const UQS::Shared::CTypeInfo* pContainedType = shuttledItemsFunc.pFactory->GetContainedType();
+			assert(pContainedType);
+			const UQS::Client::IItemFactory* pItemFactory = UQS::Core::IHubPlugin::GetHub().GetUtils().FindItemFactoryByType(*pContainedType);
+			assert(pItemFactory);
+			shuttledItemsFunc.prettyName.Format("SHUTTLE: %s", pItemFactory->GetName());
 
 			if (bApplyTypeFilter)
 			{

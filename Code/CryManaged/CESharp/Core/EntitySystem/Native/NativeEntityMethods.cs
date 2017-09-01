@@ -28,7 +28,7 @@ namespace CryEngine.NativeInternals
         extern public static object AddComponent(IntPtr entityPtr, ulong guidHipart, ulong guidLopart);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        extern public static void RegisterComponentProperty(Type componentType, PropertyInfo propertyInfo, string name, string label, string description, EntityPropertyType propertyType);
+        extern public static void RegisterComponentProperty(Type componentType, PropertyInfo propertyInfo, string name, string label, string description, EntityPropertyType propertyType, object defaultValue);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern public static void RegisterComponentFunction(Type componentType, MethodInfo methodInfo);

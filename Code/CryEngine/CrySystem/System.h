@@ -441,14 +441,14 @@ public:
 
 	virtual int DumpMMStats(bool log) override;
 
-	//! Return pointer to user defined callback.
-	ISystemUserCallback*                 GetUserCallback() const                      { return m_pUserCallback; };
 #if defined(CVARS_WHITELIST)
 	virtual ICVarsWhitelist*             GetCVarsWhiteList() const                    { return m_pCVarsWhitelist; };
 	virtual ILoadConfigurationEntrySink* GetCVarsWhiteListConfigSink() const override { return m_pCVarsWhitelistConfigSink; }
 #else
 	virtual ILoadConfigurationEntrySink* GetCVarsWhiteListConfigSink() const override { return NULL; }
 #endif // defined(CVARS_WHITELIST)
+
+	virtual ISystemUserCallback* GetUserCallback() const override { return m_pUserCallback; }
 
 	//////////////////////////////////////////////////////////////////////////
 	virtual void              SaveConfiguration() override;

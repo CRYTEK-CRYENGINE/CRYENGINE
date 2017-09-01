@@ -93,6 +93,7 @@ namespace Cry
 					gEnv->pAISystem->GetMNMPathfinder()->CancelPathRequest(m_pathFinderRequestId);
 
 					m_pathFinderRequestId = 0;
+					m_state = Movement::Canceled;
 				}
 			}
 

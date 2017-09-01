@@ -4393,13 +4393,13 @@ bool CHWShader_D3D::mfSetTextures(const std::vector<SCGTexture>& Textures, EHWSh
 			break;
 		case ECGT_ZTargetScaled_d2:
 			{
-				CTexture* tex = CTexture::s_ptexZTargetScaled;
+				CTexture* tex = CTexture::s_ptexZTargetScaled[0];
 				tex->ApplyTexture(nTUnit, eSHClass, hView);
 			}
 			break;
 		case ECGT_ZTargetScaled_d4:
 			{
-				CTexture* tex = CTexture::s_ptexZTargetScaled2;
+				CTexture* tex = CTexture::s_ptexZTargetScaled[1];
 				tex->ApplyTexture(nTUnit, eSHClass, hView);
 			}
 			break;
@@ -4903,17 +4903,17 @@ bool CHWShader_D3D::mfSetSamplers_Old(const std::vector<STexSamplerRT>& Samplers
 
 				case TO_DOWNSCALED_ZTARGET_FOR_AO:
 					{
-						assert(CTexture::s_ptexZTargetScaled);
-						if (CTexture::s_ptexZTargetScaled)
-							CTexture::s_ptexZTargetScaled->Apply(nTUnit, nTState, nTexMaterialSlot, nSUnit);
+						assert(CTexture::s_ptexZTargetScaled[0]);
+						if (CTexture::s_ptexZTargetScaled[0])
+							CTexture::s_ptexZTargetScaled[0]->Apply(nTUnit, nTState, nTexMaterialSlot, nSUnit);
 					}
 					break;
 
 				case TO_QUARTER_ZTARGET_FOR_AO:
 					{
-						assert(CTexture::s_ptexZTargetScaled2);
-						if (CTexture::s_ptexZTargetScaled2)
-							CTexture::s_ptexZTargetScaled2->Apply(nTUnit, nTState, nTexMaterialSlot, nSUnit);
+						assert(CTexture::s_ptexZTargetScaled[1]);
+						if (CTexture::s_ptexZTargetScaled[1])
+							CTexture::s_ptexZTargetScaled[1]->Apply(nTUnit, nTState, nTexMaterialSlot, nSUnit);
 					}
 					break;
 

@@ -773,6 +773,9 @@ struct IEntityAreaComponent : public IEntityComponent
 	//! \return One of EEntityAreaType enumerated types.
 	virtual EEntityAreaType GetAreaType() const = 0;
 
+	//! Get the actual area referenced by this component.
+	virtual struct IArea* GetArea() const = 0;
+
 	//! Sets area to be a shape, and assign points to this shape.
 	//! Points are specified in local entity space, shape will always be constructed in XY plane,
 	//! lowest Z of specified points will be used as a base Z plane.

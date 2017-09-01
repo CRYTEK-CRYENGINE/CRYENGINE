@@ -478,6 +478,8 @@ public:
 	virtual void        CloneRegion(const AABB& region, const Vec3& offset, float zRotation, const uint16* pIncludeLayers, int numIncludeLayers);
 	virtual void        ClearCloneSources();
 	virtual void        ChangeOceanMaterial(IMaterial* pMat);
+	virtual void        OnTerrainPaintActionComplete() { m_bTerrainPaintingInProgress = false; };
+	bool                IsTerrainPaintingInProgress() { return m_bTerrainPaintingInProgress; };
 	//////////////////////////////////////////////////////////////////////////
 
 	void          RemoveAllStaticObjects(int nSID);
@@ -548,6 +550,8 @@ protected:
 	PodArray<string>                 m_arrSegmentPaths;
 	PodArray<STerrainDataLoadStatus> m_arrLoadStatuses;
 	PodArray<int>                    m_arrDeletedSegments;
+
+	bool m_bTerrainPaintingInProgress = false;
 
 	void       BuildSectorsTree(bool bBuildErrorsTable, int nSID);
 	int        GetTerrainNodesAmount(int nSID);

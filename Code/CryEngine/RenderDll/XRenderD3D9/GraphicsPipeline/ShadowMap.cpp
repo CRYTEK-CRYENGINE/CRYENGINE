@@ -43,7 +43,7 @@ ETEX_Format CShadowMapStage::GetShadowTexFormat(EPass passID) const
 
 
 CShadowMapStage::CShadowMapStage() 
-	: m_perPassResources(nullptr, nullptr)
+	: m_perPassResources()
 {}
 
 void CShadowMapStage::Init()
@@ -51,11 +51,13 @@ void CShadowMapStage::Init()
 	// init per pass resource set template
 	{
 		const EShaderStage shaderStages = EShaderStage_Vertex | EShaderStage_Hull | EShaderStage_Domain | EShaderStage_Pixel;
+
 		m_perPassResources.SetTexture(EPerPassTexture_PerlinNoiseMap, CTexture::s_pTexNULL, EDefaultResourceViews::Default, EShaderStage_Vertex);
 		m_perPassResources.SetTexture(EPerPassTexture_WindGrid, CTexture::s_pTexNULL, EDefaultResourceViews::Default, EShaderStage_Vertex);
 		m_perPassResources.SetTexture(EPerPassTexture_TerrainElevMap, CTexture::s_pTexNULL, EDefaultResourceViews::Default, EShaderStage_Vertex);
 		m_perPassResources.SetTexture(EPerPassTexture_TerrainBaseMap, CTexture::s_pTexNULL, EDefaultResourceViews::sRGB, EShaderStage_Pixel);
 		m_perPassResources.SetTexture(EPerPassTexture_DissolveNoise, CTexture::s_pTexNULL, EDefaultResourceViews::Default, EShaderStage_Pixel);
+
 		m_perPassResources.SetConstantBuffer(eConstantBufferShaderSlot_PerPass, CDeviceBufferManager::GetNullConstantBuffer(), shaderStages);
 		m_perPassResources.SetConstantBuffer(eConstantBufferShaderSlot_PerView, CDeviceBufferManager::GetNullConstantBuffer(), shaderStages);
 
@@ -70,6 +72,9 @@ void CShadowMapStage::Init()
 
 	// Create resource layout
 	m_pResourceLayout = gcpRendD3D->GetGraphicsPipeline().CreateScenePassLayout(m_perPassResources);
+
+	// Freeze resource-set layout (assert will fire when violating the constraint)
+	m_perPassResources.AcceptChangedBindPoints();
 
 	ReAllocateResources();
 
@@ -668,7 +673,7 @@ void CShadowMapStage::CShadowMapPassGroup::Init(CShadowMapStage* pStage, int nSi
 CShadowMapStage::CShadowMapPass::CShadowMapPass(CShadowMapStage* pStage, CTexture* pDepthTarget, CTexture* pColorTarget0, CTexture* pColorTarget1)
 	: m_ViewProjMatrix(IDENTITY)
 	, m_ViewProjMatrixOrig(IDENTITY)
-	, m_perPassResources(pStage->m_perPassResources, nullptr, nullptr) // clone per pass resources from stage
+	, m_perPassResources(pStage->m_perPassResources) // clone per pass resources from stage
 {
 	m_pFrustumToRender = nullptr;
 	m_nShadowFrustumSide = 0;
@@ -687,7 +692,7 @@ CShadowMapStage::CShadowMapPass::CShadowMapPass(CShadowMapPass&& other)
 	, m_bRequiresRender(std::move(other.m_bRequiresRender))
 	, m_pPerPassConstantBuffer(std::move(other.m_pPerPassConstantBuffer))
 	, m_pPerViewConstantBuffer(std::move(other.m_pPerViewConstantBuffer))
-	, m_perPassResources(other.m_perPassResources, nullptr, nullptr)
+	, m_perPassResources(other.m_perPassResources)
 	, m_ViewProjMatrix(std::move(other.m_ViewProjMatrix))
 	, m_ViewProjMatrixOrig(std::move(other.m_ViewProjMatrixOrig))
 	, m_FrustumInfo(std::move(other.m_FrustumInfo))
@@ -698,7 +703,7 @@ CShadowMapStage::CShadowMapPass::CShadowMapPass(CShadowMapPass&& other)
 	strncpy(m_ProfileLabel, other.m_ProfileLabel, sizeof(m_ProfileLabel));
 }
 
-void CShadowMapStage::CShadowMapPass::PrepareResources(CRenderView* pMainView)
+bool CShadowMapStage::CShadowMapPass::PrepareResources(CRenderView* pMainView)
 {
 	CD3D9Renderer* pRenderer = gcpRendD3D;
 
@@ -709,8 +714,6 @@ void CShadowMapStage::CShadowMapPass::PrepareResources(CRenderView* pMainView)
 
 	ShadowMapFrustum& frustum = *m_pFrustumToRender->pFrustum;
 
-	CDeviceResourceSetDesc::EDirtyFlags dirtyFlags = CDeviceResourceSetDesc::EDirtyFlags::eNone;
-
 	// update per pass textures
 	{
 		int nTerrainTex0 = 0, nTerrainTex1 = 0, nTerrainTex2 = 0;
@@ -718,11 +721,11 @@ void CShadowMapStage::CShadowMapPass::PrepareResources(CRenderView* pMainView)
 		if (pTerrain)
 			pTerrain->GetAtlasTexId(nTerrainTex0, nTerrainTex1, nTerrainTex2);
 
-		dirtyFlags |= m_perPassResources.SetTexture(EPerPassTexture_PerlinNoiseMap, CTexture::s_ptexPerlinNoiseMap, EDefaultResourceViews::Default, EShaderStage_Vertex);
-		dirtyFlags |= m_perPassResources.SetTexture(EPerPassTexture_WindGrid, CTexture::s_ptexWindGrid, EDefaultResourceViews::Default, EShaderStage_Vertex);
-		dirtyFlags |= m_perPassResources.SetTexture(EPerPassTexture_TerrainBaseMap, CTexture::GetByID(nTerrainTex0), EDefaultResourceViews::sRGB, EShaderStage_Pixel);
-		dirtyFlags |= m_perPassResources.SetTexture(EPerPassTexture_TerrainElevMap, CTexture::GetByID(nTerrainTex2), EDefaultResourceViews::Default, EShaderStage_Vertex);
-		dirtyFlags |= m_perPassResources.SetTexture(EPerPassTexture_DissolveNoise, CTexture::s_ptexDissolveNoiseMap, EDefaultResourceViews::Default, EShaderStage_Pixel);
+		m_perPassResources.SetTexture(EPerPassTexture_PerlinNoiseMap, CTexture::s_ptexPerlinNoiseMap, EDefaultResourceViews::Default, EShaderStage_Vertex);
+		m_perPassResources.SetTexture(EPerPassTexture_WindGrid, CTexture::s_ptexWindGrid, EDefaultResourceViews::Default, EShaderStage_Vertex);
+		m_perPassResources.SetTexture(EPerPassTexture_TerrainBaseMap, CTexture::GetByID(nTerrainTex0), EDefaultResourceViews::sRGB, EShaderStage_Pixel);
+		m_perPassResources.SetTexture(EPerPassTexture_TerrainElevMap, CTexture::GetByID(nTerrainTex2), EDefaultResourceViews::Default, EShaderStage_Vertex);
+		m_perPassResources.SetTexture(EPerPassTexture_DissolveNoise, CTexture::s_ptexDissolveNoiseMap, EDefaultResourceViews::Default, EShaderStage_Pixel);
 	}
 
 	// per pass CB
@@ -764,7 +767,7 @@ void CShadowMapStage::CShadowMapPass::PrepareResources(CRenderView* pMainView)
 
 		cb.CopyToDevice();
 
-		dirtyFlags |= m_perPassResources.SetConstantBuffer(eConstantBufferShaderSlot_PerPass, m_pPerPassConstantBuffer.get(), EShaderStage_Vertex | EShaderStage_Hull | EShaderStage_Domain | EShaderStage_Pixel);
+		m_perPassResources.SetConstantBuffer(eConstantBufferShaderSlot_PerPass, m_pPerPassConstantBuffer.get(), EShaderStage_Vertex | EShaderStage_Hull | EShaderStage_Domain | EShaderStage_Pixel);
 	}
 
 	// per view CB
@@ -785,12 +788,13 @@ void CShadowMapStage::CShadowMapPass::PrepareResources(CRenderView* pMainView)
 
 		gcpRendD3D->GetGraphicsPipeline().UpdatePerViewConstantBuffer(&viewInfo, 1, m_pPerViewConstantBuffer);
 
-		dirtyFlags |= m_perPassResources.SetConstantBuffer(eConstantBufferShaderSlot_PerView, m_pPerViewConstantBuffer.get(), EShaderStage_Vertex | EShaderStage_Hull | EShaderStage_Domain | EShaderStage_Pixel);
+		m_perPassResources.SetConstantBuffer(eConstantBufferShaderSlot_PerView, m_pPerViewConstantBuffer.get(), EShaderStage_Vertex | EShaderStage_Hull | EShaderStage_Domain | EShaderStage_Pixel);
 	}
 
-	CRY_ASSERT(uint8(dirtyFlags & CDeviceResourceSetDesc::EDirtyFlags::eDirtyBindPoint) == 0); // Cannot change resource layout after init. It is baked into the shaders
-	m_pPerPassResourceSet->Update(m_perPassResources, dirtyFlags);
+	CRY_ASSERT(!m_perPassResources.HasChangedBindPoints()); // Cannot change resource layout after init. It is baked into the shaders
+	m_pPerPassResourceSet->Update(m_perPassResources);
 	CRY_ASSERT(m_pPerPassResourceSet->IsValid());
+	return m_pPerPassResourceSet->IsValid();
 }
 
 void CShadowMapStage::CShadowMapPass::PreRender()

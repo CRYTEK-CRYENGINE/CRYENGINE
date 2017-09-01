@@ -1381,6 +1381,7 @@ cloth_aux:
 			if (idxAttachment >= 0)
 			{
 				IStatObj* pStatObj = m_pInstance->m_AttachmentManager.GetInterfaceByIndex(idxAttachment)->GetIAttachmentObject()->GetIStatObj();
+				gEnv->p3DEngine->LoadStatObj(pStatObj->GetFilePath(), pStatObj->GetGeoName(), 0, false); // force synchronous rendermesh loading
 				IRenderMesh* pRM = pStatObj->GetRenderMesh();
 				strided_pointer<ColorB> pColors(0);
 				pRM->LockForThreadAccess();

@@ -82,7 +82,7 @@ FileEntryId CFileCacheManager::TryAddFileCacheEntry(XmlNodeRef const pFileNode, 
 				pFileEntry->m_flags |= EFileFlags::Localized;
 			}
 
-			fileEntryId = static_cast<FileEntryId>(StringToId_RunTime(pFileEntry->m_path.c_str()));
+			fileEntryId = static_cast<FileEntryId>(StringToId(pFileEntry->m_path.c_str()));
 			CATLAudioFileEntry* const __restrict pExisitingFileEntry = stl::find_in_map(m_audioFileEntries, fileEntryId, nullptr);
 
 			if (pExisitingFileEntry == nullptr)

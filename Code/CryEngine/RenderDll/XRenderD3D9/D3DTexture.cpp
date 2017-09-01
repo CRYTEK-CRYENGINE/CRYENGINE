@@ -345,7 +345,7 @@ bool CTexture::RT_CreateDeviceTexture(const void* pData[])
 	}
 
 	// Notify that resource is dirty
-	InvalidateDeviceResource(eDeviceResourceDirty | eDeviceResourceViewDirty);
+	InvalidateDeviceResource(this, eDeviceResourceDirty | eDeviceResourceViewDirty);
 
 	if (!pData || !pData[0])
 		return true;
@@ -396,7 +396,7 @@ bool CTexture::RT_CreateDeviceTexture(D3DResource* pNatTex)
 	}
 
 	// Notify that resource is dirty
-	InvalidateDeviceResource(eDeviceResourceDirty | eDeviceResourceViewDirty);
+	InvalidateDeviceResource(this, eDeviceResourceDirty | eDeviceResourceViewDirty);
 
 	if (!pNatTex)
 		return true;
@@ -1042,7 +1042,7 @@ void CTexture::ValidateSRVs()
 	// TODO: recreate all views that existed ...
 
 	// Notify that resource is dirty
-	InvalidateDeviceResource(eDeviceResourceDirty | eDeviceResourceViewDirty);
+	InvalidateDeviceResource(this, eDeviceResourceDirty | eDeviceResourceViewDirty);
 }
 #endif
 
@@ -1484,15 +1484,6 @@ bool CTexture::RenderEnvironmentCMHDR(int size, Vec3& Pos, TArray<unsigned short
 		gcpRendD3D->EF_ClearTargetsLater(FRT_CLEAR, Clr_Transparent);
 
 		DrawSceneToCubeSide(Pos, size, nSide);
-
-		// Transfer to sysmem
-		D3D11_BOX srcBox;
-		srcBox.left = 0;
-		srcBox.right = size;
-		srcBox.top = 0;
-		srcBox.bottom = size;
-		srcBox.front = 0;
-		srcBox.back = 1;
 
 		CDeviceTexture* pDevTextureSrc = CTexture::s_ptexHDRTarget->GetDevTexture();
 		CDeviceTexture* pDevTextureDst = ptexGenEnvironmentCM->GetDevTexture();
@@ -2284,9 +2275,9 @@ void CTexture::ReleaseSystemTargets()
 	SAFE_RELEASE_FORCE(s_ptexSceneSpecularAccMap);
 	SAFE_RELEASE_FORCE(s_ptexBackBuffer);
 	SAFE_RELEASE_FORCE(s_ptexSceneTarget);
-	SAFE_RELEASE_FORCE(s_ptexZTargetScaled);
-	SAFE_RELEASE_FORCE(s_ptexZTargetScaled2);
-	SAFE_RELEASE_FORCE(s_ptexZTargetScaled3);
+	SAFE_RELEASE_FORCE(s_ptexZTargetScaled[0]);
+	SAFE_RELEASE_FORCE(s_ptexZTargetScaled[1]);
+	SAFE_RELEASE_FORCE(s_ptexZTargetScaled[2]);
 	SAFE_RELEASE_FORCE(s_ptexDepthBufferQuarter);
 	SAFE_RELEASE_FORCE(s_ptexDepthBufferHalfQuarter);
 

@@ -22,5 +22,42 @@ namespace Cry
 				componentScope.Register(pFunction);
 			}
 		}
+
+#ifndef RELEASE
+		void CCameraComponent::Render(const IEntity& entity, const IEntityComponent& component, SEntityPreviewContext &context) const
+		{
+			if (context.bSelected)
+			{
+				Matrix34 slotTransform = GetWorldTransformMatrix();
+
+				// Don't use actual far plane as it's usually huge for cameras
+				float distance = 10.f;
+				float size = distance * tan(m_fieldOfView.ToRadians());
+
+				std::array<Vec3, 4> points =
+				{ {
+						Vec3(size, distance, size),
+						Vec3(-size, distance, size),
+						Vec3(-size, distance, -size),
+						Vec3(size, distance, -size)
+					} };
+
+				gEnv->pRenderer->GetIRenderAuxGeom()->DrawLine(slotTransform.GetTranslation(), context.debugDrawInfo.color, slotTransform.TransformPoint(points[0]), context.debugDrawInfo.color);
+				gEnv->pRenderer->GetIRenderAuxGeom()->DrawLine(slotTransform.GetTranslation(), context.debugDrawInfo.color, slotTransform.TransformPoint(points[1]), context.debugDrawInfo.color);
+				gEnv->pRenderer->GetIRenderAuxGeom()->DrawLine(slotTransform.GetTranslation(), context.debugDrawInfo.color, slotTransform.TransformPoint(points[2]), context.debugDrawInfo.color);
+				gEnv->pRenderer->GetIRenderAuxGeom()->DrawLine(slotTransform.GetTranslation(), context.debugDrawInfo.color, slotTransform.TransformPoint(points[3]), context.debugDrawInfo.color);
+
+				Vec3 p1 = slotTransform.TransformPoint(points[0]);
+				Vec3 p2;
+				for (int i = 0; i < points.size(); i++)
+				{
+					int j = (i + 1) % points.size();
+					p2 = slotTransform.TransformPoint(points[j]);
+					gEnv->pRenderer->GetIRenderAuxGeom()->DrawLine(p1, context.debugDrawInfo.color, p2, context.debugDrawInfo.color);
+					p1 = p2;
+				}
+			}
+		}
+#endif
 	}
 }

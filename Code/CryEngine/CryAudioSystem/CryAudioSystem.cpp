@@ -252,7 +252,7 @@ class CEngineModule_CryAudioSystem : public ISystemModule
 				pAudioSystem->ParseControlsData(levelPath.c_str(), EDataScope::LevelSpecific, data);
 				pAudioSystem->ParsePreloadsData(levelPath.c_str(), EDataScope::LevelSpecific, data);
 
-				PreloadRequestId const preloadRequestId = CryAudio::StringToId_RunTime(levelName.c_str());
+				PreloadRequestId const preloadRequestId = CryAudio::StringToId(levelName.c_str());
 				pAudioSystem->PreloadSingleRequest(preloadRequestId, true, data);
 			}
 

@@ -1898,6 +1898,7 @@ void CBreakableManager::HandlePhysicsCreateEntityPartEvent(const EventPhysCreate
 		{
 			// Not sub object.
 			pNewStatObj = pSrcStatObj;
+			createParams.nSlotIndex = pCreateEvent->partidNew;
 		}
 
 		pe_params_buoyancy pb;
@@ -2180,7 +2181,17 @@ void CBreakableManager::HandlePhysicsRemoveSubPartsEvent(const EventPhysRemoveEn
 		if (pEntity && pRemoveEvent->idOffs >= EntityPhysicsUtils::PARTID_LINKED)
 			pEntity = (CEntity*)pEntity->UnmapAttachedChild(idOffs);
 		if (pEntity)
+		{
 			pStatObj = pEntity->GetStatObj(ENTITY_SLOT_ACTUAL);
+			if (pEntity->GetSlotCount() > 1 && (!pStatObj || !(pStatObj->GetFlags() & STATIC_OBJECT_COMPOUND)))
+			{
+				for (int i = 0; i < sizeof(pRemoveEvent->partIds) / sizeof(pRemoveEvent->partIds[0]); i++)
+					for(j = 0; j < 32; j++) 
+						if (pRemoveEvent->partIds[i] & 1u << j)
+							pEntity->FreeSlot(pRemoveEvent->idOffs + i*32 + j);
+				return;
+			}
+		}
 		if (pStatObj && !(pStatObj->GetFlags() & STATIC_OBJECT_COMPOUND))
 		{
 			// If entity only hosts a single geometry and nothing remains, delete entity itself.
@@ -2477,7 +2488,7 @@ int CBreakableManager::HandlePhysics_UpdateMeshEvent(const EventPhysUpdateMesh* 
 		if (ICharacterInstance* pChar = pIEntityRender->GetCharacter(0))
 			if (IAttachmentManager* pAttMan = pChar->GetIAttachmentManager())
 				for (int i = pAttMan->GetAttachmentCount() - 1; i >= 0 && !bChar; i--)
-					if (bChar = pAttMan->GetInterfaceByIndex(i)->GetIAttachmentObject()->GetIStatObj() == pSrcStatObj)
+					if (bChar = pAttMan->GetInterfaceByIndex(i)->GetIAttachmentObject() && pAttMan->GetInterfaceByIndex(i)->GetIAttachmentObject()->GetIStatObj() == pSrcStatObj)
 						((CCGFAttachment*)pAttMan->GetInterfaceByIndex(i)->GetIAttachmentObject())->pObj = pDeformedStatObj;
 
 		if (!bChar)

@@ -135,16 +135,16 @@ void CharacterContent::Serialize(Serialization::IArchive& ar)
 	switch (engineLoadState)
 	{
 	case CHARACTER_NOT_LOADED:
-		ar.warning(this, "Selected character is different from the one in the viewport.");
+		ar.warning(*this, "Selected character is different from the one in the viewport.");
 		break;
 	case CHARACTER_INCOMPLETE:
-		ar.warning(this, "An incomplete character cannot be loaded by the engine.");
+		ar.warning(*this, "An incomplete character cannot be loaded by the engine.");
 		break;
 	case CHARACTER_LOAD_FAILED:
 		if (!hasDefinitionFile)
-			ar.error(this, "Failed to load character in the engine.");
+			ar.error(*this, "Failed to load character in the engine.");
 		else
-			ar.error(this, "Failed to load character in the engine. Check if specified skeleton is valid.");
+			ar.error(*this, "Failed to load character in the engine. Check if specified skeleton is valid.");
 		break;
 	default:
 		break;

@@ -57,7 +57,7 @@ CPlayerStateSwim::CPlayerStateSwim()
 	, m_onSurface(false)
 	, m_bStillDiving(false)
 {
-	m_submersionDepthParam = CryAudio::StringToId_CompileTime("submersion_depth");
+	m_submersionDepthParam = CryAudio::StringToId("submersion_depth");
 }
 
 bool CPlayerStateSwim::OnPrePhysicsUpdate(CPlayer& player, const SActorFrameMovementParams& movement, float frameTime)

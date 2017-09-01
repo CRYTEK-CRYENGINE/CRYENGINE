@@ -312,7 +312,7 @@ ITrigger const* CImpl::ConstructTrigger(XmlNodeRef const pRootNode)
 				}
 
 				pTrigger = new CTrigger(
-				  StringToId_RunTime(path.c_str()),
+				  StringToId(path.c_str()),
 				  numLoops,
 				  static_cast<double>(sfInfo.samplerate),
 				  eventType,

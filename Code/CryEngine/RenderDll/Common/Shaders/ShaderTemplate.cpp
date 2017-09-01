@@ -361,9 +361,9 @@ CTexture* CShaderMan::mfCheckTemplateTexName(const char* mapname, ETEX_Type eTT)
 	else if (!stricmp(mapname, "$ZTarget"))
 		TexPic = CTexture::s_ptexZTarget;
 	else if (!stricmp(mapname, "$ZTargetScaled"))
-		TexPic = CTexture::s_ptexZTargetScaled;
+		TexPic = CTexture::s_ptexZTargetScaled[0];
 	else if (!stricmp(mapname, "$ZTargetScaled2"))
-		TexPic = CTexture::s_ptexZTargetScaled2;
+		TexPic = CTexture::s_ptexZTargetScaled[1];
 	else if (!stricmp(mapname, "$SceneTarget"))
 		TexPic = CTexture::s_ptexSceneTarget;
 	else if (!stricmp(mapname, "$CloudsLM"))

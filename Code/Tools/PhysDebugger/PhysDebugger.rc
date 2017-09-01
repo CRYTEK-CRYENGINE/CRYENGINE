@@ -28,7 +28,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_PHYSTESTBED         ICON                    "..\\..\\Sandbox\\Plugins\\EditorCommon\\Icons\\General\\Physics_Tool.ico"
+IDI_PHYSTESTBED         ICON                    "..\\..\\Sandbox\\Plugins\\EditorCommon\\Icons\\general_physics_tool.ico"
 
 
 /////////////////////////////////////////////////////////////////////////////

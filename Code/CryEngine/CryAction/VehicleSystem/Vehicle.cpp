@@ -1506,7 +1506,7 @@ void CVehicle::Reset(bool enterGame)
 		NeedsUpdate(eVUF_AwakePhysics);
 
 		// Temp Code, testing only
-		CryAudio::ControlId const triggerId = CryAudio::StringToId_CompileTime("ENGINE_ON");
+		CryAudio::ControlId const triggerId = CryAudio::StringToId("ENGINE_ON");
 		m_pIEntityAudioComponent->ExecuteTrigger(triggerId);
 	}
 	else
@@ -1520,7 +1520,7 @@ void CVehicle::Reset(bool enterGame)
 		}
 
 		// Temp Code, testing only
-		CryAudio::ControlId const triggerId = CryAudio::StringToId_CompileTime("ENGINE_OFF");
+		CryAudio::ControlId const triggerId = CryAudio::StringToId("ENGINE_OFF");
 		m_pIEntityAudioComponent->ExecuteTrigger(triggerId);
 	}
 

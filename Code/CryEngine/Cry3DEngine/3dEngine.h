@@ -488,6 +488,8 @@ public:
 	// Return true if tessellation is allowed for given render object
 	virtual bool                      IsTessellationAllowed(const CRenderObject* pObj, const SRenderingPassInfo& passInfo, bool bIgnoreShadowPass = false) const;
 
+	virtual bool					  IsStatObjBufferRenderTasksAllowed() const;
+
 	virtual void                      SetRenderNodeMaterialAtPosition(EERType eNodeType, const Vec3& vPos, IMaterial* pMat);
 	virtual void                      OverrideCameraPrecachePoint(const Vec3& vPos);
 	virtual int                       AddPrecachePoint(const Vec3& vPos, const Vec3& vDir, float fTimeOut = 3.f, float fImportanceFactor = 1.0f);

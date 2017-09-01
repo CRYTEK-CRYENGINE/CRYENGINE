@@ -13,7 +13,6 @@
 #include "DriverD3D.h"
 
 CryCriticalSection CGraphicsDeviceConstantBuffer::s_accessLock;
-CryCriticalSectionNonRecursive CGpuBuffer::s_invalidationLock;
 
 #if defined(min)
 	#undef min
@@ -3269,7 +3268,7 @@ struct SPoolManager
 		memset(m_sdata, 0, sizeof(m_sdata));
 #endif
 
-		m_pNullConstantBuffer.Assign_NoAddRef(new CConstantBuffer(0));
+		m_pNullConstantBuffer.Assign_NoAddRef(new CConstantBuffer(~0u));
 		m_pNullConstantBuffer->m_size = 0;
 		m_pNullConstantBuffer->m_dynamic = false;
 		m_pNullConstantBuffer->m_lock = true;
@@ -4009,6 +4008,7 @@ CConstantBuffer::CConstantBuffer(uint32 handle)
 	, m_offset(0)
 	, m_size(0)
 	, m_nRefCount(1u)
+	, m_nUpdCount(0u)
 	, m_clearFlags(0)
 {}
 
@@ -4036,7 +4036,8 @@ void CConstantBuffer::ReturnToPool()
 #endif
 
 #if !DEVBUFFERMAN_DEBUG
-	s_PoolManager.m_constant_buffers[m_lock].Free(m_handle);
+	if (m_handle != ~0u)
+		s_PoolManager.m_constant_buffers[m_lock].Free(m_handle);
 #else
 	delete this;
 #endif
@@ -4115,6 +4116,7 @@ void CConstantBuffer::EndWrite(bool requires_flush)
 		m_base_ptr = nullptr;
 	}
 #endif
+	m_nUpdCount++;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -4172,6 +4174,7 @@ void CConstantBuffer::UpdateBuffer(const void* src, buffer_size_t size, buffer_s
 		GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(src, this, mapping);
 	}
 #endif
+	m_nUpdCount++;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -4274,58 +4277,15 @@ void CGpuBuffer::OwnDevBuffer(CDeviceBuffer* pDeviceBuf)
 //		CryInterlockedAdd(&CGpuBuffer::s_nStatsCurManagedNonStreamedBufMem, m_nBaseSize);
 	}
 
-	InvalidateDeviceResource(eDeviceResourceDirty);
+	InvalidateDeviceResource(this, eDeviceResourceDirty);
 #endif
-}
-
-void CGpuBuffer::AddInvalidateCallback(void* listener, const SResourceBinding::InvalidateCallbackFunction& callback) const
-{
-	AUTO_LOCK_T(CryCriticalSectionNonRecursive, s_invalidationLock);
-
-#if !CRY_PLATFORM_ORBIS || defined(__GXX_RTTI)
-	CRY_ASSERT(callback.target<SResourceBinding::InvalidateCallbackSignature*>() != nullptr);
-#endif
-
-	auto insertResult = m_invalidateCallbacks.emplace(listener, callback);
-	++insertResult.first->second.refCount;
-
-	// We only allow one callback function per listener
-#if !CRY_PLATFORM_ORBIS || defined(__GXX_RTTI)
-	CRY_ASSERT(*callback.target<SResourceBinding::InvalidateCallbackSignature*>() == *insertResult.first->second.callback.target<SResourceBinding::InvalidateCallbackSignature*>());
-#endif
-}
-
-void CGpuBuffer::RemoveInvalidateCallbacks(void* listener) const
-{
-	AUTO_LOCK_T(CryCriticalSectionNonRecursive, s_invalidationLock);
-
-	auto it = m_invalidateCallbacks.find(listener);
-
-	if (it != m_invalidateCallbacks.end())
-	{
-		if (--it->second.refCount <= 0)
-			m_invalidateCallbacks.erase(listener);
-	}
-}
-
-void CGpuBuffer::InvalidateDeviceResource(uint32 dirtyFlags)
-{
-	AUTO_LOCK_T(CryCriticalSectionNonRecursive, s_invalidationLock);
-
-	for (auto it = m_invalidateCallbacks.begin(), end = m_invalidateCallbacks.end(); it != end;)
-	{
-		auto itCurrentCallback = it++;
-		if (itCurrentCallback->second.callback(itCurrentCallback->first, dirtyFlags) == false)
-			m_invalidateCallbacks.erase(itCurrentCallback);
-	}
 }
 
 CGpuBuffer::~CGpuBuffer()
 {
-	InvalidateDeviceResource(eResourceDestroyed);
+	InvalidateDeviceResource(this, eResourceDestroyed);
 
 	Release();
-	CRY_ASSERT_MESSAGE(m_invalidateCallbacks.empty(), "Make sure any clients (e.g. Renderpasses, resource sets, etc..) are released before destroying this resource");
 }
 
 void CGpuBuffer::Release()
@@ -4347,7 +4307,7 @@ void CGpuBuffer::Release()
 	m_bLocked = false;
 	m_eMapMode = D3D11_MAP(0);
 
-	InvalidateDeviceResource(eDeviceResourceDirty);
+	InvalidateDeviceResource(this, eDeviceResourceDirty);
 }
 
 void CGpuBuffer::Create(uint32 elementCount, uint32 elementSize, DXGI_FORMAT elementFormat, uint32 eFlags, const void* pData)
@@ -4424,7 +4384,7 @@ void CGpuBuffer::PrepareUnusedBuffer()
 		m_pDeviceBuffer = AllocateDeviceBuffer(nullptr);
 	}
 
-	InvalidateDeviceResource(eDeviceResourceDirty);
+	InvalidateDeviceResource(this, eDeviceResourceDirty);
 
 	CRY_ASSERT(m_MaxBufferCopies < 0 || m_deviceBufferPool.size() <= m_MaxBufferCopies);
 }

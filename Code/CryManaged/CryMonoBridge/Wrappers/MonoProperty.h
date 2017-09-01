@@ -30,6 +30,9 @@ public:
 	CMonoMethod GetGetMethod() const;
 	CMonoMethod GetSetMethod() const;
 
+	MonoInternals::MonoType* GetUnderlyingType(MonoInternals::MonoReflectionProperty* pReflectionProperty) const;
+	MonoInternals::MonoClass* GetUnderlyingClass(MonoInternals::MonoReflectionProperty* pReflectionProperty) const;
+
 protected:
 	MonoInternals::MonoProperty* m_pProperty;
 };

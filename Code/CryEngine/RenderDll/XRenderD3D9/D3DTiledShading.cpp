@@ -997,32 +997,25 @@ void CTiledShading::BindForwardShadingResources(CShader*, CSubmissionQueue_DX11:
 
 	CTexture* ptexGiDiff = CTexture::s_ptexBlack;
 	CTexture* ptexGiSpec = CTexture::s_ptexBlack;
-	CTexture* ptexRsmCol = CTexture::s_ptexBlack;
-	CTexture* ptexRsmNor = CTexture::s_ptexBlack;
 
 #if defined(FEATURE_SVO_GI)
 	if (CSvoRenderer::GetInstance()->IsActive() && CSvoRenderer::GetInstance()->GetSpecularFinRT())
 	{
 		ptexGiDiff = (CTexture*)CSvoRenderer::GetInstance()->GetDiffuseFinRT();
 		ptexGiSpec = (CTexture*)CSvoRenderer::GetInstance()->GetSpecularFinRT();
-		if(CSvoRenderer::GetInstance()->GetRsmPoolCol())
-			ptexRsmCol = (CTexture*)CSvoRenderer::GetInstance()->GetRsmPoolCol();
-		if(CSvoRenderer::GetInstance()->GetRsmPoolNor())
-			ptexRsmNor = (CTexture*)CSvoRenderer::GetInstance()->GetRsmPoolNor();
 	}
 #endif
 
+	// bind GI SRV
+	rd->m_DevMan.BindSRV(shaderType, ptexGiDiff->GetDevTexture()->LookupSRV(EDefaultResourceViews::Default), 46);
+	rd->m_DevMan.BindSRV(shaderType, ptexGiSpec->GetDevTexture()->LookupSRV(EDefaultResourceViews::Default), 47);
+
 	if (!CRenderer::CV_r_DeferredShadingTiled)
 	{
-		rd->m_DevMan.BindSRV(shaderType, ptexGiDiff->GetDevTexture()->LookupSRV(EDefaultResourceViews::Default), 24);
-		rd->m_DevMan.BindSRV(shaderType, ptexGiSpec->GetDevTexture()->LookupSRV(EDefaultResourceViews::Default), 25);
-		rd->m_DevMan.BindSRV(shaderType, ptexRsmCol->GetDevTexture()->LookupSRV(EDefaultResourceViews::Default), 26);
-		rd->m_DevMan.BindSRV(shaderType, ptexRsmNor->GetDevTexture()->LookupSRV(EDefaultResourceViews::Default), 27);
-
 		return;
 	}
 
-	D3DShaderResource* pTiledBaseRes[10] = {
+	D3DShaderResource* pTiledBaseRes[8] = {
 		m_tileTranspLightMaskBuf.        GetDevBuffer() ->LookupSRV(EDefaultResourceViews::Default),
 		m_lightShadeInfoBuf.             GetDevBuffer() ->LookupSRV(EDefaultResourceViews::Default),
 		m_clipVolumeInfoBuf.             GetDevBuffer() ->LookupSRV(EDefaultResourceViews::Default),
@@ -1031,10 +1024,8 @@ void CTiledShading::BindForwardShadingResources(CShader*, CSubmissionQueue_DX11:
 		m_spotTexAtlas.texArray->        GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
 		CTexture::s_ptexRT_ShadowPool->  GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
 		CTexture::s_ptexShadowJitterMap->GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
-		ptexGiDiff->                     GetDevTexture()->LookupSRV(EDefaultResourceViews::Default),
-		ptexGiSpec->                     GetDevTexture()->LookupSRV(EDefaultResourceViews::Default)
 	};
-	rd->m_DevMan.BindSRV(shaderType, pTiledBaseRes, 17, 10);
+	rd->m_DevMan.BindSRV(shaderType, pTiledBaseRes, 17, 8);
 
 	D3DSamplerState* pSamplers[1] = {
 		(D3DSamplerState*)CDeviceObjectFactory::LookupSamplerState(EDefaultSamplerStates::LinearCompare).second,
@@ -1049,8 +1040,11 @@ void CTiledShading::UnbindForwardShadingResources(CSubmissionQueue_DX11::SHADER_
 
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 
-	D3DShaderResource* pNullViews[10] = { NULL };
-	rd->m_DevMan.BindSRV(shaderType, pNullViews, 17, 10);
+	D3DShaderResource* pNullViews[8] = { NULL };
+	rd->m_DevMan.BindSRV(shaderType, pNullViews, 17, 8);
+	
+	// unbind GI SRV
+	rd->m_DevMan.BindSRV(shaderType, pNullViews, 46, 2);
 
 #ifndef _RELEASE
 	// Verify that the sampler states did not get overwritten

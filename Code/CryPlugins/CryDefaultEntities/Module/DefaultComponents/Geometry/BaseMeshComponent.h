@@ -271,8 +271,13 @@ protected:
 	}
 
 public:
-	virtual void        SetType(EMeshType type) { m_type = type; }
-	EMeshType           GetType() const { return m_type; }
+	virtual void SetType(EMeshType type)
+	{
+		m_type = type;
+
+		ApplyBaseMeshProperties();
+	}
+	EMeshType GetType() const { return m_type; }
 
 	virtual SPhysicsParameters&       GetPhysicsParameters()       { return m_physics; }
 	const SPhysicsParameters&         GetPhysicsParameters() const { return m_physics; }

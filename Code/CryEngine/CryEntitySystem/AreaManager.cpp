@@ -346,31 +346,31 @@ void CAreaManager::UpdateEntity(Vec3 const& position, IEntity* const pIEntity)
 
 			// check if Area is hidden
 			IEntity const* const pAreaEntity = m_pEntitySystem->GetEntity(pArea->GetEntityID());
-			bool bIsHidden = (pAreaEntity && pAreaEntity->IsHidden());
+			bool const bIsHidden = (pAreaEntity && pAreaEntity->IsHidden());
 
 			// area was just hidden
-			if (bIsHidden && pArea->IsActive())
+			if (bIsHidden && (pArea->GetState() & Cry::AreaManager::EAreaState::Hidden) == 0)
 			{
 				pArea->LeaveArea(entityId);
 				pArea->LeaveNearArea(entityId);
 				areaCacheEntry.bNear = false;
 				areaCacheEntry.bInside = false;
-				pArea->SetActive(false);
+				pArea->AddState(Cry::AreaManager::EAreaState::Hidden);
 				continue;
 			}
 
 			// area was just unhidden
-			if (!bIsHidden && !pArea->IsActive())
+			if (!bIsHidden && (pArea->GetState() & Cry::AreaManager::EAreaState::Hidden) != 0)
 			{
 				// ProcessArea will take care of properly setting cache entry data.
 				areaCacheEntry.bNear = false;
 				areaCacheEntry.bInside = false;
-				pArea->SetActive(true);
+				pArea->RemoveState(Cry::AreaManager::EAreaState::Hidden);
 			}
 
 			// We process only for active areas in which grid we are.
 			// Areas in our cache in which grid we are not get removed down below anyhow.
-			if (pArea->IsActive())
+			if (!bIsHidden)
 			{
 				ProcessArea(pArea, areaCacheEntry, pAreaCache, position, pIEntity, areaEnvironments);
 			}
@@ -489,7 +489,7 @@ void CAreaManager::ProcessArea(
   IEntity const* const pIEntity,
   AreaEnvironments& areaEnvironments)
 {
-	Vec3 Closest3d;
+	Vec3 Closest3d(ZERO);
 	bool bExclusiveUpdate = false;
 	EntityId const entityId = pIEntity->GetId();
 	bool const bIsPointWithin = (pArea->CalcPosType(entityId, pos) == AREA_POS_TYPE_2DINSIDE_ZINSIDE);
@@ -499,13 +499,22 @@ void CAreaManager::ProcessArea(
 		// Was far/near but is inside now.
 		if (!areaCacheEntry.bInside)
 		{
-			// We're inside now and not near anymore.
-			pArea->EnterArea(entityId);
-			areaCacheEntry.bInside = true;
-			areaCacheEntry.bNear = false;
+			if (areaCacheEntry.bNear)
+			{
+				// Was near before only Enter needed.
+				pArea->EnterArea(entityId);
+				areaCacheEntry.bNear = false;
+			}
+			else
+			{
+				// Was far before both EnterNear and Enter needed.
+				// This is optimized internally and might not recalculate but rather retrieve the cached data.
+				float const distanceSq = pArea->CalcPointNearDistSq(entityId, pos, Closest3d, false);
+				pArea->EnterNearArea(entityId, Closest3d, 0.0f);
+				pArea->EnterArea(entityId);
+			}
 
-			// Notify possible lower priority areas about this event.
-			NotifyAreas(pArea, pAreaCache, entityId);
+			areaCacheEntry.bInside = true;
 		}
 
 		uint32 const nEntityFlagsExtended = pIEntity->GetFlagsExtended();
@@ -545,9 +554,6 @@ void CAreaManager::ProcessArea(
 
 			// Needs to be temporarily near again.
 			areaCacheEntry.bNear = true;
-
-			// Notify possible lower priority areas about this event.
-			NotifyAreas(pArea, pAreaCache, entityId);
 		}
 
 		if (isNear)
@@ -623,7 +629,7 @@ bool CAreaManager::ProceedExclusiveUpdateByHigherArea(
 			if (currentGroupId == pHigherPrioArea->GetGroup())
 			{
 				// Only check areas which are active (not hidden).
-				if (minPriority < pHigherPrioArea->GetPriority() && pHigherPrioArea->IsActive())
+				if (minPriority < pHigherPrioArea->GetPriority() && (pHigherPrioArea->GetState() & Cry::AreaManager::EAreaState::Hidden) == 0)
 				{
 					apAreasOfSameGroup.push_back(pHigherPrioArea);
 				}
@@ -729,62 +735,6 @@ bool CAreaManager::ProceedExclusiveUpdateByHigherArea(
 	}
 
 	return bResult;
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CAreaManager::NotifyAreas(
-  CArea* const __restrict pArea,
-  SAreasCache const* const pAreaCache,
-  EntityId const entityId)
-{
-	int const currentGroupId = pArea->GetGroup();
-
-	if (currentGroupId > 0)
-	{
-		int const currentPriority = pArea->GetPriority();
-		int currentHighestPriorityOfLowerPriorityAreas = -1;
-
-		// Notify areas of the same group and next lower priority.
-		CArea* pNotifyCandidate = nullptr;
-		TAreaPointers areasToNotify;
-
-		for (auto const& areaCacheEntry : pAreaCache->entries)
-		{
-			pNotifyCandidate = areaCacheEntry.pArea;
-			int const notifyAreaPriority = pNotifyCandidate->GetPriority();
-
-#if defined(DEBUG_AREAMANAGER)
-			CheckArea(pNotifyCandidate);
-#endif // DEBUG_AREAMANAGER
-
-			// Skip the current area or those that are of different group or inactive (hidden) areas.
-			if (pNotifyCandidate != pArea &&
-			    currentGroupId == pNotifyCandidate->GetGroup() &&
-			    currentPriority > notifyAreaPriority &&
-			    pNotifyCandidate->IsActive())
-			{
-				if (notifyAreaPriority > currentHighestPriorityOfLowerPriorityAreas)
-				{
-					areasToNotify.clear();
-					areasToNotify.push_back(pNotifyCandidate);
-					currentHighestPriorityOfLowerPriorityAreas = notifyAreaPriority;
-				}
-				else if (notifyAreaPriority == currentHighestPriorityOfLowerPriorityAreas)
-				{
-					areasToNotify.push_back(pNotifyCandidate);
-				}
-			}
-		}
-
-		for (auto const pAreaToNotify : areasToNotify)
-		{
-			// TODO: This can be split into "OnCrossingInto" and "OnCrossingOutOf"
-			// as currently "OnCrossingOutOf" is really only of interest.
-			pAreaToNotify->OnAreaCrossing(entityId);
-		}
-	}
-
-	OnEvent(ENTITY_EVENT_CROSS_AREA, entityId, pArea);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -914,7 +864,7 @@ bool CAreaManager::GetEnvFadeValueInner(
 			if (currentGroupId == pHigherPrioArea->GetGroup())
 			{
 				// Only check areas which are active (not hidden).
-				if (minPriority < pHigherPrioArea->GetPriority() && pHigherPrioArea->IsActive())
+				if (minPriority < pHigherPrioArea->GetPriority() && (pHigherPrioArea->GetState() & Cry::AreaManager::EAreaState::Hidden) == 0)
 				{
 					areasOfSameGroup.push_back(pHigherPrioArea);
 				}

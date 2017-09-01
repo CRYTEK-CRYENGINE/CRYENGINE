@@ -278,7 +278,7 @@ bool CDialogLoaderMK2::ReadLine(const XmlNodeRef& lineNode, CDialogScript::SScri
 	const char* szTriggerName = lineNode->getAttr("audioID");
 	if (szTriggerName != nullptr && szTriggerName[0] != '\0')
 	{
-		line.m_audioID = CryAudio::StringToId_RunTime(szTriggerName);
+		line.m_audioID = CryAudio::StringToId(szTriggerName);
 	}
 	else
 	{

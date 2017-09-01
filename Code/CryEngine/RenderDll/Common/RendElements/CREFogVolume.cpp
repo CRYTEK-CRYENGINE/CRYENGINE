@@ -370,7 +370,24 @@ bool CREFogVolume::Compile(CRenderObject* pObj)
 	{
 		if (!cro.m_pMaterialResourceSet)
 		{
-			CDeviceResourceSetDesc materialResources(rd->GetGraphicsPipeline().GetDefaultMaterialResources(), nullptr, nullptr);
+			CDeviceResourceSetDesc materialResources;
+			for (const auto& res : rd->GetGraphicsPipeline().GetDefaultMaterialBindPoints().GetResources())
+			{
+				const SResourceBindPoint& bindPoint = res.first;
+				const SResourceBinding&   binding   = res.second;
+
+				switch (binding.type)
+				{
+				case SResourceBinding::EResourceType::ConstantBuffer:
+					materialResources.SetConstantBuffer(bindPoint.slotNumber, rd->m_DevBufMan.GetNullConstantBuffer(), bindPoint.stages);
+					break;
+				case SResourceBinding::EResourceType::Texture:
+					materialResources.SetTexture(bindPoint.slotNumber, CTexture::s_ptexBlack, binding.view, bindPoint.stages);
+					break;
+				default:
+					CRY_ASSERT("Not implemented!");
+				}
+			}
 
 			cro.m_pMaterialResourceSet = GetDeviceObjectFactory().CreateResourceSet();
 			cro.m_pMaterialResourceSet->Update(materialResources);

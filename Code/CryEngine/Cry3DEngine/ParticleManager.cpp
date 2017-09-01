@@ -1408,6 +1408,10 @@ void CParticleManager::CreatePerfHUDWidget()
 	}
 }
 
+#ifndef _RELEASE //Debugging code for specific issue CE-10725			
+extern volatile int g_allocCounter;
+#endif
+
 void CParticleManager::DumpAndResetVertexIndexPoolUsage()
 {
 #if defined(PARTICLE_COLLECT_VERT_IND_POOL_USAGE)
@@ -1415,8 +1419,17 @@ void CParticleManager::DumpAndResetVertexIndexPoolUsage()
 	if (GetCVars()->e_ParticlesProfile == 2)
 		return;
 
+#ifndef _RELEASE //Debugging code for specific issue CE-10725
+	// If you hit this debugbreak, please create a full dump of the process
+	if (g_allocCounter != 0) __debugbreak();
+#endif
+	// This line can occasionally cause an assert to be triggered. The surrounding debug code is intended to help us track down the issue.
+	// See http://jira.cryengine.com/browse/CE-10725 for details on the bug.
 	const stl::SPoolMemoryUsage memParticles = ParticleObjectAllocator().GetTotalMemory();
-
+#ifndef _RELEASE //Debugging code for specific issue CE-10725			
+	// If you hit this debugbreak, please create a full dump of the process
+	if (g_allocCounter != 0) __debugbreak();
+#endif
 	bool bOutOfMemory = m_bOutOfVertexIndexPoolMemory || ((GetCVars()->e_ParticlesPoolSize * 1024) - memParticles.nUsed) == 0;
 	// dump information if we are out of memory or if dumping is enabled
 	if (bOutOfMemory || GetCVars()->e_ParticlesProfile == 1)

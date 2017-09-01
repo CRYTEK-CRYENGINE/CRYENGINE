@@ -113,18 +113,18 @@ CPostEffectStage::~CPostEffectStage()
 
 void CPostEffectStage::Init()
 {
-	m_postEffectArray[ePFX_eUnderwaterGodRays] = CryMakeUnique<CUnderwaterGodRaysPass>();
-	m_postEffectArray[ePFX_eWaterDroplets] = CryMakeUnique<CWaterDropletsPass>();
-	m_postEffectArray[ePFX_eWaterFlow] = CryMakeUnique<CWaterFlowPass>();
-	m_postEffectArray[ePFX_FilterSharpening] = CryMakeUnique<CFilterSharpeningPass>();
-	m_postEffectArray[ePFX_FilterBlurring] = CryMakeUnique<CFilterBlurringPass>();
-	m_postEffectArray[ePFX_UberGamePostProcess] = CryMakeUnique<CUberGamePostEffectPass>();
-	m_postEffectArray[ePFX_eFlashBang] = CryMakeUnique<CFlashBangPass>();
-	m_postEffectArray[ePFX_PostStereo] = CryMakeUnique<CPostStereoPass>();
-	m_postEffectArray[ePFX_FilterKillCamera] = CryMakeUnique<CKillCameraPass>();
-	m_postEffectArray[ePFX_eScreenBlood] = CryMakeUnique<CScreenBloodPass>();
-	m_postEffectArray[ePFX_HUDSilhouettes] = CryMakeUnique<CHudSilhouettesPass>();
-	m_postEffectArray[ePFX_3DHUD] = CryMakeUnique<C3DHudPass>();
+	m_postEffectArray[ePFX_eUnderwaterGodRays] = stl::make_unique<CUnderwaterGodRaysPass>();
+	m_postEffectArray[ePFX_eWaterDroplets] = stl::make_unique<CWaterDropletsPass>();
+	m_postEffectArray[ePFX_eWaterFlow] = stl::make_unique<CWaterFlowPass>();
+	m_postEffectArray[ePFX_FilterSharpening] = stl::make_unique<CFilterSharpeningPass>();
+	m_postEffectArray[ePFX_FilterBlurring] = stl::make_unique<CFilterBlurringPass>();
+	m_postEffectArray[ePFX_UberGamePostProcess] = stl::make_unique<CUberGamePostEffectPass>();
+	m_postEffectArray[ePFX_eFlashBang] = stl::make_unique<CFlashBangPass>();
+	m_postEffectArray[ePFX_PostStereo] = stl::make_unique<CPostStereoPass>();
+	m_postEffectArray[ePFX_FilterKillCamera] = stl::make_unique<CKillCameraPass>();
+	m_postEffectArray[ePFX_eScreenBlood] = stl::make_unique<CScreenBloodPass>();
+	m_postEffectArray[ePFX_HUDSilhouettes] = stl::make_unique<CHudSilhouettesPass>();
+	m_postEffectArray[ePFX_3DHUD] = stl::make_unique<C3DHudPass>();
 
 	for (auto& pPostEffect : m_postEffectArray)
 	{

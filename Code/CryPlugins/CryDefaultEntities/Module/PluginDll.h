@@ -10,14 +10,12 @@ class CPlugin_CryDefaultEntities final : public IPlugin_CryDefaultEntities
 	CRYINTERFACE_ADD(ICryPlugin)
 	CRYINTERFACE_END()
 
-	CRYGENERATE_SINGLETONCLASS_GUID(CPlugin_CryDefaultEntities, "Plugin_CryDefaultEntities", "2c516347-9601-4b70-bb74-ce14dd711ee6"_cry_guid)
+	CRYGENERATE_SINGLETONCLASS_GUID(CPlugin_CryDefaultEntities, "Plugin_CryDefaultEntities", "{CB9E7C85-3289-41B6-983A-6A076ABA6351}"_cry_guid)
 
 	PLUGIN_FLOWNODE_REGISTER
 	PLUGIN_FLOWNODE_UNREGISTER
 
 	virtual ~CPlugin_CryDefaultEntities();
-
-	static CryGUID GetSchematycPackageGUID() { return "{CB9E7C85-3289-41B6-983A-6A076ABA6351}"_cry_guid; }
 
 	void RegisterComponents(Schematyc::IEnvRegistrar& registrar);
 

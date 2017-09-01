@@ -58,7 +58,15 @@ void SItemTypeName::Serialize(Serialization::IArchive& archive)
 		if (pContext->GetSettings().bUseSelectionHelpers)
 		{
 			CKeyValueStringList<CryGUID> itemTypeList;
-			itemTypeList.FillFromFactoryDatabase(UQS::Core::IHubPlugin::GetHub().GetItemFactoryDatabase(), true);
+
+			// hide item types that are only used as containers for shuttled items (they have ugly names and are not meant for being used by the user)
+			std::function<bool (const UQS::Client::IItemFactory&)> filterItemType = [](const UQS::Client::IItemFactory& itemFactory) -> bool
+			{
+				const bool bKeep = !itemFactory.IsContainerForShuttledItems();
+				return bKeep;
+			};
+
+			itemTypeList.FillFromFactoryDatabaseWithFilter(UQS::Core::IHubPlugin::GetHub().GetItemFactoryDatabase(), true, filterItemType);
 			itemTypeList.SerializeByData(archive, "typeGUID", "^", oldTypeGUID, setTypeGUID);
 		}
 		else

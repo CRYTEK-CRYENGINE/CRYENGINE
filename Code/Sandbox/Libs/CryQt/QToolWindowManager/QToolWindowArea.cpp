@@ -286,6 +286,7 @@ bool QToolWindowArea::eventFilter(QObject *o, QEvent *ev)
 						}
 						toolWindows << toolWindow;
 					}
+					m_areaDragCanStart = false;
 					QMouseEvent* releaseEvent = new QMouseEvent(QEvent::MouseButtonRelease, me->pos(), Qt::LeftButton, Qt::LeftButton, 0);
 					qApp->sendEvent(cornerWidget(), releaseEvent);
 					m_manager->startDrag(toolWindows, this);

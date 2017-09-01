@@ -79,7 +79,7 @@ public:
 
 				if (!preloadName.empty())
 				{
-					CryAudio::PreloadRequestId const preloadRequestId = CryAudio::StringToId_RunTime(preloadName.c_str());
+					CryAudio::PreloadRequestId const preloadRequestId = CryAudio::StringToId(preloadName.c_str());
 					
 					if (bEnable)
 					{

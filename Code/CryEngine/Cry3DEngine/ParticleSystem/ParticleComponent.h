@@ -134,6 +134,7 @@ struct SComponentParams
 	SParticleShaderData       m_shaderData;
 	_smart_ptr<IMaterial>     m_pMaterial;
 	_smart_ptr<IMeshObj>      m_pMesh;
+	EShaderType               m_requiredShaderType;
 	string                    m_diffuseMap;
 	uint64                    m_renderObjectFlags;
 	size_t                    m_instanceDataStride;

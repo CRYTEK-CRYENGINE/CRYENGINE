@@ -233,9 +233,9 @@ void CD3D9Renderer::ObtainDepthBuffer(SDisplayContext* pContext)
 	m_DepthBufferNative = m_DepthBufferOrig;
 
 	// Create the native resolution depth stencil buffer for overlay rendering if needed
-	if (!IsEditorMode() && (gcpRendD3D->GetOverlayWidth() != nDepthBufferWidth || gcpRendD3D->GetOverlayHeight() != nDepthBufferHeight))
+	if (!IsEditorMode() && (m_nativeWidth != nDepthBufferWidth || m_nativeHeight != nDepthBufferHeight))
 	{
-		m_pNativeZTexture = CTexture::GetOrCreateDepthStencil("$DeviceDepthOverlay", GetOverlayWidth(), GetOverlayHeight(),
+		m_pNativeZTexture = CTexture::GetOrCreateDepthStencil("$DeviceDepthOverlay", m_nativeWidth, m_nativeHeight,
 			clearValues, eTT_2D, FT_USAGE_DEPTHSTENCIL | FT_DONT_RELEASE | FT_DONT_STREAM, m_preferredDepthFormat);
 
 		D3DTexture* pNativeZTarget = m_pZTexture->GetDevTexture()->Get2DTexture();

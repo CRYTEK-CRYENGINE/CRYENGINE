@@ -181,7 +181,24 @@ public:
 	uint8 IsOBBVisible_EH(const Vec3& wpos, const OBB& obb, f32 uscale) const;
 
 	// constructor/destructor
-	CCamera() { m_Matrix.SetIdentity(); SetFrustum(640, 480); SetEye(eEye_Left); m_zrangeMin = 0.0f; m_zrangeMax = 1.0f;  m_pMultiCamera = NULL; m_pPortal = NULL; m_JustActivated = 0; m_nPosX = m_nPosY = m_nSizeX = m_nSizeY = 0; m_asymR = 0; m_asymL = 0; m_asymB = 0; m_asymT = 0; }
+	CCamera() 
+	{ 
+		m_Matrix.SetIdentity(); 
+		SetFrustum(640, 480); 
+		SetEye(eEye_Left); 
+		m_zrangeMin = 0.0f; 
+		m_zrangeMax = 1.0f;  
+		m_pMultiCamera = nullptr; 
+		m_pPortal = nullptr; 
+		m_JustActivated = 0;
+		m_nPosX = m_nPosY = m_nSizeX = m_nSizeY = 0;
+		m_asymR = 0; 
+		m_asymL = 0; 
+		m_asymB = 0; 
+		m_asymT = 0; 
+		m_bOmniCamera = false;
+		m_curCubeFace = 0;
+	}
 
 	void GetFrustumVertices(Vec3* pVerts) const;
 	void GetFrustumVerticesCam(Vec3* pVerts) const;
@@ -319,6 +336,9 @@ public:
 	inline const Vec3& GetOccPos() const { return(m_OccPosition); }
 
 	int                m_JustActivated; //!< Camera activated in this frame, used for disabling motion blur effect at camera changes in movies.
+
+	bool               m_bOmniCamera;
+	int                m_curCubeFace;
 };
 
 inline float CCamera::GetHorizontalFov() const

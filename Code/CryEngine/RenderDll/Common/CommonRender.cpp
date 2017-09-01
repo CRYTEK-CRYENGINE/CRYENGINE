@@ -9,11 +9,6 @@ CNameTableR* CCryNameR::ms_table;
 ResourceClassMap CBaseResource::m_sResources;
 CryCriticalSection CBaseResource::s_cResLock;
 
-CBaseResource& CBaseResource::operator=(const CBaseResource& Src)
-{
-	return *this;
-}
-
 bool CBaseResource::IsValid()
 {
 	AUTO_LOCK(s_cResLock); // Not thread safe without this
@@ -185,5 +180,152 @@ void CBaseResource::ShutDown()
 			SAFE_DELETE(pCN);
 		}
 		m_sResources.clear();
+	}
+}
+
+//=================================================================
+
+static const inline size_t NoAlign(size_t nSize) { return nSize; }
+
+void SResourceBinding::AddInvalidateCallback(void* pCallbackOwner, SResourceBindPoint bindPoint, const SResourceBinding::InvalidateCallbackFunction& callback) threadsafe const
+{
+	switch (type)
+	{
+		case EResourceType::ConstantBuffer:                                                                       break;
+		case EResourceType::Texture:        pTexture->AddInvalidateCallback(pCallbackOwner, bindPoint, callback); break;
+		case EResourceType::Buffer:         pBuffer->AddInvalidateCallback(pCallbackOwner, bindPoint, callback);  break;
+		case EResourceType::Sampler:                                                                              break;
+		default:                            CRY_ASSERT(false);
+	}
+}
+
+void SResourceBinding::RemoveInvalidateCallback(void* pCallbackOwner, SResourceBindPoint bindPoint) threadsafe const
+{
+	switch (type)
+	{
+		case EResourceType::ConstantBuffer:                                                                       break;
+		case EResourceType::Texture:        pTexture->RemoveInvalidateCallbacks(pCallbackOwner, bindPoint);       break;
+		case EResourceType::Buffer:         pBuffer->RemoveInvalidateCallbacks(pCallbackOwner, bindPoint);        break;
+		case EResourceType::Sampler:                                                                              break;
+		default:                            CRY_ASSERT(false);
+	}
+}
+
+size_t CResourceBindingInvalidator::CountInvalidateCallbacks() threadsafe
+{
+	m_invalidationLock.RLock();
+	size_t count = m_invalidateCallbacks.size();
+	m_invalidationLock.RUnlock();
+
+	return count;
+}
+
+void CResourceBindingInvalidator::AddInvalidateCallback(void* listener, const SResourceBindPoint bindPoint, const SResourceBinding::InvalidateCallbackFunction& callback) threadsafe
+{
+	auto context = std::make_pair(listener, bindPoint);
+
+#if !CRY_PLATFORM_ORBIS || defined(__GXX_RTTI)
+	CRY_ASSERT(callback.target<SResourceBinding::InvalidateCallbackSignature*>() != nullptr);
+#endif
+
+	m_invalidationLock.WLock();
+	auto insertResult = m_invalidateCallbacks.emplace(context, callback);
+	m_invalidationLock.WUnlock();
+
+	++insertResult.first->second.refCount;
+
+	// We only allow one callback function per listener
+#if !CRY_PLATFORM_ORBIS || defined(__GXX_RTTI)
+	CRY_ASSERT(*callback.target<SResourceBinding::InvalidateCallbackSignature*>() == *insertResult.first->second.callback.target<SResourceBinding::InvalidateCallbackSignature*>());
+#endif
+}
+
+void CResourceBindingInvalidator::RemoveInvalidateCallbacks(void* listener, const SResourceBindPoint bindPoint) threadsafe
+{
+	typedef std::vector<SInvalidateRegistry::const_iterator, CryStack::CSingleBlockAllocator<SInvalidateRegistry::const_iterator>> StackErasureVector;
+	const bool bBatchRemoval = (bindPoint == SResourceBindPoint());
+	// If a bind-point is given the limit is 1, otherwise the limit is the maximum number of possible bind-points per listener (256 as in DX11s t0-t255)
+	const size_t erasureLimit = bBatchRemoval ? 256ULL /*m_invalidateCallbacks.size()*/ : 1ULL;
+
+	CryStackAllocatorWithSizeVector(SInvalidateRegistry::const_iterator, erasureLimit, erasureMem, NoAlign);
+	StackErasureVector erasureList(erasureMem);
+	erasureList.reserve(erasureLimit);
+
+	{
+		m_invalidationLock.RLock();
+
+		// remove all callback of this listener
+		if (bBatchRemoval)
+		{
+			for (auto it = m_invalidateCallbacks.begin(), end = m_invalidateCallbacks.end(); it != end;)
+			{
+				auto itCurrentCallback = it++;
+				auto context = itCurrentCallback->first;
+
+				bool bErase = (context.first == listener);
+				if (bErase)
+					erasureList.push_back(itCurrentCallback);
+			}
+		}
+		// remove one callback of this listener
+		else
+		{
+			auto context = std::make_pair(listener, bindPoint);
+			auto itCurrentCallback = m_invalidateCallbacks.find(context);
+
+			bool bErase = (itCurrentCallback != m_invalidateCallbacks.end()) && (--itCurrentCallback->second.refCount <= 0);
+			if (bErase)
+				erasureList.push_back(itCurrentCallback);
+		}
+
+		m_invalidationLock.RUnlock();
+	}
+
+	if (erasureList.size())
+	{
+		m_invalidationLock.WLock();
+		if (m_invalidateCallbacks.size() == erasureList.size())
+			m_invalidateCallbacks.clear();
+		else for (auto eraseIt = erasureList.begin(), end = erasureList.end(); eraseIt != end; ++eraseIt)
+			m_invalidateCallbacks.erase(*eraseIt);
+		m_invalidationLock.WUnlock();
+	}
+}
+
+void CResourceBindingInvalidator::InvalidateDeviceResource(UResourceReference pResource, uint32 dirtyFlags) threadsafe
+{
+	typedef std::vector<SInvalidateRegistry::const_iterator, CryStack::CSingleBlockAllocator<SInvalidateRegistry::const_iterator>> StackErasureVector;
+	const size_t erasureLimit = m_invalidateCallbacks.size();
+
+	CryStackAllocatorWithSizeVector(SInvalidateRegistry::const_iterator, erasureLimit, erasureMem, NoAlign);
+	StackErasureVector erasureList(erasureMem);
+	erasureList.reserve(erasureLimit);
+
+	{
+		m_invalidationLock.RLock();
+
+		for (auto it = m_invalidateCallbacks.begin(), end = m_invalidateCallbacks.end(); it != end;)
+		{
+			auto itCurrentCallback = it++;
+			auto context = itCurrentCallback->first;
+			auto callback = itCurrentCallback->second;
+
+			// Should we keep the callback? true/false
+			bool bKeep = callback.callback(context.first, context.second, pResource, dirtyFlags);
+			if (!bKeep)
+				erasureList.push_back(itCurrentCallback);
+		}
+
+		m_invalidationLock.RUnlock();
+	}
+
+	if (erasureList.size())
+	{
+		m_invalidationLock.WLock();
+		if (m_invalidateCallbacks.size() == erasureList.size())
+			m_invalidateCallbacks.clear();
+		else for (auto eraseIt = erasureList.begin(), end = erasureList.end(); eraseIt != end; ++eraseIt)
+			m_invalidateCallbacks.erase(*eraseIt);
+		m_invalidationLock.WUnlock();
 	}
 }
