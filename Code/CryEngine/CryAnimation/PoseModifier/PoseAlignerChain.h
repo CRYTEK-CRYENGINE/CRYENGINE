@@ -20,6 +20,7 @@ private:
 
 		STarget                target;
 		ELockMode              eLockMode;
+		const IKLimbType* m_pIkLimbType;
 	};
 
 	CPoseAlignerChain();
