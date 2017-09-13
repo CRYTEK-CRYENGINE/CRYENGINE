@@ -42,6 +42,7 @@ endif()
 	
 # 3. Plugins
 include ("${TOOLS_CMAKE_DIR}/BuildPlugins.cmake")
+include ("${TOOLS_CMAKE_DIR}/UserPlugins.cmake")
 
 # 4. Launchers
 include ("${TOOLS_CMAKE_DIR}/BuildLaunchers.cmake")
