@@ -84,6 +84,7 @@ enum EUpdateList
 	EUL_PreUpdate,        // this feature changes particles over time before the main update
 	EUL_Update,           // this feature changes particle data over time
 	EUL_PostUpdate,       // this feature changes particles after the main update
+	EUL_ComputeBounds,    // this feature augments the bounding box for rendering
 	EUL_Render,           // this feature has geometry to render
 	EUL_RenderDeferred,   // this feature has geometry to render but can only render after all updates are done
 

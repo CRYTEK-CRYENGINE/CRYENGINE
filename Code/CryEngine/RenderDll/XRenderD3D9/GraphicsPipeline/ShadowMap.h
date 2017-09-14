@@ -62,7 +62,7 @@ private:
 		CShadowMapPass(CShadowMapStage* pStage, CTexture* pDepthTarget, CTexture* pColorTarget0, CTexture* pColorTarget1);
 		CShadowMapPass(CShadowMapPass&& other);
 
-		void                         PrepareResources(CRenderView* pMainView);
+		bool                         PrepareResources(CRenderView* pMainView);
 		void                         PreRender();
 
 		CDeviceResourceSetPtr        GetResources()       { return m_pPerPassResourceSet; }

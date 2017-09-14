@@ -421,7 +421,7 @@ public:
 		, m_brofilerEventData(nullptr)
 #endif
 	{
-		m_pRecord = (gEnv->bBootProfilerEnabledFrames) ? gEnv->pSystem->StartBootSectionProfiler(sectionName, instanceArguments) : nullptr;
+		m_pRecord = (gEnv->bBootProfilerEnabledFrames) ? gEnv->pSystem->StartBootSectionProfiler(sectionName, instanceArguments,profileDescription) : nullptr;
 		if (gEnv->bDeepProfiling || profileDescription == EProfileDescription::REGION)
 		{
 			m_pFrameProfiler = profiler;
@@ -547,22 +547,21 @@ public:
 		  BROFILER_SECTION_WAITING(szName)                     \
 		  PLATFORM_PROFILER_SECTION_WAITING(szName)
 
-		#define CRY_PROFILE_MARKER(szName) \
-		  INTERNAL_PROFILER_MARKER(szName) \
-		  BROFILER_MARKER(szName)          \
-		  PLATFORM_PROFILER_MARKER(szName)
+		#define CRY_PROFILE_MARKER(szLabel) \
+		  INTERNAL_PROFILER_MARKER(szLabel) \
+		  BROFILER_MARKER(szLabel)          \
+		  PLATFORM_PROFILER_MARKER(szLabel)
 
-/*
- # define CRY_PROFILE_PUSH(subsystem, szName) \
-   INTERNAL_PROFILER_PUSH(subsystem, szName) \
-   BROFILER_PUSH(szName) \
-   PLATFORM_PROFILER_PUSH(szName)
 
- # define CRY_PROFILE_POP() \
-   INTERNAL_PROFILER_POP() \
-   BROFILER_POP() \
-   PLATFORM_PROFILER_POP()
- */
+		#define CRY_PROFILE_PUSH_MARKER(szLabel) \
+		  INTERNAL_PROFILER_PUSH(szLabel) \
+		  BROFILER_PUSH(szLabel) \
+		  PLATFORM_PROFILER_PUSH(szLabel)
+
+		#define CRY_PROFILE_POP_MARKER(szLabel) \
+		  INTERNAL_PROFILER_POP(szLabel) \
+		  BROFILER_POP() \
+		  PLATFORM_PROFILER_POP(szLabel)
 
 	#else
 		#define CRY_PROFILE_FUNCTION(subsystem)                /*do nothing*/
@@ -570,8 +569,8 @@ public:
 		#define CRY_PROFILE_SECTION(subsystem, szName)         /*do nothing*/
 		#define CRY_PROFILE_SECTION_WAITING(subsystem, szName) /*do nothing*/
 		#define CRY_PROFILE_MARKER(szName)                     /*do nothing*/
-//#	define CRY_PROFILE_PUSH(subsystem, szName) /*do nothing*/
-//#	define CRY_PROFILE_POP() /*do nothing*/
+		#define CRY_PROFILE_PUSH_MARKER(szLabel)               /*do nothing*/
+		#define CRY_PROFILE_POP_MARKER(szLabel)                /*do nothing*/
 	#endif
 
 #else
@@ -586,20 +585,131 @@ public:
 	#define CRY_PROFILE_FUNCTION_WAITING(subsystem)             /*do nothing*/
 	#define CRY_PROFILE_SECTION(subsystem, szName)              /*do nothing*/
 	#define CRY_PROFILE_SECTION_WAITING(subsystem, szName)      /*do nothing*/
-	#define CRY_PROFILE_MARKER(szName)                          /*do nothing*/
-//#define CRY_PROFILE_PUSH(subsystem, szName) /*do nothing*/
-//#define CRY_PROFILE_POP() /*do nothing*/
+	#define CRY_PROFILE_MARKER(szLabel)                         /*do nothing*/
+	#define CRY_PROFILE_PUSH_MARKER(szLabel)                    /*do nothing*/
+	#define CRY_PROFILE_POP_MARKER(szLabel)                     /*do nothing*/
 #endif
 
-/////////// DEPRECATED - do not use anymore /////////////
+#if defined(ENABLE_LOADING_PROFILER)
 
-#define FUNCTION_PROFILER(pISystem, subsystem) \
-  CRY_PROFILE_FUNCTION(subsystem)
+struct DiskOperationInfo
+{
+	DiskOperationInfo() : m_nSeeksCount(0), m_nFileOpenCount(0), m_nFileReadCount(0), m_dOperationSize(0.), m_dOperationTime(0.) {}
+	int    m_nSeeksCount;
+	int    m_nFileOpenCount;
+	int    m_nFileReadCount;
+	double m_dOperationTime;
+	double m_dOperationSize;
 
-#define FRAME_PROFILER(szName, pISystem, subsystem) \
-  CRY_PROFILE_SECTION(subsystem, szName)
+	DiskOperationInfo& operator-=(const DiskOperationInfo& rv)
+	{
+		m_nSeeksCount -= rv.m_nSeeksCount;
+		m_nFileOpenCount -= rv.m_nFileOpenCount;
+		m_nFileReadCount -= rv.m_nFileReadCount;
+		m_dOperationSize -= rv.m_dOperationSize;
+		m_dOperationTime -= rv.m_dOperationTime;
+		return *this;
+	}
 
-// STALL_PROFILER labels should be converted to WAITING sections
-#define STALL_PROFILER(cause)
+	DiskOperationInfo& operator+=(const DiskOperationInfo& rv)
+	{
+		m_nSeeksCount += rv.m_nSeeksCount;
+		m_nFileOpenCount += rv.m_nFileOpenCount;
+		m_nFileReadCount += rv.m_nFileReadCount;
+		m_dOperationSize += rv.m_dOperationSize;
+		m_dOperationTime += rv.m_dOperationTime;
+		return *this;
+	}
 
-/////////////////////////////////////////////////////////
+	DiskOperationInfo operator-(const DiskOperationInfo& rv)
+	{
+		DiskOperationInfo res(*this);
+		return res -= rv;
+	}
+
+	DiskOperationInfo operator+(const DiskOperationInfo& rv)
+	{
+		DiskOperationInfo res(*this);
+		return res += rv;
+	}
+
+};
+
+struct CLoadingTimeProfiler
+{
+	CLoadingTimeProfiler(ISystem* pSystem, const char* szFuncName) : m_pSystem(pSystem)
+	{
+		m_pSystem = pSystem;
+		m_pTimeContainer = m_pSystem->StartLoadingSectionProfiling(this, szFuncName);
+	}
+
+	~CLoadingTimeProfiler()
+	{
+		m_pSystem->EndLoadingSectionProfiling(this);
+	}
+
+	struct SLoadingTimeContainer* m_pTimeContainer;
+	double                        m_fConstructorTime;
+	double                        m_fConstructorMemUsage;
+
+	DiskOperationInfo             m_constructorInfo;
+
+	ISystem*                      m_pSystem;
+};
+
+class CSYSBootProfileBlock
+{
+	ISystem*             m_pSystem;
+	CBootProfilerRecord* m_pRecord;
+public:
+	CSYSBootProfileBlock(ISystem* pSystem, const char* name, const char* args = NULL) : m_pSystem(pSystem)
+	{
+		m_pRecord = m_pSystem ? m_pSystem->StartBootSectionProfiler(name, args,EProfileDescription::FUNCTIONENTRY) : nullptr;
+	}
+
+	~CSYSBootProfileBlock()
+	{
+		if (m_pRecord)
+		{
+			m_pSystem->StopBootSectionProfiler(m_pRecord);
+		}
+	}
+};
+
+class CSYSBootProfileAutoSession
+{
+	ISystem*    m_pSystem;
+	const char* m_szSessionName;
+public:
+	CSYSBootProfileAutoSession(ISystem* pSystem, const char* szSessionName)
+		: m_pSystem(pSystem), m_szSessionName(szSessionName)
+	{
+		m_pSystem->StartBootProfilerSession(m_szSessionName);
+	}
+
+	~CSYSBootProfileAutoSession()
+	{
+		m_pSystem->StopBootProfilerSession(m_szSessionName);
+	}
+};
+
+// CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
+#define LOADING_TIME_PROFILE_SECTION \
+	static CFrameProfiler staticFrameProfilerLoading(PROFILE_LOADING_ONLY, EProfileDescription::FUNCTIONENTRY, __FUNC__, __FILE__, __LINE__); \
+	CFrameProfilerSection frameProfilerSectionLoading(&staticFrameProfilerLoading, __FILE__, nullptr, EProfileDescription::FUNCTIONENTRY);
+
+#define LOADING_TIME_PROFILE_SECTION_ARGS(args)                    CSYSBootProfileBlock _profileBlockLine_args(gEnv->pSystem, __FUNC__, args);
+#define LOADING_TIME_PROFILE_SECTION_NAMED(sectionName)            CSYSBootProfileBlock _profileBlockLine_named(gEnv->pSystem, sectionName);
+#define LOADING_TIME_PROFILE_SECTION_NAMED_ARGS(sectionName, args) CSYSBootProfileBlock _profileBlockLine_named_args(gEnv->pSystem, sectionName, args);
+#define LOADING_TIME_PROFILE_AUTO_SESSION(sessionName)             CSYSBootProfileAutoSession _profileAutoSession(gEnv->pSystem, (sessionName));
+
+
+#else //ENABLE_LOADING_PROFILER
+
+#define LOADING_TIME_PROFILE_SECTION
+#define LOADING_TIME_PROFILE_SECTION_ARGS(args)
+#define LOADING_TIME_PROFILE_SECTION_NAMED(sectionName)
+#define LOADING_TIME_PROFILE_SECTION_NAMED_ARGS(sectionName, args)
+#define LOADING_TIME_PROFILE_AUTO_SESSION(sessionName)
+
+#endif ////ENABLE_LOADING_PROFILER

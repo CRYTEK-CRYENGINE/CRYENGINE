@@ -80,6 +80,10 @@ public:
 
 	void SetAssetModified(IAudioAsset* pAsset);
 
+	void UpdateAllConnectionStates();
+	void UpdateLibraryConnectionStates(IAudioAsset* pAsset);
+	void UpdateAssetConnectionStates(IAudioAsset* pAsset);
+
 	// Dirty flags signal
 	CCrySignal<void(bool)> signalIsDirty;
 

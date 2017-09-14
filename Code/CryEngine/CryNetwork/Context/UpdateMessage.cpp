@@ -266,7 +266,7 @@ void CUpdateMessage::UpdateMsgHandle()
 
 EMessageSendResult CUpdateMessage::InitialChecks(SHistorySyncContext& hsc, INetSender* pSender, SContextViewObject* pViewObj, SContextViewObjectEx* pViewObjEx)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	if (!m_pView->IsObjectBound(m_netID))
 	{
@@ -392,7 +392,7 @@ void CUpdateMessage::GetPositionInfo(SMessagePositionInfo& pos)
 
 EMessageSendResult CUpdateMessage::SendMain(SHistorySyncContext& hsc, INetSender* pSender)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 	SNetChannelEvent event;
 	event.event = eNCE_SentUpdate;
 	event.id = m_netID;

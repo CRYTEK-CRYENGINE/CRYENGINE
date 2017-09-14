@@ -7,6 +7,7 @@
 #include "D3DPostProcess.h"
 #include "D3D_SVO.h"
 
+#include "GraphicsPipeline/OmniCamera.h"
 
 struct STiledLightVolumeInfo
 {
@@ -258,11 +259,14 @@ void CTiledShadingStage::PrepareResources()
 }
 
 
-bool CTiledShadingStage::ExecuteVolumeListGen(uint32 dispatchSizeX, uint32 dispatchSizeY)
+bool CTiledShadingStage::IsSeparateVolumeListGen()
 {
-	if (CRenderer::CV_r_DeferredShadingTiled < 3 && !CRenderer::CV_r_GraphicsPipelineMobile)
-		return false;
-	
+	return !(CRenderer::CV_r_DeferredShadingTiled < 3 && !CRenderer::CV_r_GraphicsPipelineMobile) && !gcpRendD3D->GetGraphicsPipeline().GetOmniCameraStage()->IsEnabled();
+}
+
+
+void CTiledShadingStage::ExecuteVolumeListGen(uint32 dispatchSizeX, uint32 dispatchSizeY)
+{
 	CD3D9Renderer* pRenderer = gcpRendD3D;
 	CTiledShading* pTiledShading = &pRenderer->GetTiledShading();
 
@@ -278,7 +282,7 @@ bool CTiledShadingStage::ExecuteVolumeListGen(uint32 dispatchSizeX, uint32 dispa
 		m_passCopyDepth.SetRequirePerViewConstantBuffer(true);
 		m_passCopyDepth.SetDepthTarget(pDepthRT);
 		m_passCopyDepth.SetState(GS_DEPTHWRITE | GS_DEPTHFUNC_NOTEQUAL);
-		m_passCopyDepth.SetTexture(0, CTexture::s_ptexZTargetScaled3);
+		m_passCopyDepth.SetTexture(0, CTexture::s_ptexZTargetScaled[2]);
 		
 		m_passCopyDepth.BeginConstantUpdate();
 		m_passCopyDepth.Execute();
@@ -337,7 +341,7 @@ bool CTiledShadingStage::ExecuteVolumeListGen(uint32 dispatchSizeX, uint32 dispa
 				primitive.SetRenderState(bInsideVolume ? GS_NODEPTHTEST : GS_DEPTHFUNC_GEQUAL);
 				primitive.SetEnableDepthClip(!bInsideVolume);
 				primitive.SetCullMode(bInsideVolume ? eCULL_Front : eCULL_Back);
-				primitive.SetTexture(3, CTexture::s_ptexZTargetScaled3, EDefaultResourceViews::Default, EShaderStage_Vertex | EShaderStage_Pixel);
+				primitive.SetTexture(3, CTexture::s_ptexZTargetScaled[2], EDefaultResourceViews::Default, EShaderStage_Vertex | EShaderStage_Pixel);
 				primitive.SetBuffer(1, &m_lightVolumeInfoBuf, EDefaultResourceViews::Default, EShaderStage_Vertex | EShaderStage_Pixel);
 
 				SVolumeGeometry& volumeMesh = m_volumeMeshes[volumeType];
@@ -388,10 +392,34 @@ bool CTiledShadingStage::ExecuteVolumeListGen(uint32 dispatchSizeX, uint32 dispa
 	}
 
 	m_passLightVolumes.Execute();
-
-	return true;
 }
 
+
+void CTiledShadingStage::ExecutePreprocess()
+{
+	PrepareResources();
+
+	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	CTiledShading* pTiledShading = &rd->GetTiledShading();
+
+	int screenWidth = rd->GetWidth();
+	int screenHeight = rd->GetHeight();
+	int gridWidth = screenWidth;
+	int gridHeight = screenHeight;
+
+	if (CVrProjectionManager::IsMultiResEnabledStatic())
+		CVrProjectionManager::Instance()->GetProjectionSize(screenWidth, screenHeight, gridWidth, gridHeight);
+
+	uint32 dispatchSizeX = gridWidth / LightTileSizeX + (gridWidth % LightTileSizeX > 0 ? 1 : 0);
+	uint32 dispatchSizeY = gridHeight / LightTileSizeY + (gridHeight % LightTileSizeY > 0 ? 1 : 0);
+
+	bool bSeparateCullingPass = IsSeparateVolumeListGen();
+
+	if (bSeparateCullingPass)
+	{
+		ExecuteVolumeListGen(dispatchSizeX, dispatchSizeY);
+	}
+}
 
 void CTiledShadingStage::Execute()
 {
@@ -416,7 +444,7 @@ void CTiledShadingStage::Execute()
 	uint32 dispatchSizeX = gridWidth / LightTileSizeX + (gridWidth % LightTileSizeX > 0 ? 1 : 0);
 	uint32 dispatchSizeY = gridHeight / LightTileSizeY + (gridHeight % LightTileSizeY > 0 ? 1 : 0);
 
-	bool bSeparateCullingPass = ExecuteVolumeListGen(dispatchSizeX, dispatchSizeY);
+	bool bSeparateCullingPass = IsSeparateVolumeListGen();
 	
 	if (CRenderer::CV_r_DeferredShadingTiled == 4 || CRenderer::CV_r_GraphicsPipelineMobile)
 		return;

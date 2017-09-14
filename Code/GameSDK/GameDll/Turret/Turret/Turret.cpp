@@ -2645,11 +2645,6 @@ void CTurret::NotifyCancelPreparingToFire()
 	m_pSoundManager->NotifyCancelPreparingToFire();
 }
 
-IEntityComponent::ComponentEventPriority CTurret::GetEventPriority(const int eventID) const
-{
-	return ENTITY_PROXY_USER;
-}
-
 void CTurret::OnEntityKilledEarly(const HitInfo &hitInfo) 
 {
 

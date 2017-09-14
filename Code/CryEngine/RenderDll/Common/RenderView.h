@@ -136,7 +136,7 @@ public:
 	template<typename T>
 	int FindRenderListSplit(T predicate, ERenderListID list, int first, int last)
 	{
-		FUNCTION_PROFILER_RENDERER
+		FUNCTION_PROFILER_RENDERER();
 
 		// Binary search, assumes that the sub-region of the list is sorted by the predicate already
 		RenderItems& renderItems = GetRenderItems(list);

@@ -177,7 +177,7 @@ void CDepthOfFieldStage::Execute()
 				m_passGather0.SetRenderTarget(2, CTexture::s_ptexSceneCoCTemp);
 				m_passGather0.SetState(GS_NODEPTHTEST);
 
-				m_passGather0.SetTextureSamplerPair(0, CTexture::s_ptexZTargetScaled, EDefaultSamplerStates::PointClamp);
+				m_passGather0.SetTextureSamplerPair(0, CTexture::s_ptexZTargetScaled[0], EDefaultSamplerStates::PointClamp);
 				m_passGather0.SetTextureSamplerPair(1, CTexture::s_ptexHDRDofLayers[0], EDefaultSamplerStates::LinearClamp);
 				m_passGather0.SetTextureSamplerPair(2, CTexture::s_ptexHDRDofLayers[1], EDefaultSamplerStates::LinearClamp);
 				m_passGather0.SetTextureSamplerPair(3, CTexture::s_ptexSceneCoC[0], EDefaultSamplerStates::LinearClamp);
@@ -219,7 +219,7 @@ void CDepthOfFieldStage::Execute()
 				m_passGather1.SetRenderTarget(2, CTexture::s_ptexSceneCoC[0]);
 				m_passGather1.SetState(GS_NODEPTHTEST);
 
-				m_passGather1.SetTextureSamplerPair(0, CTexture::s_ptexZTargetScaled, EDefaultSamplerStates::PointClamp);
+				m_passGather1.SetTextureSamplerPair(0, CTexture::s_ptexZTargetScaled[0], EDefaultSamplerStates::PointClamp);
 				m_passGather1.SetTextureSamplerPair(1, pTexDofLayersTmp[0], EDefaultSamplerStates::LinearClamp);
 				m_passGather1.SetTextureSamplerPair(2, pTexDofLayersTmp[1], EDefaultSamplerStates::LinearClamp);
 				m_passGather1.SetTextureSamplerPair(3, CTexture::s_ptexSceneCoCTemp, EDefaultSamplerStates::PointClamp);  // TODO: Point filtering good here?

@@ -5,7 +5,7 @@
 #include <QWidget>
 
 class QFilteringPanel;
-class QTreeView;
+class QAdvancedTreeView;
 class QAttributeFilterProxyModel;
 class QToolButton;
 class QItemSelection;
@@ -57,7 +57,7 @@ private:
 	CAbstractComponentsModel*   m_pModel;
 
 	QFilteringPanel*            m_pFilter;
-	QTreeView*                  m_pComponentsList;
+	QAdvancedTreeView*          m_pComponentsList;
 	QAttributeFilterProxyModel* m_pFilterProxy;
 	QToolButton*                m_pAddButton;
 	QPopupWidget*               m_pContextMenu;

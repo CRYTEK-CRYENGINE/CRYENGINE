@@ -103,8 +103,6 @@ struct IRealtimeRemoteUpdate;
 struct ISerializeHelper;
 struct ITimeDemoRecorder;
 
-class CSegmentedWorld;
-
 class CNetMessageDistpatcher;
 class CManualFrameStepController;
 class CEntityContainerMgr;
@@ -546,7 +544,6 @@ private:
 	IGameSessionHandler*          m_pGameSessionHandler;
 
 	CAIProxyManager*              m_pAIProxyManager;
-	CSegmentedWorld*              m_pSegmentedWorld;
 
 	IGameVolumes*                 m_pGameVolumesManager;
 

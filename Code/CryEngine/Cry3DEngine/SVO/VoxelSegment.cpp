@@ -2074,16 +2074,16 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 			{
 				for (int y = (int)cloudBoxWS.min.y; y < (int)cloudBoxWS.max.y; y += S)
 				{
-					if (!pTerrain->GetHole(x + nHalfStep, y + nHalfStep, 0))
+					if (!pTerrain->GetHole(x + nHalfStep, y + nHalfStep))
 					{
 						// prevent surface interpolation over long edge
 						bool bFlipTris = false;
-						int nType10 = pTerrain->GetSurfaceTypeID(x + S, y, 0);
-						int nType01 = pTerrain->GetSurfaceTypeID(x, y + S, 0);
+						int nType10 = pTerrain->GetSurfaceTypeID(x + S, y);
+						int nType01 = pTerrain->GetSurfaceTypeID(x, y + S);
 						if (nType10 != nType01)
 						{
-							int nType00 = pTerrain->GetSurfaceTypeID(x, y, 0);
-							int nType11 = pTerrain->GetSurfaceTypeID(x + S, y + S, 0);
+							int nType00 = pTerrain->GetSurfaceTypeID(x, y);
+							int nType11 = pTerrain->GetSurfaceTypeID(x + S, y + S);
 							if ((nType10 == nType00 && nType10 == nType11) || (nType01 == nType00 && nType01 == nType11))
 								bFlipTris = true;
 						}
@@ -2092,13 +2092,13 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 						{
 							I = 0;
 							X = x + S, Y = y + 0;
-							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y, 0));
+							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y));
 							I++;
 							X = x + S, Y = y + S;
-							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y, 0));
+							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y));
 							I++;
 							X = x + 0, Y = y + 0;
-							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y, 0));
+							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y));
 							I++;
 
 							if (Overlap::AABB_Triangle(cloudBoxWS, ht.v[0], ht.v[1], ht.v[2]))
@@ -2113,13 +2113,13 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 
 							I = 0;
 							X = x + 0, Y = y + 0;
-							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y, 0));
+							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y));
 							I++;
 							X = x + S, Y = y + S;
-							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y, 0));
+							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y));
 							I++;
 							X = x + 0, Y = y + S;
-							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y, 0));
+							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y));
 							I++;
 
 							if (Overlap::AABB_Triangle(cloudBoxWS, ht.v[0], ht.v[1], ht.v[2]))
@@ -2136,13 +2136,13 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 						{
 							I = 0;
 							X = x + 0, Y = y + 0;
-							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y, 0));
+							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y));
 							I++;
 							X = x + S, Y = y + 0;
-							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y, 0));
+							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y));
 							I++;
 							X = x + 0, Y = y + S;
-							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y, 0));
+							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y));
 							I++;
 
 							if (Overlap::AABB_Triangle(cloudBoxWS, ht.v[0], ht.v[1], ht.v[2]))
@@ -2157,13 +2157,13 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 
 							I = 0;
 							X = x + S, Y = y + 0;
-							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y, 0));
+							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y));
 							I++;
 							X = x + S, Y = y + S;
-							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y, 0));
+							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y));
 							I++;
 							X = x + 0, Y = y + S;
-							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y, 0));
+							ht.v[I].Set((float)X, (float)Y, pTerrain->GetZ(X, Y));
 							I++;
 
 							if (Overlap::AABB_Triangle(cloudBoxWS, ht.v[0], ht.v[1], ht.v[2]))
@@ -2297,7 +2297,7 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 									Vec3 vH = ht.v[h];
 									vH.CheckMax(cloudBoxWS.min);
 									vH.CheckMin(cloudBoxWS.max);
-									if (vH.z > (GetTerrain()->GetZ((int)vH.x, (int)vH.y, 0) - 1.f) || GetTerrain()->GetHole((int)vH.x, (int)vH.y, 0))
+									if (vH.z > (GetTerrain()->GetZ((int)vH.x, (int)vH.y) - 1.f) || GetTerrain()->GetHole((int)vH.x, (int)vH.y))
 									{
 										bSkipUnderTerrain = false;
 										break;
@@ -2691,7 +2691,7 @@ ColorF CVoxelSegment::ProcessMaterial(const SRayHitTriangleIndexed& tr, const Ve
 			  pTexRgb, nTexWidth, nTexHeight, 1.f / 255.f);
 
 			colTex.srgb2rgb();
-			colTex *= GetTerrain()->GetTerrainTextureMultiplier(0);
+			colTex *= GetTerrain()->GetTerrainTextureMultiplier();
 
 			colTex.r = max(colTex.r, .02f);
 			colTex.g = max(colTex.g, .02f);

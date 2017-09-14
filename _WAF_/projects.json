@@ -66,5 +66,39 @@
 		{
 			"data_folder"      : "/data/sdk/"
 		}
+	},
+	"GameHunt" :
+	{
+		"code_folder"         : "Code/Game_Hunt",
+		"game_data_dir"       : "gamehunt",
+		"game_dll_filename"   : "GameHunt.dll",
+
+		"executable_name"     : "HUNT",
+
+		"product_name"        : "HUNT",
+
+		"durango_settings" :
+		{
+			"app_id"            : "GameHunt.app",
+			"package_name"      : "GameHunt",
+			"display_name"      : "GameHunt",
+			"publisher"         : "Crytek",
+			"description"       : "GameHunt",
+			"foreground_text"   : "light",
+			"background_color"  : "#6495ED",
+			"version"           : "1.0.0.0",
+			"titleid"           :  "06BFF3BF",
+			"scid"              :  "84d70100-5e91-4cf0-bcc9-7b2f06bff3bf",
+			"appxmanifest"      : "AppxManifest.xml",
+			"logo"              : "DurangoLogo.png",
+			"small_logo"        : "DurangoSmallLogo.png",
+			"splash_screen"     : "DurangoSplashScreen.png",
+			"store_logo"        : "DurangoStoreLogo.png"
+		},
+
+		"orbis_settings" :
+		{
+			"data_folder"      : "/data/sdk/"
+		}
 	}
 }

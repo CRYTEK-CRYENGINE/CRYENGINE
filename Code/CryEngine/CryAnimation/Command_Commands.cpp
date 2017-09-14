@@ -113,6 +113,8 @@ void LoadControllers(const GlobalAnimationHeaderCAF& rGAH, const Command::CState
 
 void ClearPoseBuffer::Execute(const CState& state, CEvaluationContext& context) const
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	assert(m_TargetBuffer <= Command::TargetBuffer);
 
 	const float identityConstant = m_nPoseInit ? 1.0f : 0.0f;
@@ -153,6 +155,7 @@ void ClearPoseBuffer::Execute(const CState& state, CEvaluationContext& context) 
 //this function operates on "rGlobalAnimHeaderCAF"
 void SampleAddAnimFull::Execute(const CState& state, CEvaluationContext& context) const
 {
+	DEFINE_PROFILER_FUNCTION();
 
 	const QuatT* const defaultPose = state.m_pDefaultSkeleton->m_poseDefaultData.GetJointsRelativeMain();
 	const float* const defaultScale = state.m_pDefaultSkeleton->m_poseDefaultData.GetScalingRelative();
@@ -271,6 +274,7 @@ void SampleAddAnimFull::Execute(const CState& state, CEvaluationContext& context
 //this function operates on "rGlobalAnimHeaderAIM"
 void SampleAddPoseFull::Execute(const CState& state, CEvaluationContext& context) const
 {
+	DEFINE_PROFILER_FUNCTION();
 
 	const CDefaultSkeleton::SJoint* const pModelJoint = state.m_pDefaultSkeleton->m_arrModelJoints.data();
 	const QuatT* const parrDefJoints = state.m_pDefaultSkeleton->m_poseDefaultData.GetJointsRelativeMain();
@@ -350,6 +354,8 @@ void SampleAddPoseFull::Execute(const CState& state, CEvaluationContext& context
 //reads content from m_SourceBuffer, multiplies the pose by a blend weight, and adds the result to the m_TargetBuffer
 void AddPoseBuffer::Execute(const CState& state, CEvaluationContext& context) const
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	const AddPoseBuffer& ac = *this;
 	void** CBTemp = context.m_buffers;
 
@@ -381,6 +387,8 @@ void AddPoseBuffer::Execute(const CState& state, CEvaluationContext& context) co
 
 void NormalizeFull::Execute(const CState& state, CEvaluationContext& context) const
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	const NormalizeFull& ac = *this;
 	void** CBTemp = context.m_buffers;
 
@@ -408,6 +416,8 @@ void NormalizeFull::Execute(const CState& state, CEvaluationContext& context) co
 
 void ScaleUniformFull::Execute(const CState& state, CEvaluationContext& context) const
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	assert(m_TargetBuffer <= Command::TargetBuffer);
 
 	const auto parrRelPoseDst = static_cast<QuatT*>(context.m_buffers[m_TargetBuffer + 0]);
@@ -438,6 +448,7 @@ struct SAbsoluteTransform
 
 void SampleAddAnimPart::Execute(const CState& state, CEvaluationContext& context) const
 {
+	DEFINE_PROFILER_FUNCTION();
 
 	assert(m_TargetBuffer <= Command::TargetBuffer);
 	const auto parrRelPoseDst = static_cast<QuatT*>(context.m_buffers[m_TargetBuffer + 0]);
@@ -572,6 +583,8 @@ void SampleAddAnimPart::Execute(const CState& state, CEvaluationContext& context
 
 void PerJointBlending::Execute(const CState& state, CEvaluationContext& context) const
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	assert(m_TargetBuffer <= Command::TargetBuffer);
 
 	// This is source-buffer No.1
@@ -630,6 +643,8 @@ void PerJointBlending::Execute(const CState& state, CEvaluationContext& context)
 
 void PoseModifier::Execute(const CState& state, CEvaluationContext& context) const
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	const PoseModifier& ac = *this;
 	void** CBTemp = context.m_buffers;
 
@@ -654,26 +669,36 @@ void PoseModifier::Execute(const CState& state, CEvaluationContext& context) con
 
 void UpdateRedirectedJoint::Execute(const CState& state, CEvaluationContext& context) const
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	m_attachmentBone->Update_Redirected(*state.m_pPoseData);
 }
 
 void UpdatePendulumRow::Execute(const CState& state, CEvaluationContext& context) const
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	m_attachmentPendulumRow->UpdateRow(*state.m_pPoseData);
 }
 
 void PrepareAllRedirectedTransformations::Execute(const CState& state, CEvaluationContext& context) const
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	state.m_pInstance->m_AttachmentManager.PrepareAllRedirectedTransformations(*state.m_pPoseData);
 }
 
 void GenerateProxyModelRelativeTransformations::Execute(const CState& state, CEvaluationContext& context) const
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	state.m_pInstance->m_AttachmentManager.GenerateProxyModelRelativeTransformations(*state.m_pPoseData);
 }
 
 void ComputeAbsolutePose::Execute(const CState& state, CEvaluationContext& context) const
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	state.m_pPoseData->ValidateRelative(*state.m_pInstance->m_pDefaultSkeleton);
 	state.m_pPoseData->ComputeAbsolutePose(*state.m_pInstance->m_pDefaultSkeleton, state.m_pDefaultSkeleton->m_ObjectType == CHR);
 	state.m_pPoseData->ValidateAbsolute(*state.m_pInstance->m_pDefaultSkeleton);
@@ -812,6 +837,8 @@ void ProcessAnimationDrivenIkFunction(CCharInstance& instance, IAnimationPoseDat
 
 void ProcessAnimationDrivenIk::Execute(const CState& state, CEvaluationContext& context) const
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	if (!state.m_pInstance->m_SkeletonPose.m_physics.m_bPhysicsRelinquished && state.m_pInstance->m_SkeletonAnim.m_IsAnimPlaying && Console::GetInst().ca_useADIKTargets)
 	{
 		ProcessAnimationDrivenIkFunction(*state.m_pInstance, state.m_pPoseData, state.m_location);
@@ -820,6 +847,8 @@ void ProcessAnimationDrivenIk::Execute(const CState& state, CEvaluationContext& 
 
 void PhysicsSync::Execute(const CState& state, CEvaluationContext& context) const
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	state.m_pInstance->m_SkeletonPose.m_physics.Job_Physics_SynchronizeFrom(*state.m_pPoseData, state.m_originalTimeDelta);
 }
 

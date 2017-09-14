@@ -224,7 +224,7 @@ void FixDeadzone(Vec2& d)
 
 void CXInputDevice::Update(bool bFocus)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_INPUT);
+	CRY_PROFILE_FUNCTION(PROFILE_INPUT);
 
 	DEBUG_CONTROLLER_RENDER_BUTTON_ACTION;
 

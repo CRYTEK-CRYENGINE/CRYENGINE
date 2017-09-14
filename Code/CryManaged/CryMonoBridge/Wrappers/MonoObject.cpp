@@ -87,9 +87,28 @@ CMonoClass* CMonoObject::GetClass()
 	return m_pClass.get();
 }
 
-void CMonoObject::CopyFrom(CMonoObject& source)
+void CMonoObject::CopyFrom(const CMonoObject& source)
 {
-	MonoInternals::mono_gc_wbarrier_object_copy(m_pObject, source.GetManagedObject());
+	CopyFrom(source.GetManagedObject());
+}
+
+void CMonoObject::CopyFrom(MonoInternals::MonoObject* pSource)
+{
+	if (GetClass()->IsValueType())
+	{
+		MonoInternals::mono_gc_wbarrier_object_copy(m_pObject, pSource);
+	}
+	else
+	{
+		MonoInternals::mono_gc_wbarrier_generic_store(&m_pObject, pSource);
+	}
+}
+
+std::shared_ptr<CMonoObject> CMonoObject::Clone()
+{
+	std::shared_ptr<CMonoObject> pNewObject = GetClass()->CreateUninitializedInstance();
+	pNewObject->CopyFrom(*this);
+	return pNewObject;
 }
 
 void* CMonoObject::UnboxObject()

@@ -24,7 +24,7 @@ float CREBreakableGlass::s_impactTimer = 0.0f;
 // Profiling
 #ifndef GLASS_FUNC_PROFILER
 // #ifndef RELEASE
-//  #define GLASS_FUNC_PROFILER			FUNCTION_PROFILER(GetISystem(), PROFILE_GLASS)
+//  #define GLASS_FUNC_PROFILER			CRY_PROFILE_FUNCTION(PROFILE_GLASS)
 //  #define GLASS_PROFILE_ENABLED
 //  #define GLASS_PROFILE_AUTO_BREAK
 // #else

@@ -316,10 +316,6 @@ extern void SliceAndSleep(const char* pFunc, int line);
 //# define CRY_PROFILE_MARKERS_USE_NVTOOLSEXT
 #endif
 
-#if CRY_PLATFORM_WINDOWS
-//#define SEG_WORLD
-#endif
-
 #ifdef SEG_WORLD
 	#define SW_STRIP_LOADING_MSG
 	#define SW_ENTITY_ID_USE_GUID

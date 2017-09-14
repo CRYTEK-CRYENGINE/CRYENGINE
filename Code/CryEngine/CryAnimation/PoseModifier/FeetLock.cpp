@@ -24,6 +24,8 @@ CRYREGISTER_CLASS(CFeetPoseStore)
 // IAnimationPoseModifier
 bool CFeetPoseStore::Execute(const SAnimationPoseModifierParams& params)
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	Skeleton::CPoseData* pPoseData = Skeleton::CPoseData::GetPoseData(params.pPoseData);
 	if (!pPoseData)
 		return false;
@@ -83,6 +85,8 @@ CRYREGISTER_CLASS(CFeetPoseRestore)
 // IAnimationPoseModifier
 bool CFeetPoseRestore::Execute(const SAnimationPoseModifierParams& params)
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	Skeleton::CPoseData* pPoseData = Skeleton::CPoseData::GetPoseData(params.pPoseData);
 	if (!pPoseData)
 		return false;

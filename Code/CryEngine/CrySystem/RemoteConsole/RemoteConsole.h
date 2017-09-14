@@ -205,7 +205,7 @@ typedef std::list<std::unique_ptr<IRemoteEvent>> TEventBuffer;
 struct SRemoteClient;
 struct SRemoteServer : public IThread
 {
-	SRemoteServer() : m_socket(CRY_INVALID_SOCKET), m_bAcceptClients(false) { m_stopEvent.Set(); }
+	SRemoteServer() : m_socket(CRY_INVALID_SOCKET), m_bAcceptClients(false) {}
 
 	void StartServer();
 	void StopServer();
@@ -223,8 +223,6 @@ private:
 	bool WriteBuffer(SRemoteClient* pClient, char* buffer, size_t& size);
 	bool ReadBuffer(const char* buffer, size_t data);
 
-	void ClientDone(SRemoteClient* pClient);
-
 private:
 	struct SRemoteClientInfo
 	{
@@ -238,7 +236,6 @@ private:
 	CRYSOCKET     m_socket;
 	CryMutex      m_lock;
 	TEventBuffer  m_eventBuffer;
-	CryEvent      m_stopEvent;
 	volatile bool m_bAcceptClients;
 	friend struct SRemoteClient;
 };
@@ -251,10 +248,9 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////////////
 struct SRemoteClient : public IThread
 {
-	SRemoteClient(SRemoteServer* pServer) : m_pServer(pServer), m_socket(CRY_INVALID_SOCKET) {}
+	SRemoteClient(SRemoteServer* pServer) : m_pServer(pServer), m_socket(CRY_INVALID_SOCKET), m_bRun(true){}
 
 	void StartClient(CRYSOCKET socket);
-	void StopClient();
 
 	// Start accepting work on thread
 	virtual void ThreadEntry();
@@ -270,6 +266,7 @@ private:
 private:
 	SRemoteServer* m_pServer;
 	CRYSOCKET      m_socket;
+	volatile bool  m_bRun;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////

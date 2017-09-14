@@ -888,7 +888,7 @@ inline void CSubmissionQueue_DX11::BindIAAsync()
 
 inline void CSubmissionQueue_DX11::CommitDeviceStatesAsync()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 	DETAILED_PROFILE_MARKER("CommitDeviceStatesAsyncAsync");
 
 	#if defined(BUFFER_ENABLE_DIRECT_ACCESS) && (CRY_RENDERER_DIRECT3D == 110) && !CRY_RENDERER_GNM

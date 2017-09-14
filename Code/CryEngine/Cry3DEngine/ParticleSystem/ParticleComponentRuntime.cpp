@@ -44,7 +44,7 @@ const CParticleContainer& CParticleComponentRuntime::GetParentContainer() const
 
 void CParticleComponentRuntime::Initialize()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	CParticleComponent* pcomponent = GetComponent();
 
@@ -75,7 +75,7 @@ void CParticleComponentRuntime::SetActive(bool active)
 
 void CParticleComponentRuntime::UpdateAll()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	AddRemoveNewBornsParticles(SUpdateContext(this));
 	UpdateParticles(SUpdateContext(this));
@@ -84,7 +84,7 @@ void CParticleComponentRuntime::UpdateAll()
 
 void CParticleComponentRuntime::AddRemoveNewBornsParticles(const SUpdateContext& context)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 	CTimeProfiler profile(GetPSystem()->GetProfiler(), this, EPS_NewBornTime);
 
 	m_container.RemoveNewBornFlags();
@@ -96,7 +96,7 @@ void CParticleComponentRuntime::AddRemoveNewBornsParticles(const SUpdateContext&
 
 void CParticleComponentRuntime::UpdateParticles(const SUpdateContext& context)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 	CTimeProfiler profile(GetPSystem()->GetProfiler(), this, EPS_UpdateTime);
 
 	m_container.FillData(EPVF_Acceleration, 0.0f, context.m_updateRange);
@@ -110,7 +110,7 @@ void CParticleComponentRuntime::ComputeVertices(const SCameraInfo& camInfo, CREP
 {
 	if (GetComponent()->IsVisible())
 	{
-		FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+		CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 		CTimeProfiler profile(GetPSystem()->GetProfiler(), this, EPS_ComputeVerticesTime);
 
 		for (auto& it : GetComponent()->GetUpdateList(EUL_Render))
@@ -455,6 +455,10 @@ void CParticleComponentRuntime::CalculateBounds()
 		m_bounds.max = max(m_bounds.max, position + sizev);
 	}
 #endif
+
+	// augment bounds from features
+	for (auto& it : GetComponent()->GetUpdateList(EUL_ComputeBounds))
+		it->ComputeBounds(this, m_bounds);
 }
 
 void CParticleComponentRuntime::AgeUpdate(const SUpdateContext& context)
@@ -590,7 +594,7 @@ void CParticleComponentRuntime::DebugStabilityCheck()
 
 void CParticleComponentRuntime::AccumStatsNonVirtual(SParticleStats& stats)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	const uint allocParticles = uint(m_container.GetMaxParticles());
 	const uint aliveParticles = uint(m_container.GetLastParticleId());

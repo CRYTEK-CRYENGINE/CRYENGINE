@@ -257,7 +257,7 @@ float CAttachmentSKIN::GetExtent(EGeomForm eForm)
 	return 0.f;
 }
 
-void CAttachmentSKIN::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const
+void CAttachmentSKIN::GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const
 {
 	int nLOD = m_pModelSkin->SelectNearestLoadedLOD(0);
 	IRenderMesh* pMesh = m_pModelSkin->GetIRenderMesh(nLOD);
@@ -274,7 +274,7 @@ void CAttachmentSKIN::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm)
 		}
 	}
 
-	pMesh->GetRandomPos(ran, seed, eForm, pSkinningData);
+	pMesh->GetRandomPoints(points, seed, eForm, pSkinningData);
 }
 
 const QuatTS CAttachmentSKIN::GetAttWorldAbsolute() const 

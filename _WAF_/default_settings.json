@@ -229,7 +229,7 @@
 		{
 			"long_form"      : "--specs-to-include-in-project-generation",
 			"attribute"      : "specs_to_include_in_project_generation",
-			"default_value"  : "gamezero,gamezero_and_tools_qt",
+			"default_value"  : "gamehunt",
 			"description"    : "List of specs to include in solution generation"
 		}
 	],

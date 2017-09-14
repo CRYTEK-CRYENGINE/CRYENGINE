@@ -224,60 +224,48 @@ static bool CopyDummy(const char* szImposter, const char* szSrcFile, const char*
 
 static bool MoveAssetFile(const char* szSrcFile, const char* szDstFile)
 {
-	bool success = true;
-
-	if (strcmp(szSrcFile, szDstFile))
+	if (strcmp(szSrcFile, szDstFile) == 0)
 	{
-		const auto attributes = GetFileAttributes(szDstFile);
-		if (attributes != INVALID_FILE_ATTRIBUTES)
+		return true;
+	}
+
+	const auto attributes = GetFileAttributes(szDstFile);
+	if (attributes != INVALID_FILE_ATTRIBUTES)
+	{
+		if ((attributes & FILE_ATTRIBUTE_READONLY) != 0)
 		{
-			if ((attributes & FILE_ATTRIBUTE_READONLY) != 0)
+			// CE-12815. Should be able to compile tiff to dds if .cryasset file is write protected.
+			if (stricmp(PathUtil::GetExt(szDstFile), "cryasset") == 0)
 			{
-				// CE-12815. Should be able to compile tiff to dds if .cryasset file is write protected.
-				if (stricmp(PathUtil::GetExt(szDstFile), "cryasset") == 0)
-				{
-					DeleteFile(szSrcFile);
-					return true;
-				}
-				else
-				{
-					iLog->LogError("Can't write to read-only file: \"%s\"\n", szDstFile);
-					return false;
-				}
+				DeleteFile(szSrcFile);
+				return true;
 			}
-			success = success && (DeleteFile(szDstFile) != FALSE);
+			else
+			{
+				iLog->LogError("Can't write to read-only file: \"%s\"\n", szDstFile);
+				return false;
+			}
 		}
+	}
 
-		gEnv->pCryPak->MakeDir(PathUtil::GetPathWithoutFilename(szDstFile));
+	gEnv->pCryPak->MakeDir(PathUtil::GetPathWithoutFilename(szDstFile));
 
-		success = success && (GetFileAttributes(szSrcFile) != INVALID_FILE_ATTRIBUTES);
-		success = success && (MoveFile(szSrcFile, szDstFile) != FALSE);
+	bool success = GetFileAttributes(szSrcFile) != INVALID_FILE_ATTRIBUTES;
+	success = success && (MoveFileEx(szSrcFile, szDstFile, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != FALSE);
+
+	if (!success)
+	{
+		// try spin for 1.5 seconds, there might still be a file lock on either source or target
+		// compilation isn't time critical, and this occurs infrequently
+		for (int i = 0; (i < 5) && (!success); ++i)
+		{
+			CrySleep(300);
+			success = MoveFileEx(szSrcFile, szDstFile, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != FALSE;
+		}
 
 		if (!success)
 		{
-			// try spin for 1.5 seconds, there might still be a file lock on either source or target
-			// compilation isn't time critical, and this occurs infrequently
-			for (int i = 0; (i < 5) && (!success); ++i)
-			{
-				success = true;
-
-				CrySleep(100);
-				if (GetFileAttributes(szDstFile) != INVALID_FILE_ATTRIBUTES)
-				{
-					CrySleep(100);
-					success = success && (DeleteFile(szDstFile) != FALSE);
-				}
-
-				CrySleep(100);
-				success = success && (GetFileAttributes(szSrcFile) != INVALID_FILE_ATTRIBUTES);
-				CrySleep(100);
-				success = success && (MoveFile(szSrcFile, szDstFile) != FALSE);
-			}
-
-			if (!success)
-			{
-				iLog->LogError("Can't copy from \"%s\" to \"%s\"\n", szSrcFile, szDstFile);
-			}
+			iLog->LogError("Can't copy from \"%s\" to \"%s\"\n", szSrcFile, szDstFile);
 		}
 	}
 
@@ -310,6 +298,7 @@ public:
 
 	~CTemporaryAsset()
 	{
+		CreateDestinationAssets();
 		DeleteTemp(GetTmpPath());
 	}
 
@@ -318,12 +307,14 @@ public:
 		return m_assets.front().tmp;
 	}
 
+private:
+
 	// Moves asset(s) from the temporary to the destination location.
-	void CreateDestinationAssets(const bool bSuccess) const
+	void CreateDestinationAssets() const
 	{
 		for (const auto& asset : m_assets)
 		{
-			const bool bAssetCreated = bSuccess && MoveAsset(asset.tmp.c_str(), asset.dst.c_str());
+			const bool bAssetCreated = MoveAsset(asset.tmp.c_str(), asset.dst.c_str());
 			if (!bAssetCreated && (CRenderer::CV_r_texturecompilingIndicator >= 0))
 			{
 				CopyDummy(GetFailedTexture(asset.dst.c_str()), asset.src.c_str(), asset.dst.c_str(), COMPILE_FAILED_DELTA);
@@ -337,7 +328,6 @@ public:
 		}
 	}
 
-private:
 	static string GetTemporaryDirectoryPath()
 	{
 		char path[ICryPak::g_nMaxPath] = {};
@@ -605,6 +595,22 @@ void CTextureCompiler::ForkOffResourceCompiler(const char* szSrcFile, const char
 	}
 }
 
+bool CTextureCompiler::IsFileOpened(const char* szPath)
+{
+	if (!gEnv->pCryPak->IsFileExist(szPath, ICryPak::eFileLocation_OnDisk))
+	{
+		return false;
+	}
+
+	FILE* pFile = gEnv->pCryPak->FOpen(szPath, "r", ICryPak::FOPEN_ONDISK | ICryPak::FOPEN_LOCKED_OPEN);
+	if (!pFile)
+	{
+		return true;
+	}
+	gEnv->pCryPak->FClose(pFile);
+	return false;
+}
+
 void CTextureCompiler::ConsumeQueuedResourceCompiler(TProcItem* item)
 {
 	// no need to protect
@@ -627,16 +633,13 @@ void CTextureCompiler::ConsumeQueuedResourceCompiler(TProcItem* item)
 			});
 			m_rwLockNotify.RUnlock();
 
+			iLog->Log("Compile texture from \"%s\", to \"%s\"\n", item->src.c_str(), item->dst.c_str());
+
 			// Always use a temporary file as outfile, otherwise RC may write to the
 			// file before it's even loaded as a dummy.
 			{
 				CTemporaryAsset tmpAsset(item->src, item->dst);
-
-				iLog->Log("Compile texture from \"%s\", to \"%s\"\n", item->src.c_str(), tmpAsset.GetTmpPath().c_str());
 				item->returnval = InvokeResourceCompiler(item->src.c_str(), tmpAsset.GetTmpPath().c_str(), item->windowed, true);
-
-				bool bSuccess = (item->returnval == eRcExitCode_Success);
-				tmpAsset.CreateDestinationAssets(bSuccess);
 			}
 
 			m_rwLockNotify.RLock();
@@ -722,6 +725,8 @@ bool CTextureCompiler::ProcessTextureIfNeeded(
 		}
 	#endif
 
+		bool bInvokeResourceCompiler = false;
+
 		// compile if there is no destination
 		// compare date of destination and source , recompile if needed
 		// load dds header, check hash-value of the compile settings in the dds file, recompile if needed (not done yet)
@@ -731,6 +736,13 @@ bool CTextureCompiler::ProcessTextureIfNeeded(
 		{
 			SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 			pDestFile = gEnv->pCryPak->FOpen(sDestFile, "rb");
+
+			// It can be that the file is still being opened for writing.
+			if (IsFileOpened(sSrcFile))
+			{
+				// Force texture-compiling 
+				bInvokeResourceCompiler = true;
+			}
 			pSrcFile = gEnv->pCryPak->FOpen(sSrcFile, "rb");
 		}
 
@@ -752,8 +764,6 @@ bool CTextureCompiler::ProcessTextureIfNeeded(
 				pSrcFile = 0;
 			}
 		}
-
-		bool bInvokeResourceCompiler = false;
 
 		// is there no destination file?
 		if (pSrcFile && !pDestFile)
@@ -801,7 +811,7 @@ bool CTextureCompiler::ProcessTextureIfNeeded(
 			gEnv->pCryPak->FClose(pSrcFile);
 			pSrcFile = 0;
 		}
-		else
+		else if (!bInvokeResourceCompiler)
 		{
 			continue;
 		}

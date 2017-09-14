@@ -1545,7 +1545,7 @@ int CScriptBind_AI::ModifySmartObjectStates(IFunctionHandler* pH)
 //-----------------------------------------------------------------------------------------------------------
 int CScriptBind_AI::SmartObjectEvent(IFunctionHandler* pH)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	int id = 0;
 
@@ -6804,7 +6804,7 @@ int CScriptBind_AI::GetNavigationType(IFunctionHandler* pH)
 //-----------------------------------------------------------------------------------------------------------
 int CScriptBind_AI::GetDirectAnchorPos(IFunctionHandler* pH)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	//	SCRIPT_CHECK_PARAMETERS(3);
 	GET_ENTITY(1);
@@ -6875,7 +6875,7 @@ int CScriptBind_AI::EvalHidespot(IFunctionHandler* pH)
 	//  2 - blind cover
 	//  3 - high cover
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	//	SCRIPT_CHECK_PARAMETERS(4);
 	GET_ENTITY(1);
@@ -6941,7 +6941,7 @@ int CScriptBind_AI::EvalPeek(IFunctionHandler* pH)
 	//  2 - can peek from right
 	//  3 - can peek from left & right
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	GET_ENTITY(1);
 
 	// Optimal Side will cause the function to return either left or right (not both, if both sides are

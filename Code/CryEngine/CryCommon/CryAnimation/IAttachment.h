@@ -508,7 +508,7 @@ struct IAttachmentSkin
 	virtual ISkin*            GetISkin() = 0;
 	virtual IVertexAnimation* GetIVertexAnimation() = 0;
 	virtual float             GetExtent(EGeomForm eForm) = 0;
-	virtual void              GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const = 0;
+	virtual void              GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const = 0;
 	virtual void              GetMemoryUsage(class ICrySizer* pSizer) const = 0;
 	virtual SMeshLodInfo      ComputeGeometricMean() const = 0;
 	virtual ~IAttachmentSkin(){}

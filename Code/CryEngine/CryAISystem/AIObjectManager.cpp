@@ -446,7 +446,7 @@ IAIObjectIter* CAIObjectManager::GetFirstAIObjectInRange(EGetFirstFilter filter,
 
 void CAIObjectManager::OnObjectRemoved(CAIObject* pObject)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	CCCPOINT(OnObjectRemoved);
 
 	if (!pObject)

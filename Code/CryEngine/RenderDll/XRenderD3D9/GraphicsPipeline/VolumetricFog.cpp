@@ -225,7 +225,7 @@ CVolumetricFogStage::CVolumetricFogStage()
 	, m_frameID(-1)
 	, m_tick(0)
 	, m_resourceFrameID(-1)
-	, m_sceneRenderPassResources(nullptr, nullptr)
+	, m_sceneRenderPassResources()
 {
 	static_assert(MaxFrameNum >= MAX_GPU_NUM, "MaxFrameNum must be more than or equal to MAX_GPU_NUM.");
 
@@ -375,6 +375,9 @@ void CVolumetricFogStage::Init()
 		m_pSceneRenderResourceLayout = gcpRendD3D->GetGraphicsPipeline().CreateScenePassLayout(m_sceneRenderPassResources);
 		CRY_ASSERT(m_pSceneRenderResourceLayout);
 
+		// Freeze resource-set layout (assert will fire when violating the constraint)
+		m_sceneRenderPassResources.AcceptChangedBindPoints();
+
 		m_passInjectParticleDensity.SetLabel("ParticleInjection");
 		m_passInjectParticleDensity.SetupPassContext(m_stageID, 0, TTYPE_GENERAL, FB_GENERAL, EFSLIST_FOG_VOLUME, 0, false);
 		m_passInjectParticleDensity.SetPassResources(m_pSceneRenderResourceLayout, m_pSceneRenderPassResourceSet);
@@ -419,7 +422,7 @@ void CVolumetricFogStage::Prepare(CRenderView* pRenderView)
 
 	// downscaled depth buffer.
 	const int32 depthTempWidth = (scaledWidth << 1);
-	const int32 depthTempHeight = (CTexture::s_ptexZTargetScaled->GetHeight() >> 1);
+	const int32 depthTempHeight = (CTexture::s_ptexZTargetScaled[0]->GetHeight() >> 1);
 	const ETEX_Format fmtDepth = eTF_R16F;
 
 	// downscaled shadow maps.
@@ -724,14 +727,12 @@ bool CVolumetricFogStage::PreparePerPassResources(CRenderView* RESTRICT_POINTER 
 {
 	CRY_ASSERT(m_pSceneRenderPassResourceSet);
 
-	CDeviceResourceSetDesc::EDirtyFlags dirtyFlags = CDeviceResourceSetDesc::EDirtyFlags::eNone;
-
 	// Samplers
 	{
 		auto materialSamplers = gcpRendD3D->GetGraphicsPipeline().GetDefaultMaterialSamplers();
 		for (int i = 0; i < materialSamplers.size(); ++i)
 		{
-			dirtyFlags |= m_sceneRenderPassResources.SetSampler(EEfResSamplers(i), materialSamplers[i], EShaderStage_AllWithoutCompute);
+			m_sceneRenderPassResources.SetSampler(EEfResSamplers(i), materialSamplers[i], EShaderStage_AllWithoutCompute);
 		}
 	}
 
@@ -747,7 +748,7 @@ bool CVolumetricFogStage::PreparePerPassResources(CRenderView* RESTRICT_POINTER 
 			m_pSceneRenderPassCB->UpdateBuffer(cb, cbSize);
 		}
 
-		dirtyFlags |= m_sceneRenderPassResources.SetConstantBuffer(eConstantBufferShaderSlot_PerPass, m_pSceneRenderPassCB, EShaderStage_AllWithoutCompute);
+		m_sceneRenderPassResources.SetConstantBuffer(eConstantBufferShaderSlot_PerPass, m_pSceneRenderPassCB, EShaderStage_AllWithoutCompute);
 
 		CConstantBufferPtr pPerViewCB;
 		if (bOnInit)  // Handle case when no view is available in the initialization of the stage
@@ -755,14 +756,14 @@ bool CVolumetricFogStage::PreparePerPassResources(CRenderView* RESTRICT_POINTER 
 		else
 			pPerViewCB = gcpRendD3D->GetGraphicsPipeline().GetMainViewConstantBuffer();
 
-		dirtyFlags |= m_sceneRenderPassResources.SetConstantBuffer(eConstantBufferShaderSlot_PerView, pPerViewCB, EShaderStage_AllWithoutCompute);
+		m_sceneRenderPassResources.SetConstantBuffer(eConstantBufferShaderSlot_PerView, pPerViewCB, EShaderStage_AllWithoutCompute);
 	}
 
 	if (bOnInit)
 		return true;
 
-	CRY_ASSERT(bOnInit || uint8(dirtyFlags & CDeviceResourceSetDesc::EDirtyFlags::eDirtyBindPoint) == 0); // Cannot change resource layout after init. It is baked into the shaders
-	return m_pSceneRenderPassResourceSet->Update(m_sceneRenderPassResources, dirtyFlags);
+	CRY_ASSERT(!m_sceneRenderPassResources.HasChangedBindPoints()); // Cannot change resource layout after init. It is baked into the shaders
+	return m_pSceneRenderPassResourceSet->Update(m_sceneRenderPassResources);
 }
 
 void CVolumetricFogStage::InjectParticipatingMedia(CRenderView* pRenderView, const SScopedComputeCommandList& commandList)
@@ -1028,7 +1029,7 @@ void CVolumetricFogStage::RenderDownscaledShadowmap(CRenderView* pRenderView)
 				pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_None);
 				pass.SetTechnique(pShader, techName, rtMask);
 				pass.SetDepthTarget(target);
-				pass.SetState(GS_COLMASK_NONE | GS_DEPTHWRITE | GS_DEPTHFUNC_NOTEQUAL);
+				pass.SetState(GS_NOCOLMASK_RGBA | GS_DEPTHWRITE | GS_DEPTHFUNC_NOTEQUAL);
 
 				pass.SetSampler(0, EDefaultSamplerStates::PointClamp);
 			}
@@ -1059,7 +1060,7 @@ void CVolumetricFogStage::RenderDownscaledShadowmap(CRenderView* pRenderView)
 				CTexture* target = m_pDownscaledShadow[i];
 
 				pass.SetDepthTarget(target);
-				pass.SetState(GS_COLMASK_NONE | GS_DEPTHWRITE | GS_DEPTHFUNC_NOTEQUAL);
+				pass.SetState(GS_NOCOLMASK_RGBA | GS_DEPTHWRITE | GS_DEPTHFUNC_NOTEQUAL);
 				pass.SetTexture(0, source);
 				pass.SetSampler(0, EDefaultSamplerStates::PointClamp);
 			}
@@ -1589,8 +1590,8 @@ void CVolumetricFogStage::RenderDownscaledDepth(const SScopedComputeCommandList&
 	{
 		const int32 nScreenWidth = m_pMaxDepthTemp->GetWidth();
 		const int32 nScreenHeight = m_pMaxDepthTemp->GetHeight();
-		const int32 nSrcTexWidth = CTexture::s_ptexZTargetScaled->GetWidth();
-		const int32 nSrcTexHeight = CTexture::s_ptexZTargetScaled->GetHeight();
+		const int32 nSrcTexWidth = CTexture::s_ptexZTargetScaled[0]->GetWidth();
+		const int32 nSrcTexHeight = CTexture::s_ptexZTargetScaled[0]->GetHeight();
 
 		auto& pass = m_passDownscaleDepthHorizontal;
 
@@ -1601,7 +1602,7 @@ void CVolumetricFogStage::RenderDownscaledDepth(const SScopedComputeCommandList&
 
 			pass.SetOutputUAV(0, m_pMaxDepthTemp);
 
-			pass.SetTexture(0, CTexture::s_ptexZTargetScaled);
+			pass.SetTexture(0, CTexture::s_ptexZTargetScaled[0]);
 
 			pass.SetSampler(0, EDefaultSamplerStates::PointClamp);
 		}

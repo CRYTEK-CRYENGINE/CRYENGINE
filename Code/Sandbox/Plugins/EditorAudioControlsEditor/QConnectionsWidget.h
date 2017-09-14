@@ -7,12 +7,12 @@
 class QVBoxLayout;
 class QFrame;
 class QPropertyTree;
-class CAdvancedTreeView;
 
 namespace ACE
 {
 class CAudioControl;
 class QConnectionModel;
+class CAdvancedTreeView;
 
 class QConnectionsWidget : public QWidget
 {

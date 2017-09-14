@@ -1903,6 +1903,13 @@ bool CryCreateDirectory(const char* lpPathName)
 }
 
 //////////////////////////////////////////////////////////////////////////
+bool CryDirectoryExists(const char* szPath)
+{
+	struct stat st_info;
+	return (stat(szPath, &st_info) == 0 && S_ISDIR(st_info.st_mode));
+}
+
+//////////////////////////////////////////////////////////////////////////
 DWORD GetCurrentDirectory(DWORD nBufferLength, char* lpBuffer)
 {
 	return 0;

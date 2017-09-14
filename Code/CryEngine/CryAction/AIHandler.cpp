@@ -466,7 +466,7 @@ void CAIHandler::OnReused(IGameObject* pGameObject)
 //------------------------------------------------------------------------------
 void CAIHandler::AIMind(SOBJECTSTATE& state)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	bool sameTarget = (m_lastTargetID == state.eTargetID);
 	float distSq = m_lastTargetPos.GetSquaredDistance(state.vTargetPos);
@@ -568,7 +568,7 @@ void CAIHandler::AIMind(SOBJECTSTATE& state)
 
 		if (state.nTargetType > AIOBJECT_PLAYER)   //-- grenade (or any other registered object type) seen
 		{
-			FRAME_PROFILER("AI_OnObjectSeen", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_AI, "AI_OnObjectSeen");
 
 			value = &state.fDistanceFromTarget;
 			if (!pExtraData)
@@ -606,7 +606,7 @@ void CAIHandler::AIMind(SOBJECTSTATE& state)
 			pExtraData->iValue = (int)state.eTargetStuntReaction;
 			state.eTargetStuntReaction = AITSR_NONE;
 
-			FRAME_PROFILER("AI_OnPlayerSeen2", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_AI, "AI_OnPlayerSeen2");
 			value = &state.fDistanceFromTarget;
 
 			if (IAIActor* pAIActor = CastToIAIActorSafe(pEntityAI))
@@ -674,7 +674,7 @@ void CAIHandler::AIMind(SOBJECTSTATE& state)
 //------------------------------------------------------------------------------
 void CAIHandler::AISignal(int signalID, const char* signalText, uint32 crc, IEntity* pSender, const IAISignalExtraData* pData)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	assert(crc != 0);
 
@@ -735,7 +735,7 @@ void CAIHandler::AISignal(int signalID, const char* signalText, uint32 crc, IEnt
 //------------------------------------------------------------------------------
 const char* CAIHandler::CheckAndGetBehaviorTransition(const char* szSignalText) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (!szSignalText || strlen(szSignalText) < 2)
 		return 0;
@@ -763,7 +763,7 @@ const char* CAIHandler::CheckAndGetBehaviorTransition(const char* szSignalText) 
 			{
 				if (*szNextBehaviorName)
 				{
-					FRAME_PROFILER("Logging of the character change", gEnv->pSystem, PROFILE_AI);
+					CRY_PROFILE_REGION(PROFILE_AI, "Logging of the character change");
 					if (m_pEntity && m_pEntity->GetName())
 					{
 						AILogCommentID("<CAIHandler> ", "Entity %s changing behavior from %s to %s on signal %s",
@@ -791,7 +791,7 @@ const char* CAIHandler::CheckAndGetBehaviorTransition(const char* szSignalText) 
 
 	if (tableIsValid && pCharacterTable->GetValue(szSignalText, szNextBehaviorName) && *szNextBehaviorName)
 	{
-		FRAME_PROFILER("Logging of DEFAULT character change", gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_REGION(PROFILE_AI, "Logging of DEFAULT character change");
 		if (m_pEntity && m_pEntity->GetName())
 		{
 			AILogCommentID("<CAIHandler> ", "Entity %s changing behavior from %s to %s on signal %s [DEFAULT character]",
@@ -963,7 +963,7 @@ void CAIHandler::ResetBehavior()
 //------------------------------------------------------------------------------
 void CAIHandler::SetBehavior(const char* szNextBehaviorName, const IAISignalExtraData* pData, ESetFlags setFlags)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	SmartScriptTable pNextBehavior;
 
@@ -1125,7 +1125,7 @@ void CAIHandler::FindOrLoadBehavior(const char* szBehaviorName, SmartScriptTable
 	if (!m_pBehaviorTable->GetValue(szBehaviorName, pBehaviorTable))
 	{
 		//[petar] if behaviour not preloaded then force loading of it
-		FRAME_PROFILER("On-DemandBehaviourLoading", gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_REGION(PROFILE_AI, "On-DemandBehaviourLoading");
 		const char* szAIBehaviorFileName = GetBehaviorFileName(szBehaviorName);
 		if (szAIBehaviorFileName)
 		{
@@ -1240,7 +1240,7 @@ IActor* CAIHandler::GetActor() const
 //------------------------------------------------------------------------------
 bool CAIHandler::CallScript(IScriptTable* scriptTable, const char* funcName, float* pValue, IEntity* pSender, const IAISignalExtraData* pData)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (scriptTable)
 	{
@@ -1283,14 +1283,14 @@ bool CAIHandler::CallScript(IScriptTable* scriptTable, const char* funcName, flo
 #endif
 			//			string str="Calling behavior >> ";
 			//			str+= funcName;
-			//		FRAME_PROFILER( "Calling behavior signal",m_pGame->GetSystem(),PROFILE_AI );
-			//		FRAME_PROFILER( str.c_str(),m_pGame->GetSystem(),PROFILE_AI );
+			//		CRY_PROFILE_REGION(PROFILE_AI, "Calling behavior signal");
+			//		CRY_PROFILE_REGION(PROFILE_AI, str.c_str());
 
 			// only use strings which are known at compile time...
 			// not doing so causes a stack corruption in the frame profiler -- CW
 			//		FRAME_PROFILER( funcName,m_pGame->GetSystem(),PROFILE_AI );
 			//cry_sprintf(m_szSignalName,"AISIGNAL: %s",funcName);
-			FRAME_PROFILER("AISIGNAL", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_AI, "AISIGNAL");
 
 #ifdef AI_LOG_SIGNALS
 			static ICVar* pCVarAILogging = NULL;
@@ -1758,7 +1758,7 @@ CAnimActionExactPositioning* CAIHandler::CreateExactPositioningAction(bool isOne
 //------------------------------------------------------------------------------
 void CAIHandler::HandleExactPositioning(SOBJECTSTATE& state, CMovementRequest& mr)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	IMovementController* pMC = (m_pGameObject ? m_pGameObject->GetMovementController() : NULL);
 	if (!pMC)
@@ -2343,7 +2343,7 @@ void CAIHandler::SerializeScriptAI(TSerialize& ser)
 //------------------------------------------------------------------------------
 void CAIHandler::Update()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 #ifdef USE_DEPRECATED_AI_CHARACTER_SYSTEM
 	if (m_bDelayedCharacterConstructor)

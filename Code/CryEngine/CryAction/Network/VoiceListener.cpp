@@ -67,7 +67,7 @@ void CVoiceListener::HandleEvent(const SGameObjectEvent& event)
 
 void CVoiceListener::ProcessEvent(SEntityEvent& evt)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (evt.event != ENTITY_EVENT_START_GAME || m_pSound)
 		return;

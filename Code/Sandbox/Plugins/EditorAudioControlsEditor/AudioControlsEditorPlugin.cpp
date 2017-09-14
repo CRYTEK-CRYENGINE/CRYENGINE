@@ -34,9 +34,12 @@ ACE::CImplementationManager CAudioControlsEditorPlugin::s_implementationManager;
 uint CAudioControlsEditorPlugin::s_loadingErrorMask;
 CCrySignal<void()> CAudioControlsEditorPlugin::signalAboutToLoad;
 CCrySignal<void()> CAudioControlsEditorPlugin::signalLoaded;
+CCrySignal<void()> CAudioControlsEditorPlugin::signalAboutToSave;
+CCrySignal<void()> CAudioControlsEditorPlugin::signalSaved;
 
 REGISTER_VIEWPANE_FACTORY(CAudioControlsEditorWindow, "Audio Controls Editor", "Tools", true)
 
+//////////////////////////////////////////////////////////////////////////
 CAudioControlsEditorPlugin::CAudioControlsEditorPlugin()
 {
 	CryAudio::SCreateObjectData const objectData("Audio trigger preview", CryAudio::EOcclusionType::Ignore);
@@ -52,9 +55,11 @@ CAudioControlsEditorPlugin::CAudioControlsEditorPlugin()
 	GetISystem()->GetISystemEventDispatcher()->RegisterListener(this, "CAudioControlsEditorPlugin");
 }
 
+//////////////////////////////////////////////////////////////////////////
 CAudioControlsEditorPlugin::~CAudioControlsEditorPlugin()
 {
 	s_implementationManager.Release();
+
 	if (s_pIAudioObject != nullptr)
 	{
 		StopTriggerExecution();
@@ -62,16 +67,22 @@ CAudioControlsEditorPlugin::~CAudioControlsEditorPlugin()
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////
 void CAudioControlsEditorPlugin::SaveModels()
 {
+	signalAboutToSave();
 	ACE::IAudioSystemEditor* pImpl = s_implementationManager.GetImplementation();
+
 	if (pImpl)
 	{
 		CAudioControlsWriter writer(&s_assetsManager, pImpl, s_currentFilenames);
 	}
+
 	s_loadingErrorMask = static_cast<uint>(EErrorCode::eErrorCode_NoError);
+	signalSaved();
 }
 
+//////////////////////////////////////////////////////////////////////////
 void CAudioControlsEditorPlugin::ReloadModels(bool bReloadImplementation)
 {
 	// Do not call signalAboutToLoad and signalLoaded in here!
@@ -98,6 +109,7 @@ void CAudioControlsEditorPlugin::ReloadModels(bool bReloadImplementation)
 	GetIEditor()->GetIUndoManager()->Resume();
 }
 
+//////////////////////////////////////////////////////////////////////////
 void CAudioControlsEditorPlugin::ReloadScopes()
 {
 	s_assetsManager.ClearScopes();
@@ -105,16 +117,19 @@ void CAudioControlsEditorPlugin::ReloadScopes()
 	loader.LoadScopes();
 }
 
+//////////////////////////////////////////////////////////////////////////
 CAudioAssetsManager* CAudioControlsEditorPlugin::GetAssetsManager()
 {
 	return &s_assetsManager;
 }
 
+//////////////////////////////////////////////////////////////////////////
 ACE::IAudioSystemEditor* CAudioControlsEditorPlugin::GetAudioSystemEditorImpl()
 {
 	return s_implementationManager.GetImplementation();
 }
 
+//////////////////////////////////////////////////////////////////////////
 void CAudioControlsEditorPlugin::ExecuteTrigger(const string& sTriggerName)
 {
 	if (!sTriggerName.empty() && s_pIAudioObject != nullptr)
@@ -123,11 +138,12 @@ void CAudioControlsEditorPlugin::ExecuteTrigger(const string& sTriggerName)
 		const CCamera& camera = GetIEditor()->GetSystem()->GetViewCamera();
 		const Matrix34& cameraMatrix = camera.GetMatrix();
 		s_pIAudioObject->SetTransformation(cameraMatrix);
-		s_audioTriggerId = CryAudio::StringToId_RunTime(sTriggerName.c_str());
+		s_audioTriggerId = CryAudio::StringToId(sTriggerName.c_str());
 		s_pIAudioObject->ExecuteTrigger(s_audioTriggerId);
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////
 void CAudioControlsEditorPlugin::StopTriggerExecution()
 {
 	if (s_pIAudioObject && s_audioTriggerId != CryAudio::InvalidControlId)
@@ -137,6 +153,7 @@ void CAudioControlsEditorPlugin::StopTriggerExecution()
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////
 void CAudioControlsEditorPlugin::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
 {
 	switch (event)
@@ -147,6 +164,7 @@ void CAudioControlsEditorPlugin::OnSystemEvent(ESystemEvent event, UINT_PTR wpar
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////
 CImplementationManager* CAudioControlsEditorPlugin::GetImplementationManger()
 {
 	return &s_implementationManager;

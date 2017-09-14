@@ -349,6 +349,16 @@ CSystem::CSystem(const SSystemInitParams& startupParams)
 	m_sys_enable_budgetmonitoring = nullptr;
 	m_sys_preload = nullptr;
 	m_sys_use_Mono = nullptr;
+	m_sys_dll_ai = nullptr;
+	m_sys_dll_response_system = nullptr;
+	m_sys_user_folder = nullptr;
+
+#if !defined(_RELEASE)
+	m_sys_resource_cache_folder = nullptr;
+#endif
+
+	m_sys_initpreloadpacks = nullptr;
+	m_sys_menupreloadpacks = nullptr;
 
 	//	m_sys_filecache = nullptr;
 	m_gpu_particle_physics = nullptr;
@@ -947,6 +957,8 @@ void CSystem::Quit()
 		CryGetIMemReplay()->Stop();
 #endif
 
+		GetIRemoteConsole()->Stop();
+
 		//////////////////////////////////////////////////////////////////////////
 		// [marco] in test mode, kill the process and quit without performing full C libs cleanup
 		// (for faster closing of application)
@@ -1291,7 +1303,6 @@ void CSystem::SleepIfInactive()
 //////////////////////////////////////////////////////////////////////////
 void CSystem::SleepIfNeeded()
 {
-	LOADING_TIME_PROFILE_SECTION;
 	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM)
 
 	static ICVar * pSysMaxFPS = NULL;
@@ -1483,8 +1494,8 @@ void CSystem::PrePhysicsUpdate()
 //////////////////////////////////////////////////////////////////////
 bool CSystem::Update(int updateFlags, int nPauseMode)
 {
-	LOADING_TIME_PROFILE_SECTION;
 	CRY_PROFILE_REGION(PROFILE_SYSTEM, "System: Update");
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM)
 	CRYPROFILE_SCOPE_PROFILE_MARKER("CSystem::Update()");
 
 #ifndef EXCLUDE_UPDATE_ON_CONSOLE
@@ -1644,8 +1655,7 @@ bool CSystem::Update(int updateFlags, int nPauseMode)
 #endif
 
 	if (m_pStreamEngine)
-	{
-		FRAME_PROFILER("StreamEngine::Update()", this, PROFILE_SYSTEM);
+	{		
 		m_pStreamEngine->Update();
 	}
 #ifndef EXCLUDE_UPDATE_ON_CONSOLE
@@ -1693,7 +1703,7 @@ bool CSystem::Update(int updateFlags, int nPauseMode)
 #if CRY_PLATFORM_WINDOWS
 	// process window messages
 	{
-		FRAME_PROFILER("SysUpdate:PeekMessageW", this, PROFILE_SYSTEM);
+		CRY_PROFILE_REGION(PROFILE_SYSTEM, "SysUpdate:PeekMessageW");
 
 		if (m_hWnd && ::IsWindow((HWND)m_hWnd))
 		{
@@ -1780,7 +1790,7 @@ bool CSystem::Update(int updateFlags, int nPauseMode)
 	//update console system
 	if (m_env.pConsole)
 	{
-		FRAME_PROFILER("SysUpdate:Console", this, PROFILE_SYSTEM);
+		CRY_PROFILE_REGION(PROFILE_SYSTEM, "SysUpdate:Console");
 
 		if (!(updateFlags & ESYSUPDATE_EDITOR))
 			m_env.pConsole->Update();
@@ -1793,28 +1803,14 @@ bool CSystem::Update(int updateFlags, int nPauseMode)
 		m_pNotificationNetwork->Update();
 	}
 #endif //EXCLUDE_UPDATE_ON_CONSOLE
-	//////////////////////////////////////////////////////////////////////
-	//update sound system Part 1 if in Editor / in Game Mode Viewsystem updates the Listeners
+
+	// When in Editor and outside of Game Mode we will need to update the listeners here.
+	// But when in Editor and in Game Mode the ViewSystem will update the listeners.
 	if (!m_env.IsEditorGameMode())
 	{
 		if ((updateFlags & ESYSUPDATE_EDITOR) != 0 && !bNoUpdate && nPauseMode != 1)
 		{
-			// updating the Listener Position in a first separate step.
-			// Updating all views here is a bit of a workaround, since we need
-			//	to ensure that sound listeners owned by inactive views are also
-			//	marked as inactive. Ideally that should happen when exiting game mode.
-
-			gEnv->pGameFramework->GetIViewSystem()->UpdateSoundListeners();
-
-			/*if (IView* const pActiveView = pIGameFramework->GetIViewSystem()->GetActiveView())
-			   {
-			   EntityId const nListenerID = pActiveView->GetSoundListenerID();
-
-			   if (nListenerID != INVALID_ENTITYID)
-			   {
-			    pIGameFramework->GetIViewSystem()->UpdateSoundListeners();
-			   }
-			   }*/
+			gEnv->pGameFramework->GetIViewSystem()->UpdateAudioListeners();
 		}
 	}
 
@@ -1872,7 +1868,7 @@ bool CSystem::Update(int updateFlags, int nPauseMode)
 
 				if ((nPauseMode != 1) && !(updateFlags & ESYSUPDATE_IGNORE_PHYSICS) && g_cvars.sys_physics && !bNoUpdate)
 				{
-					FRAME_PROFILER("SysUpdate:physics", this, PROFILE_SYSTEM);
+					CRY_PROFILE_REGION(PROFILE_SYSTEM, "SysUpdate:Physics");
 
 					int iPrevTime = m_env.pPhysicalWorld->GetiPhysicsTime();
 					//float fPrevTime=m_env.pPhysicalWorld->GetPhysicsTime();
@@ -1917,7 +1913,7 @@ bool CSystem::Update(int updateFlags, int nPauseMode)
 
 				if (bNotLoading)
 				{
-					FRAME_PROFILER("SysUpdate:PumpLoggedEvents", this, PROFILE_SYSTEM);
+					CRY_PROFILE_REGION(PROFILE_SYSTEM, "SysUpdate:PumpLoggedEvents");
 					CRYPROFILE_SCOPE_PROFILE_MARKER("PumpLoggedEvents");
 					m_env.pPhysicalWorld->PumpLoggedEvents();
 				}
@@ -1925,7 +1921,7 @@ bool CSystem::Update(int updateFlags, int nPauseMode)
 				// now AI
 				if ((nPauseMode == 0) && !(updateFlags & ESYSUPDATE_IGNORE_AI) && g_cvars.sys_ai && !bNoUpdate)
 				{
-					FRAME_PROFILER("SysUpdate:AI", this, PROFILE_SYSTEM);
+					CRY_PROFILE_REGION(PROFILE_SYSTEM, "SysUpdate:AI");
 					//////////////////////////////////////////////////////////////////////
 					//update AI system - match physics
 					if (m_env.pAISystem && !m_cvAIUpdate->GetIVal() && g_cvars.sys_ai)
@@ -1947,7 +1943,7 @@ bool CSystem::Update(int updateFlags, int nPauseMode)
 		{
 			if (bNotLoading)
 			{
-				FRAME_PROFILER("SysUpdate:PumpLoggedEvents", this, PROFILE_SYSTEM);
+				CRY_PROFILE_REGION(PROFILE_SYSTEM, "SysUpdate:PumpLoggedEvents");
 				CRYPROFILE_SCOPE_PROFILE_MARKER("PumpLoggedEvents");
 				m_env.pPhysicalWorld->PumpLoggedEvents();
 			}
@@ -1980,7 +1976,7 @@ bool CSystem::Update(int updateFlags, int nPauseMode)
 			}
 			if ((nPauseMode == 0) && !(updateFlags & ESYSUPDATE_IGNORE_AI) && g_cvars.sys_ai && !bNoUpdate)
 			{
-				FRAME_PROFILER("SysUpdate:AI", this, PROFILE_SYSTEM);
+				CRY_PROFILE_REGION(PROFILE_SYSTEM, "SysUpdate:AI");
 				//////////////////////////////////////////////////////////////////////
 				//update AI system
 				if (m_env.pAISystem && !m_cvAIUpdate->GetIVal())
@@ -2294,6 +2290,25 @@ void CSystem::Warning(EValidatorModule module, EValidatorSeverity severity, int 
 	va_start(args, format);
 	WarningV(module, severity, flags, file, format, args);
 	va_end(args);
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CSystem::WarningOnce(EValidatorModule module, EValidatorSeverity severity, int flags, const char* file, const char* format, ...)
+{
+	char szBuffer[MAX_WARNING_LENGTH];
+	va_list args;
+	va_start(args, format);
+	cry_vsprintf(szBuffer, format, args);
+	va_end(args);
+
+	CryAutoLock<CryMutex> lock(m_mapWarningOnceMutex);
+	uint32 crc = CCrc32::ComputeLowercase(szBuffer);
+	if (m_mapWarningOnceAlreadyPrinted.find(crc) == m_mapWarningOnceAlreadyPrinted.end())
+	{
+		m_mapWarningOnceAlreadyPrinted[crc] = true;
+
+		Warning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_WARNING, VALIDATOR_FLAG_FILE, 0, szBuffer);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

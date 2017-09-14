@@ -227,7 +227,7 @@ void CJaw::OnReset()
 //////////////////////////////////////////////////////////////////////////
 void CJaw::ProcessEvent(SEntityEvent &event)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	BaseClass::ProcessEvent(event);
 

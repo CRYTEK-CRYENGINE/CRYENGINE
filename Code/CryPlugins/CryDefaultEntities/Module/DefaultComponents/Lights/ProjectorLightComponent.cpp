@@ -41,8 +41,6 @@ void CProjectorLightComponent::Initialize()
 	light.SetPosition(ZERO);
 	light.m_Flags = DLF_DEFERRED_LIGHT | DLF_PROJECT;
 
-	light.m_fRadius = m_radius;
-
 	light.m_fLightFrustumAngle = m_angle.ToDegrees();
 	light.m_fProjectorNearPlane = m_projectorOptions.m_nearPlane;
 
@@ -81,7 +79,7 @@ void CProjectorLightComponent::Initialize()
 	else
 		light.m_Flags &= ~DLF_CASTSHADOW_MAPS;
 
-	light.m_fAttenuationBulbSize = m_options.m_attenuationBulbSize;
+	light.SetRadius(m_radius, m_options.m_attenuationBulbSize);
 
 	light.m_fFogRadialLobe = m_options.m_fogRadialLobe;
 
@@ -185,7 +183,11 @@ void CProjectorLightComponent::Render(const IEntity& entity, const IEntityCompon
 	{
 		Matrix34 slotTransform = GetWorldTransformMatrix();
 
-		float distance = m_radius;
+		SRenderLight light;
+		light.SetLightColor(m_color.m_color * m_color.m_diffuseMultiplier);
+		light.SetRadius(m_radius, m_options.m_attenuationBulbSize);
+
+		float distance = light.m_fRadius;
 		float size = distance * tan(m_angle.ToRadians());
 
 		std::array<Vec3, 4> points = 

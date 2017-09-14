@@ -34,7 +34,7 @@ struct MovementActor : public IMovementActor
 	// IMovementActor
 	virtual IMovementActorAdapter&    GetAdapter() const override;
 	virtual void                      RequestPathTo(const Vec3& destination, float lengthToTrimFromThePathEnd, const MNMDangersFlags dangersFlags,
-	                                                const bool considerActorsAsPathObstacles) override;
+	                                                const bool considerActorsAsPathObstacles, const MNMCustomPathCostComputerSharedPtr& pCustomPathCostComputer) override;
 	virtual Movement::PathfinderState GetPathfinderState() const override;
 	virtual const char*               GetName() const override;
 	virtual void                      Log(const char* message) override;

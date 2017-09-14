@@ -581,7 +581,7 @@ void CAnimatedCharacter::PostSerialize()
 
 void CAnimatedCharacter::Update(SEntityUpdateContext& ctx, int slot)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	//assert(!m_simplifyMovement); // If we have simplified movement, the this GameObject extension should not be updated here.
 
@@ -1155,7 +1155,7 @@ void CAnimatedCharacter::UpdateCharacterPtrs()
 //////////////////////////////////////////////////////////////////////////
 void CAnimatedCharacter::ProcessEvent(SEntityEvent& event)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	switch (event.event)
 	{

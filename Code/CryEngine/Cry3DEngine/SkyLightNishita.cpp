@@ -234,7 +234,6 @@ void CSkyLightNishita::ComputeInScatteringNoPremul(const f32 outScatteringConstM
 	// to be reused by ray-sphere intersection code in loop below
 	f32 B(2.0f * viewer.Dot(skyDir));
 	f32 Bsq(B * B);
-	f32 Cpart(viewer.Dot(viewer));
 
 	// calculate optical depth at viewer
 	const SOpticalDepthLUTEntry* const __restrict cpOptDepthLUT = &m_opticalDepthLUT[0];
@@ -262,7 +261,7 @@ void CSkyLightNishita::ComputeInScatteringNoPremul(const f32 outScatteringConstM
 		const SOpticalScaleLUTEntry& crOpticalScaleLUTEntry = cpOptScaleLUT[a];
 		SOpticalScaleLUTEntry osAtHeight(crOpticalScaleLUTEntry);
 
-		f32 C(Cpart - (c_earthRadiusf + osAtHeight.atmosphereLayerHeight) * (c_earthRadiusf + osAtHeight.atmosphereLayerHeight));
+		f32 C = -osAtHeight.atmosphereLayerHeight * (osAtHeight.atmosphereLayerHeight + 2.0f * c_earthRadiusf);
 		f32 det(Bsq - 4.0f * C);
 		assert(det >= 0.0f && (0.5f * (-B - sqrtf(det)) <= 0.0f) && (0.5f * (-B + sqrtf(det)) >= 0.0f));
 

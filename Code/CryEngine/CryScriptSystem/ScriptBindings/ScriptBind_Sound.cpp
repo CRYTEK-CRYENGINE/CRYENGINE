@@ -28,7 +28,7 @@ int CScriptBind_Sound::GetAudioTriggerID(IFunctionHandler* pH, char const* const
 {
 	if ((szName != nullptr) && (szName[0] != '\0'))
 	{
-		CryAudio::ControlId const triggerId = CryAudio::StringToId_RunTime(szName);
+		CryAudio::ControlId const triggerId = CryAudio::StringToId(szName);
 		return pH->EndFunction(IntToHandle(triggerId));
 	}
 
@@ -40,7 +40,7 @@ int CScriptBind_Sound::GetAudioSwitchID(IFunctionHandler* pH, char const* const 
 {
 	if ((szName != nullptr) && (szName[0] != '\0'))
 	{
-		CryAudio::ControlId const switchId = CryAudio::StringToId_RunTime(szName);
+		CryAudio::ControlId const switchId = CryAudio::StringToId(szName);
 		return pH->EndFunction(IntToHandle(switchId));
 	}
 
@@ -52,7 +52,7 @@ int CScriptBind_Sound::GetAudioSwitchStateID(IFunctionHandler* pH, ScriptHandle 
 {
 	if ((szName != nullptr) && (szName[0] != '\0'))
 	{
-		CryAudio::SwitchStateId const switchStateId = CryAudio::StringToId_RunTime(szName);
+		CryAudio::SwitchStateId const switchStateId = CryAudio::StringToId(szName);
 		return pH->EndFunction(IntToHandle(switchStateId));
 	}
 
@@ -64,7 +64,7 @@ int CScriptBind_Sound::GetAudioRtpcID(IFunctionHandler* pH, char const* const sz
 {
 	if ((szName != nullptr) && (szName[0] != '\0'))
 	{
-		CryAudio::ControlId const parameterId = CryAudio::StringToId_RunTime(szName);
+		CryAudio::ControlId const parameterId = CryAudio::StringToId(szName);
 		return pH->EndFunction(IntToHandle(parameterId));
 	}
 
@@ -76,7 +76,7 @@ int CScriptBind_Sound::GetAudioEnvironmentID(IFunctionHandler* pH, char const* c
 {
 	if ((szName != nullptr) && (szName[0] != '\0'))
 	{
-		CryAudio::EnvironmentId const environmentId = CryAudio::StringToId_RunTime(szName);
+		CryAudio::EnvironmentId const environmentId = CryAudio::StringToId(szName);
 		return pH->EndFunction(IntToHandle(environmentId));
 	}
 

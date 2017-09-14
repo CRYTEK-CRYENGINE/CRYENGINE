@@ -255,6 +255,22 @@ bool CryCreateDirectory(const char* lpPathName)
 }
 
 //////////////////////////////////////////////////////////////////////////
+bool CryDirectoryExists(const char* szPath)
+{
+	// Convert from UTF-8 to UNICODE
+	wstring widePath;
+	Unicode::Convert(widePath, szPath);
+
+	const DWORD dwAttr = ::GetFileAttributesW(widePath.c_str());
+	if (dwAttr != INVALID_FILE_ATTRIBUTES && (dwAttr & FILE_ATTRIBUTE_DIRECTORY) != 0)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+//////////////////////////////////////////////////////////////////////////
 void CryGetCurrentDirectory(unsigned int nBufferLength, char* lpBuffer)
 {
 	if (nBufferLength <= 0 || !lpBuffer)
@@ -395,22 +411,26 @@ uint32 CryGetFileAttributes(const char* lpFileName)
 	// Normal GetFileAttributes not available anymore in non desktop applications (eg Durango)
 	WIN32_FILE_ATTRIBUTE_DATA data;
 	BOOL res;
-		#if CRY_PLATFORM_DURANGO
+#if CRY_PLATFORM_DURANGO
 	res = GetFileAttributesExA(lpFileName, GetFileExInfoStandard, &data);
-		#else
-	res = GetFileAttributesEx(lpFileName, GetFileExInfoStandard, &data);
-		#endif
-	return res ? data.dwFileAttributes : -1;
+#else
+	wstring widePath;
+	Unicode::Convert(widePath, lpFileName);
+	res = GetFileAttributesExW(widePath.c_str(), GetFileExInfoStandard, &data);
+#endif
+	return res != INVALID_FILE_ATTRIBUTES ? data.dwFileAttributes : -1;
 }
 
 //////////////////////////////////////////////////////////////////////////
 bool CrySetFileAttributes(const char* lpFileName, uint32 dwFileAttributes)
 {
-		#if CRY_PLATFORM_DURANGO
+#if CRY_PLATFORM_DURANGO
 	return SetFileAttributesA(lpFileName, dwFileAttributes) != 0;
-		#else
-	return SetFileAttributes(lpFileName, dwFileAttributes) != 0;
-		#endif
+#else
+	wstring widePath;
+	Unicode::Convert(widePath, lpFileName);
+	return SetFileAttributesW(widePath.c_str(), dwFileAttributes) != 0;
+#endif
 }
 
 	#endif // CRY_PLATFORM_WINAPI
@@ -632,4 +652,5 @@ CRY_ALIGN(64) uint32 BoxSides[0x40 * 8] = {
 
 #if !defined(_LIB) || defined(_LAUNCHER)
 	#include <Cry3DEngine/GeomRef.inl>
+	#include <CryMath/GeomQuery.cpp>
 #endif

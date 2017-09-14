@@ -411,7 +411,7 @@ bool CSpectacularKill::StartOnTarget(EntityId targetId)
 //-----------------------------------------------------------------------
 bool CSpectacularKill::StartOnTarget(CActor* pTargetActor)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	CRY_ASSERT(pTargetActor);
 	CRY_ASSERT_MESSAGE(!IsBusy(), "spectacular kill should not be initiated while a spectacular kill is already in progress");

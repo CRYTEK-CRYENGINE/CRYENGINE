@@ -219,7 +219,6 @@ public:
 		m_nMaterialLayers = 0;
 		m_pTempData = NULL;
 		m_pPrev = m_pNext = NULL;
-		m_nSID = 0;
 		m_cShadowLodBias = 0;
 		m_cStaticShadowLod = 0;
 		m_nEditorSelectionID = 0;
@@ -514,9 +513,6 @@ public:
 
 	//! Render flags (@see ERenderNodeFlags)
 	RenderFlagsType m_dwRndFlags;
-
-	//! Segment Id.
-	int m_nSID;
 
 	//! Flags for render node internal usage, one or more bits from EInternalFlags.
 	uint32 m_nInternalFlags;
@@ -843,8 +839,8 @@ struct IWaterVolumeRenderNode : public IRenderNode
 	virtual void             SetAuxPhysParams(pe_params_area*) = 0;
 
 	virtual void             CreateOcean(uint64 volumeID, /* TBD */ bool keepSerializationParams = false) = 0;
-	virtual void             CreateArea(uint64 volumeID, const Vec3* pVertices, unsigned int numVertices, const Vec2& surfUVScale, const Plane& fogPlane, bool keepSerializationParams = false, int nSID = -1) = 0;
-	virtual void             CreateRiver(uint64 volumeID, const Vec3* pVertices, unsigned int numVertices, float uTexCoordBegin, float uTexCoordEnd, const Vec2& surfUVScale, const Plane& fogPlane, bool keepSerializationParams = false, int nSID = -1) = 0;
+	virtual void             CreateArea(uint64 volumeID, const Vec3* pVertices, unsigned int numVertices, const Vec2& surfUVScale, const Plane& fogPlane, bool keepSerializationParams = false) = 0;
+	virtual void             CreateRiver(uint64 volumeID, const Vec3* pVertices, unsigned int numVertices, float uTexCoordBegin, float uTexCoordEnd, const Vec2& surfUVScale, const Plane& fogPlane, bool keepSerializationParams = false) = 0;
 
 	virtual void             SetAreaPhysicsArea(const Vec3* pVertices, unsigned int numVertices, bool keepSerializationParams = false) = 0;
 	virtual void             SetRiverPhysicsArea(const Vec3* pVertices, unsigned int numVertices, bool keepSerializationParams = false) = 0;

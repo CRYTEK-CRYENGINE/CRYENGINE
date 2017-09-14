@@ -248,7 +248,7 @@ void CWaterWaveRenderNode::Update(float fDistanceToCamera)
 
 	// Check distance to terrain
 	Vec3 pCenterPos = m_pParams.m_pPos;
-	float fTerrainZ(GetTerrain()->GetZApr(pCenterPos.x, pCenterPos.y, m_nSID));
+	float fTerrainZ(GetTerrain()->GetZApr(pCenterPos.x, pCenterPos.y));
 	m_fCurrTerrainDepth = max(pCenterPos.z - fTerrainZ, 0.0f);
 
 	float fDepthAttenuation = clamp_tpl<float>(m_fCurrTerrainDepth * 0.2f, 0.0f, 1.0f);

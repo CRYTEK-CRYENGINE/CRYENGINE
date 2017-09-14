@@ -40,6 +40,7 @@ void CParticleRenderBase::AddToComponent(CParticleComponent* pComponent, SCompon
 	if (m_waterCulling)
 		m_renderObjectBeforeWaterId = pEffect->AddRenderObjectId();
 	m_renderObjectAfterWaterId = pEffect->AddRenderObjectId();
+	pParams->m_requiredShaderType = eST_Particle;
 }
 
 void CParticleRenderBase::PrepareRenderObjects(CParticleEmitter* pEmitter, CParticleComponent* pComponent)
@@ -69,7 +70,7 @@ void CParticleRenderBase::ResetRenderObjects(CParticleEmitter* pEmitter, CPartic
 
 void CParticleRenderBase::Render(CParticleEmitter* pEmitter, IParticleComponentRuntime* pComponentRuntime, CParticleComponent* pComponent, const SRenderContext& renderContext)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	const SComponentParams& params = pComponent->GetComponentParams();
 	const uint threadId = renderContext.m_passInfo.ThreadID();
@@ -109,7 +110,7 @@ void CParticleRenderBase::PrepareRenderObject(CParticleEmitter* pEmitter, CParti
 	pRenderObject->m_fAlpha = 1.0f;
 	pRenderObject->m_pCurrMaterial = params.m_pMaterial;
 	pRenderObject->m_pRenderNode = pEmitter;
-	pRenderObject->m_RState = params.m_renderStateFlags | OS_ENVIRONMENT_CUBEMAP;
+	pRenderObject->m_RState = params.m_renderStateFlags;
 	pRenderObject->m_fSort = 0;
 	pRenderObject->m_ParticleObjFlags = params.m_particleObjFlags;
 	pRenderObject->m_pRE = gEnv->pRenderer->EF_CreateRE(eDATA_Particle);

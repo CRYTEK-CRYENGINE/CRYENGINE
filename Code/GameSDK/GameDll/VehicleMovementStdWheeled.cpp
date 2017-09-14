@@ -900,7 +900,7 @@ void CVehicleMovementStdWheeled::DebugDrawMovement(const float deltaTime)
 //------------------------------------------------------------------------
 void CVehicleMovementStdWheeled::Update(const float deltaTime)
 {
-  FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+  CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
   IPhysicalEntity* pPhysics = GetPhysics();
 	if(!pPhysics)
@@ -994,7 +994,7 @@ void CVehicleMovementStdWheeled::Update(const float deltaTime)
 //------------------------------------------------------------------------
 void CVehicleMovementStdWheeled::UpdateSounds(const float deltaTime)
 { 
-  FUNCTION_PROFILER( gEnv->pSystem, PROFILE_GAME );
+  CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
   // engine load  
   float loadTarget = -1.f;
@@ -1152,7 +1152,7 @@ void CVehicleMovementStdWheeled::UpdateSounds(const float deltaTime)
 //------------------------------------------------------------------------
 void CVehicleMovementStdWheeled::UpdateSuspension(const float deltaTime)
 {
-  FUNCTION_PROFILER( gEnv->pSystem, PROFILE_GAME );
+  CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
   float dt = max( deltaTime, 0.005f);
 
@@ -1446,7 +1446,7 @@ void CVehicleMovementStdWheeled::UpdateBrakes(const float deltaTime)
 //------------------------------------------------------------------------
 void CVehicleMovementStdWheeled::UpdateSuspensionSound(const float deltaTime)
 {
-  FUNCTION_PROFILER( gEnv->pSystem, PROFILE_GAME );
+  CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
   if (m_pVehicle->GetStatus().health <= 0.f)
     return;
@@ -1536,7 +1536,7 @@ void CVehicleMovementStdWheeled::UpdateSuspensionSound(const float deltaTime)
 // NOTE: This function must be thread-safe. Before adding stuff contact MarcoC.
 void CVehicleMovementStdWheeled::ProcessAI(const float deltaTime)
 {
-	FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
 	float dt = max( deltaTime,0.005f);
 
@@ -1653,7 +1653,7 @@ void CVehicleMovementStdWheeled::ProcessAI(const float deltaTime)
 // NOTE: This function must be thread-safe. Before adding stuff contact MarcoC.
 void CVehicleMovementStdWheeled::ProcessMovement(const float deltaTime)
 {
-	FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
   
 	m_netActionSync.UpdateObject(this);
 
@@ -1914,7 +1914,7 @@ void CVehicleMovementStdWheeled::Boost(bool enable)
 //------------------------------------------------------------------------
 bool CVehicleMovementStdWheeled::RequestMovement(CMovementRequest& movementRequest)
 {
-	FUNCTION_PROFILER( gEnv->pSystem, PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
  
 	m_movementAction.isAI = true;
 	if (!m_isEnginePowered)
@@ -2008,7 +2008,7 @@ void CVehicleMovementStdWheeled::Serialize(TSerialize ser, EEntityAspects aspect
 //------------------------------------------------------------------------
 void CVehicleMovementStdWheeled::UpdateSurfaceEffects(const float deltaTime)
 { 
-  FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+  CRY_PROFILE_FUNCTION( PROFILE_GAME );
   
   if (0 == g_pGameCVars->v_pa_surface)
   {

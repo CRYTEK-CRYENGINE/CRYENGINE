@@ -234,7 +234,7 @@ void CGameAISystem::ResumeAllModules(EntityId entityID)
 
 void CGameAISystem::Update(float frameTime)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	UpdateModules(frameTime);
 	UpdateSubSystems(frameTime);

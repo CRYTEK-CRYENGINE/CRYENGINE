@@ -32,7 +32,7 @@ ILINE __m128 _mm_dp_ps_emu(const __m128& a, const __m128& b)
 
 void VertexCommandTangents::Execute(VertexCommandTangents& command, CVertexData& vertexData)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ANIMATION);
+	CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
 
 	strided_pointer<Vec3> pPositions = vertexData.GetPositions();
 	strided_pointer<SPipTangents> pTangents = vertexData.GetTangents();
@@ -179,7 +179,7 @@ void VertexCommandTangents::Execute(VertexCommandTangents& command, CVertexData&
 
 void VertexCommandTangents::Execute(VertexCommandTangents& command, CVertexData& vertexData)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ANIMATION);
+	CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
 
 	strided_pointer<Vec3> pPositions = vertexData.GetPositions();
 	strided_pointer<SPipTangents> pTangents = vertexData.GetTangents();
@@ -274,7 +274,7 @@ void VertexCommandTangents::Execute(VertexCommandTangents& command, CVertexData&
 
 void VertexCommandAdd::Execute(VertexCommandAdd& command, CVertexData& vertexData)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ANIMATION);
+	CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
 
 	strided_pointer<Vec3> pPositions = vertexData.GetPositions();
 	const float weight = command.weight;
@@ -297,7 +297,7 @@ void VertexCommandAdd::Execute(VertexCommandAdd& command, CVertexData& vertexDat
  */
 void VertexCommandCopy::Execute(VertexCommandCopy& command, CVertexData& vertexData)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ANIMATION);
+	CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
 
 	const uint vertexCount = vertexData.GetVertexCount();
 	strided_pointer<Vec3> pPositions = vertexData.GetPositions();
@@ -348,7 +348,7 @@ void VertexCommandSkin::Execute(VertexCommandSkin& command, CVertexData& vertexD
 template<uint32 TEMPLATE_FLAGS>
 void VertexCommandSkin::ExecuteInternal(VertexCommandSkin& command, CVertexData& vertexData)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ANIMATION);
+	CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
 	PREFAST_SUPPRESS_WARNING(6255)
 	DualQuat * pTransformations = (DualQuat*)alloca(command.transformationCount * sizeof(DualQuat));
 	for (uint i = 0; i < command.transformationCount; ++i)
@@ -541,7 +541,7 @@ template<uint32 TEMPLATE_FLAGS>
 PREFAST_SUPPRESS_WARNING(6262)
 void VertexCommandSkin::ExecuteInternal(VertexCommandSkin& command, CVertexData& vertexData)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ANIMATION);
+	CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
 	PREFAST_SUPPRESS_WARNING(6255)
 	__m128 pTransformations[MAX_JOINT_AMOUNT * 2];
 	for (uint i = 0; i < command.transformationCount; ++i)
@@ -726,7 +726,7 @@ void VertexCommandSkin::ExecuteInternal(VertexCommandSkin& command, CVertexData&
 
 void VertexCommandAdd::Execute(VertexCommandAdd& command, CVertexData& vertexData)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ANIMATION);
+	CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
 
 	strided_pointer<Vec3> pPositions = vertexData.GetPositions();
 	const float weight = command.weight;

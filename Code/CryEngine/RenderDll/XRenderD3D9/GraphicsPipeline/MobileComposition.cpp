@@ -40,9 +40,9 @@ void CMobileCompositionStage::Execute(CRenderView* pCurrentRenderView)
 		}
 	}
 
-	m_passDepthDownsample2.Execute(gcpRendD3D->m_DepthBufferOrig.pTexture, CTexture::s_ptexZTargetScaled, true, true);
-	m_passDepthDownsample4.Execute(CTexture::s_ptexZTargetScaled, CTexture::s_ptexZTargetScaled2, false, false);
-	m_passDepthDownsample8.Execute(CTexture::s_ptexZTargetScaled2, CTexture::s_ptexZTargetScaled3, false, false);
+	m_passDepthDownsample2.Execute(gcpRendD3D->m_DepthBufferOrig.pTexture, CTexture::s_ptexZTargetScaled[0], true, true);
+	m_passDepthDownsample4.Execute(CTexture::s_ptexZTargetScaled[0], CTexture::s_ptexZTargetScaled[1], false, false);
+	m_passDepthDownsample8.Execute(CTexture::s_ptexZTargetScaled[1], CTexture::s_ptexZTargetScaled[2], false, false);
 
 	uint32 numVolumes;
 	const Vec4* pVolumeParams;

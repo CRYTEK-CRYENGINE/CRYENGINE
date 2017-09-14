@@ -366,7 +366,7 @@ bool CItem::ResetParams()
 //------------------------------------------------------------------------
 void CItem::Reset()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	if (IScriptTable* pScriptTable = gEnv->pEntitySystem->GetEntity(GetEntityId())->GetScriptTable())
 	{
@@ -496,7 +496,7 @@ void CItem::Release()
 //------------------------------------------------------------------------
 void CItem::Update( SEntityUpdateContext& ctx, int slot )
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	if (!IsDestroyed())
 	{
@@ -722,7 +722,7 @@ void CItem::HandleEvent( const SGameObjectEvent &evt )
 //------------------------------------------------------------------------
 void CItem::ProcessEvent(SEntityEvent &event)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	switch (event.event)
 	{

@@ -366,7 +366,7 @@ void AnimationList::SetExplorerData(ExplorerData* explorerData, int subtree)
 
 	const ExplorerColumnValue audioValues[] = {
 		{ "No audio",  ""                                },
-		{ "Has audio", "icons:Animation/Audio_Event.ico" },
+		{ "Has audio", "icons:common/animation_audio_event.ico" },
 	};
 	int audioValueCount = sizeof(audioValues) / sizeof(audioValues[0]);
 	m_explorerColumnAudio = explorerData->AddColumn("Audio", ExplorerColumn::ICON, false, audioValues, audioValueCount);
@@ -1182,19 +1182,19 @@ bool AnimationList::GetEntrySerializer(Serialization::SStruct* out, unsigned int
 static const char* EntryIconByContentType(AnimationContent::Type type, bool isAdditive)
 {
 	if (isAdditive)
-		return "icons:Animation/Animation_Additive.ico";
+		return "icons:common/animation_additive.ico";
 	switch (type)
 	{
 	case AnimationContent::BLEND_SPACE:
-		return "icons:Animation/Animation_Blendspace.ico";
+		return "icons:common/animation_blendspace.ico";
 	case AnimationContent::COMBINED_BLEND_SPACE:
-		return "icons:Animation/Animation_Combined.ico";
+		return "icons:common/animation_combined.ico";
 	case AnimationContent::AIMPOSE:
-		return "icons:Animation/Animation_Aimpose.ico";
+		return "icons:common/animation_aimpose.ico";
 	case AnimationContent::LOOKPOSE:
-		return "icons:Animation/Animation_Lookpose.ico";
+		return "icons:common/animation_lookpose.ico";
 	default:
-		return "icons:Animation/Animation.ico";
+		return "icons:common/assets_animation.ico";
 	}
 }
 
@@ -1226,7 +1226,7 @@ void AnimationList::UpdateEntry(ExplorerEntry* entry)
 		if (anim->content.type == AnimationContent::ANIMATION)
 		{
 			if (anim->content.importState == AnimationContent::NEW_ANIMATION)
-				entry->icon = "icons:Animation/Animation_Offline.ico";
+				entry->icon = "icons:common/animation_offline.ico";
 		}
 	}
 }
@@ -1324,7 +1324,7 @@ void AnimationList::GetEntryActions(vector<ExplorerAction>* actions, unsigned in
 		bool saveEnabled = !isAnm && !isAnimSettingsMissing;
 		actions->push_back(ExplorerAction("Save", saveEnabled ? 0 : ACTION_DISABLED, [=](ActionContext& x) { explorerData->ActionSave(x); }, "icons:General/File_Save.ico"));
 		if (isBlendSpace)
-			actions->push_back(ExplorerAction("Compute and Save VEG", 0, [=](ActionContext& x) { ActionComputeVEG(x); }, "icons:Animation/Force_Recompile.ico"));
+			actions->push_back(ExplorerAction("Compute and Save VEG", 0, [=](ActionContext& x) { ActionComputeVEG(x); }, "icons:common/animation_force_recompile.ico"));
 		if (!isAnm)
 		{
 			actions->push_back(ExplorerAction());
@@ -1333,9 +1333,9 @@ void AnimationList::GetEntryActions(vector<ExplorerAction>* actions, unsigned in
 	}
 	actions->push_back(ExplorerAction());
 	if (!isBlendSpace && !isCombinedBlendSpace && !isAnm)
-		actions->push_back(ExplorerAction("Force Recompile", 0, [=](ActionContext& x) { ActionForceRecompile(x); }, "icons:Animation/Force_Recompile.ico"));
+		actions->push_back(ExplorerAction("Force Recompile", 0, [=](ActionContext& x) { ActionForceRecompile(x); }, "icons:common/animation_force_recompile.ico"));
 	if (!isAnm && !isBlendSpace && !isCombinedBlendSpace)
-		actions->push_back(ExplorerAction("Generate Footsteps", ACTION_NOT_STACKABLE, [=](ActionContext& x) { ActionGenerateFootsteps(x); }, "icons:Animation/Footsteps.ico", "Creates AnimEvents based on the animation data."));
+		actions->push_back(ExplorerAction("Generate Footsteps", ACTION_NOT_STACKABLE, [=](ActionContext& x) { ActionGenerateFootsteps(x); }, "icons:common/animation_footsteps.ico", "Creates AnimEvents based on the animation data."));
 	actions->push_back(ExplorerAction());
 	actions->push_back(ExplorerAction("Show in Explorer", ACTION_NOT_STACKABLE, [=](ActionContext& x) { explorerData->ActionShowInExplorer(x); }, "icons:General/Show_In_Explorer.ico", "Locates file in Windows Explorer."));
 }
@@ -1568,6 +1568,6 @@ dll_string AnimationAliasSelector(const SResourceSelectorContext& x, const char*
 
 	return dialog.ChooseItem(previousValue);
 }
-REGISTER_RESOURCE_SELECTOR("AnimationAlias", AnimationAliasSelector, "icons:Animation/Animation.ico")
+REGISTER_RESOURCE_SELECTOR("AnimationAlias", AnimationAliasSelector, "icons:common/assets_animation.ico")
 
 }

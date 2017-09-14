@@ -363,7 +363,7 @@ bool CoverSurface::IsCircleInCover(const Vec3& eye, const Vec3& center, float ra
 
 bool CoverSurface::GetCoverOcclusionAt(const Vec3& eye, const Vec3& point, float* heightSq) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	uint32 segmentCount = m_segments.size();
 
@@ -385,7 +385,7 @@ bool CoverSurface::GetCoverOcclusionAt(const Vec3& eye, const Vec3& point, float
 
 bool CoverSurface::GetCoverOcclusionAt(const Vec3& eye, const Vec3& center, float radius, float* heightSq) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	uint32 segmentCount = m_segments.size();
 

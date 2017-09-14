@@ -1,11 +1,12 @@
 {
-    "MainWindowGeometry": "AdnQywACAAAAAAAAAAAAAAAAB38AAAQPAAABbgAAAHUAAAYBAAADpQAAAAACAAAAB4A=",
-    "MainWindowState": "AAAA/wAAAAD9AAAAAAAAB34AAAO7AAAABAAAAAIAAAAIAAAAAvwAAAAGAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAgAAAAoAAAAeAFMAdABhAG4AZABhAHIAZABUAG8AbwBsAEIAYQByAAAAAAD/////AAAAAAAAAAAAAAAiAEUAZABpAHQAIABNAG8AZABlAHMAVABvAG8AbABCAGEAcgEAAAAA/////wAAAAAAAAAAAAAAJABDAG8AbwByAGQAaQBuAGEAdABlAHMAVABvAG8AbABCAGEAcgEAAACL/////wAAAAAAAAAAAAAAJABDAG8AbgBzAHQAcgBhAGkAbgB0AHMAVABvAG8AbABCAGEAcgAAAAEW/////wAAAAAAAAAAAAAAIABTAGUAbABlAGMAdABpAG8AbgBUAG8AbwBsAEIAYQByAQAAARb/////AAAAAAAAAAAAAAAcAFAAaAB5AHMAaQBjAHMAVABvAG8AbABCAGEAcgAAAAOM/////wAAAAAAAAAAAAAAFgBHAGEAbQBlAFQAbwBvAGwAQgBhAHIBAAACT/////8AAAAAAAAAAAAAABgAQQB1AGQAaQBvAFQAbwBvAGwAQgBhAHIAAAAEov////8AAAAAAAAAAAAAABwATABhAHkAbwB1AHQAcwBUAG8AbwBsAEIAYQByAQAAAtr/////AAAAAAAAAAAAAAAgAFYAaQBlAHcATQBvAGQAZQBzAFQAbwBvAGwAQgBhAHIAAAAD8AAAAT0AAAAAAAAAAAAAAAIAAAAAAAAAAwAAAAA=",
+    "MainWindowGeometry": "AdnQywACAAAAAAAAAAAAAAAAB38AAAQPAAAB1wAAAEYAAAZqAAADdgAAAAACAAAAB4A=",
+    "MainWindowState": "AAAA/wAAAAD9AAAAAAAAB34AAAO1AAAABAAAAAIAAAAIAAAAAvwAAAAGAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAgAAAAoAAAAeAFMAdABhAG4AZABhAHIAZABUAG8AbwBsAEIAYQByAAAAAAD/////AAAAAAAAAAAAAAAiAEUAZABpAHQAIABNAG8AZABlAHMAVABvAG8AbABCAGEAcgEAAAAA/////wAAAAAAAAAAAAAAJABDAG8AbwByAGQAaQBuAGEAdABlAHMAVABvAG8AbABCAGEAcgEAAACV/////wAAAAAAAAAAAAAAJABDAG8AbgBzAHQAcgBhAGkAbgB0AHMAVABvAG8AbABCAGEAcgAAAAEW/////wAAAAAAAAAAAAAAIABTAGUAbABlAGMAdABpAG8AbgBUAG8AbwBsAEIAYQByAQAAASr/////AAAAAAAAAAAAAAAcAFAAaAB5AHMAaQBjAHMAVABvAG8AbABCAGEAcgAAAAOM/////wAAAAAAAAAAAAAAFgBHAGEAbQBlAFQAbwBvAGwAQgBhAHIBAAACbf////8AAAAAAAAAAAAAABgAQQB1AGQAaQBvAFQAbwBvAGwAQgBhAHIBAAADAv////8AAAAAAAAAAAAAABwATABhAHkAbwB1AHQAcwBUAG8AbwBsAEIAYQByAQAAA3f/////AAAAAAAAAAAAAAAgAFYAaQBlAHcATQBvAGQAZQBzAFQAbwBvAGwAQgBhAHIAAAAD8AAAAT0AAAAAAAAAAAAAAAIAAAAAAAAAAwAAAAA=",
     "ToolsLayout": {
         "floatingWindows": [
         ],
         "mainWrapper": {
-            "geometry": "AdnQywACAAAAAAAAAAAAAAAAB30AAAO6AAAAAAAAAAAAAAd9AAADugAAAAAAAAAAB4A=",
+            "geometry": "AdnQywACAAAAAAAAAAAAAAAAB30AAAO0AAAAAAAAAAAAAAd9AAADtAAAAAAAAAAAB4A=",
+            "name": "mainWrapper",
             "splitter": {
                 "items": [
                     {
@@ -58,7 +59,7 @@
                         "type": "area"
                     }
                 ],
-                "state": "AAAA/wAAAAEAAAADAAABRQAABOwAAAFFAP////8BAAAAAQA=",
+                "state": "AAAA/wAAAAEAAAADAAABWwAABNYAAAFFAP////8BAAAAAQA=",
                 "type": "splitter"
             }
         },
@@ -205,7 +206,8 @@
                     }
                 },
                 "filters": {
-                    "expanded": false
+                    "expanded": false,
+                    "favoriteFilter": false
                 },
                 "foldersView": {
                     "selected": [
@@ -239,58 +241,124 @@
                 "syncSelection": true,
                 "treeView": {
                     "columnData": {
-                        "AI GroupID": {
-                            "data": "AI GroupID",
-                            "visible": false,
-                            "visualIndex": 15,
+                        "": {
+                            "data": "",
+                            "visible": true,
+                            "visualIndex": 22,
                             "width": 0
                         },
-                        "Breakable": {
-                            "data": "Breakable",
-                            "visible": false,
-                            "visualIndex": 8,
-                            "width": 0
+                        "Layer Color": {
+                          "data": "Layer Color",
+                          "visible": true,
+                          "visualIndex": 0,
+                          "width": 10
                         },
-                        "Custom Material": {
-                            "data": "Custom Material",
+                        "Visible": {
+                          "data": "Visible",
+                          "visible": true,
+                          "visualIndex": 1,
+                          "width": 10
+                        },
+                        "Frozen": {
+                            "data": "Frozen",
+                            "visible": true,
+                            "visualIndex": 2,
+                            "width": 10
+                        },
+                        "Name": {
+                            "data": "Name",
+                            "visible": true,
+                            "visualIndex": 3,
+                            "width": 275
+                        },
+                        "Layer": {
+                            "data": "Layer",
+                            "visible": true,
+                            "visualIndex": 4,
+                            "width": 100
+                        },
+                        "Type": {
+                            "data": "Type",
+                            "visible": true,
+                            "visualIndex": 5,
+                            "width": 100
+                        },
+                        "Object Type": {
+                            "data": "Object Type",
                             "visible": false,
-                            "visualIndex": 7,
+                            "visualIndex": 6,
                             "width": 0
                         },
                         "Default Material": {
                             "data": "Default Material",
                             "visible": false,
-                            "visualIndex": 6,
+                            "visualIndex": 7,
                             "width": 0
                         },
-                        "Exportable": {
-                            "data": "Exportable",
+                        "Custom Material": {
+                            "data": "Custom Material",
                             "visible": false,
-                            "visualIndex": 16,
+                            "visualIndex": 8,
                             "width": 0
                         },
-                        "Exportable to Pak": {
-                            "data": "Exportable to Pak",
+                        "Breakable": {
+                            "data": "Breakable",
                             "visible": false,
-                            "visualIndex": 17,
+                            "visualIndex": 9,
+                            "width": 0
+                        },
+                        "Smart Object": {
+                            "data": "Smart Object",
+                            "visible": false,
+                            "visualIndex": 10,
                             "width": 0
                         },
                         "Flow Graph": {
                             "data": "Flow Graph",
                             "visible": false,
-                            "visualIndex": 10,
+                            "visualIndex": 11,
                             "width": 0
-                        },
-                        "Frozen": {
-                            "data": "Frozen",
-                            "visible": true,
-                            "visualIndex": 1,
-                            "width": 18
                         },
                         "Geometry": {
                             "data": "Geometry",
                             "visible": false,
-                            "visualIndex": 11,
+                            "visualIndex": 12,
+                            "width": 0
+                        },
+                        "Instances": {
+                            "data": "Instances",
+                            "visible": false,
+                            "visualIndex": 13,
+                            "width": 0
+                        },
+                        "LOD Count": {
+                            "data": "LOD Count",
+                            "visible": false,
+                            "visualIndex": 14,
+                            "width": 0
+                        },
+                        "Spec": {
+                            "data": "Spec",
+                            "visible": false,
+                            "visualIndex": 15,
+                            "width": 0
+                        },
+                        "AI GroupID": {
+                            "data": "AI GroupID",
+                            "visible": false,
+                            "visualIndex": 16,
+                            "width": 0
+                        },
+                        "Exportable": {
+                            "data": "Exportable",
+                            "visible": false,
+                            "visualIndex": 17,
+                            "width": 0
+                        },
+                        "Exportable to Pak": {
+                            "data": "Exportable to Pak",
+                            "visible": false,
+                            "visualIndex": 18,
                             "width": 0
                         },
                         "Has Physics": {
@@ -299,80 +367,27 @@
                             "visualIndex": 19,
                             "width": 0
                         },
-                        "Instances": {
-                            "data": "Instances",
-                            "visible": false,
-                            "visualIndex": 12,
-                            "width": 0
-                        },
-                        "LOD Count": {
-                            "data": "LOD Count",
-                            "visible": false,
-                            "visualIndex": 13,
-                            "width": 0
-                        },
-                        "Layer": {
-                            "data": "Layer",
-                            "visible": true,
-                            "visualIndex": 3,
-                            "width": 100
-                        },
                         "Loaded in Game": {
                             "data": "Loaded in Game",
                             "visible": false,
-                            "visualIndex": 18,
-                            "width": 0
-                        },
-                        "Name": {
-                            "data": "Name",
-                            "visible": true,
-                            "visualIndex": 2,
-                            "width": 300
-                        },
-                        "Object Type": {
-                            "data": "Object Type",
-                            "visible": false,
-                            "visualIndex": 4,
+                            "visualIndex": 20,
                             "width": 0
                         },
                         "Platform": {
                             "data": "Platform",
                             "visible": false,
-                            "visualIndex": 20,
+                            "visualIndex": 21,
                             "width": 0
-                        },
-                        "Smart Object": {
-                            "data": "Smart Object",
-                            "visible": false,
-                            "visualIndex": 9,
-                            "width": 0
-                        },
-                        "Spec": {
-                            "data": "Spec",
-                            "visible": false,
-                            "visualIndex": 14,
-                            "width": 0
-                        },
-                        "Type": {
-                            "data": "Type",
-                            "visible": true,
-                            "visualIndex": 5,
-                            "width": 100
-                        },
-                        "Visible": {
-                            "data": "Visible",
-                            "visible": true,
-                            "visualIndex": 0,
-                            "width": 18
                         }
                     },
                     "columnOrder": [
+                        "Layer Color",
                         "Visible",
                         "Frozen",
                         "Name",
                         "Layer",
-                        "Object Type",
                         "Type",
+                        "Object Type",
                         "Default Material",
                         "Custom Material",
                         "Breakable",
@@ -385,13 +400,13 @@
                         "AI GroupID",
                         "Exportable",
                         "Exportable to Pak",
-                        "Loaded in Game",
                         "Has Physics",
+                        "Loaded in Game",
                         "Platform"
                     ],
                     "headerSortingOrder": {
                         "sortOrder": 0,
-                        "sortedSection": 2
+                        "sortedSection": 4
                     }
                 }
             }
@@ -399,10 +414,10 @@
         "Perspective": {
             "class": "ViewportClass_Perspective",
             "state": {
-                "cameraSpeed": 0.061159089207649231,
+                "cameraSpeed": 0.0099999997764825821,
                 "resolutionMode": 1,
-                "xViewportRes": 1260,
-                "yViewportRes": 473
+                "xViewportRes": 1238,
+                "yViewportRes": 470
             }
         },
         "Properties": {

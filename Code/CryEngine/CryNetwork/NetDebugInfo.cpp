@@ -158,7 +158,7 @@ CNetDebugInfo* CNetDebugInfo::Get()
 
 void CNetDebugInfo::Tick()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 	if (CNetCVars::Get().netDebugInfo != 0)
 	{
 		SNetworkProfilingStats debugStats;

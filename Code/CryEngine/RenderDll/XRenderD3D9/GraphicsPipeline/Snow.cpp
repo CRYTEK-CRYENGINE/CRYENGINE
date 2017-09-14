@@ -607,7 +607,7 @@ void CSnowStage::CreateSnowClusters()
 		{
 			auto& cluster = m_snowClusterArray[index];
 
-			cluster.m_pPrimitive = CryMakeUnique<CRenderPrimitive>();
+			cluster.m_pPrimitive = stl::make_unique<CRenderPrimitive>();
 
 			cluster.m_pPrimitive->AllocateTypedConstantBuffer(eConstantBufferShaderSlot_PerBatch, sizeof(SSnowClusterCB), EShaderStage_Vertex | EShaderStage_Pixel);
 		}

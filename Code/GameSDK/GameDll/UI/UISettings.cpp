@@ -63,8 +63,8 @@ void CUISettings::InitEventSystem()
 	GET_CVAR_SAFE(m_pRYVar, "r_Height");
 	GET_CVAR_SAFE(m_pFSVar, "r_Fullscreen");
 	GET_CVAR_SAFE(m_pGQVar, "sys_spec");
-	m_musicVolumeId = CryAudio::StringToId_CompileTime("volume_music");
-	m_sfxVolumeId = CryAudio::StringToId_CompileTime("volume_sfx");
+	m_musicVolumeId = CryAudio::StringToId("volume_music");
+	m_sfxVolumeId = CryAudio::StringToId("volume_sfx");
 	GET_CVAR_SAFE(m_pVideoVar, "sys_flash_video_soundvolume");
 	GET_CVAR_SAFE(m_pMouseSensitivity, "cl_sensitivity");
 	GET_CVAR_SAFE(m_pInvertMouse, "cl_invertMouse");

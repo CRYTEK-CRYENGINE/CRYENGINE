@@ -14,7 +14,7 @@
 #include <CrySystem/IEngineModule.h>
 
 //////////////////////////////////////////////////////////////////////////
-struct CSystemEventListner_Animation : public ISystemEventListener
+struct CSystemEventListener_Animation : public ISystemEventListener
 {
 public:
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
@@ -74,7 +74,7 @@ public:
 		}
 	}
 };
-static CSystemEventListner_Animation g_system_event_listener_anim;
+static CSystemEventListener_Animation g_system_event_listener_anim;
 
 //////////////////////////////////////////////////////////////////////////
 class CEngineModule_CryAnimation : public IAnimationEngineModule
@@ -109,7 +109,7 @@ class CEngineModule_CryAnimation : public IAnimationEngineModule
 		if (!g_controllerHeap.IsInitialised())
 			g_controllerHeap.Init(Console::GetInst().ca_MemoryDefragPoolSize);
 
-		pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_anim, "CSystemEventListner_Animation");
+		pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_anim, "CSystemEventListener_Animation");
 
 		g_pCharacterManager = NULL;
 		env.pCharacterManager = NULL;

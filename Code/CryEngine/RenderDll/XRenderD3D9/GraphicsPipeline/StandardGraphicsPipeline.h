@@ -38,6 +38,7 @@ class CLensOpticsStage;
 class CPostEffectStage;
 class CRainStage;
 class CSnowStage;
+class COmniCameraStage;
 class CDepthReadbackStage;
 class CMobileCompositionStage;
 class CRenderCamera;
@@ -84,6 +85,7 @@ enum EStandardGraphicsPipelineStage
 	eStage_Snow,
 	eStage_DepthReadback,
 	eStage_MobileComposition,
+	eStage_OmniCamera,
 
 	eStage_Count
 };
@@ -164,8 +166,8 @@ public:
 	int GetViewInfo(SViewInfo viewInfo[2], const D3DViewPort * pCustomViewport = NULL);
 	uint32 GetRenderFlags() const { return m_renderingFlags; }
 
-	CConstantBufferPtr                       GetMainViewConstantBuffer()        { return m_mainViewConstantBuffer.GetDeviceConstantBuffer(); }
-	const CDeviceResourceSetDesc&            GetDefaultMaterialResources()        const { return m_defaultMaterialResources; }
+	CConstantBufferPtr                       GetMainViewConstantBuffer()                { return m_mainViewConstantBuffer.GetDeviceConstantBuffer(); }
+	const CDeviceResourceSetDesc&            GetDefaultMaterialBindPoints()       const { return m_defaultMaterialBindPoints; }
 	std::array<SamplerStateHandle, EFSS_MAX> GetDefaultMaterialSamplers()         const;
 	const CDeviceResourceSetDesc&            GetDefaultInstanceExtraResources()   const { return m_defaultInstanceExtraResources; }
 	CDeviceResourceSetPtr                    GetDefaultInstanceExtraResourceSet() const { return m_pDefaultInstanceExtraResourceSet; }
@@ -186,6 +188,7 @@ public:
 	CWaterStage*              GetWaterStage()                    const { return m_pWaterStage; }
 	CLensOpticsStage*         GetLensOpticsStage()               const { return m_pLensOpticsStage; }
 	CDepthReadbackStage*      GetDepthReadbackStage()            const { return m_pDepthReadbackStage; }
+	COmniCameraStage*         GetOmniCameraStage()               const { return m_pOmniCameraStage; }
 
 public:
 	static void ApplyShaderQuality(CDeviceGraphicsPSODesc& psoDesc, const SShaderProfile& shaderProfile);
@@ -224,9 +227,10 @@ private:
 	CSnowStage*                   m_pSnowStage = nullptr;
 	CDepthReadbackStage*          m_pDepthReadbackStage = nullptr;
 	CMobileCompositionStage*      m_pMobileCompositionStage = nullptr;
+	COmniCameraStage*             m_pOmniCameraStage = nullptr;
 
 	CTypedConstantBuffer<HLSL_PerViewGlobalConstantBuffer> m_mainViewConstantBuffer;
-	CDeviceResourceSetDesc                                 m_defaultMaterialResources;
+	CDeviceResourceSetDesc                                 m_defaultMaterialBindPoints;
 	CDeviceResourceSetDesc                                 m_defaultInstanceExtraResources;
 	CDeviceResourceSetPtr                                  m_pDefaultInstanceExtraResourceSet;
 

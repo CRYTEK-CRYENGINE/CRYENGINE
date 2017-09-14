@@ -111,7 +111,7 @@ void CAIPlayer::ReleaseExposedCoverObjects()
 //---------------------------------------------------------------------------------
 void CAIPlayer::AddExposedCoverObject(IPhysicalEntity* pPhysEnt)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	unsigned oldest = 0;
 	float oldestTime = FLT_MAX; // Count down timers, find smallest value.
@@ -152,7 +152,7 @@ void CAIPlayer::AddExposedCoverObject(IPhysicalEntity* pPhysEnt)
 //---------------------------------------------------------------------------------
 void CAIPlayer::CollectExposedCover()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_coverExposedTime > 0.0f)
 	{
@@ -220,8 +220,6 @@ void CAIPlayer::GetPhysicalSkipEntities(PhysSkipList& skipList) const
 	{
 		stl::push_back_unique(skipList, m_exposedCoverObjects[i].pPhysEnt);
 	}
-
-	CRY_ASSERT_MESSAGE(skipList.size() <= 5, "Too many physical skipped entities determined. See SRwiRequest definition.");
 }
 
 //

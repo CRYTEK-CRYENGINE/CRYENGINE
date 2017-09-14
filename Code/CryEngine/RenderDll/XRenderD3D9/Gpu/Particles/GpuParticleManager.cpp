@@ -40,7 +40,7 @@ CManager::CreateParticleComponentRuntime(
 	pfx2::IParticleComponent* pComponent,
 	const SComponentParams& params)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 	CryAutoLock<CryCriticalSection> lock(m_cs);
 
 	CParticleComponentRuntime* pRuntime = new CParticleComponentRuntime(pEmitter, pComponent, params);

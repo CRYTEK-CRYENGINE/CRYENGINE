@@ -147,7 +147,7 @@ void CMiniGUI::Done()
 //////////////////////////////////////////////////////////////////////////
 void CMiniGUI::Draw()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	// When console opened hide MiniGui
 	bool bConsoleOpened = gEnv->pConsole->IsOpened();

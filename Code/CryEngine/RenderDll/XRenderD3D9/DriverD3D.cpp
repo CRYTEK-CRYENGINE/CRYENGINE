@@ -46,7 +46,7 @@
 
 void CD3D9Renderer::LimitFramerate(const int maxFPS, const bool bUseSleep)
 {
-	FRAME_PROFILER("RT_FRAME_CAP", gEnv->pSystem, PROFILE_RENDERER);
+	CRY_PROFILE_REGION(PROFILE_RENDERER, "RT_FRAME_CAP");
 
 	if (maxFPS > 0)
 	{
@@ -233,9 +233,9 @@ void CD3D9Renderer::ObtainDepthBuffer(SDisplayContext* pContext)
 	m_DepthBufferNative = m_DepthBufferOrig;
 
 	// Create the native resolution depth stencil buffer for overlay rendering if needed
-	if (!IsEditorMode() && (gcpRendD3D->GetOverlayWidth() != nDepthBufferWidth || gcpRendD3D->GetOverlayHeight() != nDepthBufferHeight))
+	if (!IsEditorMode() && (m_nativeWidth != nDepthBufferWidth || m_nativeHeight != nDepthBufferHeight))
 	{
-		m_pNativeZTexture = CTexture::GetOrCreateDepthStencil("$DeviceDepthOverlay", GetOverlayWidth(), GetOverlayHeight(),
+		m_pNativeZTexture = CTexture::GetOrCreateDepthStencil("$DeviceDepthOverlay", m_nativeWidth, m_nativeHeight,
 			clearValues, eTT_2D, FT_USAGE_DEPTHSTENCIL | FT_DONT_RELEASE | FT_DONT_STREAM, m_preferredDepthFormat);
 
 		D3DTexture* pNativeZTarget = m_pZTexture->GetDevTexture()->Get2DTexture();
@@ -509,9 +509,6 @@ void CD3D9Renderer::InitRenderer()
 	m_pTiledShading = new CTiledShading();
 
 	m_pPipelineProfiler = NULL;
-#ifdef USE_PIX_DURANGO
-	m_pPixPerf = NULL;
-#endif
 
 #if defined(ENABLE_SIMPLE_GPU_TIMERS)
 	m_pPipelineProfiler = new CRenderPipelineProfiler();
@@ -3961,7 +3958,7 @@ void CD3D9Renderer::RT_RenderDebug(bool bRenderStats)
 
 void CD3D9Renderer::TryFlush()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
 	//////////////////////////////////////////////////////////////////////
 	// End the scene and update
@@ -3975,7 +3972,7 @@ void CD3D9Renderer::TryFlush()
 
 void CD3D9Renderer::EndFrame()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
 	//////////////////////////////////////////////////////////////////////
 	// End the scene and update
@@ -4010,7 +4007,7 @@ static uint32 ComputePresentInterval(bool vsync, uint32 refreshNumerator, uint32
 
 void CD3D9Renderer::RT_EndFrame()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
 	if (!m_SceneRecurseCount)
 	{
@@ -4208,7 +4205,7 @@ void CD3D9Renderer::RT_EndFrame()
 
 		if (!IsEditorMode())
 		{
-			FRAME_PROFILER("Present", GetISystem(), PROFILE_RENDERER);
+			CRY_PROFILE_REGION(PROFILE_RENDERER, "Present");
 			pDC->m_pBackBufferPresented = GetCurrentBackBuffer(pDC);
 
 #if !defined(SUPPORT_DEVICE_INFO)
@@ -6738,7 +6735,7 @@ void CD3D9Renderer::UpdateTextureInVideoMemory(uint32 tnum, unsigned char* newda
 
 bool CD3D9Renderer::EF_PrecacheResource(SShaderItem* pSI, int iScreenTexels, float fTimeToReady, int Flags, int nUpdateId, int nCounter)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
 	CShader* pSH = (CShader*)pSI->m_pShader;
 
@@ -6795,7 +6792,7 @@ bool CD3D9Renderer::EF_PrecacheResource(SShaderItem* pSI, int iScreenTexels, flo
 
 bool CD3D9Renderer::EF_PrecacheResource(SShaderItem* pSI, float fMipFactorSI, float fTimeToReady, int Flags, int nUpdateId, int nCounter)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
 	CShader* pSH = (CShader*)pSI->m_pShader;
 
@@ -6844,7 +6841,7 @@ bool CD3D9Renderer::EF_PrecacheResource(SShaderItem* pSI, float fMipFactorSI, fl
 
 bool CD3D9Renderer::EF_PrecacheResource(ITexture* pTP, float fMipFactor, float fTimeToReady, int Flags, int nUpdateId, int nCounter)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
 	// Check for the presence of a D3D device
 	CRY_ASSERT(static_cast<const CD3D9Renderer*>(this)->GetDevice().IsValid());
@@ -6892,7 +6889,7 @@ void CD3D9Renderer::ReleaseResourceAsync(SResourceAsync* pResource)
 
 unsigned int CD3D9Renderer::DownLoadToVideoMemory(unsigned char* pSrcData, int w, int h, int d, ETEX_Format eSrcFormat, ETEX_Format eTFDst, int nummipmap, ETEX_Type eTT, bool repeat, int filter, int Id, const char* szCacheName, int flags, EEndian eEndian, RectI* pRegion, bool bAsyncDevTexCreation)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
 	char name[128];
 	if (!szCacheName)
@@ -7395,7 +7392,7 @@ ITimer* iTimer;
 ISystem* iSystem;
 
 //////////////////////////////////////////////////////////////////////////
-struct CSystemEventListner_Render : public ISystemEventListener
+struct CSystemEventListener_Render : public ISystemEventListener
 {
 public:
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
@@ -7525,7 +7522,7 @@ public:
 	}
 };
 
-static CSystemEventListner_Render g_system_event_listener_render;
+static CSystemEventListener_Render g_system_event_listener_render;
 
 extern "C" DLL_EXPORT IRenderer * CreateCryRenderInterface(ISystem * pSystem)
 {
@@ -7542,7 +7539,7 @@ extern "C" DLL_EXPORT IRenderer * CreateCryRenderInterface(ISystem * pSystem)
 	QueryPerformanceCounter(&li);
 	srand((uint32) li.QuadPart);
 
-	iSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_render, "CSystemEventListner_Render");
+	iSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_render, "CSystemEventListener_Render");
 	return gRenDev;
 }
 
@@ -7576,7 +7573,7 @@ CRYREGISTER_SINGLETON_CLASS(CEngineModule_CryRenderer)
 //=========================================================================================
 void CD3D9Renderer::LockParticleVideoMemory()
 {
-	FRAME_PROFILER("LockParticleVideoMemory", gEnv->pSystem, PROFILE_RENDERER);
+	CRY_PROFILE_REGION(PROFILE_RENDERER, "LockParticleVideoMemory");
 	SRenderPipeline& rp = gRenDev->m_RP;
 	rp.m_particleBuffer.Lock();
 }

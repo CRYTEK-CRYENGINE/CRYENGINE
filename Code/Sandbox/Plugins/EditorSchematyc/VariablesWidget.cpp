@@ -22,7 +22,7 @@
 #include <QAbstractItemModel>
 #include <QStyledItemDelegate>
 #include <QVBoxLayout>
-#include <QTreeView>
+#include <QAdvancedTreeView.h>
 #include <QLabel>
 #include <QString>
 #include <QHelpEvent>
@@ -283,7 +283,7 @@ CVariablesWidget::CVariablesWidget(QString label, QWidget* pParent)
 	pToolBar->addWidget(pSpacer);
 	pToolBar->addWidget(m_pAddButton);
 
-	m_pVariablesList = new QTreeView();
+	m_pVariablesList = new QAdvancedTreeView();
 	m_pVariablesList->setContextMenuPolicy(Qt::CustomContextMenu);
 	m_pVariablesList->setSelectionMode(QAbstractItemView::SingleSelection);
 	m_pVariablesList->setSelectionBehavior(QAbstractItemView::SelectRows);

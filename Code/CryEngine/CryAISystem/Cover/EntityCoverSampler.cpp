@@ -59,7 +59,7 @@ void EntityCoverSampler::Cancel(EntityId entityID)
 
 void EntityCoverSampler::Update()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	CTimeValue now = gEnv->pTimer->GetFrameStartTime();
 

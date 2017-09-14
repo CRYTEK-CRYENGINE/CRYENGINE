@@ -168,7 +168,7 @@ public:
 	{
 		WayQueryRequest(EntityId _requesterEntityId, TriangleID _from, const vector3_t& _fromLocation, TriangleID _to,
 		                const vector3_t& _toLocation, const OffMeshNavigation& _offMeshNavigation, const OffMeshNavigationManager& _offMeshNavigationManager,
-		                const DangerousAreasList& dangerousAreas)
+		                const DangerousAreasList& dangerousAreas, const MNMCustomPathCostComputerSharedPtr& _pCustomPathCostComputer)
 			: m_from(_from)
 			, m_to(_to)
 			, m_fromLocation(_fromLocation)
@@ -176,6 +176,7 @@ public:
 			, m_offMeshNavigation(_offMeshNavigation)
 			, m_offMeshNavigationManager(_offMeshNavigationManager)
 			, m_dangerousAreas(dangerousAreas)
+			, m_pCustomPathCostComputer(_pCustomPathCostComputer)
 			, m_requesterEntityId(_requesterEntityId)
 		{}
 
@@ -190,6 +191,7 @@ public:
 		ILINE const DangerousAreasList& GetDangersInfos()            { return m_dangerousAreas; }
 		ILINE const vector3_t&          GetFromLocation() const      { return m_fromLocation; };
 		ILINE const vector3_t&          GetToLocation() const        { return m_toLocation; };
+		ILINE const MNMCustomPathCostComputerSharedPtr& GetCustomPathCostComputer() const { return m_pCustomPathCostComputer; }  // might be nullptr (which is totally OK)
 
 	private:
 		const TriangleID                m_from;
@@ -199,6 +201,7 @@ public:
 		const OffMeshNavigation&        m_offMeshNavigation;
 		const OffMeshNavigationManager& m_offMeshNavigationManager;
 		DangerousAreasList              m_dangerousAreas;
+		MNMCustomPathCostComputerSharedPtr m_pCustomPathCostComputer;
 	protected:
 		const EntityId                  m_requesterEntityId;
 	};
@@ -312,6 +315,7 @@ public:
 
 	CNavMesh::EWayQueryResult FindWay(WayQueryRequest& inputRequest, WayQueryWorkingSet& workingSet, WayQueryResult& result) const;
 	real_t                    CalculateHeuristicCostForDangers(const vector3_t& locationToEval, const vector3_t& startingLocation, const Vec3& meshOrigin, const DangerousAreasList& dangersInfos) const;
+	real_t                    CalculateHeuristicCostForCustomRules(const vector3_t& locationComingFrom, const vector3_t& locationGoingTo, const Vec3& meshOrigin, const IMNMCustomPathCostComputer* pCustomPathCostComputer) const;
 	void                      PullString(const vector3_t& from, const TriangleID fromTriID, const vector3_t& to, const TriangleID toTriID, vector3_t& middlePoint) const;
 
 	struct RayHit

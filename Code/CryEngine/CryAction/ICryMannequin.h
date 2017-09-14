@@ -686,6 +686,12 @@ struct SAnimationContext
 		state(_controllerDef.m_tags)
 	{
 		subStates.resize(_controllerDef.m_subContextIDs.GetNum(), state);
+
+		if (gEnv->pTimer)
+		{
+			const uint32 seed = static_cast<uint32>(gEnv->pTimer->GetAsyncTime().GetValue());
+			randGenerator.Seed(seed);
+		}
 	}
 
 	const SControllerDef& controllerDef;

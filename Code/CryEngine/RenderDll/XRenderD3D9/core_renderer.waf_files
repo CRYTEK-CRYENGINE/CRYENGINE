@@ -466,7 +466,9 @@
       "GraphicsPipeline/Water.h",
       "GraphicsPipeline/Water.cpp",
       "GraphicsPipeline/WaterRipples.h",
-      "GraphicsPipeline/WaterRipples.cpp"
+      "GraphicsPipeline/WaterRipples.cpp",
+      "GraphicsPipeline/OmniCamera.h",
+      "GraphicsPipeline/OmniCamera.cpp"
     ]
   },
   "NoUberFile":{

@@ -15,7 +15,7 @@
 #include "Game.h"
 #include "GameCVars.h"
 #include "GameActions.h"
-
+ 
 #include "UI/UIManager.h"
 #include "UI/ProfileOptions.h"
 #include "UI/WarningsManager.h"
@@ -2464,7 +2464,7 @@ int CGame::Update(bool haveFocus, unsigned int updateFlags) PREFAST_SUPPRESS_WAR
 	{
 		if (m_pRayCaster)
 		{
-			FRAME_PROFILER("GlobalRayCaster", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_GAME, "GlobalRayCaster");
 
 			m_pRayCaster->SetQuota(g_pGameCVars->g_gameRayCastQuota);
 			m_pRayCaster->Update(frameTime);
@@ -2472,7 +2472,7 @@ int CGame::Update(bool haveFocus, unsigned int updateFlags) PREFAST_SUPPRESS_WAR
 
 		if (m_pIntersectionTester)
 		{
-			FRAME_PROFILER("GlobalIntersectionTester", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_GAME, "GlobalIntersectionTester");
 
 			m_pIntersectionTester->SetQuota(g_pGameCVars->g_gameIntersectionTestQuota);
 			m_pIntersectionTester->Update(frameTime);

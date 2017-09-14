@@ -6,7 +6,7 @@
 #include <QAbstractItemModel>
 
 class QFilteringPanel;
-class QTreeView;
+class QAdvancedTreeView;
 class QAttributeFilterProxyModel;
 class QToolButton;
 class QItemSelection;
@@ -59,7 +59,7 @@ private:
 	CAbstractObjectStructureModel* m_pModel;
 
 	QFilteringPanel*               m_pFilter;
-	QTreeView*                     m_pComponentsList;
+	QAdvancedTreeView*             m_pComponentsList;
 	CObjectStructureModel*         m_pDataModel;
 	QAttributeFilterProxyModel*    m_pFilterProxy;
 	QToolButton*                   m_pAddButton;

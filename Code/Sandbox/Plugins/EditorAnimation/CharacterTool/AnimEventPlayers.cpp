@@ -27,7 +27,7 @@ void SerializeParameterAudioTrigger(string& parameter, IArchive& ar)
 }
 
 void SerializeParameterString(string& parameter, IArchive& ar) { ar(parameter, "parameter", "^"); }
-void SerializeParameterEffect(string& parameter, IArchive& ar) { ar(Serialization::ParticleName(parameter), "parameter", "^"); }
+void SerializeParameterEffect(string& parameter, IArchive& ar) { ar(Serialization::ParticlePickerLegacy(parameter), "parameter", "^"); }
 void SerializeParameterNone(string& parameter, IArchive& ar)   { ar(parameter, "parameter", 0); }
 
 void SerializeParameterAnimFXEvent(string& parameter, IArchive& ar)
@@ -257,11 +257,11 @@ public:
 		if (!m_audioEnabled)
 			return;
 
-		if (m_pIListener != nullptr)
+		if (m_pIAudioListener != nullptr)
 		{
 			Matrix34 cameraWithOffset = cameraMatrix;
 			cameraWithOffset.SetTranslation(cameraMatrix.GetTranslation());
-			m_pIListener->SetTransformation(cameraWithOffset);
+			m_pIAudioListener->SetTransformation(cameraWithOffset);
 		}
 
 		if (m_pIAudioObject != nullptr)
@@ -273,15 +273,14 @@ public:
 
 	void EnableAudio(bool enableAudio) override
 	{
-		if (enableAudio && !m_pIListener)
+		if (enableAudio && m_pIAudioListener == nullptr)
 		{
-			if (!m_pIListener)
-				m_pIListener = gEnv->pAudioSystem->CreateListener();
+			m_pIAudioListener = gEnv->pAudioSystem->CreateListener();
 		}
-		else if (m_pIListener != nullptr)
+		else if (m_pIAudioListener != nullptr)
 		{
-			gEnv->pAudioSystem->ReleaseListener(m_pIListener);
-			m_pIListener = nullptr;
+			gEnv->pAudioSystem->ReleaseListener(m_pIAudioListener);
+			m_pIAudioListener = nullptr;
 		}
 
 		m_audioEnabled = enableAudio;
@@ -329,20 +328,20 @@ public:
 
 	void SetRTPC(const char* name, float value)
 	{
-		CryAudio::ControlId const parameterId = CryAudio::StringToId_RunTime(name);
+		CryAudio::ControlId const parameterId = CryAudio::StringToId(name);
 		m_pIAudioObject->SetParameter(parameterId, value);
 	}
 
 	void SetSwitch(const char* name, const char* state)
 	{
-		CryAudio::ControlId const switchId = CryAudio::StringToId_RunTime(name);
-		CryAudio::SwitchStateId const stateId = CryAudio::StringToId_RunTime(state);
+		CryAudio::ControlId const switchId = CryAudio::StringToId(name);
+		CryAudio::SwitchStateId const stateId = CryAudio::StringToId(state);
 		m_pIAudioObject->SetSwitchState(switchId, stateId);
 	}
 
 	void PlayTrigger(const char* trigger, Vec3 const& pos)
 	{
-		CryAudio::ControlId const triggerId = CryAudio::StringToId_RunTime(trigger);
+		CryAudio::ControlId const triggerId = CryAudio::StringToId(trigger);
 		m_pIAudioObject->SetTransformation(pos);
 		m_pIAudioObject->ExecuteTrigger(triggerId);
 	}
@@ -364,7 +363,7 @@ private:
 
 	bool                          m_audioEnabled;
 	CryAudio::IObject*            m_pIAudioObject;
-	CryAudio::IListener*          m_pIListener;
+	CryAudio::IListener*          m_pIAudioListener;
 	string                        m_parameter;
 	string                        m_boneToAttachTo;
 
@@ -373,7 +372,8 @@ private:
 
 AnimEventPlayer_AudioTranslationLayer::AnimEventPlayer_AudioTranslationLayer()
 	: m_audioEnabled(false)
-	, m_pIAudioObject()
+	, m_pIAudioObject(nullptr)
+	, m_pIAudioListener(nullptr)
 {
 }
 
@@ -385,10 +385,10 @@ AnimEventPlayer_AudioTranslationLayer::~AnimEventPlayer_AudioTranslationLayer()
 		m_pIAudioObject = nullptr;
 	}
 
-	if (m_pIListener != nullptr)
+	if (m_pIAudioListener != nullptr)
 	{
-		gEnv->pAudioSystem->ReleaseListener(m_pIListener);
-		m_pIListener = nullptr;
+		gEnv->pAudioSystem->ReleaseListener(m_pIAudioListener);
+		m_pIAudioListener = nullptr;
 	}
 }
 
@@ -587,8 +587,7 @@ class AnimEventPlayerAnimFXEvents : public IAnimEventPlayer
 
 				Serialization::StringListValue eventListChoice(soundFXLibsList, index);
 
-				ar.doc("These are the defined anim fx libs coming from the game.dll");
-				ar(eventListChoice, "animFxLib", "^Animation FX Lib");
+				ar(eventListChoice, "animFxLib", "^");
 
 				if (ISurfaceTypeEnumerator* pSurfaceTypeEnum = gEnv->p3DEngine->GetMaterialManager()->GetSurfaceTypeManager()->GetEnumerator())
 				{
@@ -639,7 +638,8 @@ public:
 
 	void Serialize(Serialization::IArchive& ar) override
 	{
-		ar(m_animFxSources, "animFxSources", "Anim FX libs");
+		ar(m_animFxSources, "animFxSources", gEnv->pMaterialEffects->GetAnimFXEvents() ? "Libraries" : "!Libraries");
+		ar.doc("AnimFX libraries provided by the game project.");
 	}
 
 	const char* SerializeCustomParameter(const char* parameterValue, Serialization::IArchive& ar, int customTypeIndex) override

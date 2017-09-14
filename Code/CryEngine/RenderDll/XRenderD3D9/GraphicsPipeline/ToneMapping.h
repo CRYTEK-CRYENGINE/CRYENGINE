@@ -10,6 +10,7 @@ class CToneMappingStage : public CGraphicsPipelineStage
 public:
 	void Init();
 	void Execute();
+	void ExecuteDebug();
 	void ExecuteFixedExposure();
 	void DisplayDebugInfo();
 

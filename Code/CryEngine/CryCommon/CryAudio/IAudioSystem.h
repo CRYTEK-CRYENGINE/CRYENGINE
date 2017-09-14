@@ -28,63 +28,53 @@
  */
 namespace CryAudio
 {
-static constexpr char* RelativeVelocityTrackingSwitchName = "relative_velocity_tracking";
-static constexpr char* RelativeVelocityParameterName = "relative_velocity";
-static constexpr char* AbsoluteVelocityTrackingSwitchName = "absolute_velocity_tracking";
-static constexpr char* AbsoluteVelocityParameterName = "absolute_velocity";
-static constexpr char* LoseFocusTriggerName = "lose_focus";
-static constexpr char* GetFocusTriggerName = "get_focus";
-static constexpr char* MuteAllTriggerName = "mute_all";
-static constexpr char* UnmuteAllTriggerName = "unmute_all";
-static constexpr char* DoNothingTriggerName = "do_nothing";
-static constexpr char* OcclusionCalcSwitchName = "ObstructionOcclusionCalculationType";
-static constexpr char* IgnoreStateName = "ignore";
-static constexpr char* AdaptiveStateName = "adaptive";
-static constexpr char* LowStateName = "low";
-static constexpr char* MediumStateName = "medium";
-static constexpr char* HighStateName = "high";
-static constexpr char* OnStateName = "on";
-static constexpr char* OffStateName = "off";
-static constexpr char* GlobalPreloadRequestName = "global_atl_preloads";
+static constexpr char const* RelativeVelocityTrackingSwitchName = "relative_velocity_tracking";
+static constexpr char const* RelativeVelocityParameterName = "relative_velocity";
+static constexpr char const* AbsoluteVelocityTrackingSwitchName = "absolute_velocity_tracking";
+static constexpr char const* AbsoluteVelocityParameterName = "absolute_velocity";
+static constexpr char const* LoseFocusTriggerName = "lose_focus";
+static constexpr char const* GetFocusTriggerName = "get_focus";
+static constexpr char const* MuteAllTriggerName = "mute_all";
+static constexpr char const* UnmuteAllTriggerName = "unmute_all";
+static constexpr char const* DoNothingTriggerName = "do_nothing";
+static constexpr char const* OcclusionCalcSwitchName = "ObstructionOcclusionCalculationType";
+static constexpr char const* IgnoreStateName = "ignore";
+static constexpr char const* AdaptiveStateName = "adaptive";
+static constexpr char const* LowStateName = "low";
+static constexpr char const* MediumStateName = "medium";
+static constexpr char const* HighStateName = "high";
+static constexpr char const* OnStateName = "on";
+static constexpr char const* OffStateName = "off";
+static constexpr char const* GlobalPreloadRequestName = "global_atl_preloads";
 
 /**
-* A utility function to convert a string value to an Id at compile time.
+* A utility function to convert a string value to an Id.
 * @param szSource - string to convert
 * @return a 32bit CRC computed on the lower case version of the passed string
 */
-static constexpr uint32 StringToId_CompileTime(char const* const szSource)
+static constexpr uint32 StringToId(char const* const szSource)
 {
 	return CCrc32::ComputeLowercase_CompileTime(szSource);
 }
 
-/**
-* A utility function to convert a string value to an Id during run time.
-* @param szSource - string to convert
-* @return a 32bit CRC computed on the lower case version of the passed string
-*/
-static uint32 StringToId_RunTime(char const* const szSource)
-{
-	return CCrc32::ComputeLowercase(szSource);
-}
-
-static constexpr ControlId RelativeVelocityTrackingSwitchId = StringToId_CompileTime(RelativeVelocityTrackingSwitchName);
-static constexpr ControlId RelativeVelocityParameterId = StringToId_CompileTime(RelativeVelocityParameterName);
-static constexpr ControlId AbsoluteVelocityTrackingSwitchId = StringToId_CompileTime(AbsoluteVelocityTrackingSwitchName);
-static constexpr ControlId AbsoluteVelocityParameterId = StringToId_CompileTime(AbsoluteVelocityParameterName);
-static constexpr ControlId LoseFocusTriggerId = StringToId_CompileTime(LoseFocusTriggerName);
-static constexpr ControlId GetFocusTriggerId = StringToId_CompileTime(GetFocusTriggerName);
-static constexpr ControlId MuteAllTriggerId = StringToId_CompileTime(MuteAllTriggerName);
-static constexpr ControlId UnmuteAllTriggerId = StringToId_CompileTime(UnmuteAllTriggerName);
-static constexpr ControlId DoNothingTriggerId = StringToId_CompileTime(DoNothingTriggerName);
-static constexpr ControlId OcclusionCalcSwitchId = StringToId_CompileTime(OcclusionCalcSwitchName);
-static constexpr SwitchStateId IgnoreStateId = StringToId_CompileTime(IgnoreStateName);
-static constexpr SwitchStateId AdaptiveStateId = StringToId_CompileTime(AdaptiveStateName);
-static constexpr SwitchStateId LowStateId = StringToId_CompileTime(LowStateName);
-static constexpr SwitchStateId MediumStateId = StringToId_CompileTime(MediumStateName);
-static constexpr SwitchStateId HighStateId = StringToId_CompileTime(HighStateName);
-static constexpr SwitchStateId OnStateId = StringToId_CompileTime(OnStateName);
-static constexpr SwitchStateId OffStateId = StringToId_CompileTime(OffStateName);
-static constexpr PreloadRequestId GlobalPreloadRequestId = StringToId_CompileTime(GlobalPreloadRequestName);
+static constexpr ControlId RelativeVelocityTrackingSwitchId = StringToId(RelativeVelocityTrackingSwitchName);
+static constexpr ControlId RelativeVelocityParameterId = StringToId(RelativeVelocityParameterName);
+static constexpr ControlId AbsoluteVelocityTrackingSwitchId = StringToId(AbsoluteVelocityTrackingSwitchName);
+static constexpr ControlId AbsoluteVelocityParameterId = StringToId(AbsoluteVelocityParameterName);
+static constexpr ControlId LoseFocusTriggerId = StringToId(LoseFocusTriggerName);
+static constexpr ControlId GetFocusTriggerId = StringToId(GetFocusTriggerName);
+static constexpr ControlId MuteAllTriggerId = StringToId(MuteAllTriggerName);
+static constexpr ControlId UnmuteAllTriggerId = StringToId(UnmuteAllTriggerName);
+static constexpr ControlId DoNothingTriggerId = StringToId(DoNothingTriggerName);
+static constexpr ControlId OcclusionCalcSwitchId = StringToId(OcclusionCalcSwitchName);
+static constexpr SwitchStateId IgnoreStateId = StringToId(IgnoreStateName);
+static constexpr SwitchStateId AdaptiveStateId = StringToId(AdaptiveStateName);
+static constexpr SwitchStateId LowStateId = StringToId(LowStateName);
+static constexpr SwitchStateId MediumStateId = StringToId(MediumStateName);
+static constexpr SwitchStateId HighStateId = StringToId(HighStateName);
+static constexpr SwitchStateId OnStateId = StringToId(OnStateName);
+static constexpr SwitchStateId OffStateId = StringToId(OffStateName);
+static constexpr PreloadRequestId GlobalPreloadRequestId = StringToId(GlobalPreloadRequestName);
 
 // Forward declarations.
 struct IListener;

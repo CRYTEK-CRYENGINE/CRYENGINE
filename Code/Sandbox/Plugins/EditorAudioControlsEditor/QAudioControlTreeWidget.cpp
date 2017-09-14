@@ -71,14 +71,14 @@ bool QAudioControlSortProxy::lessThan(const QModelIndex& left, const QModelIndex
 }
 
 QAudioControlsTreeView::QAudioControlsTreeView(QWidget* pParent /*= 0*/)
-	: QTreeView(pParent)
+	: QAdvancedTreeView(QAdvancedTreeView::Behavior(QAdvancedTreeView::PreserveExpandedAfterReset | QAdvancedTreeView::PreserveSelectionAfterReset), pParent)
 {
 	setItemDelegate(new QAdvancedItemDelegate(this));
 }
 
 void QAudioControlsTreeView::scrollTo(const QModelIndex& index, ScrollHint hint /*= EnsureVisible*/)
 {
-	// QTreeView::scrollTo() expands all the parent items but
+	// QAdvancedTreeView::scrollTo() expands all the parent items but
 	// it is disabled when handling a Drag&Drop event so have to do it manually
 	if (state() != NoState)
 	{
@@ -92,7 +92,7 @@ void QAudioControlsTreeView::scrollTo(const QModelIndex& index, ScrollHint hint 
 			parent = parent.parent();
 		}
 	}
-	QTreeView::scrollTo(index, hint);
+	QAdvancedTreeView::scrollTo(index, hint);
 }
 
 bool QAudioControlsTreeView::IsEditing()

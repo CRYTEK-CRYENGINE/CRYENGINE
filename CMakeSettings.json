@@ -1,15 +1,45 @@
 {
   "configurations": [
    {
-    "name": "Windows x64",
-    "generator": "Visual Studio 14 2015 Win64",
-    "buildRoot": "${projectDir}\\Solution_Win64",
+    "name": "Windows x64 Debug",
+	"configurationType": "Debug",
+    "generator": "Visual Studio 15 2017 Win64",
+    "buildRoot": "${projectDir}\\Solutions\\Win64_Debug",
+	"cmakeCommandArgs": "-D CMAKE_TOOLCHAIN_FILE=Tools\\CMake\\toolchain\\windows\\WindowsPC-MSVC.cmake"
+   },
+   {
+    "name": "Windows x64 Profile",
+	"configurationType": "Profile",
+    "generator": "Visual Studio 15 2017 Win64",
+    "buildRoot": "${projectDir}\\Solutions\\Win64_Profile",
+	"cmakeCommandArgs": "-D CMAKE_TOOLCHAIN_FILE=Tools\\CMake\\toolchain\\windows\\WindowsPC-MSVC.cmake"
+   },
+   {
+    "name": "Windows x64 Release",
+	"configurationType": "Release",
+    "generator": "Visual Studio 15 2017 Win64",
+    "buildRoot": "${projectDir}\\Solutions\\Win64_Release",
+	"cmakeCommandArgs": "-D CMAKE_TOOLCHAIN_FILE=Tools\\CMake\\toolchain\\windows\\WindowsPC-MSVC.cmake"
+   },
+   {
+    "name": "Windows x86 Debug",
+	"configurationType": "Debug",
+    "generator": "Visual Studio 15 2017",
+    "buildRoot": "${projectDir}\\Solutions\\Win32_Debug",
+	"cmakeCommandArgs": "-D CMAKE_TOOLCHAIN_FILE=Tools\\CMake\\toolchain\\windows\\WindowsPC-MSVC.cmake"
+   },
+   {
+    "name": "Windows x86 Profile",
+	"configurationType": "Profile",
+    "generator": "Visual Studio 15 2017",
+    "buildRoot": "${projectDir}\\Solutions\\Win32_Profile",
     "cmakeCommandArgs": "-D CMAKE_TOOLCHAIN_FILE=Tools\\CMake\\toolchain\\windows\\WindowsPC-MSVC.cmake"
    },
    {
-    "name": "Windows x86",
-    "generator": "Visual Studio 14 2015",
-    "buildRoot": "${projectDir}\\Solution_Win32",
+    "name": "Windows x86 Release",
+	"configurationType": "Release",
+    "generator": "Visual Studio 15 2017",
+    "buildRoot": "${projectDir}\\Solutions\\Win32_Release",
     "cmakeCommandArgs": "-D CMAKE_TOOLCHAIN_FILE=Tools\\CMake\\toolchain\\windows\\WindowsPC-MSVC.cmake"
    }
  ]

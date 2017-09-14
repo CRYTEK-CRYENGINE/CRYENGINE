@@ -151,6 +151,12 @@ void CMatInfo::Release()
 }
 
 //////////////////////////////////////////////////////////////////////////
+
+bool CMatInfo::IsValid()
+{
+	return !m_bDeletePending && !m_bDeleted;
+}
+
 void CMatInfo::ShutDown()
 {
 	if (!m_bDeleted)
@@ -168,6 +174,7 @@ void CMatInfo::ShutDown()
 
 		m_subMtls.clear();
 	}
+
 	m_bDeleted = true;
 }
 
@@ -259,7 +266,7 @@ void CMatInfo::UpdateMaterialFlags()
 		static int nLastUpdateFrameId = 0;
 		if (gEnv->IsEditing() && GetTerrain() && GetVisAreaManager() && nLastUpdateFrameId != GetRenderer()->GetFrameID())
 		{
-			GetTerrain()->MarkAllSectorsAsUncompiled(0);
+			GetTerrain()->MarkAllSectorsAsUncompiled();
 			GetVisAreaManager()->MarkAllSectorsAsUncompiled();
 			nLastUpdateFrameId = GetRenderer()->GetFrameID();
 		}
@@ -749,6 +756,8 @@ void CMatInfo::SetTexture(int textureId, int textureSlot)
 		ITexture*& pTex = m_shaderItem.m_pShaderResources->GetTexture(textureSlot)->m_Sampler.m_pITex;
 		SAFE_RELEASE(pTex);
 		pTex = pTexture;
+
+		gEnv->pRenderer->ForceUpdateShaderItem(&m_shaderItem, this);
 	}
 }
 

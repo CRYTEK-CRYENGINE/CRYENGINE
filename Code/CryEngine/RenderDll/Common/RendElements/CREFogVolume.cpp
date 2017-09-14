@@ -210,14 +210,14 @@ bool CREFogVolume::mfDraw(CShader* ef, SShaderPass* sfm)
 	if (m_viewerInsideVolume)
 	{
 		rd->SetCullMode(R_CULL_FRONT);
-		int nState = GS_COLMASK_RGB | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA;
+		int nState = GS_NOCOLMASK_A | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA;
 		nState |= m_nearCutoff ? 0 : GS_NODEPTHTEST;
 		rd->FX_SetState(nState);
 	}
 	else
 	{
 		rd->SetCullMode(R_CULL_BACK);
-		rd->FX_SetState(GS_COLMASK_RGB | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
+		rd->FX_SetState(GS_NOCOLMASK_A | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
 	}
 
 	// set vs constants
@@ -366,26 +366,37 @@ bool CREFogVolume::Compile(CRenderObject* pObj)
 	// so this needs to be called here instead of DrawToCommandList().
 	UpdatePerInstanceCB(cro, *pObj);
 
-	if (!cro.m_pMaterialResourceSet)
+	// this is dummy resource to match this render element with the resource layout of forward pass.
 	{
-		CDeviceResourceSetDesc materialResources(rd->GetGraphicsPipeline().GetDefaultMaterialResources(), nullptr, nullptr);
-
-		// NOTE: overwrite a material slot to pass linear depth texture to fog volume shader.
-		materialResources.SetTexture(EFTT_DIFFUSE, CTexture::s_ptexZTarget, EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
-
-		for (EEfResTextures texType = EFTT_NORMALS; texType < EFTT_MAX; texType = EEfResTextures(texType + 1))
+		if (!cro.m_pMaterialResourceSet)
 		{
-			materialResources.SetTexture(texType, CTexture::s_ptexBlack, EDefaultResourceViews::Default, EShaderStage_AllWithoutCompute);
+			CDeviceResourceSetDesc materialResources;
+			for (const auto& res : rd->GetGraphicsPipeline().GetDefaultMaterialBindPoints().GetResources())
+			{
+				const SResourceBindPoint& bindPoint = res.first;
+				const SResourceBinding&   binding   = res.second;
+
+				switch (binding.type)
+				{
+				case SResourceBinding::EResourceType::ConstantBuffer:
+					materialResources.SetConstantBuffer(bindPoint.slotNumber, rd->m_DevBufMan.GetNullConstantBuffer(), bindPoint.stages);
+					break;
+				case SResourceBinding::EResourceType::Texture:
+					materialResources.SetTexture(bindPoint.slotNumber, CTexture::s_ptexBlack, binding.view, bindPoint.stages);
+					break;
+				default:
+					CRY_ASSERT("Not implemented!");
+				}
+			}
+
+			cro.m_pMaterialResourceSet = GetDeviceObjectFactory().CreateResourceSet();
+			cro.m_pMaterialResourceSet->Update(materialResources);
 		}
 
-		cro.m_pMaterialResourceSet = GetDeviceObjectFactory().CreateResourceSet();
-		cro.m_pMaterialResourceSet->Update(materialResources);
-	}
-
-	// this is dummy resource to match this render element with the resource layout of forward pass.
-	if (!cro.m_pPerInstanceResourceSet)
-	{
-		cro.m_pPerInstanceResourceSet = rd->GetGraphicsPipeline().GetDefaultInstanceExtraResourceSet();
+		if (!cro.m_pPerInstanceResourceSet)
+		{
+			cro.m_pPerInstanceResourceSet = rd->GetGraphicsPipeline().GetDefaultInstanceExtraResourceSet();
+		}
 	}
 
 	CRY_ASSERT(cro.m_pMaterialResourceSet);

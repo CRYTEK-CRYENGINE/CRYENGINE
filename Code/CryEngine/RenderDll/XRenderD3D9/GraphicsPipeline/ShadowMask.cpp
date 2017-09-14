@@ -175,8 +175,8 @@ CShadowMaskStage::CShadowMaskStage()
 	, m_localLightPrimitives(0)
 	, m_viewInfoCount(0)
 {
-	m_pSunShadows = CryMakeUnique<ShadowMaskInternal::CSunShadows>(*this);
-	m_pLocalLightShadows = CryMakeUnique<ShadowMaskInternal::CLocalLightShadows>(*this);
+	m_pSunShadows = stl::make_unique<ShadowMaskInternal::CSunShadows>(*this);
+	m_pLocalLightShadows = stl::make_unique<ShadowMaskInternal::CLocalLightShadows>(*this);
 }
 
 void CShadowMaskStage::Init()
@@ -478,7 +478,7 @@ void CSunShadows::PrepareCascadePrimitivesWithPrepass(CPrimitiveRenderPass& slic
 
 		CRenderPrimitive& primStencil = cachedStencilPrimitives[pFrustum->nShadowMapLod];
 		primStencil.SetTechnique(pShader, techStencil, 0);
-		primStencil.SetRenderState((bReverseDepth ? GS_DEPTHFUNC_GEQUAL : GS_DEPTHFUNC_LEQUAL) | GS_STENCIL | GS_COLMASK_NONE);
+		primStencil.SetRenderState((bReverseDepth ? GS_DEPTHFUNC_GEQUAL : GS_DEPTHFUNC_LEQUAL) | GS_STENCIL | GS_NOCOLMASK_RGBA);
 		primStencil.SetPrimitiveType(CRenderPrimitive::ePrim_CenteredBox);
 		primStencil.SetCullMode(eCULL_Front);
 		primStencil.SetStencilState(
@@ -778,7 +778,7 @@ void CSunShadows::PreparePerObjectPrimitives(CRenderPrimitive& primStencil0, CRe
 		CShader* pShader = CShaderMan::s_shDeferredShading;
 
 		primStencil0.SetTechnique(pShader, techStencil, 0);
-		primStencil0.SetRenderState(gsDepthTest | GS_STENCIL | GS_COLMASK_NONE);
+		primStencil0.SetRenderState(gsDepthTest | GS_STENCIL | GS_NOCOLMASK_RGBA);
 		primStencil0.SetPrimitiveType(CRenderPrimitive::ePrim_CenteredBox);
 		primStencil0.SetCullMode(eCULL_Front);
 		primStencil0.SetStencilState(
@@ -796,7 +796,7 @@ void CSunShadows::PreparePerObjectPrimitives(CRenderPrimitive& primStencil0, CRe
 		CShader* pShader = CShaderMan::s_shDeferredShading;
 
 		primStencil1.SetTechnique(pShader, techStencil, 0);
-		primStencil1.SetRenderState(gsDepthTest | GS_STENCIL | GS_COLMASK_NONE);
+		primStencil1.SetRenderState(gsDepthTest | GS_STENCIL | GS_NOCOLMASK_RGBA);
 		primStencil1.SetPrimitiveType(CRenderPrimitive::ePrim_CenteredBox);
 		primStencil1.SetCullMode(eCULL_Back);
 		primStencil1.SetStencilState(
@@ -1147,7 +1147,7 @@ int CLocalLightShadows::PreparePrimitivesForLight(CPrimitiveRenderPass& sliceGen
 
 			CRenderPrimitive& primStencilBackFace = primitives.stencilBackfaces;
 			primStencilBackFace.SetTechnique(pShader, techStencil, 0);
-			primStencilBackFace.SetRenderState(GS_STENCIL | GS_COLMASK_NONE | gsDepthFunc);
+			primStencilBackFace.SetRenderState(GS_STENCIL | GS_NOCOLMASK_RGBA | gsDepthFunc);
 			primStencilBackFace.SetPrimitiveType(primitiveType);
 			primStencilBackFace.SetCullMode(eCULL_Back); // winding order of primitives is flipped
 			primStencilBackFace.SetStencilState(
@@ -1158,7 +1158,7 @@ int CLocalLightShadows::PreparePrimitivesForLight(CPrimitiveRenderPass& sliceGen
 
 			CRenderPrimitive& primStencilFrontFace = primitives.stencilFrontfaces;
 			primStencilFrontFace.SetTechnique(pShader, techStencil, 0);
-			primStencilFrontFace.SetRenderState(GS_STENCIL | GS_COLMASK_NONE | gsDepthFunc);
+			primStencilFrontFace.SetRenderState(GS_STENCIL | GS_NOCOLMASK_RGBA | gsDepthFunc);
 			primStencilFrontFace.SetPrimitiveType(primitiveType);
 			primStencilFrontFace.SetCullMode(eCULL_Front); // winding order of primitives is flipped
 			primStencilFrontFace.SetStencilState(

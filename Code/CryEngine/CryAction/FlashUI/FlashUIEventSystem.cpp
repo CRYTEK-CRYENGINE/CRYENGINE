@@ -48,7 +48,7 @@ void CFlashUIEventSystem::UnregisterListener(IUIEventListener* pListener)
 //------------------------------------------------------------------------------------
 SUIArgumentsRet CFlashUIEventSystem::SendEvent(const SUIEvent& event)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	SUIArguments ret;
 	if (gEnv->IsEditor())

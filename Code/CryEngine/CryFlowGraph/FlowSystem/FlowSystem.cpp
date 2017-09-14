@@ -533,7 +533,7 @@ void CFlowSystem::Update()
 #endif
 
 	{
-		FRAME_PROFILER("CFlowSystem::Update()", gEnv->pSystem, PROFILE_ACTION);
+		CRY_PROFILE_REGION(PROFILE_ACTION, "CFlowSystem::Update()");
 		if (m_cVars.m_enableUpdates == 0)
 		{
 			/*

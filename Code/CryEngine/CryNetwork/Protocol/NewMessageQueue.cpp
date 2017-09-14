@@ -434,7 +434,7 @@ class CMessageQueue::CIncrementalSorter
 public:
 	CIncrementalSorter(CMessageQueue* pQ) : m_liveList(pQ->m_liveList), m_pSlots(&pQ->m_slots)
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+		CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 		m_liveList.resize(0);
 
@@ -459,7 +459,7 @@ public:
 
 	uint32 Next()
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+		CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 		while (m_curLiveListElem == m_liveList.size())
 		{
@@ -867,7 +867,7 @@ void CMessageQueue::AddToQueue(SSendableHandle hdl)
 
 bool CMessageQueue::RemoveSendable(SSendableHandle handle)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	if (m_inWrite)
 	{
@@ -936,7 +936,7 @@ void CMessageQueue::BeginAccountingFrame()
 
 void CMessageQueue::PrepareLiveList()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 	CActiveElemIterator iter(this, eMSS_Active);
 	uint32 activeRoot = m_rootSlots[eMSS_Active].id;
 	m_slotState[activeRoot].nextTop = m_slotState[activeRoot].next;
@@ -953,7 +953,7 @@ void CMessageQueue::PrepareLiveList()
 
 void CMessageQueue::CalculatePerFrameData(const SSchedulingParams& params)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	#if FULL_ON_SCHEDULING
 	float drawDistanceScale = 1.0f;
@@ -1142,7 +1142,7 @@ void CMessageQueue::PatchObjectGroupings()
 
 void CMessageQueue::PatchOrderedPriorities()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 	NET_ASSERT(m_recurseCache.empty());
 
 	CCompareMsgEnts compare(&m_slots);
@@ -1189,7 +1189,7 @@ void CMessageQueue::PatchOrderedPriorities()
 
 bool CMessageQueue::AreMessagesToWrite(const SSchedulingParams& params)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	PrepareMessageList(params);
 
@@ -1436,7 +1436,7 @@ struct SNetMessageProfileLogger
 
 void CMessageQueue::WriteMessages(IMessageOutput* pOut, const SSchedulingParams& params)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	#if DEEP_BANDWIDTH_ANALYSIS
 	static SNetMessageProfileLogger profiler;
@@ -1634,7 +1634,7 @@ void CMessageQueue::WriteMessages(IMessageOutput* pOut, const SSchedulingParams&
 
 		if (doWrite)
 		{
-			//FRAME_PROFILER("CMessageQueue::WriteMessages.EncodeMessage", gEnv->pSystem, PROFILE_NETWORK);
+			//CRY_PROFILE_REGION(PROFILE_NETWORK, "CMessageQueue::WriteMessages.EncodeMessage");
 			debugPacketDataSizeStartData(eDPDST_MessageBody, pStm->GetBitSize());
 			writeResult = pOut->WriteMessage(pEntSend->msg, HandleFromPointer(pEntSend));
 			debugPacketDataSizeEndData(eDPDST_MessageBody, pStm->GetBitSize());
@@ -1915,7 +1915,7 @@ void CMessageQueue::WriteMessages(IMessageOutput* pOut, const SSchedulingParams&
 
 void CMessageQueue::FinishFrame(const SSchedulingParams* pParams)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	VerifyBlocking();
 
@@ -2039,7 +2039,7 @@ ILINE CMessageQueue::SAccountingGroup* CMessageQueue::GetAccountingGroup(uint32 
 
 void CMessageQueue::RegularCleanup(const SSchedulingParams& params)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	CTimeValue oldTime = params.now - 0.5f;
 

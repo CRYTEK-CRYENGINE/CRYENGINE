@@ -277,7 +277,7 @@ namespace CScaleformPlaybackClearInternal
 
 void CScaleformPlayback::Clear(const ColorF& backgroundColor)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	SSF_GlobalDrawParams& __restrict params = m_drawParams;
 	SSF_GlobalDrawParams::OutputParams& __restrict rCurOutput = *params.pRenderOutput;
@@ -428,17 +428,17 @@ void CScaleformPlayback::ApplyStencilMask(SSF_GlobalDrawParams::ESFMaskOp maskOp
 	switch (maskOp)
 	{
 	case SSF_GlobalDrawParams::BeginSubmitMask_Clear:
-		renderMaskedStates = GS_STENCIL | GS_COLMASK_NONE;
+		renderMaskedStates = GS_STENCIL | GS_NOCOLMASK_RGBA;
 		stencilFunc = FSS_STENCFUNC_ALWAYS;
 		stencilPass = FSS_STENCOP_REPLACE;
 		break;
 	case SSF_GlobalDrawParams::BeginSubmitMask_Inc:
-		renderMaskedStates = GS_STENCIL | GS_COLMASK_NONE;
+		renderMaskedStates = GS_STENCIL | GS_NOCOLMASK_RGBA;
 		stencilFunc = FSS_STENCFUNC_EQUAL;
 		stencilPass = FSS_STENCOP_INCR;
 		break;
 	case SSF_GlobalDrawParams::BeginSubmitMask_Dec:
-		renderMaskedStates = GS_STENCIL | GS_COLMASK_NONE;
+		renderMaskedStates = GS_STENCIL | GS_NOCOLMASK_RGBA;
 		stencilFunc = FSS_STENCFUNC_EQUAL;
 		stencilPass = FSS_STENCOP_DECR;
 		break;
@@ -1047,7 +1047,7 @@ int32 CScaleformPlayback::PushTempRenderTarget(const RectF& frameRect, uint32 ta
 
 void CScaleformPlayback::BeginDisplay(ColorF backgroundColor, const Viewport& viewport, bool bScissor, const Viewport& scissor, const RectF& x0x1y0y1)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SSF_GlobalDrawParams& __restrict params = m_drawParams;
 
 	if (CRenderer::CV_r_GraphicsPipeline > 0)
@@ -1283,7 +1283,7 @@ void CScaleformPlayback::SetIndexData(const DeviceData* pIndices)
 
 void CScaleformPlayback::DrawIndexedTriList(int baseVertexIndex, int minVertexIndex, int numVertices, int startIndex, int triangleCount)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	SSF_GlobalDrawParams& __restrict params = m_drawParams;
 	IF ((m_renderMasked && !m_stencilAvail) || params.vtxData->VertexFormat == Vertex_None || params.idxData->IndexFormat == Index_None, 0)
@@ -1302,7 +1302,7 @@ void CScaleformPlayback::DrawIndexedTriList(int baseVertexIndex, int minVertexIn
 
 void CScaleformPlayback::DrawLineStrip(int baseVertexIndex, int lineCount)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	SSF_GlobalDrawParams& __restrict params = m_drawParams;
 	IF ((m_renderMasked && !m_stencilAvail) || params.vtxData->VertexFormat != Vertex_XY16i, 0)
@@ -1325,7 +1325,7 @@ void CScaleformPlayback::LineStyleDisable()
 
 void CScaleformPlayback::LineStyleColor(ColorF color)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	m_drawParams.fillType = SSF_GlobalDrawParams::SolidColor;
 
@@ -1340,7 +1340,7 @@ void CScaleformPlayback::FillStyleDisable()
 
 void CScaleformPlayback::FillStyleColor(ColorF color)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	m_drawParams.fillType = SSF_GlobalDrawParams::SolidColor;
 
@@ -1351,7 +1351,7 @@ void CScaleformPlayback::FillStyleColor(ColorF color)
 
 void CScaleformPlayback::FillStyleBitmap(const FillTexture& Fill)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	m_drawParams.fillType = SSF_GlobalDrawParams::Texture;
 
@@ -1362,7 +1362,7 @@ void CScaleformPlayback::FillStyleBitmap(const FillTexture& Fill)
 
 void CScaleformPlayback::FillStyleGouraud(GouraudFillType fillType, const FillTexture& Texture0, const FillTexture& Texture1, const FillTexture& Texture2)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	static SSF_GlobalDrawParams::EFillType fillTypeLUT[] =
 	{
@@ -1383,7 +1383,7 @@ void CScaleformPlayback::FillStyleGouraud(GouraudFillType fillType, const FillTe
 
 void CScaleformPlayback::DrawBitmaps(const DeviceData* pBitmaps, int startIndex, int count, ITexture* pTi, const Matrix23& m)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SSF_GlobalDrawParams& __restrict params = m_drawParams;
 
 	CTexture* pTex(static_cast<CTexture*>(pTi)); pTi->AddRef();
@@ -1457,7 +1457,7 @@ void CScaleformPlayback::DrawBitmaps(const DeviceData* pBitmaps, int startIndex,
 
 void CScaleformPlayback::BeginSubmitMask(SubmitMaskMode maskMode)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	m_renderMasked = true;
 	IF(!m_stencilAvail || ms_sys_flash_debugdraw == 2, 0)
@@ -1495,7 +1495,7 @@ void CScaleformPlayback::BeginSubmitMask(SubmitMaskMode maskMode)
 
 void CScaleformPlayback::EndSubmitMask()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	m_renderMasked = true;
 	IF(!m_stencilAvail || ms_sys_flash_debugdraw == 2, 0)
@@ -1509,7 +1509,7 @@ void CScaleformPlayback::EndSubmitMask()
 
 void CScaleformPlayback::DisableMask()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	m_renderMasked = false;
 	IF(!m_stencilAvail || ms_sys_flash_debugdraw == 2, 0)

@@ -271,7 +271,7 @@ void CPlayerInput::OnAction( const ActionId& actionId, int activationMode, float
 	// Pass action to actor telemetry.
 	m_pPlayer->m_telemetry.OnPlayerAction(actionId, activationMode, value);
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 #if defined(USER_timf)
 	CryLogAlways ("$7PLAYER INPUT:$o <FRAME %05d> $6%s $%c[MODE=0x%x] $4value=%.3f$o", gEnv->pRenderer->GetFrameID(false), actionId.c_str(), (char) ((activationMode > 7) ? '8' : (activationMode + '1')), activationMode, value);
@@ -300,7 +300,7 @@ void CPlayerInput::OnAction( const ActionId& actionId, int activationMode, float
 	bool handled = false;
 
 	{
-		FRAME_PROFILER("New Action Processing", GetISystem(), PROFILE_GAME);
+		CRY_PROFILE_REGION(PROFILE_GAME, "New Action Processing");
 
 		handled = m_actionHandler.Dispatch(this, m_pPlayer->GetEntityId(), actionId, activationMode, value, filterOut);
 	}
@@ -308,7 +308,7 @@ void CPlayerInput::OnAction( const ActionId& actionId, int activationMode, float
 	//------------------------------------
 
 	{
-		FRAME_PROFILER("Regular Action Processing", GetISystem(), PROFILE_GAME);
+		CRY_PROFILE_REGION(PROFILE_GAME, "Regular Action Processing");
 		bool inKillCam = g_pGame->GetRecordingSystem() && (g_pGame->GetRecordingSystem()->IsPlayingBack() || g_pGame->GetRecordingSystem()->IsPlaybackQueued());
 		if (!handled)
 		{

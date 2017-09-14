@@ -21,7 +21,7 @@ inline Vec3 TriangleCenter(const Vec3& a, const Vec3& b, const Vec3& c)
 
 void MNM::PathfinderUtils::QueuedRequest::SetupDangerousLocationsData()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	dangerousAreas.clear();
 	if (requestParams.dangersToAvoidFlags == eMNMDangers_None)
@@ -384,7 +384,7 @@ void CMNMPathfinder::SpawnPathfinderProcessingJob(MNM::PathfinderUtils::Processi
 
 void CMNMPathfinder::WaitForJobsToFinish()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	m_processingContextsPool.ExecuteFunctionOnElements(functor(*this, &CMNMPathfinder::WaitForJobToFinish));
 }
 
@@ -414,7 +414,7 @@ void CMNMPathfinder::DispatchResults()
 
 void CMNMPathfinder::Update()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (gAIEnv.CVars.MNMPathFinderDebug)
 	{
@@ -480,7 +480,7 @@ void CMNMPathfinder::OnNavigationMeshChanged(const NavigationMeshID meshId, cons
 	}
 }
 
-bool CMNMPathfinder::SetupForNextPathRequest(MNM::QueuedPathID requestID, MNM::PathfinderUtils::QueuedRequest& request, MNM::PathfinderUtils::ProcessingContext& processingContext)
+bool CMNMPathfinder::SetupForNextPathRequest(MNM::QueuedPathID requestID, const MNM::PathfinderUtils::QueuedRequest& request, MNM::PathfinderUtils::ProcessingContext& processingContext)
 {
 	MNM::PathfinderUtils::ProcessingRequest& processingRequest = processingContext.processingRequest;
 	processingRequest.Reset();
@@ -595,7 +595,7 @@ void CMNMPathfinder::ProcessPathRequest(MNM::PathfinderUtils::ProcessingContext&
 	MNM::CNavMesh::WayQueryRequest inputParams(processingRequest.requesterEntityId, processingRequest.fromTriangleID,
 	                                           processingRequest.data.requestParams.startLocation - gridParams.origin, processingRequest.toTriangleID,
 	                                           processingRequest.data.requestParams.endLocation - gridParams.origin, meshOffMeshNav, *offMeshNavigationManager,
-	                                           processingRequest.data.GetDangersInfos());
+	                                           processingRequest.data.GetDangersInfos(), processingRequest.data.requestParams.pCustomPathCostComputer);
 
 	if (navMesh.FindWay(inputParams, processingContext.workingSet, processingContext.queryResult) == MNM::CNavMesh::eWQR_Continuing)
 		return;
@@ -710,7 +710,7 @@ void CMNMPathfinder::ConstructPathIfWayWasFound(MNM::PathfinderUtils::Processing
 		{
 			if (processingRequest.data.requestParams.beautify && gAIEnv.CVars.BeautifyPath)
 			{
-				outputPath.PullPathOnNavigationMesh(navMesh, gAIEnv.CVars.PathStringPullingIterations);
+				outputPath.PullPathOnNavigationMesh(navMesh, gAIEnv.CVars.PathStringPullingIterations, processingRequest.data.requestParams.pCustomPathCostComputer.get());
 			}
 		}
 	}

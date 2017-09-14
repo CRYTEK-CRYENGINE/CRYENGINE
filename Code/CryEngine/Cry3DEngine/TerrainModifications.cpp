@@ -19,7 +19,7 @@ bool CTerrainModifications::PushModification(const Vec3& vPos, const float fRadi
 	assert(fRadius > 0);
 	assert(m_pModifiedTerrain);       // you need to call SetTerrain()
 
-	m_TerrainMods.push_back(STerrainMod(vPos, fRadius, m_pModifiedTerrain->GetZ(vPos.x, vPos.y, GetDefSID())));
+	m_TerrainMods.push_back(STerrainMod(vPos, fRadius, m_pModifiedTerrain->GetZ(vPos.x, vPos.y)));
 
 	MakeCrater(m_TerrainMods.back(), m_TerrainMods.size() - 1);
 
@@ -39,7 +39,7 @@ float CTerrainModifications::ComputeMaxDepthAt(const float fX, const float fY, c
 
 	std::vector<STerrainMod>::const_iterator it, end = m_TerrainMods.end();
 
-	float fGroundPos = m_pModifiedTerrain->GetZ(fX, fY, GetDefSID());
+	float fGroundPos = m_pModifiedTerrain->GetZ(fX, fY);
 
 	uint32 dwI = 0;
 	for (it = m_TerrainMods.begin(); it != end && dwI < dwCheckExistingMods; ++it, ++dwI)
@@ -93,7 +93,7 @@ void CTerrainModifications::MakeCrater(const STerrainMod& ref, const uint32 dwCh
 	{
 		for (float y = y1; y <= y2; y += unitSize)
 		{
-			float fHeight = m_pModifiedTerrain->GetZ(x, y, GetDefSID());
+			float fHeight = m_pModifiedTerrain->GetZ(x, y);
 
 			float fDamage = 1.0f - ref.m_vPos.GetDistance(Vec3((float)x, (float)y, fHeight)) * fInvExplRadius;
 			if (fDamage < 0)
@@ -111,14 +111,14 @@ void CTerrainModifications::MakeCrater(const STerrainMod& ref, const uint32 dwCh
 
 			m_pModifiedTerrain->m_bHeightMapModified = 1;
 
-			m_pModifiedTerrain->SetZ(x, y, fHeight, GetDefSID());
+			m_pModifiedTerrain->SetZ(x, y, fHeight);
 		}
 	}
 
 	// update mesh or terrain near sectors
 	PodArray<CTerrainNode*> lstNearSecInfos;
 	Vec3 vRadius(ref.m_fRadius, ref.m_fRadius, ref.m_fRadius);
-	m_pModifiedTerrain->IntersectWithBox(AABB(ref.m_vPos - vRadius, ref.m_vPos + vRadius), &lstNearSecInfos, GetDefSID());
+	m_pModifiedTerrain->IntersectWithBox(AABB(ref.m_vPos - vRadius, ref.m_vPos + vRadius), &lstNearSecInfos);
 	for (int s = 0; s < lstNearSecInfos.Count(); s++)
 		if (CTerrainNode* pSecInfo = lstNearSecInfos[s])
 			pSecInfo->ReleaseHeightMapGeometry();

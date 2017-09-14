@@ -227,6 +227,12 @@ void CScriptGraphFunctionNode::LoadDependencies(Serialization::IArchive& archive
 	archive(m_objectGUID, "objectGUID");
 }
 
+void CScriptGraphFunctionNode::Load(Serialization::IArchive& archive, const ISerializationContext& context)
+{
+	archive(m_functionId, "functionId");
+	archive(m_objectGUID, "objectGUID");
+}
+
 void CScriptGraphFunctionNode::Save(Serialization::IArchive& archive, const ISerializationContext& context)
 {
 	archive(m_functionId, "functionId");
@@ -329,7 +335,7 @@ void CScriptGraphFunctionNode::Register(CScriptGraphNodeFactory& factory)
 			string     m_subject;
 			string     m_description;
 			SElementId m_functionId;
-			CryGUID      m_objectGUID;
+			CryGUID    m_objectGUID;
 		};
 
 	public:
@@ -356,9 +362,9 @@ void CScriptGraphFunctionNode::Register(CScriptGraphNodeFactory& factory)
 					, name(szName)
 				{}
 
-				CryGUID  guid;
-				CryGUID  typeGUID;
-				string name;
+				CryGUID guid;
+				CryGUID typeGUID;
+				string  name;
 			};
 
 			const EScriptGraphType graphType = graph.GetType();

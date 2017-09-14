@@ -73,12 +73,6 @@ enum ERenderObjectCustomFlags : uint16
 	COB_CLOAK_HIGHLIGHT                = BIT(8),
 	COB_HUD_DISABLEBLOOM               = BIT(9),
 	COB_DISABLE_MOTIONBLUR             = BIT(10),
-#ifdef SEG_WORLD
-	COB_SW_SHIFT                       = BIT(11),
-	COB_SW_NORMAL                      = BIT(12),
-	COB_SW_CROSSSEG                    = BIT(12),
-	COB_SW_GLOBAL                      = BIT(13),
-#endif
 };
 
 //////////////////////////////////////////////////////////////////////////

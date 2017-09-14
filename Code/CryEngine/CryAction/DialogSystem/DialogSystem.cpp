@@ -418,7 +418,7 @@ bool CDialogSystem::RemoveSession(CDialogSession* pSession)
 ////////////////////////////////////////////////////////////////////////////
 void CDialogSystem::Update(const float dt)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	RestoreSessions();
 

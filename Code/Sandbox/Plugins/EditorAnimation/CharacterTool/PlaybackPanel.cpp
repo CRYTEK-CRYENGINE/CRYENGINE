@@ -161,8 +161,8 @@ PlaybackPanel::PlaybackPanel(QWidget* parent, System* system, AnimEventPresetPan
 		connect(m_timeline, &CTimeline::SignalNumberHotkey, this, &PlaybackPanel::OnTimelineHotkey);
 		connect(m_timeline, &CTimeline::SignalUndo, this, &PlaybackPanel::OnTimelineUndo);
 		connect(m_timeline, &CTimeline::SignalRedo, this, &PlaybackPanel::OnTimelineRedo);
-		m_playIcon = CryIcon("icons:Animation/Play.ico");
-		m_pauseIcon = CryIcon("icons:Animation/Pause.ico");
+		m_playIcon = CryIcon("icons:common/animation_play.ico");
+		m_pauseIcon = CryIcon("icons:common/animation_pause.ico");
 		m_timeline->SetSizeToContent(true);
 		topHBox->addWidget(m_timeline, 1);
 		m_activeControls.push_back(m_timeline);

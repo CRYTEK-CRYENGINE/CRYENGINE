@@ -105,6 +105,8 @@ bool COperatorQueue::Prepare(const SAnimationPoseModifierParams& params)
 
 bool COperatorQueue::Execute(const SAnimationPoseModifierParams& params)
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	//	- Store direct pointer to reduce base pointer lookups
 	IAnimationPoseData* pParamsPoseData = params.pPoseData;
 

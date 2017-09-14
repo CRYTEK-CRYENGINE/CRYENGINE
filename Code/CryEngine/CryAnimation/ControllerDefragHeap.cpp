@@ -65,7 +65,7 @@ CControllerDefragHeap::Stats CControllerDefragHeap::GetStats()
 
 void CControllerDefragHeap::Update()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ANIMATION);
+	CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
 
 	UpdateInflight(m_tickId);
 

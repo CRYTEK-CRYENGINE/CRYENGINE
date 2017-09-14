@@ -29,7 +29,6 @@ bool CHeightMap::IsBoxOccluded
   float fDistance,
   bool bTerrainNode,
   OcclusionTestClient* const __restrict pOcclTestVars,
-  int nSID,
   const SRenderingPassInfo& passInfo
 )
 {
@@ -70,7 +69,7 @@ bool CHeightMap::IsBoxOccluded
 	if (!pOcclTestVars->vLastVisPoint.IsZero())
 	{
 		Vec3 vTmp(0, 0, 0);
-		if (!Intersect(vCamPos, pOcclTestVars->vLastVisPoint, fDistance, nMaxTestsToScip, vTmp, nSID))
+		if (!Intersect(vCamPos, pOcclTestVars->vLastVisPoint, fDistance, nMaxTestsToScip, vTmp))
 		{
 			pOcclTestVars->nTerrainOccLastFrame = 0;
 			return false;
@@ -102,7 +101,7 @@ bool CHeightMap::IsBoxOccluded
 		{
 			for (float y = vTopMin.y; y <= vTopMax.y; y += dy)
 				for (float x = vTopMin.x; x <= vTopMax.x; x += dx)
-					if (!Intersect(vCamPos, Vec3(x, y, vTopMax.z), fDistance, nMaxTestsToScip, pOcclTestVars->vLastVisPoint, nSID))
+					if (!Intersect(vCamPos, Vec3(x, y, vTopMax.z), fDistance, nMaxTestsToScip, pOcclTestVars->vLastVisPoint))
 					{
 						pOcclTestVars->nTerrainOccLastFrame = 0;
 						return false;
@@ -114,7 +113,7 @@ bool CHeightMap::IsBoxOccluded
 
 			if ((vCamPos.x > vTopMin.x) == bCameraAbove) // test min x side
 				for (float y = vTopMin.y; y <= vTopMax.y; y += dy)
-					if (!Intersect(vCamPos, Vec3(vTopMin.x, y, vTopMax.z), fDistance, nMaxTestsToScip, pOcclTestVars->vLastVisPoint, nSID))
+					if (!Intersect(vCamPos, Vec3(vTopMin.x, y, vTopMax.z), fDistance, nMaxTestsToScip, pOcclTestVars->vLastVisPoint))
 					{
 						pOcclTestVars->nTerrainOccLastFrame = 0;
 						return false;
@@ -122,7 +121,7 @@ bool CHeightMap::IsBoxOccluded
 
 			if ((vCamPos.x < vTopMax.x) == bCameraAbove) // test max x side
 				for (float y = vTopMax.y; y >= vTopMin.y; y -= dy)
-					if (!Intersect(vCamPos, Vec3(vTopMax.x, y, vTopMax.z), fDistance, nMaxTestsToScip, pOcclTestVars->vLastVisPoint, nSID))
+					if (!Intersect(vCamPos, Vec3(vTopMax.x, y, vTopMax.z), fDistance, nMaxTestsToScip, pOcclTestVars->vLastVisPoint))
 					{
 						pOcclTestVars->nTerrainOccLastFrame = 0;
 						return false;
@@ -130,7 +129,7 @@ bool CHeightMap::IsBoxOccluded
 
 			if ((vCamPos.y > vTopMin.y) == bCameraAbove) // test min y side
 				for (float x = vTopMax.x; x >= vTopMin.x; x -= dx)
-					if (!Intersect(vCamPos, Vec3(x, vTopMin.y, vTopMax.z), fDistance, nMaxTestsToScip, pOcclTestVars->vLastVisPoint, nSID))
+					if (!Intersect(vCamPos, Vec3(x, vTopMin.y, vTopMax.z), fDistance, nMaxTestsToScip, pOcclTestVars->vLastVisPoint))
 					{
 						pOcclTestVars->nTerrainOccLastFrame = 0;
 						return false;
@@ -138,7 +137,7 @@ bool CHeightMap::IsBoxOccluded
 
 			if ((vCamPos.y < vTopMax.y) == bCameraAbove) // test max y side
 				for (float x = vTopMin.x; x <= vTopMax.x; x += dx)
-					if (!Intersect(vCamPos, Vec3(x, vTopMax.y, vTopMax.z), fDistance, nMaxTestsToScip, pOcclTestVars->vLastVisPoint, nSID))
+					if (!Intersect(vCamPos, Vec3(x, vTopMax.y, vTopMax.z), fDistance, nMaxTestsToScip, pOcclTestVars->vLastVisPoint))
 					{
 						pOcclTestVars->nTerrainOccLastFrame = 0;
 						return false;
@@ -158,7 +157,7 @@ bool CHeightMap::IsBoxOccluded
 		t = cry_random(0.0f, 1.0f);
 		vTopMid.y = vTopMin.y * t + vTopMax.y * (1.f - t);
 
-		if (Intersect(vCamPos, vTopMid, fDistance, nMaxTestsToScip, pOcclTestVars->vLastVisPoint, nSID))
+		if (Intersect(vCamPos, vTopMid, fDistance, nMaxTestsToScip, pOcclTestVars->vLastVisPoint))
 		{
 			pOcclTestVars->nLastOccludedMainFrameID = passInfo.GetMainFrameID();
 			pOcclTestVars->nTerrainOccLastFrame = 1;
@@ -169,7 +168,7 @@ bool CHeightMap::IsBoxOccluded
 	return false;
 }
 
-bool CHeightMap::Intersect(Vec3 vStartPoint, Vec3 vStopPoint, float _fDist, int nMaxTestsToScip, Vec3& vLastVisPoint, int nSID)
+bool CHeightMap::Intersect(Vec3 vStartPoint, Vec3 vStopPoint, float _fDist, int nMaxTestsToScip, Vec3& vLastVisPoint)
 {
 	//  FUNCTION_PROFILER_3DENGINE;
 
@@ -228,7 +227,7 @@ bool CHeightMap::Intersect(Vec3 vStartPoint, Vec3 vStopPoint, float _fDist, int 
 	for (; fPos < fMaxUndegroundDist; fPos += stepSize)
 	{
 		Vec3 vPos = vStartPoint + vDir * fPos;
-		if (!IsPointUnderGround(fastround_positive(vPos.x), fastround_positive(vPos.y), vPos.z, nSID))
+		if (!IsPointUnderGround(fastround_positive(vPos.x), fastround_positive(vPos.y), vPos.z))
 			break;
 	}
 
@@ -242,7 +241,7 @@ bool CHeightMap::Intersect(Vec3 vStartPoint, Vec3 vStopPoint, float _fDist, int 
 	for (; fPos < fFullDist; fPos += stepSize)
 	{
 		Vec3 vPos = vStartPoint + vDir * fPos;
-		if (IsPointUnderGround(fastround_positive(vPos.x), fastround_positive(vPos.y), vPos.z, nSID))
+		if (IsPointUnderGround(fastround_positive(vPos.x), fastround_positive(vPos.y), vPos.z))
 		{
 			vLastVisPoint.Set(0, 0, 0);
 			return true;

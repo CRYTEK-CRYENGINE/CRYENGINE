@@ -76,6 +76,7 @@ namespace UQS
 			virtual IUtils&                                            GetUtils() = 0;
 			virtual IEditorService&                                    GetEditorService() = 0;
 			virtual IItemSerializationSupport&                         GetItemSerializationSupport() = 0;
+			virtual ISettingsManager&                                  GetSettingsManager() = 0;
 
 			// TODO pavloi 2016.04.07: maybe editor library provider doesn't really belong here.
 			// Instead, we should use other means to pass pointer from game to editor (like, register

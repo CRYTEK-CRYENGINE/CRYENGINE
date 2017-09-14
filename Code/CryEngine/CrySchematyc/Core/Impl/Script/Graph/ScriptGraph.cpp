@@ -297,10 +297,16 @@ bool CScriptGraph::AddNode(const IScriptGraphNodePtr& pNode)
 
 IScriptGraphNodePtr CScriptGraph::AddNode(const CryGUID& typeGUID)
 {
-	IScriptGraphNodePtr pNode = g_scriptGraphNodeFactory.CreateNode(typeGUID, gEnv->pSchematyc->CreateGUID());
-	if (AddNode(pNode))
+	const IScriptElement& element = CScriptGraph::GetElement();
+	CScriptView scriptView(element.GetGUID());
+
+	if (g_scriptGraphNodeFactory.CanCreateNode(typeGUID, scriptView, *this))
 	{
-		return pNode;
+		IScriptGraphNodePtr pNode = g_scriptGraphNodeFactory.CreateNode(typeGUID, gEnv->pSchematyc->CreateGUID());
+		if (AddNode(pNode))
+		{
+			return pNode;
+		}
 	}
 	return IScriptGraphNodePtr();
 }
@@ -751,6 +757,20 @@ void CScriptGraph::RemoveBrokenLinks()
 ScriptGraphLinkRemovedSignal::Slots& CScriptGraph::GetLinkRemovedSignalSlots()
 {
 	return m_signals.linkRemoved.GetSlots();
+}
+
+void CScriptGraph::FixMapping(IScriptGraphNode& node)
+{
+	for (auto itr = m_nodes.begin(); itr != m_nodes.end(); ++itr)
+	{
+		if (itr->second.get() == &node)
+		{
+			IScriptGraphNodePtr pNode = itr->second;
+			m_nodes.erase(itr);
+			m_nodes.emplace(node.GetGUID(), pNode);
+			return;
+		}
+	}
 }
 
 void CScriptGraph::PatchLinks()

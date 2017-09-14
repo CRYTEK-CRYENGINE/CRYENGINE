@@ -214,7 +214,7 @@ void CAIHideObject::Set(const SHideSpot* hs, const Vec3& hidePos, const Vec3& hi
 //-------------------------------------------------------------------------------------------------------------
 void CAIHideObject::Update(CPipeUser* pOperand)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_bIsValid && !m_bIsSmartObject)
 		UpdatePathExpand(pOperand);
@@ -851,7 +851,7 @@ void CAIHideObject::SampleLineRefine(CPipeUser* pOperand, float& maxMove, float 
 //-------------------------------------------------------------------------------------------------------------
 void CAIHideObject::UpdatePathExpand(CPipeUser* pOperand)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_pathUpdateIter == 0)
 		SetupPathExpand(pOperand);

@@ -20,6 +20,7 @@ struct SBasicSpawnParams : public ISerializable
 	bool   bClientActor;
 	uint16 nChannelId;
 	uint32 flags;
+	CryGUID baseComponent;
 
 	virtual void SerializeWith(TSerialize ser)
 	{
@@ -53,6 +54,8 @@ struct SBasicSpawnParams : public ISerializable
 			ser.Value("bClientActor", bClientActor, 'bool');
 			ser.Value("nChannelId", nChannelId, 'schl');
 			ser.Value("flags", flags, 'ui32');
+			ser.Value("guid_hi", baseComponent.hipart);
+			ser.Value("guid_lo", baseComponent.lopart);
 		}
 		else
 		{
@@ -105,7 +108,7 @@ struct IGOUpdateDbg;
 
 class CGameObject : public IGameObject
 {
-	CRY_ENTITY_COMPONENT_INTERFACE_AND_CLASS(CGameObject, "GameObject", 0xEC4E2FDCDCFF4AB3, 0xA691B9CC4ECE5788);
+	CRY_ENTITY_COMPONENT_INTERFACE_AND_CLASS_GUID(CGameObject, "GameObject", "ec4e2fdc-dcff-4ab3-a691-b9cc4ece5788"_cry_guid);
 
 public:
 	CGameObject();
@@ -123,6 +126,7 @@ public:
 	virtual void         Release() final;
 	virtual void         ProcessEvent(SEntityEvent& event) final;
 	virtual uint64       GetEventMask() const final;
+	virtual ComponentEventPriority GetEventPriority() const override;
 
 	virtual NetworkAspectType GetNetSerializeAspectMask() const override;
 	virtual bool NetSerializeEntity(TSerialize ser, EEntityAspects aspect, uint8 profile, int flags) override;

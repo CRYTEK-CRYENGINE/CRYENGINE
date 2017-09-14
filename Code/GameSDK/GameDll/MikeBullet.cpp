@@ -487,7 +487,7 @@ void CMikeBullet::SetParams(const SProjectileDesc& projectileDesc)
 
 void CMikeBullet::HandleEvent(const SGameObjectEvent& event)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 	CBullet::HandleEvent(event);
 
 	if (!m_pAmmoParams->pMikeBulletParams)

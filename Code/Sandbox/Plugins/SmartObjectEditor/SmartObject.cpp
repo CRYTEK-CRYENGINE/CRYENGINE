@@ -114,27 +114,20 @@ bool CSmartObject::HitTest(HitContext& hc)
 {
 	if (GetIStatObj())
 	{
-		float hitEpsilon = hc.view->GetScreenScaleFactor(GetWorldPos()) * 0.01f;
-		float hitDist;
+		Matrix34 invertedWorldTransform = GetWorldTM().GetInverted();
 
-		float fScale = GetScale().x;
-		AABB boxScaled;
-		GetLocalBounds(boxScaled);
-		boxScaled.min *= fScale;
-		boxScaled.max *= fScale;
+		Vec3 raySrc = invertedWorldTransform.TransformPoint(hc.raySrc);
+		Vec3 rayDir = invertedWorldTransform.TransformVector(hc.rayDir).GetNormalized();
 
-		Matrix34 invertWTM = GetWorldTM();
-		invertWTM.Invert();
+		SRayHitInfo hitInfo;
+		hitInfo.inReferencePoint = raySrc;
+		hitInfo.inRay = Ray(raySrc, rayDir);
 
-		Vec3 xformedRaySrc = invertWTM.TransformPoint(hc.raySrc);
-		Vec3 xformedRayDir = invertWTM.TransformVector(hc.rayDir);
-		xformedRayDir.Normalize();
-
-		Vec3 intPnt;
-		// Check intersection with bbox edges.
-		if (Intersect::Ray_AABBEdge(xformedRaySrc, xformedRayDir, boxScaled, hitEpsilon, hitDist, intPnt))
+		if (GetIStatObj()->RayIntersection(hitInfo))
 		{
-			hc.dist = xformedRaySrc.GetDistance(intPnt);
+			// World space distance.
+			Vec3 worldHitPos = GetWorldTM().TransformPoint(hitInfo.vHitPos);
+			hc.dist = hc.raySrc.GetDistance(worldHitPos);
 			hc.object = this;
 			return true;
 		}
@@ -237,7 +230,7 @@ IStatObj* CSmartObject::GetIStatObj()
 
 	if (m_pClassTemplate && !m_pClassTemplate->model.empty())
 	{
-		m_pStatObj = GetIEditor()->Get3DEngine()->LoadStatObj("Editor/Objects/" + m_pClassTemplate->model, NULL, NULL, false);
+		m_pStatObj = GetIEditor()->Get3DEngine()->LoadStatObj("%EDITOR%/Objects/" + m_pClassTemplate->model, NULL, NULL, false);
 		if (!m_pStatObj)
 		{
 			CryLog("Error: Load Failed: %s", (const char*) m_pClassTemplate->model);
@@ -251,7 +244,7 @@ IStatObj* CSmartObject::GetIStatObj()
 	return m_pStatObj;
 }
 
-#define HELPER_MATERIAL "Editor/Objects/Helper"
+#define HELPER_MATERIAL "%EDITOR%/Objects/Helper"
 
 //////////////////////////////////////////////////////////////////////////
 IMaterial* CSmartObject::GetHelperMaterial()

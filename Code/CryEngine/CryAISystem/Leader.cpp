@@ -116,7 +116,7 @@ Vec3 CLeader::GetPreferedPos() const
 //----------------------------------------------------------------------------------------------------
 void CLeader::Update(EUpdateType type)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (!GetAssociation().ValidateOrReset() && !m_bKeepEnabled)
 		return;

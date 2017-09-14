@@ -9,8 +9,7 @@
 namespace CryAudio
 {
 	SERIALIZATION_ENUM_IMPLEMENT(EOcclusionType,
-		None,
-		Ignore,
+		Ignore = 1,
 		Adaptive,
 		Low,
 		Medium,
@@ -37,8 +36,11 @@ public:
 		{
 			pComponent->AddToUpdateList(EUL_MainPreUpdate, this);
 			pComponent->AddParticleData(EPVF_Position);
-			if (m_followParticle || m_autoStop)
+			if (m_followParticle || m_stopOnDeath)
+			{
 				pComponent->AddParticleData(EPDT_AudioObject);
+				pComponent->AddToUpdateList(EUL_InitUpdate, this);
+			}
 		}
 	}
 
@@ -48,20 +50,28 @@ public:
 		m_playTrigger.Serialize(ar, "PlayTrigger", "Play Trigger");
 		m_stopTrigger.Serialize(ar, "StopTrigger", "Stop Trigger");
 
-		if (m_playTrigger.HasName())
-			ar(m_followParticle, "FollowParticle", "Follow Particle");
-		else
-			m_followParticle = m_autoStop = false;
-
-		if (m_playTrigger.HasName() && !m_stopTrigger.HasName())
-			ar(m_autoStop, "AutoStop", "Auto Stop");
-		else
-			m_autoStop = false;
-
-		ar(m_occlusionType, "Occlusion", "Occlusion");
-
 		if (ar.isInput())
 			VersionFix(ar);
+
+		if (m_playTrigger.HasName())
+		{
+			ar(m_followParticle, "FollowParticle", "Follow Particle");
+			if (m_stopTrigger.HasName())
+				m_stopOnDeath = false;
+			else
+				ar(m_stopOnDeath, "StopOnDeath", "Stop on Death");
+		}
+		else
+			m_followParticle = m_stopOnDeath = false;
+
+		ar(m_occlusionType, "Occlusion", "Occlusion");
+	}
+
+	virtual void InitParticles(const SUpdateContext& context) override
+	{
+		CRY_PFX2_PROFILE_DETAIL;
+
+		context.m_container.FillData(EPDT_AudioObject, (CryAudio::IObject*)0, context.GetSpawnedRange());
 	}
 
 	void MainPreUpdate(CParticleComponentRuntime* pComponentRuntime) override
@@ -71,7 +81,7 @@ public:
 		proxyName.append(" : ");
 		proxyName.append(pComponentRuntime->GetComponent()->GetName());
 
-		if (m_followParticle || m_autoStop)
+		if (m_followParticle || m_stopOnDeath)
 			TriggerFollowAudioEvents(pComponentRuntime, proxyName);
 		else
 			TriggerSingleAudioEvents(pComponentRuntime, proxyName);
@@ -79,7 +89,7 @@ public:
 
 	uint GetNumResources() const override
 	{
-		return m_playTrigger + m_stopTrigger;
+		return !!m_playTrigger + !!m_stopTrigger;
 	}
 
 	cstr GetResourceName(uint resourceId) const override
@@ -107,7 +117,6 @@ private:
 		else if (triggerType == "OnDeath")
 		{
 			m_stopTrigger.Serialize(ar, "Name", "Name");
-			m_followParticle = false;
 		}
 	}
 
@@ -120,7 +129,7 @@ private:
 		const IVec3Stream positions = container.GetIVec3Stream(EPVF_Position);
 		const auto states = container.GetTIStream<uint8>(EPDT_State);
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		for (auto particleId : context.GetUpdateRange())
 		{
 			const uint8 state = states.Load(particleId);
 			if (m_playTrigger && state == ES_NewBorn)
@@ -132,7 +141,6 @@ private:
 				Trigger(m_stopTrigger, proxyName, positions.Load(particleId));
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 	void TriggerFollowAudioEvents(CParticleComponentRuntime* pComponentRuntime, cstr proxyName)
@@ -145,7 +153,7 @@ private:
 		const auto states = container.GetTIStream<uint8>(EPDT_State);
 		IOAudioObjects audioObjects = container.GetTIOStream<CryAudio::IObject*>(EPDT_AudioObject);
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		for (auto particleId : context.GetUpdateRange())
 		{
 			CryAudio::IObject* pIObject = audioObjects.Load(particleId);
 			const uint8 state = states.Load(particleId);
@@ -164,20 +172,19 @@ private:
 					pIObject->SetTransformation(positions.Load(particleId));
 				break;
 			case ES_Expired:
-				if (m_stopTrigger)
-					Trigger(m_stopTrigger, proxyName, positions.Load(particleId));
+				if (m_stopTrigger && pIObject)
+					pIObject->ExecuteTrigger(m_stopTrigger);
 				break;
 			case ES_Dead:
 				if (pIObject)
 				{
-					if (m_autoStop)
+					if (m_stopOnDeath)
 						pIObject->StopTrigger(m_playTrigger);
 					gEnv->pAudioSystem->ReleaseObject(pIObject);
 					audioObjects.Store(particleId, nullptr);
 				}
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 	void Trigger(CryAudio::ControlId id, cstr proxyName, const Vec3& position)
@@ -205,7 +212,7 @@ private:
 
 		void Resolve()
 		{
-			gEnv->pAudioSystem->GetTriggerId(m_name, m_id);
+			m_id = CryAudio::StringToId(m_name.c_str());
 		}
 		bool HasName() const                 { return !m_name.empty(); }
 		operator CryAudio::ControlId() const { return m_id; }
@@ -214,7 +221,7 @@ private:
 	SAudioTrigger            m_playTrigger;
 	SAudioTrigger            m_stopTrigger;
 	bool                     m_followParticle = true;
-	bool                     m_autoStop = true;
+	bool                     m_stopOnDeath    = true;
 	CryAudio::EOcclusionType m_occlusionType  = CryAudio::EOcclusionType::Ignore;
 };
 
@@ -231,9 +238,9 @@ public:
 
 	void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		gEnv->pAudioSystem->GetParameterId(m_parameterName, m_parameterId);
-		if (m_parameterId != CryAudio::InvalidControlId)
+		if (!m_parameterName.empty())
 		{
+			m_parameterId = CryAudio::StringToId(m_parameterName.c_str());
 			pComponent->AddToUpdateList(EUL_MainPreUpdate, this);
 			m_value.AddToComponent(pComponent, this);
 		}
@@ -254,10 +261,10 @@ public:
 			return;
 		IOAudioObjects audioObjects = container.GetTIOStream<CryAudio::IObject*>(EPDT_AudioObject);
 
-		STempModBuffer values(context, m_value);
+		STempModBuffer<float> values(context, m_value);
 		values.ModifyUpdate(context, m_value, container.GetFullRange());
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		for (auto particleId : context.GetUpdateRange())
 		{
 			const float value = values.m_stream.Load(particleId);
 			CryAudio::IObject* const pIObject = audioObjects.Load(particleId);
@@ -266,7 +273,6 @@ public:
 				pIObject->SetParameter(m_parameterId, value);
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 private:

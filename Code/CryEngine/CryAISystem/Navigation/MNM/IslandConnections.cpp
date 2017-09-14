@@ -11,7 +11,7 @@
 
 void MNM::IslandConnections::SetOneWayConnectionBetweenIsland(const MNM::GlobalIslandID fromIsland, const Link& link)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 #if DEBUG_MNM_LOG_OFFMESH_LINK_OPERATIONS
 	AILogCommentID("<MNM:OffMeshLink>", "IslandConnections::SetOneWayConnectionBetweenIsland from %u to %u, linkId %u", fromIsland, link.toIsland, link.offMeshLinkID);
@@ -23,7 +23,7 @@ void MNM::IslandConnections::SetOneWayConnectionBetweenIsland(const MNM::GlobalI
 
 void MNM::IslandConnections::RemoveOneWayConnectionBetweenIsland(const MNM::GlobalIslandID fromIsland, const Link& link)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 #if DEBUG_MNM_LOG_OFFMESH_LINK_OPERATIONS
 	AILogCommentID("<MNM:OffMeshLink>", "remove link %u of object %x", link.offMeshLinkID, link.objectIDThatCreatesTheConnection);
@@ -71,7 +71,7 @@ struct IsLinkAssociatedWithObjectPredicate
 
 void MNM::IslandConnections::RemoveAllIslandConnectionsForObject(const NavigationMeshID& meshID, const uint32 objectId)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 #if DEBUG_MNM_LOG_OFFMESH_LINK_OPERATIONS
 	AILogCommentID("<MNM:OffMeshLink>", "remove all links of object %x", objectId);
@@ -109,7 +109,7 @@ void MNM::IslandConnections::RemoveAllIslandConnectionsForObject(const Navigatio
 
 bool MNM::IslandConnections::CanNavigateBetweenIslands(const IEntity* pEntityToTestOffGridLinks, const MNM::GlobalIslandID fromIsland, const MNM::GlobalIslandID toIsland, TIslandsWay& way) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	const static MNM::GlobalIslandID invalidID(MNM::Constants::eGlobalIsland_InvalidIslandID);
 	IF_UNLIKELY (fromIsland == invalidID || toIsland == invalidID)
@@ -187,7 +187,7 @@ void MNM::IslandConnections::Reset()
 
 void MNM::IslandConnections::ReconstructWay(const TCameFromMap& cameFromMap, const MNM::GlobalIslandID fromIsland, const MNM::GlobalIslandID toIsland, TIslandsWay& way) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	IslandNode currentIsland(toIsland, .0f);
 	way.push_front(currentIsland.id);

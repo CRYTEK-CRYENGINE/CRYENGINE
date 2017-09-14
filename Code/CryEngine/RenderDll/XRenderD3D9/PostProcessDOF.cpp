@@ -299,7 +299,7 @@ void CDepthOfField::Render()
 			CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pDofFocusParam1Name, &vDofParams1, 1);
 			CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pDofTaps, vTaps, nSquareTapsSide * nSquareTapsSide);
 
-			GetUtils().SetTexture(CTexture::s_ptexZTargetScaled, 0, FILTER_POINT);
+			GetUtils().SetTexture(CTexture::s_ptexZTargetScaled[0], 0, FILTER_POINT);
 			GetUtils().SetTexture(CTexture::s_ptexHDRDofLayers[0], 1, FILTER_LINEAR);
 			GetUtils().SetTexture(CTexture::s_ptexHDRDofLayers[1], 2, FILTER_LINEAR);
 			GetUtils().SetTexture(CTexture::s_ptexSceneCoC[0], 3, FILTER_LINEAR);
@@ -344,7 +344,7 @@ void CDepthOfField::Render()
 			CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pDofFocusParam1Name, &vDofParams1, 1);
 			CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pDofTaps, vTaps, nSquareTapsSide * nSquareTapsSide);
 
-			GetUtils().SetTexture(CTexture::s_ptexZTargetScaled, 0, FILTER_POINT);
+			GetUtils().SetTexture(CTexture::s_ptexZTargetScaled[0], 0, FILTER_POINT);
 			GetUtils().SetTexture(pTexDofLayersTmp[0], 1, FILTER_LINEAR);
 			GetUtils().SetTexture(pTexDofLayersTmp[1], 2, FILTER_LINEAR);
 			GetUtils().SetTexture(CTexture::s_ptexSceneCoCTemp, 3, FILTER_POINT);

@@ -731,6 +731,12 @@ void CDialogCHR::AssignScene(const SImportScenePayload* pUserData)
 	UpdateStatGeom();
 }
 
+void CDialogCHR::UnloadScene()
+{
+	CRY_ASSERT(m_pSceneModel);
+	m_pSceneModel->ClearScene();
+}
+
 const char* CDialogCHR::GetDialogName() const
 {
 	return "Skeleton";
@@ -1127,11 +1133,14 @@ void CDialogCHR::OnViewportRender(const SRenderContext& rc)
 		RenderCharacter(rc, m_pCharacter->m_pCharInstance);
 		RenderPhysics(rc, m_pCharacter->m_pCharInstance);
 
-		for (int i = 0; i < GetScene()->GetNodeCount(); ++i)
+		if (FbxTool::CScene* pFbxScene = GetScene())
 		{
-			const FbxTool::SNode* const pFbxNode = GetScene()->GetNodeByIndex(i);
-			QuatT jointTransform = m_pSceneUserData->GetJointTransform(pFbxNode);
-			m_pCharacter->m_pPoseModifier->PoseJoint(pFbxNode->szName, jointTransform);
+			for (int i = 0; i < pFbxScene->GetNodeCount(); ++i)
+			{
+				const FbxTool::SNode* const pFbxNode = pFbxScene->GetNodeByIndex(i);
+				QuatT jointTransform = m_pSceneUserData->GetJointTransform(pFbxNode);
+				m_pCharacter->m_pPoseModifier->PoseJoint(pFbxNode->szName, jointTransform);
+			}
 		}
 
 		m_pCharacter->m_pCharInstance->GetISkeletonAnim()->PushPoseModifier(-1, m_pCharacter->m_pPoseModifier, "Skeleton pose modifier");

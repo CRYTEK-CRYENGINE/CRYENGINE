@@ -2,9 +2,9 @@
     "toolBar": {
         "Commands": [
             {
-                "command": "general.set_view_coordinates",
+                "command": "general.set_world_coordinates",
                 "custom": false,
-                "uiName": "View"
+                "uiName": "World"
             },
             {
                 "command": "general.set_local_coordinates",
@@ -12,14 +12,14 @@
                 "uiName": "Local"
             },
             {
+                "command": "general.set_view_coordinates",
+                "custom": false,
+                "uiName": "View"
+            },
+            {
                 "command": "general.set_parent_coordinates",
                 "custom": false,
                 "uiName": "Parent"
-            },
-            {
-                "command": "general.set_world_coordinates",
-                "custom": false,
-                "uiName": "World"
             }
         ]
     },

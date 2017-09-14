@@ -742,7 +742,7 @@ void CSmartMineBehavior::UpdateVisualState( CSmartMine& smartMine, const EVisual
 		lightProperties.SetSpecularMult( specularMultiplier );
 
 		const float radius = smartMine.NeedsToKeepTracking() ? m_properties.m_detonationRadius : (m_properties.m_detonationRadius * SMART_MINE_NONACTIVE_LIGHT_SCALE);
-		lightProperties.m_fRadius = radius;
+		lightProperties.SetRadius(radius);
 	}
 
 }

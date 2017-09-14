@@ -5,20 +5,25 @@
 #include "AudioControlsEditorPlugin.h"
 #include "AudioAssetsManager.h"
 #include "QAudioControlTreeWidget.h"
+#include "ResourceSelectorModel.h"
 #include "QtUtil.h"
 
+#include <QSearchBox.h>
+
 #include <QDialogButtonBox>
-#include <QLineEdit>
 #include <QBoxLayout>
-#include <QApplication>
 #include <QHeaderView>
 #include <QPushButton>
+#include <QMenu>
+#include <QModelIndex>
 #include <ProxyModels/MountingProxyModel.h>
 
 namespace ACE
 {
-string ATLControlsDialog::ms_controlName = "";
+string ATLControlsDialog::s_previousControlName = "";
+EItemType ATLControlsDialog::s_previousControlType = eItemType_Invalid;
 
+//////////////////////////////////////////////////////////////////////////
 ATLControlsDialog::ATLControlsDialog(QWidget* pParent, EItemType eType)
 	: CEditorDialog("ATLControlsDialog", pParent)
 	, m_eType(eType)
@@ -29,11 +34,10 @@ ATLControlsDialog::ATLControlsDialog(QWidget* pParent, EItemType eType)
 	QBoxLayout* pLayout = new QBoxLayout(QBoxLayout::TopToBottom);
 	setLayout(pLayout);
 
-	QLineEdit* pTextFilterLineEdit = new QLineEdit(this);
-	pTextFilterLineEdit->setAlignment(Qt::AlignLeading | Qt::AlignLeft | Qt::AlignVCenter);
-	pTextFilterLineEdit->setPlaceholderText(QApplication::translate("AudioAssetsExplorer", "Search", 0));
-	connect(pTextFilterLineEdit, &QLineEdit::textChanged, this, &ATLControlsDialog::SetTextFilter);
-	pLayout->addWidget(pTextFilterLineEdit, 0);
+	QSearchBox* pSearchBox = new QSearchBox(this);
+	pSearchBox->setToolTip(tr("Show only controls with this name"));
+	connect(pSearchBox, &QSearchBox::textChanged, this, &ATLControlsDialog::SetTextFilter);
+	pLayout->addWidget(pSearchBox, 0);
 
 	m_pControlTree = new QAudioControlsTreeView(this);
 	m_pControlTree->header()->setVisible(false);
@@ -48,11 +52,13 @@ ATLControlsDialog::ATLControlsDialog(QWidget* pParent, EItemType eType)
 	m_pControlTree->setSortingEnabled(true);
 	m_pControlTree->setAnimated(false);
 	m_pControlTree->setEditTriggers(QAbstractItemView::NoEditTriggers);
+	m_pControlTree->setContextMenuPolicy(Qt::CustomContextMenu);
+	connect(m_pControlTree, &QAudioControlsTreeView::customContextMenuRequested, this, &ATLControlsDialog::ShowControlsContextMenu);
 	pLayout->addWidget(m_pControlTree, 0);
 
 	m_pAssetsManager = CAudioControlsEditorPlugin::GetAssetsManager();
 	m_pProxyModel = new QAudioControlSortProxy(this);
-	m_pAssetsModel = new CAudioAssetsExplorerModel(m_pAssetsManager);
+	m_pAssetsModel = new CResourceControlModel(m_pAssetsManager);
 
 	m_pMountedModel = new CMountingProxyModel(WrapMemberFunction(this, &ATLControlsDialog::CreateLibraryModelFromIndex));
 	m_pMountedModel->SetHeaderDataCallbacks(1, &GetHeaderData);
@@ -63,9 +69,16 @@ ATLControlsDialog::ATLControlsDialog(QWidget* pParent, EItemType eType)
 
 	m_pDialogButtons = new QDialogButtonBox(this);
 	m_pDialogButtons->setStandardButtons(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+	m_pDialogButtons->button(QDialogButtonBox::Ok)->setEnabled(false);
 	connect(m_pDialogButtons, &QDialogButtonBox::accepted, this, &ATLControlsDialog::accept);
 	connect(m_pDialogButtons, &QDialogButtonBox::rejected, this, &ATLControlsDialog::reject);
 	pLayout->addWidget(m_pDialogButtons, 0);
+
+	if (s_previousControlType != eType)
+	{
+		s_previousControlName.clear();
+		s_previousControlType = eType;
+	}
 
 	connect(m_pControlTree->selectionModel(), &QItemSelectionModel::selectionChanged, this, &ATLControlsDialog::UpdateSelectedControl);
 	ApplyFilter();
@@ -78,54 +91,52 @@ ATLControlsDialog::ATLControlsDialog(QWidget* pParent, EItemType eType)
 	connect(m_pControlTree->selectionModel(), &QItemSelectionModel::currentChanged, this, &ATLControlsDialog::StopTrigger);
 	connect(m_pControlTree, &QAudioControlsTreeView::doubleClicked, this, &ATLControlsDialog::ItemDoubleClicked);
 
-	pTextFilterLineEdit->setFocus(Qt::FocusReason::PopupFocusReason);
-
-	// Expand the root that holds all the controls
-	QModelIndex index = m_pProxyModel->index(0, 0);
-	if (index.isValid())
-	{
-		m_pControlTree->setExpanded(index, true);
-	}
+	pSearchBox->setFocus(Qt::FocusReason::PopupFocusReason);
 }
 
+//////////////////////////////////////////////////////////////////////////
 ATLControlsDialog::~ATLControlsDialog()
 {
 	StopTrigger();
 }
 
-QAbstractItemModel* ATLControlsDialog::CreateLibraryModelFromIndex(const QModelIndex& sourceIndex)
+//////////////////////////////////////////////////////////////////////////
+QAbstractItemModel* ATLControlsDialog::CreateLibraryModelFromIndex(QModelIndex const& sourceIndex)
 {
 	if (sourceIndex.model() != m_pAssetsModel)
 	{
 		return nullptr;
 	}
 
-	const int numLibraries = m_libraryModels.size();
-	const int row = sourceIndex.row();
+	int const numLibraries = m_libraryModels.size();
+	int const row = sourceIndex.row();
+
 	if (row >= m_libraryModels.size())
 	{
-
 		m_libraryModels.resize(row + 1);
+
 		for (uint i = numLibraries; i < row + 1; ++i)
 		{
-			m_libraryModels[i] = new CAudioLibraryModel(m_pAssetsManager, m_pAssetsManager->GetLibrary(i));
+			m_libraryModels[i] = new CResourceLibraryModel(m_pAssetsManager, m_pAssetsManager->GetLibrary(i));
 		}
 	}
 
 	return m_libraryModels[row];
 }
 
+//////////////////////////////////////////////////////////////////////////
 const char* ATLControlsDialog::ChooseItem(const char* szCurrentValue)
 {
 	if (std::strcmp(szCurrentValue, "") != 0)
 	{
-		ms_controlName = szCurrentValue;
+		s_previousControlName = szCurrentValue;
 	}
 
-	// Automatically select the current control
-	if (m_pProxyModel && !ms_controlName.empty())
+	// Automatically select the previous control
+	if (m_pProxyModel && !s_previousControlName.empty())
 	{
-		QModelIndex index = FindItem(ms_controlName);
+		QModelIndex const& index = FindItem(s_previousControlName);
+
 		if (index.isValid())
 		{
 			m_pControlTree->setCurrentIndex(index);
@@ -134,38 +145,41 @@ const char* ATLControlsDialog::ChooseItem(const char* szCurrentValue)
 
 	if (exec() == QDialog::Accepted)
 	{
-		return ms_controlName.c_str();
+		return s_previousControlName.c_str();
 	}
+
 	return szCurrentValue;
 }
 
+//////////////////////////////////////////////////////////////////////////
 void ATLControlsDialog::UpdateSelectedControl()
 {
 	if (m_pAssetsManager)
 	{
 		QModelIndexList indexes = m_pControlTree->selectionModel()->selectedIndexes();
+
 		if (!indexes.empty())
 		{
-			const QModelIndex& index = indexes[0];
+			QModelIndex const& index = indexes[0];
+
 			if (index.isValid())
 			{
 				IAudioAsset* pAsset = AudioModelUtils::GetAssetFromIndex(index);
+
 				if (pAsset && pAsset->GetType() == m_eType)
 				{
-					ms_controlName = pAsset->GetName();
+					s_previousControlName = pAsset->GetName();
 				}
+
+				m_bSelectionIsValid = (pAsset && (pAsset->GetType() != eItemType_Folder) && (pAsset && pAsset->GetType() != eItemType_Library));
+				m_pDialogButtons->button(QDialogButtonBox::Ok)->setEnabled(m_bSelectionIsValid);
 			}
 		}
 	}
-
-	QPushButton* pButton = m_pDialogButtons->button(QDialogButtonBox::Ok);
-	if (pButton)
-	{
-		pButton->setEnabled(!ms_controlName.empty());
-	}
 }
 
-void ATLControlsDialog::SetTextFilter(QString filter)
+//////////////////////////////////////////////////////////////////////////
+void ATLControlsDialog::SetTextFilter(QString const& filter)
 {
 	if (m_sFilter != filter)
 	{
@@ -179,14 +193,24 @@ void ATLControlsDialog::SetTextFilter(QString filter)
 			m_pControlTree->collapseAll();
 			m_pControlTree->RestoreExpandedState();
 		}
+
 		m_sFilter = filter;
 		ApplyFilter();
+
+		QModelIndex const& currentIndex = m_pControlTree->currentIndex();
+
+		if (currentIndex.isValid())
+		{
+			m_pControlTree->scrollTo(currentIndex);
+		}
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////
 void ATLControlsDialog::ApplyFilter()
 {
 	QModelIndex index = m_pProxyModel->index(0, 0);
+
 	for (int i = 0; index.isValid(); ++i)
 	{
 		ApplyFilter(index);
@@ -194,23 +218,27 @@ void ATLControlsDialog::ApplyFilter()
 	}
 }
 
-bool ATLControlsDialog::ApplyFilter(const QModelIndex parent)
+//////////////////////////////////////////////////////////////////////////
+bool ATLControlsDialog::ApplyFilter(QModelIndex const& parent)
 {
 	if (parent.isValid())
 	{
 		bool bChildValid = false;
 		QModelIndex child = parent.child(0, 0);
+
 		for (int i = 1; child.isValid(); ++i)
 		{
 			if (ApplyFilter(child))
 			{
 				bChildValid = true;
 			}
+
 			child = parent.child(i, 0);
 		}
 
 		// If it has valid children or it is a valid control (not a folder), show it
 		IAudioAsset* pAsset = AudioModelUtils::GetAssetFromIndex(parent);
+
 		if (bChildValid || (pAsset && pAsset->GetType() == m_eType && IsValid(parent)))
 		{
 			m_pControlTree->setRowHidden(parent.row(), parent.parent(), false);
@@ -222,56 +250,71 @@ bool ATLControlsDialog::ApplyFilter(const QModelIndex parent)
 
 		}
 	}
+
 	return false;
 }
 
-bool ATLControlsDialog::IsValid(const QModelIndex index)
+//////////////////////////////////////////////////////////////////////////
+bool ATLControlsDialog::IsValid(QModelIndex const& index)
 {
-	const QString sName = index.data(Qt::DisplayRole).toString();
+	QString const& sName = index.data(Qt::DisplayRole).toString();
+
 	if (m_sFilter.isEmpty() || sName.contains(m_sFilter, Qt::CaseInsensitive))
 	{
 		IAudioAsset* pAsset = AudioModelUtils::GetAssetFromIndex(index);
+
 		if (pAsset && pAsset->GetType() == m_eType)
 		{
 			CAudioControl* pControl = static_cast<CAudioControl*>(pAsset);
+
 			if (pControl)
 			{
-				const Scope scope = pControl->GetScope();
+				Scope const scope = pControl->GetScope();
+
 				if (scope == Utils::GetGlobalScope() || scope == m_scope)
 				{
 					return true;
 				}
+
 				return false;
 			}
 		}
 
 	}
+
 	return false;
 }
 
+//////////////////////////////////////////////////////////////////////////
 QSize ATLControlsDialog::sizeHint() const
 {
 	return QSize(400, 900);
 }
 
-void ATLControlsDialog::SetScope(Scope scope)
+//////////////////////////////////////////////////////////////////////////
+void ATLControlsDialog::SetScope(Scope const scope)
 {
 	m_scope = scope;
 	ApplyFilter();
 }
 
-QModelIndex ATLControlsDialog::FindItem(const string& sControlName)
+//////////////////////////////////////////////////////////////////////////
+QModelIndex ATLControlsDialog::FindItem(string const& sControlName)
 {
-	QModelIndexList indexes = m_pProxyModel->match(m_pProxyModel->index(0, 0, QModelIndex()), Qt::DisplayRole, QtUtil::ToQString(sControlName), -1, Qt::MatchRecursive);
+	QModelIndexList const indexes = m_pProxyModel->match(m_pProxyModel->index(0, 0, QModelIndex()), Qt::DisplayRole, QtUtil::ToQString(sControlName), -1, Qt::MatchRecursive);
+	
 	if (!indexes.empty())
 	{
 		IAudioAsset* pAsset = AudioModelUtils::GetAssetFromIndex(indexes[0]);
+
 		if (pAsset)
 		{
 			CAudioControl* pControl = static_cast<CAudioControl*>(pAsset);
+
 			if (pControl)
 			{
-				const Scope scope = pControl->GetScope();
+				Scope const scope = pControl->GetScope();
+
 				if (scope == Utils::GetGlobalScope() || scope == m_scope)
 				{
 					return indexes[0];
@@ -279,41 +322,78 @@ QModelIndex ATLControlsDialog::FindItem(const string& sControlName)
 			}
 		}
 	}
+
 	return QModelIndex();
 }
+
+//////////////////////////////////////////////////////////////////////////
 bool ATLControlsDialog::eventFilter(QObject* pObject, QEvent* pEvent)
 {
-	if (pEvent->type() == QEvent::KeyRelease)
+	if (pEvent->type() == QEvent::KeyRelease && m_bSelectionIsValid)
 	{
 		QKeyEvent* pKeyEvent = static_cast<QKeyEvent*>(pEvent);
+
 		if (pKeyEvent && pKeyEvent->key() == Qt::Key_Space)
 		{
-			QModelIndex index = m_pControlTree->currentIndex();
+			QModelIndex const& index = m_pControlTree->currentIndex();
+
 			if (index.isValid())
 			{
 				IAudioAsset* pAsset = AudioModelUtils::GetAssetFromIndex(index);
-				if (pAsset)
+
+				if (pAsset && (pAsset->GetType() == eItemType_Trigger))
 				{
 					CAudioControlsEditorPlugin::ExecuteTrigger(pAsset->GetName());
 				}
 			}
 		}
 	}
+
 	return QWidget::eventFilter(pObject, pEvent);
 }
 
+
+//////////////////////////////////////////////////////////////////////////
 void ATLControlsDialog::StopTrigger()
 {
 	CAudioControlsEditorPlugin::StopTriggerExecution();
 }
 
-void ATLControlsDialog::ItemDoubleClicked(const QModelIndex& modelIndex)
+//////////////////////////////////////////////////////////////////////////
+void ATLControlsDialog::ItemDoubleClicked(QModelIndex const& modelIndex)
 {
-	IAudioAsset* pAsset = AudioModelUtils::GetAssetFromIndex(modelIndex);
-	if (pAsset && pAsset->GetType() == m_eType)
+	if (m_bSelectionIsValid)
 	{
-		ms_controlName = pAsset->GetName();
-		accept();
+		IAudioAsset* pAsset = AudioModelUtils::GetAssetFromIndex(modelIndex);
+
+		if (pAsset && pAsset->GetType() == m_eType)
+		{
+			s_previousControlName = pAsset->GetName();
+			accept();
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void ATLControlsDialog::ShowControlsContextMenu(QPoint const& pos)
+{
+	QModelIndex const& index = m_pControlTree->currentIndex();
+
+	if (index.isValid())
+	{
+		IAudioAsset* pAsset = AudioModelUtils::GetAssetFromIndex(index);
+
+		if (pAsset && (pAsset->GetType() == eItemType_Trigger))
+		{
+			QMenu contextMenu(tr("Context menu"), this);
+
+			contextMenu.addAction(tr("Execute Trigger"), [&]()
+			{
+				CAudioControlsEditorPlugin::ExecuteTrigger(pAsset->GetName());
+			});
+
+			contextMenu.exec(QCursor::pos());
+		}
 	}
 }
 } // namespace ACE

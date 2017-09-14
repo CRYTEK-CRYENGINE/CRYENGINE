@@ -247,12 +247,7 @@ public:
 	virtual void LayerEnabled(const char* layerName, bool enabled, bool serialized);
 
 	// reads areas from file. clears the existing areas
-#if defined(SEG_WORLD)
-	// SEG_WORLD: adds offset to the areas read, and doesn't clear existing areas.
-	virtual void ReadAreasFromFile(const char* fileNameAreas, const Vec3& vSegmentOffset);
-#else
 	virtual void ReadAreasFromFile(const char* fileNameAreas);
-#endif
 
 	virtual void LoadLevelData(const char* szLevel, const char* szMission, const EAILoadDataFlags loadDataFlags = eAILoadDataFlag_AllSystems);
 	virtual void LoadNavigationData(const char* szLevel, const char* szMission, const EAILoadDataFlags loadDataFlags = eAILoadDataFlag_AllSystems);

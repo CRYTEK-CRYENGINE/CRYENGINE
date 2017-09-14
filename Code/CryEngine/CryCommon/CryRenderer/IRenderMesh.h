@@ -209,7 +209,7 @@ struct IRenderMesh
 	virtual const PodArray<std::pair<int, int>>* GetTrisForPosition(const Vec3& vPos, IMaterial* pMaterial) = 0;
 
 	virtual float                                GetExtent(EGeomForm eForm) = 0;
-	virtual void                                 GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm, SSkinningData const* pSkinning = NULL) = 0;
+	virtual void                                 GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm, SSkinningData const* pSkinning = NULL) = 0;
 
 	virtual void                                 Render(CRenderObject* pObj, const SRenderingPassInfo& passInfo) = 0;
 	virtual void                                 AddRenderElements(IMaterial* pIMatInfo, CRenderObject* pObj, const SRenderingPassInfo& passInfo, int nSortId = EFSLIST_GENERAL, int nAW = 1) = 0;

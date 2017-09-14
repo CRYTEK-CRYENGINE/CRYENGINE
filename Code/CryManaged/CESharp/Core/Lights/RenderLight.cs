@@ -176,15 +176,15 @@ namespace CryEngine
 			}
 		}
 
-		public float BaseRadius
+		public float ClipRadius
 		{
 			get
 			{
-				return NativeBaseHandle.m_fBaseRadius;
+				return NativeBaseHandle.m_fClipRadius;
 			}
 			set
 			{
-				NativeBaseHandle.m_fBaseRadius = value;
+				NativeBaseHandle.m_fClipRadius = value;
 			}
 		}
 

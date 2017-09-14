@@ -91,7 +91,7 @@ Vec3 CParticleEmitter::GetPos(bool bWorldOnly) const
 
 void CParticleEmitter::Render(const struct SRendParams& rParam, const SRenderingPassInfo& passInfo)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 	PARTICLE_LIGHT_PROFILER();
 
 	if (!passInfo.RenderParticles() || passInfo.IsRecursivePass())
@@ -122,7 +122,7 @@ void CParticleEmitter::Render(const struct SRendParams& rParam, const SRendering
 
 void CParticleEmitter::Update()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	m_deltaTime = gEnv->pTimer->GetFrameTime() * GetTimeScale();
 	m_deltaTime = max(m_deltaTime, m_primeTime);
@@ -131,7 +131,7 @@ void CParticleEmitter::Update()
 	++m_currentSeed;
 
 	m_pEffect->Compile();
-	if (m_editVersion != m_pEffect->GetEditVersion())
+	if (m_active && m_editVersion != m_pEffect->GetEditVersion())
 	{
 		m_attributeInstance.Reset(m_pEffect->GetAttributeTable(), EAttributeScope::PerEmitter);
 		UpdateRuntimeRefs();
@@ -752,7 +752,7 @@ uint CParticleEmitter::GetParticleSpec() const
 
 void CParticleEmitter::AccumStats(SParticleStats& statsCPU, SParticleStats& statsGPU)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 		
 	const uint numRuntimes = m_cpuComponentRuntimes.size();
 	statsCPU.components.alive += numRuntimes;

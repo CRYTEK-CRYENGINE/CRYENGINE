@@ -548,7 +548,14 @@ void CSubstancePreset::Reload()
 {
 	SSerializer ar(this);
 	ISubstancePresetSerializer* iar = static_cast<ISubstancePresetSerializer*>(&ar);
-	SubstanceSerialization::Load(*iar, m_fileName);
+	if (!SubstanceSerialization::Load(*iar, m_fileName))
+	{
+		return;
+	}
+	if (!m_pGraphInstance)
+	{
+		return;
+	}
 	m_resolutionBackup = static_cast<SubstanceAir::InputInstanceInt2*>(m_pGraphInstance->findInput(m_resolutionId))->getValue();
 	std::vector<string> origOutputNames;
 	origOutputNames.resize(m_tempOriginalOutputs.size());

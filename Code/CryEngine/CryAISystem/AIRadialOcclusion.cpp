@@ -596,7 +596,7 @@ void CAIRadialOcclusionRaycast::Reset()
 void CAIRadialOcclusionRaycast::Update(const Vec3& center, const Vec3& target, float unitHeight,
                                        bool flat, unsigned raysPerUpdate)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	m_lastUpdatedTime = GetAISystem()->GetFrameStartTime();
 

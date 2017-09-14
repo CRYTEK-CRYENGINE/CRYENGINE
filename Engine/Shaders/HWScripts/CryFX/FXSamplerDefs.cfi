@@ -29,7 +29,7 @@
 #define NORMALS_FITTING_MAP   Texture2D   normalsFittingTex   : register(t30)                                   = "%ENGINE%/EngineAssets/ScreenSpace/NormalsFitting.dds";
 #define DISSOLVE_NOISE_MAP    Texture2D   dissolveNoiseTex    : register(t31)                                   = "%ENGINE%/EngineAssets/Textures/noise.dds";  
 
-// Forward per-pass textures
+// Forward/Custom per-pass textures
 #define SCENE_DEPTH_MAP       Texture2D   linearDepthTex      : register(t32)                                   = TS_ZTarget;
 #define NOISE_3D_MAP          Texture3D   noise3DTex          : register(t39)                                   = "%ENGINE%/EngineAssets/Textures/noise3d.dds";
 

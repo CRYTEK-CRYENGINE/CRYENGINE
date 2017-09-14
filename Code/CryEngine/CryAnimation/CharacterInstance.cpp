@@ -432,44 +432,45 @@ float CCharInstance::GetExtent(EGeomForm eForm)
 	return extent.TotalExtent();
 }
 
-void CCharInstance::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const
+void CCharInstance::GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const
 {
 	CGeomExtent const& ext = m_Extents[eForm];
-	int iPart = ext.RandomPart(seed);
-
-	if (iPart-- == 0)
+	for (auto part : ext.RandomPartsAliasSum(points, seed))
 	{
-		// Base model.
-		IRenderMesh* pMesh = m_pDefaultSkeleton->GetIRenderMesh();
-
-		SSkinningData* pSkinningData = NULL;
-		int nFrameID = gEnv->pRenderer->EF_GetSkinningPoolID();
-		for (int n = 0; n < 3; n++)
+		if (part.iPart-- == 0)
 		{
-			int nList = (nFrameID - n) % 3;
-			if (arrSkinningRendererData[nList].nFrameID == nFrameID - n)
+			// Base model.
+			IRenderMesh* pMesh = m_pDefaultSkeleton->GetIRenderMesh();
+
+			SSkinningData* pSkinningData = NULL;
+			int nFrameID = gEnv->pRenderer->EF_GetSkinningPoolID();
+			for (int n = 0; n < 3; n++)
 			{
-				pSkinningData = arrSkinningRendererData[nList].pSkinningData;
-				break;
+				int nList = (nFrameID - n) % 3;
+				if (arrSkinningRendererData[nList].nFrameID == nFrameID - n)
+				{
+					pSkinningData = arrSkinningRendererData[nList].pSkinningData;
+					break;
+				}
 			}
+
+			pMesh->GetRandomPoints(part.aPoints, seed, eForm, pSkinningData);
 		}
 
-		return pMesh->GetRandomPos(ran, seed, eForm, pSkinningData);
-	}
+		else if (part.iPart-- == 0)
+		{
+			// Choose CGA joint.
+			m_SkeletonPose.GetRandomPoints(part.aPoints, seed, eForm);
+		}
 
-	if (iPart-- == 0)
-	{
-		// Choose CGA joint.
-		return m_SkeletonPose.GetRandomPos(ran, seed, eForm);
+		else if (part.iPart-- == 0)
+		{
+			// Choose attachment.
+			m_AttachmentManager.GetRandomPoints(part.aPoints, seed, eForm);
+		}
+		else
+			part.aPoints.fill(ZERO);
 	}
-
-	if (iPart-- == 0)
-	{
-		// Choose attachment.
-		return m_AttachmentManager.GetRandomPos(ran, seed, eForm);
-	}
-
-	ran.zero();
 }
 
 void CCharInstance::OnDetach()

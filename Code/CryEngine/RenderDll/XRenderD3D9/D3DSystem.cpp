@@ -983,7 +983,9 @@ void CD3D9Renderer::ShutDown(bool bReInit)
 	m_bInShutdown = true;
 
 	// Force Flush RT command buffer
-	ForceFlushRTCommands();
+	if (m_pRT)
+		m_pRT->RC_ReleaseGraphicsPipeline();
+	ForceFlushRTCommands();	
 	PreShutDown();
 	if (m_pRT)
 		m_pRT->RC_ShutDown(bReInit ? 0 : FRR_SHUTDOWN);
@@ -1021,7 +1023,7 @@ void CD3D9Renderer::ShutDown(bool bReInit)
 		iTimer = NULL;
 		iSystem = NULL;
 	}
-
+	
 	PostShutDown();
 }
 
@@ -1492,6 +1494,7 @@ WIN_HWND CD3D9Renderer::Init(int x, int y, int width, int height, unsigned int c
 			bool bRes = m_pRT->RC_CreateDevice();
 			if (!bRes)
 			{
+				CryWarning(VALIDATOR_MODULE_RENDERER, VALIDATOR_ERROR, "Rendering device creation failed!");
 				ShutDown(true);
 				return 0;
 			}

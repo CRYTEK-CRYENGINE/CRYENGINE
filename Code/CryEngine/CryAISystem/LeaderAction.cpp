@@ -475,7 +475,7 @@ bool CLeaderAction_Search::ProcessSignal(const AISIGNAL& signal)
 
 CLeaderAction::eActionUpdateResult CLeaderAction_Search::Update()
 {
-	FRAME_PROFILER("CLeaderAction_Attack::CLeaderAction_Search", GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_HideSpots.empty())
 	{

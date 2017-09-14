@@ -218,7 +218,7 @@ bool CMainWindow::RestoreUndo(const XmlNodeRef& input)
 		m_pGraphView->SelectItems(selectedItemIds);
 	}
 
-	if (m_pPreview)
+	if (m_pPreview && m_pScript->GetRoot()->GetType() == Schematyc::EScriptElementType::Class)
 	{
 		m_pPreview->SetClass(static_cast<const Schematyc::IScriptClass*>(m_pScript->GetRoot()));
 	}
@@ -275,11 +275,14 @@ bool CMainWindow::OnSaveAsset(CEditableAsset& editAsset)
 {
 	if (m_pScript)
 	{
-		ICrySchematycCore* pSchematycCore = gEnv->pSchematyc;
-		Schematyc::IScriptRegistry& scriptRegistry = pSchematycCore->GetScriptRegistry();
+		if (m_pAsset == &editAsset.GetAsset())
+		{
+			ICrySchematycCore* pSchematycCore = gEnv->pSchematyc;
+			Schematyc::IScriptRegistry& scriptRegistry = pSchematycCore->GetScriptRegistry();
 
-		scriptRegistry.SaveScript(*m_pScript);
-		return true;
+			scriptRegistry.SaveScript(*m_pScript);
+			return true;
+		}
 	}
 
 	return false;
@@ -298,6 +301,12 @@ bool CMainWindow::OnAboutToCloseAsset(string& reason) const
 
 void CMainWindow::OnCloseAsset()
 {
+	if (CBroadcastManager* pBroadcastManager = CBroadcastManager::Get(this))
+	{
+		PopulateInspectorEvent popEvent([](CInspector& inspector) {});
+		pBroadcastManager->Broadcast(popEvent);
+	}
+
 	if (m_pGraphView)
 	{
 		m_pGraphView->SetModel(nullptr);
@@ -410,11 +419,14 @@ void CMainWindow::RegisterWidgets()
 
 void CMainWindow::InitMenu()
 {
+	// TODO: Delete is not working atm. As soon as we have a mechanism to know what was last
+	//			 focused we can bring it back.
 	const CEditor::MenuItems items[] = {
 		CEditor::MenuItems::FileMenu, CEditor::MenuItems::Save,
-		CEditor::MenuItems::EditMenu, CEditor::MenuItems::Undo, CEditor::MenuItems::Redo,
-		CEditor::MenuItems::Copy,     CEditor::MenuItems::Paste,CEditor::MenuItems::Delete
+		CEditor::MenuItems::EditMenu, CEditor::MenuItems::Undo,CEditor::MenuItems::Redo,
+		CEditor::MenuItems::Copy,     CEditor::MenuItems::Paste,/*CEditor::MenuItems::Delete*/
 	};
+	// ~TODO
 	AddToMenu(items, sizeof(items) / sizeof(CEditor::MenuItems));
 }
 

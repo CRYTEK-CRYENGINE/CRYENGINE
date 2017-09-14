@@ -23,9 +23,9 @@ public:
 		if (pComponent->GetEntity()->GetSimulationMode() == EEntitySimulationMode::Preview)
 			return;
 
-		if(m_pActive)
+		if (m_pActive)
 		{
-			m_pActive->UnregisterAudioListener();
+			m_pActive->DisableAudioListener();
 		}
 
 		m_pActive = pComponent;
@@ -35,7 +35,7 @@ public:
 			component->GetEntity()->UpdateComponentEventMask(component);
 		}
 	}
-	virtual void RemvoeCamera(Cry::DefaultComponents::CCameraComponent* pComponent) override
+	virtual void RemoveCamera(Cry::DefaultComponents::CCameraComponent* pComponent) override
 	{
 		if (pComponent->GetEntity()->GetSimulationMode() != EEntitySimulationMode::Preview)
 		{

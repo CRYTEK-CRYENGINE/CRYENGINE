@@ -450,6 +450,7 @@ void CMainEditorWindow::SetCurrentDocumentFromExplorerEntry(const Explorer::Expl
 			m_pCurrentDocument = asset.GetDocument();
 			if (m_pCurrentDocument)
 			{
+				m_pCurrentDocument->OnTreeChanged();	// validate the query blueprint for syntactical errors
 				m_pCurrentDocument->AttachToTree(m_pDocumentPropertyTree);
 				m_pSimulatorPanel->setVisible(true);
 			}

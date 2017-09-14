@@ -260,7 +260,7 @@ private:
 
 		void Process()
 		{
-			FUNCTION_PROFILER_RENDERER
+			FUNCTION_PROFILER_RENDERER();
 
 			m_rwGlobal.RLock();
 			for (AUXThreadMap::const_iterator it = m_auxThreadMap.begin(); it != m_auxThreadMap.end(); ++it)

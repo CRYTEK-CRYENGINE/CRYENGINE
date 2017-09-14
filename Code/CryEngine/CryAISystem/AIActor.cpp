@@ -368,7 +368,7 @@ void CAIActor::OnObjectRemoved(CAIObject* pObject)
 //------------------------------------------------------------------------------------------------------------------------
 void CAIActor::Update(IAIObject::EUpdateType type)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	IAIActorProxy* pAIActorProxy = GetProxy();
 
@@ -552,7 +552,7 @@ void CAIActor::UpdateCloakScale()
 //------------------------------------------------------------------------------------------------------------------------
 void CAIActor::UpdateDisabled(EUpdateType type)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// (MATT) I'm assuming that AIActor should always have a proxy, or this could be bad for performance {2009/04/03}
 	IAIActorProxy* pProxy = GetProxy();
@@ -788,7 +788,7 @@ void CAIActor::SetSignal(int nSignalID, const char* szText, IEntity* pSender, IA
 //====================================================================
 bool CAIActor::IsHostile(const IAIObject* pOtherAI, bool bUsingAIIgnorePlayer) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	bool hostile = false;
 
@@ -1757,7 +1757,7 @@ IAIActorProxy* CAIActor::GetProxy() const
 
 IAIObject::EFieldOfViewResult CAIActor::CheckPointInFOV(const Vec3& point, float sightRange) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	const Vec3& eyePosition = GetPos();
 	const Vec3 eyeToPointDisplacement = point - eyePosition;
@@ -1796,7 +1796,7 @@ void CAIActor::HandlePathDecision(MNMPathRequestResult& result)
 
 void CAIActor::HandleVisualStimulus(SAIEVENT* pAIEvent)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	const float fGlobalVisualPerceptionScale = gEnv->pAISystem->GetGlobalVisualScale(this);
 	const float fVisualPerceptionScale = m_Parameters.m_PerceptionParams.perceptionScale.visual * fGlobalVisualPerceptionScale;
@@ -1838,7 +1838,7 @@ void CAIActor::HandleVisualStimulus(SAIEVENT* pAIEvent)
 
 void CAIActor::HandleSoundEvent(SAIEVENT* pAIEvent)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	const float fGlobalAudioPerceptionScale = gEnv->pAISystem->GetGlobalAudioScale(this);
 	const float fAudioPerceptionScale = m_Parameters.m_PerceptionParams.perceptionScale.audio * fGlobalAudioPerceptionScale;
@@ -1882,7 +1882,7 @@ void CAIActor::HandleSoundEvent(SAIEVENT* pAIEvent)
 
 void CAIActor::HandleBulletRain(SAIEVENT* pAIEvent)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (gAIEnv.CVars.IgnoreBulletRainStimulus || m_Parameters.m_bAiIgnoreFgNode)
 		return;
@@ -1906,7 +1906,7 @@ void CAIActor::CancelRequestedPath(bool actorRemoved)
 
 IAIObject::EFieldOfViewResult CAIActor::IsPointInFOV(const Vec3& vPos, float fDistanceScale) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	const float fSightRange = m_Parameters.m_PerceptionParams.sightRange * fDistanceScale;
 	return CheckPointInFOV(vPos, fSightRange);
@@ -1915,7 +1915,7 @@ IAIObject::EFieldOfViewResult CAIActor::IsPointInFOV(const Vec3& vPos, float fDi
 IAIObject::EFieldOfViewResult CAIActor::IsObjectInFOV(const IAIObject* pTarget, float fDistanceScale) const
 {
 	CCCPOINT(CAIActor_IsObjectInFOVCone);
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	const Vec3& vTargetPos = pTarget->GetPos();
 	const float fSightRange = GetMaxTargetVisibleRange(pTarget) * fDistanceScale;

@@ -183,10 +183,7 @@ void CEditorAdapter::customEvent(QEvent* pEvent)
 		const string& command = commandEvent->GetCommand();
 		if (command == "meshimporter.import")
 		{
-			if (m_pDialog->OnImportFile())
-			{
-				OnCloseAsset();
-			}
+			m_pDialog->OnImportFile();
 			pEvent->accept();
 		}
 		else if (command == "meshimporter.reimport")
@@ -226,12 +223,6 @@ bool CEditorAdapter::OnSaveAsset(CEditableAsset&)
 {
 	m_pDialog->OnSave();
 	return false;
-}
-
-bool CEditorAdapter::OnSaveAs()
-{
-	m_pDialog->OnSaveAs();
-	return true;
 }
 
 void CEditorAdapter::OnCloseAsset()

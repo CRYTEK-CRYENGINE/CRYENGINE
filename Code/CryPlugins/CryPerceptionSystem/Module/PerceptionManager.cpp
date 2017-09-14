@@ -338,7 +338,7 @@ void CPerceptionManager::ActorUpdate(IAIObject* pAIObject, IAIObject::EUpdateTyp
 	if (type != IAIObject::Full)
 		return;
 	
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION( PROFILE_AI);
 
 	IAIActor* pAIActor = pAIObject->CastToIAIActor();
 	CRY_ASSERT(pAIActor);
@@ -359,7 +359,7 @@ void CPerceptionManager::ActorUpdate(IAIObject* pAIObject, IAIObject::EUpdateTyp
 	const Vec3& actorPos = pAIObject->GetPos();
 
 	{
-		FRAME_PROFILER("AIPlayerVisibilityCheck", gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_SECTION(PROFILE_AI, "AIPlayerVisibilityCheck");
 
 		// Priority targets.
 		for (IAIObject* pTarget : m_priorityTargets)
@@ -414,7 +414,7 @@ void CPerceptionManager::ActorUpdate(IAIObject* pAIObject, IAIObject::EUpdateTyp
 	}
 
 	{
-		FRAME_PROFILER("ProbableTargets", gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_SECTION(PROFILE_AI, "ProbableTargets");
 		// Probable targets.
 		for (IAIObject* pProbTarget : m_probableTargets)
 		{
@@ -750,7 +750,7 @@ void CPerceptionManager::UpdateStimuli(float deltaTime)
 //-----------------------------------------------------------------------------------------------------------
 void CPerceptionManager::VisCheckBroadPhase(float deltaTime)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION( PROFILE_AI);
 
 	CRY_ASSERT(gEnv->pAISystem->GetActorLookup());
 	IActorLookUp& lookUp = *gEnv->pAISystem->GetActorLookup();
@@ -853,7 +853,7 @@ void CPerceptionManager::IgnoreStimulusFrom(EntityId sourceId, EAIStimulusType t
 //-----------------------------------------------------------------------------------------------------------
 void CPerceptionManager::HandleSound(const SStimulusRecord& stim)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION( PROFILE_AI);
 
 	CRY_ASSERT(gEnv->pAISystem->GetActorLookup());
 	IActorLookUp& lookUp = *gEnv->pAISystem->GetActorLookup();
@@ -948,7 +948,7 @@ void CPerceptionManager::HandleSound(const SStimulusRecord& stim)
 //-----------------------------------------------------------------------------------------------------------
 void CPerceptionManager::HandleCollision(const SStimulusRecord& stim)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION( PROFILE_AI);
 
 	CRY_ASSERT(gEnv->pAISystem->GetActorLookup());
 	IActorLookUp& lookUp = *gEnv->pAISystem->GetActorLookup();
@@ -1020,7 +1020,7 @@ void CPerceptionManager::HandleCollision(const SStimulusRecord& stim)
 //-----------------------------------------------------------------------------------------------------------
 void CPerceptionManager::HandleExplosion(const SStimulusRecord& stim)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION( PROFILE_AI);
 
 	CRY_ASSERT(gEnv->pAISystem->GetActorLookup());
 	IActorLookUp& lookUp = *gEnv->pAISystem->GetActorLookup();
@@ -1067,7 +1067,7 @@ void CPerceptionManager::HandleExplosion(const SStimulusRecord& stim)
 //-----------------------------------------------------------------------------------------------------------
 void CPerceptionManager::HandleBulletHit(const SStimulusRecord& stim)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION( PROFILE_AI);
 
 	CRY_ASSERT(gEnv->pAISystem->GetActorLookup());
 	IActorLookUp& lookUp = *gEnv->pAISystem->GetActorLookup();
@@ -1139,7 +1139,7 @@ void CPerceptionManager::HandleBulletHit(const SStimulusRecord& stim)
 //-----------------------------------------------------------------------------------------------------------
 void CPerceptionManager::HandleBulletWhizz(const SStimulusRecord& stim)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION( PROFILE_AI);
 
 	CRY_ASSERT(gEnv->pAISystem->GetActorLookup());
 	IActorLookUp& lookUp = *gEnv->pAISystem->GetActorLookup();
@@ -1183,7 +1183,7 @@ void CPerceptionManager::HandleBulletWhizz(const SStimulusRecord& stim)
 //-----------------------------------------------------------------------------------------------------------
 void CPerceptionManager::HandleGrenade(const SStimulusRecord& stim)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION( PROFILE_AI);
 
 	EntityId shooterId = stim.sourceId;
 
@@ -1394,7 +1394,7 @@ bool CPerceptionManager::IsPointInRadiusOfStimulus(EAIStimulusType type, const V
 //-----------------------------------------------------------------------------------------------------------
 void CPerceptionManager::NotifyAIEventListeners(const SStimulusRecord& stim, float threat)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION( PROFILE_AI);
 
 	int flags = 1 << (int)stim.type;
 
@@ -1448,7 +1448,7 @@ float CPerceptionManager::SupressSound(const Vec3& pos, float radius)
 //-----------------------------------------------------------------------------------------------------------
 bool CPerceptionManager::IsSoundOccluded(IAIActor* pAIActor, const Vec3& vSoundPos)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION( PROFILE_AI);
 
 	// The sound is occluded because of the buildings.
 	// But not now yet
@@ -1655,7 +1655,7 @@ void CPerceptionManager::DebugDraw(IAIDebugRenderer* pDebugRenderer)
 {
 	if (m_cVars.DebugPerceptionManager > 0)
 	{
-		FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		DebugDrawPerception(pDebugRenderer, m_cVars.DebugPerceptionManager);
 		DebugDrawPerformance(pDebugRenderer, m_cVars.DebugPerceptionManager);

@@ -95,7 +95,7 @@ add_sources("NoUberFile"
 end_sources()
 #END-FILE-LIST
 
-CryEngineModule(CryMonoBridge FORCE_SHARED PCH "StdAfx.cpp" SOLUTION_FOLDER "CryMono")
+CryEngineModule(CryMonoBridge FORCE_SHARED_WIN PCH "StdAfx.cpp" SOLUTION_FOLDER "CryMono")
 target_compile_options(${THIS_PROJECT} PRIVATE /EHsc /bigobj)
 target_include_directories(${THIS_PROJECT} PRIVATE "${CRYENGINE_DIR}/Code/CryEngine/CryAction" )
 

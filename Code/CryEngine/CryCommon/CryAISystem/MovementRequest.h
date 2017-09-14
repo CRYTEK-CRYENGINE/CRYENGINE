@@ -7,7 +7,7 @@
 
 	#include <CryAISystem/MovementRequestID.h>
 	#include <CryAISystem/MovementStyle.h>
-	#include "IPathfinder.h" // MNMDangersFlags
+	#include "IPathfinder.h" // MNMDangersFlags, MNMCustomPathCostComputerSharedPtr
 
 //! Passed along as a parameter to movement request callbacks.
 struct MovementRequestResult
@@ -85,6 +85,7 @@ struct MovementRequest
 		, dangersFlags(eMNMDangers_None)
 		, considerActorsAsPathObstacles(false)
 		, lengthToTrimFromThePathEnd(0.0f)
+		, pCustomPathCostComputer(nullptr)
 	{
 	}
 
@@ -110,6 +111,7 @@ struct MovementRequest
 	MNMDangersFlags dangersFlags;
 	bool            considerActorsAsPathObstacles;
 	float           lengthToTrimFromThePathEnd;
+	MNMCustomPathCostComputerSharedPtr pCustomPathCostComputer;
 };
 
 //! Contains information about the status of a request.

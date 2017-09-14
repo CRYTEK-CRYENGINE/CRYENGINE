@@ -268,13 +268,13 @@ void CEntityComponentRope::LegacySerializeXML(XmlNodeRef& entityNode, XmlNodeRef
 				IRopeRenderNode::SRopeAudioParams audioParams;
 				char const* szTemp = nullptr;
 				xmlNodeAudio->getAttr("StartTrigger", &szTemp);
-				audioParams.startTrigger = CryAudio::StringToId_RunTime(szTemp);
+				audioParams.startTrigger = CryAudio::StringToId(szTemp);
 
 				xmlNodeAudio->getAttr("StopTrigger", &szTemp);
-				audioParams.stopTrigger = CryAudio::StringToId_RunTime(szTemp);
+				audioParams.stopTrigger = CryAudio::StringToId(szTemp);
 
 				xmlNodeAudio->getAttr("AngleParameter", &szTemp);
-				audioParams.angleParameter = CryAudio::StringToId_RunTime(szTemp);
+				audioParams.angleParameter = CryAudio::StringToId(szTemp);
 
 				std::underlying_type<CryAudio::EOcclusionType>::type tempOcclusionType;
 				xmlNodeAudio->getAttr("OcclusionType", tempOcclusionType);

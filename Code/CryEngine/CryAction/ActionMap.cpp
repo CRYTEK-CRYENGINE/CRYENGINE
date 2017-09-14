@@ -793,7 +793,7 @@ IActionMapAction* CActionMap::GetAction(const ActionId& actionId)
 //------------------------------------------------------------------------
 bool CActionMap::CanProcessInput(const SInputEvent& inputEvent, CActionMap* pActionMap, CActionMapAction* pAction, SActionInput* pActionInput)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 	bool bRes = false;
 
 	float fCurrTime = gEnv->pTimer->GetCurrTime();

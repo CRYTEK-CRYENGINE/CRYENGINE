@@ -9,8 +9,8 @@ namespace ATLUtils
 void SetSwitchState(const char* switchIdName, const char* switchValue, IEntityAudioComponent* pIEntityAudioComponent)
 {
 	CRY_ASSERT(gEnv && gEnv->pAudioSystem != nullptr);
-	CryAudio::ControlId const switchId = CryAudio::StringToId_RunTime(switchIdName);
-	CryAudio::SwitchStateId const switchStateId = CryAudio::StringToId_RunTime(switchValue);
+	CryAudio::ControlId const switchId = CryAudio::StringToId(switchIdName);
+	CryAudio::SwitchStateId const switchStateId = CryAudio::StringToId(switchValue);
 	pIEntityAudioComponent->SetSwitchState(switchId, switchStateId);
 }
 } // namespace ATLUtils
@@ -302,8 +302,8 @@ SCommunicationSound CommunicationHandler::PlaySound(CommPlayID playID, const cha
 			playTriggerName.Format("%s%s", wiseConfigutation.prefixForPlayTrigger.c_str(), name);
 			stack_string stopTriggerName;
 			stopTriggerName.Format("%s%s", wiseConfigutation.prefixForStopTrigger.c_str(), name);
-			CryAudio::ControlId const playCommunicationControlId = CryAudio::StringToId_RunTime(playTriggerName.c_str());
-			CryAudio::ControlId const stopCommunicationControlId = CryAudio::StringToId_RunTime(stopTriggerName.c_str());
+			CryAudio::ControlId const playCommunicationControlId = CryAudio::StringToId(playTriggerName.c_str());
+			CryAudio::ControlId const stopCommunicationControlId = CryAudio::StringToId(stopTriggerName.c_str());
 
 			if (listener != nullptr)
 			{

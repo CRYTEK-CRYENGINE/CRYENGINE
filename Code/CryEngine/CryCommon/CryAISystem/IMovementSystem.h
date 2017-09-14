@@ -39,6 +39,7 @@ enum PathfinderState
 	StillFinding,
 	FoundPath,
 	CouldNotFindPath,
+	Canceled,
 };
 }
 

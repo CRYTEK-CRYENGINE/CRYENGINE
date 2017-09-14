@@ -12,21 +12,12 @@
 
 int CSceneRenderPass::s_recursionCounter = 0;
 
-bool CSceneRenderPass::OnResourceInvalidated(void* pThis, uint32 flags)
-{
-	reinterpret_cast<CSceneRenderPass*>(pThis)->m_bResourcesInvalidated = true;
-	// Don't keep the callback when the resource goes out of scope
-	return !(flags & eResourceDestroyed);
-}
-
 CSceneRenderPass::CSceneRenderPass()
 	: m_passFlags(ePassFlags_None)
 	, m_depthConstBias(0.0f)
 	, m_depthSlopeBias(0.0f)
 	, m_depthBiasClamp(0.0f)
-	, m_bOutputsDirty(true)
-	, m_bResourcesInvalidated(false)
-	, m_renderPassDesc(this, OnResourceInvalidated)
+	, m_renderPassDesc()
 {
 	m_numRenderItemGroups = 0;
 	m_profilerSectionIndex = ~0u;
@@ -55,11 +46,11 @@ void CSceneRenderPass::SetPassResources(CDeviceResourceLayoutPtr pResourceLayout
 
 void CSceneRenderPass::SetRenderTargets(CTexture* pDepthTarget, CTexture* pColorTarget0, CTexture* pColorTarget1, CTexture* pColorTarget2, CTexture* pColorTarget3)
 {
-	m_bOutputsDirty |= m_renderPassDesc.SetDepthTarget(pDepthTarget);
-	m_bOutputsDirty |= m_renderPassDesc.SetRenderTarget(0, pColorTarget0);
-	m_bOutputsDirty |= m_renderPassDesc.SetRenderTarget(1, pColorTarget1);
-	m_bOutputsDirty |= m_renderPassDesc.SetRenderTarget(2, pColorTarget2);
-	m_bOutputsDirty |= m_renderPassDesc.SetRenderTarget(3, pColorTarget3);
+	m_renderPassDesc.SetDepthTarget(pDepthTarget);
+	m_renderPassDesc.SetRenderTarget(0, pColorTarget0);
+	m_renderPassDesc.SetRenderTarget(1, pColorTarget1);
+	m_renderPassDesc.SetRenderTarget(2, pColorTarget2);
+	m_renderPassDesc.SetRenderTarget(3, pColorTarget3);
 
 	CRY_ASSERT_MESSAGE(
 		(!pColorTarget0 || !pColorTarget1 || pColorTarget0->GetWidth() == pColorTarget1->GetWidth()) &&
@@ -71,11 +62,7 @@ void CSceneRenderPass::SetRenderTargets(CTexture* pDepthTarget, CTexture* pColor
 		"Depth target is smaller than the color target(s)!");
 
 	// TODO: refactor, shouldn't need to update the renderpass here but PSOs are compiled before CSceneRenderPass::Prepare is called
-	if (m_bOutputsDirty)
-	{
-		m_bOutputsDirty = false;
-		m_pRenderPass = GetDeviceObjectFactory().GetOrCreateRenderPass(m_renderPassDesc);
-	}
+	CDeviceRenderPass::UpdateWithReevaluation(m_pRenderPass, m_renderPassDesc);
 }
 
 void CSceneRenderPass::SetViewport(const D3DViewPort& viewport)
@@ -111,29 +98,18 @@ void CSceneRenderPass::SetDepthBias(float constBias, float slopeBias, float bias
 void CSceneRenderPass::ExchangeRenderTarget(uint32 slot, CTexture* pNewColorTarget, ResourceViewHandle hRenderTargetView)
 {
 	CRY_ASSERT(!pNewColorTarget || pNewColorTarget->GetDevTexture());
-	m_bOutputsDirty |= m_renderPassDesc.SetRenderTarget(slot, pNewColorTarget, hRenderTargetView);
+	m_renderPassDesc.SetRenderTarget(slot, pNewColorTarget, hRenderTargetView);
 }
 
 void CSceneRenderPass::ExchangeDepthTarget(CTexture* pNewDepthTarget, ResourceViewHandle hDepthStencilView)
 {
 	CRY_ASSERT(!pNewDepthTarget || pNewDepthTarget->GetDevTexture());
-	m_bOutputsDirty |= m_renderPassDesc.SetDepthTarget(pNewDepthTarget, hDepthStencilView);
+	m_renderPassDesc.SetDepthTarget(pNewDepthTarget, hDepthStencilView);
 }
 
 void CSceneRenderPass::PrepareRenderPassForUse(CDeviceCommandListRef RESTRICT_REFERENCE commandList)
 {
-	if (m_bOutputsDirty) // request new render pass in case resource layout has changed
-	{
-		m_bOutputsDirty = false;
-		m_pRenderPass = GetDeviceObjectFactory().GetOrCreateRenderPass(m_renderPassDesc);
-		
-	}
-
-	if (m_bResourcesInvalidated || !m_pRenderPass->IsValid()) // make sure render pass is up to date
-	{
-		m_bResourcesInvalidated = false;
-		m_pRenderPass->Update(m_renderPassDesc);
-	}
+	CDeviceRenderPass::UpdateWithReevaluation(m_pRenderPass, m_renderPassDesc);
 
 	CDeviceGraphicsCommandInterface* pCommandInterface = commandList.GetGraphicsInterface();
 	pCommandInterface->PrepareRenderPassForUse(*m_pRenderPass);

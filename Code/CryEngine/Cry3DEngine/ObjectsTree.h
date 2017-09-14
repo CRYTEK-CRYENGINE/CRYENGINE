@@ -376,7 +376,7 @@ public:
 	int                 DePhysicalizeOfType(ERNListType listType, bool bInstant);
 
 #if ENGINE_ENABLE_COMPILATION
-	int GetData(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, const Vec3& segmentOffset);
+	int GetData(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo);
 #endif
 
 	const AABB&  GetObjectsBBox() { return m_objectsBox; }
@@ -394,11 +394,11 @@ public:
 	bool         CleanUpTree();
 	int          GetObjectsCount(EOcTeeNodeListType eListType);
 	static int32 SaveObjects_CompareRenderNodes(const void* v1, const void* v2);
-	int SaveObjects(class CMemoryBlock* pMemBlock, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, const SHotUpdateInfo * pExportInfo, const Vec3 &segmentOffest);
-	int          LoadObjects(byte* pPtr, byte* pEndPtr, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, int nChunkVersion, const SLayerVisibility* pLayerVisibility, const Vec3& segmentOffest, ELoadObjectsMode eLoadMode);
+	int SaveObjects(class CMemoryBlock* pMemBlock, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, const SHotUpdateInfo * pExportInfo);
+	int          LoadObjects(byte* pPtr, byte* pEndPtr, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, int nChunkVersion, const SLayerVisibility* pLayerVisibility, ELoadObjectsMode eLoadMode);
 	static int   GetSingleObjectFileDataSize(IRenderNode* pObj, const SHotUpdateInfo* pExportInfo);
-	static void  SaveSingleObject(byte*& pPtr, int& nDatanSize, IRenderNode* pObj, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, const SHotUpdateInfo* pExportInfo, const Vec3& segmentOffset);
-	static void  LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, int nChunkVersion, const SLayerVisibility* pLayerVisibility, int nSID, const Vec3& segmentOffset, ELoadObjectsMode eLoadMode, IRenderNode*& pRN);
+	static void  SaveSingleObject(byte*& pPtr, int& nDatanSize, IRenderNode* pObj, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, const SHotUpdateInfo* pExportInfo);
+	static void  LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, int nChunkVersion, const SLayerVisibility* pLayerVisibility, ELoadObjectsMode eLoadMode, IRenderNode*& pRN);
 	static bool  IsObjectStreamable(EERType eType, uint64 dwRndFlags);
 	static bool  CheckSkipLoadObject(EERType eType, uint64 dwRndFlags, ELoadObjectsMode eLoadMode);
 	bool         IsRightNode(const AABB& objBox, const float fObjRadius, float fObjMaxViewDist);
@@ -406,9 +406,9 @@ public:
 	void         UpdateTerrainNodes(CTerrainNode* pParentNode = 0);
 
 	template<class T>
-	int         Load_T(T*& f, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, AABB* pBox, const SLayerVisibility* pLayerVisibility, const Vec3& segmentOffset);
-	int         Load(FILE*& f, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, AABB* pBox, const SLayerVisibility* pLayerVisibility, const Vec3& segmentOffset);
-	int         Load(uint8*& f, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, AABB* pBox, const SLayerVisibility* pLayerVisibility, const Vec3& segmentOffset);
+	int         Load_T(T*& f, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, AABB* pBox, const SLayerVisibility* pLayerVisibility);
+	int         Load(FILE*& f, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, AABB* pBox, const SLayerVisibility* pLayerVisibility);
+	int         Load(uint8*& f, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, AABB* pBox, const SLayerVisibility* pLayerVisibility);
 	bool        StreamLoad(uint8* pData, int nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, AABB* pBox);
 
 	static void FreeLoadingCache();
@@ -426,7 +426,7 @@ public:
 	virtual void           StreamOnComplete(IReadStream* pStream, unsigned nError);
 	template<class T> void StreamOnCompleteReadObjects(T* f, int nDataSize);
 	void                   StartStreaming(bool bFinishNow, IReadStream_AutoPtr* ppStream);
-	template<class T> int  ReadObjects(T*& f, int& nDataSize, EEndian eEndian, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, const SLayerVisibility* pLayerVisibilityMask, const Vec3& segmentOffset, SOcTreeNodeChunk& chunk, ELoadObjectsMode eLoadMode);
+	template<class T> int  ReadObjects(T*& f, int& nDataSize, EEndian eEndian, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, const SLayerVisibility* pLayerVisibilityMask, SOcTreeNodeChunk& chunk, ELoadObjectsMode eLoadMode);
 	void                   ReleaseObjects(bool bReleaseOnlyStreamable = false);
 	void                   GetStreamedInNodesNum(int& nAllStreamable, int& nReady);
 	static int             GetStreamingTasksNum()  { return m_nInstStreamTasksInProgress; }
@@ -443,13 +443,8 @@ public:
 
 	void OffsetObjects(const Vec3& offset);
 	void SetVisArea(CVisArea* pVisArea);
-	void UpdateVisAreaSID(CVisArea* pVisArea, int nSID)
-	{
-		assert(pVisArea);
-		m_nSID = nSID;
-	}
 
-	static COctreeNode* Create(int nSID, const AABB& box, struct CVisArea* pVisArea, COctreeNode* pParent = NULL);
+	static COctreeNode* Create(const AABB& box, struct CVisArea* pVisArea, COctreeNode* pParent = NULL);
 
 protected:
 	AABB  GetChildBBox(int nChildId);
@@ -469,7 +464,7 @@ protected:
 	static int  Cmp_OctreeNodeSize(const void* v1, const void* v2);
 
 private:
-	COctreeNode(int nSID, const AABB& box, struct CVisArea* pVisArea, COctreeNode* pParent);
+	COctreeNode(const AABB& box, struct CVisArea* pVisArea, COctreeNode* pParent);
 
 	float        GetNodeRadius2() const { return m_vNodeAxisRadius.Dot(m_vNodeAxisRadius); }
 	COctreeNode* FindChildFor(IRenderNode* pObj, const AABB& objBox, const float fObjRadius, const Vec3& vObjCenter);
@@ -499,7 +494,6 @@ private:
 	uint32                           nFillShadowCastersSkipFrameId;
 	float                            m_fNodeDistance;
 	int                              m_nManageVegetationsFrameId;
-	int                              m_nSID;
 
 	OcclusionTestClient              m_occlusionTestClient;
 

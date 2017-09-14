@@ -52,7 +52,7 @@ void ShadowMapFrustum::Job_RenderShadowCastersToView(const SRenderingPassInfo& p
 
 void ShadowMapFrustum::SortRenderItemsForFrustumAsync(int side, SRendItem* pFirst, size_t nNumRendItems)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	if (nNumRendItems > 0)
 	{
@@ -151,7 +151,7 @@ void ShadowMapFrustum::RenderShadowFrustum(CRenderView* pRenderView, CRenderView
 //////////////////////////////////////////////////////////////////////////
 void SShadowRenderer::RenderFrustumsToView(CRenderView* pRenderView)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	int nThreadID = SRenderThread::GetLocalThreadCommandBufferId();
 

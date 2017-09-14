@@ -45,6 +45,7 @@ enum EPE_Params
 	ePE_params_skeleton                    = 24,
 	ePE_params_structural_initial_velocity = 25,
 	ePE_params_collision_class             = 26,
+	ePE_params_walking_rigid               = 27,
 
 	ePE_Params_Count
 };
@@ -115,7 +116,7 @@ enum EPE_Status
 };
 
 //! CStatoscope::AddPhysEntity must be updated when changing this enum.
-enum pe_type { PE_NONE = 0, PE_STATIC = 1, PE_RIGID = 2, PE_WHEELEDVEHICLE = 3, PE_LIVING = 4, PE_PARTICLE = 5, PE_ARTICULATED = 6, PE_ROPE = 7, PE_SOFT = 8, PE_AREA = 9, PE_GRID = 10 };
+enum pe_type { PE_NONE = 0, PE_STATIC = 1, PE_RIGID = 2, PE_WHEELEDVEHICLE = 3, PE_LIVING = 4, PE_PARTICLE = 5, PE_ARTICULATED = 6, PE_ROPE = 7, PE_SOFT = 8, PE_AREA = 9, PE_GRID = 10, PE_WALKINGRIGID = 11 };
 enum sim_class { SC_STATIC = 0, SC_SLEEPING_RIGID = 1, SC_ACTIVE_RIGID = 2, SC_LIVING = 3, SC_INDEPENDENT = 4, SC_TRIGGER = 6, SC_DELETED = 7 };
 struct IGeometry;
 struct IPhysicalEntity;
@@ -1064,6 +1065,24 @@ struct pe_params_wheel : pe_params
 	float w;                //!< rotational velocity; it's computed automatically, but can be overriden if needed
 };
 
+////////// walking rigid entity params
+
+struct pe_params_walking_rigid : pe_params
+{
+	enum entype { type_id = ePE_params_walking_rigid };
+	pe_params_walking_rigid()
+	{
+		type = type_id;
+		MARK_UNUSED velLegStick, legFriction, legStiffness, legsColltype, minLegTestMass;
+	}
+
+	float velLegStick;    // keep leg contact if it's separated by less than velStick*dt per frame
+	float legFriction;	  // friction of the leg contact
+	float legStiffness;	  // how fast the legs will return to the default length
+	int   legsColltype;   // geometry flags the legs look for
+	float minLegTestMass; // only test legs collisions against objects with this or higher mass
+};
+
 ////////// rope entity params
 
 struct pe_params_rope : pe_params
@@ -1563,8 +1582,8 @@ struct pe_status_extent : pe_status
 struct pe_status_random : pe_status_extent
 {
 	enum entype { type_id = ePE_status_random };
-	pe_status_random() { type = type_id; ran.vPos.zero(); ran.vNorm.zero(); }
-	PosNorm ran;
+	pe_status_random() { type = type_id; }
+	Array<PosNorm> points;
 	CRndGen seed;
 };
 
@@ -2481,7 +2500,7 @@ struct IGeometry
 	virtual void  RemapForeignIdx(int* pCurForeignIdx, int* pNewForeignIdx, int nTris) = 0; //!< used in rendermesh-physics sync after boolean ops
 	virtual void  AppendVertices(Vec3* pVtx, int* pVtxMap, int nVtx) = 0;                   //!< used in rendermesh-physics sync after boolean ops
 	virtual float GetExtent(EGeomForm eForm) const = 0;
-	virtual void  GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const = 0;
+	virtual void  GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const = 0;
 	virtual void  CompactMemory() = 0; //!< used only by non-breakable meshes to compact non-shared vertices into same contingous block of memory
 	//! Boxify: attempts to build a set of boxes covering the geometry's volume (only supported by trimeshes)
 	virtual int   Boxify(primitives::box* pboxes, int nMaxBoxes, const SBoxificationParams& params) = 0;
@@ -3027,12 +3046,13 @@ struct EventPhysEnvChange : EventPhysMono
 struct EventPhysPostStep : EventPhysMono
 {
 	enum entype { id = 4, flagsCall = pef_monitor_poststep, flagsLog = pef_log_poststep };
-	EventPhysPostStep() { idval = id; pGrid = nullptr; }
+	EventPhysPostStep() { idval = id; pGrid = nullptr; iCaller = 0; }
 	float            dt;
 	Vec3             pos;
 	quaternionf      q;
 	int              idStep; //!< world's internal step count
 	IPhysicalEntity* pGrid; //!< interface to the grid
+	int              iCaller; //!< index of the physics thread
 };
 
 //! Physics mesh changed.

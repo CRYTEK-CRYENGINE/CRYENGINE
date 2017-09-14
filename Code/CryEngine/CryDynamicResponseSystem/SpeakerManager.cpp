@@ -70,11 +70,11 @@ void CSpeakerManager::Init()
 
 	if (m_pDrsDialogDialogRunningEntityParameterName)
 	{
-		m_audioParameterIdLocal = CryAudio::StringToId_RunTime(m_pDrsDialogDialogRunningEntityParameterName->GetString());
+		m_audioParameterIdLocal = CryAudio::StringToId(m_pDrsDialogDialogRunningEntityParameterName->GetString());
 	}
 	if (m_pDrsDialogDialogRunningGlobalParameterName)
 	{
-		m_audioParameterIdGlobal = CryAudio::StringToId_RunTime(m_pDrsDialogDialogRunningGlobalParameterName->GetString());
+		m_audioParameterIdGlobal = CryAudio::StringToId(m_pDrsDialogDialogRunningGlobalParameterName->GetString());
 	}
 }
 
@@ -715,13 +715,13 @@ void CSpeakerManager::ExecuteStartSpeaking(SSpeakInfo* pSpeakerInfoToUse)
 		pSpeakerInfoToUse->text = pSpeakerInfoToUse->pPickedLine->GetText();
 		if (!pSpeakerInfoToUse->pPickedLine->GetStartAudioTrigger().empty())
 		{
-			pSpeakerInfoToUse->startTriggerID = CryAudio::StringToId_RunTime(pSpeakerInfoToUse->pPickedLine->GetStartAudioTrigger().c_str());
+			pSpeakerInfoToUse->startTriggerID = CryAudio::StringToId(pSpeakerInfoToUse->pPickedLine->GetStartAudioTrigger().c_str());
 		}
 
 		pSpeakerInfoToUse->standaloneFile = pSpeakerInfoToUse->pPickedLine->GetStandaloneFile();
 		if (!pSpeakerInfoToUse->pPickedLine->GetEndAudioTrigger().empty())
 		{
-			pSpeakerInfoToUse->stopTriggerID = CryAudio::StringToId_RunTime(pSpeakerInfoToUse->pPickedLine->GetEndAudioTrigger().c_str());
+			pSpeakerInfoToUse->stopTriggerID = CryAudio::StringToId(pSpeakerInfoToUse->pPickedLine->GetEndAudioTrigger().c_str());
 		}
 	}
 	else

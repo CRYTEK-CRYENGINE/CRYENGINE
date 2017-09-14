@@ -87,18 +87,23 @@ enum EEntityProxy
 
 //////////////////////////////////////////////////////////////////////////
 //! Compatible to the CRYINTERFACE_DECLARE
-#define CRY_ENTITY_COMPONENT_INTERFACE(iname, iidHigh, iidLow) CRYINTERFACE_DECLARE(iname, iidHigh, iidLow)
+#define CRY_ENTITY_COMPONENT_INTERFACE(iname, iidHigh, iidLow) CRY_PP_ERROR("Deprecated macro: Use CRY_ENTITY_COMPONENT_INTERFACE_GUID instead. Please refer to the Migrating Guide from CRYENGINE 5.3 to CRYENGINE 5.4 for more details.")
+#define CRY_ENTITY_COMPONENT_INTERFACE_GUID(iname, iguid) CRYINTERFACE_DECLARE_GUID(iname, iguid)
 
-#define CRY_ENTITY_COMPONENT_CLASS(implclassname, interfaceName, cname, iidHigh, iidLow) \
-  CRYINTERFACE_BEGIN()                                                                   \
-  CRYINTERFACE_ADD(IEntityComponent)                                                     \
-  CRYINTERFACE_ADD(interfaceName)                                                        \
-  CRYINTERFACE_END()                                                                     \
-  CRYGENERATE_CLASS(implclassname, cname, iidHigh, iidLow)
+#define CRY_ENTITY_COMPONENT_CLASS(implclassname, interfaceName, cname, iidHigh, iidLow) CRY_PP_ERROR("Deprecated macro: Use CRY_ENTITY_COMPONENT_CLASS_GUID instead. Please refer to the Migrating Guide from CRYENGINE 5.3 to CRYENGINE 5.4 for more details.")
 
-#define CRY_ENTITY_COMPONENT_INTERFACE_AND_CLASS(implclassname, cname, iidHigh, iidLow) \
-  CRY_ENTITY_COMPONENT_INTERFACE(implclassname, iidHigh, iidLow)                        \
-  CRY_ENTITY_COMPONENT_CLASS(implclassname, implclassname, cname, iidHigh, iidLow)
+#define CRY_ENTITY_COMPONENT_CLASS_GUID(implclassname, interfaceName, cname, cguid) \
+  CRYINTERFACE_BEGIN()                                                              \
+  CRYINTERFACE_ADD(IEntityComponent)                                                \
+  CRYINTERFACE_ADD(interfaceName)                                                   \
+  CRYINTERFACE_END()                                                                \
+  CRYGENERATE_CLASS_GUID(implclassname, cname, cguid)
+
+#define CRY_ENTITY_COMPONENT_INTERFACE_AND_CLASS(implclassname, cname, cguid) CRY_PP_ERROR("Deprecated macro: Use CRY_ENTITY_COMPONENT_INTERFACE_AND_CLASS_GUID instead. Please refer to the Migrating Guide from CRYENGINE 5.3 to CRYENGINE 5.4 for more details.")
+
+#define CRY_ENTITY_COMPONENT_INTERFACE_AND_CLASS_GUID(implclassname, cname, cguid) \
+  CRY_ENTITY_COMPONENT_INTERFACE_GUID(implclassname, cguid)                        \
+  CRY_ENTITY_COMPONENT_CLASS_GUID(implclassname, implclassname, cname, cguid)
 
 #include <CrySchematyc/Component.h>
 
@@ -115,8 +120,11 @@ enum class EEntityComponentFlags : uint32
 	SchematycModified = BIT(7),  //!< Only in combination with the SchematycEditable component to indicate that some parameters where modified from Schematyc defaults by the user.
 	UserAdded         = BIT(8),  //!< This component was added in the Editor by the user
 	NoSave            = BIT(9),  //!< Not save this component under entity components list when saving/loading
-	NetNotReplicate   = BIT(10),  //!< This component should be not be network replicated.
-	HideFromInspector = BIT(11) //!< This component can not be added from the Inspector, instead requiring use in Schematyc or C++.
+	NetNotReplicate   = BIT(10), //!< This component should be not be network replicated.
+	HideFromInspector = BIT(11), //!< This component can not be added from the Inspector, instead requiring use in Schematyc or C++.
+	ServerOnly        = BIT(12), //!< This component can only be loaded when we are running as local or dedicated server
+	ClientOnly        = BIT(13), //!< This component can only be loaded when we are running as a client, never on a dedicated server
+	HiddenFromUser    = BIT(14), //!< This component will not be shown to the user
 };
 typedef CEnumFlags<EEntityComponentFlags> EntityComponentFlags;
 
@@ -185,6 +193,12 @@ public:
 	inline void AddComponentInteraction(SEntityComponentRequirements::EType type, const CryGUID& guid)
 	{
 		m_interactions.emplace_back(type, guid);
+	}
+
+	template<class T>
+	inline void AddComponentInteraction(SEntityComponentRequirements::EType type)
+	{
+		m_interactions.emplace_back(type, Schematyc::GetTypeGUID<T>());
 	}
 
 	inline bool IsCompatibleWith(const CryGUID& guid) const
@@ -280,8 +294,7 @@ struct IEntityComponent : public ICryUnknown
 		IEntityComponent* pComponent;
 	};
 
-public:
-	CRY_ENTITY_COMPONENT_INTERFACE(IEntityComponent, 0x6A6FFE9AA3D44CD6, 0x9EF1FC42EE649776)
+	CRY_ENTITY_COMPONENT_INTERFACE_GUID(IEntityComponent, "6a6ffe9a-a3d4-4cd6-9ef1-fc42ee649776"_cry_guid)
 
 	typedef int                   ComponentEventPriority;
 
@@ -319,7 +332,6 @@ public:
 		IEntityComponent*                  pParent = nullptr;
 		INetworkSpawnParams*               pNetworkSpawnParams = nullptr;
 		EntityComponentFlags               flags;
-		bool                               bNotInitialize = false;
 	};
 
 public:
@@ -370,19 +382,13 @@ protected:
 	//! \param event Event structure, contains event id and parameters.
 	virtual void ProcessEvent(SEntityEvent& event) {}
 
-	//////////////////////////////////////////////////////////////////////////
-	// REMOVE LATER!!! From Schematyc old components
-	virtual void Run(Schematyc::ESimulationMode simulationMode) {}
-	//////////////////////////////////////////////////////////////////////////
-
 public:
 	//! Return bit mask of the EEntityEvent flags that we want to receive in ProcessEvent
 	//! (ex: BIT64(ENTITY_EVENT_HIDE)|BIT64(ENTITY_EVENT_UNHIDE))
 	//! Only events matching the returned bit mask will be sent to the ProcessEvent method
 	virtual uint64                 GetEventMask() const                      { return 0; }
 
-	ComponentEventPriority         GetEventPriority() const                  { return (ComponentEventPriority)GetProxyType(); }
-	virtual ComponentEventPriority GetEventPriority(const int eventID) const { return (ComponentEventPriority)GetProxyType(); }
+	virtual ComponentEventPriority GetEventPriority() const                  { return (ComponentEventPriority)GetProxyType(); }
 
 	//! \brief Network serialization. Override to provide a mask of active network aspects
 	//! used by this component. Called once during binding to network.
@@ -508,13 +514,12 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 
 protected:
+	friend IEntity;
 	friend class CEntity;
-	// Needs access to Initialize and Run, remove when these depenencies are gone
-	friend class Schematyc::CObject;
 	// Needs access to OnShutDown to maintain legacy game object extension shutdown behavior
 	friend class CGameObject;
-	// Needs access to Run, remove when the function is gone
-	friend class CEntityObject;
+	// Needs access to Initialize
+	friend Schematyc::CObject;
 
 	// Host Entity pointer
 	IEntity*       m_pEntity = nullptr;
@@ -610,7 +615,7 @@ inline void IEntityComponent::SetEntitySlotId(int slotId)
 //! Lua Script component interface.
 struct IEntityScriptComponent : public IEntityComponent
 {
-	CRY_ENTITY_COMPONENT_INTERFACE(IEntityScriptComponent, 0xBD6403CF3B49F39E, 0x95403FD1C6D4F755)
+	CRY_ENTITY_COMPONENT_INTERFACE_GUID(IEntityScriptComponent, "bd6403cf-3b49-f39e-9540-3fd1c6d4f755"_cry_guid)
 
 	virtual void          SetScriptUpdateRate(float fUpdateEveryNSeconds) = 0;
 	virtual IScriptTable* GetScriptTable() = 0;
@@ -667,7 +672,7 @@ struct IEntityScriptComponent : public IEntityComponent
 //! Proximity trigger component interface.
 struct IEntityTriggerComponent : public IEntityComponent
 {
-	CRY_ENTITY_COMPONENT_INTERFACE(IEntityTriggerComponent, 0xDE73851B7E35419F, 0xA50951D204F555DE)
+	CRY_ENTITY_COMPONENT_INTERFACE_GUID(IEntityTriggerComponent, "de73851b-7e35-419f-a509-51d204f555de"_cry_guid)
 
 	//! Creates a trigger bounding box.
 	//! When physics will detect collision with this bounding box it will send an events to the entity.
@@ -689,7 +694,7 @@ struct IEntityTriggerComponent : public IEntityComponent
 //! Entity Audio component interface.
 struct IEntityAudioComponent : public IEntityComponent
 {
-	CRY_ENTITY_COMPONENT_INTERFACE(IEntityAudioComponent, 0x9824845CFE377889, 0xB1724A63F331D8A2)
+	CRY_ENTITY_COMPONENT_INTERFACE_GUID(IEntityAudioComponent, "9824845c-fe37-7889-b172-4a63f331d8a2"_cry_guid)
 
 	virtual void                    SetFadeDistance(float const fadeDistance) = 0;
 	virtual float                   GetFadeDistance() const = 0;
@@ -727,6 +732,11 @@ enum EEntitySlotFlags
 	ENTITY_SLOT_BREAK_AS_ENTITY             = BIT(4),
 	ENTITY_SLOT_RENDER_AFTER_POSTPROCESSING = BIT(5),
 	ENTITY_SLOT_BREAK_AS_ENTITY_MP          = BIT(6), //!< In MP this an entity that shouldn't fade or participate in network breakage.
+	ENTITY_SLOT_CAST_SHADOW                 = BIT(7),
+	ENTITY_SLOT_IGNORE_VISAREAS             = BIT(8),
+	ENTITY_SLOT_GI_MODE_BIT0                = BIT(9),
+	ENTITY_SLOT_GI_MODE_BIT1                = BIT(10),
+	ENTITY_SLOT_GI_MODE_BIT2                = BIT(11),
 };
 
 //! Type of an area managed by IEntityAreaComponent.
@@ -745,7 +755,7 @@ enum EEntityAreaType
 //! events to the target entities.
 struct IEntityAreaComponent : public IEntityComponent
 {
-	CRY_ENTITY_COMPONENT_INTERFACE(IEntityAreaComponent, 0x98EDA61FDE8BE2B1, 0xA1CA2A88E4EEDE66)
+	CRY_ENTITY_COMPONENT_INTERFACE_GUID(IEntityAreaComponent, "98eda61f-de8b-e2b1-a1ca-2a88e4eede66"_cry_guid)
 
 	enum EAreaComponentFlags
 	{
@@ -762,6 +772,9 @@ struct IEntityAreaComponent : public IEntityComponent
 	//! Retrieve area type.
 	//! \return One of EEntityAreaType enumerated types.
 	virtual EEntityAreaType GetAreaType() const = 0;
+
+	//! Get the actual area referenced by this component.
+	virtual struct IArea* GetArea() const = 0;
 
 	//! Sets area to be a shape, and assign points to this shape.
 	//! Points are specified in local entity space, shape will always be constructed in XY plane,
@@ -894,7 +907,7 @@ struct IEntityAreaComponent : public IEntityComponent
 
 struct IClipVolumeComponent : public IEntityComponent
 {
-	CRY_ENTITY_COMPONENT_INTERFACE(IClipVolumeComponent, 0x92BC520EAAA2B3F0, 0x9095087AEE67D9FF)
+	CRY_ENTITY_COMPONENT_INTERFACE_GUID(IClipVolumeComponent, "92bc520e-aaa2-b3f0-9095-087aee67d9ff"_cry_guid)
 
 	virtual void         SetGeometryFilename(const char* sFilename) = 0;
 	virtual void         UpdateRenderMesh(IRenderMesh* pRenderMesh, const DynArray<Vec3>& meshFaces) = 0;
@@ -906,7 +919,7 @@ struct IClipVolumeComponent : public IEntityComponent
 //! Flow Graph component allows entity to host reference to the flow graph.
 struct IEntityFlowGraphComponent : public IEntityComponent
 {
-	CRY_ENTITY_COMPONENT_INTERFACE(IEntityFlowGraphComponent, 0x17E5EBA757E44662, 0xA1C21F41DE946CDA)
+	CRY_ENTITY_COMPONENT_INTERFACE_GUID(IEntityFlowGraphComponent, "17e5eba7-57e4-4662-a1c2-1f41de946cda"_cry_guid)
 
 	virtual void        SetFlowGraph(IFlowGraph* pFlowGraph) = 0;
 	virtual IFlowGraph* GetFlowGraph() = 0;
@@ -918,7 +931,7 @@ struct IEntityFlowGraphComponent : public IEntityComponent
 //! Substitution component remembers IRenderNode this entity substitutes and unhides it upon deletion
 struct IEntitySubstitutionComponent : public IEntityComponent
 {
-	CRY_ENTITY_COMPONENT_INTERFACE(IEntitySubstitutionComponent, 0x429B0BCE294749D9, 0xA458DF6FAEE6830C)
+	CRY_ENTITY_COMPONENT_INTERFACE_GUID(IEntitySubstitutionComponent, "429b0bce-2947-49d9-a458-df6faee6830c"_cry_guid)
 
 	virtual void         SetSubstitute(IRenderNode* pSubstitute) = 0;
 	virtual IRenderNode* GetSubstitute() = 0;
@@ -927,7 +940,7 @@ struct IEntitySubstitutionComponent : public IEntityComponent
 //! Represents entity camera.
 struct IEntityCameraComponent : public IEntityComponent
 {
-	CRY_ENTITY_COMPONENT_INTERFACE(IEntityCameraComponent, 0x9DA92DF237D74D2F, 0xB64FB827FCECFDD3)
+	CRY_ENTITY_COMPONENT_INTERFACE_GUID(IEntityCameraComponent, "9da92df2-37d7-4d2f-b64f-b827fcecfdd3"_cry_guid)
 
 	virtual void     SetCamera(CCamera& cam) = 0;
 	virtual CCamera& GetCamera() = 0;
@@ -936,7 +949,7 @@ struct IEntityCameraComponent : public IEntityComponent
 //! Component for the entity rope.
 struct IEntityRopeComponent : public IEntityComponent
 {
-	CRY_ENTITY_COMPONENT_INTERFACE(IEntityRopeComponent, 0x368E5DCD0D954101, 0xB1F9DA514945F40C)
+	CRY_ENTITY_COMPONENT_INTERFACE_GUID(IEntityRopeComponent, "368e5dcd-0d95-4101-b1f9-da514945f40c"_cry_guid)
 
 	virtual struct IRopeRenderNode* GetRopeRenderNode() = 0;
 };
@@ -951,7 +964,7 @@ typedef std::shared_ptr<IVariableCollection> IVariableCollectionSharedPtr;
 //! Component for dynamic response system actors.
 struct IEntityDynamicResponseComponent : public IEntityComponent
 {
-	CRY_ENTITY_COMPONENT_INTERFACE(IEntityDynamicResponseComponent, 0x6799464783DD41B8, 0xA098E26B4B2C95FD)
+	CRY_ENTITY_COMPONENT_INTERFACE_GUID(IEntityDynamicResponseComponent, "67994647-83dd-41b8-a098-e26b4b2c95fd"_cry_guid)
 
 	virtual void                      ReInit(const char* szName, const char* szGlobalVariableCollectionToUse) = 0;
 	virtual DRS::IResponseActor*      GetResponseActor() const = 0;
@@ -961,7 +974,7 @@ struct IEntityDynamicResponseComponent : public IEntityComponent
 //! Component interface for GeomEntity to work in the CreateObject panel
 struct IGeometryEntityComponent : public IEntityComponent
 {
-	CRY_ENTITY_COMPONENT_INTERFACE(IGeometryEntityComponent, 0x54B2C1308E274E07, 0x8BF0F1FE89228D14)
+	CRY_ENTITY_COMPONENT_INTERFACE_GUID(IGeometryEntityComponent, "54b2c130-8e27-4e07-8bf0-f1fe89228d14"_cry_guid)
 
 	virtual void SetGeometry(const char* szFilePath) = 0;
 };
@@ -969,7 +982,7 @@ struct IGeometryEntityComponent : public IEntityComponent
 //! Component interface for ParticleEntity to work in the CreateObject panel
 struct IParticleEntityComponent : public IEntityComponent
 {
-	CRY_ENTITY_COMPONENT_INTERFACE(IParticleEntityComponent, 0x68E3655DDDD34390, 0xAAD5448264E74461)
+	CRY_ENTITY_COMPONENT_INTERFACE_GUID(IParticleEntityComponent, "68e3655d-ddd3-4390-aad5-448264e74461"_cry_guid)
 
 	virtual void SetParticleEffectName(const char* szEffectName) = 0;
 };

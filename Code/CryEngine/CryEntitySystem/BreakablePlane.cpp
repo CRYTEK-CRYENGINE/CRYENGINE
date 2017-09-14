@@ -801,7 +801,7 @@ void         CBreakablePlane::ExtractMeshIsland(const SExtractMeshIslandIn& in, 
 
 int CBreakablePlane::ProcessImpact(const SProcessImpactIn& in, SProcessImpactOut& out)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 
 	out.pStatObjNew = 0;
 	out.pStatObjAux = in.pStatObjAux;

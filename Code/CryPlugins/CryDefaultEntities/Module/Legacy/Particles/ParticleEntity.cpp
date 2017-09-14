@@ -52,7 +52,7 @@ void CDefaultParticleEntity::SerializeProperties(Serialization::IArchive& archiv
 		archive.closeBlock();
 	}
 
-	archive(Serialization::ParticleName(m_particleEffectPath), "ParticleEffect", "ParticleEffect");
+	archive(Serialization::ParticlePickerLegacy(m_particleEffectPath), "ParticleEffect", "ParticleEffect");
 	archive(m_bActive, "Active", "Active");
 	archive(m_spawnParams, "Parameters", "Parameters");
 

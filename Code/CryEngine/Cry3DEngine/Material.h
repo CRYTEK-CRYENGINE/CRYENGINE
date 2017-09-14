@@ -107,6 +107,7 @@ public:
 	~CMatInfo();
 
 	void         ShutDown();
+	bool         IsValid();
 
 	virtual void AddRef();
 	virtual void Release();

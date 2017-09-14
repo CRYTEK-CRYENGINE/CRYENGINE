@@ -253,7 +253,7 @@ bool CSoftOcclusionManager::PrepareOcclusionPrimitive(CRenderPrimitive& primitiv
 
 	primitive.SetTechnique(CShaderMan::s_ShaderSoftOcclusionQuery, techRenderPlane, 0);
 	primitive.SetRenderState(GS_NODEPTHTEST);
-	primitive.SetTexture(0, CTexture::s_ptexZTargetScaled);
+	primitive.SetTexture(0, CTexture::s_ptexZTargetScaled[0]);
 	primitive.SetSampler(0, EDefaultSamplerStates::PointBorder_Black);
 	primitive.SetPrimitiveType(CRenderPrimitive::ePrim_Triangle);
 	primitive.SetCustomIndexStream(m_indexBuffer, Index16);

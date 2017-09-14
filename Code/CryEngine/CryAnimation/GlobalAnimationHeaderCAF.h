@@ -240,7 +240,7 @@ struct CRY_ALIGN (16)GlobalAnimationHeaderCAF:public GlobalAnimationHeader
 	{
 		if (numControllers > 512)
 		{
-			CryLogAlways("ERROR, controller array size to big(size = %u", numControllers);
+			CryLogAlways("ERROR, controller array size too big(size = %u", numControllers);
 		}
 		m_arrControllerLookupVector.resize(numControllers);
 		for (uint32 i = 0; i < numControllers; ++i)

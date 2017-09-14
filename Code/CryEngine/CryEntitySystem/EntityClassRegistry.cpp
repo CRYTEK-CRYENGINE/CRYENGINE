@@ -1,32 +1,18 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   EntityClassRegistry.cpp
-//  Version:     v1.00
-//  Created:     3/8/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #include "stdafx.h"
 #include "EntityClassRegistry.h"
 #include "EntityClass.h"
 #include "EntityScript.h"
-
+#include "EntitySystem.h"
+#include "Entity.h"
 #include <CrySystem/File/CryFile.h>
-
 #include <CrySchematyc/CoreAPI.h>
+#include <CryGame/IGameFramework.h>
 
 struct SSchematycEntityClassProperties
 {
-	SSchematycEntityClassProperties()
-		: icon("editor/objecticons/schematyc.bmp")
-		, bHideInEditor(false)
-		, bTriggerAreas(true)
-	{}
+	SSchematycEntityClassProperties() = default;
 
 	void Serialize(Serialization::IArchive& archive)
 	{
@@ -36,6 +22,8 @@ struct SSchematycEntityClassProperties
 		archive.doc("Hide entity class in editor");
 		archive(bTriggerAreas, "bTriggerAreas", "Trigger Areas");
 		archive.doc("Entity can enter and trigger areas");
+		archive(bCreatePerClient, "bCreatePerClient", "Create per Client");
+		archive.doc("Automatically spawns an instance of this class with each client that connects to the server");
 	}
 
 	static void ReflectType(Schematyc::CTypeDesc<SSchematycEntityClassProperties>& desc)
@@ -44,22 +32,25 @@ struct SSchematycEntityClassProperties
 	}
 
 	// class properties members
-	string icon;
-	bool   bHideInEditor;
-	bool   bTriggerAreas;
+	string icon = "%EDITOR%/objecticons/schematyc.bmp";
+	bool   bHideInEditor = false;
+	bool   bTriggerAreas = true;
+	bool   bCreatePerClient = false;
 };
 
 //////////////////////////////////////////////////////////////////////////
 CEntityClassRegistry::CEntityClassRegistry()
 	: m_pDefaultClass(nullptr)
 	, m_listeners(2)
+	, m_pSystem(GetISystem())
 {
-	m_pSystem = GetISystem();
+	gEnv->pGameFramework->AddNetworkedClientListener(*this);
 }
 
 //////////////////////////////////////////////////////////////////////////
 CEntityClassRegistry::~CEntityClassRegistry()
 {
+	gEnv->pGameFramework->RemoveNetworkedClientListener(*this);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -167,6 +158,7 @@ IEntityClass* CEntityClassRegistry::RegisterStdClass(const SEntityClassDesc& ent
 		pClass->Release();
 		return NULL;
 	}
+
 	return pClass;
 }
 
@@ -237,11 +229,6 @@ void CEntityClassRegistry::InitializeDefaultClasses()
 	stdFlowgraphClass.sName = "FlowgraphEntity";
 	stdFlowgraphClass.editorClassInfo.sIcon = "FlowgraphEntity.bmp";
 	RegisterStdClass(stdFlowgraphClass);
-
-	SEntityClassDesc stdAudioListenerClass;
-	stdAudioListenerClass.flags |= ECLF_INVISIBLE;
-	stdAudioListenerClass.sName = "AudioListener";
-	RegisterStdClass(stdAudioListenerClass);
 
 	RegisterSchematycEntityClass();
 }
@@ -434,7 +421,7 @@ public:
 
 	virtual Schematyc::ObjectId CreateObject(const CryGUID& classGUID) const override
 	{
-		IEntityClass* pEntityClass = gEnv->pEntitySystem->GetClassRegistry()->FindClassByGUID(classGUID);
+		IEntityClass* pEntityClass = g_pIEntitySystem->GetClassRegistry()->FindClassByGUID(classGUID);
 		if (pEntityClass)
 		{
 			// Spawn entity for preview
@@ -442,7 +429,7 @@ public:
 			params.pClass = pEntityClass;
 			params.sName = "Schematyc Preview Entity";
 			params.nFlagsExtended |= ENTITY_FLAG_EXTENDED_PREVIEW;
-			IEntity* pEntity = gEnv->pEntitySystem->SpawnEntity(params);
+			IEntity* pEntity = g_pIEntitySystem->SpawnEntity(params);
 			if (pEntity && pEntity->GetSchematycObject())
 			{
 				m_objectId = pEntity->GetSchematycObject()->GetId();
@@ -456,7 +443,7 @@ public:
 		Schematyc::IObject* pObject = gEnv->pSchematyc->GetObject(objectId);
 		if (pObject)
 		{
-			if (!pObject->Reset(Schematyc::ESimulationMode::Preview, Schematyc::EObjectResetPolicy::Always))
+			if (!pObject->SetSimulationMode(Schematyc::ESimulationMode::Preview, Schematyc::EObjectSimulationUpdatePolicy::Always, false))
 			{
 				CRY_ASSERT_MESSAGE(0, "Failed to reset Schematyc Preview.");
 				DestroyObject(m_objectId);
@@ -473,7 +460,7 @@ public:
 			return;
 		if (pObject->GetEntity())
 		{
-			gEnv->pEntitySystem->RemoveEntity(pObject->GetEntity()->GetId());
+			g_pIEntitySystem->RemoveEntity(pObject->GetEntity()->GetId());
 		}
 		m_objectId = Schematyc::ObjectId::Invalid;
 	};
@@ -509,6 +496,7 @@ private:
 };
 
 static constexpr CryGUID EntityModuleGUID = "{FB618A28-5A7A-4940-8424-D34A9B034155}"_cry_guid;
+static constexpr CryGUID EntityPackageGUID = "{FAA7837E-1310-454D-808B-99BDDC6954A7}"_cry_guid;
 
 //////////////////////////////////////////////////////////////////////////
 void CEntityClassRegistry::RegisterSchematycEntityClass()
@@ -534,7 +522,7 @@ void CEntityClassRegistry::RegisterSchematycEntityClass()
 
 	gEnv->pSchematyc->GetEnvRegistry().RegisterPackage(
 	  stl::make_unique<Schematyc::CEnvPackage>(
-	    "{FAA7837E-1310-454D-808B-99BDDC6954A7}"_cry_guid,
+		EntityPackageGUID,
 	    "EntitySystem",
 	    "Crytek GmbH",
 	    "CRYENGINE EntitySystem Package",
@@ -561,7 +549,7 @@ void CEntityClassRegistry::OnSchematycClassCompilation(const Schematyc::IRuntime
 
 		bool bModifyExisting = false;
 
-		IEntityClass* pEntityClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass(className);
+		IEntityClass* pEntityClass = g_pIEntitySystem->GetClassRegistry()->FindClass(className);
 		if (pEntityClass)
 		{
 			if (pEntityClass->GetGUID() != runtimeClass.GetGUID())
@@ -599,9 +587,14 @@ void CEntityClassRegistry::OnSchematycClassCompilation(const Schematyc::IRuntime
 				entityClassDesc.flags |= ECLF_INVISIBLE;
 			}
 
+			if (classProperties.bCreatePerClient)
+			{
+				entityClassDesc.flags |= ECLF_CREATE_PER_CLIENT;
+			}
+
 			entityClassDesc.editorClassInfo.sCategory = "Schematyc";
 			entityClassDesc.editorClassInfo.sIcon = icon.c_str();
-			gEnv->pEntitySystem->GetClassRegistry()->RegisterStdClass(entityClassDesc);
+			g_pIEntitySystem->GetClassRegistry()->RegisterStdClass(entityClassDesc);
 		}
 	}
 
@@ -609,5 +602,81 @@ void CEntityClassRegistry::OnSchematycClassCompilation(const Schematyc::IRuntime
 	if (!pEnvClass)
 	{
 		//pEnvClass->SetPreviewer();
+	}
+}
+
+void CEntityClassRegistry::UnregisterSchematycEntityClass()
+{
+	if (gEnv->pSchematyc)
+	{
+		gEnv->pSchematyc->GetEnvRegistry().DeregisterPackage(EntityPackageGUID);
+	}
+}
+
+bool CEntityClassRegistry::OnClientConnectionReceived(int channelId, bool bIsReset)
+{
+	for (const std::pair<string, IEntityClass*>& classPair : m_mapClassName)
+	{
+		if ((classPair.second->GetFlags() & ECLF_CREATE_PER_CLIENT) != 0)
+		{
+			// Connection received from a client, create a player entity and component
+			SEntitySpawnParams spawnParams;
+			spawnParams.pClass = classPair.second;
+			spawnParams.sName = "Client";
+			spawnParams.nFlags |= ENTITY_FLAG_NEVER_NETWORK_STATIC;
+
+			// Set local player details
+			if (channelId == 1 && !gEnv->IsDedicated() && g_pIEntitySystem->GetEntityFromID(LOCAL_PLAYER_ENTITY_ID) == nullptr)
+			{
+				spawnParams.id = LOCAL_PLAYER_ENTITY_ID;
+				spawnParams.nFlags |= ENTITY_FLAG_LOCAL_PLAYER;
+			}
+
+			if (CEntity* pClientEntity = static_cast<CEntity*>(g_pIEntitySystem->SpawnEntity(spawnParams)))
+			{
+				// Set the local player entity channel id, and bind it to the network so that it can support Multiplayer contexts
+				pClientEntity->GetNetEntity()->SetChannelId(channelId);
+				pClientEntity->GetNetEntity()->BindToNetwork();
+
+				if ((size_t)channelId >= m_channelEntityInstances.size())
+				{
+					m_channelEntityInstances.resize(channelId + 1);
+				}
+
+				// Push the entity into our map, with the channel id as the key
+				m_channelEntityInstances[channelId].push_back(pClientEntity->GetId());
+			}
+		}
+	}
+
+	return true;
+}
+
+bool CEntityClassRegistry::OnClientReadyForGameplay(int channelId, bool bIsReset)
+{
+	if ((size_t)channelId < m_channelEntityInstances.size())
+	{
+		for (EntityId entityId : m_channelEntityInstances[channelId])
+		{
+			if (CEntity* pClientEntity = g_pIEntitySystem->GetEntityFromID(entityId))
+			{
+				pClientEntity->SetSimulationMode(EEntitySimulationMode::Game);
+			}
+		}
+	}
+
+	return true;
+}
+
+void CEntityClassRegistry::OnClientDisconnected(int channelId, EDisconnectionCause cause, const char* description, bool bKeepClient)
+{
+	if ((size_t)channelId < m_channelEntityInstances.size())
+	{
+		for (EntityId entityId : m_channelEntityInstances[channelId])
+		{
+			g_pIEntitySystem->RemoveEntity(entityId);
+		}
+
+		m_channelEntityInstances[channelId].clear();
 	}
 }

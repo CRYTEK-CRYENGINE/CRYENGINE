@@ -6,8 +6,6 @@
 #include "ParticleAttributes.h"
 #include "ParticleMath.h"
 
-CRY_PFX2_DBG
-
 namespace pfx2
 {
 
@@ -46,12 +44,8 @@ void SAttributeEdit::Reset()
 
 namespace
 {
-
-
 	const uint numTypes = IParticleAttributes::ET_Count;
 	typedef SAttributeValue(*TAttribConverterFn)(SAttributeValue);
-	typedef std::array<std::array<TAttribConverterFn, numTypes>, numTypes> TAttributeConverterTable;
-	typedef std::array<std::shared_ptr<SAttributeType>, numTypes> TAttributeTypes;
 
 
 
@@ -131,27 +125,13 @@ namespace
 		return data;
 	}
 
-
-
-	const TAttributeConverterTable& GetAttribConverterTable()
+	TAttribConverterFn s_AttributeConverterTable[numTypes][numTypes] =
 	{
-		static TAttributeConverterTable table;
-		static bool filled = false;
-		if (!filled)
-		{
-			for (auto& it : table)
-				it.fill(ConvertAttrib_Bypass);
-			table[IParticleAttributes::ET_Boolean] = { { ConvertAttrib_Bypass      , ConvertAttrib_BoolToInt  , ConvertAttrib_BoolToFloat  , ConvertAttrib_BoolToColor } };
-			table[IParticleAttributes::ET_Integer] = { { ConvertAttrib_IntToBool   , ConvertAttrib_Bypass     , ConvertAttrib_IntToFloat   , ConvertAttrib_IntToColor } };
-			table[IParticleAttributes::ET_Float]   = { { ConvertAttrib_FloatToBool , ConvertAttrib_FloatToInt , ConvertAttrib_Bypass       , ConvertAttrib_FloatToColor } };
-			table[IParticleAttributes::ET_Color]   = { { ConvertAttrib_ColorToBool , ConvertAttrib_ColorToInt , ConvertAttrib_ColorToFloat , ConvertAttrib_Bypass } };
-			filled = true;
-		}
-
-		return table;
-	}
-
-
+		{ ConvertAttrib_Bypass      , ConvertAttrib_BoolToInt  , ConvertAttrib_BoolToFloat  , ConvertAttrib_BoolToColor },
+		{ ConvertAttrib_IntToBool   , ConvertAttrib_Bypass     , ConvertAttrib_IntToFloat   , ConvertAttrib_IntToColor },
+		{ ConvertAttrib_FloatToBool , ConvertAttrib_FloatToInt , ConvertAttrib_Bypass       , ConvertAttrib_FloatToColor },
+		{ ConvertAttrib_ColorToBool , ConvertAttrib_ColorToInt , ConvertAttrib_ColorToFloat , ConvertAttrib_Bypass }
+	};
 	
 	template<typename T>
 	void SerializeData(Serialization::IArchive& ar, CAttributeInstance* pAttributes, SAttributeEdit* pEdit, uint attributeIndex, T& data)
@@ -240,21 +220,13 @@ namespace
 
 
 
-	TAttributeTypes& GetAttributeTypeHandlers()
+	std::shared_ptr<SAttributeType> s_AttributeTypeHandlers[] =
 	{
-		static bool filled = false;
-		static TAttributeTypes table;
-		if (!filled)
-		{
-			table[IParticleAttributes::ET_Boolean] = std::make_shared<SBooleanAttribute>();
-			table[IParticleAttributes::ET_Integer] = std::make_shared<SIntegerAttribute>();
-			table[IParticleAttributes::ET_Float] = std::make_shared<SFloatAttribute>();
-			table[IParticleAttributes::ET_Color] = std::make_shared<SColorAttribute>();
-			filled = true;
-		}
-		return table;
-	}
-
+		std::make_shared<SBooleanAttribute>(),
+		std::make_shared<SIntegerAttribute>(),
+		std::make_shared<SFloatAttribute>(),
+		std::make_shared<SColorAttribute>()
+	};
 
 }
 
@@ -413,7 +385,8 @@ void CAttributeInstance::TransferInto(IParticleAttributes* pReceiver) const
 auto CAttributeInstance::FindAttributeIdByName(cstr name) const->TAttributeId
 {
 	auto pAttributeTable = m_pAttributeTable.lock();
-	CRY_PFX2_ASSERT(pAttributeTable); // this instance over-lived the table
+	if (!pAttributeTable)
+		return gInvalidId;
 
 	auto it = std::find_if(
 	  m_attributeIndices.begin(), m_attributeIndices.end(),
@@ -554,7 +527,7 @@ void CAttributeInstance::Compile()
 				break;
 			}			
 			data.push_back(newData);
-			SAttributeType* pTypeHandler = GetAttributeTypeHandlers()[uint(attribute.m_type)].get();
+			SAttributeType* pTypeHandler = s_AttributeTypeHandlers[uint(attribute.m_type)].get();
 			attributesEdit.emplace_back(this, pTypeHandler, attributeId);
 		}
 		else
@@ -576,8 +549,7 @@ void CAttributeInstance::Compile()
 SAttributeValue CAttributeInstance::SetAttributeValue(TAttributeId id, const SAttributeValue& input, IParticleAttributes::EType type)
 {
 	const SAttributeDesc& attribute = GetAttributeValue(id);
-	const TAttributeConverterTable& table = GetAttribConverterTable();
-	TAttribConverterFn converter = table[uint(type)][uint(attribute.m_type)];
+	TAttribConverterFn converter = s_AttributeConverterTable[uint(type)][uint(attribute.m_type)];
 	SAttributeValue output = converter(input);
 
 	switch (attribute.m_type)
@@ -606,8 +578,7 @@ SAttributeValue CAttributeInstance::GetAttributeValue(TAttributeId id, const SAt
 	if (id == gInvalidId)
 		return defaultValue;
 	const SAttributeDesc& attribute = GetAttributeValue(id);
-	const TAttributeConverterTable& table = GetAttribConverterTable();
-	TAttribConverterFn converter = table[uint(attribute.m_type)][uint(type)];
+	TAttribConverterFn converter = s_AttributeConverterTable[uint(attribute.m_type)][uint(type)];
 	return converter(m_attributeValues[id]);
 }
 

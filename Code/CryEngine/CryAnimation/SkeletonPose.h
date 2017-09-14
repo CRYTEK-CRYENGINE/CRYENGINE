@@ -227,7 +227,7 @@ public:
 	bool                     SetJointPhysProperties_ROPE(uint32 jointIndex, int nLod, const DynArray<SJointProperty>& props) override                                                                               { return m_physics.SetJointPhysProperties_ROPE(jointIndex, nLod, props); }
 
 	float GetExtent(EGeomForm eForm);
-	void GetRandomPos(PosNorm & ran, CRndGen & seed, EGeomForm eForm) const;
+	void GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const;
 
 	CSkeletonPhysics m_physics;
 

@@ -1794,7 +1794,7 @@ int CActionGame::OnBBoxOverlap(const EventPhys* pEvent)
 
 int CActionGame::OnCollisionLogged(const EventPhys* pEvent)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	for (TGlobalPhysicsCallbackSet::const_iterator it = s_this->m_globalPhysicsCallbacks.collision[0].begin();
 	     it != s_this->m_globalPhysicsCallbacks.collision[0].end();
@@ -2632,7 +2632,7 @@ ILINE bool CheckCarParamBreakable(const EventPhysCollision* pCEvent)
 
 void CActionGame::OnCollisionLogged_Breakable(const EventPhys* pEvent)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	const EventPhysCollision* pCEvent = (const EventPhysCollision*) pEvent;
 	IEntity* pEntitySrc = pCEvent->pEntity[0] ? (IEntity*)pCEvent->pEntity[0]->GetForeignData(PHYS_FOREIGN_ID_ENTITY) : 0;
@@ -2760,7 +2760,7 @@ void CActionGame::OnCollisionLogged_Breakable(const EventPhys* pEvent)
 
 void CActionGame::OnCollisionLogged_MaterialFX(const EventPhys* pEvent)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	const EventPhysCollision* pCEvent = (const EventPhysCollision*) pEvent;
 	IMaterialEffects* pMaterialEffects = CCryAction::GetCryAction()->GetIMaterialEffects();
@@ -3204,7 +3204,7 @@ void CActionGame::OnCollisionLogged_MaterialFX(const EventPhys* pEvent)
 
 int CActionGame::OnPostStepLogged(const EventPhys* pEvent)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	for (TGlobalPhysicsCallbackSet::const_iterator it = s_this->m_globalPhysicsCallbacks.postStep[0].begin();
 	     it != s_this->m_globalPhysicsCallbacks.postStep[0].end();
@@ -3230,7 +3230,7 @@ int CActionGame::OnPostStepLogged(const EventPhys* pEvent)
 
 void CActionGame::OnPostStepLogged_MaterialFX(const EventPhys* pEvent)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	const EventPhysPostStep* pPSEvent = (const EventPhysPostStep*) pEvent;
 	const float maxSoundDist = 30.0f;
@@ -3306,7 +3306,7 @@ void CActionGame::OnPostStepLogged_MaterialFX(const EventPhys* pEvent)
 
 int CActionGame::OnStateChangeLogged(const EventPhys* pEvent)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	for (TGlobalPhysicsCallbackSet::const_iterator it = s_this->m_globalPhysicsCallbacks.stateChange[0].begin();
 	     it != s_this->m_globalPhysicsCallbacks.stateChange[0].end();
@@ -3338,7 +3338,7 @@ int CActionGame::OnStateChangeLogged(const EventPhys* pEvent)
 
 void CActionGame::OnStateChangeLogged_MaterialFX(const EventPhys* pEvent)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	const EventPhysStateChange* pSCEvent = (const EventPhysStateChange*) pEvent;
 	if (pSCEvent->iSimClass[0] + pSCEvent->iSimClass[1] * 4 == 6)
@@ -4135,7 +4135,7 @@ int CActionGame::OnRemovePhysicalEntityPartsLogged(const EventPhys* pEvent)
 
 int CActionGame::OnCollisionImmediate(const EventPhys* pEvent)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	for (TGlobalPhysicsCallbackSet::const_iterator it = s_this->m_globalPhysicsCallbacks.collision[1].begin();
 	     it != s_this->m_globalPhysicsCallbacks.collision[1].end();

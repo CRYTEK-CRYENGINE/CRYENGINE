@@ -412,7 +412,7 @@ CSmartPathFollower::~CSmartPathFollower()
    // Successful reverse searches return the first reachable target found reversing back down the path.
    bool CSmartPathFollower::FindReachableTarget(float startIndex, float endIndex, float& reachableIndex) const
    {
-   FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+   CRY_PROFILE_FUNCTION(PROFILE_AI);
 
    // Default fail value
    reachableIndex = -1.0f;
@@ -481,7 +481,7 @@ CSmartPathFollower::~CSmartPathFollower()
 // Successful reverse searches return the first reachable target found reversing back down the path.
 bool CSmartPathFollower::FindReachableTarget(float startIndex, float endIndex, float& reachableIndex) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	reachableIndex = -1.0f;
 
@@ -585,7 +585,7 @@ bool CSmartPathFollower::CanReachTargetStep(float step, float endIndex, float ne
 // True if the test position can be reached by the agent.
 bool CSmartPathFollower::CanReachTarget(float testIndex) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	const Vec3 startPos(m_curPos);
 
@@ -780,7 +780,7 @@ void CSmartPathFollower::ProcessPath()
 // target remains reachable. Returns true if the follow target is reachable, false otherwise.
 bool CSmartPathFollower::Update(PathFollowResult& result, const Vec3& curPos, const Vec3& curVel, float dt)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	bool targetReachable = true;
 	//m_reachTestCount = 0;

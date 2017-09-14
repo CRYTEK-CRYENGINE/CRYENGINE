@@ -1572,7 +1572,7 @@ void CGameRules::HandleEvent( const SGameObjectEvent& event)
 //------------------------------------------------------------------------
 void CGameRules::ProcessEvent( SEntityEvent& event)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	static ICVar* pTOD = gEnv->pConsole->GetCVar("sv_timeofdayenable");
 
@@ -5505,7 +5505,7 @@ float CGameRules::GetServerTime() const
 //------------------------------------------------------------------------
 bool CGameRules::OnCollision(const SGameCollision& event)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	CWeaponSystem* pWeaponSystem = g_pGame->GetWeaponSystem();
 	CProjectile* pProjectileSrc = pWeaponSystem && event.pSrcEntity ? pWeaponSystem->GetProjectile(event.pSrcEntity->GetId()) : 0;
@@ -5672,7 +5672,7 @@ bool CGameRules::OnCollision(const SGameCollision& event)
 
 void CGameRules::OnCollision_NotifyAI( const EventPhys * pEvent )
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 	// Skip the collision handling if there is no AI system or when in multi-player.
 	if (!gEnv->pAISystem || (gEnv->bMultiplayer && !gEnv->bServer)) // Márcio: Enabling AI in Multiplayer!
 		return;

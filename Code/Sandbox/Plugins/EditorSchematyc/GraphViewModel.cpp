@@ -151,7 +151,7 @@ bool CNodeGraphViewModel::RemoveNode(CryGraphEditor::CAbstractNodeItem& node)
 		if (pPin)
 		{
 			const CryGraphEditor::ConnectionItemSet& connections = pPin->GetConnectionItems();
-			for (auto itr = connections.begin(); itr != connections.end(); itr = connections.begin())
+			for (auto itr = connections.begin(); itr != connections.end(); ++itr)
 			{
 				CryGraphEditor::CAbstractConnectionItem* pConnection = *itr;
 				RemoveConnection(*pConnection);
@@ -257,34 +257,31 @@ bool CNodeGraphViewModel::RemoveConnection(CryGraphEditor::CAbstractConnectionIt
 	CNodeItem& targetNode = static_cast<CNodeItem&>(targetPinItem.GetNodeItem());
 
 	const uint32 linkIndex = m_scriptGraph.FindLink(sourceNode.GetGUID(), sourcePinItem.GetPortId(), targetNode.GetGUID(), targetPinItem.GetPortId());
+	CRY_ASSERT_MESSAGE(linkIndex != Schematyc::InvalidIdx, "View model and backend are out of sync!");
 	if (linkIndex != Schematyc::InvalidIdx)
 	{
-		const ConnectionsByIndex::iterator result = std::find(m_connectionsByIndex.begin(), m_connectionsByIndex.end(), &connection);
-		if (result != m_connectionsByIndex.end())
-		{
-			// TODO: Move this into a CNodeGraphViewModel method that gets called from here.
-			if (GetIEditor()->GetIUndoManager()->IsUndoRecording())
-			{
-				CUndo::Record(new CryGraphEditor::CUndoConnectionRemove(connection));
-			}
-
-			SignalRemoveConnection(connection);
-			// ~TODO
-
-			m_connectionsByIndex.erase(result);
-			m_scriptGraph.RemoveLink(linkIndex);
-
-			delete pConnectionItem;
-
-			gEnv->pSchematyc->GetScriptRegistry().ElementModified(m_scriptGraph.GetElement());
-			return true;
-		}
-
 		m_scriptGraph.RemoveLink(linkIndex);
 		gEnv->pSchematyc->GetScriptRegistry().ElementModified(m_scriptGraph.GetElement());
 	}
 
-	return false;
+	const ConnectionsByIndex::iterator result = std::find(m_connectionsByIndex.begin(), m_connectionsByIndex.end(), &connection);
+	CRY_ASSERT_MESSAGE(result != m_connectionsByIndex.end(), "Connection not found in model");
+	if (result != m_connectionsByIndex.end())
+	{
+		// TODO: Move this into a CNodeGraphViewModel method that gets called from here.
+		if (GetIEditor()->GetIUndoManager()->IsUndoRecording())
+		{
+			CUndo::Record(new CryGraphEditor::CUndoConnectionRemove(connection));
+		}
+
+		SignalRemoveConnection(connection);
+		// ~TODO
+
+		m_connectionsByIndex.erase(result);
+		delete pConnectionItem;
+	}
+
+	return true;
 }
 
 CryGraphEditor::CItemCollection* CNodeGraphViewModel::CreateClipboardItemsCollection()

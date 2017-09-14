@@ -1266,6 +1266,7 @@ void CRenderAuxGeomD3D::FlushTextMessagesInternal(CTextMessages& messages, bool 
 		const char* szText = nullptr;
 		Vec4  vColor(1, 1, 1, 1);
 		Vec2 fSize;
+		IFFont* pFont = nullptr;
 		bool bDraw = true;
 
 		if( !pText )
@@ -1278,6 +1279,7 @@ void CRenderAuxGeomD3D::FlushTextMessagesInternal(CTextMessages& messages, bool 
 		vPos = pText->m_vPos;
 		vColor = pText->m_Color.toVec4() * 1.0f / 255.0f;
 		fSize = pText->m_fFontSize;
+		pFont = pText->m_pFont;
 
 		if( (nDrawFlags & eDrawText_LegacyBehavior) == 0 )
 		{
@@ -1339,16 +1341,6 @@ void CRenderAuxGeomD3D::FlushTextMessagesInternal(CTextMessages& messages, bool 
 
 		if( szText && bDraw )
 		{
-			IFFont* pFont = nullptr;
-
-			if( gEnv->pSystem->GetICryFont() )
-				pFont = gEnv->pSystem->GetICryFont()->GetFont("default");
-
-			if( !pFont )
-			{
-				return;
-			}
-
 			const float r = CLAMP(vColor[0], 0.0f, 1.0f);
 			const float g = CLAMP(vColor[1], 0.0f, 1.0f);
 			const float b = CLAMP(vColor[2], 0.0f, 1.0f);

@@ -171,7 +171,7 @@ void CPartitionGrid::SectorUnlink(SGridLocation* obj, LocationInfo& locInfo)
 //////////////////////////////////////////////////////////////////////////
 SGridLocation* CPartitionGrid::Rellocate(SGridLocation* obj, const Vec3& newPos, CEntity* pEntity)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 
 	if (m_bResetting)
 	{

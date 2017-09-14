@@ -68,6 +68,16 @@ struct IRenderAuxGeom
 	//! ##@}
 
 	//! Draw n lines.
+	//! \param v            List of vertexes belonging to the lines we want to draw.
+	//! \param packedColor  List of colors belonging to each vertex we want to draw. Packed into one uint32 via ARGB8888. Is of same length as v (i.e., numPoints).
+	//! \param numPoints    Number of the points we will find starting from the area memory defined by v.
+	//! \param thickness    Thickness of the line.
+	//! \param alphaFlag    Enable/disable transparency.
+	//! ##@{
+	virtual void DrawLines(const Vec3* v, const uint32* packedColorARGB8888, uint32 numPoints, float thickness = 1.0f, bool alphaFlag = true) = 0;
+	//! ##@}
+
+	//! Draw n lines.
 	//! \param v          List of vertexes belonging to the lines we want to draw.
 	//! \param numPoints  Number of the points we will find starting from the area memory defined by v.
 	//! \param ind
@@ -437,7 +447,7 @@ public:
 		TextToScreenColor((int)(8 * x), (int)(6 * y), 1, 1, 1, 1, buffer);
 	}
 
-	static void DrawString(IFFont_RenderProxy* pFont, float x, float y, float z, const char* pStr, const bool asciiMultiLine, const STextDrawContext& ctx)
+	static void DrawStringRT(IFFont_RenderProxy* pFont, float x, float y, float z, const char* pStr, const bool asciiMultiLine, const STextDrawContext& ctx)
 	{
 		IRenderAuxGeom::GetAux()->DrawStringImmediate(pFont, x, y, z, pStr, asciiMultiLine, ctx);
 	}

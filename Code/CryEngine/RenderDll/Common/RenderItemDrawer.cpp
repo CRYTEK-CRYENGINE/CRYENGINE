@@ -23,7 +23,7 @@ void DrawCompiledRenderItemsToCommandList(
   int endRenderItem
   )
 {
-	FUNCTION_PROFILER_RENDERER
+	FUNCTION_PROFILER_RENDERER();
 
 	SGraphicsPipelinePassContext passContext = *pInputPassContext;
 	passContext.pCommandList = commandList;
@@ -120,7 +120,7 @@ void ListDrawCommandRecorderJob(
   int endRenderItem
   )
 {
-	FUNCTION_PROFILER_RENDERER
+	FUNCTION_PROFILER_RENDERER();
 
 	  (*commandList)->LockToThread();
 

@@ -1,7 +1,7 @@
 <Material MtlFlags="524288" Shader="Illum" GenMask="20000002" StringGenMask="%BLENDLAYER%SUBSURFACE_SCATTERING" SurfaceType="" MatTemplate="" Diffuse="1,1,1" Specular="0,0,0" Opacity="1" Shininess="10" CloakAmount="0" vertModifType="0" LayerAct="1">
 	<Textures>
-		<Texture Map="Diffuse" File="engineassets/texturemsg/color_black.tif"/>
-		<Texture Map="Custom" File="engineassets/texturemsg/color_white.tif"/>
+		<Texture Map="Diffuse" File="%ENGINE%/engineassets/texturemsg/color_black.tif"/>
+		<Texture Map="Custom" File="%ENGINE%/engineassets/texturemsg/color_white.tif"/>
 	</Textures>
 	<PublicParams BlendFalloff="22" EmittanceMapGamma="1" BlendLayer2Tiling="0" SSSIndex="0" BlendMaskTiling="0.050000001" BlendFactor="0.15000001" BlendLayer2Specular="0.02"/>
 </Material>

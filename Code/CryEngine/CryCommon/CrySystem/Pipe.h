@@ -87,7 +87,7 @@ namespace CryMT
 //--------------------------------------------------------------------------
 
 #if defined(PROFILE_PIPE_SYS)
-	#define PIPE_FUNCTION_PROFILER(sys) FUNCTION_PROFILER(GetISystem(), sys)
+	#define PIPE_FUNCTION_PROFILER(sys) CRY_PROFILE_FUNCTION(sys)
 #else //defined(PROFILE_PIPE_SYS)
 	#define PROFILE_PIPE_SYS
 	#define PIPE_FUNCTION_PROFILER(sys)

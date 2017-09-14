@@ -118,7 +118,7 @@ void CDistributedLogger::InitBuffer()
 
 void CDistributedLogger::Flush()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 	if (!m_pSocket)
 		return;
 	NET_ASSERT(!m_inFlush);

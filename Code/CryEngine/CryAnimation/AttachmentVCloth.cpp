@@ -331,7 +331,7 @@ float CAttachmentVCLOTH::GetExtent(EGeomForm eForm)
 	return 0.f;
 }
 
-void CAttachmentVCLOTH::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const
+void CAttachmentVCLOTH::GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const
 {
 	int nLOD = m_pRenderSkin->SelectNearestLoadedLOD(0);
 	IRenderMesh* pMesh = m_pRenderSkin->GetIRenderMesh(nLOD);
@@ -348,7 +348,7 @@ void CAttachmentVCLOTH::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eFor
 		}
 	}
 
-	pMesh->GetRandomPos(ran, seed, eForm, pSkinningData);
+	pMesh->GetRandomPoints(points, seed, eForm, pSkinningData);
 }
 
 const QuatTS CAttachmentVCLOTH::GetAttWorldAbsolute() const
@@ -2812,7 +2812,7 @@ public:
 public:
 	static void Execute(VertexCommandClothSkin& command, CVertexData& vertexData)
 	{
-		FUNCTION_PROFILER(GetISystem(), PROFILE_ANIMATION);
+		CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
 		//		if (!command.pClothPiece->m_bSingleThreaded)
 		command.pClothPiece->UpdateSimulation(command.pTransformations, command.transformationCount);
 
@@ -3079,7 +3079,7 @@ void CClothPiece::WaitForJob(bool bPrev)
 
 bool CClothPiece::PrepareCloth(CSkeletonPose& skeletonPose, const Matrix34& worldMat, bool visible, int lod)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ANIMATION);
+	CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
 
 	m_pCharInstance = skeletonPose.m_pInstance;
 	m_lastVisible = visible;
@@ -3161,7 +3161,7 @@ struct CRY_ALIGN(16)SMemVec
 
 void CClothPiece::UpdateSimulation(const DualQuat* pTransformations, const uint transformationCount)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ANIMATION);
+	CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
 
 	if (!m_simulator.IsVisible())
 		return;
@@ -3299,7 +3299,7 @@ void CClothPiece::UpdateSimulation(const DualQuat* pTransformations, const uint 
 template<bool PREVIOUS_POSITIONS>
 void CClothPiece::SkinSimulationToRenderMesh(int lod, CVertexData& vertexData, const strided_pointer<const Vec3>& pVertexPositionsPrevious)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ANIMATION);
+	CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
 	if (m_clothGeom->skinMap[lod] == NULL || m_buffers == NULL)
 		return;
 

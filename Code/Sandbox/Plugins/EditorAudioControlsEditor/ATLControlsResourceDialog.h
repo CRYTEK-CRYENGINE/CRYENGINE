@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include <QWidget>
 #include "Controls/EditorDialog.h"
 #include "QTreeWidgetFilter.h"
 #include <ACETypes.h>
@@ -12,58 +11,64 @@ class QDialogButtonBox;
 class QAudioControlSortProxy;
 class CMountingProxyModel;
 class QAbstractItemModel;
+class QModelIndex;
 
 namespace ACE
 {
-
 class CAudioAssetsManager;
-class CAudioAssetsExplorerModel;
-class CAudioLibraryModel;
+class CResourceControlModel;
+class CResourceLibraryModel;
 
-class ATLControlsDialog : public CEditorDialog
+class ATLControlsDialog final : public CEditorDialog
 {
 	Q_OBJECT
+
 public:
+
 	ATLControlsDialog(QWidget* pParent, EItemType eType);
 	~ATLControlsDialog();
 
 private slots:
+
 	void UpdateSelectedControl();
-	void SetTextFilter(QString filter);
+	void SetTextFilter(QString const&filter);
 	void StopTrigger();
-	void ItemDoubleClicked(const QModelIndex& modelIndex);
+	void ItemDoubleClicked(QModelIndex const& modelIndex);
+	void ShowControlsContextMenu(QPoint const& pos);
 
 public:
-	void        SetScope(Scope scope);
+
+	void        SetScope(Scope const scope);
 	const char* ChooseItem(const char* currentValue);
 	QSize       sizeHint() const override;
 
 private:
 
-	QModelIndex         FindItem(const string& sControlName);
+	QModelIndex         FindItem(string const& sControlName);
 	void                ApplyFilter();
-	bool                ApplyFilter(const QModelIndex parent);
-	bool                IsValid(const QModelIndex index);
-	QAbstractItemModel* CreateLibraryModelFromIndex(const QModelIndex& sourceIndex);
+	bool                ApplyFilter(QModelIndex const& parent);
+	bool                IsValid(QModelIndex const& index);
+	QAbstractItemModel* CreateLibraryModelFromIndex(QModelIndex const& sourceIndex);
 
-	// ------------------ QWidget ----------------------------
-	bool eventFilter(QObject* pObject, QEvent* pEvent);
-	// -------------------------------------------------------
+	// QDialog
+	virtual bool eventFilter(QObject* pObject, QEvent* pEvent) override;
+	// ~QDialog
 
 	// Filtering
-	QString                          m_sFilter;
-	EItemType                        m_eType;
-	Scope                            m_scope;
+	QString                             m_sFilter;
+	EItemType                           m_eType;
+	Scope                               m_scope;
+	bool                                m_bSelectionIsValid = false;
 
-	static string                    ms_controlName;
-	QAudioControlsTreeView*          m_pControlTree;
-	QDialogButtonBox*                m_pDialogButtons;
+	static string                       s_previousControlName;
+	static EItemType                    s_previousControlType;
+	QAudioControlsTreeView*             m_pControlTree;
+	QDialogButtonBox*                   m_pDialogButtons;
 
-	QAudioControlSortProxy*          m_pProxyModel;
-	CAudioAssetsManager*             m_pAssetsManager;
-	CAudioAssetsExplorerModel*       m_pAssetsModel;
-	CMountingProxyModel*             m_pMountedModel;
-	std::vector<CAudioLibraryModel*> m_libraryModels;
-
+	QAudioControlSortProxy*             m_pProxyModel;
+	CAudioAssetsManager*                m_pAssetsManager;
+	CResourceControlModel*              m_pAssetsModel;
+	CMountingProxyModel*                m_pMountedModel;
+	std::vector<CResourceLibraryModel*> m_libraryModels;
 };
-}
+} // namespace ACE

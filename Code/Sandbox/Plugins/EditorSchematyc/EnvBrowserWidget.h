@@ -3,7 +3,7 @@
 #pragma once
 
 #include <QAbstractItemModel>
-#include <QTreeView>
+#include <QAdvancedTreeView.h>
 #include <QWidget>
 
 // Forward declare classes.
@@ -127,7 +127,7 @@ namespace Schematyc
 		QBoxLayout*        m_pMainLayout;
 		QBoxLayout*        m_pFilterLayout;
 		QLineEdit*         m_pSearchFilter;
-		QTreeView*         m_pTreeView;
+		QAdvancedTreeView* m_pTreeView;
 		CEnvBrowserModel*  m_pModel;
 		CEnvBrowserFilter* m_pFilter;
 	};

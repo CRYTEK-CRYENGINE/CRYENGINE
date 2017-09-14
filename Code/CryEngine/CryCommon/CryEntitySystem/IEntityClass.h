@@ -36,7 +36,8 @@ enum EEntityClassFlags
 	ECLF_DO_NOT_SPAWN_AS_STATIC            = BIT(3),  //!< If set the entity of this class stored as part of the level won't be assigned a static id on creation.
 	ECLF_MODIFY_EXISTING                   = BIT(4),  //!< If set modify an existing class with the same name.
 	ECLF_SEND_SCRIPT_EVENTS_FROM_FLOWGRAPH = BIT(5),  //!< If set send script events to entity from Flowgraph.
-	ECLF_ENTITY_ARCHETYPE                  = BIT(6)   //!< If set this indicate the entity class is actually entity archetype.
+	ECLF_ENTITY_ARCHETYPE                  = BIT(6),   //!< If set this indicate the entity class is actually entity archetype.
+	ECLF_CREATE_PER_CLIENT                 = BIT(7)   //!< If set, an instance of this class will be created for each connecting client
 };
 
 struct IEntityClassRegistryListener;

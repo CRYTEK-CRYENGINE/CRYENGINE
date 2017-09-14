@@ -539,7 +539,7 @@ int CParticleEntity::DoStep(float time_interval, int iCaller)
     m_timeSurplus=1;
 
 	if (IsAwake()) {
-		FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+		CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 		PHYS_ENTITY_PROFILER
 		g_pCurParticle[iCaller] = this;
 
@@ -850,7 +850,7 @@ goto doretest; }*/
 				SetParams(&pp);
 			}
 
-			EventPhysPostStep epps;	InitEvent(&epps,this);
+			EventPhysPostStep epps;	InitEvent(&epps,this,iCaller);
 			epps.dt=time_interval; epps.pos=m_pos; epps.q=m_qrot; epps.idStep=m_pWorld->m_idStep;
 			m_pWorld->OnEvent(m_flags,&epps);
 		}

@@ -49,8 +49,6 @@ ICVar* CVar::pDrawAudioProxyZRay = NULL;
 ICVar* CVar::pMotionBlur = NULL;
 ICVar* CVar::pSysSpecLight = NULL;
 
-Matrix34 CVar::audioListenerOffset = Matrix34(ZERO);
-
 int CVar::es_DebugTimers = 0;
 int CVar::es_DebugFindEntity = 0;
 int CVar::es_UsePhysVisibilityChecks = 1;
@@ -157,9 +155,6 @@ void CVar::Init()
 	REGISTER_COMMAND("es_dump_entities", (ConsoleCommandFunc)DumpEntities, 0, "Dumps current entities and their states!");
 	REGISTER_COMMAND("es_dump_entity_classes_in_use", (ConsoleCommandFunc)DumpEntityClassesInUse, 0, "Dumps all used entity classes");
 	REGISTER_COMMAND("es_compile_area_grid", (ConsoleCommandFunc)CompileAreaGrid, 0, "Trigger a recompile of the area grid");
-	REGISTER_COMMAND("es_AudioListenerOffset", (ConsoleCommandFunc)SetAudioListenerOffsets, 0,
-	                 "Sets by how much the audio listener offsets its position and rotation in regards to its entity.\n"
-	                 "Usage: es_AudioListenerOffset PosX PosY PosZ RotX RotY RotZ\n");
 
 	REGISTER_CVAR(es_SortUpdatesByClass, 0, 0, "Sort entity updates by class (possible optimization)");
 	pDebug = REGISTER_INT("es_debug", 0, VF_CHEAT,
@@ -412,59 +407,6 @@ void CVar::EnableDebugAnimText(IConsoleCmdArgs* args)
 
 		SetDebugAnimText(pEntity, bEnable);
 	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CVar::SetAudioListenerOffsets(IConsoleCmdArgs* pArgs)
-{
-	char const* const szPositionOffsetX = pArgs->GetArg(1);
-	char const* const szPositionOffsetY = pArgs->GetArg(2);
-	char const* const szPositionOffsetZ = pArgs->GetArg(3);
-	char const* const szRotationOffsetX = pArgs->GetArg(4);
-	char const* const szRotationOffsetY = pArgs->GetArg(5);
-	char const* const szRotationOffsetZ = pArgs->GetArg(6);
-
-	float fPositionOffsetX = 0.0f;
-	float fPositionOffsetY = 0.0f;
-	float fPositionOffsetZ = 0.0f;
-	float fRotationOffsetX = 0.0f;
-	float fRotationOffsetY = 0.0f;
-	float fRotationOffsetZ = 0.0f;
-
-	if (szPositionOffsetX != NULL)
-	{
-		fPositionOffsetX = static_cast<float>(atof(szPositionOffsetX));
-	}
-
-	if (szPositionOffsetY != NULL)
-	{
-		fPositionOffsetY = static_cast<float>(atof(szPositionOffsetY));
-	}
-
-	if (szPositionOffsetZ != NULL)
-	{
-		fPositionOffsetZ = static_cast<float>(atof(szPositionOffsetZ));
-	}
-
-	if (szRotationOffsetX != NULL)
-	{
-		fRotationOffsetX = static_cast<float>(atof(szRotationOffsetX));
-	}
-
-	if (szRotationOffsetY != NULL)
-	{
-		fRotationOffsetY = static_cast<float>(atof(szRotationOffsetY));
-	}
-
-	if (szRotationOffsetZ != NULL)
-	{
-		fRotationOffsetZ = static_cast<float>(atof(szRotationOffsetZ));
-	}
-
-	audioListenerOffset.Set(
-	  Vec3(ZERO),
-	  Quat::CreateRotationXYZ(Ang3(fRotationOffsetX, fRotationOffsetY, fRotationOffsetZ)),
-	  Vec3(fPositionOffsetX, fPositionOffsetY, fPositionOffsetZ));
 }
 
 void CVar::ConsoleCommandToggleLayer(IConsoleCmdArgs* pArgs)

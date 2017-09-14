@@ -14,8 +14,8 @@ namespace Impl
 {
 namespace Wwise
 {
-// To be removed once multi-listener support is implemented.
-static AkGameObjectID g_listenerID = AK_INVALID_GAME_OBJECT;
+static AkGameObjectID g_listenerId = AK_INVALID_GAME_OBJECT; // To be removed once multi-listener support is implemented.
+static AkGameObjectID s_globalObjectId = AK_INVALID_GAME_OBJECT;
 
 class CObject final : public IObject, public CPoolObject<CObject, stl::PSyncNone>
 {
@@ -47,11 +47,9 @@ public:
 	virtual ERequestStatus SetName(char const* const szName) override;
 	// ~CryAudio::Impl::IObject
 
-	AkGameObjectID const  m_id;
-	bool                  m_bNeedsToUpdateEnvironments;
-	EnvironmentImplMap    m_environmentImplAmounts;
-
-	static AkGameObjectID s_dummyGameObjectId;
+	AkGameObjectID const m_id;
+	bool                 m_bNeedsToUpdateEnvironments;
+	EnvironmentImplMap   m_environmentImplAmounts;
 
 private:
 

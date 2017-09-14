@@ -108,7 +108,7 @@ void CShaderResources::RT_Release()
 void CShaderResources::Cleanup()
 {
 	//assert(gRenDev->m_pRT->IsRenderThread());
-	m_resources.Clear();
+	m_resources.ClearResources();
 
 	for (int i = 0; i < EFTT_MAX; i++)
 	{
@@ -153,14 +153,14 @@ CShaderResources::~CShaderResources()
 }
 
 CShaderResources::CShaderResources()
-	: m_resources(this, OnTextureInvalidated)
+	: m_resources()
 {
 	m_pipelineStateCache = std::make_shared<CGraphicsPipelineStateLocalCache>();
 	Reset();
 }
 
 CShaderResources::CShaderResources(const CShaderResources& src)
-	: m_resources(src.m_resources, this, OnTextureInvalidated)
+	: m_resources(src.m_resources)
 {
 	m_pipelineStateCache = std::make_shared<CGraphicsPipelineStateLocalCache>();
 	Reset();
@@ -180,7 +180,7 @@ CShaderResources::CShaderResources(const CShaderResources& src)
 }
 
 CShaderResources::CShaderResources(SInputShaderResources* pSrc)
-	: m_resources(this, OnTextureInvalidated)
+	: m_resources()
 {
 	assert(pSrc);
 	PREFAST_ASSUME(pSrc);
@@ -774,42 +774,39 @@ void CShaderResources::RT_UpdateConstants(IShader* pISH)
 		}
 	}
 
-	CConstantBuffer** ppBuf = &m_pCB;
-	CHWShader_D3D::mfUnbindCB(*ppBuf);
-	SAFE_RELEASE(*ppBuf);
+	// prevent the heap from re-allocating the CConstantBuffer immediately at the same address
+	CConstantBuffer* pOldCB = m_pCB;
+	CConstantBuffer* pNewCB = nullptr;
 
 	if (m_Constants.size())
 	{
 		// NOTE: The pointers and the size is 16 byte aligned
 		size_t nSize = m_Constants.size() * sizeof(Vec4);
 
-		*ppBuf = gcpRendD3D->m_DevBufMan.CreateConstantBufferRaw(nSize, false);
-		(*ppBuf)->UpdateBuffer(&m_Constants[0], Align(nSize, 256));
+		pNewCB = gcpRendD3D->m_DevBufMan.CreateConstantBufferRaw(nSize, false);
+		pNewCB->UpdateBuffer(&m_Constants[0], Align(nSize, 256));
 
 #if !defined(_RELEASE) && (CRY_PLATFORM_WINDOWS || CRY_PLATFORM_ORBIS) && !CRY_RENDERER_GNM
-		if (*ppBuf)
+		if (pNewCB)
 		{
 			string name = string("PM CBuffer ") + pSH->GetName() + "@" + m_szMaterialName;
 
 			#if CRY_RENDERER_VULKAN || CRY_PLATFORM_ORBIS
-				(*ppBuf)->GetD3D()->DebugSetName(name.c_str());
+				pNewCB->GetD3D()->DebugSetName(name.c_str());
 			#else
-				(*ppBuf)->GetD3D()->SetPrivateData(WKPDID_D3DDebugObjectName, (UINT)name.length(), name.c_str());
+				pNewCB->GetD3D()->SetPrivateData(WKPDID_D3DDebugObjectName, (UINT)name.length(), name.c_str());
 			#endif
 		}
 #endif
 	}
 
-	m_bResourcesDirty = true;
+	CRY_ASSERT((!pNewCB && !pOldCB) || (pNewCB != pOldCB));
+	CHWShader_D3D::mfUnbindCB(pOldCB);
+	SAFE_RELEASE(pOldCB);
+	m_pCB = pNewCB;
 
 	RT_UpdateResourceSet();
 }
-
-bool CShaderResources::OnTextureInvalidated(void* pThis, uint32 flags)
-{
-	reinterpret_cast<CShaderResources*>(pThis)->m_bResourcesDirty = true;
-	return true;
-};
 
 void CShaderResources::RT_UpdateResourceSet()
 {
@@ -820,13 +817,19 @@ void CShaderResources::RT_UpdateResourceSet()
 	if (!m_pCompiledResourceSet || (flags & eFlagRecreateResourceSet))
 	{
 		flags &= ~eFlagRecreateResourceSet;
+
+		m_resources.MarkBindingChanged();
 		m_pCompiledResourceSet = GetDeviceObjectFactory().CreateResourceSet();
 	}
 
 	flags &= ~(EFlags_AnimatedSequence | EFlags_DynamicUpdates);
 
+	// TODO: default material created first doesn't have a constant buffer
+	if (!m_pCB)
+		return;
+
 	// per material constant buffer
-	CDeviceResourceSetDesc::EDirtyFlags dirtyFlags = m_resources.SetConstantBuffer(eConstantBufferShaderSlot_PerMaterial, m_pCB, EShaderStage_AllWithoutCompute);
+	m_resources.SetConstantBuffer(eConstantBufferShaderSlot_PerMaterial, m_pCB, EShaderStage_AllWithoutCompute);
 
 	// material textures
 	bool bContainsInvalidTexture = false;
@@ -850,7 +853,7 @@ void CShaderResources::RT_UpdateResourceSet()
 				else
 				{
 					m_flags = flags;
-					m_bResourcesDirty = true;
+					CRY_ASSERT(m_resources.HasChanged());
 					return; // flash texture has not been allocated yet. abort
 				}
 			}
@@ -870,12 +873,13 @@ void CShaderResources::RT_UpdateResourceSet()
 		}
 
 		bContainsInvalidTexture |= !CTexture::IsTextureExist(pTex);
-		dirtyFlags |= m_resources.SetTexture(IShader::GetTextureSlot(texType), pTex, hView, EShaderStage_AllWithoutCompute);
+		m_resources.SetTexture(IShader::GetTextureSlot(texType), pTex, hView, EShaderStage_AllWithoutCompute);
 	}
 
-	if (!bContainsInvalidTexture)
+	// TODO: default material created first doesn't have a constant buffer
+	if (m_pCB && !bContainsInvalidTexture)
 	{
-		m_pCompiledResourceSet->Update(m_resources, dirtyFlags);
+		m_pCompiledResourceSet->Update(m_resources);
 	}
 
 	m_flags = flags;

@@ -362,7 +362,7 @@ void CTetrLattice::Subtract(IGeometry *pGeom, const geom_world_data *pgwd1,const
 int CTetrLattice::CheckStructure(float time_interval,const Vec3 &gravity, const plane *pGround,int nPlanes, pe_explosion *pexpl, 
 																 int maxIters,int bLogTension)
 {
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 
 	int i,j,nTets=0,nFaces=0,iter;
 	Vec3 pt,dw0,dw1,n;

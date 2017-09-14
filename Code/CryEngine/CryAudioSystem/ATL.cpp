@@ -1358,9 +1358,13 @@ ERequestStatus CAudioTranslationLayer::RefreshAudioSystem(char const* const szLe
 		result = ParsePreloadsData(configPath.c_str(), EDataScope::LevelSpecific);
 		CRY_ASSERT(result == ERequestStatus::Success);
 
-		PreloadRequestId const preloadRequestId = StringToId_RunTime(szLevelName);
+		PreloadRequestId const preloadRequestId = StringToId(szLevelName);
 		result = m_fileCacheMgr.TryLoadRequest(preloadRequestId, true, true);
-		CRY_ASSERT(result == ERequestStatus::Success);
+		
+		if (result != ERequestStatus::Success)
+		{
+			g_logger.Log(ELogType::Warning, R"(No preload request found for level - "%s"!)", szLevelName);
+		}
 	}
 
 	g_logger.Log(ELogType::Warning, "Done refreshing the AudioSystem!");
@@ -1477,8 +1481,12 @@ void CAudioTranslationLayer::DrawAudioSystemDebugInfo()
 
 	if (IRenderAuxGeom* const pAuxGeom = g_cvars.m_drawAudioDebug > 0 && gEnv->pRenderer != nullptr ? gEnv->pRenderer->GetIRenderAuxGeom() : nullptr)
 	{
-		DrawAudioObjectDebugInfo(*pAuxGeom); // needs to be called first so that the rest of the labels are printed
-		// on top (Draw2dLabel doesn't provide a way set which labels are printed on top)
+		if ((g_cvars.m_drawAudioDebug & objectDebugMask) != 0)
+		{
+			DrawAudioObjectDebugInfo(*pAuxGeom); // needs to be called first so that the rest of the labels are printed
+												 // on top (Draw2dLabel doesn't provide a way set which labels are printed on top)
+		}
+		
 
 		float posX = 8.0f;
 		float posY = 4.0f;
@@ -1493,63 +1501,96 @@ void CAudioTranslationLayer::DrawAudioSystemDebugInfo()
 		static float const s_colorBlue[4] = { 0.4f, 0.4f, 1.0f, 1.0f };
 		static float const s_colorGrey[4] = { 0.9f, 0.9f, 0.9f, 0.9f };
 
-		pAuxGeom->Draw2dLabel(posX, posY, 1.5f, s_colorBlue, false, m_pProfileData->GetImplName());
-
-		CryModuleMemoryInfo memInfo;
-		ZeroStruct(memInfo);
-		CryGetMemoryInfoForModule(&memInfo);
-
-		posY += lineHeightClause;
-		pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorWhite, false,
-		                      "[Audio System] Total Memory Used: %uKiB",
-		                      static_cast<uint32>((memInfo.allocated - memInfo.freed) / 1024));
-
-		posX += indentation;
+		if (!((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::HideMemoryInfo) != 0))
 		{
-			CPoolObject<CATLAudioObject, stl::PSyncMultiThread>::Allocator& allocator = CATLAudioObject::GetAllocator();
-			posY += lineHeight;
-			auto mem = allocator.GetTotalMemory();
-			auto pool = allocator.GetCounts();
-			pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorGrey, false, "[Objects] InUse: %u | Constructed: %u (%uKiB) | Memory Pool: %uKiB", pool.nUsed, pool.nAlloc, mem.nUsed / 1024, mem.nAlloc / 1024);
-		}
+			pAuxGeom->Draw2dLabel(posX, posY, 1.5f, s_colorBlue, false, m_pProfileData->GetImplName());
 
-		{
-			CPoolObject<CATLEvent, stl::PSyncNone>::Allocator& allocator = CATLEvent::GetAllocator();
-			posY += lineHeight;
-			auto mem = allocator.GetTotalMemory();
-			auto pool = allocator.GetCounts();
-			pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorGrey, false, "[Events] InUse: %u | Constructed: %u (%uKiB) | Memory Pool: %uKiB", pool.nUsed, pool.nAlloc, mem.nUsed / 1024, mem.nAlloc / 1024);
-		}
-
-		{
-			CPoolObject<CATLStandaloneFile, stl::PSyncNone>::Allocator& allocator = CATLStandaloneFile::GetAllocator();
-			posY += lineHeight;
-			auto mem = allocator.GetTotalMemory();
-			auto pool = allocator.GetCounts();
-			pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorGrey, false, "[Files] InUse: %u | Constructed: %u (%uKiB) | Memory Pool: %uKiB", pool.nUsed, pool.nAlloc, mem.nUsed / 1024, mem.nAlloc / 1024);
-		}
-		posX -= indentation;
-
-		if (m_pIImpl != nullptr)
-		{
-			Impl::SMemoryInfo memoryInfo;
-			m_pIImpl->GetMemoryInfo(memoryInfo);
+			CryModuleMemoryInfo memInfo;
+			ZeroStruct(memInfo);
+			CryGetMemoryInfoForModule(&memInfo);
 
 			posY += lineHeightClause;
-			pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorWhite, false, "[Impl] Total Memory Used: %uKiB | Secondary Memory: %.2f / %.2f MiB | NumAllocs: %d",
-			                      static_cast<uint32>(memoryInfo.totalMemory / 1024),
-			                      (memoryInfo.secondaryPoolUsedSize / 1024) / 1024.0f,
-			                      (memoryInfo.secondaryPoolSize / 1024) / 1024.0f,
-			                      static_cast<int>(memoryInfo.secondaryPoolAllocations));
+			pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorWhite, false,
+				"[Audio System] Total Memory Used: %uKiB",
+				static_cast<uint32>((memInfo.allocated - memInfo.freed) / 1024));
 
 			posX += indentation;
-			posY += lineHeight;
-			pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorGrey, false, "[Impl Object Pool] InUse: %u | Constructed: %u (%uKiB) | Memory Pool: %uKiB",
-			                      memoryInfo.poolUsedObjects, memoryInfo.poolConstructedObjects, memoryInfo.poolUsedMemory, memoryInfo.poolAllocatedMemory);
-			posX -= indentation;
-		}
+			{
+				CPoolObject<CATLAudioObject, stl::PSyncMultiThread>::Allocator& allocator = CATLAudioObject::GetAllocator();
+				posY += lineHeight;
+				auto mem = allocator.GetTotalMemory();
+				auto pool = allocator.GetCounts();
+				pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorGrey, false, "[Objects] InUse: %u | Constructed: %u (%uKiB) | Memory Pool: %uKiB", pool.nUsed, pool.nAlloc, mem.nUsed / 1024, mem.nAlloc / 1024);
+			}
 
-		posY += lineHeightClause;
+			{
+				CPoolObject<CATLEvent, stl::PSyncNone>::Allocator& allocator = CATLEvent::GetAllocator();
+				posY += lineHeight;
+				auto mem = allocator.GetTotalMemory();
+				auto pool = allocator.GetCounts();
+				pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorGrey, false, "[Events] InUse: %u | Constructed: %u (%uKiB) | Memory Pool: %uKiB", pool.nUsed, pool.nAlloc, mem.nUsed / 1024, mem.nAlloc / 1024);
+			}
+
+			{
+				CPoolObject<CATLStandaloneFile, stl::PSyncNone>::Allocator& allocator = CATLStandaloneFile::GetAllocator();
+				posY += lineHeight;
+				auto mem = allocator.GetTotalMemory();
+				auto pool = allocator.GetCounts();
+				pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorGrey, false, "[Files] InUse: %u | Constructed: %u (%uKiB) | Memory Pool: %uKiB", pool.nUsed, pool.nAlloc, mem.nUsed / 1024, mem.nAlloc / 1024);
+			}
+			posX -= indentation;
+
+			if (m_pIImpl != nullptr)
+			{
+				Impl::SMemoryInfo memoryInfo;
+				m_pIImpl->GetMemoryInfo(memoryInfo);
+
+				posY += lineHeightClause;
+				pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorWhite, false, "[Impl] Total Memory Used: %uKiB | Secondary Memory: %.2f / %.2f MiB | NumAllocs: %d",
+					static_cast<uint32>(memoryInfo.totalMemory / 1024),
+					(memoryInfo.secondaryPoolUsedSize / 1024) / 1024.0f,
+					(memoryInfo.secondaryPoolSize / 1024) / 1024.0f,
+					static_cast<int>(memoryInfo.secondaryPoolAllocations));
+
+				posX += indentation;
+				posY += lineHeight;
+				pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorGrey, false, "[Impl Object Pool] InUse: %u | Constructed: %u (%uKiB) | Memory Pool: %uKiB",
+					memoryInfo.poolUsedObjects, memoryInfo.poolConstructedObjects, memoryInfo.poolUsedMemory, memoryInfo.poolAllocatedMemory);
+				posX -= indentation;
+			}
+
+			posY += lineHeightClause;
+
+			static float const SMOOTHING_ALPHA = 0.2f;
+			static float syncRays = 0;
+			static float asyncRays = 0;
+			Vec3 const& listenerPosition = m_audioListenerMgr.GetActiveListenerAttributes().transformation.GetPosition();
+			Vec3 const& listenerDirection = m_audioListenerMgr.GetActiveListenerAttributes().transformation.GetForward();
+			float const listenerVelocity = m_audioListenerMgr.GetActiveListenerAttributes().velocity.GetLength();
+			size_t const numObjects = m_audioObjectMgr.GetNumAudioObjects();
+			size_t const numActiveObjects = m_audioObjectMgr.GetNumActiveAudioObjects();
+			size_t const numEvents = m_audioEventMgr.GetNumConstructed();
+			size_t const numListeners = m_audioListenerMgr.GetNumActiveListeners();
+			size_t const numEventListeners = m_audioEventListenerMgr.GetNumEventListeners();
+			syncRays += (CPropagationProcessor::s_totalSyncPhysRays - syncRays) * SMOOTHING_ALPHA;
+			asyncRays += (CPropagationProcessor::s_totalAsyncPhysRays - asyncRays) * SMOOTHING_ALPHA * 0.1f;
+
+			bool const bActive = true;
+			float const* colorListener = bActive ? s_colorGreen : s_colorRed;
+
+			if (numListeners > 0)
+			{
+				char const* const szName = m_audioListenerMgr.GetActiveListenerName();
+				pAuxGeom->Draw2dLabel(posX, posY, textSize, colorListener, false, "%s PosXYZ: %.2f %.2f %.2f FwdXYZ: %.2f %.2f %.2f Velocity: %.2f m/s", szName, listenerPosition.x, listenerPosition.y, listenerPosition.z, listenerDirection.x, listenerDirection.y, listenerDirection.z, listenerVelocity);
+				posY += lineHeight;
+			}
+
+			pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorBlue, false,
+				"Objects: %3" PRISIZE_T "/%3" PRISIZE_T " Events: %3" PRISIZE_T " EventListeners %3" PRISIZE_T " Listeners: %" PRISIZE_T " | SyncRays: %3.1f AsyncRays: %3.1f",
+				numActiveObjects, numObjects, numEvents, numEventListeners, numListeners, syncRays, asyncRays);
+
+			posY += lineHeightClause;
+		}
 
 		string debugFilter = g_cvars.m_pDebugFilter->GetString();
 
@@ -1562,72 +1603,77 @@ void CAudioTranslationLayer::DrawAudioSystemDebugInfo()
 
 		if (g_cvars.m_debugDistance <= 0)
 		{
-			debugDistance = "infinite";
+			debugDistance = "<infinite>";
 		}
 
 		string debugDraw = "";
 
-		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::DrawSpheres) > 0)
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowSpheres) != 0)
 		{
 			debugDraw += "Spheres, ";
 		}
 
-		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectLabel) > 0)
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectLabel) != 0)
 		{
 			debugDraw += "Labels, ";
 		}
 
-		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectTriggers) > 0)
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectTriggers) != 0)
 		{
 			debugDraw += "Triggers, ";
 		}
 
-		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectStates) > 0)
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectStates) != 0)
 		{
 			debugDraw += "States, ";
 		}
 
-		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectParameters) > 0)
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectParameters) != 0)
 		{
 			debugDraw += "Parameters, ";
 		}
 
-		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectEnvironments) > 0)
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectEnvironments) != 0)
 		{
 			debugDraw += "Environments, ";
 		}
 
-		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowOcclusionRayLabels) > 0)
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectDistance) != 0)
+		{
+			debugDraw += "Distances, ";
+		}
+
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowOcclusionRayLabels) != 0)
 		{
 			debugDraw += "Occlusion Ray Labels, ";
 		}
 
-		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::DrawOcclusionRays) > 0)
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowOcclusionRays) != 0)
 		{
 			debugDraw += "Occlusion Rays, ";
 		}
 
-		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::DrawObjectStandaloneFiles) > 0)
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectStandaloneFiles) != 0)
 		{
 			debugDraw += "Object Standalone Files, ";
 		}
 
-		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowStandaloneFiles) > 0)
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowStandaloneFiles) != 0)
 		{
 			debugDraw += "Standalone Files, ";
 		}
 
-		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowActiveEvents) > 0)
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowActiveEvents) != 0)
 		{
 			debugDraw += "Active Events, ";
 		}
 
-		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowActiveObjects) > 0)
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowActiveObjects) != 0)
 		{
 			debugDraw += "Active Objects, ";
 		}
 
-		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowFileCacheManagerInfo) > 0)
+		if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowFileCacheManagerInfo) != 0)
 		{
 			debugDraw += "File Cache Manager, ";
 		}
@@ -1635,43 +1681,13 @@ void CAudioTranslationLayer::DrawAudioSystemDebugInfo()
 		if (!debugDraw.IsEmpty())
 		{
 			debugDraw.erase(debugDraw.length() - 2, 2);
-			pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorWhite, false, "Debug Filter: %s | Debug Distance: %s | Debug Draw: %s", debugFilter.c_str(), debugDistance.c_str(), debugDraw.c_str());
+			pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorWhite, false, "Debug Draw: %s", debugDraw.c_str());
 			posY += lineHeight;
+			pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorWhite, false, "Debug Filter: %s | Debug Distance: %s", debugFilter.c_str(), debugDistance.c_str());
+
+			posY += lineHeightClause;
 		}
-
-		static float const SMOOTHING_ALPHA = 0.2f;
-		static float syncRays = 0;
-		static float asyncRays = 0;
-		Vec3 const& listenerPosition = m_audioListenerMgr.GetActiveListenerAttributes().transformation.GetPosition();
-		Vec3 const& listenerDirection = m_audioListenerMgr.GetActiveListenerAttributes().transformation.GetForward();
-		float const listenerVelocity = m_audioListenerMgr.GetActiveListenerAttributes().velocity.GetLength();
-		size_t const numObjects = m_audioObjectMgr.GetNumAudioObjects();
-		size_t const numActiveObjects = m_audioObjectMgr.GetNumActiveAudioObjects();
-		size_t const numEvents = m_audioEventMgr.GetNumConstructed();
-		size_t const numListeners = m_audioListenerMgr.GetNumActiveListeners();
-		size_t const numEventListeners = m_audioEventListenerMgr.GetNumEventListeners();
-		syncRays += (CPropagationProcessor::s_totalSyncPhysRays - syncRays) * SMOOTHING_ALPHA;
-		asyncRays += (CPropagationProcessor::s_totalAsyncPhysRays - asyncRays) * SMOOTHING_ALPHA * 0.1f;
-
-		bool const bActive = true;
-		float const* colorListener = bActive ? s_colorGreen : s_colorRed;
-
-		pAuxGeom->Draw2dLabel(posX, posY, textSize, colorListener, false, "Listener <%d> PosXYZ: %.2f %.2f %.2f | FwdXYZ: %.2f %.2f %.2f | Velocity: %.2f m/s", 0, listenerPosition.x, listenerPosition.y, listenerPosition.z, listenerDirection.x, listenerDirection.y, listenerDirection.z, listenerVelocity);
-
-		if (numListeners > 0)
-		{
-			char const* const szName = m_audioListenerMgr.GetActiveListenerName();
-
-			posY += lineHeight;
-			pAuxGeom->Draw2dLabel(posX, posY, textSize, colorListener, false, "%s PosXYZ: %.2f %.2f %.2f FwdXYZ: %.2f %.2f %.2f Velocity: %.2f m/s", szName, listenerPosition.x, listenerPosition.y, listenerPosition.z, listenerDirection.x, listenerDirection.y, listenerDirection.z, listenerVelocity);
-		}
-
-		posY += lineHeight;
-		pAuxGeom->Draw2dLabel(posX, posY, textSize, s_colorBlue, false,
-		                      "Objects: %3" PRISIZE_T "/%3" PRISIZE_T " Events: %3" PRISIZE_T " EventListeners %3" PRISIZE_T " Listeners: %" PRISIZE_T " | SyncRays: %3.1f AsyncRays: %3.1f",
-		                      numActiveObjects, numObjects, numEvents, numEventListeners, numListeners, syncRays, asyncRays);
-
-		posY += lineHeightClause;
+		
 		DrawATLComponentDebugInfo(*pAuxGeom, posX, posY);
 
 		pAuxGeom->Commit(7);
@@ -1699,7 +1715,7 @@ CProfileData* CAudioTranslationLayer::GetProfileData() const
 ///////////////////////////////////////////////////////////////////////////
 void CAudioTranslationLayer::DrawATLComponentDebugInfo(IRenderAuxGeom& auxGeom, float posX, float const posY)
 {
-	if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowFileCacheManagerInfo) > 0)
+	if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowFileCacheManagerInfo) != 0)
 	{
 		m_fileCacheMgr.DrawDebugInfo(auxGeom, posX, posY);
 		posX += 600.0f;
@@ -1707,19 +1723,19 @@ void CAudioTranslationLayer::DrawATLComponentDebugInfo(IRenderAuxGeom& auxGeom, 
 
 	Vec3 const& listenerPosition = m_audioListenerMgr.GetActiveListenerAttributes().transformation.GetPosition();
 
-	if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowActiveObjects) > 0)
+	if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowActiveObjects) != 0)
 	{
 		m_audioObjectMgr.DrawDebugInfo(auxGeom, listenerPosition, posX, posY);
 		posX += 300.0f;
 	}
 
-	if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowActiveEvents) > 0)
+	if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowActiveEvents) != 0)
 	{
 		m_audioEventMgr.DrawDebugInfo(auxGeom, listenerPosition, posX, posY);
 		posX += 600.0f;
 	}
 
-	if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowStandaloneFiles) > 0)
+	if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowStandaloneFiles) != 0)
 	{
 		m_audioStandaloneFileMgr.DrawDebugInfo(auxGeom, listenerPosition, posX, posY);
 	}

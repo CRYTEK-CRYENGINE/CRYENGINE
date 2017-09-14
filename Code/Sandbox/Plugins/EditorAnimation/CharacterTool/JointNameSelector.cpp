@@ -9,7 +9,7 @@
 #include <CrySystem/File/ICryPak.h>
 #include <QDialogButtonBox>
 #include <QBoxLayout>
-#include <QTreeView>
+#include <QAdvancedTreeView.h>
 #include <QStandardItemModel>
 #include <QHeaderView>
 #include <QLabel>
@@ -31,7 +31,7 @@ JointSelectionDialog::JointSelectionDialog(QWidget* parent)
 	: CEditorDialog("JointSelectionDialog")
 {
 	setWindowTitle("Choose Joint...");
-	setWindowIcon(QIcon("icons:Animation/Bone.ico"));
+	setWindowIcon(QIcon("icons:common/animation_bone.ico"));
 	setWindowModality(Qt::ApplicationModal);
 
 	QBoxLayout* layout = new QBoxLayout(QBoxLayout::TopToBottom);
@@ -72,7 +72,7 @@ JointSelectionDialog::JointSelectionDialog(QWidget* parent)
 	m_filterModel->setSourceModel(m_model);
 	m_filterModel->setDynamicSortFilter(true);
 
-	m_tree = new QTreeView(this);
+	m_tree = new QAdvancedTreeView(QAdvancedTreeView::Behavior(QAdvancedTreeView::PreserveExpandedAfterReset| QAdvancedTreeView::PreserveSelectionAfterReset),this);
 	//m_tree->setColumnCount(3);
 	m_tree->setModel(m_filterModel);
 
@@ -236,4 +236,4 @@ dll_string JointNameSelector(const SResourceSelectorContext& x, const char* prev
 	dialog.chooseJoint(&jointName, skeleton);
 	return jointName.c_str();
 }
-REGISTER_RESOURCE_SELECTOR("Joint", JointNameSelector, "icons:Animation/Bone.ico")
+REGISTER_RESOURCE_SELECTOR("Joint", JointNameSelector, "icons:common/animation_bone.ico")

@@ -19,6 +19,8 @@ public:
 
 	void UpdateContent();
 
+	CGpuBuffer& GetLightInfosBuffer() { return m_lightInfosBuffer; }
+	CGpuBuffer& GetLightRangesBuffer() { return m_lightRangesBuffer; }
 	const CGpuBuffer& GetLightInfosBuffer() const { return m_lightInfosBuffer; }
 	const CGpuBuffer& GetLightRangesBuffer() const { return m_lightRangesBuffer; }
 	bool              HasLights(uint lightVolumeIdx) const { return m_lightVolumeRanges[lightVolumeIdx].begin != m_lightVolumeRanges[lightVolumeIdx].end; }

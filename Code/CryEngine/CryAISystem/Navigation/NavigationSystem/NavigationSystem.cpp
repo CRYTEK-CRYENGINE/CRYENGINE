@@ -162,13 +162,6 @@ NavigationSystem::NavigationSystem(const char* configName)
 
 	m_pEditorBackgroundUpdate = new NavigationSystemBackgroundUpdate(*this);
 
-#ifdef SEG_WORLD
-	if (ISystemEventDispatcher* pSystemEventDispatcher = gEnv->pSystem->GetISystemEventDispatcher())
-	{
-		pSystemEventDispatcher->RegisterListener(this, "NavigationSystem");
-	}
-#endif
-
 #ifdef NAVIGATION_SYSTEM_CONSOLE_AUTOCOMPLETE
 	gEnv->pConsole->RegisterAutoComplete("ai_debugMNMAgentType", &s_agentTypeListAutoComplete);
 #endif
@@ -181,13 +174,6 @@ NavigationSystem::~NavigationSystem()
 	Clear();
 
 	SAFE_DELETE(m_pEditorBackgroundUpdate);
-
-#ifdef SEG_WORLD
-	if (ISystemEventDispatcher* pSystemEventDispatcher = gEnv->pSystem->GetISystemEventDispatcher())
-	{
-		pSystemEventDispatcher->RemoveListener(this);
-	}
-#endif
 
 #ifdef NAVIGATION_SYSTEM_CONSOLE_AUTOCOMPLETE
 	gEnv->pConsole->UnRegisterAutoComplete("ai_debugMNMAgentType");
@@ -834,7 +820,7 @@ void NavigationSystem::UpdateNavigationSystemUsersForSynchronousOrAsynchronousRe
 void NavigationSystem::UpdateInternalNavigationSystemData(const bool blocking)
 {
 #if NAVIGATION_SYSTEM_PC_ONLY
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	CRY_ASSERT_MESSAGE(m_pEditorBackgroundUpdate->IsRunning() == false, "Background update for editor is still running while the application has the focus!!");
 
@@ -935,7 +921,7 @@ void NavigationSystem::UpdateMeshes(const float frameTime, const bool blocking, 
 	{
 		if (!m_runningTasks.empty())
 		{
-			FRAME_PROFILER("Navigation System::UpdateMeshes() - Running Task Processing", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_AI, "Navigation System::UpdateMeshes() - Running Task Processing");
 
 			RunningTasks::iterator it = m_runningTasks.begin();
 			RunningTasks::iterator end = m_runningTasks.end();
@@ -955,8 +941,7 @@ void NavigationSystem::UpdateMeshes(const float frameTime, const bool blocking, 
 				CommitTile(result);
 
 				{
-					FRAME_PROFILER("Navigation System::UpdateMeshes() - Running Task Processing - WaitForJob", gEnv->pSystem, PROFILE_AI);
-
+					CRY_PROFILE_REGION_WAITING(PROFILE_AI, "Navigation System::UpdateMeshes() - Running Task Processing - WaitForJob");
 					gEnv->GetJobManager()->WaitForJob(result.jobState);
 				}
 
@@ -1006,7 +991,7 @@ void NavigationSystem::UpdateMeshes(const float frameTime, const bool blocking, 
 		{
 			m_state = Working;
 
-			FRAME_PROFILER("Navigation System::UpdateMeshes() - Job Spawning", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_AI, "Navigation System::UpdateMeshes() - Job Spawning");
 			const size_t idealMinimumTaskCount = 2;
 			const size_t MaxRunningTaskCount = multiThreaded ? m_maxRunningTaskCount : std::min(m_maxRunningTaskCount, idealMinimumTaskCount);
 
@@ -1231,7 +1216,7 @@ void NavigationSystem::CommitTile(TileTaskResult& result)
 	{
 	case TileTaskResult::Completed:
 		{
-			FRAME_PROFILER("Navigation System::CommitTile() - Running Task Processing - ConnectToNetwork", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_AI, "Navigation System::CommitTile() - Running Task Processing - ConnectToNetwork");
 
 			MNM::TileID tileID = mesh.navMesh.SetTile(result.x, result.y, result.z, result.tile);
 			mesh.navMesh.ConnectToNetwork(tileID);
@@ -1252,7 +1237,7 @@ void NavigationSystem::CommitTile(TileTaskResult& result)
 		break;
 	case TileTaskResult::Failed:
 		{
-			FRAME_PROFILER("Navigation System::CommitTile() - Running Task Processing - ClearTile", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_AI, "Navigation System::CommitTile() - Running Task Processing - ClearTile");
 
 			if (MNM::TileID tileID = mesh.navMesh.GetTileID(result.x, result.y, result.z))
 			{
@@ -1316,7 +1301,7 @@ void NavigationSystem::StopAllTasks()
 
 void NavigationSystem::ComputeIslands()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	m_islandConnectionsManager.Reset();
 
@@ -1344,7 +1329,7 @@ void NavigationSystem::ComputeIslands()
 void NavigationSystem::AddIslandConnectionsBetweenTriangles(const NavigationMeshID& meshID, const MNM::TriangleID startingTriangleID,
                                                             const MNM::TriangleID endingTriangleID)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_meshes.validate(meshID))
 	{
@@ -1398,7 +1383,7 @@ void NavigationSystem::RemoveIslandsConnectionBetweenTriangles(const NavigationM
 	// NOTE pavloi 2016.02.05: be advised, that this function is not use anywhere. It should be called before triangles are unlinked
 	// from each other, but currently OffMeshNavigationManager first unlinks triangles and only then unlinks islands.
 
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_meshes.validate(meshID))
 	{
@@ -1446,7 +1431,7 @@ void NavigationSystem::AddOffMeshLinkIslandConnectionsBetweenTriangles(
   const MNM::TriangleID endingTriangleID,
   const MNM::OffMeshLinkID& linkID)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 #if DEBUG_MNM_DATA_CONSISTENCY_ENABLED
 	{
@@ -1530,7 +1515,7 @@ void NavigationSystem::RemoveOffMeshLinkIslandsConnectionBetweenTriangles(
   const MNM::TriangleID endingTriangleID,
   const MNM::OffMeshLinkID& linkID)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 #if DEBUG_MNM_DATA_CONSISTENCY_ENABLED
 	{
 		bool bLinkIsFound = false;
@@ -3116,11 +3101,7 @@ void NavigationSystem::GatherNavigationVolumesToSave(std::vector<NavigationVolum
 	}
 }
 
-#if defined(SEG_WORLD)
-bool NavigationSystem::SaveToFile(const char* fileName, const AABB& segmentAABB) const PREFAST_SUPPRESS_WARNING(6262)
-#else
 bool NavigationSystem::SaveToFile(const char* fileName) const PREFAST_SUPPRESS_WARNING(6262)
-#endif
 {
 #if NAVIGATION_SYSTEM_PC_ONLY
 
@@ -3145,10 +3126,6 @@ bool NavigationSystem::SaveToFile(const char* fileName) const PREFAST_SUPPRESS_W
 
 		// Saving boundary volumes, their ID's and names
 		{
-	#if SEG_WORLD
-			static_assert(false, "Segmented world is deprecated and not supported anymore by the current implementation of NavigationSystem");
-	#endif
-
 			std::vector<NavigationVolumeID> usedVolumes;
 			GatherNavigationVolumesToSave(*&usedVolumes);
 
@@ -3204,10 +3181,6 @@ bool NavigationSystem::SaveToFile(const char* fileName) const PREFAST_SUPPRESS_W
 
 			AgentType::Meshes::const_iterator mit = agentType.meshes.begin();
 			AgentType::Meshes::const_iterator mend = agentType.meshes.end();
-	#if defined(SEG_WORLD)
-			size_t writtenMeshCountDataPosition = file.GetPosition();
-			uint32 actualWrittenMeshCount = 0;
-	#endif
 			uint32 meshesCount = agentType.meshes.size();
 			file.Write(&meshesCount, sizeof(meshesCount));
 
@@ -3217,13 +3190,6 @@ bool NavigationSystem::SaveToFile(const char* fileName) const PREFAST_SUPPRESS_W
 				const NavigationMesh& mesh = m_meshes[NavigationMeshID(meshIDuint32)];
 				const MNM::BoundingVolume& volume = m_volumes[mesh.boundary];
 				const MNM::CNavMesh& navMesh = mesh.navMesh;
-
-	#ifdef SEG_WORLD
-				if (!segmentAABB.IsIntersectBox(volume.aabb))
-					continue;
-
-				++actualWrittenMeshCount;
-	#endif
 
 				// Saving mesh id
 	#ifdef SW_NAVMESH_USE_GUID
@@ -3410,14 +3376,6 @@ bool NavigationSystem::SaveToFile(const char* fileName) const PREFAST_SUPPRESS_W
 			totalAgentMemory = endingAgentDataPosition - totalAgentMemoryPositionInFile - sizeof(totalAgentMemory);
 			file.Seek(totalAgentMemoryPositionInFile, SEEK_SET);
 			file.Write(&totalAgentMemory, sizeof(totalAgentMemory));
-
-	#if defined(SEG_WORLD)
-			file.Seek(writtenMeshCountDataPosition, SEEK_SET);
-			file.Write(&actualWrittenMeshCount, sizeof(actualWrittenMeshCount));
-
-			file.Seek(areasCountDataPosition, SEEK_SET);
-			file.Write(&actualWrittenAreasCount, sizeof(actualWrittenAreasCount));
-	#endif
 
 			file.Seek(endingAgentDataPosition, SEEK_SET);
 		}
@@ -4191,7 +4149,7 @@ void NavigationSystemDebugDraw::DebugDrawPathFinder(NavigationSystem& navigation
 		const float pathSharingPenalty = .0f;
 		const float pathLinkSharingPenalty = .0f;
 		MNM::CNavMesh::WayQueryRequest inputParams(debugObjectStart.entityId, triStart, startLoc, triEnd, endLoc,
-			offMeshNavigation, *offMeshNavigationManager, dangersInfo);
+			offMeshNavigation, *offMeshNavigationManager, dangersInfo, MNMCustomPathCostComputerSharedPtr());  // no custom cost-computer (where should we get it from!?)
 		MNM::CNavMesh::WayQueryResult result(k_MaxWaySize);
 
 		const bool hasPathfindingFinished = (navMesh.FindWay(inputParams, workingSet, result) == MNM::CNavMesh::eWQR_Done);
@@ -4229,7 +4187,7 @@ void NavigationSystemDebugDraw::DebugDrawPathFinder(NavigationSystem& navigation
 				CTimeValue stringPullingStartTime = gEnv->pTimer->GetAsyncTime();
 				if (bBeautifyPath)
 				{
-					outputPath.PullPathOnNavigationMesh(navMesh, gAIEnv.CVars.PathStringPullingIterations);
+					outputPath.PullPathOnNavigationMesh(navMesh, gAIEnv.CVars.PathStringPullingIterations, nullptr);
 				}
 				stringPullingTotalTime = gEnv->pTimer->GetAsyncTime() - stringPullingStartTime;
 
@@ -4319,7 +4277,7 @@ void NavigationSystemDebugDraw::DebugDrawIslandConnection(NavigationSystem& navi
 
 void NavigationSystemDebugDraw::DebugDrawNavigationMeshesForSelectedAgent(NavigationSystem& navigationSystem, MNM::TileID excludeTileID)
 {
-	FRAME_PROFILER("NavigationSystemDebugDraw::DebugDrawNavigationMeshesForSelectedAgent()", gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	AgentType& agentType = navigationSystem.m_agentTypes[m_agentTypeID - 1];
 	AgentType::Meshes::const_iterator it = agentType.meshes.begin();

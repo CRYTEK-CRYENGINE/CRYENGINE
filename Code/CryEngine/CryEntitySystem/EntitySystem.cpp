@@ -56,6 +56,8 @@
 #include <CryPhysics/IDeferredCollisionEvent.h>
 #include <CryNetwork/IRemoteCommand.h>
 
+#include "EntityComponentsCache.h"
+
 #include "Schematyc/EntityObjectDebugger.h"
 
 #pragma warning(push)
@@ -219,8 +221,6 @@ CEntitySystem::CEntitySystem(ISystem* pSystem)
 
 	m_idForced = 0;
 
-	m_bReseting = false;
-
 #ifdef SW_ENTITY_ID_USE_GUID
 	m_bEntitiesUseGUIDs = true;
 	m_nGeneratedFromGuid = 2;
@@ -234,6 +234,11 @@ CEntitySystem::CEntitySystem(ISystem* pSystem)
 	}
 
 	m_pEntityObjectDebugger.reset(new CEntityObjectDebugger);
+
+	if (gEnv->IsEditor())
+	{
+		m_entitiesPropertyCache.reset(new CEntitiesComponentPropertyCache);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -368,8 +373,7 @@ void CEntitySystem::Reset()
 		gEnv->pPhysicalWorld->TracePendingRays(0);
 		gEnv->pPhysicalWorld->ClearLoggedEvents();
 	}
-	GetBreakableManager()->ResetBrokenObjects();
-
+	
 	PurgeDeferredCollisionEvents(true);
 
 	CheckInternalConsistency();
@@ -381,8 +385,6 @@ void CEntitySystem::Reset()
 #ifdef SW_ENTITY_ID_USE_GUID
 	m_nGeneratedFromGuid = 2;
 #endif
-
-	m_bReseting = true;
 
 	// Delete entities that have already been added to the delete list.
 	UpdateDeletedEntities();
@@ -415,6 +417,9 @@ void CEntitySystem::Reset()
 	stl::free_container(m_deletedEntities);
 	m_guidMap.clear();
 
+	// Delete broken objects after deleting entities
+	GetBreakableManager()->ResetBrokenObjects();
+
 	ResetAreas();
 
 	m_EntitySaltBuffer.Reset();
@@ -427,8 +432,6 @@ void CEntitySystem::Reset()
 
 	m_pProximityTriggerSystem->Reset();
 	m_pPartitionGrid->Reset();
-
-	m_bReseting = false;
 
 	CheckInternalConsistency();
 }
@@ -528,7 +531,7 @@ EntityId CEntitySystem::GenerateEntityId(bool bStaticId)
 IEntity* CEntitySystem::SpawnEntity(SEntitySpawnParams& params, bool bAutoInit)
 {
 	LOADING_TIME_PROFILE_SECTION_ARGS((params.pClass ? params.pClass->GetName() : "Unknown"));
-	FUNCTION_PROFILER(m_pISystem, PROFILE_ENTITY);
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 
 #ifndef _RELEASE
 	if (params.sName)
@@ -689,7 +692,7 @@ bool CEntitySystem::InitEntity(IEntity* pEntity, SEntitySpawnParams& params)
 //////////////////////////////////////////////////////////////////////////
 void CEntitySystem::DeleteEntity(CEntity* pEntity)
 {
-	FUNCTION_PROFILER(m_pISystem, PROFILE_ENTITY);
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 
 	if (CVar::es_debugEntityLifetime)
 	{
@@ -1752,6 +1755,20 @@ void CEntitySystem::SendEventToAll(SEntityEvent& event)
 {
 	uint32 dwMaxUsed = (uint32)m_EntitySaltBuffer.GetMaxUsed() + 1;
 
+	if (event.event == ENTITY_EVENT_RESET)
+	{
+		bool bToGame = event.nParam[0] != 0;
+		if (gEnv->IsEditor() && bToGame && m_entitiesPropertyCache)
+		{
+			m_entitiesPropertyCache->StoreEntities();
+		}
+		if (gEnv->IsEditor() && !bToGame && m_entitiesPropertyCache)
+		{
+			m_entitiesPropertyCache->RestoreEntities();
+			m_entitiesPropertyCache->ClearCache();
+		}
+	}
+
 	for (uint32 dwI = 0; dwI < dwMaxUsed; ++dwI)
 	{
 		CEntity* pEntity = m_EntityArray[dwI];
@@ -1910,7 +1927,7 @@ void CEntitySystem::UpdateTimers()
 	if (m_timersMap.empty())
 		return;
 
-	FUNCTION_PROFILER(m_pISystem, PROFILE_ENTITY);
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 
 	CTimeValue nCurrTimeMillis = gEnv->pTimer->GetFrameStartTime();
 
@@ -3407,7 +3424,7 @@ void CEntitySystem::DebugDrawProximityTriggers()
 
 void CEntitySystem::DoPrePhysicsUpdate()
 {
-	FUNCTION_PROFILER(m_pISystem, PROFILE_ENTITY);
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 
 	float fFrameTime = gEnv->pTimer->GetFrameTime();
 

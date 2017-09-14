@@ -51,6 +51,12 @@ struct PosNorm
 	Vec3 vPos;
 	Vec3 vNorm;
 
+	PosNorm() {}
+	PosNorm(type_zero)
+		: vPos(ZERO), vNorm(ZERO) {}
+	PosNorm(const Vec3& pos, const Vec3& norm)
+		: vPos(pos), vNorm(norm) {}
+
 	void zero()
 	{
 		vPos.zero();

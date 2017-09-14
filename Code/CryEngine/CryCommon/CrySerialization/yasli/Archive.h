@@ -153,8 +153,8 @@ public:
 	// values. Output depends on the specific implementation of Archive,
 	// for example PropertyTree uses it to show bubbles with errors in UI
 	// next to the mentioned property.
-	template<class T> void error(T& value, const char* format, ...);
-	template<class T> void warning(T& value, const char* format, ...);
+	template<class T> void error(const T& value, const char* format, ...);
+	template<class T> void warning(const T& value, const char* format, ...);
 
 	void error(const void* value, const yasli::TypeID& type, const char* format, ...);
 	// Used to add tooltips in PropertyTree
@@ -263,7 +263,7 @@ inline void Archive::doc(const char* docString)
 }
 
 template<class T>
-void Archive::error(T& value, const char* format, ...)
+void Archive::error(const T& value, const char* format, ...)
 {
 #if !YASLI_NO_EDITING
 	if ((caps_ & VALIDATION) == 0)
@@ -292,7 +292,7 @@ inline void Archive::error(const void* handle, const yasli::TypeID& type, const 
 }
 
 template<class T>
-void Archive::warning(T& value, const char* format, ...)
+void Archive::warning(const T& value, const char* format, ...)
 {
 #if !YASLI_NO_EDITING
 	if ((caps_ & VALIDATION) == 0)

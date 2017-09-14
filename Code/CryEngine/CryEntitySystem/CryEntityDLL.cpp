@@ -136,7 +136,7 @@ class CEngineModule_EntitySystem : public IEntitySystemEngineModule
 			return false;
 		}
 
-		pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_entity, "CSystemEventListner_Entity");
+		pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_entity, "CSystemEventListener_Entity");
 
 		env.pEntitySystem = pEntitySystem;
 		return true;

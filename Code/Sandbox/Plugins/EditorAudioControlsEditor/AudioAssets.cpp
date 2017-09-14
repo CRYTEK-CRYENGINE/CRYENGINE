@@ -166,19 +166,6 @@ void CAudioControl::AddConnection(ConnectionPtr pConnection)
 					MatchRadiusToAttenuation();
 				}
 
-				if (pAudioSystemControl->IsPlaceholder())
-				{
-					SetPlaceholderConnection(true);
-
-					auto parentItem = m_pParent;
-
-					while (parentItem != nullptr)
-					{
-						parentItem->SetPlaceholderConnection(true);
-						parentItem = parentItem->GetParent();
-					}
-				}
-
 				SignalConnectionAdded(pAudioSystemControl);
 				SignalControlModified();
 			}

@@ -332,9 +332,9 @@ namespace EditorSubstance {
 			Serialization::LoadJsonFile(serializer, MAPPING_FILE_NAME);
 		}
 		// fallback to engine wide mapping
-		else if (GetIEditor()->GetSystem()->GetIPak()->IsFileExist("Editor/DefaultSubstanceOutputMapping.json"))
+		else if (GetIEditor()->GetSystem()->GetIPak()->IsFileExist("%EDITOR%/DefaultSubstanceOutputMapping.json"))
 		{
-			Serialization::LoadJsonFile(serializer, "Editor/DefaultSubstanceOutputMapping.json");
+			Serialization::LoadJsonFile(serializer, "%EDITOR%/DefaultSubstanceOutputMapping.json");
 		}
 		return serializer.presets;
 	}

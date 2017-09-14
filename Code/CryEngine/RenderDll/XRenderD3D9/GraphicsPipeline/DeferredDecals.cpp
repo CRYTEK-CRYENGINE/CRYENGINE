@@ -237,7 +237,7 @@ void CDeferredDecalsStage::SetupDecalPrimitive(const SDeferredDecal& decal, CRen
 
 	ECull cullMode = eCULL_Back;
 	int renderState = GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA;
-	renderState |= GS_DEPTHFUNC_GREAT | GS_STENCIL | GS_COLMASK_RGB;
+	renderState |= GS_DEPTHFUNC_GREAT | GS_STENCIL | GS_NOCOLMASK_GBUFFER_OVERLAY;
 
 	if (bCameraInVolume)
 	{

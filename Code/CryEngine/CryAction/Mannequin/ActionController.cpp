@@ -2156,7 +2156,7 @@ void CActionController::DebugDraw() const
 		}
 	}
 
-	if (m_cachedEntity)
+	if (m_cachedEntity && gEnv->pRenderer)
 	{
 		AABB bbox;
 		m_cachedEntity->GetWorldBounds(bbox);

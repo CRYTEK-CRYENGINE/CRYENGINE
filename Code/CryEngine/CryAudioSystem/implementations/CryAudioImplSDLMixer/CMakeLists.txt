@@ -33,7 +33,7 @@ end_sources()
 #END-FILE-LIST
 
 if(AUDIO_SDL_MIXER)
-	CryEngineModule(CryAudioImplSDLMixer FORCE_SHARED PCH "stdafx.cpp" SOLUTION_FOLDER "CryEngine/Audio/Implementations")
+	CryEngineModule(CryAudioImplSDLMixer FORCE_SHARED_WIN PCH "stdafx.cpp" SOLUTION_FOLDER "CryEngine/Audio/Implementations")
 	target_link_libraries(${THIS_PROJECT} PRIVATE
 		SDL2
 		sdl_mixer_static

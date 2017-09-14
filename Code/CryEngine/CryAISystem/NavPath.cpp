@@ -813,7 +813,7 @@ bool CNavPath::UpdateAndSteerAlongPath(Vec3& dirOut, float& distToEndOut, float&
                                        Vec3 currentPos, const Vec3& currentVel,
                                        float lookAhead, float pathRadius, float dt, bool resolveSticking, bool twoD)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	m_debugLines.clear();
 	m_debugSpheres.clear();
 
@@ -1110,7 +1110,7 @@ Vec3 GetSafePositionInMesh(const NavigationMesh& mesh, const Vec3& testLocation,
 //===================================================================
 void CNavPath::MovePathEndsOutOfObstacles(const CPathObstacles& obstacles)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_pathPoints.empty())
 		return;
@@ -1248,7 +1248,7 @@ bool CNavPath::CheckPath(const TPathPoints& pathList, float radius) const
 //===================================================================
 bool CNavPath::AdjustPathAroundObstacleShape2D(const SPathObstacleShape2D& obstacle, IAISystem::tNavCapMask navCapMask)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (!(navCapMask & (IAISystem::NAV_TRIANGULAR | IAISystem::NAV_ROAD)))
 		return true;

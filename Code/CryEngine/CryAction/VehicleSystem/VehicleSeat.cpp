@@ -1473,7 +1473,7 @@ void CVehicleSeat::OnAction(const TVehicleActionId actionId, int activationMode,
 //------------------------------------------------------------------------
 void CVehicleSeat::Update(float deltaTime)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	IActor* pActor = GetPassengerActor();
 	if (m_passengerId && pActor && pActor->GetEntity())
@@ -2343,7 +2343,7 @@ static Vec3 RotateAndNormalize(const Matrix34& tm, const Vec3& vectorToRotateAnd
 //------------------------------------------------------------------------
 void CVehicleSeat::GetMovementState(SMovementState& movementState)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	IEntity* pVehicleEntity = m_pVehicle->GetEntity();
 	if (!pVehicleEntity)
@@ -3023,8 +3023,6 @@ void CVehicleSeat::OnCharacterChange()
 //------------------------------------------------------------------------
 void CVehicleSeat::OffsetPosition(const Vec3& delta)
 {
-#ifdef SEG_WORLD
 	for (TVehicleViewVector::iterator it = m_views.begin(); it != m_views.end(); ++it)
 		(*it)->OffsetPosition(delta);
-#endif
 }

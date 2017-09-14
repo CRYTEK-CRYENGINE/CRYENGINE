@@ -13,12 +13,14 @@ public:
 	~CTiledShadingStage();
 
 	void Init();
+	void ExecutePreprocess();
 	void Execute();
 	void PrepareResources();
 
 private:
 	void PrepareLightVolumeInfo();
-	bool ExecuteVolumeListGen(uint32 dispatchSizeX, uint32 dispatchSizeY);
+	bool IsSeparateVolumeListGen();
+	void ExecuteVolumeListGen(uint32 dispatchSizeX, uint32 dispatchSizeY);
 
 private:
 	enum EVolumeTypes

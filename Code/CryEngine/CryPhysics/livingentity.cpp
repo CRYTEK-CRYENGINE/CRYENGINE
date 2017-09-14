@@ -1326,7 +1326,7 @@ int CLivingEntity::Step(float time_interval)
 			(!(vel.len2()==0 && m_velRequested.len2()==0 && (!bFlying || m_gravity.len2()==0) && m_dhSpeed==0 && m_dhAcc==0) || 
 			m_bActiveEnvironment || m_nslope.z<m_slopeSlide || m_velGround.len2()>0))	
 	{
-		FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+		CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 		PHYS_ENTITY_PROFILER
 
 		m_bActiveEnvironment = 0;
@@ -2076,7 +2076,7 @@ int CLivingEntity::Step(float time_interval)
 		}
 
 		if (m_flags & (pef_monitor_poststep | pef_log_poststep)) {
-			EventPhysPostStep epps; InitEvent(&epps,this);
+			EventPhysPostStep epps; InitEvent(&epps,this,iCaller);
 			epps.dt=time_interval; epps.pos=m_pos; epps.q=m_qrot; epps.idStep=m_pWorld->m_idStep;
 			epps.pos -= m_qrot*Vec3(0,0,m_dh);
 			m_pWorld->OnEvent(m_flags,&epps);

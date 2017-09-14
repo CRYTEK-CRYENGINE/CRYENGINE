@@ -263,7 +263,7 @@ void CFlashUI::ReloadAll()
 //-------------------------------------------------------------------
 void CFlashUI::Update(float fDeltaTime)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (m_bLoadtimeThread)
 		return;
@@ -750,7 +750,7 @@ void CFlashUI::SetHudElementsVisible(bool bVisible)
 //-------------------------------------------------------------------
 void CFlashUI::OnHardwareMouseEvent(int iX, int iY, EHARDWAREMOUSEEVENT eHardwareMouseEvent, int wheelDelta)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (gEnv->pConsole->GetStatus())   // disable UI inputs when console is open
 		return;
@@ -785,7 +785,7 @@ void CFlashUI::OnHardwareMouseEvent(int iX, int iY, EHARDWAREMOUSEEVENT eHardwar
 //-------------------------------------------------------------------
 bool CFlashUI::OnInputEvent(const SInputEvent& event)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (gEnv->pConsole->GetStatus())   // disable UI inputs when console is open
 		return false;
@@ -831,7 +831,7 @@ bool CFlashUI::OnInputEvent(const SInputEvent& event)
 //------------------------------------------------------------------------------------
 bool CFlashUI::OnInputEventUI(const SUnicodeEvent& event)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (gEnv->pConsole->GetStatus())   // disable UI inputs when console is open
 		return false;

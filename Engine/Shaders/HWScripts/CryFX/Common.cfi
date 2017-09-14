@@ -263,11 +263,16 @@ float GetLinearDepth(sampler2D depthSampler, float2 ScreenTC, bool bScaled = fal
 	return GetLinearDepth(fDepth, bScaled);
 }
 
+float GetLinearDepth(Texture2D depthTexture, int2 vPixCoord, bool bScaled = false)
+{
+	float fDepth = depthTexture.Load(int3(vPixCoord, 0)).x;
+	return GetLinearDepth(fDepth, bScaled);
+}
+
 float GetLinearDepth(Texture2D depthTexture, float2 ScreenTC, bool bScaled = false)
 {
-	int3 vPixCoord = int3(ScreenTC * PS_ScreenSize.xy, 0);
-	float fDepth = depthTexture.Load(vPixCoord).x;
-	return GetLinearDepth(fDepth, bScaled);
+	int2 vPixCoord = int2(ScreenTC * PS_ScreenSize.xy);
+	return GetLinearDepth(depthTexture, vPixCoord, bScaled);
 }
 
 float GetLinearDepthUnclamped(Texture2D depthTexture, float2 ScreenTC, bool bScaled = false)

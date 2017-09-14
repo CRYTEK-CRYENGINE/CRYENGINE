@@ -23,7 +23,7 @@ public:
 		// Now create the physical representation of the entity
 		SEntityPhysicalizeParams physParams;
 		physParams.type = PE_RIGID;
-		physParams.mass = 5000.f;
+		physParams.mass = 20000.f;
 		m_pEntity->Physicalize(physParams);
 
 		// Make sure that bullets are always rendered regardless of distance
@@ -35,7 +35,7 @@ public:
 		{
 			pe_action_impulse impulseAction;
 
-			const float initialVelocity = 10.f;
+			const float initialVelocity = 1000.f;
 
 			// Set the actual impulse, in this cause the value of the initial velocity CVar in bullet's forward direction
 			impulseAction.impulse = GetEntity()->GetWorldRotation().GetColumn1() * initialVelocity;

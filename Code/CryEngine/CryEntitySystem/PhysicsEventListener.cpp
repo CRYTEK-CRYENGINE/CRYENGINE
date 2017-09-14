@@ -31,7 +31,7 @@
 
 #include <CryThreading/IJobManager_JobDelegator.h>
 
-std::vector<CPhysicsEventListener::PhysVisAreaUpdate> CPhysicsEventListener::m_physVisAreaUpdateVector;
+std::vector<IPhysicalEntity*> CPhysicsEventListener::m_physVisAreaUpdateVector;
 int CPhysicsEventListener::m_jointFxCount = 0, CPhysicsEventListener::m_jointFxFrameId = 0;
 
 //////////////////////////////////////////////////////////////////////////
@@ -113,7 +113,7 @@ int CPhysicsEventListener::OnPostStep(const EventPhys* pEvent)
 		if (gEnv->p3DEngine->GetWaterLevel() != WATER_LEVEL_UNKNOWN)
 		{
 			// Deferred updating ignore ocean flag as the Jobs are busy updating the octree at this point
-			m_physVisAreaUpdateVector.push_back(PhysVisAreaUpdate(pRndNode, pPostStep->pEntity));
+			m_physVisAreaUpdateVector.push_back(pPostStep->pEntity);
 		}
 		bFaraway = bEnableOpt & isneg(sqr(maxDist) +
 		                              bInvisible * (sqr(CVar::es_MaxPhysDistInvisible) - sqr(maxDist)) - dist);
@@ -154,16 +154,22 @@ int CPhysicsEventListener::OnPostPump(const EventPhys* pEvent)
 {
 	if (gEnv->p3DEngine->GetWaterLevel() != WATER_LEVEL_UNKNOWN)
 	{
-		for (std::vector<PhysVisAreaUpdate>::iterator it = m_physVisAreaUpdateVector.begin(), end = m_physVisAreaUpdateVector.end(); it != end; ++it)
+		for (auto it = m_physVisAreaUpdateVector.begin(), end = m_physVisAreaUpdateVector.end(); it != end; ++it)
 		{
-			IRenderNode* pRndNode = it->m_pRndNode;
+			IRenderNode* pRndNode = nullptr;
+			if (IEntity *pent = (IEntity*)(*it)->GetForeignData(PHYS_FOREIGN_ID_ENTITY))
+				pRndNode = pent->GetRenderNode();
+			else if ((*it)->GetiForeignData() == PHYS_FOREIGN_ID_ROPE)
+				pRndNode = (IRopeRenderNode*)(*it)->GetForeignData(PHYS_FOREIGN_ID_ROPE);
+			if (!pRndNode)
+				continue;
 			int bInsideVisarea = pRndNode->GetEntityVisArea() != 0;
 			if (pRndNode->m_nInternalFlags & IRenderNode::WAS_IN_VISAREA ^ (-bInsideVisarea & IRenderNode::WAS_IN_VISAREA))
 			{
 				pe_params_flags pf;
 				pf.flagsAND = ~pef_ignore_ocean;
 				pf.flagsOR = -bInsideVisarea & pef_ignore_ocean;
-				it->m_pEntity->SetParams(&pf);
+				(*it)->SetParams(&pf);
 				(pRndNode->m_nInternalFlags &= ~IRenderNode::WAS_IN_VISAREA) |= -bInsideVisarea & IRenderNode::WAS_IN_VISAREA;
 			}
 		}

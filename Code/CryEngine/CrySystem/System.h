@@ -430,6 +430,7 @@ public:
 	// Validator Warning.
 	void                    WarningV(EValidatorModule module, EValidatorSeverity severity, int flags, const char* file, const char* format, va_list args) override;
 	void                    Warning(EValidatorModule module, EValidatorSeverity severity, int flags, const char* file, const char* format, ...) override;
+	void                    WarningOnce(EValidatorModule module, EValidatorSeverity severity, int flags, const char* file, const char* format, ...) override;
 	virtual EQuestionResult ShowMessage(const char* text, const char* caption, EMessageBox uType) override;
 	bool                    CheckLogVerbosity(int verbosity) override;
 
@@ -441,14 +442,14 @@ public:
 
 	virtual int DumpMMStats(bool log) override;
 
-	//! Return pointer to user defined callback.
-	ISystemUserCallback*                 GetUserCallback() const                      { return m_pUserCallback; };
 #if defined(CVARS_WHITELIST)
 	virtual ICVarsWhitelist*             GetCVarsWhiteList() const                    { return m_pCVarsWhitelist; };
 	virtual ILoadConfigurationEntrySink* GetCVarsWhiteListConfigSink() const override { return m_pCVarsWhitelistConfigSink; }
 #else
 	virtual ILoadConfigurationEntrySink* GetCVarsWhiteListConfigSink() const override { return NULL; }
 #endif // defined(CVARS_WHITELIST)
+
+	virtual ISystemUserCallback* GetUserCallback() const override { return m_pUserCallback; }
 
 	//////////////////////////////////////////////////////////////////////////
 	virtual void              SaveConfiguration() override;
@@ -950,7 +951,7 @@ public:
 	virtual const char*                   GetLoadingProfilerCallstack() override;
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual CBootProfilerRecord* StartBootSectionProfiler(const char* name, const char* args) override;
+	virtual CBootProfilerRecord* StartBootSectionProfiler(const char* name, const char* args,EProfileDescription type) override;
 	virtual void                 StopBootSectionProfiler(CBootProfilerRecord* record) override;
 	virtual void                 StartBootProfilerSession(const char* szName) override;
 	virtual void                 StopBootProfilerSession(const char* szName) override;
@@ -1034,6 +1035,10 @@ protected: // -------------------------------------------------------------
 	TErrorMessages m_ErrorMessages;
 	bool           m_bHasRenderedErrorMessage;
 	bool           m_bNeedDoWorkDuringOcclusionChecks;
+
+
+	std::unordered_map<uint32, bool> m_mapWarningOnceAlreadyPrinted;
+	CryMutex						 m_mapWarningOnceMutex;
 
 	bool           m_bIsAsserting;
 

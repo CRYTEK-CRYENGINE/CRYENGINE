@@ -993,7 +993,7 @@ void Device::SubmitFrame(const SHmdSubmitFrameData pData)
 		}
 	}
 
-	FRAME_PROFILER("OculusDevice::ovrSubmitFrame", gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_REGION(PROFILE_SYSTEM, "OculusDevice::ovrSubmitFrame");
 	// Submit all active layers to Oculus runtime
 	ovrResult result = ovr_SubmitFrame(m_pSession, frameParams.frameId, &frameParams.viewScaleDesc, activeLayers, numActiveLayers);
 	if (!OVR_SUCCESS(result))

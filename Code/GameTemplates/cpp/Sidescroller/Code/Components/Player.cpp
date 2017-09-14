@@ -35,7 +35,6 @@ void CPlayerComponent::Initialize()
 	m_pAnimationComponent->LoadFromDisk();
 
 	// Acquire tag identifiers to avoid doing so each update
-	m_rotateTagId = m_pAnimationComponent->GetTagId("Rotate");
 	m_walkTagId = m_pAnimationComponent->GetTagId("Walk");
 	
 	// Get the input component, wraps access to action mapping so we can easily get callbacks when inputs are triggered
@@ -159,7 +158,6 @@ void CPlayerComponent::UpdateMovementRequest(float frameTime)
 void CPlayerComponent::UpdateAnimation(float frameTime)
 {
 	// Update the Mannequin tags
-	m_pAnimationComponent->SetTagWithId(m_rotateTagId, m_pAnimationComponent->IsTurning());
 	m_pAnimationComponent->SetTagWithId(m_walkTagId, m_pCharacterController->IsWalking());
 }
 

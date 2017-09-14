@@ -807,7 +807,7 @@ void CAISystem::SendSignal(unsigned char cFilter, int nSignalId, const char* szT
 {
 	// (MATT) This is quite a switch statement. Needs replacing. {2009/02/11}
 	CCCPOINT(CAISystem_SendSignal);
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// This deletes the passed pData parameter if it wasn't set to NULL
 	struct DeleteBeforeReturning
@@ -2061,11 +2061,7 @@ IAIGroup* CAISystem::GetIAIGroup(int nGroupID)
 //====================================================================
 // ReadAreasFromFile
 //====================================================================
-#if defined(SEG_WORLD)
-void CAISystem::ReadAreasFromFile(const char* fileNameAreas, const Vec3& vSegmentOffset)
-#else
 void CAISystem::ReadAreasFromFile(const char* fileNameAreas)
-#endif
 {
 	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Navigation, 0, "Areas (%s)", fileNameAreas);
 	LOADING_TIME_PROFILE_SECTION
@@ -2089,18 +2085,8 @@ void CAISystem::ReadAreasFromFile(const char* fileNameAreas)
 
 		if (iNumber >= BAI_AREA_FILE_VERSION_WRITE)
 		{
-#if defined(SEG_WORLD)
-			m_pNavigation->ReadAreasFromFile(file, iNumber, vSegmentOffset);
-#else
 			m_pNavigation->ReadAreasFromFile(file, iNumber);
-#endif
 		}
-
-#if defined(SEG_WORLD)
-		// don't flush all areas here if we're in segmented world
-		if (!gEnv->p3DEngine->GetSegmentsManager()) //@TODO: make seg-world manager available from gEnv.
-			FlushAllAreas();
-#endif
 
 		unsigned numAreas;
 
@@ -2192,13 +2178,11 @@ void CAISystem::LoadMNM(const char* szLevel, const char* szMission, bool bAfterE
 	/// First clear any previous data, and then load stored meshes
 	/// Note smart objects must go after, they will link to the mesh after is loaded
 	gAIEnv.pNavigationSystem->Clear();
-	ISegmentsManager* pSegmentsManager = gEnv->p3DEngine->GetSegmentsManager();
-	if (gEnv->IsEditor() || !pSegmentsManager)
-	{
-		char mnmFileName[1024] = { 0 };
-		cry_sprintf(mnmFileName, "%s/mnmnav%s.bai", szLevel, szMission);
-		gAIEnv.pNavigationSystem->ReadFromFile(mnmFileName, bAfterExporting);
-	}
+
+	char mnmFileName[1024] = { 0 };
+	cry_sprintf(mnmFileName, "%s/mnmnav%s.bai", szLevel, szMission);
+	gAIEnv.pNavigationSystem->ReadFromFile(mnmFileName, bAfterExporting);
+
 #ifdef DEDICATED_SERVER
 	else
 	{
@@ -2475,7 +2459,7 @@ void CAISystem::Update(CTimeValue frameStartTime, float frameDeltaTime)
 	//		it->second->Validate();
 
 	{
-		FRAME_PROFILER("AIUpdate - 1", gEnv->pSystem, PROFILE_AI)
+		CRY_PROFILE_REGION(PROFILE_AI, "AIUpdate - 1")
 
 		if (m_pSmartObjectManager && !m_pSmartObjectManager->IsInitialized())
 			InitSmartObjects();
@@ -2503,10 +2487,9 @@ void CAISystem::Update(CTimeValue frameStartTime, float frameDeltaTime)
 	}
 
 	{
-		FRAME_PROFILER("AIUpdate - 2", gEnv->pSystem, PROFILE_AI);
-
+		CRY_PROFILE_REGION(PROFILE_AI, "AIUpdate - 2");
 		{
-			FRAME_PROFILER("AIUpdate - 2 - Subsystems", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_AI, "AIUpdate - 2 - Subsystems");
 			SubSystemCall(Update(frameDeltaTime));
 		}
 
@@ -2519,14 +2502,14 @@ void CAISystem::Update(CTimeValue frameStartTime, float frameDeltaTime)
 		gAIEnv.pCoverSystem->Update(frameDeltaTime);
 
 		{
-			FRAME_PROFILER("AIUpdate - 2 - NavigationSystem", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_AI, "AIUpdate - 2 - NavigationSystem");
 
 			gAIEnv.pNavigationSystem->Update(false);
 		}
 	}
 
 	{
-		FRAME_PROFILER("AIUpdate 3", gEnv->pSystem, PROFILE_AI)
+		CRY_PROFILE_REGION(PROFILE_AI, "AIUpdate 3")
 
 		// Marcio: Update all players.
 		AIObjectOwners::const_iterator ai = gAIEnv.pAIObjectManager->m_Objects.find(AIOBJECT_PLAYER);
@@ -2539,7 +2522,7 @@ void CAISystem::Update(CTimeValue frameStartTime, float frameDeltaTime)
 		}
 
 		{
-			FRAME_PROFILER("AIUpdate 3 - Groups", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_AI, "AIUpdate 3 - Groups");
 
 			const int64 dt = (frameStartTime - m_lastGroupUpdateTime).GetMilliSecondsAsInt64();
 			if (dt > gAIEnv.CVars.AIUpdateInterval)
@@ -2553,13 +2536,12 @@ void CAISystem::Update(CTimeValue frameStartTime, float frameDeltaTime)
 	}
 
 	{
-		FRAME_PROFILER("MovementSystem", gEnv->pSystem, PROFILE_AI);
-
+		CRY_PROFILE_REGION(PROFILE_AI, "MovementSystem");
 		gAIEnv.pMovementSystem->Update(frameDeltaTime);
 	}
 
 	{
-		FRAME_PROFILER("AIUpdate 4 - Puppet Update", gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_REGION(PROFILE_AI, "AIUpdate 4 - Puppet Update");
 
 		AIAssert(!m_iteratingActorSet);
 		m_iteratingActorSet = true;
@@ -2620,7 +2602,7 @@ void CAISystem::Update(CTimeValue frameStartTime, float frameDeltaTime)
 			}
 
 			{
-				FRAME_PROFILER("AIUpdate 4 - Full Updates", gEnv->pSystem, PROFILE_AI);
+				CRY_PROFILE_REGION(PROFILE_AI, "AIUpdate 4 - Full Updates");
 
 				AIActorVector::iterator it = fullUpdates.begin();
 				AIActorVector::iterator end = fullUpdates.end();
@@ -2674,7 +2656,7 @@ void CAISystem::Update(CTimeValue frameStartTime, float frameDeltaTime)
 			}
 
 			{
-				FRAME_PROFILER("AIUpdate 4 - Dry Updates", gEnv->pSystem, PROFILE_AI);
+				CRY_PROFILE_REGION(PROFILE_AI, "AIUpdate 4 - Dry Updates");
 
 				AIActorVector::iterator it = dryUpdates.begin();
 				AIActorVector::iterator end = dryUpdates.end();
@@ -2684,7 +2666,7 @@ void CAISystem::Update(CTimeValue frameStartTime, float frameDeltaTime)
 			}
 
 			{
-				FRAME_PROFILER("AIUpdate 4 - Subsystems Actors Updates", gEnv->pSystem, PROFILE_AI);
+				CRY_PROFILE_REGION(PROFILE_AI, "AIUpdate 4 - Subsystems Actors Updates");
 
 				for (IAISystemComponent* systemComponent : m_setSystemComponents)
 				{
@@ -2710,14 +2692,14 @@ void CAISystem::Update(CTimeValue frameStartTime, float frameDeltaTime)
 			}
 
 			{
-				FRAME_PROFILER("AIUpdate 4 - Collision Avoidance", gEnv->pSystem, PROFILE_AI);
+				CRY_PROFILE_REGION(PROFILE_AI, "AIUpdate 4 - Collision Avoidance");
 
 				if (gAIEnv.CVars.EnableORCA)
 					UpdateCollisionAvoidance(allUpdates, frameDeltaTime);
 			}
 
 			{
-				FRAME_PROFILER("AIUpdate 4 - Proxy Updates", gEnv->pSystem, PROFILE_AI);
+				CRY_PROFILE_REGION(PROFILE_AI, "AIUpdate 4 - Proxy Updates");
 
 				{
 					{
@@ -2829,22 +2811,19 @@ void CAISystem::Update(CTimeValue frameStartTime, float frameDeltaTime)
 
 	{
 		{
-			FRAME_PROFILER("GlobalRayCaster", gEnv->pSystem, PROFILE_AI);
-
+			CRY_PROFILE_REGION(PROFILE_AI, "GlobalRayCaster");
 			gAIEnv.pRayCaster->SetQuota(gAIEnv.CVars.RayCasterQuota);
 			gAIEnv.pRayCaster->Update(frameDeltaTime);
 		}
 
 		{
-			FRAME_PROFILER("GlobalIntersectionTester", gEnv->pSystem, PROFILE_AI);
-
+			CRY_PROFILE_REGION(PROFILE_AI, "GlobalIntersectionTester");
 			gAIEnv.pIntersectionTester->SetQuota(gAIEnv.CVars.IntersectionTesterQuota);
 			gAIEnv.pIntersectionTester->Update(frameDeltaTime);
 		}
 
 		{
-			FRAME_PROFILER("ClusterDetector", gEnv->pSystem, PROFILE_AI);
-
+			CRY_PROFILE_REGION(PROFILE_AI, "ClusterDetector");
 			gAIEnv.pClusterDetector->Update(frameDeltaTime);
 		}
 
@@ -4956,7 +4935,7 @@ unsigned int CAISystem::GetDangerSpots(const IAIObject* requester, float range, 
 //===================================================================
 void CAISystem::DynOmniLightEvent(const Vec3& pos, float radius, EAILightEventType type, EntityId shooterId, float time)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// Do not handle events while serializing.
 	if (gEnv->pSystem->IsSerializingFile())
@@ -4976,7 +4955,7 @@ void CAISystem::DynOmniLightEvent(const Vec3& pos, float radius, EAILightEventTy
 //===================================================================
 void CAISystem::DynSpotLightEvent(const Vec3& pos, const Vec3& dir, float radius, float fov, EAILightEventType type, EntityId shooterId, float time)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// Do not handle events while serializing.
 	if (gEnv->pSystem->IsSerializingFile())
@@ -5233,7 +5212,7 @@ bool CAISystem::WouldHumanBeVisible(const Vec3& footPos, bool fullCheck) const
 //===================================================================
 float CAISystem::ProcessBalancedDamage(IEntity* pShooterEntity, IEntity* pTargetEntity, float damage, const char* damageType)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (!pShooterEntity || !pTargetEntity || !pShooterEntity->HasAI() || !pTargetEntity->HasAI())
 		return damage;
@@ -5894,7 +5873,7 @@ void CAISystem::DetachFromTerritoryAllAIObjectsOfType(const char* szTerritoryNam
 
 void CAISystem::UpdateCollisionAvoidance(const AIActorVector& agents, float updateTime)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	gAIEnv.pCollisionAvoidanceSystem->Reset();
 

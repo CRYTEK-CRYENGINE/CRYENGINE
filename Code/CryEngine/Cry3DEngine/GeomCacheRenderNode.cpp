@@ -147,10 +147,8 @@ void CGeomCacheRenderNode::GetLocalBounds(AABB& bbox)
 
 void CGeomCacheRenderNode::OffsetPosition(const Vec3& delta)
 {
-	#ifdef SEG_WORLD
 	m_matrix.SetTranslation(m_matrix.GetTranslation() + delta);
 	UpdateBBox();
-	#endif
 }
 
 bool CGeomCacheRenderNode::DidBoundsChange()

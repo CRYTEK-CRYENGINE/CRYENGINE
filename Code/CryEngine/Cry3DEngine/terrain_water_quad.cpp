@@ -897,9 +897,6 @@ uint32 COcean::GetVisiblePixelsCount()
 
 void COcean::OffsetPosition(const Vec3& delta)
 {
-#ifdef SEG_WORLD
-	if (m_pTempData) m_pTempData->OffsetPosition(delta);
-#endif
 }
 
 void COcean::FillBBox(AABB& aabb)

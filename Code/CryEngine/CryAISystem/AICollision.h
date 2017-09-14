@@ -342,7 +342,7 @@ inline bool GetFloorPos(Vec3& floorPos, const Vec3& pos, float upDist, float dow
 {
 	// (MATT) This function doesn't have the behaviour you might expect. It only searches up by radius amount, and checks down by
 	// upDist + downDist + rad. Might or might not be safe to fix, but this code is being superseded. {2009/07/01}
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	Vec3 delta = Vec3(0, 0, -downDist - upDist);
 	Vec3 capStart = pos + Vec3(0, 0, upDist);
 	const Vec3 vRad(0, 0, radius);

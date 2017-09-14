@@ -187,7 +187,7 @@ void CEntityFlowNode::GetConfiguration(SFlowNodeConfig& config)
 
 void CEntityFlowNode::ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	switch (event)
 	{

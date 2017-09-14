@@ -187,6 +187,7 @@ def configure(conf):
 	###########################################
 	# Load support for c# and swig
 	conf.load('swig', tooldir=CRY_WAF_TOOL_DIR)
+	conf.load('protoc', tooldir=CRY_WAF_TOOL_DIR)
 	conf.load('cs', tooldir=CRY_WAF_TOOL_DIR)
 		
 	#Get user defined active specs
@@ -253,7 +254,8 @@ def configure(conf):
 			# Try to load the function			
 			getattr(conf, function_name)()
 			
-			conf.configure_qt()
+			conf.configure_qt()			
+			conf.configure_protoc()
 
 			# Load swig and mono
 			conf.configure_swig()

@@ -505,7 +505,7 @@ void CKeyboard::ProcessKey(uint32 devSpecId, bool pressed)
 //////////////////////////////////////////////////////////////////////////
 void CKeyboard::Update(bool bFocus)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_INPUT);
+	CRY_PROFILE_FUNCTION(PROFILE_INPUT);
 	HRESULT hr;
 	DIDEVICEOBJECTDATA rgdod[256];
 	DWORD dwItems = 256;

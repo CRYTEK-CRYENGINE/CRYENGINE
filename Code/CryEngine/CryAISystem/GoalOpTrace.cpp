@@ -268,7 +268,7 @@ void COPTrace::Serialize(TSerialize ser)
 EGoalOpResult COPTrace::Execute(CPipeUser* pPipeUser)
 {
 	CCCPOINT(COPTrace_Execute);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	bool bTraceFinished = ExecuteTrace(pPipeUser, /* full update */ true);
 
@@ -307,7 +307,7 @@ EGoalOpResult COPTrace::Execute(CPipeUser* pPipeUser)
 //===================================================================
 bool COPTrace::ExecuteTrace(CPipeUser* pPipeUser, bool bFullUpdate)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// The destructor needs to know the most recent pipe user
 	if (m_refPipeUser != pPipeUser)
@@ -621,7 +621,7 @@ void COPTrace::ExecuteManeuver(CPipeUser* pPipeUser, const Vec3& steerDir)
 bool COPTrace::ExecutePreamble(CPipeUser* pPipeUser)
 {
 	CCCPOINT(COPTrace_ExecutePreamble);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_lastPosition.IsZero())
 		m_lastPosition = pPipeUser->GetPhysicsPos();
@@ -658,7 +658,7 @@ bool COPTrace::ExecutePreamble(CPipeUser* pPipeUser)
 //===================================================================
 bool COPTrace::ExecutePostamble(CPipeUser* pPipeUser, bool& reachedEnd, bool fullUpdate, bool b2D)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// do this after maneuver since that needs to track how far we moved
 	Vec3 opPos = pPipeUser->GetPhysicsPos();
@@ -707,7 +707,7 @@ bool COPTrace::ExecutePostamble(CPipeUser* pPipeUser, bool& reachedEnd, bool ful
 //===================================================================
 bool COPTrace::ExecutePathFollower(CPipeUser* pPipeUser, bool fullUpdate, IPathFollower* pPathFollower)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	AIAssert(pPathFollower);
 	if (!pPathFollower)
@@ -1101,7 +1101,7 @@ bool COPTrace::Execute2D(CPipeUser* const pPipeUser, bool fullUpdate)
 //====================================================================
 bool COPTrace::Execute3D(CPipeUser* pPipeUser, bool fullUpdate)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (ExecutePreamble(pPipeUser))
 		return true;

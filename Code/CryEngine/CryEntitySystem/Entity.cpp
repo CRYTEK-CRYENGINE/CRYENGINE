@@ -42,8 +42,9 @@
 #include "ClipVolumeProxy.h"
 #include "DynamicResponseProxy.h"
 #include <CryExtension/CryCreateClassInstance.h>
-
+#include <CryGame/IGameFramework.h>
 #include <CrySchematyc/CoreAPI.h>
+#include <CrySchematyc/Utils/ClassProperties.h>
 
 // enable this to check nan's on position updates... useful for debugging some weird crashes
 #define ENABLE_NAN_CHECK
@@ -57,11 +58,6 @@
 
 #define CHECKQNAN_VEC(v) \
   CHECKQNAN_FLT(v.x); CHECKQNAN_FLT(v.y); CHECKQNAN_FLT(v.z)
-
-namespace
-{
-Matrix34 sIdentityMatrix = Matrix34::CreateIdentity();
-}
 
 //////////////////////////////////////////////////////////////////////////
 CEntity::CEntity(SEntitySpawnParams& params)
@@ -80,7 +76,6 @@ CEntity::CEntity(SEntitySpawnParams& params)
 	m_bRequiresComponentUpdate = 0;
 	m_bInActiveList = 0;
 
-	m_bBoundsValid = 0;
 	m_bInitialized = 0;
 	m_bHidden = 0;
 	m_bIsInHiddenLayer = 0;
@@ -107,10 +102,6 @@ CEntity::CEntity(SEntitySpawnParams& params)
 
 	m_objectID = 0;
 
-#ifdef SEG_WORLD
-	m_bLocalSeg = false;
-#endif
-
 	//////////////////////////////////////////////////////////////////////////
 	// Initialize basic parameters.
 	//////////////////////////////////////////////////////////////////////////
@@ -134,7 +125,7 @@ CEntity::CEntity(SEntitySpawnParams& params)
 		CEntityScript* pCEntityScript = static_cast<CEntityScript*>(pEntityScript);
 		if (pCEntityScript->LoadScript())
 		{
-			auto pScriptProxy = CreateComponent<IEntityScriptComponent>();
+			auto pScriptProxy = GetOrCreateComponent<IEntityScriptComponent>();
 			pScriptProxy->ChangeScript(pEntityScript, &params);
 		}
 	}
@@ -192,7 +183,7 @@ void CEntity::SetFlagsExtended(uint32 flagsExtended)
 //////////////////////////////////////////////////////////////////////////
 bool CEntity::SendEvent(SEntityEvent& event)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 
 	CTimeValue t0;
 	if (CVar::es_DebugEvents)
@@ -282,9 +273,11 @@ bool CEntity::SendEvent(SEntityEvent& event)
 				if (pCharacterInstance)
 					pCharacterInstance->SetPlaybackScale(1.0f);
 			}
-			if (m_pSchematycObject)
+
+			// We only want to reset when we return from game mode to editor mode.
+			if (m_pSchematycObject && gEnv->IsEditor() && !gEnv->IsEditorGameMode())
 			{
-				m_pSchematycObject->Reset(m_simulationMode, Schematyc::EObjectResetPolicy::Always);
+				m_pSchematycObject->SetSimulationMode(m_simulationMode, Schematyc::EObjectSimulationUpdatePolicy::OnChangeOnly, false);
 			}
 			break;
 		}
@@ -328,11 +321,26 @@ bool CEntity::SendEvent(SEntityEvent& event)
 			return true;
 		break;
 
-	case ENTITY_EVENT_START_LEVEL:
-		if (m_pSchematycObject && !gEnv->IsEditor())
+	case ENTITY_EVENT_LEVEL_LOADED:
 		{
-			m_simulationMode = EEntitySimulationMode::Game;
-			m_pSchematycObject->Reset(m_simulationMode, Schematyc::EObjectResetPolicy::OnChange);
+			// After level load we set the simulation mode but don't start simulation yet. Mean we
+			// fully prepare the object for the simulation to start. Simulation will be started with
+			// the ENTITY_EVENT_START_GAME event.
+			if (m_pSchematycObject)
+			{
+				m_simulationMode = !gEnv->IsEditing() ? EEntitySimulationMode::Game : EEntitySimulationMode::Editor;
+				m_pSchematycObject->SetSimulationMode(m_simulationMode, Schematyc::EObjectSimulationUpdatePolicy::OnChangeOnly, false);
+			}
+		}
+		break;
+
+	case ENTITY_EVENT_START_GAME:
+		{
+			// Set simulation mode and finally start simulation.
+			if (m_pSchematycObject)
+			{
+				m_pSchematycObject->SetSimulationMode(m_simulationMode, Schematyc::EObjectSimulationUpdatePolicy::OnChangeOnly, true);
+			}
 		}
 		break;
 	}
@@ -404,6 +412,10 @@ bool CEntity::Init(SEntitySpawnParams& params)
 		{
 			m_simulationMode = EEntitySimulationMode::Editor;
 		}
+		else if (gEnv->pGameFramework->IsGameStarted())
+		{
+			m_simulationMode = EEntitySimulationMode::Game;
+		}
 		else
 		{
 			m_simulationMode = EEntitySimulationMode::Idle;
@@ -467,7 +479,7 @@ bool CEntity::Init(SEntitySpawnParams& params)
 //////////////////////////////////////////////////////////////////////////
 void CEntity::Update(SEntityUpdateContext& ctx)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 
 	if (m_bHidden && !CheckFlags(ENTITY_FLAG_UPDATE_HIDDEN))
 		return;
@@ -503,7 +515,7 @@ void CEntity::Update(SEntityUpdateContext& ctx)
 //////////////////////////////////////////////////////////////////////////
 void CEntity::PrePhysicsUpdate(SEntityEvent& event)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 
 	m_components.ForEachSorted(
 	  [&event](const SEntityComponentRecord& componentRecord)
@@ -899,7 +911,7 @@ void CEntity::PreviewRender(SEntityPreviewContext& context)
 		IEntityComponentPreviewer* pPreviewer = rec.pComponent->GetPreviewer();
 		if (pPreviewer)
 		{
-		  pPreviewer->Render(*this, *rec.pComponent.get(), context);
+			pPreviewer->Render(*this, *rec.pComponent.get(), context);
 		}
 	});
 }
@@ -1006,9 +1018,6 @@ void CEntity::InvalidateTM(int nWhyFlags, bool bRecalcPhyBounds)
 	{
 		SEntityEvent event(ENTITY_EVENT_XFORM);
 		event.nParam[0] = nWhyFlags;
-#ifdef SEG_WORLD
-		event.nParam[1] = bRecalcPhyBounds;
-#endif
 		SendEvent(event);
 	}
 }
@@ -1180,7 +1189,6 @@ void CEntity::UpdateComponentEventMask(const IEntityComponent* pComponent)
 		    if (componentRecord.pComponent && (componentRecord.registeredEventsMask & BIT64(ENTITY_EVENT_UPDATE)) != 0)
 		    {
 		      m_bRequiresComponentUpdate = 1;
-		      ActivateEntityIfNecessary();
 		      break;
 		    }
 		  }
@@ -1209,9 +1217,8 @@ void CEntity::OnComponentMaskChanged(const IEntityComponent& component, uint64 n
 	if (m_bRequiresComponentUpdate == 0 && newMask & BIT64(ENTITY_EVENT_UPDATE))
 	{
 		m_bRequiresComponentUpdate = 1;
-
-		ActivateEntityIfNecessary();
 	}
+	ActivateEntityIfNecessary();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1221,20 +1228,33 @@ void CEntity::PrePhysicsActivate(bool bActive)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntity::SetTimer(int nTimerId, int nMilliSeconds)
+int CEntity::SetTimer(int nTimerId, int nMilliSeconds)
 {
+	if (nTimerId == IEntity::CREATE_NEW_UNIQUE_TIMER_ID)  // generate a new entity-unique timerId
+	{
+		static uint16 uniqueTimerId = 0;
+		while (g_pIEntitySystem->HasTimerEvent(m_nID, uniqueTimerId))
+			++uniqueTimerId;
+		nTimerId = uniqueTimerId;
+	}
+
 	KillTimer(nTimerId);
 	SEntityTimerEvent timeEvent;
 	timeEvent.entityId = m_nID;
 	timeEvent.nTimerId = nTimerId;
 	timeEvent.nMilliSeconds = nMilliSeconds;
 	g_pIEntitySystem->AddTimerEvent(timeEvent);
+
+	return timeEvent.nTimerId;
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CEntity::KillTimer(int nTimerId)
 {
-	g_pIEntitySystem->RemoveTimerEvent(m_nID, nTimerId);
+	if (nTimerId != IEntity::CREATE_NEW_UNIQUE_TIMER_ID)
+	{
+		g_pIEntitySystem->RemoveTimerEvent(m_nID, nTimerId);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1317,25 +1337,46 @@ void CEntity::LoadComponent(Serialization::IArchive& archive)
 {
 	// Load component Type GUID
 	CryGUID typeGUID;
-	CryGUID componentGUID;
-	CryGUID parentGUID;
-	EntityComponentFlags componentFlags;
 
 	// Load class GUID
 	archive(typeGUID, "TypeGUID", "TypeGUID");
 
+	// Load component name attribute
+	string name;
+	archive(name, "Name", "Name");
+
+	const Schematyc::IEnvComponent* pEnvComponent = gEnv->pSchematyc->GetEnvRegistry().GetComponent(typeGUID);
+	if (!pEnvComponent)
+	{
+		char guidStr[128];
+		typeGUID.ToString(guidStr);
+		// Unknown Entity Component
+		EntityWarning("Attempting to load unknown Entity Component: %s {%s}", name.c_str(), guidStr);
+		return;
+	}
+
+	const CEntityComponentClassDesc& componentClassDesc = pEnvComponent->GetDesc();
+	EntityComponentFlags componentFlags = componentClassDesc.GetComponentFlags();
+	if ((componentFlags.Check(EEntityComponentFlags::ServerOnly) && !gEnv->bServer)
+		|| (componentFlags.Check(EEntityComponentFlags::ClientOnly) && !gEnv->IsClient()))
+	{
+		return;
+	}
+
 	// Load component unique GUID
+	CryGUID componentGUID;
 	archive(componentGUID, "GUID", "GUID");
 
 	std::shared_ptr<IEntityComponent> pComponent;
 	IEntityComponent* pParentComponent = nullptr;
 
-	if (!componentGUID.IsNull())
+	bool bValidInstanceGUID = !componentGUID.IsNull() && (m_flagsExtended & ENTITY_FLAG_EXTENDED_CLONED) == 0;
+	if (bValidInstanceGUID)
 	{
 		// Find component in the list of the existing entity components
 		for (auto& record : m_components.GetVector())
 		{
-			if (record.pComponent->GetGUID() == componentGUID)
+			if (record.pComponent != nullptr && record.pComponent->GetGUID() == componentGUID)
 			{
 				pComponent = record.pComponent;
 				break;
@@ -1349,14 +1390,11 @@ void CEntity::LoadComponent(Serialization::IArchive& archive)
 	}
 
 	// Try to find parent component
+	CryGUID parentGUID;
 	if (archive(parentGUID, "ParentGUID", "ParentGUID") && !parentGUID.IsNull())
 	{
 		pParentComponent = GetComponentByGUID(parentGUID);
 	}
-
-	// Load component name attribute
-	string name;
-	archive(name, "Name", "Name");
 
 	// Load component transform
 	CryTransform::CTransformPtr pTransform;
@@ -1366,19 +1404,6 @@ void CEntity::LoadComponent(Serialization::IArchive& archive)
 		pTransform = std::make_shared<CryTransform::CTransform>(transform);
 	}
 
-	const Schematyc::IEnvComponent* pEnvComponent = gEnv->pSchematyc->GetEnvRegistry().GetComponent(typeGUID);
-	if (!pEnvComponent)
-	{
-		char guidStr[128];
-		typeGUID.ToString(guidStr);
-		// Unknown Entity Component
-		EntityWarning("Attempting to load unknown Entity Component: %s {%s}", name.c_str(), guidStr);
-		return;
-	}
-
-	const CEntityComponentClassDesc& componentClassDesc = pEnvComponent->GetDesc();
-
-	componentFlags = componentClassDesc.GetComponentFlags();
 	// Load user attribute
 	bool bUserAdded = false;
 	if (archive(bUserAdded, "UserAdded", "UserAdded"))
@@ -1405,8 +1430,8 @@ void CEntity::LoadComponent(Serialization::IArchive& archive)
 		//classProperties.Apply(componentClassDesc, pComponent.get());
 		Schematyc::Utils::SerializeClass(archive, componentClassDesc, pComponent.get(), "properties", "properties");
 
-		// Finally Add and Initialize the component
-		AddComponent(typeGUID, pComponent, true, &initParams);
+		// Add the component to the entity
+		AddComponentInternal(pComponent, typeGUID, &initParams, &componentClassDesc);
 	}
 	else
 	{
@@ -1428,9 +1453,6 @@ void CEntity::LoadComponent(Serialization::IArchive& archive)
 		// Apply loaded properties values on the members of the component
 		//classProperties.Apply(componentClassDesc, pComponent.get());
 		Schematyc::Utils::SerializeClass(archive, componentClassDesc, pComponent.get(), "properties", "properties");
-
-		// Call component Initialize again
-		pComponent->Initialize();
 	}
 }
 
@@ -1482,21 +1504,6 @@ void CEntity::SaveComponent(Serialization::IArchive& archive, IEntityComponent& 
 	Schematyc::Utils::SerializeClass(archive, component.GetClassDesc(), &component, "properties", "properties");
 }
 
-struct SEntityComponentSerializationHelper
-{
-	CEntity&          entity;
-	IEntityComponent* pComponent = nullptr;
-	SEntityComponentSerializationHelper(CEntity& e) : entity(e) {};
-	SEntityComponentSerializationHelper(CEntity& e, IEntityComponent* comp) : entity(e), pComponent(comp) {};
-	void Serialize(Serialization::IArchive& archive)
-	{
-		if (archive.isInput())
-			entity.LoadComponent(archive);
-		else
-			entity.SaveComponent(archive, *pComponent);
-	}
-};
-
 static bool SerializePropertiesWrapper(void* rawPointer, yasli::Archive& ar)
 {
 	static_cast<IEntityPropertyGroup*>(rawPointer)->SerializeProperties(ar);
@@ -1520,7 +1527,7 @@ bool CEntity::LoadComponentLegacy(XmlNodeRef& entityNode, XmlNodeRef& componentN
 	{
 		for (const SEntityComponentRecord& record : m_components.GetVector())
 		{
-			if (record.pComponent->GetClassDesc().GetGUID() == componentTypeId)
+			if (record.pComponent != nullptr && record.pComponent->GetClassDesc().GetGUID() == componentTypeId)
 			{
 				pComponent = record.pComponent.get();
 				break;
@@ -1545,7 +1552,7 @@ bool CEntity::LoadComponentLegacy(XmlNodeRef& entityNode, XmlNodeRef& componentN
 		{
 			// Only user created components, should create components, otherwise component should be created by entity class or Schematyc objects
 			IEntityComponent::SInitParams initParams(this, CryGUID(), "", nullptr, EEntityComponentFlags::None, nullptr, nullptr);
-			pComponent = AddComponent(componentTypeId, std::shared_ptr<IEntityComponent>(), false, &initParams);
+			pComponent = CreateComponentByInterfaceID(componentTypeId, &initParams);
 		}
 	}
 
@@ -1613,6 +1620,7 @@ void CEntity::SerializeXML(XmlNodeRef& node, bool bLoading, bool bIncludeScriptP
 	{
 		if (XmlNodeRef componentsNode = node->findChild("Components"))
 		{
+			// Load components into the m_components vector (without initializing them!)
 			for (int i = 0, n = componentsNode->getChildCount(); i < n; ++i)
 			{
 				XmlNodeRef componentNode = componentsNode->getChild(i);
@@ -1622,11 +1630,28 @@ void CEntity::SerializeXML(XmlNodeRef& node, bool bLoading, bool bIncludeScriptP
 				}
 				else
 				{
-					SEntityComponentSerializationHelper componentSerializationHelper(*this);
+					struct SEntityComponentLoadHelper
+					{
+						CEntity& entity;
+						void Serialize(Serialization::IArchive& archive)
+						{
+							entity.LoadComponent(archive);
+						}
+					};
 
-					Serialization::LoadXmlNode(componentSerializationHelper, componentNode);
+					SEntityComponentLoadHelper loadHelper = SEntityComponentLoadHelper{ *this };
+					Serialization::LoadXmlNode(loadHelper, componentNode);
 				}
 			}
+
+			// Now that all components are in place, initialize them (does not apply to legacy proxies).
+			m_components.ForEach([&](const SEntityComponentRecord& record)
+			{
+				if (record.proxyType == ENTITY_PROXY_LAST)
+				{
+					record.pComponent->Initialize();
+				}
+			});
 		}
 		m_physics.SerializeXML(node, bLoading);
 	}
@@ -1650,7 +1675,19 @@ void CEntity::SerializeXML(XmlNodeRef& node, bool bLoading, bool bIncludeScriptP
 						componentsNode = node->newChild("Components");
 					}
 					XmlNodeRef componentNode = componentsNode->newChild("Component");
-					Serialization::SaveXmlNode(componentNode, Serialization::SStruct(SEntityComponentSerializationHelper(*this, &component)));
+
+					struct SEntityComponentSaveHelper
+					{
+						CEntity&          entity;
+						IEntityComponent* pComponent;
+						void Serialize(Serialization::IArchive& archive)
+						{
+							entity.SaveComponent(archive, *pComponent);
+						}
+					};
+
+					SEntityComponentSaveHelper saveHelper{ *this, &component };
+					Serialization::SaveXmlNode(componentNode, Serialization::SStruct(saveHelper));
 				}
 				else if (component.GetPropertyGroup() || component.GetComponentFlags().Check(EEntityComponentFlags::Legacy))
 				{
@@ -1732,66 +1769,94 @@ IEntityComponent* CEntity::CreateProxy(EEntityProxy proxy)
 }
 
 //////////////////////////////////////////////////////////////////////////
-IEntityComponent* CEntity::AddComponent(CryInterfaceID typeId, std::shared_ptr<IEntityComponent> pComponent, bool bAllowDuplicate, IEntityComponent::SInitParams* pInitParams)
+IEntityComponent* CEntity::CreateComponentByInterfaceID(const CryInterfaceID& interfaceId, IEntityComponent::SInitParams *pInitParams)
 {
 	const CEntityComponentClassDesc* pClassDescription = nullptr;
+	CryGUID componentTypeID;
 
-	if (!pComponent)
+	// First look for a unified Schematyc / Entity component type
+	// TODO: Search hierarchy
+	const Schematyc::IEnvComponent* pEnvComponent = gEnv->pSchematyc->GetEnvRegistry().GetComponent(interfaceId);
+	ICryFactory* pLegacyComponentFactory = nullptr;
+	if (pEnvComponent != nullptr)
 	{
-		const Schematyc::IEnvComponent* pEnvComponent = gEnv->pSchematyc->GetEnvRegistry().GetComponent(typeId);
-		if (pEnvComponent)
+		// Resolve to implementation ID
+		componentTypeID = pEnvComponent->GetGUID();
+		pClassDescription = &pEnvComponent->GetDesc();
+	}
+	// Fall back to legacy 5.3 creation
+	else if (ICryFactoryRegistry* pFactoryRegistry = gEnv->pSystem->GetCryFactoryRegistry())
+	{
+		size_t numFactories = 1;
+		pFactoryRegistry->IterateFactories(interfaceId, &pLegacyComponentFactory, numFactories);
+		if (numFactories == 0 || pLegacyComponentFactory == nullptr)
 		{
-			pComponent = pEnvComponent->CreateFromPool();
-			pClassDescription = &pEnvComponent->GetDesc();
+			// Nothing found by interface, check by implementation id
+			pLegacyComponentFactory = pFactoryRegistry->GetFactory(interfaceId);
 		}
-		if (!pComponent)
-		{
-			// Deprecated, Pre Schematyc creation.
-			if (!CryCreateClassInstanceForInterface(typeId, pComponent))
-			{
-				if (!CryCreateClassInstance(typeId, pComponent))
-				{
-					CRY_ASSERT_MESSAGE(0, "No component implementation class registered for the given component interface");
-					return nullptr;
-				}
-			}
-		}
-	}
-	
-	IEntityComponent::SInitParams tempInitParams(this, CryGUID::Create(), "", pClassDescription != nullptr ? pClassDescription : &pComponent->GetClassDesc(), EEntityComponentFlags::None, nullptr, nullptr);
-	if (pInitParams == nullptr)
-	{
-		pInitParams = &tempInitParams;
-	}
-	else if(pInitParams->classDesc == nullptr)
-	{
-		pInitParams->classDesc = &pComponent->GetClassDesc();
-	}
-	
-	pComponent->PreInit(*pInitParams);
 
-	bool bExist = false;
-	for (const SEntityComponentRecord& componentRecord : m_components.GetVector())
-	{
-		if (componentRecord.pComponent == pComponent)
+		if (pLegacyComponentFactory == nullptr || !pLegacyComponentFactory->ClassSupports(cryiidof<IEntityComponent>()))
 		{
-			CRY_ASSERT_MESSAGE(0, "AddComponent called twice with the same pointer");
+			CRY_ASSERT_MESSAGE(0, "No component implementation registered for the given component interface");
 			return nullptr;
 		}
-		if (!bAllowDuplicate && componentRecord.typeId == typeId && typeId != cryiidof<ICryUnknown>() && typeId != cryiidof<IEntityComponent>()
-		    && componentRecord.pComponent.get() != nullptr) //checks if the component was just removed
-		{
-			CRY_ASSERT_MESSAGE(0, "AddComponent called twice with the same interface type");
-			return nullptr;
-		}
+
+		// Resolve to implementation id, since we may have queried by interface
+		componentTypeID = pLegacyComponentFactory->GetClassID();
 	}
+	else
+	{
+		CRY_ASSERT_MESSAGE("Tried to create unregistered component with type id %s!", interfaceId.ToDebugString());
+		return nullptr;
+	}
+
+	// All pre-checks successful, we can now create the component
+	// There can never be any failures after this point, we must always add the component to storage
+	std::shared_ptr<IEntityComponent> pComponent = pEnvComponent != nullptr ? pEnvComponent->CreateFromPool() : cryinterface_cast<IEntityComponent>(pLegacyComponentFactory->CreateClassInstance());
+	CRY_ASSERT(pComponent != nullptr);
+
+	// Add the component to the entity, and initialize it manually immediately after
+	AddComponentInternal(pComponent, componentTypeID, pInitParams, pClassDescription);
+
+	pComponent->Initialize();
+
+	return pComponent.get();
+}
+
+//////////////////////////////////////////////////////////////////////////
+bool CEntity::AddComponent(std::shared_ptr<IEntityComponent> pComponent, IEntityComponent::SInitParams *pInitParams)
+{
+	const CEntityComponentClassDesc* pClassDescription = pInitParams != nullptr ? pInitParams->classDesc : nullptr;
+	if (pClassDescription != nullptr)
+	{
+		AddComponentInternal(pComponent, pClassDescription->GetGUID(), pInitParams, pClassDescription);
+		return true;
+	}
+	else if(ICryFactory* pFactory = pComponent->GetFactory())
+	{
+		AddComponentInternal(pComponent, pFactory->GetClassID(), pInitParams, nullptr);
+		return true;
+	}
+
+	AddComponentInternal(pComponent, CryGUID::Null(), pInitParams, nullptr);
+	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CEntity::AddComponentInternal(std::shared_ptr<IEntityComponent> pComponent, const CryGUID& componentTypeID, IEntityComponent::SInitParams *pInitParams, const CEntityComponentClassDesc* pClassDescription)
+{
+	CRY_ASSERT_MESSAGE(pClassDescription == nullptr || !(pClassDescription->GetComponentFlags().Check(EEntityComponentFlags::ClientOnly) && !gEnv->IsClient()), "Trying to add a client-only component on the server!");
+	CRY_ASSERT_MESSAGE(pClassDescription == nullptr || !(pClassDescription->GetComponentFlags().Check(EEntityComponentFlags::ServerOnly) && !gEnv->bServer), "Trying to add a server-only component on the client!");
+
+	// Initialize common component members
+	pComponent->PreInit(pInitParams != nullptr ? *pInitParams : IEntityComponent::SInitParams(this, CryGUID::Create(), "", pClassDescription, EEntityComponentFlags::None, nullptr, nullptr));
 
 	// Initialize component entity pointer
 	pComponent->m_pEntity = this;
 
 	SEntityComponentRecord componentRecord;
 	componentRecord.pComponent = pComponent;
-	componentRecord.typeId = typeId;
+	componentRecord.typeId = componentTypeID;
 	componentRecord.registeredEventsMask = pComponent->GetEventMask();
 	componentRecord.proxyType = (int)pComponent->GetProxyType();
 	componentRecord.eventPriority = pComponent->GetEventPriority();
@@ -1811,13 +1876,8 @@ IEntityComponent* CEntity::AddComponent(CryInterfaceID typeId, std::shared_ptr<I
 	// Sorted insertion, all elements of the m_components are sorted by the proxyType
 	m_components.Add(componentRecord);
 
-	// Call initialization of the component
-	if (!pInitParams || !pInitParams->bNotInitialize)
-	{
-		pComponent->Initialize();
-	}
-
-	return pComponent.get();
+	// Entity has changed so make the state dirty
+	m_componentChangeState++;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1830,7 +1890,7 @@ void CEntity::RemoveComponent(IEntityComponent* pComponent)
 
 	for (const SEntityComponentRecord& componentRecord : m_components.GetVector())
 	{
-		if (componentRecord.pComponent && componentRecord.registeredEventsMask & BIT64(ENTITY_EVENT_UPDATE))
+		if (componentRecord.registeredEventsMask & BIT64(ENTITY_EVENT_UPDATE))
 		{
 			m_bRequiresComponentUpdate = 1;
 
@@ -1839,19 +1899,25 @@ void CEntity::RemoveComponent(IEntityComponent* pComponent)
 	}
 
 	ActivateEntityIfNecessary();
+
+	// Entity has changed so make the state dirty
+	m_componentChangeState++;
 }
 
 void CEntity::RemoveAllComponents()
 {
 	m_components.Clear();
+
+	// Entity has changed so make the state dirty
+	m_componentChangeState++;
 }
 
 //////////////////////////////////////////////////////////////////////////
-IEntityComponent* CEntity::GetComponentByTypeId(const CryInterfaceID& interfaceID) const
+IEntityComponent* CEntity::GetComponentByTypeId(const CryInterfaceID& typeId) const
 {
 	for (const SEntityComponentRecord& componentRecord : m_components.GetVector())
 	{
-		if (componentRecord.typeId == interfaceID)
+		if (componentRecord.typeId == typeId)
 		{
 			return componentRecord.pComponent.get();
 		}
@@ -1860,15 +1926,92 @@ IEntityComponent* CEntity::GetComponentByTypeId(const CryInterfaceID& interfaceI
 }
 
 //////////////////////////////////////////////////////////////////////////
+void CEntity::GetComponentsByTypeId(const CryInterfaceID& typeId, DynArray<IEntityComponent*>& components) const
+{
+	for (const SEntityComponentRecord& componentRecord : m_components.GetVector())
+	{
+		if (componentRecord.typeId == typeId)
+		{
+			components.push_back(componentRecord.pComponent.get());
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
 IEntityComponent* CEntity::GetComponentByGUID(const CryGUID& guid) const
 {
 	for (auto& record : m_components.GetVector())
 	{
-		if (record.pComponent->GetGUID() == guid)
+		if (record.pComponent != nullptr && record.pComponent->GetGUID() == guid)
 		{
 			return record.pComponent.get();
 		}
 	}
+	return nullptr;
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CEntity::QueryComponentsByInterfaceID(const CryInterfaceID& interfaceID, DynArray<IEntityComponent*> &components) const
+{
+	CRY_ASSERT(!interfaceID.IsNull());
+	CRY_ASSERT(interfaceID != cryiidof<ICryUnknown>());
+	CRY_ASSERT(interfaceID != cryiidof<IEntityComponent>());
+
+	for (const SEntityComponentRecord& record : m_components.GetVector())
+	{
+		if (record.pComponent == nullptr)
+			continue;
+
+		// Check unified Schematyc / Entity class hierarchy
+		if (record.pComponent->GetClassDesc().GetGUID() == interfaceID || record.pComponent->GetClassDesc().FindBaseByTypeID(interfaceID) != nullptr)
+		{
+			components.push_back(record.pComponent.get());
+			continue;
+		}
+
+		// Check legacy component class hierarchy
+		if(ICryFactory* pFactory = record.pComponent->GetFactory())
+		{
+			if (pFactory->GetClassID() == interfaceID || pFactory->ClassSupports(interfaceID))
+			{
+				components.push_back(record.pComponent.get());
+				continue;
+			}
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+IEntityComponent* CEntity::QueryComponentByInterfaceID(const CryInterfaceID& interfaceID) const
+{
+	CRY_ASSERT(!interfaceID.IsNull());
+
+	if (interfaceID == cryiidof<ICryUnknown>() || interfaceID == cryiidof<IEntityComponent>())
+	{
+		return nullptr;
+	}
+
+	for (const SEntityComponentRecord& record : m_components.GetVector())
+	{
+		if (record.pComponent == nullptr)
+			continue;
+
+		// Check unified Schematyc / Entity class hierarchy
+		if (record.pComponent->GetClassDesc().GetGUID() == interfaceID || record.pComponent->GetClassDesc().FindBaseByTypeID(interfaceID) != nullptr)
+		{
+			return record.pComponent.get();
+		}
+
+		// Check legacy component class hierarchy
+		if (ICryFactory* pFactory = record.pComponent->GetFactory())
+		{
+			if (pFactory->GetClassID() == interfaceID || pFactory->ClassSupports(interfaceID))
+			{
+				return record.pComponent.get();
+			}
+		}
+	}
+
 	return nullptr;
 }
 
@@ -1878,14 +2021,10 @@ void CEntity::CloneComponentsFrom(IEntity& otherEntity)
 	static_cast<CEntity&>(otherEntity).m_components.ForEach([this](const SEntityComponentRecord& componentRecord)
 	{
 		IEntityComponent* pSourceComponent = componentRecord.pComponent.get();
-		// Check if the component already exists in the target entity
-		IEntityComponent* pNewComponent = GetComponentByTypeId(componentRecord.typeId);
-		if (pNewComponent == nullptr)
-		{
-			// Create a new component
-			IEntityComponent::SInitParams initParams(this, CryGUID::Create(), pSourceComponent->GetName(), &pSourceComponent->GetClassDesc(), pSourceComponent->GetComponentFlags(), pSourceComponent->GetParent(), pSourceComponent->GetTransform());
-			pNewComponent = AddComponent(componentRecord.typeId, std::shared_ptr<IEntityComponent>(), false, &initParams);
-		}
+
+		// Create a new component
+		IEntityComponent::SInitParams initParams(this, CryGUID::Create(), pSourceComponent->GetName(), &pSourceComponent->GetClassDesc(), pSourceComponent->GetComponentFlags(), pSourceComponent->GetParent(), pSourceComponent->GetTransform());
+		IEntityComponent* pNewComponent = CreateComponentByInterfaceID(componentRecord.typeId, &initParams);
 
 		DynArray<char> propertyBuffer;
 		// Save properties from the source to buffer
@@ -1904,7 +2043,10 @@ void CEntity::GetComponents(DynArray<IEntityComponent*>& components) const
 	components.reserve(vec.size());
 	for (const SEntityComponentRecord& rec : vec)
 	{
-		components.push_back(rec.pComponent.get());
+		if (rec.pComponent != nullptr)
+		{
+			components.push_back(rec.pComponent.get());
+		}
 	}
 }
 
@@ -1912,6 +2054,11 @@ void CEntity::GetComponents(DynArray<IEntityComponent*>& components) const
 uint32 CEntity::GetComponentsCount() const
 {
 	return m_components.Size();
+}
+
+uint8 CEntity::GetComponentChangeState() const
+{
+	return m_componentChangeState;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2322,6 +2469,9 @@ int CEntity::AllocateSlot()
 //////////////////////////////////////////////////////////////////////////
 void CEntity::FreeSlot(int nSlot)
 {
+	// Free any physical slot geometry that was added first, just in case
+	m_physics.RemoveSlotGeometry(nSlot);
+	// Now remove the render slot
 	m_render.FreeSlot(nSlot);
 }
 
@@ -2479,12 +2629,15 @@ ICharacterInstance* CEntity::GetCharacter(int nSlot)
 }
 
 //////////////////////////////////////////////////////////////////////////
-int CEntity::SetCharacter(ICharacterInstance* pCharacter, int nSlot)
+int CEntity::SetCharacter(ICharacterInstance* pCharacter, int nSlot, bool bUpdatePhysics)
 {
 	int nUsedSlot = -1;
 
 	nUsedSlot = m_render.SetSlotCharacter(nSlot, pCharacter);
-	m_physics.UpdateSlotGeometry(nUsedSlot);
+	if (bUpdatePhysics)
+	{
+		m_physics.UpdateSlotGeometry(nUsedSlot);
+	}
 
 	return nUsedSlot;
 }
@@ -2537,6 +2690,11 @@ IRenderNode* CEntity::GetRenderNode(int nSlot) const
 void CEntity::MoveSlot(IEntity* targetIEnt, int nSlot)
 {
 	CEntity* targetEnt = (CEntity*)targetIEnt;
+	if (targetIEnt == this)
+	{
+		assert(false);
+		return;
+	}
 
 	CEntitySlot* srcSlot = GetSlot(nSlot);
 	CEntitySlot* dstSlot = targetEnt->m_render.AllocSlot(nSlot);
@@ -3010,7 +3168,10 @@ void CEntity::GetMemoryUsage(ICrySizer* pSizer) const
 	m_physics.GetMemoryUsage(pSizer);
 	for (const SEntityComponentRecord& componentRecord : m_components.GetVector())
 	{
-		componentRecord.pComponent->GetMemoryUsage(pSizer);
+		if (componentRecord.pComponent != nullptr)
+		{
+			componentRecord.pComponent->GetMemoryUsage(pSizer);
+		}
 	}
 }
 
@@ -3026,7 +3187,6 @@ struct SEventName
 	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_TIMER),
 	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_INIT),
 	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_DONE),
-	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_VISIBLITY),
 	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_RESET),
 	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_ATTACH),
 	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_ATTACH_THIS),
@@ -3045,9 +3205,8 @@ struct SEventName
 	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_LEAVENEARAREA),
 	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_MOVEINSIDEAREA),
 	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_MOVENEARAREA),
-	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_PHYS_POSTSTEP),
 	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_PHYS_BREAK),
-	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_AI_DONE),
+	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_PHYS_POSTSTEP),
 	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_AUDIO_TRIGGER_STARTED),
 	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_AUDIO_TRIGGER_ENDED),
 	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_COLLISION),
@@ -3063,7 +3222,6 @@ struct SEventName
 	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_INVISIBLE),
 	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_VISIBLE),
 	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_MATERIAL),
-	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_CROSS_AREA),
 	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_ACTIVATED),
 	DEF_ENTITY_EVENT_NAME(ENTITY_EVENT_DEACTIVATED),
 };
@@ -3119,7 +3277,6 @@ void CEntity::CreateSchematycObject(const SEntitySpawnParams& spawnParams)
 	Schematyc::IRuntimeClassConstPtr pRuntimeClass = pClass->GetSchematycRuntimeClass();
 	if (pRuntimeClass)
 	{
-		Schematyc::SObjectParams objectParams(pRuntimeClass->GetGUID());
 		if (!m_pSchematycProperties)
 		{
 			m_pSchematycProperties = pRuntimeClass->GetDefaultProperties().Clone();
@@ -3133,12 +3290,27 @@ void CEntity::CreateSchematycObject(const SEntitySpawnParams& spawnParams)
 				Serialization::LoadXmlNode(*m_pSchematycProperties.get(), schematycPropsNode);
 			}
 		}
+
+		Schematyc::SObjectParams objectParams;
+		objectParams.classGUID = pRuntimeClass->GetGUID();
 		objectParams.pProperties = m_pSchematycProperties;
-		objectParams.simulationMode = m_simulationMode;
 		objectParams.pEntity = this;
 
-		m_pSchematycObject = gEnv->pSchematyc->CreateObject(objectParams);
+		if (gEnv->pSchematyc->CreateObject(objectParams, m_pSchematycObject))
+		{
+			if (m_simulationMode != EEntitySimulationMode::Idle)
+			{
+				m_pSchematycObject->SetSimulationMode(m_simulationMode, Schematyc::EObjectSimulationUpdatePolicy::OnChangeOnly, m_simulationMode == EEntitySimulationMode::Game);
+			}
+		}
 	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CEntity::SetSimulationMode(EEntitySimulationMode mode)
+{
+	m_simulationMode = mode;
+	m_pSchematycObject->SetSimulationMode(m_simulationMode, Schematyc::EObjectSimulationUpdatePolicy::OnChangeOnly, m_simulationMode == EEntitySimulationMode::Game);
 }
 
 //////////////////////////////////////////////////////////////////////////

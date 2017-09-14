@@ -101,8 +101,6 @@ struct CVars : public Cry3DEngineBase
 #define e_CameraRotationSpeedDefault                       (0.f)
 #define e_DecalsDeferredDynamicDepthScaleDefault           (4.0f)
 #define e_TerrainDetailMaterialsViewDistZDefault           (128.f)
-#define e_ParticlesLightMinRadiusThresholdDefault          (0.f)
-#define e_ParticlesLightMinColorThresholdDefault           (0.f)
 #define e_StreamCgfFastUpdateMaxDistanceDefault            (16.f)
 #define e_StreamPredictionMinFarZoneDistanceDefault        (16.f)
 #define e_StreamPredictionMinReportDistanceDefault         (0.75f)
@@ -168,6 +166,7 @@ struct CVars : public Cry3DEngineBase
 	DeclareConstIntCVar(e_ParticlesLights, 1);
 	DeclareConstIntCVar(e_ObjFastRegister, 1);
 	float  e_ViewDistRatioLights;
+	float  e_LightIlluminanceThreshold;
 	DeclareConstIntCVar(e_DebugDraw, 0);
 	ICVar* e_DebugDrawFilter;
 	DeclareConstIntCVar(e_DebugDrawListSize, 16);
@@ -491,8 +490,6 @@ struct CVars : public Cry3DEngineBase
 	float e_DecalsSpawnDistRatio;
 	int   e_CGFMaxFileSize;
 	int   e_MaxDrawCalls;
-	DeclareConstFloatCVar(e_ParticlesLightMinRadiusThreshold);
-	DeclareConstFloatCVar(e_ParticlesLightMinColorThreshold);
 #if !defined(_RELEASE)
 	int e_MergedMeshesClusterVisualization;
 	int e_MergedMeshesClusterVisualizationDimension;

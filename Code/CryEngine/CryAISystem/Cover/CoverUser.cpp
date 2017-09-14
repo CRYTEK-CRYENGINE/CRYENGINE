@@ -72,7 +72,7 @@ void CoverUser::Update(float updateTime, const Vec3& pos, const Vec3* eyes, uint
 {
 	if (m_coverID)
 	{
-		FRAME_PROFILER("CoverUser::Update 2", gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_REGION(PROFILE_AI, "CoverUser::Update 2");
 
 		Vec3 coverNormal;
 		Vec3 coverLocation = gAIEnv.pCoverSystem->GetCoverLocation(m_coverID, m_params.distanceToCover, 0, &coverNormal);
@@ -105,7 +105,7 @@ void CoverUser::UpdateWhileMoving(float updateTime, const Vec3& pos, const Vec3*
 {
 	if (m_coverID)
 	{
-		FRAME_PROFILER("CoverUser::Update 2", gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_REGION(PROFILE_AI, "CoverUser::Update 2");
 
 		if (!m_compromised)
 		{

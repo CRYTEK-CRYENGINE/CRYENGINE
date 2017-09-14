@@ -98,7 +98,7 @@ QVariant QAudioSystemModel::data(const QModelIndex& index, int role) const
 						else if (!pItem->IsConnected() && m_pAudioSystem->ImplTypeToATLType(pItem->GetType()) != eItemType_Invalid)
 						{
 							// Tint non connected controls that can actually be connected to something (ie. exclude folders)
-							return QColor(255, 143, 0);
+							return QColor(255, 150, 50);
 						}
 						break;
 					case Qt::ToolTipRole:
@@ -350,12 +350,6 @@ bool QAudioSystemModelProxyFilter::lessThan(const QModelIndex& left, const QMode
 		}
 	}
 	return QSortFilterProxyModel::lessThan(left, right);
-}
-
-//////////////////////////////////////////////////////////////////////////
-QVariant QAudioSystemModelProxyFilter::data(const QModelIndex& proxyIndex, int role) const
-{
-	return QSortFilterProxyModel::data(proxyIndex, role);
 }
 
 //////////////////////////////////////////////////////////////////////////

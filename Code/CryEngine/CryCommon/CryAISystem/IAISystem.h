@@ -608,14 +608,8 @@ struct IAISystem
 	virtual void LoadLevelData(const char* szLevel, const char* szMission, const EAILoadDataFlags loadDataFlags = eAILoadDataFlag_AllSystems) = 0;
 	virtual void LoadNavigationData(const char* szLevel, const char* szMission, const EAILoadDataFlags loadDataFlags = eAILoadDataFlag_AllSystems) = 0;
 
-#if defined(SEG_WORLD)
-	// Reads areas from file. clears the existing areas.
-	// SEG_WORLD: adds offset to the areas read, and doesn't clear existing areas.
-	virtual void ReadAreasFromFile(const char* fileNameAreas, const Vec3& vSegmentOffset) = 0;
-#else
 	//! Reads areas from file. clears the existing areas.
 	virtual void ReadAreasFromFile(const char* fileNameAreas) = 0;
-#endif
 
 	virtual void OnMissionLoaded() = 0;
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////

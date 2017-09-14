@@ -64,7 +64,6 @@ protected:
 	Cry::DefaultComponents::CAdvancedAnimationComponent* m_pAnimationComponent = nullptr;
 	Cry::DefaultComponents::CInputComponent* m_pInputComponent = nullptr;
 
-	TagID m_rotateTagId;
 	TagID m_walkTagId;
 
 	TInputFlags m_inputFlags;

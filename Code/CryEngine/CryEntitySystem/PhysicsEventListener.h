@@ -50,14 +50,8 @@ private:
 	CEntitySystem*  m_pEntitySystem;
 	IPhysicalWorld* m_pPhysics;
 
-	struct PhysVisAreaUpdate
-	{
-		PhysVisAreaUpdate(IRenderNode* pRndNode, IPhysicalEntity* pEntity) { m_pRndNode = pRndNode; m_pEntity = pEntity; }
-		IRenderNode*     m_pRndNode;
-		IPhysicalEntity* m_pEntity;
-	};
-	static std::vector<PhysVisAreaUpdate> m_physVisAreaUpdateVector;
-	static int                            m_jointFxFrameId, m_jointFxCount;
+	static std::vector<IPhysicalEntity*> m_physVisAreaUpdateVector;
+	static int                           m_jointFxFrameId, m_jointFxCount;
 	static int FxAllowed()
 	{
 		int frameId = gEnv->pRenderer->GetFrameID();

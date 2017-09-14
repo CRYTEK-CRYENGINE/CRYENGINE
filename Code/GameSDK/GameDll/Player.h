@@ -1370,8 +1370,6 @@ public:
 
 	void RegisterVehicleClient(CVehicleClient* vehicleClient) { m_pVehicleClient = vehicleClient; }
 
-	virtual void OnShiftWorld() override;
-
 private:
 
 	void NetSerialize_Health( TSerialize ser, bool bReading );

@@ -2180,7 +2180,7 @@ void CScriptSystem::Update()
 
 	//if(bKickIn)
 	{
-		FRAME_PROFILER("Lua GC", m_pSystem, PROFILE_SCRIPT);
+		CRY_PROFILE_REGION(PROFILE_SCRIPT, "Lua GC");
 
 		//CryLog( "Lua GC=%d",GetCGCount() );
 

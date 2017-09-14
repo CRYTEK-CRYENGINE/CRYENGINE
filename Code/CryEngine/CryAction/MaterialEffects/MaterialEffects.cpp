@@ -166,7 +166,7 @@ void CMaterialEffects::LoadFXLibrary(const char* name)
 
 bool CMaterialEffects::ExecuteEffect(TMFXEffectId effectId, SMFXRunTimeEffectParams& params)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!CMaterialEffectsCVars::Get().mfx_Enable)
 		return false;
@@ -220,7 +220,7 @@ void CMaterialEffects::StopEffect(TMFXEffectId effectId)
 
 void CMaterialEffects::SetCustomParameter(TMFXEffectId effectId, const char* customParameter, const SMFXCustomParamValue& customParameterValue)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!CMaterialEffectsCVars::Get().mfx_Enable)
 		return;

@@ -64,7 +64,7 @@ void System::Initialize()
 	characterList->AddEntryType<CharacterContent>()
 	.AddFormat("cga", new CGALoader(), FORMAT_LIST | FORMAT_LOAD)
 	;
-	characterList->SetDataIcon("icons:Animation/Character.ico");
+	characterList->SetDataIcon("icons:common/animation_character.ico");
 
 	explorerData->AddProvider(characterList.get(), "Characters");
 
@@ -73,7 +73,7 @@ void System::Initialize()
 	.AddFormat("chrparams", new CHRParamsLoader(), FORMAT_MAIN | FORMAT_LIST | FORMAT_SAVE | FORMAT_LOAD)
 	.AddFormat("chr", 0, FORMAT_LIST)
 	;
-	skeletonList->SetDataIcon("icons:Animation/Skeleton.ico");
+	skeletonList->SetDataIcon("icons:common/animation_skeleton.ico");
 	explorerData->AddProvider(skeletonList.get(), "Skeletons");
 
 #if 0
@@ -82,14 +82,14 @@ void System::Initialize()
 	physicsList->AddEntryType<SCharacterPhysicsContent>()
 	.AddFormat("phys", new SJSONLoader())
 	;
-	physicsList->SetDataIcon("icons:Animation/Physics.ico");
+	physicsList->SetDataIcon("icons:common/animation_physics.ico");
 	explorerData->AddProvider(physicsList.get(), "Physics");
 
 	rigList.reset(new ExplorerFileList());
 	rigList->AddEntryType<SCharacterRigContent>()
 	.AddFormat("rig", new SJSONLoader())
 	;
-	rigList->SetDataIcon("icons:Animation/Rig.ico");
+	rigList->SetDataIcon("icons:common/animation_rig.ico");
 	explorerData->AddProvider(rigList.get(), "Rigs");
 #endif
 

@@ -264,7 +264,7 @@ void CVehicleDamagesGroup::OnDamageEvent(EVehicleDamageBehaviorEvent event, cons
 //------------------------------------------------------------------------
 void CVehicleDamagesGroup::Update(float frameTime)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	TDelayedDamagesSubGroupList::iterator ite = m_delayedSubGroups.begin();
 	TDelayedDamagesSubGroupList::iterator next;

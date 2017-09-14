@@ -21,7 +21,7 @@
 #include <QTimer>
 #include <QToolBar>
 #include <QToolButton>
-#include <QTreeView>
+#include <QAdvancedTreeView.h>
 #include <Serialization/QPropertyTree/QPropertyTree.h>
 #include "QViewport.h"
 #include "DockTitleBarWidget.h"

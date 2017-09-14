@@ -80,13 +80,13 @@ public:
 	};
 	struct SSubSystemInfo
 	{
-		const char* name;
-		float       selfTime;
-		float       waitTime;
-		float       budgetTime;
-		float       maxTime;
-		int         totalAnalized;
-		int         totalOverBudget;
+		const char* name = "";
+		float       selfTime = 0;
+		float       waitTime = 0;
+		float       budgetTime = 0;
+		float       maxTime = 0;
+		int         totalAnalized = 0;
+		int         totalOverBudget = 0;
 	};
 
 	EDisplayQuantity m_displayQuantity;

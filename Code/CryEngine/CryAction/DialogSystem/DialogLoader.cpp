@@ -258,7 +258,7 @@ int CDialogLoader::LoadFromTable(XmlNodeRef tableNode, const string& groupName, 
 					}
 					else
 					{
-						scriptLine.audioID = CryAudio::StringToId_RunTime(szContent);
+						scriptLine.audioID = CryAudio::StringToId(szContent);
 					}
 				}
 				break;

@@ -485,9 +485,9 @@ ITrigger const* CImpl::ConstructTrigger(XmlNodeRef const pRootNode)
 			}
 
 #if defined (INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
-			pTrigger = new CTrigger(StringToId_RunTime(path.c_str()), eventType, nullptr, guid, path.c_str());
+			pTrigger = new CTrigger(StringToId(path.c_str()), eventType, nullptr, guid, path.c_str());
 #else
-			pTrigger = new CTrigger(StringToId_RunTime(path.c_str()), eventType, nullptr, guid);
+			pTrigger = new CTrigger(StringToId(path.c_str()), eventType, nullptr, guid);
 #endif      // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 		}
 		else
@@ -517,9 +517,9 @@ ITrigger const* CImpl::ConstructTrigger(XmlNodeRef const pRootNode)
 			m_pSystem->getEventByID(&guid, &pEventDescription);
 
 #if defined (INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
-			pTrigger = new CTrigger(StringToId_RunTime(path.c_str()), eventType, pEventDescription, guid, path.c_str());
+			pTrigger = new CTrigger(StringToId(path.c_str()), eventType, pEventDescription, guid, path.c_str());
 #else
-			pTrigger = new CTrigger(StringToId_RunTime(path.c_str()), eventType, pEventDescription, guid);
+			pTrigger = new CTrigger(StringToId(path.c_str()), eventType, pEventDescription, guid);
 #endif      // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 		}
 		else
@@ -562,7 +562,7 @@ IParameter const* CImpl::ConstructParameter(XmlNodeRef const pRootNode)
 		char const* const szName = pRootNode->getAttr(s_szFmodNameAttribute);
 		char const* const szPath = pRootNode->getAttr(s_szFmodPathAttribute);
 		path += szPath;
-		uint32 const pathId = StringToId_RunTime(path.c_str());
+		uint32 const pathId = StringToId(path.c_str());
 
 		float multiplier = 1.0f;
 		float shift = 0.0f;
@@ -616,7 +616,7 @@ ISwitchState const* CImpl::ConstructSwitchState(XmlNodeRef const pRootNode)
 		char const* const szFmodPath = pRootNode->getAttr(s_szFmodPathAttribute);
 		char const* const szFmodParameterValue = pRootNode->getAttr(s_szFmodValueAttribute);
 		path += szFmodPath;
-		uint32 const pathId = StringToId_RunTime(path.c_str());
+		uint32 const pathId = StringToId(path.c_str());
 		float const value = static_cast<float>(atof(szFmodParameterValue));
 		pSwitchState = new CSwitchState(pathId, value, szFmodParameterName);
 		g_switchToIndex.emplace(std::piecewise_construct, std::make_tuple(pSwitchState), std::make_tuple(FMOD_IMPL_INVALID_INDEX));

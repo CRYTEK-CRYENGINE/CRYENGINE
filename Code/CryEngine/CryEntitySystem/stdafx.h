@@ -94,8 +94,8 @@ inline void EntityFileWarning(const char* file, const char* format, ...)
 	va_end(args);
 }
 
-#define ENTITY_PROFILER FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
-#define ENTITY_PROFILER_NAME(str) FRAME_PROFILER(str, GetISystem(), PROFILE_ENTITY);
+#define ENTITY_PROFILER CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
+#define ENTITY_PROFILER_NAME(str) CRY_PROFILE_REGION(PROFILE_ENTITY, str);
 
 //{{AFX_INSERT_LOCATION}}
 // Microsoft Visual C++ will insert additional declarations immediately before the previous line.

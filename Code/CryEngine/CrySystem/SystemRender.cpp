@@ -152,7 +152,9 @@ void CSystem::CreateRendererVars()
 //////////////////////////////////////////////////////////////////////////
 void CSystem::RenderBegin()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
+
+	CRY_PROFILE_MARKER("CSystem::RenderBegin");
 
 	if (m_bIgnoreUpdates)
 		return;
@@ -192,9 +194,9 @@ int   StrToPhysHelpers(const char* strHelpers);
 //////////////////////////////////////////////////////////////////////////
 void CSystem::RenderEnd(bool bRenderStats)
 {
-	LOADING_TIME_PROFILE_SECTION;
 	{
-		FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+		CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
+		CRY_PROFILE_MARKER("CSystem::RenderEnd");
 
 		if (m_bIgnoreUpdates)
 			return;
@@ -702,7 +704,8 @@ void CSystem::Render()
 	if (!m_pProcess)
 		return; //should never happen
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
+	CRY_PROFILE_MARKER("CSystem::Render");
 
 	//////////////////////////////////////////////////////////////////////
 	//draw

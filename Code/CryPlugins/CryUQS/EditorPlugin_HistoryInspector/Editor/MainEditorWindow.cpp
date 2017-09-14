@@ -17,7 +17,7 @@
 #include <QAbstractButton>
 #include <QDialogButtonbox>
 #include <QLineEdit>
-#include <QTreeView>
+#include <QAdvancedTreeView.h>
 #include <QSplitter>
 #include <QMessageBox>
 #include <QFontMetrics>
@@ -396,11 +396,11 @@ private:
 //
 //===================================================================================
 
-class CHistoricQueryTreeView : public QTreeView
+class CHistoricQueryTreeView : public QAdvancedTreeView
 {
 public:
 	explicit CHistoricQueryTreeView(QWidget* pParent)
-		: QTreeView(pParent)
+		: QAdvancedTreeView(QAdvancedTreeView::Behavior(QAdvancedTreeView::PreserveExpandedAfterReset | QAdvancedTreeView::PreserveSelectionAfterReset), pParent)
 	{
 	}
 
@@ -427,7 +427,7 @@ public:
 protected:
 	virtual void currentChanged(const QModelIndex& current, const QModelIndex& previous) override
 	{
-		QTreeView::currentChanged(current, previous);
+		QAdvancedTreeView::currentChanged(current, previous);
 
 		UQS::Core::IQueryHistoryManager* pHistoryQueryManager = GetHistoryQueryManager();
 
@@ -444,7 +444,7 @@ protected:
 
 	virtual void mouseDoubleClickEvent(QMouseEvent *event) override
 	{
-		QTreeView::mouseDoubleClickEvent(event);
+		QAdvancedTreeView::mouseDoubleClickEvent(event);
 
 		if (CViewport* pActiveView = GetIEditor()->GetActiveView())
 		{

@@ -28,7 +28,7 @@ public:
 
 	ElementNode PopBestElement()
 	{
-		//FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		//CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		CRY_ASSERT_MESSAGE(!openElements.empty(), "PopBestElement has been requested for an empty ElementNode open list.");
 		BestNodePredicate predicate;
@@ -52,7 +52,7 @@ public:
 
 	ILINE void InsertElement(const ElementNode& newElement)
 	{
-		//FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		//CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		assert(!stl::find(openElements, newElement));
 		stl::push_back_unique(openElements, newElement);

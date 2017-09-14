@@ -53,6 +53,8 @@
 #include <CryIcon.h>
 
 #include <ProxyModels/DeepFilterProxyModel.h>
+#include <EditorFramework/BroadcastManager.h>
+#include <Controls/QuestionDialog.h>
 
 namespace Schematyc
 {
@@ -1831,20 +1833,41 @@ void CScriptBrowserWidget::OnRemoveItem()
 					}
 				}
 
-				if (szElementType && m_pModel)
+				if (ScriptBrowserUtils::CanRemoveScriptElement(*pScriptElement))
 				{
-					Schematyc::IScriptElement* pRootElement = m_pModel->GetRootElement();
+					CStackString question = "Are you sure you want to remove '";
+					question.append(pScriptElement->GetName());
+					question.append("'?");
 
-					GetIEditor()->GetIUndoManager()->Begin();
-					stack_string desc("Added ");
-					desc.append(szElementType);
-					CrySchematycEditor::CScriptUndoObject* pUndoObject = new CrySchematycEditor::CScriptUndoObject(desc.c_str(), m_editor);
-					CUndo::Record(pUndoObject);
-					GetIEditor()->GetIUndoManager()->Accept(pUndoObject->GetDescription());
+					CQuestionDialog dialog;
+					dialog.SetupQuestion("Remove", question.c_str(), QDialogButtonBox::Yes | QDialogButtonBox::No);
+
+					QDialogButtonBox::StandardButton result = dialog.Execute();
+
+					if (result == QDialogButtonBox::Yes)
+					{
+						if (szElementType && m_pModel)
+						{
+							Schematyc::IScriptElement* pRootElement = m_pModel->GetRootElement();
+
+							GetIEditor()->GetIUndoManager()->Begin();
+							stack_string desc("Added ");
+							desc.append(szElementType);
+							CrySchematycEditor::CScriptUndoObject* pUndoObject = new CrySchematycEditor::CScriptUndoObject(desc.c_str(), m_editor);
+							CUndo::Record(pUndoObject);
+							GetIEditor()->GetIUndoManager()->Accept(pUndoObject->GetDescription());
+						}
+
+						OnScriptElementRemoved(*pScriptElement);
+						gEnv->pSchematyc->GetScriptRegistry().RemoveElement(pScriptElement->GetGUID());
+					}
+
+					if (CBroadcastManager* pBroadcastManager = CBroadcastManager::Get(this))
+					{
+						PopulateInspectorEvent popEvent([](CInspector& inspector) {});
+						pBroadcastManager->Broadcast(popEvent);
+					}
 				}
-
-				OnScriptElementRemoved(*pScriptElement);
-				ScriptBrowserUtils::RemoveScriptElement(*pScriptElement);
 			}
 		}
 	}

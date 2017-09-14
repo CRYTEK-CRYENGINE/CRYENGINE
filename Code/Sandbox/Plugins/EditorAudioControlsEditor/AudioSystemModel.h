@@ -19,6 +19,7 @@ class QAudioSystemModel final : public QAbstractItemModel
 {
 
 public:
+
 	enum EAudioSystemColumns
 	{
 		eAudioSystemColumns_Name,
@@ -52,6 +53,7 @@ public:
 	IAudioSystemItem* ItemFromIndex(const QModelIndex& index) const;
 	QModelIndex       IndexFromItem(IAudioSystemItem* pItem) const;
 	void              Reset();
+
 	static char const* const ms_szMimeType;
 
 private:
@@ -61,6 +63,7 @@ private:
 class QAudioSystemModelProxyFilter final : public QDeepFilterProxyModel
 {
 public:
+
 	QAudioSystemModelProxyFilter(QObject* parent);
 
 	// QSortFilterProxyModel
@@ -69,13 +72,13 @@ public:
 
 	// QDeepFilterProxyModel
 	virtual bool rowMatchesFilter(int source_row, const QModelIndex& source_parent) const override;
-	virtual      QVariant data(const QModelIndex& index, int role) const override;
 	// ~QDeepFilterProxyModel
 
 	void SetAllowedControlsMask(uint allowedControlsMask);
 	void SetHideConnected(bool bHideConnected);
 	
 private:
+
 	uint m_allowedControlsMask;
 	uint m_bHideConnected;
 };

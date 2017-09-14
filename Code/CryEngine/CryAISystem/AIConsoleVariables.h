@@ -22,6 +22,7 @@ struct AIConsoleVars
 	DeclareConstIntCVar(NavigationSystemMT, 1);
 	DeclareConstIntCVar(NavGenThreadJobs, 1);
 	float NavmeshStabilizationTimeToUpdate;
+	float NavmeshTileDistanceDraw;
 	DeclareConstIntCVar(DebugDrawCoverPlanes, 0);
 	DeclareConstIntCVar(DebugDrawCoverLocations, 0);
 	DeclareConstIntCVar(DebugDrawCoverSampler, 0);
@@ -141,7 +142,7 @@ struct AIConsoleVars
 
 	DeclareConstIntCVar(MNMPathfinderMT, 1);
 	DeclareConstIntCVar(MNMPathfinderConcurrentRequests, 4);
-	DeclareConstIntCVar(MNMRaycastImplementation, 1);
+	DeclareConstIntCVar(MNMRaycastImplementation, 2);
 
 	DeclareConstIntCVar(LogConsoleVerbosity, 0);
 	DeclareConstIntCVar(LogFileVerbosity, 0);

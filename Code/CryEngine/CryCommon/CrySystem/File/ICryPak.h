@@ -677,6 +677,7 @@ class CScopedAllowFileAccessFromThisThread
 public:
 #if defined(_RELEASE)
 	CScopedAllowFileAccessFromThisThread() = default;
+	~CScopedAllowFileAccessFromThisThread()	{}
 	void End() {}
 #else
 	CScopedAllowFileAccessFromThisThread()

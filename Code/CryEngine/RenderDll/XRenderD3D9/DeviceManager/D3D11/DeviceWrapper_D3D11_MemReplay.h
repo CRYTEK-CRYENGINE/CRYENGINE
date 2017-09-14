@@ -23,6 +23,10 @@
 	#endif
 #endif
 
+#if !defined(MEMREPLAY_HIDE_BANKALLOC)
+	#define MEMREPLAY_HIDE_BANKALLOC() 
+#endif
+
 //=================================================================
 
 #ifdef MEMREPLAY_WRAP_D3D11

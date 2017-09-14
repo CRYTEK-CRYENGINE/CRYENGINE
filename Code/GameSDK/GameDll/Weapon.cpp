@@ -283,7 +283,7 @@ void CWeapon::InitCompatibleAccessories()
 //------------------------------------------------------------------------
 void CWeapon::InitFireModes()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	ReleaseAndClear(m_firemodes);
 	m_fmIds.clear();
@@ -340,7 +340,7 @@ void CWeapon::InitFireModes()
 //------------------------------------------------------------------------
 void CWeapon::InitZoomModes()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	ReleaseAndClear(m_zoommodes);
 	m_zmIds.clear();
@@ -958,7 +958,7 @@ void CWeapon::SerializeLTL(TSerialize ser)
 //------------------------------------------------------------------------
 void CWeapon::Update( SEntityUpdateContext& ctx, int update)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	if (!IsDestroyed())
 	{
@@ -1089,7 +1089,7 @@ void CWeapon::HandleEvent(const SGameObjectEvent &evt)
 //------------------------------------------------------------------------
 void CWeapon::ProcessEvent(SEntityEvent& event)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	switch(event.event)
 	{
@@ -1174,7 +1174,7 @@ void CWeapon::PreResetParams()
 //------------------------------------------------------------------------
 void CWeapon::Reset()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	ClearModes();
 
@@ -3234,7 +3234,7 @@ bool CWeapon::PredictProjectileHit(IPhysicalEntity *pShooter,
 	unsigned int* trajectorySizeInOut, float timeStep, Vec3* pTrajectoryVelocities,
 	const bool predictionForAI) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	IFireMode *pFireMode = GetFireMode(GetCurrentFireMode());
 	if (!pFireMode)

@@ -68,6 +68,7 @@
 #include "LoadingProfiler.h"
 #include "BootProfiler.h"
 #include "DiskProfiler.h"
+#include "Watchdog.h"
 #include "Statoscope.h"
 #include "TestSystemLegacy.h"
 #include "VisRegTest.h"
@@ -167,7 +168,7 @@ extern AAssetManager* androidGetAssetManager();
 #define DLL_RENDERER_DX11 "CryRenderD3D11"
 #define DLL_RENDERER_DX12 "CryRenderD3D12"
 #define DLL_RENDERER_GL   "CryRenderOpenGL"
-#define DLL_RENDERER_VK	  "CryRenderVulkan"
+#define DLL_RENDERER_VK   "CryRenderVulkan"
 #define DLL_RENDERER_GNM  "CryRenderGNM"
 #define DLL_LIVECREATE    "CryLiveCreate"
 #define DLL_MONO_BRIDGE   "CryMonoBridge"
@@ -326,7 +327,6 @@ static void CmdCrashTest(IConsoleCmdArgs* pArgs)
 		// Pure virtual function call
 		case 10:
 			{
-	#pragma warning( disable : 4101 )
 				struct Base
 				{
 					virtual void PureVirtual() const = 0;
@@ -663,11 +663,11 @@ WIN_HMODULE CSystem::LoadDynamicLibrary(const char* szModulePath, bool bQuitIfNo
 	{
 		if (bQuitIfNotFound)
 		{
-	#if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE
+#if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE
 			CryFatalError("Error loading dynamic library: %s, error :  %s\n", modulePath.c_str(), dlerror());
-	#else
+#else
 			CryFatalError("Error loading dynamic library: %s, error code %d", modulePath.c_str(), GetLastError());
-	#endif
+#endif
 
 			Quit();
 		}
@@ -912,8 +912,8 @@ bool CSystem::OpenRenderLibrary(int type)
 	if (gEnv->IsDedicated())
 		return true;
 
-	#if !defined(DEDICATED_SERVER)
-		#if CRY_PLATFORM_WINDOWS
+#if !defined(DEDICATED_SERVER)
+	#if CRY_PLATFORM_WINDOWS
 	if (!gEnv->IsDedicated())
 	{
 		unsigned int gpuVendorId = 0, gpuDeviceId = 0, totVidMem = 0;
@@ -926,9 +926,9 @@ bool CSystem::OpenRenderLibrary(int type)
 			const char logMsgFmt[] ("Unsupported GPU configuration!\n- %s (vendor = 0x%.4x, device = 0x%.4x)\n- Dedicated video memory: %d MB\n- Feature level: %s\n");
 			CryLogAlways(logMsgFmt, gpuName, gpuVendorId, gpuDeviceId, totVidMem >> 20, GetFeatureLevelAsString(featureLevel));
 
-			#if !defined(_RELEASE)
+		#if !defined(_RELEASE)
 			if (m_env.pSystem->GetICmdLine()->FindArg(eCLAT_Pre, "anygpu") == NULL)  // Useful for shader cache generation
-			#endif
+		#endif
 			{
 				bool allowMessageBox = m_env.pSystem->GetICmdLine()->FindArg(eCLAT_Pre, "noprompt") == NULL;
 				if (allowMessageBox)
@@ -939,8 +939,8 @@ bool CSystem::OpenRenderLibrary(int type)
 			}
 		}
 	}
-		#endif
-	#endif // !defined(DEDICATED_SERVER)
+	#endif
+#endif   // !defined(DEDICATED_SERVER)
 
 	const char* libname = "";
 	if (type == R_DX11_RENDERER)
@@ -1766,7 +1766,6 @@ bool CSystem::InitScriptSystem()
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-
 bool CSystem::InitFileSystem(const IGameStartup* pGameStartup)
 {
 	LOADING_TIME_PROFILE_SECTION;
@@ -1808,6 +1807,14 @@ bool CSystem::InitFileSystem(const IGameStartup* pGameStartup)
 
 		const CryPathString engineDir = PathUtil::Make(CryPathString(engineRootDir.c_str()), CryPathString(CRYENGINE_ENGINE_FOLDER));
 		m_env.pCryPak->SetAlias("%ENGINE%", engineDir.c_str(), true);
+
+#ifndef RELEASE
+		if (m_bEditor)
+		{
+			const CryPathString editorDir = PathUtil::Make(CryPathString(engineRootDir.c_str()), CryPathString("Editor"));
+			m_env.pCryPak->SetAlias("%EDITOR%", editorDir.c_str(), true);
+		}
+#endif
 	}
 
 	// Now set up the log
@@ -1826,7 +1833,10 @@ bool CSystem::InitFileSystem(const IGameStartup* pGameStartup)
 	LoadConfiguration("system.cfg", pCVarsWhiteListConfigSink, eLoadConfigInit);
 #endif
 
-	m_pProjectManager->ParseProjectFile();
+	if (!m_pProjectManager->ParseProjectFile())
+	{
+		return false;
+	}
 
 	bool bRes = m_env.pCryPak->Init("");
 
@@ -1840,13 +1850,6 @@ bool CSystem::InitFileSystem(const IGameStartup* pGameStartup)
 		if (pakalias && strlen(pakalias->GetValue()) > 0)
 			m_env.pCryPak->ParseAliases(pakalias->GetValue());
 	}
-
-	// FIXME: Added for initial support of Game Project Creation.
-	// Avoids fixing paths for all Sandbox resources.
-	// Causes the undesired behavior that %ENGINEROOT% files are preferred to game project resources
-	// Avoid game folder being located twice by FileUtil::ScanDirectory() if not using Game Project Creation.
-	if (m_pCmdLine->FindArg(eCLAT_Pre, "project"))
-		pCryPak->AddMod("%ENGINEROOT%");
 
 	// Create Engine folder mod mapping only for Engine assets
 	pCryPak->AddMod("%ENGINEROOT%/" CRYENGINE_ENGINE_FOLDER);
@@ -1998,7 +2001,7 @@ bool CSystem::InitFileSystem_LoadEngineFolders()
 #endif
 
 	// We set now the correct "game" folder to use in Pak File
-	ICVar* pGameFolderCVar = gEnv->pConsole->GetCVar("sys_game_folder"); 
+	ICVar* pGameFolderCVar = gEnv->pConsole->GetCVar("sys_game_folder");
 	CRY_ASSERT(pGameFolderCVar != nullptr);
 
 	m_env.pCryPak->SetGameFolder(pGameFolderCVar->GetString());
@@ -2045,13 +2048,7 @@ bool CSystem::InitFileSystem_LoadEngineFolders()
 		string gameFolder = (!PathUtil::GetGameFolder().empty()) ? (PathUtil::GetGameFolder() + "/") : "";
 		AddCVarGroupDirectory(gameFolder + "Config/CVarGroups");
 	}
-    AddCVarGroupDirectory("Config/CVarGroups");
-
-#ifdef SEG_WORLD
-	int maxStdio = gEnv->pConsole->GetCVar("sys_max_stdio")->GetIVal();
-	int res = _setmaxstdio(maxStdio);
-	assert(res != -1);
-#endif
+	AddCVarGroupDirectory("Config/CVarGroups");
 
 #if defined(USE_PATCH_PAK)
 	LoadPatchPaks();
@@ -2510,7 +2507,6 @@ bool CSystem::Init()
 		SetDevMode(devModeEnable);
 	}
 
-
 #if !defined(DEDICATED_SERVER)
 	const ICmdLineArg* crashdialog = m_pCmdLine->FindArg(eCLAT_Post, "sys_no_crash_dialog");
 	if (crashdialog)
@@ -2674,7 +2670,11 @@ bool CSystem::Init()
 		//////////////////////////////////////////////////////////////////////////
 		// File system, must be very early
 		//////////////////////////////////////////////////////////////////////////
-		InitFileSystem(m_startupParams.pGameStartup);
+		if (!InitFileSystem(m_startupParams.pGameStartup))
+		{
+			return false;
+		}
+
 		//////////////////////////////////////////////////////////////////////////
 		InlineInitializationProcessing("CSystem::Init InitFileSystem");
 
@@ -2759,6 +2759,12 @@ bool CSystem::Init()
 		void* pThreadHandle = 0; // Let system figure out thread handle
 		gEnv->pThreadManager->RegisterThirdPartyThread(pThreadHandle, "Main");
 
+		// Start watchdog after thread manager initialization
+		if (int val = m_sys_profile_watchdog_timeout->GetIVal())
+		{
+			m_pWatchdog = new CWatchdogThread(val);
+		}
+
 		CryGetIMemReplay()->EnableAsynchMode();
 
 		m_pResourceManager->Init();
@@ -2771,7 +2777,6 @@ bool CSystem::Init()
 #else
 		m_env.pCodeCheckpointMgr = NULL;
 #endif
-
 
 		//////////////////////////////////////////////////////////////////////////
 		// CREATE NOTIFICATION NETWORK
@@ -3034,7 +3039,10 @@ bool CSystem::Init()
 			CryLogAlways("Renderer initialization");
 
 			if (!InitRenderer((m_startupParams.bEditor) ? (WIN_HWND)1 : m_hWnd))
+			{
+				CryFatalError("Renderer initialization failed.");
 				return false;
+			}
 			assert(IsHeapValid());
 			if (m_env.pRenderer)
 			{
@@ -3216,6 +3224,11 @@ bool CSystem::Init()
 		//////////////////////////////////////////////////////////////////////////
 		if (m_env.pRenderer)
 		{
+			if (m_pUserCallback != nullptr)
+			{
+				m_pUserCallback->OnInitProgress("Initializing Renderer...");
+			}
+
 			m_env.pRenderer->PostInit();
 
 			if (!m_startupParams.bShaderCacheGen)
@@ -3239,7 +3252,7 @@ bool CSystem::Init()
 				m_pServerThrottle.reset(new CServerThrottle(this, m_pCpu->GetCPUCount()));
 		}
 		InlineInitializationProcessing("CSystem::Init InitNetwork");
-		
+
 		//////////////////////////////////////////////////////////////////////////
 		// MOVIE
 		//////////////////////////////////////////////////////////////////////////
@@ -4094,7 +4107,7 @@ public:
 				if (!bOk)
 					return;
 
-				memcpy((void*)szFile, fd.name, strlen(fd.name)+1);   // set
+				memcpy((void*)szFile, fd.name, strlen(fd.name) + 1);   // set
 
 				if (*p == 0)
 					break;
@@ -4700,12 +4713,29 @@ void ChangeLogAllocations(ICVar* pVal)
 
 static void VisRegTest(IConsoleCmdArgs* pParams)
 {
-	CSystem* pCSystem = (CSystem*)(gEnv->pSystem);
+	CSystem* pCSystem = static_cast<CSystem*>(gEnv->pSystem);
 	CVisRegTest*& visRegTest = pCSystem->GetVisRegTestPtrRef();
 	if (!visRegTest)
 		visRegTest = new CVisRegTest();
 
 	visRegTest->Init(pParams);
+}
+
+void CSystem::WatchDogTimeOutChanged(ICVar* pCVar)
+{
+	CSystem* pCSystem = static_cast<CSystem*>(gEnv->pSystem);
+	int val = pCVar->GetIVal();
+	if (val > 0)
+	{
+		if (pCSystem->m_pWatchdog == nullptr)
+		{
+			pCSystem->m_pWatchdog = new CWatchdogThread(val);
+		}
+		else
+		{
+			pCSystem->m_pWatchdog->SetTimeout(val);
+		}
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -4720,7 +4750,7 @@ void CSystem::CreateSystemVars()
 	//
 	EVarFlags dllFlags = (EVarFlags)0;
 	m_sys_dll_ai = REGISTER_STRING("sys_dll_ai", DLL_AI, dllFlags, "Specifies the DLL to load for the AI system");
-	
+
 	m_sys_dll_response_system = REGISTER_STRING("sys_dll_response_system", "CryDynamicResponseSystem", dllFlags, "Specifies the DLL to load for the dynamic response system");
 
 	g_cvars.sys_build_folder = REGISTER_STRING("sys_build_folder", "", 0, "Optionally specifies external full path to the build folder to read pak files from. Can be a full path to an external folder or a relative path to a folder inside of the local build.");
@@ -4956,6 +4986,8 @@ void CSystem::CreateSystemVars()
 	                                       "Set to 1 to start sampling profiling");
 	m_sys_profile_sampler_max_samples = REGISTER_FLOAT("profile_sampler_max_samples", 2000, 0,
 	                                                   "Number of samples to collect for sampling profiler");
+	m_sys_profile_watchdog_timeout = REGISTER_INT_CB("watchdog", 0, VF_NULL,
+	                                                 "Set time out in seconds (positive) to start watching over game freezes", WatchDogTimeOutChanged);
 	m_sys_job_system_filter = REGISTER_STRING("sys_job_system_filter", "", 0,
 	                                          "Filters a Job.\n"
 	                                          "Usage: sys_job_system_filter name1,name2,..\n"
@@ -5287,10 +5319,6 @@ void CSystem::CreateSystemVars()
 	                                    "Sets the physics library to be used. Default is 'CryPhysics'"
 	                                    "Specify in system.cfg like this: p_physics_library = \"CryPhysics\"");
 
-#ifdef SEG_WORLD
-	REGISTER_INT("sys_max_stdio", 2048, 0, "Sets a maximum for the number of simultaneously open files at the stdio level");
-#endif
-
 	REGISTER_INT("sys_system_timer_resolution", 1, VF_NULL, "(Windows only) Value of the system timer resolution in milliseconds (ms)");
 
 #if defined(MAP_LOADING_SLICING)
@@ -5398,11 +5426,11 @@ const char* CSystem::GetLoadingProfilerCallstack()
 #endif
 }
 
-CBootProfilerRecord* CSystem::StartBootSectionProfiler(const char* name, const char* args)
+CBootProfilerRecord* CSystem::StartBootSectionProfiler(const char* name, const char* args,EProfileDescription type)
 {
 #if defined(ENABLE_LOADING_PROFILER)
 	CBootProfiler& profiler = CBootProfiler::GetInstance();
-	return profiler.StartBlock(name, args);
+	return profiler.StartBlock(name, args,type);
 #else
 	return NULL;
 #endif

@@ -61,7 +61,7 @@ void CMFXRandomEffect::GetMemoryUsage(ICrySizer* pSizer) const
 
 void CMFXRandomEffect::Execute(const SMFXRunTimeEffectParams& params)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	m_container.ExecuteRandomizedEffects(params);
 }

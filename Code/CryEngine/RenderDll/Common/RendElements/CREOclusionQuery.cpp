@@ -127,7 +127,7 @@ bool CREOcclusionQuery::mfDraw(CShader* ef, SShaderPass* sfm)
 				r->m_RP.m_pCurObject = r->m_RP.m_pIdendityRenderObject;
 				r->m_RP.m_pShader = pSh;
 				r->m_RP.m_pCurTechnique = pSh->m_HWTechniques[0];
-				r->FX_SetState(GS_COLMASK_NONE | GS_DEPTHFUNC_LEQUAL);
+				r->FX_SetState(GS_NOCOLMASK_RGBA | GS_DEPTHFUNC_LEQUAL);
 				r->SetCullMode(R_CULL_NONE);
 
 				r->FX_Commit();

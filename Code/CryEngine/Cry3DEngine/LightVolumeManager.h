@@ -2,8 +2,9 @@
 
 #pragma once
 
-#define LV_MAX_COUNT                256
-#define LV_LIGHTS_MAX_COUNT         64
+#define LV_MAX_COUNT                255
+#define LV_CELL_MAX_LIGHTS          64
+#define LV_MAX_LIGHTS               2048
 
 #define LV_WORLD_BUCKET_SIZE        512
 #define LV_LIGHTS_WORLD_BUCKET_SIZE 512
@@ -64,7 +65,7 @@ private:
 		{
 		};
 
-		uint16 nLightID[LV_LIGHTS_MAX_COUNT];
+		uint16 nLightID[LV_CELL_MAX_LIGHTS];
 		uint8  nLightCount;
 	};
 

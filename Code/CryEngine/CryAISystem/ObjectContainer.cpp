@@ -191,7 +191,7 @@ bool CObjectContainer::DeregisterObjectUntyped(CAbstractUntypedRef* ref)
 int CObjectContainer::ReleaseDeregisteredObjects(bool checkForLeaks)
 {
 	CCCPOINT(ReleaseDeregisteredObjects);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	int nReleased = 0;
 

@@ -265,7 +265,7 @@ int COPCrysis2AdjustAim::RandomizeTimeInterval() const
 EGoalOpResult COPCrysis2AdjustAim::Execute(CPipeUser* pPipeUser)
 {
 	CCCPOINT(COPCrysis2AdjustAim_Execute);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	CPuppet* pPuppet = pPipeUser->CastToCPuppet();
 	if (!pPuppet)
@@ -593,7 +593,7 @@ int COPCrysis2Peek::RandomizeTimeInterval() const
 EGoalOpResult COPCrysis2Peek::Execute(CPipeUser* pPipeUser)
 {
 	CCCPOINT(COPCrysis2Peek_Execute);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	CPuppet* pPuppet = pPipeUser->CastToCPuppet();
 	if (!pPuppet)
@@ -1474,7 +1474,7 @@ Vec3 COPCrysis2StickPath::GetProjectedPos(CPuppet* pPuppet) const
 //////////////////////////////////////////////////////////////////////////
 EGoalOpResult COPCrysis2StickPath::Execute(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	return ExecuteCurrentState(pPipeUser, false);
 }
@@ -1482,7 +1482,7 @@ EGoalOpResult COPCrysis2StickPath::Execute(CPipeUser* pPipeUser)
 //////////////////////////////////////////////////////////////////////////
 void COPCrysis2StickPath::ExecuteDry(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	ExecuteCurrentState(pPipeUser, true);
 }
@@ -1490,7 +1490,7 @@ void COPCrysis2StickPath::ExecuteDry(CPipeUser* pPipeUser)
 //////////////////////////////////////////////////////////////////////////
 EGoalOpResult COPCrysis2StickPath::ExecuteCurrentState(CPipeUser* pPipeUser, bool bDryUpdate)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	EGoalOpResult eGoalOpResult = eGOR_FAILED;
 
@@ -1535,7 +1535,7 @@ EGoalOpResult COPCrysis2StickPath::ExecuteCurrentState(CPipeUser* pPipeUser, boo
 //////////////////////////////////////////////////////////////////////////
 bool COPCrysis2StickPath::ExecuteState_Prepare(CPuppet* pPuppet, bool bDryUpdate)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	assert(pPuppet);
 
@@ -1607,7 +1607,7 @@ bool COPCrysis2StickPath::ExecuteState_Prepare(CPuppet* pPuppet, bool bDryUpdate
 //////////////////////////////////////////////////////////////////////////
 bool COPCrysis2StickPath::ExecuteState_Navigate(CPuppet* pPuppet, bool bDryUpdate)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	assert(pPuppet);
 	assert(m_refTarget.IsValid());
@@ -1710,7 +1710,7 @@ bool COPCrysis2StickPath::ExecuteState_Navigate(CPuppet* pPuppet, bool bDryUpdat
 //////////////////////////////////////////////////////////////////////////
 bool COPCrysis2StickPath::ExecuteState_Wait(CPuppet* pPuppet, bool bDryUpdate)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	assert(pPuppet);
 	assert(m_refTarget.IsValid());
@@ -2474,7 +2474,7 @@ EGoalOpResult COPCrysis2Fly::Execute(CPipeUser* pPipeUser)
 	{
 	case C2F_INVALID:
 		{
-			FRAME_PROFILER("COPCrysis2Fly: SETUP ASTAR", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_AI, "COPCrysis2Fly: SETUP ASTAR" );
 
 			result = CalculateTarget(pPipeUser);
 
@@ -2491,7 +2491,7 @@ EGoalOpResult COPCrysis2Fly::Execute(CPipeUser* pPipeUser)
 		}
 	case C2F_PATHFINDING:
 		{
-			FRAME_PROFILER("COPCrysis2Fly: ASTAR UPDATE", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_AI, "COPCrysis2Fly: ASTAR UPDATE";
 
 			if (m_Solver)
 			{

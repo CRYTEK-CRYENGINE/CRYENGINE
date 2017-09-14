@@ -13,7 +13,7 @@ struct IMovementActor
 
 	virtual IMovementActorAdapter&    GetAdapter() const = 0;
 	virtual void                      RequestPathTo(const Vec3& destination, float lengthToTrimFromThePathEnd, const MNMDangersFlags dangersFlags = eMNMDangers_None,
-	                                                const bool considerActorsAsPathObstacles = false) = 0;
+	                                                const bool considerActorsAsPathObstacles = false, const MNMCustomPathCostComputerSharedPtr& pCustomPathCostComputer = nullptr) = 0;
 	virtual Movement::PathfinderState GetPathfinderState() const = 0;
 	virtual const char*               GetName() const = 0;
 	virtual void                      Log(const char* message) = 0;

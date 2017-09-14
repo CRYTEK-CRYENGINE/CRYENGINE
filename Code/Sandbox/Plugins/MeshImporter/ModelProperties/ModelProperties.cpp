@@ -51,7 +51,7 @@ std::unique_ptr<CModelProperties::SSerializer> CModelProperties::GetSerializer(Q
 	for (const auto& createSerializerFunc : m_createSerializerFuncs)
 	{
 		std::unique_ptr<SSerializer> pSerializer(createSerializerFunc(pModel, modelIndex));
-		if (pSerializer)
+		if (pSerializer && pSerializer->m_pObject)
 		{
 			return pSerializer;
 		}

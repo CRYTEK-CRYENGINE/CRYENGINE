@@ -33,10 +33,10 @@ private:
 class CSceneViewContainer : public QWidget
 {
 public:
-	CSceneViewContainer(QAbstractItemModel* pModel, QTreeView* pView, QWidget* pParent = nullptr);
+	CSceneViewContainer(QAbstractItemModel* pModel, QAdvancedTreeView* pView, QWidget* pParent = nullptr);
 
 	const QAbstractItemModel*         GetModel() const;
-	const QTreeView*				  GetView() const;
+	const QAdvancedTreeView*		  GetView() const;
 	const QAttributeFilterProxyModel* GetFilter() const;
 
 	QAbstractItemModel*               GetModel();
@@ -44,7 +44,7 @@ public:
 
 private:
 	std::unique_ptr<QAttributeFilterProxyModel> m_pFilterModel;
-	QAbstractItemModel*					m_pModel;
-	QTreeView*                          m_pView;
+	QAbstractItemModel*					        m_pModel;
+	QAdvancedTreeView*                           m_pView;
 	QFilteringPanel* m_pFilteringPanel;
 };

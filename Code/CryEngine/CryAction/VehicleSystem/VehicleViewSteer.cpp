@@ -503,9 +503,7 @@ void CVehicleViewSteer::Serialize(TSerialize serialize, EEntityAspects aspects)
 
 void CVehicleViewSteer::OffsetPosition(const Vec3& delta)
 {
-#ifdef SEG_WORLD
 	m_position += delta;
-#endif
 }
 
 DEFINE_VEHICLEOBJECT(CVehicleViewSteer);

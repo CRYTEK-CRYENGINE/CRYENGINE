@@ -126,7 +126,7 @@ void CFeatureRenderRibbon::Serialize(Serialization::IArchive& ar)
 
 void CFeatureRenderRibbon::InitParticles(const SUpdateContext& context)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	CParticleContainer& container = context.m_container;
 	CParticleContainer& parentContainer = context.m_parentContainer;
@@ -144,7 +144,7 @@ void CFeatureRenderRibbon::InitParticles(const SUpdateContext& context)
 
 void CFeatureRenderRibbon::ComputeVertices(CParticleComponentRuntime* pComponentRuntime, const SCameraInfo& camInfo, CREParticle* pRE, uint64 uRenderFlags, float fMaxPixels)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 	PARTICLE_LIGHT_PROFILER();
 
 	const uint32 threadId = JobManager::GetWorkerThreadId();

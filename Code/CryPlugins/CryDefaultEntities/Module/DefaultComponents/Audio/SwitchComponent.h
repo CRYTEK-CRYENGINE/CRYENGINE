@@ -71,8 +71,8 @@ inline void SSwitchWithStateSerializeHelper::Serialize(Serialization::IArchive& 
 
 	if (archive.isInput())
 	{
-		m_switchId = CryAudio::StringToId_RunTime(m_switchName.c_str());
-		m_switchStateId = CryAudio::StringToId_RunTime(m_switchStateName.c_str());
+		m_switchId = CryAudio::StringToId(m_switchName.c_str());
+		m_switchStateId = CryAudio::StringToId(m_switchStateName.c_str());
 	}
 }
 } // namespace DefaultComponents

@@ -37,6 +37,8 @@ public:
 		desc.AddMember(&CStaticMeshComponent::m_type, 'type', "Type", "Type", "Determines the behavior of the static mesh", EMeshType::RenderAndCollider);
 
 		desc.AddMember(&CStaticMeshComponent::m_filePath, 'file', "FilePath", "File", "Determines the CGF to load", "%ENGINE%/EngineAssets/Objects/Default.cgf");
+		desc.AddMember(&CStaticMeshComponent::m_materialPath, 'mat', "Material", "Material", "Specifies the override material for the selected object", "");
+
 		desc.AddMember(&CStaticMeshComponent::m_renderParameters, 'rend', "Render", "Rendering Settings", "Settings for the rendered representation of the component", SRenderParameters());
 		desc.AddMember(&CStaticMeshComponent::m_physics, 'phys', "Physics", "Physics Settings", "Physical properties for the object, only used if a simple physics or character controller is applied to the entity.", SPhysicsParameters());
 	}
@@ -48,9 +50,13 @@ public:
 	virtual void SetObject(IStatObj* pObject, bool bSetDefaultMass = false);
 	virtual void ResetObject();
 
+	// Helper to allow exposing derived function to Schematyc
+	virtual void SetMeshType(EMeshType type) { SetType(type); }
+
 protected:
 	Schematyc::GeomFileName m_filePath = "%ENGINE%/EngineAssets/Objects/Default.cgf";
-	
+	Schematyc::MaterialFileName m_materialPath;
+
 	_smart_ptr<IStatObj>    m_pCachedStatObj = nullptr;
 };
 }

@@ -1810,7 +1810,7 @@ CStatoscope::~CStatoscope()
 
 static char* Base64Encode(const uint8* buffer, int len)
 {
-	FRAME_PROFILER("CStatoscope::Base64Encode", gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_REGION(PROFILE_SYSTEM, "CStatoscope::Base64Encode");
 
 	static const char base64Dict[64] = {
 		'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
@@ -1904,7 +1904,7 @@ void CStatoscope::UnregisterDataGroup(IStatoscopeDataGroup* pDG)
 
 void CStatoscope::Tick()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	if (m_pStatoscopeEnabledCVar->GetIVal() != 0)
 	{
@@ -2186,7 +2186,7 @@ uint8* CStatoscope::ProcessScreenShot()
 
 void CStatoscope::AddFrameRecord(bool bOutputHeader)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	float currentTime = gEnv->pTimer->GetAsyncTime().GetSeconds();
 
@@ -3000,7 +3000,7 @@ void CStatoscopeServer::SendData(const char* buffer, int bufferSize)
 		return;
 	}
 
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	//float startTime = gEnv->pTimer->GetAsyncCurTime();
 	//int origBufferSize = bufferSize;

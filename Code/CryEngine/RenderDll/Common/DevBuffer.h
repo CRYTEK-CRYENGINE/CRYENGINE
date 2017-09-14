@@ -88,6 +88,7 @@ public:
 	buffer_size_t  m_offset;
 	buffer_size_t  m_size;
 	int32          m_nRefCount;
+	int8           m_nUpdCount;
 	union
 	{
 		struct
@@ -129,7 +130,7 @@ public:
 	inline uint64 GetCode() const
 	{
 #if CONSTANT_BUFFER_ENABLE_DIRECT_ACCESS || CRY_RENDERER_OPENGL
-		uint64 code = reinterpret_cast<uintptr_t>(m_buffer) ^ ((uint64)m_offset << 40);//|(((uint64)m_size>>4)<<60); Size will follow buffer address, so we just need offset
+		uint64 code = reinterpret_cast<uintptr_t>(m_buffer) ^ SwapEndianValue((uint64)m_offset, true);
 		return code;
 #else
 		return reinterpret_cast<uint64>(m_buffer);
@@ -502,7 +503,7 @@ public:
 	}
 };
 
-class CGpuBuffer : NoCopy
+class CGpuBuffer : NoCopy, public CResourceBindingInvalidator
 {
 private:
 	struct STrackedDeviceBuffer : public SUsageTrackedItem<DEVRES_TRACK_LATENCY>
@@ -513,19 +514,6 @@ private:
 
 		CDeviceBuffer* pDeviceBuffer;
 	};
-	struct SInvalidateCallback
-	{
-		int refCount;
-		SResourceBinding::InvalidateCallbackFunction callback;
-
-		SInvalidateCallback(const SResourceBinding::InvalidateCallbackFunction& cb)
-			: callback(cb)
-			, refCount(0)
-		{}
-	};
-
-	mutable std::unordered_map<void*, SInvalidateCallback> m_invalidateCallbacks;
-	static CryCriticalSectionNonRecursive                  s_invalidationLock;
 
 public:
 	CGpuBuffer(int maxBufferCopies = -1, CDeviceBuffer* devBufToOwn = nullptr)
@@ -559,9 +547,6 @@ public:
 	uint32         GetFlags()        const { return m_eFlags; }
 	buffer_size_t  GetElementCount() const { return m_elementCount; }
 
-	void AddInvalidateCallback(void* listener, const SResourceBinding::InvalidateCallbackFunction& callback) const;
-	void RemoveInvalidateCallbacks(void* listener) const;
-	void InvalidateDeviceResource(uint32 dirtyFlags);
 	//////////////////////////////////////////////////////////////////////////
 
 private:

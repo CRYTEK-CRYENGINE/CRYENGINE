@@ -1407,7 +1407,7 @@ void CVehicle::KillTimers()
 {
 	KillAbandonedTimer();
 
-	GetEntity()->KillTimer(-1);
+	GetEntity()->KillTimer(IEntity::KILL_ALL_TIMER);
 	m_timers.clear();
 }
 
@@ -1506,11 +1506,8 @@ void CVehicle::Reset(bool enterGame)
 		NeedsUpdate(eVUF_AwakePhysics);
 
 		// Temp Code, testing only
-		CryAudio::ControlId triggerId;
-		if (gEnv->pAudioSystem->GetTriggerId("ENGINE_ON", triggerId))
-		{
-			m_pIEntityAudioComponent->ExecuteTrigger(triggerId);
-		}
+		CryAudio::ControlId const triggerId = CryAudio::StringToId("ENGINE_ON");
+		m_pIEntityAudioComponent->ExecuteTrigger(triggerId);
 	}
 	else
 	{
@@ -1523,11 +1520,8 @@ void CVehicle::Reset(bool enterGame)
 		}
 
 		// Temp Code, testing only
-		CryAudio::ControlId triggerId;
-		if (gEnv->pAudioSystem->GetTriggerId("ENGINE_OFF", triggerId))
-		{
-			m_pIEntityAudioComponent->ExecuteTrigger(triggerId);
-		}
+		CryAudio::ControlId const triggerId = CryAudio::StringToId("ENGINE_OFF");
+		m_pIEntityAudioComponent->ExecuteTrigger(triggerId);
 	}
 
 	m_collisionDisabledTime = 0.0f;
@@ -1567,7 +1561,7 @@ void CVehicle::DoRequestedPhysicalization()
 //------------------------------------------------------------------------
 void CVehicle::Update(SEntityUpdateContext& ctx, int slot)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 #if ENABLE_VEHICLE_DEBUG
 	gEnv->pAuxGeomRenderer->SetRenderFlags(e_Def3DPublicRenderflags);
@@ -2076,7 +2070,7 @@ void CVehicle::HandleEvent(const SGameObjectEvent& event)
 //------------------------------------------------------------------------
 void CVehicle::UpdateStatus(const float deltaTime)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	int frameId = gEnv->nMainFrameID;
 	if (!(frameId > m_status.frameId))
@@ -3483,7 +3477,7 @@ bool CVehicle::SetMovement(const string& movementName, const CVehicleParams& tab
 //------------------------------------------------------------------------
 void CVehicle::OnPhysPostStep(const EventPhys* pEvent, bool logged)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 	const EventPhysPostStep* eventPhys = (const EventPhysPostStep*)pEvent;
 	float deltaTime = eventPhys->dt;
 	if (logged)
@@ -5897,14 +5891,9 @@ const char* CVehicle::GetModification() const
 	return m_modifications.c_str();
 }
 
-IEntityComponent::ComponentEventPriority CVehicle::GetEventPriority(const int eventID) const
+IEntityComponent::ComponentEventPriority CVehicle::GetEventPriority() const
 {
-	switch (eventID)
-	{
-	case ENTITY_EVENT_PREPHYSICSUPDATE:
-		return ENTITY_PROXY_USER + EEntityEventPriority_Vehicle;
-	}
-	return IGameObjectExtension::GetEventPriority(eventID);
+	return ENTITY_PROXY_USER + EEntityEventPriority_Vehicle;
 }
 
 #if ENABLE_VEHICLE_DEBUG
@@ -5953,7 +5942,6 @@ void CVehicle::DebugReorient()
 
 void CVehicle::OffsetPosition(const Vec3& delta)
 {
-#ifdef SEG_WORLD
 	// go through all seats, not just driver...
 	for (TVehicleSeatVector::iterator it = m_seats.begin(); it != m_seats.end(); ++it)
 	{
@@ -5963,5 +5951,4 @@ void CVehicle::OffsetPosition(const Vec3& delta)
 			pSeat->OffsetPosition(delta);
 		}
 	}
-#endif
 }

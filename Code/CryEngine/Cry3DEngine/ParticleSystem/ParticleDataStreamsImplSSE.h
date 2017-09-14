@@ -140,6 +140,7 @@ ILINE Vec3v IOVec3Stream::Load(TParticleGroupId pgId) const
 
 ILINE void IOVec3Stream::Store(TParticleGroupId pgId, const Vec3v& value)
 {
+	CRY_PFX2_DEBUG_ONLY_ASSERT(IsValid(value));
 	_mm_store_ps(const_cast<float*>(m_pXStream) + pgId, value.x);
 	_mm_store_ps(const_cast<float*>(m_pYStream) + pgId, value.y);
 	_mm_store_ps(const_cast<float*>(m_pZStream) + pgId, value.z);

@@ -509,7 +509,7 @@ void CHitDeathReactions::ReleaseReactionAnims(uint32 requestFlags)
 //////////////////////////////////////////////////////////////////////////
 void CHitDeathReactions::Update(float fFrameTime)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	if (IsInReaction())
 	{
@@ -614,7 +614,7 @@ FragmentID CHitDeathReactions::GetHitDeathFragmentID( const IActionController* p
 //////////////////////////////////////////////////////////////////////////
 bool CHitDeathReactions::OnKill(const CActor::KillParams& killParams)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	CRY_ASSERT(m_actor.IsDead());
 
@@ -650,7 +650,7 @@ bool CHitDeathReactions::OnKill(const CActor::KillParams& killParams)
 //////////////////////////////////////////////////////////////////////////
 bool CHitDeathReactions::OnReaction(const HitInfo& hitInfo, int* pAnimIndex)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	bool bSuccess = false;
 
@@ -703,7 +703,7 @@ bool CHitDeathReactions::OnReaction(const HitInfo& hitInfo, int* pAnimIndex)
 
 bool CHitDeathReactions::OnHit(const HitInfo& hitInfo, float fCausedDamage/* = 0.0f*/)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	bool bSuccess = false;
 

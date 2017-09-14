@@ -183,6 +183,11 @@ void CMonoLibrary::Reload()
 
 void CMonoLibrary::Serialize(CMonoObject* pSerializer)
 {
+	if (!CanSerialize())
+	{
+		return;
+	}
+
 	// Make sure we know the file path to this binary, we'll need to reload it later.
 	// This is automatically cached in GetFilePath.
 	GetFilePath();
@@ -197,12 +202,22 @@ void CMonoLibrary::Serialize(CMonoObject* pSerializer)
 
 void CMonoLibrary::Deserialize(CMonoObject* pSerializer)
 {
+	if (!CanSerialize())
+	{
+		return;
+	}
+
 	static_cast<CAppDomain*>(m_pDomain)->DeserializeObject(pSerializer, true);
 
 	for (auto it = m_classes.begin(); it != m_classes.end(); ++it)
 	{
 		it->get()->Deserialize(pSerializer);
 	}
+}
+
+bool CMonoLibrary::CanSerialize() const
+{
+	return m_pImage != MonoInternals::mono_get_corlib();
 }
 
 CMonoClass* CMonoLibrary::GetClass(const char* szNamespace, const char* szClassName)

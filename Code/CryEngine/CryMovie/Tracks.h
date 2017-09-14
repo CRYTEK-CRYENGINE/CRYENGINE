@@ -102,8 +102,8 @@ public:
 		{
 			key.m_startTriggerName = keyNode->getAttr("startTrigger");
 			key.m_stopTriggerName = keyNode->getAttr("stopTrigger");
-			key.m_startTriggerId = CryAudio::StringToId_RunTime(key.m_startTriggerName.c_str());
-			key.m_stopTriggerId = CryAudio::StringToId_RunTime(key.m_stopTriggerName.c_str());
+			key.m_startTriggerId = CryAudio::StringToId(key.m_startTriggerName.c_str());
+			key.m_stopTriggerId = CryAudio::StringToId(key.m_stopTriggerName.c_str());
 
 			int32 durationTicks;
 			if (!keyNode->getAttr("durationTicks", durationTicks))
@@ -192,8 +192,8 @@ public:
 		{
 			key.m_audioSwitchName = keyNode->getAttr("switch_name");
 			key.m_audioSwitchStateName = keyNode->getAttr("switch_state");
-			key.m_audioSwitchId = CryAudio::StringToId_RunTime(key.m_audioSwitchName.c_str());
-			key.m_audioSwitchStateId = CryAudio::StringToId_RunTime(key.m_audioSwitchStateName.c_str());
+			key.m_audioSwitchId = CryAudio::StringToId(key.m_audioSwitchName.c_str());
+			key.m_audioSwitchStateId = CryAudio::StringToId(key.m_audioSwitchStateName.c_str());
 		}
 		else
 		{
@@ -219,7 +219,7 @@ public:
 
 		if (ar.isInput())
 		{
-			m_audioParameterId = CryAudio::StringToId_RunTime(m_audioParameterName.c_str());
+			m_audioParameterId = CryAudio::StringToId(m_audioParameterName.c_str());
 		}
 	}
 
@@ -230,7 +230,7 @@ public:
 		if (bLoading)
 		{
 			m_audioParameterName = xmlNode->getAttr("AudioParameterName");
-			m_audioParameterId = CryAudio::StringToId_RunTime(m_audioParameterName.c_str());
+			m_audioParameterId = CryAudio::StringToId(m_audioParameterName.c_str());
 		}
 		else
 		{

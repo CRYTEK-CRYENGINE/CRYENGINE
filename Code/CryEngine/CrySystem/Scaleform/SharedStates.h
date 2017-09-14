@@ -81,6 +81,10 @@ public:
 
 private:
 	CryGFxTextClipboard();
+
+#if CRY_PLATFORM_WINDOWS
+	bool m_bSyncingClipboardFromWindows;
+#endif // CRY_PLATFORM_WINDOWS
 };
 
 //////////////////////////////////////////////////////////////////////////

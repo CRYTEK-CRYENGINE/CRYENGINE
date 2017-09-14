@@ -53,7 +53,7 @@ CHommingSwarmProjectile::~CHommingSwarmProjectile()
 
 void CHommingSwarmProjectile::Update(SEntityUpdateContext &ctx, int updateSlot)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	BaseClass::Update(ctx, updateSlot);
 

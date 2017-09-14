@@ -74,14 +74,23 @@ CMonoRuntime::CMonoRuntime()
 	, m_pPluginDomain(nullptr)
 	, m_listeners(5)
 {
-	REGISTER_COMMAND("mono_reload", OnReloadRequested, VF_NULL, "Used to reload all mono plug-ins");
 }
 
 CMonoRuntime::~CMonoRuntime()
 {
-	if (gEnv && gEnv->pSystem)
+	if (gEnv)
 	{
-		gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(this);
+		gEnv->pMonoRuntime = nullptr;
+		
+		if (gEnv->pConsole)
+		{
+			gEnv->pConsole->UnregisterListener(this);
+		}
+
+		if (gEnv->pSystem)
+		{
+			gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(this);
+		}
 	}
 }
 
@@ -125,7 +134,7 @@ bool CMonoRuntime::Initialize(SSystemGlobalEnvironment& env, const SSystemInitPa
 	char sMonoEtc[_MAX_PATH];
 	sprintf_s(sMonoEtc, "%s\\%s\\Mono\\etc", engineRoot, szMonoDirectoryParent);
 
-	if (!gEnv->pCryPak->IsFileExist(sMonoLib) || !gEnv->pCryPak->IsFileExist(sMonoEtc))
+	if (!gEnv->pCryPak->IsFileExist(sMonoLib, ICryPak::eFileLocation_OnDisk) || !gEnv->pCryPak->IsFileExist(sMonoEtc, ICryPak::eFileLocation_OnDisk))
 	{
 		CryLogAlways("Failed to initialize Mono runtime, Mono directory was not found or incomplete in %s directory", szMonoDirectoryParent);
 		delete this;
@@ -150,15 +159,14 @@ bool CMonoRuntime::Initialize(SSystemGlobalEnvironment& env, const SSystemInitPa
 
 	gEnv->pConsole->RegisterListener(this, "MonoRuntime::ManagedConsoleCommandListener");
 
+	REGISTER_COMMAND("mono_reload", OnReloadRequested, VF_NULL, "Used to reload all mono plug-ins");
+
 	CryLog("[Mono] Initialization done.");
 	return true;
 }
 
 void CMonoRuntime::Shutdown()
 {
-	gEnv->pConsole->UnregisterListener(this);
-	gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(this);
-
 	if (m_pLibCore != nullptr)
 	{
 		// Get the equivalent of gEnv
@@ -174,8 +182,6 @@ void CMonoRuntime::Shutdown()
 	m_pRootDomain.reset();
 
 	m_nodeCreators.clear();
-
-	gEnv->pMonoRuntime = nullptr;
 }
 
 std::shared_ptr<ICryPlugin> CMonoRuntime::LoadBinary(const char* szBinaryPath)
@@ -204,7 +210,7 @@ void CMonoRuntime::MonoLogCallback(const char* szLogDomain, const char* szLogLev
 				break;
 			}
 
-	gEnv->pLog->LogWithType(engineLvl, "[Mono][%s][%s] %s", szLogDomain, szLogLevel, szMessage);
+	gEnv->pLog->LogWithType(engineLvl, "[Mono] [%s] [%s] %s", szLogDomain, szLogLevel, szMessage);
 
 #if CRY_PLATFORM_WINDOWS && !defined(RELEASE)
 	if (IsDebuggerPresent())
@@ -355,6 +361,15 @@ void CMonoRuntime::ReloadPluginDomain()
 	{
 		pEngineClass->ReloadClass();
 
+		// Notify plug-ins so that they can remove components etc that were removed
+		for(const std::weak_ptr<CManagedPlugin>& pWeakPlugin : m_plugins)
+		{
+			if (std::shared_ptr<CManagedPlugin> pPlugin = pWeakPlugin.lock())
+			{
+				pPlugin->OnReloaded();
+			}
+		}
+
 		// Notify the framework so that internal listeners etc. can be added again.
 		pEngineClass->FindMethod("OnReloadDone")->Invoke();
 	}
@@ -419,115 +434,38 @@ void CMonoRuntime::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR l
 			CAppDomain* pPluginDomain = LaunchPluginDomain();
 			CRY_ASSERT(pPluginDomain != nullptr);
 
-			// Temporary, remove scanning of the Core assembly when we use the unified components
-			static CManagedPlugin::TComponentFactoryMap coreLibraryFactoryMap;
-			CManagedPlugin::s_pCurrentlyRegisteringFactory = &coreLibraryFactoryMap;
-
-			//Scan the Core-assembly for entity components etc.
-			void* pRegisterArgs[1] = { m_pLibCore->GetManagedObject() };
-			std::shared_ptr<CMonoClass> pEngineClass = m_pLibCore->GetTemporaryClass("CryEngine", "Engine");
-			pEngineClass->FindMethodWithDesc("ScanAssembly(Assembly)")->InvokeStatic(pRegisterArgs);
-
-			CManagedPlugin::s_pCurrentlyRegisteringFactory = nullptr;
-
-			CompileAssetSourceFiles();
-
-			for (const std::weak_ptr<CManagedPlugin>& plugin : m_plugins)
+			if (pPluginDomain != nullptr)
 			{
-				if (std::shared_ptr<CManagedPlugin> pPlugin = plugin.lock())
+				// Temporary, remove scanning of the Core assembly when we use the unified components
+				static CManagedPlugin::TComponentFactoryMap coreLibraryFactoryMap;
+				CManagedPlugin::s_pCurrentlyRegisteringFactory = &coreLibraryFactoryMap;
+
+				//Scan the Core-assembly for entity components etc.
+				void* pRegisterArgs[1] = { m_pLibCore->GetManagedObject() };
+				std::shared_ptr<CMonoClass> pEngineClass = m_pLibCore->GetTemporaryClass("CryEngine", "Engine");
+				pEngineClass->FindMethodWithDesc("ScanAssembly(Assembly)")->InvokeStatic(pRegisterArgs);
+
+				CManagedPlugin::s_pCurrentlyRegisteringFactory = nullptr;
+
+				// Compile C# source files in the assets directory
+				const char* szAssetDirectory = gEnv->pSystem->GetIProjectManager()->GetCurrentAssetDirectoryAbsolute();
+				if (szAssetDirectory != nullptr && szAssetDirectory[0] != '\0')
 				{
-					pPlugin->Load(pPluginDomain);
+					CMonoLibrary* pCompiledLibrary = pPluginDomain->CompileFromSource(szAssetDirectory);
+					m_pAssetsPlugin = std::make_shared<CManagedPlugin>(pCompiledLibrary);
+					m_plugins.emplace_back(m_pAssetsPlugin);
+				}
+
+				for (const std::weak_ptr<CManagedPlugin>& plugin : m_plugins)
+				{
+					if (std::shared_ptr<CManagedPlugin> pPlugin = plugin.lock())
+					{
+						pPlugin->Load(pPluginDomain);
+					}
 				}
 			}
 		}
 		break;
-	}
-}
-
-void CMonoRuntime::CompileAssetSourceFiles()
-{
-	std::vector<string> sourceFiles;
-
-	const char* szAssetDirectory = gEnv->pSystem->GetIProjectManager()->GetCurrentAssetDirectoryAbsolute();
-	if (szAssetDirectory == nullptr || strlen(szAssetDirectory) == 0)
-	{
-		CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "Failed to locate asset directory");
-		return;
-	}
-
-	// Return early if there is no asset directory, otherwise this will scan the whole hard-drive for .cs files.
-	if (szAssetDirectory == nullptr || szAssetDirectory[0] == '\0')
-	{
-		return;
-	}
-
-	FindSourceFilesInDirectoryRecursive(szAssetDirectory, sourceFiles);
-	if (sourceFiles.size() == 0)
-		return;
-
-	CMonoDomain* pDomain = m_pLibCore->GetDomain();
-
-	std::shared_ptr<CMonoClass> pCompilerClass = m_pLibCore->GetTemporaryClass("CryEngine.Compilation", "Compiler");
-	std::shared_ptr<CMonoMethod> pCompilationMethod = pCompilerClass->FindMethod("CompileCSharpSourceFiles", 1);
-
-	MonoInternals::MonoArray* pStringArray = MonoInternals::mono_array_new(pDomain->GetMonoDomain(), MonoInternals::mono_get_string_class(), sourceFiles.size());
-	for (int i = 0; i < sourceFiles.size(); ++i)
-	{
-		mono_array_set(pStringArray, MonoInternals::MonoString*, i, mono_string_new(pDomain->GetMonoDomain(), sourceFiles[i]));
-	}
-
-	void* pParams[1] = { pStringArray };
-	std::shared_ptr<CMonoObject> pResult = pCompilationMethod->InvokeStatic(pParams);
-	if (MonoInternals::MonoReflectionAssembly* pReflectionAssembly = (MonoInternals::MonoReflectionAssembly*)pResult->GetManagedObject())
-	{
-		MonoInternals::MonoAssembly* pAssembly = mono_reflection_assembly_get_assembly(pReflectionAssembly);
-
-		m_pAssetsPlugin = std::make_shared<CManagedPlugin>(pDomain->GetLibraryFromMonoAssembly(pAssembly));
-		m_plugins.emplace_back(m_pAssetsPlugin);
-	}
-
-	/*for (int i = 0; i < sourceFiles.size(); ++i)
-	{
-		mono_free(mono_array_get(pStringArray, MonoInternals::MonoString*, i));
-	}*/
-}
-
-void CMonoRuntime::FindSourceFilesInDirectoryRecursive(const char* szDirectory,std::vector<string>& sourceFiles)
-{
-	string searchPath = PathUtil::Make(szDirectory, "*.cs");
-
-	_finddata_t fd;
-	intptr_t handle = gEnv->pCryPak->FindFirst(searchPath, &fd);
-	if (handle != -1)
-	{
-		do
-		{
-			sourceFiles.emplace_back(PathUtil::Make(szDirectory, fd.name));
-		} while (gEnv->pCryPak->FindNext(handle, &fd) >= 0);
-
-		gEnv->pCryPak->FindClose(handle);
-	}
-
-	// Find additional directories
-	searchPath = PathUtil::Make(szDirectory, "*.*");
-
-	handle = gEnv->pCryPak->FindFirst(searchPath, &fd);
-	if (handle != -1)
-	{
-		do
-		{
-			if (fd.attrib & _A_SUBDIR)
-			{
-				if (strcmp(fd.name, ".") != 0 && strcmp(fd.name, "..") != 0)
-				{
-					string sDirectory = PathUtil::Make(szDirectory, fd.name);
-
-					FindSourceFilesInDirectoryRecursive(sDirectory, sourceFiles);
-				}
-			}
-		} while (gEnv->pCryPak->FindNext(handle, &fd) >= 0);
-
-		gEnv->pCryPak->FindClose(handle);
 	}
 }
 

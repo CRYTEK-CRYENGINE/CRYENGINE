@@ -3192,7 +3192,7 @@ void CRecordingSystem::SetPlayBackCameraView(bool bSetView)
 				if(pKillerReplayGameObject)
 				{
 					if(bSetView)
-					{		   
+					{
 						m_gameCameraLinkedToEntityId = pActiveView->GetLinkedId();
 						IEntity* pGameCameraLinkedToEntity = gEnv->pEntitySystem->GetEntity(m_gameCameraLinkedToEntityId);
 						if(pGameCameraLinkedToEntity)
@@ -3200,18 +3200,20 @@ void CRecordingSystem::SetPlayBackCameraView(bool bSetView)
 							CGameObject* pGameCameraLinkedToGameObject = (CGameObject*)pGameCameraLinkedToEntity->GetProxy(ENTITY_PROXY_USER);
 							if(pGameCameraLinkedToGameObject)
 							{
+								// Creates new view, sets it as active and links to it.
 								pKillerReplayGameObject->CaptureView(pGameCameraLinkedToGameObject->GetViewDelegate());
 							}
-							pActiveView->LinkTo(pKillerReplayEntity);
 						}
 					}
 					else
 					{
-						IEntity* pGameCameraLinkedToEntity = gEnv->pEntitySystem->GetEntity(m_gameCameraLinkedToEntityId);
-						if(pGameCameraLinkedToEntity)
+						IView* const pIView = gEnv->pGameFramework->GetIViewSystem()->GetViewByEntityId(m_gameCameraLinkedToEntityId);
+
+						if (pIView != nullptr)
 						{
-							pActiveView->LinkTo(pGameCameraLinkedToEntity);
+							gEnv->pGameFramework->GetIViewSystem()->SetActiveView(pIView);
 						}
+
 						pKillerReplayGameObject->ReleaseView(pKillerReplayGameObject->GetViewDelegate());
 					}
 				}

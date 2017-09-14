@@ -53,6 +53,8 @@ add_sources("EditorAudioControlsEditor_uber_0.cpp"
 		"AdvancedTreeView.h"
 		"FileMonitor.cpp"
 		"FileMonitor.h"
+		"ResourceSelectorModel.cpp"
+		"ResourceSelectorModel.h"
 )
 
 add_sources("NoUberFile"

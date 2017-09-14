@@ -9,8 +9,7 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#ifndef GEOM_QUERY_H
-#define GEOM_QUERY_H
+#pragma once
 
 #include "Cry_Geo.h"
 #include <CryCore/Containers/CryArray.h>
@@ -24,15 +23,15 @@ public:
 	CGeomExtent()
 		: m_nEmptyEndParts(0) {}
 
-	ILINE operator bool() const
+	operator bool() const
 	{
 		return m_afCumExtents.capacity() + m_nEmptyEndParts != 0;
 	}
-	ILINE int NumParts() const
+	int NumParts() const
 	{
 		return m_afCumExtents.size();
 	}
-	ILINE float TotalExtent() const
+	float TotalExtent() const
 	{
 		return !m_afCumExtents.empty() ? m_afCumExtents.back() : 0.f;
 	}
@@ -89,6 +88,23 @@ public:
 		return GetPart(seed.GenerateFloat());
 	}
 
+	void RandomParts(Array<int> aParts, CRndGen& seed) const
+	{
+		for (int& part : aParts)
+			part = RandomPart(seed);
+	}
+
+	// Get multiple random parts, aliased to a PosNorm array
+	Array<int> RandomPartsAlias(Array<PosNorm> aPoints, CRndGen& seed) const;
+
+	// Get multiple random parts, and sum them into a PartSum array, aliased to a PosNorm array
+	struct PartSum
+	{
+		Array<PosNorm> aPoints;
+		int iPart;
+	};
+	Array<PartSum> RandomPartsAliasSum(Array<PosNorm> aPoints, CRndGen& seed) const;
+
 protected:
 
 	DynArray<float> m_afCumExtents;
@@ -99,12 +115,12 @@ class CGeomExtents
 {
 public:
 
-	ILINE CGeomExtents()
+	CGeomExtents()
 		: m_aExtents(0) {}
 	~CGeomExtents()
 	{ delete[] m_aExtents; }
 
-	ILINE operator bool() const
+	operator bool() const
 	{
 		return m_aExtents != 0;
 	}
@@ -115,7 +131,7 @@ public:
 		m_aExtents = 0;
 	}
 
-	ILINE CGeomExtent const& operator[](EGeomForm eForm) const
+	CGeomExtent const& operator[](EGeomForm eForm) const
 	{
 		assert(eForm >= 0 && eForm < GeomForm_COUNT);
 		if (m_aExtents)
@@ -125,7 +141,7 @@ public:
 		return s_empty;
 	}
 
-	ILINE CGeomExtent& Make(EGeomForm eForm)
+	CGeomExtent& Make(EGeomForm eForm)
 	{
 		assert(eForm >= 0 && eForm < GeomForm_COUNT);
 		if (!m_aExtents)
@@ -196,70 +212,7 @@ const typename T::value_type& RandomElem(CRndGen& seed, const T& array)
 }
 
 // Geometric primitive randomizing functions.
-ILINE void BoxRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm, Vec3 const& vSize)
-{
-	ran.vPos = seed.GetRandomComponentwise(-vSize, vSize);
-	ran.vNorm = ran.vPos;
-
-	if (eForm != GeomForm_Volume)
-	{
-		// Generate a random corner, for collapsing random point.
-		int nCorner = seed.GetRandom(0, 7);
-		ran.vNorm.x = (((nCorner & 1) << 1) - 1) * vSize.x;
-		ran.vNorm.y = (((nCorner & 2)) - 1) * vSize.y;
-		ran.vNorm.z = (((nCorner & 4) >> 1) - 1) * vSize.z;
-
-		if (eForm == GeomForm_Vertices)
-		{
-			ran.vPos = ran.vNorm;
-		}
-		else if (eForm == GeomForm_Surface)
-		{
-			// Collapse one axis.
-			float fAxis = seed.GetRandom(0.0f, vSize.x * vSize.y + vSize.y * vSize.z + vSize.z * vSize.x);
-			if ((fAxis -= vSize.y * vSize.z) < 0.f)
-			{
-				ran.vPos.x = ran.vNorm.x;
-				ran.vNorm.y = ran.vNorm.z = 0.f;
-			}
-			else if ((fAxis -= vSize.z * vSize.x) < 0.f)
-			{
-				ran.vPos.y = ran.vNorm.y;
-				ran.vNorm.x = ran.vNorm.z = 0.f;
-			}
-			else
-			{
-				ran.vPos.z = ran.vNorm.z;
-				ran.vNorm.x = ran.vNorm.y = 0.f;
-			}
-		}
-		else if (eForm == GeomForm_Edges)
-		{
-			// Collapse 2 axes.
-			float fAxis = seed.GetRandom(0.0f, vSize.x + vSize.y + vSize.z);
-			if ((fAxis -= vSize.x) < 0.f)
-			{
-				ran.vPos.y = ran.vNorm.y;
-				ran.vPos.z = ran.vNorm.z;
-				ran.vNorm.x = 0.f;
-			}
-			else if ((fAxis -= vSize.y) < 0.f)
-			{
-				ran.vPos.x = ran.vNorm.x;
-				ran.vPos.z = ran.vNorm.z;
-				ran.vNorm.y = 0.f;
-			}
-			else
-			{
-				ran.vPos.x = ran.vNorm.x;
-				ran.vPos.y = ran.vNorm.y;
-				ran.vNorm.z = 0.f;
-			}
-		}
-	}
-
-	ran.vNorm.Normalize();
-}
+void BoxRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm, Vec3 const& vSize);
 
 inline float CircleExtent(EGeomForm eForm, float fRadius)
 {
@@ -311,41 +264,7 @@ inline float SphereExtent(EGeomForm eForm, float fRadius)
 	}
 }
 
-inline void SphereRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm, float fRadius)
-{
-	switch (eForm)
-	{
-	default:
-		assert(0);
-	case GeomForm_Vertices:
-	case GeomForm_Edges:
-		ran.vPos.zero();
-		ran.vNorm.zero();
-		return;
-	case GeomForm_Surface:
-	case GeomForm_Volume:
-		{
-			// Generate point on surface, as normal.
-			float fPhi = seed.GetRandom(0.0f, gf_PI2);
-			float fZ = seed.GetRandom(-1.f, 1.f);
-			float fH = sqrt_tpl(1.f - fZ * fZ);
-			sincos_tpl(fPhi, &ran.vNorm.y, &ran.vNorm.x);
-			ran.vNorm.x *= fH;
-			ran.vNorm.y *= fH;
-			ran.vNorm.z = fZ;
-
-			ran.vPos = ran.vNorm;
-			if (eForm == GeomForm_Volume)
-			{
-				float fV = seed.GetRandom(0.0f, 1.0f);
-				float fR = pow_tpl(fV, 0.333333f);
-				ran.vPos *= fR;
-			}
-			ran.vPos *= fRadius;
-			break;
-		}
-	}
-}
+void SphereRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm, float fRadius);
 
 // Triangle randomisation functions
 inline float TriExtent(EGeomForm eForm, Vec3 const aPos[3], Vec3 const& vCenter)
@@ -354,6 +273,8 @@ inline float TriExtent(EGeomForm eForm, Vec3 const aPos[3], Vec3 const& vCenter)
 	{
 	default:
 		assert(0);
+	case GeomForm_Vertices:
+		return 1.0f;
 	case GeomForm_Edges:
 		return (aPos[1] - aPos[0]).GetLengthFast();
 	case GeomForm_Surface:
@@ -364,58 +285,7 @@ inline float TriExtent(EGeomForm eForm, Vec3 const aPos[3], Vec3 const& vCenter)
 	}
 }
 
-inline void TriRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm, PosNorm const aRan[3], Vec3 const& vCenter, bool bDoNormals)
-{
-	// Generate interpolators for verts.
-	switch (eForm)
-	{
-	default:
-		assert(0);
-	case GeomForm_Vertices:
-		ran = aRan[0];
-		return;
-	case GeomForm_Edges:
-		{
-			float t = seed.GenerateFloat();
-			ran.vPos = aRan[0].vPos * (1.f - t) + aRan[1].vPos * t;
-			if (bDoNormals)
-				ran.vNorm = aRan[0].vNorm * (1.f - t) + aRan[1].vNorm * t;
-			break;
-		}
-	case GeomForm_Surface:
-		{
-			float a = seed.GenerateFloat();
-			float b = seed.GenerateFloat();
-			float t0 = std::min(a, b);
-			float t1 = std::max(a, b) - t0;
-			float t2 = 1.0f - t1 - t0;
-			ran.vPos = aRan[0].vPos * t0 + aRan[1].vPos * t1 + aRan[2].vPos * t2;
-			if (bDoNormals)
-				ran.vNorm = aRan[0].vNorm * t0 + aRan[1].vNorm * t1 + aRan[2].vNorm * t2;
-			break;
-		}
-	case GeomForm_Volume:
-		{
-			// Generate a point in the pyramid defined by the triangle and the origin
-			float a = seed.GenerateFloat();
-			float b = seed.GenerateFloat();
-			float c = seed.GenerateFloat();
-			float t0 = std::min(std::min(a, b), c);
-			float t1 = a == t0 ? std::min(b, c) : b == t0 ? std::min(a, c) : std::min(a, b);
-			float t2 = std::max(std::max(a, b), c);
-			float t3 = 1.0f - t2;
-			t2 -= t1;
-			t1 -= t0;
-
-			ran.vPos = aRan[0].vPos * t0 + aRan[1].vPos * t1 + aRan[2].vPos * t2 + vCenter * t3;
-			if (bDoNormals)
-				ran.vNorm = (aRan[0].vNorm * t0 + aRan[1].vNorm * t1 + aRan[2].vNorm * t2) * (1.f - t3) + ran.vPos.GetNormalizedFast() * t3;
-			break;
-		}
-	}
-	if (bDoNormals)
-		ran.vNorm.Normalize();
-}
+void TriRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm, PosNorm const aRan[3], Vec3 const& vCenter, bool bDoNormals);
 
 // Mesh random pos functions
 
@@ -459,4 +329,3 @@ inline int TriIndices(int aIndices[3], int nPart, EGeomForm eForm)
 	}
 }
 
-#endif // GEOM_QUERY_H

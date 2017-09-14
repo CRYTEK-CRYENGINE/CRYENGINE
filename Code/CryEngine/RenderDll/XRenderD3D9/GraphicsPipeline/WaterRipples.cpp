@@ -59,7 +59,7 @@ void CWaterRipplesStage::Init()
 		prim.SetDrawInfo(eptTriangleStrip, 0, vertexOffset, sVertexCount);
 
 		// only update blue channel: current frame
-		prim.SetRenderState(GS_BLSRC_ONE | GS_BLDST_ONE | GS_NODEPTHTEST | GS_NOCOLMASK_R | GS_NOCOLMASK_G | GS_NOCOLMASK_A);
+		prim.SetRenderState(GS_BLSRC_ONE | GS_BLDST_ONE | GS_NODEPTHTEST | GS_NOCOLMASK_RGA);
 
 		vertexOffset += sVertexCount;
 	}

@@ -142,7 +142,7 @@ bool CCentralInterestManager::Enable(bool bEnable)
 
 void CCentralInterestManager::Update(float fDelta)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (!m_bEnabled)
 		return;

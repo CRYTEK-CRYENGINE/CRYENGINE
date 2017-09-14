@@ -55,9 +55,6 @@ void CVegetation::Init()
 	m_pSpriteInfo = NULL;
 	m_pDeformable = NULL;
 	m_bApplyPhys = false;
-#ifdef SEG_WORLD
-	m_nStaticTypeSlot = 0;
-#endif
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -884,11 +881,7 @@ void CVegetation::CheckCreateDeformable()
 			Matrix34A tm;
 			CalcMatrix(tm);
 			SAFE_DELETE(m_pDeformable);
-#ifdef SEG_WORLD
-			m_pDeformable = new CDeformableNode(m_nStaticTypeSlot);
-#else
-			m_pDeformable = new CDeformableNode(0);
-#endif
+			m_pDeformable = new CDeformableNode();
 			m_pDeformable->SetStatObj(pStatObj);
 			m_pDeformable->CreateDeformableSubObject(true, tm, NULL);
 		}

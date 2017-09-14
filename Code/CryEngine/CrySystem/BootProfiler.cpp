@@ -59,6 +59,13 @@ public:
 		assert(threadIndex < m_threadCounter);
 		return m_threadNames[threadIndex].c_str();
 	}
+	
+	ILINE threadID GetThreadIdByIndex(unsigned int threadIndex)
+	{
+		assert(threadIndex < m_threadCounter);
+		return m_threadInfo[threadIndex];
+	}
+
 
 	int GetThreadCount() const
 	{
@@ -109,6 +116,8 @@ public:
 
 	unsigned int          m_threadIndex;
 
+	EProfileDescription   m_type;
+
 	CBootProfilerRecord*  m_pParent;
 
 	CBootProfilerRecord*  m_pFirstChild;
@@ -118,8 +127,16 @@ public:
 
 	CryFixedStringT<256> m_args;
 
-	ILINE CBootProfilerRecord(const char* label, LARGE_INTEGER timestamp, unsigned int threadIndex, const char* args, CBootProfilerSession* pSession) :
-		m_label(label), m_startTimeStamp(timestamp), m_threadIndex(threadIndex), m_pParent(nullptr), m_pFirstChild(nullptr), m_pLastChild(nullptr), m_pNextSibling(nullptr), m_pSession(pSession)
+	ILINE CBootProfilerRecord(const char* label, LARGE_INTEGER timestamp, unsigned int threadIndex, const char* args, CBootProfilerSession* pSession,EProfileDescription type)
+		:	m_label(label)
+		, m_startTimeStamp(timestamp)
+		, m_threadIndex(threadIndex)
+		, m_pParent(nullptr)
+		, m_pFirstChild(nullptr)
+		, m_pLastChild(nullptr)
+		, m_pNextSibling(nullptr)
+		, m_pSession(pSession)
+		, m_type(type)
 	{
 		memset(&m_stopTimeStamp, 0, sizeof(m_stopTimeStamp));
 		if (args)
@@ -239,7 +256,7 @@ public:
 	void                 Start();
 	void                 Stop();
 
-	CBootProfilerRecord* StartBlock(const char* name, const char* args, const unsigned int threadIndex);
+	CBootProfilerRecord* StartBlock(const char* name, const char* args, const unsigned int threadIndex, EProfileDescription type);
 
 	float GetTotalTime() const
 	{
@@ -333,7 +350,7 @@ void CBootProfilerSession::Stop()
 	m_stopTimeStamp = time;
 }
 
-CBootProfilerRecord* CBootProfilerSession::StartBlock(const char* name, const char* args, const unsigned int threadIndex)
+CBootProfilerRecord* CBootProfilerSession::StartBlock(const char* name, const char* args, const unsigned int threadIndex, EProfileDescription type)
 {
 	assert(threadIndex < eMAX_THREADS_TO_PROFILE);
 
@@ -347,7 +364,7 @@ CBootProfilerRecord* CBootProfilerSession::StartBlock(const char* name, const ch
 		entry.m_pRecordsPool = pPool;
 
 		CBootProfilerRecord* rec = pPool->allocateRecord();
-		entry.m_pRootRecord = entry.m_pCurrentRecord = new(rec) CBootProfilerRecord("root", m_startTimeStamp, threadIndex, args, this);
+		entry.m_pRootRecord = entry.m_pCurrentRecord = new(rec) CBootProfilerRecord("root", m_startTimeStamp, threadIndex, args, this,type);
 	}
 
 	LARGE_INTEGER time;
@@ -367,11 +384,257 @@ CBootProfilerRecord* CBootProfilerSession::StartBlock(const char* name, const ch
 		rec = pPool->allocateRecord();
 	}
 
-	CBootProfilerRecord* pNewRecord = new(rec) CBootProfilerRecord(name, time, threadIndex, args, this);
+	CBootProfilerRecord* pNewRecord = new(rec) CBootProfilerRecord(name, time, threadIndex, args, this,type);
 	entry.m_pCurrentRecord->AddChild(pNewRecord);
 	entry.m_pCurrentRecord = pNewRecord;
 
+	uint32 profilerType = type & EProfileDescription::TYPE_MASK;
+	if (profilerType == EProfileDescription::MARKER || profilerType == EProfileDescription::PUSH_MARKER || profilerType == EProfileDescription::POP_MARKER)
+	{
+		// When pushing markers immediately stop block
+		pNewRecord->StopBlock();
+	}
+
 	return pNewRecord;
+}
+
+struct BootProfilerSessionSerializerToJSON
+{
+	CBootProfilerSession* pSession = nullptr;
+	float funcMinTimeThreshold = 0;
+
+	BootProfilerSessionSerializerToJSON() {}
+	BootProfilerSessionSerializerToJSON(CBootProfilerSession* pS,float threshold ) : pSession(pS),funcMinTimeThreshold(threshold) {}
+
+	struct SSerializeFixedStringArg
+	{
+		string str;
+		const char *label;
+		void Serialize(Serialization::IArchive& ar)
+		{
+			ar(str,label);
+		}
+	};
+	struct SSerializeIntArg
+	{
+		uint32 arg;
+		const char *label;
+		void Serialize(Serialization::IArchive& ar)
+		{
+			ar(arg, label);
+		}
+	};
+	struct SSerializeLambda
+	{
+		std::function<void(Serialization::IArchive& ar)> lambda;
+		void Serialize(Serialization::IArchive& ar)
+		{
+			lambda(ar);
+		}
+	};
+
+	enum class EventType { RECORD,THREAD_NAME,THREAD_SORT };
+	struct BootProfilerEventSerializerToJSON
+	{
+		CBootProfilerSession* pSession = nullptr;
+		CBootProfilerRecord* pRecord = nullptr;
+		threadID threadId = 0;
+		EventType type = EventType::RECORD;
+
+		BootProfilerEventSerializerToJSON() {}
+		BootProfilerEventSerializerToJSON(CBootProfilerSession* pS,CBootProfilerRecord* pR,threadID tid,EventType et)
+			: pSession(pS),pRecord(pR),threadId(tid),type(et) {}
+
+		// Serializes into the Chrome trace compatible JSON format
+		void Serialize(Serialization::IArchive& ar)
+		{
+			static uint32 processId = 0;
+#ifdef WIN32
+			processId = ::GetCurrentProcessId();
+#endif
+			ar(processId, "pid");
+			ar(threadId,  "tid");
+
+			if (type == EventType::THREAD_NAME)
+			{
+				ar(string("thread_name"),"name");
+				ar(string("M"),"ph");
+
+				string threadName = GetISystem()->GetIThreadManager()->GetThreadName(threadId);
+				ar(SSerializeFixedStringArg{threadName,"name"},"args");
+				return;
+			}
+			else if (type == EventType::THREAD_SORT)
+			{
+				static int counter = 0;
+				ar(string("thread_sort_index"), "name");
+				ar(string("M"), "ph");
+				ar(SSerializeIntArg{(uint32)counter++,"sort_index"},"args");
+				return;
+			}
+
+			string label = pRecord->m_label;
+			label.replace("\"", "&quot;");
+			label.replace("'", "&apos;");
+
+			if (pRecord->m_args.size() > 0)
+			{
+				pRecord->m_args.replace("\"", "&quot;");
+				pRecord->m_args.replace("'", "&apos;");
+			}
+
+			{
+				double time = (double)(pRecord->m_stopTimeStamp.QuadPart - pRecord->m_startTimeStamp.QuadPart) * 1000000.0 / (double)pSession->GetFrequency().QuadPart;
+				double timeStart = (double)(pRecord->m_startTimeStamp.QuadPart) * 1000000.0 / (double)pSession->GetFrequency().QuadPart; // microseconds
+
+				//static int timeStart = 0;
+				//timeStart++;
+				//int time = 10;
+
+				static string category = "PERF";
+
+				ar(label, "name");
+
+				uint32 profilerType = pRecord->m_type & EProfileDescription::TYPE_MASK; //FUNCTIONENTRY,REGION,SECTION
+				bool bWaiting = (pRecord->m_type & EProfileDescription::WAITING) != 0;
+				
+				// Events Documentation: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview#heading=h.lenwiilchoxp
+				if (profilerType == EProfileDescription::MARKER)
+				{
+					// Instant Event
+					static string eventType = "i";
+					static string category = "MARKER";
+					ar(category, "cat");
+					ar(eventType, "ph");
+					ar(timeStart, "ts");
+				}
+				else if (profilerType == EProfileDescription::PUSH_MARKER)
+				{
+					// Complete Event
+					static string eventType = "B";
+					static string category = "MARKER";
+					ar(category, "cat");
+					ar(eventType, "ph");
+					ar(timeStart, "ts");
+				}
+				else if (profilerType == EProfileDescription::POP_MARKER)
+				{
+					// Complete Event
+					static string eventType = "E";
+					static string category = "MARKER";
+					ar(category, "cat");
+					ar(eventType, "ph");
+					ar(timeStart, "ts");
+				}
+				else if (profilerType == EProfileDescription::SECTION)
+				{
+					// Complete Event
+					static string eventType = "X";
+					static string category = "SECTION";
+					ar(category, "cat");
+					ar(eventType, "ph");
+					ar(timeStart, "ts");
+					ar(time, "dur");
+				}
+				else if (profilerType == EProfileDescription::REGION)
+				{
+					// Complete Event
+					static string eventType = "X";
+					static string category = "REGION";
+					ar(category, "cat");
+					ar(eventType, "ph");
+					ar(timeStart, "ts");
+					ar(time, "dur");
+				}
+				else
+				{
+					// Complete Event
+					static string eventType = "X";
+					static string category = "PERF";
+					ar(category, "cat");
+					ar(eventType, "ph");
+					ar(timeStart, "ts");
+					ar(time, "dur");
+				}
+				
+				if (!pRecord->m_args.empty())
+				{
+					ar(SSerializeFixedStringArg{pRecord->m_args,"arg"},"args");
+				}
+			}
+		}
+	};
+
+	void CollectProfilers(CBootProfilerRecord* pRecord,threadID threadId,std::vector<BootProfilerEventSerializerToJSON>& profilers)
+	{
+		// Serializes into the Chrome trace compatible JSON format
+		if (pRecord->m_stopTimeStamp.QuadPart == 0)
+			pRecord->m_stopTimeStamp = pSession->GetStopTimeStamp();
+
+		const double time = (double)(pRecord->m_stopTimeStamp.QuadPart - pRecord->m_startTimeStamp.QuadPart) * 1000.f / (double)pSession->GetFrequency().QuadPart;
+
+		if (funcMinTimeThreshold == 0 || time > funcMinTimeThreshold)
+		{
+			profilers.push_back(BootProfilerEventSerializerToJSON(pSession,pRecord,threadId,EventType::RECORD));
+		}
+
+		for (CBootProfilerRecord* pNewRecord = pRecord->m_pFirstChild; pNewRecord; pNewRecord = pNewRecord->m_pNextSibling)
+		{
+			CollectProfilers(pNewRecord,threadId,profilers);
+		}
+	}
+
+	void Serialize(Serialization::IArchive& ar)
+	{
+		int pid = 0;
+#ifdef WIN32
+		pid = ::GetCurrentProcessId();
+#endif
+
+		std::vector<BootProfilerEventSerializerToJSON> threadProfilers;
+
+		const size_t numThreads = gThreadsInterface.GetThreadCount();
+		for (size_t i = 0; i < numThreads; ++i)
+		{
+			const CBootProfilerSession::SThreadEntry& entry = pSession->GetThreadEntries()[i];
+
+			CBootProfilerRecord* pRoot = entry.m_pRootRecord;
+			if (pRoot)
+			{
+				pRoot->m_stopTimeStamp = pSession->GetStopTimeStamp();
+
+				const char* threadName = gThreadsInterface.GetThreadNameByIndex(i);
+				if (!threadName)
+					threadName = "UNKNOWN";
+				
+				threadID tid = gThreadsInterface.GetThreadIdByIndex(i);
+
+				threadProfilers.push_back(BootProfilerEventSerializerToJSON(pSession,nullptr,tid,EventType::THREAD_NAME));
+				threadProfilers.push_back(BootProfilerEventSerializerToJSON(pSession,nullptr,tid,EventType::THREAD_SORT));
+				for (CBootProfilerRecord* pRecord = pRoot->m_pFirstChild; pRecord; pRecord = pRecord->m_pNextSibling)
+				{
+					CollectProfilers(pRecord,tid,threadProfilers);
+				}
+			}
+		}
+
+		ar(threadProfilers,"traceEvents");
+		ar(string("ms"),"displayTimeUnit");
+		//{"name": "thread_name", "ph" : "M", "pid" : 2343, "tid" : 2347,
+			//"args" : {
+			//"name" : "RendererThread"
+		//}
+	}
+};
+
+static void SaveProfileSessionToChromeTraceJson(const float funcMinTimeThreshold, CBootProfilerSession* pSession)
+{
+	static const char* szTestResults = "%USER%/TestResults";
+	stack_string filePath;
+	filePath.Format("%s\\chrome_trace_%s.json", szTestResults, pSession->GetName());
+	gEnv->pCryPak->MakeDir(szTestResults);
+
+	GetISystem()->GetArchiveHost()->SaveJsonFile(filePath,Serialization::SStruct(BootProfilerSessionSerializerToJSON(pSession,funcMinTimeThreshold)));
 }
 
 static void SaveProfileSessionToDisk(const float funcMinTimeThreshold, CBootProfilerSession* pSession)
@@ -382,8 +645,10 @@ static void SaveProfileSessionToDisk(const float funcMinTimeThreshold, CBootProf
 		return;
 	}
 
+	SaveProfileSessionToChromeTraceJson(funcMinTimeThreshold, pSession);
+
 	static const char* szTestResults = "%USER%/TestResults";
-	stack_string filePath; 
+	stack_string filePath;
 	filePath.Format("%s\\bp_%s.xml", szTestResults, pSession->GetName());
 	char path[ICryPak::g_nMaxPath] = "";
 	gEnv->pCryPak->AdjustFileName(filePath.c_str(), path, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING);
@@ -512,6 +777,7 @@ void CBootProfiler::StartSession(const char* sessionName)
 	CBootProfilerSession* pSession = new CBootProfilerSession(sessionName);
 	pSession->Start();
 	m_pCurrentSession = pSession;
+	gEnv->bBootProfilerEnabledFrames = true;
 }
 
 // stop session
@@ -529,13 +795,13 @@ void CBootProfiler::StopSession()
 	}
 }
 
-CBootProfilerRecord* CBootProfiler::StartBlock(const char* name, const char* args)
+CBootProfilerRecord* CBootProfiler::StartBlock(const char* name, const char* args, EProfileDescription type)
 {
 	if (CBootProfilerSession* pSession = m_pCurrentSession)
 	{
 		const threadID curThread = CryGetCurrentThreadId();
 		const unsigned int threadIndex = gThreadsInterface.GetThreadIndexByID(curThread);
-		return pSession->StartBlock(name, args, threadIndex);
+		return pSession->StartBlock(name, args, threadIndex, type);
 	}
 	return nullptr;
 }
@@ -556,10 +822,9 @@ void CBootProfiler::StartFrame(const char* name)
 		if (prev_CV_sys_bp_frames == 0)
 		{
 			StartSession("frame");
-			gEnv->bBootProfilerEnabledFrames = true;
 		}
 
-		m_pMainThreadFrameRecord = StartBlock(name, nullptr);
+		m_pMainThreadFrameRecord = StartBlock(name, nullptr,EProfileDescription::REGION);
 
 		if (CV_sys_bp_frames_threshold != 0.0f) // we can't have 2 modes enabled at the same time
 			CV_sys_bp_frames_threshold = 0.0f;
@@ -586,7 +851,7 @@ void CBootProfiler::StartFrame(const char* name)
 			CBootProfilerSession* pSession = new CBootProfilerSession("frame_threshold");
 			pSession->Start();
 			m_pCurrentSession = pSession;
-			m_pMainThreadFrameRecord = StartBlock(name, nullptr);
+			m_pMainThreadFrameRecord = StartBlock(name, nullptr,EProfileDescription::REGION);
 		}
 	}
 }

@@ -5,6 +5,8 @@
 #include <CryEntitySystem/IEntityBasicTypes.h>
 #include <CryEntitySystem/IEntityComponent.h>
 
+#include <type_traits>
+
 // Forward declarations.
 struct IPhysicalEntity;
 struct IEntityClass;
@@ -222,6 +224,7 @@ enum EEntityFlagsExtended
 	ENTITY_FLAG_EXTENDED_GI_MODE_BIT1                   = BIT(6), // Bit1 of entity GI mode, see IRenderNode::EGIMode
 	ENTITY_FLAG_EXTENDED_GI_MODE_BIT2                   = BIT(7), // Bit2 of entity GI mode, see IRenderNode::EGIMode
 	ENTITY_FLAG_EXTENDED_PREVIEW                        = BIT(8), //!< Entity is spawn for the previewing
+	ENTITY_FLAG_EXTENDED_CLONED                         = BIT(9)  //!< Entity was cloned from another
 };
 
 #define ENTITY_FLAG_EXTENDED_GI_MODE_BIT_OFFSET 5                                                                                                           // Bit offset of entity GI mode in EEntityFlagsExtended.
@@ -430,17 +433,8 @@ struct IEntity
 		ATTACHMENT_SUPPRESS_UPDATE     = BIT(4),    //!< Suppresses attachment event and matrix update
 	};
 
-#ifdef SEG_WORLD
-	enum ESWObjFlag
-	{
-		ESWOF_Normal   = 0x00,
-		ESWOF_CrossSeg = 0x01,
-		ESWOF_Global   = 0x02
-	};
-
-	virtual void SetLocalSeg(bool bL) = 0;
-	virtual bool IsLocalSeg() const = 0;
-#endif //SEG_WORLD
+	static constexpr int CREATE_NEW_UNIQUE_TIMER_ID = -666;
+	static constexpr int KILL_ALL_TIMER = -1;
 
 	struct SRenderNodeParams
 	{
@@ -516,6 +510,10 @@ public:
 	//! If this function returns true, it will be deleted on next frame, and it is pointless to perform any operations on such entity.
 	//! \return True if entity marked for deletion, false otherwise.
 	virtual bool IsGarbage() const = 0;
+
+	//! Returns a number which is incremeting every time the entity components get changed
+	//! Can be checked with an older one to determine if the entity components have changed
+	virtual uint8 GetComponentChangeState() const = 0;
 
 	//! Changes the entity name.
 	//! Entity name does not have to be unique, but for the sake of easier finding entities by name it is better to not
@@ -682,12 +680,13 @@ public:
 	//! Multiple timers can be started simultaneously with different timer ids.
 	//! If some timer is not yet finished and another timer with the same timerID is set, the new one
 	//! will override old timer, and old timer will not send finish event.
-	//! \param nTimerId Timer ID, multiple timers with different IDs are possible.
+	//! \param nTimerId Timer ID, multiple timers with different IDs are possible. (specify IEntity::CREATE_NEW_UNIQUE_TIMER_ID to let the system generate a new and unique Id)
 	//! \param nMilliSeconds Timer timeout time in milliseconds.
-	virtual void SetTimer(int nTimerId, int nMilliSeconds) = 0;
+	//! \return the (generated) timerId 
+	virtual int SetTimer(int nTimerId, int nMilliSeconds) = 0;
 
 	//! Stops already started entity timer with this id.
-	//! \param nTimerId Timer ID of the timer started for this entity.
+	//! \param nTimerId Timer ID of the timer started for this entity. (specify IEntity::KILL_ALL_TIMER to stop all timer on this entity)
 	virtual void KillTimer(int nTimerId) = 0;
 
 	//! Hides this entity, makes it invisible and disable its physics.
@@ -748,12 +747,17 @@ public:
 	// EntityComponents
 	//////////////////////////////////////////////////////////////////////////
 
-	//! Register or unregisters a component with the entity.
-	//! \param pComponent The target component.
-	//! \param flags IEntityComponent.h contains the relevent flags to control registration behaviour.
-	//! \param eventMask is a bit mask of the EEntityEvents flags.
-	//! \return if input param pComponent is null AddComponent will try to create a component for the provided interface id.
-	virtual IEntityComponent* AddComponent(CryInterfaceID typeId, std::shared_ptr<IEntityComponent> pComponent,bool bAllowDuplicate,IEntityComponent::SInitParams *pInitParams) = 0;
+	//! Queries an entity component type by interface, and then creates the component inside this entity
+	//! \param interfaceId The GUID of the component we want to add
+	//! \param pInitParams Optional initialization parameters to determine the initial state of the component
+	//! \return The newly created entity component pointer (owned by the entity), or null if creation failed.
+	virtual IEntityComponent* CreateComponentByInterfaceID(const CryInterfaceID& interfaceId, IEntityComponent::SInitParams *pInitParams = nullptr) = 0;
+
+	//! Adds an already created component to the entity
+	//! \param pComponent A shared pointer to the component we want to add, can not be null!
+	//! \param pInitParams Optional initialization parameters to determine the initial state of the component
+	//! \return True if the component was added, otherwise false.
+	virtual bool AddComponent(std::shared_ptr<IEntityComponent> pComponent, IEntityComponent::SInitParams *pInitParams = nullptr) = 0;
 
 	//! Remove previously created component from the Entity
 	//! \param pComponent Component pointer to remove from the Entity
@@ -762,42 +766,173 @@ public:
 	//! Removes and shut downs all components that entity contains.
 	virtual void RemoveAllComponents() = 0;
 
-	//! Return first component of the entity with the specified interface ID.
-	//! \param interfaceID Identifier for the component interface.
+	//! Return first component of the entity with the specified class ID.
+	//! \param interfaceID Identifier for the component implementation.
 	virtual IEntityComponent* GetComponentByTypeId(const CryInterfaceID& interfaceID) const = 0;
+	//! Return all components with the specified class ID contained in the entity.
+	//! \param interfaceID Identifier for the component implementation.
+	virtual void GetComponentsByTypeId(const CryInterfaceID& interfaceID, DynArray<IEntityComponent*>& components) const = 0;
 	
 	//! Return component with the unique GUID.
 	//! \param guid Identifier for the component.
 	virtual IEntityComponent* GetComponentByGUID(const CryGUID& guid) const = 0;
 
-	//! Get existing or Create a new initialized component inside the entity.
+	//! Queries an array of entity components implementing the specified component interface
+	virtual void QueryComponentsByInterfaceID(const CryInterfaceID& interfaceID, DynArray<IEntityComponent*> &components) const = 0;
+	//! Queries an entity component implementing the specified component interface
+	virtual IEntityComponent* QueryComponentByInterfaceID(const CryInterfaceID& interfaceID) const = 0;
+
+#if !defined(SWIG)
+	// Helper to check for reflection in std::enable_if, since this can't be done with a constexpr function
+	template<class ComponentType>
+	struct IsComponentReflected { static constexpr bool value = Schematyc::IsReflectedType<ComponentType>(); };
+
+	// Incorrectly implemented component, either doesn't reflect Schematyc properties or is an incorrectly configured legacy component!
+	template<class ComponentType, typename = void>
+	struct SComponentType
+	{
+		enum { kFalse = false };
+		static_assert(kFalse, "Component was not reflected!");
+	};
+
+	// New Schematyc component type
+	template<class ComponentType>
+	struct SComponentType<ComponentType, typename std::enable_if<IsComponentReflected<ComponentType>::value && std::is_convertible<ComponentType, IEntityComponent>::value>::type>
+	{
+		static const CryGUID& GetGUID() 
+		{
+			static const CryGUID s_guid = Schematyc::GetTypeGUID<ComponentType>();
+			return s_guid;
+		}
+
+		template<typename... TArgs>
+		static ComponentType* CreateInEntity(IEntity* pEntity, TArgs&&... args)
+		{
+			std::shared_ptr<ComponentType> pComponent = std::make_shared<ComponentType>(std::forward<TArgs>(args)...);
+			IEntityComponent::SInitParams initParams = IEntityComponent::SInitParams{ pEntity, CryGUID::Create(), "", &Schematyc::GetTypeDesc<ComponentType>(), EEntityComponentFlags::None, nullptr, nullptr };
+			if (pEntity->AddComponent(pComponent, &initParams))
+			{
+				static_cast<IEntityComponent*>(pComponent.get())->Initialize();
+
+				return pComponent.get();
+			}
+
+			return nullptr;
+		}
+	};
+
+	// Legacy entity components
+	template<class ComponentType>
+	struct SComponentType<ComponentType, typename std::enable_if<!IsComponentReflected<ComponentType>::value && std::is_convertible<ComponentType, IEntityComponent>::value>::type>
+	{
+		static const CryGUID& GetGUID()
+		{
+			return cryiidof<ComponentType>();
+		}
+
+		template<typename... TArgs>
+		static ComponentType* CreateInEntity(IEntity* pEntity, TArgs&&... args)
+		{
+			std::shared_ptr<ComponentType> pComponent = std::make_shared<ComponentType>(std::forward<TArgs>(args)...);
+			if (pEntity->AddComponent(pComponent))
+			{
+				static_cast<IEntityComponent*>(pComponent.get())->Initialize();
+
+				return pComponent.get();
+			}
+
+			return nullptr;
+		}
+	};
+
+	//! Creates a new entity component of type ComponentType from a registered factory and adds it to the entity.
+	//! ComponentType must be a valid IEntityComponent implementation.
+	//! \returns A pointer to the newly created component, otherwise nullptr (and likely an assertion).
 	template<typename ComponentType>
-	ComponentType* GetOrCreateComponent();
+	ComponentType* CreateComponent()
+	{
+		return static_cast<ComponentType*>(CreateComponentByInterfaceID(SComponentType<ComponentType>::GetGUID()));
+	}
+
+	//! Get existing or Create a new initialized component inside the entity.
+	//! \param bCheckHierarchy Whether or not we should traverse the inheritance hierarchy for all components, otherwise performs a (much faster) equality check to see if the implementation is ComponentType
+	template<typename ComponentType>
+	ComponentType* GetOrCreateComponent(bool bCheckHierarchy = true)
+	{
+		if (ComponentType* pComponent = GetComponent<ComponentType>(bCheckHierarchy))
+		{
+			return pComponent;
+		}
+		else
+		{
+			return CreateComponent<ComponentType>();
+		}
+	}
+
+	//! Helper template function to simplify finding the first component implementing the specified component type
+	//! This will traverse the inheritance tree, and is therefore slower than GetComponentByImplementation which simply does an equality check.
+	//! ex: auto pScriptProxy = pEntity->GetComponent<IEntityScriptComponent>();
+	//! \param bCheckHierarchy Whether or not we should traverse the inheritance hierarchy for all components, otherwise performs a (much faster) equality check to see if the implementation is ComponentType
+	template<typename ComponentType>
+	ComponentType* GetComponent(bool bCheckHierarchy = true) const
+	{
+		if (bCheckHierarchy)
+		{
+			return static_cast<ComponentType*>(QueryComponentByInterfaceID(SComponentType<ComponentType>::GetGUID()));
+		}
+		else
+		{
+			return static_cast<ComponentType*>(GetComponentByTypeId(SComponentType<ComponentType>::GetGUID()));
+		}
+
+		return nullptr;
+	}
+
+	//! Helper template function to simplify finding all components implementing the specified component type
+	//! \param components DynArray into which any found components will be stored
+	//! \param bCheckHierarchy Whether or not we should traverse the inheritance hierarchy for all components, otherwise performs a (much faster) equality check to see if the implementation is ComponentType
+	template<typename ComponentType>
+	void GetAllComponents(DynArray<ComponentType*>& components, bool bCheckHierarchy = true) const
+	{
+		// Hack to avoid copy of vectors, seeing as the interface querying guarantees that the pointers inside are compatible
+		DynArray<IEntityComponent*>* pRawComponents = (DynArray<IEntityComponent*>*)(void*)&components;
+		if (bCheckHierarchy)
+		{
+			QueryComponentsByInterfaceID(SComponentType<ComponentType>::GetGUID(), *pRawComponents);
+		}
+		else
+		{
+			GetComponentsByTypeId(SComponentType<ComponentType>::GetGUID(), *pRawComponents);
+		}
+
+		// Static cast all types from IEntityComponent* to ComponentType*
+		for (auto it = pRawComponents->begin(); it != pRawComponents->end(); ++it)
+		{
+			*it = static_cast<ComponentType*>((IEntityComponent*)(void*)*it);
+		}
+	}
+
+	//! Create a new initialized component using a new operator of the class type.
+	template<class ComponentType, typename... TArgs>
+	ComponentType* CreateComponentClass(TArgs&&... args)
+	{
+		return SComponentType<ComponentType>::CreateInEntity(this, std::forward<TArgs>(args)...);
+	}
 
 	//! Get existing or Create a new initialized component using the new operator of the class type, typeid of the component is null guid.
-	template<typename ComponentType>
-	ComponentType* GetOrCreateComponentClass();
-
-	//! Create a new initialized component using interface type id to create a class using factory component class creation.
-	//! ComponentType must be a valid interface that can be queried with cryidof<ComponentType>()
-	//! Instance of the component is created by the lookup in the class registry for the first class that implements ComponentType interface,
-	//! If such class is not previously registered the assert will be raised and method will fail.
-	template<typename ComponentType>
-	ComponentType* CreateComponent(bool bAllowDuplicate = false);
-
-	//! Create a new initialized component using a new operator of the class type, typeid of the component is null guid.
-	template<typename ComponentClass>
-	ComponentClass* CreateComponentClass(bool bAllowDuplicate = false);
-
-	//! Helper template function to simplify querying components
-	//! ex: auto pScriptProxy = pEntity->GetComponent<IEntityScriptComponent>();
-	template<typename ComponentType>
-	ComponentType* GetComponent() const
+	template<class ComponentType, typename... TArgs>
+	ComponentType* GetOrCreateComponentClass(TArgs&&... args)
 	{
-		//static_assert(IEntityComponent::IsDeclared<ComponentType>::Check, "Tried to query component  that was not declared with CRY_ENTITY_COMPONENT_INTERFACE, CRY_ENTITY_COMPONENT_INTERFACE_AND_CLASS or CRY_ENTITY_COMPONENT_CLASS!");
-
-		return static_cast<ComponentType*>(GetComponentByTypeId(cryiidof<ComponentType>()));
+		if (ComponentType* pComponent = GetComponent<ComponentType>())
+		{
+			return pComponent;
+		}
+		else
+		{
+			return CreateComponentClass<ComponentType>(std::forward<TArgs>(args)...);
+		}
 	}
+#endif // !defined(SWIG)
 
 	//! Creates instances of the components contained in the other entity
 	//! Also copies over properties for all the components created.
@@ -966,7 +1101,7 @@ public:
 	//! \param nSlot		Index of a slot, or -1 if a new slot need to be allocated.
 	//! \param pCharacter	A pointer to character instance.
 	//! \return An integer which refers to the slot index which used.
-	virtual int SetCharacter(ICharacterInstance* pCharacter, int nSlot) = 0;
+	virtual int SetCharacter(ICharacterInstance* pCharacter, int nSlot, bool bUpdatePhysics = true) = 0;
 
 	//! Fast method to get the static object at the specified slot.
 	//! \param nSlot Index of the slot; | with ENTITY_SLOT_ACTUAL to disable compound statobj handling.
@@ -1109,12 +1244,6 @@ public:
 	//! \return the last time (as set by the system timer) when the entity was last seen.
 	virtual float GetLastSeenTime() const = 0;
 
-#ifdef SEG_WORLD
-	//! Draw a debug view of this entity geometry
-	virtual unsigned int GetSwObjDebugFlag() const = 0;
-	virtual void         SetSwObjDebugFlag(unsigned int uiVal) = 0;
-#endif //SEG_WORLD
-
 	//! ObjectID that corresponds to editor base objects. This is used for selection and highlighting
 	//! so it should be set by editor and have a 1-1 correspondence with a baseobject. This is intended as a
 	//! runtime ID and does not need to be serialized
@@ -1149,45 +1278,6 @@ typedef IEntity IEntityPhysicalProxy;
 
 template<typename DST, typename SRC>
 DST crycomponent_cast(SRC pComponent) { return static_cast<DST>(pComponent); }
-
-template<typename ComponentType>
-inline ComponentType* IEntity::CreateComponentClass(bool bAllowDuplicate)
-{
-	return static_cast<ComponentType*>(AddComponent(cryiidof<ComponentType>(), std::make_shared<ComponentType>(), bAllowDuplicate,nullptr));
-}
-
-template<typename ComponentInterfaceType>
-inline ComponentInterfaceType* IEntity::CreateComponent(bool bAllowDuplicate)
-{
-	//static_assert(InterfaceCastSemantics::cryhasiid<ComponentInterfaceType>::Check, "Tried to create component class that was not declared with CRY_ENTITY_COMPONENT_INTERFACE_AND_CLASS, CRY_ENTITY_COMPONENT_CLASS or CRY_ENTITY_COMPONENT_INTERFACE in a public scope!");
-
-	ComponentInterfaceType* pReturn = static_cast<ComponentInterfaceType*>(AddComponent(cryiidof<ComponentInterfaceType>(), nullptr, bAllowDuplicate,nullptr));
-	assert(pReturn); // Must return a valid component interface
-
-	return pReturn;
-}
-
-//////////////////////////////////////////////////////////////////////////
-template<typename ComponentType>
-inline ComponentType* IEntity::GetOrCreateComponent()
-{
-	auto component = GetComponent<ComponentType>();
-	if (component)
-		return component;
-	else
-		return CreateComponent<ComponentType>();
-}
-
-//////////////////////////////////////////////////////////////////////////
-template<typename ComponentType>
-inline ComponentType* IEntity::GetOrCreateComponentClass()
-{
-	auto component = GetComponent<ComponentType>();
-	if (component)
-		return component;
-	else
-		return CreateComponentClass<ComponentType>();
-}
 
 // Helper methods
 //! Set the viewDistRatio on the render node.

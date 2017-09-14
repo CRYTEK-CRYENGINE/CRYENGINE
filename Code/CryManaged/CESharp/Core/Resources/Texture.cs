@@ -27,7 +27,7 @@ namespace CryEngine.Resources
 		private bool _isFiltered;
 
 		private int _texId;
-		private bool _isRendertarget;
+		private bool _isRenderTarget;
 
 		/// <summary>
 		/// Texture Width.
@@ -64,7 +64,7 @@ namespace CryEngine.Resources
 		public Texture(int width, int height, byte[] data, bool isFiltered = true, bool isRendertarget = false)
 		{
 			_isFiltered = isFiltered;
-			_isRendertarget = isRendertarget;
+			_isRenderTarget = isRendertarget;
 			CreateTexture(width, height, data);
 		}
 
@@ -98,9 +98,9 @@ namespace CryEngine.Resources
 			Width = width;
 			Height = height;
 			var flags = (int)ETextureFlags.FT_NOMIPS;
-			if(_isRendertarget)
+			if(_isRenderTarget)
 			{
-				flags = (int)ETextureFlags.FT_DONT_STREAM | (int)ETextureFlags.FT_DONT_RELEASE | (int)ETextureFlags.FT_USAGE_RENDERTARGET;
+				flags |= (int)ETextureFlags.FT_DONT_STREAM | (int)ETextureFlags.FT_DONT_RELEASE | (int)ETextureFlags.FT_USAGE_RENDERTARGET;
 			}
 			_ceTex = Global.gEnv.pRenderer.CreateTexture("MF", Width, Height, 1, data, (byte)ETEX_Format.eTF_R8G8B8A8, flags);
 			_ceTex.SetClamp(false);
@@ -118,22 +118,29 @@ namespace CryEngine.Resources
 			if(_ceTex != null && _texId != 0)
 			{
 				var id = _texId;
-				GameFramework.AddDestroyAction(() => DestroyNativeTexture(id));
+				var isRenderTarget = _isRenderTarget;
+				GameFramework.AddDestroyAction(() => DestroyNativeTexture(id, isRenderTarget));
 				_ceTex.Dispose();
 				_ceTex = null;
 				_texId = 0;
 			}
 		}
 
-		private void DestroyNativeTexture(int textureId)
+		private void DestroyNativeTexture(int textureId, bool isRenderTarget)
 		{
 			var texture = Global.gEnv.pRenderer.EF_GetTextureByID(textureId);
 			if(texture == null)
 			{
 				return;
 			}
-
-			texture.Release();
+			if(!isRenderTarget)
+			{
+				texture.Release();
+			}
+			else
+			{
+				texture.ReleaseForce();
+			}
 			Global.gEnv.pRenderer.RemoveTexture((uint)textureId);
 
 			texture.Dispose();

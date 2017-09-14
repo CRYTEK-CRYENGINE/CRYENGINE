@@ -6,7 +6,7 @@
 #include <QPointer>
 
 class QSearchBox;
-class QTreeView;
+class QAdvancedTreeView;
 class QDeepFilterProxyModel;
 class QToolButton;
 class QItemSelection;
@@ -60,7 +60,7 @@ private:
 	CAbstractVariablesModel*    m_pModel;
 
 	QSearchBox*                 m_pFilter;
-	QTreeView*                  m_pVariablesList;
+	QAdvancedTreeView*          m_pVariablesList;
 	CVariablesModel*            m_pDataModel;
 	QDeepFilterProxyModel*      m_pFilterProxy;
 	QToolButton*                m_pAddButton;

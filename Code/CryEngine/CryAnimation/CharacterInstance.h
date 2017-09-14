@@ -53,7 +53,7 @@ public:
 	virtual void StartAnimationProcessing(const SAnimationProcessParams &params) override;
 	virtual AABB                    GetAABB() const override                    { return m_SkeletonPose.GetAABB(); }
 	virtual float GetExtent(EGeomForm eForm) override;
-	virtual void GetRandomPos(PosNorm & ran, CRndGen & seed, EGeomForm eForm) const override;
+	virtual void GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const override;
 	virtual CLodValue ComputeLod(int wantedLod, const SRenderingPassInfo &passInfo) override;
 	virtual void Render(const SRendParams &rParams, const QuatTS &Offset, const SRenderingPassInfo &passInfo) override;
 	virtual void                   SetFlags(int nFlags) override                        { m_rpFlags = nFlags; }

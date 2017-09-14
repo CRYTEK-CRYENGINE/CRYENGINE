@@ -1790,7 +1790,7 @@ void CVehicleMovementArcadeWheeled::GetCurrentWheelStatus(IPhysicalEntity* pPhys
 //------------------------------------------------------------------------
 void CVehicleMovementArcadeWheeled::Update(const float deltaTime)
 {
-	FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
 	IEntity* pEntity = m_pVehicle->GetEntity();
 	IPhysicalEntity* pPhysics = GetPhysics();
@@ -1978,7 +1978,7 @@ int CVehicleMovementArcadeWheeled::GetStatus(SVehicleMovementStatus* status)
 //------------------------------------------------------------------------
 void CVehicleMovementArcadeWheeled::UpdateSounds(const float deltaTime)
 {
-	FUNCTION_PROFILER( gEnv->pSystem, PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
 	
 	if (m_isProbablyDistant)
 		return;
@@ -2088,7 +2088,7 @@ void CVehicleMovementArcadeWheeled::UpdateSounds(const float deltaTime)
 //------------------------------------------------------------------------
 void CVehicleMovementArcadeWheeled::UpdateSuspension(const float deltaTime)
 {
-	FUNCTION_PROFILER( gEnv->pSystem, PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
 	float dt = max( deltaTime, 0.005f);
 
@@ -2226,7 +2226,7 @@ void CVehicleMovementArcadeWheeled::UpdateBrakes(const float deltaTime)
 //------------------------------------------------------------------------
 void CVehicleMovementArcadeWheeled::UpdateSuspensionSound(const float deltaTime)
 {
-	FUNCTION_PROFILER( gEnv->pSystem, PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
 	ReadLock lock(m_wheelStatusLock);
 
@@ -2293,7 +2293,7 @@ void CVehicleMovementArcadeWheeled::UpdateSuspensionSound(const float deltaTime)
 // NOTE: This function must be thread-safe. Before adding stuff contact MarcoC.
 void CVehicleMovementArcadeWheeled::ProcessAI(const float deltaTime)
 {
-	FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
 	float dt = max( deltaTime,0.005f);
 	SVehiclePhysicsStatus* physStatus = &m_physStatus[k_physicsThread];
@@ -2406,7 +2406,7 @@ void CVehicleMovementArcadeWheeled::ProcessAI(const float deltaTime)
 // NOTE: This function must be thread-safe. Before adding stuff contact MarcoC.
 void CVehicleMovementArcadeWheeled::ProcessMovement(const float deltaTime)
 {
-	FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
 	m_netActionSync.UpdateObject(this);
 
@@ -3606,7 +3606,7 @@ void CVehicleMovementArcadeWheeled::Boost(bool enable)
 //------------------------------------------------------------------------
 bool CVehicleMovementArcadeWheeled::RequestMovement(CMovementRequest& movementRequest)
 {
-	FUNCTION_PROFILER( gEnv->pSystem, PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
 	m_movementAction.isAI = true;
 	if (!m_isEnginePowered)
@@ -3787,7 +3787,7 @@ void CVehicleMovementArcadeWheeled::SetVehicleNetState(const SVehicleNetState& s
 //------------------------------------------------------------------------
 void CVehicleMovementArcadeWheeled::UpdateSurfaceEffects(const float deltaTime)
 { 
-	FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
 	if (0 == g_pGameCVars->v_pa_surface)
 	{
@@ -3976,7 +3976,7 @@ void CVehicleMovementArcadeWheeled::UpdateSurfaceEffects(const float deltaTime)
 
 				if (surfaceTypeName.find("mat_") != std::string::npos)
 				{
-					CryAudio::SwitchStateId const surfaceStateId = CryAudio::StringToId_RunTime(surfaceTypeName.substr(4).c_str());
+					CryAudio::SwitchStateId const surfaceStateId = CryAudio::StringToId(surfaceTypeName.substr(4).c_str());
 					auto pIEntityAudioComponent = GetAudioProxy();
 
 					if (pIEntityAudioComponent != nullptr)

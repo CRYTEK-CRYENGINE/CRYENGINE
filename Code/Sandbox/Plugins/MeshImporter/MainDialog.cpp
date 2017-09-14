@@ -96,7 +96,7 @@
 
 void LogPrintf(const char* szformat, ...);
 
-static const char* const kDefaultProxyMaterial = "Editor/Materials/areasolid";
+static const char* const kDefaultProxyMaterial = "%EDITOR%/Materials/areasolid";
 
 static const QString s_initialFilePropertyName = QStringLiteral("initialFile");
 

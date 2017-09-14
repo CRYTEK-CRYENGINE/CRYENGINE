@@ -74,11 +74,11 @@ void CParameterComponent::ProcessEvent(SEntityEvent& event)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CParameterComponent::Set(SParameterSerializeHelper const& parameter, float const value)
+void CParameterComponent::Set(float const value)
 {
-	if (m_pIEntityAudioComponent != nullptr && parameter.m_id != CryAudio::InvalidControlId)
+	if (m_pIEntityAudioComponent != nullptr && m_parameter.m_id != CryAudio::InvalidControlId)
 	{
-		m_pIEntityAudioComponent->SetParameter(parameter.m_id, value, CryAudio::InvalidAuxObjectId);
+		m_pIEntityAudioComponent->SetParameter(m_parameter.m_id, value, CryAudio::InvalidAuxObjectId);
 	}
 }
 } // namespace DefaultComponents

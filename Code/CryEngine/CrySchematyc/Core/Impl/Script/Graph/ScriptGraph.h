@@ -19,10 +19,10 @@ public:
 
 	// IScriptGraphLink
 	virtual void      SetSrcNodeGUID(const CryGUID& guid) override;
-	virtual CryGUID     GetSrcNodeGUID() const override;
+	virtual CryGUID   GetSrcNodeGUID() const override;
 	virtual CUniqueId GetSrcOutputId() const override;
 	virtual void      SetDstNodeGUID(const CryGUID& guid) override;
-	virtual CryGUID     GetDstNodeGUID() const override;
+	virtual CryGUID   GetDstNodeGUID() const override;
 	virtual CUniqueId GetDstInputId() const override;
 	virtual void      Serialize(Serialization::IArchive& archive) override;
 	// ~IScriptGraphLink
@@ -34,10 +34,10 @@ public:
 
 private:
 
-	CryGUID     m_srcNodeGUID;
+	CryGUID   m_srcNodeGUID;
 	CUniqueId m_srcOutputId;
 	string    m_srcOutputName;
-	CryGUID     m_dstNodeGUID;
+	CryGUID   m_dstNodeGUID;
 	CUniqueId m_dstInputId;
 	string    m_dstInputName;
 };
@@ -49,7 +49,7 @@ class CScriptGraph : public IScriptGraph
 private:
 
 	typedef std::map<CryGUID, IScriptGraphNodePtr> Nodes;
-	typedef std::vector<CScriptGraphLinkPtr>     Links;
+	typedef std::vector<CScriptGraphLinkPtr>       Links;
 
 	struct SSignals
 	{
@@ -107,6 +107,7 @@ public:
 	virtual void                                 RemoveBrokenLinks() override;
 	virtual ScriptGraphLinkRemovedSignal::Slots& GetLinkRemovedSignalSlots() override;
 
+	virtual void                                 FixMapping(IScriptGraphNode& node) override;
 	// ~IScriptGraph
 
 private:

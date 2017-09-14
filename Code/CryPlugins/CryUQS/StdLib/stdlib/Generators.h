@@ -118,12 +118,13 @@ namespace UQS
 			EUpdateStatus               DoUpdate(const SUpdateContext& updateContext, Client::CItemListProxy_Writable<Pos3>& itemListToPopulate);
 
 		private:
-			EUpdateStatus               State1_Setup(const SUpdateContext& updateContext, Client::CItemListProxy_Writable<Pos3>& itemListToPopulate);
-			EUpdateStatus               State2_Flood(const SUpdateContext& updateContext, Client::CItemListProxy_Writable<Pos3>& itemListToPopulate);
+			bool                        Setup(const SUpdateContext& updateContext);
+			EUpdateStatus               Flood(const SUpdateContext& updateContext, Client::CItemListProxy_Writable<Pos3>& itemListToPopulate);
 			void                        PerformOneFloodStep(const SUpdateContext& updateContext);
 
 		private:
 			const SParams               m_params;
+			bool                        m_bSetupPending;
 			int                         m_numCellsOnOneAxis;
 			float                       m_startPosX;
 			float                       m_startPosY;
@@ -132,7 +133,6 @@ namespace UQS
 			std::vector<int>            m_parents;
 			std::deque<int>             m_openList;
 			std::vector<Pos3>           m_successfullyProjectedPoints;
-			EUpdateStatus               (CGenerator_PointsOnGridProjectedOntoNavMesh::*m_pCurrentStateFn)(const SUpdateContext& updateContext, Client::CItemListProxy_Writable<Pos3>& itemListToPopulate);
 			int                         m_debugRunawayCounter;
 		};
 

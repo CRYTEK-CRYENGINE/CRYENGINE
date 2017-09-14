@@ -10,7 +10,7 @@ namespace CryEngine.Game
 		/// The currently active ViewCamera, or null of no ViewCamera is active at the moment.
 		/// </summary>
 		/// <value>The active camera.</value>
-		public static ViewCamera ActiveCamera{ get; private set; }
+		public static ViewCamera ActiveCamera { get; private set; }
 
 		private View _view;
 		private bool _active;
@@ -36,6 +36,10 @@ namespace CryEngine.Game
 						ActiveCamera._view.SetActive(false);
 					}
 					_active = true;
+					if(_view == null)
+					{
+						_view = View.Create();
+					}
 					_view.SetActive(true);
 					ActiveCamera = this;
 				}
@@ -46,7 +50,11 @@ namespace CryEngine.Game
 						ActiveCamera = null;
 					}
 					_active = false;
-					_view.SetActive(false);
+
+					if(_view != null)
+					{
+						_view.SetActive(false);
+					}
 				}
 			}
 		}
@@ -54,7 +62,10 @@ namespace CryEngine.Game
 		protected override void OnInitialize()
 		{
 			base.OnInitialize();
-			_view = View.Create();
+			if(_view == null)
+			{
+				_view = View.Create();
+			}
 			_view.LinkTo(Entity);
 
 			if(_active || ActiveCamera == null)

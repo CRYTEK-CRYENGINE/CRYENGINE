@@ -260,7 +260,7 @@ uint64 CReadStream::GetPriority() const
 // this gets called upon the IO has been executed to call the callbacks
 void CReadStream::MainThread_Finalize()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	// call asynchronous callback function if needed synchronously
 	{
@@ -355,7 +355,7 @@ void CReadStream::SetUserData(DWORD_PTR dwUserData)
 //////////////////////////////////////////////////////////////////////////
 void CReadStream::ExecuteAsyncCallback_CBLocked()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	if (!m_bIsAsyncCallbackExecuted && m_pCallback)
 	{
@@ -368,7 +368,7 @@ void CReadStream::ExecuteAsyncCallback_CBLocked()
 
 void CReadStream::ExecuteSyncCallback_CBLocked()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	if (!m_bIsSyncCallbackExecuted && m_pCallback && (0 == (m_Params.nFlags & IStreamEngine::FLAGS_NO_SYNC_CALLBACK)))
 	{

@@ -50,7 +50,7 @@ void CScreenSpaceReflectionsStage::Execute()
 			m_passRaytracing.SetTextureSamplerPair(0, CTexture::s_ptexZTarget, EDefaultSamplerStates::PointClamp);
 			m_passRaytracing.SetTextureSamplerPair(1, CTexture::s_ptexSceneNormalsMap, EDefaultSamplerStates::LinearClamp);
 			m_passRaytracing.SetTextureSamplerPair(2, CTexture::s_ptexSceneSpecular, EDefaultSamplerStates::LinearClamp);
-			m_passRaytracing.SetTextureSamplerPair(3, CTexture::s_ptexZTargetScaled, EDefaultSamplerStates::PointClamp);
+			m_passRaytracing.SetTextureSamplerPair(3, CTexture::s_ptexZTargetScaled[0], EDefaultSamplerStates::PointClamp);
 			m_passRaytracing.SetTextureSamplerPair(4, CTexture::s_ptexHDRTargetPrev, EDefaultSamplerStates::LinearBorder_Black);
 			m_passRaytracing.SetTextureSamplerPair(5, CTexture::s_ptexHDRMeasuredLuminance[rd->RT_GetCurrGpuID()], EDefaultSamplerStates::PointClamp);
 			m_passRaytracing.SetRequireWorldPos(true);

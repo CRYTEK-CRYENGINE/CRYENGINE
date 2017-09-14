@@ -24,7 +24,7 @@
 #include <QAbstractItemModel>
 #include <QStyledItemDelegate>
 #include <QVBoxLayout>
-#include <QTreeView>
+#include <QAdvancedTreeView.h>
 #include <QLabel>
 #include <QString>
 #include <QHelpEvent>
@@ -324,7 +324,7 @@ CComponentsWidget::CComponentsWidget(CMainWindow& editor, QWidget* pParent)
 	pToolBar->addWidget(pSpacer);
 	pToolBar->addWidget(m_pAddButton);
 
-	m_pComponentsList = new QTreeView();
+	m_pComponentsList = new QAdvancedTreeView();
 	m_pComponentsList->setContextMenuPolicy(Qt::CustomContextMenu);
 	m_pComponentsList->setSelectionMode(QAbstractItemView::SingleSelection);
 	m_pComponentsList->setSelectionBehavior(QAbstractItemView::SelectRows);

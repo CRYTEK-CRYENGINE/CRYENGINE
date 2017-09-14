@@ -113,6 +113,8 @@ bool CSkeletonAnim::PushPoseModifier(uint32 layer, IAnimationPoseModifierPtr pos
 
 void CSkeletonAnim::PoseModifiersPrepare(const QuatTS& location)
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	Skeleton::CPoseData* pPoseData = m_pSkeletonPose->GetPoseDataWriteable();
 
 	if (m_pSkeletonPose->m_bFullSkeletonUpdate && !m_pSkeletonPose->m_physics.m_bPhysicsRelinquished)

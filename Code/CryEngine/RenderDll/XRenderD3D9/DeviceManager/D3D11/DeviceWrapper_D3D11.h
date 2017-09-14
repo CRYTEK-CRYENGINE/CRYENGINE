@@ -25,7 +25,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 // convience macro for all device wrapper function
-#define CRY_DEVICE_WRAPPER_PROFILE() FRAME_PROFILER(__FUNC__, gEnv->pSystem, PROFILE_DEVICE)
+#define CRY_DEVICE_WRAPPER_PROFILE() CRY_PROFILE_FUNCTION(PROFILE_DEVICE)
 
 struct SRenderStatePassD3D;
 struct CRenderObjectD3D;

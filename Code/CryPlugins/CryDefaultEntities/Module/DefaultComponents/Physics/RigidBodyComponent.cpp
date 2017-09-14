@@ -10,6 +10,7 @@ namespace Cry
 {
 namespace DefaultComponents
 {
+
 void CRigidBodyComponent::Register(Schematyc::CEnvRegistrationScope& componentScope)
 {
 	// Functions
@@ -114,45 +115,63 @@ void CRigidBodyComponent::Physicalize()
 
 void CRigidBodyComponent::ProcessEvent(SEntityEvent& event)
 {
-	if (event.event == ENTITY_EVENT_COLLISION)
+
+	switch (event.event)
 	{
-		// Collision info can be retrieved using the event pointer
-		EventPhysCollision* physCollision = reinterpret_cast<EventPhysCollision*>(event.nParam[0]);
-
-		const char* surfaceTypeName = "";
-		EntityId otherEntityId = INVALID_ENTITYID;
-
-		ISurfaceTypeManager* pSurfaceTypeManager = gEnv->p3DEngine->GetMaterialManager()->GetSurfaceTypeManager();
-		if (ISurfaceType* pSurfaceType = pSurfaceTypeManager->GetSurfaceType(physCollision->idmat[1]))
+	case ENTITY_EVENT_COLLISION:
 		{
-			surfaceTypeName = pSurfaceType->GetName();
-		}
+			// Collision info can be retrieved using the event pointer
+			EventPhysCollision* physCollision = reinterpret_cast<EventPhysCollision*>(event.nParam[0]);
 
-		if (IEntity* pOtherEntity = gEnv->pEntitySystem->GetEntityFromPhysics(physCollision->pEntity[1]))
-		{
-			otherEntityId = pOtherEntity->GetId();
-		}
+			const char* surfaceTypeName = "";
+			EntityId otherEntityId = INVALID_ENTITYID;
 
-		// Send OnCollision signal
-		if (Schematyc::IObject* pSchematycObject = m_pEntity->GetSchematycObject())
-		{
-			pSchematycObject->ProcessSignal(SCollisionSignal(otherEntityId, Schematyc::SurfaceTypeName(surfaceTypeName)), GetGUID());
+			ISurfaceTypeManager* pSurfaceTypeManager = gEnv->p3DEngine->GetMaterialManager()->GetSurfaceTypeManager();
+			if (ISurfaceType* pSurfaceType = pSurfaceTypeManager->GetSurfaceType(physCollision->idmat[1]))
+			{
+				surfaceTypeName = pSurfaceType->GetName();
+			}
+
+			if (IEntity* pOtherEntity = gEnv->pEntitySystem->GetEntityFromPhysics(physCollision->pEntity[1]))
+			{
+				otherEntityId = pOtherEntity->GetId();
+			}
+
+			// Send OnCollision signal
+			if (Schematyc::IObject* pSchematycObject = m_pEntity->GetSchematycObject())
+			{
+				pSchematycObject->ProcessSignal(SCollisionSignal(otherEntityId, Schematyc::SurfaceTypeName(surfaceTypeName)), GetGUID());
+			}
 		}
+		break;
+	case ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED:
+		{
+			m_pEntity->UpdateComponentEventMask(this);
+
+			Physicalize();
+		}
+		break;
+	case ENTITY_EVENT_START_GAME:
+		{
+			if (m_bEnabledByDefault)
+			{
+				pe_action_awake pa;
+				int result = m_pEntity->GetPhysicalEntity()->Action(&pa);
+			}
+		}
+		break;
+	default: break;
 	}
-	else if (event.event == ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED)
-	{
-		m_pEntity->UpdateComponentEventMask(this);
 
-		Physicalize();
-	}
 }
 
 uint64 CRigidBodyComponent::GetEventMask() const
 {
-	uint64 bitFlags = m_bSendCollisionSignal ? BIT64(ENTITY_EVENT_COLLISION) : 0;;
-	bitFlags |= BIT64(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
+	uint64 bitFlags = m_bSendCollisionSignal ? BIT64(ENTITY_EVENT_COLLISION) : 0;
+	bitFlags |= BIT64(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED) | BIT64(ENTITY_EVENT_START_GAME);
 
 	return bitFlags;
 }
+
 }
 }

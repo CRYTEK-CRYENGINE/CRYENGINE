@@ -290,37 +290,39 @@ private:
 	bool                      m_active;
 
 	// Compute Passes
-	_smart_ptr<CShader> m_pShader;
-	_smart_ptr<CShader> m_pInitShader;
-	_smart_ptr<CShader> m_pUpdateShader;
-	CComputeRenderPass  m_passCalcBounds;
-	CComputeRenderPass  m_passFeatureInitialization;
-	CComputeRenderPass  m_passFillKillList;
-	CComputeRenderPass  m_passFeatureUpdate;
-	CComputeRenderPass  m_passPrepareSort;
-	CComputeRenderPass  m_passReorderParticles;
-	CComputeRenderPass  m_passSwapToEnd;
 
-	CGpuBuffer*        m_updateSrvSlots[eFeatureUpdateSrvSlot_COUNT];
-	CTexture*          m_updateTextureSlots[eFeatureUpdateSrvSlot_COUNT];
-	CConstantBufferPtr m_updateConstantBuffers[eConstantBufferSlot_COUNT];
-	uint64             m_updateShaderFlags;
-
-	CGpuBuffer*        m_initializationSrvSlots[eFeatureInitializationSrvSlot_COUNT];
-	uint64             m_initializationShaderFlags;
-
-	uint64             m_previousInitializationShaderFlags;
-	uint64             m_previousUpdateShaderShaderFlags;
-
+	// these pointers must be declared before the ComputeRenderPasses, for proper destruction order.
 	gpu::CTypedConstantBuffer<SParticleInitializationParameters> m_particleInitializationParameters;
-
-	EState                                                 m_state;
-
-	CryCriticalSection                                     m_cs;
-
-	SEnvironmentParameters                                 m_envParams;
 
 	std::unique_ptr<gpu_physics::CParticleFluidSimulation> m_pFluidSimulation;
 	std::unique_ptr<gpu::CMergeSort>                       m_pMergeSort;
+
+	_smart_ptr<CShader>      m_pShader;
+	_smart_ptr<CShader>      m_pInitShader;
+	_smart_ptr<CShader>      m_pUpdateShader;
+
+	CGpuBuffer*              m_updateSrvSlots[eFeatureUpdateSrvSlot_COUNT];
+	CTexture*                m_updateTextureSlots[eFeatureUpdateSrvSlot_COUNT];
+	CConstantBufferPtr       m_updateConstantBuffers[eConstantBufferSlot_COUNT];
+	uint64                   m_updateShaderFlags;
+
+	CGpuBuffer*              m_initializationSrvSlots[eFeatureInitializationSrvSlot_COUNT];
+
+	CComputeRenderPass       m_passCalcBounds;
+	CComputeRenderPass       m_passFeatureInitialization;
+	CComputeRenderPass       m_passFillKillList;
+	CComputeRenderPass       m_passFeatureUpdate;
+	CComputeRenderPass       m_passPrepareSort;
+	CComputeRenderPass       m_passReorderParticles;
+	CComputeRenderPass       m_passSwapToEnd;
+
+	uint64                   m_initializationShaderFlags;
+	uint64                   m_previousInitializationShaderFlags;
+	uint64                   m_previousUpdateShaderShaderFlags;
+	EState                   m_state;
+
+	CryCriticalSection       m_cs;
+
+	SEnvironmentParameters   m_envParams;
 };
 }

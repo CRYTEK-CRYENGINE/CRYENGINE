@@ -38,7 +38,7 @@ void CTerrainNode::FillSectorHeightMapTextureData(Array2d<float> &arrHmData)
 	{
 		arrHmData[x][y] = m_pTerrain->GetZApr(
 			(float)m_nOriginX + fBoxSize * float(x) / nTexSize * (1.f + 1.f / (float)nTexSize),
-			(float)m_nOriginY + fBoxSize * float(y) / nTexSize * (1.f + 1.f / (float)nTexSize), 0);
+			(float)m_nOriginY + fBoxSize * float(y) / nTexSize * (1.f + 1.f / (float)nTexSize));
 	}
 }
 
@@ -68,7 +68,7 @@ void CTerrainNode::SetLOD(const SRenderingPassInfo& passInfo)
 
 uint8 CTerrainNode::GetTextureLOD(float fDistance, const SRenderingPassInfo& passInfo)
 {
-	int nDiffTexDim = GetTerrain()->m_arrBaseTexInfos[m_nSID].m_TerrainTextureLayer[0].nSectorSizePixels;
+	int nDiffTexDim = GetTerrain()->m_arrBaseTexInfos.m_TerrainTextureLayer[0].nSectorSizePixels;
 
 	float fTexSizeK = nDiffTexDim ? float(nDiffTexDim) / float(GetTerrain()->GetTerrainTextureNodeSizeMeters()) : 1.f;
 
@@ -80,7 +80,7 @@ uint8 CTerrainNode::GetTextureLOD(float fDistance, const SRenderingPassInfo& pas
 	}
 
 	uint8 cNodeNewTexMML = GetMML(int(fTexSizeK * 0.05f * (fDistance * passInfo.GetZoomFactor()) * GetFloatCVar(e_TerrainTextureLodRatio)), nMinLod,
-	                              m_bMergeNotAllowed ? 0 : GetTerrain()->GetParentNode(m_nSID)->m_nTreeLevel);
+	                              m_bMergeNotAllowed ? 0 : GetTerrain()->GetParentNode()->m_nTreeLevel);
 
 	return cNodeNewTexMML;
 }
@@ -88,6 +88,6 @@ uint8 CTerrainNode::GetTextureLOD(float fDistance, const SRenderingPassInfo& pas
 int CTerrainNode::GetSecIndex()
 {
 	int nSectorSize = CTerrain::GetSectorSize() << m_nTreeLevel;
-	int nSectorsTableSize = CTerrain::GetSectorsTableSize(m_nSID) >> m_nTreeLevel;
+	int nSectorsTableSize = CTerrain::GetSectorsTableSize() >> m_nTreeLevel;
 	return (m_nOriginX / nSectorSize) * nSectorsTableSize + (m_nOriginY / nSectorSize);
 }

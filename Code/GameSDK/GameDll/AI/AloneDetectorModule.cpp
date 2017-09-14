@@ -27,7 +27,7 @@ void AloneDetectorContainer::SetupDetector(const AloneDetectorSetup& setup)
 
 void AloneDetectorContainer::Update(float frameTime)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if(m_entityClassNames.empty())
 		return;

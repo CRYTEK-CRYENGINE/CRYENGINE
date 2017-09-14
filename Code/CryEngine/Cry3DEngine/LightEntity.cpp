@@ -164,12 +164,12 @@ void C3DEngine::UpdateSunLightSource(const SRenderingPassInfo& passInfo)
 	//Vec3 vCameraDirWithoutDepth = vCameraDir - vCameraDir.Dot(vSunDir)*vSunDir;
 	//	Vec3 vFocusPos = GetCamera().GetPosition() + vCameraDirWithoutDepth*fGSMBoxSize;
 
-	DynLight.SetPosition(passInfo.GetCamera().GetPosition() + GetSunDir());  //+ vSunShadowDir;
-	DynLight.m_fRadius = 100000000;
-	DynLight.SetLightColor(GetSunColor());
-	DynLight.SetSpecularMult(GetGlobalParameter(E3DPARAM_SUN_SPECULAR_MULTIPLIER));
 	DynLight.m_Flags |= DLF_DIRECTIONAL | DLF_SUN | DLF_THIS_AREA_ONLY | DLF_LM | DLF_SPECULAROCCLUSION |
 	                    ((m_bSunShadows && passInfo.RenderShadows()) ? DLF_CASTSHADOW_MAPS : 0);
+	DynLight.SetPosition(passInfo.GetCamera().GetPosition() + GetSunDir());  //+ vSunShadowDir;
+	DynLight.SetRadius(100000000);
+	DynLight.SetLightColor(GetSunColor());
+	DynLight.SetSpecularMult(GetGlobalParameter(E3DPARAM_SUN_SPECULAR_MULTIPLIER));
 	DynLight.m_sName = "Sun";
 
 	m_pSun->SetLightProperties(DynLight);
@@ -1880,7 +1880,7 @@ void CLightEntity::Render(const SRendParams& rParams, const SRenderingPassInfo& 
 	if (!CheckMinSpec(nRenderNodeMinSpec))
 		return;
 
-	Sphere sp(m_light.m_BaseOrigin, m_light.m_fBaseRadius);
+	Sphere sp(m_light.m_BaseOrigin, m_light.m_fRadius);
 
 	bool bIsVisible = false;
 	if (m_light.m_Flags & DLF_DEFERRED_CUBEMAPS)
@@ -1891,8 +1891,8 @@ void CLightEntity::Render(const SRendParams& rParams, const SRenderingPassInfo& 
 	else if (m_light.m_Flags & DLF_AREA_LIGHT)
 	{
 		// OBB test for area lights.
-		Vec3 vBoxMax(m_light.m_fBaseRadius, m_light.m_fBaseRadius + m_light.m_fAreaWidth, m_light.m_fBaseRadius + m_light.m_fAreaHeight);
-		Vec3 vBoxMin(-0.1f, -(m_light.m_fBaseRadius + m_light.m_fAreaWidth), -(m_light.m_fBaseRadius + m_light.m_fAreaHeight));
+		Vec3 vBoxMax(m_light.m_fRadius, m_light.m_fRadius + m_light.m_fAreaWidth, m_light.m_fRadius + m_light.m_fAreaHeight);
+		Vec3 vBoxMin(-0.1f, -(m_light.m_fRadius + m_light.m_fAreaWidth), -(m_light.m_fRadius + m_light.m_fAreaHeight));
 
 		OBB obb(OBB::CreateOBBfromAABB(Matrix33(m_light.m_ObjMatrix), AABB(vBoxMin, vBoxMax)));
 		bIsVisible = passInfo.GetCamera().IsOBBVisible_F(m_light.m_BaseOrigin, obb);
@@ -2079,7 +2079,7 @@ IRenderNode::EGIMode CLightEntity::GetGIMode() const
 	{
 	if (!(m_light.m_Flags & (DLF_DISABLED | DLF_FAKE | DLF_VOLUMETRIC_FOG_ONLY | DLF_AMBIENT | DLF_DEFERRED_CUBEMAPS)) && !(m_dwRndFlags & ERF_HIDDEN))
 	{
-		if (m_light.m_BaseColor.Luminance() > .01f && m_light.m_fBaseRadius > 0.5f)
+		if (m_light.m_BaseColor.Luminance() > .01f && m_light.m_fRadius > 0.5f)
 		{
 			if (m_light.m_Flags & DLF_SUN)
 			{

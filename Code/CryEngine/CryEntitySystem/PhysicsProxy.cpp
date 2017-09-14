@@ -676,11 +676,6 @@ void CEntityPhysics::OnEntityXForm(SEntityEvent& event)
 				ppos.pGridRefEnt = m_pEntity->m_hierarchy.pParent->GetPhysics();
 			}
 
-#ifdef SEG_WORLD
-			if (event.nParam[1])
-				ppos.bRecalcBounds |= 2;
-#endif
-
 			m_pPhysicalEntity->SetParams(&ppos);
 			SetFlags(m_nFlags & (~FLAG_IGNORE_XFORM_EVENT));
 		}
@@ -1155,6 +1150,19 @@ int CEntityPhysics::AddSlotGeometry(int nSlot, SEntityPhysicalizeParams& params,
 	partpos.flagsCollider &= params.nFlagsAND;
 	partpos.density = params.density;
 	partpos.mass = params.mass;
+
+	if (IMaterial* pMaterial = m_pEntity->GetEntityRender()->GetRenderMaterial(nSlot))
+	{
+		// Assign custom material to physics.
+		int surfaceTypesId[MAX_SUB_MATERIALS];
+		memset(surfaceTypesId, 0, sizeof(surfaceTypesId));
+		int numIds = pMaterial->FillSurfaceTypeIds(surfaceTypesId);
+
+		// Assign physical materials mapping table for this material.
+		partpos.nMats = numIds;
+		partpos.pMatMapping = surfaceTypesId;
+	}
+
 	return pStatObj->Physicalize(pAdamProxy->m_pPhysicalEntity, &partpos, pStatObj->GetFlags() & STATIC_OBJECT_COMPOUND && !nSlot ? -1 : GetPartId0(nSlot), params.szPropsOverride);
 }
 

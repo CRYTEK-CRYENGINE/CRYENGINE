@@ -343,7 +343,10 @@ void CSkeletonPhysics::Job_Physics_SynchronizeFrom(Skeleton::CPoseData& poseData
 		DrawHelper::Pose(*m_pInstance->m_pDefaultSkeleton, poseData, QuatT(m_location), ColorB(0xff, 0xff, 0x80, 0xff));
 
 	if (!m_pSkeletonAnim->m_IsAnimPlaying && !m_bPhysicsRelinquished)
+	{
+		Job_Physics_SynchronizeFromAux(poseData);
 		return;
+	}
 
 	Job_Physics_SynchronizeFromEntityArticulated(poseData, timeDelta);
 	Job_Physics_SynchronizeFromAux(poseData);

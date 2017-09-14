@@ -4,6 +4,7 @@
 #include "SchematycEntitySensorVolumeComponent.h"
 
 #include <CryRenderer/IRenderer.h>
+#include <CryRenderer/IShader.h>
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <CrySerialization/DynArray.h>
 
@@ -33,8 +34,6 @@ static void ReflectType(Schematyc::CTypeDesc<CSchematycEntitySensorVolumeCompone
 	desc.SetLabel("Volume Shape");
 	desc.SetDescription("Determines the type of a shape.");
 	desc.SetDefaultValue(CSchematycEntitySensorVolumeComponent::EVolumeShape::Box);
-	desc.AddConstant(CSchematycEntitySensorVolumeComponent::EVolumeShape::Box, "Box", "Box");
-	desc.AddConstant(CSchematycEntitySensorVolumeComponent::EVolumeShape::Sphere, "Sphere", "Sphere");
 }
 
 void CSchematycEntitySensorVolumeComponent::SDimensions::ReflectType(Schematyc::CTypeDesc<CSchematycEntitySensorVolumeComponent::SDimensions>& desc)
@@ -146,6 +145,46 @@ void CSchematycEntitySensorVolumeComponent::OnShutDown()
 	CSensorSystem::GetInstance().GetMap().DestroyVolume(m_volumeId);
 	m_volumeId = SensorVolumeId();
 }
+
+#ifndef RELEASE
+IGeometry * CSchematycEntitySensorVolumeComponent::CreateBoxGeometry() const
+{
+	primitives::box primitive;
+	primitive.size = m_dimensions.size;
+	primitive.Basis = IDENTITY;
+	primitive.bOriented = 1;
+	primitive.center = Vec3(0, 0, m_dimensions.size.z);
+
+	return gEnv->pPhysicalWorld->GetGeomManager()->CreatePrimitive((int)primitive.type, &primitive);
+}
+
+IGeometry* CSchematycEntitySensorVolumeComponent::CreateSphereGeometry() const
+{
+	primitives::sphere primitive;
+	primitive.center = ZERO;
+	primitive.r = m_dimensions.radius;
+
+	return gEnv->pPhysicalWorld->GetGeomManager()->CreatePrimitive((int)primitive.type, &primitive);
+}
+
+void CSchematycEntitySensorVolumeComponent::Render(const IEntity & entity, const IEntityComponent & component, SEntityPreviewContext & context) const
+{
+	if (context.bSelected)
+	{
+		Matrix34 slotTransform = GetWorldTransformMatrix();
+		IGeometry* pPrimGeom = m_dimensions.shape == EVolumeShape::Box ? CreateBoxGeometry() : CreateSphereGeometry();
+
+		geom_world_data geomWorldData;
+		geomWorldData.R = Matrix33(slotTransform);
+		geomWorldData.scale = slotTransform.GetUniformScale();
+		geomWorldData.offset = slotTransform.GetTranslation();
+
+		gEnv->pSystem->GetIPhysRenderer()->DrawGeometry(pPrimGeom, &geomWorldData, -1, 0, ZERO, context.debugDrawInfo.color);
+
+		pPrimGeom->Release();
+	}
+}
+#endif
 
 void CSchematycEntitySensorVolumeComponent::Enable()
 {
@@ -354,9 +393,3 @@ public:
 	}
 	// ~IComponentPreviewer
 };
-
-IEntityComponentPreviewer* CSchematycEntitySensorVolumeComponent::GetPreviewer()
-{
-	static CSensorVolumeComponentPreviewer previewer;
-	return &previewer;
-}

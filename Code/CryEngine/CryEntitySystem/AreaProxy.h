@@ -47,6 +47,7 @@ public:
 	virtual int             GetFlags() override                    { return m_nFlags; }
 
 	virtual EEntityAreaType GetAreaType() const override           { return m_pArea->GetAreaType(); }
+	virtual IArea*          GetArea() const override               { return m_pArea; }
 
 	virtual void            SetPoints(Vec3 const* const pPoints, bool const* const pSoundObstructionSegments, size_t const numLocalPoints, float const height) override;
 	virtual void            SetBox(const Vec3& min, const Vec3& max, const bool* const pabSoundObstructionSides, size_t const nSideCount) override;

@@ -441,7 +441,7 @@ void COPStick::ClearTeleportData()
 //===================================================================
 bool COPStick::TryToTeleport(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_stickTargetSafePoints.Size() < 2)
 	{
@@ -592,7 +592,7 @@ bool COPStick::TryToTeleport(CPipeUser* pPipeUser)
 EGoalOpResult COPStick::Execute(CPipeUser* pPipeUser)
 {
 	CCCPOINT(COPStick_Execute);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// Check to see if objects have disappeared since last call
 	// Note that at least in the first iteration, they won't be there to start with
@@ -778,7 +778,7 @@ EGoalOpResult COPStick::Execute(CPipeUser* pPipeUser)
 
 	//////////////////////////////////////////////////////////////////////////
 	{
-		FRAME_PROFILER("OPStick::Execute(): Final Path Processing!", GetISystem(), PROFILE_AI)
+		CRY_PROFILE_REGION(PROFILE_AI, "OPStick::Execute(): Final Path Processing!")
 
 		int nPathDecision = pPipeUser->m_nPathDecision;
 
@@ -893,7 +893,7 @@ bool COPStick::GetStickAndSightTargets_CreatePathfindAndTraceGoalOps(CPipeUser* 
 
 	// Create pathfinder operation
 	{
-		FRAME_PROFILER("OPStick::Execute(): Create Pathfinder/Tracer!", GetISystem(), PROFILE_AI);
+		CRY_PROFILE_REGION(PROFILE_AI, "OPStick::Execute(): Create Pathfinder/Tracer!");
 
 		Vec3 vStickPos = pStickTarget->GetPhysicsPos();
 
@@ -934,7 +934,7 @@ bool COPStick::Trace(CPipeUser* pPipeUser, CAIObject* pStickTarget, EGoalOpResul
 		return false;
 	}
 
-	FRAME_PROFILER("OPStick::Trace(): Tracer Execute!", GetISystem(), PROFILE_AI);
+	CRY_PROFILE_REGION(PROFILE_AI, "OPStick::Trace(): Tracer Execute!");
 
 	// if using AdjustSpeed then force sprint at this point - will get overridden later
 	bool bAdjustSpeed = !m_bConstantSpeed && (m_pTraceDirective->m_Maneuver == COPTrace::eMV_None);

@@ -128,7 +128,7 @@ void CAISystem::UpdateDebugStuff()
 {
 	#if CRY_PLATFORM_WINDOWS
 
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	// Delete the debug lines if the debug draw is not on.
 	if ((gAIEnv.CVars.DebugDraw == 0))
 	{
@@ -228,7 +228,7 @@ struct SSortedPuppetB
 //-----------------------------------------------------------------------------------------------------------
 void CAISystem::UpdateAmbientFire()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (gAIEnv.CVars.AmbientFireEnable == 0)
 		return;
@@ -400,7 +400,7 @@ inline bool PuppetFloatSorter(const std::pair<CPuppet*, float>& lhs, const std::
 //-----------------------------------------------------------------------------------------------------------
 void CAISystem::UpdateExpensiveAccessoryQuota()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	for (unsigned i = 0; i < m_delayedExpAccessoryUpdates.size(); )
 	{
@@ -512,7 +512,7 @@ void CAISystem::UpdateExpensiveAccessoryQuota()
 //-----------------------------------------------------------------------------------------------------------
 void CAISystem::SingleDryUpdate(CAIActor* pAIActor)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	if (pAIActor->IsEnabled())
 		pAIActor->Update(IAIObject::EUpdateType::Dry);
 	else

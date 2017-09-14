@@ -25,14 +25,14 @@
 class SmartScriptTable;
 
 SERIALIZATION_DECLARE_ENUM(EParticleSpec,
-	Default  = 0,
-	Low      = CONFIG_LOW_SPEC,
-	Medium   = CONFIG_MEDIUM_SPEC,
-	High     = CONFIG_HIGH_SPEC,
+	Default = 0,
+	Low = CONFIG_LOW_SPEC,
+	Medium = CONFIG_MEDIUM_SPEC,
+	High = CONFIG_HIGH_SPEC,
 	VeryHigh = CONFIG_VERYHIGH_SPEC,
-	XBoxOne  = CONFIG_DURANGO,
-	PS4      = CONFIG_ORBIS
-	);
+	XBoxOne = CONFIG_DURANGO,
+	PS4 = CONFIG_ORBIS
+);
 
 //! Real-time params to control particle emitters.
 //! Some parameters override emitter params.
@@ -94,6 +94,30 @@ struct SpawnParams
 		ar.doc("Emitter time multiplier");
 		ar(bPrime, "prime", "Prime");
 		ar.doc("Advance emitter age to its equilibrium state");
+
+		bool bOverrideSeed = true;
+		if (ar.isEdit())
+		{
+			bOverrideSeed = nSeed != -1;
+			ar(bOverrideSeed, "customseed", "Custom Random Seed");
+			ar.doc("Override the seed used to generate randomness within the particle. If false we will pick a random value on each run.");
+			if (ar.isInput())
+			{
+				if (bOverrideSeed && nSeed == -1)
+				{
+					nSeed = 0;
+				}
+				else if (!bOverrideSeed && nSeed != -1)
+				{
+					nSeed = -1;
+				}
+			}
+		}
+
+		if (bOverrideSeed)
+		{
+			ar(nSeed, "seed", "Random Seed");
+		}
 	}
 };
 

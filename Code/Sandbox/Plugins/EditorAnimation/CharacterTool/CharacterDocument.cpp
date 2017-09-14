@@ -893,14 +893,14 @@ void CharacterDocument::LoadCharacter(const char* filename)
 
 	ExplorerEntries selectedEntries;
 	GetSelectedExplorerEntries(&selectedEntries);
-	if (activeCharacterEntry && (selectedEntries.empty() ||
-	                             (selectedEntries.size() == 1 && m_system->characterList->OwnsAssetEntry(selectedEntries[0]))))
+	if (activeCharacterEntry && (selectedEntries.empty() || (selectedEntries.size() == 1 && m_system->characterList->OwnsAssetEntry(selectedEntries[0]))))
+	{
 		SetSelectedExplorerEntries(ExplorerEntries(1, activeCharacterEntry), 0);
+	}
 	else
+	{
 		SetSelectedExplorerEntries(ExplorerEntries(), 0);
-
-	TriggerAnimationPreview(0);
-
+	}
 }
 
 void CharacterDocument::ReleaseObject()
@@ -1893,7 +1893,7 @@ void CharacterDocument::PreRender(const SRenderContext& context)
 
 void CharacterDocument::Render(const SRenderContext& context)
 {
-	FUNCTION_PROFILER(GetIEditor()->GetSystem(), PROFILE_EDITOR);
+	CRY_PROFILE_FUNCTION(PROFILE_EDITOR);
 
 	if (!m_compressedCharacter)
 		return;
@@ -1933,7 +1933,7 @@ void CharacterDocument::PreRenderOriginal(const SRenderContext& context)
 
 void CharacterDocument::RenderOriginal(const SRenderContext& context)
 {
-	FUNCTION_PROFILER(GetIEditor()->GetSystem(), PROFILE_EDITOR);
+	CRY_PROFILE_FUNCTION(PROFILE_EDITOR);
 
 	if (m_uncompressedCharacter)
 		DrawCharacter(m_uncompressedCharacter, context);
@@ -1947,7 +1947,7 @@ void CharacterDocument::RenderOriginal(const SRenderContext& context)
 void CharacterDocument::DrawCharacter(ICharacterInstance* pInstanceBase, const SRenderContext& context)
 {
 	using namespace Private_CharacterDocument;
-	FUNCTION_PROFILER(GetIEditor()->GetSystem(), PROFILE_EDITOR);
+	CRY_PROFILE_FUNCTION(PROFILE_EDITOR);
 
 	IRenderAuxGeom* pAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom();
 	pAuxGeom->SetRenderFlags(e_Def3DPublicRenderflags);

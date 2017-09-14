@@ -41,7 +41,6 @@ float CTexture::s_nStreamingTotalTime = 0;
 CTextureStreamPoolMgr* CTexture::s_pPoolMgr;
 std::set<string> CTexture::s_vTexReloadRequests;
 CryCriticalSection CTexture::s_xTexReloadLock;
-CryCriticalSectionNonRecursive CTexture::s_invalidationLock;
 #ifdef TEXTURE_GET_SYSTEM_COPY_SUPPORT
 CTexture::LowResSystemCopyType CTexture::s_LowResSystemCopy;
 #endif
@@ -166,9 +165,7 @@ CTexture* CTexture::s_ptexZTarget;
 CTexture* CTexture::s_ptexZOcclusion[2];
 CTexture* CTexture::s_ptexZTargetReadBack[4];
 CTexture* CTexture::s_ptexZTargetDownSample[4];
-CTexture* CTexture::s_ptexZTargetScaled;
-CTexture* CTexture::s_ptexZTargetScaled2;
-CTexture* CTexture::s_ptexZTargetScaled3;
+CTexture* CTexture::s_ptexZTargetScaled[3];
 CTexture* CTexture::s_ptexHDRTarget;
 CTexture* CTexture::s_ptexVelocity;
 CTexture* CTexture::s_ptexVelocityTiles[3] = { NULL };
@@ -385,7 +382,7 @@ CTexture::CTexture(const uint32 nFlags, const ColorF& clearColor /*= ColorF(Clr_
 	m_bNeedRestoring = false;
 	m_bNoTexture = false;
 	m_bResolved = true;
-	m_bUseMultisampledRTV = true;
+	m_bUseMultisampledRTV = false;
 	m_bHighQualityFiltering = false;
 	m_bCustomFormat = false;
 	m_eSrcTileMode = eTM_Unspecified;
@@ -428,7 +425,7 @@ CTexture::CTexture(const uint32 nFlags, const ColorF& clearColor /*= ColorF(Clr_
 
 CTexture::~CTexture()
 {
-	InvalidateDeviceResource(eResourceDestroyed);
+	InvalidateDeviceResource(this, eResourceDestroyed);
 
 	// sizes of these structures should NOT exceed L2 cache line!
 #if CRY_PLATFORM_64BIT
@@ -469,8 +466,6 @@ CTexture::~CTexture()
 #ifdef TEXTURE_GET_SYSTEM_COPY_SUPPORT
 	s_LowResSystemCopy.erase(this);
 #endif
-
-	CRY_ASSERT_MESSAGE(m_invalidateCallbacks.empty(), "Make sure any clients (e.g. Renderpasses, resource sets, etc..) are released before destroying this resource");
 }
 
 void CTexture::RT_ReleaseDevice()
@@ -573,7 +568,7 @@ void CTexture::SetDevTexture(CDeviceTexture* pDeviceTex)
 		m_pDevTexture->SetOwner(this);
 	}
 
-	InvalidateDeviceResource(eDeviceResourceDirty);
+	InvalidateDeviceResource(this, eDeviceResourceDirty);
 }
 
 void CTexture::OwnDevTexture(CDeviceTexture* pDeviceTex)
@@ -601,7 +596,7 @@ void CTexture::OwnDevTexture(CDeviceTexture* pDeviceTex)
 		CryInterlockedAdd(&CTexture::s_nStatsCurManagedNonStreamedTexMem, m_nDevTextureSize);
 	}
 
-	InvalidateDeviceResource(eDeviceResourceDirty);
+	InvalidateDeviceResource(this, eDeviceResourceDirty);
 }
 
 void CTexture::PostCreate()
@@ -897,7 +892,7 @@ CTexture* CTexture::GetOrCreateDepthStencil(const char* name, uint32 nWidth, uin
 
 CTexture* CTexture::GetOrCreate2DTexture(const char* szName, int nWidth, int nHeight, int nMips, int nFlags, byte* pSrcData, ETEX_Format eSrcFormat, bool bAsyncDevTexCreation)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
 	CTexture* pTex = GetOrCreateTextureObject(szName, nWidth, nHeight, 1, eTT_2D, nFlags, eSrcFormat, -1);
 	pTex->m_bAsyncDevTexCreation = bAsyncDevTexCreation;
@@ -1527,7 +1522,7 @@ bool CTexture::FormatFixup(STexData& td)
 
 bool CTexture::ImagePreprocessing(STexData& td)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
 	const char* pTexFileName = td.m_pFilePath ? td.m_pFilePath : "$Unknown";
 
@@ -1602,7 +1597,7 @@ int CTexture::CalcNumMips(int nWidth, int nHeight)
 
 uint32 CTexture::TextureDataSize(uint32 nWidth, uint32 nHeight, uint32 nDepth, uint32 nMips, uint32 nSlices, const ETEX_Format eTF, ETEX_TileMode eTM)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	// Don't allow 0 dimensions, it's clearly wrong to reflect on "unspecified-yet" textures.
 	CRY_ASSERT(eTF != eTF_Unknown && nWidth && nHeight && nDepth);
@@ -1965,7 +1960,7 @@ void CTexture::SetDefaultShaderResourceView(D3DBaseView* pDeviceShaderResource, 
 	// Notify that resource is dirty
 	if (!(m_eFlags & FT_USAGE_RENDERTARGET))
 	{
-		InvalidateDeviceResource(eDeviceResourceViewDirty);
+		InvalidateDeviceResource(this, eDeviceResourceViewDirty);
 	}
 }
 
@@ -2087,7 +2082,7 @@ int __cdecl TexCallbackMips(const VOID* arg1, const VOID* arg2)
 
 void CTexture::Update()
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	CRenderer* rd = gRenDev;
 	char buf[256] = "";
@@ -2984,6 +2979,9 @@ void CTexture::LoadDefaultSystemTextures()
 		{
 			if (!texturesFromFile[t].pTexture)
 				texturesFromFile[t].pTexture = CTexture::ForName(texturesFromFile[t].szFileName, texturesFromFile[t].flags, eTF_Unknown);
+
+			if (!texturesFromFile[t].pTexture || !texturesFromFile[t].pTexture->IsLoaded() || !texturesFromFile[t].pTexture->GetDevTexture())
+				CryFatalError("Can't open %s texture file.", texturesFromFile[t].szFileName);
 		}
 
 		// Associate dummy NULL-resource with s_pTexNULL
@@ -3113,9 +3111,9 @@ void CTexture::LoadDefaultSystemTextures()
 				s_ptexZTarget = CTexture::GetOrCreateTextureObject("$ZTarget", 0, 0, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_RENDERTARGET, eTF_Unknown);
 			}
 
-			s_ptexZTargetScaled = CTexture::GetOrCreateTextureObject("$ZTargetScaled", 0, 0, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_RENDERTARGET, eTF_Unknown, TO_DOWNSCALED_ZTARGET_FOR_AO);
-			s_ptexZTargetScaled2 = CTexture::GetOrCreateTextureObject("$ZTargetScaled2", 0, 0, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_RENDERTARGET, eTF_Unknown, TO_QUARTER_ZTARGET_FOR_AO);
-			s_ptexZTargetScaled3 = CTexture::GetOrCreateTextureObject("$ZTargetScaled3", 0, 0, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_RENDERTARGET, eTF_Unknown);
+			s_ptexZTargetScaled[0] = CTexture::GetOrCreateTextureObject("$ZTargetScaled", 0, 0, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_RENDERTARGET, eTF_Unknown, TO_DOWNSCALED_ZTARGET_FOR_AO);
+			s_ptexZTargetScaled[1] = CTexture::GetOrCreateTextureObject("$ZTargetScaled2", 0, 0, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_RENDERTARGET, eTF_Unknown, TO_QUARTER_ZTARGET_FOR_AO);
+			s_ptexZTargetScaled[2] = CTexture::GetOrCreateTextureObject("$ZTargetScaled3", 0, 0, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_RENDERTARGET, eTF_Unknown);
 		}
 
 		s_ptexSceneSelectionIDs = CTexture::GetOrCreateTextureObject("$SceneSelectionIDs", 0, 0, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_RENDERTARGET, eTF_R32F);
@@ -4465,45 +4463,3 @@ void CTexture::PrepareLowResSystemCopy(byte* pTexData, bool bTexDataHasAllMips)
 }
 
 #endif // TEXTURE_GET_SYSTEM_COPY_SUPPORT
-
-void CTexture::AddInvalidateCallback(void* listener, const SResourceBinding::InvalidateCallbackFunction& callback)
-{
-	AUTO_LOCK_T(CryCriticalSectionNonRecursive, s_invalidationLock);
-
-#if !CRY_PLATFORM_ORBIS || defined(__GXX_RTTI)
-	CRY_ASSERT(callback.target<SResourceBinding::InvalidateCallbackSignature*>() != nullptr);
-#endif
-
-	auto insertResult = m_invalidateCallbacks.emplace(listener, callback);
-	++insertResult.first->second.refCount;
-
-	// We only allow one callback function per listener
-#if !CRY_PLATFORM_ORBIS || defined(__GXX_RTTI)
-	CRY_ASSERT(*callback.target<SResourceBinding::InvalidateCallbackSignature*>() == *insertResult.first->second.callback.target<SResourceBinding::InvalidateCallbackSignature*>());
-#endif
-}
-
-void CTexture::RemoveInvalidateCallbacks(void* listener)
-{
-	AUTO_LOCK_T(CryCriticalSectionNonRecursive, s_invalidationLock);
-
-	auto it = m_invalidateCallbacks.find(listener);
-
-	if (it != m_invalidateCallbacks.end())
-	{
-		if (--it->second.refCount <= 0)
-			m_invalidateCallbacks.erase(listener);
-	}
-}
-
-void CTexture::InvalidateDeviceResource(uint32 dirtyFlags)
-{
-	AUTO_LOCK_T(CryCriticalSectionNonRecursive, s_invalidationLock);
-
-	for (auto it = m_invalidateCallbacks.begin(), end = m_invalidateCallbacks.end(); it != end;)
-	{
-		auto itCurrentCallback = it++;
-		if (itCurrentCallback->second.callback(itCurrentCallback->first, dirtyFlags) == false)
-			m_invalidateCallbacks.erase(itCurrentCallback);
-	}
-}

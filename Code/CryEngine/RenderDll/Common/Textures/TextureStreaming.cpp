@@ -85,7 +85,7 @@ CTexture::TStreamFormatCodeKeyMap CTexture::s_formatCodeMap;
 #ifdef TEXSTRM_ASYNC_TEXCOPY
 void STexStreamInState::CopyMips()
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	CTexture* tp = m_pTexture;
 
@@ -1448,7 +1448,7 @@ bool CTexture::CanAsyncCopy()
 
 bool CTexture::StartStreaming(CTexture* pTex, STexPoolItem* pNewPoolItem, const int nStartMip, const int nEndMip, const int nActivateMip, EStreamTaskPriority estp)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	CHK_RENDTH;
 
@@ -1929,7 +1929,7 @@ void CTexture::StreamState_Update()
 {
 	CHK_RENDTH;
 
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	// Finalise and garbage collect the stream out tasks
 
@@ -1988,7 +1988,7 @@ void CTexture::StreamState_Update()
 
 void CTexture::StreamState_UpdatePrep()
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	// Garbage collect the stream prep slots
 

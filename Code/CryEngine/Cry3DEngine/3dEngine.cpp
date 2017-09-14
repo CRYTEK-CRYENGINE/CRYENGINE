@@ -377,8 +377,6 @@ C3DEngine::C3DEngine(ISystem* pSystem)
 	m_bTerrainTextureStreamingInProgress = false;
 	m_bLayersActivated = false;
 	m_eShadowMode = ESM_NORMAL;
-	m_pSegmentsManager = 0;
-	m_bSegmentOperationInProgress = false;
 
 	ClearDebugFPSInfo();
 
@@ -456,9 +454,7 @@ C3DEngine::~C3DEngine()
 
 	CryAlignedDelete(m_pSkyLightManager);
 	m_pSkyLightManager = 0;
-	for (int nSID = 0; nSID < Get3DEngine()->m_pObjectsTree.Count(); nSID++)
-		SAFE_DELETE(m_pObjectsTree[nSID]);
-	//  delete m_pSceneTree;
+	SAFE_DELETE(m_pObjectsTree);
 	delete m_pRenderMeshMerger;
 	delete m_pMatMan;
 	m_pMatMan = 0;
@@ -793,7 +789,7 @@ void C3DEngine::ProcessCVarsChange()
 		// force recreation of terrain meshes
 		if (CTerrain* const pTerrain = GetTerrain())
 		{
-			pTerrain->ResetTerrainVertBuffers(NULL, -1);
+			pTerrain->ResetTerrainVertBuffers(NULL);
 		}
 
 		// refresh vegetation properties
@@ -1255,7 +1251,7 @@ void C3DEngine::UpdateRenderingCamera(const char* szCallerName, const SRendering
 
 	// now we have a valid camera, we can start generation of the occlusion buffer
 	// only needed for editor here, ingame we spawn the job more early
-	if (passInfo.IsGeneralPass() && GetCVars()->e_StatObjBufferRenderTasks && JobManager::InvokeAsJob("CheckOcclusion"))
+	if (passInfo.IsGeneralPass() && IsStatObjBufferRenderTasksAllowed() && JobManager::InvokeAsJob("CheckOcclusion"))
 	{
 		if (gEnv->IsEditor())
 			GetObjManager()->PrepareCullbufferAsync(passInfo.GetCamera());
@@ -1295,7 +1291,7 @@ void C3DEngine::UpdateRenderingCamera(const char* szCallerName, const SRendering
 void C3DEngine::PrepareOcclusion(const CCamera& rCamera)
 {
 	const bool bInEditor = gEnv->IsEditor();
-	const bool bStatObjBufferRenderTasks = GetCVars()->e_StatObjBufferRenderTasks != 0;
+	const bool bStatObjBufferRenderTasks = IsStatObjBufferRenderTasksAllowed() != 0;
 	const bool bIsFMVPlaying = gEnv->IsFMVPlaying();
 	const bool bCameraAtZero = IsEquivalent(rCamera.GetPosition(), Vec3(0, 0, 0), VEC_EPSILON);
 	const bool bPost3dEnabled = GetRenderer() && GetRenderer()->IsPost3DRendererEnabled();
@@ -1337,11 +1333,11 @@ IStatObj* C3DEngine::FindStatObjectByFilename(const char* filename)
 	return m_pObjManager->FindStaticObjectByFilename(filename);
 }
 
-void C3DEngine::RegisterEntity(IRenderNode* pEnt, int nSID, int nSIDConsideredSafe)
+void C3DEngine::RegisterEntity(IRenderNode* pEnt)
 {
 	FUNCTION_PROFILER_3DENGINE;
 	uint32 nFrameID = gEnv->nMainFrameID;
-	AsyncOctreeUpdate(pEnt, nSID, nSIDConsideredSafe, nFrameID, false);
+	AsyncOctreeUpdate(pEnt, nFrameID, false);
 }
 
 void C3DEngine::UnRegisterEntityDirect(IRenderNode* pEnt)
@@ -1351,7 +1347,7 @@ void C3DEngine::UnRegisterEntityDirect(IRenderNode* pEnt)
 
 void C3DEngine::UnRegisterEntityAsJob(IRenderNode* pEnt)
 {
-	AsyncOctreeUpdate(pEnt, (int)0, (int)0, (int)0, true);
+	AsyncOctreeUpdate(pEnt, (int)0, true);
 }
 
 bool C3DEngine::CreateDecalInstance(const CryEngineDecalInfo& decal, CDecal* pCallerManagedDecal)
@@ -1417,8 +1413,10 @@ void C3DEngine::CreateDecal(const struct CryEngineDecalInfo& decal)
 
 		if (CVisArea* pArea = (CVisArea*)decal.ownerInfo.pRenderNode->GetEntityVisArea())
 		{
-			if (pArea->m_pObjectsTree)
-				pArea->m_pObjectsTree->MoveObjectsIntoList(&lstEntities, &cExplosionBox, false, true, true, true);
+			if (pArea->IsObjectsTreeValid())
+			{
+				pArea->GetObjectsTree()->MoveObjectsIntoList(&lstEntities, &cExplosionBox, false, true, true, true);
+			}
 		}
 		else
 			Get3DEngine()->MoveObjectsIntoListGlobal(&lstEntities, &cExplosionBox, false, true, true, true);
@@ -1518,12 +1516,12 @@ void C3DEngine::SetGIAmount(float fMul)
 		m_pObjManager->m_fGIAmount = fMul;
 }
 
-float C3DEngine::GetTerrainElevation(float x, float y, int nSID)
+float C3DEngine::GetTerrainElevation(float x, float y)
 {
 	float fZ = 0;
 
 	if (m_pTerrain)
-		fZ = m_pTerrain->GetZApr(x, y, nSID);
+		fZ = m_pTerrain->GetZApr(x, y);
 
 	return fZ;
 }
@@ -1533,7 +1531,7 @@ float C3DEngine::GetTerrainElevation3D(Vec3 vPos)
 	float fZ = 0;
 
 	if (m_pTerrain)
-		fZ = m_pTerrain->GetZApr(vPos.x, vPos.y, GetDefSID());
+		fZ = m_pTerrain->GetZApr(vPos.x, vPos.y);
 
 	return fZ;
 }
@@ -1542,12 +1540,12 @@ float C3DEngine::GetTerrainZ(float x, float y)
 {
 	if (x < 0 || y < 0 || x >= CTerrain::GetTerrainSize() || y >= CTerrain::GetTerrainSize())
 		return TERRAIN_BOTTOM_LEVEL;
-	return m_pTerrain ? m_pTerrain->GetZ(x, y, GetDefSID()) : 0;
+	return m_pTerrain ? m_pTerrain->GetZ(x, y) : 0;
 }
 
 bool C3DEngine::GetTerrainHole(float x, float y)
 {
-	return m_pTerrain ? m_pTerrain->GetHole(x, y, GetDefSID()) : false;
+	return m_pTerrain ? m_pTerrain->GetHole(x, y) : false;
 }
 
 float C3DEngine::GetHeightMapUnitSize()
@@ -1555,10 +1553,10 @@ float C3DEngine::GetHeightMapUnitSize()
 	return CTerrain::GetHeightMapUnitSize();
 }
 
-void C3DEngine::RemoveAllStaticObjects(int nSID)
+void C3DEngine::RemoveAllStaticObjects()
 {
 	if (m_pTerrain)
-		m_pTerrain->RemoveAllStaticObjects(nSID);
+		m_pTerrain->RemoveAllStaticObjects();
 }
 
 void C3DEngine::SetTerrainSurfaceType(int x, int y, int nType)
@@ -1570,8 +1568,7 @@ void C3DEngine::SetTerrainSectorTexture(const int nTexSectorX, const int nTexSec
 {
 	if (m_pTerrain)
 	{
-		bool bMergeNotAllowed = m_pSegmentsManager ? false : true;
-		m_pTerrain->SetTerrainSectorTexture(nTexSectorX, nTexSectorY, textureId, bMergeNotAllowed, GetDefSID());
+		m_pTerrain->SetTerrainSectorTexture(nTexSectorX, nTexSectorY, textureId, true);
 	}
 }
 
@@ -1591,7 +1588,7 @@ void C3DEngine::OnExplosion(Vec3 vPos, float fRadius, bool bDeformTerrain)
 		{
 			for (float y = vPos.y - fRadius; y <= vPos.y + fRadius + unitSize; y += unitSize)
 			{
-				if (m_pTerrain->GetHole(x, y, GetDefSID()))
+				if (m_pTerrain->GetHole(x, y))
 				{
 					return;
 				}
@@ -1603,7 +1600,7 @@ void C3DEngine::OnExplosion(Vec3 vPos, float fRadius, bool bDeformTerrain)
 	bool bGroundDeformationAllowed = m_pTerrain->RemoveObjectsInArea(vPos, fRadius) && bDeformTerrain && GetCVars()->e_TerrainDeformations;
 
 	// reduce ground decals size depending on distance to the ground
-	float fExploHeight = vPos.z - m_pTerrain->GetZApr(vPos.x, vPos.y, GetDefSID());
+	float fExploHeight = vPos.z - m_pTerrain->GetZApr(vPos.x, vPos.y);
 
 	if (bGroundDeformationAllowed && (fExploHeight > -0.1f) && fExploHeight < fRadius && fRadius > 0.125f)
 	{
@@ -1756,11 +1753,11 @@ void C3DEngine::ApplyForceToEnvironment(Vec3 vPos, float fRadius, float fAmountO
 
 float C3DEngine::GetDistanceToSectorWithWater()
 {
-	if (!m_pTerrain || !m_pTerrain->GetParentNode(0))
+	if (!m_pTerrain || !m_pTerrain->GetParentNode())
 		return 100000.f;
 
 	Vec3 camPostion = GetRenderingCamera().GetPosition();
-	bool bCameraInTerrainBounds = Overlap::Point_AABB2D(camPostion, m_pTerrain->GetParentNode(0)->GetBBoxVirtual());
+	bool bCameraInTerrainBounds = Overlap::Point_AABB2D(camPostion, m_pTerrain->GetParentNode()->GetBBoxVirtual());
 
 	return (bCameraInTerrainBounds && (m_pTerrain && m_pTerrain->GetDistanceToSectorWithWater() > 0.1f))
 	       ? m_pTerrain->GetDistanceToSectorWithWater() : max(camPostion.z - GetWaterLevel(), 0.1f);
@@ -1937,12 +1934,12 @@ bool C3DEngine::GetSnowFallParams(int& nSnowFlakeCount, float& fSnowFlakeSize, f
 	return bRet;
 }
 
-float C3DEngine::GetTerrainTextureMultiplier(int nSID) const
+float C3DEngine::GetTerrainTextureMultiplier() const
 {
 	if (!m_pTerrain || m_bInUnload)
 		return 0;
 
-	return m_pTerrain->GetTerrainTextureMultiplier(nSID);
+	return m_pTerrain->GetTerrainTextureMultiplier();
 }
 
 void C3DEngine::SetSunDir(const Vec3& newSunDir)
@@ -2083,18 +2080,16 @@ void C3DEngine::ActivateOcclusionAreas(IVisAreaTestCallback* pTest, bool bActiva
 		m_pVisAreaManager->ActivateOcclusionAreas(pTest, bActivate);
 }
 
-bool C3DEngine::SetStatInstGroup(int nGroupId, const IStatInstGroup& siGroup, int nSID)
+bool C3DEngine::SetStatInstGroup(int nGroupId, const IStatInstGroup& siGroup)
 {
-	assert(nSID >= 0 && nSID < m_pObjManager->m_lstStaticTypes.Count());
-
 	m_fRefreshSceneDataCVarsSumm = -100;
 
-	m_pObjManager->m_lstStaticTypes[nSID].resize(max(nGroupId + 1, m_pObjManager->m_lstStaticTypes[nSID].Count()));
+	m_pObjManager->m_lstStaticTypes.resize(max(nGroupId + 1, m_pObjManager->m_lstStaticTypes.Count()));
 
-	if (nGroupId < 0 || nGroupId >= m_pObjManager->m_lstStaticTypes[nSID].Count())
+	if (nGroupId < 0 || nGroupId >= m_pObjManager->m_lstStaticTypes.Count())
 		return false;
 
-	StatInstGroup& rGroup = m_pObjManager->m_lstStaticTypes[nSID][nGroupId];
+	StatInstGroup& rGroup = m_pObjManager->m_lstStaticTypes[nGroupId];
 
 	rGroup.pStatObj = siGroup.pStatObj;
 
@@ -2111,6 +2106,7 @@ bool C3DEngine::SetStatInstGroup(int nGroupId, const IStatInstGroup& siGroup, in
 	rGroup.nCastShadowMinSpec = siGroup.nCastShadowMinSpec;
 	rGroup.bDynamicDistanceShadows = siGroup.bDynamicDistanceShadows;
 	rGroup.bGIMode = siGroup.bGIMode;
+	rGroup.bInstancing = siGroup.bInstancing;
 	rGroup.fSpriteDistRatio = siGroup.fSpriteDistRatio;
 	rGroup.fLodDistRatio = siGroup.fLodDistRatio;
 	rGroup.fShadowDistRatio = siGroup.fShadowDistRatio;
@@ -2151,7 +2147,7 @@ bool C3DEngine::SetStatInstGroup(int nGroupId, const IStatInstGroup& siGroup, in
 
 	if (CTerrain* const pTerrain = GetTerrain())
 	{
-		pTerrain->MarkAllSectorsAsUncompiled(nSID);
+		pTerrain->MarkAllSectorsAsUncompiled();
 	}
 
 	if (gEnv->IsEditor() && pMaterial != rGroup.pMaterial)
@@ -2162,14 +2158,12 @@ bool C3DEngine::SetStatInstGroup(int nGroupId, const IStatInstGroup& siGroup, in
 	return true;
 }
 
-bool C3DEngine::GetStatInstGroup(int nGroupId, IStatInstGroup& siGroup, int nSID)
+bool C3DEngine::GetStatInstGroup(int nGroupId, IStatInstGroup& siGroup)
 {
-	assert(nSID >= 0 && nSID < m_pObjManager->m_lstStaticTypes.Count());
-
-	if (nGroupId < 0 || nGroupId >= m_pObjManager->m_lstStaticTypes[nSID].Count())
+	if (nGroupId < 0 || nGroupId >= m_pObjManager->m_lstStaticTypes.Count())
 		return false;
 
-	StatInstGroup& rGroup = m_pObjManager->m_lstStaticTypes[nSID][nGroupId];
+	StatInstGroup& rGroup = m_pObjManager->m_lstStaticTypes[nGroupId];
 
 	siGroup.pStatObj = rGroup.pStatObj;
 	if (siGroup.pStatObj)
@@ -2183,6 +2177,7 @@ bool C3DEngine::GetStatInstGroup(int nGroupId, IStatInstGroup& siGroup, int nSID
 	siGroup.nCastShadowMinSpec = rGroup.nCastShadowMinSpec;
 	siGroup.bDynamicDistanceShadows = rGroup.bDynamicDistanceShadows;
 	siGroup.bGIMode = rGroup.bGIMode;
+	siGroup.bInstancing = rGroup.bInstancing;
 	siGroup.fSpriteDistRatio = rGroup.fSpriteDistRatio;
 	siGroup.fLodDistRatio = rGroup.fLodDistRatio;
 	siGroup.fShadowDistRatio = rGroup.fShadowDistRatio;
@@ -2216,14 +2211,12 @@ void C3DEngine::UpdateStatInstGroups()
 	if (!m_pObjManager)
 		return;
 
-	for (uint32 nSID = 0; nSID < m_pObjManager->m_lstStaticTypes.size(); nSID++)
+	PodArray<StatInstGroup>& rGroupTable = m_pObjManager->m_lstStaticTypes;
+
+	for (uint32 nGroupId = 0; nGroupId < rGroupTable.size(); nGroupId++)
 	{
-		PodArray<StatInstGroup>& rGroupTable = m_pObjManager->m_lstStaticTypes[nSID];
-		for (uint32 nGroupId = 0; nGroupId < rGroupTable.size(); nGroupId++)
-		{
-			StatInstGroup& rGroup = rGroupTable[nGroupId];
-			rGroup.Update(GetCVars(), Get3DEngine()->GetGeomDetailScreenRes());
-		}
+		StatInstGroup& rGroup = rGroupTable[nGroupId];
+		rGroup.Update(GetCVars(), Get3DEngine()->GetGeomDetailScreenRes());
 	}
 }
 
@@ -2385,7 +2378,7 @@ void C3DEngine::GetResourceMemoryUsage(ICrySizer* pSizer, const AABB& cstAABB)
 
 	if (m_pTerrain)
 	{
-		CTerrainNode* poTerrainNode = m_pTerrain->FindMinNodeContainingBox(cstAABB, GetDefSID());
+		CTerrainNode* poTerrainNode = m_pTerrain->FindMinNodeContainingBox(cstAABB);
 		if (poTerrainNode)
 		{
 			poTerrainNode->GetResourceMemoryUsage(pSizer, cstAABB);
@@ -2814,19 +2807,19 @@ void C3DEngine::DeleteVisArea(IVisArea* pVisArea)
 	{
 		CVisArea* pArea = (CVisArea*)pVisArea;
 
-		//		if(pArea->m_pObjectsTree)
-		//		pArea->m_pObjectsTree->FreeAreaBrushes(true);
+		//		if(pArea->IsObjectsTreeValid())
+		//		pArea->GetObjectsTree()->FreeAreaBrushes(true);
 
 		PodArray<SRNInfo> lstEntitiesInArea;
-		if (pArea->m_pObjectsTree)
-			pArea->m_pObjectsTree->MoveObjectsIntoList(&lstEntitiesInArea, NULL);
+		if (pArea->IsObjectsTreeValid())
+			pArea->GetObjectsTree()->MoveObjectsIntoList(&lstEntitiesInArea, NULL);
 
 		// unregister from indoor
 		for (int i = 0; i < lstEntitiesInArea.Count(); i++)
 			Get3DEngine()->UnRegisterEntityDirect(lstEntitiesInArea[i].pNode);
 
-		if (pArea->m_pObjectsTree)
-			assert(pArea->m_pObjectsTree->GetObjectsCount(eMain) == 0);
+		if (pArea->IsObjectsTreeValid())
+			assert(pArea->GetObjectsTree()->GetObjectsCount(eMain) == 0);
 
 		m_pVisAreaManager->DeleteVisArea((CVisArea*)pVisArea);
 
@@ -2850,7 +2843,7 @@ void C3DEngine::UpdateVisArea(IVisArea* pVisArea, const Vec3* pPoints, int nCoun
 
 	m_pVisAreaManager->UpdateVisArea((CVisArea*)pVisArea, pPoints, nCount, szName, info);
 
-	if (((CVisArea*)pVisArea)->m_pObjectsTree && ((CVisArea*)pVisArea)->m_pObjectsTree->GetObjectsCount(eMain))
+	if (((CVisArea*)pVisArea)->IsObjectsTreeValid() && ((CVisArea*)pVisArea)->GetObjectsTree()->GetObjectsCount(eMain))
 	{
 		// merge old and new bboxes
 		vTotalBoxMin.CheckMin(pArea->m_boxArea.min);
@@ -3873,10 +3866,10 @@ void C3DEngine::CheckMemoryHeap()
 	assert(IsHeapValid());
 }
 
-void C3DEngine::CloseTerrainTextureFile(int nSID)
+void C3DEngine::CloseTerrainTextureFile()
 {
 	if (m_pTerrain)
-		m_pTerrain->CloseTerrainTextureFile(nSID);
+		m_pTerrain->CloseTerrainTextureFile();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -4161,7 +4154,7 @@ int C3DEngine::GetTerrainTextureNodeSizeMeters()
 int C3DEngine::GetTerrainTextureNodeSizePixels(int nLayer)
 {
 	if (m_pTerrain)
-		return m_pTerrain->GetTerrainTextureNodeSizePixels(nLayer, 0);
+		return m_pTerrain->GetTerrainTextureNodeSizePixels(nLayer);
 	return 0;
 }
 
@@ -4722,7 +4715,7 @@ void C3DEngine::SetRecomputeCachedShadows(uint nUpdateStrategy)
 	if (IRenderer* const pRenderer = GetRenderer())
 	{
 		// refresh cached shadow casters
-		if (GetCVars()->e_DynamicDistanceShadows != 0)
+		if (GetCVars()->e_DynamicDistanceShadows != 0 && m_pObjectsTree) 
 		{
 			static int lastFrameId = 0;
 
@@ -4730,10 +4723,7 @@ void C3DEngine::SetRecomputeCachedShadows(uint nUpdateStrategy)
 
 			if (lastFrameId != newFrameId)
 			{
-				for (int nSID = 0; nSID < m_pObjectsTree.Count(); nSID++)
-				{
-					m_pObjectsTree[nSID]->MarkAsUncompiled();
-				}
+				m_pObjectsTree->MarkAsUncompiled();
 
 				lastFrameId = newFrameId;
 			}
@@ -4847,9 +4837,7 @@ void C3DEngine::CopyObjectsByType(EERType objType, const AABB* pBox, PodArray<IR
 
 void C3DEngine::CopyObjects(const AABB* pBox, PodArray<IRenderNode*>* plstObjects)
 {
-	for (int nSID = 0; nSID < Get3DEngine()->m_pObjectsTree.Count(); nSID++)
-		if (IsSegmentSafeToUse(nSID))
-			m_pObjectsTree[nSID]->GetObjects(*plstObjects, pBox);
+	m_pObjectsTree->GetObjects(*plstObjects, pBox);
 
 	if (GetVisAreaManager())
 		GetVisAreaManager()->GetObjects(*plstObjects, pBox);
@@ -4886,9 +4874,8 @@ uint32 C3DEngine::GetObjectsByFlags(uint dwFlags, IRenderNode** pObjects /* =0 *
 {
 	PodArray<IRenderNode*> lstObjects;
 
-	for (int nSID = 0; nSID < Get3DEngine()->m_pObjectsTree.Count(); nSID++)
-		if (Get3DEngine()->m_pObjectsTree[nSID])
-			Get3DEngine()->m_pObjectsTree[nSID]->GetObjectsByFlags(dwFlags, lstObjects);
+	if (Get3DEngine()->m_pObjectsTree)
+		Get3DEngine()->m_pObjectsTree->GetObjectsByFlags(dwFlags, lstObjects);
 
 	if (GetVisAreaManager())
 		GetVisAreaManager()->GetObjectsByFlags(dwFlags, lstObjects);
@@ -4900,11 +4887,8 @@ uint32 C3DEngine::GetObjectsByFlags(uint dwFlags, IRenderNode** pObjects /* =0 *
 
 void C3DEngine::ObjectsTreeMarkAsUncompiled(const IRenderNode* pRenderNode)
 {
-	for (int nSID = 0; nSID < Cry3DEngineBase::Get3DEngine()->m_pObjectsTree.Count(); nSID++)
-	{
-		if (COctreeNode* curNode = Cry3DEngineBase::Get3DEngine()->m_pObjectsTree[nSID])
-			curNode->MarkAsUncompiled(pRenderNode);
-	}
+	if (COctreeNode* curNode = Cry3DEngineBase::Get3DEngine()->m_pObjectsTree)
+		curNode->MarkAsUncompiled(pRenderNode);
 
 	if (GetVisAreaManager())
 		GetVisAreaManager()->MarkAllSectorsAsUncompiled(pRenderNode);
@@ -5130,9 +5114,7 @@ void C3DEngine::ActivateObjectsLayer(uint16 nLayerId, bool bActivate, bool bPhys
 
 	if (bObjects)
 	{
-		for (int nSID = 0; nSID < Get3DEngine()->m_pObjectsTree.Count(); nSID++)
-			if (IsSegmentSafeToUse(nSID))
-				m_pObjectsTree[nSID]->ActivateObjectsLayer(nLayerId, bActivate, bPhys, pHeap, m_arrObjectLayersActivity[nLayerId].objectsBox);
+		m_pObjectsTree->ActivateObjectsLayer(nLayerId, bActivate, bPhys, pHeap, m_arrObjectLayersActivity[nLayerId].objectsBox);
 
 		if (m_pVisAreaManager)
 			m_pVisAreaManager->ActivateObjectsLayer(nLayerId, bActivate, bPhys, pHeap, m_arrObjectLayersActivity[nLayerId].objectsBox);
@@ -5173,9 +5155,8 @@ void C3DEngine::GetLayerMemoryUsage(uint16 nLayerId, ICrySizer* pSizer, int* pNu
 	if (pNumDecals)
 		*pNumDecals = 0;
 
-	for (int nSID = 0; nSID < Get3DEngine()->m_pObjectsTree.Count(); ++nSID)
-		if (m_pObjectsTree[nSID])
-			m_pObjectsTree[nSID]->GetLayerMemoryUsage(nLayerId, pSizer, pNumBrushes, pNumDecals);
+	if (m_pObjectsTree)
+		m_pObjectsTree->GetLayerMemoryUsage(nLayerId, pSizer, pNumBrushes, pNumDecals);
 }
 
 void C3DEngine::SkipLayerLoading(uint16 nLayerId, bool bClearList)
@@ -5706,21 +5687,6 @@ void C3DEngine::LoadInternalState(struct IDataReadStream& reader, const uint8* p
 	// release the lock on the resources
 	// this will also relase all unused CGF resources
 	gEnv->p3DEngine->UnlockCGFResources();
-}
-
-void C3DEngine::SetSegmentsManager(ISegmentsManager* pSegmentsManager)
-{
-	m_pSegmentsManager = pSegmentsManager;
-}
-
-bool C3DEngine::IsSegmentOperationInProgress()
-{
-	return m_bSegmentOperationInProgress;
-}
-
-void C3DEngine::SetSegmentOperationInProgress(bool bActive)
-{
-	m_bSegmentOperationInProgress = bActive;
 }
 
 void C3DEngine::OnCameraTeleport()
@@ -6322,6 +6288,17 @@ bool C3DEngine::IsTessellationAllowed(const CRenderObject* pObj, const SRenderin
 	return false;
 }
 
+bool C3DEngine::IsStatObjBufferRenderTasksAllowed() const
+{
+	auto bDebugDrawEnabled = gEnv->pConsole->GetCVar("e_DebugDraw") != nullptr && gEnv->pConsole->GetCVar("e_DebugDraw")->GetIVal() != 0;
+	auto bMnDebugEnabled = gEnv->pConsole->GetCVar("mn_debug") != nullptr && strlen(gEnv->pConsole->GetCVar("mn_debug")->GetString()) != 0;
+	auto bStatObjBufferRenderTasksEnabled = 
+		gEnv->pConsole->GetCVar("e_StatObjBufferRenderTasks") != nullptr && gEnv->pConsole->GetCVar("e_StatObjBufferRenderTasks")->GetIVal() != 0;
+
+	return !bDebugDrawEnabled && !bMnDebugEnabled && bStatObjBufferRenderTasksEnabled;
+		
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 void C3DEngine::RenderRenderNode_ShadowPass(IShadowCaster* pShadowCaster, const SRenderingPassInfo& passInfo)
 {
@@ -6415,7 +6392,7 @@ int C3DEngine::GetTerrainSize()
 #include "ParticleEmitter.h"
 
 ///////////////////////////////////////////////////////////////////////////////
-void C3DEngine::AsyncOctreeUpdate(IRenderNode* pEnt, int nSID, int nSIDConsideredSafe, uint32 nFrameID, bool bUnRegisterOnly)
+void C3DEngine::AsyncOctreeUpdate(IRenderNode* pEnt, uint32 nFrameID, bool bUnRegisterOnly)
 {
 	FUNCTION_PROFILER_3DENGINE;
 
@@ -6546,67 +6523,16 @@ void C3DEngine::AsyncOctreeUpdate(IRenderNode* pEnt, int nSID, int nSIDConsidere
 	//////////////////////////////////////////////////////////////////////////
 	if (pEnt->m_dwRndFlags & ERF_OUTDOORONLY || !(m_pVisAreaManager && m_pVisAreaManager->SetEntityArea(pEnt, aabb, fObjRadiusSqr)))
 	{
-#ifndef SEG_WORLD
-		if (nSID == -1)
-		{
-			nSID = 0;
+// 		if (!m_pObjectsTree)
+// 		{
+// 			const float terrainSize = (float)GetTerrainSize();
+// 			m_pObjectsTree = COctreeNode::Create(AABB(Vec3(0, 0, 0), Vec3(terrainSize, terrainSize, terrainSize)), NULL);
+// 		}
 
-			// if segment is not set - find best one automatically
-			Vec3 vCenter = aabb.GetCenter();
-			const int iTreeCount = Get3DEngine()->m_pObjectsTree.Count();
-			for (int n = 0; n < iTreeCount; n++)
-			{
-				if (Get3DEngine()->m_pObjectsTree[n])
-				{
-					if (Overlap::Point_AABB2D(vCenter, m_pObjectsTree[n]->GetNodeBox()))
-					{
-						nSID = n;
-						break;
-					}
-				}
-			}
-		}
-
-		if (nSID >= 0 && nSID < m_pObjectsTree.Count())
+		if (m_pObjectsTree)
 		{
-			if (!m_pObjectsTree[nSID])
-			{
-				const float terrainSize = (float)GetTerrainSize();
-				m_pObjectsTree[nSID] = COctreeNode::Create(nSID, AABB(Vec3(0, 0, 0), Vec3(terrainSize, terrainSize, terrainSize)), NULL);
-			}
-
-			m_pObjectsTree[nSID]->InsertObject(pEnt, aabb, fObjRadiusSqr, aabb.GetCenter());
+			m_pObjectsTree->InsertObject(pEnt, aabb, fObjRadiusSqr, aabb.GetCenter());
 		}
-#else
-		if (gEnv->IsEditor() || eERType != eERType_Vegetation)
-		{
-			// CS - opt here
-			if (GetITerrain())
-			{
-				Vec3 vCenter = aabb.GetCenter();
-				nSID = GetITerrain()->WorldToSegment(vCenter, GetDefSID());
-			}
-		}
-		else
-		{
-			// use specified sid from which the objects are actually serialized for vegetation objects
-			CVegetation* pInst = (CVegetation*)pEnt;
-			nSID = pInst->m_nStaticTypeSlot;
-		}
-
-		if (nSID >= 0 && nSID < m_pObjectsTree.Count())
-		{
-			//#ifdef _DEBUG
-			//		  if(nSID != nSIDConsideredSafe)
-			//		  {
-			//			  Warning("I3DEngine::RegisterEntity: Object %s was not added to the scene", pEnt->GetName());
-			//		  }
-			//#endif
-			// TODO: this should only work if the segment is safe or if it's unsafe and the object is being inserted by SetCompiledData...
-			if (nSID == nSIDConsideredSafe || IsSegmentSafeToUse(nSID))
-				m_pObjectsTree[nSID]->InsertObject(pEnt, aabb, fObjRadiusSqr, aabb.GetCenter());
-		}
-#endif
 	}
 
 	// update clip volume: use vis area if we have one, otherwise check if we're in the same volume as before. check other volumes as last resort only

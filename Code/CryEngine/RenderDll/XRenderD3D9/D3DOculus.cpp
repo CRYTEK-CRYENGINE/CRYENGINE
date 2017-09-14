@@ -383,7 +383,7 @@ void CD3DOculusRenderer::PrepareFrame()
 
 void CD3DOculusRenderer::SubmitFrame()
 {
-	FUNCTION_PROFILER_RENDERER
+	FUNCTION_PROFILER_RENDERER();
 
 	// Update swap chain info with the latest render and layer properties
 	m_layerManager.UpdateSwapChainData(m_pStereoRenderer, m_scene3DRenderData, m_quadLayerRenderData);

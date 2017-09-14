@@ -183,7 +183,7 @@ void CProximityTriggerSystem::MoveTrigger(SProximityElement* pTrigger, const AAB
 //////////////////////////////////////////////////////////////////////////
 void CProximityTriggerSystem::SortTriggers()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 
 	if (m_bTriggerMoved)
 	{
@@ -295,7 +295,7 @@ void CProximityTriggerSystem::ProcessOverlap(SProximityElement* pEntity, SProxim
 //////////////////////////////////////////////////////////////////////////
 void CProximityTriggerSystem::Update()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 
 	if (m_bTriggerMoved)
 		SortTriggers();
@@ -412,7 +412,7 @@ void CProximityTriggerSystem::SendEvent(EEntityEvent eventId, EntityId triggerId
 //////////////////////////////////////////////////////////////////////////
 void CProximityTriggerSystem::SendEvents()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 	for (uint32 i = 0; i < m_events.size(); i++)
 	{
 		EEntityEvent eventId = m_events[i].bEnter ? ENTITY_EVENT_ENTERAREA : ENTITY_EVENT_LEAVEAREA;

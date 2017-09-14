@@ -62,7 +62,7 @@ void SPhysEnviron::OnPhysAreaChange(const EventPhysAreaChange& event)
 
 void SPhysEnviron::GetWorldPhysAreas(uint32 nFlags, bool bNonUniformAreas)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	// Recycle shared SArea objects
 	SmartPtrArray<SArea> aPrevAreas = m_NonUniformAreas;
@@ -221,7 +221,7 @@ void SPhysEnviron::GetWorldPhysAreas(uint32 nFlags, bool bNonUniformAreas)
 
 void SPhysEnviron::GetPhysAreas(SPhysEnviron const& envSource, AABB const& box, bool bIndoors, uint32 nFlags, bool bNonUniformAreas, const CParticleEmitter* pEmitterSkip)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	Clear();
 
@@ -327,7 +327,7 @@ void SPhysEnviron::GetNonUniformForces(SPhysForces& forces, Vec3 const& vPos, ui
 
 bool SPhysEnviron::PhysicsCollision(ray_hit& hit, Vec3 const& vStart, Vec3 const& vEnd, float fRadius, uint32 nEnvFlags, IPhysicalEntity* pTestEntity)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	bool bHit = false;
 	Vec3 vMove = vEnd - vStart;
@@ -349,7 +349,7 @@ bool SPhysEnviron::PhysicsCollision(ray_hit& hit, Vec3 const& vStart, Vec3 const
 	{
 		nEnvFlags &= ~ENV_TERRAIN;
 		CHeightMap::SRayTrace rt;
-		if (GetTerrain()->RayTrace(vStart, vStart + vMove, &rt, GetDefSID()))
+		if (GetTerrain()->RayTrace(vStart, vStart + vMove, &rt))
 		{
 			if ((fMoveNorm = rt.vNorm * vMove) < 0.f)
 			{
@@ -414,7 +414,7 @@ bool SPhysEnviron::PhysicsCollision(ray_hit& hit, Vec3 const& vStart, Vec3 const
 
 void SPhysEnviron::SArea::GetForcesPhys(SPhysForces& forces, Vec3 const& vPos) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	pe_status_area sarea;
 	sarea.ctr = vPos;
@@ -439,7 +439,7 @@ void SPhysEnviron::SArea::GetForces(SPhysForces& forces, Vec3 const& vPos, uint3
 		}
 		else
 		{
-			FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+			CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 #ifdef DEBUG_FORCES
 			// Compare locally computed results to physics system.
@@ -514,7 +514,7 @@ float SPhysEnviron::SArea::GetWaterPlane(Plane& plane, Vec3 const& vPos, float f
 
 float SPhysEnviron::GetNonUniformWaterPlane(Plane& plWater, Vec3 const& vPos, float fMaxDist) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	for (auto& area : m_NonUniformAreas)
 	{
@@ -542,7 +542,7 @@ void SVisEnviron::Update(Vec3 const& vOrigin, AABB const& bb)
 	if (!m_bValid)
 	{
 		// Determine emitter's vis area, by origin.
-		FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+		CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 		m_pVisArea = Get3DEngine()->GetVisAreaFromPos(vOrigin);
 		m_pVisNodeCache = 0;

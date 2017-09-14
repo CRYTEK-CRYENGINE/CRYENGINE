@@ -192,7 +192,7 @@ void CRenderView::SetPreviousFrameCameras(const CCamera* pCameras, int cameraCou
 //////////////////////////////////////////////////////////////////////////
 void CRenderView::SwitchUsageMode(EUsageMode mode)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	if (mode == m_usageMode)
 		return;
@@ -1212,7 +1212,7 @@ void CRenderView::Job_PostWrite()
 ///////////////////////////////////////////////////////////////////////////////
 void CRenderView::Job_SortRenderItemsInList(ERenderListID list)
 {
-	FUNCTION_PROFILER_RENDERER
+	FUNCTION_PROFILER_RENDERER();
 
 	auto& renderItems = GetRenderItems(list);
 	if (renderItems.empty())
@@ -1359,7 +1359,7 @@ void CRenderView::SortLights()
 
 int CRenderView::FindRenderListSplit(ERenderListID list, uint32 objFlag)
 {
-	FUNCTION_PROFILER_RENDERER
+	FUNCTION_PROFILER_RENDERER();
 
 	// Binary search, assumes that list is sorted by objFlag
 	auto& renderItems = GetRenderItems(list);
@@ -1427,7 +1427,7 @@ void CRenderView::PostWriteShadowViews()
 //////////////////////////////////////////////////////////////////////////
 void CRenderView::PrepareShadowViews()
 {
-	FUNCTION_PROFILER_RENDERER
+	FUNCTION_PROFILER_RENDERER();
 	for (auto & fr : m_shadows.m_renderFrustums)
 	{
 		if (fr.pFrustum->m_eFrustumType != ShadowMapFrustum::e_Nearest)
@@ -1567,7 +1567,7 @@ void CRenderView::SShadows::AddNearestCaster(CRenderObject* pObj)
 //////////////////////////////////////////////////////////////////////////
 void CRenderView::SShadows::PrepareNearestShadows()
 {
-	FUNCTION_PROFILER_RENDERER
+	FUNCTION_PROFILER_RENDERER();
 	SShadowFrustumToRender* pNearestFrustum = nullptr;
 	for (auto& fr : m_renderFrustums)
 	{

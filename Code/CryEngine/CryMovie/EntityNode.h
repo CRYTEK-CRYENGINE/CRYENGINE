@@ -46,7 +46,9 @@ private:
 class CAnimEntityNode : public CAnimNode, public IAnimEntityNode
 {
 	struct SScriptPropertyParamInfo;
+	struct SComponentPropertyParamInfo;
 	struct SAnimState;
+	friend class CComponentSerializer;
 
 public:
 	CAnimEntityNode(const int id);
@@ -123,7 +125,9 @@ protected:
 	void                 AnimateExpressionTrack(class CExprTrack* pTrack, SAnimContext& animContext);
 	void                 AnimateFacialSequence(class CFaceSequenceTrack* pTrack, SAnimContext& animContext);
 	void                 AnimateLookAt(class CLookAtTrack* pTrack, SAnimContext& animContext);
-	bool                 AnimateScriptTableProperty(IAnimTrack* pTrack, SAnimContext& animContext, const char* name);
+	bool                 AnimateEntityProperty(IAnimTrack* pTrack, SAnimContext& animContext, const char* name);
+	bool                 AnimateLegacyScriptProperty(const SScriptPropertyParamInfo& param, IEntity* pEntity, IAnimTrack* pTrack, SAnimContext& animContext);
+	bool                 AnimateEntityComponentProperty(const SComponentPropertyParamInfo& param, IEntity* pEntity, IAnimTrack* pTrack, SAnimContext& animContext);
 
 	void                 ReleaseAllAnims();
 	virtual void         OnStartAnimation(const char* sAnimation) {}
@@ -248,18 +252,41 @@ private:
 	Noise m_posNoise;
 	Noise m_rotNoise;
 
-	struct SScriptPropertyParamInfo
+	struct IPropertyParamInfo
 	{
+		enum class EType
+		{
+			LegacyScriptProperty,
+			ComponentProperty
+		};
+
+		virtual EType GetType() const = 0;
+
+		SParamInfo animNodeParamInfo;
+	};
+
+	struct SScriptPropertyParamInfo final : public IPropertyParamInfo
+	{
+		virtual EType GetType() const override { return EType::LegacyScriptProperty; }
+
 		string           variableName;
 		string           displayName;
 		SmartScriptTable scriptTable;
 		bool             isVectorTable;
-		SParamInfo       animNodeParamInfo;
 	};
 
-	std::vector<SScriptPropertyParamInfo> m_entityScriptPropertiesParamInfos;
-	typedef std::unordered_map<string, size_t, stl::hash_stricmp<string>, stl::hash_stricmp<string>> TScriptPropertyParamInfoMap;
-	TScriptPropertyParamInfoMap           m_nameToScriptPropertyParamInfo;
+	struct SComponentPropertyParamInfo final : public IPropertyParamInfo
+	{
+		virtual EType GetType() const override { return EType::ComponentProperty; }
+
+		string uiName;
+		CryGUID componentInstanceGUID;
+		std::function<void(IAnimTrack*)> setDefaultValueCallback;
+		std::function<bool(const TMovieSystemValue& value)> setValueCallback;
+	};
+
+	std::vector<std::unique_ptr<IPropertyParamInfo>> m_entityProperties;
+	std::unordered_map<string, size_t, stl::hash_stricmp<string>, stl::hash_stricmp<string>> m_entityPropertyNameLookupMap;
 #ifdef CHECK_FOR_TOO_MANY_ONPROPERTY_SCRIPT_CALLS
 	uint32                                m_OnPropertyCalls;
 #endif

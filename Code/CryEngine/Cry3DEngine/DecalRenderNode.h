@@ -72,6 +72,7 @@ private:
 private:
 	Vec3                  m_pos;
 	AABB                  m_localBounds;
+	_smart_ptr<IMaterial> m_pOverrideMaterial;
 	_smart_ptr<IMaterial> m_pMaterial;
 	bool                  m_updateRequested;
 	SDecalProperties      m_decalProperties;

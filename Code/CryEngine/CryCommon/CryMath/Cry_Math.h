@@ -19,6 +19,7 @@
 //========================================================================================
 
 #include <CryCore/Platform/platform.h>
+#include <CryCore/BitFiddling.h>
 #include <cstdlib>
 #include <cfloat>
 #include <cmath>
@@ -531,21 +532,7 @@ ILINE float approxOneExp(float x) { return x * crymath::rcp_fast(1.f + x); }
 //! \return i if x==1<<i (i=0..63)
 ILINE int ilog2(uint64 x)
 {
-#if CRY_PLATFORM_X64 && CRY_COMPILER_MSVC
-	unsigned long i;
-	_BitScanReverse64(&i, x);
-	return i;
-#elif CRY_COMPILER_CLANG || CRY_COMPILER_GCC
-	return __builtin_clzll(x);
-#else
-	union
-	{
-		float f;
-		uint  i;
-	} u;
-	u.f = (float)x;
-	return (u.i >> 23) - 127;
-#endif
+	return (int)IntegerLog2(x);
 }
 
 const int32 inc_mod3[] = { 1, 2, 0 }, dec_mod3[] = { 2, 0, 1 };

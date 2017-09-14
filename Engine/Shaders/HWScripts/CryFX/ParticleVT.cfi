@@ -67,6 +67,9 @@ StructuredBuffer<SParticleColorST>     colorSTsSRV    : register(t37);
 StructuredBuffer<SDefaultParticleData> gpuParticleSRV : register(t14);
 
 // #PFX2_TODO make a tile shader header file to not duplicate this
+
+#define TILED_SHADING_MAX_NUM_LIGHTS  255
+
 struct STiledLightShadeInfo
 {
 	uint      lightType;

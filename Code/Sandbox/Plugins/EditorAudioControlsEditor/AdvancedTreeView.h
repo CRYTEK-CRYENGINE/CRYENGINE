@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include <QTreeView>
-#include <QModelIndex>
+#include <QAdvancedTreeView.h>
 
 namespace ACE
 {
-class CAdvancedTreeView final : public QTreeView
+class CAdvancedTreeView final : public QAdvancedTreeView
 {
 	Q_OBJECT
 

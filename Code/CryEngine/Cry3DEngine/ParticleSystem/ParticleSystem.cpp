@@ -123,7 +123,7 @@ void CParticleSystem::InvalidateCachedRenderObjects()
 
 void CParticleSystem::Update()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 	PARTICLE_LIGHT_PROFILER();
 
 	const CCamera& camera = gEnv->p3DEngine->GetRenderingCamera();

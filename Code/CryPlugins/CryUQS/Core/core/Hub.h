@@ -44,6 +44,7 @@ namespace UQS
 			virtual CUtils&                                            GetUtils() override;
 			virtual CEditorService&                                    GetEditorService() override;
 			virtual CItemSerializationSupport&                         GetItemSerializationSupport() override;
+			virtual CSettingsManager&                                  GetSettingsManager() override;
 			virtual DataSource::IEditorLibraryProvider*                GetEditorLibraryProvider() override;
 			virtual void                                               SetEditorLibraryProvider(DataSource::IEditorLibraryProvider* pProvider) override;
 			// ~IHub
@@ -91,6 +92,7 @@ namespace UQS
 			CQueryManager                                              m_queryManager;
 			CEditorService                                             m_editorService;
 			CItemSerializationSupport                                  m_itemSerializationSupport;
+			CSettingsManager                                           m_settingsManager;
 			DataSource::IEditorLibraryProvider*                        m_pEditorLibraryProvider;
 			CUtils                                                     m_utils;
 		};

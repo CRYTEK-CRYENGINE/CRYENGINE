@@ -1016,27 +1016,30 @@ float CAttachmentManager::GetExtent(EGeomForm eForm)
 	return extent.TotalExtent();
 }
 
-void CAttachmentManager::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const
+void CAttachmentManager::GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const
 {
-	ran.zero();
+	points.fill(ZERO);
 
 	CGeomExtent const& ext = m_Extents[eForm];
-	int iPart = ext.RandomPart(seed);
-	if (iPart < m_arrAttachments.size())
+	for (auto part : ext.RandomPartsAliasSum(points, seed))
 	{
-		// Choose attachment.
-		if (IAttachment* pAttachment = m_arrAttachments[iPart])
+		if (part.iPart < m_arrAttachments.size())
 		{
-			if (IAttachmentObject* pAttachmentObject = pAttachment->GetIAttachmentObject())
+			// Choose attachment.
+			if (IAttachment* pAttachment = m_arrAttachments[part.iPart])
 			{
-				if (ICharacterInstance* pCharInstance = pAttachmentObject->GetICharacterInstance())
-					pCharInstance->GetRandomPos(ran, seed, eForm);
-				else if (IStatObj* pStatObj = pAttachmentObject->GetIStatObj())
-					pStatObj->GetRandomPos(ran, seed, eForm);
-				else if (IAttachmentSkin* pSkin = pAttachmentObject->GetIAttachmentSkin())
-					pSkin->GetRandomPos(ran, seed, eForm);
+				if (IAttachmentObject* pAttachmentObject = pAttachment->GetIAttachmentObject())
+				{
+					if (ICharacterInstance* pCharInstance = pAttachmentObject->GetICharacterInstance())
+						pCharInstance->GetRandomPoints(part.aPoints, seed, eForm);
+					else if (IStatObj* pStatObj = pAttachmentObject->GetIStatObj())
+						pStatObj->GetRandomPoints(part.aPoints, seed, eForm);
+					else if (IAttachmentSkin* pSkin = pAttachmentObject->GetIAttachmentSkin())
+						pSkin->GetRandomPoints(part.aPoints, seed, eForm);
+				}
+				for (auto& point : part.aPoints)
+					point <<= QuatTS(pAttachment->GetAttModelRelative());
 			}
-			ran <<= QuatTS(pAttachment->GetAttModelRelative());
 		}
 	}
 }

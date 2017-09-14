@@ -3,19 +3,18 @@
 #pragma once
 
 #include <QFrame>
-#include <QMenu>
 
 #include "AudioAssets.h"
 #include "QTreeWidgetFilter.h"
 #include <CryAudio/IAudioInterfacesCommonData.h>
 
 // Forward declarations
+class QMenu;
 class QSortFilterProxyModel;
-class QLineEdit;
+class QSearchBox;
 class QAudioControlsTreeView;
 class QAbstractItemModel;
 class CMountingProxyModel;
-class CCheckableMenu;
 
 namespace ACE
 {
@@ -80,14 +79,11 @@ private:
 
 	CAudioAssetsManager* const m_pAssetsManager;
 
-	// Context Menu
-	QMenu m_addItemMenu;
-
 	// Filtering
 	QString                          m_filter;
-	CCheckableMenu*                  m_pFilterMenu;
+	QMenu*                           m_pFilterMenu;
 
-	QLineEdit*                       m_pTextFilter;
+	QSearchBox*                      m_pSearchBox;
 	CAdvancedTreeView*               m_pControlsTree;
 	CAudioAssetsExplorerModel*       m_pAssetsModel;
 	QControlsProxyFilter*            m_pProxyModel;

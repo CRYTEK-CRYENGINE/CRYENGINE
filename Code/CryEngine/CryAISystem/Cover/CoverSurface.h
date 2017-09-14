@@ -152,7 +152,7 @@ private:
 
 	bool ILINE GetOcclusionBehindSegment(const Vec3& eye, const Vec3& point, const Segment& segment, float* heightSq) const
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		const Sample& left = m_samples[segment.leftIdx];
 		const Sample& right = m_samples[segment.rightIdx];

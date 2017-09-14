@@ -504,7 +504,7 @@ void CGameObject::DebugUpdateState()
 //------------------------------------------------------------------------
 void CGameObject::Update(SEntityUpdateContext& ctx)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (gEnv->pTimer->GetFrameStartTime() != g_lastUpdate)
 	{
@@ -617,7 +617,7 @@ void CGameObject::ForceUpdateExtension(IGameObjectExtension* pExt, int slot)
 //------------------------------------------------------------------------
 void CGameObject::ProcessEvent(SEntityEvent& event)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (m_pEntity)
 	{
@@ -749,6 +749,11 @@ uint64 CGameObject::GetEventMask() const
 	}
 
 	return eventMask;
+}
+
+IEntityComponent::ComponentEventPriority CGameObject::GetEventPriority() const
+{
+	return ENTITY_PROXY_USER + EEntityEventPriority_GameObject;
 }
 
 //------------------------------------------------------------------------
@@ -1143,13 +1148,13 @@ ILINE bool CGameObject::DoGetSetExtensionParams(const char* extension, SmartScri
 
 IGameObjectExtension* CGameObject::QueryExtension(const char* extension) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 	return QueryExtension(m_pGOS->GetID(extension));
 }
 
 IGameObjectExtension* CGameObject::QueryExtension(IGameObjectSystem::ExtensionID id) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	SExtension ext;
 	ext.id = id;

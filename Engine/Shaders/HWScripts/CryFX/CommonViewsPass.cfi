@@ -4,8 +4,6 @@
 
 //////////////////////////////////////////////////////////////////////////
 
-Texture2D<float4> SceneLinearDepthTex : register(t24) = $ZTarget;
-
 sampler2D PNoiseSampler = sampler_state
 {
   Texture = %ENGINE%/EngineAssets/Textures/perlinNoise2D.dds;
@@ -120,9 +118,7 @@ half4 SilhoueteVisionOptimised( vert2fragCustomRender IN )
 	half fMask = 1.0f;
 
 #if !%TEMP_EYES && !%_RT_SAMPLE5
-	const float2 screenTC = IN.screenProj.xy / IN.screenProj.w;
-	int3 vPixCoord = int3(screenTC * CV_ScreenSize.xy, 0);
-	float fDepth = CV_NearFarClipDist.y * SceneLinearDepthTex.Load(vPixCoord).x;
+	float fDepth = GetLinearDepthScaledProj(sceneLinearDepthTex, IN.screenProj);
 	fMask = clamp((fDepth - 1.5f) * 0.333f, 0, 1);
 #endif
 

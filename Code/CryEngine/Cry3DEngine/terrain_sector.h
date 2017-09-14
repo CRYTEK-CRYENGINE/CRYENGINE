@@ -42,6 +42,102 @@ struct SSurfaceTypeInfo
 	void GetMemoryUsage(ICrySizer* pSizer) const { /*nothing*/ }
 };
 
+// this structure used for storing localized surface type ids and weights
+struct SSurfaceTypeLocal
+{
+	enum
+	{
+		kMaxSurfaceTypesNum =  3, // maximum number of surface types allowed to be mixed in single heightmap unit
+		kMaxSurfaceTypeId   = 15, // maximum value of localized surface type id
+		kMaxVal             = 15  // wights and id's are stored in 4 bit uint
+	};
+
+	uint32 GetDominatingSurfaceType() const
+	{
+		return ty[0];
+	}
+
+	const SSurfaceTypeLocal& operator=(int nSurfType)
+	{
+		ZeroStruct(*this);
+		assert(nSurfType >= 0 && nSurfType <= kMaxSurfaceTypeId);
+		we[0] = kMaxVal;
+		ty[0] = nSurfType;
+		return *this;
+	}
+
+	bool operator!=(const SSurfaceTypeLocal& o) const
+	{
+		return memcmp(this, &o, sizeof(o)) != 0;
+	}
+
+	bool operator==(const SSurfaceTypeLocal& o) const
+	{
+		return memcmp(this, &o, sizeof(o)) == 0;
+	}
+
+	static void EncodeIntoUint32(const SSurfaceTypeLocal& si, uint32& rTypes)
+	{
+		uint8* p = (uint8*)&rTypes;
+
+		for (int i = 0; i < kMaxSurfaceTypesNum; i++)
+		{
+			assert(si.we[i] <= kMaxVal);
+			assert(si.ty[i] <= kMaxVal);
+		}
+
+		p[0] = (si.ty[0] & kMaxVal) | ((si.ty[1] & kMaxVal) << 4);
+		p[1] = (si.ty[2] & kMaxVal) | ((si.we[1] & kMaxVal) << 4);
+		p[2] = (si.we[2] & kMaxVal) | (p[2] & (kMaxVal << 4));
+
+		assert((si.we[0] + si.we[1] + si.we[2]) == kMaxVal);
+	}
+
+	static void DecodeFromUint32(const uint32& rTypes, SSurfaceTypeLocal& si)
+	{
+		uint8* p = (uint8*)&rTypes;
+
+		si.ty[0] = (((int)p[0])) & kMaxVal;
+		si.ty[1] = (((int)p[0]) >> 4) & kMaxVal;
+		si.ty[2] = (((int)p[1])) & kMaxVal;
+		si.we[1] = (((int)p[1]) >> 4) & kMaxVal;
+		si.we[2] = (((int)p[2])) & kMaxVal;
+		si.we[0] = CLAMP(kMaxVal - si.we[1] - si.we[2], 0, kMaxVal);
+
+		assert((si.we[0] + si.we[1] + si.we[2]) == kMaxVal);
+	}
+
+	uint8 ty[kMaxSurfaceTypesNum] = { 0 };
+	uint8 we[kMaxSurfaceTypesNum] = { 0 };
+};
+
+// heightmap item containing packed surface types and elevation
+struct SHeightMapItem
+{
+	SHeightMapItem()
+	{
+		SetRaw(0);
+	}
+
+	uint32 surface : 20;
+	uint32 height  : 12;
+
+	uint32 GetRaw()           { return *(uint32*) this; }
+	void   SetRaw(uint32 raw) { *(uint32*) this = raw; }
+
+	bool   operator==(const SHeightMapItem& other)
+	{
+		return memcmp(this, &other, sizeof(SHeightMapItem)) == 0;
+	}
+
+	bool   operator!=(const SHeightMapItem& other)
+	{
+		return memcmp(this, &other, sizeof(SHeightMapItem)) != 0;
+	}
+
+	AUTO_STRUCT_INFO;
+};
+
 struct SRangeInfo
 {
 	SRangeInfo()
@@ -52,9 +148,6 @@ struct SRangeInfo
 		, nUnitBitShift(0)
 		, nModified(0)
 		, pSTPalette(nullptr)
-		, iOffset(0)
-		, iRange(0)
-		, iStep(0)
 	{
 	}
 
@@ -70,7 +163,7 @@ struct SRangeInfo
 		}
 	}
 
-	inline uint32 GetRawDataByIndex(unsigned i) const
+	inline SHeightMapItem GetRawDataByIndex(uint32 i) const
 	{
 		//		assert(i < nSize*nSize);
 		assert(pHMData);
@@ -78,21 +171,21 @@ struct SRangeInfo
 		return pHMData[i];
 	}
 
-	inline uint32 GetRawData(unsigned nX, unsigned nY) const
+	inline SHeightMapItem GetRawData(uint32 x, uint32 y) const
 	{
-		assert(nX < nSize);
-		assert(nY < nSize);
+		assert(x < nSize);
+		assert(y < nSize);
 		assert(pHMData);
 
-		return GetRawDataByIndex(nX * nSize + nY);
+		return GetRawDataByIndex(x * nSize + y);
 	}
 
-	inline float RawDataToHeight(uint32 data) const
+	inline float RawDataToHeight(const SHeightMapItem & data) const
 	{
-		return 0.05f * iOffset + (data >> 4) * iStep * 0.05f;
+		return fOffset + float(data.height) * fRange;
 	}
 
-	inline float GetHeightByIndex(unsigned i) const
+	inline float GetHeightByIndex(uint32 i) const
 	{
 		//		assert(i < nSize*nSize);
 		assert(pHMData);
@@ -100,33 +193,36 @@ struct SRangeInfo
 		return RawDataToHeight(pHMData[i]);
 	}
 
-	inline float GetHeight(unsigned nX, unsigned nY) const
+	inline float GetHeight(uint32 x, uint32 y) const
 	{
-		assert(nX < nSize);
-		assert(nY < nSize);
+		assert(x < nSize);
+		assert(y < nSize);
 		assert(pHMData);
 
-		return GetHeightByIndex(nX * nSize + nY);
+		return GetHeightByIndex(x * nSize + y);
 	}
 
-	inline uint32 GetSurfaceTypeByIndex(unsigned i) const
+	inline uint32 GetSurfaceTypeByIndex(uint32 i) const
 	{
 		//		assert(i < nSize*nSize);
 		assert(pHMData);
 
-		return pHMData[i] & e_index_hole;
+		SSurfaceTypeLocal si;
+		SSurfaceTypeLocal::DecodeFromUint32(pHMData[i].surface, si);
+
+		return si.GetDominatingSurfaceType() & e_index_hole;
 	}
 
-	inline uint32 GetSurfaceType(unsigned nX, unsigned nY) const
+	inline uint32 GetSurfaceType(uint32 x, uint32 y) const
 	{
-		assert(nX < nSize);
-		assert(nY < nSize);
+		assert(x < nSize);
+		assert(y < nSize);
 		assert(pHMData);
 
-		return GetSurfaceTypeByIndex(nX * nSize + nY);
+		return GetSurfaceTypeByIndex(x * nSize + y);
 	}
 
-	inline void SetDataLocal(int nX, int nY, uint16 usValue)
+	inline void SetDataLocal(int nX, int nY, SHeightMapItem usValue)
 	{
 		assert(nX >= 0 && nX < (int)nSize);
 		assert(nY >= 0 && nY < (int)nSize);
@@ -134,7 +230,7 @@ struct SRangeInfo
 		pHMData[nX * nSize + nY] = usValue;
 	}
 
-	inline uint16 GetDataUnits(int nX_units, int nY_units) const
+	inline SHeightMapItem GetDataUnits(int nX_units, int nY_units) const
 	{
 		int nMask = nSize - 2;
 		int nX = nX_units >> nUnitBitShift;
@@ -143,64 +239,16 @@ struct SRangeInfo
 	}
 
 	// Finds or selects a 4-bit index in this sector (0-14) to represent the given global surface type index (0-126).
-	uint16 GetLocalSurfaceTypeID(uint16 usGlobalSurfaceTypeID)
-	{
-		if (pSTPalette)
-		{
-			if (usGlobalSurfaceTypeID == e_undefined) return e_index_undefined;
-			if (usGlobalSurfaceTypeID == e_hole) return e_index_hole;
-
-			// Check if a local entry has already been assigned for this global entry.
-			for (uint16 i = 0; i < e_index_undefined; i++)
-				if (pSTPalette[i] == usGlobalSurfaceTypeID)
-					return i;
-			// No local entry has been assigned; look for an entry that is marked as currently unused.
-			for (uint16 i = 0; i < e_index_undefined; i++)
-				if (pSTPalette[i] == e_undefined)
-				{
-					pSTPalette[i] = (uchar)usGlobalSurfaceTypeID;
-					return i;
-				}
-			// No local entry is marked as unused; look for one whose local ID does not actually occur in the data.
-			int nUsageCounters[e_palette_size];
-			memset(nUsageCounters, 0, sizeof(nUsageCounters));
-			int nCount = nSize * nSize;
-
-			for (uint16 i = 0; i < nCount; i++) nUsageCounters[pHMData[i] & e_index_hole]++;
-			for (uint16 i = 0; i < e_index_undefined; i++)
-				if (!nUsageCounters[i])
-				{
-					pSTPalette[i] = (uchar)usGlobalSurfaceTypeID;
-					return i;
-				}
-			// Could not assign a local ID; mark the problem area with holes. (Should not happen, we have integrity checks.)
-			return e_index_undefined;
-		}
-		else
-		{
-			// If the sector still has no palette, create one and assign local ID 0.
-			pSTPalette = new uchar[e_palette_size];
-
-			for (int i = 0; i < e_index_hole; pSTPalette[i++] = e_undefined);
-
-			pSTPalette[0] = (uchar)usGlobalSurfaceTypeID;
-			pSTPalette[e_index_hole] = e_hole;
-			return 0;
-		}
-	}
+	uint16 GetLocalSurfaceTypeID(uint16 usGlobalSurfaceTypeID);
 
 	float   fOffset;
 	float   fRange;
-	uint16* pHMData;
+	SHeightMapItem*pHMData;
 
 	uint16  nSize;
 	uint8   nUnitBitShift;
 	uint8   nModified;
 	uchar*  pSTPalette; // Maps the local surface type indices from the HM to the global ones in CTerrain
-
-	int     iOffset;
-	int     iRange;
-	int     iStep;
 
 	enum
 	{
@@ -295,7 +343,7 @@ class CProcObjSector : public Cry3DEngineBase
 public:
 	CProcObjSector() { m_nProcVegetNum = 0; m_ProcVegetChunks.PreAllocate(32); }
 	~CProcObjSector();
-	CVegetation* AllocateProcObject(int nSID);
+	CVegetation* AllocateProcObject();
 	void         ReleaseAllObjects();
 	int          GetUsedInstancesCount(int& nAll) { nAll = m_ProcVegetChunks.Count(); return m_nProcVegetNum; }
 	void         GetMemoryUsage(ICrySizer* pSizer) const;
@@ -358,9 +406,8 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	void         StartSectorTexturesStreaming(bool bFinishNow);
 
-	void         Init(int x1, int y1, int nNodeSize, CTerrainNode* pParent, bool bBuildErrorsTable, int nSID);
+	void         Init(int x1, int y1, int nNodeSize, CTerrainNode* pParent, bool bBuildErrorsTable);
 	CTerrainNode() :
-		m_nSID(0),
 		m_nNodeTexSet(),
 		m_nTexSet(),
 		m_nNodeTextureOffset(-1),
@@ -373,14 +420,15 @@ public:
 		m_nSetLodFrameId(0),
 		m_pGeomErrors(0),
 		m_pProcObjPoolPtr(0),
-		m_nGSMFrameId(0)
+		m_nGSMFrameId(0),
+		m_bHMDataIsModified(0)
 	{
 		memset(&m_arrfDistance, 0, sizeof(m_arrfDistance));
 		m_nNodesCounter++;
 	}
 	~CTerrainNode();
 	static void   ResetStaticData();
-	bool          CheckVis(bool bAllIN, bool bAllowRenderIntoCBuffer, const Vec3& vSegmentOrigin, const SRenderingPassInfo& passInfo);
+	bool          CheckVis(bool bAllIN, bool bAllowRenderIntoCBuffer, const SRenderingPassInfo& passInfo);
 	void          SetupTexturing(bool bMakeUncompressedForEditing, const SRenderingPassInfo& passInfo);
 	void          RequestTextures(const SRenderingPassInfo& passInfo);
 	void          EnableTextureEditingMode(unsigned int textureId);
@@ -404,7 +452,6 @@ public:
 	int           GetData(byte*& pData, int& nDataSize, EEndian eEndian, SHotUpdateInfo* pExportInfo);
 	void          CalculateTexGen(const CTerrainNode* pTextureSourceNode, float& fTexOffsetX, float& fTexOffsetY, float& fTexScale);
 	void          FillSectorHeightMapTextureData(Array2d<float> &arrHmData);
-	void          RescaleToInt();
 
 	template<class T>
 	int   Load_T(T*& f, int& nDataSize, EEndian eEndian, bool bSectorPalettes, SHotUpdateInfo* pExportInfo);
@@ -429,16 +476,15 @@ public:
 
 	void                UpdateRenderMesh(struct CStripsInfo* pArrayInfo, bool bUpdateVertices);
 	void                BuildVertices(float stepSize, bool bSafetyBorder);
-	void                SetVertexSurfaceType(float x, float y, float stepSize, CTerrain* pTerrain, const int nSID, SVF_P2S_N4B_C4B_T1F &vert);
-	void                SetVertexNormal(float x, float y, const float iLookupRadius, CTerrain* pTerrain, const int nTerrainSize, const int nSID, SVF_P2S_N4B_C4B_T1F &vert, Vec3 * pTerrainNorm = nullptr);
-	void                AppendTrianglesFromObjects(const int nOriginX, const int nOriginY, CTerrain* pTerrain, const int nSID, const float stepSize, const int nTerrainSize);
+	void                SetVertexSurfaceType(float x, float y, float stepSize, CTerrain* pTerrain, SVF_P2S_N4B_C4B_T1F &vert);
+	void                SetVertexNormal(float x, float y, const float iLookupRadius, CTerrain* pTerrain, const int nTerrainSize, SVF_P2S_N4B_C4B_T1F &vert, Vec3 * pTerrainNorm = nullptr);
+	void                AppendTrianglesFromObjects(const int nOriginX, const int nOriginY, CTerrain* pTerrain, const float stepSize, const int nTerrainSize);
 
 	int                 GetMML(int dist, int mmMin, int mmMax);
 
 	uint32                       GetLastTimeUsed() { return m_nLastTimeUsed; }
 
-	void AddIndexAliased(float x, float y, float stepSize, float fSectorSize, CStripsInfo* pArrayInfo);
-	static void                  GenerateIndicesForAllSurfaces(IRenderMesh* pRM, bool bOnlyBorder, int arrpNonBorderIdxNum[SRangeInfo::e_max_surface_types][4], int nBorderStartIndex, SSurfaceTypeInfo* pSurfaceTypeInfos, int nSID, CUpdateTerrainTempData* pUpdateTerrainTempData = NULL);
+	static void                  GenerateIndicesForAllSurfaces(IRenderMesh* pRM, bool bOnlyBorder, int arrpNonBorderIdxNum[SRangeInfo::e_max_surface_types][4], int nBorderStartIndex, SSurfaceTypeInfo* pSurfaceTypeInfos, CUpdateTerrainTempData* pUpdateTerrainTempData = NULL);
 	void                         BuildIndices(CStripsInfo& si, bool bSafetyBorder, const SRenderingPassInfo& passInfo);
 
 	void                         BuildIndices_Wrapper(SRenderingPassInfo passInfo);
@@ -517,7 +563,6 @@ public:
 	SSectorTextureSet          m_nNodeTexSet, m_nTexSet; // texture id's
 
 	uint16                     m_nNodeTextureLastUsedSec4;
-	uint16                     m_nSID;
 
 	AABB                       m_boxHeigtmapLocal;
 	float                      m_fBBoxExtentionByObjectsIntegration;
@@ -537,6 +582,7 @@ public:
 	static int                     m_nNodesCounter;
 
 	OcclusionTestClient            m_occlusionTestClient;
+	bool                           m_bHMDataIsModified;
 };
 
 // Container to manager temp memory as well as running update jobs
@@ -588,8 +634,7 @@ struct STerrainNodeChunk
 
 inline const AABB CTerrainNode::GetBBox() const
 {
-	const Vec3& vOrigin = GetTerrain()->m_arrSegmentOrigns[m_nSID];
-	return AABB(m_boxHeigtmapLocal.min + vOrigin, m_boxHeigtmapLocal.max + vOrigin + Vec3(0, 0, m_fBBoxExtentionByObjectsIntegration));
+	return AABB(m_boxHeigtmapLocal.min, m_boxHeigtmapLocal.max + Vec3(0, 0, m_fBBoxExtentionByObjectsIntegration));
 }
 
 #endif

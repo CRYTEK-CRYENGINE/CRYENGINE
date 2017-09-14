@@ -358,6 +358,7 @@ void CAudioAssetsManager::OnControlModified(CAudioControl* pControl)
 //////////////////////////////////////////////////////////////////////////
 void CAudioAssetsManager::SetAssetModified(IAudioAsset* pAsset)
 {
+	UpdateLibraryConnectionStates(pAsset);
 	m_bControlTypeModified[ItemTypeToIndex(pAsset->GetType())] = true;
 	signalIsDirty(true);
 }
@@ -449,10 +450,107 @@ void CAudioAssetsManager::ReloadAllConnections()
 			pControl->ReloadConnections();
 		}
 	}
-
+	
 	m_bLoading = false;
 }
 
+//////////////////////////////////////////////////////////////////////////
+void CAudioAssetsManager::UpdateAllConnectionStates()
+{
+	for (auto const pLibrary : m_audioLibraries)
+	{
+		UpdateAssetConnectionStates(pLibrary);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CAudioAssetsManager::UpdateLibraryConnectionStates(IAudioAsset* pAsset)
+{
+	while ((pAsset != nullptr) && (pAsset->GetType() != EItemType::eItemType_Library))
+	{
+		pAsset = pAsset->GetParent();
+	}
+
+	if (pAsset != nullptr)
+	{
+		UpdateAssetConnectionStates(pAsset);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CAudioAssetsManager::UpdateAssetConnectionStates(IAudioAsset* pAsset)
+{
+	if (pAsset != nullptr)
+	{
+		if ((pAsset->GetType() == EItemType::eItemType_Library) || (pAsset->GetType() == EItemType::eItemType_Folder) || (pAsset->GetType() == EItemType::eItemType_Switch))
+		{
+			bool bHasPlaceholder = false;
+			bool bHasNoConnection = false;
+			bool bHasControl = false;
+			int const childCount = pAsset->ChildCount();
+
+			for (int i = 0; i < childCount; ++i)
+			{
+				auto const pChild = pAsset->GetChild(i);
+
+				UpdateAssetConnectionStates(pChild);
+
+				if (pChild->HasPlaceholderConnection())
+				{
+					bHasPlaceholder = true;
+				}
+
+				if (!pChild->HasConnection())
+				{
+					bHasNoConnection = true;
+				}
+				
+				if (pChild->HasControl())
+				{
+					bHasControl = true;
+				}
+			}
+
+			pAsset->SetHasPlaceholderConnection(bHasPlaceholder);
+			pAsset->SetHasConnection(!bHasNoConnection);
+			pAsset->SetHasControl(bHasControl);
+		}
+		else if (pAsset->GetType() != EItemType::eItemType_Invalid)
+		{
+			CAudioControl* pControl = static_cast<CAudioControl*>(pAsset);
+
+			if (pControl != nullptr)
+			{
+				pControl->SetHasControl(true);
+				bool bHasPlaceholder = false;
+				bool bHasConnection = false;
+				int const connectionCount = pControl->GetConnectionCount();
+
+				for (int i = 0; i < connectionCount; ++i)
+				{
+					bHasConnection = true;
+					IAudioSystemEditor* const pAudioSystemImpl = CAudioControlsEditorPlugin::GetImplementationManger()->GetImplementation();
+
+					if (pAudioSystemImpl != nullptr)
+					{
+						IAudioSystemItem* const pAudioSystemControl = pAudioSystemImpl->GetControl(pControl->GetConnectionAt(i)->GetID());
+
+						if (pAudioSystemControl != nullptr)
+						{
+							if (pAudioSystemControl->IsPlaceholder())
+							{
+								bHasPlaceholder = true;
+							}
+						}
+					}
+				}
+
+				pControl->SetHasPlaceholderConnection(bHasPlaceholder);
+				pControl->SetHasConnection(bHasConnection);
+			}
+		}
+	}
+}
 //////////////////////////////////////////////////////////////////////////
 void CAudioAssetsManager::MoveItems(IAudioAsset* pParent, std::vector<IAudioAsset*> const& items)
 {

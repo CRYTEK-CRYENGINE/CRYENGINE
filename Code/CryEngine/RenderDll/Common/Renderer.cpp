@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+﻿// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -61,6 +61,41 @@ namespace
 		{ if (_bActive) _lock.Unlock(); }
 	};
 }
+
+// Enum -> Bitmask lookup table
+uint32 ColorMasks[(ColorMask::Count >> GS_COLMASK_SHIFT)][4] =
+{
+	{ 0x0, 0x0, 0x0, 0x0 }, // GS_NOCOLMASK_NONE
+	{ 0x1, 0x1, 0x1, 0x1 }, // GS_NOCOLMASK_R
+	{ 0x2, 0x2, 0x2, 0x2 }, // GS_NOCOLMASK_G
+	{ 0x4, 0x4, 0x4, 0x4 }, // GS_NOCOLMASK_B
+	{ 0x8, 0x8, 0x8, 0x8 }, // GS_NOCOLMASK_A
+	{ 0xE, 0xE, 0xE, 0xE }, // GS_NOCOLMASK__GBA
+	{ 0xD, 0xD, 0xD, 0xD }, // GS_NOCOLMASK_R_BA
+	{ 0xB, 0xB, 0xB, 0xB }, // GS_NOCOLMASK_RG_A
+	{ 0x7, 0x7, 0x7, 0x7 }, // GS_NOCOLMASK_RGB_
+	{ 0xF, 0xF, 0xF, 0xF }, // GS_NOCOLMASK_RGBA
+	{ 0x8, 0x8, 0xC, 0x8 }, // GS_NOCOLMASK_GBUFFER_OVERLAY
+};
+
+// Bitmask -> Enum lookup table
+std::array<uint32, (ColorMask::Count >> GS_COLMASK_SHIFT)> AvailableColorMasks =
+{
+	{ 
+		0x0, // GS_NOCOLMASK_NONE
+		0x1, // GS_NOCOLMASK_R
+		0x2, // GS_NOCOLMASK_G
+		0x4, // GS_NOCOLMASK_B
+		0x8, // GS_NOCOLMASK_A
+		0xE, // GS_NOCOLMASK__GBA
+		0xD, // GS_NOCOLMASK_R_BA
+		0xB, // GS_NOCOLMASK_RG_A
+		0x7, // GS_NOCOLMASK_RGB_
+		0xF, // GS_NOCOLMASK_RGBA
+		0xC  // GS_NOCOLMASK_GBUFFER_OVERLAY
+	} 
+};
+
 
 bool QueryIsFullscreen();
 
@@ -270,7 +305,6 @@ void CRenderer::InitRenderer()
 	m_IdentityMatrix.SetIdentity();
 
 	m_vProjMatrixSubPixoffset = Vec2(0.0f, 0.0f);
-	m_vSegmentedWorldOffset   = Vec3(ZERO);
 
 	m_RP.m_newOcclusionCameraProj.SetIdentity();
 	m_RP.m_newOcclusionCameraView.SetIdentity();
@@ -358,7 +392,14 @@ void CRenderer::PostInit()
 
 	// load all default textures
 	if (!m_bShaderCacheGen && m_pTextureManager)
+	{
+		if (ISystemUserCallback* pUserCallback = gEnv->pSystem->GetUserCallback())
+		{
+			pUserCallback->OnInitProgress("Preloading default textures...");
+		}
+
 		m_pTextureManager->PreloadDefaultTextures();
+	}
 
 	if (!m_bShaderCacheGen)
 	{
@@ -367,7 +408,14 @@ void CRenderer::PostInit()
 
 		// Create system resources while in fast load phase
 		if (bIntroMoviesDuringInit == false)    // don't create resources here when we have a movies during init, else we get concurrent device context access
+		{
+			if (ISystemUserCallback* pUserCallback = gEnv->pSystem->GetUserCallback())
+			{
+				pUserCallback->OnInitProgress("Compiling default renderer resources...");
+			}
+
 			gEnv->pRenderer->InitSystemResources(FRR_SYSTEM_RESOURCES);
+		}
 	}
 
 }
@@ -733,13 +781,16 @@ void CRenderer::InitSystemResources(int nFlags)
 		CTexture::s_bPrecachePhase = false;
 
 		ForceFlushRTCommands();
+
 		m_cEF.mfPreloadBinaryShaders();
 		m_cEF.mfLoadBasicSystemShaders();
 		m_cEF.mfLoadDefaultSystemShaders();
 
 		CTexture::LoadScaleformSystemTextures();
 		CTexture::LoadDefaultSystemTextures();
+
 		m_pRT->RC_CreateRenderResources();
+
 		m_pRT->RC_PrecacheDefaultShaders();
 		m_pRT->RC_CreateSystemTargets();
 		ForceFlushRTCommands();
@@ -1066,9 +1117,9 @@ bool CRenderer::EF_ReloadFile_Request (const char* szFileName)
 	int  nameLength = __min(strlen(szFileName), size_t(MAX_PATH));
 	memcpy(realName, szFileName, nameLength);
 	realName[nameLength] = 0;
-	static const char* tifExtension    = "tif";
-	static const char* ddsExtension    = "dds";
-	static const int   extensionLength = 3;
+	static const char* tifExtension    = ".tif"; // Must start with "." to distinguish from ".*tif"
+	static const char* ddsExtension    = ".dds";
+	static const int   extensionLength = 4;
 
 	if (nameLength >= extensionLength && memcmp(realName + nameLength - extensionLength, tifExtension, extensionLength) == 0)
 		memcpy(realName + nameLength - extensionLength, ddsExtension, extensionLength);
@@ -1101,9 +1152,9 @@ bool CRenderer::EF_ReloadFile (const char* szFileName)
 	int  nameLength = __min(strlen(szFileName), size_t(MAX_PATH));
 	memcpy(realName, szFileName, nameLength);
 	realName[nameLength] = 0;
-	static const char* tifExtension    = "tif";
-	static const char* ddsExtension    = "dds";
-	static const int   extensionLength = 3;
+	static const char* tifExtension    = ".tif"; // Must start with "." to distinguish from ".*tif"
+	static const char* ddsExtension    = ".dds";
+	static const int   extensionLength = 4;
 
 #if defined(CRY_ENABLE_RC_HELPER)
 	if (nameLength >= extensionLength && (memcmp(realName + nameLength - extensionLength, tifExtension, extensionLength) == 0 ||
@@ -1320,7 +1371,7 @@ bool SShaderItem::RefreshResourceConstants()
 
 void CRenderer::EF_StartEf (const SRenderingPassInfo& passInfo)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_RENDERER);
+	FUNCTION_PROFILER_RENDERER();
 
 	m_beginFrameCount++;
 
@@ -1402,7 +1453,7 @@ void CRenderer::RT_DisableTemporalEffects()
 
 void CRenderer::EF_SubmitWind(const SWindGrid* pWind)
 {
-	FUNCTION_PROFILER_RENDERER
+	FUNCTION_PROFILER_RENDERER();
 
 	m_pRT->RC_SubmitWind(pWind);
 }
@@ -1840,20 +1891,18 @@ bool CRenderer::EF_UpdateDLight(SRenderLight* dl)
 		if (pPosTrack && pPosTrack->GetNumKeys() > 0 &&
 			!(pPosTrack->GetFlags() & IAnimTrack::eAnimTrackFlags_Disabled))
 		{
-			Vec3 vOffset(0, 0, 0);
 			float duration = max(pPosTrack->GetKeyTime(pPosTrack->GetNumKeys() - 1).ToFloat(), 0.001f);
 			float timeNormalized = static_cast<float>(fmod(time + phase*duration, duration));
-			vOffset = stl::get<Vec3>(pPosTrack->GetValue(timeNormalized));
+			Vec3 vOffset = stl::get<Vec3>(pPosTrack->GetValue(timeNormalized));
 			dl->m_Origin = dl->m_BaseOrigin + vOffset;
 		}
 
 		if (pRotTrack && pRotTrack->GetNumKeys() > 0 &&
 			!(pRotTrack->GetFlags() & IAnimTrack::eAnimTrackFlags_Disabled))
 		{
-			Vec3 vRot(0, 0, 0);
 			float duration = max(pRotTrack->GetKeyTime(pRotTrack->GetNumKeys() - 1).ToFloat(), 0.001f);
 			float timeNormalized = static_cast<float>(fmod(time + phase*duration, duration));
-			vRot = stl::get<Vec3>(pRotTrack->GetValue(timeNormalized));
+			Vec3 vRot = stl::get<Vec3>(pRotTrack->GetValue(timeNormalized));
 			static_cast<CDLight*>(dl)->SetMatrix(
 				dl->m_BaseObjMatrix * Matrix34::CreateRotationXYZ(Ang3(DEG2RAD(vRot.x), DEG2RAD(vRot.y), DEG2RAD(vRot.z))),
 				false);
@@ -1862,10 +1911,9 @@ bool CRenderer::EF_UpdateDLight(SRenderLight* dl)
 		if (pColorTrack && pColorTrack->GetNumKeys() > 0 &&
 			!(pColorTrack->GetFlags() & IAnimTrack::eAnimTrackFlags_Disabled))
 		{
-			Vec3 vColor(dl->m_Color.r, dl->m_Color.g, dl->m_Color.b);
 			float duration = max(pColorTrack->GetKeyTime(pColorTrack->GetNumKeys() - 1).ToFloat(), 0.001f);
 			float timeNormalized = static_cast<float>(fmod(time + phase*duration, duration));
-			vColor = stl::get<Vec3>(pColorTrack->GetValue(timeNormalized));
+			Vec3 vColor = stl::get<Vec3>(pColorTrack->GetValue(timeNormalized));
 			dl->m_Color = ColorF(vColor.x / 255.0f, vColor.y / 255.0f, vColor.z / 255.0f);
 		}
 		else
@@ -1876,44 +1924,40 @@ bool CRenderer::EF_UpdateDLight(SRenderLight* dl)
 		if (pDiffMultTrack && pDiffMultTrack->GetNumKeys() > 0 &&
 			!(pDiffMultTrack->GetFlags() & IAnimTrack::eAnimTrackFlags_Disabled))
 		{
-			float diffMult = 1.0;
 			float duration = max(pDiffMultTrack->GetKeyTime(pDiffMultTrack->GetNumKeys() - 1).ToFloat(), 0.001f);
 			float timeNormalized = static_cast<float>(fmod(time + phase*duration, duration));
-			diffMult = stl::get<float>(pDiffMultTrack->GetValue(timeNormalized));
-			dl->m_Color *= diffMult;
+			float diffMult = stl::get<float>(pDiffMultTrack->GetValue(timeNormalized));
+			dl->m_Color = dl->m_BaseColor * diffMult;
 		}
 
 		if (pRadiusTrack && pRadiusTrack->GetNumKeys() > 0 &&
 			!(pRadiusTrack->GetFlags() & IAnimTrack::eAnimTrackFlags_Disabled))
 		{
-			float radius = dl->m_fRadius;
 			float duration = max(pRadiusTrack->GetKeyTime(pRadiusTrack->GetNumKeys() - 1).ToFloat(), 0.001f);
 			float timeNormalized = static_cast<float>(fmod(time + phase*duration, duration));
-			radius = stl::get<float>(pRadiusTrack->GetValue(timeNormalized));
-			dl->m_fRadius = radius;
+			float radius = stl::get<float>(pRadiusTrack->GetValue(timeNormalized));
+			dl->SetRadius(radius);
 		}
 
 		if (pSpecMultTrack && pSpecMultTrack->GetNumKeys() > 0 &&
 			!(pSpecMultTrack->GetFlags() & IAnimTrack::eAnimTrackFlags_Disabled))
 		{
-			float specMult = dl->m_SpecMult;
 			float duration = max(pSpecMultTrack->GetKeyTime(pSpecMultTrack->GetNumKeys() - 1).ToFloat(), 0.001f);
 			float timeNormalized = static_cast<float>(fmod(time + phase*duration, duration));
-			specMult = stl::get<float>(pSpecMultTrack->GetValue(timeNormalized));
+			float specMult = stl::get<float>(pSpecMultTrack->GetValue(timeNormalized));
 			dl->m_SpecMult = specMult;
 		}
 
 		if (pHDRDynamicTrack && pHDRDynamicTrack->GetNumKeys() > 0 &&
 			!(pHDRDynamicTrack->GetFlags() & IAnimTrack::eAnimTrackFlags_Disabled))
 		{
-			float hdrDynamic = dl->m_fHDRDynamic;
 			float duration = max(pHDRDynamicTrack->GetKeyTime(pHDRDynamicTrack->GetNumKeys() - 1).ToFloat(), 0.001f);
 			float timeNormalized = static_cast<float>(fmod(time + phase*duration, duration));
-			hdrDynamic = stl::get<float>(pHDRDynamicTrack->GetValue(timeNormalized));
+			float hdrDynamic = stl::get<float>(pHDRDynamicTrack->GetValue(timeNormalized));
 			dl->m_fHDRDynamic = hdrDynamic;
 		}
 	}
-	else if(nStyle > 0 && nStyle < CLightStyle::s_LStyles.Num() && CLightStyle::s_LStyles[nStyle])
+	else if (nStyle > 0 && nStyle < CLightStyle::s_LStyles.Num() && CLightStyle::s_LStyles[nStyle])
 	{
 		CLightStyle* ls = CLightStyle::s_LStyles[nStyle];
 
@@ -1933,6 +1977,8 @@ bool CRenderer::EF_UpdateDLight(SRenderLight* dl)
 	{
 		dl->m_Color = dl->m_BaseColor;
 	}
+
+	dl->ComputeEffectiveRadius();
 
 	/*if(IsHDRModeEnabled() && !(dl->m_Flags&(DLF_SUN|DLF_POST_3D_RENDERER)))
 	   {
@@ -2605,7 +2651,7 @@ _smart_ptr<IRenderMesh> CRenderer::CreateRenderMeshInitialized(
 	void* CustomData, bool bOnlyVideoBuffer, bool bPrecache,
 	const SPipTangents* pTangents, bool bLockForThreadAcc, Vec3* pNormals)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMeshType, 0, szType);
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMesh, 0, szSourceName);
@@ -2738,7 +2784,7 @@ bool CRenderer::EF_PrecacheResource(IRenderMesh* _pPB, IMaterial* pMaterial, flo
 
 bool CRenderer::EF_PrecacheResource(CDLight* pLS, float fMipFactor, float fTimeToReady, int Flags, int nUpdateId)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
 	if (!CRenderer::CV_r_texturesstreaming)
 		return true;
@@ -2994,7 +3040,7 @@ DECLARE_JOB("DXTCompressRowFloat", TDXTCompressRowFloat, DXTCompressRowFloat);
 
 bool CRenderer::DXTDecompress(byte* sourceData, const size_t srcFileSize, byte* destinationData, int width, int height, int mips, ETEX_Format sourceFormat, bool bUseHW, int nDstBytesPerPix)
 {
-	FUNCTION_PROFILER_RENDERER
+	FUNCTION_PROFILER_RENDERER();
 
 	if (bUseHW)
 		return false;
@@ -3152,7 +3198,7 @@ bool CRenderer::DXTDecompress(byte* sourceData, const size_t srcFileSize, byte* 
 
 bool CRenderer::DXTCompress(byte* sourceData, int width, int height, ETEX_Format destinationFormat, bool bUseHW, bool bGenMips, int nSrcBytesPerPix, MIPDXTcallback callback)
 {
-	FUNCTION_PROFILER_RENDERER
+	FUNCTION_PROFILER_RENDERER();
 
 	if (bUseHW)
 		return false;
@@ -4424,14 +4470,7 @@ CRenderView* CRenderer::GetRenderViewForThread(int nThreadID, IRenderView::EView
 
 Matrix44A CRenderer::GetCameraMatrix()
 {
-	if (m_vSegmentedWorldOffset.IsZero())
-		return m_CameraMatrix;
-
-	static const Matrix33 matRotX = Matrix33::CreateRotationX(-gf_PI / 2);
-	Matrix34 matCam               = GetCamera().GetMatrix();
-	matCam.SetTranslation(matCam.GetTranslation() + m_vSegmentedWorldOffset);
-	Matrix44A matView = Matrix44A(matRotX * matCam.GetInverted()).GetTransposed();
-	return matView;
+	return m_CameraMatrix;
 }
 
 const Matrix44A& CRenderer::GetPreviousFrameCameraMatrix() const
@@ -4442,13 +4481,6 @@ const Matrix44A& CRenderer::GetPreviousFrameCameraMatrix() const
 void CRenderer::SetPreviousFrameCameraMatrix(const Matrix44A& m)
 {
 	gRenDev->m_CameraMatrixPrev[m_CurViewportID][m_CurRenderEye] = m;
-}
-
-void CRenderer::OffsetPosition(const Vec3& delta)
-{
-#ifdef SEG_WORLD
-	m_vSegmentedWorldOffset = delta;
-#endif
 }
 
 void CRenderer::GetPolyCount(int& nPolygons, int& nShadowPolys)
@@ -4617,6 +4649,9 @@ void CRenderer::ForceRemoveNodeFromDrawCallsMap(IRenderNode* pNode)
 
 void CRenderer::ClearDrawCallsInfo()
 {
+	if (&gcpRendD3D->GetGraphicsPipeline() == nullptr)
+		return;
+
 	gcpRendD3D->GetGraphicsPipeline().GetDrawCallInfoPerNode()->clear();
 	gcpRendD3D->GetGraphicsPipeline().GetDrawCallInfoPerMesh()->clear();
 }

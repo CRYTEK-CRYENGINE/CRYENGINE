@@ -185,7 +185,12 @@ bool CollectMtlDetails(XmlNodeRef& xmlnode, const char* szFilename, IResourceCom
 				{
 					continue;
 				}
-				dependencies.emplace_back(PathUtil::ReplaceExtension(filename, "dds"));
+				const string path = PathUtil::ReplaceExtension(filename, "dds");
+				if (std::any_of(dependencies.begin(), dependencies.end(), [&path](const string& x) { return path.CompareNoCase(x) == 0; }))
+				{
+					continue;
+				}
+				dependencies.emplace_back(path);
 				++textureCount;
 			}
 		}

@@ -12,7 +12,7 @@
 
 class CryIcon;
 
-class QTreeView;
+class QAdvancedTreeView;
 class QVariant;
 
 class CSceneElementSkin;

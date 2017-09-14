@@ -289,7 +289,7 @@ void CNetContext::ActivateDemoPlayback(const char* filename, INetChannel* pClien
 void CNetContext::SyncWithGame(ENetworkGameSync type)
 {
 	ASSERT_GLOBAL_LOCK;
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 	ENSURE_REALTIME;
 
 	SNetObjectEvent syncEvent;

@@ -133,7 +133,8 @@ public:
 	const char* getContent() const          { return _string(_node()->nContentStringOffset); };
 	void        setContent(const char* str) { assert(0); };
 
-	XmlNodeRef  clone()                     { assert(0); return 0; };
+	//! Typically creates a clone of the XML node, but since we are disallowing writing anyway we simply return the current node.
+	XmlNodeRef  clone()                     { return this; };
 
 	//! Returns line number for XML tag.
 	int  getLine() const   { return 0; };

@@ -662,7 +662,7 @@ bool CDecalManager::Spawn(CryEngineDecalInfo DecalInfo, CDecal* pCallerManagedDe
 	{
 		CTerrain* pTerrain = GetTerrain();
 		if (!DecalInfo.preventDecalOnGround && DecalInfo.fSize > (fWrapMinSize * 2.f) && !DecalInfo.ownerInfo.pRenderNode &&
-		    (DecalInfo.vPos.z - pTerrain->GetZApr(DecalInfo.vPos.x, DecalInfo.vPos.y, GetDefSID())) < DecalInfo.fSize && !DecalInfo.bDeferred)
+		    (DecalInfo.vPos.z - pTerrain->GetZApr(DecalInfo.vPos.x, DecalInfo.vPos.y)) < DecalInfo.fSize && !DecalInfo.bDeferred)
 		{
 			newDecal.m_eDecalType = eDecalType_WS_OnTheGround;
 
@@ -676,7 +676,7 @@ bool CDecalManager::Spawn(CryEngineDecalInfo DecalInfo, CDecal* pCallerManagedDe
 			{
 				for (float y = y1; y <= y2; y += CTerrain::GetHeightMapUnitSize())
 				{
-					if (pTerrain->GetHole(x, y, GetDefSID()))
+					if (pTerrain->GetHole(x, y))
 					{
 						return false;
 					}

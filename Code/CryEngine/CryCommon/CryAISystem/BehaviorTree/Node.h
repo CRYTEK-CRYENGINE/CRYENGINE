@@ -21,7 +21,7 @@ public:
 	//!  terminated.
 	virtual Status Tick(const UpdateContext& unmodifiedContext) override
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	#ifdef DEBUG_MODULAR_BEHAVIOR_TREE
 		DebugTree* debugTree = unmodifiedContext.debugTree;

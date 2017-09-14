@@ -33,7 +33,7 @@ end_sources()
 #END-FILE-LIST
 
 if(AUDIO_FMOD)
-	CryEngineModule(CryAudioImplFmod FORCE_SHARED PCH "stdafx.cpp" SOLUTION_FOLDER "CryEngine/Audio/Implementations")
+	CryEngineModule(CryAudioImplFmod FORCE_SHARED_WIN PCH "stdafx.cpp" SOLUTION_FOLDER "CryEngine/Audio/Implementations")
 	target_include_directories(CryAudioImplFmod PRIVATE ../../Common)
 	target_link_libraries(CryAudioImplFmod PRIVATE fmod fmodstudio)
 else()

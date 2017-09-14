@@ -114,14 +114,14 @@ struct CVisArea : public IVisArea, public CBasicArea
 	const char*             GetName()                   { return m_pVisAreaColdData->m_sName; }
 #if ENGINE_ENABLE_COMPILATION
 	int                     SaveHeader(byte*& pData, int& nDataSize);
-	int                     SaveObjetsTree(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, byte* pHead, const Vec3& segmentOffset);
+	int                     SaveObjetsTree(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, byte* pHead);
 	int                     GetData(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo);
-	int                     GetSegmentData(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, const Vec3& segmentOffset);
+	int                     GetSegmentData(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo);
 #endif
 	template<class T>
 	int                LoadHeader_T(T*& f, int& nDataSizeLeft, EEndian eEndian, int& objBlockSize);
 	template<class T>
-	int                LoadObjectsTree_T(T*& f, int& nDataSizeLeft, int nSID, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, const int objBlockSize, const Vec3& segmentOffset);
+	int                LoadObjectsTree_T(T*& f, int& nDataSizeLeft, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, const int objBlockSize);
 	template<class T>
 	int                Load_T(T*& f, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, SHotUpdateInfo* pExportInfo);
 	int                Load(byte*& f, int& nDataSizeLeft, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, SHotUpdateInfo* pExportInfo);
@@ -190,26 +190,6 @@ struct CVisArea : public IVisArea, public CBasicArea
 	bool                           m_bActive;
 	bool                           m_bIgnoreGI;
 	bool                           m_bIgnoreOutdoorAO;
-};
-
-struct CSWVisArea : public CVisArea, public _i_reference_target_t
-{
-	CSWVisArea() : CVisArea(), m_nSlotID(-1) {}
-	~CSWVisArea() {}
-
-	void Release()
-	{
-		--m_nRefCounter;
-		if (m_nRefCounter < 0)
-		{
-			assert(0);
-			CryFatalError("Deleting Reference Counted Object Twice");
-		}
-	}
-
-	int Load(byte*& f, int& nDataSizeLeft, int nSID, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, const Vec3& segmentOffset, const Vec2& indexOffset);
-
-	int m_nSlotID;
 };
 
 struct SAABBTreeNode
@@ -295,8 +275,8 @@ struct CVisAreaManager : public IVisAreaManager, Cry3DEngineBase
 	template<class T>
 	bool                 Load_T(T*& f, int& nDataSize, struct SVisAreaManChunkHeader* pVisAreaManagerChunkHeader, std::vector<struct IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, bool bHotUpdate, SHotUpdateInfo* pExportInfo);
 	virtual bool         Load(FILE*& f, int& nDataSize, struct SVisAreaManChunkHeader* pVisAreaManagerChunkHeader, std::vector<struct IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable);
-	virtual bool         SetCompiledData(byte* pData, int nDataSize, std::vector<struct IStatObj*>** ppStatObjTable, std::vector<IMaterial*>** ppMatTable, bool bHotUpdate, SHotUpdateInfo* pExportInfo, const Vec3& vSegmentOrigin);
-	virtual bool         GetCompiledData(byte* pData, int nDataSize, std::vector<struct IStatObj*>** ppStatObjTable, std::vector<IMaterial*>** ppMatTable, std::vector<struct IStatInstGroup*>** ppStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, const Vec3& segmentOffset);
+	virtual bool         SetCompiledData(byte* pData, int nDataSize, std::vector<struct IStatObj*>** ppStatObjTable, std::vector<IMaterial*>** ppMatTable, bool bHotUpdate, SHotUpdateInfo* pExportInfo);
+	virtual bool         GetCompiledData(byte* pData, int nDataSize, std::vector<struct IStatObj*>** ppStatObjTable, std::vector<IMaterial*>** ppMatTable, std::vector<struct IStatInstGroup*>** ppStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo);
 	virtual int          GetCompiledDataSize(SHotUpdateInfo* pExportInfo);
 	void                 UnregisterEngineObjectsInArea(const SHotUpdateInfo* pExportInfo, PodArray<IRenderNode*>& arrUnregisteredObjects, bool bOnlyEngineObjects);
 	void                 PrecacheLevel(bool bPrecacheAllVisAreas, Vec3* pPrecachePoints, int nPrecachePointsNum);
@@ -334,12 +314,6 @@ struct CVisAreaManager : public IVisAreaManager, Cry3DEngineBase
 	void         ActivateObjectsLayer(uint16 nLayerId, bool bActivate, bool bPhys, IGeneralMemoryHeap* pHeap, const AABB& layerBox);
 	void         PhysicalizeInBox(const AABB&);
 	void         DephysicalizeInBox(const AABB&);
-
-	virtual void PrepareSegmentData(const AABB& box);
-	virtual void ReleaseInactiveSegments();
-	virtual bool CreateSegment(int nSID);
-	virtual bool DeleteSegment(int nSID, bool bDeleteNow);
-	virtual bool StreamCompiledData(uint8* pData, int nDataSize, int nSID, std::vector<struct IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<struct IStatInstGroup*>* pStatInstGroupTable, const Vec3& vSegmentOrigin, const Vec2& vIndexOffset);
 	virtual void OffsetPosition(const Vec3& delta);
 
 private:
@@ -349,15 +323,9 @@ private:
 	CVisArea*   CreateTypePortal();
 	CVisArea*   CreateTypeOcclArea();
 
-	void        DeleteVisAreaSegment(int nSID, PodArray<CVisAreaSegmentData>& visAreaSegmentData, PodArray<CVisArea*>& lstVisAreas, PodArray<CVisArea*, ReservedVisAreaBytes>& visAreas, PodArray<int>& deletedVisAreas);
 	CVisArea*   FindVisAreaByGuid(VisAreaGUID guid, PodArray<CVisArea*>& lstVisAreas);
-	CSWVisArea* FindFreeVisAreaFromPool(PodArray<CVisArea*, ReservedVisAreaBytes>& visAreas);
-	template<class T>
-	CSWVisArea* CreateVisAreaFromPool(PodArray<CVisArea*>& lstVisAreas, PodArray<CVisArea*, ReservedVisAreaBytes>& visAreas, PodArray<T>& visAreaColdData, bool bIsPortal);
 	template<class T>
 	void        ResetVisAreaList(PodArray<CVisArea*>& lstVisAreas, PodArray<CVisArea*, ReservedVisAreaBytes>& visAreas, PodArray<T>& visAreaColdData);
-	template<class T>
-	CSWVisArea* CreateTypeArea(PodArray<CVisArea*, ReservedVisAreaBytes>& visAreas, PodArray<T>& visAreaColdData, bool bIsPortal);
 
 	PodArray<CVisArea*, ReservedVisAreaBytes> m_portals;
 	PodArray<CVisArea*, ReservedVisAreaBytes> m_visAreas;
@@ -366,10 +334,6 @@ private:
 	PodArray<SGenericColdData>                m_visAreaColdData;
 	PodArray<SPortalColdData>                 m_portalColdData;
 	PodArray<SGenericColdData>                m_occlAreaColdData;
-
-	PodArray<CVisAreaSegmentData>             m_visAreaSegmentData;
-	PodArray<CVisAreaSegmentData>             m_portalSegmentData;
-	PodArray<CVisAreaSegmentData>             m_occlAreaSegmentData;
 
 	PodArray<int>                             m_arrDeletedVisArea;
 	PodArray<int>                             m_arrDeletedPortal;

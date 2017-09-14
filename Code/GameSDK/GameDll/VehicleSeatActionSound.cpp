@@ -28,8 +28,8 @@ bool CVehicleSeatActionSound::Init(IVehicle* pVehicle, IVehicleSeat* pSeat, cons
 	if (!soundTable)
 		return false;
 
-	m_audioTriggerStartId = CryAudio::StringToId_RunTime(soundTable.getAttr("startTrigger"));
-	m_audioTriggerStopId = CryAudio::StringToId_RunTime(soundTable.getAttr("stopTrigger"));
+	m_audioTriggerStartId = CryAudio::StringToId(soundTable.getAttr("startTrigger"));
+	m_audioTriggerStopId = CryAudio::StringToId(soundTable.getAttr("stopTrigger"));
 
 	if (soundTable.haveAttr("helper"))
 		m_pHelper = m_pVehicle->GetHelper(soundTable.getAttr("helper"));

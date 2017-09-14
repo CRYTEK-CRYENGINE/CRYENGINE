@@ -69,8 +69,8 @@ struct IScriptGraphNode // #SchematycTODO : Move to separate header?
 	virtual void                Attach(IScriptGraph& graph) = 0;
 	virtual IScriptGraph&       GetGraph() = 0;
 	virtual const IScriptGraph& GetGraph() const = 0;
-	virtual CryGUID               GetTypeGUID() const = 0;
-	virtual CryGUID               GetGUID() const = 0;
+	virtual CryGUID             GetTypeGUID() const = 0;
+	virtual CryGUID             GetGUID() const = 0;
 	virtual const char*         GetName() const = 0;
 	//virtual const char*          GetBehavior() const = 0;
 	//virtual const char*          GetSubject() const = 0;
@@ -83,7 +83,7 @@ struct IScriptGraphNode // #SchematycTODO : Move to separate header?
 	virtual uint32               FindInputById(const CUniqueId& id) const = 0;
 	virtual CUniqueId            GetInputId(uint32 inputIdx) const = 0;
 	virtual const char*          GetInputName(uint32 inputIdx) const = 0;
-	virtual CryGUID                GetInputTypeGUID(uint32 inputIdx) const = 0;
+	virtual CryGUID              GetInputTypeGUID(uint32 inputIdx) const = 0;
 	virtual ScriptGraphPortFlags GetInputFlags(uint32 inputIdx) const = 0;
 	virtual CAnyConstPtr         GetInputData(uint32 inputIdx) const = 0;
 	virtual ColorB               GetInputColor(uint32 inputIdx) const = 0;
@@ -91,7 +91,7 @@ struct IScriptGraphNode // #SchematycTODO : Move to separate header?
 	virtual uint32               FindOutputById(const CUniqueId& id) const = 0;
 	virtual CUniqueId            GetOutputId(uint32 outputIdx) const = 0;
 	virtual const char*          GetOutputName(uint32 outputIdx) const = 0;
-	virtual CryGUID                GetOutputTypeGUID(uint32 outputIdx) const = 0;
+	virtual CryGUID              GetOutputTypeGUID(uint32 outputIdx) const = 0;
 	virtual ScriptGraphPortFlags GetOutputFlags(uint32 outputIdx) const = 0;
 	virtual CAnyConstPtr         GetOutputData(uint32 outputIdx) const = 0;
 	virtual ColorB               GetOutputColor(uint32 outputIdx) const = 0;
@@ -115,10 +115,10 @@ struct IScriptGraphLink // #SchematycTODO : Once all ports are referenced by id 
 	virtual ~IScriptGraphLink() {}
 
 	virtual void      SetSrcNodeGUID(const CryGUID& guid) = 0;
-	virtual CryGUID     GetSrcNodeGUID() const = 0;
+	virtual CryGUID   GetSrcNodeGUID() const = 0;
 	virtual CUniqueId GetSrcOutputId() const = 0;
 	virtual void      SetDstNodeGUID(const CryGUID& guid) = 0;
-	virtual CryGUID     GetDstNodeGUID() const = 0;
+	virtual CryGUID   GetDstNodeGUID() const = 0;
 	virtual CUniqueId GetDstInputId() const = 0;
 	virtual void      Serialize(Serialization::IArchive& archive) = 0;
 };
@@ -145,10 +145,10 @@ struct SScriptGraphParams
 		, contextGUID(_contextGUID)
 	{}
 
-	const CryGUID&     scopeGUID;
+	const CryGUID&   scopeGUID;
 	const char*      szName;
 	EScriptGraphType type;
-	const CryGUID&     contextGUID;
+	const CryGUID&   contextGUID;
 };
 
 typedef CSignal<void (const IScriptGraphLink&)> ScriptGraphLinkRemovedSignal;
@@ -213,6 +213,8 @@ struct IScriptGraph : public IScriptExtensionBase<EScriptExtensionType::Graph>
 
 	virtual void                                 RemoveBrokenLinks() = 0;
 	virtual ScriptGraphLinkRemovedSignal::Slots& GetLinkRemovedSignalSlots() = 0;
+
+	virtual void                                 FixMapping(IScriptGraphNode& node) = 0;
 };
 
 } // Schematyc

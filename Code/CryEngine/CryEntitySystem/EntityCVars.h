@@ -54,8 +54,6 @@ struct CVar
 	static ICVar*   pMotionBlur;
 	static ICVar*   pSysSpecLight;
 
-	static Matrix34 audioListenerOffset;
-
 	static int      es_UsePhysVisibilityChecks;
 	static float    es_MaxPhysDist;
 	static float    es_MaxPhysDistInvisible;
@@ -100,8 +98,6 @@ struct CVar
 
 	static void EnableDebugAnimText(IConsoleCmdArgs* args);
 	static void SetDebugAnimText(IEntity* entity, const bool enable);
-
-	static void SetAudioListenerOffsets(IConsoleCmdArgs* pArgs);
 
 	// Console commands to enable/disable layers
 	static void ConsoleCommandToggleLayer(IConsoleCmdArgs* pArgs);

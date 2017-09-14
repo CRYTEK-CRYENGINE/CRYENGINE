@@ -67,9 +67,14 @@ namespace Cry
 
 			virtual void OnTransformChanged() final
 			{
-				if (m_physicsSlotId != -1)
+				if (IPhysicalEntity* pPhysicalEntity = m_pEntity->GetPhysicalEntity())
 				{
-					AddPrimitive();
+					pe_params_part partParams;
+					partParams.partid = m_pEntity->GetPhysicalEntityPartId0(GetEntitySlotId());
+					if (pPhysicalEntity->GetParams(&partParams))
+					{
+						AddPrimitive();
+					}
 				}
 			}
 
@@ -107,12 +112,9 @@ namespace Cry
 			CPhysicsPrimitiveComponent() {}
 			virtual ~CPhysicsPrimitiveComponent()
 			{
-				if (m_physicsSlotId != -1)
+				if (IPhysicalEntity* pPhysicalEntity = m_pEntity->GetPhysicalEntity())
 				{
-					if (IPhysicalEntity* pPhysicalEntity = m_pEntity->GetPhysicalEntity())
-					{
-						pPhysicalEntity->RemoveGeometry(m_physicsSlotId);
-					}
+					pPhysicalEntity->RemoveGeometry(m_pEntity->GetPhysicalEntityPartId0(GetEntitySlotId()));
 				}
 			}
 			
@@ -123,10 +125,7 @@ namespace Cry
 			{
 				if (IPhysicalEntity* pPhysicalEntity = m_pEntity->GetPhysicalEntity())
 				{
-					if (m_physicsSlotId != -1)
-					{
-						pPhysicalEntity->RemoveGeometry(m_physicsSlotId);
-					}
+					pPhysicalEntity->RemoveGeometry(m_pEntity->GetPhysicalEntityPartId0(GetEntitySlotId()));
 
 					if (m_mass > 0 || m_density > 0)
 					{
@@ -172,7 +171,12 @@ namespace Cry
 						pGeomParams->q = Quat(slotTransform);
 						pGeomParams->scale = slotTransform.GetUniformScale();
 
-						m_physicsSlotId = pPhysicalEntity->AddGeometry(pPhysGeom, pGeomParams.get());
+						if (!m_bReactToCollisions)
+						{
+							pGeomParams->flags |= geom_no_coll_response;
+						}
+
+						pPhysicalEntity->AddGeometry(pPhysGeom, pGeomParams.get(), m_pEntity->GetPhysicalEntityPartId0(GetOrMakeEntitySlotId()));
 					}
 				}
 			}
@@ -188,9 +192,7 @@ namespace Cry
 #endif
 
 			Schematyc::SurfaceTypeName m_surfaceTypeName;
-
-		protected:
-			int m_physicsSlotId = -1;
+			bool m_bReactToCollisions = true;
 		};
 	}
 }

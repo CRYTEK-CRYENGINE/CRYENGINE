@@ -451,7 +451,7 @@ struct SCompareAsyncFileRequest
 //////////////////////////////////////////////////////////////////////////
 void CStreamingIOThread::SortRequests()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	std::sort(m_fileRequestQueue.begin(), m_fileRequestQueue.end(), SCompareAsyncFileRequest());
 

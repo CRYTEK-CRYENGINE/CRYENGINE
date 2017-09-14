@@ -17,6 +17,7 @@
 #include "client/ParamsHolder.h"
 #include "client/GeneratorBase.h"
 #include "client/GeneratorFactory.h"
+#include "client/Gen_PropagateShuttledItems.h"
 #include "client/ItemConverter.h"
 #include "client/ItemFactory.h"
 #include "client/InstantEvaluatorBase.h"

@@ -1218,17 +1218,23 @@ namespace UQS
 			{
 				m_currentPhaseFn = nullptr;
 
+				//
 				// prepare the result set for getting inspected by the caller
-				CQueryResultSet* pResultSet = new CQueryResultSet;
-				pResultSet->SetItemFactoryAndCreateItems(m_generatedItems.GetItemFactory(), m_candidates.size());
-				for (size_t i = 0, n = m_candidates.size(); i < n; ++i)
+				//
+
+				std::vector<size_t> itemIndexes;
+				std::vector<float> itemScores;
+
+				itemIndexes.reserve(m_candidates.size());
+				itemScores.reserve(m_candidates.size());
+
+				for (const SItemWorkingData* pWD : m_candidates)
 				{
-					const SItemWorkingData* pWD = m_candidates[i];
-					const float score = pWD->accumulatedAndWeightedScoreSoFar;
-					const void* pItem = m_generatedItems.GetItemAtIndex(pWD->indexInGeneratedItems);
-					pResultSet->SetItemAndScore(i, pItem, score);
+					itemIndexes.push_back(pWD->indexInGeneratedItems);
+					itemScores.push_back(pWD->accumulatedAndWeightedScoreSoFar);
 				}
-				m_pResultSet.reset(pResultSet);
+
+				m_pResultSet.reset(new CQueryResultSet(m_generatedItems, std::move(itemIndexes), std::move(itemScores)));
 
 #ifdef UQS_CHECK_PROPER_CLEANUP_ONCE_ALL_ITEMS_ARE_INSPECTED
 				assert(m_deferredTasks.empty());

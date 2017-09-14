@@ -155,7 +155,7 @@ void CFFont::DrawString(float x, float y, float z, const char* pStr, const bool 
 {
 	IF(!pStr, 0) return;
 
-	IRenderAuxText::DrawString(this, x, y, 1.0f, pStr, asciiMultiLine, ctx);
+	IRenderAuxText::DrawStringRT(this, x, y, 1.0f, pStr, asciiMultiLine, ctx);
 }
 
 ILINE DWORD COLCONV(DWORD clr)

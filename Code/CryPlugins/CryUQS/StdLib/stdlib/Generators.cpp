@@ -173,32 +173,32 @@ namespace UQS
 
 		CGenerator_PointsOnGridProjectedOntoNavMesh::CGenerator_PointsOnGridProjectedOntoNavMesh(const SParams& params)
 			: m_params(params)
+			, m_bSetupPending(true)
 			, m_numCellsOnOneAxis(0)
 			, m_startPosX(0.0f)
 			, m_startPosY(0.0f)
-			, m_pCurrentStateFn(&CGenerator_PointsOnGridProjectedOntoNavMesh::State1_Setup)
 			, m_debugRunawayCounter(0)
 		{
 		}
 
-		Client::IGenerator::EUpdateStatus CGenerator_PointsOnGridProjectedOntoNavMesh::State1_Setup(const SUpdateContext& updateContext, Client::CItemListProxy_Writable<Pos3>& itemListToPopulate)
+		bool CGenerator_PointsOnGridProjectedOntoNavMesh::Setup(const SUpdateContext& updateContext)
 		{
 			if (m_params.size <= 0.0f)
 			{
 				updateContext.error.Format("Bad 'size' param: %f (should be > 0.0)", m_params.size);
-				return EUpdateStatus::ExceptionOccurred;
+				return false;
 			}
 
 			if (m_params.spacing <= 0.0f)
 			{
 				updateContext.error.Format("Bad 'spacing' param: %f (should be > 0.0)", m_params.spacing);
-				return EUpdateStatus::ExceptionOccurred;
+				return false;
 			}
 
 			if (m_params.verticalTolerance <= 0.0f)
 			{
 				updateContext.error.Format("Bad 'verticalTolerance' param: %f (should be > 0.0)", m_params.verticalTolerance);
-				return EUpdateStatus::ExceptionOccurred;
+				return false;
 			}
 
 			m_numCellsOnOneAxis = std::max((int)(m_params.size / m_params.spacing), 1);
@@ -219,12 +219,10 @@ namespace UQS
 			m_openList.push_back(compressedCenterIndex);
 			m_visited[compressedCenterIndex] = true;
 
-			m_pCurrentStateFn = &CGenerator_PointsOnGridProjectedOntoNavMesh::State2_Flood;
-
-			return EUpdateStatus::StillGeneratingItems;
+			return true;
 		}
 
-		Client::IGenerator::EUpdateStatus CGenerator_PointsOnGridProjectedOntoNavMesh::State2_Flood(const SUpdateContext& updateContext, Client::CItemListProxy_Writable<Pos3>& itemListToPopulate)
+		Client::IGenerator::EUpdateStatus CGenerator_PointsOnGridProjectedOntoNavMesh::Flood(const SUpdateContext& updateContext, Client::CItemListProxy_Writable<Pos3>& itemListToPopulate)
 		{
 			while (!m_openList.empty())
 			{
@@ -367,7 +365,14 @@ namespace UQS
 
 		Client::IGenerator::EUpdateStatus CGenerator_PointsOnGridProjectedOntoNavMesh::DoUpdate(const SUpdateContext& updateContext, Client::CItemListProxy_Writable<Pos3>& itemListToPopulate)
 		{
-			return (this->*m_pCurrentStateFn)(updateContext, itemListToPopulate);
+			if (m_bSetupPending)
+			{
+				if (!Setup(updateContext))
+					return Client::IGenerator::EUpdateStatus::ExceptionOccurred;
+				m_bSetupPending = false;
+			}
+
+			return Flood(updateContext, itemListToPopulate);
 		}
 
 	}

@@ -188,7 +188,7 @@ void CPinItem::UpdateWithNewIndex(uint32 index)
 		break;
 	}
 
-	SignalInvalidated();
+	//SignalInvalidated();
 }
 
 }

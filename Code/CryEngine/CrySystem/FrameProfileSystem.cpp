@@ -136,7 +136,6 @@ CFrameProfileSystem::CFrameProfileSystem()
 
 	//////////////////////////////////////////////////////////////////////////
 	// Initialize subsystems list.
-	memset(m_subsystems, 0, sizeof(m_subsystems));
 	m_subsystems[PROFILE_RENDERER].name = "Renderer";
 	m_subsystems[PROFILE_3DENGINE].name = "3DEngine";
 	m_subsystems[PROFILE_PARTICLE].name = "Particle";
@@ -156,6 +155,7 @@ CFrameProfileSystem::CFrameProfileSystem()
 	m_subsystems[PROFILE_MOVIE].name = "Movie";
 	m_subsystems[PROFILE_FONT].name = "Font";
 	m_subsystems[PROFILE_DEVICE].name = "Device";
+	m_subsystems[PROFILE_LOADING_ONLY].name = "Loading";
 
 	for (int i = 0; i < CRY_ARRAY_COUNT(m_subsystems); i++)
 	{
@@ -620,7 +620,7 @@ void CFrameProfileSystem::EndProfilerSection(CFrameProfilerSection* pSection)
 	#endif
 
 	// Platform profiling
-	CryProfile::detail::PopProfilingMarker();
+	CryProfile::detail::PopProfilingMarker(pSection->m_pFrameProfiler->m_colorIdentifier, pSection->m_pFrameProfiler->m_name);
 
 	s_pFrameProfileSystem->m_ProfilerThreads.PopSection(pSection, pSection->m_pFrameProfiler->m_threadId);
 }
@@ -1026,7 +1026,7 @@ void CFrameProfileSystem::EndFrame()
 	if (m_bCollectionPaused || (!m_bCollect && !m_bNetworkProfiling))
 		return;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	float smoothTime = gEnv->pTimer->TicksToSeconds(m_totalProfileTime);
 	float smoothFactor = 1.f - gEnv->pTimer->GetProfileFrameBlending(&smoothTime);
@@ -1120,6 +1120,11 @@ void CFrameProfileSystem::EndFrame()
 		{
 			//filter stall profilers
 			if ((int)m_displayQuantity == STALL_TIME)
+				continue;
+
+			// Skip profiler markers
+			uint32 profilerType = pFrameProfiler->m_description & EProfileDescription::TYPE_MASK;
+			if (profilerType == EProfileDescription::MARKER || profilerType == EProfileDescription::PUSH_MARKER || profilerType == EProfileDescription::POP_MARKER)
 				continue;
 
 			if (pFrameProfiler->m_threadId == mainThreadId)

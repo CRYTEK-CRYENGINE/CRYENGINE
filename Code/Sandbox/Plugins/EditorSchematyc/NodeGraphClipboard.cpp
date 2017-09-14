@@ -39,10 +39,6 @@ CryGraphEditor::CAbstractNodeItem* CNodeGraphClipboard::RestoreNodeFromXml(Seria
 		{
 			Schematyc::IScriptGraphNode& scriptGraphNode = pNodeItem->GetScriptElement();
 			archive(PasteSerialize(scriptGraphNode), "dataBlob");
-			// TODO: We should not have to do this here!
-			scriptGraphNode.ProcessEvent(Schematyc::SScriptEvent(Schematyc::EScriptEventId::EditorPaste));
-			// ~TODO
-
 			pNodeItem->Refresh(true);
 			return pNodeItem;
 		}

@@ -147,7 +147,7 @@ void CVehiclePhysicsHelicopter::ProcessMovement(SVehiclePhysicsHelicopterProcess
 {
 	// NB: This function changes the params that are passed in!
 
-	FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
 	float dt = params.dt;
 

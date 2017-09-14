@@ -46,31 +46,6 @@ void CStatObj::Render(const SRendParams& rParams, const SRenderingPassInfo& pass
 	CRenderObject* pObj = GetRenderer()->EF_GetObject_Temp(passInfo.ThreadID());
 	FillRenderObject(rParams, rParams.pRenderNode, m_pMaterial, NULL, pObj, passInfo);
 
-#ifdef SEG_WORLD
-	if (GetISystem()->GetIConsole()->GetCVar("sw_debugInfo")->GetIVal() == 4)
-	{
-		//////////////////////////////////////////////////////////////////////////
-		// Show colored sw object.
-		//////////////////////////////////////////////////////////////////////////
-
-		ColorB clr = ColorB(0, 255, 0, 255);
-		if (rParams.nCustomFlags & COB_SW_GLOBAL)
-		{
-			clr = ColorB(255, 0, 0, 255);
-		}
-		else if (rParams.nCustomFlags & COB_SW_CROSSSEG)
-		{
-			clr = ColorB(0, 0, 255, 255);
-		}
-
-		if (pObj)
-		{
-			pObj->m_II.m_AmbColor = ColorF(clr.r / 155.0f, clr.g / 155.0f, clr.b / 155.0f, 1);
-			pObj->m_nMaterialLayers = 0;
-		}
-	}
-#endif //SEG_WORLD
-
 	RenderInternal(pObj, rParams.nSubObjHideMask, rParams.lodValue, passInfo);
 }
 
@@ -841,25 +816,31 @@ float CStatObj::GetExtent(EGeomForm eForm)
 	return ext.TotalExtent();
 }
 
-void CStatObj::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const
+void CStatObj::GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const
 {
 	if (!m_subObjects.empty())
 	{
 		CGeomExtent const& ext = m_Extents[eForm];
-		int iSubObj = ext.RandomPart(seed);
-		if (iSubObj-- > 0)
+		for (auto part : ext.RandomPartsAliasSum(points, seed))
 		{
-			IStatObj::SSubObject const* pSub = &m_subObjects[iSubObj];
-			assert(pSub && pSub->pStatObj);
-			pSub->pStatObj->GetRandomPos(ran, seed, eForm);
-			ran <<= pSub->tm;
-			return;
+			if (part.iPart > 0)
+			{
+				IStatObj::SSubObject const* pSub = &m_subObjects[part.iPart - 1];
+				assert(pSub && pSub->pStatObj);
+				pSub->pStatObj->GetRandomPoints(part.aPoints, seed, eForm);
+				for (auto& point : part.aPoints)
+					point <<= pSub->tm;
+			}
+			else if (m_pRenderMesh)
+				m_pRenderMesh->GetRandomPoints(part.aPoints, seed, eForm);
+			else
+				part.aPoints.fill(ZERO);
 		}
 	}
 	if (m_pRenderMesh)
-		m_pRenderMesh->GetRandomPos(ran, seed, eForm);
+		m_pRenderMesh->GetRandomPoints(points, seed, eForm);
 	else
-		ran.zero();
+		points.fill(ZERO);
 }
 
 SMeshLodInfo CStatObj::ComputeAndStoreLodDistances()
@@ -1026,13 +1007,6 @@ void CStatObj::RenderInternal(CRenderObject* pRenderObject, hidemask nSubObjectH
 			}
 		}
 	}
-
-#ifdef SEG_WORLD
-	if (GetISystem()->GetIConsole()->GetCVar("sw_debugInfo")->GetIVal() == 4)
-	{
-		pRenderObject->m_ObjFlags |= FOB_SELECTED;
-	}
-#endif //SEG_WORLD
 
 	if ((m_nFlags & STATIC_OBJECT_COMPOUND) && !m_bMerged)
 	{

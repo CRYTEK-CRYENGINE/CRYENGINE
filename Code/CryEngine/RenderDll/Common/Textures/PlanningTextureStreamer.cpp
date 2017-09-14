@@ -124,7 +124,7 @@ void CPlanningTextureStreamer::ApplySchedule(EApplyScheduleFlags asf)
 {
 	CHK_RENDTH;
 
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	CryAutoLock<CryCriticalSection> lock(m_lock);
 
@@ -712,7 +712,7 @@ SPlanningMemoryState CPlanningTextureStreamer::GetMemoryState()
 
 void CPlanningTextureStreamer::SyncWithJob_Locked()
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	m_JobState.Wait();
 
@@ -742,7 +742,7 @@ void CPlanningTextureStreamer::SyncWithJob_Locked()
 #if defined(TEXSTRM_TEXTURECENTRIC_MEMORY)
 bool CPlanningTextureStreamer::TrimTexture(int nBias, TStreamerTextureVec& trimmable, STexPool* pPrioritise)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	size_t nBestTrimmableIdx = 0;
 	int nMostMipsToTrim = 0;
@@ -795,7 +795,7 @@ bool CPlanningTextureStreamer::TrimTexture(int nBias, TStreamerTextureVec& trimm
 
 ptrdiff_t CPlanningTextureStreamer::TrimTextures(ptrdiff_t nRequired, int nBias, TStreamerTextureVec& trimmable)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	ptrdiff_t nTrimmed = 0;
 
@@ -823,7 +823,7 @@ ptrdiff_t CPlanningTextureStreamer::TrimTextures(ptrdiff_t nRequired, int nBias,
 
 ptrdiff_t CPlanningTextureStreamer::KickTextures(CTexture** pTextures, ptrdiff_t nRequired, int nBalancePoint, int& nKickIdx)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	ptrdiff_t nKicked = 0;
 

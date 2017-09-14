@@ -92,5 +92,6 @@
 #include "core/IItemSerializationSupport.h"
 #include "core/IEditorService.h"
 #include "core/IUtils.h"
+#include "core/ISettingsManager.h"
 #include "core/IHub.h"
 #include "core/IHubPlugin.h"

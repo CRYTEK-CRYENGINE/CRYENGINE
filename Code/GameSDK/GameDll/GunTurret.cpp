@@ -1209,7 +1209,7 @@ float CGunTurret::GetBurstTime() const
 //------------------------------------------------------------------------
 void CGunTurret::UpdateOrientation(float deltaTime)
 { 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	IEntity& entity = *GetEntity();
 
@@ -1720,7 +1720,7 @@ void CGunTurret::UpdateEntityProperties()
 //------------------------------------------------------------------------
 void CGunTurret::Update( SEntityUpdateContext& ctx, int update)
 {  
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	CWeapon::Update(ctx, update);
 

@@ -72,7 +72,7 @@ void CScreenSpaceObscuranceStage::Execute(ShadowMapFrustum* pHeightMapFrustum, C
 		m_passObscurance.SetTextureSamplerPair(0, CTexture::s_ptexSceneNormalsMap, EDefaultSamplerStates::PointClamp);
 		m_passObscurance.SetTextureSamplerPair(1, CTexture::s_ptexZTarget, EDefaultSamplerStates::PointClamp);
 		m_passObscurance.SetTextureSamplerPair(3, CTexture::s_ptexAOVOJitter, EDefaultSamplerStates::PointWrap);
-		m_passObscurance.SetTextureSamplerPair(5, bLowResOutput ? CTexture::s_ptexZTargetScaled2 : CTexture::s_ptexZTargetScaled, EDefaultSamplerStates::PointClamp);
+		m_passObscurance.SetTextureSamplerPair(5, CTexture::s_ptexZTargetScaled[bLowResOutput], EDefaultSamplerStates::PointClamp);
 		m_passObscurance.SetTextureSamplerPair(11, pHeightMapAOScreenDepthTex ? pHeightMapAOScreenDepthTex : CTexture::s_ptexWhite, EDefaultSamplerStates::PointClamp);
 		m_passObscurance.SetTexture(12, pHeightMapAOTex ? pHeightMapAOTex : CTexture::s_ptexWhite);
 

@@ -357,10 +357,10 @@ void CD3D9Renderer::MakeSprites(TArray<SSpriteGenInfo>& SGI, const SRenderingPas
 	Vec3 cSunBackup = gEnv->p3DEngine->GetSunColor();
 
 	SRenderLight light;
+	light.m_Flags |= DLF_DIRECTIONAL | DLF_SUN | DLF_THIS_AREA_ONLY | DLF_LM | DLF_SPECULAROCCLUSION | DLF_CASTSHADOW_MAPS;
 	light.SetLightColor(cSunBackup);
 	light.m_SpecMult = 0;
-	light.m_fRadius = 100000000;
-	light.m_Flags |= DLF_DIRECTIONAL | DLF_SUN | DLF_THIS_AREA_ONLY | DLF_LM | DLF_SPECULAROCCLUSION | DLF_CASTSHADOW_MAPS;
+	light.SetRadius(100000000);
 
 	int vX, vY, vWidth, vHeight;
 	GetViewport(&vX, &vY, &vWidth, &vHeight);
@@ -634,7 +634,7 @@ void CD3D9Renderer::GenerateObjSprites(PodArray<struct SVegetationSpriteInfo>* p
 	if (pList == 0)
 		return;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
 #ifndef _RELEASE
 	bool bFirstInFrame = false;

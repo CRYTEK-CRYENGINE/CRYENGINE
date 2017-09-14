@@ -16,7 +16,6 @@ add_sources("NoUberFile"
 
 add_sources("Editor_Uber_Controls.cpp"
 	SOURCE_GROUP "Controls"
-		"Controls/TemplDef.h"
 		"Controls/ColorCheckBox.cpp"
 		"Controls/ColorCheckBox.h"
 		"Controls/ColorCtrl.h"

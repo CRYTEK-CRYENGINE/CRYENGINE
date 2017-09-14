@@ -143,11 +143,11 @@ PropertiesPanel::PropertiesPanel(QWidget* parent, System* system)
 		locationLayout->addWidget(m_locationButton);
 
 		m_followMenu = new QMenu();
-		m_followActions[FOLLOW_SELECTION] = m_followMenu->addAction(CryIcon("icons:Animation/Selection.ico"), "Follow Selection", this, SLOT(OnFollowMenu()));
+		m_followActions[FOLLOW_SELECTION] = m_followMenu->addAction(CryIcon("icons:common/animation_selection.ico"), "Follow Selection", this, SLOT(OnFollowMenu()));
 		m_followActions[FOLLOW_SELECTION]->setData(int(FOLLOW_SELECTION));
 		if (m_system->sourceAssetList)
 		{
-			m_followActions[FOLLOW_SOURCE_ASSET] = m_followMenu->addAction(CryIcon("icons:Animation/Source_Asset.ico"), "Import Assets", this, SLOT(OnFollowMenu()));
+			m_followActions[FOLLOW_SOURCE_ASSET] = m_followMenu->addAction(CryIcon("icons:common/animation_source_asset.ico"), "Import Assets", this, SLOT(OnFollowMenu()));
 			;
 			m_followActions[FOLLOW_SOURCE_ASSET]->setData(int(FOLLOW_SOURCE_ASSET));
 		}
@@ -157,7 +157,7 @@ PropertiesPanel::PropertiesPanel(QWidget* parent, System* system)
 
 		m_followButton = new QToolButton();
 		m_followButton->setAutoRaise(true);
-		m_followButton->setIcon(CryIcon("icons:Animation/Selection.ico"));
+		m_followButton->setIcon(CryIcon("icons:common/animation_selection.ico"));
 		m_followButton->setMenu(m_followMenu);
 		m_followButton->setPopupMode(QToolButton::InstantPopup);
 		locationLayout->addWidget(m_followButton);
@@ -540,7 +540,7 @@ void PropertiesPanel::UpdateLocationBar()
 		char buf[64];
 		cry_sprintf(buf, "%s%d Items", (atLeastOneEntryModified ? "*" : ""), (int)m_location.entries.size());
 		text = buf;
-		icon = "icons:Animation/Multiple_Items.ico";
+		icon = "icons:common/animation_multiple_items.ico";
 	}
 	else if (singleEntry)
 	{
@@ -552,7 +552,7 @@ void PropertiesPanel::UpdateLocationBar()
 	else
 	{
 		text = "No Selection";
-		icon = "icons:Animation/No_Selection.ico";
+		icon = "icons:common/animation_no_selection.ico";
 	}
 
 	m_locationButton->setText(text.c_str());
@@ -563,10 +563,10 @@ void PropertiesPanel::UpdateLocationBar()
 	switch (m_followMode)
 	{
 	case FOLLOW_SELECTION:
-		followIcon = "icons:Animation/Selection.ico";
+		followIcon = "icons:common/animation_selection.ico";
 		break;
 	case FOLLOW_SOURCE_ASSET:
-		followIcon = "icons:Animation/Source_Asset.ico";
+		followIcon = "icons:common/animation_source_asset.ico";
 		break;
 	case FOLLOW_LOCK:
 		followIcon = "icons:General/Lock_True.ico";
@@ -756,7 +756,10 @@ void PropertiesPanel::Serialize(Serialization::IArchive& ar)
 
 void PropertiesPanel::OnCharacterLoaded()
 {
-	m_propertyTree->revert();
+	// Detach the property tree and clear location cache, since m_propertyTree may still be attached to a soon-to-be-expired object here.
+	// These will both be restored in a subsequent OnExplorerSelectionChanged() handler, which is guaranteed to follow.
+	m_location = InspectorLocation(); 
+	m_propertyTree->detach();
 }
 
 void PropertiesPanel::OnExplorerAction(const ExplorerAction& action)

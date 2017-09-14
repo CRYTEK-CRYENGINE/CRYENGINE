@@ -212,6 +212,8 @@ bool CPoseBlenderLook::PrepareInternal(const SAnimationPoseModifierParams& param
 
 bool CPoseBlenderLook::Execute(const SAnimationPoseModifierParams& params)
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	Skeleton::CPoseData* pPoseData = Skeleton::CPoseData::GetPoseData(params.pPoseData);
 	if (!pPoseData)
 		return false;

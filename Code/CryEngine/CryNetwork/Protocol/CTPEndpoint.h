@@ -686,7 +686,7 @@ private:
 
 		SBigEndpointState* Clone(SBigEndpointState* pState)
 		{
-			FRAME_PROFILER("SBigEndpointsState:Clone", GetISystem(), PROFILE_NETWORK);
+			CRY_PROFILE_REGION(PROFILE_NETWORK, "SBigEndpointsState:Clone");
 			m_nAlloced++;
 
 			m_operationsSinceCleanup++;

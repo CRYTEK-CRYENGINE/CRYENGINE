@@ -169,7 +169,7 @@ void CFlowGameEntityNode::GetConfiguration(SFlowNodeConfig& config)
 
 void CFlowGameEntityNode::ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	switch (event)
 	{

@@ -262,7 +262,7 @@ const AABB& CVehiclePartTread::GetLocalBounds()
 //------------------------------------------------------------------------
 void CVehiclePartTread::Update(const float frameTime)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!m_pCharInstance)
 		return;

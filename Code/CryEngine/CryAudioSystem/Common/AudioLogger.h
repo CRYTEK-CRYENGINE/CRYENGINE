@@ -53,7 +53,7 @@ public:
 #if defined(ENABLE_AUDIO_LOGGING)
 		if (szFormat && szFormat[0] && gEnv->pLog->GetVerbosityLevel() != -1)
 		{
-			FRAME_PROFILER("CLogger::Log", GetISystem(), PROFILE_AUDIO);
+			CRY_PROFILE_REGION(PROFILE_AUDIO, "CLogger::Log");
 
 			char sBuffer[256];
 			va_list ArgList;

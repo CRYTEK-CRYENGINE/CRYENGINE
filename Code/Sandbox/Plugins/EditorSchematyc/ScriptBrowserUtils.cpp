@@ -94,7 +94,7 @@ struct SSignalReceiver
 	{}
 
 	EScriptSignalReceiverType type;
-	CryGUID                     guid;
+	CryGUID                   guid;
 	string                    label;
 	string                    description;
 };
@@ -112,7 +112,7 @@ struct SInterface
 	{}
 
 	EDomain domain;
-	CryGUID   guid;
+	CryGUID guid;
 	string  name;
 	string  fullName;
 	string  description;
@@ -129,10 +129,10 @@ struct SComponent
 		, description(szDescription)
 	{}
 
-	CryGUID  typeGUID;
-	string name;
-	string fullName;
-	string description;
+	CryGUID typeGUID;
+	string  name;
+	string  fullName;
+	string  description;
 };
 
 struct SAction
@@ -147,11 +147,11 @@ struct SAction
 		, description(_szDescription)
 	{}
 
-	CryGUID  guid;
-	CryGUID  componentInstanceGUID;
-	string name;
-	string fullName;
-	string description;
+	CryGUID guid;
+	CryGUID componentInstanceGUID;
+	string  name;
+	string  fullName;
+	string  description;
 };
 
 inline void MoveRenameScriptsRecursive(IScriptElement& element)
@@ -194,6 +194,7 @@ bool CanRemoveScriptElement(const IScriptElement& element)
 	{
 	case EScriptElementType::Root:
 	case EScriptElementType::Base:
+	case EScriptElementType::Constructor:
 		{
 			return false;
 		}
@@ -827,7 +828,7 @@ bool RenameScriptElement(IScriptElement& scriptElement, const char* szName)
 	return false;
 }
 
-void RemoveScriptElement(const IScriptElement& element)
+bool RemoveScriptElement(const IScriptElement& element)
 {
 	if (CanRemoveScriptElement(element))
 	{
@@ -843,8 +844,11 @@ void RemoveScriptElement(const IScriptElement& element)
 		if (result == QDialogButtonBox::Yes)
 		{
 			gEnv->pSchematyc->GetScriptRegistry().RemoveElement(element.GetGUID());
+			return true;
 		}
 	}
+
+	return false;
 }
 } // ScriptBrowserUtils
 } // Schematyc

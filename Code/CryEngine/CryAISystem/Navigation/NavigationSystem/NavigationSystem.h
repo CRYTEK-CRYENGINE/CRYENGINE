@@ -484,11 +484,7 @@ public:
 	virtual MNM::GlobalIslandID GetGlobalIslandIdAtPosition(const NavigationAgentTypeID agentID, const Vec3& location) override;
 
 	virtual bool                ReadFromFile(const char* fileName, bool bAfterExporting) override;
-#if defined(SEG_WORLD)
-	virtual bool                SaveToFile(const char* fileName, const AABB& segmentAABB) const override;
-#else
 	virtual bool                SaveToFile(const char* fileName) const override;
-#endif
 
 	virtual void                             RegisterListener(INavigationSystemListener* pListener, const char* name = NULL) override { m_listenersList.Add(pListener, name); }
 	virtual void                             UnRegisterListener(INavigationSystemListener* pListener) override                        { m_listenersList.Remove(pListener); }

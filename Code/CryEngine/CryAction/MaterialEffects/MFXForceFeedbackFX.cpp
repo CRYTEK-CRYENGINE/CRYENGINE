@@ -43,7 +43,7 @@ void CMFXForceFeedbackEffect::LoadParamsFromXml(const XmlNodeRef& paramsNode)
 
 void CMFXForceFeedbackEffect::Execute(const SMFXRunTimeEffectParams& params)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	float distanceToPlayerSqr = FLT_MAX;
 	IActor* pClientActor = gEnv->pGameFramework->GetClientActor();

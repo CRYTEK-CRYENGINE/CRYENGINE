@@ -463,7 +463,7 @@ void CNetContextState::FetchAndPropogateChangesFromGame(bool allowFetch)
 	if (!changed.empty())
 	{
 		// fetch changes from game
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+		CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 		// we'll need the timestamp (probably)
 		CTimeValue newPhysicsTime = m_pGameContext->GetPhysicsTime();
@@ -906,7 +906,7 @@ private:
 
 void CNetContextState::PropogateChangesToGame()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 	MMM_REGION(m_pMMM);
 
 	if (!m_pContext || m_vNetChangeLog.empty())
@@ -2463,7 +2463,7 @@ NetworkAspectType CNetContextState::UpdateAspectData(SNetObjectID id, NetworkAsp
 {
 	MMM_REGION(m_pMMM);
 
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 	ASSERT_GLOBAL_LOCK;
 	NET_ASSERT(GetContextObject(id).main);
 	if (!m_multiplayer || !m_pContext)

@@ -77,7 +77,7 @@ void CMFXContainer::Execute(const SMFXRunTimeEffectParams& params)
 
 void CMFXContainer::SetCustomParameter(const char* customParameter, const SMFXCustomParamValue& customParameterValue)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	TMFXEffects::iterator it = m_effects.begin();
 	TMFXEffects::iterator itEnd = m_effects.end();

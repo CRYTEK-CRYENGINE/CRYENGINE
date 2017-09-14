@@ -47,6 +47,7 @@
 #define RESTRICT_POINTER __restrict
 
 // Safe memory helpers
+#define SAFE_ACQUIRE(p)       { if (p) (p)->AddRef(); }
 #define SAFE_DELETE(p)        { if (p) { delete (p);          (p) = NULL; } }
 #define SAFE_DELETE_ARRAY(p)  { if (p) { delete[] (p);        (p) = NULL; } }
 #define SAFE_RELEASE(p)       { if (p) { (p)->Release();      (p) = NULL; } }
@@ -377,6 +378,7 @@ void            CrySleep(unsigned int dwMilliseconds);
 void            CryLowLatencySleep(unsigned int dwMilliseconds);
 EQuestionResult CryMessageBox(const char* lpText, const char* lpCaption, EMessageBox uType = eMB_Info);
 bool            CryCreateDirectory(const char* lpPathName);
+bool            CryDirectoryExists(const char* szPath);
 void            CryGetCurrentDirectory(unsigned int pathSize, char* szOutPath);
 short           CryGetAsyncKeyState(int vKey);
 unsigned int    CryGetFileAttributes(const char* lpFileName);

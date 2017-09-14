@@ -547,7 +547,7 @@ static bool Dilate(CTexture* pTex, CTexture* pOutput, int nPhase, std::vector<II
 		rd->FX_PushRenderTarget(0, pTex, pDepthStencil);
 		int nStencilState = STENC_FUNC(FSS_STENCFUNC_EQUAL) | STENCOP_FAIL(FSS_STENCOP_KEEP) | STENCOP_ZFAIL(FSS_STENCOP_KEEP) | STENCOP_PASS(FSS_STENCOP_KEEP);
 		rd->FX_SetStencilState(nStencilState, 0, 0xFFFFFFFF, 0xFFFFFFFF);
-		rd->FX_SetState(GS_NODEPTHTEST | GS_STENCIL | GS_COLMASK_A);
+		rd->FX_SetState(GS_NODEPTHTEST | GS_STENCIL | GS_NOCOLMASK_RGB);
 		pSH->FXBeginPass(nPassPassthrough);
 		CTexture::s_ptexWhite->Apply(0);
 		pSH->FXSetPSFloat(tintColourName, &zeroAlpha, 1);

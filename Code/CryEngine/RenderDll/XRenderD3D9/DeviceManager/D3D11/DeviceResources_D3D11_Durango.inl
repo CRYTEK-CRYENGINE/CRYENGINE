@@ -161,7 +161,7 @@ void CTexture::StreamUploadMip_Durango(const void* pSrcBaseAddress,
 	int nMip, int nBaseMip,
 	STexPoolItem* pNewPoolItem, STexStreamInMipState& mipState)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	CDeviceTexture* pDeviceTexture = pNewPoolItem->m_pDevTexture;
 	bool bStreamInPlace = mipState.m_bStreamInPlace;
@@ -348,7 +348,7 @@ void CTexture::StreamUploadMip_Durango(const void* pSrcBaseAddress,
 // Only those cases neet to be supported which did not successfully finished their data in CTexture::StreamUploadMip_Durango
 void CTexture::StreamUploadMips_Durango(int nBaseMip, int nMipCount, STexPoolItem* pNewPoolItem, STexStreamInState& streamState)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	CDeviceTexture* pDeviceTexture = pNewPoolItem->m_pDevTexture;
 
@@ -613,7 +613,7 @@ void CDeviceTexture::GPUFlush()
 
 uint32 CDeviceTexture::TextureDataSize(uint32 nWidth, uint32 nHeight, uint32 nDepth, uint32 nMips, uint32 nSlices, const ETEX_Format eTF, ETEX_TileMode eTM, uint32 eFlags)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	// Don't allow 0 dimensions, it's clearly wrong to reflect on "unspecified-yet" textures
 	// It's also not allowed to calculate offsets with this function, as this is determined by the hardware/blackbox.

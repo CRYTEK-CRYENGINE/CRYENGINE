@@ -160,8 +160,14 @@ static string AutoselectPreset(const ConvertContext& CC, const uint32 width, con
 bool CSubstanceCompiler::ProcessImplementation()
 {
 	const string sourceFile = m_CC.GetSourcePath();
-	ISubstancePreset* currentPreset = ISubstancePreset::Load(sourceFile);
-	ISubstanceManager::Instance()->GenerateOutputs(currentPreset, m_pConverter->GetRenderer());
+	ISubstancePreset* pCurrentPreset = ISubstancePreset::Load(sourceFile);
+	if (!pCurrentPreset || pCurrentPreset->GetSubstanceArchive().empty())
+	{
+		RCLogError("Can't load substance preset: %s", sourceFile.c_str());
+		return false;
+	}
+
+	ISubstanceManager::Instance()->GenerateOutputs(pCurrentPreset, m_pConverter->GetRenderer());
 	return true;
 }
 

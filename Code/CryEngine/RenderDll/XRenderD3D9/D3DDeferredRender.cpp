@@ -316,7 +316,7 @@ void CD3D9Renderer::FX_StencilCullPass(int nStencilID, int nNumVers, int nNumInd
 	// debug states
 	if (CV_r_DebugLightVolumes /*&& m_RP.m_TI.m_PersFlags2 & d3dRBPF2_ENABLESTENCILPB*/)
 	{
-		newState &= ~GS_COLMASK_NONE;
+		newState &= ~GS_NOCOLMASK_RGBA;
 		newState &= ~GS_NODEPTHTEST;
 		//	newState |= GS_NODEPTHTEST;
 		newState |= GS_DEPTHWRITE;
@@ -331,12 +331,12 @@ void CD3D9Renderer::FX_StencilCullPass(int nStencilID, int nNumVers, int nNumInd
 		//	// Disable color writes
 		//	if (CV_r_ShadowsStencilPrePass == 2)
 		//	{
-		//	  newState &= ~GS_COLMASK_NONE;
+		//	  newState &= ~GS_NOCOLMASK_RGBA;
 		//	  newState |= GS_COLMASK_A;
 		//	}
 		//	else
 		{
-			newState |= GS_COLMASK_NONE;
+			newState |= GS_NOCOLMASK_RGBA;
 		}
 
 		//setup depth test and enable stencil
@@ -504,7 +504,7 @@ void CD3D9Renderer::FX_StencilFrustumCull(int nStencilID, const SRenderLight* pL
 			SRenderLight instLight = *pLight;
 			vOffsetDir = (-pLight->m_fProjectorNearPlane) * (pLight->m_ObjMatrix.GetColumn0().GetNormalized());
 			instLight.SetPosition(instLight.m_Origin - vOffsetDir);
-			instLight.m_fRadius -= pLight->m_fProjectorNearPlane;
+			instLight.SetRadius(instLight.m_fClipRadius - pLight->m_fProjectorNearPlane);
 			CShadowUtils::GetCubemapFrustumForLight(&instLight, nAxis, 160.0f, &mProjection, &mView, false); // 3.0f -  offset to make sure that frustums are intersected
 		}
 		else if ((pLight->m_Flags & DLF_PROJECT) && pLightTexture && !(pLightTexture->GetFlags() & FT_REPLICATE_TO_ALL_SIDES))

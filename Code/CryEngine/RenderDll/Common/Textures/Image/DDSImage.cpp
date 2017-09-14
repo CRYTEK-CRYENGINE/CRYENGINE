@@ -763,7 +763,7 @@ TPath& MakeName(TPath& sOut, const char* sOriginalName, const uint32 nChunk, con
 
 size_t GetFilesToRead_Split(ChunkInfo* pFiles, size_t nFilesCapacity, const DDSDesc& desc, uint32 nStartMip, uint32 nEndMip)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	assert(nStartMip <= nEndMip);
 	assert(nEndMip < desc.nMips);
@@ -826,7 +826,7 @@ size_t GetFilesToRead_Split(ChunkInfo* pFiles, size_t nFilesCapacity, const DDSD
 
 size_t GetFilesToRead_UnSplit(ChunkInfo* pFiles, size_t nFilesCapacity, const DDSDesc& desc, uint32 nStartMip, uint32 nEndMip)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	assert(nStartMip <= nEndMip);
 	assert(nEndMip < desc.nMips);

@@ -771,7 +771,7 @@ void CSubmissionQueue_DX11::BindShader(SHADER_TYPE type, CCryDeviceContextWrappe
 
 void CSubmissionQueue_DX11::CommitDeviceStates()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 	DETAILED_PROFILE_MARKER("CommitDeviceStates");
 
 	#if DURANGO_ENABLE_ASYNC_DIPS

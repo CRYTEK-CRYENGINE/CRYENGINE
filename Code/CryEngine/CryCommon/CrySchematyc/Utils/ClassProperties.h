@@ -141,6 +141,26 @@ public:
 		return true;
 	}
 
+	inline bool Compare(const CClassDesc& desc, void* pValue) const
+	{
+		if (!m_pDesc || (m_pDesc != &desc))
+			return false;
+
+		const CClassMemberDescArray& memberDescs = m_pDesc->GetMembers();
+		for (uint32 propertyIdx = 0, propertyCount = m_properties.size(); propertyIdx < propertyCount; ++propertyIdx)
+		{
+			const CClassMemberDesc& memberDesc = memberDescs[propertyIdx];
+			if (!Any::Equals(
+					*m_scratchpad.Get(m_properties[propertyIdx]), 
+					CAnyRef(memberDesc.GetTypeDesc(), static_cast<uint8*>(pValue) + memberDesc.GetOffset()))
+				)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	void SetOverridePolicy(EOverridePolicy policy)
 	{
 		m_overridePolicy = policy;

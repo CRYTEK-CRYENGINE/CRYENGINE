@@ -894,9 +894,9 @@ void CD3D9Renderer::FX_ProcessHalfResParticlesRenderList(CRenderView* pRenderVie
 					CShader*  pSH            = CShaderMan::s_shPostEffects;
 					CTexture* pHalfResSrc    = pHalfResTarget;
 					CTexture* pZTarget       = CTexture::s_ptexZTarget;
-					CTexture* pZTargetScaled = CV_r_ParticlesHalfResAmount > 0 ? CTexture::s_ptexZTargetScaled2 : CTexture::s_ptexZTargetScaled;
+					CTexture* pZTargetScaled = CTexture::s_ptexZTargetScaled[CV_r_ParticlesHalfResAmount > 0];
 
-					uint32 nStates = GS_NODEPTHTEST | GS_COLMASK_RGB;
+					uint32 nStates = GS_NODEPTHTEST | GS_NOCOLMASK_A;
 					if (bAlphaBased)
 						nStates |= GS_BLSRC_ONE | GS_BLDST_SRCALPHA;
 					else
@@ -1068,7 +1068,7 @@ void CD3D9Renderer::FX_MSAASampleFreqStencilSetup(const uint32 nMSAAFlags, const
 		static const int32 nStState = STENC_FUNC(FSS_STENCFUNC_ALWAYS) | STENCOP_FAIL(FSS_STENCOP_REPLACE) | STENCOP_ZFAIL(FSS_STENCOP_REPLACE) | STENCOP_PASS(FSS_STENCOP_REPLACE);
 		m_RP.m_PersFlags2 |= RBPF2_READMASK_RESERVED_STENCIL_BIT;
 		FX_SetStencilState(nStState, 0, 0xFF, BIT_STENCIL_RESERVED, true);
-		FX_SetState(GS_STENCIL | GS_NODEPTHTEST | GS_COLMASK_NONE);
+		FX_SetState(GS_STENCIL | GS_NODEPTHTEST | GS_NOCOLMASK_RGBA);
 		GetUtils().DrawQuadFS(CShaderMan::s_shDeferredShading, false, nWidth, nHeight);
 		GetUtils().ShEndPass();
 		m_RP.m_PersFlags2 &= ~RBPF2_READMASK_RESERVED_STENCIL_BIT;
@@ -1094,7 +1094,7 @@ void CD3D9Renderer::FX_MSAASampleFreqStencilSetup(const uint32 nMSAAFlags, const
 
 		static const int32 nStState = STENC_FUNC(FSS_STENCFUNC_ALWAYS) | STENCOP_FAIL(FSS_STENCOP_REPLACE) | STENCOP_ZFAIL(FSS_STENCOP_REPLACE) | STENCOP_PASS(FSS_STENCOP_REPLACE);
 		FX_SetStencilState(nStState, nStRef, 0xFF, nStWriteMask);
-		FX_SetState(GS_STENCIL | GS_NODEPTHTEST | GS_COLMASK_NONE);
+		FX_SetState(GS_STENCIL | GS_NODEPTHTEST | GS_NOCOLMASK_RGBA);
 
 		CTexture::s_ptexBackBuffer->Apply(0, EDefaultSamplerStates::PointClamp);
 		GetUtils().DrawQuadFS(CShaderMan::s_shDeferredShading, false, nWidth, nHeight);
@@ -2712,11 +2712,11 @@ void CD3D9Renderer::FX_ProcessZPassRenderLists()
 
 		FX_LinearizeDepth();
 #if CRY_PLATFORM_DURANGO
-		GetUtils().DownsampleDepth(NULL, CTexture::s_ptexZTargetScaled, true);    // On Durango reading device depth is faster since it is in ESRAM
+		GetUtils().DownsampleDepth(NULL, CTexture::s_ptexZTargetScaled[0], true);    // On Durango reading device depth is faster since it is in ESRAM
 #else
-		GetUtils().DownsampleDepth(CTexture::s_ptexZTarget, CTexture::s_ptexZTargetScaled, true);
+		GetUtils().DownsampleDepth(CTexture::s_ptexZTarget, CTexture::s_ptexZTargetScaled[0], true);
 #endif
-		GetUtils().DownsampleDepth(CTexture::s_ptexZTargetScaled, CTexture::s_ptexZTargetScaled2, false);
+		GetUtils().DownsampleDepth(CTexture::s_ptexZTargetScaled[0], CTexture::s_ptexZTargetScaled[1], false);
 
 		FX_ZScene(true, m_RP.m_bUseHDR, false, true);
 		m_RP.m_PersFlags2 &= ~RBPF2_NOALPHABLEND;
@@ -2988,11 +2988,10 @@ void CD3D9Renderer::RT_RenderScene(CRenderView* pRenderView, int nFlags, SThread
 		for (auto pShaderResources : CShader::s_ShaderResources_known)
 		{
 			// TODO: Check why s_ShaderResources_known can contain null pointers
-			if (pShaderResources && pShaderResources->m_bResourcesDirty)
+			if (pShaderResources && pShaderResources->HasChanges())
 			{
 				// NOTE: unconditionally clear dirty flag here, as there is no point in trying to update the resource set again
 				// in case of failure. any change to the resources will set the dirty flag again. 
-				pShaderResources->m_bResourcesDirty = false;
 				pShaderResources->RT_UpdateResourceSet();
 			}
 		}
@@ -3435,7 +3434,10 @@ void CD3D9Renderer::RT_RenderScene(CRenderView* pRenderView, int nFlags, SThread
 	CV_r_watercaustics         = nSaveDrawCaustics;
 	CV_r_texturesstreamingsync = nSaveStreamSync;
 
-	gRenDev->GetIRenderAuxGeom()->Flush();
+	if (!pRenderView->IsRecursive())
+	{
+		gRenDev->GetIRenderAuxGeom()->Flush();
+	}
 
 	////////////////////////////////////////////////
 	// Lists still needed for right eye when stereo is active
@@ -3454,6 +3456,9 @@ void CD3D9Renderer::RT_RenderScene(CRenderView* pRenderView, int nFlags, SThread
 	}
 
 	m_RP.m_pCurrentRenderView = nullptr;
+
+	// Don't keep resource-binds cached across rendering-boundaries (e.g. because of resize or chain-loading)
+	gRenDev->RT_UnbindResources();
 }
 
 void CD3D9Renderer::RT_DrawUITextureInternal(S2DImage& img)
@@ -3785,7 +3790,7 @@ void CD3D9Renderer::LogShaderImportMiss(const CShader* pShader)
 ///////////////////////////////////////////////////////////////////////////////
 void CD3D9Renderer::WaitForParticleBuffer()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 	SRenderPipeline& rp = gRenDev->m_RP;
 
 	rp.m_particleBuffer.WaitForFence();

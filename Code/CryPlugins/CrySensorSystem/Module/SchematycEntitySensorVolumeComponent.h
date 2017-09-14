@@ -17,6 +17,9 @@ bool Serialize(Serialization::IArchive& archive, SSensorTagName& value, const ch
 typedef Schematyc::CArray<SSensorTagName> SensorTagNames;
 
 class CSchematycEntitySensorVolumeComponent final : public IEntityComponent
+#ifndef RELEASE
+	, public IEntityComponentPreviewer
+#endif
 {
 public:
 
@@ -94,7 +97,6 @@ public:
 	virtual uint64                     GetEventMask() const override;
 	virtual void                       ProcessEvent(SEntityEvent& event) override;
 	virtual void                       OnShutDown() override;
-	virtual IEntityComponentPreviewer* GetPreviewer() override;
 	// ~IEntityComponent
 
 	void        Enable();
@@ -110,6 +112,21 @@ public:
 
 	static void ReflectType(Schematyc::CTypeDesc<CSchematycEntitySensorVolumeComponent>& desc);
 	static void Register(Schematyc::IEnvRegistrar& registrar);
+
+protected:
+#ifndef RELEASE
+	// Helper functions to create the preview shapes
+	IGeometry* CreateBoxGeometry() const;
+	IGeometry* CreateSphereGeometry() const;
+
+	// IEntityComponentPreviewer
+	virtual void SerializeProperties(Serialization::IArchive& archive) final {}
+
+	virtual IEntityComponentPreviewer* GetPreviewer() final { return this; }
+
+	virtual void Render(const IEntity& entity, const IEntityComponent& component, SEntityPreviewContext &context) const final;
+	// ~IEntityComponentPreviewer
+#endif
 
 private:
 

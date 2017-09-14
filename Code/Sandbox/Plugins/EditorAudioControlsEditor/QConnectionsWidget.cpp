@@ -25,7 +25,6 @@
 #include <QMimeData>
 #include <QMenu>
 #include <QVBoxLayout>
-#include <QTreeView>
 #include <QHeaderView>
 #include <QSplitter>
 #include <QSizePolicy>
@@ -40,7 +39,6 @@ QConnectionsWidget::QConnectionsWidget(QWidget* pParent)
 	, m_pConnectionsView(new CAdvancedTreeView())
 {
 	m_pConnectionsView->setContextMenuPolicy(Qt::CustomContextMenu);
-	m_pConnectionsView->header()->setContextMenuPolicy(Qt::CustomContextMenu);
 	m_pConnectionsView->setDragEnabled(false);
 	m_pConnectionsView->setAcceptDrops(true);
 	m_pConnectionsView->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -50,38 +48,23 @@ QConnectionsWidget::QConnectionsWidget(QWidget* pParent)
 	m_pConnectionsView->installEventFilter(this);
 	m_pConnectionsView->header()->setMinimumSectionSize(50);
 	m_pConnectionsView->setIndentation(0);
-	m_pConnectionsView->setSortingEnabled(true);
-	connect(m_pConnectionsView->header(), &QHeaderView::customContextMenuRequested, [&](const QPoint& pos)
+	
+	connect(m_pConnectionsView, &CAdvancedTreeView::customContextMenuRequested, [&](QPoint const& pos)
 	{
-		QAbstractItemModel* pModel = m_pConnectionsView->model();
+		int const selectionCount = m_pConnectionsView->selectionModel()->selectedRows().count();
 
-		if (pModel)
+		if (selectionCount > 0)
 		{
 			QMenu contextMenu(tr("Context menu"), this);
-			int columnCount = pModel->columnCount();
 
-			for (int i = 0; i < columnCount; ++i)
+			char const* actionName = "Remove Connection";
+
+			if (selectionCount > 1)
 			{
-				QAction* pAction = contextMenu.addAction(pModel->headerData(i, Qt::Horizontal).toString());
-				pAction->setCheckable(true);
-				pAction->setChecked(!(m_pConnectionsView->header()->isSectionHidden(i)));
-
-				connect(pAction, &QAction::toggled, [=](bool bChecked)
-				{
-					int column = pAction->data().toInt();
-					m_pConnectionsView->header()->setSectionHidden(i, !bChecked);
-				});
-
-				pAction->setData(QVariant(i));
+				actionName = "Remove Connections";
 			}
 
-			contextMenu.exec(QCursor::pos());
-		}
-	});
-	connect(m_pConnectionsView, &QTreeView::customContextMenuRequested, [&](const QPoint& pos)
-		{
-			QMenu contextMenu(tr("Context menu"), this);
-			QAction* pAction = contextMenu.addAction(tr("Remove Connection"));
+			QAction* pAction = contextMenu.addAction(tr(actionName));
 
 			connect(pAction, &QAction::triggered, [&]()
 			{
@@ -89,7 +72,8 @@ QConnectionsWidget::QConnectionsWidget(QWidget* pParent)
 			});
 
 			contextMenu.exec(QCursor::pos());
-	  });
+		}
+	});
 
 	m_pConnectionPropertiesFrame = new QFrame(this);
 	m_pConnectionPropertiesFrame->setAutoFillBackground(false);
@@ -123,7 +107,7 @@ QConnectionsWidget::QConnectionsWidget(QWidget* pParent)
 
 	for (int i = 2; i < count; ++i)
 	{
-		m_pConnectionsView->header()->setSectionHidden(i, true);
+		m_pConnectionsView->SetColumnVisible(i, false);
 	}
 
 	// Then hide the entire widget.
@@ -137,13 +121,13 @@ QConnectionsWidget::QConnectionsWidget(QWidget* pParent)
 			  m_pConnectionsView->selectionModel()->clear();
 			  RefreshConnectionProperties();
 			}
-	  }, reinterpret_cast<uintptr_t>(this));
+		}, reinterpret_cast<uintptr_t>(this));
 
 	CAudioControlsEditorPlugin::GetImplementationManger()->signalImplementationAboutToChange.Connect([&]()
 		{
 			m_pConnectionsView->selectionModel()->clear();
 			RefreshConnectionProperties();
-	  }, reinterpret_cast<uintptr_t>(this));
+		}, reinterpret_cast<uintptr_t>(this));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -181,12 +165,13 @@ void QConnectionsWidget::RemoveSelectedConnection()
 	if (m_pControl)
 	{
 		CQuestionDialog messageBox;
-		QModelIndexList selectedIndices = m_pConnectionsView->selectionModel()->selectedRows();
+		QModelIndexList const selectedIndices = m_pConnectionsView->selectionModel()->selectedRows();
 
 		if (!selectedIndices.empty())
 		{
-			const int size = selectedIndices.length();
+			int const size = selectedIndices.length();
 			QString text;
+
 			if (size == 1)
 			{
 				text = R"(Are you sure you want to delete the connection between ")" + QtUtil::ToQString(m_pControl->GetName()) + R"(" and ")" + selectedIndices[0].data(Qt::DisplayRole).toString() + R"("?)";
@@ -195,15 +180,19 @@ void QConnectionsWidget::RemoveSelectedConnection()
 			{
 				text = "Are you sure you want to delete the " + QString::number(size) + " selected connections?";
 			}
+
 			messageBox.SetupQuestion("Audio Controls Editor", text);
+
 			if (messageBox.Execute() == QDialogButtonBox::Yes)
 			{
 				CUndo undo("Disconnected Audio Control from Audio System");
 				IAudioSystemEditor* pAudioSystemEditorImpl = CAudioControlsEditorPlugin::GetAudioSystemEditorImpl();
+
 				if (pAudioSystemEditorImpl)
 				{
 					std::vector<IAudioSystemItem*> items;
 					items.reserve(selectedIndices.size());
+
 					for (QModelIndex index : selectedIndices)
 					{
 						CID id = index.data(QConnectionModel::eConnectionModelRoles_Id).toInt();
@@ -248,13 +237,15 @@ void QConnectionsWidget::RefreshConnectionProperties()
 	ConnectionPtr pConnection;
 	if (m_pControl)
 	{
-		QModelIndexList selectedIndices = m_pConnectionsView->selectionModel()->selectedIndexes();
+		QModelIndexList const selectedIndices = m_pConnectionsView->selectionModel()->selectedIndexes();
+
 		if (!selectedIndices.empty())
 		{
-			QModelIndex index = selectedIndices[0];
+			QModelIndex const index = selectedIndices[0];
+
 			if (index.isValid())
 			{
-				const CID id = index.data(QConnectionModel::eConnectionModelRoles_Id).toInt();
+				CID const id = index.data(QConnectionModel::eConnectionModelRoles_Id).toInt();
 				pConnection = m_pControl->GetConnection(id);
 			}
 		}

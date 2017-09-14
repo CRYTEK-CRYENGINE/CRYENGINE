@@ -268,6 +268,7 @@ protected:
 		INIT_SVO_CVAR(int, e_svoTI_AsyncCompute);		                  \
 		INIT_SVO_CVAR(float, e_svoTI_SkyLightBottomMultiplier);		    \
 		INIT_SVO_CVAR(float, e_svoTI_VoxelOpacityMultiplier);         \
+		INIT_SVO_CVAR(float, e_svoTI_PointLightsBias);      \
 	  // INIT_ALL_SVO_CVARS
 
 	#define INIT_SVO_CVAR(_type, _var) _type _var;

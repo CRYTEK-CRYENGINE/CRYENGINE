@@ -568,13 +568,15 @@ void CVisAreaManager::DrawVisibleSectors(const SRenderingPassInfo& passInfo)
 	{
 		CVisArea* pArea = m_lstVisibleAreas[i];
 		Vec3 vAmbColor = pArea->GetFinalAmbientColor();
-		if (pArea->m_pObjectsTree)
+		if (pArea->IsObjectsTreeValid())
+		{
 			for (int c = 0; c < pArea->m_lstCurCamerasLen; c++)
 			{
 				passInfo.GetRendItemSorter().IncreaseOctreeCounter();
 				// create a new RenderingPassInfo object, which a camera matching the visarea
-				pArea->m_pObjectsTree->Render_Object_Nodes(false, OCTREENODE_RENDER_FLAG_OBJECTS, vAmbColor, SRenderingPassInfo::CreateTempRenderingInfo(CVisArea::s_tmpCameras[pArea->m_lstCurCamerasIdx + c], passInfo));
+				pArea->GetObjectsTree()->Render_Object_Nodes(false, OCTREENODE_RENDER_FLAG_OBJECTS, vAmbColor, SRenderingPassInfo::CreateTempRenderingInfo(CVisArea::s_tmpCameras[pArea->m_lstCurCamerasIdx + c], passInfo));
 			}
+		}
 	}
 
 	passInfo.GetRendItemSorter().IncreaseGroupCounter();
@@ -585,17 +587,17 @@ void CVisAreaManager::PhysicalizeInBox(const AABB& bbox)
 	for (int i = 0; i < m_lstVisAreas.Count(); i++)
 	{
 		CVisArea* pArea = m_lstVisAreas[i];
-		if (pArea && pArea->m_pObjectsTree && Overlap::AABB_AABB(*pArea->GetAABBox(), bbox))
+		if (pArea && pArea->IsObjectsTreeValid() && Overlap::AABB_AABB(*pArea->GetAABBox(), bbox))
 		{
-			pArea->m_pObjectsTree->PhysicalizeInBox(bbox);
+			pArea->GetObjectsTree()->PhysicalizeInBox(bbox);
 		}
 	}
 	for (int i = 0; i < m_lstPortals.Count(); i++)
 	{
 		CVisArea* pArea = m_lstPortals[i];
-		if (pArea && pArea->m_pObjectsTree && Overlap::AABB_AABB(*pArea->GetAABBox(), bbox))
+		if (pArea && pArea->IsObjectsTreeValid() && Overlap::AABB_AABB(*pArea->GetAABBox(), bbox))
 		{
-			pArea->m_pObjectsTree->PhysicalizeInBox(bbox);
+			pArea->GetObjectsTree()->PhysicalizeInBox(bbox);
 		}
 	}
 }
@@ -604,17 +606,17 @@ void CVisAreaManager::DephysicalizeInBox(const AABB& bbox)
 	for (int i = 0; i < m_lstVisAreas.Count(); i++)
 	{
 		CVisArea* pArea = m_lstVisAreas[i];
-		if (pArea && pArea->m_pObjectsTree && Overlap::AABB_AABB(*pArea->GetAABBox(), bbox))
+		if (pArea && pArea->IsObjectsTreeValid() && Overlap::AABB_AABB(*pArea->GetAABBox(), bbox))
 		{
-			pArea->m_pObjectsTree->DephysicalizeInBox(bbox);
+			pArea->GetObjectsTree()->DephysicalizeInBox(bbox);
 		}
 	}
 	for (int i = 0; i < m_lstPortals.Count(); i++)
 	{
 		CVisArea* pArea = m_lstPortals[i];
-		if (pArea && pArea->m_pObjectsTree && Overlap::AABB_AABB(*pArea->GetAABBox(), bbox))
+		if (pArea && pArea->IsObjectsTreeValid() && Overlap::AABB_AABB(*pArea->GetAABBox(), bbox))
 		{
-			pArea->m_pObjectsTree->DephysicalizeInBox(bbox);
+			pArea->GetObjectsTree()->DephysicalizeInBox(bbox);
 		}
 	}
 }
@@ -1002,14 +1004,18 @@ void CVisAreaManager::MoveObjectsIntoList(PodArray<SRNInfo>* plstVisAreasEntitie
 {
 	for (int p = 0; p < m_lstPortals.Count(); p++)
 	{
-		if (m_lstPortals[p]->m_pObjectsTree && Overlap::AABB_AABB(m_lstPortals[p]->m_boxArea, boxArea))
-			m_lstPortals[p]->m_pObjectsTree->MoveObjectsIntoList(plstVisAreasEntities, bRemoveObjects ? NULL : &boxArea, bRemoveObjects);
+		if (m_lstPortals[p]->IsObjectsTreeValid() && Overlap::AABB_AABB(m_lstPortals[p]->m_boxArea, boxArea))
+		{
+			m_lstPortals[p]->GetObjectsTree()->MoveObjectsIntoList(plstVisAreasEntities, bRemoveObjects ? NULL : &boxArea, bRemoveObjects);
+		}
 	}
 
 	for (int v = 0; v < m_lstVisAreas.Count(); v++)
 	{
-		if (m_lstVisAreas[v]->m_pObjectsTree && Overlap::AABB_AABB(m_lstVisAreas[v]->m_boxArea, boxArea))
-			m_lstVisAreas[v]->m_pObjectsTree->MoveObjectsIntoList(plstVisAreasEntities, bRemoveObjects ? NULL : &boxArea, bRemoveObjects);
+		if (m_lstVisAreas[v]->IsObjectsTreeValid() && Overlap::AABB_AABB(m_lstVisAreas[v]->m_boxArea, boxArea))
+		{
+			m_lstVisAreas[v]->GetObjectsTree()->MoveObjectsIntoList(plstVisAreasEntities, bRemoveObjects ? NULL : &boxArea, bRemoveObjects);
+		}
 	}
 }
 
@@ -1561,8 +1567,11 @@ void CVisAreaManager::GetObjectsAround(Vec3 vExploPos, float fExploRadius, PodAr
 
 	CVisArea* pVisArea = (CVisArea*)GetVisAreaFromPos(vExploPos);
 
-	if (pVisArea && pVisArea->m_pObjectsTree)
-		pVisArea->m_pObjectsTree->MoveObjectsIntoList(pEntList, &aabbBox, false, true, bSkip_ERF_NO_DECALNODE_DECALS, bSkipDynamicObjects);
+	if (pVisArea && pVisArea->IsObjectsTreeValid())
+	{
+		pVisArea->GetObjectsTree()->MoveObjectsIntoList(pEntList, &aabbBox, false, true, bSkip_ERF_NO_DECALNODE_DECALS, bSkipDynamicObjects);
+	}
+
 	/*
 	   // find static objects around
 	   for(int i=0; pVisArea && i<pVisArea->m_lstEntities[STATIC_OBJECTS].Count(); i++)
@@ -1603,15 +1612,19 @@ void CVisAreaManager::IntersectWithBox(const AABB& aabbBox, PodArray<CVisArea*>*
 
 void CVisAreaManager::AddLightSourceReqursive(CDLight* pLight, CVisArea* pArea, const int32 nDeepness, const SRenderingPassInfo& passInfo)
 {
-	if (pArea->m_pObjectsTree)
-		pArea->m_pObjectsTree->AddLightSource(pLight, passInfo);
+	if (pArea->IsObjectsTreeValid())
+	{
+		pArea->GetObjectsTree()->AddLightSource(pLight, passInfo);
+	}
 
 	if (1 < nDeepness)
+	{
 		for (int v = 0; v < pArea->m_lstConnections.Count(); v++)
 		{
 			CVisArea* pConArea = pArea->m_lstConnections[v];
 			AddLightSourceReqursive(pLight, pConArea, nDeepness - 1, passInfo);
 		}
+	}
 }
 
 void CVisAreaManager::AddLightSource(CDLight* pLight, const SRenderingPassInfo& passInfo)
@@ -1774,93 +1787,97 @@ void CVisAreaManager::ClearRegion(const AABB& region)
 	}
 }
 
-void CVisAreaManager::MarkAllSectorsAsUncompiled(const IRenderNode* pRenderNode)
+namespace
 {
-	for (int p = 0; p < m_lstPortals.Count(); p++)
+	inline void HelperMarkAllSectorsAsUncompiled(PodArray<CVisArea*>& arrayVisArea, const IRenderNode* pRenderNode)
 	{
-		if (m_lstPortals[p]->m_pObjectsTree)
-			m_lstPortals[p]->m_pObjectsTree->MarkAsUncompiled(pRenderNode);
+		int s = arrayVisArea.Count();
+		for (int i = 0; i < s; ++i)
+		{
+			if (arrayVisArea[i]->IsObjectsTreeValid())
+			{
+				arrayVisArea[i]->GetObjectsTree()->MarkAsUncompiled(pRenderNode);
+			}
+		}
 	}
 
-	for (int v = 0; v < m_lstVisAreas.Count(); v++)
+	inline void HelperActivateObjectsLayer(PodArray<CVisArea*>& arrayVisArea, uint16 nLayerId, bool bActivate, bool bPhys, IGeneralMemoryHeap* pHeap, const AABB& layerBox)
 	{
-		if (m_lstVisAreas[v]->m_pObjectsTree)
-			m_lstVisAreas[v]->m_pObjectsTree->MarkAsUncompiled(pRenderNode);
+		int s = arrayVisArea.Count();
+		for (int i = 0; i < s; ++i)
+		{
+			if (arrayVisArea[i]->IsObjectsTreeValid())
+			{
+				arrayVisArea[i]->GetObjectsTree()->ActivateObjectsLayer(nLayerId, bActivate, bPhys, pHeap, layerBox);
+			}
+		}
 	}
+	
+	inline void HelperGetObjects(PodArray<CVisArea*>& arrayVisArea, PodArray<IRenderNode*>& lstObjects, const AABB* pBBox)
+	{
+		int s = arrayVisArea.Count();
+		for (int i = 0; i < s; ++i)
+		{
+			if (arrayVisArea[i]->IsObjectsTreeValid())
+			{
+				arrayVisArea[i]->GetObjectsTree()->GetObjects(lstObjects, pBBox);
+			}
+		}
+	}
+
+	inline void HelperGetObjectsByFlags(PodArray<CVisArea*>& arrayVisArea, uint dwFlags, PodArray<IRenderNode*>& lstObjects)
+	{
+		int s = arrayVisArea.Count();
+		for (int i = 0; i < s; ++i)
+		{
+			if (arrayVisArea[i]->IsObjectsTreeValid())
+			{
+				arrayVisArea[i]->GetObjectsTree()->GetObjectsByFlags(dwFlags, lstObjects);
+			}
+		}
+	}
+
+	inline void HelperGenerateStatObjAndMatTables(PodArray<CVisArea*>& arrayVisArea, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, SHotUpdateInfo* pExportInfo)
+	{
+		int s = arrayVisArea.Count();
+		for (int i = 0; i < s; ++i)
+		{
+			if (arrayVisArea[i]->IsObjectsTreeValid())
+			{
+				arrayVisArea[i]->GetObjectsTree()->GenerateStatObjAndMatTables(pStatObjTable, pMatTable, pStatInstGroupTable, pExportInfo);
+			}
+		}
+	}
+}
+
+void CVisAreaManager::MarkAllSectorsAsUncompiled(const IRenderNode* pRenderNode)
+{
+	HelperMarkAllSectorsAsUncompiled(m_lstPortals,  pRenderNode);
+	HelperMarkAllSectorsAsUncompiled(m_lstVisAreas, pRenderNode);
 }
 
 void CVisAreaManager::ActivateObjectsLayer(uint16 nLayerId, bool bActivate, bool bPhys, IGeneralMemoryHeap* pHeap, const AABB& layerBox)
 {
-	{
-		uint32 dwSize = m_lstVisAreas.Count();
-
-		for (uint32 dwI = 0; dwI < dwSize; ++dwI)
-			if (m_lstVisAreas[dwI]->m_pObjectsTree)
-				m_lstVisAreas[dwI]->m_pObjectsTree->ActivateObjectsLayer(nLayerId, bActivate, bPhys, pHeap, layerBox);
-	}
-
-	{
-		uint32 dwSize = m_lstPortals.Count();
-
-		for (uint32 dwI = 0; dwI < dwSize; ++dwI)
-			if (m_lstPortals[dwI]->m_pObjectsTree)
-				m_lstPortals[dwI]->m_pObjectsTree->ActivateObjectsLayer(nLayerId, bActivate, bPhys, pHeap, layerBox);
-	}
+	HelperActivateObjectsLayer(m_lstVisAreas, nLayerId, bActivate, bPhys, pHeap, layerBox);
+	HelperActivateObjectsLayer(m_lstPortals,  nLayerId, bActivate, bPhys, pHeap, layerBox);
 }
 
 void CVisAreaManager::GetObjects(PodArray<IRenderNode*>& lstObjects, const AABB* pBBox)
 {
-	{
-		uint32 dwSize = m_lstVisAreas.Count();
-
-		for (uint32 dwI = 0; dwI < dwSize; ++dwI)
-			if (m_lstVisAreas[dwI]->m_pObjectsTree)
-				m_lstVisAreas[dwI]->m_pObjectsTree->GetObjects(lstObjects, pBBox);
-	}
-
-	{
-		uint32 dwSize = m_lstPortals.Count();
-
-		for (uint32 dwI = 0; dwI < dwSize; ++dwI)
-			if (m_lstPortals[dwI]->m_pObjectsTree)
-				m_lstPortals[dwI]->m_pObjectsTree->GetObjects(lstObjects, pBBox);
-	}
+	HelperGetObjects(m_lstVisAreas, lstObjects, pBBox);
+	HelperGetObjects(m_lstPortals,  lstObjects, pBBox);
 }
 
 void CVisAreaManager::GetObjectsByFlags(uint dwFlags, PodArray<IRenderNode*>& lstObjects)
 {
-	{
-		uint32 dwSize = m_lstVisAreas.Count();
-
-		for (uint32 dwI = 0; dwI < dwSize; ++dwI)
-			if (m_lstVisAreas[dwI]->m_pObjectsTree)
-				m_lstVisAreas[dwI]->m_pObjectsTree->GetObjectsByFlags(dwFlags, lstObjects);
-	}
-
-	{
-		uint32 dwSize = m_lstPortals.Count();
-
-		for (uint32 dwI = 0; dwI < dwSize; ++dwI)
-			if (m_lstPortals[dwI]->m_pObjectsTree)
-				m_lstPortals[dwI]->m_pObjectsTree->GetObjectsByFlags(dwFlags, lstObjects);
-	}
+	HelperGetObjectsByFlags(m_lstVisAreas, dwFlags, lstObjects);
+	HelperGetObjectsByFlags(m_lstPortals,  dwFlags, lstObjects);
 }
 
 void CVisAreaManager::GenerateStatObjAndMatTables(std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, SHotUpdateInfo* pExportInfo)
 {
-	{
-		uint32 dwSize = m_lstVisAreas.Count();
-		for (uint32 dwI = 0; dwI < dwSize; ++dwI)
-			if (m_lstVisAreas[dwI]->m_pObjectsTree)
-				m_lstVisAreas[dwI]->m_pObjectsTree->GenerateStatObjAndMatTables(pStatObjTable, pMatTable, pStatInstGroupTable, pExportInfo);
-	}
-
-	{
-		uint32 dwSize = m_lstPortals.Count();
-		for (uint32 dwI = 0; dwI < dwSize; ++dwI)
-			if (m_lstPortals[dwI]->m_pObjectsTree)
-				m_lstPortals[dwI]->m_pObjectsTree->GenerateStatObjAndMatTables(pStatObjTable, pMatTable, pStatInstGroupTable, pExportInfo);
-	}
+	HelperGenerateStatObjAndMatTables(m_lstVisAreas, pStatObjTable, pMatTable, pStatInstGroupTable, pExportInfo);
+	HelperGenerateStatObjAndMatTables(m_lstPortals,  pStatObjTable, pMatTable, pStatInstGroupTable, pExportInfo);
 }
 
 bool CVisAreaManager::IsAABBVisibleFromPoint(AABB& box, Vec3 pos)
@@ -1967,82 +1984,6 @@ void CVisAreaManager::InitAABBTree()
 	{
 		UpdateAABBTree();
 	}
-}
-
-//////////////////////////////////////////////////////////////////////
-// Segmented World
-void CVisAreaManager::ReleaseInactiveSegments()
-{
-	for (int i = 0; i < m_arrDeletedVisArea.Count(); i++)
-	{
-		int nSlotID = m_arrDeletedVisArea[i];
-
-		SAFE_DELETE(m_visAreas[nSlotID]->m_pObjectsTree);
-	}
-	m_arrDeletedVisArea.Clear();
-	for (int i = 0; i < m_arrDeletedPortal.Count(); i++)
-	{
-		int nSlotID = m_arrDeletedPortal[i];
-		SAFE_DELETE(m_portals[nSlotID]->m_pObjectsTree);
-	}
-	m_arrDeletedPortal.Clear();
-	for (int i = 0; i < m_arrDeletedOcclArea.Count(); i++)
-	{
-		int nSlotID = m_arrDeletedOcclArea[i];
-		SAFE_DELETE(m_occlAreas[nSlotID]->m_pObjectsTree);
-	}
-	m_arrDeletedOcclArea.Clear();
-}
-
-bool CVisAreaManager::CreateSegment(int nSID)
-{
-	if (nSID >= m_visAreaSegmentData.Count())
-	{
-		m_visAreaSegmentData.PreAllocate(nSID + 1, nSID + 1);
-		m_portalSegmentData.PreAllocate(nSID + 1, nSID + 1);
-		if (GetCVars()->e_OcclusionVolumes)
-			m_occlAreaSegmentData.PreAllocate(nSID + 1, nSID + 1);
-	}
-
-	return true;
-}
-
-bool CVisAreaManager::DeleteSegment(int nSID, bool bDeleteNow)
-{
-	if (nSID < 0 || (size_t)nSID >= m_visAreaSegmentData.size())
-		return false;
-
-	DeleteVisAreaSegment(nSID, m_visAreaSegmentData, m_lstVisAreas, m_visAreas, m_arrDeletedVisArea);
-	DeleteVisAreaSegment(nSID, m_portalSegmentData, m_lstPortals, m_portals, m_arrDeletedPortal);
-	if (GetCVars()->e_OcclusionVolumes)
-		DeleteVisAreaSegment(nSID, m_occlAreaSegmentData, m_lstOcclAreas, m_occlAreas, m_arrDeletedOcclArea);
-
-	if (bDeleteNow)
-		ReleaseInactiveSegments();
-
-	return true;
-}
-
-void CVisAreaManager::DeleteVisAreaSegment(int nSID,
-                                           PodArray<CVisAreaSegmentData>& visAreaSegmentData,
-                                           PodArray<CVisArea*>& lstVisAreas,
-                                           PodArray<CVisArea*, ReservedVisAreaBytes>& visAreas,
-                                           PodArray<int>& deletedVisAreas)
-{
-	std::vector<int>& visAreasInSegment = visAreaSegmentData[nSID].m_visAreaIndices;
-	for (size_t i = 0; i < visAreasInSegment.size(); i++)
-	{
-		int index = visAreasInSegment[i];
-		assert(index >= 0 && index < visAreas.Count());
-		CSWVisArea* pVisArea = (CSWVisArea*)visAreas[index];
-		if (pVisArea->Unique())
-		{
-			lstVisAreas.Delete(pVisArea);
-			deletedVisAreas.push_back(index);
-		}
-		pVisArea->Release();		
-	}
-	visAreasInSegment.clear();
 }
 
 CVisArea* CVisAreaManager::FindVisAreaByGuid(VisAreaGUID guid, PodArray<CVisArea*>& lstVisAreas)

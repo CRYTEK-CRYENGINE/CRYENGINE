@@ -29,6 +29,7 @@
 #include "physicalplaceholder.h"
 #include "physicalentity.h"
 #include "rigidentity.h"
+#include "walkingrigidentity.h"
 #include "particleentity.h"
 #include "livingentity.h"
 #include "wheeledvehicleentity.h"
@@ -1136,10 +1137,12 @@ struct CPhysicalEntitySerializer : CPhysicalPlaceholderSerializer {
 			i = atol(str); j = pent->m_nPartsAlloc;
 			if ((pent->m_nParts=max(pent->m_nParts,i+1)) > pent->m_nPartsAlloc) {
 				geom *pparts = pent->m_parts;
+				int nparts = pent->m_nPartsAlloc;
 				memcpy(pent->m_parts = new geom[pent->m_nPartsAlloc=(pent->m_nParts-1&~3)+4], pparts, sizeof(geom)*j);
 				for(int k=0; k<pent->m_nParts; k++) if (pent->m_parts[k].pNewCoords==(coord_block_BBox*)&pparts[k].pos)
 					pent->m_parts[k].pNewCoords = (coord_block_BBox*)&pent->m_parts[k].pos;
-				if (pparts!=&pent->m_defpart) delete[] pparts;
+				if (pparts!=&pent->m_defpart) 
+					ctx.pWorld->FreeEntityParts(pparts, nparts);
 			}
 #if CRY_PLATFORM_DURANGO	 
 #pragma warning(disable : 4390)
@@ -1158,7 +1161,7 @@ struct CPhysicalEntitySerializer : CPhysicalPlaceholderSerializer {
 		if (ctx.bSaving) for(int i=0;i<(pent->m_pStructure ? pent->m_pStructure->nJoints:0);i++) {
 			fprintf(ctx.f,"%.*sStructuralJoint %d\n", ctx.iStackPos+1,g_strTabs, pent->m_pStructure->pJoints[i].id);
 			ctx.PushState();
-			ctx.pobj = pent->m_pStructure->pParts+i;
+			ctx.pobj = pent->m_pStructure->pJoints+i;
 			(ctx.pSerializer = pJointSerializerWrite)->Serialize(ctx);
 		} else {
 			pe_params_structural_joint psj;
@@ -1651,10 +1654,12 @@ struct CLivingEntitySerializer : CPhysicalEntitySerializer {
 		DECLARE_MEMBER("MaxVelGround", ft_float, m_maxVelGround)
 		DECLARE_PROC("Active", &CLivingEntitySerializer::SerializeActive)
 		DECLARE_PROC("Swimming", &CLivingEntitySerializer::SerializeSwimming)
+		DECLARE_PROC("UseCapsule", &CLivingEntitySerializer::SerializeUseCapsule)
 		DECLARE_PROC("end", &CLivingEntitySerializer::Finalize)
 	}
 	DEFINE_MEMBER_PROC(CLivingEntity, SerializeActive, m_bActive)
 	DEFINE_MEMBER_PROC(CLivingEntity, SerializeSwimming, m_bSwimming)
+	DEFINE_MEMBER_PROC(CLivingEntity, SerializeUseCapsule, m_bUseCapsule)
 
 	int Finalize(parse_context &ctx, char *str) {
 		CLivingEntity *pent = (CLivingEntity*)ctx.pobj;
@@ -1664,9 +1669,47 @@ struct CLivingEntitySerializer : CPhysicalEntitySerializer {
 			dim.hh = pent->m_size.z;
 			dim.center.zero();
 			dim.axis.Set(0,0,1);
-			pent->m_pCylinderGeom->CreateCylinder(&dim);
+			if ((pent->m_pCylinderGeom->GetType()==GEOM_CAPSULE) != pent->m_bUseCapsule) {
+				delete pent->m_pCylinderGeom;
+				pent->m_CylinderGeomPhys.pGeom = pent->m_pCylinderGeom = pent->m_bUseCapsule ? (new CCapsuleGeom()) : (new CCylinderGeom());
+			}
+			if (pent->m_bUseCapsule)
+				((CCapsuleGeom*)pent->m_pCylinderGeom)->CreateCapsule((capsule*)&dim);
+			else
+				pent->m_pCylinderGeom->CreateCylinder(&dim);
 			pent->m_pNewCoords->pos=pent->m_pos; pent->m_pNewCoords->q=pent->m_qrot;
 			ctx.pWorld->RepositionEntity(pent,3|8);
+		}
+		return 0;
+	}
+};
+
+
+struct CWalkingRigidEntitySerializer : CRigidEntitySerializer {
+	CWalkingRigidEntitySerializer(CPhysicalEntityPartSerializer *peps, CPhysicalJointSerializerRead *pjsr, CPhysicalJointSerializerWrite *pjsw, CRigidBodySerializer *rbs, 
+		CConstraintSerializer *cs) : CRigidEntitySerializer(peps,pjsr,pjsw,rbs,cs) {
+		CWalkingRigidEntity trg(0);
+		DECLARE_MEMBER("nLegs", ft_int, m_nLegs)
+		DECLARE_PROC("Legs", &CWalkingRigidEntitySerializer::SerializeLegs)
+		DECLARE_MEMBER("collType", ft_int, m_colltypeLegs)
+		DECLARE_MEMBER("collMass", ft_float, m_minLegsCollMass)
+		DECLARE_MEMBER("velStick", ft_float, m_velStick)
+		DECLARE_MEMBER("friction", ft_float, m_friction)
+		DECLARE_MEMBER("unprojScale", ft_float, m_unprojScale)
+		DECLARE_MEMBER("massLegacy", ft_float, m_massLegacy)
+		DECLARE_MEMBER("matidLegacy", ft_int, m_matidLegacy)
+	}
+
+	int SerializeLegs(parse_context &ctx, char *str) {
+		CWalkingRigidEntity *pent = (CWalkingRigidEntity*)ctx.pobj;
+		if (!ctx.bSaving)
+			pent->m_legs = new Vec3[pent->m_nLegs*3];
+		for(int i=0;i<pent->m_nLegs*3;i++) for(int j=0;j<3;j++) if (ctx.bSaving) 
+			str += sprintf(str,"%.8g ",pent->m_legs[i][j]);
+		else {
+			for(;*str && isspace(*str);str++);
+			pent->m_legs[i][j] = atof(str);
+			for(;*str && !isspace(*str);str++);
 		}
 		return 0;
 	}
@@ -2157,13 +2200,14 @@ struct CPhysicalWorldSerializer : Serializer {
 	CWheeledVehicleEntitySerializer *pWheeledVehicleEntitySerializer;
 	CArticulatedEntitySerializer *pArticulatedEntitySerializer;
 	CLivingEntitySerializer *pLivingEntitySerializer;
+	CWalkingRigidEntitySerializer *pWalkingRigidEntitySerializer;
 	CRopeEntitySerializer *pRopeEntitySerializer;
 	CSoftEntitySerializer *pSoftEntitySerializer;
 	CAreaSerializer *pAreaSerializer;
 
-	CPhysicalWorldSerializer(CPhysVarsSerializer *pvs, CEntityGridSerializer *egs, CPhysicalEntitySerializer *pes, CRigidEntitySerializer *res,
+	CPhysicalWorldSerializer(CPhysVarsSerializer *pvs, CEntityGridSerializer *egs, CPhysicalEntitySerializer *pes, CRigidEntitySerializer *res,	CWalkingRigidEntitySerializer *wres,
 		CWheeledVehicleEntitySerializer *wves, CArticulatedEntitySerializer *aes, CLivingEntitySerializer *les, CRopeEntitySerializer *rpes, CSoftEntitySerializer *spes, CAreaSerializer *as) : 
-		pPhysVarsSerializer(pvs),pEntityGridSerializer(egs),pStaticEntitySerializer(pes),pRigidEntitySerializer(res),
+		pPhysVarsSerializer(pvs),pEntityGridSerializer(egs),pStaticEntitySerializer(pes),pRigidEntitySerializer(res),pWalkingRigidEntitySerializer(wres),
 		pWheeledVehicleEntitySerializer(wves),pArticulatedEntitySerializer(aes),pLivingEntitySerializer(les),pRopeEntitySerializer(rpes),pSoftEntitySerializer(spes),pAreaSerializer(as)
 	{
 		CPhysicalWorld trg(0);
@@ -2241,6 +2285,7 @@ struct CPhysicalWorldSerializer : Serializer {
 						case PE_WHEELEDVEHICLE: pSerializer = pWheeledVehicleEntitySerializer; name = "Wheeled Vehicle"; break;
 						case PE_ARTICULATED: pSerializer = pArticulatedEntitySerializer; name = "Articulated"; break;
 						case PE_LIVING: pSerializer = pLivingEntitySerializer; name = "Living"; break;
+						case PE_WALKINGRIGID: pSerializer = pWalkingRigidEntitySerializer; name = "WalkingRigid"; break;
 						case PE_ROPE: pSerializer = pRopeEntitySerializer; name = "Rope"; break;
 						case PE_SOFT: pSerializer = pSoftEntitySerializer; name = "Soft"; break;
 					}
@@ -2272,6 +2317,7 @@ struct CPhysicalWorldSerializer : Serializer {
 				case PE_STATIC: pent = CreateEnt<CPhysicalEntity>(pWorld,name); ctx.pSerializer = pStaticEntitySerializer; break;
 				case PE_RIGID : pent = CreateEnt<CRigidEntity>(pWorld,name); ctx.pSerializer = pRigidEntitySerializer; break;
 				case PE_LIVING: pent = CreateEnt<CLivingEntity>(pWorld,name); ctx.pSerializer = pLivingEntitySerializer; break;
+				case PE_WALKINGRIGID: pent = CreateEnt<CWalkingRigidEntity>(pWorld,name); ctx.pSerializer = pWalkingRigidEntitySerializer; break;
 				case PE_WHEELEDVEHICLE: pent = CreateEnt<CWheeledVehicleEntity>(pWorld,name); ctx.pSerializer = pWheeledVehicleEntitySerializer; break;
 				case PE_PARTICLE: pent = CreateEnt<CParticleEntity>(pWorld,name); break;
 				case PE_ARTICULATED: pent = CreateEnt<CArticulatedEntity>(pWorld,name); ctx.pSerializer = pArticulatedEntitySerializer; break;
@@ -2380,6 +2426,7 @@ void SerializeWorld(CPhysicalWorld *pWorld, const char *fname,int bSave)
 	CJointSerializer js(&rbs);
 	CArticulatedEntitySerializer aes(&peps,&jsr,&jsw,&rbs,&cs,&js,&aepis);
 	CLivingEntitySerializer les(&peps);
+	CWalkingRigidEntitySerializer	wres(&peps,&jsr,&jsw,&rbs,&cs);
 	CRopeSegSerializer rss;
 	CRopeVtxSerializer rvs;
 	CRopeEntitySerializer rpes(&peps, &rvs,&rss);
@@ -2395,7 +2442,7 @@ void SerializeWorld(CPhysicalWorld *pWorld, const char *fname,int bSave)
 	CSphereSerializer sps;
 	CPhysGeometrySerializer pgs(&ms,&hfs,&bs,&cls,&sps);
 	CAreaSerializer as(&pgs);
-	CPhysicalWorldSerializer pws(&pvs,&egs,&pes,&res,&wves,&aes,&les,&rpes,&spes,&as);
+	CPhysicalWorldSerializer pws(&pvs,&egs,&pes,&res,&wres,&wves,&aes,&les,&rpes,&spes,&as);
 
 	char str[128];
 	parse_context ctx;
@@ -2438,12 +2485,12 @@ struct CSaverSizer : public CDummySizer {
 	CMemStream &stm;
 	CSaverSizer(std::map<void*,int> &objs, CMemStream &stm) : objs(objs),stm(stm) {}
 	virtual bool IsLoading() { return false; }
-	virtual bool AddObject(const void* ptr, size_t size, int nCount=1)  { return AddObjectRaw((void*)ptr,size); }
-	virtual bool AddObjectRaw(void* ptr, size_t size, bool hasVMT=false) {
+	virtual bool AddObject(const void* ptr, size_t size, int nCount=1) { return AddObjectRaw((void*)ptr,size,false,size>=nCount*sizeof(void*)); }
+	virtual bool AddObjectRaw(void* ptr, size_t size, bool hasVMT=false, bool mapPtrs=true) {
 		int i=0,sz=size/sizeof(void*);
 		stm.Write(size);
 		stm.Write(ptr, size);
-		for(void **p=(void**)ptr; i<sz; i++) if (p[i]) {// && !nonptr(p[i])) {
+		if (mapPtrs) for(void **p=(void**)ptr; i<sz; i++) if (p[i]) {// && !nonptr(p[i])) {
 			auto iter = objs.find(p[i]);
 			if (iter!=objs.end()) {
 				stm.Write(i);	stm.Write(iter->second);
@@ -2464,21 +2511,26 @@ struct CLoaderSizer : public CDummySizer {
 	virtual bool AddObject(const void* ptr, size_t size, int nCount=1)  { return false; }
 #endif
 	virtual bool AddPartsAlloc(struct geom* &parts, size_t size) { 
-		parts = size ? pWorld->AllocEntityParts(size/sizeof(geom)) : &CPhysicalEntity::m_defpart;
+		int nparts = size/sizeof(geom);
+		parts = size ? pWorld->AllocEntityParts(nparts) : &CPhysicalEntity::m_defpart;
 		int bChuckStart = parts[0].bChunkStart;
 		AddObjectRaw(parts,size); 
 		parts[0].bChunkStart = bChuckStart;
 		return true;
 	}
 	virtual bool AddContactsAlloc(entity_contact* &ptr, size_t size) { return AddObjectRaw(ptr = size ? new entity_contact[size/sizeof(entity_contact)]:nullptr, size); }
-	virtual bool AddObjectRaw(void* ptr, size_t sizeDst, bool hasVMT=false) {
+	virtual bool AddIntArrayAlloc(int* &ptr, size_t size) { 
+		ptr = *(size_t*)(stm.m_pBuf+stm.m_iPos) ? new int[size/sizeof(int)] : nullptr;
+		return AddObjectRaw(ptr, size);
+	}
+	virtual bool AddObjectRaw(void* ptr, size_t sizeDst, bool hasVMT=false, bool mapPtrs=true) {
 		size_t size=stm.Read<size_t>(), offs=0;
 		if (hasVMT) {
 			void *pVMT; stm.Read(pVMT);
 			offs = sizeof(pVMT); 
 		}
 		stm.ReadRaw((char*)ptr+offs, min(size,sizeDst)-offs);
-		stm.m_iPos += size-sizeDst;
+		stm.m_iPos += max(0,(int)size-(int)sizeDst);
 		for(int i; (i=stm.Read<int>())>=0; )
 			((void**)ptr)[i] = objs[stm.Read<int>()];
 		return true;
@@ -2489,8 +2541,10 @@ void PostLoadEntity(CPhysicalEntity *pent, CLoaderSizer&) {
 	pent->m_pNewCoords = (coord_block*)&pent->m_pos;
 	for(int i=0;i<pent->m_nParts;i++)	{
 		pent->m_parts[i].pNewCoords = (coord_block_BBox*)&pent->m_parts[i].pos;
-		pent->m_parts[i].pMatMapping = pent->m_parts[i].pPhysGeom->pMatMapping;
-		pent->m_parts[i].nMats = pent->m_parts[i].pPhysGeom->nMats;
+		if (!pent->m_parts[i].pMatMapping) {
+			pent->m_parts[i].pMatMapping = pent->m_parts[i].pPhysGeom->pMatMapping;
+			pent->m_parts[i].nMats = pent->m_parts[i].pPhysGeom->nMats;
+		}
 	}
 	if (!pent->m_nParts)
 		pent->m_parts = &CPhysicalEntity::m_defpart;
@@ -2522,7 +2576,7 @@ void PostLoadEntityLiving(CLivingEntity *pent, CLoaderSizer& sizer) {
 	pent->m_pContacts = nullptr;
 	PostLoadEntity(pent,sizer);
 }
-void (*g_postLoad[PE_GRID+1])(CPhysicalEntity*,CLoaderSizer&) = { PostLoadEntity };
+void (*g_postLoad[PE_WALKINGRIGID+1])(CPhysicalEntity*,CLoaderSizer&) = { PostLoadEntity };
 
 const int NAME_CHUNK_SIZE = 4098;
 std::vector<std::vector<char>> g_nameBufs;
@@ -2667,8 +2721,8 @@ bool SerializeWorldBin(CPhysicalWorld *pWorld, const char *fname,int bSave)
 			fclose(f);
 			std::vector<void*> objs;
 			CLoaderSizer sizer(objs,stm,pWorld);
-			for(i=0;i<=PE_GRID;i++) g_postLoad[i] = PostLoadEntity;
-			g_postLoad[PE_RIGID] = (void(*)(CPhysicalEntity*,CLoaderSizer&))PostLoadEntityRigid;
+			for(i=0;i<=PE_WALKINGRIGID;i++) g_postLoad[i] = PostLoadEntity;
+			g_postLoad[PE_RIGID]=g_postLoad[PE_WALKINGRIGID] = (void(*)(CPhysicalEntity*,CLoaderSizer&))PostLoadEntityRigid;
 			g_postLoad[PE_ARTICULATED] = (void(*)(CPhysicalEntity*,CLoaderSizer&))PostLoadEntityArtic;
 			g_postLoad[PE_WHEELEDVEHICLE] = (void(*)(CPhysicalEntity*,CLoaderSizer&))PostLoadEntityVehicle;
 			g_postLoad[PE_LIVING] = (void(*)(CPhysicalEntity*,CLoaderSizer&))PostLoadEntityLiving;

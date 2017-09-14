@@ -1107,15 +1107,19 @@ private:
 enum class EAudioDebugDrawFilter : EnumFlagsType
 {
 	All                       = 0,
-	DrawSpheres               = BIT(6),  // a
+	ShowSpheres               = BIT(6),  // a
 	ShowObjectLabel           = BIT(7),  // b
 	ShowObjectTriggers        = BIT(8),  // c
 	ShowObjectStates          = BIT(9),  // d
 	ShowObjectParameters      = BIT(10), // e
 	ShowObjectEnvironments    = BIT(11), // f
-	ShowOcclusionRayLabels    = BIT(12), // g
-	DrawOcclusionRays         = BIT(13), // h
-	DrawObjectStandaloneFiles = BIT(14), // i
+	ShowObjectDistance        = BIT(12), // g
+	ShowOcclusionRayLabels    = BIT(13), // h
+	ShowOcclusionRays         = BIT(14), // i
+	ShowObjectStandaloneFiles = BIT(15), // j
+
+	HideMemoryInfo            = BIT(18), // m
+	FilterAllObjectInfo       = BIT(19), // n
 
 	ShowStandaloneFiles       = BIT(26), // u
 	ShowActiveEvents          = BIT(27), // v
@@ -1123,6 +1127,18 @@ enum class EAudioDebugDrawFilter : EnumFlagsType
 	ShowFileCacheManagerInfo  = BIT(29), // x
 };
 CRY_CREATE_ENUM_FLAG_OPERATORS(EAudioDebugDrawFilter);
+
+static constexpr EAudioDebugDrawFilter objectDebugMask =
+	EAudioDebugDrawFilter::ShowSpheres |
+	EAudioDebugDrawFilter::ShowObjectLabel |
+	EAudioDebugDrawFilter::ShowObjectTriggers |
+	EAudioDebugDrawFilter::ShowObjectStates |
+	EAudioDebugDrawFilter::ShowObjectParameters |
+	EAudioDebugDrawFilter::ShowObjectEnvironments |
+	EAudioDebugDrawFilter::ShowObjectDistance |
+	EAudioDebugDrawFilter::ShowOcclusionRayLabels |
+	EAudioDebugDrawFilter::ShowOcclusionRays |
+	EAudioDebugDrawFilter::ShowObjectStandaloneFiles;
 
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 

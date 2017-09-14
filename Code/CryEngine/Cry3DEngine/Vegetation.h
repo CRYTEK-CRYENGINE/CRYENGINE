@@ -26,9 +26,6 @@ public:
 	CDeformableNode*                            m_pDeformable;
 	PodArrayAABB<CRenderObject::SInstanceInfo>* m_pInstancingInfo;
 
-#if defined(SEG_WORLD)
-	uint16 m_nStaticTypeSlot;
-#endif
 	int    m_nObjectTypeIndex;
 	byte   m_ucAngle;
 	byte   m_ucScale;
@@ -86,38 +83,22 @@ public:
 	void                 UpdateRndFlags();
 	ILINE int            GetStatObjGroupSize() const
 	{
-#ifdef SEG_WORLD
-		return GetObjManager()->m_lstStaticTypes[m_nStaticTypeSlot].Count();
-#else
-		return GetObjManager()->m_lstStaticTypes[0].Count();
-#endif
+		return GetObjManager()->m_lstStaticTypes.Count();
 	}
 	ILINE StatInstGroup& GetStatObjGroup() const
 	{
-#ifdef SEG_WORLD
-		return GetObjManager()->m_lstStaticTypes[m_nStaticTypeSlot][m_nObjectTypeIndex];
-#else
-		return GetObjManager()->m_lstStaticTypes[0][m_nObjectTypeIndex];
-#endif
+		return GetObjManager()->m_lstStaticTypes[m_nObjectTypeIndex];
 	}
 	ILINE CStatObj* GetStatObj() const
 	{
-#ifdef SEG_WORLD
-		return GetObjManager()->m_lstStaticTypes[m_nStaticTypeSlot][m_nObjectTypeIndex].GetStatObj();
-#else
-		return GetObjManager()->m_lstStaticTypes[0][m_nObjectTypeIndex].GetStatObj();
-#endif
+		return GetObjManager()->m_lstStaticTypes[m_nObjectTypeIndex].GetStatObj();
 	}
 	float         GetZAngle() const;
 	AABB          CalcBBox();
 	void          CalcMatrix(Matrix34A& tm, int* pTransFags = NULL);
 	virtual uint8 GetMaterialLayers() const final
 	{
-#ifdef SEG_WORLD
-		return GetObjManager()->m_lstStaticTypes[m_nStaticTypeSlot][m_nObjectTypeIndex].nMaterialLayers;
-#else
-		return GetObjManager()->m_lstStaticTypes[0][m_nObjectTypeIndex].nMaterialLayers;
-#endif
+		return GetObjManager()->m_lstStaticTypes[m_nObjectTypeIndex].nMaterialLayers;
 	}
 	//	float GetLodForDistance(float fDistance);
 	void         Init();

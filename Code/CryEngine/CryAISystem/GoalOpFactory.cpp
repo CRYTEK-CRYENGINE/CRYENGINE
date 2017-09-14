@@ -25,7 +25,7 @@ IGoalOp* CGoalOpFactoryOrdering::GetGoalOp(const char* sGoalOpName, IFunctionHan
 
 IGoalOp* CGoalOpFactoryOrdering::GetGoalOp(EGoalOperations op, GoalParameters& params) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	IGoalOp* pResult = NULL;
 	const TFactoryVector::const_iterator itEnd = m_Factories.end();

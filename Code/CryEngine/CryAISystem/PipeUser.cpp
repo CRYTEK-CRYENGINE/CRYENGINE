@@ -1397,7 +1397,7 @@ enum ECoverUsageCheckLocation
 
 AsyncState CPipeUser::GetCoverUsageInfo(CoverUsageInfo& coverUsageInfo)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_coverUsageInfoState.state == AsyncComplete)
 	{
@@ -1660,7 +1660,7 @@ void CPipeUser::GetStateFromActiveGoals(SOBJECTSTATE& state)
 	m_DEBUGmovementReason = AIMORE_UNKNOWN;
 #endif
 
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_bFirstUpdate)
 	{
@@ -4391,7 +4391,7 @@ void CPipeUser::AdjustPath()
 //===================================================================
 bool CPipeUser::AdjustPathAroundObstacles()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	if (gAIEnv.CVars.AdjustPathsAroundDynamicObstacles != 0)
 	{
 		CalculatePathObstacles();
@@ -4513,7 +4513,7 @@ void CPipeUser::DebugDrawCoverUser()
 
 void CPipeUser::HandleVisualStimulus(SAIEVENT* pAIEvent)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	const float fGlobalVisualPerceptionScale = gEnv->pAISystem->GetGlobalVisualScale(this);
 	const float fVisualPerceptionScale = m_Parameters.m_PerceptionParams.perceptionScale.visual * fGlobalVisualPerceptionScale;
 	if (gAIEnv.CVars.IgnoreVisualStimulus != 0 || m_Parameters.m_bAiIgnoreFgNode || fVisualPerceptionScale <= 0.0f)
@@ -4554,7 +4554,7 @@ void CPipeUser::HandleVisualStimulus(SAIEVENT* pAIEvent)
 
 void CPipeUser::HandleSoundEvent(SAIEVENT* pAIEvent)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	const float fGlobalAudioPerceptionScale = gEnv->pAISystem->GetGlobalAudioScale(this);
 	const float fAudioPerceptionScale = m_Parameters.m_PerceptionParams.perceptionScale.audio * fGlobalAudioPerceptionScale;
@@ -4608,7 +4608,7 @@ void CPipeUser::SetLastActionStatus(bool bSucceed)
 void CPipeUser::UpdateLookTarget(CAIObject* pTarget)
 {
 	CCCPOINT(CPipeUser_UpdateLookTarget);
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// Don't look at targets that aren't at least suspicious
 	if (pTarget && (pTarget == m_refAttentionTarget.GetAIObject()) && (GetAttentionTargetThreat() <= AITHREAT_SUSPECT))

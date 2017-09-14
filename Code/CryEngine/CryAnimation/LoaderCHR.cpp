@@ -559,7 +559,7 @@ bool CDefaultSkeleton::LoadAnimations(CParamLoader& paramLoader)
 
 	int32 numAnims = 0;
 
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ANIMATION);
+	CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
 
 	if (m_animListIDs.size() == 0)
 	{

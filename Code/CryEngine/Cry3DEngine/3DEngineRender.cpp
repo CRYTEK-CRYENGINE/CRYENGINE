@@ -586,7 +586,7 @@ void C3DEngine::ScreenshotDispatcher(const int nRenderFlags, const SRenderingPas
 			GetCVars()->e_ScreenShot = sgn(GetCVars()->e_ScreenShot) * ESST_MAP;   // sgn() to keep sign bit , <0 is used for multiple frames (videos)
 			if (CTerrain* const pTerrain = GetTerrain())
 			{
-				pTerrain->ResetTerrainVertBuffers(NULL, GetDefSID());
+				pTerrain->ResetTerrainVertBuffers(NULL);
 			}
 		}
 		break;
@@ -595,7 +595,7 @@ void C3DEngine::ScreenshotDispatcher(const int nRenderFlags, const SRenderingPas
 			GetCVars()->e_ScreenShot = sgn(GetCVars()->e_ScreenShot) * ESST_SWMAP;   // sgn() to keep sign bit , <0 is used for multiple frames (videos)
 			if (CTerrain* const pTerrain = GetTerrain())
 			{
-				pTerrain->ResetTerrainVertBuffers(NULL, GetDefSID());
+				pTerrain->ResetTerrainVertBuffers(NULL);
 			}
 		}
 		break;
@@ -653,7 +653,7 @@ void C3DEngine::ScreenshotDispatcher(const int nRenderFlags, const SRenderingPas
 
 		if (CTerrain* const pTerrain = GetTerrain())
 		{
-			pTerrain->ResetTerrainVertBuffers(NULL, GetDefSID());
+			pTerrain->ResetTerrainVertBuffers(NULL);
 		}
 		break;
 	default:
@@ -897,18 +897,6 @@ void C3DEngine::RenderWorld(const int nRenderFlags, const SRenderingPassInfo& pa
 	}
 
 	RenderInternal(nRenderFlags, passInfo, szDebugName);
-
-#ifdef SEG_WORLD
-	if (GetISystem()->GetIConsole()->GetCVar("sw_debugInfo")->GetIVal() == 4)
-	{
-		f32 fColor[4] = { 1, 1, 0, 1 };
-
-		float fYLine = 8.0f, fYStep = 20.0f;
-
-		GetRenderer()->Draw2dLabel(8.0f, fYLine += fYStep, 2.0f, fColor, false, "sw_debugInfo = 4\n"
-		                                                                        "Green are normal ones, Red are global ones, Blue are those cross different segs");
-	}
-#endif //SEG_WORLD
 
 	IF (GetCVars()->e_DebugDraw, 0)
 	{
@@ -1338,16 +1326,6 @@ void C3DEngine::PrintDebugInfo(const SRenderingPassInfo& passInfo)
 #endif
 }
 
-void C3DEngine::OffsetPosition(Vec3& delta)
-{
-#ifdef SEG_WORLD
-	m_vPrevMainFrameCamPos += delta;
-
-	if (m_pGlobalIlluminationManager)
-		m_pGlobalIlluminationManager->OffsetPosition(delta);
-#endif
-}
-
 void C3DEngine::DebugDrawStreaming(const SRenderingPassInfo& passInfo)
 {
 #ifndef CONSOLE_CONST_CVAR_MODE
@@ -1655,7 +1633,7 @@ void C3DEngine::RenderScene(const int nRenderFlags, const SRenderingPassInfo& pa
 	////////////////////////////////////////////////////////////////////////////////////////
 	// Add render elements for indoor
 	////////////////////////////////////////////////////////////////////////////////////////
-	if (passInfo.IsGeneralPass() && GetCVars()->e_StatObjBufferRenderTasks && JobManager::InvokeAsJob("CheckOcclusion"))
+	if (passInfo.IsGeneralPass() && IsStatObjBufferRenderTasksAllowed() && JobManager::InvokeAsJob("CheckOcclusion"))
 		m_pObjManager->BeginOcclusionCulling(passInfo);
 
 	// draw objects inside visible vis areas
@@ -1704,18 +1682,13 @@ void C3DEngine::RenderScene(const int nRenderFlags, const SRenderingPassInfo& pa
 		if (passInfo.IsGeneralPass() && m_pTerrain)
 			m_pTerrain->UpdateNodesIncrementaly(passInfo);
 
-		for (int nSID = 0; nSID < Get3DEngine()->m_pObjectsTree.Count(); nSID++)
-		{
-			if (IsSegmentSafeToUse(nSID))
-			{
-				passInfo.GetRendItemSorter().IncreaseOctreeCounter();
-				FRAME_PROFILER("COctreeNode::Render_____", GetSystem(), PROFILE_3DENGINE);
-				m_pObjectsTree[nSID]->Render_Object_Nodes(false, OCTREENODE_RENDER_FLAG_OBJECTS, GetSkyColor(), passInfo);
+		passInfo.GetRendItemSorter().IncreaseOctreeCounter();
+		CRY_PROFILE_REGION(PROFILE_3DENGINE, "COctreeNode::Render_____");
+		m_pObjectsTree->Render_Object_Nodes(false, OCTREENODE_RENDER_FLAG_OBJECTS, GetSkyColor(), passInfo);
 
-				if (GetCVars()->e_ObjectsTreeBBoxes >= 3)
-					m_pObjectsTree[nSID]->RenderDebug();
-			}
-		}
+		if (GetCVars()->e_ObjectsTreeBBoxes >= 3)
+			m_pObjectsTree->RenderDebug();
+
 		passInfo.GetRendItemSorter().IncreaseGroupCounter();
 	}
 	else if (m_pVisAreaManager && m_pVisAreaManager->IsSkyVisible())
@@ -1737,18 +1710,18 @@ void C3DEngine::RenderScene(const int nRenderFlags, const SRenderingPassInfo& pa
 	}
 
 	// render outdoor entities very near of camera - fix for 1p vehicle entering into indoor
-	for (int nSID = 0; nSID < Get3DEngine()->m_pObjectsTree.Count(); nSID++)
 	{
-		FRAME_PROFILER("COctreeNode::Render_Object_Nodes_NEAR", GetSystem(), PROFILE_3DENGINE);
+		CRY_PROFILE_REGION(PROFILE_3DENGINE, "COctreeNode::Render_Object_Nodes_NEAR");
 		passInfo.GetRendItemSorter().IncreaseOctreeCounter();
 		if (GetCVars()->e_PortalsBigEntitiesFix)
-			if (IsSegmentSafeToUse(nSID) && !IsOutdoorVisible() && GetVisAreaManager() && GetVisAreaManager()->GetCurVisArea())
-				if (GetVisAreaManager()->GetCurVisArea()->IsConnectedToOutdoor())
-				{
-					CCamera cam = passInfo.GetCamera();
-					cam.SetFrustum(cam.GetViewSurfaceX(), cam.GetViewSurfaceZ(), cam.GetFov(), min(cam.GetNearPlane(), 1.f), 2.f, cam.GetPixelAspectRatio());
-					m_pObjectsTree[nSID]->Render_Object_Nodes(false, OCTREENODE_RENDER_FLAG_OBJECTS | OCTREENODE_RENDER_FLAG_OBJECTS_ONLY_ENTITIES, GetSkyColor(), SRenderingPassInfo::CreateTempRenderingInfo(cam, passInfo));
-				}
+		{
+			if (!IsOutdoorVisible() && GetVisAreaManager() && GetVisAreaManager()->GetCurVisArea() && GetVisAreaManager()->GetCurVisArea()->IsConnectedToOutdoor())
+			{
+				CCamera cam = passInfo.GetCamera();
+				cam.SetFrustum(cam.GetViewSurfaceX(), cam.GetViewSurfaceZ(), cam.GetFov(), min(cam.GetNearPlane(), 1.f), 2.f, cam.GetPixelAspectRatio());
+				m_pObjectsTree->Render_Object_Nodes(false, OCTREENODE_RENDER_FLAG_OBJECTS | OCTREENODE_RENDER_FLAG_OBJECTS_ONLY_ENTITIES, GetSkyColor(), SRenderingPassInfo::CreateTempRenderingInfo(cam, passInfo));
+			}
+		}
 	}
 	passInfo.GetRendItemSorter().IncreaseGroupCounter();
 
@@ -1762,7 +1735,7 @@ void C3DEngine::RenderScene(const int nRenderFlags, const SRenderingPassInfo& pa
 		auto dwRndFlags = pObj->GetRndFlags();
 		if (dwRndFlags & ERF_HUD || passInfo.GetCamera().IsAABBVisible_E(objBox))
 		{
-			FRAME_PROFILER("C3DEngine::RenderScene_DrawAlwaysVisible", GetSystem(), PROFILE_3DENGINE);
+			CRY_PROFILE_REGION(PROFILE_3DENGINE, "C3DEngine::RenderScene_DrawAlwaysVisible");
 
 			Vec3 vCamPos = passInfo.GetCamera().GetPosition();
 			float fEntDistance = sqrt_tpl(Distance::Point_AABBSq(vCamPos, objBox)) * passInfo.GetZoomFactor();
@@ -1793,7 +1766,7 @@ void C3DEngine::RenderScene(const int nRenderFlags, const SRenderingPassInfo& pa
 		m_pDecalManager->Render(passInfo);
 
 	// tell the occlusion culler that no new work will be submitted
-	if (GetCVars()->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
+	if (IsStatObjBufferRenderTasksAllowed() && GetCVars()->e_StatObjBufferRenderTasks == 1 && passInfo.IsGeneralPass() && JobManager::InvokeAsJob("CheckOcclusion"))
 		GetObjManager()->PushIntoCullQueue(SCheckOcclusionJobData::CreateQuitJobData());
 
 	// fill shadow list here to allow more time between starting and waiting for the occlusion buffer
@@ -1802,7 +1775,7 @@ void C3DEngine::RenderScene(const int nRenderFlags, const SRenderingPassInfo& pa
 	if (passInfo.IsGeneralPass())
 		gEnv->pSystem->DoWorkDuringOcclusionChecks();
 
-	if (passInfo.IsGeneralPass() && GetCVars()->e_StatObjBufferRenderTasks && JobManager::InvokeAsJob("CheckOcclusion"))
+	if (passInfo.IsGeneralPass() && IsStatObjBufferRenderTasksAllowed() && JobManager::InvokeAsJob("CheckOcclusion"))
 		m_pObjManager->RenderBufferedRenderMeshes(passInfo);
 
 	// Call postrender on the meshes that require it.
@@ -1870,7 +1843,7 @@ void C3DEngine::RenderScene(const int nRenderFlags, const SRenderingPassInfo& pa
 	FinishWindGridJob();
 
 	{
-		FRAME_PROFILER("Renderer::EF_EndEf3D", GetSystem(), PROFILE_RENDERER);
+		CRY_PROFILE_REGION(PROFILE_RENDERER, "Renderer::EF_EndEf3D");
 		// TODO: separate SHDF_NOASYNC and SHDF_STREAM_SYNC flags
 		GetRenderer()->EF_EndEf3D(IsShadersSyncLoad() ? (nRenderFlags | SHDF_NOASYNC | SHDF_STREAM_SYNC) : nRenderFlags, GetObjManager()->m_nUpdateStreamingPrioriryRoundId, GetObjManager()->m_nUpdateStreamingPrioriryRoundIdFast, passInfo);
 	}
@@ -1883,8 +1856,9 @@ void C3DEngine::RenderScene(const int nRenderFlags, const SRenderingPassInfo& pa
 
 	// unload old meshes
 	if (passInfo.IsGeneralPass() && m_pTerrain)
-		for (int nSID = 0; nSID < Get3DEngine()->m_pObjectsTree.Count(); nSID++)
-			m_pTerrain->CheckNodesGeomUnload(nSID, passInfo);
+	{
+		m_pTerrain->CheckNodesGeomUnload(passInfo);
+	}
 
 	if (passInfo.IsGeneralPass())
 	{

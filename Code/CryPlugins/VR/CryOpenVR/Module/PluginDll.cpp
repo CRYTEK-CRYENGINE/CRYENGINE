@@ -19,6 +19,12 @@ namespace OpenVR {
 
 CPlugin_OpenVR::~CPlugin_OpenVR()
 {
+	ISystem* pSystem = GetISystem();
+	if (pSystem)
+	{
+		pSystem->GetHmdManager()->UnregisterDevice(GetName());
+	}
+
 	CryVR::OpenVR::Resources::Shutdown();
 
 	if (IConsole* const pConsole = gEnv->pConsole)
@@ -28,7 +34,10 @@ CPlugin_OpenVR::~CPlugin_OpenVR()
 		pConsole->UnregisterVariable("hmd_quad_absolute");
 	}
 
-	GetISystem()->GetISystemEventDispatcher()->RemoveListener(this);
+	if (pSystem)
+	{
+		pSystem->GetISystemEventDispatcher()->RemoveListener(this);
+	}
 }
 
 bool CPlugin_OpenVR::Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams)

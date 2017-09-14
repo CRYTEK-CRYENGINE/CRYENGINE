@@ -124,7 +124,7 @@ class CRopeEntity : public CPhysicalEntity {
 
 	int GetVertices(strided_pointer<Vec3>& verts) const;
 	virtual float GetExtent(EGeomForm eForm) const;
-	virtual void GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const;
+	virtual void GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const;
 
 	Vec3 m_gravity,m_gravity0;
 	float m_damping;

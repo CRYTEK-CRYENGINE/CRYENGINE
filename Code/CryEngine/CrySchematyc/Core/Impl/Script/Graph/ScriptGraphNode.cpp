@@ -47,8 +47,8 @@ inline ColorB GetPortColor(const CryGUID& typeGUID)
 {
 	struct SColors
 	{
-		CryGUID  typeGUID;
-		ColorB color;
+		CryGUID typeGUID;
+		ColorB  color;
 	};
 
 	static const SColors portColors[] =
@@ -58,7 +58,7 @@ inline ColorB GetPortColor(const CryGUID& typeGUID)
 		{ GetTypeDesc<uint32>().GetGUID(),        ColorB(215, 55,  55)  },
 		{ GetTypeDesc<float>().GetGUID(),         ColorB(185, 185, 185) },
 		{ GetTypeDesc<Vec3>().GetGUID(),          ColorB(250, 232, 12)  },
-		{ GetTypeDesc<CryGUID>().GetGUID(),         ColorB(38,  184, 33)  },
+		{ GetTypeDesc<CryGUID>().GetGUID(),       ColorB(38,  184, 33)  },
 		{ GetTypeDesc<CSharedString>().GetGUID(), ColorB(128, 100, 162) }
 	};
 
@@ -406,6 +406,16 @@ void CScriptGraphNode::Serialize(Serialization::IArchive& archive)
 				{
 					m_pModel->LoadDependencies(archive, *pSerializationContext);
 				}
+				break;
+			}
+		case ESerializationPass::Load:
+			{
+				SerializeBasicInfo(archive);
+				if (m_pModel)
+				{
+					m_pModel->Load(archive, *pSerializationContext);
+				}
+				SerializeInputs(archive);
 				break;
 			}
 		case ESerializationPass::PostLoad:

@@ -125,7 +125,7 @@ inline void ReflectType(CTypeDesc<LowLevelAnimationName>& desc)
 	desc.SetDescription("Name of an animation exported to the engine");
 }
 
-typedef SerializationUtils::SResourceNameSerializer<&Serialization::ParticleEffectName> ParticleEffectName;
+typedef SerializationUtils::SResourceNameSelector<&Serialization::ParticlePicker<string>> ParticleEffectName;
 
 inline void ReflectType(CTypeDesc<ParticleEffectName>& desc)
 {

@@ -556,6 +556,8 @@ float ProcessAnalyticalOccluders(float fRayLen, Ray r, inout float4 vC, float fD
 		}
 		else if (oc.C.w <= AO_eCylinder_Hard) // obb or cylinder
 		{
+			float3 startpoint = r.startpoint + r.direction * (0.001 + 0.001 * fDistM);
+
 			OBB obb;
 			obb.ue[0] = oc.P0;
 			obb.ue[1] = oc.P1;
@@ -566,15 +568,15 @@ float ProcessAnalyticalOccluders(float fRayLen, Ray r, inout float4 vC, float fD
 
 			bool bCylinder = (oc.C.w == AO_eCylinder || oc.C.w == AO_eCylinder_Hard);
 
-			fOrigDist = sqrt(SqDistPointOBB(r.startpoint, obb, bCylinder));
+			fOrigDist = sqrt(SqDistPointOBB(startpoint, obb, bCylinder));
 
 			fRayDist = fOrigDist;
-			float3 vMinPoint = r.startpoint;
+			float3 vMinPoint = startpoint;
 			float fStepSize = fRayLen;
 
 			for (float t = 0, steps = 0; (t < fRayLen) && (steps<32) && fStepSize>0; t += fStepSize, steps++)
 			{
-				float3 vTestPoint = r.startpoint + r.direction * t;
+				float3 vTestPoint = startpoint + r.direction * t;
 
 				float fD = sqrt(SqDistPointOBB(vTestPoint, obb, bCylinder));
 
@@ -589,9 +591,9 @@ float ProcessAnalyticalOccluders(float fRayLen, Ray r, inout float4 vC, float fD
 				fStepSize = min(fD + .002, fStepSize);
 			}
 
-			vSegDir = normalize(vMinPoint - r.startpoint);
+			vSegDir = normalize(vMinPoint - startpoint);
 
-			fOrigDist = min(fOrigDist, length(vMinPoint - r.startpoint));
+			fOrigDist = min(fOrigDist, length(vMinPoint - startpoint));
 
 			fRadius = 0;
 		}

@@ -4,6 +4,7 @@
 
 #include "GraphNodeItem.h"
 #include "GraphPinItem.h"
+#include "GraphViewModel.h"
 
 #include <CrySchematyc/Script/IScriptGraph.h>
 
@@ -52,17 +53,40 @@ void CNodeItem::Serialize(Serialization::IArchive& archive)
 		serPass = archive.isInput() ? Schematyc::ESerializationPass::Load : Schematyc::ESerializationPass::Save;
 	}
 
+	if (serPass == Schematyc::ESerializationPass::Load)
+	{
+		Schematyc::SSerializationContextParams serializationContextParams(archive, Schematyc::ESerializationPass::LoadDependencies);
+		Schematyc::ISerializationContextPtr pSerializationContext = gEnv->pSchematyc->CreateSerializationContext(serializationContextParams);
+
+		m_scriptNode.Serialize(archive);
+	}
+
 	Schematyc::SSerializationContextParams serializationContextParams(archive, serPass);
 	Schematyc::ISerializationContextPtr pSerializationContext = gEnv->pSchematyc->CreateSerializationContext(serializationContextParams);
 
-	m_scriptNode.Serialize(archive);
-	if (archive.isInput())
+	if (archive.isOutput() && archive.isEdit())
 	{
-		m_isDirty = true;
+		Refresh(true);
 
 		// TODO: This should happen in Serialize(...) function not here.
 		gEnv->pSchematyc->GetScriptRegistry().ElementModified(m_scriptNode.GetGraph().GetElement());
 		// ~TODO
+	}
+
+	m_scriptNode.Serialize(archive);
+
+	if (archive.isInput())
+	{
+		// We only want to do an immediate refresh if the change doesn't come from
+		// the editor. Otherwise we wait for the output serialization pass.
+		if (!archive.isEdit())
+		{
+			Refresh(true);
+
+			// TODO: This should happen in Serialize(...) function not here.
+			gEnv->pSchematyc->GetScriptRegistry().ElementModified(m_scriptNode.GetGraph().GetElement());
+			// ~TODO
+		}
 
 		Validate();
 	}
@@ -80,7 +104,7 @@ void CNodeItem::SetPosition(QPointF position)
 	m_scriptNode.SetPos(pos);
 
 	CAbstractNodeItem::SetPosition(position);
-	if (GetRecordUndo())
+	if (GetIEditor()->GetIUndoManager()->IsUndoRecording())
 	{
 		CryGraphEditor::CUndoNodeMove* pUndoObject = new CryGraphEditor::CUndoNodeMove(*this);
 		CUndo::Record(pUndoObject);
@@ -146,14 +170,28 @@ const char* CNodeItem::GetStyleId() const
 	return m_scriptNode.GetStyleId();
 }
 
+bool CNodeItem::IsRemovable() const
+{
+	return !m_scriptNode.GetFlags().Check(Schematyc::EScriptGraphNodeFlags::NotRemovable);
+}
+
+bool CNodeItem::IsPasteAllowed() const
+{
+	return !m_scriptNode.GetFlags().Check(Schematyc::EScriptGraphNodeFlags::NotCopyable);
+}
+
 void CNodeItem::Refresh(bool forceRefresh)
 {
+	// TODO: This is a workaround for broken mappings after undo.
+	m_scriptNode.GetGraph().FixMapping(m_scriptNode);
+	// ~TODO
+
 	if (m_isDirty || forceRefresh)
 	{
 		m_isDirty = false;
 
-		// TODO: Just call RefreshLayout(...) here?!
-		m_scriptNode.ProcessEvent(Schematyc::SScriptEvent(Schematyc::EScriptEventId::EditorRefresh));
+		// TODO: We shouldn't have to do this here but it's the only way to refresh the whole node for now!
+		m_scriptNode.ProcessEvent(Schematyc::SScriptEvent(Schematyc::EScriptEventId::EditorPaste));
 		// ~TODO
 
 		RefreshName();
@@ -163,8 +201,6 @@ void CNodeItem::Refresh(bool forceRefresh)
 
 		CryGraphEditor::PinItemArray pins;
 		pins.reserve(numPins);
-
-		size_t numKeptPins = 0;
 
 		const uint32 numInputPins = m_scriptNode.GetInputCount();
 		for (uint32 i = 0; i < numInputPins; ++i)
@@ -187,11 +223,9 @@ void CNodeItem::Refresh(bool forceRefresh)
 			else
 			{
 				CPinItem* pPinItem = static_cast<CPinItem*>(*result);
-				pPinItem->UpdateWithNewIndex(i);
 				pins.push_back(pPinItem);
 
 				*result = nullptr;
-				++numKeptPins;
 			}
 		}
 
@@ -216,11 +250,9 @@ void CNodeItem::Refresh(bool forceRefresh)
 			else
 			{
 				CPinItem* pPinItem = static_cast<CPinItem*>(*result);
-				pPinItem->UpdateWithNewIndex(i);
 				pins.push_back(pPinItem);
 
 				*result = nullptr;
-				++numKeptPins;
 			}
 		}
 
@@ -231,9 +263,28 @@ void CNodeItem::Refresh(bool forceRefresh)
 		{
 			if (pPinItem != nullptr)
 			{
+				// TODO: We need to destroy the connections since Schematyc backend did so already without
+				//			 notifying the editor. Remove that as soon as we have proper communication between
+				//			 editor and backend.
+				pPinItem->Disconnect();
+				// ~TODO
+
 				SignalPinRemoved(*pPinItem);
 				delete pPinItem;
 			}
+		}
+
+		size_t inputIdx = 0;
+		size_t outputIdx = 0;
+		for (uint32 i = 0; i < m_pins.size(); ++i)
+		{
+			CPinItem* pPinItem = static_cast<CPinItem*>(m_pins.at(i));
+			if (pPinItem->IsInputPin())
+				pPinItem->UpdateWithNewIndex(inputIdx++);
+			else
+				pPinItem->UpdateWithNewIndex(outputIdx++);
+
+			pPinItem->SignalInvalidated();
 		}
 	}
 }
@@ -265,6 +316,10 @@ void CNodeItem::LoadFromScriptElement()
 		CryGraphEditor::CAbstractPinItem* pPinItem = new CPinItem(i, EPinFlag::Output, *this, GetViewModel());
 		m_pins.push_back(pPinItem);
 	}
+
+	SetAcceptsDeletion(IsRemovable());
+	SetAcceptsCopy(IsCopyAllowed());
+	SetAcceptsPaste(IsPasteAllowed());
 
 	Validate();
 }

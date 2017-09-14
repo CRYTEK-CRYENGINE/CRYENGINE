@@ -307,13 +307,13 @@ bool CSvoEnv::Render()
 
 	CollectAnalyticalOccluders();
 
-	if (Get3DEngine()->m_pObjectsTree[0])
+	if (Get3DEngine()->m_pObjectsTree)
 	{
 		m_pGlobalSpecCM = 0;
 		m_fGlobalSpecCM_Mult = 0;
 
 		PodArray<IRenderNode*> arrObjects;
-		Get3DEngine()->m_pObjectsTree[0]->GetObjectsByType(arrObjects, eERType_Light, &m_worldBox, 0, false);
+		Get3DEngine()->m_pObjectsTree->GetObjectsByType(arrObjects, eERType_Light, &m_worldBox, 0, (uint64)~0, false);
 
 		float fMaxRadius = 999;
 
@@ -437,7 +437,7 @@ bool CSvoEnv::Render()
 
 	//	if(GetCVars()->e_rsMode != RS_FAT_CLIENT)
 	{
-		FRAME_PROFILER("CGlobalCloud::Render_StartStreaming", GetSystem(), PROFILE_3DENGINE);
+		CRY_PROFILE_REGION(PROFILE_3DENGINE, "CGlobalCloud::Render_StartStreaming");
 
 		for (int nTreeLevel = 0; (nTreeLevel < nVoxStreamQueueMaxSize); nTreeLevel++)
 			for (int nDistId = 0; (nDistId < nVoxStreamQueueMaxSize); nDistId++)
@@ -461,13 +461,13 @@ bool CSvoEnv::Render()
 	if (CVoxelSegment::m_arrLoadedSegments.Count() > (nMaxLoadedNodes - Cry3DEngineBase::GetCVars()->e_svoMaxStreamRequests))
 	{
 		{
-			FRAME_PROFILER("CGlobalCloud::Render_UnloadStreamable_Sort", GetSystem(), PROFILE_3DENGINE);
+			CRY_PROFILE_REGION(PROFILE_3DENGINE, "CGlobalCloud::Render_UnloadStreamable_Sort");
 
 			qsort(CVoxelSegment::m_arrLoadedSegments.GetElements(), CVoxelSegment::m_arrLoadedSegments.Count(), sizeof(CVoxelSegment::m_arrLoadedSegments[0]), CVoxelSegment::ComparemLastVisFrameID);
 		}
 
 		{
-			FRAME_PROFILER("CGlobalCloud::Render_UnloadStreamable_FreeRenderData", GetSystem(), PROFILE_3DENGINE);
+			CRY_PROFILE_REGION(PROFILE_3DENGINE, "CGlobalCloud::Render_UnloadStreamable_FreeRenderData");
 
 			int nNumNodesToDelete = 4 + Cry3DEngineBase::GetCVars()->e_svoMaxStreamRequests;//CVoxelSegment::m_arrLoadedSegments.Count()/1000;
 
@@ -507,7 +507,7 @@ bool CSvoEnv::Render()
 
 	//if(nUserId == 0 || !bMultiUserMode)
 	{
-		FRAME_PROFILER("CGlobalCloud::Render_BrickUpdate", GetSystem(), PROFILE_3DENGINE);
+		CRY_PROFILE_REGION(PROFILE_3DENGINE, "CGlobalCloud::Render_BrickUpdate");
 
 		CVoxelSegment::m_nUpdatesInProgressTex = 0;
 		CVoxelSegment::m_nUpdatesInProgressBri = 0;
@@ -539,7 +539,7 @@ bool CSvoEnv::Render()
 
 		if (m_nTexNodePoolId)
 		{
-			FRAME_PROFILER("CGlobalCloud::Render_UpdateNodeRenderDataPtrs", GetSystem(), PROFILE_3DENGINE);
+			CRY_PROFILE_REGION(PROFILE_3DENGINE, "CGlobalCloud::Render_UpdateNodeRenderDataPtrs");
 
 			m_pSvoRoot->UpdateNodeRenderDataPtrs();
 		}
@@ -1896,6 +1896,7 @@ void CSvoEnv::GetSvoBricksForUpdate(PodArray<I3DEngine::SSvoNodeInfo>& arrNodeIn
 		fCheckVal += GetCVars()->e_svoTI_SunRSMInject;
 		fCheckVal += GetCVars()->e_svoTI_EmissiveMultiplier;
 		fCheckVal += GetCVars()->e_svoTI_PointLightsMultiplier;
+		fCheckVal += GetCVars()->e_svoTI_PointLightsBias;
 
 		//		fCheckVal += int(Get3DEngine()->GetSunDir().x*10);
 		//	fCheckVal += int(Get3DEngine()->GetSunDir().y*10);
@@ -2134,7 +2135,7 @@ void CSvoEnv::DetectMovement_StatLights()
 
 						CDLight& m_light = pLS->GetLightProperties();
 
-						if (!Overlap::Sphere_AABB(Sphere(m_light.m_BaseOrigin, m_light.m_fBaseRadius), pSeg->m_pNode->m_nodeBox))
+						if (!Overlap::Sphere_AABB(Sphere(m_light.m_BaseOrigin, m_light.m_fRadius), pSeg->m_pNode->m_nodeBox))
 							continue;
 
 						if ((m_light.m_Flags & DLF_PROJECT) && (m_light.m_fLightFrustumAngle < 90.f) && m_light.m_pLightImage)
@@ -2355,6 +2356,7 @@ void C3DEngine::LoadTISettings(XmlNodeRef pInputNode)
 	GetCVars()->e_svoTI_NumberOfBounces = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "NumberOfBounces", "0"));
 	GetCVars()->e_svoTI_Saturation = (float)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "Saturation", "0"));
 	GetCVars()->e_svoTI_PropagationBooster = (float)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "PropagationBooster", "0"));
+	GetCVars()->e_svoTI_PointLightsBias = (float)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "PointLightsBias", "0"));
 	if (gEnv->IsEditor())
 	{
 		GetCVars()->e_svoTI_UpdateLighting = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "UpdateLighting", "0"));

@@ -842,7 +842,7 @@ void Device::SubmitOverlay(int id)
 // -------------------------------------------------------------------------
 void Device::SubmitFrame()
 {
-	FRAME_PROFILER("Device::SubmitFrame", gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_REGION(PROFILE_SYSTEM, "Device::SubmitFrame");
 
 	if (m_compositor && m_eyeTargets[EEyeType::eEyeType_LeftEye] && m_eyeTargets[EEyeType::eEyeType_RightEye])
 	{

@@ -30,6 +30,7 @@ public:
 		: m_pControlledPlayer(NULL)
 		, m_pMovementAction(NULL)
 		, m_pMannequinParams(NULL)
+		, m_PreviousThirdPersonState(false)
 	{
 	}
 
@@ -59,6 +60,7 @@ private:
 	CPlayer*		m_pControlledPlayer;
 	TPlayerAction* m_pMovementAction;
 	const struct SMannequinMountedGunParams* m_pMannequinParams;
+	bool m_PreviousThirdPersonState;
 };
 
 #endif

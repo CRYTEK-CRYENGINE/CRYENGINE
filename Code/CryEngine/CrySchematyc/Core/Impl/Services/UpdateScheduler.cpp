@@ -241,7 +241,7 @@ bool CUpdateScheduler::BeginFrame(float frameTime)
 
 bool CUpdateScheduler::Update(UpdatePriority beginPriority, UpdatePriority endPriority)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 	if (m_bInFrame)
 	{
 		// Calculate cumulative frame times.

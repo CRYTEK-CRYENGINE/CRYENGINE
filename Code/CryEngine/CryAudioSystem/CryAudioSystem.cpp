@@ -28,11 +28,11 @@ CLogger g_logger;
 CTimeValue g_lastMainThreadFrameStartTime;
 
 //////////////////////////////////////////////////////////////////////////
-class CSystemEventListner_Sound : public ISystemEventListener
+class CSystemEventListener_Sound : public ISystemEventListener
 {
 public:
 
-	CSystemEventListner_Sound() = default;
+	CSystemEventListener_Sound() = default;
 
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam) override
 	{
@@ -86,7 +86,7 @@ private:
 	SRequestUserData const m_requestUserData;
 };
 
-static CSystemEventListner_Sound g_system_event_listener_sound;
+static CSystemEventListener_Sound g_system_event_listener_sound;
 
 ///////////////////////////////////////////////////////////////////////////
 bool CreateAudioSystem(SSystemGlobalEnvironment& env)
@@ -152,7 +152,10 @@ class CEngineModule_CryAudioSystem : public ISystemModule
 	virtual ~CEngineModule_CryAudioSystem() override
 	{
 		SAFE_RELEASE(gEnv->pAudioSystem);
-		gEnv->pSystem->UnloadEngineModule(s_currentModuleName.c_str());
+		if (ISystem* pSystem = GetISystem())
+		{
+			pSystem->UnloadEngineModule(s_currentModuleName.c_str());
+		}
 	}
 
 	virtual const char* GetName() const override     { return "CryAudioSystem"; }
@@ -195,7 +198,7 @@ class CEngineModule_CryAudioSystem : public ISystemModule
 				static_cast<CSystem*>(env.pAudioSystem)->SetImpl(nullptr, data);
 			}
 
-			env.pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_sound, "CSystemEventListner_Sound");
+			env.pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_sound, "CSystemEventListener_Sound");
 
 			// As soon as the audio system was created we consider this a success (even if the NULL implementation was used)
 			bSuccess = true;
@@ -252,7 +255,7 @@ class CEngineModule_CryAudioSystem : public ISystemModule
 				pAudioSystem->ParseControlsData(levelPath.c_str(), EDataScope::LevelSpecific, data);
 				pAudioSystem->ParsePreloadsData(levelPath.c_str(), EDataScope::LevelSpecific, data);
 
-				PreloadRequestId const preloadRequestId = CryAudio::StringToId_RunTime(levelName.c_str());
+				PreloadRequestId const preloadRequestId = CryAudio::StringToId(levelName.c_str());
 				pAudioSystem->PreloadSingleRequest(preloadRequestId, true, data);
 			}
 

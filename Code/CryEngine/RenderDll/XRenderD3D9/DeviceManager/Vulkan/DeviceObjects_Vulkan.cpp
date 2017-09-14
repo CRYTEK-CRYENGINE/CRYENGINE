@@ -9,6 +9,8 @@
 #include "Vulkan/API/VKSampler.hpp"
 #include "Vulkan/API/VKExtensions.hpp"
 
+#include <Common/Renderer.h>
+
 extern CD3D9Renderer gcpRendD3D;
 
 using namespace NCryVulkan;
@@ -828,37 +830,38 @@ CDeviceGraphicsPSO::EInitResult CDeviceGraphicsPSO_Vulkan::Init(const CDeviceGra
 	{
 		VkBlendFactor BlendColor;
 		VkBlendFactor BlendAlpha;
+		bool		  bAllowOnAllTargets;
 	};
 
 	static SBlendFactors SrcBlendFactors[GS_BLSRC_MASK >> GS_BLSRC_SHIFT] =
 	{
-		{ (VkBlendFactor)0,                    (VkBlendFactor)0                    }, // UNINITIALIZED BLEND FACTOR
-		{ VK_BLEND_FACTOR_ZERO,                VK_BLEND_FACTOR_ZERO                }, // GS_BLSRC_ZERO
-		{ VK_BLEND_FACTOR_ONE,                 VK_BLEND_FACTOR_ONE                 }, // GS_BLSRC_ONE
-		{ VK_BLEND_FACTOR_DST_COLOR,           VK_BLEND_FACTOR_DST_ALPHA           }, // GS_BLSRC_DSTCOL
-		{ VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR, VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA }, // GS_BLSRC_ONEMINUSDSTCOL
-		{ VK_BLEND_FACTOR_SRC_ALPHA,           VK_BLEND_FACTOR_SRC_ALPHA           }, // GS_BLSRC_SRCALPHA
-		{ VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA }, // GS_BLSRC_ONEMINUSSRCALPHA
-		{ VK_BLEND_FACTOR_DST_ALPHA,           VK_BLEND_FACTOR_DST_ALPHA           }, // GS_BLSRC_DSTALPHA
-		{ VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA }, // GS_BLSRC_ONEMINUSDSTALPHA
-		{ VK_BLEND_FACTOR_SRC_ALPHA_SATURATE,  VK_BLEND_FACTOR_SRC_ALPHA_SATURATE  }, // GS_BLSRC_ALPHASATURATE
-		{ VK_BLEND_FACTOR_SRC_ALPHA,           VK_BLEND_FACTOR_ZERO                }, // GS_BLSRC_SRCALPHA_A_ZERO
-		{ VK_BLEND_FACTOR_SRC1_ALPHA,          VK_BLEND_FACTOR_SRC1_ALPHA          }, // GS_BLSRC_SRC1ALPHA
+		{ (VkBlendFactor)0,                    (VkBlendFactor)0,						true },		// UNINITIALIZED BLEND FACTOR
+		{ VK_BLEND_FACTOR_ZERO,                VK_BLEND_FACTOR_ZERO,					true },		// GS_BLSRC_ZERO
+		{ VK_BLEND_FACTOR_ONE,                 VK_BLEND_FACTOR_ONE,						true },		// GS_BLSRC_ONE
+		{ VK_BLEND_FACTOR_DST_COLOR,           VK_BLEND_FACTOR_DST_ALPHA,				true },		// GS_BLSRC_DSTCOL
+		{ VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR, VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA,		true },		// GS_BLSRC_ONEMINUSDSTCOL
+		{ VK_BLEND_FACTOR_SRC_ALPHA,           VK_BLEND_FACTOR_SRC_ALPHA,				true },		// GS_BLSRC_SRCALPHA
+		{ VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,		true },		// GS_BLSRC_ONEMINUSSRCALPHA
+		{ VK_BLEND_FACTOR_DST_ALPHA,           VK_BLEND_FACTOR_DST_ALPHA,				true },		// GS_BLSRC_DSTALPHA
+		{ VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA,		true },		// GS_BLSRC_ONEMINUSDSTALPHA
+		{ VK_BLEND_FACTOR_SRC_ALPHA_SATURATE,  VK_BLEND_FACTOR_SRC_ALPHA_SATURATE,		true },		// GS_BLSRC_ALPHASATURATE
+		{ VK_BLEND_FACTOR_SRC_ALPHA,           VK_BLEND_FACTOR_ZERO,					true },		// GS_BLSRC_SRCALPHA_A_ZERO
+		{ VK_BLEND_FACTOR_SRC1_ALPHA,          VK_BLEND_FACTOR_SRC1_ALPHA,				false },	// GS_BLSRC_SRC1ALPHA
 	};
 
 	static SBlendFactors DstBlendFactors[GS_BLDST_MASK >> GS_BLDST_SHIFT] =
 	{
-		{ (VkBlendFactor)0,                     (VkBlendFactor)0                     }, // UNINITIALIZED BLEND FACTOR
-		{ VK_BLEND_FACTOR_ZERO,                 VK_BLEND_FACTOR_ZERO                 }, // GS_BLDST_ZERO
-		{ VK_BLEND_FACTOR_ONE,                  VK_BLEND_FACTOR_ONE                  }, // GS_BLDST_ONE
-		{ VK_BLEND_FACTOR_SRC_COLOR,            VK_BLEND_FACTOR_SRC_ALPHA            }, // GS_BLDST_SRCCOL
-		{ VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR,  VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA  }, // GS_BLDST_ONEMINUSSRCCOL
-		{ VK_BLEND_FACTOR_SRC_ALPHA,            VK_BLEND_FACTOR_SRC_ALPHA            }, // GS_BLDST_SRCALPHA
-		{ VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,  VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA  }, // GS_BLDST_ONEMINUSSRCALPHA
-		{ VK_BLEND_FACTOR_DST_ALPHA,            VK_BLEND_FACTOR_DST_ALPHA            }, // GS_BLDST_DSTALPHA
-		{ VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA,  VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA  }, // GS_BLDST_ONEMINUSDSTALPHA
-		{ VK_BLEND_FACTOR_ONE,                  VK_BLEND_FACTOR_ZERO                 }, // GS_BLDST_ONE_A_ZERO
-		{ VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA }, // GS_BLDST_ONEMINUSSRC1ALPHA
+		{ (VkBlendFactor)0,                     (VkBlendFactor)0,						true },		// UNINITIALIZED BLEND FACTOR
+		{ VK_BLEND_FACTOR_ZERO,                 VK_BLEND_FACTOR_ZERO,					true },		// GS_BLDST_ZERO
+		{ VK_BLEND_FACTOR_ONE,                  VK_BLEND_FACTOR_ONE,					true },		// GS_BLDST_ONE
+		{ VK_BLEND_FACTOR_SRC_COLOR,            VK_BLEND_FACTOR_SRC_ALPHA ,				true },		// GS_BLDST_SRCCOL
+		{ VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR,  VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,	true },		// GS_BLDST_ONEMINUSSRCCOL
+		{ VK_BLEND_FACTOR_SRC_ALPHA,            VK_BLEND_FACTOR_SRC_ALPHA,				true },		// GS_BLDST_SRCALPHA
+		{ VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,  VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,	true },		// GS_BLDST_ONEMINUSSRCALPHA
+		{ VK_BLEND_FACTOR_DST_ALPHA,            VK_BLEND_FACTOR_DST_ALPHA,				true },		// GS_BLDST_DSTALPHA
+		{ VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA,  VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA,	true },		// GS_BLDST_ONEMINUSDSTALPHA
+		{ VK_BLEND_FACTOR_ONE,                  VK_BLEND_FACTOR_ZERO,					true },		// GS_BLDST_ONE_A_ZERO
+		{ VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA,	false },	// GS_BLDST_ONEMINUSSRC1ALPHA
 	};
 
 	static VkBlendOp BlendOp[GS_BLEND_OP_MASK >> GS_BLEND_OP_SHIFT] =
@@ -870,9 +873,6 @@ CDeviceGraphicsPSO::EInitResult CDeviceGraphicsPSO_Vulkan::Init(const CDeviceGra
 		VK_BLEND_OP_REVERSE_SUBTRACT, // GS_BLOP_SUBREV / GS_BLALPHA_SUBREV
 	};
 
-	uint32 colorWriteMask = 0xfffffff0 | ((psoDesc.m_RenderState & GS_COLMASK_MASK) >> GS_COLMASK_SHIFT);
-	colorWriteMask = (~colorWriteMask) & 0xf;
-
 	VkPipelineColorBlendAttachmentState colorBlendAttachmentStates[CD3D9Renderer::RT_STACK_WIDTH];
 
 	int validBlendAttachmentStateCount = 0;
@@ -883,10 +883,18 @@ CDeviceGraphicsPSO::EInitResult CDeviceGraphicsPSO_Vulkan::Init(const CDeviceGra
 
 	const auto& renderTargets = pRenderPassDesc->GetRenderTargets();
 
+	const bool bSrcBlendAllowAllTargets = SrcBlendFactors[(psoDesc.m_RenderState & GS_BLSRC_MASK) >> GS_BLSRC_SHIFT].bAllowOnAllTargets;
+	const bool bDstBlendAllowAllTargets = DstBlendFactors[(psoDesc.m_RenderState & GS_BLDST_MASK) >> GS_BLDST_SHIFT].bAllowOnAllTargets;
+	const bool bBlendAllowAllTargets = bSrcBlendAllowAllTargets && bDstBlendAllowAllTargets;
+
 	for (int i = 0; i < renderTargets.size(); i++)
 	{
 		if (!renderTargets[i].pTexture)
 			break;
+
+		uint32_t colorWriteMask = 0;
+		colorWriteMask = 0xfffffff0 | (ColorMasks[(psoDesc.m_RenderState & GS_COLMASK_MASK) >> GS_COLMASK_SHIFT][i]);
+		colorWriteMask = (~colorWriteMask) & 0xf;
 
 		colorBlendAttachmentStates[validBlendAttachmentStateCount].blendEnable = (psoDesc.m_RenderState & GS_BLEND_MASK) ? VK_TRUE : VK_FALSE;
 		colorBlendAttachmentStates[validBlendAttachmentStateCount].srcColorBlendFactor = SrcBlendFactors[(psoDesc.m_RenderState & GS_BLSRC_MASK) >> GS_BLSRC_SHIFT].BlendColor;
@@ -901,6 +909,12 @@ CDeviceGraphicsPSO::EInitResult CDeviceGraphicsPSO_Vulkan::Init(const CDeviceGra
 		{
 			colorBlendAttachmentStates[validBlendAttachmentStateCount].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
 			colorBlendAttachmentStates[validBlendAttachmentStateCount].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+		}
+
+		// Dual source color blend cannot be enabled for any RT slot but 0
+		if (!bBlendAllowAllTargets && i > 0)
+		{
+			colorBlendAttachmentStates[validBlendAttachmentStateCount].blendEnable = false;
 		}
 
 		validBlendAttachmentStateCount++;
@@ -1046,8 +1060,15 @@ CDeviceTimestampGroup::CDeviceTimestampGroup()
 
 CDeviceTimestampGroup::~CDeviceTimestampGroup()
 {
-	vkDestroyQueryPool(GetDevice()->GetVkDevice(), m_queryPool, nullptr);
-	GetDeviceObjectFactory().ReleaseFence(m_fence);
+	if (m_queryPool != VK_NULL_HANDLE)
+	{
+		vkDestroyQueryPool(GetDevice()->GetVkDevice(), m_queryPool, nullptr);
+	}
+
+	if (m_fence != 0)
+	{
+		GetDeviceObjectFactory().ReleaseFence(m_fence);
+	}
 }
 
 void CDeviceTimestampGroup::Init()
@@ -1236,7 +1257,7 @@ void CDeviceCommandListImpl::LockToThreadImpl()
 
 void CDeviceCommandListImpl::CloseImpl()
 {
-	FUNCTION_PROFILER_RENDERER
+	FUNCTION_PROFILER_RENDERER();
 	GetVKCommandList()->End();
 }
 
@@ -2509,7 +2530,7 @@ CDeviceCommandListUPtr CDeviceObjectFactory::AcquireCommandList(EQueueType eQueu
 	pQueue.AcquireCommandList(pCL);
 
 	m_pVKScheduler->ResumeAllCommandQueues();
-	auto pResult = CryMakeUnique<CDeviceCommandList>();
+	auto pResult = stl::make_unique<CDeviceCommandList>();
 	pResult->m_sharedState.pCommandList = pCL;
 	return pResult;
 }
@@ -2532,7 +2553,7 @@ std::vector<CDeviceCommandListUPtr> CDeviceObjectFactory::AcquireCommandLists(ui
 
 		for (uint32 b = 0; b < chunkCount; ++b)
 		{
-			pCommandLists.emplace_back(CryMakeUnique<CDeviceCommandList>());
+			pCommandLists.emplace_back(stl::make_unique<CDeviceCommandList>());
 			pCommandLists.back()->m_sharedState.pCommandList = pCLs[b];
 		}
 	}

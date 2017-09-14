@@ -56,8 +56,10 @@ public:
 	virtual void SerializeProperties(Serialization::IArchive& archive) override
 	{
 		archive(m_bActive, "Active", "Active");
-		archive(m_light.m_fRadius, "Radius", "Radius");
+		archive(m_light.m_fClipRadius, "Radius", "Radius");
 		archive(m_light.m_fAttenuationBulbSize, "AttenuationBulbSize", "AttenuationBulbSize");
+		if (archive.isInput())
+			m_light.ComputeEffectiveRadius();
 
 		if (archive.openBlock("Color", "Color"))
 		{

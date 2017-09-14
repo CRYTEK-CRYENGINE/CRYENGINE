@@ -126,7 +126,7 @@ void CWaterMan::OnWaterInteraction(CPhysicalEntity *pent)
 {
 	if (m_nTiles<0)
 		return;
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 	PHYS_AREA_PROFILER((CPhysArea*)m_pArea)
 
 	WriteLock lock(m_lockUpdate);
@@ -503,7 +503,7 @@ void CWaterMan::TimeStep(float time_interval)
 {
 	if (m_nTiles<0 || !m_bActive || !m_pTiles)
 		return;
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 
 	int i,j,ix,iy,i1,hasBorder=0;
 	float vmax,h,dt,vsum=0,depth=m_depth*m_cellSz,rnTiles=1.0f/max(1,m_nTiles),minh=max(depth*-0.95f,m_cellSz*-m_hlimit),maxh=m_cellSz*m_hlimit;

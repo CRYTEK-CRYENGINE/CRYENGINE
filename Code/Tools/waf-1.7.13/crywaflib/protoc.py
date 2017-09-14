@@ -6,6 +6,7 @@
 from waflib.Task import *
 from waflib.TaskGen import extension
 from waflib.TaskGen import feature,after_method,before_method
+from waflib.Configure import conf
 from waflib import Logs
 import os
 import sys
@@ -30,17 +31,9 @@ proto_plugins_rpath = 'Tools/crycloud/protobuf/plugins/' + ('linux_x64' if is_ho
 cpp_plugin_file = '/protobuf_cppplugin' if is_host_linux else '/protobuf_cppplugin.exe'
 
 class protoc(Task):
-	color   = 'BLUE'
+	color   = 'BLUE'	
+	run_str =  '${PROTOC} ${PROTOC_INCLUDE_ST:PROTOC_INCLUDE_PATHS} ${PROTOC_FLAGS} ${PROTOCPLUGIN_FLAGS} ${PROTOCPLUGIN} ${SRC[0].abspath()}'
 	ext_out = ['.h', 'pb.cc']
-	after = []
-
-	def run(self):
-		Task.run(self)
-		bld = self.generator.bld
-		key = self.uid()
-		self.env['SRC'] = self.inputs[0].abspath()
-		run_str =  '{PROTOC} -I{PROTOC_IMPORT_PATH} {PROTOC_FLAGS} {PROTOCPLUGIN_FLAGS} {PROTOCPLUGIN} {SRC}'
-		self.exec_command(run_str.format(**self.env), cwd=getattr(self, 'cwd', None), env=self.env.env or None)
 
 	# make the plugin an implicit dependency
 	def scan(self):
@@ -84,48 +77,64 @@ class protoc(Task):
 		if new_sig != prev_sig:
 			return RUN_ME
 		return SKIP_ME
-
+		
+@feature('protoc')
+@before_method('apply_incpaths')
+def apply_protoc_include_path(self):
+	self.env['INCLUDES'] += [
+		self.bld.get_bintemp_folder_node().make_node('protobuf').abspath(),
+		self.bld.CreateRootRelativePath('Code/SDKs/protobuf-3.1.0/include')
+		]
 
 @extension('.proto')
-def process_protoc(self, node):
-	proto_compiler_folder = self.bld.CreateRootRelativePath('Code/SDKs/protobuf')
-	proto_plugin_folder = self.bld.CreateRootRelativePath(proto_plugins_rpath)
-	protoc_file = '/bin/linux/protoc' if is_host_linux else '/bin/win_x86/protoc.exe'
-
-	generated_node = self.path.make_node('GeneratedFiles')
-	generated_node.mkdir()
-	cpp_node = generated_node.make_node(node.change_ext('.pb.cc').name)
-	hpp_node = generated_node.make_node(node.change_ext('.pb.h').name)
+def process_protoc(self, node):		
+	bin_temp_folder_node = self.bld.get_bintemp_folder_node().make_node('protobuf').make_node('GeneratedFiles')
+	bin_temp_folder_node.mkdir()
+	cpp_node = bin_temp_folder_node.make_node(node.change_ext('.pb.cc').name)
+	hpp_node = bin_temp_folder_node.make_node(node.change_ext('.pb.h').name)
 	task = self.create_task('protoc', node, [cpp_node, hpp_node])
 	if self.bld.cmd == "msvs":
 		self.source.extend(task.outputs)
 
 	cpptask = self.create_compiled_task('cxx', cpp_node)
-	cpptask.disable_pch = True
-
-	if hasattr(self,'protobuf_import_path') and len(self.protobuf_import_path)>0:
-		list = [os.path.normpath(os.path.join(self.path.abspath(), s)) for s in self.protobuf_import_path]
-		import_path = (':' if is_host_linux else ';').join(list)
-	else:
-		import_path = node.parent.abspath()
-
-	self.env.PROTOC_IMPORT_PATH = import_path
-	self.env.PROTOC_FLAGS = '--cpp_out=%s' % generated_node.abspath()
-	self.env.PROTOCPLUGIN_FLAGS = '--cry_out=%s' % generated_node.abspath()
-	self.env.PROTOC = proto_compiler_folder + protoc_file
-	self.env.PROTOCPLUGIN = '--plugin=protoc-gen-cry=%s' % (os.path.normpath(proto_plugin_folder + cpp_plugin_file))
-
+	cpptask.disable_pch = True		
+	
 	use = getattr(self, 'use', '')
 	if not 'PROTOBUF' in use:
 		self.use = self.to_list(use) + ['PROTOBUF']
-
-
-def configure(conf):
+		
+	self.env['PROTOC_INCLUDE_PATHS'] =  getattr(self, 'protobuf_additional_includes', []) + self.env['PROTOC_INCLUDE_PATHS']
+	
+	try:
+		self.protoc_tasks.append(task)
+	except AttributeError:
+		self.protoc_tasks = [task]
+	
+@conf
+def configure_protoc(conf):
 	v = conf.env
-	proto_compiler_folder = conf.CreateRootRelativePath('Code/SDKs/protobuf')
+	bin_temp_folder_node = conf.get_bintemp_folder_node().make_node('protobuf').make_node('GeneratedFiles')
+	proto_compiler_folder = conf.CreateRootRelativePath('Code/SDKs/protobuf-3.1.0')
+	proto_plugin_folder = conf.CreateRootRelativePath(proto_plugins_rpath)
+	
 	if 'linux' in sys.platform:
 		v['PROTOC'] = proto_compiler_folder + '/bin/linux/protoc'
 	else:
-		v['PROTOC'] = proto_compiler_folder + '/bin/win_x86/protoc.exe'
+		v['PROTOC'] = proto_compiler_folder + '/bin/win_x86/protoc.exe'		
+		
 	#conf.check_cfg(package="protobuf", uselib_store="PROTOBUF", args=['--cflags', '--libs'])
-	conf.find_program('protoc', var='PROTOC')
+	#conf.find_program('protoc', var='PROTOC')	
+	
+	protobuf_include_path = [
+			conf.CreateRootRelativePath('Code/SDKs/protobuf-3.1.0/include/'),
+			conf.CreateRootRelativePath('Code/CryCloud/ProtocolBase/'),
+			conf.CreateRootRelativePath('Code/CryCloud/Messaging/'),
+			conf.CreateRootRelativePath('Code/CryCloud/GameModules/Common/GameCommon/Protobuf/'),
+			conf.CreateRootRelativePath('Code/CryCloud/GameTelemetryProvider/protobuf/'),
+			conf.get_bintemp_folder_node().make_node('protobuf').abspath(),
+			bin_temp_folder_node.abspath()]
+	v['PROTOC_INCLUDE_PATHS'] = protobuf_include_path
+	v['PROTOC_INCLUDE_ST'] = '-I%s'
+	v['PROTOC_FLAGS'] = '--cpp_out=%s' % bin_temp_folder_node.abspath()
+	v['PROTOCPLUGIN_FLAGS'] = '--cry_out=%s' % bin_temp_folder_node.abspath()
+	v['PROTOCPLUGIN'] = '--plugin=protoc-gen-cry=%s' % (os.path.normpath(proto_plugin_folder + cpp_plugin_file))

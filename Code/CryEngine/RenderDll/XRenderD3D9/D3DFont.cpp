@@ -14,7 +14,7 @@ bool CD3D9Renderer::FontUpdateTexture(int nTexId, int nX, int nY, int USize, int
 
 	if (tp)
 	{
-		tp->UpdateTextureRegion(pSrcData, nX, nY, 0, USize, VSize, 0, eTF_A8);
+		tp->UpdateTextureRegion(pSrcData, nX, nY, 0, USize, VSize, 1, eTF_A8);
 
 		return true;
 	}

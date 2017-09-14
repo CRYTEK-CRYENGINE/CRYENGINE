@@ -59,7 +59,7 @@ namespace UQS
 				std::vector<string> errors;
 			};
 
-			typedef std::map<string, SQueryRecord> QueryRecordsMap;
+			typedef std::map<string, SQueryRecord, stl::less_stricmp<string>> QueryRecordsMap;
 
 		public:
 			explicit CQueryBlueprintFileLibrary(const SLibraryConfig& config, Core::IQueryBlueprintLibrary& blueprintLibrary);

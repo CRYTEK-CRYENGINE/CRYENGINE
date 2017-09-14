@@ -714,7 +714,7 @@ void CWheeledVehicleEntity::ComputeBBox(Vec3 *BBox, int flags)
 
 void CWheeledVehicleEntity::CheckAdditionalGeometry(float time_interval)
 {
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 
 	int iCaller = get_iCaller_int();
 	int i,j,nents,ient,iwheel,ncontacts,icont,bRayCast,bHasContacts,ient1,j1,bHasMatSubst=0;

@@ -167,12 +167,12 @@ bool CVehiclePartLight::Init(IVehicle* pVehicle, const CVehicleParams& table, IV
 
 	float specularMul = 1.0f;
 
-	m_light.m_nLightStyle = 0;
-	m_light.SetPosition(Vec3(ZERO));
-	m_light.m_fRadius = 5.0f;
-
 	m_light.m_Flags |= DLF_DEFERRED_LIGHT;
 	m_light.m_Flags &= ~DLF_DISABLED;
+
+	m_light.m_nLightStyle = 0;
+	m_light.SetPosition(Vec3(ZERO));
+	m_light.SetRadius(5.0f);
 
 	if (CVehicleParams lightTable = table.findChild("Light"))
 	{
@@ -191,7 +191,7 @@ bool CVehiclePartLight::Init(IVehicle* pVehicle, const CVehicleParams& table, IV
 
 		if (pVehicleLightParams)
 		{
-			m_light.m_fRadius = pVehicleLightParams->radius;
+			m_light.SetRadius(pVehicleLightParams->radius);
 			m_diffuseCol = pVehicleLightParams->diffuse;
 			m_diffuseMult[1] = pVehicleLightParams->diffuseMult;
 			m_diffuseMult[0] = pVehicleLightParams->diffuseMult_fp;

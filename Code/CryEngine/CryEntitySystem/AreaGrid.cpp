@@ -146,7 +146,7 @@ bool CAreaGrid::ResetArea(CArea* pArea)
 
 	if (m_pAreas != nullptr)
 	{
-		FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
+		CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 
 		uint32 index = 0;
 		TAreaPointers::const_iterator iter(m_pAreas->begin());
@@ -248,7 +248,7 @@ void CAreaGrid::AddArea(CArea* pArea, uint32 areaIndex)
 //////////////////////////////////////////////////////////////////////////
 void CAreaGrid::Compile(TAreaPointers const& areas)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 
 	int const terrainSize = gEnv->p3DEngine->GetTerrainSize();
 	uint32 const numCellsPerAxis = static_cast<uint32>(terrainSize / GridCellSize);

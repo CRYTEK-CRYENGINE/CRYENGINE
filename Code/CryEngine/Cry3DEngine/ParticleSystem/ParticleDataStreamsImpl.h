@@ -64,6 +64,7 @@ ILINE Vec3 IOVec3Stream::Load(TParticleId pId) const
 
 ILINE void IOVec3Stream::Store(TParticleId pId, Vec3 value)
 {
+	CRY_PFX2_DEBUG_ONLY_ASSERT(IsValid(value));
 	m_pXStream[pId] = value.x;
 	m_pYStream[pId] = value.y;
 	m_pZStream[pId] = value.z;

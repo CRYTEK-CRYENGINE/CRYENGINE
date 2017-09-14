@@ -112,10 +112,7 @@ namespace CryEngine
 		/// </summary>
 		internal static void OnReloadDone()
 		{
-			if(EndReload != null)
-			{
-				EndReload();
-			}
+			EndReload?.Invoke();
 		}
 
 		internal static void ScanAssembly(Assembly assembly)
@@ -177,8 +174,6 @@ namespace CryEngine
 		/// </summary>
 		public static void Shutdown()
 		{
-			OnUnloadStart();
-
 			if(!IsSandbox)
 			{
 				Console.ExecuteString("quit", false, true);
@@ -186,6 +181,7 @@ namespace CryEngine
 			else
 			{
 				Console.ExecuteString("ed_disable_game_mode", false, true);
+				OnUnloadStart();
 			}
 		}
 

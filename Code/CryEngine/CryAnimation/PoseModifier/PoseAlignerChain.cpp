@@ -148,6 +148,8 @@ bool CPoseAlignerChain::Prepare(const SAnimationPoseModifierParams& params)
 
 bool CPoseAlignerChain::Execute(const SAnimationPoseModifierParams& params)
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	if (!m_stateExecute.m_pIkLimbType)
 		return false;
 

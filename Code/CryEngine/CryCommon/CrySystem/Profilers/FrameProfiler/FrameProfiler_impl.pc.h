@@ -156,7 +156,7 @@ void PushProfilingMarker(const BYTE colorId, const char* pName)
 
 ////////////////////////////////////////////////////////////////////////////
 //! Set the end of a profiling marker.
-void PopProfilingMarker()
+void PopProfilingMarker(const BYTE colorId, const char* pName)
 {
 #if defined(CRY_PROFILE_MARKERS_USE_GPA)
 	__itt_task_end(GetDomain());

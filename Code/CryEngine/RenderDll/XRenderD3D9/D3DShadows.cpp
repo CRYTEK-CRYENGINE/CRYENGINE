@@ -50,7 +50,7 @@ CryCriticalSection g_cDynTexLock;
 
 void CD3D9Renderer::EF_PrepareShadowGenRenderList(CRenderView* pRenderView)
 {
-	FUNCTION_PROFILER_RENDERER
+	FUNCTION_PROFILER_RENDERER();
 	//if (CV_r_UseShadowsPool)
 	//  return;
 

@@ -1192,20 +1192,6 @@ private:
 	string m_sAssetScopeName;
 #endif
 
-	struct SInvalidateCallback
-	{
-		int refCount;
-		SResourceBinding::InvalidateCallbackFunction callback;
-
-		SInvalidateCallback(const SResourceBinding::InvalidateCallbackFunction& cb)
-			: callback(cb)
-			, refCount(0)
-		{}
-	};
-
-	std::unordered_map<void*, SInvalidateCallback> m_invalidateCallbacks;
-	static CryCriticalSectionNonRecursive          s_invalidationLock;
-
 public:
 	int m_nUpdateFrameID;         // last write access, compare with GetFrameID(false)
 
@@ -1519,10 +1505,6 @@ public:
 
 	void ValidateSRVs();
 #endif
-
-	void AddInvalidateCallback(void* listener, const SResourceBinding::InvalidateCallbackFunction& callback);
-	void RemoveInvalidateCallbacks(void* listener);
-	void InvalidateDeviceResource(uint32 dirtyFlags);
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -1989,9 +1971,7 @@ public:
 	static CTexture*           s_ptexZOcclusion[2];
 	static CTexture*           s_ptexZTargetReadBack[4];
 	static CTexture*           s_ptexZTargetDownSample[4];
-	static CTexture*           s_ptexZTargetScaled;
-	static CTexture*           s_ptexZTargetScaled2;
-	static CTexture*           s_ptexZTargetScaled3;
+	static CTexture*           s_ptexZTargetScaled[3];
 
 	static CTexture*           s_ptexHDRTarget;
 	static CTexture*           s_ptexVelocityObjects[2]; // Dynamic object velocity (for left and right eye)

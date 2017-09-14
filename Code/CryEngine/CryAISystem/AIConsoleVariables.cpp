@@ -397,10 +397,14 @@ void AIConsoleVars::Init()
 	                       " Fast machine [10]\n"
 	                       " Slow machine [4]\n"
 	                       " Smooth [1]\n");
+	REGISTER_CVAR2("ai_NavmeshTileDistanceDraw", &NavmeshTileDistanceDraw, 200.0f, VF_CHEAT | VF_CHEAT_NOCHECK,
+	               "Maximum distance from the camera for tile to be drawn.\n"
+	               "Usage: ai_NavmeshTileDistanceDraw [0.0-...]\n"
+	               "Default is 200.0\n");
 	REGISTER_CVAR2("ai_NavmeshStabilizationTimeToUpdate", &NavmeshStabilizationTimeToUpdate, 0.3f, VF_CHEAT | VF_CHEAT_NOCHECK,
-	               "Time that navmesh needs to be without any new updates to apply the latest changes.\n"
-	               "Usage: ai_NavmeshStabilizationTimeToUpdate [0.0-...]\n"
-	               "Default is 0.3\n");
+		"Time that navmesh needs to be without any new updates to apply the latest changes.\n"
+		"Usage: ai_NavmeshStabilizationTimeToUpdate [0.0-...]\n"
+		"Default is 0.3\n");
 	DefineConstIntCVarName("ai_DebugDrawNavigationWorldMonitor", DebugDrawNavigationWorldMonitor, 0, VF_CHEAT | VF_CHEAT_NOCHECK,
 	                       "Enables displaying bounding boxes for world changes.\n"
 	                       "Usage: ai_DebugDrawNavigationWorldMonitor [0/1]\n"
@@ -794,7 +798,7 @@ void AIConsoleVars::Init()
 	DefineConstIntCVarName("ai_MNMPathfinderConcurrentRequests", MNMPathfinderConcurrentRequests, 4, VF_CHEAT | VF_CHEAT_NOCHECK,
 	                       "Defines the amount of concurrent pathfinder requests that can be served at the same time.");
 
-	DefineConstIntCVarName("ai_MNMRaycastImplementation", MNMRaycastImplementation, 1, VF_CHEAT | VF_CHEAT_NOCHECK,
+	DefineConstIntCVarName("ai_MNMRaycastImplementation", MNMRaycastImplementation, 2, VF_CHEAT | VF_CHEAT_NOCHECK,
 	                       "Defines which type of raycast implementation to use on the MNM meshes."
 	                       "0 - Version 1. This version will be deprecated as it sometimes does not handle correctly the cases where the ray coincides with triangle egdes, which has been fixed in the new version.\n"
 	                       "1 - Version 2. This version also fails in some cases when the ray goes exactly through triangle corners and then hitting the wall. \n"

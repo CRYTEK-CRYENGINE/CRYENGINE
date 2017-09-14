@@ -602,22 +602,25 @@ void CParticleContainer::RenderDecals(const SRenderingPassInfo& passInfo)
 
 void CParticle::AddLight(const SRendParams& RenParams, const SRenderingPassInfo& passInfo) const
 {
+	if (!(GetCVars()->e_DynamicLights && !passInfo.IsRecursivePass()))
+		return;
+
 	ParticleParams const& params = GetParams();
 	CCamera const& cam = passInfo.GetCamera();
 
 	float fRelativeAge = GetRelativeAge();
-	const float fFillLightIntensity = params.LightSource.fIntensity.GetValueFromMod(m_BaseMods.LightSourceIntensity, fRelativeAge);
-	const float fFillLightRadius = params.LightSource.fRadius.GetValueFromMod(m_BaseMods.LightSourceRadius, fRelativeAge);
-	if (GetCVars()->e_DynamicLights && !passInfo.IsRecursivePass()
-	    && fFillLightIntensity * fFillLightRadius > 0.001f
-	    && m_Loc.t.GetSquaredDistance(cam.GetPosition()) < sqr(fFillLightRadius * GetFloatCVar(e_ParticlesLightsViewDistRatio))
-	    && cam.IsSphereVisible_F(Sphere(m_Loc.t, fFillLightRadius)))
+	const float fLightIntensity = params.LightSource.fIntensity.GetValueFromMod(m_BaseMods.LightSourceIntensity, fRelativeAge);
+	const float fLightRadius = params.LightSource.fRadius.GetValueFromMod(m_BaseMods.LightSourceRadius, fRelativeAge);
+
+	CDLight dl;
+	dl.SetRadius(fLightRadius);
+	dl.SetLightColor(params.cColor.GetValueFromMod(m_BaseMods.Color, fRelativeAge) * Color3F(fLightIntensity));
+
+	if (m_Loc.t.GetSquaredDistance(cam.GetPosition()) < sqr(dl.m_fRadius * GetFloatCVar(e_ParticlesLightsViewDistRatio))
+	    && cam.IsSphereVisible_F(Sphere(m_Loc.t, dl.m_fRadius)))
 	{
 		// Deferred light.
-		CDLight dl;
 		dl.SetPosition(m_Loc.t);
-		dl.m_fRadius = fFillLightRadius;
-		dl.m_Color = params.cColor.GetValueFromMod(m_BaseMods.Color, fRelativeAge) * Color3F(fFillLightIntensity);
 		dl.m_nStencilRef[0] = params.LightSource.bAffectsThisAreaOnly ? RenParams.nClipVolumeStencilRef : CClipVolumeManager::AffectsEverythingStencilRef;
 		dl.m_nStencilRef[1] = CClipVolumeManager::InactiveVolumeStencilRef;
 		dl.m_Flags |= DLF_DEFERRED_LIGHT;
@@ -626,16 +629,9 @@ void CParticle::AddLight(const SRendParams& RenParams, const SRenderingPassInfo&
 		else if (params.LightSource.eLightAffectsFog == params.LightSource.eLightAffectsFog.Both)
 			dl.m_Flags |= DLF_VOLUMETRIC_FOG;
 
-		const float fMinColorThreshold = GetFloatCVar(e_ParticlesLightMinColorThreshold);
-		const float fMinRadiusThreshold = GetFloatCVar(e_ParticlesLightMinRadiusThreshold);
-
-		const ColorF& cColor = dl.m_Color;
-		if ((cColor.r + cColor.g + cColor.b) > fMinColorThreshold && dl.m_fRadius > fMinRadiusThreshold)
-		{
-			Get3DEngine()->SetupLightScissors(&dl, passInfo);
-			dl.m_n3DEngineUpdateFrameID = passInfo.GetMainFrameID();
-			Get3DEngine()->AddLightToRenderer(dl, 1.f, passInfo);
-		}
+		Get3DEngine()->SetupLightScissors(&dl, passInfo);
+		dl.m_n3DEngineUpdateFrameID = passInfo.GetMainFrameID();
+		Get3DEngine()->AddLightToRenderer(dl, 1.f, passInfo);
 	}
 }
 
@@ -1365,7 +1361,7 @@ void SParticleVertexContext::Init(float fMaxContainerPixels, CParticleContainer*
 
 void CParticleContainer::ComputeVertices(const SCameraInfo& camInfo, CREParticle* pRE, uint64 uVertexFlags, float fMaxPixels)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 	PARTICLE_LIGHT_PROFILER();
 
 	// Update, if not yet done.

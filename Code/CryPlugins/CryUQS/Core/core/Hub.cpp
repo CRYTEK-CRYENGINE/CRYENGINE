@@ -183,6 +183,11 @@ namespace UQS
 			return m_itemSerializationSupport;
 		}
 
+		CSettingsManager& CHub::GetSettingsManager()
+		{
+			return m_settingsManager;
+		}
+
 		DataSource::IEditorLibraryProvider* CHub::GetEditorLibraryProvider()
 		{
 			return m_pEditorLibraryProvider;

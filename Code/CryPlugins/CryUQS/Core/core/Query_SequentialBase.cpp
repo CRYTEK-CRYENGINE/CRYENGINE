@@ -38,7 +38,7 @@ namespace UQS
 			runtimeParams.AddSelfToOtherAndReplace(m_runtimeParams);
 
 			// instantiate the first child query
-			InstantiateNextChildQueryBlueprint();
+			InstantiateNextChildQueryBlueprint(m_pOptionalShuttledItems);
 			if (m_bExceptionOccurredInChild)
 			{
 				error = m_exceptionMessageFromChild;
@@ -119,28 +119,7 @@ namespace UQS
 			return (m_indexOfNextChildToInstantiate < m_pQueryBlueprint->GetChildCount());
 		}
 
-		void CQuery_SequentialBase::StoreResultSetForUseInNextChildQuery(const IQueryResultSet& resultSetOfPreviousChildQuery)
-		{
-			// TODO: copying the items from the result set to a separate list is not very efficient
-			//       -> would be better to somehow move-transfer what is in the underlying CItemList
-
-			Client::IItemFactory& itemFactory = resultSetOfPreviousChildQuery.GetItemFactory();
-			const size_t numItemsInResultSet = resultSetOfPreviousChildQuery.GetResultCount();
-
-			m_pResultingItemsOfLastChildQuery.reset(new CItemList);
-			m_pResultingItemsOfLastChildQuery->SetItemFactory(itemFactory);
-			m_pResultingItemsOfLastChildQuery->CreateItemsByItemFactory(numItemsInResultSet);
-
-			// copy all items from the child result set to the list which will act as input for the next query in the chain
-			for (size_t i = 0; i < numItemsInResultSet; ++i)
-			{
-				const void* pSourceItem = resultSetOfPreviousChildQuery.GetResult(i).pItem;
-				void* pTargetItem = m_pResultingItemsOfLastChildQuery->GetItemAtIndex(i);
-				itemFactory.CopyItem(pTargetItem, pSourceItem);
-			}
-		}
-
-		void CQuery_SequentialBase::InstantiateNextChildQueryBlueprint()
+		void CQuery_SequentialBase::InstantiateNextChildQueryBlueprint(const std::shared_ptr<CItemList>& pResultingItemsOfPotentialPreviousChildQuery)
 		{
 			assert(m_indexOfNextChildToInstantiate < m_pQueryBlueprint->GetChildCount());
 			assert(!m_queryIDOfCurrentlyRunningChild.IsValid());
@@ -157,12 +136,8 @@ namespace UQS
 				m_runtimeParams,
 				querierName.c_str(),
 				functor(*this, &CQuery_SequentialBase::OnChildQueryFinished),
-				m_pResultingItemsOfLastChildQuery,
+				pResultingItemsOfPotentialPreviousChildQuery,
 				m_exceptionMessageFromChild);
-
-			// - the query should have move-transferred the possibly existing items from the previous query
-			// - this assert() is just a convenience to ensure that CQueryBase's ctor really did that
-			assert(!m_pResultingItemsOfLastChildQuery);
 
 			if (!m_queryIDOfCurrentlyRunningChild.IsValid())
 			{

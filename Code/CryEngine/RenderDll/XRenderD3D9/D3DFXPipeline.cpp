@@ -1033,11 +1033,14 @@ void CD3D9Renderer::FX_SetState(int st, int AlphaRef, int RestoreState)
 	if (Changed & GS_COLMASK_MASK)
 	{
 		bDirtyBS = true;
-		uint32 nMask = 0xfffffff0 | ((st & GS_COLMASK_MASK) >> GS_COLMASK_SHIFT);
-		nMask = (~nMask) & 0xf;
-		for (size_t i = 0; i < RT_STACK_WIDTH; ++i)
+		for (size_t i = 0; i < 4; ++i)
+		{
+			uint32 nMask = 0xfffffff0 | (ColorMasks[(st & GS_COLMASK_MASK) >> GS_COLMASK_SHIFT][i]);
+			nMask = (~nMask) & 0xf;
 			BS.Desc.RenderTarget[i].RenderTargetWriteMask = nMask;
 		}
+		BS.Desc.IndependentBlendEnable = true;
+	}
 
 	if (Changed & GS_BLEND_MASK)
 	{
@@ -1208,6 +1211,20 @@ void CD3D9Renderer::FX_SetState(int st, int AlphaRef, int RestoreState)
 			// todo: add separate alpha blend support for mrt
 			for (size_t i = 0; i < RT_STACK_WIDTH; ++i)
 				BS.Desc.RenderTarget[i].BlendEnable = FALSE;
+		}
+
+		const bool bDualSrcBlend = BS.Desc.RenderTarget[0].SrcBlend == D3D11_BLEND_SRC1_ALPHA;
+		const bool bDualSrcDstBlend = BS.Desc.RenderTarget[0].DestBlend == D3D11_BLEND_INV_SRC1_ALPHA;
+
+		for (size_t i = 0; i < RT_STACK_WIDTH; ++i)
+		{
+			BS.Desc.RenderTarget[i] = BS.Desc.RenderTarget[0];
+			
+			// Dual source color blend cannot be enabled for any RT slot but 0
+			if (i > 0 && bDualSrcBlend && bDualSrcDstBlend)
+			{
+				BS.Desc.RenderTarget[i].BlendEnable = false;
+			}
 		}
 	}
 
@@ -1429,7 +1446,7 @@ void CD3D9Renderer::FX_CommitStates(const SShaderTechnique* pTech, const SShader
 
 			// Disable alpha writes - for alpha blend case we use default alpha value as a default power factor
 			if (State & GS_BLEND_MASK)
-				State |= GS_COLMASK_RGB;
+				State |= GS_NOCOLMASK_A;
 
 			// Disable alpha testing/depth writes if geometry had a z-prepass
 			if (!(rRP.m_PersFlags2 & RBPF2_ZPREPASS) && (rRP.m_RIs[0][0]->nBatchFlags & FB_ZPREPASS))
@@ -1493,7 +1510,7 @@ void CD3D9Renderer::FX_CommitStates(const SShaderTechnique* pTech, const SShader
 	if (rRP.m_PersFlags2 & RBPF2_DISABLECOLORWRITES)
 	{
 		State &= ~GS_COLMASK_MASK;
-		State |= GS_COLMASK_NONE;
+		State |= GS_NOCOLMASK_RGBA;
 	}
 
 	FX_SetState(State, AlphaRef);
@@ -1568,7 +1585,7 @@ bool CD3D9Renderer::FX_SetRenderTarget(int nTarget, D3DSurface* pTargetSurf, SDe
 	m_pNewTarget[nTarget]  = pCur;
 	if (nTarget == 0)
 	{
-		m_RP.m_StateOr &= ~GS_COLMASK_NONE;
+		m_RP.m_StateOr &= ~GS_NOCOLMASK_RGBA;
 	}
 	m_nMaxRT2Commit      = max(m_nMaxRT2Commit, nTarget);
 	m_RP.m_nCommitFlags |= FC_TARGETS;
@@ -3802,20 +3819,21 @@ bool CD3D9Renderer::FX_UpdateAnimatedShaderResources(CShaderResources* shaderRes
 		{
 			if (SEfResTexture* pTex = rsr->m_Textures[texType])
 			{
-				_smart_ptr<CTexture> previousTex = pTex->m_Sampler.m_pTex; // keep reference to previous texture here as it might get released inside Update call
-
+				// Update() returns true if texture has been swapped out by a different one
 				if (pTex->m_Sampler.Update())
 				{
-					if (previousTex)
-					{
-						previousTex->RemoveInvalidateCallbacks((void*)shaderResources);
-					}
+					bUpdated = true;
 				}
 			}
 		}
 	}
 
-	shaderResources->m_bResourcesDirty = bUpdated;
+	if (bUpdated)
+	{
+		// Don't register the new texture, just trigger RT_UpdateResourceSet
+		shaderResources->m_resources.MarkBindingChanged();
+	}
+
 	return bUpdated;
 }
 

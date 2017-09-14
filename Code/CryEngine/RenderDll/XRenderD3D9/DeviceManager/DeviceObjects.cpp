@@ -8,6 +8,8 @@
 #include "Common/Textures/TextureHelpers.h"
 #include "../GraphicsPipeline/Common/GraphicsPipelineStateSet.h"
 
+#define REDUNDANCY_ASSERT(...)
+
 extern uint8 g_StencilFuncLookup[8];
 extern uint8 g_StencilOpLookup[8];
 
@@ -620,83 +622,97 @@ void CDeviceGraphicsPSODesc::FillDescs(D3D11_RASTERIZER_DESC& rasterizerDesc, D3
 	// Blend state
 	{
 		const bool bBlendEnable = (renderState & GS_BLEND_MASK) != 0;
+		blendDesc.RenderTarget[0].BlendEnable = bBlendEnable;
 
-		for (size_t i = 0; i < CD3D9Renderer::RT_STACK_WIDTH; ++i)
-			blendDesc.RenderTarget[i].BlendEnable = bBlendEnable;
+		struct BlendFactors
+		{
+			D3D11_BLEND BlendColor;
+			D3D11_BLEND BlendAlpha;
+			bool		bAllowOnAllTargets;
+		};
+
+		static BlendFactors SrcBlendFactors[GS_BLSRC_MASK >> GS_BLSRC_SHIFT] =
+		{
+			{ (D3D11_BLEND)0,             (D3D11_BLEND)0, 					true },        // UNINITIALIZED BLEND FACTOR
+			{ D3D11_BLEND_ZERO,           D3D11_BLEND_ZERO,					true },        // GS_BLSRC_ZERO
+			{ D3D11_BLEND_ONE,            D3D11_BLEND_ONE,					true },        // GS_BLSRC_ONE
+			{ D3D11_BLEND_DEST_COLOR,     D3D11_BLEND_DEST_ALPHA,			true },		   // GS_BLSRC_DSTCOL
+			{ D3D11_BLEND_INV_DEST_COLOR, D3D11_BLEND_INV_DEST_ALPHA,		true },        // GS_BLSRC_ONEMINUSDSTCOL
+			{ D3D11_BLEND_SRC_ALPHA,      D3D11_BLEND_SRC_ALPHA,			true },        // GS_BLSRC_SRCALPHA
+			{ D3D11_BLEND_INV_SRC_ALPHA,  D3D11_BLEND_INV_SRC_ALPHA,		true },        // GS_BLSRC_ONEMINUSSRCALPHA
+			{ D3D11_BLEND_DEST_ALPHA,     D3D11_BLEND_DEST_ALPHA,			true },        // GS_BLSRC_DSTALPHA
+			{ D3D11_BLEND_INV_DEST_ALPHA, D3D11_BLEND_INV_DEST_ALPHA,		true },        // GS_BLSRC_ONEMINUSDSTALPHA
+			{ D3D11_BLEND_SRC_ALPHA_SAT,  D3D11_BLEND_SRC_ALPHA_SAT,		true },        // GS_BLSRC_ALPHASATURATE
+			{ D3D11_BLEND_SRC_ALPHA,      D3D11_BLEND_ZERO,					true },        // GS_BLSRC_SRCALPHA_A_ZERO
+			{ D3D11_BLEND_SRC1_ALPHA,     D3D11_BLEND_SRC1_ALPHA,			false },       // GS_BLSRC_SRC1ALPHA
+		};
+
+		static BlendFactors DstBlendFactors[GS_BLDST_MASK >> GS_BLDST_SHIFT] =
+		{
+			{ (D3D11_BLEND)0,             (D3D11_BLEND)0,					true },        // UNINITIALIZED BLEND FACTOR
+			{ D3D11_BLEND_ZERO,           D3D11_BLEND_ZERO,					true },        // GS_BLDST_ZERO
+			{ D3D11_BLEND_ONE,            D3D11_BLEND_ONE,					true },        // GS_BLDST_ONE
+			{ D3D11_BLEND_SRC_COLOR,      D3D11_BLEND_SRC_ALPHA,			true },        // GS_BLDST_SRCCOL
+			{ D3D11_BLEND_INV_SRC_COLOR,  D3D11_BLEND_INV_SRC_ALPHA,		true },        // GS_BLDST_ONEMINUSSRCCOL
+			{ D3D11_BLEND_SRC_ALPHA,      D3D11_BLEND_SRC_ALPHA,			true },        // GS_BLDST_SRCALPHA
+			{ D3D11_BLEND_INV_SRC_ALPHA,  D3D11_BLEND_INV_SRC_ALPHA,		true },        // GS_BLDST_ONEMINUSSRCALPHA
+			{ D3D11_BLEND_DEST_ALPHA,     D3D11_BLEND_DEST_ALPHA,			true },        // GS_BLDST_DSTALPHA
+			{ D3D11_BLEND_INV_DEST_ALPHA, D3D11_BLEND_INV_DEST_ALPHA,		true },        // GS_BLDST_ONEMINUSDSTALPHA
+			{ D3D11_BLEND_ONE,            D3D11_BLEND_ZERO,					true },        // GS_BLDST_ONE_A_ZERO
+			{ D3D11_BLEND_INV_SRC1_ALPHA, D3D11_BLEND_INV_SRC1_ALPHA,		false },       // GS_BLDST_ONEMINUSSRC1ALPHA
+		};
+
+		static D3D11_BLEND_OP BlendOp[GS_BLEND_OP_MASK >> GS_BLEND_OP_SHIFT] =
+		{
+			D3D11_BLEND_OP_ADD,          // 0 (unspecified): Default
+			D3D11_BLEND_OP_MAX,          // GS_BLOP_MAX / GS_BLALPHA_MAX
+			D3D11_BLEND_OP_MIN,          // GS_BLOP_MIN / GS_BLALPHA_MIN
+			D3D11_BLEND_OP_SUBTRACT,     // GS_BLOP_SUB / GS_BLALPHA_SUB
+			D3D11_BLEND_OP_REV_SUBTRACT, // GS_BLOP_SUBREV / GS_BLALPHA_SUBREV
+		};
+
+		const bool bSrcBlendAllowAllTargets = SrcBlendFactors[(renderState & GS_BLSRC_MASK) >> GS_BLSRC_SHIFT].bAllowOnAllTargets;
+		const bool bDstBlendAllowAllTargets = DstBlendFactors[(renderState & GS_BLDST_MASK) >> GS_BLDST_SHIFT].bAllowOnAllTargets;
+		const bool bBlendAllowAllTargets = bSrcBlendAllowAllTargets && bDstBlendAllowAllTargets;
 
 		if (bBlendEnable)
-		{
-			struct BlendFactors
-			{
-				D3D11_BLEND BlendColor;
-				D3D11_BLEND BlendAlpha;
-			};
-
-			static BlendFactors SrcBlendFactors[GS_BLSRC_MASK >> GS_BLSRC_SHIFT] =
-			{
-				{ (D3D11_BLEND)0,             (D3D11_BLEND)0             },        // UNINITIALIZED BLEND FACTOR
-				{ D3D11_BLEND_ZERO,           D3D11_BLEND_ZERO           },        // GS_BLSRC_ZERO
-				{ D3D11_BLEND_ONE,            D3D11_BLEND_ONE            },        // GS_BLSRC_ONE
-				{ D3D11_BLEND_DEST_COLOR,     D3D11_BLEND_DEST_ALPHA     },        // GS_BLSRC_DSTCOL
-				{ D3D11_BLEND_INV_DEST_COLOR, D3D11_BLEND_INV_DEST_ALPHA },        // GS_BLSRC_ONEMINUSDSTCOL
-				{ D3D11_BLEND_SRC_ALPHA,      D3D11_BLEND_SRC_ALPHA      },        // GS_BLSRC_SRCALPHA
-				{ D3D11_BLEND_INV_SRC_ALPHA,  D3D11_BLEND_INV_SRC_ALPHA  },        // GS_BLSRC_ONEMINUSSRCALPHA
-				{ D3D11_BLEND_DEST_ALPHA,     D3D11_BLEND_DEST_ALPHA     },        // GS_BLSRC_DSTALPHA
-				{ D3D11_BLEND_INV_DEST_ALPHA, D3D11_BLEND_INV_DEST_ALPHA },        // GS_BLSRC_ONEMINUSDSTALPHA
-				{ D3D11_BLEND_SRC_ALPHA_SAT,  D3D11_BLEND_SRC_ALPHA_SAT  },        // GS_BLSRC_ALPHASATURATE
-				{ D3D11_BLEND_SRC_ALPHA,      D3D11_BLEND_ZERO           },        // GS_BLSRC_SRCALPHA_A_ZERO
-				{ D3D11_BLEND_SRC1_ALPHA,     D3D11_BLEND_SRC1_ALPHA     },        // GS_BLSRC_SRC1ALPHA
-			};
-
-			static BlendFactors DstBlendFactors[GS_BLDST_MASK >> GS_BLDST_SHIFT] =
-			{
-				{ (D3D11_BLEND)0,             (D3D11_BLEND)0             },        // UNINITIALIZED BLEND FACTOR
-				{ D3D11_BLEND_ZERO,           D3D11_BLEND_ZERO           },        // GS_BLDST_ZERO
-				{ D3D11_BLEND_ONE,            D3D11_BLEND_ONE            },        // GS_BLDST_ONE
-				{ D3D11_BLEND_SRC_COLOR,      D3D11_BLEND_SRC_ALPHA      },        // GS_BLDST_SRCCOL
-				{ D3D11_BLEND_INV_SRC_COLOR,  D3D11_BLEND_INV_SRC_ALPHA  },        // GS_BLDST_ONEMINUSSRCCOL
-				{ D3D11_BLEND_SRC_ALPHA,      D3D11_BLEND_SRC_ALPHA      },        // GS_BLDST_SRCALPHA
-				{ D3D11_BLEND_INV_SRC_ALPHA,  D3D11_BLEND_INV_SRC_ALPHA  },        // GS_BLDST_ONEMINUSSRCALPHA
-				{ D3D11_BLEND_DEST_ALPHA,     D3D11_BLEND_DEST_ALPHA     },        // GS_BLDST_DSTALPHA
-				{ D3D11_BLEND_INV_DEST_ALPHA, D3D11_BLEND_INV_DEST_ALPHA },        // GS_BLDST_ONEMINUSDSTALPHA
-				{ D3D11_BLEND_ONE,            D3D11_BLEND_ZERO           },        // GS_BLDST_ONE_A_ZERO
-				{ D3D11_BLEND_INV_SRC1_ALPHA, D3D11_BLEND_INV_SRC1_ALPHA },        // GS_BLDST_ONEMINUSSRC1ALPHA
-			};
-
-			static D3D11_BLEND_OP BlendOp[GS_BLEND_OP_MASK >> GS_BLEND_OP_SHIFT] =
-			{
-				D3D11_BLEND_OP_ADD,          // 0 (unspecified): Default
-				D3D11_BLEND_OP_MAX,          // GS_BLOP_MAX / GS_BLALPHA_MAX
-				D3D11_BLEND_OP_MIN,          // GS_BLOP_MIN / GS_BLALPHA_MIN
-				D3D11_BLEND_OP_SUBTRACT,     // GS_BLOP_SUB / GS_BLALPHA_SUB
-				D3D11_BLEND_OP_REV_SUBTRACT, // GS_BLOP_SUBREV / GS_BLALPHA_SUBREV
-			};
-
+		{			
 			blendDesc.RenderTarget[0].SrcBlend       = SrcBlendFactors[(renderState & GS_BLSRC_MASK) >> GS_BLSRC_SHIFT].BlendColor;
 			blendDesc.RenderTarget[0].SrcBlendAlpha  = SrcBlendFactors[(renderState & GS_BLSRC_MASK) >> GS_BLSRC_SHIFT].BlendAlpha;
 			blendDesc.RenderTarget[0].DestBlend      = DstBlendFactors[(renderState & GS_BLDST_MASK) >> GS_BLDST_SHIFT].BlendColor;
 			blendDesc.RenderTarget[0].DestBlendAlpha = DstBlendFactors[(renderState & GS_BLDST_MASK) >> GS_BLDST_SHIFT].BlendAlpha;
 
-			for (size_t i = 0; i < CD3D9Renderer::RT_STACK_WIDTH; ++i)
-			{
-				blendDesc.RenderTarget[i].BlendOp      = BlendOp[(renderState & GS_BLEND_OP_MASK) >> GS_BLEND_OP_SHIFT];
-				blendDesc.RenderTarget[i].BlendOpAlpha = BlendOp[(renderState & GS_BLALPHA_MASK ) >> GS_BLALPHA_SHIFT ];
-			}
-
+			blendDesc.RenderTarget[0].BlendOp      = BlendOp[(renderState & GS_BLEND_OP_MASK) >> GS_BLEND_OP_SHIFT];
+			blendDesc.RenderTarget[0].BlendOpAlpha = BlendOp[(renderState & GS_BLALPHA_MASK ) >> GS_BLALPHA_SHIFT ];
+			
 			if ((renderState & GS_BLALPHA_MASK) == GS_BLALPHA_MIN)
 			{
 				blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
 				blendDesc.RenderTarget[0].SrcBlendAlpha  = D3D11_BLEND_ONE;
 			}
 		}
-	}
 
-	// Color mask
-	{
-		uint32 mask = 0xfffffff0 | ((renderState & GS_COLMASK_MASK) >> GS_COLMASK_SHIFT);
-		mask = (~mask) & 0xf;
-		for (uint32 i = 0; i < CD3D9Renderer::RT_STACK_WIDTH; ++i)
+		// Copy blend state to support independent blend
+		for (size_t i = 0; i < CD3D9Renderer::RT_STACK_WIDTH; ++i)
+		{
+			blendDesc.RenderTarget[i] = blendDesc.RenderTarget[0];
+
+			// Dual source color blend cannot be enabled for any RT slot but 0
+			if (!bBlendAllowAllTargets && i > 0)
+			{
+				blendDesc.RenderTarget[i].BlendEnable = false;
+			}
+		}
+		blendDesc.IndependentBlendEnable = true;
+	}
+	
+	{ 		
+		for (uint32 i = 0; i < 4; ++i)
+		{
+			uint32 mask = 0xfffffff0 | (ColorMasks[(renderState & GS_COLMASK_MASK) >> GS_COLMASK_SHIFT][i]);
+			mask = (~mask) & 0xf;
 			blendDesc.RenderTarget[i].RenderTargetWriteMask = mask;
+		}	
 	}
 
 	// Depth-Stencil
@@ -836,31 +852,21 @@ bool SResourceBinding::IsValid() const
 		case EResourceType::Texture:        return pTexture && pTexture->GetDevTexture();
 		case EResourceType::Buffer:         return pBuffer && pBuffer->GetDevBuffer();
 		case EResourceType::Sampler:        return samplerState != SamplerStateHandle::Unspecified;
+		case EResourceType::InvalidType:    return false;
 		default: CRY_ASSERT(false);         return false;
 	}
 }
 
-void SResourceBinding::AddInvalidateCallback(void* pCallbackOwner, const SResourceBinding::InvalidateCallbackFunction& callback) const
+bool SResourceBinding::IsVolatile() const
 {
 	switch (type)
 	{
-		case EResourceType::ConstantBuffer:                                                            break;
-		case EResourceType::Texture:        pTexture->AddInvalidateCallback(pCallbackOwner, callback); break;
-		case EResourceType::Buffer:         pBuffer->AddInvalidateCallback(pCallbackOwner, callback);  break;
-		case EResourceType::Sampler:                                                                   break;
-		default:                            CRY_ASSERT(false);
-	}
-}
-
-void SResourceBinding::RemoveInvalidateCallback(void* pCallbackOwner) const
-{
-	switch (type)
-	{
-		case EResourceType::ConstantBuffer:                                                            break;
-		case EResourceType::Texture:        pTexture->RemoveInvalidateCallbacks(pCallbackOwner);       break;
-		case EResourceType::Buffer:         pBuffer->RemoveInvalidateCallbacks(pCallbackOwner);        break;
-		case EResourceType::Sampler:                                                                   break;
-		default:                            CRY_ASSERT(false);
+		case EResourceType::ConstantBuffer: return true;
+		case EResourceType::Texture:        return pTexture && !(pTexture->GetFlags() & FT_DONT_RELEASE);
+		case EResourceType::Buffer:         return true;
+		case EResourceType::Sampler:        return samplerState == SamplerStateHandle::Unspecified;
+		case EResourceType::InvalidType:    return true;
+		default: CRY_ASSERT(false);         return true;
 	}
 }
 
@@ -968,27 +974,46 @@ SResourceBindPoint::SResourceBindPoint(ESlotType _type, uint8 _slotNumber, EShad
 , stages(_shaderStages)
 {}
 
-CDeviceResourceSetDesc::CDeviceResourceSetDesc(const CDeviceResourceSetDesc& other, void* pInvalidateCallbackOwner, const SResourceBinding::InvalidateCallbackFunction& invalidateCallback)
+CDeviceResourceSetDesc::EDirtyFlags CDeviceResourceSetDesc::SetResources(const CDeviceResourceSetDesc& other)
 {
-	m_invalidateCallbackOwner = pInvalidateCallbackOwner;
-	m_invalidateCallback = invalidateCallback;
-
-	Clear();
-
+	CRY_ASSERT(m_resources.size() == 0);
 	for (const auto& it : other.m_resources)
 	{
-		m_resources.insert(it);
+		auto insertResult = m_resources.insert(it);
+
+		SResourceBinding&   existingBinding   = insertResult.first->second;
+		SResourceBindPoint& existingBindPoint = insertResult.first->first;
 
 		if (m_invalidateCallback)
 		{
-			it.second.AddInvalidateCallback(m_invalidateCallbackOwner, m_invalidateCallback);
+			it.second.AddInvalidateCallback(m_invalidateCallbackOwner, existingBindPoint, m_invalidateCallback);
 		}
 	}
+
+	return EDirtyFlags::eDirtyAll;
+}
+
+CDeviceResourceSetDesc::CDeviceResourceSetDesc(const CDeviceResourceSetDesc& other)
+{
+	SetResources(other);
+
+	m_invalidateCallbackOwner = this;
+	m_invalidateCallback      = OnResourceInvalidated;
+	m_dirtyFlags              = other.m_dirtyFlags.load();
+}
+
+CDeviceResourceSetDesc::CDeviceResourceSetDesc(const CDeviceResourceSetDesc& other, void* pInvalidateCallbackOwner, const SResourceBinding::InvalidateCallbackFunction& invalidateCallback)
+{
+	SetResources(other);
+
+	m_invalidateCallbackOwner = pInvalidateCallbackOwner;
+	m_invalidateCallback      = invalidateCallback;
+	m_dirtyFlags              = other.m_dirtyFlags.load();
 }
 
 CDeviceResourceSetDesc::~CDeviceResourceSetDesc()
 {
-	Clear();
+	ClearResources();
 }
 
 template<SResourceBinding::EResourceType resourceType>
@@ -1000,7 +1025,7 @@ bool CompareBindings(const SResourceBinding& resourceA, const SResourceBinding& 
 template<>
 bool CompareBindings<SResourceBinding::EResourceType::ConstantBuffer>(const SResourceBinding& resourceA, const SResourceBinding& resourceB)
 {
-	return resourceA.fastCompare == resourceB.fastCompare && resourceA.pConstantBuffer->GetCode() == resourceB.pConstantBuffer->GetCode();
+	return resourceA.fastCompare == resourceB.fastCompare && resourceA.view == resourceB.view;
 }
 
 template<>
@@ -1010,46 +1035,54 @@ bool CompareBindings<SResourceBinding::EResourceType::Sampler>(const SResourceBi
 }
 
 template<SResourceBinding::EResourceType resourceType>
-CDeviceResourceSetDesc::EDirtyFlags CDeviceResourceSetDesc::UpdateResource(const SResourceBindPoint& bindPoint, const SResourceBinding& resource)
+CDeviceResourceSetDesc::EDirtyFlags CDeviceResourceSetDesc::UpdateResource(SResourceBindPoint bindPoint, const SResourceBinding& resource)
 {
-	auto insertResult = m_resources.insert(std::make_pair(bindPoint, resource));
-	
 	EDirtyFlags dirtyFlags = EDirtyFlags::eNone;
+
+	auto insertResult = m_resources.insert(std::make_pair(bindPoint, resource));
+
 	SResourceBinding&   existingBinding   = insertResult.first->second;
 	SResourceBindPoint& existingBindPoint = insertResult.first->first;
 
-	if (insertResult.second || existingBinding.type != resource.type || !CompareBindings<resourceType>(existingBinding, resource))
+	const bool bChangedBindPoint = (insertResult.second || existingBindPoint.fastCompare != bindPoint.fastCompare);
+	if (bChangedBindPoint || existingBinding.type != resource.type || !CompareBindings<resourceType>(existingBinding, resource))
 	{
-		dirtyFlags |= EDirtyFlags::eDirtyBinding;
-		dirtyFlags |= (insertResult.second || existingBindPoint.fastCompare != bindPoint.fastCompare) ? EDirtyFlags::eDirtyBindPoint : EDirtyFlags::eNone;
-
 		// remove invalidate callback from existing binding
 		if (existingBinding.fastCompare && m_invalidateCallback)
 		{
-			existingBinding.RemoveInvalidateCallback(m_invalidateCallbackOwner);
+			existingBinding.RemoveInvalidateCallback(m_invalidateCallbackOwner, existingBindPoint);
 		}
 
 		existingBindPoint = bindPoint;
-		existingBinding = resource;
+		existingBinding   = resource;
 
 		// add invalidate callback to new binding
 		if (existingBinding.fastCompare && m_invalidateCallback)
 		{
-			existingBinding.AddInvalidateCallback(m_invalidateCallbackOwner, m_invalidateCallback);
+			existingBinding.AddInvalidateCallback(m_invalidateCallbackOwner, existingBindPoint, m_invalidateCallback);
 		}
+
+		m_dirtyFlags |= (dirtyFlags = EDirtyFlags::eDirtyBinding | (EDirtyFlags)(EDirtyFlags::eDirtyBindPoint * bChangedBindPoint));
+	}
+	else
+	{
+		// UpdateResource call is redundant if the texture stays the same and can't be deleted (read: will never change)
+		REDUNDANCY_ASSERT(existingBinding.IsVolatile() || resource.IsVolatile());
 	}
 
 	return dirtyFlags;
 }
 
 // explicit instantiation
-template CDeviceResourceSetDesc::EDirtyFlags CDeviceResourceSetDesc::UpdateResource<SResourceBinding::EResourceType::ConstantBuffer>(const SResourceBindPoint& bindPoint, const SResourceBinding& binding);
-template CDeviceResourceSetDesc::EDirtyFlags CDeviceResourceSetDesc::UpdateResource<SResourceBinding::EResourceType::Texture>(const SResourceBindPoint& bindPoint, const SResourceBinding& binding);
-template CDeviceResourceSetDesc::EDirtyFlags CDeviceResourceSetDesc::UpdateResource<SResourceBinding::EResourceType::Buffer>(const SResourceBindPoint& bindPoint, const SResourceBinding& binding);
-template CDeviceResourceSetDesc::EDirtyFlags CDeviceResourceSetDesc::UpdateResource<SResourceBinding::EResourceType::Sampler>(const SResourceBindPoint& bindPoint, const SResourceBinding& binding);
+template CDeviceResourceSetDesc::EDirtyFlags CDeviceResourceSetDesc::UpdateResource<SResourceBinding::EResourceType::ConstantBuffer>(SResourceBindPoint bindPoint, const SResourceBinding& binding);
+template CDeviceResourceSetDesc::EDirtyFlags CDeviceResourceSetDesc::UpdateResource<SResourceBinding::EResourceType::Texture>(SResourceBindPoint bindPoint, const SResourceBinding& binding);
+template CDeviceResourceSetDesc::EDirtyFlags CDeviceResourceSetDesc::UpdateResource<SResourceBinding::EResourceType::Buffer>(SResourceBindPoint bindPoint, const SResourceBinding& binding);
+template CDeviceResourceSetDesc::EDirtyFlags CDeviceResourceSetDesc::UpdateResource<SResourceBinding::EResourceType::Sampler>(SResourceBindPoint bindPoint, const SResourceBinding& binding);
 
-void CDeviceResourceSetDesc::Clear()
+CDeviceResourceSetDesc::EDirtyFlags CDeviceResourceSetDesc::ClearResources()
 {
+	EDirtyFlags dirtyFlags = EDirtyFlags::eNone;
+
 	for (const auto& it : m_resources)
 	{
 		const SResourceBinding& existingBinding = it.second;
@@ -1059,29 +1092,49 @@ void CDeviceResourceSetDesc::Clear()
 		}
 	}
 
-	m_resources.clear();
-}
-
-CDeviceResourceSetDesc::EDirtyFlags CDeviceResourceSetDesc::RemoveResource(const SResourceBindPoint& bindPoint)
-{
-	auto it = m_resources.find(bindPoint);
-
-	if (it != m_resources.end())
+	if (m_resources.size())
 	{
-		SResourceBinding& existingBinding = it->second;
-		if (existingBinding.fastCompare && m_invalidateCallback)
-		{
-			existingBinding.RemoveInvalidateCallback(m_invalidateCallbackOwner);
-		}
+		m_resources.clear();
 
-		m_resources.erase(it);
-
-		return EDirtyFlags::eDirtyBinding | EDirtyFlags::eDirtyBindPoint;
+		m_dirtyFlags |= (dirtyFlags = EDirtyFlags::eDirtyAll);
 	}
 
-	return EDirtyFlags::eNone;
+	return dirtyFlags;
 }
 
+bool CDeviceResourceSetDesc::OnResourceInvalidated(void* pThis, SResourceBindPoint bindPoint, UResourceReference pResource, uint32 flags) threadsafe
+{
+	CDeviceResourceSetDesc* pSet = reinterpret_cast<CDeviceResourceSetDesc*>(pThis);
+	EDirtyFlags dirtyFlags = EDirtyFlags::eNone;
+
+	// Device-resource views have changed
+	if (flags & eDeviceResourceViewDirty)
+		dirtyFlags = EDirtyFlags::eDirtyBinding;
+	// Device-resource has changed
+	if (flags & eDeviceResourceDirty)
+		dirtyFlags = EDirtyFlags::eDirtyBinding;
+	// Resource has been destructed
+	if (flags & eResourceDestroyed)
+	{
+		auto it = pSet->m_resources.find(bindPoint);
+		if (it != pSet->m_resources.end())
+		{
+			SResourceBinding& existingBinding = it->second;
+			UResourceReference pFoundResource = CryInterlockedCompareExchangePointer((void* volatile*)&existingBinding.fastCompare, nullptr, pResource.pAnonymous);
+
+			if (pFoundResource.pAnonymous == pResource.pAnonymous)
+			{
+				dirtyFlags |= EDirtyFlags::eDirtyBinding;
+			}
+		}
+	}
+
+	if (dirtyFlags != EDirtyFlags::eNone)
+		pSet->m_dirtyFlags |= dirtyFlags;
+
+	// Don't keep the pointer and unregister the callback when the resource goes out of scope
+	return !(flags & eResourceDestroyed);
+}
 
 CDeviceResourceSet::CDeviceResourceSet(EFlags flags)
 	: m_bValid(false)
@@ -1091,13 +1144,41 @@ CDeviceResourceSet::CDeviceResourceSet(EFlags flags)
 CDeviceResourceSet::~CDeviceResourceSet()
 {}
 
-
-bool CDeviceResourceSet::Update(const CDeviceResourceSetDesc& desc, CDeviceResourceSetDesc::EDirtyFlags dirtyFlags)
+bool CDeviceResourceSet::Update(CDeviceResourceSetDesc& desc)
 {
-	m_bValid = UpdateImpl(desc, dirtyFlags);
+	// If nothing changed, nothing will become valid automagically
+	CDeviceResourceSetDesc::EDirtyFlags dirtyFlags = desc.GetDirtyFlags();
+	if (dirtyFlags != CDeviceResourceSetDesc::eNone)
+	{
+		// If it the given changes lead to a valid object, reset the change-flag
+		if ((m_bValid = UpdateImpl(desc, dirtyFlags)))
+		{
+			desc.AcceptAllChanges();
+		}
+		else
+		{
+			desc.AcceptChangedBindPoints();
+		}
+	}
+
 	return m_bValid;
 }
 
+bool CDeviceResourceSet::UpdateWithReevaluation(CDeviceResourceSetPtr& pSet, CDeviceResourceSetDesc& desc)
+{
+	if (!desc.IsEmpty())
+	{
+		if (pSet == nullptr)
+			pSet = GetDeviceObjectFactory().CreateResourceSet(CDeviceResourceSet::EFlags_ForceSetAllState);
+
+		return pSet->Update(desc);
+	}
+
+	pSet = nullptr;
+	desc.AcceptAllChanges();
+
+	return true;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1109,7 +1190,7 @@ void SDeviceResourceLayoutDesc::SetResourceSet(uint32 bindSlot, const CDeviceRes
 
 void SDeviceResourceLayoutDesc::SetConstantBuffer(uint32 bindSlot, EConstantBufferShaderSlot shaderSlot, ::EShaderStage shaderStages)
 {
-	SResourceBinding resource((CConstantBuffer*)nullptr);
+	SResourceBinding resource((CConstantBuffer*)nullptr, 0);
 	SResourceBindPoint resourceBindPoint(resource, shaderSlot, shaderStages);
 	SLayoutBindPoint layoutBindPoint = { SDeviceResourceLayoutDesc::ELayoutSlotType::InlineConstantBuffer, bindSlot };
 
@@ -1172,7 +1253,7 @@ uint64 SDeviceResourceLayoutDesc::GetHash() const
 
 		for (auto itResource : itLayoutBinding.second)
 		{
-			const SResourceBindPoint& resourceBindPoint = itResource.first;
+			SResourceBindPoint resourceBindPoint = itResource.first;
 			XXH64_update(&hashState, &resourceBindPoint.fastCompare, sizeof(resourceBindPoint.fastCompare));
 
 			const SResourceBinding& resource = itResource.second;
@@ -1212,11 +1293,12 @@ bool SDeviceResourceLayoutDesc::IsValid() const
 			case SResourceBinding::EResourceType::Buffer:         return "GpuBuffer";
 			case SResourceBinding::EResourceType::ConstantBuffer: return "ConstantBuffer";
 			case SResourceBinding::EResourceType::Sampler:        return "Sampler";
+			case SResourceBinding::EResourceType::InvalidType:    return "Void";
 		};
 		return "Unknown";
 	};
 
-	auto GetBindPointName = [](const SResourceBindPoint& bindPoint)
+	auto GetBindPointName = [](SResourceBindPoint bindPoint)
 	{
 		static char buffer[64];
 		char slotPrefix[] = { 'b', 't', 'u', 's' };
@@ -1240,7 +1322,7 @@ bool SDeviceResourceLayoutDesc::IsValid() const
 		return true;
 	};
 
-	auto validateResourceBindPoint = [&](const SResourceBindPoint& bindPoint, const SResourceBinding& resource)
+	auto validateResourceBindPoint = [&](SResourceBindPoint bindPoint, const SResourceBinding& resource)
 	{
 		for (EHWShaderClass shaderClass = eHWSC_Vertex; shaderClass != eHWSC_Num; shaderClass = EHWShaderClass(shaderClass + 1))
 		{
@@ -1262,7 +1344,6 @@ bool SDeviceResourceLayoutDesc::IsValid() const
 
 		return true;
 	};
-
 
 	// validate all resource bindings
 	for (auto& itLayoutBinding : m_resourceBindings)
@@ -1359,31 +1440,49 @@ bool CDeviceRenderPassDesc::SEqual::operator()(const CDeviceRenderPassDesc& lhs,
 	       lhs.m_outputUAVs    == rhs.m_outputUAVs;
 }
 
-CDeviceRenderPassDesc::CDeviceRenderPassDesc(void* pInvalidateCallbackOwner, const SResourceBinding::InvalidateCallbackFunction& invalidateCallback)
+bool CDeviceRenderPassDesc::SetResources(const CDeviceRenderPassDesc& other)
 {
-	Clear();
+	bool bResourcesInvalidated = false;
 
-	m_invalidateCallback = invalidateCallback;
-	m_invalidateCallbackOwner = pInvalidateCallbackOwner;
+	for (size_t slot = 0; slot < m_renderTargets.size(); ++slot)
+	{
+		const SResourceBindPoint bindPoint(SResourceBindPoint::ESlotType::TextureAndBuffer, uint8(slot), EShaderStage_Pixel);
+		bResourcesInvalidated |= UpdateResource(bindPoint, m_renderTargets[slot], other.m_renderTargets[slot]);
+	}
+
+	{
+		const SResourceBindPoint bindPoint(SResourceBindPoint::ESlotType::TextureAndBuffer, uint8(-1), EShaderStage_Pixel);
+		bResourcesInvalidated |= UpdateResource(bindPoint, m_depthTarget, other.m_depthTarget);
+	}
+
+	for (size_t slot = 0; slot < m_outputUAVs.size(); ++slot)
+	{
+		const SResourceBindPoint bindPoint(SResourceBindPoint::ESlotType::UnorderedAccessView, uint8(slot), EShaderStage_Pixel);
+		bResourcesInvalidated |= UpdateResource(bindPoint, m_outputUAVs[slot], other.m_outputUAVs[slot]);
+	}
+
+	return bResourcesInvalidated;
+}
+
+CDeviceRenderPassDesc::CDeviceRenderPassDesc(const CDeviceRenderPassDesc& other)
+{
+	m_invalidateCallback      = OnResourceInvalidated;
+	m_invalidateCallbackOwner = this;
+
+	m_bResourcesInvalidated   = SetResources(other);
 }
 
 CDeviceRenderPassDesc::CDeviceRenderPassDesc(const CDeviceRenderPassDesc& other, void* pInvalidateCallbackOwner, const SResourceBinding::InvalidateCallbackFunction& invalidateCallback)
 {
-	m_invalidateCallback = invalidateCallback;
+	m_invalidateCallback      = invalidateCallback;
 	m_invalidateCallbackOwner = pInvalidateCallbackOwner;
 
-	for (int i = 0; i < m_renderTargets.size(); ++i)
-		UpdateResource(m_renderTargets[i], other.m_renderTargets[i]);
-
-	UpdateResource(m_depthTarget, other.m_depthTarget);
-
-	for (int i = 0; i < m_outputUAVs.size(); ++i)
-		UpdateResource(m_outputUAVs[i], other.m_outputUAVs[i]);
+	m_bResourcesInvalidated   = SetResources(other);
 }
 
 CDeviceRenderPassDesc::~CDeviceRenderPassDesc()
 {
-	Clear();
+	ClearResources();
 }
 
 bool CDeviceRenderPassDesc::GetDeviceRendertargetViews(std::array<D3DSurface*, MaxRendertargetCount>& views, int& viewCount) const
@@ -1426,7 +1525,8 @@ bool CDeviceRenderPassDesc::GetDeviceDepthstencilView(D3DDepthSurface*& pView) c
 bool CDeviceRenderPassDesc::SetRenderTarget(uint32 slot, CTexture* pTexture, ResourceViewHandle hView)
 {
 	CRY_ASSERT(slot < MaxRendertargetCount);
-	bool result = UpdateResource(m_renderTargets[slot], SResourceBinding(pTexture, hView));
+	const SResourceBindPoint bindPoint(SResourceBindPoint::ESlotType::TextureAndBuffer, slot, EShaderStage_Pixel);
+	bool result = UpdateResource(bindPoint, m_renderTargets[slot], SResourceBinding(pTexture, hView));
 	return result;
 }
 
@@ -1436,52 +1536,106 @@ bool CDeviceRenderPassDesc::SetDepthTarget(CTexture* pTexture, ResourceViewHandl
 	           pTexture->GetWidthNonVirtual () == m_renderTargets[0].pTexture->GetWidthNonVirtual () &&
 	           pTexture->GetHeightNonVirtual() == m_renderTargets[0].pTexture->GetHeightNonVirtual()));
 
-	bool result = UpdateResource(m_depthTarget, SResourceBinding(pTexture, hView));
+	const SResourceBindPoint bindPoint(SResourceBindPoint::ESlotType::TextureAndBuffer, -1, EShaderStage_Pixel);
+	bool result = UpdateResource(bindPoint, m_depthTarget, SResourceBinding(pTexture, hView));
 	return result;
 }
 
 bool CDeviceRenderPassDesc::SetOutputUAV(uint32 slot, CGpuBuffer* pBuffer)
 {
 	CRY_ASSERT(slot < MaxOutputUAVCount);
-	bool result = UpdateResource(m_outputUAVs[slot], SResourceBinding(pBuffer, EDefaultResourceViews::Default));
+	const SResourceBindPoint bindPoint(SResourceBindPoint::ESlotType::UnorderedAccessView, slot, EShaderStage_Pixel);
+	bool result = UpdateResource(bindPoint, m_outputUAVs[slot], SResourceBinding(pBuffer, EDefaultResourceViews::Default));
 	return result;
 }
 
-bool CDeviceRenderPassDesc::UpdateResource(SResourceBinding& dstResource, const SResourceBinding& srcResource)
+bool CDeviceRenderPassDesc::UpdateResource(SResourceBindPoint bindPoint, SResourceBinding& dstResource, const SResourceBinding& srcResource)
 {
+	bool bResourcesInvalidated = false;
+
 	if (dstResource.fastCompare != srcResource.fastCompare || dstResource.view != srcResource.view)
 	{
 		if (dstResource.fastCompare && m_invalidateCallbackOwner)
 		{
-			dstResource.RemoveInvalidateCallback(m_invalidateCallbackOwner);
+			dstResource.RemoveInvalidateCallback(m_invalidateCallbackOwner, bindPoint);
 		}
 
 		dstResource = srcResource;
 
 		if (srcResource.fastCompare && m_invalidateCallbackOwner)
 		{
-			srcResource.AddInvalidateCallback(m_invalidateCallbackOwner, m_invalidateCallback);
+			srcResource.AddInvalidateCallback(m_invalidateCallbackOwner, bindPoint, m_invalidateCallback);
 		}
 
-		return true;
+		m_bResourcesInvalidated = bResourcesInvalidated = true;
 	}
 
-	return false;
+	return bResourcesInvalidated;
 }
 
-void CDeviceRenderPassDesc::Clear()
+bool CDeviceRenderPassDesc::ClearResources()
 {
-	for (auto& resource : m_renderTargets)
+	bool bResourcesInvalidated = false;
+
+	for (size_t slot = 0; slot < m_renderTargets.size(); ++slot)
 	{
-		UpdateResource(resource, SResourceBinding((CTexture*)nullptr, EDefaultResourceViews::Default));
+		const SResourceBindPoint bindPoint(SResourceBindPoint::ESlotType::TextureAndBuffer, uint8(slot), EShaderStage_Pixel);
+		bResourcesInvalidated |= UpdateResource(bindPoint, m_renderTargets[slot], SResourceBinding());
 	}
 
-	UpdateResource(m_depthTarget, SResourceBinding((CTexture*)nullptr, EDefaultResourceViews::Default));
-
-	for (auto& resource : m_outputUAVs)
 	{
-		UpdateResource(resource, SResourceBinding((CGpuBuffer*)nullptr, EDefaultResourceViews::Default));
+		const SResourceBindPoint bindPoint(SResourceBindPoint::ESlotType::TextureAndBuffer, uint8(-1), EShaderStage_Pixel);
+		bResourcesInvalidated |= UpdateResource(bindPoint, m_depthTarget, SResourceBinding());
 	}
+
+	for (size_t slot = 0; slot < m_outputUAVs.size(); ++slot)
+	{
+		const SResourceBindPoint bindPoint(SResourceBindPoint::ESlotType::UnorderedAccessView, uint8(slot), EShaderStage_Pixel);
+		bResourcesInvalidated |= UpdateResource(bindPoint, m_outputUAVs[slot], SResourceBinding());
+	}
+
+	return bResourcesInvalidated;
+}
+
+bool CDeviceRenderPassDesc::OnResourceInvalidated(void* pThis, SResourceBindPoint bindPoint, UResourceReference pResource, uint32 flags) threadsafe
+{
+	CDeviceRenderPassDesc* pPass = reinterpret_cast<CDeviceRenderPassDesc*>(pThis);
+	bool bResourcesInvalidated = false;
+
+	// Device-resource views have changed
+	if (flags & eDeviceResourceViewDirty)
+		bResourcesInvalidated = true;
+	// Device-resource has changed
+	if (flags & eDeviceResourceDirty)
+		bResourcesInvalidated = true;
+	// Resource has been destructed
+	if (flags & eResourceDestroyed)
+	{
+		UResourceReference pFoundResource = (void*)nullptr;
+
+		if (bindPoint.slotType == SResourceBindPoint::ESlotType::UnorderedAccessView)
+		{
+			pFoundResource = CryInterlockedCompareExchangePointer((void* volatile*)&pPass->m_outputUAVs[bindPoint.slotNumber], nullptr, pResource.pAnonymous);
+		}
+		else if (bindPoint.slotType == SResourceBindPoint::ESlotType::TextureAndBuffer)
+		{
+			if ((int8)bindPoint.slotNumber >= 0)
+				pFoundResource = CryInterlockedCompareExchangePointer((void* volatile*)&pPass->m_renderTargets[bindPoint.slotNumber], nullptr, pResource.pAnonymous);
+			else
+				pFoundResource = CryInterlockedCompareExchangePointer((void* volatile*)&pPass->m_depthTarget, nullptr, pResource.pAnonymous);
+		}
+
+		if (pFoundResource.pAnonymous == pResource.pAnonymous)
+		{
+			bResourcesInvalidated = true;
+		}
+	}
+
+	if (bResourcesInvalidated)
+		pPass->m_bResourcesInvalidated = bResourcesInvalidated;
+
+	// Don't keep the pointer and unregister the callback when the resource goes out of scope
+	return !(flags & eResourceDestroyed);
 }
 
 CDeviceRenderPass_Base::CDeviceRenderPass_Base()
@@ -1517,6 +1671,30 @@ bool CDeviceRenderPass_Base::Update(const CDeviceRenderPassDesc& passDesc)
 	m_nHash = hash(passDesc);
 
 	return m_bValid;
+}
+
+bool CDeviceRenderPass_Base::UpdateWithReevaluation(CDeviceRenderPassPtr& pRenderPass, CDeviceRenderPassDesc& passDesc)
+{
+	bool bOutputsDirty = passDesc.HasChanged();
+
+	if (bOutputsDirty) // request new render pass in case resource layout has changed
+	{
+		pRenderPass = GetDeviceObjectFactory().GetOrCreateRenderPass(passDesc);
+		if (pRenderPass->Update(passDesc))
+		{
+			passDesc.AcceptAllChanges();
+		}
+	}
+
+	else if (!pRenderPass->IsValid()) // make sure render pass is up to date
+	{
+		if (pRenderPass->Update(passDesc))
+		{
+			passDesc.AcceptAllChanges();
+		}
+	}
+
+	return bOutputsDirty;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1661,27 +1839,28 @@ void CDeviceObjectFactory::TrimRenderPasses()
 	EraseUnusedEntriesFromCache(m_RenderPassCache);
 }
 
-bool CDeviceObjectFactory::OnRenderPassInvalidated(void* pRenderPass, uint32 flags)
+bool CDeviceObjectFactory::OnRenderPassInvalidated(void* pRenderPass, SResourceBindPoint bindPoint, UResourceReference pResource, uint32 flags)
 {
 	CRY_ASSERT(gRenDev->m_pRT->IsRenderThread());
 
 	auto pPass     = reinterpret_cast<CDeviceRenderPass*>(pRenderPass);
-	
+
+	// Don't keep the pointer and unregister the callback when the resource goes out of scope
 	if (flags & eResourceDestroyed)
 	{
 		GetDeviceObjectFactory().EraseRenderPass(pPass, false);
 		return false;
 	}
-	else
+
+	if (flags)
 	{
 		if (auto pDesc = GetDeviceObjectFactory().GetRenderPassDesc(pPass))
 		{
 			pPass->Invalidate();
-			return true;
 		}
 	}
 
-	return false;
+	return true;
 }
 
 void CDeviceObjectFactory::TrimResources()

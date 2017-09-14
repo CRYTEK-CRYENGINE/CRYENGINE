@@ -97,7 +97,7 @@ void CStatObj::StreamOnComplete(IReadStream* pStream, unsigned nError)
 		//////////////////////////////////////////////////////////////////////////
 		for (int nSID = 0; nSID < m_pObjManager->m_lstStaticTypes.Count(); nSID++)
 		{
-			PodArray<StatInstGroup>& rGroupTable = m_pObjManager->m_lstStaticTypes[nSID];
+			PodArray<StatInstGroup>& rGroupTable = m_pObjManager->m_lstStaticTypes;
 			for (int nGroupId = 0, nGroups = rGroupTable.Count(); nGroupId < nGroups; nGroupId++)
 			{
 				StatInstGroup& rGroup = rGroupTable[nGroupId];

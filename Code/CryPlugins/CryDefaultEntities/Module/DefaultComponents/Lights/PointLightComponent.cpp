@@ -39,8 +39,6 @@ namespace Cry
 			light.SetPosition(ZERO);
 			light.m_Flags = DLF_DEFERRED_LIGHT | DLF_POINT;
 
-			light.m_fRadius = m_radius;
-
 			light.SetLightColor(m_color.m_color * m_color.m_diffuseMultiplier);
 			light.SetSpecularMult(m_color.m_specularMultiplier);
 
@@ -74,7 +72,7 @@ namespace Cry
 			else
 				light.m_Flags &= ~DLF_CASTSHADOW_MAPS;
 
-			light.m_fAttenuationBulbSize = m_options.m_attenuationBulbSize;
+			light.SetRadius(m_radius, m_options.m_attenuationBulbSize);
 
 			light.m_fFogRadialLobe = m_options.m_fogRadialLobe;
 
@@ -106,21 +104,26 @@ namespace Cry
 			{
 				Matrix34 slotTransform = GetWorldTransformMatrix();
 
+				Vec3 pos = slotTransform.GetTranslation();
+
+				SRenderLight light;
+				light.SetLightColor(m_color.m_color * m_color.m_diffuseMultiplier);
+				light.SetRadius(m_radius, m_options.m_attenuationBulbSize);
+				float radius = light.m_fRadius;
+
 				Vec3 p0, p1;
 				float step = 10.0f / 180 * gf_PI;
 				float angle;
 
-				Vec3 pos = slotTransform.GetTranslation();
-
 				// Z Axis
 				p0 = pos;
 				p1 = pos;
-				p0.x += m_radius * sin(0.0f);
-				p0.y += m_radius * cos(0.0f);
+				p0.x += radius * sin(0.0f);
+				p0.y += radius * cos(0.0f);
 				for (angle = step; angle < 360.0f / 180 * gf_PI + step; angle += step)
 				{
-					p1.x = pos.x + m_radius * sin(angle);
-					p1.y = pos.y + m_radius * cos(angle);
+					p1.x = pos.x + radius * sin(angle);
+					p1.y = pos.y + radius * cos(angle);
 					p1.z = pos.z;
 					gEnv->pRenderer->GetIRenderAuxGeom()->DrawLine(p0, context.debugDrawInfo.color, p1, context.debugDrawInfo.color);
 					p0 = p1;
@@ -129,13 +132,13 @@ namespace Cry
 				// X Axis
 				p0 = pos;
 				p1 = pos;
-				p0.y += m_radius * sin(0.0f);
-				p0.z += m_radius * cos(0.0f);
+				p0.y += radius * sin(0.0f);
+				p0.z += radius * cos(0.0f);
 				for (angle = step; angle < 360.0f / 180 * gf_PI + step; angle += step)
 				{
 					p1.x = pos.x;
-					p1.y = pos.y + m_radius * sin(angle);
-					p1.z = pos.z + m_radius * cos(angle);
+					p1.y = pos.y + radius * sin(angle);
+					p1.z = pos.z + radius * cos(angle);
 					gEnv->pRenderer->GetIRenderAuxGeom()->DrawLine(p0, context.debugDrawInfo.color, p1, context.debugDrawInfo.color);
 					p0 = p1;
 				}
@@ -143,13 +146,13 @@ namespace Cry
 				// Y Axis
 				p0 = pos;
 				p1 = pos;
-				p0.x += m_radius * sin(0.0f);
-				p0.z += m_radius * cos(0.0f);
+				p0.x += radius * sin(0.0f);
+				p0.z += radius * cos(0.0f);
 				for (angle = step; angle < 360.0f / 180 * gf_PI + step; angle += step)
 				{
-					p1.x = pos.x + m_radius * sin(angle);
+					p1.x = pos.x + radius * sin(angle);
 					p1.y = pos.y;
-					p1.z = pos.z + m_radius * cos(angle);
+					p1.z = pos.z + radius * cos(angle);
 					gEnv->pRenderer->GetIRenderAuxGeom()->DrawLine(p0, context.debugDrawInfo.color, p1, context.debugDrawInfo.color);
 					p0 = p1;
 				}

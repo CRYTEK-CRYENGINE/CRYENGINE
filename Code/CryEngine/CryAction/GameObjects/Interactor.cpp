@@ -110,7 +110,7 @@ ScriptAnyValue CInteractor::EntityIdToScript(EntityId id)
 
 void CInteractor::Update(SEntityUpdateContext&, int)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	EntityId newOverId = INVALID_ENTITYID;
 	int usableIdx = 0;

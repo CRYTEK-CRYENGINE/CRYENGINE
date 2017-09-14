@@ -498,10 +498,10 @@ void CC4Projectile::SetLightParams()
 
 	CDLight lightParams;
 	//Members of the same team see armed status - enemies always see red
+	lightParams.m_Flags |= DLF_POINT;
 	lightParams.SetLightColor(m_armed && m_OnSameTeam ? pExplosiveParams->armedLightColour : pExplosiveParams->disarmedLightColour);
 	lightParams.SetSpecularMult(pExplosiveParams->specularMultiplier);
-	lightParams.m_fRadius = pExplosiveParams->lightRadius;
-	lightParams.m_Flags |= DLF_POINT;
+	lightParams.SetRadius(pExplosiveParams->lightRadius);
 	lightParams.m_sName = "C4 Projectile Light";
 
 	m_pLightSource->SetLightProperties(lightParams);

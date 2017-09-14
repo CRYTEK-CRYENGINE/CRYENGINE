@@ -22,6 +22,13 @@ void CStaticMeshComponent::Register(Schematyc::CEnvRegistrationScope& componentS
 		pFunction->SetFlags({ Schematyc::EEnvFunctionFlags::Member, Schematyc::EEnvFunctionFlags::Construction });
 		componentScope.Register(pFunction);
 	}
+	{
+		auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&CStaticMeshComponent::SetMeshType, "{6C4F6C80-2F84-4C9B-ADBF-5C131EFDD98A}"_cry_guid, "SetType");
+		pFunction->BindInput(1, 'type', "Type");
+		pFunction->SetDescription("Changes the type of the object");
+		pFunction->SetFlags({ Schematyc::EEnvFunctionFlags::Member });
+		componentScope.Register(pFunction);
+	}
 }
 
 void CStaticMeshComponent::Initialize()
@@ -60,7 +67,14 @@ void CStaticMeshComponent::ResetObject()
 {
 	if (m_pCachedStatObj != nullptr)
 	{
-		m_pEntity->SetStatObj(m_pCachedStatObj, GetOrMakeEntitySlotId(), false);
+		m_pEntity->SetStatObj(m_pCachedStatObj, GetOrMakeEntitySlotId() | ENTITY_SLOT_ACTUAL, false);
+		if (!m_materialPath.value.empty())
+		{
+			if (IMaterial* pMaterial = gEnv->p3DEngine->GetMaterialManager()->LoadMaterial(m_materialPath.value, false))
+			{
+				m_pEntity->SetSlotMaterial(GetEntitySlotId(), pMaterial);
+			}
+		}
 	}
 	else
 	{
@@ -74,6 +88,15 @@ void CStaticMeshComponent::ProcessEvent(SEntityEvent& event)
 	{
 		LoadFromDisk();
 		ResetObject();
+
+		// Update Editor UI to show the default object material
+		if (m_materialPath.value.empty() && m_pCachedStatObj != nullptr)
+		{
+			if (IMaterial* pMaterial = m_pCachedStatObj->GetMaterial())
+			{
+				m_materialPath = pMaterial->GetName();
+			}
+		}
 	}
 
 	CBaseMeshComponent::ProcessEvent(event);

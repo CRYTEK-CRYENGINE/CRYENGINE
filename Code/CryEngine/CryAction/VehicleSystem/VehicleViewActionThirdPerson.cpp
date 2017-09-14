@@ -334,10 +334,8 @@ void CVehicleViewActionThirdPerson::Serialize(TSerialize serialize, EEntityAspec
 //------------------------------------------------------------------------
 void CVehicleViewActionThirdPerson::OffsetPosition(const Vec3& delta)
 {
-#ifdef SEG_WORLD
 	m_worldViewPos += delta;
 	m_worldCameraPos += delta;
-#endif
 }
 
 DEFINE_VEHICLEOBJECT(CVehicleViewActionThirdPerson);

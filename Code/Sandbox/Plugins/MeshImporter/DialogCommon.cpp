@@ -370,6 +370,8 @@ bool CBaseDialog::OnImportFile()
 		return false;
 	}
 
+	OnCloseAsset();
+
 	ImportFile(filePath);
 
 	return true;

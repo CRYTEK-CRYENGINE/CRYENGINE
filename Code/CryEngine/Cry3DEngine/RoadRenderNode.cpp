@@ -139,12 +139,6 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 	// Make sure to dephysicalize first
 	Dephysicalize();
 
-	Vec3 segmentOffset(0, 0, 0);
-	if (Get3DEngine()->m_pSegmentsManager)
-	{
-		segmentOffset = GetTerrain()->GetSegmentOrigin(m_nSID);
-	}
-
 	// The process of generating the render mesh is very slow, only perform if the road changed!
 	if (m_bRebuildFull)
 	{
@@ -161,7 +155,7 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 		m_serializedData.worldSpaceBBox.Reset();
 		for (int i = 0; i < nVertsNumAll; i++)
 		{
-			Vec3 vTmp(m_arrVerts[i].x, m_arrVerts[i].y, Get3DEngine()->GetTerrainElevation(m_arrVerts[i].x, m_arrVerts[i].y, m_nSID) + fRoadTerrainZOffset);
+			Vec3 vTmp(m_arrVerts[i].x, m_arrVerts[i].y, Get3DEngine()->GetTerrainElevation(m_arrVerts[i].x, m_arrVerts[i].y) + fRoadTerrainZOffset);
 			m_serializedData.worldSpaceBBox.Add(vTmp);
 		}
 
@@ -202,21 +196,11 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 
 			// make vert array
 			float unitSize = GetTerrain()->GetHeightMapUnitSize();
-#ifndef SEG_WORLD
+
 			float x1 = std::floor(WSBBox.min.x / unitSize) * unitSize;
 			float x2 = std::floor(WSBBox.max.x / unitSize) * unitSize + unitSize;
 			float y1 = std::floor(WSBBox.min.y / unitSize) * unitSize;
 			float y2 = std::floor(WSBBox.max.y / unitSize) * unitSize + unitSize;
-#else
-			int x1 = floor((WSBBox.min.x + segmentOffset.x) / unitSize) * unitSize;
-			int x2 = floor((WSBBox.max.x + segmentOffset.x) / unitSize) * unitSize + unitSize;
-			int y1 = floor((WSBBox.min.y + segmentOffset.y) / unitSize) * unitSize;
-			int y2 = floor((WSBBox.max.y + segmentOffset.y) / unitSize) * unitSize + unitSize;
-			x1 -= (int)segmentOffset.x;
-			x2 -= (int)segmentOffset.x;
-			y1 -= (int)segmentOffset.y;
-			y2 -= (int)segmentOffset.y;
-#endif
 
 			// make arrays of verts and indices used in trapezoid area
 			s_tempVertexPositions.Clear();
@@ -226,7 +210,7 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 			{
 				for (float y = y1; y <= y2; y += unitSize)
 				{
-					s_tempVertexPositions.Add(Vec3((float)x, (float)y, GetTerrain()->GetZ(x, y, m_nSID, true)));
+					s_tempVertexPositions.Add(Vec3((float)x, (float)y, GetTerrain()->GetZ(x, y, true)));
 				}
 			}
 
@@ -248,9 +232,9 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 
 					CTerrain* pTerrain = GetTerrain();
 
-					if (m_bIgnoreTerrainHoles || (pTerrain && !pTerrain->GetHole(X_in_meters, Y_in_meters, m_nSID)))
+					if (m_bIgnoreTerrainHoles || (pTerrain && !pTerrain->GetHole(X_in_meters, Y_in_meters)))
 					{
-						if (pTerrain && pTerrain->IsMeshQuadFlipped(X_in_meters, Y_in_meters, unitSize, m_nSID))
+						if (pTerrain && pTerrain->IsMeshQuadFlipped(X_in_meters, Y_in_meters, unitSize))
 						{
 							s_tempIndices.Add(nIdx0);
 							s_tempIndices.Add(nIdx1);
@@ -354,7 +338,7 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 
 				s_tempVertices.Add(tmp);
 
-				Vec3 vNormal = GetTerrain()->GetTerrainSurfaceNormal(vWSPos, 0.25f, m_nSID);
+				Vec3 vNormal = GetTerrain()->GetTerrainSurfaceNormal(vWSPos, 0.25f);
 
 				Vec3 vBiTang = pVerts[1] - pVerts[0];
 				vBiTang.Normalize();
@@ -428,7 +412,6 @@ void CRoadRenderNode::Compile() PREFAST_SUPPRESS_WARNING(6262) //function uses >
 
 		m_pRenderMesh->SetChunk((m_pMaterial != NULL) ? (IMaterial*)m_pMaterial : gEnv->p3DEngine->GetMaterialManager()->GetDefaultMaterial(),
 		                        0, m_dynamicData.vertices.Count(), 0, m_dynamicData.indices.Count(), texelAreaDensity);
-		m_serializedData.worldSpaceBBox.Move(segmentOffset);
 		Vec3 vWSBoxCenter = m_serializedData.worldSpaceBBox.GetCenter(); //vWSBoxCenter.z=0;
 		AABB OSBBox(m_serializedData.worldSpaceBBox.min - vWSBoxCenter, m_serializedData.worldSpaceBBox.max - vWSBoxCenter);
 		m_pRenderMesh->SetBBox(OSBBox.min, OSBBox.max);
@@ -626,7 +609,7 @@ void CRoadRenderNode::OnTerrainChanged()
 	for (int i = 0, nVertsNum = m_pRenderMesh->GetVerticesCount(); i < nVertsNum; i++)
 	{
 		Vec3& vPos = *(Vec3*)&pPos[i * nPosStride];
-		vPos.z = GetTerrain()->GetZApr(vWSBoxCenter.x + vPos.x, vWSBoxCenter.y + vPos.y, /*m_nSID*/ GetDefSID()) + 0.01f - vWSBoxCenter.z;
+		vPos.z = GetTerrain()->GetZApr(vWSBoxCenter.x + vPos.x, vWSBoxCenter.y + vPos.y) + 0.01f - vWSBoxCenter.z;
 	}
 	m_pRenderMesh->UnlockStream(VSF_GENERAL);
 

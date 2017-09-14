@@ -43,9 +43,9 @@ public:
 
 	CParameterComponent() = default;
 
-	static void     ReflectType(Schematyc::CTypeDesc<CParameterComponent>& desc);
+	static void ReflectType(Schematyc::CTypeDesc<CParameterComponent>& desc);
 
-	void Set(SParameterSerializeHelper const& parameter, float const value);
+	void        Set(float const value);
 
 protected:
 
@@ -69,7 +69,7 @@ inline void SParameterSerializeHelper::Serialize(Serialization::IArchive& archiv
 
 	if (archive.isInput())
 	{
-		m_id = CryAudio::StringToId_RunTime(m_name.c_str());
+		m_id = CryAudio::StringToId(m_name.c_str());
 	}
 }
 } // namespace DefaultComponents

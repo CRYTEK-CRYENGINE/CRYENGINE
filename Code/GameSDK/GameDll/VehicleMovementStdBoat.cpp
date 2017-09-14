@@ -401,7 +401,7 @@ void CVehicleMovementStdBoat::UpdateRunSound(const float deltaTime)
 //------------------------------------------------------------------------
 void CVehicleMovementStdBoat::UpdateSurfaceEffects(const float deltaTime)
 {
-  FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+  CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
   if (0 == g_pGameCVars->v_pa_surface)
   {
@@ -637,7 +637,7 @@ bool CVehicleMovementStdBoat::IsLifted()
 // NOTE: This function must be thread-safe. Before adding stuff contact MarcoC.
 void CVehicleMovementStdBoat::ProcessAI(const float deltaTime)
 {
-	FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
 	float dt = max( deltaTime, 0.005f);
 	SVehiclePhysicsStatus* physStatus = &m_physStatus[k_physicsThread];
@@ -749,7 +749,7 @@ void CVehicleMovementStdBoat::ProcessAI(const float deltaTime)
 // NOTE: This function must be thread-safe. Before adding stuff contact MarcoC.
 void CVehicleMovementStdBoat::ProcessMovement(const float deltaTime)
 {  
-  FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+  CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
   static const float fWaterLevelMaxDiff = 0.15f; // max allowed height difference between propeller center and water level
   static const float fSubmergedMin = 0.01f;
@@ -1012,7 +1012,7 @@ void CVehicleMovementStdBoat::DrawImpulse(const pe_action_impulse& action, const
 //------------------------------------------------------------------------
 bool CVehicleMovementStdBoat::RequestMovement(CMovementRequest& movementRequest)
 {
-	FUNCTION_PROFILER( gEnv->pSystem, PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
  
 	m_movementAction.isAI = true;
 	if (!m_isEnginePowered)

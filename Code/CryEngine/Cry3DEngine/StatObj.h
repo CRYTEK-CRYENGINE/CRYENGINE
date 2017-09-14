@@ -502,7 +502,7 @@ public:
 	virtual AABB GetAABB() const final                  { return m_AABB; }
 
 	virtual float GetExtent(EGeomForm eForm) final;
-	virtual void GetRandomPos(PosNorm & ran, CRndGen & seed, EGeomForm eForm) const final;
+	virtual void GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const final;
 
 	virtual Vec3 GetHelperPos(const char* szHelperName) final;
 	virtual const Matrix34& GetHelperTM(const char* szHelperName) final;

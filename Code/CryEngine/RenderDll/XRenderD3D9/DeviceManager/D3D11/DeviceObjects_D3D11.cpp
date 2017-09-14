@@ -1359,7 +1359,7 @@ CDeviceCommandListUPtr CDeviceObjectFactory::AcquireCommandList(EQueueType eQueu
 	// TODO: implement deferred contexts
 	__debugbreak();
 
-	return CryMakeUnique<CDeviceCommandList>();
+	return stl::make_unique<CDeviceCommandList>();
 }
 
 std::vector<CDeviceCommandListUPtr> CDeviceObjectFactory::AcquireCommandLists(uint32 listCount, EQueueType eQueueType /*= eQueue_Graphics*/)
@@ -1912,7 +1912,7 @@ HRESULT CDeviceObjectFactory::CreateBuffer(
 	, D3DBuffer** ppBuff
 	, const void* pData)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "CreateBuffer");
 	HRESULT hr = S_OK;
 
@@ -1939,7 +1939,7 @@ HRESULT CDeviceObjectFactory::CreateBuffer(
 
 		BufDesc.Usage = (D3D11_USAGE)D3D11_USAGE_DEFAULT;
 		BufDesc.MiscFlags = 0;
-		BufDesc.CPUAccessFlags = 0;
+		BufDesc.CPUAccessFlags = ConvertToDX11CPUAccessFlags(nUsage);
 		BufDesc.BindFlags = ConvertToDX11BindFlags(nBindFlags);
 		if (nBindFlags & (BIND_STREAM_OUTPUT | BIND_RENDER_TARGET | BIND_DEPTH_STENCIL))
 		{

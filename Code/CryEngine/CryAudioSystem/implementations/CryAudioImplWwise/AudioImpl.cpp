@@ -556,14 +556,6 @@ ERequestStatus CImpl::Init(uint32 const objectPoolSize, uint32 const eventPoolSi
 	//	g_implLogger.Log(eALT_WARNING, "AK::SoundEngine::RegisterGlobalCallback() returned AKRESULT %d", wwiseResult);
 	//}
 
-	// Register the DummyGameObject used for the events that don't need a location in the game world
-	wwiseResult = AK::SoundEngine::RegisterGameObj(CObject::s_dummyGameObjectId, "DummyObject");
-
-	if (wwiseResult != AK_Success)
-	{
-		g_implLogger.Log(ELogType::Warning, "AK::SoundEngine::RegisterGameObject() failed for the Dummyobject with AKRESULT %d", wwiseResult);
-	}
-
 	// Load Init.bnk before making the system available to the users
 	temp = "Init.bnk";
 	CONVERT_CHAR_TO_OSCHAR(temp.c_str(), szTemp);
@@ -627,14 +619,6 @@ ERequestStatus CImpl::ShutDown()
 
 	if (AK::SoundEngine::IsInitialized())
 	{
-		// UnRegister the DummyGameObject
-		wwiseResult = AK::SoundEngine::UnregisterGameObj(CObject::s_dummyGameObjectId);
-
-		if (wwiseResult != AK_Success)
-		{
-			g_implLogger.Log(ELogType::Warning, "AK::SoundEngine::UnregisterGameObject() failed for the Dummyobject with AKRESULT %d", wwiseResult);
-		}
-
 		if (g_cvars.m_enableEventManagerThread > 0)
 		{
 			wwiseResult = AK::SoundEngine::ClearBanks();
@@ -872,6 +856,19 @@ char const* const CImpl::GetFileLocation(SFileInfo* const pFileInfo)
 ///////////////////////////////////////////////////////////////////////////
 IObject* CImpl::ConstructGlobalObject()
 {
+	s_globalObjectId = m_gameObjectId++;
+
+#if defined(INCLUDE_WWISE_IMPL_PRODUCTION_CODE)
+	AKRESULT const wwiseResult = AK::SoundEngine::RegisterGameObj(s_globalObjectId, "GlobalObject");
+
+	if (!IS_WWISE_OK(wwiseResult))
+	{
+		g_implLogger.Log(ELogType::Warning, "Wwise ConstructGlobalObject failed with AKRESULT: %d", wwiseResult);
+	}
+#else
+	AK::SoundEngine::RegisterGameObj(s_globalObjectId);
+#endif  // INCLUDE_WWISE_IMPL_PRODUCTION_CODE
+
 	return static_cast<IObject*>(new CObject(AK_INVALID_GAME_OBJECT));
 }
 
@@ -937,7 +934,7 @@ IListener* CImpl::ConstructListener(char const* const szName /*= nullptr*/)
 	pIListener = static_cast<IListener*>(new CListener(m_gameObjectId));
 #endif  // INCLUDE_WWISE_IMPL_PRODUCTION_CODE
 
-	g_listenerID = m_gameObjectId++;
+	g_listenerId = m_gameObjectId++;
 
 	return pIListener;
 }

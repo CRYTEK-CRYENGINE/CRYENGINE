@@ -7291,11 +7291,31 @@ bool CScriptBind_Entity::ParseLightParams(IScriptTable* pLightTable, CDLight& li
 	light.m_nLightStyle = 0;
 	light.SetPosition(Vec3(ZERO));
 	light.m_fLightFrustumAngle = 45.0f;
-	light.m_fRadius = 4.0f;
 	light.m_Flags = 0;
 	light.m_LensOpticsFrustumAngle = 255;
 
 	CScriptSetGetChain chain(pLightTable);
+
+	bool flag;
+	if (chain.GetValue("this_area_only", flag) && flag)
+		light.m_Flags |= DLF_THIS_AREA_ONLY;
+	if (chain.GetValue("ignore_visareas", flag) && flag)
+		light.m_Flags |= DLF_IGNORES_VISAREAS;
+	if (chain.GetValue("fake", flag) && flag)
+		light.m_Flags |= DLF_FAKE;
+	if (chain.GetValue("indoor_only", flag) && flag)
+		light.m_Flags |= DLF_INDOOR_ONLY;
+	if (chain.GetValue("ambient", flag) && flag)
+		light.m_Flags |= DLF_AMBIENT;
+	if (chain.GetValue("area_light", flag) && flag)
+		light.m_Flags |= DLF_AREA_LIGHT;
+	if (chain.GetValue("deferred_light", flag) && flag)
+		light.m_Flags |= DLF_DEFERRED_LIGHT;
+	if (chain.GetValue("volumetric_fog", flag) && flag)
+		light.m_Flags |= DLF_VOLUMETRIC_FOG;
+	if (chain.GetValue("volumetric_fog_only", flag) && flag)
+		light.m_Flags |= DLF_VOLUMETRIC_FOG_ONLY;
+
 	int nLightStyle = 0;
 	if (chain.GetValue("style", nLightStyle))
 		light.m_nLightStyle = (uint8) nLightStyle;
@@ -7308,9 +7328,13 @@ bool CScriptBind_Entity::ParseLightParams(IScriptTable* pLightTable, CDLight& li
 	if (chain.GetValue("anim_phase", nAnimPhase))
 		light.m_nLightPhase = (uint8) nAnimPhase;
 
-	chain.GetValue("radius", light.m_fRadius);
+	float fRadius = 4.0f, fAttenuationBulbSize = 0.0f;
+	chain.GetValue("radius", fRadius);
+	chain.GetValue("attenuation_bulbsize", fAttenuationBulbSize);
 
-	light.m_ProbeExtents = Vec3(light.m_fRadius, light.m_fRadius, light.m_fRadius);
+	light.SetRadius(fRadius, fAttenuationBulbSize);
+
+	light.m_ProbeExtents = Vec3(fRadius);
 
 	float boxSizeX, boxSizeY, boxSizeZ;
 	if (chain.GetValue("box_size_x", boxSizeX))
@@ -7372,25 +7396,6 @@ bool CScriptBind_Entity::ParseLightParams(IScriptTable* pLightTable, CDLight& li
 		}
 	}
 
-	bool flag;
-	if (chain.GetValue("this_area_only", flag) && flag)
-		light.m_Flags |= DLF_THIS_AREA_ONLY;
-	if (chain.GetValue("ignore_visareas", flag) && flag)
-		light.m_Flags |= DLF_IGNORES_VISAREAS;
-	if (chain.GetValue("fake", flag) && flag)
-		light.m_Flags |= DLF_FAKE;
-	if (chain.GetValue("indoor_only", flag) && flag)
-		light.m_Flags |= DLF_INDOOR_ONLY;
-	if (chain.GetValue("ambient", flag) && flag)
-		light.m_Flags |= DLF_AMBIENT;
-	if (chain.GetValue("area_light", flag) && flag)
-		light.m_Flags |= DLF_AREA_LIGHT;
-	if (chain.GetValue("deferred_light", flag) && flag)
-		light.m_Flags |= DLF_DEFERRED_LIGHT;
-	if (chain.GetValue("volumetric_fog", flag) && flag)
-		light.m_Flags |= DLF_VOLUMETRIC_FOG;
-	if (chain.GetValue("volumetric_fog_only", flag) && flag)
-		light.m_Flags |= DLF_VOLUMETRIC_FOG_ONLY;
 	Vec3 color;
 	if (chain.GetValue("diffuse_color", color))
 		light.SetLightColor(ColorF(color.x, color.y, color.z, 1.0f));
@@ -7472,10 +7477,6 @@ bool CScriptBind_Entity::ParseLightParams(IScriptTable* pLightTable, CDLight& li
 	float fAttenFalloffMax = 1.0f;
 	chain.GetValue("attenuation_falloff_max", fAttenFalloffMax);
 	light.SetFalloffMax(fAttenFalloffMax);
-
-	float fAttenuationBulbSize = 0.0f;
-	if (chain.GetValue("attenuation_bulbsize", fAttenuationBulbSize))
-		light.m_fAttenuationBulbSize = fAttenuationBulbSize;
 
 	float fFogRadialLobe = 0.0f;
 	if (chain.GetValue("fog_radial_lobe", fFogRadialLobe))

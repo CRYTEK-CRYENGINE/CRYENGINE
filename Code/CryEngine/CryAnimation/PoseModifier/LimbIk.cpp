@@ -60,6 +60,8 @@ bool CLimbIk::Prepare(const SAnimationPoseModifierParams& params)
 
 bool CLimbIk::Execute(const SAnimationPoseModifierParams& params)
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	Skeleton::CPoseData* pPoseData = Skeleton::CPoseData::GetPoseData(params.pPoseData);
 	if (!pPoseData)
 		return false;

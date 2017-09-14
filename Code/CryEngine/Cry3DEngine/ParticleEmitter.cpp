@@ -60,7 +60,7 @@ JobManager::SJobState* CParticleBatchDataManager::AddUpdateJob(CParticleEmitter*
 ///////////////////////////////////////////////////////////////////////////////////////////////
 void CParticleEmitter::AddUpdateParticlesJob()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	if (!GetCVars()->e_ParticlesThread)
 	{
@@ -89,7 +89,7 @@ void CParticleEmitter::SyncUpdateParticlesJob()
 {
 	if (m_pUpdateParticlesJobState)
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_PARTICLE);
+		CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 		PARTICLE_LIGHT_SYNC_PROFILER();
 		gEnv->GetJobManager()->WaitForJob(*m_pUpdateParticlesJobState);
 		m_pUpdateParticlesJobState = NULL;
@@ -134,7 +134,7 @@ bool CParticleEmitter::IsAlive() const
 
 void CParticleEmitter::UpdateState()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	uint32 nEnvFlags = GetEnvFlags();
 	Vec3 vPos = GetLocation().t;
@@ -325,7 +325,6 @@ CParticleEmitter::~CParticleEmitter()
 	}
 	m_p3DEngine->FreeRenderNodeState(this); // Also does unregister entity.
 	GetInstCount(GetRenderNodeType())--;
-	GetEmitGeom().Release();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -455,7 +454,7 @@ void CParticleEmitter::AddEffect(CParticleContainer* pParentContainer, const CPa
 
 void CParticleEmitter::RefreshEffect()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	if (!m_pTopEffect)
 		return;
@@ -615,12 +614,9 @@ bool CParticleEmitter::IsInstant() const
 
 void CParticleEmitter::SetEmitGeom(GeomRef const& geom)
 {
-	GeomRef emit_new(geom);
-	if (emit_new != GetEmitGeom())
+	if (geom != GetEmitGeom())
 	{
-		emit_new.AddRef();
-		GetEmitGeom().Release();
-		static_cast<GeomRef&>(*this) = emit_new;
+		static_cast<GeomRef&>(*this) = geom;
 		InvalidateStaticBounds();
 	}
 
@@ -680,7 +676,7 @@ bool GetPhysicalVelocity(Velocity3& Vel, IEntity* pEnt, const Vec3& vPos)
 
 void CParticleEmitter::UpdateFromEntity()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	m_nEmitterFlags &= ~(ePEF_HasPhysics | ePEF_HasTarget | ePEF_HasAttachment);
 
@@ -773,7 +769,7 @@ void CParticleEmitter::GetLocalBounds(AABB& bbox)
 
 void CParticleEmitter::Update()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	m_fAge += (GetParticleTimer()->GetFrameStartTime() - m_timeLastUpdate).GetSeconds() * m_SpawnParams.fTimeScale;
 	m_timeLastUpdate = GetParticleTimer()->GetFrameStartTime();
@@ -831,7 +827,7 @@ void CParticleEmitter::Update()
 
 void CParticleEmitter::UpdateEffects()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	if (!(GetRndFlags() & ERF_HIDDEN))
 	{
@@ -875,7 +871,7 @@ void CParticleEmitter::InvalidateCachedEntityData()
 
 void CParticleEmitter::Render(SRendParams const& RenParams, const SRenderingPassInfo& passInfo)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 	PARTICLE_LIGHT_PROFILER();
 
 	IF (!passInfo.RenderParticles(), 0)

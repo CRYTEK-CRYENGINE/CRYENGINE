@@ -43,12 +43,12 @@ namespace UQS
 
 			struct SCtorContext
 			{
-				explicit                                SCtorContext(const CQueryID& _queryID, const char* _szQuerierName, const HistoricQuerySharedPtr& _pOptionalHistoryToWriteTo, std::unique_ptr<CItemList>& _pOptionalResultingItemsFromPreviousChainedQuery);
+				explicit                                SCtorContext(const CQueryID& _queryID, const char* _szQuerierName, const HistoricQuerySharedPtr& _pOptionalHistoryToWriteTo, const std::shared_ptr<CItemList>& _pOptionalResultingItemsFromPreviousQuery);
 
 				CQueryID                                queryID;
 				const char*                             szQuerierName;
 				HistoricQuerySharedPtr                  pOptionalHistoryToWriteTo;
-				std::unique_ptr<CItemList>&             optionalResultingItemsFromPreviousChainedQuery;     // this is how we pass items of a result set from one query to another
+				std::shared_ptr<CItemList>              pOptionalResultingItemsFromPreviousQuery;     // this is how we pass items of a result set from one query to another
 			};
 
 			//===================================================================================
@@ -152,6 +152,7 @@ namespace UQS
 
 			const CQueryID                              m_queryID;                        // the unique queryID that can be used to identify this instance from inside the CQueryManager
 			std::shared_ptr<const CQueryBlueprint>      m_pQueryBlueprint;                // we'll instantiate all query components (generator, evaluators, etc) via this blueprint
+			std::shared_ptr<CItemList>                  m_pOptionalShuttledItems;         // when queries are chained, the items in the result set of the previous query will be transferred to here (ready to get evaluated straight away)
 			QueryResultSetUniquePtr                     m_pResultSet;                     // once the query has finished evaluating all items (and hasn't bumped into a runtime exception), it will write the final items to here
 			CTimeBudget                                 m_timeBudgetForCurrentUpdate;     // this gets "restarted" on each Update() call with the amount of granted time that has been passed in by the caller
 
@@ -163,7 +164,6 @@ namespace UQS
 			// ~debugging
 
 			const bool                                  m_bRequiresSomeTimeBudgetForExecution;
-			std::unique_ptr<CItemList>                  m_pOptionalShuttledItems;         // when queries are chained, the items in the result set of the previous query will be transferred to here (ready to get evaluated straight away)
 			Shared::CVariantDict                        m_globalParams;                   // merge between constant- and runtime-params
 			std::vector<Client::ItemMonitorUniquePtr>   m_itemMonitors;                   // Update() checks these to ensure that no corruption of the reasoning space goes unnoticed; when the query finishes, these monitors may get transferred to the parent to carry on monitoring alongside further child queries
 

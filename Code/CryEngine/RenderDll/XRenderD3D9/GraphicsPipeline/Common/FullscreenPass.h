@@ -12,7 +12,8 @@ public:
 
 	bool InputChanged(int var0 = 0, int var1 = 0, int var2 = 0, int var3 = 0)
 	{
-		bool bChanged = m_primitive.IsDirty() ||
+		bool bChanged = IsOutputDirty() || 
+		                m_primitive.IsDirty() ||
 		                var0 != m_inputVars[0] || var1 != m_inputVars[1] ||
 		                var2 != m_inputVars[2] || var3 != m_inputVars[3];
 
@@ -55,7 +56,7 @@ public:
 		m_primitive.SetSampler(slot, sampler);
 	}
 
-	ILINE void SetBuffer(uint32 shaderSlot, const CGpuBuffer* pBuffer, ResourceViewHandle resourceViewID = EDefaultResourceViews::Default, EShaderStage shaderStages = EShaderStage_Pixel)
+	ILINE void SetBuffer(uint32 shaderSlot, CGpuBuffer* pBuffer, ResourceViewHandle resourceViewID = EDefaultResourceViews::Default, EShaderStage shaderStages = EShaderStage_Pixel)
 	{
 		m_primitive.SetBuffer(shaderSlot, pBuffer, resourceViewID, shaderStages);
 	}

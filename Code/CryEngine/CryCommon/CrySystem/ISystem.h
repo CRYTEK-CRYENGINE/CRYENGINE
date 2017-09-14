@@ -20,6 +20,8 @@
 #include <CryMemory/IMemory.h>          // <> required for Interfuscator
 #include <CrySystem/ISystemScheduler.h> // <> required for Interfuscator
 
+#include <CrySystem/Profilers/FrameProfiler/FrameProfiler_Shared.h>
+
 #include <CryMath/LCGRandom.h>
 #include <CryExtension/ICryFactory.h>
 #include <CryExtension/ICryUnknown.h>
@@ -1113,6 +1115,9 @@ struct ISystem
 	//! Returns pointer to the global environment structure.
 	virtual SSystemGlobalEnvironment* GetGlobalEnvironment() = 0;
 
+	//! Returns the user-defined callback, notifies of system initialization flow.
+	virtual ISystemUserCallback* GetUserCallback() const = 0;
+
 	//! Returns the root folder specified by the command line option "-root <path>".
 	virtual const char* GetRootFolder() const = 0;
 
@@ -1199,6 +1204,7 @@ struct ISystem
 	//! ##@{
 	virtual void WarningV(EValidatorModule module, EValidatorSeverity severity, int flags, const char* file, const char* format, va_list args) = 0;
 	virtual void Warning(EValidatorModule module, EValidatorSeverity severity, int flags, const char* file, const char* format, ...) = 0;
+	virtual void WarningOnce(EValidatorModule module, EValidatorSeverity severity, int flags, const char* file, const char* format, ...) = 0;
 	//! ##@}.
 
 	//! Report message by provider or by using CryMessageBox.
@@ -1345,7 +1351,7 @@ struct ISystem
 	virtual void EndLoadingSectionProfiling(CLoadingTimeProfiler* pProfiler) = 0;
 
 	//! Starts function profiling with bootprofiler (session must be started).
-	virtual CBootProfilerRecord* StartBootSectionProfiler(const char* name, const char* args) = 0;
+	virtual CBootProfilerRecord* StartBootSectionProfiler(const char* name, const char* args,EProfileDescription type) = 0;
 
 	//! Ends function profiling with bootprofiler.
 	virtual void StopBootSectionProfiler(CBootProfilerRecord* record) = 0;
@@ -1606,125 +1612,6 @@ struct ISystem
 //! This is a very important function for the dedicated server - it lets us run >1000 players per piece of server hardware.
 //! It this saves us lots of money on the dedicated server hardware.
 #define SYNCHRONOUS_LOADING_TICK() do { if (gEnv && gEnv->pSystem) gEnv->pSystem->SynchronousLoadingTick(__FUNC__, __LINE__); } while (0)
-
-#if defined(ENABLE_LOADING_PROFILER)
-
-struct DiskOperationInfo
-{
-	DiskOperationInfo() : m_nSeeksCount(0), m_nFileOpenCount(0), m_nFileReadCount(0), m_dOperationSize(0.), m_dOperationTime(0.) {}
-	int    m_nSeeksCount;
-	int    m_nFileOpenCount;
-	int    m_nFileReadCount;
-	double m_dOperationTime;
-	double m_dOperationSize;
-
-	DiskOperationInfo& operator-=(const DiskOperationInfo& rv)
-	{
-		m_nSeeksCount -= rv.m_nSeeksCount;
-		m_nFileOpenCount -= rv.m_nFileOpenCount;
-		m_nFileReadCount -= rv.m_nFileReadCount;
-		m_dOperationSize -= rv.m_dOperationSize;
-		m_dOperationTime -= rv.m_dOperationTime;
-		return *this;
-	}
-
-	DiskOperationInfo& operator+=(const DiskOperationInfo& rv)
-	{
-		m_nSeeksCount += rv.m_nSeeksCount;
-		m_nFileOpenCount += rv.m_nFileOpenCount;
-		m_nFileReadCount += rv.m_nFileReadCount;
-		m_dOperationSize += rv.m_dOperationSize;
-		m_dOperationTime += rv.m_dOperationTime;
-		return *this;
-	}
-
-	DiskOperationInfo operator-(const DiskOperationInfo& rv)
-	{
-		DiskOperationInfo res(*this);
-		return res -= rv;
-	}
-
-	DiskOperationInfo operator+(const DiskOperationInfo& rv)
-	{
-		DiskOperationInfo res(*this);
-		return res += rv;
-	}
-
-};
-
-struct CLoadingTimeProfiler
-{
-	CLoadingTimeProfiler(ISystem* pSystem, const char* szFuncName) : m_pSystem(pSystem)
-	{
-		m_pSystem = pSystem;
-		m_pTimeContainer = m_pSystem->StartLoadingSectionProfiling(this, szFuncName);
-	}
-
-	~CLoadingTimeProfiler()
-	{
-		m_pSystem->EndLoadingSectionProfiling(this);
-	}
-
-	struct SLoadingTimeContainer* m_pTimeContainer;
-	double                        m_fConstructorTime;
-	double                        m_fConstructorMemUsage;
-
-	DiskOperationInfo             m_constructorInfo;
-
-	ISystem*                      m_pSystem;
-};
-
-class CSYSBootProfileBlock
-{
-	ISystem*             m_pSystem;
-	CBootProfilerRecord* m_pRecord;
-public:
-	CSYSBootProfileBlock(ISystem* pSystem, const char* name, const char* args = NULL) : m_pSystem(pSystem)
-	{
-		m_pRecord = m_pSystem ? m_pSystem->StartBootSectionProfiler(name, args) : nullptr;
-	}
-
-	~CSYSBootProfileBlock()
-	{
-		if (m_pRecord)
-		{
-			m_pSystem->StopBootSectionProfiler(m_pRecord);
-		}
-	}
-};
-
-class CSYSBootProfileAutoSession
-{
-	ISystem*    m_pSystem;
-	const char* m_szSessionName;
-public:
-	CSYSBootProfileAutoSession(ISystem* pSystem, const char* szSessionName)
-		: m_pSystem(pSystem), m_szSessionName(szSessionName)
-	{
-		m_pSystem->StartBootProfilerSession(m_szSessionName);
-	}
-
-	~CSYSBootProfileAutoSession()
-	{
-		m_pSystem->StopBootProfilerSession(m_szSessionName);
-	}
-};
-
-	#define LOADING_TIME_PROFILE_SECTION CSYSBootProfileBlock _profileBlockLine(gEnv->pSystem, __FUNC__);
-	#define LOADING_TIME_PROFILE_SECTION_ARGS(args)                    CSYSBootProfileBlock _profileBlockLine_args(gEnv->pSystem, __FUNC__, args);
-	#define LOADING_TIME_PROFILE_SECTION_NAMED(sectionName)            CSYSBootProfileBlock _profileBlockLine_named(gEnv->pSystem, sectionName);
-	#define LOADING_TIME_PROFILE_SECTION_NAMED_ARGS(sectionName, args) CSYSBootProfileBlock _profileBlockLine_named_args(gEnv->pSystem, sectionName, args);
-	#define LOADING_TIME_PROFILE_AUTO_SESSION(sessionName)             CSYSBootProfileAutoSession _profileAutoSession(gEnv->pSystem, (sessionName));
-
-#else
-
-	#define LOADING_TIME_PROFILE_SECTION
-	#define LOADING_TIME_PROFILE_SECTION_ARGS(args)
-	#define LOADING_TIME_PROFILE_SECTION_NAMED(sectionName)
-	#define LOADING_TIME_PROFILE_SECTION_NAMED_ARGS(sectionName, args)
-	#define LOADING_TIME_PROFILE_AUTO_SESSION(sessionName)
-
-#endif
 
 // CrySystem DLL Exports.
 typedef ISystem* (* PFNCREATESYSTEMINTERFACE)(SSystemInitParams& initParams);

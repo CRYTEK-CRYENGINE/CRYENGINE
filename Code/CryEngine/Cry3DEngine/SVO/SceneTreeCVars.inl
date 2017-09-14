@@ -57,8 +57,12 @@ m_arrVars.Clear();
 #endif
 
 // UI parameters
-REGISTER_CVAR_AUTO(int, e_svoTI_Active, 0, VF_NULL,
-                   "Activates voxel GI for the level");
+#if CRY_PLATFORM_DESKTOP
+REGISTER_CVAR_AUTO(int, e_svoTI_Active, 0, VF_NULL, "Activates voxel GI for the level"); // default value of 0 allows GI to be activated in level settings
+#else
+REGISTER_CVAR_AUTO(int, e_svoTI_Active, -1, VF_NULL, "Activates voxel GI for the level"); // default value of -1 forces disabling of GI on weak platforms
+#endif
+
 REGISTER_CVAR_AUTO(int, e_svoTI_IntegrationMode, 0, VF_EXPERIMENTAL,
                    "GI computations may be used in several ways:\n"
                    "0 = Basic diffuse GI mode\n"
@@ -96,6 +100,8 @@ REGISTER_CVAR_AUTO(float, e_svoTI_PropagationBooster, 0, VF_EXPERIMENTAL,
                    "Controls fading of the light during in-SVO propagation\nValues greater than 1 help propagating light further but may bring more light leaking artifacts");
 REGISTER_CVAR_AUTO(float, e_svoTI_DiffuseBias, 0, VF_NULL,
                    "Constant ambient value added to GI\nHelps preventing completely black areas\nIf negative - modulate ambient with near range AO (prevents constant ambient in completely occluded indoor areas)");
+REGISTER_CVAR_AUTO(float, e_svoTI_PointLightsBias, 0.2f, VF_EXPERIMENTAL,
+                   "Modulates non shadowed injection from point light (helps simulating multiple bounces)");
 REGISTER_CVAR_AUTO(float, e_svoTI_DiffuseConeWidth, 0, VF_NULL,
                    "Controls wideness of diffuse cones\nWider cones work faster but may cause over-occlusion and more light leaking\nNarrow cones are slower and may bring more noise");
 REGISTER_CVAR_AUTO(float, e_svoTI_ConeMaxLength, 0, VF_NULL,

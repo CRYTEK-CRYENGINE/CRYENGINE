@@ -181,12 +181,12 @@ CTargetMeshModel* CTargetMeshView::model()
 
 void CTargetMeshView::reset()
 {
-	QTreeView::reset();
+	QAdvancedTreeView::reset();
 	expandAll();
 }
 
 CTargetMeshView::CTargetMeshView(QWidget* pParent)
-	: QTreeView(pParent)
+	: QAdvancedTreeView(QAdvancedTreeView::Behavior(QAdvancedTreeView::PreserveExpandedAfterReset | QAdvancedTreeView::PreserveSelectionAfterReset), pParent)
 	, m_pModel(new CTargetMeshModel())
 {
 	setModel(m_pModel.get());

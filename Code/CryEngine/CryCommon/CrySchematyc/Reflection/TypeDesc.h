@@ -346,6 +346,7 @@ public:
 
 	const CClassBaseDescArray&   GetBases() const;
 	const CClassBaseDesc*        FindBaseByTypeDesc(const CCommonTypeDesc& typeDesc) const;
+	const CClassBaseDesc*        FindBaseByTypeID(const CryGUID& typeId) const;
 
 	const CClassMemberDescArray& GetMembers() const;
 	const CClassMemberDesc*      FindMemberByOffset(ptrdiff_t offset) const;

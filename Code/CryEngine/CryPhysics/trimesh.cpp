@@ -505,7 +505,7 @@ int CTriMesh::CalculateTopology(index_t *pIndices, int bCheckOnly)
 
 void CTriMesh::RebuildBVTree(CBVTree *pRefTree)
 {
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 
 	int nMinTrisPerNode=2,nMaxTrisPerNode=4,i,j,jnext,*pIdxOld2New;
 	Vec3 n,nnext,BBox[2];
@@ -1113,32 +1113,35 @@ float CTriMesh::GetExtent(EGeomForm eForm) const
 	return ext.TotalExtent();
 }
 
-void CTriMesh::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const
+void CTriMesh::GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const
 {
 	int nTri;
 
 	if (eForm == GeomForm_Vertices)
 	{
-		nTri = seed.GetRandom(0, m_nTris - 1);
-		ran.vPos = m_pVertices[m_pIndices[nTri*3 + seed.GetRandom(0, 2)]];
+		for (auto& ran : points) {
+			nTri = seed.GetRandom(0, m_nTris - 1);
+			ran.vPos = m_pVertices[m_pIndices[nTri * 3 + seed.GetRandom(0, 2)]];
+			ran.vNorm = m_pNormals[nTri];
+		}
 	}
 	else
 	{
 		CGeomExtent const& extent = m_Extents[eForm];
 		if (!extent.NumParts())
-			return ran.zero();
-		int nPart = extent.RandomPart(seed);
+			return points.fill(ZERO);
+		for (auto& ran : points) {
+			int nPart = extent.RandomPart(seed);
 
-		int aIndices[3];
-		PosNorm aRan[3];
-		for (int v = TriIndices(aIndices, nPart, eForm) - 1; v >= 0; v--)
-			aRan[v].vPos = m_pVertices[m_pIndices[aIndices[v]]];
-		static float c = 1.0f;
-		TriRandomPos(ran, seed, eForm, aRan, m_center * c, false);
-		nTri = eForm == GeomForm_Edges ? nPart/3 : nPart;
+			int aIndices[3];
+			PosNorm aRan[3];
+			for (int v = TriIndices(aIndices, nPart, eForm) - 1; v >= 0; v--)
+				aRan[v].vPos = m_pVertices[m_pIndices[aIndices[v]]];
+			TriRandomPos(ran, seed, eForm, aRan, m_center, false);
+			nTri = eForm == GeomForm_Edges ? nPart / 3 : nPart;
+			ran.vNorm = m_pNormals[nTri];
+		}
 	}
-
-	ran.vNorm = m_pNormals[nTri];
 }
 
 float CTriMesh::GetVolume()
@@ -1581,7 +1584,7 @@ void update_unprojection(real t, unprojection_mode *pmode, geometry_under_test *
 int CTriMesh::RegisterIntersection(primitive *pprim1,primitive *pprim2, geometry_under_test *pGTest1,geometry_under_test *pGTest2,
 																	 prim_inters *pinters)
 {
-	//FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	//CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 	geometry_under_test *pGTest[2];
   pGTest[0] = pGTest1;   pGTest[1] = pGTest2;
 	indexed_triangle tri = *(indexed_triangle*)pprim1, tri1;

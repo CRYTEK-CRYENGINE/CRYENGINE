@@ -12,7 +12,7 @@ float Script : STANDARDSGLOBAL
 >;
 
 //////////////////////////////////////////////////////////////////////////
-// Per instance constant buffer and textures for fog volume.
+// Per instance constant buffer for fog volume.
 
 cbuffer CBFogVolume : register(b12)
 {
@@ -30,7 +30,10 @@ cbuffer CBFogVolume : register(b12)
 	} cbFogVolume;
 };
 
-Texture2D fvLinearDepthTex : register(t0) = TS_ZTarget;
+//////////////////////////////////////////////////////////////////////////
+// Forward per-pass texture
+
+SCENE_DEPTH_MAP;
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -130,7 +133,7 @@ pixout FogVolumeEllipsoidPS( v2f_ellipsoid IN )
 	float t0 = dot( front, -CV_CameraFrontVector );
 	float t1 = dot( back, -CV_CameraFrontVector );
 
-	float sceneDepth = fvLinearDepthTex.Load(int3(IN.hPos.xy, 0)).x * CV_NearFarClipDist.y + d;
+	float sceneDepth = linearDepthTex.Load(int3(IN.hPos.xy, 0)).x * CV_NearFarClipDist.y + d;
 	sceneDepth = min( sceneDepth, t1 );
 	back = lerp( front, back, saturate( ( sceneDepth - t0 ) / ( t1 - t0 ) ) );
 
@@ -146,7 +149,7 @@ pixout FogVolumeEllipsoidPS( v2f_ellipsoid IN )
 	float tS = t.x;
 	float tE = t.y;
 
-	float sceneDepth = fvLinearDepthTex.Load(int3(IN.hPos.xy, 0)).x * CV_NearFarClipDist.y;
+	float sceneDepth = linearDepthTex.Load(int3(IN.hPos.xy, 0)).x * CV_NearFarClipDist.y;
 	float tI = sceneDepth / dot( cameraLookDirInWS, -CV_CameraFrontVector );
 	tI = max( tS, min( tI, tE ) ); // clamp to range [tS, tE]
 
@@ -288,7 +291,7 @@ pixout FogVolumeBoxPS( v2f_box IN )
 	////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////
 
-	float sceneDepth = fvLinearDepthTex.Load(int3(IN.hPos.xy, 0)).x * CV_NearFarClipDist.y;
+	float sceneDepth = linearDepthTex.Load(int3(IN.hPos.xy, 0)).x * CV_NearFarClipDist.y;
 	float tI = sceneDepth / dot( cameraLookDirInWS, -CV_CameraFrontVector );
 	tI = max( tS, min( tI, tE ) ); // clamp to range [tS, tE]
 

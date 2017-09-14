@@ -35,7 +35,7 @@ add_sources("NoUberFile"
 end_sources()
 #END-FILE-LIST
 
-if(PLUGIN_SCHEMATYC)
+if(PLUGIN_SCHEMATYC AND NOT PROJECT_GAMEHUNT)
 	CryEngineModule(CrySensorSystem PCH "StdAfx.cpp" SOLUTION_FOLDER "CryPlugins")
 
 	target_include_directories(${THIS_PROJECT}

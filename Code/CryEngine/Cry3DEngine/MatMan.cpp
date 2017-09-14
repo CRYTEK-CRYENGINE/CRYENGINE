@@ -109,7 +109,7 @@ CMatMan::~CMatMan()
 }
 
 //////////////////////////////////////////////////////////////////////////
-const char* CMatMan::UnifyName(const char* sMtlName) const
+const char* CMatMan::UnifyName(const char* sMtlName)
 {
 	static char name[260];
 	int n = strlen(sMtlName);
@@ -180,6 +180,7 @@ void CMatMan::DelayedMaterialDeletion()
 		CMatInfo* ptr = m_DelayedDeletionMtls[nID].back();
 		ptr->ShutDown();
 		Unregister(ptr);
+		// TODO: CMatInfo pointer leaks
 		m_DelayedDeletionMtls[nID].pop_back();
 	}
 
@@ -266,7 +267,7 @@ IMaterial* CMatMan::FindMaterial(const char* sMtlName) const
 	if (it == m_mtlNameMap.end())
 		return 0;
 
-	if (static_cast<CMatInfo*>(it->second)->m_bDeletePending)
+	if (!static_cast<CMatInfo*>(it->second)->IsValid())
 		return 0;
 
 	return it->second;
@@ -275,7 +276,7 @@ IMaterial* CMatMan::FindMaterial(const char* sMtlName) const
 //////////////////////////////////////////////////////////////////////////
 IMaterial* CMatMan::LoadMaterial(const char* sMtlName, bool bMakeIfNotFound, bool bNonremovable, unsigned long nLoadingFlags)
 {
-	AUTO_LOCK(m_AccessLock);
+	CRY_ASSERT(!m_AccessLock.IsLocked());
 
 	if (!m_bInitialized)
 		InitDefaults();
@@ -283,20 +284,15 @@ IMaterial* CMatMan::LoadMaterial(const char* sMtlName, bool bMakeIfNotFound, boo
 	if (m_pDefaultMtl && GetCVars()->e_StatObjPreload == 2)
 		return m_pDefaultMtl;
 
+	if (IMaterial* pFound = FindMaterial(sMtlName))
+		return pFound;
+
+	// TODO: To make LoadMaterial threadsafe the CreateMaterial()-call in MakeMaterialFromXml()
+	//       needs to be moved into here (and elsewhere respectively) and put under the m_AccessLock
+	//       together with FindMaterial()
+
 	const char* name = UnifyName(sMtlName);
-
-	MtlNameMap::const_iterator it = m_mtlNameMap.find(CONST_TEMP_STRING(name));
-
 	IMaterial* pMtl = 0;
-
-	if (it != m_mtlNameMap.end())
-	{
-		if (!static_cast<CMatInfo*>(it->second)->m_bDeletePending)
-		{
-			pMtl = it->second;
-			return pMtl;
-		}
-	}
 
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Materials");
 	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_MTL, EMemStatContextFlags::MSF_Instance, "%s", name);
@@ -313,11 +309,14 @@ IMaterial* CMatMan::LoadMaterial(const char* sMtlName, bool bMakeIfNotFound, boo
 				pMtl = m_pListener->OnLoadMaterial(sMtlName, bMakeIfNotFound, nLoadingFlags);
 				if (pMtl)
 				{
+					AUTO_LOCK(m_AccessLock);
+
 					if (bNonremovable)
 						m_nonRemovables.push_back(static_cast<CMatInfo*>(pMtl));
 
 					if (pMtl->GetFlags() & MTL_FLAG_TRACEABLE_TEXTURE)
 						pMtl->SetKeepLowResSysCopyForDiffTex();
+
 					return pMtl;
 				}
 			}
@@ -397,16 +396,23 @@ IMaterial* CMatMan::LoadMaterial(const char* sMtlName, bool bMakeIfNotFound, boo
 	}
 #endif
 
-	if (pMtl && pMtl->GetFlags() & MTL_FLAG_TRACEABLE_TEXTURE)
-		pMtl->SetKeepLowResSysCopyForDiffTex();
-
 	if (!pMtl && bMakeIfNotFound)
 	{
-		pMtl = m_pDefaultMtl;
+		pMtl = GetDefaultMaterial();
 	}
 
-	if (bNonremovable && pMtl)
-		m_nonRemovables.push_back(static_cast<CMatInfo*>(pMtl));
+	if (pMtl)
+	{
+		AUTO_LOCK(m_AccessLock);
+
+		if (bNonremovable)
+			m_nonRemovables.push_back(static_cast<CMatInfo*>(pMtl));
+
+		if (pMtl->GetFlags() & MTL_FLAG_TRACEABLE_TEXTURE)
+			pMtl->SetKeepLowResSysCopyForDiffTex();
+
+		return pMtl;
+	}
 
 	return pMtl;
 }
@@ -414,7 +420,7 @@ IMaterial* CMatMan::LoadMaterial(const char* sMtlName, bool bMakeIfNotFound, boo
 //////////////////////////////////////////////////////////////////////////
 IMaterial* CMatMan::MakeMaterialFromXml(const char* sMtlName, const char* sMtlFilename, XmlNodeRef node, bool bForcePureChild, uint16 sortPrio, IMaterial* pExistingMtl, unsigned long nLoadingFlags, IMaterial* pParentMtl)
 {
-	CRY_ASSERT(m_AccessLock.IsLocked());
+	CMatMan* pMatMan = static_cast<CMatMan*>(gEnv->p3DEngine->GetMaterialManager());
 
 	int mtlFlags = 0;
 	CryFixedStringT<128> shaderName;
@@ -439,7 +445,7 @@ IMaterial* CMatMan::MakeMaterialFromXml(const char* sMtlName, const char* sMtlFi
 	IMaterial* pMtl = pExistingMtl;
 	if (!pMtl)
 	{
-		pMtl = CreateMaterial(sMtlName, mtlFlags);
+		pMtl = pMatMan->CreateMaterial(sMtlName, mtlFlags);
 	}
 	else
 	{
@@ -631,14 +637,14 @@ IMaterial* CMatMan::MakeMaterialFromXml(const char* sMtlName, const char* sMtlFi
 				if (pChildMtl)
 					pMtl->SetSubMtl(i, pChildMtl);
 				else
-					pMtl->SetSubMtl(i, m_pDefaultMtl);
+					pMtl->SetSubMtl(i, pMatMan->GetDefaultMaterial());
 			}
 			else
 			{
 				const char* name = mtlNode->getAttr("Name");
 				if (name[0])
 				{
-					IMaterial* pChildMtl = LoadMaterial(name, true, false, nLoadingFlags);
+					IMaterial* pChildMtl = pMatMan->LoadMaterial(name, true, false, nLoadingFlags);
 					if (pChildMtl)
 						pMtl->SetSubMtl(i, pChildMtl);
 				}
@@ -649,7 +655,7 @@ IMaterial* CMatMan::MakeMaterialFromXml(const char* sMtlName, const char* sMtlFi
 	if (matTemplate != NULL && strlen(matTemplate) != 0 && strcmp(matTemplate, sMtlName) != 0)
 	{
 		CMatInfo* pMtlTmpl = NULL;
-		pMtlTmpl = static_cast<CMatInfo*>(gEnv->p3DEngine->GetMaterialManager()->LoadMaterial(matTemplate, false));
+		pMtlTmpl = static_cast<CMatInfo*>(pMatMan->LoadMaterial(matTemplate, false));
 		if (pMtlTmpl)
 		{
 			pMtlTmpl->Copy(static_cast<CMatInfo*>(pMtl), MTL_COPY_DEFAULT);
@@ -663,8 +669,6 @@ IMaterial* CMatMan::MakeMaterialFromXml(const char* sMtlName, const char* sMtlFi
 //////////////////////////////////////////////////////////////////////////
 bool CMatMan::LoadMaterialShader(IMaterial* pMtl, IMaterial* pParentMtl, const char* sShader, uint64 nShaderGenMask, SInputShaderResources& sr, XmlNodeRef& publicsNode, unsigned long nLoadingFlags)
 {
-	CRY_ASSERT(m_AccessLock.IsLocked());
-
 	// Mark material invalid by default.
 	sr.m_ResFlags = pMtl->GetFlags();
 
@@ -693,8 +697,6 @@ bool CMatMan::LoadMaterialShader(IMaterial* pMtl, IMaterial* pParentMtl, const c
 
 bool CMatMan::LoadMaterialLayerSlot(uint32 nSlot, IMaterial* pMtl, const char* szShaderName, SInputShaderResources& pBaseResources, XmlNodeRef& pPublicsNode, uint8 nLayerFlags)
 {
-	CRY_ASSERT(m_AccessLock.IsLocked());
-
 	if (!pMtl || pMtl->GetLayer(nSlot) || !pPublicsNode)
 	{
 		return false;
@@ -878,7 +880,7 @@ void CMatMan::GetLoadedMaterials(IMaterial** pData, uint32& nObjCount) const
 	nObjCount = 0;
 	for (const auto& it : m_mtlNameMap)
 	{
-		if (!static_cast<CMatInfo*>(it.second)->m_bDeletePending)
+		if (static_cast<CMatInfo*>(it.second)->IsValid())
 		{
 			++nObjCount;
 
@@ -999,8 +1001,6 @@ void CMatMan::DoLoadSurfaceTypesInInit(bool doLoadSurfaceTypesInInit)
 //////////////////////////////////////////////////////////////////////////
 void CMatMan::InitDefaults()
 {
-	AUTO_LOCK(m_AccessLock);
-
 	if (m_bInitialized)
 		return;
 	m_bInitialized = true;
@@ -1075,7 +1075,6 @@ void CMatMan::InitDefaults()
 IMaterial* CMatMan::LoadCGFMaterial(const char* szMaterialName, const char* szCgfFilename, unsigned long nLoadingFlags)
 {
 	FUNCTION_PROFILER_3DENGINE;
-	AUTO_LOCK(m_AccessLock);
 
 	CryPathString sMtlName = szMaterialName;
 	if (sMtlName.find('/') == stack_string::npos)
@@ -1087,6 +1086,7 @@ IMaterial* CMatMan::LoadCGFMaterial(const char* szMaterialName, const char* szCg
 	{
 		sMtlName = PathUtil::MakeGamePath(sMtlName);
 	}
+
 	return LoadMaterial(sMtlName.c_str(), true, false, nLoadingFlags);
 }
 
@@ -1107,24 +1107,14 @@ static bool IsMultiSubMaterial(IMaterial* pMtl)
 //////////////////////////////////////////////////////////////////////////
 IMaterial* CMatMan::LoadMaterialFromXml(const char* sMtlName, XmlNodeRef mtlNode)
 {
-	AUTO_LOCK(m_AccessLock);
+	IMaterial* pMtl = FindMaterial(sMtlName);
 	const char* name = UnifyName(sMtlName);
 
-	MtlNameMap::const_iterator it = m_mtlNameMap.find(CONST_TEMP_STRING(name));
-
-	IMaterial* pMtl = 0;
-
-	if (it != m_mtlNameMap.end())
+	if (pMtl)
 	{
-		if (!static_cast<CMatInfo*>(it->second)->m_bDeletePending)
-		{
-			pMtl = it->second;
-			pMtl = MakeMaterialFromXml(name, name, mtlNode, false, 0, pMtl);
-			return pMtl;
-		}
+		pMtl = MakeMaterialFromXml(name, name, mtlNode, false, 0, pMtl);
 	}
-
-	if (!pMtl)
+	else
 	{
 		pMtl = MakeMaterialFromXml(name, name, mtlNode, false);
 	}
@@ -1193,7 +1183,6 @@ void CMatMan::PreloadLevelMaterials()
 void CMatMan::PreloadDecalMaterials()
 {
 	LOADING_TIME_PROFILE_SECTION;
-	AUTO_LOCK(m_AccessLock);
 
 	float fStartTime = GetCurAsyncTimeSec();
 

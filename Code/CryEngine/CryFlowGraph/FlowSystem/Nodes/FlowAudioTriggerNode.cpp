@@ -199,7 +199,7 @@ private:
 
 		if (!triggerName.empty())
 		{
-			outTriggerId = CryAudio::StringToId_RunTime(triggerName.c_str());
+			outTriggerId = CryAudio::StringToId(triggerName.c_str());
 		}
 	}
 

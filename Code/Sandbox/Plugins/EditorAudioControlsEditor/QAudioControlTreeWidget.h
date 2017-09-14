@@ -2,7 +2,7 @@
 
 #pragma once
 #include <QTreeWidget.h>
-#include <QTreeView>
+#include <QAdvancedTreeView.h>
 #include <QDropEvent>
 #include <QMimeData>
 #include <QSortFilterProxyModel>
@@ -18,7 +18,7 @@ protected:
 	bool lessThan(const QModelIndex& left, const QModelIndex& right) const;
 };
 
-class QAudioControlsTreeView : public QTreeView
+class QAudioControlsTreeView : public QAdvancedTreeView
 {
 public:
 	explicit QAudioControlsTreeView(QWidget* pParent = 0);

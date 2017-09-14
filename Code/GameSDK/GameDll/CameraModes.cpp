@@ -1390,7 +1390,7 @@ void CDeathCameraModeSinglePlayer::Init(const CPlayer* subject, const EntityId k
 
 bool CDeathCameraModeSinglePlayer::UpdateView(const CPlayer& clientPlayer, SViewParams& viewParams, float frameTime)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	m_fUpdateCounter -= frameTime;
 

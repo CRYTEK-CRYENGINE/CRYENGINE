@@ -17,10 +17,12 @@ public:
 	}
 	bool AddObject(struct geom* const& ptr, size_t size, int nCount=1) { return AddPartsAlloc((struct geom*&)ptr,size); }
 	bool AddObject(struct entity_contact* const& ptr, size_t size, int nCount=1) { return AddContactsAlloc((struct entity_contact*&)ptr,size); }
+	bool AddObject(int* const& ptr, size_t size, int nCount=1) { return AddIntArrayAlloc((int*&)ptr, size); }
 
 	virtual bool AddPartsAlloc(struct geom* &ptr, size_t size) { return AddObjectRaw(ptr,size); }
 	virtual bool AddContactsAlloc(struct entity_contact* &ptr, size_t size) { return AddObjectRaw(ptr,size); }
-	virtual bool AddObjectRaw(void* ptr, size_t size, bool hasVMT=false) = 0;
+	virtual bool AddIntArrayAlloc(int* &ptr, size_t size) { if (IsLoading()) ptr=new int[size/sizeof(int)]; return AddObjectRaw(ptr,size); }
+	virtual bool AddObjectRaw(void* ptr, size_t size, bool hasVMT=false, bool mapPtrs=true) = 0;
 	virtual bool IsLoading() = 0;
 };
 namespace EMemStatContextTypes { enum Type { MSC_Other, MSC_Physics }; }

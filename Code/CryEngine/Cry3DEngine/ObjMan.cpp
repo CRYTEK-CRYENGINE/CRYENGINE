@@ -36,12 +36,10 @@
 #endif
 
 //////////////////////////////////////////////////////////////////////////
-IStatObj* CObjManager::GetStaticObjectByTypeID(int nTypeID, int nSID)
+IStatObj* CObjManager::GetStaticObjectByTypeID(int nTypeID)
 {
-	assert(nSID >= 0 && nSID < m_lstStaticTypes.Count());
-
-	if (nTypeID >= 0 && nTypeID < m_lstStaticTypes[nSID].Count())
-		return m_lstStaticTypes[nSID][nTypeID].pStatObj;
+	if (nTypeID >= 0 && nTypeID < m_lstStaticTypes.Count())
+		return m_lstStaticTypes[nTypeID].pStatObj;
 
 	return 0;
 }
@@ -53,26 +51,23 @@ IStatObj* CObjManager::FindStaticObjectByFilename(const char* filename)
 
 void CObjManager::UnloadVegetationModels(bool bDeleteAll)
 {
-	for (uint32 nSID = 0; nSID < m_lstStaticTypes.size(); nSID++)
+	PodArray<StatInstGroup>& rGroupTable = m_lstStaticTypes;
+	for (uint32 nGroupId = 0; nGroupId < rGroupTable.size(); nGroupId++)
 	{
-		PodArray<StatInstGroup>& rGroupTable = m_lstStaticTypes[nSID];
-		for (uint32 nGroupId = 0; nGroupId < rGroupTable.size(); nGroupId++)
+		StatInstGroup& rGroup = rGroupTable[nGroupId];
+
+		rGroup.pStatObj = NULL;
+		rGroup.pMaterial = NULL;
+
+		for (int j = 0; j < FAR_TEX_COUNT; ++j)
 		{
-			StatInstGroup& rGroup = rGroupTable[nGroupId];
-
-			rGroup.pStatObj = NULL;
-			rGroup.pMaterial = NULL;
-
-			for (int j = 0; j < FAR_TEX_COUNT; ++j)
-			{
-				SVegetationSpriteLightInfo& rLightInfo = rGroup.m_arrSSpriteLightInfo[j];
-				SAFE_RELEASE(rLightInfo.m_pDynTexture);
-			}
+			SVegetationSpriteLightInfo& rLightInfo = rGroup.m_arrSSpriteLightInfo[j];
+			SAFE_RELEASE(rLightInfo.m_pDynTexture);
 		}
-
-		if (bDeleteAll)
-			rGroupTable.Free();
 	}
+
+	if (bDeleteAll)
+		rGroupTable.Free();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -160,8 +155,8 @@ void CObjManager::UnloadObjects(bool bDeleteAll)
 		for (size_t ti = 0; ti < nThreadsNum; ++ti)
 			stl::free_container(m_arrVegetationSprites[rl][ti]);
 	}
-	for (int nSID = 0; nSID < m_lstStaticTypes.Count(); nSID++)
-		m_lstStaticTypes[nSID].Free();
+
+	m_lstStaticTypes.Free();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -407,12 +402,7 @@ CStatObj* CObjManager::LoadStatObj(const char* __szFileName
 		int nAliasNameLen = sizeof("%level%") - 1;
 		if (strncmp(__szFileName, "%level%", nAliasNameLen) == 0)
 		{
-#ifdef SEG_WORLD
-			string tempString = szBlockName + string(__szFileName + nAliasNameLen + 1);
-			cry_strcpy(sFilename, Get3DEngine()->GetLevelFilePath(tempString.c_str()));
-#else
 			cry_strcpy(sFilename, Get3DEngine()->GetLevelFilePath(__szFileName + nAliasNameLen));
-#endif
 		}
 		else
 		{
@@ -798,14 +788,12 @@ int CObjManager::ComputeDissolve(const CLodValue &lodValueIn, IRenderNode* pEnt,
 }
 
 // mostly xy size
-float CObjManager::GetXYRadius(int type, int nSID)
+float CObjManager::GetXYRadius(int type)
 {
-	assert(nSID >= 0 && nSID < m_lstStaticTypes.Count());
-
-	if ((m_lstStaticTypes[nSID].Count() <= type || !m_lstStaticTypes[nSID][type].pStatObj))
+	if ((m_lstStaticTypes.Count() <= type || !m_lstStaticTypes[type].pStatObj))
 		return 0;
 
-	Vec3 vSize = m_lstStaticTypes[nSID][type].pStatObj->GetBoxMax() - m_lstStaticTypes[nSID][type].pStatObj->GetBoxMin();
+	Vec3 vSize = m_lstStaticTypes[type].pStatObj->GetBoxMax() - m_lstStaticTypes[type].pStatObj->GetBoxMin();
 	vSize.z *= 0.5f;
 
 	float fXYRadius = vSize.GetLength() * 0.5f;
@@ -813,15 +801,13 @@ float CObjManager::GetXYRadius(int type, int nSID)
 	return fXYRadius;
 }
 
-bool CObjManager::GetStaticObjectBBox(int nType, Vec3& vBoxMin, Vec3& vBoxMax, int nSID)
+bool CObjManager::GetStaticObjectBBox(int nType, Vec3& vBoxMin, Vec3& vBoxMax)
 {
-	assert(nSID >= 0 && nSID < m_lstStaticTypes.Count());
-
-	if ((m_lstStaticTypes[nSID].Count() <= nType || !m_lstStaticTypes[nSID][nType].pStatObj))
+	if ((m_lstStaticTypes.Count() <= nType || !m_lstStaticTypes[nType].pStatObj))
 		return 0;
 
-	vBoxMin = m_lstStaticTypes[nSID][nType].pStatObj->GetBoxMin();
-	vBoxMax = m_lstStaticTypes[nSID][nType].pStatObj->GetBoxMax();
+	vBoxMin = m_lstStaticTypes[nType].pStatObj->GetBoxMin();
+	vBoxMax = m_lstStaticTypes[nType].pStatObj->GetBoxMax();
 
 	return true;
 }

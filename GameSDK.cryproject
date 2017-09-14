@@ -3,7 +3,7 @@
 	"type": "CRYENGINE Project",
 	"info": { "name": "CRYENGINE", "guid": "981c2e0b-5ce6-ce71-f0be-eab93bbd43f6" },
 	"content": {
-		"assets": [ "gamesdk" ],
+		"assets": [ "GameSDK" ],
 		"code": [ "" ],
 		"libs": [
 			{

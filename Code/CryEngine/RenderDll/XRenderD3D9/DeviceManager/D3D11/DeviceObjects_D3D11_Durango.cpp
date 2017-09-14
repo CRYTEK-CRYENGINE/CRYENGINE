@@ -23,7 +23,7 @@ void* CDeviceObjectFactory::GetBackingStorage(D3DBuffer* buffer)
 
 void CDeviceObjectFactory::FreebackingStorage(void* base_ptr)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 #if BUFFER_ENABLE_DIRECT_ACCESS
 	HRESULT hr = D3DFreeGraphicsMemory(base_ptr);
 	assert(hr == S_OK);
@@ -342,7 +342,7 @@ size_t CDurangoGPUMemoryManager::GetPoolAllocated() const
 
 void CDurangoGPUMemoryManager::RT_Tick()
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	{
 		CryAutoLock<CryCriticalSectionNonRecursive> lock(m_lock);
@@ -1405,7 +1405,7 @@ HRESULT CDeviceObjectFactory::BeginTileFromLinear2D(CDeviceTexture* pDst, const 
 
 HRESULT CDeviceObjectFactory::CreateInPlaceTexture2D(const D3D11_TEXTURE2D_DESC& Desc, uint32 eFlags, const STexturePayload* pPayload, CDeviceTexture*& pDevTexOut)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 	bool bDeferD3DConstruction = (eFlags & USAGE_STREAMING) && !(pPayload && pPayload->m_pSysMemSubresourceData);
 
 	// Determine optimal layout, and size/alignment for texture
@@ -1573,7 +1573,7 @@ HRESULT CDeviceObjectFactory::CreateInPlaceTexture2D(const D3D11_TEXTURE2D_DESC&
 
 const SDeviceTextureDesc* CDeviceObjectFactory::Find2DResourceLayout(const D3D11_TEXTURE2D_DESC& Desc, uint32 eFlags, ETEX_TileMode tileMode)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	SMinimisedTexture2DDesc minDesc;
 	minDesc.width = Desc.Width;

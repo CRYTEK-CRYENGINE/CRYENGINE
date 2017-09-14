@@ -31,7 +31,7 @@ namespace CryEngine.Animations
 		IsInUpdate = EActionControllerFlags.AC_IsInUpdate,
 		NoTransitions = EActionControllerFlags.AC_NoTransitions
 	}
-	
+
 	public sealed class ActionController
 	{
 		/// <summary>

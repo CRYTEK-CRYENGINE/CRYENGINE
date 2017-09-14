@@ -95,6 +95,33 @@ namespace UQS
 			}
 
 			//
+			// if the generator expects shuttled items of a certain type, then make sure the query will store such items at runtime on the blackboard
+			//
+
+			if (const Shared::CTypeInfo* pExpectedShuttleType = m_pGeneratorFactory->GetTypeOfShuttledItemsToExpect())
+			{
+				if (const Shared::CTypeInfo* pTypeOfPossiblyShuttledItems = queryBlueprintForGlobalParamChecking.GetTypeOfShuttledItemsToExpect())
+				{
+					if (*pExpectedShuttleType != *pTypeOfPossiblyShuttledItems)
+					{
+						if (DataSource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
+						{
+							pSE->AddErrorMessage("Generator '%s' expects the shuttled items to be of type '%s', but they are actually of type '%s'", szGeneratorName, pExpectedShuttleType->name(), pTypeOfPossiblyShuttledItems->name());
+						}
+						return false;
+					}
+				}
+				else
+				{
+					if (DataSource::ISyntaxErrorCollector* pSE = source.GetSyntaxErrorCollector())
+					{
+						pSE->AddErrorMessage("Generator '%s' expects shuttled items, but the query does not support shuttled items in this context", szGeneratorName);
+					}
+					return false;
+				}
+			}
+
+			//
 			// resolve input parameters
 			//
 

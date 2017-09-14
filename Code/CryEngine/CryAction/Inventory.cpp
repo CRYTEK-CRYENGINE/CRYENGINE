@@ -475,7 +475,7 @@ void CInventory::SerializeInventoryForLevelChange(TSerialize ser)
 //------------------------------------------------------------------------
 void CInventory::ProcessEvent(SEntityEvent& event)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (event.event == ENTITY_EVENT_RESET)
 	{

@@ -116,7 +116,7 @@ void CBreezeGenerator::Shutdown()
 
 void CBreezeGenerator::Update()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_3DENGINE);
+	CRY_PROFILE_FUNCTION(PROFILE_3DENGINE);
 	if (!m_enabled)
 		return;
 

@@ -2199,6 +2199,22 @@ protected:
 // Summary:
 //	 Same as in the 3dEngine.
 #define MAX_LIGHTS_NUM 32
+#define ILLUMINANCE_THRESHOLD 0.004f
+
+inline float IlluminanceThreshold()
+{
+	static ICVar* pCvar = gEnv->pConsole->GetCVar("e_LightIlluminanceThreshold");
+	static float fThreshold = pCvar ? pCvar->GetFVal() : ILLUMINANCE_THRESHOLD;
+	return fThreshold;
+}
+
+ILINE float GetRadiationRadius(float fIntensity, float fThreshold = ILLUMINANCE_THRESHOLD)
+{
+	// I / R^2 = L;  R = sqrt(I/L)
+	fThreshold = max(fThreshold, sqr(ILLUMINANCE_THRESHOLD));
+	return crymath::sqrt_fast(fIntensity / fThreshold);
+}
+
 
 struct ShadowMapFrustum;
 
@@ -2208,8 +2224,7 @@ struct SRenderLight
 	{
 		memset(this, 0, sizeof(SRenderLight));
 		m_fLightFrustumAngle = 45.0f;
-		m_fRadius = 4.0f;
-		m_fBaseRadius = 4.0f;
+		m_fRadius = m_fClipRadius = 100.0f;
 		m_SpecMult = m_BaseSpecMult = 1.0f;
 		m_ProjMatrix.SetIdentity();
 		m_ObjMatrix.SetIdentity();
@@ -2251,6 +2266,51 @@ struct SRenderLight
 	{
 		m_Color = cColor;
 		m_BaseColor = cColor;
+		ComputeEffectiveRadius();
+	}
+
+	void SetRadius(float fRadius, float fBulb = 0.0f)
+	{
+		m_fClipRadius = fRadius;
+		if (fBulb > 0.0f)
+			m_fAttenuationBulbSize = fBulb;
+		ComputeEffectiveRadius();
+	}
+
+	void ComputeEffectiveRadius()
+	{
+		if (m_Flags & (DLF_DIRECTIONAL | DLF_DEFERRED_CUBEMAPS))
+			m_fRadius = m_fClipRadius;
+		else
+		{
+			float fIntensity = m_Color.Luminance() * GetIntensityScale();
+			m_fRadius = min(GetRadiationRadius(fIntensity, IlluminanceThreshold()), m_fClipRadius);
+		}
+		m_fShadowUpdateMinRadius = m_fRadius;
+	}
+
+	float GetIntensityScale() const
+	{
+		// Adjust light intensity so that the intended brightness is reached 1 meter from the light's surface
+		// I / (1 + bulb)^2 = 1; I = (1 + bulb)^2
+		if (m_Flags & (DLF_AREA_LIGHT | DLF_AMBIENT))
+			return 1.0f;
+		return sqr(1.0f + m_fAttenuationBulbSize);
+	}
+
+	float GetAttenuation(float fDist) const
+	{
+		if (m_Flags & DLF_DIRECTIONAL)
+			return 1.0f;
+		return crymath::rcp(sqr(max(fDist, +m_fAttenuationBulbSize)));
+	}
+	
+	float GetAttenuation(const Vec3& vPos) const
+	{
+		if (m_Flags & DLF_DIRECTIONAL)
+			return 1.0f;
+		float fDistSq = (vPos - m_Origin).GetLengthSquared();
+		return crymath::rcp(max(fDistSq, sqr(+m_fAttenuationBulbSize)));
 	}
 
 	ITexture* GetDiffuseCubemap() const
@@ -2291,24 +2351,15 @@ struct SRenderLight
 
 	void AcquireResources()
 	{
-		if (m_Shader.m_pShader)
-			m_Shader.m_pShader->AddRef();
-		if (m_pLightImage)
-			m_pLightImage->AddRef();
-		if (m_pLightDynTexSource)
-			m_pLightDynTexSource->AddRef();
-		if (m_pDiffuseCubemap)
-			m_pDiffuseCubemap->AddRef();
-		if (m_pSpecularCubemap)
-			m_pSpecularCubemap->AddRef();
-		if (m_pLensOpticsElement)
-			m_pLensOpticsElement->AddRef();
-		if (m_pSoftOccQuery)
-			m_pSoftOccQuery->AddRef();
-		if (m_pLightAnim)
-			m_pLightAnim->AddRef();
-		if (m_pLightAttenMap)
-			m_pLightAttenMap->AddRef();
+		SAFE_ACQUIRE(m_Shader.m_pShader);
+		SAFE_ACQUIRE(m_pLightImage);
+		SAFE_ACQUIRE(m_pLightDynTexSource);
+		SAFE_ACQUIRE(m_pDiffuseCubemap);
+		SAFE_ACQUIRE(m_pSpecularCubemap);
+		SAFE_ACQUIRE(m_pLensOpticsElement);
+		SAFE_ACQUIRE(m_pSoftOccQuery);
+		SAFE_ACQUIRE(m_pLightAnim);
+		SAFE_ACQUIRE(m_pLightAttenMap);
 	}
 
 	void DropResources()
@@ -2399,14 +2450,14 @@ struct SRenderLight
 	IOpticsElementBase*  m_pLensOpticsElement;
 	ISoftOcclusionQuery* m_pSoftOccQuery;
 	ILightAnimWrapper*   m_pLightAnim;
+	float                m_fTimeScrubbed;
 
 	Matrix34             m_BaseObjMatrix;
-	float                m_fTimeScrubbed;
 	Vec3                 m_BaseOrigin;  //!< World space position.
-	float                m_fBaseRadius;
 	ColorF               m_BaseColor;  //!< w component unused..
 	float                m_BaseSpecMult;
 
+	float                m_fClipRadius;
 	float                m_fAttenuationBulbSize;
 
 	float                m_fAreaWidth;
@@ -2461,65 +2512,7 @@ public:
 		if (this == &dl) return *this;
 
 		DropResources();
-
-		m_pOwner = dl.m_pOwner;
-		memcpy(m_pObject, dl.m_pObject, sizeof(m_pObject));
-		m_Shader = dl.m_Shader;
-		m_pShadowMapFrustums = dl.m_pShadowMapFrustums;
-		m_pDiffuseCubemap = dl.m_pDiffuseCubemap;
-		m_pSpecularCubemap = dl.m_pSpecularCubemap;
-		m_pLightImage = dl.m_pLightImage;
-		m_pLightDynTexSource = dl.m_pLightDynTexSource;
-		m_pLightAttenMap = dl.m_pLightAttenMap;
-		m_sName = dl.m_sName;
-		m_ProjMatrix = dl.m_ProjMatrix;
-		m_ObjMatrix = dl.m_ObjMatrix;
-		m_BaseObjMatrix = dl.m_BaseObjMatrix;
-		m_Color = dl.m_Color;
-		m_BaseColor = dl.m_BaseColor;
-		m_Origin = dl.m_Origin;
-		m_BaseOrigin = dl.m_BaseOrigin;
-		m_fRadius = dl.m_fRadius;
-		m_fBaseRadius = dl.m_fBaseRadius;
-		m_ProbeExtents = dl.m_ProbeExtents;
-		m_SpecMult = dl.m_SpecMult;
-		m_BaseSpecMult = dl.m_BaseSpecMult;
-		m_fShadowBias = dl.m_fShadowBias;
-		m_fShadowSlopeBias = dl.m_fShadowSlopeBias;
-		m_fShadowResolutionScale = dl.m_fShadowResolutionScale;
-		m_fHDRDynamic = dl.m_fHDRDynamic;
-		m_pLensOpticsElement = dl.m_pLensOpticsElement;
-		m_LensOpticsFrustumAngle = dl.m_LensOpticsFrustumAngle;
-		m_pSoftOccQuery = dl.m_pSoftOccQuery;
-		m_fLightFrustumAngle = dl.m_fLightFrustumAngle;
-		m_fProjectorNearPlane = dl.m_fProjectorNearPlane;
-		m_Flags = dl.m_Flags;
-		m_Id = dl.m_Id;
-		m_n3DEngineUpdateFrameID = dl.m_n3DEngineUpdateFrameID;
-		m_sX = dl.m_sX;
-		m_sY = dl.m_sY;
-		m_sWidth = dl.m_sWidth;
-		m_sHeight = dl.m_sHeight;
-		m_nLightStyle = dl.m_nLightStyle;
-		m_nLightPhase = dl.m_nLightPhase;
-		m_pLightAnim = dl.m_pLightAnim;
-		m_fAreaWidth = dl.m_fAreaWidth;
-		m_fAreaHeight = dl.m_fAreaHeight;
-		m_fBoxWidth = dl.m_fBoxWidth;
-		m_fBoxHeight = dl.m_fBoxHeight;
-		m_fBoxLength = dl.m_fBoxLength;
-		m_fTimeScrubbed = dl.m_fTimeScrubbed;
-		m_nShadowMinResolution = dl.m_nShadowMinResolution;
-		m_fShadowUpdateMinRadius = dl.m_fShadowUpdateMinRadius;
-		m_nShadowUpdateRatio = dl.m_nShadowUpdateRatio;
-		m_nAnimSpeed = dl.m_nAnimSpeed;
-		m_nSortPriority = dl.m_nSortPriority;
-		m_nAttenFalloffMax = dl.m_nAttenFalloffMax;
-		m_fAttenuationBulbSize = dl.m_fAttenuationBulbSize;
-		m_fFogRadialLobe = dl.m_fFogRadialLobe;
-		m_nEntityId = dl.m_nEntityId;
-		memcpy(m_nStencilRef, dl.m_nStencilRef, sizeof(m_nStencilRef));
-		memcpy(m_pClipVolumes, dl.m_pClipVolumes, sizeof(m_pClipVolumes));
+		SRenderLight::operator=(dl);
 		AcquireResources();
 
 		return *this;

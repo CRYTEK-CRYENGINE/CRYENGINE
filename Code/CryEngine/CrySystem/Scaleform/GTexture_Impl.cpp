@@ -345,7 +345,7 @@ bool GTextureXRender::InitDynamicTexture(int width, int height, GImage::ImageFor
 
 void GTextureXRender::Update(int level, int n, const UpdateRect* pRects, const GImageBase* pIm)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	assert(m_texID > 0);
 	if (!pRects || !n || !pIm || m_texID <= 0)

@@ -5969,15 +5969,9 @@ bool CActor::CanSwitchSpectatorStatus() const
 	return true;
 }
 
-IEntityComponent::ComponentEventPriority CActor::GetEventPriority( const int eventID ) const
+IEntityComponent::ComponentEventPriority CActor::GetEventPriority() const
 {
-	switch( eventID )
-	{
-	case ENTITY_EVENT_PREPHYSICSUPDATE:
-		return( ENTITY_PROXY_LAST - ENTITY_PROXY_USER + EEntityEventPriority_Actor + (m_isClient ? EEntityEventPriority_Client : 0) );
-	}
-
-	return IGameObjectExtension::GetEventPriority( eventID );
+	return ENTITY_PROXY_USER + EEntityEventPriority_Actor;
 }
 
 void CActor::OnHostMigrationCompleted()

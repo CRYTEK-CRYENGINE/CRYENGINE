@@ -175,6 +175,7 @@ public:
 		, m_curvature(0.0f)
 		, m_receiveShadows(false)
 		, m_affectedByFog(true)
+		, m_environmentLighting(true)
 		, CParticleFeature(gpu_pfx2::eGpuFeatureType_Dummy) {}
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
@@ -195,6 +196,8 @@ public:
 			pParams->m_renderObjectFlags |= FOB_INSHADOW;
 		if (!m_affectedByFog)
 			pParams->m_renderObjectFlags |= FOB_NO_FOG;
+		if (m_environmentLighting)
+			pParams->m_renderStateFlags |= OS_ENVIRONMENT_CUBEMAP;
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
@@ -206,6 +209,7 @@ public:
 		ar(m_curvature, "Curvature", "Curvature");
 		ar(m_receiveShadows, "ReceiveShadows", "Receive Shadows");
 		ar(m_affectedByFog, "AffectedByFog", "Affected by Fog");
+		ar(m_environmentLighting, "EnvironmentLighting", "Environment Lighting");
 		if (ar.isInput())
 			VersionFix(ar);
 	}
@@ -218,10 +222,10 @@ private:
 		{
 			m_emissive.Set(m_emissive / toLightUnitScale);
 		}
-		else if (version < 11)
+		else if (version < 10)
 		{
-			ar(m_diffuse, "Albedo");
-			m_diffuse.Set(m_diffuse * 0.01f);
+			if (ar(m_diffuse, "Albedo"))
+				m_diffuse.Set(m_diffuse * 0.01f);
 		}
 	}
 
@@ -231,6 +235,7 @@ private:
 	UUnitFloat m_curvature;
 	bool       m_receiveShadows;
 	bool       m_affectedByFog;
+	bool       m_environmentLighting;
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureAppearanceLighting, "Appearance", "Lighting", colorAppearance);

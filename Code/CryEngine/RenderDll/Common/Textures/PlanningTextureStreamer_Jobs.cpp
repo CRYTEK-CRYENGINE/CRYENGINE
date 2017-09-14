@@ -202,7 +202,7 @@ static T* QuickSelectSum(T* p, size_t mn, size_t mx, ptrdiff_t targetSum, const 
 
 void CPlanningTextureStreamer::Job_UpdateEntry()
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	m_state = S_Updating;
 
@@ -301,7 +301,7 @@ void CPlanningTextureStreamer::Job_UpdateMip(CTexture* pTexture, const float fMi
 
 int CPlanningTextureStreamer::Job_Bias(SPlanningSortState& sortState, SPlanningTextureOrderKey* pKeys, size_t nNumPrecachedTexs, size_t nStreamLimit)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	int fpSortStateBias = sortState.nBias;
 	const int fpSortStateMinBias = sortState.fpMinBias;
@@ -346,7 +346,7 @@ int CPlanningTextureStreamer::Job_Bias(SPlanningSortState& sortState, SPlanningT
 
 size_t CPlanningTextureStreamer::Job_Plan(SPlanningSortState& sortState, const SPlanningTextureOrderKey* pKeys, size_t nTextures, size_t nNumPrecachedTexs, size_t nBalancePoint, int nMinMip, int fpSortStateBias)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	static_assert(MAX_PREDICTION_ZONES == 2, "Invalid maximum prediction zone value!");
 
@@ -492,7 +492,7 @@ size_t CPlanningTextureStreamer::Job_Plan(SPlanningSortState& sortState, const S
 
 void CPlanningTextureStreamer::Job_Sort()
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	SPlanningSortState& sortState = m_sortState;
 
@@ -541,7 +541,7 @@ void CPlanningTextureStreamer::Job_Sort()
 
 void CPlanningTextureStreamer::Job_InitKeys(SPlanningTextureOrderKey* pKeys, CTexture** pTexs, size_t nTextures, int nFrameId, const int nZoneIds[])
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	for (size_t i = 0; i < nTextures; ++i)
 	{

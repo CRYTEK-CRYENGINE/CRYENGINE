@@ -497,7 +497,7 @@ const Matrix34& CVehiclePartBase::GetWorldTM()
 //------------------------------------------------------------------------
 const Matrix34& CVehiclePartBase::LocalToVehicleTM(const Matrix34& localTM)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	static Matrix34 tm;
 	tm = VALIDATE_MAT(localTM);
@@ -544,7 +544,7 @@ const AABB& CVehiclePartBase::GetLocalBounds()
 //------------------------------------------------------------------------
 void CVehiclePartBase::Update(float frameTime)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (m_hideMode != eVPH_NoFade)
 	{

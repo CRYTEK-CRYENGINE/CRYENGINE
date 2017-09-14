@@ -130,6 +130,7 @@ private:
 		return out.insert(position, suffix);
 	}
 
+	static bool IsFileOpened(const char* szPath);
 public:
 	// only for image formats supported by the resource compiler
 	// Arguments:

@@ -515,7 +515,7 @@ void CAIProxy::ResendTargetSignalsNextFrame()
 //----------------------------------------------------------------------------------------------------------
 bool CAIProxy::CheckUpdateStatus()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	bool update = false;
 	// DO NOT call Activate on Entity
@@ -531,7 +531,7 @@ bool CAIProxy::CheckUpdateStatus()
 //----------------------------------------------------------------------------------------------------------
 int CAIProxy::Update(SOBJECTSTATE& state, bool bFullUpdate)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (!CheckUpdateStatus())
 		return 0;
@@ -789,7 +789,7 @@ int CAIProxy::Update(SOBJECTSTATE& state, bool bFullUpdate)
 //----------------------------------------------------------------------------------------------------------
 void CAIProxy::UpdateShooting(const SOBJECTSTATE& state, bool isAlive)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	m_WeaponShotIsDone = false;
 
@@ -1029,7 +1029,7 @@ void CAIProxy::QueryWeaponInfo(SAIWeaponInfo& weaponInfo)
 //----------------------------------------------------------------------------------------------------------
 void CAIProxy::UpdateCurrentWeapon()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	IWeapon* pCurrentWeapon = NULL;
 	EntityId currentWeaponId = 0;
@@ -1499,7 +1499,7 @@ bool CAIProxy::IsPlayingSmartObjectAction() const
 //----------------------------------------------------------------------------------------------------------
 void CAIProxy::UpdateMind(SOBJECTSTATE& state)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	UpdateCurrentWeapon();
 
@@ -1825,7 +1825,7 @@ bool CAIProxy::PredictProjectileHit(float vel, Vec3& posOut, Vec3& dirOut, float
 bool CAIProxy::PredictProjectileHit(const Vec3& throwDir, float vel, Vec3& posOut, float& speedOut, ERequestedGrenadeType prefGrenadeType,
                                     Vec3* pTrajectoryPositions, unsigned int* trajectorySizeInOut, Vec3* pTrajectoryVelocities)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	IWeapon* pGrenadeWeapon = GetSecWeapon(prefGrenadeType);
 	if (!pGrenadeWeapon)

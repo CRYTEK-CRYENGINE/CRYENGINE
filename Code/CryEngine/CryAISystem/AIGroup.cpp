@@ -807,7 +807,7 @@ Vec3 CAIGroup::GetEnemyPositionKnown() const
 void CAIGroup::Update()
 {
 	CCCPOINT(CAIGroup_Update);
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	CAISystem* pAISystem(GetAISystem());
 
@@ -820,7 +820,7 @@ void CAIGroup::Update()
 // (MATT) This code looks rather complex - does it really help? {2009/02/12}
 void CAIGroup::UpdateReinforcementLogic()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (/*m_reinforcementState == REINF_ALERTED_COMBAT_PENDING ||*/
 	  m_reinforcementState == REINF_DONE_PENDING)

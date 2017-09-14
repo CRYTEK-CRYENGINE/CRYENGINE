@@ -41,6 +41,8 @@ bool CRecoil::Prepare(const SAnimationPoseModifierParams& params)
 
 bool CRecoil::Execute(const SAnimationPoseModifierParams& params)
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	if (m_stateExecute.time >= m_stateExecute.duration * 2.0f)
 		return false;
 

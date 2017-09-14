@@ -83,7 +83,7 @@ void CMFXDecalEffect::ReleaseMaterial()
 
 void CMFXDecalEffect::Execute(const SMFXRunTimeEffectParams& params)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	const float angle = (params.angle != MFX_INVALID_ANGLE) ? params.angle : cry_random(0.f, gf_PI2);
 

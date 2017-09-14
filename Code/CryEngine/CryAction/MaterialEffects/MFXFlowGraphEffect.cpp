@@ -63,7 +63,7 @@ void CMFXFlowGraphEffect::LoadParamsFromXml(const XmlNodeRef& paramsNode)
 
 void CMFXFlowGraphEffect::Execute(const SMFXRunTimeEffectParams& params)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (CMaterialEffectsCVars::Get().mfx_EnableFGEffects == 0)
 		return;
@@ -82,7 +82,7 @@ void CMFXFlowGraphEffect::Execute(const SMFXRunTimeEffectParams& params)
 
 void CMFXFlowGraphEffect::SetCustomParameter(const char* customParameter, const SMFXCustomParamValue& customParameterValue)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (CMaterialEffectsCVars::Get().mfx_EnableFGEffects == 0)
 		return;

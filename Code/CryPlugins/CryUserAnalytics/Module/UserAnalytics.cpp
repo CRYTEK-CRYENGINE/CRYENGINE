@@ -435,6 +435,7 @@ void CUserAnalytics::PrepareAndSendEvents()
 	static ICVar* const cv_collect = gEnv->pConsole->GetCVar("sys_UserAnalyticsCollect");
 	if (cv_collect && cv_collect->GetIVal() == 0)
 	{
+		m_messages.clear();
 		return;
 	}
 

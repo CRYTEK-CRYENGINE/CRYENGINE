@@ -120,6 +120,8 @@ bool CPoseMatching::Prepare(const SAnimationPoseModifierParams& params)
 
 bool CPoseMatching::Execute(const SAnimationPoseModifierParams& params)
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	CCharInstance* pCharInstance = PoseModifierHelper::GetCharInstance(params);
 	if (!pCharInstance)
 		return false;

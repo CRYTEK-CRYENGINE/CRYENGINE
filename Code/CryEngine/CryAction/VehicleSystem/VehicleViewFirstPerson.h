@@ -42,9 +42,7 @@ public:
 
 	void                OffsetPosition(const Vec3& delta) override
 	{
-#ifdef SEG_WORLD
 		m_viewPosition += delta;
-#endif
 	}
 	// ~IVehicleView
 

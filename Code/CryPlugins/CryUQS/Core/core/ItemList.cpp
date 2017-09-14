@@ -26,12 +26,6 @@ namespace UQS
 			}
 		}
 
-		void CItemList::SetItemFactory(Client::IItemFactory& itemFactory)
-		{
-			assert(!m_pItemFactory);  // changing the item-factory is not supported (which use-case would it tackle?)
-			m_pItemFactory = &itemFactory;
-		}
-
 		void CItemList::CreateItemsByItemFactory(size_t numItemsToCreate)
 		{
 			// ensure SetItemFactory() has been called prior
@@ -67,19 +61,27 @@ namespace UQS
 				m_pItemFactory->DestroyItems(m_pItems);
 			}
 
-			const void* pOtherItems = other.GetItems();
-			const size_t numItemsToCopy = other.GetItemCount();
-			Client::IItemFactory& otherItemFactory = other.GetItemFactory();
+			m_pItemFactory = &other.GetItemFactory();
+			m_pItems = m_pItemFactory->CloneItems(other.GetItems(), other.GetItemCount());
+			m_numItems = other.GetItemCount();
+		}
 
-			m_pItemFactory = &otherItemFactory;
-			m_pItems = m_pItemFactory->CreateItems(numItemsToCopy, Client::IItemFactory::EItemInitMode::UseDefaultConstructor);
-			for (size_t i = 0; i < numItemsToCopy; ++i)
+		void CItemList::SetItemFactory(Client::IItemFactory& itemFactory)
+		{
+			assert(!m_pItemFactory);  // changing the item-factory is not supported (which use-case would it tackle?)
+			m_pItemFactory = &itemFactory;
+		}
+
+		void CItemList::CopyOtherToSelfViaIndexList(const IItemList& other, const size_t* pIndexes, size_t numIndexes)
+		{
+			if (m_pItemFactory)
 			{
-				void* pTargetItem = m_pItemFactory->GetItemAtIndex(m_pItems, i);
-				const void* pSourceItem = otherItemFactory.GetItemAtIndex(pOtherItems, i);
-				m_pItemFactory->CopyItem(pTargetItem, pSourceItem);
+				m_pItemFactory->DestroyItems(m_pItems);
 			}
-			m_numItems = numItemsToCopy;
+
+			m_pItemFactory = &other.GetItemFactory();
+			m_pItems = m_pItemFactory->CloneItemsViaIndexList(other.GetItems(), pIndexes, numIndexes);
+			m_numItems = numIndexes;
 		}
 
 		void* CItemList::GetItemAtIndex(size_t index) const

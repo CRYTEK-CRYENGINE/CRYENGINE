@@ -24,9 +24,6 @@ class CDeformableNode
 	CStatObj*                 m_pStatObj;
 	JobManager::SJobState     m_cullState;
 	JobManager::SJobState     m_updateState;
-#ifdef SEG_WORLD
-	uint16                    m_nStaticTypeSlot;
-#endif
 	bool                      m_all_prepared : 1;
 
 protected:
@@ -51,7 +48,7 @@ protected:
 
 public:
 
-	CDeformableNode(uint16 slot);
+	CDeformableNode();
 
 	~CDeformableNode();
 

@@ -946,9 +946,11 @@ void CPhysRenderer::DrawGeometry(IGeometry *pGeom, geom_world_data *pgwd, const 
 					clrlit[0] = clrhf[(i^j)&1];
 					pt[2] = R*Vec3((i+1)*phf->step.x, j*phf->step.y, getheight(phf,i+1,j))*scale + pos;
 					pt[3] = R*Vec3((i+1)*phf->step.x, (j+1)*phf->step.y, getheight(phf,i+1,j+1))*scale + pos;
-					_clr(clrlit[0]);
-					_vtx(pt[0]); _vtx(pt[2]); _vtx(pt[1]);
-					_vtx(pt[1]); _vtx(pt[2]); _vtx(pt[3]);
+					if (!phf->fpGetSurfTypeCallback || phf->fpGetSurfTypeCallback(i,j)!=phf->typehole) {
+						_clr(clrlit[0]);
+						_vtx(pt[0]); _vtx(pt[2]); _vtx(pt[1]);
+						_vtx(pt[1]); _vtx(pt[2]); _vtx(pt[3]);
+					}
 					pt[0] = pt[2]; pt[1] = pt[3];
 				}
 			}	glEnd();

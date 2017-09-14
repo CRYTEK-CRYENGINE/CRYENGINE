@@ -13,7 +13,7 @@
 namespace CryAudio
 {
 struct IObject;
-}
+} // namespace CryAudio
 
 namespace ACE
 {
@@ -22,6 +22,7 @@ class CImplementationManager;
 class CAudioControlsEditorPlugin final : public IPlugin, public ISystemEventListener
 {
 public:
+
 	explicit CAudioControlsEditorPlugin();
 	virtual ~CAudioControlsEditorPlugin() override;
 
@@ -41,6 +42,8 @@ public:
 
 	static CCrySignal<void()> signalAboutToLoad;
 	static CCrySignal<void()> signalLoaded;
+	static CCrySignal<void()> signalAboutToSave;
+	static CCrySignal<void()> signalSaved;
 
 private:
 

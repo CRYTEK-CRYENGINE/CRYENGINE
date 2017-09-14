@@ -72,7 +72,7 @@ uint32 CAdvancedTreeView::GetItemId(QModelIndex const& index) const
 		}
 
 		itemName.remove(" *");
-		return CryAudio::StringToId_RunTime(itemName.toStdString().c_str());
+		return CryAudio::StringToId(itemName.toStdString().c_str());
 	}
 
 	return CryAudio::InvalidCRC32;

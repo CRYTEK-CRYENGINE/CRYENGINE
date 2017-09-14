@@ -225,6 +225,18 @@ std::shared_ptr<CMonoObject> CMonoClass::CreateInstanceWithDesc(const char* para
 	return nullptr;
 }
 
+std::shared_ptr<CMonoObject> CMonoClass::CreateFromMonoObject(MonoInternals::MonoObject* pObject)
+{
+	CRY_ASSERT(pObject != nullptr);
+
+	std::shared_ptr<CMonoObject> pWrappedObject = std::make_shared<CMonoObject>(pObject, m_pThis.lock());
+
+	// Push back a weak pointer to the instance, so that we can serialize the object in case of app domain reload
+	m_objects.push_back(pWrappedObject);
+
+	return pWrappedObject;
+}
+
 void CMonoClass::RegisterObject(std::weak_ptr<CMonoObject> pObject)
 {
 	m_objects.push_back(pObject);
@@ -352,4 +364,9 @@ std::shared_ptr<CMonoProperty> CMonoClass::FindPropertyInInheritedClasses(const 
 	}
 
 	return nullptr;
+}
+
+bool CMonoClass::IsValueType() const
+{
+	return MonoInternals::mono_class_is_valuetype(m_pClass) != 0;
 }

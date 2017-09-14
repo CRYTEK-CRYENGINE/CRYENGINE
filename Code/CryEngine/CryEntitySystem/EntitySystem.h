@@ -44,6 +44,7 @@ class CEntityLoadManager;
 struct SEntityLayerGarbage;
 class CGeomCacheAttachmentManager;
 class CCharacterBoneAttachmentManager;
+class CEntitiesComponentPropertyCache;
 //////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////
@@ -527,13 +528,9 @@ private: // -----------------------------------------------------------------
 	bool    m_bEntitiesUseGUIDs;
 	int     m_nGeneratedFromGuid;
 
-	//////////////////////////////////////////////////////////////////////////
-	// Pool Allocators.
-	//////////////////////////////////////////////////////////////////////////
+	std::unique_ptr<CEntitiesComponentPropertyCache> m_entitiesPropertyCache;
+
 public:
-	bool m_bReseting;
-	//////////////////////////////////////////////////////////////////////////
-	
 	std::unique_ptr<class CEntityObjectDebugger> m_pEntityObjectDebugger;
 
 #ifdef ENABLE_PROFILING_CODE

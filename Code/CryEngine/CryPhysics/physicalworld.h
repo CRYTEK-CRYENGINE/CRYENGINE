@@ -974,7 +974,7 @@ public:
 	static int OnBBoxOverlap(const EventPhysBBoxOverlap*);
 
 	float GetExtent(EGeomForm eForm) const;
-	void GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const;
+	void GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const;
 
 	virtual void GetMemoryStatistics(ICrySizer *pSizer) const;
 
@@ -1180,12 +1180,13 @@ template<class T> struct ChangeRequest {
 	T *GetQueuedStruct() { return m_pQueued; }
 };
 
-inline void InitEvent(EventPhysMono *ev, CPhysicalEntity *pent)	{
+inline void InitEventBase(EventPhysMono *ev, CPhysicalEntity *pent)	{
 	ev->pEntity = pent; ev->pForeignData = pent->m_pForeignData; ev->iForeignData = pent->m_iForeignData;
 }
-inline void InitEvent(EventPhysPostStep *ev, CPhysicalEntity *pent)	{
-	InitEvent((EventPhysMono*)ev, pent);
+inline void InitEvent(EventPhysPostStep *ev, CPhysicalEntity *pent, int iCaller)	{
+	InitEventBase((EventPhysMono*)ev, pent);
 	ev->pGrid = pent->m_pWorld->GetGrid(pent);
+	ev->iCaller = iCaller;
 }
 
 class CRayGeom;

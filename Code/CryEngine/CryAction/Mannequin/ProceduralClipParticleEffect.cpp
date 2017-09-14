@@ -31,7 +31,7 @@ struct SPlayParticleEffectParams : public IProceduralParams
 
 	virtual void Serialize(Serialization::IArchive& ar) override
 	{
-		ar(Serialization::ParticleName(effectName), "EffectName", "Effect Name");
+		ar(Serialization::ParticlePickerLegacy(effectName), "EffectName", "Effect Name");
 		ar(Serialization::JointName(jointName), "JointName", "Joint Name");
 		ar(Serialization::AttachmentName(attachmentName), "AttachmentName", "Attachment Name");
 		ar(posOffset, "PosOffset", "Position Offset");

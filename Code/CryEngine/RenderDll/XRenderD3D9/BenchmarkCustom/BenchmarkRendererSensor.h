@@ -89,6 +89,9 @@ protected:
 	int      m_frameSampleInterval;
 	int      m_frameSampleFlags;
 
+	CFullscreenPass m_copyPass;
+	CStretchRectPass m_strechRectPass;
+
 	//		bool m_matrixTexNeedsRefresh;
 	//		bool m_matrixTexNeedsClear;
 	void         saveFrameSample();

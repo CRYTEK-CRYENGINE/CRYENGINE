@@ -479,6 +479,11 @@ namespace CryEngine.UI
 				_targetMaterial.Release();
 				_targetMaterial.Dispose();
 			}
+
+			if(TargetTexture != null)
+			{
+				TargetTexture.Destroy();
+			}
 		}
 	}
 }

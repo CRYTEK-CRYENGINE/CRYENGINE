@@ -87,6 +87,16 @@ CAudioControlsEditorWindow::CAudioControlsEditorWindow()
 		CAudioControlsEditorPlugin::GetImplementationManger()->signalImplementationAboutToChange.Connect(this, &CAudioControlsEditorWindow::SaveBeforeImplementationChange);
 		CAudioControlsEditorPlugin::GetImplementationManger()->signalImplementationChanged.Connect(this, &CAudioControlsEditorWindow::Reload);
 
+		CAudioControlsEditorPlugin::signalAboutToSave.Connect([&]()
+		{
+			m_pMonitorSystem->Disable();
+		}, reinterpret_cast<uintptr_t>(this));
+
+		CAudioControlsEditorPlugin::signalSaved.Connect([&]()
+		{
+			m_pMonitorSystem->EnableDelayed();
+		}, reinterpret_cast<uintptr_t>(this));
+
 		connect(m_pAudioSystemPanel, &CAudioSystemPanel::ImplementationSettingsAboutToChange, [&]()
 		{
 			BackupTreeViewStates();
@@ -125,6 +135,7 @@ CAudioControlsEditorWindow::CAudioControlsEditorWindow()
 		CAudioControlsEditorPlugin::signalLoaded();
 	}
 
+	m_pAssetsManager->UpdateAllConnectionStates();
 	m_pInspectorPanel->Reload();
 	m_pAudioSystemPanel->Reset();
 	CheckErrorMask();
@@ -166,6 +177,8 @@ CAudioControlsEditorWindow::~CAudioControlsEditorWindow()
 	m_pAssetsManager->signalIsDirty.DisconnectById(reinterpret_cast<uintptr_t>(this));
 	CAudioControlsEditorPlugin::signalAboutToLoad.DisconnectById(reinterpret_cast<uintptr_t>(this));
 	CAudioControlsEditorPlugin::signalLoaded.DisconnectById(reinterpret_cast<uintptr_t>(this));
+	CAudioControlsEditorPlugin::signalAboutToSave.DisconnectById(reinterpret_cast<uintptr_t>(this));
+	CAudioControlsEditorPlugin::signalSaved.DisconnectById(reinterpret_cast<uintptr_t>(this));
 	CAudioControlsEditorPlugin::GetImplementationManger()->signalImplementationAboutToChange.DisconnectById(reinterpret_cast<uintptr_t>(this));
 	CAudioControlsEditorPlugin::GetImplementationManger()->signalImplementationChanged.DisconnectById(reinterpret_cast<uintptr_t>(this));
 }
@@ -273,6 +286,7 @@ void CAudioControlsEditorWindow::Reload()
 				CAudioControlsEditorPlugin::signalLoaded();
 			}
 
+			m_pAssetsManager->UpdateAllConnectionStates();
 			m_pInspectorPanel->Reload();
 			m_pAudioSystemPanel->Reset();
 			CheckErrorMask();
@@ -332,8 +346,6 @@ void CAudioControlsEditorWindow::CheckErrorMask()
 //////////////////////////////////////////////////////////////////////////
 void CAudioControlsEditorWindow::Save()
 {
-	m_pMonitorSystem->Disable();
-
 	bool bPreloadsChanged = m_pAssetsManager->IsTypeDirty(eItemType_Preload);
 	CAudioControlsEditorPlugin::SaveModels();
 	UpdateAudioSystemData();
@@ -361,7 +373,6 @@ void CAudioControlsEditorWindow::Save()
 	}
 
 	m_pAssetsManager->ClearDirtyFlags();
-	m_pMonitorSystem->EnableDelayed();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -438,6 +449,9 @@ void CAudioControlsEditorWindow::ReloadMiddlewareData()
 		pAudioSystemImpl->Reload();
 	}
 
+	m_pAssetsManager->ClearAllConnections();
+	m_pAssetsManager->ReloadAllConnections();
+	m_pAssetsManager->UpdateAllConnectionStates();
 	m_pInspectorPanel->Reload();
 	m_pAudioSystemPanel->Reset();
 

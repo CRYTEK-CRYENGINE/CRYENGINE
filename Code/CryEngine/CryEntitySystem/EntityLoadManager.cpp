@@ -23,7 +23,6 @@
 //////////////////////////////////////////////////////////////////////////
 CEntityLoadManager::CEntityLoadManager(CEntitySystem* pEntitySystem)
 	: m_pEntitySystem(pEntitySystem)
-	, m_bSWLoading(false)
 {
 	assert(m_pEntitySystem);
 }
@@ -44,7 +43,6 @@ void CEntityLoadManager::Reset()
 bool CEntityLoadManager::LoadEntities(XmlNodeRef& entitiesNode, bool bIsLoadingLevelFile, const Vec3& segmentOffset, std::vector<IEntity*>* outGlobalEntityIds, std::vector<IEntity*>* outLocalEntityIds)
 {
 	bool bResult = false;
-	m_bSWLoading = gEnv->p3DEngine->IsSegmentOperationInProgress();
 
 	if (entitiesNode && ReserveEntityIds(entitiesNode))
 	{
@@ -136,26 +134,6 @@ bool CEntityLoadManager::CanParseEntity(XmlNodeRef& entityNode, std::vector<IEnt
 		bResult = (obj_quality >= nMinSpec || obj_quality == 0);
 	}
 
-	int globalInSW = 0;
-	if (m_bSWLoading && outGlobalEntityIds && entityNode && entityNode->getAttr("GlobalInSW", globalInSW) && globalInSW)
-	{
-		EntityGUID guid;
-		if (entityNode->getAttr("EntityGuid", guid))
-		{
-			EntityId id = gEnv->pEntitySystem->FindEntityByGuid(guid);
-			if (IEntity* pEntity = gEnv->pEntitySystem->GetEntity(id))
-			{
-#ifdef SEG_WORLD
-				pEntity->SetLocalSeg(false);
-#endif
-				outGlobalEntityIds->push_back(pEntity);
-			}
-		}
-
-		// In segmented world, global entity will not be loaded while streaming each segment
-		bResult &= false;
-	}
-
 	if (bResult)
 	{
 		const char* pLayerName = entityNode->getAttr("Layer");
@@ -212,18 +190,6 @@ bool CEntityLoadManager::ParseEntities(XmlNodeRef& entitiesNode, bool bIsLoading
 						EntityId usingId = 0;
 
 						bSuccess = CreateEntity(loadParams, usingId, bIsLoadingLevelFile);
-
-						if (m_bSWLoading && outLocalEntityIds && usingId)
-						{
-							if (IEntity* pEntity = m_pEntitySystem->GetEntity(usingId))
-							{
-#ifdef SEG_WORLD
-								pEntity->SetLocalSeg(true);
-#endif
-								outLocalEntityIds->push_back(pEntity);
-							}
-
-						}
 					}
 				}
 
@@ -299,22 +265,6 @@ bool CEntityLoadManager::ExtractCommonEntityLoadParams(XmlNodeRef& entityNode, S
 		spawnParams.id = 0;
 		entityNode->getAttr("EntityId", spawnParams.id);
 		entityNode->getAttr("EntityGuid", spawnParams.guid);
-
-		ISegmentsManager* const pSegmentsManager = gEnv->p3DEngine->GetSegmentsManager();
-		if (pSegmentsManager)
-		{
-			Vec2 coordInSW(Vec2Constants<float>::fVec2_Zero);
-			if (entityNode->getAttr("CoordInSW", coordInSW))
-			{
-				pSegmentsManager->GlobalSegVecToLocalSegVec(pos, coordInSW, spawnParams.vPosition);
-			}
-
-			EntityGUID parentGuid;
-			if (!entityNode->getAttr("ParentGuid", parentGuid))
-			{
-				spawnParams.vPosition += segmentOffset;
-			}
-		}
 
 		int castShadowMinSpec = CONFIG_LOW_SPEC;
 		if (entityNode->getAttr("CastShadowMinSpec", castShadowMinSpec))

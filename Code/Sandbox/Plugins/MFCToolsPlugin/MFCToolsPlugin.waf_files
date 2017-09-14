@@ -1,7 +1,6 @@
 {
   "Editor_Uber_Controls.cpp": {
     "Controls": [
-      "Controls/TemplDef.h", 
       "Controls/ColorCheckBox.cpp", 
       "Controls/ColorCheckBox.h", 
       "Controls/ColorCtrl.h", 

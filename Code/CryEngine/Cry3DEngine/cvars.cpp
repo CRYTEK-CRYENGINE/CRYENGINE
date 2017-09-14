@@ -61,12 +61,8 @@ void OnDynamicDistanceShadowsVarChange(ICVar* pArgs)
 
 void OnVegetationVisibleChange(ICVar* pArgs)
 {
-	if (Cry3DEngineBase::Get3DEngine()->m_pObjectsTree.empty())
-	{
-		return;
-	}
+	COctreeNode* pObjectsTree = Cry3DEngineBase::Get3DEngine()->m_pObjectsTree;
 
-	COctreeNode* pObjectsTree = Cry3DEngineBase::Get3DEngine()->m_pObjectsTree[0];
 	if (pObjectsTree && !pObjectsTree->IsEmpty())
 	{
 		if (pArgs->GetIVal() != 0)
@@ -258,12 +254,6 @@ void CVars::Init()
 		"Particle counts budget to be shown during profiling");
 	REGISTER_CVAR(e_ParticlesProfilerTimingBudget, 10000, VF_NULL,
 		"Particle processing time budget (in nanoseconds) to be shown during profiling");
-
-	DefineConstFloatCVar(e_ParticlesLightMinRadiusThreshold, VF_NULL,
-	                     "Threshold for minimum particle light radius");
-
-	DefineConstFloatCVar(e_ParticlesLightMinColorThreshold, VF_NULL,
-	                     "Threshold for minumum particle light color");
 
 	REGISTER_CVAR(e_ParticlesForceSeed, 0, VF_NULL,
 		"0 - every emitter is random unless a seed is specified\n"
@@ -857,6 +847,8 @@ void CVars::Init()
 				  "This will be applied on top of e_ViewDistRatio");
 	REGISTER_CVAR(e_ViewDistRatioLights, 50.0f, VF_NULL | VF_LIVE_CREATE_SYNCED,
 	              "View distance ratio for light sources");
+	REGISTER_CVAR(e_LightIlluminanceThreshold, ILLUMINANCE_THRESHOLD, VF_NULL | VF_LIVE_CREATE_SYNCED,
+	              "Min illuminance to determine light effect radius");
 	REGISTER_CVAR(e_ViewDistRatioCustom, 60.0f, VF_NULL | VF_LIVE_CREATE_SYNCED,
 	              "View distance ratio for special marked objects (Players,AI,Vehicles)");
 	REGISTER_CVAR(e_ViewDistMin, 0.0f, VF_NULL | VF_LIVE_CREATE_SYNCED,

@@ -87,14 +87,14 @@ void CRuntimeAreaManager::FillAudioControls()
 
 						if ((szTriggerName != nullptr) && (szTriggerName[0] != '\0'))
 						{
-							triggerId = CryAudio::StringToId_RunTime(szTriggerName);
+							triggerId = CryAudio::StringToId(szTriggerName);
 						}
 
 						char const* const szParameterName = pAudioNode->getAttr(SXMLTags::sATLRtpcAttribute);
 
 						if ((szParameterName != nullptr) && (szParameterName[0] != '\0'))
 						{
-							parameterId = CryAudio::StringToId_RunTime(szParameterName);
+							parameterId = CryAudio::StringToId(szParameterName);
 						}
 
 						if ((triggerId != CryAudio::InvalidControlId) && (parameterId != CryAudio::InvalidControlId))

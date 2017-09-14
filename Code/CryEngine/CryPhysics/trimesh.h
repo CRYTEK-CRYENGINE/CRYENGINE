@@ -94,7 +94,7 @@ public:
 	virtual int UnprojectSphere(Vec3 center,float r,float rsep, contact *pcontact);
 
 	virtual float GetExtent(EGeomForm eForm) const;
-	virtual void GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const;
+	virtual void GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const;
 
 	virtual void GetMemoryStatistics(ICrySizer *pSizer);
 	virtual void Save(CMemStream &stm);

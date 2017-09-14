@@ -102,6 +102,7 @@ Property
   Precache = ZVS
   Precache = ShadowGenVS
   Precache = ShadowGenPS
+  Precache = DebugPassPS
 }
 
 Property

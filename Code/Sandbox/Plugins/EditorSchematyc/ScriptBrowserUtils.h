@@ -84,6 +84,6 @@ IScriptInterfaceImpl*     AddScriptInterfaceImpl(IScriptElement* pScope, const Q
 IScriptComponentInstance* AddScriptComponentInstance(IScriptElement* pScope, const QPoint* pPostion = nullptr);
 
 bool                      RenameScriptElement(IScriptElement& element, const char* szName);
-void                      RemoveScriptElement(const IScriptElement& element);
+bool                      RemoveScriptElement(const IScriptElement& element);
 } // ScriptBrowserUtils
 } // Schematyc

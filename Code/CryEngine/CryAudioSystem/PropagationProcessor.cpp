@@ -724,8 +724,6 @@ void CPropagationProcessor::DrawObstructionRays(IRenderAuxGeom& auxGeom, EObject
 //////////////////////////////////////////////////////////////////////////
 void CPropagationProcessor::DrawRay(IRenderAuxGeom& auxGeom, size_t const rayIndex) const
 {
-	if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::DrawOcclusionRays) > 0)
-	{
 		static ColorB const obstructedRayColor(200, 20, 1, 255);
 		static ColorB const freeRayColor(20, 200, 1, 255);
 		static ColorB const intersectionSphereColor(250, 200, 1, 240);
@@ -751,7 +749,6 @@ void CPropagationProcessor::DrawRay(IRenderAuxGeom& auxGeom, size_t const rayInd
 
 		auxGeom.DrawLine(m_rayDebugInfos[rayIndex].begin, rayColor, rayEnd, rayColor, 1.0f);
 		auxGeom.SetRenderFlags(previousRenderFlags);
-	}
 }
 
 ///////////////////////////////////////////////////////////////////////////

@@ -125,8 +125,6 @@ private:
 	int32 GetCurrentFrameID(const int32 frameID) const;
 	int32 GetPreviousFrameID(const int32 frameID) const;
 
-	static bool OnResourceInvalidated(void* pThis, uint32 flags);
-
 private:
 	_smart_ptr<CTexture>                      m_pFoamTex;
 	_smart_ptr<CTexture>                      m_pPerlinNoiseTex;
@@ -172,5 +170,4 @@ private:
 	Vec4   m_oceanAnimationParams[2];
 
 	bool              m_bWaterNormalGen;
-	std::atomic<bool> m_bResourcesDirty;
 };

@@ -30,7 +30,7 @@ void CMNMUpdatesManager::Clear()
 //------------------------------------------------------------------------
 void CMNMUpdatesManager::Update()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	
 	UpdatePostponedChanges();
 }
@@ -106,7 +106,7 @@ void CMNMUpdatesManager::UpdatePostponedChanges()
 //------------------------------------------------------------------------
 void CMNMUpdatesManager::OnMeshDestroyed(NavigationMeshID meshID)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	
 	for (TileUpdateRequest& task : m_activeUpdateRequestsQueue)
 	{
@@ -167,7 +167,7 @@ void CMNMUpdatesManager::EntityChanged(int physicalEntityId, const AABB& aabb)
 void CMNMUpdatesManager::WorldChanged(const AABB& aabb)
 {
 #if NAVIGATION_SYSTEM_PC_ONLY
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	m_lastUpdateTime = gEnv->pTimer->GetFrameStartTime();
 
@@ -210,7 +210,7 @@ void CMNMUpdatesManager::RequestGlobalUpdateForAgentType(NavigationAgentTypeID a
 //------------------------------------------------------------------------
 CMNMUpdatesManager::EUpdateRequestStatus CMNMUpdatesManager::RequestMeshUpdate(NavigationMeshID meshID, const AABB& aabb)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	SRequestParams requestParams = GetRequestParams(m_bExplicitRegenerationToggle);
 	if (!RequestQueueMeshUpdate(requestParams, meshID, aabb))
@@ -226,7 +226,7 @@ CMNMUpdatesManager::EUpdateRequestStatus CMNMUpdatesManager::RequestMeshDifferen
 	const NavigationBoundingVolume& oldVolume,
 	const NavigationBoundingVolume& newVolume)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	
 	m_lastUpdateTime = gEnv->pTimer->GetFrameStartTime();
 	
@@ -382,7 +382,7 @@ bool CMNMUpdatesManager::RequestQueueMeshUpdate(const SRequestParams& requestPar
 		return false;
 	}
 
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	NavigationMesh& mesh = m_pNavigationSystem->m_meshes[meshID];
 
@@ -417,7 +417,7 @@ bool CMNMUpdatesManager::RequestQueueMeshDifferenceUpdate(
 		return false;
 	}
 
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	m_bWasRegenerationRequestedThisUpdateCycle = true;
 

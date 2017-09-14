@@ -75,7 +75,6 @@ private:
 	TQueuedFlowgraphs m_queuedEntityLinks;
 
 	CEntitySystem*    m_pEntitySystem;
-	bool              m_bSWLoading;
 };
 
 #endif //__ENTITYLOADMANAGER_H__

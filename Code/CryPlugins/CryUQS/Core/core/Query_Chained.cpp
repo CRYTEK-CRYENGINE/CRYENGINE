@@ -34,8 +34,12 @@ namespace UQS
 
 			if (HasMoreChildrenLeftToInstantiate())
 			{
-				StoreResultSetForUseInNextChildQuery(*pResultSet);
-				InstantiateNextChildQueryBlueprint();
+				// TODO: copying the items from the result set to a separate list is not very efficient
+				//       -> would be better to somehow move-transfer what is in the underlying CItemList
+
+				const std::shared_ptr<CItemList> pResultingItemsFromChild(new CItemList);
+				pResultingItemsFromChild->CopyOtherToSelf(pResultSet->GetImplementation().GetItemList());
+				InstantiateNextChildQueryBlueprint(pResultingItemsFromChild);
 			}
 			else
 			{

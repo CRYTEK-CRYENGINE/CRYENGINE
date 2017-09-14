@@ -666,7 +666,7 @@ int CPostAA::CreateResources()
 
 	m_pAreaSMAA = CTexture::ForName("%ENGINE%/EngineAssets/ScreenSpace/AreaTex.dds", FT_DONT_STREAM, eTF_Unknown);
 	m_pSearchSMAA = CTexture::ForName("%ENGINE%/EngineAssets/ScreenSpace/SearchTex.dds", FT_DONT_STREAM, eTF_Unknown);
-	m_pResolvePass = CryMakeUnique<CStretchRectPass>();
+	m_pResolvePass = stl::make_unique<CStretchRectPass>();
 
 	return 1;
 }

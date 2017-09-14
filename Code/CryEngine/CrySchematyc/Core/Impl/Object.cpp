@@ -602,6 +602,20 @@ bool CObject::CreateComponents()
 				transform = component.classComponentInstance.transform;
 			}
 
+			// Add the component
+			IEntityComponent::SInitParams initParams(
+				pEntity,
+				component.classComponentInstance.guid,
+				component.classComponentInstance.name,
+				&classDesc,
+				flags,
+				pParent,
+				transform
+			);
+
+			// Initialize common component members
+			component.pComponent->PreInit(initParams);
+
 			// Read properties
 			bool bPublicPropertiesApplied = false;
 			if (m_pProperties && component.classComponentInstance.bPublic)
@@ -617,17 +631,6 @@ bool CObject::CreateComponents()
 				size_t componentIdx = std::distance(m_components.begin(), componentIt);
 				classComponentInstances[componentIdx].properties.Apply(component.classDesc, component.pComponent.get());
 			}
-
-			// Add the component
-			IEntityComponent::SInitParams initParams(
-			  pEntity,
-			  component.classComponentInstance.guid,
-			  component.classComponentInstance.name,
-			  &classDesc,
-			  flags,
-			  pParent,
-			  transform
-			  );
 
 			pEntity->AddComponent(component.pComponent, &initParams);
 		}

@@ -361,7 +361,7 @@ void CWaterVolumeRenderNode::CreateOcean(uint64 volumeID, /* TBD */ bool keepSer
 {
 }
 
-void CWaterVolumeRenderNode::CreateArea(uint64 volumeID, const Vec3* pVertices, unsigned int numVertices, const Vec2& surfUVScale, const Plane& fogPlane, bool keepSerializationParams, int nSID)
+void CWaterVolumeRenderNode::CreateArea(uint64 volumeID, const Vec3* pVertices, unsigned int numVertices, const Vec2& surfUVScale, const Plane& fogPlane, bool keepSerializationParams)
 {
 	const bool serializeWith3DEngine = keepSerializationParams && !IsAttachedToEntity();
 
@@ -521,10 +521,10 @@ void CWaterVolumeRenderNode::CreateArea(uint64 volumeID, const Vec3* pVertices, 
 	}
 
 	// add to 3d engine
-	Get3DEngine()->RegisterEntity(this, nSID, nSID);
+	Get3DEngine()->RegisterEntity(this);
 }
 
-void CWaterVolumeRenderNode::CreateRiver(uint64 volumeID, const Vec3* pVertices, unsigned int numVertices, float uTexCoordBegin, float uTexCoordEnd, const Vec2& surfUVScale, const Plane& fogPlane, bool keepSerializationParams, int nSID)
+void CWaterVolumeRenderNode::CreateRiver(uint64 volumeID, const Vec3* pVertices, unsigned int numVertices, float uTexCoordBegin, float uTexCoordEnd, const Vec2& surfUVScale, const Plane& fogPlane, bool keepSerializationParams)
 {
 	assert(fabs(fogPlane.n.GetLengthSquared() - 1.0f) < 1e-4 && "CWaterVolumeRenderNode::CreateRiver(...) -- Fog plane normal doesn't have unit length!");
 	assert(fogPlane.n.Dot(Vec3(0, 0, 1)) > 1e-4f && "CWaterVolumeRenderNode::CreateRiver(...) -- Invalid fog plane specified!");
@@ -613,7 +613,7 @@ void CWaterVolumeRenderNode::CreateRiver(uint64 volumeID, const Vec3* pVertices,
 	}
 
 	// add to 3d engine
-	Get3DEngine()->RegisterEntity(this, nSID, nSID);
+	Get3DEngine()->RegisterEntity(this);
 }
 
 void CWaterVolumeRenderNode::SetAreaPhysicsArea(const Vec3* pVertices, unsigned int numVertices, bool keepSerializationParams)

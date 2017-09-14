@@ -11,6 +11,7 @@ struct IUtilityRenderPass
 		StretchRectPass = 0,
 		StretchRegionPass,
 		SharpeningUpsamplePass,
+		NearestDepthUpsamplePass,
 		DownsamplePass,
 		StableDownsamplePass,
 		DepthDownsamplePass,
@@ -77,6 +78,20 @@ public:
 
 private:
 	CFullscreenPass m_pass;
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class CNearestDepthUpsamplePass : public IUtilityRenderPass
+{
+public:
+	void Execute(CTexture* pOrgDS, CTexture* pSrcRT, CTexture* pSrcDS, CTexture* pDestRT, bool bAlphaBased = false);
+
+	static EPassId GetPassId() { return EPassId::NearestDepthUpsamplePass; }
+
+private:
+	CFullscreenPass m_pass[2];
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

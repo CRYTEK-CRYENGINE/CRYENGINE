@@ -170,7 +170,7 @@ public:
 	const char*         ExecProcFunction(uint32 nCRC32, Skeleton::CPoseData* pPoseData, const char* pstrFunction = 0) const;
 
 	float               GetExtent(EGeomForm eForm);
-	void                GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const;
+	void                GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const;
 #if !defined(_RELEASE)
 	float               DebugDrawAttachment(IAttachment* pAttachment, ISkin* pSkin, Vec3 drawLoc, IMaterial* pMaterial, float drawScale);
 #endif

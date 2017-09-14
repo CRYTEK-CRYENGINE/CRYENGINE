@@ -41,6 +41,8 @@ bool CLookAtSimple::Prepare(const SAnimationPoseModifierParams& params)
 
 bool CLookAtSimple::Execute(const SAnimationPoseModifierParams& params)
 {
+	CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
+
 	const IDefaultSkeleton& rIDefaultSkeleton = params.GetIDefaultSkeleton();
 	const QuatT& transformation = params.pPoseData->GetJointAbsolute(m_stateExecute.jointId);
 

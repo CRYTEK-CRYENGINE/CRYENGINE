@@ -215,12 +215,13 @@ public:
 			//}
 			//else
 			{
-				SaveByUsingTIFFSaver(data->path + ".$tif", commandline, result->getTexture());
-				string finalPath(data->path + ".tif");
+				const string tempPath(data->path + ".$ti"); // using ".$tif" is unsafe, by mistake the engine can treat it as the final tif file.
+				const string finalPath(data->path + ".tif");
+
+				SaveByUsingTIFFSaver(tempPath, commandline, result->getTexture());
 				// Force remove of the read only flag.
 				SetFileAttributes(finalPath, FILE_ATTRIBUTE_ARCHIVE);
-				remove(finalPath);
-				rename(data->path + ".$tif", finalPath);
+				MoveFileEx(tempPath, finalPath, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
 				const string filename = PathHelpers::GetFilename(finalPath);			
 				RCLog("   Processed output from %s: %s", PathHelpers::GetFilename(data->texturePreset), filename.c_str());
 				m_pRC->AddInputOutputFilePair(data->path, finalPath);

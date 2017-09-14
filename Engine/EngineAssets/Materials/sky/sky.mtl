@@ -1,5 +1,5 @@
 <Material MtlFlags="524288" Shader="SkyHDR" GenMask="1" StringGenMask="" SurfaceType="" MatTemplate="" Diffuse="1,1,1" Specular="0,0,0" Emissive="0,0,0" Shininess="10" Opacity="1" LayerAct="1">
  <Textures>
-  <Texture Map="Diffuse" File="EngineAssets/Textures/defaults/16_grey.dds"/>
+  <Texture Map="Diffuse" File="%ENGINE%/EngineAssets/Textures/defaults/16_grey.dds"/>
  </Textures>
 </Material>

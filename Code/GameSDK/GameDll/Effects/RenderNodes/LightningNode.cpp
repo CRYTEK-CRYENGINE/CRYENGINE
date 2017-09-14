@@ -426,9 +426,7 @@ void CLightningRenderNode::PopSegment()
 
 void CLightningRenderNode::OffsetPosition(const Vec3& delta)
 {
-#ifdef SEG_WORLD
 	m_aabb.Move(delta);
 	m_emmitterPosition += delta;
 	m_receiverPosition += delta;
-#endif
 }

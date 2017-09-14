@@ -153,7 +153,7 @@ CParticleSubEmitter* CParticleContainer::AddEmitter(CParticleSource* pSource)
 
 CParticle* CParticleContainer::AddParticle(SParticleUpdateContext& context, const CParticle& part)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	const ResourceParticleParams& params = GetParams();
 
@@ -265,7 +265,7 @@ void CParticleContainer::EmitParticle(const EmitParticleData* pData)
 
 void CParticleContainer::ComputeStaticBounds(AABB& bb, bool bWithSize, float fMaxLife)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	const ResourceParticleParams& params = GetParams();
 
@@ -319,7 +319,7 @@ void CParticleContainer::ComputeStaticBounds(AABB& bb, bool bWithSize, float fMa
 
 void CParticleContainer::UpdateState()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	UpdateContainerLife();
 

@@ -209,22 +209,25 @@ void ShadowCache::GetCasterBox(AABB& BBoxWS, AABB& BBoxLS, float fRadius, const 
 	BBoxLS = AABB(matView.TransformPoint(passInfo.GetCamera().GetPosition()), fRadius);
 
 	// try to get tighter near/far plane from casters
-	AABB casterBoxLS(AABB::RESET);
-	for (int nSID = 0; nSID < Get3DEngine()->m_pObjectsTree.Count(); nSID++)
-	{
-		if (Get3DEngine()->IsSegmentSafeToUse(nSID))
-			casterBoxLS.Add(Get3DEngine()->m_pObjectsTree[nSID]->GetShadowCastersBox(&BBoxWS, &matView));
-	}
+	AABB casterBoxLS = Get3DEngine()->m_pObjectsTree->GetShadowCastersBox(&BBoxWS, &matView);
 
 	if (CVisAreaManager* pVisAreaManager = GetVisAreaManager())
 	{
 		for (int i = 0; i < pVisAreaManager->m_lstVisAreas.Count(); ++i)
-			if (pVisAreaManager->m_lstVisAreas[i] && pVisAreaManager->m_lstVisAreas[i]->m_pObjectsTree)
-				casterBoxLS.Add(pVisAreaManager->m_lstVisAreas[i]->m_pObjectsTree->GetShadowCastersBox(&BBoxWS, &matView));
+		{
+			if (pVisAreaManager->m_lstVisAreas[i] && pVisAreaManager->m_lstVisAreas[i]->IsObjectsTreeValid())
+			{
+				casterBoxLS.Add(pVisAreaManager->m_lstVisAreas[i]->GetObjectsTree()->GetShadowCastersBox(&BBoxWS, &matView));
+			}
+		}
 
 		for (int i = 0; i < pVisAreaManager->m_lstPortals.Count(); ++i)
-			if (pVisAreaManager->m_lstPortals[i] && pVisAreaManager->m_lstPortals[i]->m_pObjectsTree)
-				casterBoxLS.Add(pVisAreaManager->m_lstPortals[i]->m_pObjectsTree->GetShadowCastersBox(&BBoxWS, &matView));
+		{
+			if (pVisAreaManager->m_lstPortals[i] && pVisAreaManager->m_lstPortals[i]->IsObjectsTreeValid())
+			{
+				casterBoxLS.Add(pVisAreaManager->m_lstPortals[i]->GetObjectsTree()->GetShadowCastersBox(&BBoxWS, &matView));
+			}
+		}
 	}
 
 	if (!casterBoxLS.IsReset() && casterBoxLS.GetSize().z < 2 * fRadius)
@@ -257,7 +260,7 @@ void ShadowCache::AddTerrainCastersToFrustum(ShadowMapFrustum* pFr, const SRende
 	if ((Get3DEngine()->m_bSunShadowsFromTerrain || pFr->m_eFrustumType == ShadowMapFrustum::e_HeightMapAO) && !pFr->bIsMGPUCopy)
 	{
 		PodArray<CTerrainNode*> lstTerrainNodes;
-		GetTerrain()->IntersectWithBox(pFr->aabbCasters, &lstTerrainNodes, GetDefSID());
+		GetTerrain()->IntersectWithBox(pFr->aabbCasters, &lstTerrainNodes);
 
 		for (int s = 0; s < lstTerrainNodes.Count(); s++)
 		{

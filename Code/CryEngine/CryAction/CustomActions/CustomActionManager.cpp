@@ -344,7 +344,7 @@ bool CCustomActionManager::UnregisterListener(ICustomActionListener* pEventListe
 //------------------------------------------------------------------------------------------------------------------------
 void CCustomActionManager::Update()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION)
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION)
 
 	TActiveActions::iterator it = m_activeActions.begin();
 	while (it != m_activeActions.end())

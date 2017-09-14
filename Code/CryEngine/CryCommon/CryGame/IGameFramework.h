@@ -90,9 +90,9 @@ struct IGameObjectExtensionCreatorBase
   template<class T>                                                                     \
   struct C ## name ## Creator : public I ## name ## Creator                             \
   {                                                                                     \
-    IGameObjectExtension* Create(IEntity *pEntity) override                           \
+    IGameObjectExtension* Create(IEntity *pEntity) override                             \
     {                                                                                   \
-      return pEntity->CreateComponentClass<T>();                                        \
+      return pEntity->GetOrCreateComponentClass<T>();                                   \
     }                                                                                   \
     void GetGameObjectExtensionRMIData(void** ppRMI, size_t * nCount) override          \
     {                                                                                   \
@@ -397,15 +397,11 @@ struct IPersistantDebug
 enum EEntityEventPriority
 {
 	EEntityEventPriority_GameObject = 0,
-	EEntityEventPriority_StartAnimProc,
-	EEntityEventPriority_AnimatedCharacter,
-	EEntityEventPriority_Vehicle,       //!< Vehicles can potentially create move request too!
-	EEntityEventPriority_Actor,         //!< Actor must always be higher than AnimatedCharacter.
 	EEntityEventPriority_PrepareAnimatedCharacterForUpdate,
-
-	EEntityEventPriority_Last,
-
-	EEntityEventPriority_Client = 100   //!< Special variable for the client to tag onto priorities when needed.
+	EEntityEventPriority_Actor,         //!< Actor must always be higher than AnimatedCharacter.
+	EEntityEventPriority_Vehicle,       //!< Vehicles can potentially create move request too!
+	EEntityEventPriority_AnimatedCharacter,
+	EEntityEventPriority_StartAnimProc
 };
 
 //! When you add stuff here, you must also update in CCryAction::Init.

@@ -22,7 +22,7 @@ CGamePlugin::~CGamePlugin()
 
 	if (gEnv->pSchematyc)
 	{
-		gEnv->pSchematyc->GetEnvRegistry().DeregisterPackage(GetSchematycPackageGUID());
+		gEnv->pSchematyc->GetEnvRegistry().DeregisterPackage(CGamePlugin::GetCID());
 	}
 }
 
@@ -53,7 +53,7 @@ void CGamePlugin::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lp
 		{
 			gEnv->pSchematyc->GetEnvRegistry().RegisterPackage(
 				stl::make_unique<Schematyc::CEnvPackage>(
-					GetSchematycPackageGUID(),
+					CGamePlugin::GetCID(),
 					"EntityComponents",
 					"Crytek GmbH",
 					"Components",

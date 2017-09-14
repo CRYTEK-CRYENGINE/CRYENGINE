@@ -464,15 +464,6 @@ void CEntityComponentLuaScript::ProcessEvent(SEntityEvent& event)
 
 			break;
 		}
-	case ENTITY_EVENT_CROSS_AREA:
-		{
-			// Implement in case scripts are interested in this event.
-			if (m_bEnableSoundAreaEvents)
-			{
-			}
-
-			break;
-		}
 	case ENTITY_EVENT_PHYS_BREAK:
 		{
 			EventPhysJointBroken* pBreakEvent = (EventPhysJointBroken*)event.nParam[0];
@@ -934,7 +925,7 @@ void CEntityComponentLuaScript::OnCollision(CEntity* pTarget, int matId, const V
 	if (!CurrentState()->IsStateFunctionImplemented(ScriptState_OnCollision))
 		return;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 
 	if (!m_hitTable)
 		m_hitTable.Create(gEnv->pScriptSystem);

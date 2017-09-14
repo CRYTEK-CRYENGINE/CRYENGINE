@@ -128,8 +128,6 @@ struct Cry3DEngineBase
 	ILINE static bool IsRenderNodeTypeEnabled(EERType rnType)                 { return m_bRenderTypeEnabled[(int)rnType]; }
 	ILINE static void SetRenderNodeTypeEnabled(EERType rnType, bool bEnabled) { m_bRenderTypeEnabled[(int)rnType] = bEnabled; }
 
-	inline static int GetDefSID()                                             { return DEFAULT_SID; };
-
 	static float      GetCurTimeSec();
 	static float      GetCurAsyncTimeSec();
 

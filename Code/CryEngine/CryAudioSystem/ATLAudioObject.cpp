@@ -344,7 +344,7 @@ ERequestStatus CATLAudioObject::HandleExecuteTrigger(
 	if (result != ERequestStatus::Success)
 	{
 		// No TriggerImpl generated an active event.
-		g_logger.Log(ELogType::Warning, "Trigger \"%s\" failed on AudioObject \"%s\"", pTrigger->m_name.c_str(), m_name.c_str());
+		g_logger.Log(ELogType::Warning, R"(Trigger "%s" failed on AudioObject "%s")", pTrigger->m_name.c_str(), m_name.c_str());
 	}
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
@@ -383,7 +383,7 @@ ERequestStatus CATLAudioObject::HandleSetSwitchState(CATLSwitch const* const pSw
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 	else
 	{
-		g_logger.Log(ELogType::Warning, "Failed to set the ATLSwitch \"%s\" to ATLSwitchState \"%s\" on AudioObject \"%s\"", pSwitch->m_name.c_str(), pState->m_name.c_str(), m_name.c_str());
+		g_logger.Log(ELogType::Warning, R"(Failed to set the ATLSwitch "%s" to ATLSwitchState "%s" on AudioObject "%s")", pSwitch->m_name.c_str(), pState->m_name.c_str(), m_name.c_str());
 	}
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
@@ -407,7 +407,7 @@ ERequestStatus CATLAudioObject::HandleSetParameter(CParameter const* const pPara
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 	else
 	{
-		g_logger.Log(ELogType::Warning, "Failed to set the Audio Parameter \"%s\" to %f on Audio Object \"%s\"", pParameter->m_name.c_str(), value, m_name.c_str());
+		g_logger.Log(ELogType::Warning, R"(Failed to set the Audio Parameter "%s" to %f on Audio Object "%s")", pParameter->m_name.c_str(), value, m_name.c_str());
 	}
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
@@ -440,7 +440,7 @@ ERequestStatus CATLAudioObject::HandleSetEnvironment(CATLAudioEnvironment const*
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 	else
 	{
-		g_logger.Log(ELogType::Warning, "Failed to set the ATLAudioEnvironment \"%s\" to %f on AudioObject \"%s\"", pEnvironment->m_name.c_str(), amount, m_name.c_str());
+		g_logger.Log(ELogType::Warning, R"(Failed to set the ATLAudioEnvironment "%s" to %f on AudioObject "%s")", pEnvironment->m_name.c_str(), amount, m_name.c_str());
 	}
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
@@ -516,7 +516,7 @@ ERequestStatus CATLAudioObject::LoadTriggerAsync(CATLTrigger const* const pTrigg
 	if (result != ERequestStatus::Success)
 	{
 		// No TriggerImpl produced an active event.
-		g_logger.Log(ELogType::Warning, "LoadTriggerAsync failed on AudioObject \"%s\"", m_name.c_str());
+		g_logger.Log(ELogType::Warning, R"(LoadTriggerAsync failed on AudioObject "%s")", m_name.c_str());
 	}
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
@@ -551,7 +551,7 @@ ERequestStatus CATLAudioObject::HandleResetEnvironments(AudioEnvironmentLookup c
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 	else
 	{
-		g_logger.Log(ELogType::Warning, "Failed to Reset AudioEnvironments on AudioObject \"%s\"", m_name.c_str());
+		g_logger.Log(ELogType::Warning, R"(Failed to Reset AudioEnvironments on AudioObject "%s")", m_name.c_str());
 	}
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
@@ -687,6 +687,13 @@ ERequestStatus CATLAudioObject::HandleSetTransformation(CObjectTransformation co
 			m_previousTime = 0.0f;  // ...in that case we force an update to the new position
 			HandleSetTransformation(transformation, 0.0f);
 		}
+		else
+		{
+			// No time has passed meaning different transformations were set during the same main frame.
+			// TODO: update velocity accordingly!
+			m_attributes.transformation = transformation;
+			m_previousAttributes = m_attributes;
+		}
 
 		status = m_pImplData->Set3DAttributes(m_attributes);
 	}
@@ -741,7 +748,7 @@ ERequestStatus CATLAudioObject::HandlePlayFile(CATLStandaloneFile* const pFile, 
 	else
 	{
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
-		g_logger.Log(ELogType::Warning, "PlayFile failed with \"%s\" on AudioObject \"%s\"", pFile->m_hashedFilename.GetText().c_str(), m_name.c_str());
+		g_logger.Log(ELogType::Warning, R"(PlayFile failed with "%s" on AudioObject "%s")", pFile->m_hashedFilename.GetText().c_str(), m_name.c_str());
 #endif //INCLUDE_AUDIO_PRODUCTION_CODE
 
 		s_pStandaloneFileManager->ReleaseStandaloneFile(pFile);
@@ -783,7 +790,7 @@ ERequestStatus CATLAudioObject::HandleStopFile(char const* const szFile)
 				default:
 					break;
 				}
-				g_logger.Log(ELogType::Warning, "Request to stop a standalone audio file that is not playing! State: \"%s\"", szState);
+				g_logger.Log(ELogType::Warning, R"(Request to stop a standalone audio file that is not playing! State: "%s")", szState);
 			}
 #endif  //INCLUDE_AUDIO_PRODUCTION_CODE
 
@@ -928,11 +935,11 @@ void CATLAudioObject::UpdateControls(float const deltaTime, Impl::SObject3DAttri
 ///////////////////////////////////////////////////////////////////////////
 bool CATLAudioObject::CanBeReleased() const
 {
-	return (m_flags & EObjectFlags::InUse) == 0 &&
+	return (m_flags& EObjectFlags::InUse) == 0 &&
 	       m_activeEvents.empty() &&
 	       m_activeStandaloneFiles.empty() &&
 	       !m_propagationProcessor.HasPendingRays() &&
-		   m_numPendingSyncCallbacks == 0;
+	       m_numPendingSyncCallbacks == 0;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -974,7 +981,7 @@ void CATLAudioObject::CStateDebugDrawData::Update(SwitchStateId const audioSwitc
 	}
 }
 
-typedef std::map<ControlId const, size_t> TriggerCountMap;
+using TriggerCountMap = std::map<ControlId const, size_t>;
 
 ///////////////////////////////////////////////////////////////////////////
 void CATLAudioObject::DrawDebugInfo(
@@ -986,38 +993,247 @@ void CATLAudioObject::DrawDebugInfo(
   AudioPreloadRequestLookup const& preloadRequests,
   AudioEnvironmentLookup const& environments) const
 {
-	m_propagationProcessor.DrawObstructionRays(auxGeom, m_flags);
+	Vec3 const& position = m_attributes.transformation.GetPosition();
+	Vec3 screenPos(ZERO);
 
-	if (g_cvars.m_drawAudioDebug > 0)
+	if (IRenderer* const pRenderer = gEnv->pRenderer)
 	{
-		Vec3 const& position = m_attributes.transformation.GetPosition();
-		Vec3 screenPos(ZERO);
+		pRenderer->ProjectToScreen(position.x, position.y, position.z, &screenPos.x, &screenPos.y, &screenPos.z);
 
-		if (IRenderer* const pRenderer = gEnv->pRenderer)
+		screenPos.x = screenPos.x * 0.01f * pRenderer->GetWidth();
+		screenPos.y = screenPos.y * 0.01f * pRenderer->GetHeight();
+	}
+	else
+	{
+		screenPos.z = -1.0f;
+	}
+
+	if ((screenPos.z >= 0.0f) && (screenPos.z <= 1.0f))
+	{
+		float const distance = position.GetDistance(listenerPosition);
+
+		if ((g_cvars.m_debugDistance <= 0.0f) || ((g_cvars.m_debugDistance > 0.0f) && (distance <= g_cvars.m_debugDistance)))
 		{
-			pRenderer->ProjectToScreen(position.x, position.y, position.z, &screenPos.x, &screenPos.y, &screenPos.z);
+			float const fontSize = 1.35f;
+			float const lineHeight = 14.0f;
+			float offsetOnY = 0.0f;
 
-			screenPos.x = screenPos.x * 0.01f * pRenderer->GetWidth();
-			screenPos.y = screenPos.y * 0.01f * pRenderer->GetHeight();
-		}
-		else
-		{
-			screenPos.z = -1.0f;
-		}
+			// Check if text filter is enabled.
+			CryFixedStringT<MaxControlNameLength> lowerCaseSearchString(g_cvars.m_pDebugFilter->GetString());
+			lowerCaseSearchString.MakeLower();
+			bool const bTextFilterDisabled = (lowerCaseSearchString.empty() || (lowerCaseSearchString.compareNoCase("0") == 0));
+			bool const bShowSphere = (g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowSpheres) != 0;
+			bool const bShowLabel = (g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectLabel) != 0;
+			bool const bShowTriggers = (g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectTriggers) != 0;
+			bool const bShowStandaloneFiles = (g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectStandaloneFiles) != 0;
+			bool const bShowStates = (g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectStates) != 0;
+			bool const bShowParameters = (g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectParameters) != 0;
+			bool const bShowEnvironments = (g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectEnvironments) != 0;
+			bool const bShowDistance = (g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectDistance) != 0;
+			bool const bShowOcclusionRayLabel = (g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowOcclusionRayLabels) != 0;
+			bool const bShowOcclusionRays = (g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowOcclusionRays) != 0;
+			bool const bFilterAllObjectInfo = (g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::FilterAllObjectInfo) != 0;
 
-		if ((screenPos.z >= 0.0f) && (screenPos.z <= 1.0f))
-		{
-			float const distance = position.GetDistance(listenerPosition);
+			// Check if object name matches text filter.
+			CATLAudioObject* const pAudioObject = const_cast<CATLAudioObject*>(this);
+			char const* const szObjectName = pAudioObject->m_name.c_str();
+			bool bObjectNameMatchesFilter = false;
 
-			if (g_cvars.m_debugDistance <= 0.0f || (g_cvars.m_debugDistance > 0.0f && distance < g_cvars.m_debugDistance))
+			if (bShowLabel || bFilterAllObjectInfo)
 			{
-				float const fontSize = 1.35f;
-				float const lineHeight = 13.0f;
-				float offsetOnY = 0.0f;
-				CryFixedStringT<MaxControlNameLength> lowerCaseSearchString(g_cvars.m_pDebugFilter->GetString());
-				lowerCaseSearchString.MakeLower();
+				CryFixedStringT<MaxControlNameLength> lowerCaseObjectName(szObjectName);
+				lowerCaseObjectName.MakeLower();
+				bObjectNameMatchesFilter = (lowerCaseObjectName.find(lowerCaseSearchString) != CryFixedStringT<MaxControlNameLength>::npos);
+			}
 
-				if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::DrawSpheres) > 0)
+			// Check if any trigger matches text filter.
+			bool bTriggerMatchesFilter = false;
+			std::vector<CryFixedStringT<MaxMiscStringLength>> triggerInfo;
+
+			if ((bShowTriggers && !m_triggerStates.empty()) || bFilterAllObjectInfo)
+			{
+				TriggerCountMap triggerCounts;
+
+				for (auto const& triggerStatesPair : m_triggerStates)
+				{
+					++(triggerCounts[triggerStatesPair.second.audioTriggerId]);
+				}
+
+				for (auto const& triggerCountsPair : triggerCounts)
+				{
+					CATLTrigger const* const pTrigger = stl::find_in_map(triggers, triggerCountsPair.first, nullptr);
+
+					if (pTrigger != nullptr)
+					{
+						char const* const szTriggerName = pTrigger->m_name.c_str();
+						CryFixedStringT<MaxControlNameLength> lowerCaseTriggerName(szTriggerName);
+						lowerCaseTriggerName.MakeLower();
+
+						if (lowerCaseTriggerName.find(lowerCaseSearchString) != CryFixedStringT<MaxControlNameLength>::npos)
+						{
+							bTriggerMatchesFilter = true;
+						}
+
+						CryFixedStringT<MaxMiscStringLength> debugText;
+						size_t const numInstances = triggerCountsPair.second;
+
+						if (numInstances == 1)
+						{
+							debugText.Format("%s\n", szTriggerName);
+						}
+						else
+						{
+							debugText.Format("%s: %" PRISIZE_T "\n", szTriggerName, numInstances);
+						}
+
+						triggerInfo.emplace_back(debugText);
+					}
+				}
+			}
+
+			// Check if any standalone file matches text filter.
+			bool bStandaloneFileMatchesFilter = false;
+			std::vector<CryFixedStringT<MaxMiscStringLength>> standaloneFileInfo;
+
+			if ((bShowStandaloneFiles && !m_activeStandaloneFiles.empty()) || bFilterAllObjectInfo)
+			{
+				std::map<CHashedString, size_t> numStandaloneFiles;
+
+				for (auto const& standaloneFilePair : m_activeStandaloneFiles)
+				{
+					++(numStandaloneFiles[standaloneFilePair.first->m_hashedFilename]);
+				}
+
+				for (auto const& numInstancesPair : numStandaloneFiles)
+				{
+					char const* const szStandaloneFileName = numInstancesPair.first.GetText().c_str();
+					CryFixedStringT<MaxControlNameLength> lowerCaseStandaloneFileName(szStandaloneFileName);
+					lowerCaseStandaloneFileName.MakeLower();
+
+					if (lowerCaseStandaloneFileName.find(lowerCaseSearchString) != CryFixedStringT<MaxControlNameLength>::npos)
+					{
+						bStandaloneFileMatchesFilter = true;
+					}
+
+					CryFixedStringT<MaxMiscStringLength> debugText;
+					size_t const numInstances = numInstancesPair.second;
+
+					if (numInstances == 1)
+					{
+						debugText.Format("%s\n", szStandaloneFileName);
+					}
+					else
+					{
+						debugText.Format("%s: %" PRISIZE_T "\n", szStandaloneFileName, numInstances);
+					}
+
+					standaloneFileInfo.emplace_back(debugText);
+				}
+			}
+
+			// Check if any state or switch matches text filter.
+			bool bStateSwitchMatchesFilter = false;
+			std::map<CATLSwitch const* const, CATLSwitchState const* const> switchStateInfo;
+
+			if ((bShowStates && !m_switchStates.empty()) || bFilterAllObjectInfo)
+			{
+				for (auto const& switchStatePair : m_switchStates)
+				{
+					CATLSwitch const* const pSwitch = stl::find_in_map(switches, switchStatePair.first, nullptr);
+
+					if (pSwitch != nullptr)
+					{
+						CATLSwitchState const* const pSwitchState = stl::find_in_map(pSwitch->audioSwitchStates, switchStatePair.second, nullptr);
+
+						if (pSwitchState != nullptr)
+						{
+							if (!pSwitch->m_name.empty() && !pSwitchState->m_name.empty())
+							{
+								char const* const szSwitchName = pSwitch->m_name.c_str();
+								CryFixedStringT<MaxControlNameLength> lowerCaseSwitchName(szSwitchName);
+								lowerCaseSwitchName.MakeLower();
+								char const* const szStateName = pSwitchState->m_name.c_str();
+								CryFixedStringT<MaxControlNameLength> lowerCaseStateName(szStateName);
+								lowerCaseStateName.MakeLower();
+
+								if ((lowerCaseSwitchName.find(lowerCaseSearchString) != CryFixedStringT<MaxControlNameLength>::npos) ||
+									(lowerCaseStateName.find(lowerCaseSearchString) != CryFixedStringT<MaxControlNameLength>::npos))
+								{
+									bStateSwitchMatchesFilter = true;
+								}
+
+								switchStateInfo.insert(std::make_pair(pSwitch, pSwitchState));
+							}
+						}
+					}
+				}
+			}
+
+			// Check if any parameter matches text filter.
+			bool bParameterMatchesFilter = false;
+			std::map<char const* const, float const> parameterInfo;
+
+			if ((bShowParameters && !m_parameters.empty()) || bFilterAllObjectInfo)
+			{
+				for (auto const& parameterPair : m_parameters)
+				{
+					CParameter const* const pParameter = stl::find_in_map(parameters, parameterPair.first, nullptr);
+
+					if (pParameter != nullptr)
+					{
+						char const* const szParameterName = pParameter->m_name.c_str();
+						CryFixedStringT<MaxControlNameLength> lowerCaseParameterName(szParameterName);
+						lowerCaseParameterName.MakeLower();
+
+						if (lowerCaseParameterName.find(lowerCaseSearchString) != CryFixedStringT<MaxControlNameLength>::npos)
+						{
+							bParameterMatchesFilter = true;
+						}
+
+						parameterInfo.insert(std::make_pair(szParameterName, parameterPair.second));
+					}
+				}
+			}
+
+			// Check if any environment matches text filter.
+			bool bEnvironmentMatchesFilter = false;
+			std::map<char const* const, float const> environmentInfo;
+
+			if ((bShowEnvironments && !m_environments.empty()) || bFilterAllObjectInfo)
+			{
+				for (auto const& environmentPair : m_environments)
+				{
+					CATLAudioEnvironment const* const pEnvironment = stl::find_in_map(environments, environmentPair.first, nullptr);
+
+					if (pEnvironment != nullptr)
+					{
+						char const* const szEnvironmentName = pEnvironment->m_name.c_str();
+						CryFixedStringT<MaxControlNameLength> lowerCaseEnvironmentName(szEnvironmentName);
+						lowerCaseEnvironmentName.MakeLower();
+
+						if (lowerCaseEnvironmentName.find(lowerCaseSearchString) != CryFixedStringT<MaxControlNameLength>::npos)
+						{
+							bEnvironmentMatchesFilter = true;
+						}
+
+						environmentInfo.insert(std::make_pair(szEnvironmentName, environmentPair.second));
+					}
+				}
+			}
+
+			// Check if any object info text matches text filter.
+			bool const bShowObjectDebugInfo = 
+				bTextFilterDisabled ||
+				bObjectNameMatchesFilter ||
+				bTriggerMatchesFilter ||
+				bStandaloneFileMatchesFilter ||
+				bStateSwitchMatchesFilter ||
+				bParameterMatchesFilter ||
+				bEnvironmentMatchesFilter;
+
+			if (bShowObjectDebugInfo)
+			{
+				if (bShowSphere)
 				{
 					SAuxGeomRenderFlags const previousRenderFlags = auxGeom.GetRenderFlags();
 					SAuxGeomRenderFlags newRenderFlags(e_Def3DPublicRenderflags | e_AlphaBlended);
@@ -1028,21 +1244,11 @@ void CATLAudioObject::DrawDebugInfo(
 					auxGeom.SetRenderFlags(previousRenderFlags);
 				}
 
-				if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectLabel) > 0)
+				if (bShowLabel)
 				{
-					EOcclusionType const occlusionType = m_propagationProcessor.GetOcclusionType();
-					SATLSoundPropagationData propagationData;
-					m_propagationProcessor.GetPropagationData(propagationData);
-
-					CATLAudioObject* const pAudioObject = const_cast<CATLAudioObject*>(this);
-
-					char const* const szObjectName = pAudioObject->m_name.c_str();
-					CryFixedStringT<MaxControlNameLength> lowerCaseObjectName(szObjectName);
-					lowerCaseObjectName.MakeLower();
 					bool const bHasActiveData = HasActiveData(pAudioObject);
-					bool const bIsVirtual = (pAudioObject->GetFlags() & EObjectFlags::Virtual) > 0;
-					bool const bStringFound = (lowerCaseSearchString.empty() || (lowerCaseSearchString.compareNoCase("0") == 0)) || (lowerCaseObjectName.find(lowerCaseSearchString) != CryFixedStringT<MaxControlNameLength>::npos);
-					bool const bDraw = bStringFound && ((g_cvars.m_showActiveAudioObjectsOnly == 0) || (g_cvars.m_showActiveAudioObjectsOnly > 0 && bHasActiveData && !bIsVirtual));
+					bool const bIsVirtual = (pAudioObject->GetFlags() & EObjectFlags::Virtual) != 0;
+					bool const bDraw = (g_cvars.m_showActiveAudioObjectsOnly == 0) || ((g_cvars.m_showActiveAudioObjectsOnly > 0) && bHasActiveData && !bIsVirtual);
 
 					if (bDraw)
 					{
@@ -1056,241 +1262,141 @@ void CATLAudioObject::DrawDebugInfo(
 							fontSize,
 							bIsVirtual ? objectVirtualColor : (bHasActiveData ? objectActiveColor : objectInactiveColor),
 							false,
-							"%s | Dist: %4.1fm",
-							pAudioObject->m_name.c_str(),
-							distance);
+							"%s",
+							szObjectName);
 
 						offsetOnY += lineHeight;
 					}
 				}
 
-				if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectTriggers) > 0 && !m_triggerStates.empty())
+				if (bShowTriggers && !triggerInfo.empty())
 				{
-					TriggerCountMap triggerCounts;
+					float const triggerTextColor[4] = { 0.1f, 0.7f, 0.1f, 0.9f };
 
-					for (auto const& triggerStatesPair : m_triggerStates)
+					for (auto const& debugText : triggerInfo)
 					{
-						++(triggerCounts[triggerStatesPair.second.audioTriggerId]);
-					}
+						auxGeom.Draw2dLabel(
+							screenPos.x,
+							screenPos.y + offsetOnY,
+							fontSize,
+							triggerTextColor,
+							false,
+							"%s",
+							debugText.c_str());
 
-					for (auto const& triggerCountsPair : triggerCounts)
-					{
-						CATLTrigger const* const pTrigger = stl::find_in_map(triggers, triggerCountsPair.first, nullptr);
-
-						if (pTrigger != nullptr)
-						{
-							char const* const szTriggerName = pTrigger->m_name.c_str();
-							CryFixedStringT<MaxControlNameLength> lowerCaseTriggerName(szTriggerName);
-							lowerCaseTriggerName.MakeLower();
-							bool const bDraw = (lowerCaseSearchString.empty() || (lowerCaseSearchString == "0")) || (lowerCaseTriggerName.find(lowerCaseSearchString) != CryFixedStringT<MaxControlNameLength>::npos);
-
-							if (bDraw)
-							{
-								float const triggerTextColor[4] = { 0.1f, 0.7f, 0.1f, 0.9f };
-								CryFixedStringT<MaxMiscStringLength> debugText;
-								size_t const numInstances = triggerCountsPair.second;
-
-								if (numInstances == 1)
-								{
-									debugText.Format("%s\n", pTrigger->m_name.c_str());
-								}
-								else
-								{
-									debugText.Format("%s: %" PRISIZE_T "\n", pTrigger->m_name.c_str(), numInstances);
-								}
-
-								auxGeom.Draw2dLabel(
-									screenPos.x,
-									screenPos.y + offsetOnY,
-									fontSize,
-									triggerTextColor,
-									false,
-									"%s",
-									debugText.c_str());
-
-								offsetOnY += lineHeight;
-							}
-						}
+						offsetOnY += lineHeight;
 					}
 				}
 
-				if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::DrawObjectStandaloneFiles) > 0 && !m_activeStandaloneFiles.empty())
+				if (bShowStandaloneFiles && !standaloneFileInfo.empty())
 				{
-					std::map<CHashedString, size_t> numStandaloneFiles;
-					for (auto const& standaloneFilePair : m_activeStandaloneFiles)
+					float const standalonFileTextColor[4] = { 0.9f, 0.9f, 0.0f, 0.9f };
+
+					for (auto const& debugText : standaloneFileInfo)
 					{
-						++(numStandaloneFiles[standaloneFilePair.first->m_hashedFilename]);
-					}
+						auxGeom.Draw2dLabel(
+							screenPos.x,
+							screenPos.y + offsetOnY,
+							fontSize,
+							standalonFileTextColor,
+							false,
+							"%s",
+							debugText.c_str());
 
-					for (auto const& numInstancesPair : numStandaloneFiles)
-					{
-						char const* const szStandaloneFileName = numInstancesPair.first.GetText().c_str();
-						CryFixedStringT<MaxControlNameLength> lowerCaseStandaloneFileName(szStandaloneFileName);
-						lowerCaseStandaloneFileName.MakeLower();
-						bool const bDraw = (lowerCaseSearchString.empty() || (lowerCaseSearchString == "0")) || (lowerCaseStandaloneFileName.find(lowerCaseSearchString) != CryFixedStringT<MaxControlNameLength>::npos);
-
-						if (bDraw)
-						{
-							CryFixedStringT<MaxMiscStringLength> debugText;
-							size_t const numInstances = numInstancesPair.second;
-
-							if (numInstances == 1)
-							{
-								debugText.Format("%s\n", numInstancesPair.first.GetText().c_str());
-							}
-							else
-							{
-								debugText.Format("%s: %" PRISIZE_T "\n", numInstancesPair.first.GetText().c_str(), numInstances);
-							}
-
-							float const standalonFileTextColor[4] = { 0.9f, 0.9f, 0.0f, 0.9f };
-
-							auxGeom.Draw2dLabel(
-								screenPos.x,
-								screenPos.y + offsetOnY,
-								fontSize,
-								standalonFileTextColor,
-								false,
-								"%s",
-								debugText.c_str());
-
-							offsetOnY += lineHeight;
-						}
+						offsetOnY += lineHeight;
 					}
 				}
 
-				if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectStates) > 0 && !m_switchStates.empty())
+				if (bShowStates && !switchStateInfo.empty())
 				{
-					Vec3 switchPos(screenPos);
-
-					for (auto const& switchStatePair : m_switchStates)
+					for (auto const switchStatePair : switchStateInfo)
 					{
-						CATLSwitch const* const pSwitch = stl::find_in_map(switches, switchStatePair.first, nullptr);
+						auto const pSwitch = switchStatePair.first;
+						auto const pSwitchState = switchStatePair.second;
 
-						if (pSwitch != nullptr)
-						{
-							CATLSwitchState const* const pSwitchState = stl::find_in_map(pSwitch->audioSwitchStates, switchStatePair.second, nullptr);
+						CStateDebugDrawData& drawData = m_stateDrawInfoMap.emplace(std::piecewise_construct, std::forward_as_tuple(pSwitch->GetId()), std::forward_as_tuple(pSwitchState->GetId())).first->second;
+						drawData.Update(pSwitchState->GetId());
+						float const switchTextColor[4] = { 0.8f, 0.3f, 0.6f, drawData.m_currentAlpha };
 
-							if (pSwitchState != nullptr)
-							{
-								if (!pSwitch->m_name.empty() && !pSwitchState->m_name.empty())
-								{
-									char const* const szSwitchName = pSwitch->m_name.c_str();
-									CryFixedStringT<MaxControlNameLength> lowerCaseSwitchName(szSwitchName);
-									lowerCaseSwitchName.MakeLower();
-									char const* const szStateName = pSwitchState->m_name.c_str();
-									CryFixedStringT<MaxControlNameLength> lowerCaseStateName(szStateName);
-									lowerCaseStateName.MakeLower();
-									bool const bDraw = (lowerCaseSearchString.empty() ||
-										(lowerCaseSearchString == "0")) ||
-										(lowerCaseSwitchName.find(lowerCaseSearchString) != CryFixedStringT<MaxControlNameLength>::npos) ||
-										(lowerCaseStateName.find(lowerCaseSearchString) != CryFixedStringT<MaxControlNameLength>::npos);
+						auxGeom.Draw2dLabel(
+							screenPos.x,
+							screenPos.y + offsetOnY,
+							fontSize,
+							switchTextColor,
+							false,
+							"%s: %s\n",
+							pSwitch->m_name.c_str(),
+							pSwitchState->m_name.c_str());
 
-									if (bDraw)
-									{
-										CStateDebugDrawData& drawData = m_stateDrawInfoMap.emplace(std::piecewise_construct, std::forward_as_tuple(pSwitch->GetId()), std::forward_as_tuple(pSwitchState->GetId())).first->second;
-										drawData.Update(pSwitchState->GetId());
-										float const switchTextColor[4] = { 0.8f, 0.3f, 0.6f, drawData.m_currentAlpha };
-
-										auxGeom.Draw2dLabel(
-											switchPos.x,
-											switchPos.y + offsetOnY,
-											fontSize,
-											switchTextColor,
-											false,
-											"%s: %s\n",
-											pSwitch->m_name.c_str(),
-											pSwitchState->m_name.c_str());
-
-										offsetOnY += lineHeight;
-									}
-								}
-							}
-						}
+						offsetOnY += lineHeight;
 					}
 				}
 
-				if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectParameters) > 0 && !m_parameters.empty())
+				if (bShowParameters && !parameterInfo.empty())
 				{
-					Vec3 parameterPos(screenPos);
+					static float const parameterTextColor[4] = { 0.4f, 0.4f, 1.0f, 1.0f };
 
-					for (auto const& parameterPair : m_parameters)
+					for (auto const& parameterPair : parameterInfo)
 					{
-						CParameter const* const pParameter = stl::find_in_map(parameters, parameterPair.first, nullptr);
+						auxGeom.Draw2dLabel(
+							screenPos.x,
+							screenPos.y + offsetOnY,
+							fontSize,
+							parameterTextColor,
+							false,
+							"%s: %2.2f\n",
+							parameterPair.first,
+							parameterPair.second);
 
-						if (pParameter != nullptr)
-						{
-							char const* const szParameterName = pParameter->m_name.c_str();
-							CryFixedStringT<MaxControlNameLength> lowerCaseParameterName(szParameterName);
-							lowerCaseParameterName.MakeLower();
-							bool const bDraw = (lowerCaseSearchString.empty() || (lowerCaseSearchString == "0")) || (lowerCaseParameterName.find(lowerCaseSearchString) != CryFixedStringT<MaxControlNameLength>::npos);
-
-							if (bDraw)
-							{
-								static float const parameterTextColor[4] = { 0.4f, 0.4f, 1.0f, 1.0f };
-
-								auxGeom.Draw2dLabel(
-									parameterPos.x,
-									parameterPos.y + offsetOnY,
-									fontSize,
-									parameterTextColor,
-									false,
-									"%s: %2.2f\n",
-									pParameter->m_name.c_str(),
-									parameterPair.second);
-
-								offsetOnY += lineHeight;
-							}
-						}
+						offsetOnY += lineHeight;
 					}
 				}
 
-				if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowObjectEnvironments) > 0 && !m_environments.empty())
+				if (bShowEnvironments && !environmentInfo.empty())
 				{
-					Vec3 envPos(screenPos);
+					static float const environmentTextColor[4] = { 9.0f, 0.5f, 0.0f, 0.7f };
 
-					for (auto const& environmentPair : m_environments)
+					for (auto const& environmentPair : environmentInfo)
 					{
-						CATLAudioEnvironment const* const pEnvironment = stl::find_in_map(environments, environmentPair.first, nullptr);
+						auxGeom.Draw2dLabel(
+							screenPos.x,
+							screenPos.y + offsetOnY,
+							fontSize,
+							environmentTextColor,
+							false,
+							"%s: %.2f\n",
+							environmentPair.first,
+							environmentPair.second);
 
-						if (pEnvironment != nullptr)
-						{
-							char const* const szEnvironmentName = pEnvironment->m_name.c_str();
-							CryFixedStringT<MaxControlNameLength> lowerCaseEnvironmentName(szEnvironmentName);
-							lowerCaseEnvironmentName.MakeLower();
-							bool const bDraw = (lowerCaseSearchString.empty() || (lowerCaseSearchString == "0")) || (lowerCaseEnvironmentName.find(lowerCaseSearchString) != CryFixedStringT<MaxControlNameLength>::npos);
-
-							if (bDraw)
-							{
-								static float const environmentTextColor[4] = { 9.0f, 0.5f, 0.0f, 0.7f };
-
-								auxGeom.Draw2dLabel(
-									envPos.x,
-									envPos.y + offsetOnY,
-									fontSize,
-									environmentTextColor,
-									false,
-									"%s: %.2f\n",
-									pEnvironment->m_name.c_str(),
-									environmentPair.second);
-
-								offsetOnY += lineHeight;
-							}
-						}
+						offsetOnY += lineHeight;
 					}
 				}
 
-				if ((g_cvars.m_drawAudioDebug & EAudioDebugDrawFilter::ShowOcclusionRayLabels) > 0)
+				if (bShowDistance)
+				{
+					static float const distanceTextColor[4] = { 0.9f, 0.9f, 0.9f, 0.9f };
+
+					auxGeom.Draw2dLabel(
+						screenPos.x,
+						screenPos.y + offsetOnY,
+						fontSize,
+						distanceTextColor,
+						false,
+						"Dist: %4.1fm",
+						distance);
+
+					offsetOnY += lineHeight;
+				}
+
+				if (bShowOcclusionRayLabel)
 				{
 					EOcclusionType const occlusionType = m_propagationProcessor.GetOcclusionType();
 					SATLSoundPropagationData propagationData;
 					m_propagationProcessor.GetPropagationData(propagationData);
 
-					CATLAudioObject* const pAudioObject = const_cast<CATLAudioObject*>(this);
-
 					bool const bHasActiveData = HasActiveData(pAudioObject);
-					bool const bIsVirtual = (pAudioObject->GetFlags() & EObjectFlags::Virtual) > 0;
-					bool const bDraw = (g_cvars.m_showActiveAudioObjectsOnly == 0) || (g_cvars.m_showActiveAudioObjectsOnly > 0 && bHasActiveData && !bIsVirtual);
+					bool const bIsVirtual = (pAudioObject->GetFlags() & EObjectFlags::Virtual) != 0;
+					bool const bDraw = (g_cvars.m_showActiveAudioObjectsOnly == 0) || ((g_cvars.m_showActiveAudioObjectsOnly > 0) && bHasActiveData && !bIsVirtual);
 
 					if (bDraw)
 					{
@@ -1323,7 +1429,7 @@ void CATLAudioObject::DrawDebugInfo(
 							screenPos.x,
 							screenPos.y + offsetOnY,
 							fontSize,
-							(occlusionType != EOcclusionType::None && occlusionType != EOcclusionType::Ignore) ? (bIsVirtual ? virtualRayLabelColor : activeRayLabelColor) : ignoredRayLabelColor,
+							((occlusionType != EOcclusionType::None) && (occlusionType != EOcclusionType::Ignore)) ? (bIsVirtual ? virtualRayLabelColor : activeRayLabelColor) : ignoredRayLabelColor,
 							false,
 							"Occl: %3.2f | Type: %s", // Add obstruction again once the engine supports it.
 							propagationData.occlusion,
@@ -1331,6 +1437,11 @@ void CATLAudioObject::DrawDebugInfo(
 
 						offsetOnY += lineHeight;
 					}
+				}
+
+				if (bShowOcclusionRays)
+				{
+					m_propagationProcessor.DrawObstructionRays(auxGeom, m_flags);
 				}
 			}
 		}
@@ -1363,7 +1474,7 @@ void CATLAudioObject::ForceImplementationRefresh(
 
 			if (result != ERequestStatus::Success)
 			{
-				g_logger.Log(ELogType::Warning, "Parameter \"%s\" failed during audio middleware switch on AudioObject \"%s\"", pParameter->m_name.c_str(), m_name.c_str());
+				g_logger.Log(ELogType::Warning, R"(Parameter "%s" failed during audio middleware switch on AudioObject "%s")", pParameter->m_name.c_str(), m_name.c_str());
 			}
 		}
 	}
@@ -1385,7 +1496,7 @@ void CATLAudioObject::ForceImplementationRefresh(
 
 				if (result != ERequestStatus::Success)
 				{
-					g_logger.Log(ELogType::Warning, "SwitchStateImpl \"%s\" : \"%s\" failed during audio middleware switch on AudioObject \"%s\"", pSwitch->m_name.c_str(), pState->m_name.c_str(), m_name.c_str());
+					g_logger.Log(ELogType::Warning, R"(SwitchStateImpl "%s" : "%s" failed during audio middleware switch on AudioObject "%s")", pSwitch->m_name.c_str(), pState->m_name.c_str(), m_name.c_str());
 				}
 			}
 		}
@@ -1404,7 +1515,7 @@ void CATLAudioObject::ForceImplementationRefresh(
 
 			if (result != ERequestStatus::Success)
 			{
-				g_logger.Log(ELogType::Warning, "Environment \"%s\" failed during audio middleware switch on AudioObject \"%s\"", pEnvironment->m_name.c_str(), m_name.c_str());
+				g_logger.Log(ELogType::Warning, R"(Environment "%s" failed during audio middleware switch on AudioObject "%s")", pEnvironment->m_name.c_str(), m_name.c_str());
 			}
 		}
 	}
@@ -1449,7 +1560,7 @@ void CATLAudioObject::ForceImplementationRefresh(
 					}
 					else
 					{
-						g_logger.Log(ELogType::Warning, "TriggerImpl \"%s\" failed during audio middleware switch on AudioObject \"%s\"", pTrigger->m_name.c_str(), m_name.c_str());
+						g_logger.Log(ELogType::Warning, R"(TriggerImpl "%s" failed during audio middleware switch on AudioObject "%s")", pTrigger->m_name.c_str(), m_name.c_str());
 						s_pEventManager->ReleaseEvent(pEvent);
 					}
 				}
@@ -1458,7 +1569,7 @@ void CATLAudioObject::ForceImplementationRefresh(
 			{
 				// The middleware has no connections set up.
 				// Stop the event in this case.
-				g_logger.Log(ELogType::Warning, "No trigger connections found during audio middleware switch for \"%s\" on \"%s\"", pTrigger->m_name.c_str(), m_name.c_str());
+				g_logger.Log(ELogType::Warning, R"(No trigger connections found during audio middleware switch for "%s" on "%s")", pTrigger->m_name.c_str(), m_name.c_str());
 			}
 		}
 		else
@@ -1496,7 +1607,7 @@ void CATLAudioObject::ForceImplementationRefresh(
 			}
 			else
 			{
-				g_logger.Log(ELogType::Warning, "PlayFile failed with \"%s\" on AudioObject \"%s\"", pStandaloneFile->m_hashedFilename.GetText().c_str(), m_name.c_str());
+				g_logger.Log(ELogType::Warning, R"(PlayFile failed with "%s" on AudioObject "%s")", pStandaloneFile->m_hashedFilename.GetText().c_str(), m_name.c_str());
 			}
 		}
 		else

@@ -159,7 +159,7 @@ public:
 protected:
 	virtual void OnInitialize(const UpdateContext& context) override
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		RuntimeData& runtimeData = GetRuntimeData<RuntimeData>(context);
 
@@ -176,7 +176,7 @@ protected:
 
 	virtual void OnTerminate(const UpdateContext& context) override
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		RuntimeData& runtimeData = GetRuntimeData<RuntimeData>(context);
 		runtimeData.UnregisterGoalPipeListener();
@@ -990,7 +990,7 @@ public:
 protected:
 	virtual void OnInitialize(const UpdateContext& context) override
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		assert(m_scriptFunction != NULL);
 
@@ -1302,7 +1302,7 @@ public:
 protected:
 	virtual void OnInitialize(const UpdateContext& context) override
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		RuntimeData& runtimeData = GetRuntimeData<RuntimeData>(context);
 
@@ -1849,7 +1849,7 @@ public:
 protected:
 	virtual Status Update(const UpdateContext& context) override
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 		ExecuteScript(m_scriptFunction, context.entityId);
 		return Success;
 	}
@@ -1909,7 +1909,7 @@ public:
 protected:
 	virtual Status Update(const UpdateContext& context) override
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		IEntity* entity = gEnv->pEntitySystem->GetEntity(context.entityId);
 		IF_UNLIKELY (!entity)
@@ -3489,7 +3489,7 @@ protected:
 
 	virtual Status Update(const UpdateContext& context) override
 	{
-		FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+		CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 		RuntimeData& runtimeData = GetRuntimeData<RuntimeData>(context);
 

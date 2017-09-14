@@ -178,14 +178,12 @@
 
 #include <CrySystem/Scaleform/IFlashUI.h>
 
-#include "SegmentedWorld/SegmentedWorld.h"
-
 #include "LipSync/LipSync_TransitionQueue.h"
 #include "LipSync/LipSync_FacialInstance.h"
 
 #include <CryFlowGraph/IFlowBaseNode.h>
 
-#ifdef _LIB
+#if defined(_LIB) && !defined(DISABLE_LEGACY_GAME_DLL)
 extern "C" IGameStartup* CreateGameStartup();
 #endif //_LIB
 
@@ -212,7 +210,7 @@ static const int s_saveGameFrameDelay = 3; // enough to render enough frames to 
 static const float s_loadSaveDelay = 0.5f;  // Delay between load/save operations.
 
 //////////////////////////////////////////////////////////////////////////
-struct CSystemEventListner_Action : public ISystemEventListener
+struct CSystemEventListener_Action : public ISystemEventListener
 {
 public:
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
@@ -241,7 +239,7 @@ public:
 		}
 	}
 };
-static CSystemEventListner_Action g_system_event_listener_action;
+static CSystemEventListener_Action g_system_event_listener_action;
 
 void CCryAction::DumpMemInfo(const char* format, ...)
 {
@@ -363,7 +361,6 @@ CCryAction::CCryAction()
 	m_pCooperativeAnimationManager(NULL),
 	m_pGameSessionHandler(0),
 	m_pAIProxyManager(0),
-	m_pSegmentedWorld(0),
 	m_pCustomActionManager(0),
 	m_pCustomEventManager(0),
 	m_pPhysicsQueues(0),
@@ -894,6 +891,12 @@ void CCryAction::ConnectCmd(IConsoleCmdArgs* args)
 	params.hostname = tempHost.c_str();
 	params.pContextParams = NULL;
 	params.port = (gEnv->pLobby && gEnv->bMultiplayer) ? gEnv->pLobby->GetLobbyParameters().m_connectPort : pConsole->GetCVar("cl_serverport")->GetIVal();
+
+	if (!CCryAction::GetCryAction()->GetIGameRulesSystem()->GetCurrentGameRules())
+	{
+		params.flags |= eGSF_NoGameRules;
+	}
+
 	GetCryAction()->StartGameContext(&params);
 }
 
@@ -1096,8 +1099,11 @@ void CCryAction::LoadGameCmd(IConsoleCmdArgs* args)
 	if (args->GetArgCount() > 1)
 	{
 		GetCryAction()->NotifyForceFlashLoadingListeners();
-		bool quick = args->GetArgCount() > 2;
-		GetCryAction()->LoadGame(args->GetArg(1), quick);
+
+		const string path = PathUtil::ReplaceExtension(args->GetArg(1), CRY_SAVEGAME_FILE_EXT);
+		const bool quick = args->GetArgCount() > 2;
+
+		GetCryAction()->LoadGame(path.c_str(), quick);
 	}
 	else
 	{
@@ -2106,8 +2112,23 @@ bool CCryAction::InitGame(SSystemInitParams& startupParams)
 
 		if (!hGameDll)
 		{
-			CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "Failed to load the Game DLL! %s", gameDLLName);
-			return false;
+			// workaround to make the legacy game work with the new project system where the dll is in a separate folder
+			char executableFolder[MAX_PATH];
+			char engineRootFolder[MAX_PATH];
+			CryGetExecutableFolder(MAX_PATH, executableFolder);
+			CryFindEngineRootFolder(MAX_PATH, engineRootFolder);
+
+			string newGameDLLPath = string(executableFolder).erase(0, strlen(engineRootFolder));
+
+			newGameDLLPath += gameDLLName;
+
+			hGameDll = CryLoadLibrary(newGameDLLPath.c_str());
+
+			if (!hGameDll)
+			{
+				CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "Failed to load the Game DLL! %s", gameDLLName);
+				return false;
+			}
 		}
 
 		IGameStartup::TEntryFunction CreateGameStartup = (IGameStartup::TEntryFunction)CryGetProcAddress(hGameDll, "CreateGameStartup");
@@ -2119,6 +2140,7 @@ bool CCryAction::InitGame(SSystemInitParams& startupParams)
 		}
 #endif
 
+#if !defined(_LIB) || !defined(DISABLE_LEGACY_GAME_DLL)
 		// create the game startup interface
 		IGameStartup* pGameStartup = CreateGameStartup();
 		if (!pGameStartup)
@@ -2135,6 +2157,7 @@ bool CCryAction::InitGame(SSystemInitParams& startupParams)
 			m_externalGameLibrary.dllHandle = hGameDll;
 			m_externalGameLibrary.pGameStartup = pGameStartup;
 		}
+#endif
 	}
 
 	return m_externalGameLibrary.IsValid();
@@ -2373,11 +2396,6 @@ bool CCryAction::CompleteInit()
 		m_pAIProxyManager = new CAIProxyManager;
 		m_pAIProxyManager->Init();
 	}
-
-#ifdef SEG_WORLD
-	if (!gEnv->IsEditor())
-		m_pSegmentedWorld = new CSegmentedWorld();
-#endif
 
 	// in pure game mode we load the equipment packs from disk
 	// in editor mode, this is done in GameEngine.cpp
@@ -2639,7 +2657,6 @@ void CCryAction::ShutdownEngine()
 
 	SAFE_DELETE(m_pDevMode);
 	SAFE_DELETE(m_pCallbackTimer);
-	SAFE_DELETE(m_pSegmentedWorld);
 
 	CSignalTimer::Shutdown();
 	CRangeSignaling::Shutdown();
@@ -2790,11 +2807,6 @@ bool CCryAction::PreUpdate(bool haveFocus, unsigned int updateFlags)
 
 		const bool bGameWasPaused = bGameIsPaused;
 
-		if (!bGameIsPaused && m_pSegmentedWorld)
-		{
-			m_pSegmentedWorld->Update();
-		}
-
 		bRetRun = m_pSystem->Update(updateFlags, updateLoopPaused);
 #ifdef ENABLE_LW_PROFILERS
 		CRY_PROFILE_SECTION(PROFILE_ACTION, "ActionPreUpdate");
@@ -2812,8 +2824,6 @@ bool CCryAction::PreUpdate(bool haveFocus, unsigned int updateFlags)
 				m_pGameplayRecorder->Update(frameTime);
 
 		{
-			// These things need to be updated in game mode and ai/physics mode
-			gEnv->pGameFramework->GetIPersistantDebug()->Update(gEnv->pTimer->GetFrameTime());
 			CDebugHistoryManager::RenderAll();
 			CCryAction::GetCryAction()->GetTimeOfDayScheduler()->Update();
 		}
@@ -2845,6 +2855,9 @@ bool CCryAction::PreUpdate(bool haveFocus, unsigned int updateFlags)
 			}
 		}
 	}
+
+	// These things need to be updated in game mode and ai/physics mode
+	m_pPersistantDebug->Update(gEnv->pTimer->GetFrameTime());
 
 	m_pActionMapManager->Update();
 
@@ -3022,9 +3035,6 @@ void CCryAction::PostUpdate(bool haveFocus, unsigned int updateFlags)
 
 	if (!bInLevelLoad)
 		m_pGameObjectSystem->PostUpdate(delta);
-
-	if (m_pSegmentedWorld)
-		m_pSegmentedWorld->PostUpdate();
 
 	CRangeSignaling::ref().SetDebug(m_pDebugRangeSignaling->GetIVal() == 1);
 	CRangeSignaling::ref().Update(delta);
@@ -5462,10 +5472,6 @@ void CCryAction::StopNetworkStallTicker()
 
 void CCryAction::GoToSegment(int x, int y)
 {
-	if (m_pSegmentedWorld)
-	{
-		m_pSegmentedWorld->MoveToSegment(x, y);
-	}
 }
 
 // TypeInfo implementations for CryAction

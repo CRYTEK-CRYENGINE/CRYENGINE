@@ -32,6 +32,7 @@ namespace Cry
 				desc.AddMember(&CCapsulePrimitiveComponent::m_density, 'dens', "Density", "Density", "Density of the object, note that this cannot be set at the same time as mass. Both being set to 0 means no physics.", 0.f);
 
 				desc.AddMember(&CCapsulePrimitiveComponent::m_surfaceTypeName, 'surf', "Surface", "Surface Type", "Surface type assigned to this object, determines its physical properties", "");
+				desc.AddMember(&CCapsulePrimitiveComponent::m_bReactToCollisions, 'coll', "ReactToCollisions", "React to Collisions", "Whether the part will react to collisions, or only report them", true);
 			}
 
 			CCapsulePrimitiveComponent() {}

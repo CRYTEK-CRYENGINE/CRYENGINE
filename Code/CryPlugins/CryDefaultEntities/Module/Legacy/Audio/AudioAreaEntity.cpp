@@ -169,7 +169,7 @@ void CAudioAreaEntity::OnResetState()
 	m_pProxy = entity.GetOrCreateComponent<IEntityAudioComponent>();
 
 	// Get properties
-	CryAudio::EnvironmentId const environmentId = CryAudio::StringToId_RunTime(m_environmentName.c_str());
+	CryAudio::EnvironmentId const environmentId = CryAudio::StringToId(m_environmentName.c_str());
 
 	const auto& stateIds = AudioEntitiesUtils::GetObstructionOcclusionStateIds();
 	m_pProxy->SetSwitchState(AudioEntitiesUtils::GetObstructionOcclusionSwitch(), stateIds[IntegralValue(m_occlusionType)]);

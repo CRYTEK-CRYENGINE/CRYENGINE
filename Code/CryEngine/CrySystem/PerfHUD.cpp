@@ -223,7 +223,7 @@ void CPerfHUD::Done()
 //////////////////////////////////////////////////////////////////////////
 void CPerfHUD::Draw()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	if (m_hudState != m_hudLastState)
 	{

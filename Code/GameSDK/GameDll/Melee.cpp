@@ -127,7 +127,7 @@ void CMelee::InitFragmentData()
 //------------------------------------------------------------------------
 void CMelee::Update(float frameTime, uint32 frameId)
 {
-	FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
 	bool remote = false;
 	bool doMelee = false;

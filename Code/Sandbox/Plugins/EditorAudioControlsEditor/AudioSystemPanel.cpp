@@ -11,9 +11,10 @@
 #include "ImplementationManager.h"
 #include "AdvancedTreeView.h"
 
+#include <QSearchBox.h>
+
 // Qt
 #include <QtUtil.h>
-#include <QLineEdit>
 #include <QCheckBox>
 #include <QHeaderView>
 #include <QVBoxLayout>
@@ -73,10 +74,9 @@ CAudioSystemPanel::CAudioSystemPanel()
 
 	QHBoxLayout* pHorizontalLayout = new QHBoxLayout();
 
-	QLineEdit* pNameFilter = new QLineEdit(this);
-	pNameFilter->setAlignment(Qt::AlignLeading | Qt::AlignLeft | Qt::AlignVCenter);
-	pNameFilter->setClearButtonEnabled(true);
-	pHorizontalLayout->addWidget(pNameFilter);
+	QSearchBox* pSearchBox = new QSearchBox(this);
+	pSearchBox->setToolTip(tr("Show only middleware controls with this name"));
+	pHorizontalLayout->addWidget(pSearchBox);
 
 	QCheckBox* pHideAssignedCheckbox = new QCheckBox(this);
 	pHideAssignedCheckbox->setEnabled(true);
@@ -111,13 +111,12 @@ CAudioSystemPanel::CAudioSystemPanel()
 
 	pVerticalLayout->addLayout(pHorizontalLayout);
 
-	pNameFilter->setPlaceholderText(tr("Search"));
 	pHideAssignedCheckbox->setText(tr("Hide Assigned"));
 	pHideAssignedCheckbox->setToolTip(tr("Hide or show assigned middleware controls"));
 
 	m_pModelProxy->setDynamicSortFilter(true);
 
-	connect(pNameFilter, &QLineEdit::textChanged, [&](QString const& filter)
+	connect(pSearchBox, &QSearchBox::textChanged, [&](QString const& filter)
 		{
 			if (m_filter != filter)
 			{
@@ -131,6 +130,11 @@ CAudioSystemPanel::CAudioSystemPanel()
 					m_pModelProxy->setFilterFixedString(filter);
 					m_pTreeView->collapseAll();
 					RestoreTreeViewStates();
+				}
+				else if (!m_filter.isEmpty() && !filter.isEmpty())
+				{
+					m_pModelProxy->setFilterFixedString(filter);
+					m_pTreeView->expandAll();
 				}
 
 				m_filter = filter;

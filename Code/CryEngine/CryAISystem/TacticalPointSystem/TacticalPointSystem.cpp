@@ -451,7 +451,7 @@ int CTacticalPointSystem::SyncQuery(TPSQueryID queryID, const QueryContext& cont
 int CTacticalPointSystem::SyncQueryShortlist
   (TPSQueryID queryID, const QueryContext& context, TTacticalPoints& vPoints, int n)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	CAISystem* pAISystem = GetAISystem();
 	vPoints.clear();
@@ -767,7 +767,7 @@ bool CTacticalPointSystem::ContinueQueryEvaluation(SQueryEvaluation& eval, CTime
 bool CTacticalPointSystem::SetupHeapEvaluation(const std::vector<CCriterion>& vConditions, const std::vector<CCriterion>& vWeights, const QueryContext& context, const std::vector<CTacticalPoint>& vPoints, int n, SQueryEvaluation& eval) const
 {
 	// Do we have proper error handling, when the cheap tests fail? Probably need goto.
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// Note: Points are always currently in consideration, or chosen as results, or rejected, which are all mutually exclusive.
 
@@ -1324,7 +1324,7 @@ WeightFail:
 
 bool CTacticalPointSystem::Generate(const CCriterion& criterion, const QueryContext& context, const COptionCriteria* pOption, TTacticalPoints& accumulator) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// (MATT) Should pOption be a reference, or optional? {2008/04/23}
 	assert(pOption);
@@ -1409,7 +1409,7 @@ bool CTacticalPointSystem::Generate(const CCriterion& criterion, const QueryCont
 bool CTacticalPointSystem::GenerateInternal(TTacticalPointQuery query, const QueryContext& context, float fSearchDist, const COptionCriteria* pOption,
                                             CAIObject* pObject, const Vec3& vObjectPos, CAIObject* pObjectAux, const Vec3& vObjectAuxPos, TTacticalPoints& accumulator) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	CAISystem* pAISystem = GetAISystem();
 
 	// ACTOR HACK
@@ -1426,7 +1426,7 @@ bool CTacticalPointSystem::GenerateInternal(TTacticalPointQuery query, const Que
 	case eTPQ_GO_Hidespots:
 		if (gAIEnv.CVars.CoverSystem)
 		{
-			FRAME_PROFILER("TPS Generate Cover Locations", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_AI, "TPS Generate Cover Locations");
 
 			m_cover.resize(0);
 			gAIEnv.pCoverSystem->GetCover(objPos, fSearchDist, m_cover);
@@ -1446,7 +1446,7 @@ bool CTacticalPointSystem::GenerateInternal(TTacticalPointQuery query, const Que
 
 			if (eyeCount)
 			{
-				FRAME_PROFILER("TPS Generate Cover Locations [GetOcclusion]", gEnv->pSystem, PROFILE_AI);
+				CRY_PROFILE_REGION(PROFILE_AI, "TPS Generate Cover Locations [GetOcclusion]");
 
 				IPersistantDebug* pPD = 0;
 				if (CVars.DebugTacticalPointsBlocked)

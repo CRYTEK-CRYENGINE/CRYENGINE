@@ -474,7 +474,7 @@ void CEntityRender::UpdateRenderNodes()
 //////////////////////////////////////////////////////////////////////////
 void CEntityRender::CheckLocalBoundsChanged()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 
 	bool bBoundsChanged = false;
 	//////////////////////////////////////////////////////////////////////////
@@ -523,7 +523,7 @@ IRenderNode* CEntityRender::GetRenderNode(int nSlot) const
    // cppcheck-suppress passedByValue
    void CRenderProxy::Render_JobEntry( const SRendParams inRenderParams, const SRenderingPassInfo passInfo )
    {
-   FUNCTION_PROFILER( GetISystem(),PROFILE_ENTITY );
+   CRY_PROFILE_FUNCTION(PROFILE_ENTITY );
 
    // Not draw if invalid bounding box.
    if (m_nFlags&(FLAG_HIDDEN|FLAG_BBOX_INVALID))

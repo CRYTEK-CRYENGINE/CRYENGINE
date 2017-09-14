@@ -138,9 +138,6 @@ public:
 	{
 		stack_string filename = UnifyFilename(sResourceFile);
 
-		if (strncmp(filename.c_str(), "editor/", 7) == 0)        // we don't want to track editor directory, on demand loading caused errors
-			return;
-
 		CryAutoLock<CryCriticalSection> lock(m_lock);
 		m_set.insert(filename);
 	}
@@ -1077,16 +1074,6 @@ const char* CCryPak::AdjustFileName(const char* src, char dst[g_nMaxPath], unsig
 		for (it = m_arrMods.rbegin(); it != m_arrMods.rend(); ++it)
 		{
 			CryPathString modPath = (*it).c_str();
-			//FIXME: Used to limit search scope of %ENGINEROOT% mod
-			//Remove test once %ENGINEROOT% is no longer added as a mod
-			if (modPath == "%engineroot%" &&
-				!(filehelpers::CheckPrefix(src, "editor/") ||
-				filehelpers::CheckPrefix(src, "engine/") ||
-				filehelpers::CheckPrefix(src, "editor\\") ||
-				filehelpers::CheckPrefix(src, "engine\\")))
-				continue;
-
-
 			modPath.append(1, '/');
 			modPath += src;
 			const char* szFinalPath = AdjustFileNameInternal(modPath, dst, nFlags | FLAGS_PATH_REAL);
@@ -1234,7 +1221,7 @@ void CCryPak::GetCachedPakCDROffsetSize(const char* szName, uint32& offset, uint
 // given the source relative path, constructs the full path to the file according to the flags
 const char* CCryPak::AdjustFileNameInternal(const char* src, char* dst, unsigned nFlags)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	// in many cases, the path will not be long, so there's no need to allocate so much..
 	// I'd use _alloca, but I don't like non-portable solutions. besides, it tends to confuse new developers. So I'm just using a big enough array
 	char szNewSrc[g_nMaxPath];
@@ -1405,7 +1392,7 @@ bool CCryPak::CopyFileOnDisk(const char* source, const char* dest, bool bFailIfE
 bool CCryPak::IsFileExist(const char* sFilename, EFileSearchLocation fileLocation)
 {
 	// lock-less check
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	char szFullPathBuf[g_nMaxPath];
 
@@ -1450,7 +1437,7 @@ bool CCryPak::IsFileExist(const char* sFilename, EFileSearchLocation fileLocatio
 //////////////////////////////////////////////////////////////////////////
 bool CCryPak::IsFolder(const char* sPath)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	char szFullPathBuf[g_nMaxPath];
 	const char* szFullPath = AdjustFileName(sPath, szFullPathBuf, FOPEN_HINT_QUIET);
@@ -1499,7 +1486,7 @@ ICryPak::SignedFileSize CCryPak::GetFileSizeOnDisk(const char* filename)
 //////////////////////////////////////////////////////////////////////////
 bool CCryPak::IsFileCompressed(const char* filename)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	char fullPathBuf[g_nMaxPath];
 	const char* pFullPath = AdjustFileName(filename, fullPathBuf, FOPEN_HINT_QUIET);
@@ -1819,7 +1806,7 @@ FILE* CCryPak::FOpen(const char* pName, const char* szMode, unsigned nInputFlags
 // the path must be absolute normalized lower-case with forward-slashes
 CCachedFileDataPtr CCryPak::GetFileData(const char* szName, unsigned int& nArchiveFlags)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	CCachedFileData* pResult = 0;
 
@@ -1864,7 +1851,7 @@ bool CCryPak::WillOpenFromPak(const char* szPath)
 // the path must be absolute normalized lower-case with forward-slashes
 ZipDir::FileEntry* CCryPak::FindPakFileEntry(const char* szPath, unsigned int& nArchiveFlags, ZipDir::CachePtr* pZip, bool bSkipInMemoryPaks)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 #if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE
 	// Timur, is it safe?
@@ -1997,7 +1984,7 @@ size_t CCryPak::FGetSize(FILE* hFile)
 size_t CCryPak::FGetSize(const char* sFilename, bool bAllowUseFileSystem)
 {
 	// lock-less GetSize
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	char szFullPathBuf[g_nMaxPath];
 	const char* szFullPath = AdjustFileName(sFilename, szFullPathBuf, FOPEN_HINT_QUIET);

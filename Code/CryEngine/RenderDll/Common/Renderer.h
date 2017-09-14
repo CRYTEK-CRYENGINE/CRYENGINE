@@ -61,6 +61,9 @@ static const char* s_pszAAModes[eAT_AAMODES_COUNT] =
 	"TSAA"
 };
 
+extern uint32 ColorMasks[(ColorMask::Count >> GS_COLMASK_SHIFT)][4];
+extern std::array<uint32, (ColorMask::Count >> GS_COLMASK_SHIFT)> AvailableColorMasks;
+
 struct ShadowMapFrustum;
 struct IStatObj;
 struct SShaderPass;
@@ -813,8 +816,6 @@ public:
 	const Matrix44A& GetPreviousFrameCameraMatrix() const;
 	void             SetPreviousFrameCameraMatrix(const Matrix44A& m);
 
-	virtual void     OffsetPosition(const Vec3& delta) override;
-
 	void             GetPolyCount(int& nPolygons, int& nShadowPolys) override;
 
 	int              GetPolyCount() override;
@@ -1325,7 +1326,6 @@ public:
 	Matrix44A      m_CameraMatrixNearestPrev;           //[RT_COMMAND_BUF_COUNT][2], 16);
 
 	Vec2           m_vProjMatrixSubPixoffset;
-	Vec3           m_vSegmentedWorldOffset;
 
 	byte           m_bDeviceLost;
 	byte           m_bSystemResourcesInit;

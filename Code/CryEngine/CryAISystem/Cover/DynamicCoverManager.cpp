@@ -188,7 +188,7 @@ void DynamicCoverManager::Update(float updateTime)
 void DynamicCoverManager::EntityCoverSampled(EntityId entityID, EntityCoverSampler::ESide side,
                                              const ICoverSystem::SurfaceInfo& surfaceInfo)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	EntityCover::iterator it = m_entityCover.find(entityID);
 	assert(it != m_entityCover.end());
@@ -279,7 +279,7 @@ void DynamicCoverManager::QueueValidation(int index)
 
 void DynamicCoverManager::ValidateOne()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	QueuedValidation& queuedValidation = m_validationQueue.front();
 	assert(queuedValidation.waitingCount == 0);

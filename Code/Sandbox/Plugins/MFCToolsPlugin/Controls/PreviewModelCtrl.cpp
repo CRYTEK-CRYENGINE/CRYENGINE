@@ -43,10 +43,10 @@ CPreviewModelCtrl::CPreviewModelCtrl()
 	CDLight l;
 
 	float L = 1.0f;
-	l.m_fRadius = 10000;
 	l.m_Flags |= DLF_SUN | DLF_DIRECTIONAL;
 	l.SetLightColor(ColorF(L, L, L, 1));
 	l.SetPosition(Vec3(100, 100, 100));
+	l.SetRadius(10000);
 	m_lights.push_back(l);
 
 	m_bUseBacklight = false;
@@ -357,11 +357,11 @@ void CPreviewModelCtrl::UseBackLight(bool bEnable)
 	{
 		m_lights.resize(1);
 		CDLight l;
+		l.m_Flags |= DLF_POINT;
 		l.SetPosition(Vec3(-100, 100, -100));
 		float L = 0.5f;
 		l.SetLightColor(ColorF(L, L, L, 1));
-		l.m_fRadius = 1000;
-		l.m_Flags |= DLF_POINT;
+		l.SetRadius(1000);
 		m_lights.push_back(l);
 	}
 	else

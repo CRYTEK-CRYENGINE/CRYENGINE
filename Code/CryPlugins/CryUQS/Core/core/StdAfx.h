@@ -74,6 +74,7 @@ namespace UQS
 #include "StartupConsistencyChecker.h"
 #include "EditorService.h"
 #include "Utils.h"
+#include "SettingsManager.h"
 #if UQS_SCHEMATYC_SUPPORT
 #include "SchematycSupport.h"
 #endif

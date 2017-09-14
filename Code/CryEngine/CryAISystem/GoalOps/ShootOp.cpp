@@ -111,7 +111,7 @@ void ShootOp::Leave(CPipeUser& pipeUser)
 
 void ShootOp::Update(CPipeUser& pipeUser)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	const CTimeValue& now = gEnv->pTimer->GetFrameStartTime();
 

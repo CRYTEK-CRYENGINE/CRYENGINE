@@ -131,7 +131,7 @@ void CScriptTimerMgr::Reset()
 // Update all managed timers.
 void CScriptTimerMgr::Update(int64 nCurrentTime)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SCRIPT);
+	CRY_PROFILE_FUNCTION(PROFILE_SCRIPT);
 
 	ScriptTimerMapItor itor;
 

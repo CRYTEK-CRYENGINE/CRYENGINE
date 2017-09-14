@@ -29,7 +29,7 @@
 	#define m_nCurThreadProcess 0
 #endif
 
-#define MULTITHREADED_RESOURCE_CREATION
+#undef MULTITHREADED_RESOURCE_CREATION
 
 // Only needed together with render thread.
 struct SRenderThreadLocalStorage
@@ -785,7 +785,7 @@ void SRenderThread::RC_TexBlurAnisotropicVertical(CTexture* Tex, float fAnisoSca
 bool SRenderThread::RC_CreateDeviceTexture(CTexture* pTex, const void* pData[])
 {
 #if !defined(MULTITHREADED_RESOURCE_CREATION)
-	if (IsRenderThread())
+	if (IsLevelLoadingThread() || IsRenderThread())
 #endif
 	{
 		return pTex->RT_CreateDeviceTexture(pData);
@@ -811,7 +811,7 @@ bool SRenderThread::RC_CreateDeviceTexture(CTexture* pTex, const void* pData[])
 bool SRenderThread::RC_CreateDeviceTexture(CTexture* pTex, D3DResource* pNatTex)
 {
 #if !defined(MULTITHREADED_RESOURCE_CREATION)
-	if (IsRenderThread())
+	if (IsLevelLoadingThread() || IsRenderThread())
 #endif
 	{
 		return pTex->RT_CreateDeviceTexture(pNatTex);
@@ -3481,7 +3481,7 @@ void SRenderThread::FlushAndWait()
 	if (IsRenderThread())
 		return;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
 	if (gEnv->pStatoscope)
 		gEnv->pStatoscope->LogCallstack("Flush Render Thread");
@@ -3660,7 +3660,7 @@ void SRenderThread::WaitFlushFinishedCond()
 // Must be executed from render thread
 void SRenderThread::WaitFlushCond()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
 	CTimeValue time = iTimer->GetAsyncTime();
 #ifdef USE_LOCKS_FOR_FLUSH_SYNC

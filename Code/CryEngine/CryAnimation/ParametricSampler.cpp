@@ -1795,7 +1795,7 @@ BC8 SParametricSamplerInternal::GetConvex8(uint32 numPoints, const Vec3& vDesire
 #if !defined(_RELEASE)
 		if ((v0 - v1).GetLength() < 0.01f || (v1 - v2).GetLength() < 0.01f || (v2 - v3).GetLength() < 0.01f || (v3 - v0).GetLength() < 0.01f)
 		{
-			g_pISystem->Warning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_WARNING, VALIDATOR_FLAG_FILE, 0, "CryAnimation: parameters in 3D-Blend-Space are too close: %s", rLMG.GetFilePath());
+			g_pISystem->WarningOnce(VALIDATOR_MODULE_ANIMATION, VALIDATOR_WARNING, VALIDATOR_FLAG_FILE, 0, "CryAnimation: parameters in 3D-Blend-Space are too close: %s", rLMG.GetFilePath());
 		}
 #endif
 

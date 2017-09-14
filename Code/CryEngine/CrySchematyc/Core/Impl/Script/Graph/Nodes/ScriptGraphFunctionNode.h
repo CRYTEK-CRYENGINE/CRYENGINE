@@ -66,7 +66,7 @@ public:
 
 		static void ReflectType(CTypeDesc<SScriptFunctionRuntimeData>& desc);
 
-		uint32       functionIdx;
+		uint32      functionIdx;
 	};
 
 public:
@@ -76,13 +76,14 @@ public:
 
 	// CScriptGraphNodeModel
 	virtual CryGUID GetTypeGUID() const override;
-	virtual void  CreateLayout(CScriptGraphNodeLayout& layout) override;
-	virtual void  Compile(SCompilerContext& context, IGraphNodeCompiler& compiler) const override;
-	virtual void  LoadDependencies(Serialization::IArchive& archive, const ISerializationContext& context) override;
-	virtual void  Save(Serialization::IArchive& archive, const ISerializationContext& context) override;
-	virtual void  Edit(Serialization::IArchive& archive, const ISerializationContext& context) override;
-	virtual void  Validate(Serialization::IArchive& archive, const ISerializationContext& context) override;
-	virtual void  RemapDependencies(IGUIDRemapper& guidRemapper) override;
+	virtual void    CreateLayout(CScriptGraphNodeLayout& layout) override;
+	virtual void    Compile(SCompilerContext& context, IGraphNodeCompiler& compiler) const override;
+	virtual void    LoadDependencies(Serialization::IArchive& archive, const ISerializationContext& context) override;
+	virtual void    Load(Serialization::IArchive& archive, const ISerializationContext& context) override;
+	virtual void    Save(Serialization::IArchive& archive, const ISerializationContext& context) override;
+	virtual void    Edit(Serialization::IArchive& archive, const ISerializationContext& context) override;
+	virtual void    Validate(Serialization::IArchive& archive, const ISerializationContext& context) override;
+	virtual void    RemapDependencies(IGUIDRemapper& guidRemapper) override;
 	// ~CScriptGraphNodeModel
 
 	static void Register(CScriptGraphNodeFactory& factory);
@@ -105,7 +106,7 @@ public:
 private:
 
 	SElementId m_functionId;
-	CryGUID      m_objectGUID;
+	CryGUID    m_objectGUID;
 };
 
 } // Schematyc

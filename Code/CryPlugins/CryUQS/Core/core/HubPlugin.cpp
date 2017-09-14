@@ -69,7 +69,10 @@ namespace UQS
 
 		CHubPlugin::~CHubPlugin()
 		{
-			GetISystem()->GetISystemEventDispatcher()->RemoveListener(this);
+			if (ISystem* pSystem = GetISystem())
+			{
+				pSystem->GetISystemEventDispatcher()->RemoveListener(this);
+			}			
 		}
 
 		const char* CHubPlugin::GetName() const

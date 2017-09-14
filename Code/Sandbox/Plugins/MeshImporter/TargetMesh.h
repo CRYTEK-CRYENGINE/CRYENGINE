@@ -3,7 +3,7 @@
 #pragma once
 
 #include <QAbstractItemModel>
-#include <QTreeView>
+#include <QAdvancedTreeView.h>
 #include <CrySerialization/Forward.h>
 
 class CContentCGF;
@@ -79,7 +79,7 @@ private:
 	std::vector<SItem*> m_rootItems;
 };
 
-class CTargetMeshView : public QTreeView
+class CTargetMeshView : public QAdvancedTreeView
 {
 public:
 	explicit CTargetMeshView(QWidget* pParent = nullptr);

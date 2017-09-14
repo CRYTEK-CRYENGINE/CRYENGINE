@@ -274,7 +274,7 @@ const char* CGameObjectSystem::GetName(ExtensionID id)
 
 void CGameObjectSystem::BroadcastEvent(const SGameObjectEvent& evt)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	//CryLog("BroadcastEvent called");
 

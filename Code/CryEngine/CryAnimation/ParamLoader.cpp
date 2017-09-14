@@ -253,7 +253,7 @@ bool CParamLoader::ExpandWildcards(uint32 listID)
 		uint32 img = g_pCharacterManager->IsInitializedByIMG();
 		if (img & 2 && IsLMG == 0 && IsFSQ == 0)
 		{
-			uint32 crcFolder = CCrc32::ComputeLowercase(szFolder, iPathLength);
+			uint32 crcFolder = CCrc32::ComputeLowercase(szFolder, size_t(iPathLength), 0);
 
 			memset(strAnimName, 0, sizeof(strAnimName));
 

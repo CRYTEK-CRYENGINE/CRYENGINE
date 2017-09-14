@@ -15,7 +15,7 @@ public:
 	// and provide additional information to expose it in the sandbox
 	static void ReflectType(Schematyc::CTypeDesc<CSpawnPointComponent>& desc)
 	{
-		desc.SetGUID("{63F4C0C6-32AF-4ACB-8FB0-57D45DD14725}"_cry_guid);
+		desc.SetGUID("{41316132-8A1E-4073-B0CD-A242FD3D2E90}"_cry_guid);
 		desc.SetEditorCategory("Game");
 		desc.SetLabel("SpawnPoint");
 		desc.SetDescription("This spawn point can be used to spawn entities");

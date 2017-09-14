@@ -1273,7 +1273,7 @@ float CParticle::UpdateAlignment(SParticleState& state, SParticleUpdateContext c
 							avCorner[c].x += ((c & 1) * 2 - 1) * state.m_Loc.s;
 							avCorner[c].y += ((c & 2) - 1) * state.m_Loc.s;
 						}
-						avCorner[c].z = pTerrain->GetZApr(avCorner[c].x, avCorner[c].y, GetDefSID());
+						avCorner[c].z = pTerrain->GetZApr(avCorner[c].x, avCorner[c].y);
 					}
 
 					// Rotate sprite to average normal of quad.
@@ -1519,8 +1519,6 @@ CParticle::~CParticle()
 	{
 		GetPhysicalWorld()->DestroyPhysicalEntity(m_pPhysEnt);
 	}
-
-	GeomRef::Release();
 
 	IF (m_pCollisionInfo, 0)
 	{

@@ -823,7 +823,7 @@ public:
 #ifdef USE_PER_FRAME_CONSTANT_BUFFER_UPDATES
 	static inline void mfSetCB(int eClass, int nSlot, D3DBuffer* pBuffer)
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_RENDERER);
+		CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
 	#ifndef _RELEASE
 		if (nSlot >= CB_NUM)
@@ -858,7 +858,7 @@ public:
 
 	static inline void mfSetCB(int eClass, int nSlot, CConstantBuffer* pBuffer)
 	{
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_RENDERER);
+		CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
 		uint64 code = (pBuffer) ? pBuffer->GetCode() : 0;
 #if !CRY_PLATFORM_ORBIS // having this check breaks rendering on orbis, should be correctly fixed as this is a large optimization
@@ -998,7 +998,7 @@ public:
 
 				{
 					s_pCurReqCB[eSH][nCBufSlot] = s_pCB[eSH][nCBufSlot][nMaxVecs];
-					STALL_PROFILER("set const_buffer");
+					CRY_PROFILE_REGION_WAITING(PROFILE_RENDERER,"set const_buffer");
 #ifdef USE_PER_FRAME_CONSTANT_BUFFER_UPDATES
 					s_pDataCB[eSH][nCBufSlot] = (Vec4*)CDeviceObjectFactory::Map(s_pCurReqCB[eSH][nCBufSlot], 0, 0, 0, D3D11_MAP_WRITE_PER_FRAME);
 #else

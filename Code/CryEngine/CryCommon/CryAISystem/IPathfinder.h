@@ -29,6 +29,7 @@ struct IAIPathAgent;
 #include <CryCore/functor.h>
 #include <CryAISystem/IMNM.h>
 #include <CryAISystem/IAgent.h>
+#include <CryAISystem/NavigationSystem/MNMTile.h>
 
 /* WARNING: These interfaces and structures are soon to be deprecated.
             Use at your own risk of having to change your code later!
@@ -491,6 +492,113 @@ enum EQueuedPathID
 }
 }
 
+
+//===================================================================
+//
+// IMNMCustomPathCostComputer
+//
+// Interface that can optionally be used by the MNM Pathfinder to perform custom cost calculations for path-segments during the pathfinding process.
+// As the MNM Pathfinder can work a-synchronously, care must be taken in regards to which data ComputeCostThreadUnsafe() will access.
+// As a rule-of-thumb, it's best to gather all relevant data by the constructor in the form of a "snapshot" that can then safely be read from by ComputeCostThreadUnsafe().
+//
+//===================================================================
+
+class IMNMCustomPathCostComputer;
+
+typedef std::shared_ptr<IMNMCustomPathCostComputer> MNMCustomPathCostComputerSharedPtr;
+
+class IMNMCustomPathCostComputer
+{
+public:
+
+	enum class EComputationType
+	{
+		Cost,                   // compute the cost it takes to move along the path-segment (-> SComputationOutput::cost)
+		StringPullingAllowed    // compute whether string-pulling is still allowed on given path-segment (-> SComputationOutput::bStringPullingAllowed)
+	};
+	
+	typedef CEnumFlags<EComputationType> ComputationFlags;
+
+	struct SComputationInput
+	{
+		explicit SComputationInput(const ComputationFlags& _computationFlags, const Vec3& _locationComingFrom, const Vec3& _locationGoingTo)
+			: computationFlags(_computationFlags)
+			, locationComingFrom(_locationComingFrom)
+			, locationGoingTo(_locationGoingTo)
+		{}
+
+		const ComputationFlags computationFlags;
+		const Vec3 locationComingFrom;
+		const Vec3 locationGoingTo;
+	};
+
+	struct SComputationOutput
+	{
+		MNM::real_t cost = 0;
+		bool bStringPullingAllowed = true;
+	};
+
+public:
+
+	virtual ~IMNMCustomPathCostComputer() {}
+
+	// CAREFUL: this will get called from a potentially different thread as the MNM pathfinder can work a-synchronously!
+	virtual void ComputeCostThreadUnsafe(const SComputationInput& input, SComputationOutput& output) const = 0;
+
+	//
+	// All instances (of derived classes) shall be created via the MakeShared() method to ensure that the returned shared_ptr has our custom deleter callback injected.
+	// This is to ensure that no matter which DLL deletes the object will always call into the DLL that instantiated this class.
+	// Also, MakeShared() should be called from the main thread as this will then guarentee the derived class's ctor to gather required data at a safe time.
+	//
+
+	// CAREFUL: this is NOT thread-safe and should only be called from the main thread!
+	template <class TDerivedClass, class ... Args>
+	static MNMCustomPathCostComputerSharedPtr MakeShared(Args ... args)
+	{
+#if !defined(_RELEASE)
+		BeingConstructedViaMakeSharedFunction() = true;
+#endif
+		IMNMCustomPathCostComputer* pComputer = new TDerivedClass(args ...);
+		return MNMCustomPathCostComputerSharedPtr(pComputer, DestroyViaOperatorDelete);
+	}
+
+protected:
+
+	// CAREFUL: this is NOT thread-safe! (calls BeingConstructedViaMakeSharedFunction() which is not thread-safe)
+	IMNMCustomPathCostComputer()
+	{
+#if !defined(_RELEASE)
+		CRY_ASSERT_MESSAGE(BeingConstructedViaMakeSharedFunction(), "IMNMCustomPathCostComputer: you should have used MakeShared() to instantiate your class (since it injects the built-in custom deleter to guarantee safe cross-DLL deletion).");
+		BeingConstructedViaMakeSharedFunction() = false;
+#endif
+	}
+
+private:
+
+	// Implicit copy-construction and assignment is not supported to prevent accidentally bypassing MakeShared() when instantiating a derived class.
+	// If the derived class still wants copy-construction and assignment, it shall explicitly implement them on its own.
+	IMNMCustomPathCostComputer(const IMNMCustomPathCostComputer&) = delete;
+	IMNMCustomPathCostComputer(IMNMCustomPathCostComputer&&) = delete;
+	IMNMCustomPathCostComputer& operator=(const IMNMCustomPathCostComputer&) = delete;
+	IMNMCustomPathCostComputer& operator=(IMNMCustomPathCostComputer&&) = delete;
+
+	static void DestroyViaOperatorDelete(IMNMCustomPathCostComputer* pComputerToDelete)
+	{
+		assert(pComputerToDelete);
+		delete pComputerToDelete;
+	}
+
+#if !defined(_RELEASE)
+	// CAREFUL: reading from and writing to the returned reference is NOT thread-safe!
+	static bool& BeingConstructedViaMakeSharedFunction()
+	{
+		static bool flag;
+		return flag;
+	}
+#endif
+};
+
+
 enum EMNMDangers
 {
 	eMNMDangers_None            = 0,
@@ -518,6 +626,7 @@ struct MNMPathRequest
 		, dangersToAvoidFlags(eMNMDangers_None)
 		, beautify(true)
 		, pRequesterEntity(nullptr)
+		, pCustomPathCostComputer(nullptr)
 	{
 
 	}
@@ -537,6 +646,7 @@ struct MNMPathRequest
 		, dangersToAvoidFlags(dangersFlags)
 		, beautify(true)
 		, pRequesterEntity(nullptr)
+		, pCustomPathCostComputer(nullptr)
 	{
 
 	}
@@ -558,6 +668,7 @@ struct MNMPathRequest
 	MNMDangersFlags       dangersToAvoidFlags;
 
 	IEntity*        pRequesterEntity;
+	MNMCustomPathCostComputerSharedPtr pCustomPathCostComputer;  // can be provided by the game code to allow for computing path-finding costs in more ways than just through the built-in "danger areas" (see MNMDangersFlags)
 };
 
 //////////////////////////////////////////////////////////////////////////

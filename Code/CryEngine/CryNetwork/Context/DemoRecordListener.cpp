@@ -364,7 +364,7 @@ void CDemoRecordListener::DoUpdate()
 
 	SCOPED_GLOBAL_LOCK;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	// finish last frame... hacky
 	//while (!m_toSpawn.empty())
@@ -409,7 +409,7 @@ void CDemoRecordListener::DoUpdateObject(const SContextObjectRef& obj, NetworkAs
 {
 	SCOPED_GLOBAL_LOCK;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	IGameContext* pGameContext = m_pContext->GetGameContext();
 

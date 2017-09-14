@@ -1469,9 +1469,11 @@ bool CShaderManBin::ParseBinFX_Global_Annotations(CParserBin& Parser, SParserFra
 			ef->m_Flags2 |= EF2_FORCE_DRAWAFTERWATER;
 			break;
 		case eT_DepthFixup:
+#if !CRY_PLATFORM_ORBIS
 			if (!ef)
 				break;
 			ef->m_Flags2 |= EF2_DEPTH_FIXUP;
+#endif
 			break;
 		case eT_SingleLightPass:
 			if (!ef)
@@ -3656,29 +3658,29 @@ bool CShaderManBin::ParseBinFX_Technique_Pass(CParserBin& Parser, SParserFrame& 
 			break;
 		case eT_ColorWriteEnable:
 			{
-				if (ColorWriteMask == 0xff)
-					ColorWriteMask = 0;
-				uint32 nCur = Parser.m_Data.m_nFirstToken;
-				while (nCur <= Parser.m_Data.m_nLastToken)
+			if (ColorWriteMask == 0xff)
+				ColorWriteMask = 0;
+			uint32 nCur = Parser.m_Data.m_nFirstToken;
+			while (nCur <= Parser.m_Data.m_nLastToken)
+			{
+				uint32 nT = Parser.m_Tokens[nCur++];
+				if (nT == eT_or)
+					continue;
+				if (nT == eT_0)
+					ColorWriteMask |= 0;
+				else if (nT == eT_RED)
+					ColorWriteMask |= 1;
+				else if (nT == eT_GREEN)
+					ColorWriteMask |= 2;
+				else if (nT == eT_BLUE)
+					ColorWriteMask |= 4;
+				else if (nT == eT_ALPHA)
+					ColorWriteMask |= 8;
+				else
 				{
-					uint32 nT = Parser.m_Tokens[nCur++];
-					if (nT == eT_or)
-						continue;
-					if (nT == eT_0)
-						ColorWriteMask |= 0;
-					else if (nT == eT_RED)
-						ColorWriteMask |= 1;
-					else if (nT == eT_GREEN)
-						ColorWriteMask |= 2;
-					else if (nT == eT_BLUE)
-						ColorWriteMask |= 4;
-					else if (nT == eT_ALPHA)
-						ColorWriteMask |= 8;
-					else
-					{
-						Warning("unknown WriteMask parameter '%s' (Skipping)\n", Parser.GetString(eT));
-					}
+					Warning("unknown WriteMask parameter '%s' (Skipping)\n", Parser.GetString(eT));
 				}
+			}
 			}
 			break;
 		case eT_ZFunc:
@@ -3719,10 +3721,19 @@ bool CShaderManBin::ParseBinFX_Technique_Pass(CParserBin& Parser, SParserFrame& 
 	}
 	if (ColorWriteMask != 0xff)
 	{
-		for (int i = 0; i < 4; i++)
+		ColorWriteMask = (~ColorWriteMask) & 0xf;
+		auto it = std::find_if(AvailableColorMasks.cbegin(), AvailableColorMasks.cend(), [ColorWriteMask](const uint32 &bitmask)
 		{
-			if (!(ColorWriteMask & (1 << i)))
-				State |= GS_NOCOLMASK_R << i;
+			return (ColorWriteMask == bitmask);
+		});
+
+		if (it != AvailableColorMasks.cend())
+		{
+			State |= (std::distance(AvailableColorMasks.cbegin(), it) << GS_COLMASK_SHIFT);
+		}
+		else
+		{
+			iLog->LogError("Unsupported/unrecognized ColorWriteMask in shader: %s", Parser.m_pCurShader->m_NameShader.c_str());
 		}
 	}
 
@@ -5214,15 +5225,18 @@ bool STexSamplerRT::Update()
 		uint32 m = (uint32)(gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_RealTime / m_pAnimInfo->m_Time) % (m_pAnimInfo->m_NumAnimTexs);
 		assert(m < (uint32)m_pAnimInfo->m_TexPics.Num());
 
-		if (m_pTex)
+		if (m_pTex != m_pAnimInfo->m_TexPics[m])
 		{
-			m_pTex->Release();
+			if (m_pTex)
+			{
+				m_pTex->Release();
+			}
+
+			m_pTex = m_pAnimInfo->m_TexPics[m];
+			m_pTex->AddRef();
+
+			return true;
 		}
-
-		m_pTex = m_pAnimInfo->m_TexPics[m];
-		m_pTex->AddRef();
-
-		return true;
 	}
 
 	return false;

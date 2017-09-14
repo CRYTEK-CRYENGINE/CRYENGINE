@@ -103,16 +103,17 @@ private: // --------------------------------------------------------------------
 	void        DelayedDelete(CMatInfo* pMat);
 	void        ForceDelayedMaterialDeletion();
 
-	bool        LoadMaterialShader(IMaterial* pMtl, IMaterial* pParentMtl, const char* sShader, uint64 nShaderGenMask, SInputShaderResources& sr, XmlNodeRef& publicsNode, unsigned long nLoadingFlags = 0);
-	bool        LoadMaterialLayerSlot(uint32 nSlot, IMaterial* pMtl, const char* szShaderName, SInputShaderResources& pBaseResources, XmlNodeRef& pPublicsNode, uint8 nLayerFlags);
+	static bool LoadMaterialShader(IMaterial* pMtl, IMaterial* pParentMtl, const char* sShader, uint64 nShaderGenMask, SInputShaderResources& sr, XmlNodeRef& publicsNode, unsigned long nLoadingFlags = 0);
+	static bool LoadMaterialLayerSlot(uint32 nSlot, IMaterial* pMtl, const char* szShaderName, SInputShaderResources& pBaseResources, XmlNodeRef& pPublicsNode, uint8 nLayerFlags);
+	static IMaterial* MakeMaterialFromXml(const char* sMtlName, const char* sMtlFilename, XmlNodeRef node, bool bForcePureChild, uint16 sortPrio = 0, IMaterial* pExistingMtl = 0, unsigned long nLoadingFlags = 0, IMaterial* pParentMtl = 0);
 
-	void        ParsePublicParams(SInputShaderResources& sr, XmlNodeRef paramsNode);
-	const char* UnifyName(const char* sMtlName) const;
+	static void ParsePublicParams(SInputShaderResources& sr, XmlNodeRef paramsNode);
+	static const char* UnifyName(const char* sMtlName);
+
 	// Can be called after material creation and initialization, to inform editor that new material in engine exist.
 	// Only used internally.
 	void       NotifyCreateMaterial(IMaterial* pMtl);
 	// Make a valid material from the XML node.
-	IMaterial* MakeMaterialFromXml(const char* sMtlName, const char* sMtlFilename, XmlNodeRef node, bool bForcePureChild, uint16 sortPrio = 0, IMaterial* pExistingMtl = 0, unsigned long nLoadingFlags = 0, IMaterial* pParentMtl = 0);
 
 	void       FreeAllMaterials();
 

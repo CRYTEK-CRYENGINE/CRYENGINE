@@ -289,7 +289,7 @@ void CFlock::UpdateBoidsViewDistRatio()
 //////////////////////////////////////////////////////////////////////////
 void CFlock::Update( CCamera *pCamera )
 {
-	FUNCTION_PROFILER( GetISystem(),PROFILE_ENTITY );
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY );
 
 	if (!IsFlockActive())
 		return;
@@ -424,7 +424,7 @@ void CFlock::Update( CCamera *pCamera )
 void CFlock::Render(const SRendParams & EntDrawParams)
 {
 	/*
-	FUNCTION_PROFILER( GetISystem(),PROFILE_ENTITY );
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY );
 
 	if (!m_e_flocks)
 		return;

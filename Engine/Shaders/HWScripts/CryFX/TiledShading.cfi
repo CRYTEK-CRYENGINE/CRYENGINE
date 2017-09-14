@@ -97,8 +97,8 @@ Texture2D<float4>                      Fwd_RandomRotations : register(t24);
 Texture2D<float4>                      Fwd_EnvironmentBRDF : register(t40);
 
 #if FEATURE_SVO_GI
-Texture2D<float4>                      Fwd_GiDiffuseRT : register(t25);
-Texture2D<float4>                      Fwd_GiSpecularRT : register(t26);
+Texture2D<float4>                      Fwd_GiDiffuseRT : register(t46);
+Texture2D<float4>                      Fwd_GiSpecularRT : register(t47);
 float4 ForwGiIntegrationMode : PB_SvoParams4;
 #endif
 

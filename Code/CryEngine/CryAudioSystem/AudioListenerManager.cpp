@@ -37,10 +37,15 @@ void CAudioListenerManager::Init(Impl::IImpl* const pIImpl)
 			pListener->m_pImplData = m_pIImpl->ConstructListener(pListener->m_name.c_str());
 #else
 			pListener->m_pImplData = m_pIImpl->ConstructListener();
-#endif // INCLUDE_AUDIO_PRODUCTION_CODE
-			
+#endif  // INCLUDE_AUDIO_PRODUCTION_CODE
+
 			pListener->HandleSetTransformation(pListener->Get3DAttributes().transformation);
 		}
+	}
+	else
+	{
+		// Create a default listener for early functionality.
+		CreateListener("DefaultListener");
 	}
 }
 
@@ -71,7 +76,14 @@ CATLListener* CAudioListenerManager::CreateListener(char const* const szName /*=
 	if (!m_activeListeners.empty())
 	{
 		// Currently only one listener supported!
-		return m_activeListeners.front();
+		CATLListener* const pListener = m_activeListeners.front();
+
+#if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
+		// Update name, TODO: needs reconstruction with the middleware in order to update it as well.
+		pListener->m_name = szName;
+#endif // INCLUDE_AUDIO_PRODUCTION_CODE
+
+		return pListener;
 	}
 
 	CATLListener* const pListener = new CATLListener(m_pIImpl->ConstructListener(szName));
@@ -135,4 +147,4 @@ char const* CAudioListenerManager::GetActiveListenerName() const
 	return nullptr;
 }
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
-} // namespace CryAudio
+}      // namespace CryAudio

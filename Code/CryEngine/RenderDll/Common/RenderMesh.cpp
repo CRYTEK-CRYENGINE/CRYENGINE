@@ -53,7 +53,7 @@ namespace
 
 	static inline void RelinkTail(util::list<CRenderMesh>& instance, util::list<CRenderMesh>& list)
 	{
-		CConditionalLock lock(CRenderMesh::m_sLinkLock, !gRenDev->m_pRT->IsRenderThread());
+		CConditionalLock lock(CRenderMesh::m_sLinkLock, !(gRenDev->m_pRT->IsMultithreaded() && gRenDev->m_pRT->IsRenderThread()));
 		instance.relink_tail(&list);
 	}
 
@@ -123,11 +123,11 @@ namespace
 			{
 				s_MeshPool.m_MeshPoolCS.Unlock();
 				// Clean up the stale mesh temporary data - and do it from the main thread.
-				if (gRenDev->m_pRT->IsMainThread() && CRenderMesh::ClearStaleMemory(false,gRenDev->m_RP.m_nFillThreadID))
+				if (gRenDev->m_pRT->IsMainThread() && CRenderMesh::ClearStaleMemory(true, gRenDev->m_RP.m_nFillThreadID))
 				{
 					goto try_again;
 				}
-				else if (gRenDev->m_pRT->IsRenderThread() && CRenderMesh::ClearStaleMemory(false,gRenDev->m_RP.m_nProcessThreadID))
+				else if (gRenDev->m_pRT->IsRenderThread() && CRenderMesh::ClearStaleMemory(true, gRenDev->m_RP.m_nProcessThreadID))
 				{
 					goto try_again;
 				}
@@ -588,7 +588,7 @@ SMeshStream* CRenderMesh::GetVertexStream(int nStream, uint32 nFlags)
 
 void *CRenderMesh::LockVB(int nStream, uint32 nFlags, int nOffset, int nVerts, int *nStride, bool prefetchIB, bool inplaceCachePos)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
   MEMORY_SCOPE_CHECK_HEAP();
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMeshType, 0, this->GetTypeName());
@@ -745,7 +745,7 @@ lSysUpdate:
 
 vtx_idx *CRenderMesh::LockIB(uint32 nFlags, int nOffset, int nInds)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
   MEMORY_SCOPE_CHECK_HEAP();
   byte *pD;
@@ -1003,7 +1003,7 @@ void CRenderMesh::UnlockIndexStream()
 bool CRenderMesh::CopyStreamToSystemForUpdate(SMeshStream& MS, size_t nSize)
 {
   MEMORY_SCOPE_CHECK_HEAP();
-  FUNCTION_PROFILER_RENDERER;  
+  FUNCTION_PROFILER_RENDERER();  
   SREC_AUTO_LOCK(m_sResLock);
   if (!MS.m_pUpdateData)
 	{
@@ -3522,47 +3522,22 @@ static void BlendWeights(DualQuat& dq, Array<const DualQuat> aBoneLocs, const Jo
 	dq.Normalize();
 }
 
-struct PosNormData
-{
-	strided_pointer<Vec3> aPos;
-	strided_pointer<SVF_P3S_N4B_C4B_T2S> aVert;
-	strided_pointer<SPipQTangents> aQTan;
-	strided_pointer<SPipTangents> aTan2;
-
-	void GetPosNorm(PosNorm& ran, int nV)
-	{
-		// Position
-		ran.vPos = aPos[nV];
-
-		// Normal
-		if (aQTan.data)
-			ran.vNorm = aQTan[nV].GetN();
-		else if (aTan2.data)
-			ran.vNorm = aTan2[nV].GetN();
-		else if (aVert.data)
-			ran.vNorm = aVert[nV].normal.GetN();
-	}
-};
-
 // To do: replace with VSF_MORPHBUDDY support
 #define SKIN_MORPHING 0
 
-struct SkinnedPosNormData: PosNormData
+struct PosNormData
 {
-	SSkinningData const* pSkinningData;
-
+	Array<PosNorm> aPosNorms;
+	// Skinning data
+	SSkinningData const* pSkinningData = 0;
 #if SKIN_MORPHING
 	strided_pointer<SVF_P3F_P3F_I4B> aMorphing;
 #endif
-
 	strided_pointer<SVF_W4B_I4S> aSkinning;
-
-	SkinnedPosNormData() : pSkinningData(nullptr) {}
 
 	void GetPosNorm(PosNorm& ran, int nV)
 	{
-		PosNormData::GetPosNorm(ran, nV);
-
+		ran = aPosNorms[nV];
 	#if SKIN_MORPHING
 		if (aShapeDeform && aMorphing)
 		{
@@ -3597,18 +3572,68 @@ struct SkinnedPosNormData: PosNormData
 
 float CRenderMesh::GetExtent(EGeomForm eForm)
 {
-	if (eForm == GeomForm_Vertices)
-		return (float)m_nVerts;
 	CGeomExtent& ext = m_Extents.Make(eForm);
 	if (!ext)
 	{
 		LockForThreadAccess();
 
-		vtx_idx *pInds = GetIndexPtr(FSL_READ);
-		strided_pointer<Vec3> aPos;
-		aPos.data = (Vec3*)GetPosPtr(aPos.iStride, FSL_READ);
-		if (pInds && aPos.data)
+		// Possible vertex data streams
+		vtx_idx*                       pInds = GetIndexPtr(FSL_READ);
+		strided_pointer<Vec3>          aPos;
+		strided_pointer<Vec3f16>       aPosH;
+		strided_pointer<SPipNormal>    aNorm;
+		strided_pointer<UCol>          aNormB;
+		strided_pointer<SPipQTangents> aQTan;
+		strided_pointer<SPipTangents>  aTan2;
+
+		// Check position streams
+		if (m_eVF == EDefaultInputLayouts::P3S_C4B_T2S || m_eVF == EDefaultInputLayouts::P3S_N4B_C4B_T2S)
+			GetStridedArray(aPosH, VSF_GENERAL, SInputLayout::eOffset_Position);
+		else
+			GetStridedArray(aPos, VSF_GENERAL, SInputLayout::eOffset_Position);
+
+		// Check normal streams
+		bool bNormals = GetStridedArray(aNormB, VSF_GENERAL, SInputLayout::eOffset_Normal)
+		             || GetStridedArray(aNorm, VSF_NORMALS)
+		             || GetStridedArray(aQTan, VSF_QTANGENTS)
+		             || GetStridedArray(aTan2, VSF_TANGENTS);
+
+		if (pInds && (aPos || aPosH) && bNormals)
 		{
+			// Cache decompressed vertex data
+			m_PosNorms.resize(m_nVerts);
+			if (aPos)
+			{
+				for (int n = 0; n < m_nVerts; ++n)
+					m_PosNorms[n].vPos = aPos[n];
+			}
+			else if (aPosH)
+			{
+				for (int n = 0; n < m_nVerts; ++n)
+					m_PosNorms[n].vPos = aPosH[n].ToVec3();
+			}
+
+			if (aNorm)
+			{
+				for (int n = 0; n < m_nVerts; ++n)
+					m_PosNorms[n].vNorm = aNorm[n].GetN();
+			}
+			else if (aNormB)
+			{
+				for (int n = 0; n < m_nVerts; ++n)
+					m_PosNorms[n].vNorm = aNormB[n].GetN();
+			}
+			else if (aQTan)
+			{
+				for (int n = 0; n < m_nVerts; ++n)
+					m_PosNorms[n].vNorm = aQTan[n].GetN();
+			}
+			else if (aTan2)
+			{
+				for (int n = 0; n < m_nVerts; ++n)
+					m_PosNorms[n].vNorm = aTan2[n].GetN();
+			}
+
 			// Iterate chunks to track renderable verts
 			bool* aValidVerts = new bool[m_nVerts];
 			memset(aValidVerts, 0, m_nVerts);
@@ -3631,33 +3656,32 @@ float CRenderMesh::GetExtent(EGeomForm eForm)
 				int aIndices[3];
 				Vec3 aVec[3];
 				for (int v = TriIndices(aIndices, i, eForm)-1; v >= 0; v--)
-					aVec[v] = aPos[ pInds[aIndices[v]] ];
+					aVec[v] = m_PosNorms[ pInds[aIndices[v]] ].vPos;
 				ext.AddPart( aValidVerts[ pInds[aIndices[0]] ] ? max(TriExtent(eForm, aVec, vCenter), 0.f) : 0.f );
 			}
 			delete[] aValidVerts;
 		}
 
 		UnlockStream(VSF_GENERAL);
+		UnlockStream(VSF_NORMALS);
+		UnlockStream(VSF_QTANGENTS);
+		UnlockStream(VSF_TANGENTS);
 		UnlockIndexStream();
 		UnLockForThreadAccess();
 	}
 	return ext.TotalExtent();
 }
 
-void CRenderMesh::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm, SSkinningData const* pSkinning)
+void CRenderMesh::GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm, SSkinningData const* pSkinning)
 {
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 	LockForThreadAccess();
 
-	SkinnedPosNormData vdata;
-	if (vdata.aPos.data = (Vec3*)GetPosPtr(vdata.aPos.iStride, FSL_READ))
+	vtx_idx* pInds = GetIndexPtr(FSL_READ);
+	if (pInds && m_PosNorms.size())
 	{
-		// Check possible sources for normals.
-		if (_GetVertexFormat() != EDefaultInputLayouts::P3S_N4B_C4B_T2S || !GetStridedArray(vdata.aVert, VSF_GENERAL))
-			if (!GetStridedArray(vdata.aQTan, VSF_QTANGENTS))
-				GetStridedArray(vdata.aTan2, VSF_TANGENTS);
-
-		vtx_idx* pInds = GetIndexPtr(FSL_READ);
-
+		PosNormData vdata;
+		vdata.aPosNorms = m_PosNorms;
 		if (vdata.pSkinningData = pSkinning)
 		{
 			GetStridedArray(vdata.aSkinning, VSF_HWSKIN_INFO);
@@ -3670,41 +3694,60 @@ void CRenderMesh::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm, SSk
 		if (eForm == GeomForm_Vertices)
 		{
 			if (m_nInds == 0)
-				ran.zero();
+				return points.fill(ZERO);
 			else
 			{
-				int nIndex = seed.GetRandom(0U, m_nInds - 1);
-				vdata.GetPosNorm(ran, pInds[nIndex]);
+				for (auto& ran : points)
+				{
+					int nIndex = seed.GetRandom(0U, m_nInds - 1);
+					vdata.GetPosNorm(ran, pInds[nIndex]);
+				}
 			}
 		}
 		else
 		{
 			CGeomExtent const& extent = m_Extents[eForm];
 			if (!extent.NumParts())
-				ran.zero();
+				return points.fill(ZERO);
 			else
 			{
-				int aIndices[3];
-				int nPart = extent.RandomPart(seed);
-				int nVerts = TriIndices(aIndices, nPart, eForm);
-				static float c = 1.0f;
-				Vec3 vCenter = (m_vBoxMin + m_vBoxMax) * 0.5f * c;
+				Vec3 vCenter = (m_vBoxMin + m_vBoxMax) * 0.5f;
+				for (auto& ran : points)
+				{
+					int nPart = extent.RandomPart(seed);
+					int aIndices[3];
+					int nVerts = TriIndices(aIndices, nPart, eForm);
 
-				// Offset verts by center, for better volume generation.
-				// Extract vertices, blend.
-				PosNorm aRan[3];
-				while (--nVerts >= 0)
-					vdata.GetPosNorm(aRan[nVerts], pInds[aIndices[nVerts]]);
-				TriRandomPos(ran, seed, eForm, aRan, vCenter, true);
+					// Extract vertices, blend.
+					PosNorm aRan[3];
+					while (--nVerts >= 0)
+						vdata.GetPosNorm(aRan[nVerts], pInds[aIndices[nVerts]]);
+					TriRandomPos(ran, seed, eForm, aRan, vCenter, true);
+
+					// Temporary fix for bad skinning data
+					if (pSkinning)
+					{
+						if (!IsValid(ran.vPos) || AABB(m_vBoxMin, m_vBoxMax).GetDistanceSqr(ran.vPos) > 100)
+							ran.vPos = vCenter;
+						if (!IsValid(ran.vNorm))
+							ran.vNorm = Vec3(0, 0, 1);
+					}
+					else
+					{
+						assert(IsValid(ran.vPos) && IsValid(ran.vNorm));
+						assert(AABB(m_vBoxMin, m_vBoxMax).GetDistanceSqr(ran.vPos) < 100);
+					}
+				}
 			}
 		}
 	}
 
 	UnLockForThreadAccess();
-	UnlockStream(VSF_GENERAL);
-	UnlockStream(VSF_QTANGENTS);
-	UnlockStream(VSF_TANGENTS);
+	UnlockIndexStream();
 	UnlockStream(VSF_HWSKIN_INFO);
+	#if SKIN_MORPHING
+		UnlockStream(VSF_HWSKIN_SHAPEDEFORM_INFO);
+	#endif
 }
 
 int CRenderChunk::Size() const
@@ -4002,13 +4045,13 @@ void CRenderMesh::PrintMeshLeaks()
 	}
 }
 
-bool CRenderMesh::ClearStaleMemory(bool bLocked, int threadId)
+bool CRenderMesh::ClearStaleMemory(bool bAcquireLock, int threadId)
 {
   MEMORY_SCOPE_CHECK_HEAP();
-  FUNCTION_PROFILER(gEnv->pSystem, PROFILE_RENDERER);
+  CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 	bool cleared = false; 
 	bool bKeepSystem = false; 
-	CConditionalLock lock(m_sLinkLock, !bLocked);
+	CConditionalLock lock(m_sLinkLock, bAcquireLock);
 	// Clean up the stale mesh temporary data
   for (util::list<CRenderMesh>* iter=s_MeshDirtyList[threadId].next, *pos=iter->next; iter != &s_MeshDirtyList[threadId]; iter=pos, pos=pos->next)
   {
@@ -4060,11 +4103,11 @@ bool CRenderMesh::ClearStaleMemory(bool bLocked, int threadId)
 	return cleared;
 }
 
-void CRenderMesh::UpdateModifiedMeshes(bool bLocked, int threadId)
+void CRenderMesh::UpdateModifiedMeshes(bool bAcquireLock, int threadId)
 {
   MEMORY_SCOPE_CHECK_HEAP();
-  FUNCTION_PROFILER(gEnv->pSystem, PROFILE_RENDERER);
-	CConditionalLock lock(m_sLinkLock, !bLocked);
+  CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
+	CConditionalLock lock(m_sLinkLock, bAcquireLock);
 	// Update device buffers on modified meshes
 	for (util::list<CRenderMesh>* iter=s_MeshModifiedList[threadId].next, *pos=iter->next; iter != &s_MeshModifiedList[threadId]; iter=pos, pos=pos->next)
 	{
@@ -4100,15 +4143,15 @@ void CRenderMesh::UpdateModified()
 	ASSERT_IS_RENDER_THREAD(pRT);
 	const int threadId = gRenDev->m_RP.m_nProcessThreadID; 
 
-	// Call the update and clear functions with bLocked == true even if the lock
-	// was previously released in the above scope. The resasoning behind this is
-	// that only the renderthread can access the below lists as they are double
-	// buffered. Note: As the Lock/Unlock functions can come from the mainthread
-	// and from any other thread, they still have guarded against contention!
+	// Call the update and clear functions with bAcquireLock == false even if the lock
+	// was previously released in the above scope. The reasoning behind this is
+	// that only the render thread can access the below lists as they are double
+	// buffered. Note: As the Lock/Unlock functions can come from the main thread
+	// and from any other thread, they still have to be guarded against contention!
 	// The only exception to this is if we have no render thread, as there is no
 	// double buffering in that case - so always lock.
 
-	UpdateModifiedMeshes(pRT->IsMultithreaded(), threadId);
+	UpdateModifiedMeshes(!pRT->IsMultithreaded(), threadId);
 
 }
 
@@ -4142,13 +4185,13 @@ void CRenderMesh::Tick(uint numFrames)
 		s_MeshPool.m_MeshInstancePool->Cleanup();
 	}
 
-	// Call the clear functions with bLocked == true even if the lock
-	// was previously released in the above scope. The resasoning behind this is
-	// that only the renderthread can access the below lists as they are double
-	// buffered. Note: As the Lock/Unlock functions can come from the mainthread
-	// and from any other thread, they still have guarded against contention!
+	// Call the clear functions with bAcquireLock == false even if the lock
+	// was previously released in the above scope. The reasoning behind this is
+	// that only the render thread can access the below lists as they are double
+	// buffered. Note: As the Lock/Unlock functions can come from the main thread
+	// and from any other thread, they still have to be guarded against contention!
 
-	ClearStaleMemory(true, threadId);
+	ClearStaleMemory(false, threadId);
 }
 
 void CRenderMesh::Initialize()
@@ -4324,7 +4367,7 @@ bool CRenderMesh::SyncAsyncUpdate(int threadID, bool block)
 	SREC_AUTO_LOCK(m_sResLock); 
 	if (m_asyncUpdateStateCounter[threadID]) 
 	{
-		FRAME_PROFILER("CRenderMesh::SyncAsyncUpdate() sync", gEnv->pSystem,PROFILE_RENDERER);
+		CRY_PROFILE_REGION(PROFILE_RENDERER, "CRenderMesh::SyncAsyncUpdate() sync");
 		int iter = 0;
 		while (m_asyncUpdateState[threadID])
 		{
@@ -4764,7 +4807,7 @@ void CRenderMesh::Render(CRenderObject* pObj, const SRenderingPassInfo& passInfo
 	if (!pMaterial || !m_nVerts || !m_nInds || m_Chunks.empty() || (m_nFlags & FRM_ALLOCFAILURE) != 0)
 		return;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
 	IF(!CanRender(), 0)
 	return;

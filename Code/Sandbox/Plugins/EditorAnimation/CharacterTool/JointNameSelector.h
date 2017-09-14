@@ -10,7 +10,7 @@ class QLineEdit;
 class QModelIndex;
 class QStandardItemModel;
 class QString;
-class QTreeView;
+class QAdvancedTreeView;
 class QWidget;
 struct IDefaultSkeleton;
 
@@ -28,7 +28,7 @@ protected slots:
 protected:
 	bool  eventFilter(QObject* obj, QEvent* event);
 private:
-	QTreeView*             m_tree;
+	QAdvancedTreeView*     m_tree;
 	QStandardItemModel*    m_model;
 	QDeepFilterProxyModel* m_filterModel;
 	QLineEdit*             m_filterEdit;

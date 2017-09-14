@@ -4,17 +4,9 @@
 #include "ComputeRenderPass.h"
 #include "DriverD3D.h"
 
-bool CComputeRenderPass::OnResourceInvalidated(void* pThis, uint32 flags) 
-{
-	reinterpret_cast<CComputeRenderPass*>(pThis)->m_dirtyMask |= eDirty_Resources;
-	// Don't keep the callback when the resource goes out of scope
-	return !(flags & eResourceDestroyed);
-}
-
 CComputeRenderPass::CComputeRenderPass(EPassFlags flags)
 	: m_flags(flags)
 	, m_dirtyMask(eDirty_All)
-	, m_bResourcesInvalidated(false)
 	, m_pShader(nullptr)
 	, m_rtMask(0)
 	, m_dispatchSizeX(1)
@@ -23,7 +15,7 @@ CComputeRenderPass::CComputeRenderPass(EPassFlags flags)
 	, m_currentPsoUpdateCount(0)
 	, m_bPendingConstantUpdate(false)
 	, m_bCompiled(false)
-	, m_resourceDesc(this, OnResourceInvalidated)
+	, m_resourceDesc()
 {
 	m_inputVars[0] = m_inputVars[1] = m_inputVars[2] = m_inputVars[3] = 0;
 	m_pResourceSet = GetDeviceObjectFactory().CreateResourceSet(CDeviceResourceSet::EFlags_ForceSetAllState);
@@ -31,62 +23,82 @@ CComputeRenderPass::CComputeRenderPass(EPassFlags flags)
 	SetLabel("COMPUTE_PASS");
 }
 
-uint CComputeRenderPass::Compile()
+bool CComputeRenderPass::IsDirty() const
 {
-	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	// Merge local and remote dirty flags to test for changes
+	EDirtyFlags dirtyMask = m_dirtyMask | (EDirtyFlags)m_resourceDesc.GetDirtyFlags();
 
-	uint32 dirtyMask = m_dirtyMask;
-	dirtyMask |= m_bResourcesInvalidated ? eDirty_Resources : eDirty_None;
+	if (dirtyMask != eDirty_None)
+		return true;
 
-	m_bResourcesInvalidated = false;
-	m_bCompiled = false;
+	if (m_currentPsoUpdateCount != m_pPipelineState->GetUpdateCount())
+		return true;
 
-	if (dirtyMask & eDirty_Resources)
+	return false;
+}
+
+CComputeRenderPass::EDirtyFlags CComputeRenderPass::Compile()
+{
+	// Merge local and remote dirty flags to test for changes
+	EDirtyFlags dirtyMask = m_dirtyMask | (EDirtyFlags)m_resourceDesc.GetDirtyFlags();
+
+	if ((dirtyMask != eDirty_None) || (m_currentPsoUpdateCount != m_pPipelineState->GetUpdateCount()))
 	{
-		if (!m_pResourceSet->Update(m_resourceDesc, CDeviceResourceSetDesc::EDirtyFlags(dirtyMask & (eDirty_Resources | eDirty_ResourceLayout))))
-			return dirtyMask;
-	}
+		EDirtyFlags revertMask = dirtyMask;
 
-	if (dirtyMask & (eDirty_Technique | eDirty_ResourceLayout))
-	{
-		m_constantManager.ReleaseShaderReflection();
+		CD3D9Renderer* const __restrict rd = gcpRendD3D;
 
-		if (m_flags & eFlags_ReflectConstantBuffersFromShader)
+		m_bCompiled = false;
+
+		if (dirtyMask & (eDirty_Resources))
 		{
-			m_constantManager.AllocateShaderReflection(m_pShader, m_techniqueName, m_rtMask, EShaderStage_Compute);
+			if (!m_pResourceSet->Update(m_resourceDesc))
+				return (EDirtyFlags)(m_dirtyMask |= revertMask);
 		}
 
-		// Resource layout
-		int bindSlot = 0;
-		SDeviceResourceLayoutDesc resourceLayoutDesc;
+		if (dirtyMask & (eDirty_Technique | eDirty_ResourceLayout))
+		{
+			m_constantManager.ReleaseShaderReflection();
 
-		resourceLayoutDesc.SetResourceSet(bindSlot++, m_resourceDesc);
-		for (auto& cb : m_constantManager.GetBuffers())
-			resourceLayoutDesc.SetConstantBuffer(bindSlot++, cb.shaderSlot, cb.shaderStages);
+			if (m_flags & eFlags_ReflectConstantBuffersFromShader)
+			{
+				m_constantManager.AllocateShaderReflection(m_pShader, m_techniqueName, m_rtMask, EShaderStage_Compute);
+			}
 
-		m_pResourceLayout = GetDeviceObjectFactory().CreateResourceLayout(resourceLayoutDesc);
+			// Resource layout
+			int bindSlot = 0;
+			SDeviceResourceLayoutDesc resourceLayoutDesc;
 
-		if (!m_pResourceLayout)
-			return dirtyMask;
+			resourceLayoutDesc.SetResourceSet(bindSlot++, m_resourceDesc);
+			for (auto& cb : m_constantManager.GetBuffers())
+				resourceLayoutDesc.SetConstantBuffer(bindSlot++, cb.shaderSlot, cb.shaderStages);
+
+			m_pResourceLayout = GetDeviceObjectFactory().CreateResourceLayout(resourceLayoutDesc);
+
+			if (!m_pResourceLayout)
+				return (EDirtyFlags)(m_dirtyMask |= revertMask);
+		}
+
+		if (dirtyMask & (eDirty_Technique | eDirty_ResourceLayout))
+		{
+			// Pipeline state
+			CDeviceComputePSODesc psoDesc(m_pResourceLayout, m_pShader, m_techniqueName, m_rtMask, 0, 0);
+			m_pPipelineState = GetDeviceObjectFactory().CreateComputePSO(psoDesc);
+
+			if (!m_pPipelineState || !m_pPipelineState->IsValid())
+				return (EDirtyFlags)(m_dirtyMask |= revertMask);
+
+			m_currentPsoUpdateCount = m_pPipelineState->GetUpdateCount();
+
+			if (m_flags & eFlags_ReflectConstantBuffersFromShader)
+				m_constantManager.InitShaderReflection(*m_pPipelineState);
+		}
+
+		m_bCompiled = true;
+
+		m_dirtyMask = dirtyMask = eDirty_None;
 	}
 
-	if (dirtyMask & (eDirty_Technique | eDirty_ResourceLayout))
-	{
-		// Pipeline state
-		CDeviceComputePSODesc psoDesc(m_pResourceLayout, m_pShader, m_techniqueName, m_rtMask, 0, 0);
-		m_pPipelineState = GetDeviceObjectFactory().CreateComputePSO(psoDesc);
-
-		if (!m_pPipelineState || !m_pPipelineState->IsValid())
-			return dirtyMask;
-
-		m_currentPsoUpdateCount = m_pPipelineState->GetUpdateCount();
-
-		if (m_flags & eFlags_ReflectConstantBuffersFromShader)
-			m_constantManager.InitShaderReflection(*m_pPipelineState);
-	}
-
-	dirtyMask = eDirty_None;
-	m_bCompiled = true;
 	return dirtyMask;
 }
 
@@ -94,10 +106,7 @@ void CComputeRenderPass::BeginConstantUpdate()
 {
 	if (m_flags & eFlags_ReflectConstantBuffersFromShader)
 	{
-		if (IsDirty())
-		{
-			m_dirtyMask = Compile();
-		}
+		Compile();
 
 		m_bPendingConstantUpdate = true;
 		m_constantManager.BeginNamedConstantUpdate();
@@ -119,20 +128,20 @@ void CComputeRenderPass::PrepareResourcesForUse(CDeviceCommandListRef RESTRICT_R
 		m_constantManager.EndNamedConstantUpdate();
 		m_bPendingConstantUpdate = false;
 	}
-	else if (IsDirty())
+	else
 	{
-		m_dirtyMask = Compile();
+		Compile();
 	}
 
 	if (m_dirtyMask == eDirty_None)
 	{
 		CDeviceComputeCommandInterface* pComputeInterface = commandList.GetComputeInterface();
-		auto& inlineConstantBuffers = m_constantManager.GetBuffers();
 
 		// Prepare resources
 		int bindSlot = 0;
 		pComputeInterface->PrepareResourcesForUse(bindSlot++, m_pResourceSet.get());
 
+		auto& inlineConstantBuffers = m_constantManager.GetBuffers();
 		for (auto& cb : inlineConstantBuffers)
 			pComputeInterface->PrepareInlineConstantBufferForUse(bindSlot++, cb.pBuffer, cb.shaderSlot, EShaderStage_Compute);
 	}
@@ -197,7 +206,6 @@ void CComputeRenderPass::Reset()
 	m_dirtyMask = eDirty_All;
 
 	ZeroArray(m_inputVars);
-	m_bResourcesInvalidated = true;
 	m_bPendingConstantUpdate = true;
 	m_bCompiled = false;
 
@@ -209,7 +217,7 @@ void CComputeRenderPass::Reset()
 	m_dispatchSizeY = 0;
 	m_dispatchSizeZ = 0;
 
-	m_resourceDesc.Clear();
+	m_resourceDesc.ClearResources();
 	m_pResourceSet.reset();
 	m_pResourceLayout.reset();
 	m_pPipelineState.reset();

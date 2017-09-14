@@ -121,10 +121,17 @@ struct CBasicArea : public Cry3DEngineBase
 
 	void CompileObjects(int nListId); // optimize objects lists for rendering
 
-	class COctreeNode* m_pObjectsTree;
+	bool					  IsObjectsTreeValid() { return m_pObjectsTree != nullptr; }
+	class COctreeNode*  	  GetObjectsTree()	   { return m_pObjectsTree; }
+	void  SetObjectsTree(class COctreeNode* node)  { m_pObjectsTree = node; }
+
 
 	AABB               m_boxArea;    // bbox containing everything in sector including child sectors
 	AABB               m_boxStatics; // bbox containing only objects in STATIC_OBJECTS list of this node and height-map
+
+private:
+
+	class COctreeNode* m_pObjectsTree;
 
 };
 

@@ -277,44 +277,31 @@ void SRemoteServer::StartServer()
 /////////////////////////////////////////////////////////////////////////////////////////////
 void SRemoteServer::StopServer()
 {
-	SignalStopWork();
-	if (m_socket != CRY_INVALID_SOCKET && m_socket != CRY_SOCKET_ERROR)
+	if (m_bAcceptClients)
 	{
-		CrySock::closesocket(m_socket);
-	}
-	m_socket = CRY_SOCKET_ERROR;
-	m_lock.Lock();
-	for (TClients::iterator it = m_clients.begin(); it != m_clients.end(); ++it)
-		it->pClient->StopClient();
-	m_lock.Unlock();
-	m_stopEvent.Wait();
-	m_stopEvent.Set();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-void SRemoteServer::ClientDone(SRemoteClient* pClient)
-{
-	m_lock.Lock();
-	for (TClients::iterator it = m_clients.begin(); it != m_clients.end(); ++it)
-	{
-		if (it->pClient.get() == pClient)
-		{
-			it->pClient->SignalStopWork();
-			gEnv->pThreadManager->JoinThread(it->pClient.get(), eJM_Join);
-			m_clients.erase(it);
-			break;
-		}
+		SignalStopWork();
+		gEnv->pThreadManager->JoinThread(this, eJM_Join);
 	}
 
-	if (m_clients.empty())
-		m_stopEvent.Set();
-	m_lock.Unlock();
+	for (TClients::iterator it = m_clients.begin(); it != m_clients.end(); ++it)
+	{
+		it->pClient->SignalStopWork();
+		gEnv->pThreadManager->JoinThread(it->pClient.get(), eJM_Join);
+	}
+	m_clients.clear();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 void SRemoteServer::SignalStopWork()
 {
 	m_bAcceptClients = false;
+
+	// Close socket here as server thread might be blocking on ::accept
+	if (m_socket != CRY_INVALID_SOCKET && m_socket != CRY_SOCKET_ERROR)
+	{
+		CrySock::closesocket(m_socket);
+	}
+	m_socket = CRY_SOCKET_ERROR;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -384,17 +371,11 @@ void SRemoteServer::ThreadEntry()
 		}
 
 		m_lock.Lock();
-		m_stopEvent.Reset();
 		std::unique_ptr<SRemoteClient> pClient(new SRemoteClient(this));
 		pClient->StartClient(sClient);
 		m_clients.emplace_back(std::move(pClient));
 		m_lock.Unlock();
 	}
-	if (m_socket != CRY_INVALID_SOCKET && m_socket != CRY_SOCKET_ERROR)
-	{
-		CrySock::closesocket(m_socket);
-	}
-	//WSACleanup();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -475,17 +456,9 @@ void SRemoteClient::StartClient(CRYSOCKET socket)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
-void SRemoteClient::StopClient()
-{
-	SignalStopWork();
-	CrySock::closesocket(m_socket);
-	m_socket = CRY_SOCKET_ERROR;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////
 void SRemoteClient::SignalStopWork()
 {
-	m_pServer->ClientDone(this);
+	m_bRun = false;		
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -500,7 +473,7 @@ void SRemoteClient::ThreadEntry()
 
 	bool ok = true;
 	bool autoCompleteDoneSent = false;
-	while (ok)
+	while (ok && m_bRun)
 	{
 		// read data
 		SRemoteEventFactory::GetInst()->WriteToBuffer(&reqEvt, szBuff, size);
@@ -537,6 +510,9 @@ void SRemoteClient::ThreadEntry()
 			ok &= pEvt && pEvt->GetType() == eCET_Noop;
 		}
 	}
+
+	CrySock::closesocket(m_socket);
+	m_socket = CRY_SOCKET_ERROR;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////

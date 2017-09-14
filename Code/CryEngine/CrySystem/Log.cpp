@@ -432,7 +432,7 @@ void CLog::LogV(const ELogType type, int flags, const char* szFormat, va_list ar
 		}
 	}
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	//LOADING_TIME_PROFILE_SECTION(GetISystem());
 
 	bool bfile = false, bconsole = false;
@@ -1071,13 +1071,15 @@ void CLog::LogStringToFile(const char* szString, bool bAdd, bool bError)
 	}
 
 	#if !defined(_RELEASE)
-	// Note: OutputDebugString(A) only accepts current ANSI code-page, and the W variant will call the A variant internally.
-	// Here we replace non-ASCII characters with '?', which is the same as OutputDebugStringW will do for non-ANSI.
-	// Thus, we discard slightly more characters (ie, those inside the current ANSI code-page, but outside ASCII).
-	// In exchange, we save double-converting that would have happened otherwise (UTF-8 -> UTF-16 -> ANSI).
-	string asciiString;
-	Unicode::Convert<Unicode::eEncoding_ASCII, Unicode::eEncoding_UTF8>(asciiString, tempString);
-	OutputDebugString(asciiString.c_str());
+		#if CRY_PLATFORM_WINDOWS || CRY_PLATFORM_DURANGO
+	// Note: OutputDebugStringW will not actually output Unicode unless the attached debugger has explicitly opted in to this behavior.
+	// This is only possible on Windows 10; on older operating systems the W variant internally converts the input to the local codepage (ANSI) and calls the A variant.
+	// Both VS2015 and VS2017 do opt-in to this behavior on Windows 10, so we use the W variant despite the slight overhead on older Windows versions.
+	wstring tempWString = CryStringUtils::UTF8ToWStr(tempString);
+	OutputDebugStringW(tempWString.c_str());
+		#else
+	OutputDebugString(tempString.c_str());
+		#endif
 	#endif
 }
 
@@ -1444,7 +1446,7 @@ void CLog::RemoveCallback(ILogCallback* pCallback)
 //////////////////////////////////////////////////////////////////////////
 void CLog::Update()
 {
-	FUNCTION_PROFILER(m_pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	if (CryGetCurrentThreadId() == m_nMainThreadId)
 	{

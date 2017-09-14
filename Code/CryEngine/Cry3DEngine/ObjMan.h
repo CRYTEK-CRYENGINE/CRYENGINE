@@ -227,7 +227,7 @@ public:
 	// Only should be called by Release function of CStatObj.
 	bool InternalDeleteObject(CStatObj* pObject);
 
-	PodArray<PodArray<StatInstGroup>> m_lstStaticTypes;
+	PodArray<StatInstGroup> m_lstStaticTypes;
 
 	uint64 GetShadowFrustumsList(PodArray<CDLight*>* pAffectingLights, const AABB& aabbReceiver,
 	                             float fObjDistance, uint32 nDLightMask, bool bIncludeNearFrustums,
@@ -325,10 +325,10 @@ public:
 	void      RenderObjectDebugInfo_Impl(IRenderNode* pEnt, float fEntDistance);
 	void      RemoveFromRenderAllObjectDebugInfo(IRenderNode* pEnt);
 
-	float     GetXYRadius(int nType, int nSID = GetDefSID());
-	bool      GetStaticObjectBBox(int nType, Vec3& vBoxMin, Vec3& vBoxMax, int nSID = GetDefSID());
+	float     GetXYRadius(int nType);
+	bool      GetStaticObjectBBox(int nType, Vec3& vBoxMin, Vec3& vBoxMax);
 
-	IStatObj* GetStaticObjectByTypeID(int nTypeID, int nSID = GetDefSID());
+	IStatObj* GetStaticObjectByTypeID(int nTypeID);
 	IStatObj* FindStaticObjectByFilename(const char* filename);
 
 	float     GetBendingRandomFactor();
@@ -459,15 +459,15 @@ public:
 
 public:
 	//////////////////////////////////////////////////////////////////////////
-	// Public Member variables (need to be cleaned).
+	// Public Member variables.
 	//////////////////////////////////////////////////////////////////////////
 
 	static int  m_nUpdateStreamingPrioriryRoundId;
 	static int  m_nUpdateStreamingPrioriryRoundIdFast;
 	static int  s_nLastStreamingMemoryUsage;        //For streaming tools in editor
 
-	Vec3        m_vSkyColor;          //
-	Vec3        m_vSunColor;          //
+	Vec3        m_vSkyColor;
+	Vec3        m_vSunColor;
 	float       m_fSunSkyRel;         //relation factor of sun sky, 1->sun has full part of brightness, 0->sky has full part
 	float       m_fILMul;
 	float       m_fSkyBrightMul;
@@ -481,11 +481,21 @@ public:
 
 	float       m_fMaxViewDistanceScale;
 	float       m_fGSMMaxDistance;
+	
+	_smart_ptr<CStatObj>			m_pDefaultCGF;
+	PodArray<SStreamAbleObject>     m_arrStreamableObjects;
+	PodArray<COctreeNode*>          m_arrStreamingNodeStack;
+	PodArray<SObjManPrecachePoint>  m_vStreamPreCachePointDefs;
+	PodArray<SObjManPrecacheCamera> m_vStreamPreCacheCameras;
+	int                             m_nNextPrecachePointId;
+	bool                            m_bCameraPrecacheOverridden;
+	NAsyncCull::CCullThread         m_CullThread;
 
-public:
+private:
 	//////////////////////////////////////////////////////////////////////////
 	// Private Member variables.
 	//////////////////////////////////////////////////////////////////////////
+
 	PodArray<IStreamable*> m_arrStreamableToRelease;
 	PodArray<IStreamable*> m_arrStreamableToLoad;
 	PodArray<IStreamable*> m_arrStreamableToDelete;
@@ -493,8 +503,6 @@ public:
 
 	float                  m_fCurrTime;
 
-	//	bool LoadStaticObjectsFromXML(XmlNodeRef xmlVegetation);
-	_smart_ptr<CStatObj>    m_pDefaultCGF;
 	_smart_ptr<IRenderMesh> m_pRMBox;
 	_smart_ptr<IRenderMesh> m_pBillboardMesh;
 
@@ -505,13 +513,7 @@ public:
 	CryMT::vector<CStatObj*>        m_checkForGarbage;
 	bool                            m_bGarbageCollectionEnabled;
 
-	PodArray<SStreamAbleObject>     m_arrStreamableObjects;
 	NCullQueue::SCullQueue          m_cullQueue;
-	PodArray<COctreeNode*>          m_arrStreamingNodeStack;
-	PodArray<SObjManPrecachePoint>  m_vStreamPreCachePointDefs;
-	PodArray<SObjManPrecacheCamera> m_vStreamPreCacheCameras;
-	int                             m_nNextPrecachePointId;
-	bool                            m_bCameraPrecacheOverridden;
 
 	PodArray<CTerrainNode*>         m_lstTmpCastingNodes;
 
@@ -521,7 +523,6 @@ public:
 
 	CThreadSafeRendererContainer<SObjManRenderDebugInfo>             m_arrRenderDebugInfo;
 
-	NAsyncCull::CCullThread                                          m_CullThread;
 	CryMT::SingleProducerSingleConsumerQueue<SCheckOcclusionJobData> m_CheckOcclusionQueue;
 	CryMT::N_ProducerSingleConsumerQueue<SCheckOcclusionOutput>      m_CheckOcclusionOutputQueue;
 };

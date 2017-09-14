@@ -52,7 +52,6 @@ protected:
 	Cry::DefaultComponents::CInputComponent* m_pInputComponent = nullptr;
 	Cry::DefaultComponents::CPathfindingComponent* m_pPathfindingComponent = nullptr;
 
-	TagID m_rotateTagId;
 	TagID m_walkTagId;
 
 	IEntity* m_pCursorEntity = nullptr;

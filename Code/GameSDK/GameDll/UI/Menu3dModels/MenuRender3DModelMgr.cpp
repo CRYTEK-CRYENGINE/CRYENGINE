@@ -1394,12 +1394,11 @@ void CMenuRender3DModelMgr::UpdateLight(int lightIndex,float frameTime)
 
 			ColorF menuLightColor(lightDataColor,0.0);
 
-			menuLight.SetPosition( lightPos );
+			menuLight.m_Flags |= DLF_POINT|DLF_POST_3D_RENDERER;
+			menuLight.SetPosition(lightPos);
 			menuLight.SetLightColor(menuLightColor);
 			menuLight.SetSpecularMult(lightData.specular);
-
-			menuLight.m_fRadius = lightData.radius;
-			menuLight.m_Flags |= DLF_POINT|DLF_POST_3D_RENDERER;
+			menuLight.SetRadius(lightData.radius);
 
 			char uniqueLightName[16];
 			cry_sprintf(uniqueLightName,sizeof(uniqueLightName),"Menu light %d",lightIndex);

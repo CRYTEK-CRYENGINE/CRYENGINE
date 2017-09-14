@@ -135,7 +135,7 @@ float CPuppet::GetTargetAliveTime()
 //===================================================================
 void CPuppet::UpdateHealthTracking()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// Update target health tracking.
 	float fTargetHealth = 0.0f;

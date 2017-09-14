@@ -9,7 +9,6 @@
 //#include <uxtheme.h>
 
 #include <CryAISystem/IAISystem.h>
-#include "Controls\TemplDef.h" // message map extensions for templates
 #include "Controls\PropertyCtrl.h"
 #include "Controls\ColorCtrl.h"
 
@@ -65,14 +64,14 @@ protected:
 	//{{AFX_MSG(CFlatFramed)
 	afx_msg void OnNcPaint();
 	//}}AFX_MSG
-	DECLARE_TEMPLATE_MESSAGE_MAP()
+	DECLARE_MESSAGE_MAP()
 };
 
-BEGIN_TEMPLATE_MESSAGE_MAP_CUSTOM(class BASE_TYPE, CFlatFramed<BASE_TYPE>, BASE_TYPE)
+BEGIN_TEMPLATE_MESSAGE_MAP(CFlatFramed, BASE_TYPE, BASE_TYPE)
 //{{AFX_MSG_MAP(CFlatFramed)
 ON_WM_NCPAINT()
 //}}AFX_MSG_MAP
-END_TEMPLATE_MESSAGE_MAP_CUSTOM()
+END_MESSAGE_MAP()
 
 template<class BASE_TYPE>
 void CFlatFramed<BASE_TYPE >::OnNcPaint()

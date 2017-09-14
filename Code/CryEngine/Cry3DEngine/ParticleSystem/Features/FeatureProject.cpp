@@ -183,7 +183,7 @@ private:
 			Vec3(position.x       , position.y - size, 0.0f),
 		};
 		for (uint i = 0; i < 4; ++i)
-			samplers[i].z = terrain.GetZApr(samplers[i].x, samplers[i].y, DEFAULT_SID);
+			samplers[i].z = terrain.GetZApr(samplers[i].x, samplers[i].y);
 
 		out.vPos.z = (samplers[0].z + samplers[1].z + samplers[2].z + samplers[3].z) * 0.25f;
 		out.vNorm = (samplers[1] - samplers[0]).Cross(samplers[3] - samplers[2]).GetNormalizedSafe();

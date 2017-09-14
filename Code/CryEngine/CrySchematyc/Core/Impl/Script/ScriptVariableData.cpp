@@ -114,6 +114,11 @@ void CScriptVariableData::SerializeTypeId(Serialization::IArchive& archive)
 
 void CScriptVariableData::SerializeValue(Serialization::IArchive& archive)
 {
+	if (archive.isInput() && !m_pValue)
+	{
+		Refresh();
+	}
+
 	if (m_pValue && !m_bIsArray)
 	{
 		archive(*m_pValue, "value", "Value");
@@ -241,16 +246,16 @@ CAnyValuePtr CreateArrayData(const SElementId& typeId)
 			if (pScriptElement)
 			{
 				/*switch (pScriptElement->GetType())
-				{
-				case EScriptElementType::Enum:
-					{
-						return std::make_shared<CAnyArray>(GetTypeDesc<CScriptEnumValue>());
-					}
-				case EScriptElementType::Struct:
-					{
-						return std::make_shared<CAnyArray>(GetTypeDesc<IScriptStruct>());
-					}
-				}*/
+				   {
+				   case EScriptElementType::Enum:
+				   {
+				    return std::make_shared<CAnyArray>(GetTypeDesc<CScriptEnumValue>());
+				   }
+				   case EScriptElementType::Struct:
+				   {
+				    return std::make_shared<CAnyArray>(GetTypeDesc<IScriptStruct>());
+				   }
+				   }*/
 			}
 			break;
 		}

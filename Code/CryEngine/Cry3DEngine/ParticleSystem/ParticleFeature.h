@@ -93,6 +93,9 @@ public:
 	// EUL_PostUpdate
 	virtual void PostUpdate(const SUpdateContext& context) {}
 
+	// EUL_ComputeBounds
+	virtual void ComputeBounds(IParticleComponentRuntime* pComponentRuntime, AABB& bounds) {}
+
 	// EUL_Render
 	virtual void PrepareRenderObjects(CParticleEmitter* pEmitter, CParticleComponent* pComponent)                                                                            {}
 	virtual void ResetRenderObjects(CParticleEmitter* pEmitter, CParticleComponent* pComponent)                                                                              {}

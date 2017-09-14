@@ -23,7 +23,7 @@
 #include "Brush.h"
 #include "ClipVolumeManager.h"
 
-void C3DEngine::RegisterLightSourceInSectors(CDLight* pDynLight, int nSID, const SRenderingPassInfo& passInfo)
+void C3DEngine::RegisterLightSourceInSectors(CDLight* pDynLight, const SRenderingPassInfo& passInfo)
 {
 	// AntonK: this hack for colored shadow maps is temporary, since we will render it another way in the future
 	if (pDynLight->m_Flags & DLF_SUN || !m_pTerrain || !pDynLight->m_pOwner)
@@ -36,8 +36,8 @@ void C3DEngine::RegisterLightSourceInSectors(CDLight* pDynLight, int nSID, const
 	IVisArea* pLightArea = pDynLight->m_pOwner->GetEntityVisArea();
 	if (!pLightArea || ((pDynLight->m_Flags & DLF_PROJECT) && pLightArea->IsConnectedToOutdoor()))
 	{
-		if (m_pObjectsTree[nSID])
-			m_pObjectsTree[nSID]->AddLightSource(pDynLight, passInfo);
+		if (m_pObjectsTree)
+			m_pObjectsTree->AddLightSource(pDynLight, passInfo);
 	}
 
 	if (m_pVisAreaManager)
@@ -81,7 +81,6 @@ void CLightEntity::SetLightProperties(const CDLight& light)
 
 	m_bShadowCaster = (m_light.m_Flags & DLF_CASTSHADOW_MAPS) != 0;
 
-	m_light.m_fBaseRadius = m_light.m_fRadius;
 	m_light.m_fLightFrustumAngle = CLAMP(m_light.m_fLightFrustumAngle, 0.f, (LIGHT_PROJECTOR_MAX_FOV / 2.f));
 
 	if (!(m_light.m_Flags & (DLF_PROJECT | DLF_AREA_LIGHT)))
@@ -552,8 +551,7 @@ void C3DEngine::PrepareLightSourcesForRendering_1(const SRenderingPassInfo& pass
 			assert(m_lstDynLights[i]->m_Id == i);
 			if (m_lstDynLights[i]->m_Id != -1)
 			{
-				for (int nSID = 0; nSID < Get3DEngine()->m_pObjectsTree.Count(); nSID++)
-					RegisterLightSourceInSectors(m_lstDynLights[i], nSID, passInfo);
+					RegisterLightSourceInSectors(m_lstDynLights[i], passInfo);
 			}
 		}
 	}
@@ -569,8 +567,7 @@ void C3DEngine::PrepareLightSourcesForRendering_1(const SRenderingPassInfo& pass
 			if (m_lstDynLights[i]->m_fRadius >= 0.5f)
 			{
 				assert(m_lstDynLights[i]->m_fRadius >= 0.5f && !(m_lstDynLights[i]->m_Flags & DLF_FAKE));
-				for (int nSID = 0; nSID < Get3DEngine()->m_pObjectsTree.Count(); nSID++)
-					RegisterLightSourceInSectors(m_lstDynLights[i], nSID, passInfo);
+					RegisterLightSourceInSectors(m_lstDynLights[i], passInfo);
 			}
 		}
 
@@ -697,7 +694,7 @@ void C3DEngine::InitShadowFrustums(const SRenderingPassInfo& passInfo)
 }
 
 void C3DEngine::AddPerObjectShadow(IShadowCaster* pCaster, float fConstBias, float fSlopeBias, float fJitter, const Vec3& vBBoxScale, uint nTexSize)
-{
+{	
 	SPerObjectShadow* pOS = GetPerObjectShadow(pCaster);
 	if (!pOS)
 		pOS = &m_lstPerObjectShadows.AddNew();
@@ -713,7 +710,7 @@ void C3DEngine::AddPerObjectShadow(IShadowCaster* pCaster, float fConstBias, flo
 
 	if (bRequiresObjTreeUpdate)
 	{
-		FRAME_PROFILER("C3DEngine::AddPerObjectShadow", GetSystem(), PROFILE_3DENGINE);
+		CRY_PROFILE_FUNCTION(PROFILE_3DENGINE);
 		ObjectsTreeMarkAsUncompiled(static_cast<IRenderNode*>(pCaster));
 	}
 }
@@ -723,7 +720,7 @@ void C3DEngine::RemovePerObjectShadow(IShadowCaster* pCaster)
 	SPerObjectShadow* pOS = GetPerObjectShadow(pCaster);
 	if (pOS)
 	{
-		FRAME_PROFILER("C3DEngine::RemovePerObjectShadow", GetSystem(), PROFILE_3DENGINE);
+		CRY_PROFILE_FUNCTION(PROFILE_3DENGINE);
 
 		size_t nIndex = (size_t)(pOS - m_lstPerObjectShadows.begin());
 		m_lstPerObjectShadows.Delete(nIndex);
@@ -1034,15 +1031,11 @@ void C3DEngine::SetupLightScissors(CDLight* pLight, const SRenderingPassInfo& pa
 
 		Vec4 vScreenPoint = Vec4(pBRectVertices[i], 1.0) * mProj;
 
-		//projection space clamping
+		// convert to NDC
 		vScreenPoint.w = max(vScreenPoint.w, 0.00000000000001f);
-		vScreenPoint.x = max(vScreenPoint.x, -(vScreenPoint.w));
-		vScreenPoint.x = min(vScreenPoint.x, vScreenPoint.w);
-		vScreenPoint.y = max(vScreenPoint.y, -(vScreenPoint.w));
-		vScreenPoint.y = min(vScreenPoint.y, vScreenPoint.w);
-
-		//NDC
 		vScreenPoint /= vScreenPoint.w;
+		vScreenPoint.x = max(-1.0f, min(1.0f, vScreenPoint.x));
+		vScreenPoint.y = max(-1.0f, min(1.0f, vScreenPoint.y));
 
 		//output coords
 		//generate viewport (x=0,y=0,height=1,width=1)
@@ -1364,7 +1357,7 @@ void C3DEngine::UregisterLightFromAccessabilityCache(ILightSource* pLight)
 
 void C3DEngine::OnCasterDeleted(IShadowCaster* pCaster)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_3DENGINE);
+	CRY_PROFILE_FUNCTION(PROFILE_3DENGINE);
 	{
 		// make sure pointer to object will not be used somewhere in the renderer
 		PodArray<CDLight*>* pLigts = GetDynamicLightSources();

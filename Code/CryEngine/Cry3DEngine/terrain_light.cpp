@@ -32,8 +32,6 @@ _smart_ptr<IRenderMesh> CTerrain::MakeAreaRenderMesh(const Vec3& vPos, float fRa
 	PodArray<SPipTangents> tangBasises;
 	tangBasises.Clear();
 
-	Vec3 vPt(vPos);
-	int nSID = WorldToSegment(vPt, GetDefSID());
 	float unitSize = GetTerrain()->GetHeightMapUnitSize();
 
 	Vec3 vBoxMin = vPos - Vec3(fRadius, fRadius, fRadius);
@@ -60,7 +58,7 @@ _smart_ptr<IRenderMesh> CTerrain::MakeAreaRenderMesh(const Vec3& vPos, float fRa
 	{
 		for (float y = vBoxMin.y; y <= vBoxMax.y; y += unitSize)
 		{
-			Vec3 vTmp = Vec3((float)x, (float)y, (float)(pTerrain->GetZ(x, y, nSID)));
+			Vec3 vTmp = Vec3((float)x, (float)y, (float)(pTerrain->GetZ(x, y)));
 			posBuffer.Add(vTmp);
 		}
 	}
@@ -76,9 +74,9 @@ _smart_ptr<IRenderMesh> CTerrain::MakeAreaRenderMesh(const Vec3& vPos, float fRa
 
 			assert((int)id3 < posBuffer.Count());
 
-			if (pTerrain->GetHole(vBoxMin.x + x, vBoxMin.y + y, nSID)) continue;
+			if (pTerrain->GetHole(vBoxMin.x + x, vBoxMin.y + y)) continue;
 
-			if (pTerrain->IsMeshQuadFlipped(vBoxMin.x + x, vBoxMin.y + y, unitSize, nSID))
+			if (pTerrain->IsMeshQuadFlipped(vBoxMin.x + x, vBoxMin.y + y, unitSize))
 			{
 				lstIndices.Add(id0);
 				lstIndices.Add(id1);
@@ -134,7 +132,7 @@ _smart_ptr<IRenderMesh> CTerrain::MakeAreaRenderMesh(const Vec3& vPos, float fRa
 		SPipTangents basis;
 
 		Vec3 vTang = Vec3(0, 1, 0);
-		Vec3 vNormal = GetTerrain()->GetTerrainSurfaceNormal_Int(posBuffer[i].x, posBuffer[i].y, GetDefSID());
+		Vec3 vNormal = GetTerrain()->GetTerrainSurfaceNormal_Int(posBuffer[i].x, posBuffer[i].y);
 
 		// Orthonormalize Tangent Frame
 		Vec3 vBitang = -vNormal.Cross(vTang);

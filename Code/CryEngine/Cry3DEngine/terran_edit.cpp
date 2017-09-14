@@ -33,20 +33,18 @@
 
 //////////////////////////////////////////////////////////////////////////
 IRenderNode* CTerrain::AddVegetationInstance(int nStaticGroupIndex, const Vec3& vPos, const float fScale, uint8 ucBright,
-                                             uint8 angle, uint8 angleX, uint8 angleY, int nSID)
+                                             uint8 angle, uint8 angleX, uint8 angleY)
 {
 	if (vPos.x <= 0 || vPos.y <= 0 || vPos.x >= CTerrain::GetTerrainSize() || vPos.y >= CTerrain::GetTerrainSize() || fScale * VEGETATION_CONV_FACTOR < 1.f)
 		return 0;
 	IRenderNode* renderNode = NULL;
 
-	assert(nSID >= 0 && nSID < GetObjManager()->m_lstStaticTypes.Count());
-
-	if (nStaticGroupIndex < 0 || nStaticGroupIndex >= GetObjManager()->m_lstStaticTypes[nSID].Count())
+	if (nStaticGroupIndex < 0 || nStaticGroupIndex >= GetObjManager()->m_lstStaticTypes.Count())
 	{
 		return 0;
 	}
 
-	StatInstGroup& group = GetObjManager()->m_lstStaticTypes[nSID][nStaticGroupIndex];
+	StatInstGroup& group = GetObjManager()->m_lstStaticTypes[nStaticGroupIndex];
 	if (!group.GetStatObj())
 	{
 		Warning("I3DEngine::AddStaticObject: Attempt to add object of undefined type");
@@ -112,22 +110,13 @@ IRenderNode* CTerrain::AddVegetationInstance(int nStaticGroupIndex, const Vec3& 
 	return renderNode;
 }
 
-void CTerrain::RemoveAllStaticObjects(int nSID)
+void CTerrain::RemoveAllStaticObjects()
 {
-#ifdef SEG_WORLD
-	if (nSID < 0)
-	{
-		for (nSID = 0; nSID < Get3DEngine()->m_pObjectsTree.Count(); ++nSID)
-			RemoveAllStaticObjects(nSID);
-		return;
-	}
-#endif
-
-	if (!Get3DEngine()->m_pObjectsTree[nSID] || nSID >= Get3DEngine()->m_pObjectsTree.Count())
+	if (!Get3DEngine()->m_pObjectsTree)
 		return;
 
 	PodArray<SRNInfo> lstObjects;
-	Get3DEngine()->m_pObjectsTree[nSID]->MoveObjectsIntoList(&lstObjects, NULL);
+	Get3DEngine()->m_pObjectsTree->MoveObjectsIntoList(&lstObjects, NULL);
 
 	for (int i = 0; i < lstObjects.Count(); i++)
 	{
@@ -149,7 +138,7 @@ void CTerrain::RemoveAllStaticObjects(int nSID)
 
 void CTerrain::BuildErrorsTableForArea(float* pLodErrors, int nMaxLods,
                                        int X1, int Y1, int X2, int Y2, float* pTerrainBlock,
-                                       uint8* pSurfaceData, int nSurfOffsetX, int nSurfOffsetY,
+                                       SSurfaceTypeItem* pSurfaceData, int nSurfOffsetX, int nSurfOffsetY,
                                        int nSurfSizeX, int nSurfSizeY, bool& bHasHoleEdges)
 {
 	memset(pLodErrors, 0, nMaxLods * sizeof(pLodErrors[0]));
@@ -176,7 +165,7 @@ void CTerrain::BuildErrorsTableForArea(float* pLodErrors, int nMaxLods,
 				{
 					int nSurfCell = nSurfX * nSurfSizeY + nSurfY;
 					assert(nSurfCell >= 0 && nSurfCell < nSurfSizeX * nSurfSizeY);
-					if (pSurfaceData[nSurfCell] == SRangeInfo::e_hole)
+					if (pSurfaceData[nSurfCell].GetHole())
 						bSectorHasHoles = true;
 					else
 						bSectorHasMesh = true;
@@ -210,7 +199,8 @@ void CTerrain::BuildErrorsTableForArea(float* pLodErrors, int nMaxLods,
 		{
 			for (int Y = y1; Y < y2; Y += nLodUnitSize)
 			{
-				uint8 nLodedSurfType = 0;
+				uint32 nLodedSurfType = 0;
+
 				{
 					int nSurfX = (X - nSurfOffsetX);
 					int nSurfY = (Y - nSurfOffsetY);
@@ -218,7 +208,7 @@ void CTerrain::BuildErrorsTableForArea(float* pLodErrors, int nMaxLods,
 					{
 						int nSurfCell = nSurfX * nSurfSizeY + nSurfY;
 						assert(nSurfCell >= 0 && nSurfCell < nSurfSizeX * nSurfSizeY);
-						nLodedSurfType = pSurfaceData[nSurfCell];
+						nLodedSurfType = pSurfaceData[nSurfCell].GetDominatingSurfaceType();
 					}
 				}
 
@@ -250,7 +240,7 @@ void CTerrain::BuildErrorsTableForArea(float* pLodErrors, int nMaxLods,
 							{
 								int nSurfCell = nSurfX * nSurfSizeY + nSurfY;
 								assert(nSurfCell >= 0 && nSurfCell < nSurfSizeX * nSurfSizeY);
-								uint8 nRealSurfType = pSurfaceData[nSurfCell];
+								uint32 nRealSurfType = pSurfaceData[nSurfCell].GetDominatingSurfaceType();
 
 								// rise error if surface types will pop
 								if (nRealSurfType != nLodedSurfType)
@@ -269,7 +259,7 @@ void CTerrain::BuildErrorsTableForArea(float* pLodErrors, int nMaxLods,
 	}
 }
 
-void CTerrain::HighlightTerrain(int x1, int y1, int x2, int y2, int nSID)
+void CTerrain::HighlightTerrain(int x1, int y1, int x2, int y2)
 {
 	// Input dimensions are in units.
 	float unitSize = GetHeightMapUnitSize();
@@ -282,20 +272,20 @@ void CTerrain::HighlightTerrain(int x1, int y1, int x2, int y2, int nSID)
 	for (int x = x1; x < x2; x += 1)
 	{
 		float xu = (float)x * unitSize;
-		prag->DrawLine(Vec3(y1u, xu, GetZfromUnits(y1, x, nSID) + 0.5f), clrRed, Vec3(y1u, xu + unitSize, GetZfromUnits(y1, x + 1, nSID) + 0.5f), clrRed, 5.0f);
-		prag->DrawLine(Vec3(y2u, xu, GetZfromUnits(y2, x, nSID) + 0.5f), clrRed, Vec3(y2u, xu + unitSize, GetZfromUnits(y2, x + 1, nSID) + 0.5f), clrRed, 5.0f);
+		prag->DrawLine(Vec3(y1u, xu, GetZfromUnits(y1, x) + 0.5f), clrRed, Vec3(y1u, xu + unitSize, GetZfromUnits(y1, x + 1) + 0.5f), clrRed, 5.0f);
+		prag->DrawLine(Vec3(y2u, xu, GetZfromUnits(y2, x) + 0.5f), clrRed, Vec3(y2u, xu + unitSize, GetZfromUnits(y2, x + 1) + 0.5f), clrRed, 5.0f);
 	}
 	for (int y = y1; y < y2; y += 1)
 	{
 		float yu = (float)y * unitSize;
-		prag->DrawLine(Vec3(yu, x1u, GetZfromUnits(y, x1, nSID) + 0.5f), clrRed, Vec3(yu + unitSize, x1u, GetZfromUnits(y + 1, x1, nSID) + 0.5f), clrRed, 5.0f);
-		prag->DrawLine(Vec3(yu, x2u, GetZfromUnits(y, x2, nSID) + 0.5f), clrRed, Vec3(yu + unitSize, x2u, GetZfromUnits(y + 1, x2, nSID) + 0.5f), clrRed, 5.0f);
+		prag->DrawLine(Vec3(yu, x1u, GetZfromUnits(y, x1) + 0.5f), clrRed, Vec3(yu + unitSize, x1u, GetZfromUnits(y + 1, x1) + 0.5f), clrRed, 5.0f);
+		prag->DrawLine(Vec3(yu, x2u, GetZfromUnits(y, x2) + 0.5f), clrRed, Vec3(yu + unitSize, x2u, GetZfromUnits(y + 1, x2) + 0.5f), clrRed, 5.0f);
 	}
 }
 
 void CTerrain::SetTerrainElevation(int X1, int Y1, int nSizeX, int nSizeY, float* pTerrainBlock,
-	unsigned char* pSurfaceData, int nSurfOrgX, int nSurfOrgY, int nSurfSizeX, int nSurfSizeY,
-	uint32* pResolMap, int nResolMapSizeX, int nResolMapSizeY, int nSID)
+	SSurfaceTypeItem* pSurfaceData, int nSurfOrgX, int nSurfOrgY, int nSurfSizeX, int nSurfSizeY,
+	uint32* pResolMap, int nResolMapSizeX, int nResolMapSizeY)
 {
 #ifndef _RELEASE
 
@@ -322,53 +312,15 @@ void CTerrain::SetTerrainElevation(int X1, int Y1, int nSizeX, int nSizeY, float
 		return;
 	}
 
-#ifdef SEG_WORLD
-	if (nSID < 0)
-	{
-		int X2 = X1 + nSizeX;
-		int Y2 = Y1 + nSizeY;
-		int nEndSID = GetMaxSegmentsCount();
-		for (nSID = 0; nSID < nEndSID; ++nSID)
-		{
-			AABB aabb;
-			if (!GetSegmentBounds(nSID, aabb))
-				continue;
-			int sx1 = ((int)aabb.min.x) >> m_nBitShift;
-			int sy1 = ((int)aabb.min.y) >> m_nBitShift;
-			int sx2 = ((int)aabb.max.x) >> m_nBitShift;
-			int sy2 = ((int)aabb.max.y) >> m_nBitShift;
-
-			int xMin = max(X1, sx1);
-			int xMax = min(X2, sx2);
-			if (xMin >= xMax)
-				continue;
-			int yMin = max(Y1, sy1);
-			int yMax = min(Y2, sy2);
-			if (yMin >= yMax)
-				continue;
-			SetTerrainElevation(xMin - sx1, yMin - sy1, xMax - xMin, yMax - yMin,
-				pTerrainBlock, pSurfaceData, nSurfOrgX, nSurfOrgY, nSurfSizeX, nSurfSizeY,
-				pResolMap, nResolMapSizeX, nResolMapSizeY, nSID);
-		}
-		return;
-	}
-#endif
-
-	AABB aabb = Get3DEngine()->m_pObjectsTree[0]->GetNodeBox();
-
-	if (!GetSegmentBounds(nSID, aabb))
-	{
-		Warning("CTerrain::SetTerrainElevation: invalid segment id specified!");
-		return;
-	}
+	AABB aabb = Get3DEngine()->m_pObjectsTree->GetNodeBox();
 
 	int x0 = (int)(aabb.min.x * m_fInvUnitSize);
 	int y0 = (int)(aabb.min.y * m_fInvUnitSize);
 
-	if (!GetParentNode(nSID))
-		BuildSectorsTree(false, nSID);
+	if (!GetParentNode())
+		BuildSectorsTree(false);
 
-	Array2d<struct CTerrainNode*>& sectorLayer = m_arrSecInfoPyramid[nSID][0];
+	Array2d<struct CTerrainNode*>& sectorLayer = m_arrSecInfoPyramid[0];
 
 	int rangeX1 = max(0, X1 >> m_nUnitsToSectorBitShift);
 	int rangeY1 = max(0, Y1 >> m_nUnitsToSectorBitShift);
@@ -461,15 +413,6 @@ void CTerrain::SetTerrainElevation(int X1, int Y1, int nSizeX, int nSizeY, float
 
 			SRangeInfo& ri = pTerrainNode->m_rangeInfo;
 
-			// TODO: add proper fp16/fp32 support
-			/*
-					ri.fOffset = fMin = CryConvertHalfToFloat(CryConvertFloatToHalf(fMin));
-					ri.fRange = powf(2.0f, ceilf(logf((fMax - fMin) / 65535.f)/logf(2.0f)));
-			 */
-			 /*		ri.fOffset = fMin;
-					 ri.fRange	 = (fMax - fMin) / 65535.f;
-				*/
-
 			int nStep = 1 << nGeomMML;
 			int nMaxStep = 1 << m_nUnitsToSectorBitShift;
 
@@ -477,9 +420,11 @@ void CTerrain::SetTerrainElevation(int X1, int Y1, int nSizeX, int nSizeY, float
 			{
 				delete[] ri.pHMData;
 				ri.nSize = nMaxStep / nStep + 1;
-				ri.pHMData = new uint16[ri.nSize * ri.nSize];
+				ri.pHMData = new SHeightMapItem[ri.nSize * ri.nSize];
 				ri.UpdateBitShift(m_nUnitsToSectorBitShift);
 			}
+
+			assert(ri.pHMData);
 
 			if (rawHeightmap.size() < (size_t)ri.nSize * ri.nSize)
 			{
@@ -517,22 +462,9 @@ void CTerrain::SetTerrainElevation(int X1, int Y1, int nSizeX, int nSizeY, float
 			}
 
 			ri.fOffset = fMin;
-			ri.fRange = (fMax - fMin) / float(0xFFF0);
+			ri.fRange = (fMax - fMin) / float(0x0FFF);
 
-			const unsigned mask12bit = (1 << 12) - 1;
-			const int inv5cm = 20;
-
-			int iOffset = int(fMin * inv5cm);
-			int iRange = int((fMax - fMin) * inv5cm);
-			int iStep = iRange ? (iRange + mask12bit - 1) / mask12bit : 1;
-
-			iRange /= iStep;
-
-			ri.iOffset = iOffset;
-			ri.iRange = iRange;
-			ri.iStep = iStep;
-
-			bool bHMDataIsModified = false;
+			pTerrainNode->m_bHMDataIsModified = false;
 
 			for (int x = x1; x <= x2; x += nStep)
 			{
@@ -542,35 +474,74 @@ void CTerrain::SetTerrainElevation(int X1, int Y1, int nSizeX, int nSizeY, float
 					int ylocal = (y - y1) / nStep;
 					int nCellLocal = xlocal * ri.nSize + ylocal;
 
-					unsigned hdec = int((rawHeightmap[nCellLocal] - fMin) * inv5cm) / iStep;
-
-					uint16 usSurfType = ri.GetSurfaceTypeByIndex(nCellLocal); // BAD CODE!!! we deleted this info and new(ed) it => invalid data here
+					uint32 height = ri.fRange ? int((rawHeightmap[nCellLocal] - fMin) / ri.fRange) : 0;
 
 					assert(x >= x0 + X1 && y >= y0 + Y1 && x <= x0 + X1 + nSurfSizeX && y <= y0 + Y1 + nSurfSizeY && pSurfaceData);
 
 					int nSurfX = (x - nSurfOrgX);
 					int nSurfY = (y - nSurfOrgY);
 
-					if (nSurfX >= 0 && nSurfY >= 0 && nSurfX < nSurfSizeX && nSurfY < nSurfSizeY && pSurfaceData)
+					SSurfaceTypeLocal dst;
+
+					assert(nSurfX >= 0 && nSurfY >= 0 && pSurfaceData);
+
+					nSurfX = min(nSurfX, nSurfSizeX - 1);
+					nSurfY = min(nSurfY, nSurfSizeY - 1);
+
 					{
 						int nSurfCell = nSurfX * nSurfSizeY + nSurfY;
 						assert(nSurfCell >= 0 && nSurfCell < nSurfSizeX * nSurfSizeY);
-						usSurfType = ri.GetLocalSurfaceTypeID(pSurfaceData[nSurfCell]);
+
+						const SSurfaceTypeItem & src = pSurfaceData[nSurfCell];
+
+						if (src.GetHole())
+						{
+							dst = SRangeInfo::e_index_hole;
+						}
+						else
+						{
+							// read all 3 types, remap to local
+							for (int i = 0; i < SSurfaceTypeLocal::kMaxSurfaceTypesNum; i++)
+							{
+								dst.we[i] = src.we[i] / 16;
+
+								if (src.we[i] || !i)
+								{
+									dst.ty[i] = (byte)ri.GetLocalSurfaceTypeID(src.ty[i]);
+								}
+							}
+
+							dst.we[0] = SATURATEB(15 - dst.we[1] - dst.we[2]);
+						}
 					}
 
-					uint16 nNewValue = (usSurfType& SRangeInfo::e_index_hole) | (hdec << 4);
+					SHeightMapItem nNewValue;
+					nNewValue.height = height;
+
+					// pack SSurfTypeItem into uint32
+					uint32 surface = 0;
+					SSurfaceTypeLocal::EncodeIntoUint32(dst, surface);
+					nNewValue.surface = surface;
 
 					if (nNewValue != ri.pHMData[nCellLocal])
 					{
 						ri.pHMData[nCellLocal] = nNewValue;
 
-						bHMDataIsModified = true;
+						pTerrainNode->m_bHMDataIsModified = true;
 					}
 				}
 			}
+		}
+	}
+	
+	for (int rangeX = rangeX1; rangeX < rangeX2; rangeX++)
+	{
+		for (int rangeY = rangeY1; rangeY < rangeY2; rangeY++)
+		{
+			CTerrainNode* pTerrainNode = sectorLayer[rangeX][rangeY];
 
 			// re-init surface types info and update vert buffers in entire brunch
-			if (GetParentNode(nSID))
+			if (GetParentNode())
 			{
 				CTerrainNode* pNode = pTerrainNode;
 				while (pNode)
@@ -604,7 +575,7 @@ void CTerrain::SetTerrainElevation(int X1, int Y1, int nSizeX, int nSizeY, float
 					// request elevation texture update
 					if (pNode->m_nNodeTexSet.nSlot0 != 0xffff && pNode->m_nNodeTexSet.nSlot0 < m_pTerrain->m_texCache[2].GetPoolSize())
 					{
-						if(bHMDataIsModified)
+						if(pTerrainNode->m_bHMDataIsModified)
 							pNode->m_eElevTexEditingState = eTES_SectorIsModified_AtlasIsDirty;
 					}
 
@@ -619,11 +590,11 @@ void CTerrain::SetTerrainElevation(int X1, int Y1, int nSizeX, int nSizeY, float
 	if (GetCurAsyncTimeSec() - fStartTime > 1)
 		PrintMessage("CTerrain::SetTerrainElevation took %.2f sec", GetCurAsyncTimeSec() - fStartTime);
 
-	if (Get3DEngine()->m_pObjectsTree[nSID])
-		Get3DEngine()->m_pObjectsTree[nSID]->UpdateTerrainNodes();
+	if (Get3DEngine()->m_pObjectsTree)
+		Get3DEngine()->m_pObjectsTree->UpdateTerrainNodes();
 
 	// update roads
-	if (Get3DEngine()->m_pObjectsTree[nSID] && (GetCVars()->e_TerrainDeformations || m_bEditor))
+	if (Get3DEngine()->m_pObjectsTree && (GetCVars()->e_TerrainDeformations || m_bEditor))
 	{
 		PodArray<IRenderNode*> lstRoads;
 
@@ -631,7 +602,7 @@ void CTerrain::SetTerrainElevation(int X1, int Y1, int nSizeX, int nSizeY, float
 		  Vec3((float)(x0 + X1) * (float)unitSize, (float)(y0 + Y1) * (float)unitSize, 0.f),
 		  Vec3((float)(x0 + X1) * (float)unitSize + (float)nSizeX * (float)unitSize, (float)(y0 + Y1) * (float)unitSize + (float)nSizeY * (float)unitSize, 1024.f));
 
-		Get3DEngine()->m_pObjectsTree[nSID]->GetObjectsByType(lstRoads, eERType_Road, &aabb);
+		Get3DEngine()->m_pObjectsTree->GetObjectsByType(lstRoads, eERType_Road, &aabb);
 		for (int i = 0; i < lstRoads.Count(); i++)
 		{
 			CRoadRenderNode* pRoad = (CRoadRenderNode*)lstRoads[i];
@@ -639,57 +610,36 @@ void CTerrain::SetTerrainElevation(int X1, int Y1, int nSizeX, int nSizeY, float
 		}
 	}
 
-	if (GetParentNode(nSID))
-		GetParentNode(nSID)->UpdateRangeInfoShift();
+	if (GetParentNode())
+		GetParentNode()->UpdateRangeInfoShift();
 
 	if (!modifiedArea.IsReset())
 	{
 		modifiedArea.Expand(Vec3(2.f * GetHeightMapUnitSize()));
-		ResetTerrainVertBuffers(&modifiedArea, 0);
+		ResetTerrainVertBuffers(&modifiedArea);
 	}
 
 	m_bHeightMapModified = 0;
 
+	m_bTerrainPaintingInProgress = true;
+
 #endif // _RELEASE
 }
 
-void CTerrain::SetTerrainSectorTexture(int nTexSectorX, int nTexSectorY, unsigned int textureId, bool bMergeNotAllowed, int nSID)
+void CTerrain::SetTerrainSectorTexture(int nTexSectorX, int nTexSectorY, unsigned int textureId, bool bMergeNotAllowed)
 {
-#ifdef SEG_WORLD
-	nSID = WorldToSegment(nTexSectorX, nTexSectorY, m_nBitShift + m_nUnitsToSectorBitShift, nSID);
-	if (nSID < 0)
-	{
-		Warning("CTerrain::LockSectorTexture: (nTexSectorX, nTexSectorY) values out of range");
-		return;
-	}
-#endif
 	int nDiffTexTreeLevelOffset = 0;
 
 	if (nTexSectorX < 0 ||
 	    nTexSectorY < 0 ||
-	    nTexSectorX >= CTerrain::GetSectorsTableSize(nSID) >> nDiffTexTreeLevelOffset ||
-	    nTexSectorY >= CTerrain::GetSectorsTableSize(nSID) >> nDiffTexTreeLevelOffset)
+	    nTexSectorX >= CTerrain::GetSectorsTableSize() >> nDiffTexTreeLevelOffset ||
+	    nTexSectorY >= CTerrain::GetSectorsTableSize() >> nDiffTexTreeLevelOffset)
 	{
 		Warning("CTerrain::LockSectorTexture: (nTexSectorX, nTexSectorY) values out of range");
 		return;
 	}
 
-#ifdef SEG_WORLD
-	if (!GetParentNode(nSID))
-		BuildSectorsTree(false, nSID);
-
-	// open terrain texture now, otherwise it will be opened later and unlock all sectors
-	if (Get3DEngine()->IsSegmentOperationInProgress() && !m_arrBaseTexInfos[nSID].m_nDiffTexIndexTableSize)
-		OpenTerrainTextureFile(m_arrBaseTexInfos[nSID].m_hdrDiffTexHdr, m_arrBaseTexInfos[nSID].m_hdrDiffTexInfo,
-		                       m_arrSegmentPaths[nSID] + COMPILED_TERRAIN_TEXTURE_FILE_NAME, m_arrBaseTexInfos[nSID].m_ucpDiffTexTmpBuffer, m_arrBaseTexInfos[nSID].m_nDiffTexIndexTableSize, nSID);
-#endif
-
-	CTerrainNode* pNode = m_arrSecInfoPyramid[nSID][nDiffTexTreeLevelOffset][nTexSectorX][nTexSectorY];
-
-#ifdef SEG_WORLD
-	if (!idOld == !textureId || textureId == (unsigned int)-1)
-		return;
-#endif
+	CTerrainNode* pNode = m_arrSecInfoPyramid[nDiffTexTreeLevelOffset][nTexSectorX][nTexSectorY];
 
 	while (pNode)
 	{
@@ -698,18 +648,10 @@ void CTerrain::SetTerrainSectorTexture(int nTexSectorX, int nTexSectorY, unsigne
 	}
 }
 
-void CTerrain::ResetTerrainVertBuffers(const AABB* pBox, int nSID)
+void CTerrain::ResetTerrainVertBuffers(const AABB* pBox)
 {
-	if (nSID == -1)
-	{
-		for (int id = 0; id < m_pParentNodes.Count(); id++)
-		{
-			if (Get3DEngine()->IsSegmentSafeToUse(id) && GetParentNode(id))
-				GetParentNode(id)->ReleaseHeightMapGeometry(true, pBox);
-		}
-	}
-	else if (GetParentNode(nSID))
-		GetParentNode(nSID)->ReleaseHeightMapGeometry(true, pBox);
+	if (GetParentNode())
+		GetParentNode()->ReleaseHeightMapGeometry(true, pBox);
 }
 
 void CTerrain::SetOceanWaterLevel(float oceanWaterLevel)
@@ -750,17 +692,14 @@ bool CTerrain::CanPaintSurfaceType(int x, int y, int r, uint16 usGlobalSurfaceTy
 		for (int rangeY = rangeY1; rangeY < rangeY2; rangeY++)
 		{
 			int rx = rangeX, ry = rangeY;
-			int nSID = WorldToSegment(ry, rx, nSignedBitShift + m_nUnitsToSectorBitShift);
-			if (nSID < 0)
-				continue;
 
-			Array2d<struct CTerrainNode*>& sectorLayer = m_arrSecInfoPyramid[nSID][0];
+			Array2d<struct CTerrainNode*>& sectorLayer = m_arrSecInfoPyramid[0];
 			CTerrainNode* pTerrainNode = sectorLayer[ry][rx];
 			SRangeInfo& ri = pTerrainNode->m_rangeInfo;
 
 			if (ri.GetLocalSurfaceTypeID(usGlobalSurfaceType) == SRangeInfo::e_index_hole)
 			{
-				IRenderAuxText::DrawLabel(Vec3((float)y, (float)x, GetZfromUnits(y, x, -1) + 1.0f), 2.0f, "SECTOR PALETTE FULL!");
+				IRenderAuxText::DrawLabel(Vec3((float)y, (float)x, GetZfromUnits(y, x) + 1.0f), 2.0f, "SECTOR PALETTE FULL!");
 				HighlightTerrain(
 				  rangeX << m_nUnitsToSectorBitShift, rangeY << m_nUnitsToSectorBitShift,
 				  (rangeX + 1) << m_nUnitsToSectorBitShift, (rangeY + 1) << m_nUnitsToSectorBitShift);
@@ -909,7 +848,7 @@ void CTerrain::CloneRegion(const AABB& region, const Vec3& offset, float zRotati
 			pBrush->m_pOcNode = NULL;
 
 			// to get correct indirect lighting the registration must be done before checking if this object is inside a VisArea
-			Get3DEngine()->RegisterEntity(pBrush, 0);
+			Get3DEngine()->RegisterEntity(pBrush);
 
 			//if (gEnv->IsEditorGameMode())
 			{
@@ -946,7 +885,7 @@ void CTerrain::CloneRegion(const AABB& region, const Vec3& offset, float zRotati
 
 			pVeg->Physicalize();
 
-			Get3DEngine()->RegisterEntity(pVeg, 0);
+			Get3DEngine()->RegisterEntity(pVeg);
 		}
 		else if (type == eERType_Decal)
 		{

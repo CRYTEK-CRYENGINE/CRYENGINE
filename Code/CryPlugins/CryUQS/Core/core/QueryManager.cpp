@@ -83,7 +83,7 @@ namespace UQS
 			}
 
 			static const CQueryID noParentQueryID = CQueryID::CreateInvalid();
-			std::unique_ptr<CItemList> emptyResultSinceThereIsNoPreviousQuery;
+			std::shared_ptr<CItemList> emptyResultSinceThereIsNoPreviousQuery;
 			return StartQueryInternal(noParentQueryID, qbp, request.runtimeParams, request.szQuerierName, request.callback, emptyResultSinceThereIsNoPreviousQuery, errorMessage);
 		}
 
@@ -108,7 +108,7 @@ namespace UQS
 			}
 		}
 
-		CQueryID CQueryManager::StartQueryInternal(const CQueryID& parentQueryID, std::shared_ptr<const CQueryBlueprint> pQueryBlueprint, const Shared::IVariantDict& runtimeParams, const char* szQuerierName, Functor1<const Core::SQueryResult&> callback, std::unique_ptr<CItemList>& pPotentialResultingItemsFromPreviousQuery, Shared::IUqsString& errorMessage)
+		CQueryID CQueryManager::StartQueryInternal(const CQueryID& parentQueryID, std::shared_ptr<const CQueryBlueprint> pQueryBlueprint, const Shared::IVariantDict& runtimeParams, const char* szQuerierName, Functor1<const Core::SQueryResult&> callback, const std::shared_ptr<CItemList>& pPotentialResultingItemsFromPreviousQuery, Shared::IUqsString& errorMessage)
 		{
 			// generate a new query ID (even if the query fails to start)
 			const CQueryID id = ++m_queryIDProvider;

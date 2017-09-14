@@ -20,11 +20,7 @@
 
 class CCryBufferedFileReader;
 
-#if defined(SEG_WORLD)
-bool ReadPolygonArea(CCryBufferedFileReader& file, int version, string& name, ListPositions& pts, const Vec3& vSegmentOffset);
-#else
 bool ReadPolygonArea(CCryBufferedFileReader& file, int version, string& name, ListPositions& pts);
-#endif
 
 class CNavigation : public INavigation
 {
@@ -49,12 +45,7 @@ public:
 	void  LoadNavigationData(const char* szLevel, const char* szMission);
 
 	// reads (designer paths) areas from file. clears the existing areas
-#if defined(SEG_WORLD)
-	// SEG_WORLD: adds offset to the areas read, and doesn't clear existing areas.
-	void ReadAreasFromFile(CCryBufferedFileReader&, int fileVersion, const Vec3& vSegmentOffset);
-#else
 	void ReadAreasFromFile(CCryBufferedFileReader&, int fileVersion);
-#endif
 
 	void Update(CTimeValue currentTime, float frameTime);
 

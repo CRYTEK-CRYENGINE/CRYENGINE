@@ -854,12 +854,6 @@
       "SharedParams/SharedParamsManager.h",
       "SharedParams/SharedParamsTypeInfo.h"
     ],
-    "SegmentedWorld":[
-      "SegmentedWorld/SegmentNode.h",
-      "SegmentedWorld/SegmentNode.cpp",
-      "SegmentedWorld/SegmentedWorld.h",
-      "SegmentedWorld/SegmentedWorld.cpp"
-    ],
     "EffectSystem":[
       "EffectSystem/BloodSplats.h",
       "EffectSystem/BloodSplats.cpp",

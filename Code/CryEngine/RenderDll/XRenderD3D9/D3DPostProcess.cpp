@@ -893,7 +893,7 @@ void SD3DPostEffectsUtils::BeginStencilPrePass(const bool bAddToStencil, const b
 	  bResetStencil ? nStencilRefReset : gcpRendD3D->m_nStencilMaskRef, 0xFFFFFFFF, 0xFFFF
 	  );
 
-	gcpRendD3D->FX_SetState(GS_STENCIL | GS_NODEPTHTEST | (!bDebug ? GS_COLMASK_NONE : 0));
+	gcpRendD3D->FX_SetState(GS_STENCIL | GS_NODEPTHTEST | (!bDebug ? GS_NOCOLMASK_RGBA : 0));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -41,8 +41,10 @@ void CObjManager::MakeShadowCastersList(CVisArea* pArea, const AABB& aabbReceive
 
 	if (pArea)
 	{
-		if (pArea->m_pObjectsTree)
-			pArea->m_pObjectsTree->FillShadowCastersList(false, pLight, pFr, pShadowHull, nRenderNodeFlags, passInfo);
+		if (pArea->IsObjectsTreeValid())
+		{
+			pArea->GetObjectsTree()->FillShadowCastersList(false, pLight, pFr, pShadowHull, nRenderNodeFlags, passInfo);
+		}
 
 		if (pLightArea)
 		{
@@ -52,14 +54,18 @@ void CObjManager::MakeShadowCastersList(CVisArea* pArea, const AABB& aabbReceive
 				for (int pp = 0; pp < pArea->m_lstConnections.Count(); pp++)
 				{
 					CVisArea* pN = pArea->m_lstConnections[pp];
-					if (pN->m_pObjectsTree)
-						pN->m_pObjectsTree->FillShadowCastersList(false, pLight, pFr, pShadowHull, nRenderNodeFlags, passInfo);
+					if (pN->IsObjectsTreeValid())
+					{
+						pN->GetObjectsTree()->FillShadowCastersList(false, pLight, pFr, pShadowHull, nRenderNodeFlags, passInfo);
+					}
 
 					for (int p = 0; p < pN->m_lstConnections.Count(); p++)
 					{
 						CVisArea* pNN = pN->m_lstConnections[p];
-						if (pNN != pLightArea && pNN->m_pObjectsTree)
-							pNN->m_pObjectsTree->FillShadowCastersList(false, pLight, pFr, pShadowHull, nRenderNodeFlags, passInfo);
+						if (pNN != pLightArea && pNN->IsObjectsTreeValid())
+						{
+							pNN->GetObjectsTree()->FillShadowCastersList(false, pLight, pFr, pShadowHull, nRenderNodeFlags, passInfo);
+						}
 					}
 				}
 			}
@@ -69,8 +75,10 @@ void CObjManager::MakeShadowCastersList(CVisArea* pArea, const AABB& aabbReceive
 				for (int p = 0; p < pArea->m_lstConnections.Count(); p++)
 				{
 					CVisArea* pN = pArea->m_lstConnections[p];
-					if (pN->m_pObjectsTree)
-						pN->m_pObjectsTree->FillShadowCastersList(false, pLight, pFr, pShadowHull, nRenderNodeFlags, passInfo);
+					if (pN->IsObjectsTreeValid())
+					{
+						pN->GetObjectsTree()->FillShadowCastersList(false, pLight, pFr, pShadowHull, nRenderNodeFlags, passInfo);
+					}
 				}
 			}
 		}
@@ -80,9 +88,7 @@ void CObjManager::MakeShadowCastersList(CVisArea* pArea, const AABB& aabbReceive
 		PodArray<CTerrainNode*>& lstCastingNodes = m_lstTmpCastingNodes;
 		lstCastingNodes.Clear();
 
-		for (int nSID = 0; nSID < Get3DEngine()->m_pObjectsTree.Count(); nSID++)
-			if (Get3DEngine()->IsSegmentSafeToUse(nSID))
-				Get3DEngine()->m_pObjectsTree[nSID]->FillShadowCastersList(false, pLight, pFr, pShadowHull, nRenderNodeFlags, passInfo);
+		Get3DEngine()->m_pObjectsTree->FillShadowCastersList(false, pLight, pFr, pShadowHull, nRenderNodeFlags, passInfo);
 
 		// check also visareas effected by sun
 		CVisAreaManager* pVisAreaManager = GetVisAreaManager();
@@ -91,23 +97,23 @@ void CObjManager::MakeShadowCastersList(CVisArea* pArea, const AABB& aabbReceive
 			{
 				PodArray<CVisArea*>& lstAreas = pVisAreaManager->m_lstVisAreas;
 				for (int i = 0; i < lstAreas.Count(); i++)
-					if (lstAreas[i]->IsAffectedByOutLights() && lstAreas[i]->m_pObjectsTree)
+					if (lstAreas[i]->IsAffectedByOutLights() && lstAreas[i]->IsObjectsTreeValid())
 					{
 						bool bUnused = false;
 						if (pFr->IntersectAABB(*lstAreas[i]->GetAABBox(), &bUnused))
 							if (!pShadowHull || IsAABBInsideHull(pShadowHull->GetElements(), pShadowHull->Count(), *lstAreas[i]->GetAABBox()))
-								lstAreas[i]->m_pObjectsTree->FillShadowCastersList(false, pLight, pFr, pShadowHull, nRenderNodeFlags, passInfo);
+								lstAreas[i]->GetObjectsTree()->FillShadowCastersList(false, pLight, pFr, pShadowHull, nRenderNodeFlags, passInfo);
 					}
 			}
 			{
 				PodArray<CVisArea*>& lstAreas = pVisAreaManager->m_lstPortals;
 				for (int i = 0; i < lstAreas.Count(); i++)
-					if (lstAreas[i]->IsAffectedByOutLights() && lstAreas[i]->m_pObjectsTree)
+					if (lstAreas[i]->IsAffectedByOutLights() && lstAreas[i]->IsObjectsTreeValid())
 					{
 						bool bUnused = false;
 						if (pFr->IntersectAABB(*lstAreas[i]->GetAABBox(), &bUnused))
 							if (!pShadowHull || IsAABBInsideHull(pShadowHull->GetElements(), pShadowHull->Count(), *lstAreas[i]->GetAABBox()))
-								lstAreas[i]->m_pObjectsTree->FillShadowCastersList(false, pLight, pFr, pShadowHull, nRenderNodeFlags, passInfo);
+								lstAreas[i]->GetObjectsTree()->FillShadowCastersList(false, pLight, pFr, pShadowHull, nRenderNodeFlags, passInfo);
 					}
 			}
 		}
@@ -117,7 +123,7 @@ void CObjManager::MakeShadowCastersList(CVisArea* pArea, const AABB& aabbReceive
 		if (bNeedRenderTerrain && passInfo.RenderTerrain() && Get3DEngine()->m_bShowTerrainSurface)
 		{
 			// find all caster sectors
-			GetTerrain()->IntersectWithShadowFrustum(&pFr->castersList, pFr, GetDefSID(), passInfo);
+			GetTerrain()->IntersectWithShadowFrustum(&pFr->castersList, pFr, passInfo);
 		}
 	}
 
@@ -147,16 +153,13 @@ int CObjManager::MakeStaticShadowCastersList(IRenderNode* pIgnoreNode, ShadowMap
 {
 	int nRemainingNodes = nMaxNodes;
 
-	int nNumTrees = Get3DEngine()->m_pObjectsTree.Count();
+	int nNumTrees = Get3DEngine()->m_pObjectsTree ? 1 : 0;
 	if (CVisAreaManager* pVisAreaManager = GetVisAreaManager())
 		nNumTrees += pVisAreaManager->m_lstVisAreas.size() + pVisAreaManager->m_lstPortals.size();
 
 	// objects tree first
-	int nStartSID = pFrustum->pShadowCacheData->mOctreePath[0];
-	for (int nSID = nStartSID; nSID < Get3DEngine()->m_pObjectsTree.Count(); nSID++)
 	{
-		if (Get3DEngine()->IsSegmentSafeToUse(nSID))
-			Get3DEngine()->m_pObjectsTree[nSID]->GetShadowCastersTimeSliced(pIgnoreNode, pFrustum, pShadowHull, renderNodeExcludeFlags, nRemainingNodes, 1, passInfo);
+		Get3DEngine()->m_pObjectsTree->GetShadowCastersTimeSliced(pIgnoreNode, pFrustum, pShadowHull, renderNodeExcludeFlags, nRemainingNodes, 1, passInfo);
 
 		if (nRemainingNodes <= 0)
 			return nRemainingNodes;
@@ -174,19 +177,17 @@ int CObjManager::MakeStaticShadowCastersList(IRenderNode* pIgnoreNode, ShadowMap
 			&pVisAreaManager->m_lstPortals
 		};
 
-		nStartSID = max(0, nStartSID - Get3DEngine()->m_pObjectsTree.Count());
-
 		const int nNumAreaTypes = CRY_ARRAY_COUNT(lstAreaTypes);
 		for (int nAreaType = 0; nAreaType < nNumAreaTypes; ++nAreaType)
 		{
 			PodArray<CVisArea*>& lstAreas = *lstAreaTypes[nAreaType];
 
-			for (int i = nStartSID; i < lstAreas.Count(); i++)
+			for (int i = 0; i < lstAreas.Count(); i++)
 			{
-				if (lstAreas[i]->IsAffectedByOutLights() && lstAreas[i]->m_pObjectsTree)
+				if (lstAreas[i]->IsAffectedByOutLights() && lstAreas[i]->IsObjectsTreeValid())
 				{
 					if (pFrustum->aabbCasters.IsReset() || Overlap::AABB_AABB(pFrustum->aabbCasters, *lstAreas[i]->GetAABBox()))
-						lstAreas[i]->m_pObjectsTree->GetShadowCastersTimeSliced(pIgnoreNode, pFrustum, pShadowHull, renderNodeExcludeFlags, nRemainingNodes, 0, passInfo);
+						lstAreas[i]->GetObjectsTree()->GetShadowCastersTimeSliced(pIgnoreNode, pFrustum, pShadowHull, renderNodeExcludeFlags, nRemainingNodes, 0, passInfo);
 				}
 
 				if (nRemainingNodes <= 0)
@@ -194,8 +195,6 @@ int CObjManager::MakeStaticShadowCastersList(IRenderNode* pIgnoreNode, ShadowMap
 
 				pFrustum->pShadowCacheData->mOctreePath[0]++;
 			}
-
-			nStartSID = max(0, nStartSID - lstAreas.Count());
 		}
 	}
 

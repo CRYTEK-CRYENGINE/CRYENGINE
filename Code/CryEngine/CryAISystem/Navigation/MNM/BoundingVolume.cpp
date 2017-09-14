@@ -209,13 +209,11 @@ bool BoundingVolume::Contains(const Vec3& point) const
 
 void BoundingVolume::OffsetVerticesAndAABB(const Vec3& delta)
 {
-#ifdef SEG_WORLD
 	const size_t vertexCount = vertices.size();
 	for (size_t i = 0; i < vertexCount; ++i)
 	{
 		vertices[i] += delta;
 	}
 	aabb.Move(delta);
-#endif
 }
 }

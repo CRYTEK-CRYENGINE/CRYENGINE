@@ -239,13 +239,11 @@ bool C3DEngine::InitLevelForEditor(const char* szFolderName, const char* szMissi
 
 	GetObjManager()->LoadOcclusionMesh(szFolderName);
 
-	//	delete m_pObjectsTree[nSID];
-	//	m_pObjectsTree[nSID] = NULL;
 	return (true);
 #endif
 }
 
-bool C3DEngine::LoadTerrain(XmlNodeRef pDoc, std::vector<struct IStatObj*>** ppStatObjTable, std::vector<IMaterial*>** ppMatTable, int nSID, Vec3 vSegmentOrigin)
+bool C3DEngine::LoadTerrain(XmlNodeRef pDoc, std::vector<struct IStatObj*>** ppStatObjTable, std::vector<IMaterial*>** ppMatTable)
 {
 	LOADING_TIME_PROFILE_SECTION;
 
@@ -267,6 +265,13 @@ bool C3DEngine::LoadTerrain(XmlNodeRef pDoc, std::vector<struct IStatObj*>** ppS
 	SwapEndian(header, (header.nFlags & SERIALIZATION_FLAG_BIG_ENDIAN) ? eBigEndian : eLittleEndian);
 	m_bLevelFilesEndian = (header.nFlags & SERIALIZATION_FLAG_BIG_ENDIAN) ? eBigEndian : eLittleEndian;
 
+	// detect old header format where unitSize_InMeters was an int (now it is float)
+	if (header.TerrainInfo.unitSize_InMeters < 0.25f || header.TerrainInfo.unitSize_InMeters > 64.f)
+	{
+		int unitSize_InMeters = *(int*)&header.TerrainInfo.unitSize_InMeters;
+		header.TerrainInfo.unitSize_InMeters = (float)unitSize_InMeters;
+	}
+
 	if (header.nChunkSize)
 	{
 		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Terrain, 0, "Terrain");
@@ -274,9 +279,9 @@ bool C3DEngine::LoadTerrain(XmlNodeRef pDoc, std::vector<struct IStatObj*>** ppS
 		if (!m_pTerrain)
 			m_pTerrain = (CTerrain*)CreateTerrain(header.TerrainInfo);
 
-		m_pTerrain->LoadSurfaceTypesFromXML(pDoc, nSID);
+		m_pTerrain->LoadSurfaceTypesFromXML(pDoc);
 
-		if (!m_pTerrain->Load(f, header.nChunkSize - sizeof(STerrainChunkHeader), &header, ppStatObjTable, ppMatTable, nSID, vSegmentOrigin))
+		if (!m_pTerrain->Load(f, header.nChunkSize - sizeof(STerrainChunkHeader), &header, ppStatObjTable, ppMatTable))
 		{
 			delete m_pTerrain;
 			m_pTerrain = NULL;
@@ -417,15 +422,7 @@ void C3DEngine::UnloadLevel()
 
 	// delete outdoor objects
 	CryComment("Deleting Octree");
-	for (int nSID = 0; nSID < m_pObjectsTree.Count(); nSID++)
-	{
-		SAFE_DELETE(m_pObjectsTree[nSID]);
-	}
-	m_pObjectsTree.Reset();
-
-	// set as unsafe
-	for (int nSID = 0; nSID < m_safeToUseSegments.Count(); nSID++)
-		m_safeToUseSegments[nSID] = 0;
+	SAFE_DELETE(m_pObjectsTree);
 
 	// delete indoors
 	if (m_pVisAreaManager)
@@ -549,15 +546,8 @@ void C3DEngine::UnloadLevel()
 		CryComment("done");
 	}
 
-	for (int nSID = 0; nSID < Get3DEngine()->m_pObjectsTree.Count(); nSID++)
-	{
-		assert(m_pObjectsTree[nSID] == NULL);
-	}
+	assert(m_pObjectsTree  == NULL);
 
-	//[AlexMcC|28.04.10]: If we don't clear this array when chainloading, the first call to
-	// C3DEngine::RegisterEntity will create a COctTree and store it in m_pObjectsTree,
-	// which we'll leak when we hit CTerrain::CreateSegment
-	m_pObjectsTree.clear();
 	COctreeNode::StaticReset();
 
 	// Now that all meshes and objects are deleted we final release permanent renderobjects
@@ -864,8 +854,6 @@ bool C3DEngine::LoadLevel(const char* szFolderName, const char* szMissionName)
 	assert(!m_pLevelMaterialsTable);
 	assert(!m_arrObjectLayersActivity.Count());
 
-	int nSID = 0;
-
 	// load terrain
 	XmlNodeRef nodeRef = xmlLevelData->findChild("SurfaceTypes");
 
@@ -885,60 +873,17 @@ bool C3DEngine::LoadLevel(const char* szFolderName, const char* szMissionName)
 	}
 #endif
 
-	if (!m_pSegmentsManager)
+	if (!LoadTerrain(nodeRef, &m_pLevelStatObjTable, &m_pLevelMaterialsTable))
 	{
-		if (!LoadTerrain(nodeRef, &m_pLevelStatObjTable, &m_pLevelMaterialsTable, nSID, Vec3(0, 0, 0)))
-		{
-			Error("Terrain file (%s) not found or file version error, please try to re-export the level", COMPILED_HEIGHT_MAP_FILE_NAME);
-			return false;
-		}
-
-		// load indoors
-		if (!LoadVisAreas(&m_pLevelStatObjTable, &m_pLevelMaterialsTable))
-		{
-			Error("VisAreas file (%s) not found or file version error, please try to re-export the level", COMPILED_VISAREA_MAP_FILE_NAME);
-			return false;
-		}
+		Error("Terrain file (%s) not found or file version error, please try to re-export the level", COMPILED_HEIGHT_MAP_FILE_NAME);
+		return false;
 	}
-	else
+
+	// load indoors
+	if (!LoadVisAreas(&m_pLevelStatObjTable, &m_pLevelMaterialsTable))
 	{
-		PrintMessage("===== Load terrain called with segments manager active =====");
-
-		PrintMessage("Loading level info");
-		XmlNodeRef levelInfo = GetISystem()->LoadXmlFromFile(GetLevelFilePath(LEVEL_INFO_FILE_NAME));
-		XmlNodeRef terrainInfoNode = levelInfo->findChild("TerrainInfo");
-		STerrainInfo terrainInfo;
-		terrainInfoNode->getAttr("UnitSize", terrainInfo.nUnitSize_InMeters);
-
-		//terrainInfoNode->getAttr("HeightmapSize", terrainInfo.nHeightMapSize_InUnits);
-		int xm, ym;
-		m_pSegmentsManager->GetTerrainSizeInMeters(xm, ym);
-		terrainInfo.nHeightMapSize_InUnits = max(xm, ym) / terrainInfo.nUnitSize_InMeters;
-
-		terrainInfoNode->getAttr("SectorSize", terrainInfo.nSectorSize_InMeters);
-		terrainInfoNode->getAttr("SectorsTableSize", terrainInfo.nSectorsTableSize_InSectors);
-		terrainInfoNode->getAttr("HeightmapZRatio", terrainInfo.fHeightmapZRatio);
-		terrainInfoNode->getAttr("OceanWaterLevel", terrainInfo.fOceanWaterLevel);
-
-		if (!m_pTerrain)
-		{
-			m_pTerrain = (CTerrain*)CreateTerrain(terrainInfo);
-			m_pTerrain->DeleteSegment(0, true);
-
-			int nCellSize = CTerrain::GetTerrainSize() > 2048 ? CTerrain::GetTerrainSize() >> 10 : 2;
-			nCellSize = max(nCellSize, GetCVars()->e_PhysMinCellSize);
-			int log2PODGridSize = 0;
-			if (nCellSize == 2)
-				log2PODGridSize = 2;
-			else if (nCellSize == 4)
-				log2PODGridSize = 1;
-			GetPhysicalWorld()->SetupEntityGrid(2, Vec3(0, 0, 0), // this call will destroy all physicalized stuff
-			                                    CTerrain::GetTerrainSize() / nCellSize, CTerrain::GetTerrainSize() / nCellSize, (float)nCellSize, (float)nCellSize, log2PODGridSize);
-		}
-		if (!m_pVisAreaManager)
-		{
-			m_pVisAreaManager = new CVisAreaManager();
-		}
+		Error("VisAreas file (%s) not found or file version error, please try to re-export the level", COMPILED_VISAREA_MAP_FILE_NAME);
+		return false;
 	}
 
 	COctreeNode::FreeLoadingCache();
@@ -1086,34 +1031,16 @@ void C3DEngine::FreeFoliages()
 	m_arrEntsInFoliage.Reset();
 }
 
-void C3DEngine::LoadTerrainSurfacesFromXML(XmlNodeRef pDoc, bool bUpdateTerrain, int nSID)
+void C3DEngine::LoadTerrainSurfacesFromXML(XmlNodeRef pDoc, bool bUpdateTerrain)
 {
 	if (!m_pTerrain)
 		return;
 
-#ifdef SEG_WORLD
-	if (nSID < 0)
-	{
-		int cnt = m_pTerrain->GetMaxSegmentsCount();
-		for (nSID = 0; nSID < cnt; ++nSID)
-		{
-			if (!IsSegmentSafeToUse(nSID))
-				continue;
+	m_pTerrain->LoadSurfaceTypesFromXML(pDoc);
 
-			LoadTerrainSurfacesFromXML(pDoc, bUpdateTerrain, nSID);
-		}
-		return;
-	}
-#endif
+	m_pTerrain->UpdateSurfaceTypes();
 
-	m_pTerrain->LoadSurfaceTypesFromXML(pDoc, nSID);
-
-	if (!IsSegmentOperationInProgress())
-	{
-		m_pTerrain->UpdateSurfaceTypes(nSID);
-
-		m_pTerrain->InitHeightfieldPhysics(nSID);
-	}
+	m_pTerrain->InitHeightfieldPhysics();
 }
 
 void C3DEngine::LoadMissionDataFromXMLNode(const char* szMissionName)
@@ -1146,7 +1073,7 @@ void C3DEngine::LoadMissionDataFromXMLNode(const char* szMissionName)
 		XmlNodeRef xmlMission = GetSystem()->LoadXmlFromFile(Get3DEngine()->GetLevelFilePath(szFileName));
 		if (xmlMission)
 		{
-			LoadEnvironmentSettingsFromXML(xmlMission->findChild("Environment"), GetDefSID());
+			LoadEnvironmentSettingsFromXML(xmlMission->findChild("Environment"));
 			LoadTimeOfDaySettingsFromXML(xmlMission->findChild("TimeOfDay"));
 		}
 		else
@@ -1216,7 +1143,7 @@ void C3DEngine::UpdateMoonDirection()
 	m_moonDirection = Vec3(sinLon * cosLat, sinLon * sinLat, cosLon);
 }
 
-void C3DEngine::LoadEnvironmentSettingsFromXML(XmlNodeRef pInputNode, int nSID)
+void C3DEngine::LoadEnvironmentSettingsFromXML(XmlNodeRef pInputNode)
 {
 	PrintComment("Loading environment settings from XML ...");
 
@@ -1265,12 +1192,12 @@ void C3DEngine::LoadEnvironmentSettingsFromXML(XmlNodeRef pInputNode, int nSID)
 
 	float fTerrainDetailMaterialsViewDistRatio = (float)atof(GetXMLAttribText(pInputNode, "Terrain", "DetailLayersViewDistRatio", "1.0"));
 	if (m_fTerrainDetailMaterialsViewDistRatio != fTerrainDetailMaterialsViewDistRatio && GetTerrain())
-		GetTerrain()->ResetTerrainVertBuffers(NULL, nSID);
+		GetTerrain()->ResetTerrainVertBuffers(NULL);
 	m_fTerrainDetailMaterialsViewDistRatio = fTerrainDetailMaterialsViewDistRatio;
 
 	// SkyBox
-	m_skyMatName = GetXMLAttribText(pInputNode, "SkyBox", "Material", "Materials/Sky/Sky");
-	m_skyLowSpecMatName = GetXMLAttribText(pInputNode, "SkyBox", "MaterialLowSpec", "Materials/Sky/Sky");
+	m_skyMatName = GetXMLAttribText(pInputNode, "SkyBox", "Material", "%ENGINE%/EngineAssets/Materials/sky/Sky");
+	m_skyLowSpecMatName = GetXMLAttribText(pInputNode, "SkyBox", "MaterialLowSpec", "%ENGINE%/EngineAssets/Materials/sky/Sky");
 
 	// Forces the engine to reload the material of the skybox in the next time it renders it.
 	m_pSkyMat = NULL;
@@ -1385,7 +1312,7 @@ void C3DEngine::LoadEnvironmentSettingsFromXML(XmlNodeRef pInputNode, int nSID)
 
 		if (bIntegrateObjectsIntoTerrain != m_bIntegrateObjectsIntoTerrain && GetTerrain())
 		{
-			GetTerrain()->ResetTerrainVertBuffers(NULL, nSID);
+			GetTerrain()->ResetTerrainVertBuffers(NULL);
 			m_bIntegrateObjectsIntoTerrain = bIntegrateObjectsIntoTerrain;
 		}
 	}
@@ -1543,9 +1470,6 @@ void C3DEngine::LoadTimeOfDaySettingsFromXML(XmlNodeRef node)
 	if (node)
 	{
 		GetTimeOfDay()->Serialize(node, true);
-		ITimeOfDay::SAdvancedInfo info;
-		GetTimeOfDay()->GetAdvancedInfo(info);
-		GetTimeOfDay()->SetTime(info.fStartTime, true);
 	}
 }
 
@@ -1594,15 +1518,15 @@ IStatObj* C3DEngine::CreateStatObjOptionalIndexedMesh(bool createIndexedMesh)
 	return pStatObj;
 }
 
-bool C3DEngine::RestoreTerrainFromDisk(int nSID)
+bool C3DEngine::RestoreTerrainFromDisk()
 {
 	if (m_pTerrain && m_pObjManager && !m_bEditor && GetCVars()->e_TerrainDeformations)
 	{
-		m_pTerrain->ResetTerrainVertBuffers(NULL, nSID);
+		m_pTerrain->ResetTerrainVertBuffers(NULL);
 
 		if (FILE* f = GetPak()->FOpen(GetLevelFilePath(COMPILED_HEIGHT_MAP_FILE_NAME), "rbx"))
 		{
-			GetTerrain()->ReloadModifiedHMData(f, nSID);
+			GetTerrain()->ReloadModifiedHMData(f);
 			GetPak()->FClose(f);
 		}
 	}
@@ -1610,17 +1534,14 @@ bool C3DEngine::RestoreTerrainFromDisk(int nSID)
 	ResetParticlesAndDecals();
 
 	// update roads
-	for (int id = 0; id < Get3DEngine()->m_pObjectsTree.Count(); id++)
+	if (m_pObjectsTree && GetCVars()->e_TerrainDeformations)
 	{
-		if (m_pObjectsTree[id] && GetCVars()->e_TerrainDeformations)
+		PodArray<IRenderNode*> lstRoads;
+		m_pObjectsTree->GetObjectsByType(lstRoads, eERType_Road, NULL);
+		for (int i = 0; i < lstRoads.Count(); i++)
 		{
-			PodArray<IRenderNode*> lstRoads;
-			m_pObjectsTree[id]->GetObjectsByType(lstRoads, eERType_Road, NULL);
-			for (int i = 0; i < lstRoads.Count(); i++)
-			{
-				CRoadRenderNode* pRoad = (CRoadRenderNode*)lstRoads[i];
-				pRoad->OnTerrainChanged();
-			}
+			CRoadRenderNode* pRoad = (CRoadRenderNode*)lstRoads[i];
+			pRoad->OnTerrainChanged();
 		}
 	}
 

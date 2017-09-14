@@ -426,7 +426,7 @@ void CAILightManager::DebugDrawArea(const ListPositions& poly, float zmin, float
 EAILightLevel CAILightManager::GetLightLevelAt(const Vec3& pos, const CAIActor* pAgent, bool* outUsingCombatLight)
 {
 	CCCPOINT(CAILightManager_GetLightLevelAt);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// Find ambient light level.
 

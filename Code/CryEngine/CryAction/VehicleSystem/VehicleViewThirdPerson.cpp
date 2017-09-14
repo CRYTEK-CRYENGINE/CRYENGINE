@@ -254,10 +254,8 @@ void CVehicleViewThirdPerson::SetDefaultHeight(float height)
 //------------------------------------------------------------------------
 void CVehicleViewThirdPerson::OffsetPosition(const Vec3& delta)
 {
-#ifdef SEG_WORLD
 	m_position += delta;
 	m_worldPos += delta;
-#endif
 }
 
 DEFINE_VEHICLEOBJECT(CVehicleViewThirdPerson);

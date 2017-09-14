@@ -74,7 +74,7 @@ bool CVehicleSeatActionWeaponsBone::GetProbableHit(EntityId weaponId, const IFir
 
 bool CVehicleSeatActionWeaponsBone::GetFiringPos(EntityId weaponId, const IFireMode* pFireMode, Vec3& pos)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 	return CalcFiringPosDir(pos);
 }
 
@@ -112,7 +112,7 @@ bool CVehicleSeatActionWeaponsBone::GetFiringDir(EntityId weaponId, const IFireM
 
 void CVehicleSeatActionWeaponsBone::UpdateWeaponTM(SVehicleWeapon& weapon)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (m_pSkeletonPose)
 	{

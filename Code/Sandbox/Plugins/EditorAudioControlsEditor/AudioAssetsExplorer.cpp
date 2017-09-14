@@ -23,53 +23,16 @@
 #include "FilePathUtil.h"
 #include "AdvancedTreeView.h"
 
+#include <QSearchBox.h>
+
+#include <QMenu>
 #include <QPushButton>
 #include <QKeyEvent>
 #include <QAction>
 #include <QHBoxLayout>
 #include <QHeaderView>
-#include <QLineEdit>
 #include <QVBoxLayout>
 #include <ProxyModels/MountingProxyModel.h>
-
-class CCheckableMenu final : public QMenu
-{
-public:
-
-	CCheckableMenu(QWidget* pParent) : QMenu(pParent)
-	{}
-
-	virtual bool event(QEvent* event) override
-	{
-		switch (event->type())
-		{
-		case QEvent::KeyPress:
-			{
-				QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
-				switch (keyEvent->key())
-				{
-				case Qt::Key_Space:
-				case Qt::Key_Return:
-				case Qt::Key_Enter:
-					break;
-				default:
-					return QMenu::event(event);
-				}
-			}
-		//Intentional fall through
-		case QEvent::MouseButtonRelease:
-			{
-				auto action = activeAction();
-				if (action)
-				{
-					action->trigger();
-					return true;
-				}
-			}
-		}
-		return QMenu::event(event);
-	}
-};
 
 namespace ACE
 {
@@ -79,19 +42,14 @@ CAudioAssetsExplorer::CAudioAssetsExplorer(CAudioAssetsManager* pAssetsManager)
 	, m_pProxyModel(new QControlsProxyFilter(this))
 {
 	resize(299, 674);
-	setWindowTitle(tr("ATL Controls Panel"));
-	setProperty("text", QVariant(tr("Reload")));
 
-	QIcon icon;
-	icon.addFile(QStringLiteral(":/Icons/Load_Icon.png"), QSize(), QIcon::Normal, QIcon::Off);
-	setProperty("icon", QVariant(icon));
 	QVBoxLayout* pMainLayout = new QVBoxLayout(this);
 	pMainLayout->setContentsMargins(0, 0, 0, 0);
+
 	QHBoxLayout* pHorizontalLayout = new QHBoxLayout();
-	m_pTextFilter = new QLineEdit(this);
-	m_pTextFilter->setAlignment(Qt::AlignLeading | Qt::AlignLeft | Qt::AlignVCenter);
-	m_pTextFilter->setClearButtonEnabled(true);
-	pHorizontalLayout->addWidget(m_pTextFilter);
+	m_pSearchBox = new QSearchBox(this);
+	m_pSearchBox->setToolTip(tr("Show only controls with this name"));
+	pHorizontalLayout->addWidget(m_pSearchBox);
 
 	QPushButton* pFiltersButton = new QPushButton(this);
 	pFiltersButton->setEnabled(true);
@@ -103,9 +61,9 @@ CAudioAssetsExplorer::CAudioAssetsExplorer(CAudioAssetsManager* pAssetsManager)
 	pFiltersButton->setText(tr("Filters"));
 	pHorizontalLayout->addWidget(pFiltersButton);
 
-	m_pFilterMenu = new CCheckableMenu(this);
+	m_pFilterMenu = new QMenu(this);
 
-	QAction* pAction = new QAction(tr("Triggers"), this);
+	QAction* pAction = new QAction(GetItemTypeIcon(eItemType_Trigger), tr("Triggers"), this);
 	connect(pAction, &QAction::triggered, [&](bool const bShow)
 		{
 			ShowControlType(eItemType_Trigger, bShow);
@@ -114,7 +72,7 @@ CAudioAssetsExplorer::CAudioAssetsExplorer(CAudioAssetsManager* pAssetsManager)
 	pAction->setChecked(true);
 	m_pFilterMenu->addAction(pAction);
 
-	pAction = new QAction(tr("Parameters"), this);
+	pAction = new QAction(GetItemTypeIcon(eItemType_Parameter), tr("Parameters"), this);
 	connect(pAction, &QAction::triggered, [&](bool const bShow)
 		{
 			ShowControlType(eItemType_Parameter, bShow);
@@ -123,7 +81,7 @@ CAudioAssetsExplorer::CAudioAssetsExplorer(CAudioAssetsManager* pAssetsManager)
 	pAction->setChecked(true);
 	m_pFilterMenu->addAction(pAction);
 
-	pAction = new QAction(tr("Switches"), this);
+	pAction = new QAction(GetItemTypeIcon(eItemType_Switch), tr("Switches"), this);
 	connect(pAction, &QAction::triggered, [&](bool const bShow)
 		{
 			ShowControlType(eItemType_Switch, bShow);
@@ -132,7 +90,7 @@ CAudioAssetsExplorer::CAudioAssetsExplorer(CAudioAssetsManager* pAssetsManager)
 	pAction->setChecked(true);
 	m_pFilterMenu->addAction(pAction);
 
-	pAction = new QAction(tr("Environments"), this);
+	pAction = new QAction(GetItemTypeIcon(eItemType_Environment), tr("Environments"), this);
 	connect(pAction, &QAction::triggered, [&](bool const bShow)
 		{
 			ShowControlType(eItemType_Environment, bShow);
@@ -141,7 +99,7 @@ CAudioAssetsExplorer::CAudioAssetsExplorer(CAudioAssetsManager* pAssetsManager)
 	pAction->setChecked(true);
 	m_pFilterMenu->addAction(pAction);
 
-	pAction = new QAction(tr("Preloads"), this);
+	pAction = new QAction(GetItemTypeIcon(eItemType_Preload), tr("Preloads"), this);
 	connect(pAction, &QAction::triggered, this, [&](bool const bShow)
 		{
 			ShowControlType(eItemType_Preload, bShow);
@@ -202,9 +160,7 @@ CAudioAssetsExplorer::CAudioAssetsExplorer(CAudioAssetsManager* pAssetsManager)
 	m_pControlsTree->viewport()->installEventFilter(this);
 	pMainLayout->addWidget(m_pControlsTree);
 
-	m_pTextFilter->setToolTip(tr("Show only controls with this name"));
-	m_pTextFilter->setPlaceholderText(tr("Search"));
-	connect(m_pTextFilter, &QLineEdit::textChanged, [&](QString const& filter)
+	connect(m_pSearchBox, &QSearchBox::textChanged, [&](QString const& filter)
 		{
 			if (m_filter != filter)
 			{
@@ -221,6 +177,11 @@ CAudioAssetsExplorer::CAudioAssetsExplorer(CAudioAssetsManager* pAssetsManager)
 					RestoreTreeViewStates();
 					StopTextFiltering();
 				}
+				else if (!m_filter.isEmpty() && !filter.isEmpty())
+				{
+					m_pProxyModel->setFilterFixedString(filter);
+					m_pControlsTree->expandAll();
+				}
 
 				m_filter = filter;
 			}
@@ -232,19 +193,20 @@ CAudioAssetsExplorer::CAudioAssetsExplorer(CAudioAssetsManager* pAssetsManager)
 	pAddButton->setText(tr("Add"));
 
 	// ************ Context Menu ************
-	m_addItemMenu.addAction(GetItemTypeIcon(eItemType_Library), tr("Library"), [this]()
+	QMenu* pContextMenu = new QMenu(this);
+	pContextMenu->addAction(GetItemTypeIcon(eItemType_Library), tr("Library"), [this]()
 		{
 			m_bCreatedFromMenu = true;
 			m_pAssetsManager->CreateLibrary(Utils::GenerateUniqueLibraryName("new_library", *m_pAssetsManager));
 		});
-	m_addItemMenu.addAction(GetItemTypeIcon(eItemType_Folder), tr("Folder"), [&]() { CreateFolder(GetSelectedAsset()); });
-	m_addItemMenu.addAction(GetItemTypeIcon(eItemType_Trigger), tr("Trigger"), [&]() { CreateControl("new_trigger", eItemType_Trigger, GetSelectedAsset()); });
-	m_addItemMenu.addAction(GetItemTypeIcon(eItemType_Parameter), tr("Parameter"), [&]() { CreateControl("new_parameter", eItemType_Parameter, GetSelectedAsset()); });
-	m_addItemMenu.addAction(GetItemTypeIcon(eItemType_Switch), tr("Switch"), [&]() { CreateControl("new_switch", eItemType_Switch, GetSelectedAsset()); });
-	m_addItemMenu.addAction(GetItemTypeIcon(eItemType_Environment), tr("Environment"), [&]() { CreateControl("new_environment", eItemType_Environment, GetSelectedAsset()); });
-	m_addItemMenu.addAction(GetItemTypeIcon(eItemType_Preload), tr("Preload"), [&]() { CreateControl("new_preload", eItemType_Preload, GetSelectedAsset()); });
-	m_addItemMenu.addSeparator();
-	pAddButton->setMenu(&m_addItemMenu);
+	pContextMenu->addAction(GetItemTypeIcon(eItemType_Folder), tr("Folder"), [&]() { CreateFolder(GetSelectedAsset()); });
+	pContextMenu->addAction(GetItemTypeIcon(eItemType_Trigger), tr("Trigger"), [&]() { CreateControl("new_trigger", eItemType_Trigger, GetSelectedAsset()); });
+	pContextMenu->addAction(GetItemTypeIcon(eItemType_Parameter), tr("Parameter"), [&]() { CreateControl("new_parameter", eItemType_Parameter, GetSelectedAsset()); });
+	pContextMenu->addAction(GetItemTypeIcon(eItemType_Switch), tr("Switch"), [&]() { CreateControl("new_switch", eItemType_Switch, GetSelectedAsset()); });
+	pContextMenu->addAction(GetItemTypeIcon(eItemType_Environment), tr("Environment"), [&]() { CreateControl("new_environment", eItemType_Environment, GetSelectedAsset()); });
+	pContextMenu->addAction(GetItemTypeIcon(eItemType_Preload), tr("Preload"), [&]() { CreateControl("new_preload", eItemType_Preload, GetSelectedAsset()); });
+	pContextMenu->addSeparator();
+	pAddButton->setMenu(pContextMenu);
 
 	m_pControlsTree->setContextMenuPolicy(Qt::CustomContextMenu);
 	connect(m_pControlsTree, &CAdvancedTreeView::customContextMenuRequested, this, &CAudioAssetsExplorer::ShowControlsContextMenu);
@@ -409,23 +371,14 @@ void CAudioAssetsExplorer::ShowControlsContextMenu(QPoint const& pos)
 	if (libraries.size() == 1 || folders.size() == 1)
 	{
 		IAudioAsset* pParent = nullptr;
+
 		if (libraries.empty())
 		{
 			pParent = static_cast<IAudioAsset*>(folders[0]);
-
 		}
 		else
 		{
 			pParent = static_cast<IAudioAsset*>(libraries[0]);
-
-			if (pParent->IsModified())
-			{
-				contextMenu.addAction(tr("Save"), [&]()
-					{
-						CAudioControlsEditorPlugin::SaveModels();
-					});
-				contextMenu.addSeparator();
-			}
 		}
 
 		addMenu.addAction(GetItemTypeIcon(eItemType_Folder), tr("Folder"), [&]() { CreateFolder(pParent); });
@@ -451,6 +404,7 @@ void CAudioAssetsExplorer::ShowControlsContextMenu(QPoint const& pos)
 	if (controls.size() == 1)
 	{
 		CAudioControl* pControl = controls[0];
+
 		switch (pControl->GetType())
 		{
 		case EItemType::eItemType_Trigger:
@@ -658,7 +612,7 @@ void CAudioAssetsExplorer::ResetFilters()
 	ShowControlType(eItemType_Preload, true);
 	ShowControlType(eItemType_Switch, true);
 	ShowControlType(eItemType_State, true);
-	m_pTextFilter->setText("");
+	m_pSearchBox->clear();
 }
 
 //////////////////////////////////////////////////////////////////////////

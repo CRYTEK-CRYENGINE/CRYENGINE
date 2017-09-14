@@ -346,7 +346,7 @@ void CFrameProfileSystem::Render()
 	if (!m_bDisplay)
 		return;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	m_baseY = 80;
 

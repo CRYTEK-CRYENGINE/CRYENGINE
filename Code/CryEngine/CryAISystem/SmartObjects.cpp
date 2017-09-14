@@ -1231,7 +1231,7 @@ void CSmartObjectManager::RecalculateUserSize()
 float CSmartObjectManager::CalculateDelayTime(CSmartObject* pUser, const Vec3& posUser,
                                               CSmartObject* pObject, const Vec3& posObject, CCondition* pCondition) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (!pCondition->bEnabled)
 		return -1.0f;
@@ -2313,7 +2313,7 @@ SOUpdateStats currentUpdateStats;
 
 void CSmartObjectManager::Update()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI)
+	CRY_PROFILE_FUNCTION(PROFILE_AI)
 
 	currentUpdateStats.reset();
 
@@ -2386,7 +2386,7 @@ void CSmartObjectManager::Update()
 
 int CSmartObjectManager::Process(CSmartObject* pSmartObjectUser, CSmartObjectClass* pClass)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	AIAssert(pSmartObjectUser);
 
@@ -3278,7 +3278,7 @@ void CSmartObjectManager::RescanSOClasses(IEntity* pEntity)
 ///////////////////////////////////////////////
 void CSmartObjectManager::OnSpawn(IEntity* pEntity, SEntitySpawnParams& params)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	/* Márcio: Enabling SmartObjects in multiplayer.
 	   if (gEnv->bMultiplayer)
 	    return;
@@ -3425,7 +3425,7 @@ void CSmartObjectManager::OnReused(IEntity* pEntity, SEntitySpawnParams& params)
 ///////////////////////////////////////////////
 void CSmartObjectManager::OnEvent(IEntity* pEntity, SEntityEvent& event)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	switch (event.event)
 	{
@@ -4269,7 +4269,7 @@ bool CSmartObjectManager::LoadSmartObjectsLibrary()
 
 void CSmartObjectManager::DebugDrawValidateSmartObjectArea() const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	IEntity* ent = gEnv->pEntitySystem->FindEntityByName("ValidateSmartObjectArea");
 	if (ent)
@@ -4323,7 +4323,7 @@ bool CSmartObjectManager::GetSmartObjectLinkCostFactorForMNM(const OffMeshLink_S
 				                         pRequesterEntity,
 				                         &m_statesToExcludeForPathfinding) > 0)
 				{
-					FRAME_PROFILER("CSmartObjectManager::GetSmartObjectLinkCostFactorForMNM::CostMultiplierCalculation", gEnv->pSystem, PROFILE_AI);
+					CRY_PROFILE_REGION(PROFILE_AI, "CSmartObjectManager::GetSmartObjectLinkCostFactorForMNM::CostMultiplierCalculation");
 					if (fCostMultiplier)
 					{
 						*fCostMultiplier = vHelperLinks[0]->condition->fProximityFactor;
@@ -4399,7 +4399,7 @@ int CSmartObjectManager::GetNavigationalSmartObjectActionTypeForMNM(CPipeUser* p
 
 void CSmartObjectManager::DebugDrawBannedNavsos()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	CDebugDrawContext dc;
 

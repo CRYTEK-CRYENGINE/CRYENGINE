@@ -853,14 +853,14 @@ void ProcessTiledLights(inout float4 vRGB, in float3 vPos0, in float3 vRayDir, i
 					vCol.xyz *= SVO_ShadowPool.SampleLevel(ssSvoPointClamp, float3(P0.xy, 0), 0).x > P0.z;
 
 #if !%_RT_SAMPLE5 && %_PS
-					vCol.xyz *= ForwRsmPoolCol.SampleLevel(ssSvoPointClamp, float3(P0.xy, 0), 0);
+					vCol.xyz *= SvoParamsMisc4.z + (1.f - SvoParamsMisc4.z) * ForwRsmPoolCol.SampleLevel(ssSvoPointClamp, float3(P0.xy, 0), 0);
 #endif
 				}
 			}
 			else if (vDirF.w == 0)
 			{
 #if !%_RT_SAMPLE5 && %_PS
-				vCol *= 0.4; // properly support only projectors for now
+				vCol *= SvoParamsMisc4.z; // properly support only projectors for now
 #endif
 			}
 			else

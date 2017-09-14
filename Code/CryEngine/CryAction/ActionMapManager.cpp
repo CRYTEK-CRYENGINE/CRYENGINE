@@ -64,7 +64,7 @@ CActionMapManager::~CActionMapManager()
 //------------------------------------------------------------------------
 bool CActionMapManager::OnInputEvent(const SInputEvent& event)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!m_enabled)
 		return false;
@@ -1844,7 +1844,7 @@ bool CActionMapManager::CreateRefiredEventPriorityList(SRefireData* pRefireData,
 //------------------------------------------------------------------------
 void CActionMapManager::UpdateRefiringInputs()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	// no actions while console is open
 	if (gEnv->pConsole->IsOpened())

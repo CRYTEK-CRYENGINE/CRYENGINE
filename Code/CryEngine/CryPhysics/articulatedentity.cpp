@@ -1267,12 +1267,12 @@ int CArticulatedEntity::Step(float time_interval)
 	if (!m_bAwake && !m_bCheckCollisions || m_nRoots>1 || (!m_bCheckCollisions && !m_bGrounded) || bNoSim)
 		return UpdateHistory(1);
 
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 	PHYS_ENTITY_PROFILER
 
+	int iCaller = get_iCaller_int();
 	if (!bboxUpdated) ComputeBBox(m_BBoxNew);
 	if (m_bCheckCollisions) {
-		int iCaller = get_iCaller_int();
 		Vec3 sz = m_BBoxNew[1]-m_BBoxNew[0];
 		float szmax = max(max(sz.x,sz.y),sz.z)*0.3f;
 		if (m_body.v.len2()*sqr(time_interval) > szmax)
@@ -1366,7 +1366,7 @@ int CArticulatedEntity::Step(float time_interval)
 		ComputeBBox(m_BBoxNew);
 		UpdatePosition(m_pWorld->RepositionEntity(this,1,m_BBoxNew));
 		gravity = m_gravity;
-		i = PostStepNotify(time_interval,pb,CRY_ARRAY_COUNT(pb));
+		i = PostStepNotify(time_interval,pb,CRY_ARRAY_COUNT(pb),iCaller);
 		ApplyBuoyancy(time_interval,m_gravityFreefall,pb,i);
 		if ((m_gravity-gravity).len2()>0)
 			m_gravityLyingMode = m_gravity;
@@ -1412,7 +1412,7 @@ int CArticulatedEntity::Step(float time_interval)
 	UpdatePosition(m_pWorld->RepositionEntity(this,1,m_BBoxNew));
 	UpdateJointDyn();
 	gravity = m_gravity;
-	PostStepNotify(time_interval,pb,CRY_ARRAY_COUNT(pb));
+	PostStepNotify(time_interval,pb,CRY_ARRAY_COUNT(pb),iCaller);
 	if ((m_gravity-gravity).len2()>0)
 		m_gravityLyingMode = m_gravity;
 

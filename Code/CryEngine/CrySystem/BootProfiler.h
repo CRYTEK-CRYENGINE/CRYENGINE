@@ -1,7 +1,5 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __bootprofilersystem_h__
-#define __bootprofilersystem_h__
 #pragma once
 
 #if defined(ENABLE_LOADING_PROFILER)
@@ -53,7 +51,7 @@ public:
 	void                  QueueSessionToDelete(CBootProfilerSession*pSession);
 	void                  QueueSessionToSave(float functionMinTimeThreshold, CBootProfilerSession* pSession);
 
-	CBootProfilerRecord*  StartBlock(const char* name, const char* args);
+	CBootProfilerRecord*  StartBlock(const char* name, const char* args,EProfileDescription type);
 	void                  StopBlock(CBootProfilerRecord* record);
 
 	void                  StartFrame(const char* name);
@@ -85,6 +83,5 @@ private:
 };
 
 #else //ENABLE_LOADING_PROFILER
-#endif
 
-#endif
+#endif ////ENABLE_LOADING_PROFILER

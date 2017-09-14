@@ -103,7 +103,7 @@ extern void EnableDynamicBucketCleanups(bool enable);
 #endif
 
 //////////////////////////////////////////////////////////////////////////
-struct CSystemEventListner_System : public ISystemEventListener
+struct CSystemEventListener_System : public ISystemEventListener
 {
 public:
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
@@ -165,7 +165,7 @@ public:
 	}
 };
 
-static CSystemEventListner_System g_system_event_listener_system;
+static CSystemEventListener_System g_system_event_listener_system;
 
 extern "C"
 {
@@ -205,7 +205,7 @@ extern "C"
 		}
 
 		pSystem->GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_CRYSYSTEM_INIT_DONE, 0, 0);
-		pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_system,"CSystemEventListner_System");
+		pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system_event_listener_system,"CSystemEventListener_System");
 
 		return pSystem.release();
 	}

@@ -70,13 +70,18 @@ if(ANDROID)
   )
 endif()
 
+set(CLANG_CPP_COMMON_FLAGS
+	-std=c++11
+)
+
 string(REPLACE ";" " " CLANG_COMMON_FLAGS "${CLANG_COMMON_FLAGS}")
+string(REPLACE ";" " " CLANG_CPP_COMMON_FLAGS "${CLANG_CPP_COMMON_FLAGS}")
 
 if (NOT (ORBIS AND ${CMAKE_GENERATOR} MATCHES "Visual Studio"))
 	# HACK: Do not apply this to Orbis in Visual Studio; it breaks .c file compilation
-	set(CMAKE_CXX_FLAGS "${CLANG_COMMON_FLAGS}" CACHE STRING "C++ Common Flags" FORCE)
+	set(CMAKE_CXX_FLAGS "${CLANG_COMMON_FLAGS} ${CLANG_CPP_COMMON_FLAGS}" CACHE STRING "C++ Common Flags" FORCE)
 else()
-	set(CMAKE_CXX_FLAGS "${CLANG_COMMON_FLAGS}" CACHE STRING "C++ Common Flags" FORCE)
+	set(CMAKE_CXX_FLAGS "${CLANG_COMMON_FLAGS} ${CLANG_CPP_COMMON_FLAGS}" CACHE STRING "C++ Common Flags" FORCE)
 endif()
 
 message(STATUS "CMAKE_CXX_FLAGS = ${CMAKE_CXX_FLAGS}" )

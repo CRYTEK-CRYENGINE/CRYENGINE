@@ -1036,7 +1036,7 @@ void CDialogScriptView::PlayLine(int index)
 		const CEditorDialogScript::SScriptLine* pLine = pRecord->GetLine();
 		const CCamera& camera = GetIEditor()->GetSystem()->GetViewCamera();
 		m_pIAudioObject->SetTransformation(camera.GetMatrix());
-		CryAudio::ControlId const triggerId = CryAudio::StringToId_RunTime(pLine->m_audioTriggerName.c_str());
+		CryAudio::ControlId const triggerId = CryAudio::StringToId(pLine->m_audioTriggerName.c_str());
 		m_pIAudioObject->ExecuteTrigger(triggerId);
 		ms_currentPlayLine = triggerId;
 	}

@@ -8,8 +8,8 @@
 			// This material has the 'mat_bullet' surface type applied, which is set up to play sounds on collision with 'mat_default' objects in Libs/MaterialEffects
 			MaterialUrl = "Materials/bullet",
 			Scale = 0.05f,
-			Speed = 20.0f,
-			Mass = 2500.0f
+			Speed = 1000.0f,
+			Mass = 20000.0f
 		};
 
 		public override BulletData BulletData { get { return _bulletData; } }

@@ -65,7 +65,7 @@ void CClipVolumeManager::PrepareVolumesForRendering(const SRenderingPassInfo& pa
 
 void CClipVolumeManager::UpdateEntityClipVolume(const Vec3& pos, IRenderNode* pRenderNode)
 {
-	FRAME_PROFILER("CClipVolumeManager::UpdateEntityClipVolume", GetSystem(), PROFILE_3DENGINE);
+	CRY_PROFILE_REGION(PROFILE_3DENGINE, "CClipVolumeManager::UpdateEntityClipVolume");
 
 	if (!pRenderNode || !pRenderNode->m_pTempData)
 		return;

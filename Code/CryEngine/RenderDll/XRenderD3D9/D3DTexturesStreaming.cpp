@@ -57,7 +57,7 @@ bool CTexture::StreamPrepare_Platform()
 
 void CTexture::StreamExpandMip(const void* vpRawData, int nMip, int nBaseMipOffset, int nSideDelta)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	const uint32 nCurMipWidth  = (m_nWidth >> (nMip + nBaseMipOffset));
 	const uint32 nCurMipHeight = (m_nHeight >> (nMip + nBaseMipOffset));
@@ -114,7 +114,7 @@ void STexStreamOutState::CopyMips()
 
 int CTexture::StreamTrim(int nToMip)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 	CHK_RENDTH;
 
 	if (IsUnloaded() || !IsStreamed() || IsStreaming())
@@ -249,7 +249,7 @@ int CTexture::StreamUnload()
 
 void CTexture::StreamActivateLod(int nMinMip)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	STexPoolItem* pItem = m_pFileTexMips->m_pPoolItem;
 	STexPool* pPool = pItem->m_pOwner;
@@ -353,8 +353,8 @@ void CTexture::StreamCopyMipsTexToMem(int nStartMip, int nEndMip, bool bToDevice
 			{
 				if (mp->DataArray)
 				{
-					CryInterlockedAdd(&CTexture::s_nTexturesDataBytesUploaded, mh[nLod].m_SideSize);
-					STALL_PROFILER("update texture");
+					CRY_PROFILE_REGION_WAITING(PROFILE_RENDERER, "update texture");
+					CryInterlockedAdd(&CTexture::s_nTexturesDataBytesUploaded, mh[nLod].m_SideSize);					
 
 					// TODO: batch upload (instead of loop)
 					const SResourceMemoryMapping mapping =
@@ -378,7 +378,7 @@ void CTexture::StreamCopyMipsTexToMem(int nStartMip, int nEndMip, bool bToDevice
 				const int nRows = nMipSize / nRowPitch;
 				assert(nMipSize % nRowPitch == 0);
 
-				STALL_PROFILER("update texture");
+				CRY_PROFILE_REGION_WAITING(PROFILE_RENDERER, "update texture");
 
 				pDevTexture->DownloadToStagingResource(D3D11CalcSubresource(nDevTexMip, iSide, nTexMips), [&](void* pData, uint32 rowPitch, uint32 slicePitch)
 				{
@@ -449,7 +449,7 @@ ID3D11CommandList* CTexture::StreamCreateDeferred(int nStartMip, int nEndMip, ST
 					const int nVSize = m_nHeight >> nLod;
 					const int nRowPitch = CTexture::TextureDataSize(nUSize, 1, 1, 1, 1, m_eDstFormat, m_eSrcTileMode);
 					const int nSlicePitch = CTexture::TextureDataSize(nUSize, nVSize, 1, 1, 1, m_eDstFormat, m_eSrcTileMode);
-					STALL_PROFILER("update texture");
+					CRY_PROFILE_REGION_WAITING(PROFILE_RENDERER, "update texture");
 					{
 						s_pStreamDeferredCtx->UpdateSubresource(pID3DTexture, D3D11CalcSubresource(nDevTexMip, iSide, nTexMips), NULL, &mp->DataArray[0], nRowPitch, nSlicePitch);
 					}
@@ -488,7 +488,7 @@ ID3D11CommandList* CTexture::StreamCreateDeferred(int nStartMip, int nEndMip, ST
 
 void CTexture::StreamApplyDeferred(ID3D11CommandList* pCmdList)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 	gcpRendD3D->GetDeviceContext().ExecuteCommandList(pCmdList, TRUE);
 }
 
@@ -526,7 +526,7 @@ void CTexture::StreamRemoveFromPool()
 
 void CTexture::StreamAssignPoolItem(STexPoolItem* pItem, int nMinMip)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	assert(!pItem->IsFree());
 	STexPool* pItemOwner = pItem->m_pOwner;
@@ -578,7 +578,7 @@ void CTexture::StreamAssignPoolItem(STexPoolItem* pItem, int nMinMip)
 	CryInterlockedAdd(&s_nStatsStreamPoolBoundMem, pItem->m_nDevTextureSize);
 	CryInterlockedAdd(&s_nStatsStreamPoolBoundPersMem, nPersSize);
 
-	InvalidateDeviceResource(eDeviceResourceDirty | eDeviceResourceViewDirty);
+	InvalidateDeviceResource(this, eDeviceResourceDirty | eDeviceResourceViewDirty);
 }
 
 STexPool* CTexture::StreamGetPool(int nStartMip, int nMips)
@@ -606,7 +606,7 @@ STexPool* CTexture::StreamGetPool(int nStartMip, int nMips)
 
 STexPoolItem* CTexture::StreamGetPoolItem(int nStartMip, int nMips, bool bShouldBeCreated, bool bCreateFromMipData, bool bCanCreate, bool bForStreamOut)
 {
-	FUNCTION_PROFILER_RENDERER;
+	FUNCTION_PROFILER_RENDERER();
 
 	if (!m_pFileTexMips)
 		return NULL;

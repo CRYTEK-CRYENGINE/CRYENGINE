@@ -149,7 +149,7 @@ void CFeatureRenderSprites::Serialize(Serialization::IArchive& ar)
 
 void CFeatureRenderSprites::ComputeVertices(CParticleComponentRuntime* pComponentRuntime, const SCameraInfo& camInfo, CREParticle* pRE, uint64 uRenderFlags, float fMaxPixels)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 	PARTICLE_LIGHT_PROFILER();
 
 	CParticleContainer& container = pComponentRuntime->GetContainer();
@@ -192,7 +192,7 @@ void CFeatureRenderSprites::ComputeVertices(CParticleComponentRuntime* pComponen
 
 void CFeatureRenderSprites::CullParticles(SSpritesContext* pSpritesContext)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	const SUpdateContext& context = pSpritesContext->m_context;
 	const SVisibilityParams& visibility = context.m_params.m_visibility;
@@ -358,7 +358,7 @@ void CFeatureRenderSprites::CullParticles(SSpritesContext* pSpritesContext)
 
 void CFeatureRenderSprites::SortSprites(SSpritesContext* pSpritesContext)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	if (m_sortMode == ESortMode::None || GetCVars()->e_ParticlesSortQuality == 0)
 		return;
@@ -530,7 +530,7 @@ private:
 
 void CFeatureRenderSprites::WriteToGPUMem(const SSpritesContext& spritesContext)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
 	const CParticleContainer& container = spritesContext.m_context.m_container;
 	const CCamera& camera = *spritesContext.m_camInfo.pCamera;

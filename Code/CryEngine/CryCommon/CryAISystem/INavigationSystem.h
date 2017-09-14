@@ -206,11 +206,7 @@ struct INavigationSystem
 	virtual MNM::GlobalIslandID GetGlobalIslandIdAtPosition(const NavigationAgentTypeID agentID, const Vec3& location) = 0;
 
 	virtual bool                ReadFromFile(const char* fileName, bool bAfterExporting) = 0;
-#if defined(SEG_WORLD)
-	virtual bool                SaveToFile(const char* fileName, const AABB& segmentAABB) const = 0;
-#else
 	virtual bool                SaveToFile(const char* fileName) const = 0;
-#endif
 
 	virtual void RegisterListener(INavigationSystemListener* pListener, const char* name = NULL) = 0;
 	virtual void UnRegisterListener(INavigationSystemListener* pListener) = 0;
