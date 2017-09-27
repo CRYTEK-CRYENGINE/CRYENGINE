@@ -7,9 +7,9 @@ def build(bld):
 		vs_filter   = 'CryEngine',		
 		file_list   = 'cryphysics.waf_files',
 		
-		includes   = [ Path('Code/SDKs/PhysX/Include') ],
+		includes   = [ Path('Code/SDKs/PhysX/PhysX_3.4/Include'), Path('Code/SDKs/PhysX/PxShared/Include') ],
 		
-		win_libpath = [ Path('Code/SDKs/PhysX/Lib/vc14win64/') ],
+		win_libpath = [ Path('Code/SDKs/PhysX/PhysX_3.4/Lib/vc14win64/'), Path('Code/SDKs/PhysX/PxShared/Lib/vc14win64/') ],
 #		win_lib = ['PhysX3_x64', 'PhysX3Common_x64', 'PhysX3Extensions', 'PhysXProfileSDK', 'PhysXVisualDebuggerSDK', 'PhysX3Cooking_x64'],
 		features = ['copy_physx_modules'],
 

@@ -59,10 +59,11 @@ int PhysXEnt::AddGeometry(phys_geometry* pgeom, pe_geomparams* params, int id, i
 		pMatMapping=params->pMatMapping, nMats=params->nMats;
 	PxMaterial *const mtl = g_pPhysWorld->GetSurfaceType(pMatMapping ? pMatMapping[max(0,min(nMats-1,pgeom->surface_idx))] : pgeom->surface_idx);
 
-	newPart.shape = pGeom->CreateAndUse(trans,scale, [this,mtl,&trans](const PxGeometry &geom) { return m_actor->createShape(geom,*mtl,T(trans)); });
+	newPart.shape = pGeom->CreateAndUse(trans, scale, [this, mtl, &trans](const PxGeometry &geom) { return PxRigidActorExt::createExclusiveShape(*m_actor, geom, *mtl); });
 	if (!newPart.shape)
 		return -1;
-	
+	newPart.shape->setLocalPose(T(trans));
+
 	if (pGeom->GetType()== GEOM_HEIGHTFIELD) newPart.shape->setFlag(physx::PxShapeFlag::eVISUALIZATION, false); // disable debug vis for heightfield (performance)
 
 	PxFilterData fd(params->flags, params->flagsCollider, m_flags & pef_auto_id ? -3 : m_id, m_type!=PE_STATIC);
@@ -74,7 +75,7 @@ int PhysXEnt::AddGeometry(phys_geometry* pgeom, pe_geomparams* params, int id, i
 	
 	m_parts.push_back(newPart);
 	if (newPart.density>0)
-		if (PxRigidBody *pRB = m_actor->isRigidBody()) {
+		if (PxRigidBody *pRB = m_actor->is<PxRigidBody>()) {
 			auto meshList = std::remove_if(m_parts.begin(),m_parts.end(), [this](auto part) { 
 				if (part.shape->getGeometryType()==PxGeometryType::eTRIANGLEMESH)	{
 					m_actor->detachShape(*part.shape);
@@ -154,13 +155,13 @@ void PhysXEnt::Enable(bool enable)
 		_InterlockedOr((volatile long*)&m_mask, 4);
 		g_cryPhysX.Scene()->addActor(*m_actor);
 		if (m_iSimClass<=3) 
-			AwakeEnt(m_actor->isRigidDynamic(), m_iSimClass>1);
+			AwakeEnt(m_actor->is<PxRigidDynamic>(), m_iSimClass>1);
 	}
 }
 
 void PhysXEnt::Awake(bool awake, float minTime)
 {
-	AwakeEnt(m_actor->isRigidDynamic(), awake, minTime);
+	AwakeEnt(m_actor->is<PxRigidDynamic>(), awake, minTime);
 }
 
 QuatT PhysXEnt::getLocalPose(int idxPart) const 
@@ -255,7 +256,7 @@ int PhysXEnt::SetParams(pe_params *_params, int bThreadSafe)
 				if (!is_unused(params->pos)) trans.t = params->pos;
 				if (!is_unused(params->q)) trans.q = params->q;
 				setLocalPose(i,trans);
-				/*if (PxRigidBody *pRB = m_actor->isRigidBody())
+				/*if (PxRigidBody *pRB = m_actor->is<PxRigidBody>())
 					if (!(pRB->getRigidBodyFlags() & PxRigidBodyFlag::eKINEMATIC) && m_type!=PE_ARTICULATED) {
 						float *densities = (float*)alloca(m_parts.size()*sizeof(float));
 						for(int i=0; i<m_parts.size(); i++)
@@ -269,7 +270,7 @@ int PhysXEnt::SetParams(pe_params *_params, int bThreadSafe)
 
 	if (_params->type==pe_simulation_params::type_id && m_actor) {
 		pe_simulation_params *params = (pe_simulation_params*)_params;
-		if (PxRigidDynamic *pRD = m_actor->isRigidDynamic()) {
+		if (PxRigidDynamic *pRD = m_actor->is<PxRigidDynamic>()) {
 			if (!is_unused(params->minEnergy)) pRD->setSleepThreshold(params->minEnergy);
 			if (!is_unused(params->damping)) {
 				pRD->setLinearDamping(params->damping);
@@ -320,7 +321,7 @@ int PhysXEnt::GetParams(pe_params* _params) const
 		memset(params, 0, sizeof(pe_simulation_params));
 		params->type = pe_simulation_params::type_id;
 		params->gravity = g_pPhysWorld->m_vars.gravity;
-		if (PxRigidDynamic *pRD = m_actor->isRigidDynamic()) {
+		if (PxRigidDynamic *pRD = m_actor->is<PxRigidDynamic>()) {
 			params->damping = pRD->getLinearDamping();
 			params->minEnergy = pRD->getSleepThreshold();
 			params->mass = pRD->getMass();
@@ -394,7 +395,7 @@ int PhysXEnt::GetStatus(pe_status* _status) const
 		if (status->pMtx3x4)
 			*status->pMtx3x4 = Matrix34(Matrix33(trans.q)*scale, trans.t);
 		status->iSimClass = 0;
-		if (PxRigidDynamic *pRD = m_actor->isRigidDynamic())
+		if (PxRigidDynamic *pRD = m_actor->is<PxRigidDynamic>())
 			status->iSimClass = 2-pRD->isSleeping();
 		getBBox(status->BBox);
 		status->BBox[0]-=status->pos; status->BBox[1]-=status->pos;

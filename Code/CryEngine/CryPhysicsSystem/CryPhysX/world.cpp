@@ -528,7 +528,7 @@ int PhysXWorld::GetEntitiesInBox(Vec3 ptmin, Vec3 ptmax, IPhysicalEntity**& pLis
 			pList = (IPhysicalEntity**)&m_entList[0];
 	if (objtypes & ent_sort_by_mass)
 		std::qsort(pListSrc, filter.nEnts, sizeof(void*), [](const void *pent0,const void *pent1)->int { 
-			PxRigidBody *body0 = (*(PhysXEnt**)pent0)->m_actor->isRigidBody(), *body1 = (*(PhysXEnt**)pent1)->m_actor->isRigidBody();
+			PxRigidBody *body0 = (*(PhysXEnt**)pent0)->m_actor->is<PxRigidBody>(), *body1 = (*(PhysXEnt**)pent1)->m_actor->is<PxRigidBody>();
 			return sgn((body1 ? body1->getInvMass():0.0f) - (body0 ? body0->getInvMass():0.0f));
 		});
 	for(int i=0; i<filter.nEnts; i++) 
@@ -612,8 +612,8 @@ void PhysXWorld::onContact(const PxContactPairHeader& pairHeader, const PxContac
 	for(int i=0; i<nbPairs; i++) {
 		EventPhysCollision &epc = *(EventPhysCollision*)AllocEvent(EventPhysCollision::id);
 		PhysXEnt *pent[2];
-		PxContactStreamIterator csi((PxU8*)pairs[i].contactStream, pairs[i].contactStreamSize);
-		float *imp = (float*)(pairs[i].contactStream + (pairs[i].contactStreamSize+15 & ~15));
+		PxContactStreamIterator csi(pairs[i].contactPatches, pairs[i].contactPoints, pairs[i].getInternalFaceIndices(), pairs[i].patchCount, pairs[i].contactStreamSize);
+		float *imp = (float*)pairs[i].contactImpulses;
 		csi.nextPatch(); csi.nextContact();
 		epc.pt = V(csi.getContactPoint());
 		epc.n = V(csi.getContactNormal());
@@ -624,7 +624,7 @@ void PhysXWorld::onContact(const PxContactPairHeader& pairHeader, const PxContac
 			epc.pEntity[j] = (pent[j] = Ent(pairs[i].shapes[j]->getActor()));
 			epc.pForeignData[j] = pent[j]->m_pForeignData;
 			epc.iForeignData[j] = pent[j]->m_iForeignData;
-			if (PxRigidBody *pRB = pairs[i].shapes[j]->getActor()->isRigidBody()) {
+			if (PxRigidBody *pRB = pairs[i].shapes[j]->getActor()->is<PxRigidBody>()) {
 				epc.mass[j] = pRB->getMass();
 				Vec3 com = T(pRB->getGlobalPose())*V(pRB->getCMassLocalPose().p);
 				epc.vloc[j] = v[j] + (w[j] ^ epc.pt-com);
@@ -713,12 +713,13 @@ void PhysXWorld::TimeStep(float dt, int flags)
 		}
 	}
 
-	if (PxVisualDebugger *dbg = g_cryPhysX.Physics()->getVisualDebugger()) {
+	if (PxPvdSceneClient *dbg = g_cryPhysX.Scene()->getScenePvdClient()) {
 		CCamera &cam = gEnv->pSystem->GetViewCamera();
 		dbg->updateCamera("CryCamera", V(cam.GetPosition()), V(cam.GetUp()), V(cam.GetPosition()+cam.GetViewdir()));
 		//if (PhysXEnt* player = (PhysXEnt*)GetPhysicalEntityById(0x7777))
 		//	player->m_actor->setActorFlag(PxActorFlag::eVISUALIZATION, false);//!player->m_actor->getWorldBounds().contains(V(cam.GetPosition())));
 	}
+
 	if (m_renderer && m_vars.bMultithreaded)
 		DrawPhysicsHelperInformation(m_renderer, 0);
 }

@@ -64,11 +64,11 @@ public:
 	virtual void getBBox(Vec3 *BBox) const { if (m_actor) { PxBounds3 bbox = m_actor->getWorldBounds(); BBox[0]=cpx::Helper::V(bbox.minimum); BBox[1]=cpx::Helper::V(bbox.maximum); } }
 	virtual QuatT getLocalPose(int idxPart) const;
 	virtual void setLocalPose(int idxPart, const QuatT& pose);
-	virtual PxRigidBody *getRigidBody(int ipart) const { return m_actor && m_actor->getScene() ? m_actor->isRigidBody() : nullptr;	}
+	virtual PxRigidBody *getRigidBody(int ipart) const { return m_actor && m_actor->getScene() ? m_actor->is<PxRigidBody>() : nullptr;	}
 	int idxPart(int id) const { int i; for(i=m_parts.size()-1;i>=0 && cpx::Helper::PartId(m_parts[i].shape)!=id;i--); return i; }
 	virtual void Enable(bool enable=true);
 	virtual void Awake(bool awake=true, float minTime=0);
-	virtual bool IsAwake() const { return m_actor->isRigidDynamic() ? !m_actor->isRigidDynamic()->isSleeping() : false; }
+	virtual bool IsAwake() const { return m_actor->is<PxRigidDynamic>() ? !m_actor->is<PxRigidDynamic>()->isSleeping() : false; }
 	virtual void SetSimClass(int iSimClass);
 	virtual void PostStep(float dt, int immediate=1);
 	virtual int RefineRayHit(const Vec3& rayOrg, const Vec3& rayDir, Vec3 &pt, Vec3 &n, int partid) const { return partid; }

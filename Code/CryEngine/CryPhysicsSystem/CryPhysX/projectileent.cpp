@@ -66,7 +66,7 @@ int PhysXProjectile::GetParams(pe_params* _params) const
 		pe_params_particle *params = (pe_params_particle*)_params;
 		memset(params,0,sizeof(pe_params_particle));
 		params->type = pe_params_particle::type_id;
-		Vec3 vel = m_actor ? V(m_actor->isRigidBody()->getLinearVelocity()) : m_vel;
+		Vec3 vel = m_actor ? V(m_actor->is<PxRigidBody>()->getLinearVelocity()) : m_vel;
 		params->heading = vel.normalized();
 		params->velocity = vel*params->heading;
 		params->gravity = m_gravity;
