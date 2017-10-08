@@ -67,7 +67,7 @@ namespace Cry
 			virtual void SetLayer(int layer) { m_animationParams.m_nLayerID = layer; }
 
 			virtual void SetCharacterFile(const char* szPath);
-			const char* SetCharacterFile() const { return m_filePath.value.c_str(); }
+			const char* GetCharacterFile() const { return m_filePath.value.c_str(); }
 
 			virtual void SetDefaultAnimationName(const char* szPath);
 			const char* GetDefaultAnimationName() const { return m_defaultAnimation.value.c_str(); }

@@ -294,7 +294,7 @@ public:
 	bool         IsAnimationDrivenMotionEnabled() const { return m_bAnimationDrivenMotion; }
 
 	virtual void SetCharacterFile(const char* szPath);
-	const char*  SetCharacterFile() const                  { return m_characterFile.value.c_str(); }
+	const char*  GetCharacterFile() const                  { return m_characterFile.value.c_str(); }
 	virtual void SetMannequinAnimationDatabaseFile(const char* szPath);
 	const char*  GetMannequinAnimationDatabaseFile() const { return m_databasePath.value.c_str(); }
 
