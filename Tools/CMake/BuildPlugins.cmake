@@ -30,3 +30,8 @@ endif()
 
 # UQS: Optional plugin; option PLUGIN_CRYUQS to enable/disable it resides in its own sub directory
 add_subdirectory(Code/CryPlugins/CryUQS)
+
+# User specified plugins
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Code/CMakeLists.txt")
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/Code")
+endif()
