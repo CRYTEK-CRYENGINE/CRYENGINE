@@ -1456,7 +1456,7 @@ void CLog::Update()
 			if (msg.bConsole)
 				LogStringToConsole(msg.msg, msg.bAdd);
 			else
-				LogStringToFile(msg.msg, msg.bAdd, msg.bConsole);
+				LogStringToFile(msg.msg, msg.bAdd, msg.bError);
 		}
 
 		if (LogCVars::s_log_tick != 0)
