@@ -136,12 +136,9 @@ inline VT GetRandomUnitVector(R& randomGenerator)
 	VT res;
 	T lenSquared;
 
-	do
-	{
-		res = BoundedRandomComponentwise<R, VT>::Get(randomGenerator, VT(-1), VT(1));
-		lenSquared = res.GetLengthSquared();
-	}
-	while (lenSquared > 1);
+	//TODO: replace by a spherical uniform distribution method.
+	res = BoundedRandomComponentwise<R, VT>::Get(randomGenerator, VT(-1), VT(1));
+	lenSquared = res.GetLengthSquared();
 
 	if (lenSquared >= (std::numeric_limits<T>::min)())
 	{
