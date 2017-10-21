@@ -142,7 +142,7 @@ inline VT GetRandomUnitVector(R& randomGenerator)
 
 	if (lenSquared >= (std::numeric_limits<T>::min)())
 	{
-		return res / isqrt_tpl(lenSquared);
+		return res * isqrt_tpl(lenSquared);
 	}
 
 	res = VT(ZERO);
