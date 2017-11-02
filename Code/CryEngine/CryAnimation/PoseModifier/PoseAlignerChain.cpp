@@ -77,8 +77,7 @@ void CPoseAlignerChain::Initialize(LimbIKDefinitionHandle solver, int contactJoi
 	m_state.rootJointIndex = -1;
 	m_state.targetJointIndex = -1;
 	m_state.contactJointIndex = contactJointIndex;
-
-	m_pIkLimbType = NULL;
+	m_state.m_pIkLimbType = NULL;
 
 	m_state.eLockMode = eLockMode_Store;
 }
@@ -134,14 +133,14 @@ bool CPoseAlignerChain::MoveToTarget(const SAnimationPoseModifierParams& params,
 
 bool CPoseAlignerChain::Prepare(const SAnimationPoseModifierParams& params)
 {
-	if (!m_pIkLimbType && m_state.solver)
-		m_pIkLimbType = FindIkLimbType(params, m_state.solver);
-	if (!m_pIkLimbType)
+	if (!m_state.m_pIkLimbType && m_state.solver)
+		m_state.m_pIkLimbType = FindIkLimbType(params, m_state.solver);
+	if (!m_state.m_pIkLimbType)
 		return false;
 
-	m_state.rootJointIndex = m_pIkLimbType->m_arrRootToEndEffector[0];
-	m_state.targetJointIndex = m_pIkLimbType->m_arrJointChain.back().m_idxJoint;
-	m_state.m_pIkLimbType = m_pIkLimbType;
+	m_state.rootJointIndex = m_state.m_pIkLimbType->m_arrRootToEndEffector[0];
+	m_state.targetJointIndex = m_state.m_pIkLimbType->m_arrJointChain.back().m_idxJoint;
+	m_state.m_pIkLimbType = m_state.m_pIkLimbType;
 	m_stateExecute = m_state;
 	return true;
 }
