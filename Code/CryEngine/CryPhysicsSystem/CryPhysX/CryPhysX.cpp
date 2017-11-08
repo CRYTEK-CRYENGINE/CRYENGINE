@@ -112,6 +112,7 @@ namespace cpx // CryPhysX helper
 		m_Physics(nullptr),
 		m_PvdTransport(nullptr),
 		m_Pvd(nullptr),
+		m_CpuDispatcher(nullptr),
 		m_DebugVisualizationForAllSceneElements(false)
 	{
 	}
@@ -192,9 +193,9 @@ namespace cpx // CryPhysX helper
 		const PxVec3 gravity = PxVec3(0.0f, 0.0f, -9.81f);
 
 		sceneDesc.gravity = gravity;
-		PxDefaultCpuDispatcher* mCpuDispatcher = PxDefaultCpuDispatcherCreate(noOfThreads);
-		if (!mCpuDispatcher) fatalError("PxDefaultCpuDispatcherCreate failed!");
-		sceneDesc.cpuDispatcher = mCpuDispatcher;
+		m_CpuDispatcher = PxDefaultCpuDispatcherCreate(noOfThreads);
+		if (!m_CpuDispatcher) fatalError("PxDefaultCpuDispatcherCreate failed!");
+		sceneDesc.cpuDispatcher = m_CpuDispatcher;
 		sceneDesc.filterShader = CollFilter;
 		sceneDesc.broadPhaseType = PxBroadPhaseType::eMBP;
 		sceneDesc.flags |= PxSceneFlag::eENABLE_CCD;
@@ -256,11 +257,14 @@ namespace cpx // CryPhysX helper
 	CryPhysX::~CryPhysX()
 	{
 		// shutdown PhysX
+		PxCloseVehicleSDK();
+		m_Cooking->release();
+		m_Scene->release();
+		m_CpuDispatcher->release();
+		m_Physics->release();
 		if (m_PvdTransport) m_PvdTransport->release();
 		m_Pvd->release();
-		PxCloseVehicleSDK();
-		m_Scene->release();
-		m_Physics->release();
+		PxCloseExtensions();
 		m_Foundation->release();
 	}
 

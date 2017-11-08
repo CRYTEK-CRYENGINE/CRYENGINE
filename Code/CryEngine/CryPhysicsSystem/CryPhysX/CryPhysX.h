@@ -60,6 +60,7 @@ namespace cpx // CryPhysX
 		physx::PxCooking*                 m_Cooking;
 		physx::PxPvd*                     m_Pvd;
 		physx::PxPvdTransport*            m_PvdTransport; //!< Debugger Connection to PhysX
+		physx::PxDefaultCpuDispatcher*    m_CpuDispatcher;
 
 		bool m_DebugVisualizationForAllSceneElements;
 
