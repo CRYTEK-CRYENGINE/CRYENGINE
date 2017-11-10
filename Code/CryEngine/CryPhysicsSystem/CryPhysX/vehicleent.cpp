@@ -114,7 +114,7 @@ int PhysXVehicle::GetStatus(pe_status* _status) const
 		status->engineRPM = m_vehicle->mDriveDynData.getEngineRotationSpeed()*(30/gf_PI);
 		status->iCurGear = m_vehicle->mDriveDynData.getCurrentGear();
 		for(int i=status->bWheelContact=0; i<m_wheelsQuery.size(); status->bWheelContact|=(int)m_wheelsQuery[i++].isInAir);
-		status->vel = V(m_actor->isRigidDynamic()->getLinearVelocity());
+		status->vel = V(m_actor->is<PxRigidDynamic>()->getLinearVelocity());
 		status->clutch = 1;
 		return 1;
 	}
@@ -160,7 +160,7 @@ bool PhysXVehicle::SetupPxVehicle()
 	PxVehicleWheelsSimData *wsd = PxVehicleWheelsSimData::allocate(nwheels);
 	PxVehicleDriveSimData4W dsd;
 	pe_params_car pc;
-	PxRigidDynamic *pRD = m_actor->isRigidDynamic();
+	PxRigidDynamic *pRD = m_actor->is<PxRigidDynamic>();
 	QuatT ent2body = T(pRD->getCMassLocalPose()).GetInverted();
 	PxVec3 *ptsusp = (PxVec3*)alloca(nwheels*sizeof(PxVec3));
 	float *wmass = (float*)alloca(nwheels*sizeof(float));

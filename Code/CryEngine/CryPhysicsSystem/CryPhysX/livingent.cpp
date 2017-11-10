@@ -15,7 +15,7 @@ int PhysXLiving::SetParams(pe_params *_params, int bThreadSafe)
 	if (_params->type == pe_player_dimensions::type_id && m_type == PE_LIVING) {
 		pe_player_dimensions *params = (pe_player_dimensions*)_params;
 		if (!is_unused(params->sizeCollider) || !m_parts.size()) {
-			PxRigidDynamic *pRD = m_actor->isRigidDynamic();
+			PxRigidDynamic *pRD = m_actor->is<PxRigidDynamic>();
 			pe_geomparams gp;
 			gp.pos.z = m_parts.size() ? m_parts[0].shape->getLocalPose().p.z : 0.9f;
 			Vec3 size = !is_unused(params->sizeCollider) ? params->sizeCollider : Vec3(0.4f, 0.4f, 0.5f);
@@ -43,7 +43,7 @@ int PhysXLiving::SetParams(pe_params *_params, int bThreadSafe)
 
 	if (_params->type == pe_player_dynamics::type_id && m_type == PE_LIVING) {
 		pe_player_dynamics *params = (pe_player_dynamics*)_params;
-		PxRigidDynamic *pRD = m_actor->isRigidDynamic();
+		PxRigidDynamic *pRD = m_actor->is<PxRigidDynamic>();
 		if (!is_unused(params->mass))	pRD->setMass(params->mass);
 		if (!is_unused(params->kInertia)) { pRD->setLinearDamping(params->kInertia ? params->kInertia : 5.0f); }
 		else { pRD->setLinearDamping(5.0); }
@@ -64,7 +64,7 @@ int PhysXLiving::Action(pe_action* _action, int bThreadSafe)
 	if (_action->type == pe_action_move::type_id) {
 		pe_action_move *action = (pe_action_move*)_action;
 		if (!is_unused(action->dir) && m_actor->getScene()) {
-			PxRigidDynamic *pRD = m_actor->isRigidDynamic();
+			PxRigidDynamic *pRD = m_actor->is<PxRigidDynamic>();
 			pRD->clearForce();
 			pRD->addForce(V(action->dir*(pRD->getLinearDamping()*pRD->getMass())));
 		}

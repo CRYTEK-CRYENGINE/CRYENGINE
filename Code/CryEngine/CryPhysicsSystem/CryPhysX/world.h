@@ -216,6 +216,7 @@ public:
 	virtual void onSleep(PxActor** actors, PxU32 count);
 	virtual void onContact(const PxContactPairHeader& pairHeader, const PxContactPair* pairs, PxU32 nbPairs);
 	virtual void onTrigger(PxTriggerPair* pairs, PxU32 count) {}
+	virtual void onAdvance(const PxRigidBody*const* bodyBuffer, const PxTransform* poseBuffer, const PxU32 count) {}
 
 	PxMaterial *GetSurfaceType(int i) { return m_mats[ (uint)i<(uint)NSURFACETYPES && m_mats[i] ? i : 0 ]; }
 	void UpdateProjectileState(PhysXProjectile *pent);

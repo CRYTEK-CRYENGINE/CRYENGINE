@@ -56,11 +56,12 @@ namespace cpx // CryPhysX
 
 		physx::PxPhysics*                 m_Physics;
 		physx::PxFoundation*              m_Foundation;
-		physx::PxProfileZoneManager*      m_ProfileZoneManager;
 		physx::PxScene*                   m_Scene;
 		physx::PxCooking*                 m_Cooking;
+		physx::PxPvd*                     m_Pvd;
+		physx::PxPvdTransport*            m_PvdTransport; //!< Debugger Connection to PhysX
+		physx::PxDefaultCpuDispatcher*    m_CpuDispatcher;
 
-		physx::PxVisualDebuggerConnection* m_VSDConnection; //!< Debugger Connection to PhysX
 		bool m_DebugVisualizationForAllSceneElements;
 
 		PxDefaultErrorCallback m_DefaultErrorCallback;
