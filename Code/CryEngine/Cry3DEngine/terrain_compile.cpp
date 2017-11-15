@@ -799,6 +799,9 @@ bool CTerrain::Load(FILE* f, int nDataSize, STerrainChunkHeader* pTerrainChunkHe
 			                       COMPILED_TERRAIN_TEXTURE_FILE_NAME, m_arrBaseTexInfos.m_ucpDiffTexTmpBuffer, m_arrBaseTexInfos.m_nDiffTexIndexTableSize);
 	}
 
+	// initialize heightfield for physics engines that can't stream the terrain data
+	InitHeightfieldPhysics();
+
 	return bRes;
 }
 
