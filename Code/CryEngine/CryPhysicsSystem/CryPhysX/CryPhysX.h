@@ -49,12 +49,14 @@ namespace cpx // CryPhysX
 		void SceneResetDynamicEntities();
 
 		void SetDebugVisualizationForAllSceneElements(bool enable = true);
+		void DisconnectPhysicsDebugger();
 
 	private:
 
 		float                             m_dt;
 
 		physx::PxPhysics*                 m_Physics;
+		physx::PxDefaultCpuDispatcher*    m_CpuDispatcher;
 		physx::PxFoundation*              m_Foundation;
 		physx::PxScene*                   m_Scene;
 		physx::PxCooking*                 m_Cooking;

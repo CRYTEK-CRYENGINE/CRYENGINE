@@ -29,6 +29,10 @@ public:
 			break;
 		case ESYSTEM_EVENT_3D_POST_RENDERING_END:
 			break;
+		case ESYSTEM_EVENT_FAST_SHUTDOWN:
+		case ESYSTEM_EVENT_FULL_SHUTDOWN:
+			cpx::g_cryPhysX.DisconnectPhysicsDebugger();
+			break;
 		}
 	}
 };

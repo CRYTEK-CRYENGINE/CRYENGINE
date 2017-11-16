@@ -114,6 +114,7 @@ namespace cpx // CryPhysX helper
 		m_Cooking(nullptr),
 		m_Foundation(nullptr),
 		m_Physics(nullptr),
+		m_CpuDispatcher(nullptr),
 		m_PvdTransport(nullptr),
  		m_Pvd(nullptr),
 		m_DebugVisualizationForAllSceneElements(false)
@@ -170,7 +171,6 @@ namespace cpx // CryPhysX helper
 		m_Pvd = PxCreatePvd(*m_Foundation);
 		if (!m_Pvd)
 		{
-			fatalError("PxProfileZoneManager::createProfileZoneManager failed!");
 			fatalError("PxCreatePvd failed!");
 		}
 
@@ -202,17 +202,11 @@ namespace cpx // CryPhysX helper
 			unsigned int timeout = 10000;           // timeout in milliseconds to wait for PVD to respond,
  													// consoles and remote PCs need a higher timeout.
 			m_PvdTransport = PxDefaultPvdSocketTransportCreate(pvd_host_ip, port, timeout);
-			if (!m_PvdTransport)
- 				fatalError("PxDefaultPvdSocketTransportCreate failed!");
- 
+			if (!m_PvdTransport) fatalError("PxDefaultPvdSocketTransportCreate failed!");
+
 			// and now try to connect
 			m_Pvd->connect(*m_PvdTransport, PxPvdInstrumentationFlag::eALL);
- 
-			if (m_Pvd->isConnected()) 
-			{
- 				Helper::Log("PhysX Visual Debugger Connection - initialized.\n");
- 				m_Scene->getScenePvdClient()->setScenePvdFlag(PxPvdSceneFlag::eTRANSMIT_CONSTRAINTS, true);
-			}
+			if (m_Pvd->isConnected()) Helper::Log("PhysX Visual Debugger Connection - initialized.\n");
 		}
 #endif
 
@@ -220,9 +214,9 @@ namespace cpx // CryPhysX helper
 		const PxVec3 gravity = PxVec3(0.0f, 0.0f, -9.81f);
 
 		sceneDesc.gravity = gravity;
-		PxDefaultCpuDispatcher* mCpuDispatcher = PxDefaultCpuDispatcherCreate(noOfThreads);
-		if (!mCpuDispatcher) fatalError("PxDefaultCpuDispatcherCreate failed!");
-		sceneDesc.cpuDispatcher = mCpuDispatcher;
+		m_CpuDispatcher = PxDefaultCpuDispatcherCreate(noOfThreads);
+		if (!m_CpuDispatcher) fatalError("PxDefaultCpuDispatcherCreate failed!");
+		sceneDesc.cpuDispatcher = m_CpuDispatcher;
 		sceneDesc.filterShader = CollFilter;
 		sceneDesc.broadPhaseType = PxBroadPhaseType::eMBP;
 		sceneDesc.flags |= PxSceneFlag::eENABLE_CCD;
@@ -231,6 +225,8 @@ namespace cpx // CryPhysX helper
 
 		m_Scene = m_Physics->createScene(sceneDesc);
 		if (!m_Scene) fatalError("createScene failed!");
+
+		m_Scene->getScenePvdClient()->setScenePvdFlag(PxPvdSceneFlag::eTRANSMIT_CONSTRAINTS, true);
 
 		if (USE_PHYSX_DEBUGDRAW)
 		{
@@ -258,14 +254,13 @@ namespace cpx // CryPhysX helper
 	CryPhysX::~CryPhysX()
 	{
 		// shutdown PhysX
-		if (m_PvdTransport) m_PvdTransport->release();
-		m_Pvd->release();
 		PxCloseVehicleSDK();
 		m_Cooking->release();
 		m_Scene->release();
+		m_CpuDispatcher->release();
 		m_Physics->release();
-		if (m_PvdTransport) m_PvdTransport->release();
 		m_Pvd->release();
+		if (m_PvdTransport) m_PvdTransport->release();
 		PxCloseExtensions();
 		m_Foundation->release();
 	}
@@ -323,6 +318,10 @@ namespace cpx // CryPhysX helper
 		_SceneResetEntities(m_Scene, PxActorTypeFlag::eRIGID_DYNAMIC);
 	}
 
+	void CryPhysX::DisconnectPhysicsDebugger()
+	{
+		if (m_Pvd->isConnected()) m_Pvd->disconnect();
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
