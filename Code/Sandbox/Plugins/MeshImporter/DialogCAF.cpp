@@ -691,7 +691,7 @@ void CDialogCAF::OnViewportRender(const SRenderContext& rc)
 	auto pInstanceBase = m_pScene->m_pCharInstance;
 	gEnv->p3DEngine->PrecacheCharacter(NULL, 1.f, pInstanceBase, pInstanceBase->GetIMaterial(), m_LocalEntityMat, 0, 1.f, 4, true, passInfo);
 	pInstanceBase->SetViewdir(rc.camera->GetViewdir());
-	pInstanceBase->Render(rp, QuatTS(IDENTITY), passInfo);
+	pInstanceBase->Render(rp, passInfo);
 
 	DrawSkeleton(pAuxGeom, &m_pScene->m_pCharInstance->GetIDefaultSkeleton(), m_pScene->m_pCharInstance->GetISkeletonPose(),
 	             QuatT(IDENTITY), "", rc.viewport->GetState().cameraTarget);

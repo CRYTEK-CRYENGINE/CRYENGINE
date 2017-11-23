@@ -32,8 +32,6 @@ SamplerState           ssShadowPointWrap      : register(s2) = SS_PointWrap;
 //===========================================================================
 // Basic shadow maps support
 
-float4x4 CompMatrix  			: PI_Composite < vsregister = c0; >;    // View*Projection
-
 cbuffer CBShadowMask : register(b0)
 {
 	struct 
@@ -146,8 +144,7 @@ vert2fragStencilCull StencilCullVS(app2vertStencilCull IN)
 {
 	vert2fragStencilCull OUT = (vert2fragStencilCull)0; 
 
-	float4 worldPos = mul(CompMatrix, IN.Position);
-	OUT.HPosition = mul(CV_ViewProjMatr, worldPos);
+	OUT.HPosition = mul(CV_ViewProjMatr, IN.Position);
 
 	return OUT;
 }

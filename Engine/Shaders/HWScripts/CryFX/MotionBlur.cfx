@@ -249,7 +249,7 @@ pixout RefDofMBNormalizePS(vtxOut IN)
 		
 	half fDepth = tex2D(_tex3, IN.baseTC.xy).x * PS_NearFarClipDist.y; 
 
-	half2 fullScaleTC = IN.baseTC.xy/PS_HPosScale.xy;
+	half2 fullScaleTC = IN.baseTC.xy/CV_HPosScale.xy;
 	
 	half4 cLayerNear = tex2D(_tex0, fullScaleTC + PS_ScreenSize.zw * float2(-1, -1)); 
 	cLayerNear.rgb /= cLayerNear.w>0? cLayerNear.w: 1;

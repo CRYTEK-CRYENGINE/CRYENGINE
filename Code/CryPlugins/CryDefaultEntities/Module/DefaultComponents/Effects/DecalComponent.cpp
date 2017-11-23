@@ -35,7 +35,7 @@ void CDecalComponent::Initialize()
 	}
 }
 
-void CDecalComponent::ProcessEvent(SEntityEvent& event)
+void CDecalComponent::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

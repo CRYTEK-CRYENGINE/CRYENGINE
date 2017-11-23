@@ -413,8 +413,11 @@ void CAreaGrid::Draw()
 					Vec3 screenPos(ZERO);
 					gEnv->pRenderer->ProjectToScreen(cellCenter.x, cellCenter.y, cellCenter.z, &screenPos.x, &screenPos.y, &screenPos.z);
 
-					screenPos.x = screenPos.x * 0.01f * gEnv->pRenderer->GetWidth();
-					screenPos.y = screenPos.y * 0.01f * gEnv->pRenderer->GetHeight();
+					const int w = IRenderAuxGeom::GetAux()->GetCamera().GetViewSurfaceX();
+					const int h = IRenderAuxGeom::GetAux()->GetCamera().GetViewSurfaceZ();
+
+					screenPos.x = screenPos.x * 0.01f * w;
+					screenPos.y = screenPos.y * 0.01f * h;
 
 					if (
 					  (screenPos.x >= 0.0f) && (screenPos.y >= 0.0f) &&

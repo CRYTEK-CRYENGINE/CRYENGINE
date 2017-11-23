@@ -252,8 +252,8 @@ bool IrisShafts::PreparePrimitives(const SPreparePrimitivesContext& context)
 
 	m_primitive.SetTechnique(CShaderMan::s_ShaderLensOptics, techName, rtFlags);
 	m_primitive.SetRenderState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ONE);
-	m_primitive.SetTexture(0, (m_bUseSpectrumTex && m_pSpectrumTex) ? m_pSpectrumTex.get() : CTexture::s_ptexBlack);
-	m_primitive.SetTexture(1, m_pBaseTex ? m_pBaseTex.get() : CTexture::s_ptexBlack);
+	m_primitive.SetTexture(0, (m_bUseSpectrumTex && m_pSpectrumTex) ? m_pSpectrumTex.get() : CRendererResources::s_ptexBlack);
+	m_primitive.SetTexture(1, m_pBaseTex ? m_pBaseTex.get() : CRendererResources::s_ptexBlack);
 	m_primitive.SetSampler(0, EDefaultSamplerStates::LinearBorder_Black);
 
 	// update constants

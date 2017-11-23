@@ -21,6 +21,16 @@
 #define ENABLE_NORMALSTREAM_SUPPORT 1
 
 //////////////////////////////////////////////////////////////////////
+// All possible primitive types
+enum PublicRenderPrimitiveType
+{
+	prtTriangleList,
+	prtTriangleStrip,
+	prtLineList,
+	prtLineStrip
+};
+
+//////////////////////////////////////////////////////////////////////
 struct InputLayoutHandle
 {
 	typedef uint8 ValueType;

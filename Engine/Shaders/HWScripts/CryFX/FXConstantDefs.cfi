@@ -101,16 +101,6 @@ cbuffer PerMaterialConstants : register()
 #define PS_REG_PB_8 c8
 #define PS_REG_PB_9 c9
 
-   
-// Vertex shader parameters
-float4x4 vpMatrix       : PI_ViewProjection   < vsregister = c0; >;
-float3x4 ObjWorldMatrix : SI_ObjMatrix        < vsregister = c0; >;
-float4 BendInfo         : SI_BendInfo         < vsregister = c7; >;
-
-#if %TEMP_VEGETATION
-	half4 AmbientObjectCol : SI_ObjectAmbColComp < vsregister = c4; >;  //x=Ambient.w, y=ObjColor.w, z = 0, w = render quality
-#endif
-
 half4 AmbientOp         : SI_AmbientOpacity   < vsregister = c5; >;
 
 half4 Ambient      : PI_Ambient       < psregister = PS_REG_PB_9; vsregister = c3 >;
@@ -214,16 +204,6 @@ half4 AvgFogVolumeContrib	: PI_AvgFogVolumeContrib;
 float4 PS_NearFarClipDist   : PB_NearFarDist;
 float4 PS_WorldViewPos      : PB_CameraPos;
 float4 PS_ScreenSize        : PB_ScreenSize;
-half4 AlphaTest            : PI_AlphaTest;		// .w=AlphaTest value, .x=GBuffer value(0..1)
-half4 PBAlphaTest          : PB_AlphaTest;		// .w=AlphaTest value, .x=GBuffer value(0..1)
-float4 ResInfoDiffuse       : PB_ResInfoDiffuse;
-float4 ResInfoBump          : PB_ResInfoBump;
-float4 PS_HPosScale         : PB_HPosScale;
+
 float4 PS_ZRange;
-
-float3 vSkinPrecisionOffset = { PB_ObjVal[0], PB_ObjVal[1], PB_ObjVal[2] };
-float4 fSkinningExtraWeights : PB_SkinningExtraWeights;
-
-// Deprecated parameters
-float4 ViewPos              : PI_OSCameraPos;
 

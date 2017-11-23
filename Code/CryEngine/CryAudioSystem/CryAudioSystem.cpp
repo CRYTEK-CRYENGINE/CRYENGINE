@@ -24,7 +24,6 @@ namespace CryAudio
 {
 // Define global objects.
 CCVars g_cvars;
-CLogger g_logger;
 CTimeValue g_lastMainThreadFrameStartTime;
 
 //////////////////////////////////////////////////////////////////////////
@@ -105,10 +104,6 @@ bool CreateAudioSystem(SSystemGlobalEnvironment& env)
 		env.pAudioSystem = static_cast<IAudioSystem*>(pSystem);
 		bSuccess = pSystem->Initialize();
 	}
-	else
-	{
-		g_logger.Log(ELogType::Error, "Could not create an instance of CAudioSystem! Keeping the default AudioSystem!\n");
-	}
 
 	return bSuccess;
 }
@@ -148,15 +143,7 @@ class CEngineModule_CryAudioSystem : public ISystemModule
 	CRYGENERATE_SINGLETONCLASS_GUID(CEngineModule_CryAudioSystem, "EngineModule_CryAudioSystem", "ec73cf43-62ca-4a7f-8b45-1076dc6fdb8b"_cry_guid)
 
 	CEngineModule_CryAudioSystem();
-
-	virtual ~CEngineModule_CryAudioSystem() override
-	{
-		SAFE_RELEASE(gEnv->pAudioSystem);
-		if (ISystem* pSystem = GetISystem())
-		{
-			pSystem->UnloadEngineModule(s_currentModuleName.c_str());
-		}
-	}
+	virtual ~CEngineModule_CryAudioSystem() override;
 
 	virtual const char* GetName() const override     { return "CryAudioSystem"; }
 	virtual const char* GetCategory() const override { return "CryEngine"; }
@@ -202,10 +189,6 @@ class CEngineModule_CryAudioSystem : public ISystemModule
 
 			// As soon as the audio system was created we consider this a success (even if the NULL implementation was used)
 			bSuccess = true;
-		}
-		else
-		{
-			g_logger.Log(ELogType::Error, "Could not create AudioSystem!");
 		}
 
 		return bSuccess;
@@ -301,8 +284,17 @@ CEngineModule_CryAudioSystem::CEngineModule_CryAudioSystem()
 	                                          "Usage: s_AudioImplName <name of the library without extension>\n"
 	                                          "Default: CryAudioImplSDLMixer\n",
 	                                          CEngineModule_CryAudioSystem::OnAudioImplChanged);
+}
 
-	g_cvars.RegisterVariables();
+//////////////////////////////////////////////////////////////////////////
+CEngineModule_CryAudioSystem::~CEngineModule_CryAudioSystem()
+{
+	SAFE_RELEASE(gEnv->pAudioSystem);
+
+	if (gEnv->pSystem != nullptr)
+	{
+		gEnv->pSystem->UnloadEngineModule(s_currentModuleName.c_str());
+	}
 }
 } // namespace CryAudio
 #include <CryCore/CrtDebugStats.h>

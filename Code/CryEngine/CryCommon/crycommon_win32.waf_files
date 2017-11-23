@@ -9,17 +9,6 @@
     ],
     "CryNetwork":[
       "CryNetwork/CrySocks_win32.h"
-    ],
-	 "CrySystem":[
-      {
-        "Profilers":[
-          {
-            "FrameProfiler":[
-              "CrySystem/Profilers/FrameProfiler/FrameProfiler_Pix.h"
-            ]
-          }
-        ]
-      }
-	]
+    ]
   }
 }

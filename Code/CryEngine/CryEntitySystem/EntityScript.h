@@ -1,18 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   EntityScript.h
-//  Version:     v1.00
-//  Created:     18/5/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __EntityScript_h__
-#define __EntityScript_h__
 #pragma once
 
 #include <CryScriptSystem/IScriptSystem.h>
@@ -266,5 +253,3 @@ private:
 	bool                            m_bScriptLoaded;
 	bool                            m_bDefaultOnly;
 };
-
-#endif // __EntityScript_h__

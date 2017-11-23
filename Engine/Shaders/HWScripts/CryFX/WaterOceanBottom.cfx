@@ -19,15 +19,6 @@ float Script : STANDARDSGLOBAL
 >;
 
 /// Un-Tweakables //////////////////////
-float4x4 mWorldT : PI_TransObjMatrix < vsregister = c4; >;
-float4x4 mCamera : PB_CameraMatrix_I;
-
-float4 g_fWaterLevel : PB_WaterLevel;
-
-float4x4 mReflProj : PI_TexMatrix
-<
-  string 'Sampler' (envMapSamplerRefl)
->;
 
 struct a2vWater
 {

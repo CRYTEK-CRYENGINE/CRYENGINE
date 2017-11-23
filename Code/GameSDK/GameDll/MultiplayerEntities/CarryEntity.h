@@ -31,6 +31,7 @@ public:
 	virtual bool Init(IGameObject *pGameObject);
 	virtual void GetMemoryUsage(ICrySizer *pSizer) const;
 	virtual void PostInit(IGameObject *pGameObject);
+	virtual uint64 GetEventMask() const { return 0; }
 	// ~IGameObjectExtension
 
 	void SetSpawnedWeaponId(EntityId weaponId);

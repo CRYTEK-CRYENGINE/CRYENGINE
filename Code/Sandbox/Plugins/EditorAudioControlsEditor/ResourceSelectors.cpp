@@ -1,11 +1,13 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
-#include "IResourceSelectorHost.h"
-#include "ListSelectionDialog.h"
+
 #include "SystemControlsEditorIcons.h"
 #include "AudioControlsEditorPlugin.h"
 #include "ResourceSelectorDialog.h"
+
+#include <IResourceSelectorHost.h>
+#include <ListSelectionDialog.h>
 #include <CryGame/IGameFramework.h>
 #include <IEditor.h>
 
@@ -13,9 +15,9 @@ using namespace ACE;
 
 namespace
 {
-dll_string ShowSelectDialog(const SResourceSelectorContext& context, const char* szPreviousValue, const EItemType controlType)
+dll_string ShowSelectDialog(SResourceSelectorContext const& context, char const* szPreviousValue, ESystemItemType const controlType)
 {
-	CAudioAssetsManager const* const pAssetsManager = CAudioControlsEditorPlugin::GetAssetsManager();
+	CSystemAssetsManager const* const pAssetsManager = CAudioControlsEditorPlugin::GetAssetsManager();
 	CRY_ASSERT(pAssetsManager);
 
 	CResourceSelectorDialog dialog(context.parentWidget, controlType);
@@ -29,32 +31,32 @@ dll_string ShowSelectDialog(const SResourceSelectorContext& context, const char*
 
 dll_string AudioTriggerSelector(SResourceSelectorContext const& context, char const* const szPreviousValue)
 {
-	return ShowSelectDialog(context, szPreviousValue, EItemType::Trigger);
+	return ShowSelectDialog(context, szPreviousValue, ESystemItemType::Trigger);
 }
 
 dll_string AudioSwitchSelector(SResourceSelectorContext const& context, char const* const  szPreviousValue)
 {
-	return ShowSelectDialog(context, szPreviousValue, EItemType::Switch);
+	return ShowSelectDialog(context, szPreviousValue, ESystemItemType::Switch);
 }
 
 dll_string AudioSwitchStateSelector(SResourceSelectorContext const& context, char const* const  szPreviousValue)
 {
-	return ShowSelectDialog(context, szPreviousValue, EItemType::State);
+	return ShowSelectDialog(context, szPreviousValue, ESystemItemType::State);
 }
 
 dll_string AudioParameterSelector(SResourceSelectorContext const& context, char const* const  szPreviousValue)
 {
-	return ShowSelectDialog(context, szPreviousValue, EItemType::Parameter);
+	return ShowSelectDialog(context, szPreviousValue, ESystemItemType::Parameter);
 }
 
 dll_string AudioEnvironmentSelector(SResourceSelectorContext const& context, char const* const  szPreviousValue)
 {
-	return ShowSelectDialog(context, szPreviousValue, EItemType::Environment);
+	return ShowSelectDialog(context, szPreviousValue, ESystemItemType::Environment);
 }
 
 dll_string AudioPreloadRequestSelector(SResourceSelectorContext const& context, char const* const  szPreviousValue)
 {
-	return ShowSelectDialog(context, szPreviousValue, EItemType::Preload);
+	return ShowSelectDialog(context, szPreviousValue, ESystemItemType::Preload);
 }
 
 REGISTER_RESOURCE_SELECTOR("AudioTrigger", AudioTriggerSelector, "")

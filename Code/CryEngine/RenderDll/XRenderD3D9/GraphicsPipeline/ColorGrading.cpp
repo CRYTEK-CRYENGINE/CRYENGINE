@@ -25,7 +25,7 @@ CColorGradingStage::CColorGradingStage()
 
 void CColorGradingStage::Init()
 {
-	CColorGradingControllerD3D* pCtrl = gcpRendD3D->m_pColorGradingControllerD3D;
+	CColorGradingController* pCtrl = gcpRendD3D->m_pColorGradingControllerD3D;
 	const int chartSize = pCtrl->GetColorChartSize();
 
 	// load default color chart
@@ -106,7 +106,7 @@ void CColorGradingStage::Init()
 	}
 }
 
-void CColorGradingStage::PreparePrimitives(CColorGradingControllerD3D& controller, const SColorGradingMergeParams& mergeParams)
+void CColorGradingStage::PreparePrimitives(CColorGradingController& controller, const SColorGradingMergeParams& mergeParams)
 {
 	m_pChartToUse = nullptr;
 
@@ -120,6 +120,8 @@ void CColorGradingStage::PreparePrimitives(CColorGradingControllerD3D& controlle
 	// init passes
 	m_mergePass.BeginAddingPrimitives();
 	m_colorGradingPass.BeginAddingPrimitives();
+
+	CryAutoCriticalSectionNoRecursive layersLock(controller.GetLayersLock());
 
 	// prepare chart blending primitives
 	{
@@ -169,13 +171,13 @@ void CColorGradingStage::PreparePrimitives(CColorGradingControllerD3D& controlle
 				prim.GetConstantManager().BeginNamedConstantUpdate();
 
 				static CCryNameR nameLayerBlendAmount("LayerBlendAmount");
-				prim.GetConstantManager().SetNamedConstant(nameLayerBlendAmount, layerBlendAmount, eHWSC_Pixel);
-
 				static CCryNameR nameLayerSize("LayerSize");
+
+				prim.GetConstantManager().SetNamedConstant(nameLayerBlendAmount, layerBlendAmount, eHWSC_Pixel);
 				Vec4 layerSize((float)m_pMergeLayers[0]->GetWidth(), (float)m_pMergeLayers[0]->GetHeight(), 0, 0);
 				prim.GetConstantManager().SetNamedConstant(nameLayerSize, layerSize, eHWSC_Pixel);
 
-				prim.GetConstantManager().EndNamedConstantUpdate();
+				prim.GetConstantManager().EndNamedConstantUpdate(&m_mergePass.GetViewport());
 
 				m_mergePass.AddPrimitive(&prim);
 				++numMergePasses;
@@ -206,24 +208,20 @@ void CColorGradingStage::PreparePrimitives(CColorGradingControllerD3D& controlle
 		constantManager.BeginNamedConstantUpdate();
 
 		static CCryNameR pParamName0("ColorGradingParams0");
-		constantManager.SetNamedConstant(pParamName0, mergeParams.pLevels[0], eHWSC_Pixel);
-
 		static CCryNameR pParamName1("ColorGradingParams1");
-		constantManager.SetNamedConstant(pParamName1, mergeParams.pLevels[1], eHWSC_Pixel);
-
 		static CCryNameR pParamName2("ColorGradingParams2");
-		constantManager.SetNamedConstant(pParamName2, mergeParams.pFilterColor, eHWSC_Pixel);
-
 		static CCryNameR pParamName3("ColorGradingParams3");
-		constantManager.SetNamedConstant(pParamName3, mergeParams.pSelectiveColor[0], eHWSC_Pixel);
-
 		static CCryNameR pParamName4("ColorGradingParams4");
-		constantManager.SetNamedConstant(pParamName4, mergeParams.pSelectiveColor[1], eHWSC_Pixel);
-
 		static CCryNameR pParamMatrix("mColorGradingMatrix");
+
+		constantManager.SetNamedConstant(pParamName0, mergeParams.pLevels[0], eHWSC_Pixel);
+		constantManager.SetNamedConstant(pParamName1, mergeParams.pLevels[1], eHWSC_Pixel);
+		constantManager.SetNamedConstant(pParamName2, mergeParams.pFilterColor, eHWSC_Pixel);
+		constantManager.SetNamedConstant(pParamName3, mergeParams.pSelectiveColor[0], eHWSC_Pixel);
+		constantManager.SetNamedConstant(pParamName4, mergeParams.pSelectiveColor[1], eHWSC_Pixel);
 		constantManager.SetNamedConstantArray(pParamMatrix, mergeParams.pColorMatrix, 3, eHWSC_Pixel);
 
-		constantManager.EndNamedConstantUpdate();
+		constantManager.EndNamedConstantUpdate(&m_colorGradingPass.GetViewport());
 
 		m_colorGradingPass.AddPrimitive(&m_colorGradingPrimitive);
 
@@ -240,14 +238,14 @@ void CColorGradingStage::Execute()
 		return;
 	}
 	
-	if (CColorGrading* pColorGrading = (CColorGrading*)PostEffectMgr()->GetEffect(ePFX_ColorGrading))
+	if (CColorGrading* pColorGrading = (CColorGrading*)PostEffectMgr()->GetEffect(EPostEffectID::ColorGrading))
 	{
 		PROFILE_LABEL_SCOPE("COLORGRADING");
 
 		SColorGradingMergeParams mergeParams;
 		pColorGrading->UpdateParams(mergeParams, false);
 		
-		if (gEnv->IsCutscenePlaying() || (gRenDev->GetFrameID(false) % max(1, CRenderer::CV_r_ColorgradingChartsCache)) == 0)
+		if (gEnv->IsCutscenePlaying() || (RenderView()->GetFrameId() % max(1, CRenderer::CV_r_ColorgradingChartsCache)) == 0)
 		{
 			PreparePrimitives(*gcpRendD3D->m_pColorGradingControllerD3D, mergeParams);
 		}

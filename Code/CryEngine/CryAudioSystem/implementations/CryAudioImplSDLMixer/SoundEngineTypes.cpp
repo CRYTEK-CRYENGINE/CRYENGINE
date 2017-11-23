@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "SoundEngineTypes.h"
@@ -64,12 +64,9 @@ ERequestStatus CObject::ExecuteTrigger(ITrigger const* const pITrigger, IEvent* 
 	{
 		CTrigger const* const pTrigger = static_cast<CTrigger const* const>(pITrigger);
 		CEvent* const pEvent = static_cast<CEvent* const>(pIEvent);
-
-		if (SoundEngine::ExecuteEvent(this, pTrigger, pEvent))
-		{
-			return ERequestStatus::Success;
-		}
+		return SoundEngine::ExecuteEvent(this, pTrigger, pEvent);
 	}
+
 	return ERequestStatus::Failure;
 }
 

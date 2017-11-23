@@ -1,18 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   EntityClass.h
-//  Version:     v1.00
-//  Created:     18/5/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __EntityClass_h__
-#define __EntityClass_h__
 #pragma once
 
 #include <CryEntitySystem/IEntityClass.h>
@@ -108,5 +95,3 @@ private:
 
 	mutable Schematyc::IRuntimeClassConstPtr m_pSchematycRuntimeClass = nullptr;
 };
-
-#endif // __EntityClass_h__

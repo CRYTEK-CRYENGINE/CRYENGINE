@@ -151,7 +151,7 @@ bool CThreadConfigManager::LoadConfig(const char* pcPath)
 		CryLogAlways("<ThreadConfigInfo>: Thread profile loaded: \"%s\" (%s)  ", tmpPlatformStr.c_str(), pcPath);
 	}
 	
-	if ((retValueCommon == false) && (retValueCPU == false))
+	if (!retValueCommon && !retValueCPU)
 	{
 		// Could not find any matching platform
 		CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "<ThreadConfigInfo>: Active platform identifier string \"%s\" not found in config \"%s\".", strPlatformId, sCurThreadConfigFilename);

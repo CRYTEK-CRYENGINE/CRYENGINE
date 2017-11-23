@@ -1,16 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   FlowGraphProxy.h
-//  Version:     v1.00
-//  Created:     6/6/2005 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #include "stdafx.h"
 #include "FlowGraphProxy.h"
 #include "Entity.h"
@@ -56,7 +45,7 @@ IFlowGraph* CEntityComponentFlowGraph::GetFlowGraph()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntityComponentFlowGraph::ProcessEvent(SEntityEvent& event)
+void CEntityComponentFlowGraph::ProcessEvent(const SEntityEvent& event)
 {
 	// Assumes only 1 current listener can be deleted as a result of the event.
 	Listeners::iterator next;

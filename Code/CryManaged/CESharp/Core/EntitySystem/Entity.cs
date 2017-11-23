@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -615,6 +615,11 @@ namespace CryEngine
 			return new Character(nativeCharacter);
 		}
 
+		/// <summary>
+		/// Set the flags for a specific slot.
+		/// </summary>
+		/// <param name="slot"></param>
+		/// <param name="flags"></param>
 		public void SetSlotFlag(int slot, EntitySlotFlags flags)
 		{
 			NativeHandle.SetSlotFlags(slot, (uint)flags);

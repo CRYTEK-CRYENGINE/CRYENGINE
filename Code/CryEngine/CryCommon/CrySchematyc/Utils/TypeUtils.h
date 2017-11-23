@@ -34,20 +34,15 @@ template<typename TYPE, typename MEMBER_TYPE> inline ptrdiff_t GetMemberOffset(M
 
 namespace HasOperator
 {
-namespace Private
-{
 
-struct SNo {};
+template<typename TYPE, typename = void>
+struct SEquals : std::false_type {};
 
-} // Private
-
-template<typename TYPE> Private::SNo operator==(TYPE const&, TYPE const&);
-
-template<typename TYPE> struct SEquals : std::integral_constant<bool, !std::is_same<decltype(std::declval<TYPE const&>() == std::declval<TYPE const&>()), Private::SNo>::value> {};
-
-template<typename TYPE> struct SEquals<std::shared_ptr<TYPE>> : std::integral_constant<bool, true> {}; // Workaround for error 'error C2593: 'operator ==' is ambiguous'.
-
-template<> struct SEquals<void> : std::integral_constant<bool, false> {};
+template<typename TYPE>
+struct SEquals<
+	TYPE,
+	decltype(void(std::declval<const TYPE&>() == std::declval<const TYPE&>()))
+> : std::true_type {};
 
 } // HasOperator
 

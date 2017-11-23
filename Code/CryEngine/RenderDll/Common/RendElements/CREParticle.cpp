@@ -15,6 +15,7 @@
 #include "GraphicsPipeline/SceneForward.h"
 #include "GraphicsPipeline/SceneCustom.h"
 #include "GraphicsPipeline/VolumetricFog.h"
+#include "GraphicsPipeline/TiledLightVolumes.h"
 #include "Gpu/Particles/GpuParticleComponentRuntime.h"
 
 DECLARE_JOB("ComputeVertices", TComputeVerticesJob, CREParticle::ComputeVertices);
@@ -42,7 +43,7 @@ void CFillRateManager::ComputeMaxPixels()
 	ICVar* pVar = gEnv->pConsole->GetCVar("e_ParticlesMaxScreenFill");
 	if (!pVar)
 		return;
-	float fMaxTotalPixels = pVar->GetFVal() * gRenDev->GetWidth() * gRenDev->GetHeight();
+	float fMaxTotalPixels = pVar->GetFVal() * CRendererResources::s_renderWidth * CRendererResources::s_renderHeight;
 	float fNewMax = fMaxTotalPixels;
 
 	Lock();
@@ -235,12 +236,14 @@ SRenderVertices* CREParticle::AllocVertices(int nAllocVerts, int nAllocInds)
 
 	CParticleBufferSet::SAlloc alloc;
 
-	rp.m_particleBuffer.Alloc(m_allocId, CParticleBufferSet::EBT_Vertices, nAllocVerts, &alloc);
+	auto& particleBuffer = gcpRendD3D.GetGraphicsPipeline().GetParticleBufferSet();
+
+	particleBuffer.Alloc(m_allocId, CParticleBufferSet::EBT_Vertices, nAllocVerts, &alloc);
 	SVF_Particle* pVertexBuffer = alias_cast<SVF_Particle*>(alloc.m_pBase) + alloc.m_firstElem;
 	m_RenderVerts.aVertices.set(ArrayT(pVertexBuffer, int(alloc.m_numElemns)));
 	m_nFirstVertex = alloc.m_firstElem;
 
-	rp.m_particleBuffer.Alloc(m_allocId, CParticleBufferSet::EBT_Indices, nAllocInds, &alloc);
+	particleBuffer.Alloc(m_allocId, CParticleBufferSet::EBT_Indices, nAllocInds, &alloc);
 	uint16* pIndexBuffer = alias_cast<uint16*>(alloc.m_pBase) + alloc.m_firstElem;
 	m_RenderVerts.aIndices.set(ArrayT(pIndexBuffer, int(alloc.m_numElemns)));
 	m_nFirstIndex = alloc.m_firstElem;
@@ -254,8 +257,10 @@ SRenderVertices* CREParticle::AllocPullVertices(int nPulledVerts)
 {
 	SRenderPipeline& rp = gRenDev->m_RP;
 
+	auto& particleBuffer = gcpRendD3D.GetGraphicsPipeline().GetParticleBufferSet();
+
 	CParticleBufferSet::SAllocStreams streams;
-	rp.m_particleBuffer.Alloc(m_allocId, nPulledVerts, &streams);
+	particleBuffer.Alloc(m_allocId, nPulledVerts, &streams);
 	m_RenderVerts.aPositions.set(ArrayT(streams.m_pPositions, int(streams.m_numElemns)));
 	m_RenderVerts.aAxes.set(ArrayT(streams.m_pAxes, int(streams.m_numElemns)));
 	m_RenderVerts.aColorSTs.set(ArrayT(streams.m_pColorSTs, int(streams.m_numElemns)));
@@ -284,20 +289,18 @@ void CRenderer::EF_AddParticle(CREParticle* pParticle, SShaderItem& shaderItem, 
 	{
 		uint32 nBatchFlags;
 		int nList;
-		int nThreadID = m_RP.m_nFillThreadID;
+		auto nThreadID = gRenDev->GetMainThreadID();
 		EF_GetParticleListAndBatchFlags(nBatchFlags, nList, pRO, shaderItem, passInfo);
 		passInfo.GetRenderView()->AddRenderItem(pParticle, pRO, shaderItem, nList, nBatchFlags, passInfo.GetRendItemSorter(), passInfo.IsShadowPass(), passInfo.IsAuxWindow());
 	}
 }
 
-void
-CRenderer::EF_RemoveParticlesFromScene()
+void CRenderer::EF_RemoveParticlesFromScene()
 {
 	m_FillRateManager.ComputeMaxPixels();
 }
 
-void
-CRenderer::SyncComputeVerticesJobs()
+void CRenderer::SyncComputeVerticesJobs()
 {
 	gEnv->pJobManager->WaitForJob(m_ComputeVerticesJobState);
 }
@@ -311,8 +314,10 @@ void CRenderer::EF_AddMultipleParticlesToScene(const SAddParticlesToSceneJob* jo
 	const CCamera& camera = passInfo.GetCamera();
 	int threadList = passInfo.ThreadID();
 
+	auto& particleBuffer = gcpRendD3D.GetGraphicsPipeline().GetParticleBufferSet();
+
 	// skip particle rendering in rare cases (like after a resolution change)
-	if (!m_RP.m_particleBuffer.IsValid())
+	if (!particleBuffer.IsValid())
 		return;
 
 	// if we have jobs, set our sync variables to running before starting the jobs
@@ -323,15 +328,15 @@ void CRenderer::EF_AddMultipleParticlesToScene(const SAddParticlesToSceneJob* jo
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void CRenderer::PrepareParticleRenderObjects(Array<const SAddParticlesToSceneJob> aJobs, int nREStart, SRenderingPassInfo passInfoOriginal) PREFAST_SUPPRESS_WARNING(6262)
+void CRenderer::PrepareParticleRenderObjects(Array<const SAddParticlesToSceneJob> aJobs, int nREStart, const SRenderingPassInfo& passInfo) PREFAST_SUPPRESS_WARNING(6262)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
-	SRenderingPassInfo passInfo(passInfoOriginal);
+	const auto& particleBuffer = gcpRendD3D.GetGraphicsPipeline().GetParticleBufferSet();
 
 	// == create list of non empty container to submit to the renderer == //
 	threadID threadList = passInfo.ThreadID();
-	const uint allocId = gRenDev->m_RP.m_particleBuffer.GetAllocId();
+	const uint allocId = particleBuffer.GetAllocId();
 
 	// make sure the GPU doesn't use the VB/IB Buffer we are going to fill anymore
 	WaitForParticleBuffer();
@@ -393,9 +398,9 @@ void CRenderer::PrepareParticleRenderObjects(Array<const SAddParticlesToSceneJob
 		else
 		{
 			if (passInfo.IsAuxWindow())
-				pRE->m_CustomTexBind[0] = CTexture::s_ptexDefaultProbeCM->GetID();
+				pRE->m_CustomTexBind[0] = CRendererResources::s_ptexDefaultProbeCM->GetID();
 			else
-				pRE->m_CustomTexBind[0] = CTexture::s_ptexBlackCM->GetID();
+				pRE->m_CustomTexBind[0] = CRendererResources::s_ptexBlackCM->GetID();
 		}
 
 		if (job.pVertexCreator)
@@ -498,7 +503,7 @@ void CRenderer::EF_GetParticleListAndBatchFlags(uint32& nBatchFlags, int& nList,
 		nList = EFSLIST_GENERAL;
 }
 
-bool CREParticle::Compile(CRenderObject* pRenderObject)
+bool CREParticle::Compile(CRenderObject* pRenderObject,CRenderView *pRenderView)
 {
 	const bool isPulledVertices = (pRenderObject->m_ParticleObjFlags & CREParticle::ePOF_USE_VERTEX_PULL_MODEL) != 0;
 	const bool isPointSprites = (pRenderObject->m_ObjFlags & FOB_POINT_SPRITE) != 0;
@@ -542,10 +547,10 @@ bool CREParticle::Compile(CRenderObject* pRenderObject)
 		stateDesc.primitiveType = eptTriangleList;
 	}
 	else if (isPulledVertices)
-	{
+		{
 		stateDesc.vertexFormat = EDefaultInputLayouts::Empty;
 		if (isPointSprites)
-		{
+			{
 			stateDesc.primitiveType = eptTriangleList;
 			stateDesc.objectRuntimeMask |= g_HWSR_MaskBit[HWSR_SPRITE];
 		}
@@ -695,7 +700,7 @@ void CREParticle::DrawToCommandList(CRenderObject* pRenderObject, const struct S
 	const bool isLegacy = m_pGpuRuntime == nullptr && (pRenderObject->m_ParticleObjFlags & CREParticle::ePOF_USE_VERTEX_PULL_MODEL) == 0;
 
 	CDeviceGraphicsCommandInterface& commandInterface = *context.pCommandList->GetGraphicsInterface();
-	PrepareDataToRender(pRenderObject);
+	PrepareDataToRender(context.pRenderView,pRenderObject);
 	BindPipeline(pRenderObject, commandInterface, pGraphicsPSO);
 	if (isLegacy)
 		DrawParticlesLegacy(pRenderObject, commandInterface);
@@ -706,7 +711,7 @@ void CREParticle::DrawToCommandList(CRenderObject* pRenderObject, const struct S
 CDeviceGraphicsPSOPtr CREParticle::GetGraphicsPSO(CRenderObject* pRenderObject, const struct SGraphicsPipelinePassContext& context) const
 {
 	assert(pRenderObject->GetObjData());
-	const CLightVolumeBuffer& lightVolumes = gcpRendD3D->m_RP.m_lightVolumeBuffer;
+	const CLightVolumeBuffer& lightVolumes = gcpRendD3D.GetGraphicsPipeline().GetLightVolumeBuffer();
 	const SRenderObjData& objectData = *pRenderObject->GetObjData();
 	const uint lightVolumeId = objectData.m_LightVolumeId - 1;
 	const bool isDebug = context.stageID == eStage_SceneCustom;
@@ -741,10 +746,11 @@ CDeviceGraphicsPSOPtr CREParticle::GetGraphicsPSO(CRenderObject* pRenderObject, 
 	return pGraphicsPSO;
 }
 
-void CREParticle::PrepareDataToRender(CRenderObject* pRenderObject)
+void CREParticle::PrepareDataToRender(CRenderView *pRenderView, CRenderObject* pRenderObject)
 {
+	const auto* tiledLights = gcpRendD3D.GetGraphicsPipeline().GetTiledLightVolumesStage();
+
 	assert(pRenderObject->GetObjData());
-	const CTiledShading& tiledShading = gcpRendD3D->GetTiledShading();
 	const SRenderObjData& objectData = *pRenderObject->GetObjData();
 
 	SParticleInstanceCB instanceCB;
@@ -753,16 +759,17 @@ void CREParticle::PrepareDataToRender(CRenderObject* pRenderObject)
 	if (fogVolumeIdx != (uint16)-1)
 	{
 		ColorF contrib;
-		gcpRendD3D->GetFogVolumeContribution(fogVolumeIdx, contrib);
+		pRenderView->GetFogVolumeContribution(fogVolumeIdx, contrib);
 		instanceCB.m_avgFogVolumeContrib.x = contrib.r * (1 - contrib.a);
 		instanceCB.m_avgFogVolumeContrib.y = contrib.g * (1 - contrib.a);
 		instanceCB.m_avgFogVolumeContrib.z = contrib.b * (1 - contrib.a);
 		instanceCB.m_avgFogVolumeContrib.w = contrib.a;
 	}
 	instanceCB.m_vertexOffset = m_nFirstVertex;
-	instanceCB.m_envCubemapIndex = tiledShading.GetLightShadeIndexBySpecularTextureId(m_CustomTexBind[0]); // #PFX2_TODO these ids are going back and thorth, clean this up
+	instanceCB.m_envCubemapIndex = tiledLights->GetLightShadeIndexBySpecularTextureId(m_CustomTexBind[0]); // #PFX2_TODO these ids are going back and thorth, clean this up
 	instanceCB.m_lightVolumeId = lightVolumeId;
 	instanceCB.m_glowParams = m_pCompiledParticle->m_glowParams;
+
 	m_pCompiledParticle->m_pInstanceCB->UpdateBuffer(&instanceCB, sizeof(instanceCB));
 }
 
@@ -782,7 +789,8 @@ void CREParticle::BindPipeline(CRenderObject* pRenderObject, CDeviceGraphicsComm
 
 void CREParticle::DrawParticles(CRenderObject* pRenderObject, CDeviceGraphicsCommandInterface& commandInterface)
 {
-	const CParticleBufferSet& particleBuffer = gcpRendD3D->m_RP.m_particleBuffer;
+	const auto& particleBuffer = gcpRendD3D.GetGraphicsPipeline().GetParticleBufferSet();
+
 	const bool isPointSprites = (pRenderObject->m_ObjFlags & FOB_POINT_SPRITE) != 0;
 	const bool isGpuParticles = m_pGpuRuntime != nullptr;
 	
@@ -807,7 +815,8 @@ void CREParticle::DrawParticles(CRenderObject* pRenderObject, CDeviceGraphicsCom
 
 void CREParticle::DrawParticlesLegacy(CRenderObject* pRenderObject, CDeviceGraphicsCommandInterface& commandInterface)
 {
-	const CParticleBufferSet& particleBuffer = gcpRendD3D->m_RP.m_particleBuffer;
+	const auto& particleBuffer = gcpRendD3D.GetGraphicsPipeline().GetParticleBufferSet();
+
 	const bool isPointSprites = (pRenderObject->m_ObjFlags & FOB_POINT_SPRITE) != 0;
 	const bool isOctagonal = (pRenderObject->m_ObjFlags & FOB_OCTAGONAL) != 0;
 	const bool isVolumeFog = (pRenderObject->m_ParticleObjFlags & CREParticle::ePOF_VOLUME_FOG) != 0;

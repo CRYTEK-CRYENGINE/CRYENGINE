@@ -1,0 +1,379 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "Resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDR_SCHEMATYC_TOOLBAR   BITMAP                  "Toolbar.bmp"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Toolbar
+//
+
+IDR_SCHEMATYC_TOOLBAR TOOLBAR 32, 32
+BEGIN
+    BUTTON      ID_SCHEMATYC_SAVE
+    BUTTON      ID_SCHEMATYC_REFRESH_ENV
+    BUTTON      ID_SCHEMATYC_HELP_VIEW_WIKI
+    BUTTON      ID_SCHEMATYC_GO_BACK
+    BUTTON      ID_SCHEMATYC_GO_TO
+    BUTTON      ID_SCHEMATYC_GO_TO_AND_FROM_TRANSITION_GRAPH
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Accelerator
+//
+
+IDR_SCHEMATYC_MENU ACCELERATORS
+BEGIN
+    VK_F2, ID_SCHEMATYC_GO_TO_AND_FROM_TRANSITION_GRAPH, VIRTKEY, NOINVERT
+END
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_SCHEMATYC_MENU MENU
+BEGIN
+    POPUP "File"
+    BEGIN
+        MENUITEM "Save",                        ID_SCHEMATYC_SAVE
+        MENUITEM "Save Settings",               ID_SCHEMATYC_SAVE_SETTINGS
+    END
+    POPUP "View"
+    BEGIN
+        MENUITEM "Browser",                     ID_SCHEMATYC_VIEW_BROWSER
+        MENUITEM "Environment Browser",         ID_SCHEMATYC_VIEW_ENV_BROWSER
+        MENUITEM "Detail",                      ID_SCHEMATYC_VIEW_DETAIL
+        MENUITEM "Graph",                       ID_SCHEMATYC_VIEW_GRAPH
+        MENUITEM "Log Output A",                ID_SCHEMATYC_VIEW_LOG_OUTPUT_A
+        MENUITEM "Log Output B",                ID_SCHEMATYC_VIEW_LOG_OUTPUT_B
+        MENUITEM "Log Output C",                ID_SCHEMATYC_VIEW_LOG_OUTPUT_C
+        MENUITEM "Log Output D",                ID_SCHEMATYC_VIEW_LOG_OUTPUT_D
+        MENUITEM "Compiler Output",             ID_SCHEMATYC_VIEW_COMPILER_OUTPUT
+        MENUITEM "Preview",                     ID_SCHEMATYC_VIEW_PREVIEW
+    END
+    POPUP "Debug"
+    BEGIN
+        POPUP "World"
+        BEGIN
+            MENUITEM "Show States",                 ID_SCHEMATYC_WORLD_DEBUG_SHOW_STATES
+            MENUITEM "Show Variables",              ID_SCHEMATYC_WORLD_DEBUG_SHOW_VARIABLES
+            MENUITEM "Show Containers",             ID_SCHEMATYC_WORLD_DEBUG_SHOW_CONTAINERS
+            MENUITEM "Show Timers",                 ID_SCHEMATYC_WORLD_DEBUG_SHOW_TIMERS
+            MENUITEM "Show Actions",                ID_SCHEMATYC_WORLD_DEBUG_SHOW_ACTIONS
+            MENUITEM "Show Signal History",         ID_SCHEMATYC_WORLD_DEBUG_SHOW_SIGNAL_HISTORY
+        END
+        POPUP "Entity"
+        BEGIN
+            MENUITEM "Debug Selected Entity",       ID_SCHEMATYC_DEBUG_SELECTED_ENTITY
+            MENUITEM "Show States",                 ID_SCHEMATYC_ENTITY_DEBUG_SHOW_STATES
+            MENUITEM "Show Variables",              ID_SCHEMATYC_ENTITY_DEBUG_SHOW_VARIABLES
+            MENUITEM "Show Containers",             ID_SCHEMATYC_ENTITY_DEBUG_SHOW_CONTAINERS
+            MENUITEM "Show Timers",                 ID_SCHEMATYC_ENTITY_DEBUG_SHOW_TIMERS
+            MENUITEM "Show Actions",                ID_SCHEMATYC_ENTITY_DEBUG_SHOW_ACTIONS
+            MENUITEM "Show Signal History",         ID_SCHEMATYC_ENTITY_DEBUG_SHOW_SIGNAL_HISTORY
+        END
+    END
+    POPUP "Tools"
+    BEGIN
+        MENUITEM "Refresh Environment",         ID_SCHEMATYC_REFRESH_ENV
+    END
+    POPUP "Navigation"
+    BEGIN
+        MENUITEM "Go To Transition Graph Or Back", ID_SCHEMATYC_GO_TO_AND_FROM_TRANSITION_GRAPH
+    END
+    POPUP "Help"
+    BEGIN
+        MENUITEM "View Wiki",                   ID_SCHEMATYC_HELP_VIEW_WIKI
+        MENUITEM "View Shortcut Keys",          ID_SCHEMATYC_HELP_VIEW_SHORTCUT_KEYS
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE
+BEGIN
+    ID_SCHEMATYC_SAVE       "Save"
+END
+
+STRINGTABLE
+BEGIN
+    ID_SCHEMATYC_REFRESH_ENV "Refresh Environment and Apply Recode Changes"
+END
+
+STRINGTABLE
+BEGIN
+    ID_SCHEMATYC_HELP_VIEW_WIKI "View Wiki"
+    ID_SCHEMATYC_HELP_VIEW_SHORTCUT_KEYS "View Shortcut Keys"
+END
+
+STRINGTABLE
+BEGIN
+    ID_SCHEMATYC_GO_TO      "Go To Selected Node (Function or Condition) (Shift+W / Up)"
+    ID_SCHEMATYC_GO_BACK    "Go Back To Previous Selected Node (Function or Condition) (Shift+S / Down)"
+END
+
+STRINGTABLE
+BEGIN
+    ID_SCHEMATYC_GO_TO_AND_FROM_TRANSITION_GRAPH "Go In The Browser Tree To The Parent Transition Graph Or Back"
+END
+
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United Kingdom) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENG)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_UK
+#pragma code_page(1252)
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDB_SCHEMATYC_BROWSER_ICONS BITMAP                  "BrowserIcons.bmp"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_SCHEMATYC_ADD_STATE DIALOGEX 0, 0, 195, 159
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Add State"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    EDITTEXT        IDC_SCHEMATYC_STATE_NAME,42,6,144,12,ES_AUTOHSCROLL
+    LISTBOX         IDC_SCHEMATYC_STATE_PARTNER,18,36,162,90,LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    DEFPUSHBUTTON   "OK",IDOK,45,138,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,99,138,50,14
+    RTEXT           "Name",IDC_STATIC,12,6,24,12,SS_CENTERIMAGE
+    GROUPBOX        "Partner",IDC_STATIC,12,24,174,108
+END
+
+IDD_SCHEMATYC_QUICK_SEARCH DIALOGEX 0, 0, 291, 237
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Quick Search"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    EDITTEXT        IDC_SCHEMATYC_QUICK_SEARCH_FILTER,37,6,245,12,ES_AUTOHSCROLL
+    CONTROL         "",IDC_SCHEMATYC_QUICK_SEARCH_TREE,"SysTreeView32",TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT | TVS_SHOWSELALWAYS | WS_BORDER | WS_HSCROLL | WS_TABSTOP,7,24,276,108
+    PUSHBUTTON      "View Wiki",IDC_SCHEMATYC_QUICK_SEARCH_VIEW_WIKI,52,198,186,14
+    DEFPUSHBUTTON   "OK",IDOK,120,216,50,14
+    RTEXT           "Filter",IDC_STATIC,6,6,24,12,SS_CENTERIMAGE
+    GROUPBOX        "Description",IDC_STATIC,7,138,276,54
+    LTEXT           "",IDC_SCHEMATYC_QUICK_SEARCH_DESCRIPTION,12,150,264,36
+END
+
+IDD_SCHEMATYC_ADD_GRAPH DIALOGEX 0, 0, 249, 179
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Add Graph"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    EDITTEXT        IDC_SCHEMATYC_GRAPH_NAME,36,6,204,12,ES_AUTOHSCROLL
+    LISTBOX         IDD_SCHEMATYC_GRAPH_CONTEXT,12,49,228,103,LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    DEFPUSHBUTTON   "OK",IDOK,72,158,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,126,158,50,14
+    RTEXT           "Name",IDC_STATIC,6,6,24,12,SS_CENTERIMAGE
+    GROUPBOX        "Context",IDC_STATIC,6,22,237,133
+    EDITTEXT        IDC_SCHEMATYC_GRAPH_FILTER,35,33,204,12,ES_AUTOHSCROLL
+    RTEXT           "Filter",IDC_STATIC,7,33,22,12,SS_CENTERIMAGE
+END
+
+IDD_SCHEMATYC_ADD_ABSTRACT_INTERFACE_IMPLEMENTATION DIALOGEX 0, 0, 213, 170
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Add Abstract Interface Implementation"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    LISTBOX         IDD_SCHEMATYC_ABSTRACT_INTERFACES,12,12,192,85,LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    DEFPUSHBUTTON   "OK",IDOK,54,150,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,108,150,50,14
+    GROUPBOX        "Description",IDC_STATIC,12,102,192,42
+    LTEXT           "",IDD_SCHEMATYC_ABSTRACT_INTERFACE_DESCRIPTION,18,114,180,24
+END
+
+IDD_SCHEMATYC_PROPERTY_TREE DIALOGEX 0, 0, 201, 117
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Property Tree"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,48,96,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,102,96,50,14
+    LTEXT           "Static",IDC_SCHEMATYC_PROPERTY_TREE,6,6,192,84
+END
+
+IDD_SCHEMATYC_ADD_CONTAINER DIALOGEX 0, 0, 159, 63
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Add Container"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    COMBOBOX        IDC_SCHEMATYC_CONTAINER_TYPES,30,6,126,78,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_SCHEMATYC_CONTAINER_NAME,30,24,126,12,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,27,42,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,81,42,50,14
+    RTEXT           "Type",IDC_STATIC,6,6,19,12,SS_CENTERIMAGE
+    RTEXT           "Name",IDC_STATIC,6,24,19,12,SS_CENTERIMAGE
+END
+
+IDD_SCHEMATYC_NAME DIALOGEX 0, 0, 165, 45
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Name"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    EDITTEXT        IDC_SCHEMATYC_NAME,7,6,150,12,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,57,24,50,14
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_SCHEMATYC_ADD_STATE, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 188
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 152
+    END
+
+    IDD_SCHEMATYC_QUICK_SEARCH, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 284
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 230
+    END
+
+    IDD_SCHEMATYC_ADD_GRAPH, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 242
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 172
+    END
+
+    IDD_SCHEMATYC_ADD_ABSTRACT_INTERFACE_IMPLEMENTATION, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 206
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 163
+    END
+
+    IDD_SCHEMATYC_PROPERTY_TREE, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 194
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 110
+    END
+
+    IDD_SCHEMATYC_ADD_CONTAINER, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 152
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 56
+    END
+
+    IDD_SCHEMATYC_NAME, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 158
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 38
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "Resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+IDD_SCHEMATYC_ADD_GRAPH AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+#endif    // English (United Kingdom) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

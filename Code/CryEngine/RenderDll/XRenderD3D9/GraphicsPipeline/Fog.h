@@ -25,9 +25,8 @@ public:
 	};
 
 public:
-	void Init() override;
-	void Prepare(CRenderView* pRenderView) override;
-
+	void Init() final;
+	void Update() final;
 	void Execute();
 
 	void FillForwardParams(SForwardParams& forwardParams, bool enable = true) const;

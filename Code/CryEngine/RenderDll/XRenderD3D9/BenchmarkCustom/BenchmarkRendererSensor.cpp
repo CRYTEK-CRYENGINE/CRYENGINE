@@ -436,7 +436,7 @@ void BenchmarkRendererSensor::forceFlush(CCryDeviceWrapper& device, CCryDeviceCo
 void BenchmarkRendererSensor::copyFrameToScreen(CTexture* texture)
 {
 	// TODO: Check if this still works with the new pipeline
-	m_strechRectPass.Execute(texture, m_renderer->GetCurrentTargetOutput());
+	m_strechRectPass.Execute(texture, m_renderer->GetActiveColorOutput());
 }
 
 void BenchmarkRendererSensor::copyStereoFrameToScreen(CTexture* left, CTexture* right)
@@ -451,7 +451,7 @@ void BenchmarkRendererSensor::copyStereoFrameToScreen(CTexture* left, CTexture* 
 	Vec4 pParams = Vec4((float)width, (float)height, 0, 0);
 
 	m_copyPass.SetTechnique(pShader, "SideBySide", 0);
-	m_copyPass.SetRenderTarget(0, m_renderer->GetCurrentTargetOutput());
+	m_copyPass.SetRenderTarget(0, m_renderer->GetActiveColorOutput());
 	m_copyPass.SetState(GS_NODEPTHTEST);
 	m_copyPass.SetTextureSamplerPair(0, left, EDefaultSamplerStates::LinearClamp);
 	m_copyPass.SetTextureSamplerPair(1, right, EDefaultSamplerStates::LinearClamp);
@@ -476,15 +476,18 @@ void BenchmarkRendererSensor::applyFlicker(CTexture* left, CTexture* right, bool
 
 void BenchmarkRendererSensor::blendTextureWithColor(CTexture* tex, float r, float g, float b, float a)
 {
+	ASSERT_LEGACY_PIPELINE
+		/*
 	m_renderer->FX_PushRenderTarget(0, tex, 0, 0);
 	m_renderer->FX_SetActiveRenderTargets();
-	SStateBlend blendState;
+	//SStateBlend blendState;
 
 	//apply blending to see a little bit of the original rendertarget data
-	m_renderer->FX_SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
+	//m_renderer->FX_SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
 	GetUtils().ClearScreen(r, g, b, a);
 
 	m_renderer->FX_PopRenderTarget(0);
+	*/
 }
 
 void BenchmarkRendererSensor::afterSwapBuffers(CCryDeviceWrapper& device, CCryDeviceContextWrapper& context)

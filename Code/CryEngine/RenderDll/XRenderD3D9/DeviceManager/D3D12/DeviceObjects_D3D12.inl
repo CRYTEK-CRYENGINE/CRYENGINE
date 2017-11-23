@@ -145,7 +145,10 @@ inline D3DResource* CDeviceObjectFactory::GetNullResource(D3D11_RESOURCE_DIMENSI
 inline CDeviceCommandListRef CDeviceObjectFactory::GetCoreCommandList() const
 {
 	// Sanity check
-	CRY_ASSERT(m_pCoreCommandList->m_sharedState.pCommandList == m_pDX12Scheduler->GetCommandList(CMDQUEUE_GRAPHICS));
+	CRY_ASSERT(
+		m_pCoreCommandList->m_sharedState.pCommandList == m_pDX12Scheduler->GetCommandList(CMDQUEUE_GRAPHICS) ||
+		m_pCoreCommandList->m_sharedState.pCommandList == nullptr
+	);
 
 	return *m_pCoreCommandList.get();
 }

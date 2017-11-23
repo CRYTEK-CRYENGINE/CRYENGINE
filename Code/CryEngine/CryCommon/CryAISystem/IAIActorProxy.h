@@ -118,6 +118,8 @@ struct IAIActorProxy :
 
 	virtual void        SetBehaviour(const char* szBehavior, const IAISignalExtraData* pData = 0) = 0;
 
+	virtual void        OnActorRemoved() {}
+
 	//! The AI signals sent from the AI handler are usually throttled
 	//! so they are not sent out all the time. For example, if the
 	//! target is standing on the same spot signals will not go out.

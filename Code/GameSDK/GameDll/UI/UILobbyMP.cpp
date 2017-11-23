@@ -771,7 +771,7 @@ void CUILobbyMP::ReadUserDataCallback(CryLobbyTaskID taskID, ECryLobbyError erro
 	for (int i = 3; i < numData; i++)
 	{
 			SUIArguments arg;
-			arg.AddArgument( pData[i].m_id);
+			arg.AddArgument( pData[i].m_id.c_str() );
 
 			switch(pData[i].m_type)
 			{

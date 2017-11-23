@@ -616,7 +616,7 @@ CDeviceGraphicsPSO::EInitResult CDeviceGraphicsPSO_DX12::Init(const CDeviceGraph
 		if (!ValidateShadersAndTopologyCombination(psoDesc, m_pHwShaderInstances))
 			return EInitResult::ErrorShadersAndTopologyCombination;
 
-		m_PrimitiveTopology = gcpRendD3D->FX_ConvertPrimitiveType(psoDesc.m_PrimitiveType);
+		m_PrimitiveTopology = static_cast<D3DPrimitiveType>(psoDesc.m_PrimitiveType);
 
 		struct
 		{
@@ -855,14 +855,17 @@ void CDeviceCommandListImpl::ClearStateImpl(bool bOutputMergerOnly) const
 	// TODO: remove when r_GraphicsPipeline=0 algorithms don't exist anymore (and no emulated device-context is used)
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 
-	D3DDepthSurface* pDSV = 0;
-	D3DSurface*      pRTVs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT] = { 0 };
-	D3DUAV*          pUAVs[D3D11_PS_CS_UAV_REGISTER_COUNT] = { 0 };
+	if (rd->GetDeviceContext().IsValid())
+	{
+		D3DDepthSurface* pDSV = 0;
+		D3DSurface*      pRTVs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT] = { 0 };
+		D3DUAV*          pUAVs[D3D11_PS_CS_UAV_REGISTER_COUNT] = { 0 };
 
-	if (bOutputMergerOnly)
-		rd->GetDeviceContext().OMSetRenderTargets/*AndUnorderedAccessViews*/(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, pRTVs, pDSV/*, 0, D3D11_PS_CS_UAV_REGISTER_COUNT, pUAVs, nullptr*/);
-	else
-		rd->GetDeviceContext().ClearState();
+		if (bOutputMergerOnly)
+			rd->GetDeviceContext().OMSetRenderTargets/*AndUnorderedAccessViews*/(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, pRTVs, pDSV/*, 0, D3D11_PS_CS_UAV_REGISTER_COUNT, pUAVs, nullptr*/);
+		else
+			rd->GetDeviceContext().ClearState();
+	}
 }
 
 static auto lambdaCeaseCallback = [](void* cmd, uint nPoolId)
@@ -1242,7 +1245,7 @@ void CDeviceGraphicsCommandInterfaceImpl::SetPipelineStateImpl(const CDeviceGrap
 	if (m_graphicsState.custom.primitiveTopology.Set(psoPrimitiveTopology))
 	{
 	#if defined(ENABLE_PROFILING_CODE)
-		CryInterlockedIncrement(&gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nNumTopologySets);
+		CryInterlockedIncrement(&SRenderStatistics::Write().m_nNumTopologySets);
 	#endif
 
 		pCommandListDX12->SetPrimitiveTopology(psoPrimitiveTopology);
@@ -1274,7 +1277,7 @@ void CDeviceGraphicsCommandInterfaceImpl::SetVertexBuffersImpl(uint32 numStreams
 			assert(!pBuffer->GetDX12Resource().NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
 
 	#if defined(ENABLE_PROFILING_CODE)
-			CryInterlockedIncrement(&gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nNumBoundVertexBuffers[pBuffer->GetDX12Resource().IsOffCard()]);
+			CryInterlockedIncrement(&SRenderStatistics::Write().m_nNumBoundVertexBuffers[pBuffer->GetDX12Resource().IsOffCard()]);
 	#endif
 
 			pCommandListDX12->BindVertexBufferView(pBuffer->GetDX12View(), vertexStream.nSlot, TRange<uint32>(offset, offset), vertexStream.nStride);
@@ -1299,7 +1302,7 @@ void CDeviceGraphicsCommandInterfaceImpl::SetIndexBufferImpl(const CDeviceInputS
 		assert(!pBuffer->GetDX12Resource().NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_INDEX_BUFFER));
 
 	#if defined(ENABLE_PROFILING_CODE)
-		CryInterlockedIncrement(&gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nNumBoundIndexBuffers[pBuffer->GetDX12Resource().IsOffCard()]);
+		CryInterlockedIncrement(&SRenderStatistics::Write().m_nNumBoundIndexBuffers[pBuffer->GetDX12Resource().IsOffCard()]);
 	#endif
 
 		// TODO: if we know early that the resource(s) will be GENERIC_READ we can begin the barrier early and end it here
@@ -1326,7 +1329,7 @@ void CDeviceGraphicsCommandInterfaceImpl::SetResourcesImpl(uint32 bindSlot, cons
 		assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
 
 	#if defined(ENABLE_PROFILING_CODE)
-		CryInterlockedIncrement(&gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nNumBoundConstBuffers[Resource.IsOffCard()]);
+		CryInterlockedIncrement(&SRenderStatistics::Write().m_nNumBoundConstBuffers[Resource.IsOffCard()]);
 	#endif
 
 		// TODO: if we know early that the resource(s) will be GENERIC_READ we can begin the barrier early and end it here
@@ -1346,8 +1349,8 @@ void CDeviceGraphicsCommandInterfaceImpl::SetResourcesImpl(uint32 bindSlot, cons
 
 	#if defined(ENABLE_PROFILING_CODE)
 		const bool bIsBuffer = Resource.GetDesc().Dimension == D3D12_RESOURCE_DIMENSION_BUFFER;
-		if (bIsBuffer) CryInterlockedIncrement(&gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nNumBoundUniformBuffers [Resource.IsOffCard()]);
-		else           CryInterlockedIncrement(&gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nNumBoundUniformTextures[Resource.IsOffCard()]);
+		if (bIsBuffer) CryInterlockedIncrement(&SRenderStatistics::Write().m_nNumBoundUniformBuffers [Resource.IsOffCard()]);
+		else           CryInterlockedIncrement(&SRenderStatistics::Write().m_nNumBoundUniformTextures[Resource.IsOffCard()]);
 	#endif
 
 		// TODO: if we know early that the resource(s) will be GENERIC_READ we can begin the barrier early and end it here
@@ -1364,8 +1367,8 @@ void CDeviceGraphicsCommandInterfaceImpl::SetResourcesImpl(uint32 bindSlot, cons
 
 	#if defined(ENABLE_PROFILING_CODE)
 		const bool bIsBuffer = Resource.GetDesc().Dimension == D3D12_RESOURCE_DIMENSION_BUFFER;
-		if (bIsBuffer) CryInterlockedIncrement(&gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nNumBoundUniformBuffers [Resource.IsOffCard()]);
-		else           CryInterlockedIncrement(&gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nNumBoundUniformTextures[Resource.IsOffCard()]);
+		if (bIsBuffer) CryInterlockedIncrement(&SRenderStatistics::Write().m_nNumBoundUniformBuffers [Resource.IsOffCard()]);
+		else           CryInterlockedIncrement(&SRenderStatistics::Write().m_nNumBoundUniformTextures[Resource.IsOffCard()]);
 	#endif
 
 		// TODO: if we know early that the resource(s) will be GENERIC_READ we can begin the barrier early and end it here
@@ -1394,7 +1397,7 @@ void CDeviceGraphicsCommandInterfaceImpl::SetInlineConstantBufferImpl(uint32 bin
 	assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
 
 	#if defined(ENABLE_PROFILING_CODE)
-	CryInterlockedIncrement(&gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nNumBoundInlineBuffers[Resource.IsOffCard()]);
+	CryInterlockedIncrement(&SRenderStatistics::Write().m_nNumBoundInlineBuffers[Resource.IsOffCard()]);
 	#endif
 
 	// TODO: if we know early that the resource(s) will be GENERIC_READ we can begin the barrier early and end it here
@@ -1504,17 +1507,14 @@ void CDeviceComputeCommandInterfaceImpl::PrepareResourcesForUseImpl(uint32 bindS
 	{
 		const NCryDX12::CView& View = it.second->GetDX12View();
 		NCryDX12::CResource& Resource = View.GetDX12Resource();
-
-		const D3D12_RESOURCE_STATES desiredState =
-			(it.first.stages &  EShaderStage_Pixel ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE     : D3D12_RESOURCE_STATE_COMMON) |
-			(it.first.stages & ~EShaderStage_Pixel ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COMMON);
+		const D3D12_RESOURCE_STATES desiredState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 
 		if (Resource.InitHasBeenDeferred())
 		{
 			Resource.InitDeferred(pCommandListDX12, desiredState | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		}
 
-		assert(!((pCommandListDX12->GetD3D12ListType() != D3D12_COMMAND_LIST_TYPE_DIRECT) && (Resource.GetTargetState() & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) && !(Resource.GetTargetState() & D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE) && (!Resource.IsOffCard())));
+		assert(!((pCommandListDX12->GetD3D12ListType() != D3D12_COMMAND_LIST_TYPE_DIRECT) && (Resource.GetTargetState() & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) && (!Resource.IsOffCard())));
 
 		pCommandListDX12->PrepareResourceCRVUsage(Resource, View, desiredState);
 	}
@@ -1530,7 +1530,7 @@ void CDeviceComputeCommandInterfaceImpl::PrepareResourcesForUseImpl(uint32 bindS
 			Resource.InitDeferred(pCommandListDX12, desiredState | D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
 
-		assert(!((pCommandListDX12->GetD3D12ListType() != D3D12_COMMAND_LIST_TYPE_DIRECT) && (Resource.GetTargetState() & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) && !(Resource.GetTargetState() & D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE) && (!Resource.IsOffCard())));
+		assert(!((pCommandListDX12->GetD3D12ListType() != D3D12_COMMAND_LIST_TYPE_DIRECT) && (Resource.GetTargetState() & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) && (!Resource.IsOffCard())));
 
 		pCommandListDX12->PrepareResourceUAVUsage(Resource, View, desiredState);
 	}
@@ -1574,7 +1574,7 @@ void CDeviceComputeCommandInterfaceImpl::SetResourcesImpl(uint32 bindSlot, const
 		assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
 
 	#if defined(ENABLE_PROFILING_CODE)
-		CryInterlockedIncrement(&gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nNumBoundConstBuffers[Resource.IsOffCard()]);
+		CryInterlockedIncrement(&SRenderStatistics::Write().m_nNumBoundConstBuffers[Resource.IsOffCard()]);
 	#endif
 
 		// TODO: if we know early that the resource(s) will be GENERIC_READ we can begin the barrier early and end it here
@@ -1585,14 +1585,12 @@ void CDeviceComputeCommandInterfaceImpl::SetResourcesImpl(uint32 bindSlot, const
 	{
 		const NCryDX12::CView& View = it.second->GetDX12View();
 		NCryDX12::CResource& Resource = View.GetDX12Resource();
-		const D3D12_RESOURCE_STATES desiredState =
-			(it.first.stages &  EShaderStage_Pixel ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE     : D3D12_RESOURCE_STATE_COMMON) |
-			(it.first.stages & ~EShaderStage_Pixel ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COMMON);
+		const D3D12_RESOURCE_STATES desiredState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 
 		assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, View, desiredState));
 
 	#if defined(ENABLE_PROFILING_CODE)
-		CryInterlockedIncrement(&gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nNumBoundUniformTextures[Resource.IsOffCard()]);
+		CryInterlockedIncrement(&SRenderStatistics::Write().m_nNumBoundUniformTextures[Resource.IsOffCard()]);
 	#endif
 
 		// TODO: if we know early that the resource(s) will be GENERIC_READ we can begin the barrier early and end it here
@@ -1607,7 +1605,7 @@ void CDeviceComputeCommandInterfaceImpl::SetResourcesImpl(uint32 bindSlot, const
 		assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
 
 	#if defined(ENABLE_PROFILING_CODE)
-		CryInterlockedIncrement(&gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nNumBoundUniformBuffers[Resource.IsOffCard()]);
+		CryInterlockedIncrement(&SRenderStatistics::Write().m_nNumBoundUniformBuffers[Resource.IsOffCard()]);
 	#endif
 
 		// TODO: if we know early that the resource(s) will be GENERIC_READ we can begin the barrier early and end it here
@@ -1629,7 +1627,7 @@ void CDeviceComputeCommandInterfaceImpl::SetInlineConstantBufferImpl(uint32 bind
 	assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
 
 	#if defined(ENABLE_PROFILING_CODE)
-	CryInterlockedIncrement(&gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nNumBoundInlineBuffers[Resource.IsOffCard()]);
+	CryInterlockedIncrement(&SRenderStatistics::Write().m_nNumBoundInlineBuffers[Resource.IsOffCard()]);
 	#endif
 
 	// TODO: if we know early that the resource(s) will be GENERIC_READ we can begin the barrier early and end it here

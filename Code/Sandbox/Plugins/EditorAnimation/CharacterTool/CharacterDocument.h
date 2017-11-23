@@ -41,7 +41,6 @@ namespace Serialization
 {
 struct INavigationProvider;
 }
-class CDLight;
 
 namespace CharacterTool {
 
@@ -233,7 +232,6 @@ public slots:
 	void       OnExplorerSelectionChanged();
 	void       OnExplorerActivated(const ExplorerEntry* entry);
 protected slots:
-	void       OnExplorerSelectedEntryClicked(ExplorerEntry* e);
 	void       OnExplorerEntryModified(ExplorerEntryModifyEvent& ev);
 	void       OnExplorerEntrySavedAs(const char* oldPath, const char* newPath);
 	void       OnCompressionMachineAnimationStarted();

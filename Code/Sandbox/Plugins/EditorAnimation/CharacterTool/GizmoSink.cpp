@@ -81,7 +81,7 @@ Manip::SSpaceAndIndex CharacterSpaceProvider::FindSpaceIndexByName(int spaceType
 	    spaceType == Serialization::SPACE_JOINT_WITH_CHARACTER_ROTATION)
 	{
 		IDefaultSkeleton& defaultSkeleton = pICharacterInstance->GetIDefaultSkeleton();
-		si.m_jointCRC32 = CCrc32::ComputeLowercase(name);
+		si.m_jointCRC32 = CCrc32::ComputeLowercase(name + (*name == '$'));
 		return si;
 	}
 

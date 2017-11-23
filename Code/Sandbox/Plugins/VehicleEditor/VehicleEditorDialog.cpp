@@ -371,9 +371,6 @@ void CVehicleEditorDialog::OnPrototypeEvent(CBaseObject* object, int event)
 		m_pVehicle = 0;
 		EnableEditingLinks(false);
 	}
-	else if (event == OBJECT_ON_SELECT)
-	{
-	}
 }
 
 //////////////////////////////////////////////////////////////////////////

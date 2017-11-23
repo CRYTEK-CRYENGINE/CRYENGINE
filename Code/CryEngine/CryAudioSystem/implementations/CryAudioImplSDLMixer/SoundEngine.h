@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -12,8 +12,8 @@ namespace SDL_mixer
 {
 namespace SoundEngine
 {
-typedef void (* FnEventCallback)(CATLEvent&);
-typedef void (* FnStandaloneFileCallback)(CATLStandaloneFile&, char const*);
+using FnEventCallback = void (*)(CATLEvent&);
+using FnStandaloneFileCallback = void (*)(CATLStandaloneFile&, char const*);
 
 // Global events
 bool Init();
@@ -34,10 +34,10 @@ const SampleId LoadSampleFromMemory(void* pMemory, const size_t size, const stri
 void           UnloadSample(const SampleId id);
 
 // Events
-CTrigger* CreateTrigger();
-bool      ExecuteEvent(CObject* const pObject, CTrigger const* const pTrigger, CEvent* const pEvent);
-bool      PlayFile(CObject* const pObject, CStandaloneFile* const pStandaloneFile);
-bool      StopFile(CObject* const pObject, CStandaloneFile* const pStandaloneFile);
+CTrigger*      CreateTrigger();
+ERequestStatus ExecuteEvent(CObject* const pObject, CTrigger const* const pTrigger, CEvent* const pEvent);
+bool           PlayFile(CObject* const pObject, CStandaloneFile* const pStandaloneFile);
+bool           StopFile(CObject* const pObject, CStandaloneFile* const pStandaloneFile);
 
 // stops an specific event instance
 bool StopEvent(CEvent const* const pEvent);

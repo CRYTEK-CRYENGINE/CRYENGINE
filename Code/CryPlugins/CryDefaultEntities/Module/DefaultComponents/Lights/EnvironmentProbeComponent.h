@@ -35,7 +35,7 @@ namespace Cry
 			// IEntityComponent
 			virtual void Initialize() final;
 
-			virtual void   ProcessEvent(SEntityEvent& event) final;
+			virtual void   ProcessEvent(const SEntityEvent& event) final;
 			virtual uint64 GetEventMask() const final;
 
 #ifndef RELEASE
@@ -80,7 +80,7 @@ namespace Cry
 				{
 					desc.SetGUID("{DB10AB64-7A5B-4B91-BC90-6D692D1D1222}"_cry_guid);
 					desc.AddMember(&CEnvironmentProbeComponent::SOptions::m_bIgnoreVisAreas, 'igvi', "IgnoreVisAreas", "Ignore VisAreas", nullptr, false);
-					desc.AddMember(&CEnvironmentProbeComponent::SOptions::sortPriority, 'spri', "SortPriority", "Sort Priority", nullptr, (uint32)CDLight().m_nSortPriority);
+					desc.AddMember(&CEnvironmentProbeComponent::SOptions::sortPriority, 'spri', "SortPriority", "Sort Priority", nullptr, (uint32)SRenderLight().m_nSortPriority);
 					desc.AddMember(&CEnvironmentProbeComponent::SOptions::m_attenuationFalloffMax, 'atte', "AttenuationFalloffMax", "Maximum Attenuation Falloff", nullptr, 1.f);
 					desc.AddMember(&CEnvironmentProbeComponent::SOptions::m_bAffectsVolumetricFog, 'volf', "AffectVolumetricFog", "Affect Volumetric Fog", nullptr, true);
 					desc.AddMember(&CEnvironmentProbeComponent::SOptions::m_bVolumetricFogOnly, 'volo', "VolumetricFogOnly", "Only Affect Volumetric Fog", nullptr, false);
@@ -89,7 +89,7 @@ namespace Cry
 				}
 
 				bool m_bIgnoreVisAreas = false;
-				uint32 sortPriority = CDLight().m_nSortPriority;
+				uint32 sortPriority = SRenderLight().m_nSortPriority;
 				Schematyc::Range<0, 64000> m_attenuationFalloffMax = 1.f;
 				bool m_bVolumetricFogOnly = false;
 				bool m_bAffectsVolumetricFog = true;
@@ -389,7 +389,7 @@ namespace Cry
 					return;
 				}
 
-				CDLight light;
+				SRenderLight light;
 
 				light.m_nLightStyle = 0;
 				light.SetPosition(ZERO);

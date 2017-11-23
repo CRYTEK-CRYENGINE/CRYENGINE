@@ -1,16 +1,18 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
-using CryEngine.Attributes;
 
 namespace CryEngine
 {
-    /// <summary>
-    /// Exposes the specified method to Schematyc
-    /// </summary>
-    [AttributeUsage(AttributeTargets.Method)]
-    public sealed class SchematycMethodAttribute : Attribute
-    {
-        public SchematycMethodAttribute() { }
-    }
+	/// <summary>
+	/// Exposes the specified method to Schematyc
+	/// </summary>
+	[AttributeUsage(AttributeTargets.Method)]
+	public sealed class SchematycMethodAttribute : Attribute
+	{
+		/// <summary>
+		/// Exposes the specified method to Schematyc
+		/// </summary>
+		public SchematycMethodAttribute() { }
+	}
 }

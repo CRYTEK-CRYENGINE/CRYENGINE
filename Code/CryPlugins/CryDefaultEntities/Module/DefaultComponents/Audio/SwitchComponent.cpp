@@ -57,7 +57,7 @@ uint64 CSwitchComponent::GetEventMask() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSwitchComponent::ProcessEvent(SEntityEvent& event)
+void CSwitchComponent::ProcessEvent(const SEntityEvent& event)
 {
 #if defined(INCLUDE_DEFAULT_PLUGINS_PRODUCTION_CODE)
 	if (m_pIEntityAudioComponent != nullptr)

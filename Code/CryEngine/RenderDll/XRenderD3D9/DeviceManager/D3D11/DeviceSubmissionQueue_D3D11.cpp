@@ -780,7 +780,7 @@ void CSubmissionQueue_DX11::CommitDeviceStates()
 	#if defined(BUFFER_ENABLE_DIRECT_ACCESS) && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120) && !CRY_RENDERER_GNM
 	{
 		DETAILED_PROFILE_MARKER("InvalidateBuffers");
-		const uint32 threadid = gRenDev->m_RP.m_nProcessThreadID;
+		const uint32 threadid = gRenDev->GetRenderThreadID();
 		CDeviceObjectFactory::BufferInvalidationsT& invalidated = GetDeviceObjectFactory().m_buffer_invalidations[threadid];
 
 		for (size_t i = 0, end = invalidated.size(); i < end; ++i)

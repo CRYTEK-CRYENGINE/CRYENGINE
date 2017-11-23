@@ -787,6 +787,8 @@ public:
 	size_t CountInvalidateCallbacks() threadsafe;
 	void AddInvalidateCallback(void* listener, const SResourceBindPoint bindPoint, const SResourceBinding::InvalidateCallbackFunction& callback) threadsafe;
 	void RemoveInvalidateCallbacks(void* listener, const SResourceBindPoint bindPoint = SResourceBindPoint()) threadsafe;
+	void InvalidateDeviceResource(CTexture* pTexture, uint32 dirtyFlags) threadsafe;
+	void InvalidateDeviceResource(CGpuBuffer* pBuffer, uint32 dirtyFlags) threadsafe;
 	void InvalidateDeviceResource(UResourceReference pResource, uint32 dirtyFlags) threadsafe;
 };
 
@@ -834,6 +836,8 @@ private:
 	CCryNameTSCRC           m_NameCRC;
 
 	static ResourceClassMap m_sResources;
+
+	bool                    m_bDeleted = false;
 
 public:
 	static CryCriticalSection s_cResLock;

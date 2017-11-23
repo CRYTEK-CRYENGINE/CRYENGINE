@@ -373,7 +373,12 @@ bool CSystemConfiguration::ParseSystemConfig()
 
 	{
 		string filenameLog;
+
+#ifndef CRY_FORCE_CRYPROJECT_IN_PAK
 		int flags = ICryPak::FOPEN_HINT_QUIET | ICryPak::FOPEN_ONDISK;
+#else
+		int flags = ICryPak::FOPEN_HINT_QUIET;
+#endif
 
 		if (!OpenFile(filename, file, flags))
 		{

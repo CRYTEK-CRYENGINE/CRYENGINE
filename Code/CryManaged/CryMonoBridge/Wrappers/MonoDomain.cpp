@@ -1,9 +1,12 @@
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 #include "MonoDomain.h"
 
 #include "MonoRuntime.h"
 #include "MonoLibrary.h"
 #include "MonoString.h"
+#include "RootMonoDomain.h"
 
 #include <CrySystem/IProjectManager.h>
 
@@ -58,7 +61,7 @@ void CMonoDomain::Unload()
 			MonoInternals::mono_domain_set(MonoInternals::mono_get_root_domain(), true);
 		}
 
-		//MonoInternals::mono_domain_finalize(m_pDomain, 2000);
+		MonoInternals::mono_domain_finalize(m_pDomain, 2000);
 
 		MonoInternals::MonoObject *pException;
 		try
@@ -74,6 +77,21 @@ void CMonoDomain::Unload()
 		{
 			GetMonoRuntime()->HandleException((MonoInternals::MonoException*)pException);
 		}
+	}
+}
+
+void CMonoDomain::CacheObjectMethods()
+{
+	std::shared_ptr<CMonoClass> pObjectClass = GetMonoRuntime()->GetRootDomain()->GetNetCoreLibrary().GetTemporaryClass("System", "Object");
+	m_pReferenceEqualsMethod = pObjectClass->FindMethod("ReferenceEquals", 2);
+
+	if (std::shared_ptr<CMonoMethod> pReferenceEqualsMethod = m_pReferenceEqualsMethod.lock())
+	{
+		m_referenceEqualsThunk = static_cast<ReferenceEqualsFunction>(pReferenceEqualsMethod->GetUnmanagedThunk());
+	}
+	else
+	{
+		m_referenceEqualsThunk = nullptr;
 	}
 }
 

@@ -1,15 +1,6 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   BSPTree.h
-//  Version:     v1.00
-//  Created:     23/Nov/2011 by Jaesik.
-//  Compilers:   Visual Studio 2010
-//  Description:
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __BSPTREE3D_H_
-#define __BSPTREE3D_H_
+#pragma once
 
 #include "AreaUtil.h"
 
@@ -57,5 +48,3 @@ private:
 
 	NodeStorage m_BSPTree;
 };
-
-#endif // __BSPTREE3D_H_

@@ -105,8 +105,8 @@ struct CRY_ALIGN(16) SCheckOcclusionOutput
 {
 	enum JobTypeT { ROAD_DECALS, COMMON, TERRAIN, DEFORMABLE_BRUSH };
 
-	static SCheckOcclusionOutput CreateDecalsAndRoadsOutput(IRenderNode * pObj, PodArray<CDLight*>* pAffectingLights, const Vec3 &rAmbColor, const AABB &rObjBox, float fEntDistance, bool bSunOnly, bool bCheckPerObjectOcclusion, const SRenderingPassInfo &passInfo);
-	static SCheckOcclusionOutput CreateCommonObjectOutput(IRenderNode * pObj, PodArray<CDLight*>* pAffectingLights, const Vec3 &rAmbColor, const AABB &rObjBox, float fEntDistance, bool bSunOnly, SSectorTextureSet * pTerrainTexInfo, const SRenderingPassInfo &passInfo);
+	static SCheckOcclusionOutput CreateDecalsAndRoadsOutput(IRenderNode * pObj, PodArray<SRenderLight*>* pAffectingLights, const Vec3 &rAmbColor, const AABB &rObjBox, float fEntDistance, bool bSunOnly, bool bCheckPerObjectOcclusion, const SRenderingPassInfo &passInfo);
+	static SCheckOcclusionOutput CreateCommonObjectOutput(IRenderNode * pObj, PodArray<SRenderLight*>* pAffectingLights, const Vec3 &rAmbColor, const AABB &rObjBox, float fEntDistance, bool bSunOnly, SSectorTextureSet * pTerrainTexInfo, const SRenderingPassInfo &passInfo);
 	static SCheckOcclusionOutput CreateTerrainOutput(CTerrainNode * pTerrainNode, const SRenderingPassInfo &passInfo);
 	static SCheckOcclusionOutput CreateDeformableBrushOutput(CBrush * pBrush, CRenderObject * pObj, int nLod, const SRenderingPassInfo &passInfo);
 
@@ -117,7 +117,7 @@ struct CRY_ALIGN(16) SCheckOcclusionOutput
 		struct
 		{
 			IRenderNode*        pObj;
-			PodArray<CDLight*>* pAffectingLights;
+			PodArray<SRenderLight*>* pAffectingLights;
 			SSectorTextureSet*  pTerrainTexInfo;
 			float               fEntDistance;
 			bool                bSunOnly;
@@ -155,7 +155,7 @@ struct CRY_ALIGN(16) SCheckOcclusionOutput
 };
 
 ///////////////////////////////////////////////////////////////////////////////
-inline SCheckOcclusionOutput SCheckOcclusionOutput::CreateDecalsAndRoadsOutput(IRenderNode* pObj, PodArray<CDLight*>* pAffectingLights, const Vec3& rAmbColor, const AABB& rObjBox, float fEntDistance, bool bSunOnly, bool bCheckPerObjectOcclusion, const SRenderingPassInfo& passInfo)
+inline SCheckOcclusionOutput SCheckOcclusionOutput::CreateDecalsAndRoadsOutput(IRenderNode* pObj, PodArray<SRenderLight*>* pAffectingLights, const Vec3& rAmbColor, const AABB& rObjBox, float fEntDistance, bool bSunOnly, bool bCheckPerObjectOcclusion, const SRenderingPassInfo& passInfo)
 {
 	SCheckOcclusionOutput outputData;
 	outputData.type = ROAD_DECALS;
@@ -174,7 +174,7 @@ inline SCheckOcclusionOutput SCheckOcclusionOutput::CreateDecalsAndRoadsOutput(I
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-inline SCheckOcclusionOutput SCheckOcclusionOutput::CreateCommonObjectOutput(IRenderNode* pObj, PodArray<CDLight*>* pAffectingLights, const Vec3& rAmbColor, const AABB& rObjBox, float fEntDistance, bool bSunOnly, SSectorTextureSet* pTerrainTexInfo, const SRenderingPassInfo& passInfo)
+inline SCheckOcclusionOutput SCheckOcclusionOutput::CreateCommonObjectOutput(IRenderNode* pObj, PodArray<SRenderLight*>* pAffectingLights, const Vec3& rAmbColor, const AABB& rObjBox, float fEntDistance, bool bSunOnly, SSectorTextureSet* pTerrainTexInfo, const SRenderingPassInfo& passInfo)
 {
 	SCheckOcclusionOutput outputData;
 	outputData.type = COMMON;
@@ -335,7 +335,7 @@ public:
 
 	struct ShadowMapFrustumParams
 	{
-		CDLight*                  pLight;
+		SRenderLight*                  pLight;
 		struct ShadowMapFrustum*  pFr;
 		PodArray<SPlaneObject>*   pShadowHull;
 		const SRenderingPassInfo* passInfo;
@@ -355,14 +355,14 @@ public:
 	void                RenderDebug();
 	void                RenderContent(int nRenderMask, const Vec3& vAmbColor, const SRenderingPassInfo& passInfo);
 	void                RenderContentJobEntry(int nRenderMask, Vec3 vAmbColor, SRenderingPassInfo passInfo);
-	void                RenderVegetations(TDoublyLinkedList<IRenderNode>* lstObjects, int nRenderMask, bool bNodeCompletelyInFrustum, PodArray<CDLight*>* pAffectingLights, bool bSunOnly, SSectorTextureSet* pTerrainTexInfo, const SRenderingPassInfo& passInfo);
-	void                RenderCommonObjects(TDoublyLinkedList<IRenderNode>* lstObjects, int nRenderMask, const Vec3& vAmbColor, bool bNodeCompletelyInFrustum, PodArray<CDLight*>* pAffectingLights, bool bSunOnly, SSectorTextureSet* pTerrainTexInfo, const SRenderingPassInfo& passInfo);
-	void                RenderDecalsAndRoads(TDoublyLinkedList<IRenderNode>* lstObjects, int nRenderMask, const Vec3& vAmbColor, bool bNodeCompletelyInFrustum, PodArray<CDLight*>* pAffectingLights, bool bSunOnly, const SRenderingPassInfo& passInfo);
-	void                RenderBrushes(TDoublyLinkedList<IRenderNode>* lstObjects, bool bNodeCompletelyInFrustum, PodArray<CDLight*>* pAffectingLights, bool bSunOnly, SSectorTextureSet* pTerrainTexInfo, const SRenderingPassInfo& passInfo);
-	PodArray<CDLight*>* GetAffectingLights(const SRenderingPassInfo& passInfo);
-	void                AddLightSource(CDLight* pSource, const SRenderingPassInfo& passInfo);
+	void                RenderVegetations(TDoublyLinkedList<IRenderNode>* lstObjects, int nRenderMask, bool bNodeCompletelyInFrustum, PodArray<SRenderLight*>* pAffectingLights, bool bSunOnly, SSectorTextureSet* pTerrainTexInfo, const SRenderingPassInfo& passInfo);
+	void                RenderCommonObjects(TDoublyLinkedList<IRenderNode>* lstObjects, int nRenderMask, const Vec3& vAmbColor, bool bNodeCompletelyInFrustum, PodArray<SRenderLight*>* pAffectingLights, bool bSunOnly, SSectorTextureSet* pTerrainTexInfo, const SRenderingPassInfo& passInfo);
+	void                RenderDecalsAndRoads(TDoublyLinkedList<IRenderNode>* lstObjects, int nRenderMask, const Vec3& vAmbColor, bool bNodeCompletelyInFrustum, PodArray<SRenderLight*>* pAffectingLights, bool bSunOnly, const SRenderingPassInfo& passInfo);
+	void                RenderBrushes(TDoublyLinkedList<IRenderNode>* lstObjects, bool bNodeCompletelyInFrustum, PodArray<SRenderLight*>* pAffectingLights, bool bSunOnly, SSectorTextureSet* pTerrainTexInfo, const SRenderingPassInfo& passInfo);
+	PodArray<SRenderLight*>* GetAffectingLights(const SRenderingPassInfo& passInfo);
+	void                AddLightSource(SRenderLight* pSource, const SRenderingPassInfo& passInfo);
 	void                CheckInitAffectingLights(const SRenderingPassInfo& passInfo);
-	void                FillShadowCastersList(bool bNodeCompletellyInFrustum, CDLight* pLight, struct ShadowMapFrustum* pFr, PodArray<SPlaneObject>* pShadowHull, uint32 nRenderNodeFlags, const SRenderingPassInfo& passInfo);
+	void                FillShadowCastersList(bool bNodeCompletellyInFrustum, SRenderLight* pLight, struct ShadowMapFrustum* pFr, PodArray<SPlaneObject>* pShadowHull, uint32 nRenderNodeFlags, const SRenderingPassInfo& passInfo);
 	void                FillShadowMapCastersList(const ShadowMapFrustumParams& params, bool bNodeCompletellyInFrustum);
 	void                ActivateObjectsLayer(uint16 nLayerId, bool bActivate, bool bPhys, IGeneralMemoryHeap* pHeap, const AABB& layerBox);
 	void                GetLayerMemoryUsage(uint16 nLayerId, ICrySizer* pSizer, int* pNumBrushes, int* pNumDecals);
@@ -490,7 +490,7 @@ private:
 	PodArray<SCasterInfo>            m_lstCasters[eRNListType_ListsNum];
 	Vec3                             m_vNodeCenter;
 	Vec3                             m_vNodeAxisRadius;
-	PodArray<CDLight*>               m_lstAffectingLights;
+	PodArray<SRenderLight*>               m_lstAffectingLights;
 	uint32                           m_nLightMaskFrameId;
 	COctreeNode*                     m_pParent;
 	uint32                           nFillShadowCastersSkipFrameId;

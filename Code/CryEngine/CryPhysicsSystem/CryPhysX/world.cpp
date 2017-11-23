@@ -612,8 +612,8 @@ void PhysXWorld::onContact(const PxContactPairHeader& pairHeader, const PxContac
 	for(int i=0; i<nbPairs; i++) {
 		EventPhysCollision &epc = *(EventPhysCollision*)AllocEvent(EventPhysCollision::id);
 		PhysXEnt *pent[2];
-		PxContactStreamIterator csi((PxU8*)pairs[i].contactStream, pairs[i].contactStreamSize);
-		float *imp = (float*)(pairs[i].contactStream + (pairs[i].contactStreamSize+15 & ~15));
+		PxContactStreamIterator csi(pairs[i].contactPatches, pairs[i].contactPoints, pairs[i].getInternalFaceIndices(), pairs[i].patchCount, pairs[i].contactStreamSize);
+		float *imp = (float*)pairs[i].contactImpulses;
 		csi.nextPatch(); csi.nextContact();
 		epc.pt = V(csi.getContactPoint());
 		epc.n = V(csi.getContactNormal());
@@ -653,8 +653,10 @@ void PhysXWorld::TimeStep(float dt, int flags)
 	//if (!m_dt && dt)
 	//	g_cpx.Scene()->forceDynamicTreeRebuild(true,true);
 	m_time += dt;
-	if (m_vars.fixedTimestep>0)
-		dt = m_vars.fixedTimestep;
+	if (m_vars.fixedTimestep>0 && dt>0)	{
+		g_cryPhysX.dt() = dt = m_vars.fixedTimestep;
+		m_dtSurplus = 0;
+	}
 	m_vars.lastTimeStep = m_dt = dt;
 	g_cryPhysX.Scene()->setBounceThresholdVelocity(m_vars.minBounceSpeed);
 
@@ -670,7 +672,7 @@ void PhysXWorld::TimeStep(float dt, int flags)
 
 	if (flags & ent_rigid && (!m_vars.bSingleStepMode || m_vars.bDoStep)) {
 		float dtFixed = g_cryPhysX.dt();
-		for(int i=0; m_dtSurplus+dt>dtFixed && i<m_vars.nMaxSubsteps; dt-=dtFixed,i++)	{
+		for(int i=0; m_dtSurplus+dt>=dtFixed && i<m_vars.nMaxSubsteps; dt-=dtFixed,i++)	{
 			g_cryPhysX.Scene()->simulate(dtFixed,0,m_scratchBuf.data(),m_scratchBuf.size());
 			WriteLockScene lockScene;
 			{ WriteLock lock(m_lockCollEvents); 
@@ -713,7 +715,7 @@ void PhysXWorld::TimeStep(float dt, int flags)
 		}
 	}
 
-	if (PxVisualDebugger *dbg = g_cryPhysX.Physics()->getVisualDebugger()) {
+	if (PxPvdSceneClient *dbg = g_cryPhysX.Scene()->getScenePvdClient()) {
 		CCamera &cam = gEnv->pSystem->GetViewCamera();
 		dbg->updateCamera("CryCamera", V(cam.GetPosition()), V(cam.GetUp()), V(cam.GetPosition()+cam.GetViewdir()));
 		//if (PhysXEnt* player = (PhysXEnt*)GetPhysicalEntityById(0x7777))

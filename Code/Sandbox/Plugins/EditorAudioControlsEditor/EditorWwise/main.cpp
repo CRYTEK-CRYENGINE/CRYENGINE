@@ -1,24 +1,24 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
+#include "EditorImpl.h"
 
 #include <CryCore/Platform/platform.h>
 #include <CryCore/Platform/platform_impl.inl>
-#include "AudioSystemEditor_wwise.h"
 #include <CrySystem/ISystem.h>
 
-using namespace ACE;
-
-CAudioSystemEditor_wwise* g_pWwiseInterface;
+ACE::Wwise::CEditorImpl* g_pWwiseInterface;
 
 //------------------------------------------------------------------
-extern "C" ACE_API IAudioSystemEditor * GetAudioInterface(ISystem * pSystem)
+extern "C" ACE_API ACE::IEditorImpl * GetAudioInterface(ISystem * pSystem)
 {
 	ModuleInitISystem(pSystem, "EditorWwise");
-	if (!g_pWwiseInterface)
+
+	if (g_pWwiseInterface == nullptr)
 	{
-		g_pWwiseInterface = new CAudioSystemEditor_wwise();
+		g_pWwiseInterface = new ACE::Wwise::CEditorImpl();
 	}
+
 	return g_pWwiseInterface;
 }
 
@@ -32,7 +32,7 @@ BOOL __stdcall DllMain(HINSTANCE hinstDLL, ULONG fdwReason, LPVOID lpvReserved)
 		g_hInstance = hinstDLL;
 		break;
 	case DLL_PROCESS_DETACH:
-		if (g_pWwiseInterface)
+		if (g_pWwiseInterface != nullptr)
 		{
 			delete g_pWwiseInterface;
 			g_pWwiseInterface = nullptr;

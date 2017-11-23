@@ -824,7 +824,7 @@ bool CProjectile::ProcessCollisionEvent(IEntity* pTarget) const
 }
 
 //------------------------------------------------------------------------
-void CProjectile::ProcessEvent(SEntityEvent& event)
+void CProjectile::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -859,6 +859,11 @@ void CProjectile::ProcessEvent(SEntityEvent& event)
 		}
 		break;
 	}
+}
+
+uint64 CProjectile::GetEventMask() const
+{
+	return BIT64(ENTITY_EVENT_TIMER);
 }
 
 //------------------------------------------------------------------------

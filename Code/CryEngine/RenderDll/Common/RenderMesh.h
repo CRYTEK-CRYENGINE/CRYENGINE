@@ -102,7 +102,11 @@ struct SMeshStream
 #define FRM_ENABLE_NORMALSTREAM   BIT(6)
 #define FRM_SKINNED_EIGHT_WEIGHTS BIT(7)
 
-#define MAX_RELEASED_MESH_FRAMES (2)
+#if defined(FEATURE_SVO_GI)
+  #define MAX_RELEASED_MESH_FRAMES (4) // GI voxelization threads may keep using render mesh for several frames
+#else
+  #define MAX_RELEASED_MESH_FRAMES (2)
+#endif
 
 struct SSetMeshIntData
 {
@@ -369,7 +373,7 @@ public:
   bool RT_CheckUpdate(CRenderMesh *pVContainer, InputLayoutHandle eVF, uint32 nStreamMask, bool bTessellation = false, bool stall=true);
 	void RT_SetMeshCleanup();
 	void RT_AllocationFailure(const char* sPurpose, uint32 nSize);
-  bool CheckUpdate(InputLayoutHandle eVF, uint32 nStreamMask);
+
   void AssignChunk(CRenderChunk *pChunk, class CREMeshImpl *pRE);
 	void InitRenderChunk( CRenderChunk &rChunk );
 
@@ -442,8 +446,6 @@ public:
 	virtual void SetREUserData(float* pfCustomData, float fFogScale = 0, float fAlpha = 1) final;
 	virtual void AddRE(IMaterial* pMaterial, CRenderObject* pObj, IShader* pEf, const SRenderingPassInfo& passInfo, int nList, int nAW) final;
 
-  virtual void DrawImmediately();
-
 	virtual byte* GetPosPtrNoCache(int32& nStride, uint32 nFlags, int32 nOffset = 0) final;
 	virtual byte* GetPosPtr(int32& nStride, uint32 nFlags, int32 nOffset = 0) final;
 	virtual byte* GetNormPtr(int32& nStride, uint32 nFlags, int32 nOffset = 0) final;
@@ -494,13 +496,13 @@ public:
 
 	virtual void OffsetPosition(const Vec3& delta) final { m_vBoxMin += delta; m_vBoxMax += delta; }
 
+	virtual bool RayIntersectMesh(const Ray& ray, Vec3& hitpos, Vec3& p0, Vec3& p1, Vec3& p2, Vec2& uv0, Vec2& uv1, Vec2& uv2) final;
+
   IRenderMesh* GetRenderMeshForSubsetMask(SRenderObjData *pOD, hidemask nMeshSubSetMask, IMaterial * pMaterial, const SRenderingPassInfo &passInfo);
 	void GarbageCollectSubsetRenderMeshes();
 	void CreateSubSetRenderMesh();
 
   void ReleaseRenderChunks(TRenderChunkArray* pChunks);
-
-	void BindStreamsToRenderPipeline();
 
 	bool GetRemappedSkinningData(uint32 guid, SStreamInfo& streamInfo);
 	bool FillGeometryInfo(CRenderElement::SGeometryInfo& geomInfo);
@@ -586,7 +588,7 @@ public:
 	void* operator new(size_t size);
 	void operator delete(void* ptr);
 
-	static void FinalizeRendItems(int nThreadID);
+	static void RT_PerFrameTick();
 };
 
 //////////////////////////////////////////////////////////////////////

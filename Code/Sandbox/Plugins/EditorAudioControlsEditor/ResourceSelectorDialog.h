@@ -3,7 +3,7 @@
 #pragma once
 
 #include <Controls/EditorDialog.h>
-#include <ACETypes.h>
+#include <SystemTypes.h>
 
 class QAdvancedTreeView;
 class QDeepFilterProxyModel;
@@ -14,9 +14,9 @@ class QModelIndex;
 
 namespace ACE
 {
-class CAudioAssetsManager;
-class CResourceControlModel;
+class CSystemAssetsManager;
 class CResourceLibraryModel;
+class CResourceControlsModel;
 
 class CResourceSelectorDialog final : public CEditorDialog
 {
@@ -24,7 +24,7 @@ class CResourceSelectorDialog final : public CEditorDialog
 
 public:
 
-	CResourceSelectorDialog(QWidget* pParent, EItemType const eType);
+	CResourceSelectorDialog(QWidget* pParent, ESystemItemType const eType);
 	~CResourceSelectorDialog();
 
 private slots:
@@ -38,7 +38,7 @@ private slots:
 public:
 
 	void        SetScope(Scope const scope);
-	const char* ChooseItem(const char* currentValue);
+	char const* ChooseItem(char const* currentValue);
 	QSize       sizeHint() const override;
 
 private:
@@ -47,27 +47,27 @@ private:
 	void                ApplyFilter();
 	bool                ApplyFilter(QModelIndex const& parent);
 	bool                IsValid(QModelIndex const& index);
-	QAbstractItemModel* CreateLibraryModelFromIndex(QModelIndex const& sourceIndex);
+	QAbstractItemModel* CreateControlsModelFromIndex(QModelIndex const& sourceIndex);
 
 	// QDialog
 	virtual bool eventFilter(QObject* pObject, QEvent* pEvent) override;
 	// ~QDialog
 
 	// Filtering
-	QString                             m_sFilter;
-	EItemType                           m_eType;
-	Scope                               m_scope;
-	bool                                m_selectionIsValid = false;
+	QString                              m_sFilter;
+	ESystemItemType                      m_eType;
+	Scope                                m_scope;
+	bool                                 m_selectionIsValid = false;
 
-	static string                       s_previousControlName;
-	static EItemType                    s_previousControlType;
-	QAdvancedTreeView* const            m_pTreeView;
-	QDialogButtonBox* const             m_pDialogButtons;
+	static string                        s_previousControlName;
+	static ESystemItemType               s_previousControlType;
+	QAdvancedTreeView* const             m_pTreeView;
+	QDialogButtonBox* const              m_pDialogButtons;
 
-	CAudioAssetsManager*                m_pAssetsManager;
-	QDeepFilterProxyModel*              m_pFilterProxyModel;
-	CResourceControlModel*              m_pAssetsModel;
-	CMountingProxyModel*                m_pMountingProxyModel;
-	std::vector<CResourceLibraryModel*> m_libraryModels;
+	CSystemAssetsManager*                m_pAssetsManager;
+	QDeepFilterProxyModel*               m_pFilterProxyModel;
+	CResourceLibraryModel*               m_pLibraryModel;
+	CMountingProxyModel*                 m_pMountingProxyModel;
+	std::vector<CResourceControlsModel*> m_controlsModels;
 };
 } // namespace ACE

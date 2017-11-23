@@ -24,6 +24,7 @@ struct SSF_GlobalDrawParams;
 struct GRendererCommandBuffer;
 class CD3D9Renderer;
 class CCachedData;
+class CRenderOutput;
 
 //////////////////////////////////////////////////////////////////////
 struct SSF_GlobalDrawParams
@@ -355,6 +356,7 @@ public:
 	virtual void ReleaseDeviceData(DeviceData* pData) override;
 
 	// IFlashPlayer
+	virtual void SetClearFlags(uint32 clearFlags, ColorF clearColor = Clr_Transparent) override;
 	virtual void SetCompositingDepth(float depth) override;
 
 	virtual void SetStereoMode(bool stereo, bool isLeft) override;
@@ -376,9 +378,16 @@ public:
 
 	virtual std::vector<ITexture*> GetTempRenderTargets() const override;
 
+	// Helper functions
+	static void RenderFlashPlayerToDisplay(IFlashPlayer* pFlashPlayer, bool bStereo);
+	static void RenderFlashPlayerToTexture(IFlashPlayer* pFlashPlayer, CTexture* pOutput);
+	
 private:
-	void PushExternalRenderTarget();
-	void PopExternalRenderTarget();
+	void SetRenderOutput(std::shared_ptr<CRenderOutput> pRenderOutput);
+	std::shared_ptr<CRenderOutput> GetRenderOutput() const;
+
+	void PushOutputTarget(const Viewport &viewport);
+	void PopOutputTarget();
 
 	void Clear(const ColorF& backgroundColor);
 
@@ -463,6 +472,8 @@ private:
 
 	RectF m_canvasRect;
 
+	uint32 m_clearFlags;
+	ColorF m_clearColor;
 	float m_compDepth;
 
 	// stereo support
@@ -483,6 +494,8 @@ private:
 
 	// Render target management
 	std::list<SSF_GlobalDrawParams::OutputParams> m_renderTargetStack;
+
+	std::shared_ptr<CRenderOutput> m_pRenderOutput;
 };
 
 #endif // #if RENDERER_SUPPORT_SCALEFORM
@@ -546,6 +559,7 @@ public:
 	virtual DeviceData* CreateDeviceData(const BitmapDesc* pBitmapList, int numBitmaps, bool bTemp = false) override { return nullptr; }
 	virtual void ReleaseDeviceData(DeviceData* pData) override {}
 
+	virtual void SetClearFlags(uint32 clearFlags, ColorF clearColor = Clr_Transparent) override {}
 	virtual void SetCompositingDepth(float depth) override {}
 
 	virtual void SetStereoMode(bool stereo, bool isLeft) override {}

@@ -176,7 +176,7 @@ public:
 		ReleaseResources();
 	}
 
-	void ProcessEvent( SEntityEvent& event )
+	void ProcessEvent( const SEntityEvent& event )
 	{
 		switch( event.event )
 		{

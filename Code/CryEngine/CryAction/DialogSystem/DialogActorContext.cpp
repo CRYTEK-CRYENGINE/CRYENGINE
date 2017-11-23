@@ -1224,7 +1224,7 @@ bool CDialogActorContext::IsStillPlaying() const
 }
 
 // IEntityEventListener
-void CDialogActorContext::OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+void CDialogActorContext::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
 	switch (event.event)
 	{

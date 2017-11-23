@@ -67,6 +67,7 @@ public:
 	QPropertyTree* PropertyTree()                     { return m_propertyTree; }
 	void           Serialize(Serialization::IArchive& ar);
 	void           SetDockWidget(QDockWidget* widget) {}
+	void           OnChanged()                        { OnPropertyTreeChanged(); }
 
 protected:
 	void OnEditorNotifyEvent(EEditorNotifyEvent event) override;

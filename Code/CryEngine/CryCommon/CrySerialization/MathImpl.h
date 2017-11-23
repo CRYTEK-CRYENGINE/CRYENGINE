@@ -290,9 +290,9 @@ inline bool Serialize(Serialization::IArchive& ar, SPosition& c, const char* nam
 
 struct SUniformScale
 {
-	explicit SUniformScale(Vec3& v, bool& u)
+	explicit SUniformScale(Vec3& v)
 		: vec(v)
-		, uniform(u)
+		, uniform(false)
 	{}
 
 	void Serialize(Serialization::IArchive& ar)
@@ -300,22 +300,28 @@ struct SUniformScale
 	}
 
 	Vec3& vec;
-	bool& uniform;
+	bool uniform;
 };
 
 inline bool Serialize(Serialization::IArchive& ar, SUniformScale& c, const char* name, const char* label)
 {
-	if (ar.openBlock(name, label))
+	if (!ar.isEdit())
+	{
+		typedef float(*Array)[3];
+		return ar(*((Array)& c.vec.x), name, label);
+	}
+	else if(ar.openBlock(name, label))
 	{
 		bool result = true;
+
+		Vec3 vec = c.vec;
+		ar(Serialization::MinMaxRange(vec.x), "x", "^");
+		ar(Serialization::MinMaxRange(vec.y), "y", "^");
+		ar(Serialization::MinMaxRange(vec.z), "z", "^");
+		result = ar(Serialization::SStruct(c), "scale", "^");
+
 		if (ar.isInput() && c.uniform)
 		{
-			Vec3 vec = c.vec;
-			ar(Serialization::MinMaxRange(vec.x), "x", "^");
-			ar(Serialization::MinMaxRange(vec.y), "y", "^");
-			ar(Serialization::MinMaxRange(vec.z), "z", "^");
-			result = ar(Serialization::SStruct(c), "scale", "^");
-
 			if (!strcmp(ar.getModifiedRowName(), "x"))
 			{
 				float multiplier = c.vec.x != 0 ? vec.x / c.vec.x : 0;
@@ -340,10 +346,9 @@ inline bool Serialize(Serialization::IArchive& ar, SUniformScale& c, const char*
 		}
 		else
 		{
-			ar(Serialization::MinMaxRange(c.vec.x), "x", "^");
-			ar(Serialization::MinMaxRange(c.vec.y), "y", "^");
-			ar(Serialization::MinMaxRange(c.vec.z), "z", "^");
-			result = ar(Serialization::SStruct(c), "scale", "^");
+			c.vec.x = vec.x;
+			c.vec.y = vec.y;
+			c.vec.z = vec.z;
 		}
 		ar.closeBlock();
 		return result;

@@ -1646,7 +1646,7 @@ void CFlashUIElement::ScreenToFlash(const float& px, const float& py, float& rx,
 {
 	if (m_pFlashplayer)
 	{
-		const float flashWidth = (float) m_pFlashplayer->GetWidth();
+		const float flashWidth  = (float) m_pFlashplayer->GetWidth();
 		const float flashHeigth = (float) m_pFlashplayer->GetHeight();
 		float flashVPX, flashVPY, flashVPWidth, flashVPHeight;
 		{
@@ -1667,8 +1667,8 @@ void CFlashUIElement::ScreenToFlash(const float& px, const float& py, float& rx,
 			else flashVPHeight = flashVPWidth / oAspect;
 		}
 
-		const float screenWidth = (float)gEnv->pRenderer->GetWidth();
-		const float screenHeigth = (float)gEnv->pRenderer->GetHeight();
+		const float screenWidth  = (float)gEnv->pRenderer->GetOverlayWidth();
+		const float screenHeigth = (float)gEnv->pRenderer->GetOverlayHeight();
 
 		const float screenX = px * screenWidth;
 		const float screenY = py * screenHeigth;
@@ -1698,16 +1698,17 @@ void CFlashUIElement::WorldToFlash(const Matrix34& camMat, const Vec3& worldpos,
 {
 	// calculate scale
 	const float distance = (camMat.GetTranslation() - worldpos).GetLength();
-	Matrix44 projMat;
-	gEnv->pRenderer->GetProjectionMatrix(projMat.GetData());
-	scale = MatMulVec3(projMat, Vec3(-1.f, -1.f, distance)).x;
-
+	
 	// calculate screen x,y coordinates
-	CCamera cam = gEnv->pRenderer->GetCamera();
+	CCamera cam = GetISystem()->GetViewCamera();
 	cam.SetMatrix(camMat);
 	cam.Project(worldpos, flashpos);
-	flashpos.x = flashpos.x / (f32)gEnv->pRenderer->GetWidth();
-	flashpos.y = flashpos.y / (f32)gEnv->pRenderer->GetHeight();
+	flashpos.x = flashpos.x / (f32)gEnv->pRenderer->GetOverlayWidth();
+	flashpos.y = flashpos.y / (f32)gEnv->pRenderer->GetOverlayHeight();
+
+	cam.CalculateRenderMatrices();
+	Matrix44 projMat = cam.GetRenderProjectionMatrix();
+	scale = MatMulVec3(projMat, Vec3(-1.f, -1.f, distance)).x;
 
 	// overflow
 	borders.x = flashpos.x<0 ? -1.f : flashpos.x> 1.f ? 1.f : flashpos.z < 1.f ? 0 : -1.f;
@@ -1749,7 +1750,7 @@ void CFlashUIElement::AddTexture(IDynTextureSource* pDynTexture)
 		if (m_pFlashplayer)
 		{
 			m_pFlashplayer->SetViewScaleMode(IFlashPlayer::eSM_ExactFit);
-			m_pFlashplayer->SetViewport(0, 0, m_pFlashplayer->GetWidth(), m_pFlashplayer->GetHeight(), 1.f);
+			m_pFlashplayer->SetViewport   (0, 0, m_pFlashplayer->GetWidth(), m_pFlashplayer->GetHeight(), 1.f);
 			m_pFlashplayer->SetScissorRect(0, 0, m_pFlashplayer->GetWidth(), m_pFlashplayer->GetHeight());
 		}
 	}
@@ -1780,10 +1781,13 @@ void CFlashUIElement::SendCursorEvent(SFlashCursorEvent::ECursorState evt, int i
 
 	UpdateFlags();
 
-	if (HasExtTexture())
+	if (HasExtTexture() && gEnv->pRenderer)
 	{
-		int x, y, width, height;
-		gEnv->pRenderer->GetViewport(&x, &y, &width, &height);
+		int x = 0;
+		int y = 0;
+		int width  = gEnv->pRenderer->GetOverlayWidth();
+		int height = gEnv->pRenderer->GetOverlayHeight();
+
 		float fX = (float) iX / (float) width;
 		float fY = (float) iY / (float) height;
 		float aspect;

@@ -302,7 +302,7 @@ void CVisArea::UpdatePortalCameraPlanes(CCamera& cam, Vec3* pVerts, bool NotForc
 	if (GetCVars()->e_Portals == 5)
 	{
 		float farrColor[4] = { 1, 1, 1, 1 };
-		//		GetRenderer()->SetMaterialColor(1,1,1,1);
+
 		DrawLine(pVerts[0], pVerts[1]);
 		IRenderAuxText::DrawLabelEx(pVerts[0], 1, farrColor, false, true, "0");
 		DrawLine(pVerts[1], pVerts[2]);
@@ -511,8 +511,8 @@ void        CVisArea::PreRender(int nReqursionLevel,
 			arrPortVerts[3] = vCenter - Vec3(0, 0, 1.f) * fRadius + vBorder;
 		}
 
-		if (GetCVars()->e_Portals == 4) // make color recursion dependent
-			GetRenderer()->SetMaterialColor(1, 1, passInfo.IsGeneralPass(), 1);
+		//if (GetCVars()->e_Portals == 4) // make color recursion dependent
+			//GetRenderer()->SetMaterialColor(1, 1, passInfo.IsGeneralPass(), 1);
 
 		Vec3 vPortalFaceCenter = (arrPortVerts[0] + arrPortVerts[1] + arrPortVerts[2] + arrPortVerts[3]) / 4;
 		vPortToCamDir = CurCamera.GetPosition() - vPortalFaceCenter;
@@ -558,11 +558,11 @@ void        CVisArea::PreRender(int nReqursionLevel,
 
 			// get 3d positions of portal bounds
 			{
-				int i = 0;
-				float w = (float)GetRenderer()->GetWidth();
-				float h = (float)GetRenderer()->GetHeight();
-				float d = 0.01f;
+				const float w = float(CurCamera.GetViewSurfaceX());
+				const float h = float(CurCamera.GetViewSurfaceZ());
+				const float d = 0.01f;
 
+				int i = 0;
 				GetRenderer()->UnProjectFromScreen(aabb.min.x * w / 100, aabb.min.y * h / 100, d, &lstPortVertsSS[i].x, &lstPortVertsSS[i].y, &lstPortVertsSS[i].z);
 				i++;
 				GetRenderer()->UnProjectFromScreen(aabb.min.x * w / 100, aabb.max.y * h / 100, d, &lstPortVertsSS[i].x, &lstPortVertsSS[i].y, &lstPortVertsSS[i].z);

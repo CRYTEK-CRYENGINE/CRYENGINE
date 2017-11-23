@@ -125,6 +125,7 @@ enum class EEntityComponentFlags : uint32
 	ServerOnly        = BIT(12), //!< This component can only be loaded when we are running as local or dedicated server
 	ClientOnly        = BIT(13), //!< This component can only be loaded when we are running as a client, never on a dedicated server
 	HiddenFromUser    = BIT(14), //!< This component will not be shown to the user
+	NoCreationOffset  = BIT(15), //!< Disables the creation offset in sandbox. The sandbox uses the bounding box radius as an offset to place new entities so they don't clip into the terrain.
 };
 typedef CEnumFlags<EEntityComponentFlags> EntityComponentFlags;
 
@@ -350,6 +351,22 @@ public:
 
 public:
 	IEntityComponent() {}
+	IEntityComponent(IEntityComponent&& other)
+		: m_pEntity(other.m_pEntity)
+		, m_componentFlags(other.m_componentFlags)
+		, m_guid(other.m_guid)
+		, m_name(other.m_name.c_str())
+		, m_pTransform(std::move(other.m_pTransform))
+		, m_pParent(other.m_pParent)
+		, m_pClassDesc(other.m_pClassDesc)
+		, m_entitySlotId(other.m_entitySlotId) 
+	{
+		other.m_pTransform.reset();
+		other.m_entitySlotId = EmptySlotId;
+	}
+	IEntityComponent(const IEntityComponent&) = default;
+	IEntityComponent& operator=(const IEntityComponent&) = default;
+	IEntityComponent& operator=(IEntityComponent&&) = default;
 	virtual ~IEntityComponent() {}
 
 	//! Return ClassDesc for this component
@@ -380,7 +397,7 @@ protected:
 	//! By overriding this function component will be able to handle events sent from the host Entity.
 	//! Requires returning the desired event flag in GetEventMask.
 	//! \param event Event structure, contains event id and parameters.
-	virtual void ProcessEvent(SEntityEvent& event) {}
+	virtual void ProcessEvent(const SEntityEvent& event) {}
 
 public:
 	//! Return bit mask of the EEntityEvent flags that we want to receive in ProcessEvent
@@ -388,6 +405,7 @@ public:
 	//! Only events matching the returned bit mask will be sent to the ProcessEvent method
 	virtual uint64                 GetEventMask() const                      { return 0; }
 
+	//! Determines the order in which this component will receive entity events (including update). Lower number indicates a higher priority.
 	virtual ComponentEventPriority GetEventPriority() const                  { return (ComponentEventPriority)GetProxyType(); }
 
 	//! \brief Network serialization. Override to provide a mask of active network aspects
@@ -435,7 +453,12 @@ public:
 
 	//! Return Transformation of the entity component relative to the owning entity or parent component
 	const CryTransform::CTransformPtr& GetTransform() const;
+
+	//! Sets the transformation form a matrix. If the component doesn't have a transformation yet the function will add one.
 	void SetTransformMatrix(const Matrix34& transform);
+
+	//! Sets the transformation from another transformation.  If the component doesn't have a transformation yet the function will add one.
+	void SetTransformMatrix(const CryTransform::CTransformPtr& transform);
 
 	//! Return Transformation of the entity component relative to the world
 	Matrix34 GetWorldTransformMatrix() const;

@@ -129,7 +129,7 @@ void CChickenBoid::OnPickup( bool bPickup,float fSpeed )
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CChickenBoid::OnCollision( SEntityEvent &event )
+void CChickenBoid::OnCollision( const SEntityEvent &event )
 {
 	if (m_bThrown)
 	{

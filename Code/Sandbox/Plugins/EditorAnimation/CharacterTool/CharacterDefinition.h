@@ -81,6 +81,24 @@ struct CharacterAttachment
 	Vec4                 m_ProxyParams;
 	ProxyPurpose         m_ProxyPurpose;
 	SimulationParams     m_simulationParams;
+	geomtypes            m_ProxyType, m_prevProxyType;
+	Vec4                 m_prevProxyParams;
+	int                  m_meshSmooth, m_prevMeshSmooth;
+	Vec3i                m_limits[2];
+	Ang3                 m_frame0;
+	Vec3                 m_tension, m_damping;
+
+	struct ProxySource
+	{
+		int  m_refCount = 0;
+		void AddRef()  { ++m_refCount; }
+		void Release() { if (!--m_refCount) delete this; }
+
+		_smart_ptr<IGeometry> m_hullMesh;
+		_smart_ptr<IGeometry> m_proxyMesh;
+		
+	};
+	_smart_ptr<ProxySource> m_proxySrc;
 
 	string               m_strRowJointName;
 	RowSimulationParams  m_rowSimulationParams;
@@ -108,6 +126,10 @@ struct CharacterAttachment
 	}
 
 	void Serialize(Serialization::IArchive& ar);
+
+	IGeometry* CreateProxyGeom() const;
+	void       ChangeProxyType();
+	void       GenerateMesh();
 };
 
 struct ICryAnimation;
@@ -115,26 +137,41 @@ struct ICryAnimation;
 struct CharacterDefinition
 {
 	bool                        m_initialized;
+	bool                        m_physEdit, m_physNeedsApply;
 	string                      skeleton;
 	string                      materialPath;
 	string                      physics;
 	string                      rig;
 	vector<CharacterAttachment> attachments;
+	vector<CharacterAttachment>	origBonePhysAtt; // for reverting
 	DynArray<string>            m_arrAllProcFunctions;  //all procedural functions
 
 	IAnimationPoseModifierSetupPtr modifiers;
 
+	static std::map<INT_PTR,_smart_ptr<CharacterAttachment::ProxySource>> g_meshArchive;
+	static int g_meshArchiveUsed;
+
 	CharacterDefinition()
 	{
-		m_initialized = false;
+		m_initialized = m_physEdit = m_physNeedsApply = false;
+		++g_meshArchiveUsed;
 	}
+	~CharacterDefinition()
+	{
+		if (!--g_meshArchiveUsed)
+			g_meshArchive.clear();
+	}
+
 
 	bool        LoadFromXml(const XmlNodeRef& root);
 	bool        LoadFromXmlFile(const char* filename);
-	void        ApplyToCharacter(bool* skinSetChanged, ICharacterInstance* character, ICharacterManager* cryAnimation, bool showDebug);
+	void        ApplyToCharacter(bool* skinSetChanged, ICharacterInstance* character, ICharacterManager* cryAnimation, bool showDebug, bool applyPhys = false);
+	void        LoadPhysProxiesFromCharacter(ICharacterInstance *character);
+	void        SavePhysProxiesToCGF(const char* fname);
 	void        ApplyBoneAttachment(IAttachment* pIAttachment, ICharacterManager* characterManager, const CharacterAttachment& desc, ICharacterInstance* pICharacterInstance, bool showDebug) const;
 	void        ApplyFaceAttachment(IAttachment* pIAttachment, ICharacterManager* characterManager, const CharacterAttachment& desc, bool showDebug) const;
 	void        ApplySkinAttachment(IAttachment* pIAttachment, ICharacterManager* characterManager, const CharacterAttachment& desc, ICharacterInstance* pICharacterInstance, bool* skinChanged) const;
+	void        ApplyPhysAttachments(ICharacterInstance* character);
 
 	void        SynchModifiers(ICharacterInstance& character);
 
@@ -150,6 +187,13 @@ struct CharacterDefinition
 	static void ExportSimulation(const CharacterAttachment& attach, XmlNodeRef nodeAttach);
 
 	bool        SaveToMemory(vector<char>* buffer);
+
+	void        RemoveRagdollAttachments() 
+	{ 
+		attachments.erase(std::remove_if(attachments.begin(), attachments.end(), 
+			[](const auto& att) -> bool { return att.m_attachmentType == CA_PROX && att.m_ProxyPurpose == CharacterAttachment::RAGDOLL; }),
+			attachments.end());
+	}
 };
 
 }

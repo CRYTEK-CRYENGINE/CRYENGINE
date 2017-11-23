@@ -2,12 +2,9 @@
 
 #pragma once
 
-#ifndef __SALTBUFFERARRAY
-	#define __SALTBUFFERARRAY
+#include "SaltHandle.h"           // CSaltHandle<>
 
-	#include "SaltHandle.h"           // CSaltHandle<>
-
-	#define SALT_DEFAULT_SIZE (64 * 1024)
+#define SALT_DEFAULT_SIZE (64 * 1024)
 
 // use one instance of this class in your object manager
 // quite efficient implementation, avoids use of pointer to save memory and reduce cache misses
@@ -304,5 +301,3 @@ private: // --------------------------------------------------------------------
 	TIndex             m_FreeListStartIndex;          //!< (TIndex)-1 if empty, index in m_Buffer otherwise
 	TIndex             m_maxUsed;                     //!< to enable fast iteration through the used elements - is constantly growing execpt when calling Reset()
 };
-
-#endif // __SALTBUFFERARRAY

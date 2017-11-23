@@ -78,10 +78,6 @@ void CObjManager::UnloadObjects(bool bDeleteAll)
 
 	CleanStreamingData();
 
-	if (m_REFarTreeSprites)
-		m_REFarTreeSprites->Release(true);
-	m_REFarTreeSprites = 0;
-
 	m_pRMBox = 0;
 
 	m_decalsToPrecreate.resize(0);
@@ -635,7 +631,7 @@ CObjManager::CObjManager() :
 	m_bGarbageCollectionEnabled = true;
 
 	m_decalsToPrecreate.reserve(128);
-	m_REFarTreeSprites = 0;
+
 
 	// init queue for check occlusion
 	m_CheckOcclusionQueue.Init(GetCVars()->e_CheckOcclusionQueueSize);
@@ -1164,7 +1160,7 @@ bool CObjManager::AddOrCreatePersistentRenderObject(SRenderNodeTempData* pTempDa
 		if (passInfo.IsRecursivePass() || (pTempData && (pTempData->userData.m_pFoliage || (pTempData->userData.pOwnerNode && (pTempData->userData.pOwnerNode->GetRndFlags() & ERF_SELECTED)))))
 		{
 			// Recursive and Debug passes do not support permanent render objects now...
-			pRenderObject = gEnv->pRenderer->EF_GetObject_Temp(passInfo.ThreadID());
+			pRenderObject = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 			return false;
 		}
 
@@ -1182,19 +1178,7 @@ bool CObjManager::AddOrCreatePersistentRenderObject(SRenderNodeTempData* pTempDa
 		uint32 passId = passInfo.IsShadowPass() ? 1 : 0;
 		uint32 passMask = 1 << passId;
 
-		// Do we have to create a new permanent render object?
-		if (pTempData->userData.arrPermanentRenderObjects[nLod] == nullptr)
-		{
-			// Object creation must be locked because CheckCreateRenderObject can be called on same node from different threads
-			WriteLock lock(pTempData->userData.permanentObjectCreateLock);
-
-			// Did another thread succeed in creating the object in the meantime?
-			if (pTempData->userData.arrPermanentRenderObjects[nLod] == nullptr)
-				pTempData->userData.arrPermanentRenderObjects[nLod] = gEnv->pRenderer->EF_GetObject();
-		}
-
-		pRenderObject = pTempData->userData.arrPermanentRenderObjects[nLod];
-		passInfo.GetIRenderView()->AddPermanentObject(pRenderObject, passInfo);
+		passInfo.GetIRenderView()->AddPermanentObject(pRenderObject = pTempData->GetRenderObject(nLod), passInfo);
 
 		// Has this object already been filled?
 		int previousMask = CryInterlockedExchangeOr(reinterpret_cast<volatile LONG*>(&pRenderObject->m_passReadyMask), passMask);
@@ -1213,7 +1197,7 @@ bool CObjManager::AddOrCreatePersistentRenderObject(SRenderNodeTempData* pTempDa
 		return false;
 	}
 
-	pRenderObject = gEnv->pRenderer->EF_GetObject_Temp(passInfo.ThreadID());
+	pRenderObject = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 
 	return false;
 }

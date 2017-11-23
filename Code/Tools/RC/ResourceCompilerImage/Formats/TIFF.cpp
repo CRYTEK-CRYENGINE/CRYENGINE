@@ -118,7 +118,7 @@ string LoadSpecialInstructionsByUsingTIFFLoader(const char* filenameRead)
 
 // Note that a similar function exists in CryTIFPlugin.cpp
 // of the new CryTif plugin (Jan 2013).
-static bool IsFloatTif(TIFF* const tif)
+static bool IsFloatTif(TIFF* const tif, const bool isCryTif2012)
 {
 	uint32 dwBitsPerChannel = 0;
 	uint32 dwFormat = 0;
@@ -139,33 +139,35 @@ static bool IsFloatTif(TIFF* const tif)
 
 		// Preventing interpretation of old CryTif/RC/Sandbox 16-bit
 		// float images as 16-bit uint images.
-
-		// TIFFTAG_SUBFILETYPE exists in files written by the
-		// generic Photoshop TIFF writer, but not in CryTif files.
-		uint32 wSubfileType = 0;
-		const bool bPhotoshopTif = (TIFFGetField(tif, TIFFTAG_SUBFILETYPE, &wSubfileType) != 0);
-
-		// Old Sandbox (before 2013) incorrectly saved 16-bit float
-		// cubemap images without specifying TIFFTAG_SAMPLEFORMAT at all.
-		// Note that the generic Photoshop TIFF writer saves 16-bit 
-		// uint images without specifying TIFFTAG_SAMPLEFORMAT tag as well,
-		// it's why we have bPhotoshopTif check here.
-		if (!bPhotoshopTif && dwFormat == 0)
+		if (isCryTif2012)
 		{
-			if (StringHelpers::Contains(GetSpecialInstructionsFromTIFF(tif), "/preset=HDRCubemapRGBK_highQ"))
+			// TIFFTAG_SUBFILETYPE exists in files written by the
+			// generic Photoshop TIFF writer, but not in CryTif files.
+			uint32 wSubfileType = 0;
+			const bool bPhotoshopTif = (TIFFGetField(tif, TIFFTAG_SUBFILETYPE, &wSubfileType) != 0);
+
+			// Old Sandbox (before 2013) incorrectly saved 16-bit float
+			// cubemap images without specifying TIFFTAG_SAMPLEFORMAT at all.
+			// Note that the generic Photoshop TIFF writer saves 16-bit 
+			// uint images without specifying TIFFTAG_SAMPLEFORMAT tag as well,
+			// it's why we have bPhotoshopTif check here.
+			if (!bPhotoshopTif && dwFormat == 0)
 			{
-				return true;
+				if (StringHelpers::Contains(GetSpecialInstructionsFromTIFF(tif), "/preset=HDRCubemapRGBK_highQ"))
+				{
+					return true;
+				}
 			}
-		}
 
-		// Old RC (before 2013) incorrectly saved 16-bit float images
-		// as SAMPLEFORMAT_UINT (see UpdateAndSaveConfigToTIF() in
-		// ImageCompiler.cpp in an old RC).
-		if (!bPhotoshopTif && dwFormat == SAMPLEFORMAT_UINT)
-		{
-			if (StringHelpers::Contains(GetSpecialInstructionsFromTIFF(tif), "/preset="))
+			// Old RC (before 2013) incorrectly saved 16-bit float images
+			// as SAMPLEFORMAT_UINT (see UpdateAndSaveConfigToTIF() in
+			// ImageCompiler.cpp in an old RC).
+			if (!bPhotoshopTif && dwFormat == SAMPLEFORMAT_UINT)
 			{
-				return true;
+				if (StringHelpers::Contains(GetSpecialInstructionsFromTIFF(tif), "/preset="))
+				{
+					return true;
+				}
 			}
 		}
 	}
@@ -255,6 +257,8 @@ ImageObject* LoadByUsingTIFFLoader(const char* filenameRead, CImageProperties* p
 			return 0;
 		}
 
+		const bool isCryTif2012 = pProps && pProps->GetConfigAsBool("CryTIF2012", false, true);
+
 		const char* pFormatText;
 		if (dwBitsPerChannel == 8)
 		{
@@ -265,7 +269,7 @@ ImageObject* LoadByUsingTIFFLoader(const char* filenameRead, CImageProperties* p
 		else if (dwBitsPerChannel == 16)
 		{
 			// A/L/R16, R16F, GR16, GR16f, ARGB16, ARGB16f
-			if (IsFloatTif(tif))
+			if (IsFloatTif(tif, isCryTif2012))
 			{
 				pFormatText = "16-bit float";
 				pRet.reset(Load16BitHDRImageFromTIFF(tif));
@@ -276,7 +280,7 @@ ImageObject* LoadByUsingTIFFLoader(const char* filenameRead, CImageProperties* p
 				pRet.reset(Load16BitImageFromTIFF(tif));
 			}
 		}
-		else if (dwBitsPerChannel == 32 && IsFloatTif(tif))
+		else if (dwBitsPerChannel == 32 && IsFloatTif(tif, isCryTif2012))
 		{
 			// A/L/R32f, GR32f, ARGB32f
 			pFormatText = "32-bit float";
@@ -1230,7 +1234,7 @@ static void GetTiffFieldData(std::vector<char>& res, TIFF* tif_in, ttag_t tag)
 	}
 }
 
-static bool UpdateAndSaveSettingsToTIF(const char *filenameRead, const char *filenameWrite, const std::vector<char>& photoshopData)
+static bool UpdateAndSaveSettingsToTIF(const char *filenameRead, const char *filenameWrite, const std::vector<char>& photoshopData, bool isCryTif2012)
 {
 	assert(filenameRead && filenameRead[0]);
 	assert(filenameWrite && filenameWrite[0]);
@@ -1266,7 +1270,7 @@ static bool UpdateAndSaveSettingsToTIF(const char *filenameRead, const char *fil
 	TIFFGetField(tif_in, TIFFTAG_PREDICTOR, &dwPredictor );
 	TIFFGetField(tif_in, TIFFTAG_ORIENTATION, &dwOrientation );
 	TIFFGetField(tif_in, TIFFTAG_SAMPLEFORMAT, &dwSampleFormat);
-	if (IsFloatTif(tif_in))
+	if (IsFloatTif(tif_in, isCryTif2012))
 	{
 		dwSampleFormat = SAMPLEFORMAT_IEEEFP;
 	}
@@ -1505,12 +1509,12 @@ static string SerializePropertiesToSettings(const CImageProperties* pProps)
 
 ///////////////////////////////////////////////////////////////////////////////////
 
-bool UpdateAndSaveSettingsToTIF(const char *filenameRead, const char *filenameWrite, const string& settings)
+bool UpdateAndSaveSettingsToTIF(const char *filenameRead, const char *filenameWrite, const string& settings, bool isCryTif2012)
 {
 	std::vector<char> data;
 	FormPhotoshopDataBlock(data, settings);
 
-	if (!UpdateAndSaveSettingsToTIF(filenameRead, filenameWrite, data))
+	if (!UpdateAndSaveSettingsToTIF(filenameRead, filenameWrite, data, isCryTif2012))
 	{
 		RCLogError("Failed to save settings to %s", filenameWrite);
 		return false;
@@ -1536,7 +1540,9 @@ bool UpdateAndSaveSettingsToTIF(const char *filenameRead, const char *filenameWr
 		return true;
 	}
 
-	return UpdateAndSaveSettingsToTIF(filenameRead, filenameWrite, settings);
+	const bool isCryTIF2012 = pProps && pProps->GetConfigAsBool("CryTIF2012", false, true);
+
+	return UpdateAndSaveSettingsToTIF(filenameRead, filenameWrite, settings, isCryTIF2012);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////

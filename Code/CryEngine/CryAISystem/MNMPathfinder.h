@@ -22,6 +22,7 @@
 #include <CryPhysics/AgePriorityQueue.h>
 #include <CryAISystem/INavigationSystem.h>
 #include <CryAISystem/IPathfinder.h>
+#include <CryAISystem/NavigationSystem/INavigationQuery.h>
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -34,8 +35,14 @@ struct QueuedRequest
 	QueuedRequest()
 		: requesterEntityId(INVALID_ENTITYID)
 		, agentTypeID(0)
+		, pFilter(nullptr)
 	{
 		//don't need to setup dangerous areas in default constructor
+	}
+
+	~QueuedRequest()
+	{
+		pFilter = nullptr;
 	}
 
 	QueuedRequest(EntityId _requesterEntityId, NavigationAgentTypeID _agentTypeID, const MNMPathRequest& _request)
@@ -43,12 +50,23 @@ struct QueuedRequest
 		, agentTypeID(_agentTypeID)
 		, requestParams(_request)
 	{
+		// Make a copy of the navigation query filter
+		if (_request.pFilter)
+		{
+			requestParams.pFilter = _request.pFilter->Clone();
+			pFilter = INavMeshQueryFilterConstPtr(requestParams.pFilter, [](const INavMeshQueryFilter* pFilter)
+			{
+				pFilter->Release();
+			});
+		}
+		
 		SetupDangerousLocationsData();
 	}
 
 	EntityId                 requesterEntityId;
 	NavigationAgentTypeID    agentTypeID;
 	MNMPathRequest           requestParams;
+	INavMeshQueryFilterConstPtr pFilter;
 
 	const MNM::DangerousAreasList& GetDangersInfos() { return dangerousAreas; }
 
@@ -65,8 +83,7 @@ private:
 struct ProcessingRequest
 {
 	ProcessingRequest()
-		: requesterEntityId(INVALID_ENTITYID)
-		, meshID(0)
+		: meshID(0)
 		, fromTriangleID(0)
 		, toTriangleID(0)
 		, data()
@@ -78,7 +95,6 @@ struct ProcessingRequest
 	ILINE void Reset()         { (*this) = ProcessingRequest(); }
 	ILINE bool IsValid() const { return (queuedID != 0); };
 
-	EntityId            requesterEntityId;
 	NavigationMeshID    meshID;
 	MNM::TriangleID     fromTriangleID;
 	MNM::TriangleID     toTriangleID;
@@ -102,20 +118,18 @@ struct ProcessingContext
 	};
 
 	ProcessingContext(const size_t maxWaySize)
-		: pWayQuery(NULL)
-		, queryResult(maxWaySize)
+		: queryResult(maxWaySize)
 		, status(Invalid)
-	{}
+	{
+	}
 
 	~ProcessingContext()
 	{
-		SAFE_DELETE(pWayQuery);
 	}
 
 	void Reset()
 	{
 		processingRequest.Reset();
-		SAFE_DELETE(pWayQuery);
 		queryResult.Reset();
 		workingSet.Reset();
 
@@ -144,7 +158,6 @@ struct ProcessingContext
 	}
 
 	ProcessingRequest            processingRequest;
-	CNavMesh::WayQueryRequest*   pWayQuery;
 	CNavMesh::WayQueryResult     queryResult;
 	CNavMesh::WayQueryWorkingSet workingSet;
 
@@ -341,12 +354,13 @@ public:
 
 	void                      Reset();
 
-	virtual MNM::QueuedPathID RequestPathTo(const EntityId requesterEntityId, const MNMPathRequest& request);
-	virtual void              CancelPathRequest(MNM::QueuedPathID requestId);
+	virtual MNM::QueuedPathID RequestPathTo(const EntityId requesterEntityId, const MNMPathRequest& request) override;
+	virtual void              CancelPathRequest(MNM::QueuedPathID requestId) override;
 
 	void                      WaitForJobsToFinish();
 
-	bool                      CheckIfPointsAreOnStraightWalkableLine(const NavigationMeshID& meshID, const Vec3& source, const Vec3& destination, float heightOffset = 0.2f) const;
+	bool                      CheckIfPointsAreOnStraightWalkableLine(const NavigationMeshID& meshID, const Vec3& source, const Vec3& destination, float heightOffset = 0.2f) const override;
+	bool                      CheckIfPointsAreOnStraightWalkableLine(const NavigationMeshID& meshID, const Vec3& source, const Vec3& destination, const INavMeshQueryFilter* pFilter, float heightOffset = 0.2f) const override;
 
 	void                      Update();
 
@@ -380,6 +394,7 @@ private:
 	bool              SetupForNextPathRequest(MNM::QueuedPathID requestID, const MNM::PathfinderUtils::QueuedRequest& request, MNM::PathfinderUtils::ProcessingContext& processingContext);
 	void              PathRequestFailed(MNM::QueuedPathID requestID, const MNM::PathfinderUtils::QueuedRequest& request);
 
+	bool			  ApplySnappingRules(const MNM::CNavMesh& navMesh, const SSnapToNavMeshRulesInfo& snappingRules, MNM::TriangleID& triangleID, Vec3& safeLocation, const MNM::vector3_t& locationRelToOrigin, const MNM::real_t vDefaultRange, const MNM::real_t vUpwardRange, const MNM::real_t hDefaultRange, const INavMeshQueryFilter* pFilter);
 	void              CancelResultDispatchingForRequest(MNM::QueuedPathID requestId);
 
 	void              DebugAllStatistics();

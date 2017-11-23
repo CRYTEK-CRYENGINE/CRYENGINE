@@ -6,7 +6,6 @@
 #include <CryExtension/CryCreateClassInstance.h>
 #include "Serialization.h"
 #include <CrySystem/ISystem.h>
-#include <CryGame/IGameFramework.h>
 #include <CryAnimation/ICryAnimation.h>
 #include <IEditor.h>
 #include <CryInput/IInput.h>
@@ -563,7 +562,6 @@ void CharacterDocument::ConnectExternalSignals()
 	EXPECTED(connect(m_system->scene.get(), SIGNAL(SignalLayerActivated()), this, SLOT(OnSceneLayerActivated())));
 	EXPECTED(connect(m_system->scene.get(), SIGNAL(SignalNewLayerActivated()), this, SLOT(OnSceneNewLayerActivated())));
 	EXPECTED(connect(m_system->explorerData.get(), SIGNAL(SignalEntryModified(ExplorerEntryModifyEvent &)), this, SLOT(OnExplorerEntryModified(ExplorerEntryModifyEvent &))));
-	EXPECTED(connect(m_system->explorerData.get(), &ExplorerData::SignalSelectedEntryClicked, this, &CharacterDocument::OnExplorerSelectedEntryClicked));
 	EXPECTED(connect(m_system->explorerData.get(), &ExplorerData::SignalEntrySavedAs, this, &CharacterDocument::OnExplorerEntrySavedAs));
 	EXPECTED(connect(m_system->characterList.get(), SIGNAL(SignalEntryModified(EntryModifiedEvent &)), this, SLOT(OnCharacterModified(EntryModifiedEvent &))));
 	EXPECTED(connect(m_system->characterList.get(), &ExplorerFileList::SignalEntrySavedAs, this, &CharacterDocument::OnCharacterSavedAs));
@@ -994,7 +992,7 @@ void CharacterDocument::OnCharacterModified(EntryModifiedEvent& ev)
 
 	bool skinSetChanged = false;
 	if (m_compressedCharacter.get())
-		entry->content.cdf.ApplyToCharacter(&skinSetChanged, m_compressedCharacter.get(), GetIEditor()->GetSystem()->GetIAnimationSystem(), true);
+		entry->content.cdf.ApplyToCharacter(&skinSetChanged, m_compressedCharacter.get(), GetIEditor()->GetSystem()->GetIAnimationSystem(), true, !!strcmp(ev.reason, "Revert"));
 	if (m_uncompressedCharacter.get())
 		entry->content.cdf.ApplyToCharacter(&skinSetChanged, m_uncompressedCharacter.get(), GetIEditor()->GetSystem()->GetIAnimationSystem(), false);
 
@@ -1018,6 +1016,8 @@ void CharacterDocument::OnCharacterModified(EntryModifiedEvent& ev)
 		if (m_uncompressedCharacter)
 			emptyRig.ApplyToCharacter(m_uncompressedCharacter);
 	}
+
+	Physicalize();
 
 	if (!ev.continuousChange)
 		SignalActiveCharacterChanged();
@@ -1104,12 +1104,6 @@ void CharacterDocument::OnExplorerEntryModified(ExplorerEntryModifyEvent& ev)
 	if (!ev.entry)
 		return;
 
-	if (!ev.continuousChange)
-	{
-		if (m_system->animationList->OwnsAssetEntry(ev.entry))
-			PreviewAnimationEntry(false);
-	}
-
 	ExplorerEntry* activePhysicsEntry = GetActivePhysicsEntry();
 	if (ev.entry == activePhysicsEntry)
 	{
@@ -1184,17 +1178,6 @@ void CharacterDocument::OnExplorerEntryModified(ExplorerEntryModifyEvent& ev)
 				}
 			}
 		}
-	}
-}
-
-void CharacterDocument::OnExplorerSelectedEntryClicked(ExplorerEntry* entry)
-{
-	if (!entry)
-		return;
-
-	if (m_system->animationList->OwnsAssetEntry(entry))
-	{
-		TriggerAnimationPreview(PREVIEW_ALLOW_REWIND);
 	}
 }
 
@@ -1999,7 +1982,7 @@ void CharacterDocument::DrawCharacter(ICharacterInstance* pInstanceBase, const S
 	const SRenderingPassInfo& passInfo = *context.passInfo;
 	gEnv->p3DEngine->PrecacheCharacter(NULL, 1.f, pInstanceBase, pInstanceBase->GetIMaterial(), m_LocalEntityMat, 0, 1.f, 4, true, passInfo);
 	pInstanceBase->SetViewdir(context.camera->GetViewdir());
-	pInstanceBase->Render(rp, QuatTS(IDENTITY), passInfo);
+	pInstanceBase->Render(rp, passInfo);
 
 	// draw DCC tool origin
 	if (m_displayOptions->animation.showDccToolOrigin)

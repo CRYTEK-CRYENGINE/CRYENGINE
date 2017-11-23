@@ -73,6 +73,10 @@ protected:
 	const char* GetPath() const { return m_assemblyPath; }
 	const char* GetImageName() const;
 
+	// Removes the file at targetFile, and copies the sourceFile to targetFile.
+	// Returns false if copying failed.
+	bool RemoveAndCopyFile(string sourceFile, string targetFile) const;
+
 protected:
 	MonoInternals::MonoAssembly* m_pAssembly;
 	MonoInternals::MonoImage* m_pImage;

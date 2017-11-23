@@ -105,7 +105,6 @@ public:
 	CRuntimeClass*      GetRuntimeClass()                   { return RUNTIME_CLASS(CVehiclePrototype); };
 	const char*         GetFileSpec()                       { return "Scripts/Entities/Vehicles/Implementations/Xml/*.xml"; };
 	virtual const char* GetDataFilesFilterString() override { return GetFileSpec(); }
-	//int GameCreationOrder() { return 150; };
 };
 
 #endif // __VehicleObject_h__

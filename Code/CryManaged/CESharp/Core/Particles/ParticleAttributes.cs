@@ -95,17 +95,17 @@ namespace CryEngine
 			NativeHandle.SetAsColor(id, value);
 		}
 
-		public float SetAsFloat(uint id, float value)
+		public void SetAsFloat(uint id, float value)
 		{
-			return NativeHandle.SetAsFloat(id, value);
-		}
+			NativeHandle.SetAsFloat(id, value);
+        }
 
-		public int SetAsInteger(uint id, int value)
+		public void SetAsInteger(uint id, int value)
 		{
-			return NativeHandle.SetAsInteger(id, value);
-		}
+			NativeHandle.SetAsInteger(id, value);
+        }
 
-		public void TransferInto(ParticleAttributes receiver)
+        public void TransferInto(ParticleAttributes receiver)
 		{
 			if(receiver == null)
 			{

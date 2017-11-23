@@ -350,18 +350,18 @@ pixout DownsampleStablePS(vtxOutTexToTex IN)
 }
 
 
-Texture2D<float4> HalfResColor : register(t1);
-Texture2D<float4> FullResDepth : register(t2);
-Texture2D<float4> HalfResDepth : register(t3);
+Texture2D<float4> HalfResColor : register(t0);
+Texture2D<float4> FullResDepth : register(t1);
+Texture2D<float4> HalfResDepth : register(t2);
 
-SamplerState SampStatePoint
+SamplerState SampStatePoint : register(s0)
 {
 	Filter = MIN_MAG_MIP_POINT;
 	AddressU = Clamp;
 	AddressV = Clamp;
 };
 
-SamplerState SampStateLinear
+SamplerState SampStateLinear : register(s1)
 {
 	Filter = MIN_MAG_LINEAR_MIP_POINT;
 	AddressU = Clamp;
@@ -410,7 +410,7 @@ pixout NearestDepthUpsamplePS(vtxOutTexToTex IN)
 	return OUT;
 }
 
-Texture2D MultiResOutput : register(t0);
+Texture2D<float4> MultiResOutput : register(t0);
 
 pixout UpscaleMultiResPS(vtxOutTexToTex IN)
 {
@@ -578,7 +578,7 @@ pixout LinearizeDepthPS(vtxOutTexToTex IN)
 {
 	pixout OUT = (pixout) 0;
 
-	int3 vPixCoord = int3(IN.baseTC.xy / PS_HPosScale.xy * PS_ScreenSize.xy, 0);
+	int3 vPixCoord = int3(IN.baseTC.xy / CV_HPosScale.xy * PS_ScreenSize.xy, 0);
 
 #if %_RT_MSAA_SAMPLEFREQ_PASS
 	float fDevDepth = LinearizeDepth_DepthTexMS.Load(vPixCoord, IN.uSample);
@@ -682,12 +682,12 @@ pixout DownsampleDepthPS(vtxOut IN)
 
 technique DownsampleDepth
 {
-  pass p0
-  {
-    VertexShader = FullscreenTriVS();
-    PixelShader = DownsampleDepthPS() ResolvePS;
-    CullMode = None;
-  }
+	pass p0
+	{
+		VertexShader = FullscreenTriVS();
+		PixelShader = DownsampleDepthPS() ResolvePS;
+		CullMode = None;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -715,26 +715,26 @@ technique CopyToDeviceDepth
 
 pixout TranspDepthFixupMergePS(vtxOutTexToTex IN)
 {
-  // Merge depth values using min/max blending
+	// Merge depth values using min/max blending
 	pixout OUT = (pixout) 0;
-  OUT.Color.x = tex2D(_tex0, IN.baseTC.xy).w;
+	OUT.Color.x = tex2D(_tex0, IN.baseTC.xy).w;
 	
 	if (OUT.Color.x >= 0)
 		discard;
 	else
 		OUT.Color.x = abs(OUT.Color.x);
 	
-  return OUT;
+	return OUT;
 }
 
 technique TranspDepthFixupMerge
 {
-  pass p0
-  {
-    VertexShader = TexToTexVS();
-    PixelShader = TranspDepthFixupMergePS();
-    CullMode = None;
-  }
+	pass p0
+	{
+		VertexShader = TexToTexVS();
+		PixelShader = TranspDepthFixupMergePS();
+		CullMode = None;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1126,7 +1126,7 @@ vtxOutDilate DilateVS(vtxInDilate IN)
   vtxOutDilate OUT = (vtxOutDilate)0; 
 
   float4 vPos = IN.Position;
-  OUT.HPosition = mul(vpMatrix, vPos);    
+  OUT.HPosition = mul(CV_ViewProjMatr, vPos);    
   OUT.baseTC.xy = IN.baseTC.xy;
   OUT.baseTC.z = OUT.HPosition.x;
 
@@ -1316,9 +1316,6 @@ technique CA_Sharpening
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// UnderwaterGodRays technique /////////////////////////////////////////////////////////////////////////
-
-float4x4 vpGodMatrix  : PI_Composite < vsregister = c0; >; // View*Projection
-float4x4 vpGodMatrixI : PB_UnProjMatrix; // invert( View * projection )
 
 float4 CausticParams		: PB_CausticsParams; // xy: caustics distance, zw: 1 / caustics distance
 float4 CausticSmoothSunDir	: PB_CausticsSmoothSunDirection; 
@@ -1546,10 +1543,10 @@ vtxOutVolumetricScattering VolumetricScatteringVS(vtxIn IN)
   vPos.w = 1;
   
   // Project back to world space
-  vPos = mul(vpGodMatrixI, vPos );
+  vPos = mul(CV_InvViewProj, vPos );
   vPos /= vPos.w;
  
-  OUT.HPosition = mul(vpGodMatrix, vPos);  
+  OUT.HPosition = mul(CV_ViewProjMatr, vPos);  
 
   OUT.baseTC.xy = IN.baseTC.xy;
   OUT.baseTC.y =  1 - OUT.baseTC.y;
@@ -1624,21 +1621,23 @@ technique VolumetricScatteringFinal
 Texture2D WaterRipplesTexture : register(t0);
 SamplerState WaterRipplesSState : register(s0);
 
-float4   WaterRipplesParams;
-float4x4 WaterRipplesTransform; 
+cbuffer CB_WaterRipples : register(b0)
+{
+	struct
+	{
+		float4   params;
+	} cbWaterRipples;
+};
+
 
 // deprecated
 vtxOut WaterRipplesHitVS(vtxIn IN)
 {
   vtxOut OUT = (vtxOut)0; 
 
-  float4 vPos = IN.Position;
-  OUT.HPosition = mul(vPos, WaterRipplesTransform);
-  
+  OUT.HPosition = float4(2.0 * IN.Position.x - 1.0, -2.0 * IN.Position.y + 1.0, 1.0, 1.0);
   OUT.baseTC.xy = IN.baseTC.xy;
-
-  // output with correct aspect ratio into wz
-  OUT.baseTC.wz = (IN.baseTC.xy -0.5 ) * float2(0.75*(ScrSize.x/ScrSize.y), 1.0) + 0.5;
+  OUT.baseTC.z = IN.Position.z;  // ripple strength is passed in IN.Position.z
 
   return OUT;
 }
@@ -1650,7 +1649,7 @@ pixout WaterRippleHitPS(vtxOut IN)
   
 	half2 vPos = float2( IN.baseTC.xy * 2.0h - 1.0h  );  
 	half fHit = sqrt( saturate( 1.0h - dot( vPos, vPos ) ) );
-	OUT.Color = fHit * WaterRipplesParams.w;
+	OUT.Color = fHit * IN.baseTC.z; 
 
   return OUT;
 }
@@ -1660,7 +1659,7 @@ pixout WaterRipplesPS(vtxOut IN)
 	pixout OUT = (pixout)0;
   
 #if %_RT_SAMPLE0
-	float2 tcRipples = IN.baseTC.xy + WaterRipplesParams.xy;
+	float2 tcRipples = IN.baseTC.xy + cbWaterRipples.params.xy;
 	OUT.Color = GetTexture2D(WaterRipplesTexture, WaterRipplesSState, tcRipples);
 #else
 
@@ -1677,7 +1676,7 @@ pixout WaterRipplesPS(vtxOut IN)
 	// Compute the acceleration of the point based upon its neighbors
 	half fAcce = (h00.z + h10.z + h01.z + h11.z)*0.25 - h0.z;
   
-	half dt = saturate( WaterRipplesParams.z / 0.0333f );
+	half dt = saturate( cbWaterRipples.params.z / 0.0333f );
 
 	// verlet integration: x(i+1) = xi + (xi - x(i-1)) + a * dt*dt <=> 2 * xi - x(i-1) + a*dt*dt
 	half3 vVerletWeights = half3(1.995h, 0.995h, 1.0h); //half3(1.95h, 1.0h, 1.0h);
@@ -1736,8 +1735,7 @@ technique WaterRipplesHit
   pass p0
   {
     VertexShader = WaterRipplesHitVS();
-    PixelShader = WaterRippleHitPS();    
-    CullMode = None;    
+    PixelShader  = WaterRippleHitPS();    
   }
 }
 
@@ -1745,9 +1743,9 @@ technique WaterRipplesGen
 {
   pass p0
   {
-    VertexShader = BaseVS() PostEffectsVS;
-    PixelShader = WaterRipplesPS() PostEffectsPS;    
-    CullMode = None;    
+    VertexShader = FullscreenTriVS() PostEffectsVS;
+    PixelShader  = WaterRipplesPS()  PostEffectsPS;    
+ 
   }
 }
 

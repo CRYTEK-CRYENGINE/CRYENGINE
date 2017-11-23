@@ -94,7 +94,7 @@ void CUIHUD3D::OnSystemEvent( ESystemEvent event, UINT_PTR wparam, UINT_PTR lpar
 }
 
 ////////////////////////////////////////////////////////////////////////////
-void CUIHUD3D::OnEntityEvent( IEntity *pEntity, SEntityEvent &event )
+void CUIHUD3D::OnEntityEvent( IEntity *pEntity, const SEntityEvent& event )
 {
 	if(event.event == ENTITY_EVENT_DONE)
 	{
@@ -244,8 +244,8 @@ void CUIHUD3D::Update(float fDeltaTime)
 
 	if (gEnv->IsEditor())
 	{
-		int x, y;
-		gEnv->pRenderer->GetViewport( &x, &y, &currWidth, &currHeight );
+		currWidth  = gEnv->pRenderer->GetOverlayWidth();
+		currHeight = gEnv->pRenderer->GetOverlayHeight();
 	}
 	else
 	{
@@ -253,11 +253,16 @@ void CUIHUD3D::Update(float fDeltaTime)
 		static ICVar* pCVarHeight = gEnv->pConsole->GetCVar("r_Height");
 		currWidth = pCVarWidth ? pCVarWidth->GetIVal() : 1;
 		currHeight = pCVarHeight ? pCVarHeight->GetIVal() : 1;
+
+		CRY_ASSERT(currWidth  == gEnv->pRenderer->GetOverlayWidth());
+		CRY_ASSERT(currHeight == gEnv->pRenderer->GetOverlayHeight());
+
+		__debugbreak();
 	}
 
 	if (currWidth != width || currHeight != height)
 	{
-		width = currWidth;
+		width  = currWidth;
 		height = currHeight;
 		float aspect = (float) width / (float) height;
 		THudOffset::const_iterator foundit = m_Offsets.end();

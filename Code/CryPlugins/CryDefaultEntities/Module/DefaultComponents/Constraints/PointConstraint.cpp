@@ -30,14 +30,14 @@ namespace Cry
 			}
 		}
 
-		CPointConstraintComponent::~CPointConstraintComponent()
-		{
-			Remove();
-		}
-
 		void CPointConstraintComponent::Initialize()
 		{
 			Reset();
+		}
+
+		void CPointConstraintComponent::OnShutDown()
+		{
+			Remove();
 		}
 
 		void CPointConstraintComponent::Reset()
@@ -52,7 +52,7 @@ namespace Cry
 			}
 		}
 
-		void CPointConstraintComponent::ProcessEvent(SEntityEvent& event)
+		void CPointConstraintComponent::ProcessEvent(const SEntityEvent& event)
 		{
 			if (event.event == ENTITY_EVENT_START_GAME)
 			{

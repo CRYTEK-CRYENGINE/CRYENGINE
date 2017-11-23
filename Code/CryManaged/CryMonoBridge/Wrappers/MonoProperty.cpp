@@ -5,13 +5,15 @@
 #include "MonoMethod.h"
 #include "MonoRuntime.h"
 
-CMonoProperty::CMonoProperty(MonoInternals::MonoProperty* pProperty)
+CMonoProperty::CMonoProperty(MonoInternals::MonoProperty* pProperty, const char* szName)
 	: m_pProperty(pProperty)
+	, m_name(szName)
 {
 }
 
-CMonoProperty::CMonoProperty(MonoInternals::MonoReflectionProperty* pProperty)
+CMonoProperty::CMonoProperty(MonoInternals::MonoReflectionProperty* pProperty, const char* szName)
 	: m_pProperty(((InternalMonoReflectionType*)pProperty)->property)
+	, m_name(szName)
 {
 }
 

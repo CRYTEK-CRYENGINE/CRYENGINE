@@ -10,6 +10,8 @@
 #include <CryCore/Platform/CryWindows.h>
 
 // BAI navigation file version history
+// Changes in version 10
+// - Navigation markup volumes and markup volumes data are stored
 // Changes in version 9
 //  - Navigation volumes storage is changed:
 //    * all used navigation volumes are saved (including exclusion volumes, which were missing before);
@@ -17,7 +19,7 @@
 //    * volumes stored only onces, instead of storing them together with each mesh.
 // Changes in version 8
 //  - struct MNM::Tile::STriangle layout is changed - now it has triangle flags
-#define BAI_NAVIGATION_FILE_VERSION 9
+#define BAI_NAVIGATION_FILE_VERSION 10
 
 #define MAX_NAME_LENGTH             512
 #if defined(SW_NAVMESH_USE_GUID)
@@ -61,12 +63,12 @@ enum { MaxTaskCountPerWorkerThread = 12, };
 enum { MaxVolumeDefCopyCount = 8 }; // volume copies for access in other threads
 
 #if NAVIGATION_SYSTEM_PC_ONLY
-void GenerateTileJob(MNM::CTileGenerator::Params params, volatile uint16* state, MNM::STile* tile, uint32* hashValue)
+void GenerateTileJob(MNM::CTileGenerator::Params params, volatile uint16* state, MNM::STile* tile, MNM::CTileGenerator::SMetaData* metaData, uint32* hashValue)
 {
 	if (*state != NavigationSystem::TileTaskResult::Failed)
 	{
 		MNM::CTileGenerator generator;
-		bool result = generator.Generate(params, *tile, hashValue);
+		bool result = generator.Generate(params, *tile, *metaData, hashValue);
 		if (result)
 			*state = NavigationSystem::TileTaskResult::Completed;
 		else if (((params.flags & MNM::CTileGenerator::Params::NoHashTest) == 0) && (*hashValue == params.hashValue))
@@ -105,6 +107,12 @@ bool ShouldBeConsideredByVoxelizer(IPhysicalEntity& physicalEntity, uint32& flag
 		return false;
 	}
 
+	if (IEntity* pEntity = static_cast<IEntity*>(physicalEntity.GetForeignData(PHYS_FOREIGN_ID_ENTITY)))
+	{
+		if(pEntity->GetFlagsExtended() & ENTITY_FLAG_EXTENDED_IGNORED_IN_NAVMESH_GENERATION)
+			return false;
+	}
+	
 	bool considerMass = (physicalEntity.GetType() == PE_RIGID);
 	if (!considerMass)
 	{
@@ -146,6 +154,8 @@ NavigationSystem::NavigationSystem(const char* configName)
 	, m_offMeshNavigationManager(256)
 	, m_islandConnectionsManager()
 	, m_volumes(512)
+	, m_markupVolumes(512)
+	, m_markupsData(512)
 	, m_worldAABB(AABB::RESET)
 	, m_volumeDefCopy(MaxVolumeDefCopyCount, VolumeDefCopy())
 	, m_listenersList(10)
@@ -264,13 +274,20 @@ bool NavigationSystem::GetAgentTypeProperties(const NavigationAgentTypeID agentT
 	return false;
 }
 
-inline size_t NearestFactor(size_t n, size_t f)
+MNM::AreaAnnotation NavigationSystem::GetAreaTypeAnnotation(const NavigationAreaTypeID areaTypeID) const
 {
-	while (n % f)
-		++f;
-
-	return f;
+	const MNM::SAreaType* pAreaType = areaTypeID.IsValid() ? m_annotationsLibrary.GetAreaType(areaTypeID) : nullptr;
+	if (!pAreaType)
+	{
+		pAreaType = &m_annotationsLibrary.GetDefaultAreaType();
+	}
+	
+	MNM::AreaAnnotation annotation;
+	annotation.SetType(pAreaType->id);
+	annotation.SetFlags(pAreaType->defaultFlags);
+	return annotation;
 }
+
 #ifdef SW_NAVMESH_USE_GUID
 NavigationMeshID NavigationSystem::CreateMesh(const char* name, NavigationAgentTypeID agentTypeID,
                                               const CreateMeshParams& params, NavigationMeshGUID guid)
@@ -300,6 +317,13 @@ NavigationMeshID NavigationSystem::CreateMesh(const char* name, NavigationAgentT
                                               const CreateMeshParams& params, NavigationMeshID requestedID)
 #endif
 {
+	auto NearestFactor = [](size_t n, size_t f)
+	{ 
+		while (n % f)
+			++f;
+		return f;
+	};
+	
 	assert(name && agentTypeID && agentTypeID <= m_agentTypes.size());
 
 	if (agentTypeID && (agentTypeID <= m_agentTypes.size()))
@@ -334,6 +358,7 @@ NavigationMeshID NavigationSystem::CreateMesh(const char* name, NavigationAgentT
 		mesh.navMesh.Init(paramsGrid);
 		mesh.name = name;
 		mesh.exclusions = agentType.exclusions;
+		mesh.markups = agentType.markups;
 
 #ifdef SW_NAVMESH_USE_GUID
 		agentType.meshes.push_back(AgentType::MeshInfo(guid, id, NameHash(name)));
@@ -424,8 +449,7 @@ void NavigationSystem::AddMeshChangeCallback(NavigationAgentTypeID agentTypeID,
 	if (agentTypeID && (agentTypeID <= m_agentTypes.size()))
 	{
 		AgentType& agentType = m_agentTypes[agentTypeID - 1];
-
-		stl::push_back_unique(agentType.callbacks, callback);
+		agentType.callbacks.AddUnique(callback);
 	}
 }
 
@@ -435,8 +459,25 @@ void NavigationSystem::RemoveMeshChangeCallback(NavigationAgentTypeID agentTypeI
 	if (agentTypeID && (agentTypeID <= m_agentTypes.size()))
 	{
 		AgentType& agentType = m_agentTypes[agentTypeID - 1];
+		agentType.callbacks.Remove(callback);
+	}
+}
 
-		stl::find_and_erase(agentType.callbacks, callback);
+void NavigationSystem::AddMeshAnnotationChangeCallback(NavigationAgentTypeID agentTypeID, const NavigationMeshChangeCallback& callback)
+{
+	if (agentTypeID && (agentTypeID <= m_agentTypes.size()))
+	{
+		AgentType& agentType = m_agentTypes[agentTypeID - 1];
+		agentType.annotationCallbacks.AddUnique(callback);
+	}
+}
+
+void NavigationSystem::RemoveMeshAnnotationChangeCallback(NavigationAgentTypeID agentTypeID, const NavigationMeshChangeCallback& callback)
+{
+	if (agentTypeID && (agentTypeID <= m_agentTypes.size()))
+	{
+		AgentType& agentType = m_agentTypes[agentTypeID - 1];
+		agentType.annotationCallbacks.Remove(callback);
 	}
 }
 
@@ -700,6 +741,186 @@ void NavigationSystem::SetExclusionVolume(const NavigationAgentTypeID* agentType
 	}
 }
 
+bool NavigationSystem::GrowMarkupsIfNeeded()
+{
+	if (!GrowIdMapIfNeeded(m_markupVolumes))
+	{
+		AIWarning("NavigationSystem::CreateMarkupVolume failed. Maximum number of markup volumes reached! %zu", MarkupVolumes::max_capacity());
+		return false;
+	}
+
+	if (m_markupVolumes.capacity() > m_markupsData.capacity())
+	{
+		// keep the same capacity for markups data
+		m_markupsData.grow(m_markupVolumes.capacity() - m_markupsData.capacity());
+	}
+	return true;
+}
+
+NavigationVolumeID NavigationSystem::CreateMarkupVolume(NavigationVolumeID requestedID)
+{
+	NavigationVolumeID id = requestedID;
+	if (requestedID == NavigationVolumeID(0))
+	{
+		if (GrowMarkupsIfNeeded())
+		{
+			id = NavigationVolumeID(m_markupVolumes.insert(MNM::SMarkupVolume()));
+		}
+		else
+		{
+			AIWarning("NavigationSystem::CreateMarkupVolume failed. Maximum number of markup volumes reached! %zu", MarkupVolumes::max_capacity());
+			id = NavigationVolumeID();
+		}
+	}
+	else
+	{
+		if (!m_markupVolumes.validate(requestedID))
+		{
+			if (GrowMarkupsIfNeeded())
+			{
+				m_markupVolumes.insert(requestedID, MNM::SMarkupVolume());
+			}
+			else
+			{
+				AIWarning("NavigationSystem::CreateMarkupVolume failed. Maximum number of markup volumes reached! %zu", MarkupVolumes::max_capacity());
+				id = NavigationVolumeID();
+			}
+		}
+	}
+	
+	CRY_ASSERT(id.IsValid());
+	return id;
+}
+
+void NavigationSystem::SetMarkupVolume(
+	const NavigationAgentTypesMask enabledAgentTypesMask,
+	const Vec3* vertices, size_t vertexCount, 
+	const NavigationVolumeID volumeID, const MNM::SMarkupVolumeParams& params)
+{
+	if (!volumeID || !m_markupVolumes.validate(volumeID))
+		return;
+
+	MNM::SMarkupVolume newVolume;
+	newVolume.Set(vertices, vertexCount, params.height);
+	newVolume.areaAnnotation = params.areaAnnotation;
+	newVolume.bStoreTriangles = params.bStoreTriangles;
+	newVolume.bExpandByAgentRadius = params.bExpandByAgentRadius;
+
+	MNM::SMarkupVolume& volume = m_markupVolumes[volumeID];
+
+	for (AgentType& agentType : m_agentTypes)
+	{
+		stl::find_and_erase(agentType.markups, volumeID);
+
+		for (const AgentType::MeshInfo& meshInfo : agentType.meshes)
+		{
+			const NavigationMeshID meshID = meshInfo.id;
+			NavigationMesh& mesh = m_meshes[meshID];
+
+			if (stl::find_and_erase(mesh.markups, volumeID))
+			{
+				m_updatesManager.RequestMeshUpdate(meshID, volume.aabb, false, true);
+				++mesh.version;
+			}
+		}
+	}
+
+	if (!newVolume.GetBoundaryVertices().empty())
+	{
+		size_t agentsCount = m_agentTypes.size();
+		for (size_t i = 0; i < agentsCount; ++i)
+		{
+			if (!(enabledAgentTypesMask & BIT(i)))
+				continue;
+
+			AgentType& agentType = m_agentTypes[i];
+			agentType.markups.push_back(volumeID);
+
+			for (const AgentType::MeshInfo& meshInfo : agentType.meshes)
+			{
+				const NavigationMeshID meshID = meshInfo.id;
+				NavigationMesh& mesh = m_meshes[meshID];
+
+				if (newVolume.Overlaps(m_volumes[mesh.boundary].aabb))
+				{
+					mesh.markups.push_back(volumeID);
+					++mesh.version;
+
+					m_updatesManager.RequestMeshUpdate(meshID, newVolume.aabb, false, true);
+				}
+			}
+		}
+	}
+	newVolume.Swap(volume);
+}
+
+void NavigationSystem::DestroyMarkupVolume(NavigationVolumeID volumeID)
+{
+	if (!volumeID || !m_markupVolumes.validate(volumeID))
+		return;
+	
+	MNM::SMarkupVolume& volume = m_markupVolumes[volumeID];
+
+	for (AgentType& agentType : m_agentTypes)
+	{
+		stl::find_and_erase(agentType.markups, volumeID);
+
+		AgentType::Meshes::const_iterator mit = agentType.meshes.begin();
+		AgentType::Meshes::const_iterator mend = agentType.meshes.end();
+
+		for (const AgentType::MeshInfo& meshInfo : agentType.meshes)
+		{
+			const NavigationMeshID meshID = meshInfo.id;
+			NavigationMesh& mesh = m_meshes[meshID];
+
+			if (stl::find_and_erase(mesh.markups, volumeID))
+			{
+				m_updatesManager.RequestMeshUpdate(meshID, volume.aabb);
+				++mesh.version;
+			}
+		}
+	}
+	if (m_markupsData.validate(volumeID))
+	{
+		m_markupsData.erase(volumeID);
+	}
+	m_markupVolumes.erase(volumeID);
+}
+
+void NavigationSystem::SetAnnotationForMarkupTriangles(NavigationVolumeID markupID, const MNM::AreaAnnotation& areaAnotation)
+{
+	if (!m_markupsData.validate(markupID))
+		return;
+
+	m_markupAnnotationChangesToApply[markupID] = areaAnotation;
+}
+
+void NavigationSystem::ApplyAnnotationChanges()
+{
+	for (const auto& markupAnnotationChange : m_markupAnnotationChangesToApply)
+	{
+		if (!m_markupsData.validate(markupAnnotationChange.first))
+			continue;
+
+		const MNM::AreaAnnotation areaAnnotation = markupAnnotationChange.second;
+		
+		for (MNM::SMarkupVolumeData::MeshTriangles& meshTriangles : m_markupsData[markupAnnotationChange.first].meshTriangles)
+		{
+			std::vector<MNM::TileID> affectedTiles;
+			NavigationMesh& mesh = m_meshes[meshTriangles.meshId];
+			mesh.navMesh.SetTrianglesAnnotation(meshTriangles.triangleIds.data(), meshTriangles.triangleIds.size(), areaAnnotation, affectedTiles);
+
+			AgentType& agentType = m_agentTypes[mesh.agentTypeID - 1];
+			for (MNM::TileID tileId : affectedTiles)
+			{
+				agentType.annotationCallbacks.CallSafe(mesh.agentTypeID, meshTriangles.meshId, tileId);
+			}
+		}
+	}
+
+	m_markupAnnotationChangesToApply.clear();
+}
+
 /*
    void NavigationSystem::AddMeshExclusionVolume(NavigationMeshID meshID, NavigationVolumeID volumeID)
    {
@@ -830,6 +1051,8 @@ void NavigationSystem::UpdateInternalNavigationSystemData(const bool blocking)
 		AIError("NavigationSystem - Editor background thread is still running, while the main thread is updating, skipping update");
 		return;
 	}
+
+	ApplyAnnotationChanges();
 
 	m_worldMonitor.FlushPendingAABBChanges();
 
@@ -1013,7 +1236,7 @@ void NavigationSystem::UpdateMeshes(const float frameTime, const bool blocking, 
 				TileTaskResult& result = m_results[m_free];
 				m_free = result.next;
 
-				if (!SpawnJob(result, task.meshID, paramsGrid, task.x, task.y, task.z, multiThreaded))
+				if (!SpawnJob(result, task.meshID, paramsGrid, task.x, task.y, task.z, multiThreaded, task.CheckFlag(CMNMUpdatesManager::TileUpdateRequest::EFlag::MarkupUpdate)))
 				{
 					result.state = TileTaskResult::Running;
 					result.next = m_free;
@@ -1043,7 +1266,7 @@ void NavigationSystem::UpdateMeshes(const float frameTime, const bool blocking, 
 					const MNM::CNavMesh::SGridParams& paramsGrid = mesh.navMesh.GetGridParams();
 
 					TileTaskResult result;
-					if (!SpawnJob(result, task.meshID, paramsGrid, task.x, task.y, task.z, false))
+					if (!SpawnJob(result, task.meshID, paramsGrid, task.x, task.y, task.z, false, task.CheckFlag(CMNMUpdatesManager::TileUpdateRequest::EFlag::MarkupUpdate)))
 						break;
 
 					CommitTile(result);
@@ -1064,23 +1287,36 @@ void NavigationSystem::UpdateMeshes(const float frameTime, const bool blocking, 
 
 }
 
-void NavigationSystem::SetupGenerator(NavigationMeshID meshID, const MNM::CNavMesh::SGridParams& paramsGrid,
-                                      uint16 x, uint16 y, uint16 z, MNM::CTileGenerator::Params& params,
-                                      const MNM::BoundingVolume* boundary, const MNM::BoundingVolume* exclusions,
-                                      size_t exclusionCount)
+void NavigationSystem::SetupGenerator(
+	NavigationMeshID meshID, const MNM::CNavMesh::SGridParams& paramsGrid,
+	uint16 x, uint16 y, uint16 z, MNM::CTileGenerator::Params& params,
+	const VolumeDefCopy& defCopy, bool bMarkupUpdate)
 {
 	const NavigationMesh& mesh = m_meshes[meshID];
+	const AgentType& agentType = m_agentTypes[mesh.agentTypeID - 1];
 
 	params.origin = paramsGrid.origin + Vec3i(x * paramsGrid.tileSize.x, y * paramsGrid.tileSize.y, z * paramsGrid.tileSize.z);
 	params.voxelSize = paramsGrid.voxelSize;
 	params.sizeX = paramsGrid.tileSize.x;
 	params.sizeY = paramsGrid.tileSize.y;
 	params.sizeZ = paramsGrid.tileSize.z;
-	params.boundary = boundary;
-	params.exclusions = exclusions;
-	params.exclusionCount = static_cast<uint16>(exclusionCount);
+	params.boundary = &defCopy.boundary;
+	params.exclusions = defCopy.exclusions.data();
+	params.exclusionCount = static_cast<uint16>(defCopy.exclusions.size());
 
-	const AgentType& agentType = m_agentTypes[mesh.agentTypeID - 1];
+	const MNM::SAreaType& defaultAreaType = m_annotationsLibrary.GetDefaultAreaType();
+	params.defaultAreaAnotation.SetType(defaultAreaType.id);
+	params.defaultAreaAnotation.SetFlags(defaultAreaType.defaultFlags);
+
+	CRY_ASSERT(defCopy.markups.size() == defCopy.markupIds.size());
+	params.markups = defCopy.markups.data();
+	params.markupIds = defCopy.markupIds.data();
+	params.markupsCount = static_cast<uint16>(defCopy.markups.size());
+
+	if (bMarkupUpdate)
+	{
+		params.flags |= MNM::CTileGenerator::Params::NoHashTest;
+	}
 
 	params.agent = agentType.settings.agent;
 	params.callback = agentType.meshEntityCallback;
@@ -1095,7 +1331,7 @@ void NavigationSystem::SetupGenerator(NavigationMeshID meshID, const MNM::CNavMe
 }
 
 bool NavigationSystem::SpawnJob(TileTaskResult& result, NavigationMeshID meshID, const MNM::CNavMesh::SGridParams& paramsGrid,
-                                uint16 x, uint16 y, uint16 z, bool mt)
+                                uint16 x, uint16 y, uint16 z, bool bMt, bool bMarkupUpdate)
 {
 	result.x = x;
 	result.y = y;
@@ -1163,27 +1399,36 @@ bool NavigationSystem::SpawnJob(TileTaskResult& result, NavigationMeshID meshID,
 				CryLogAlways("NavigationSystem::SpawnJob(): Detected non-valid exclusion volume (%d) for mesh '%s', skipping", (uint32)exclusionVolumeID, mesh.name.c_str());
 			}
 		}
+
+		def->markups.clear();
+		def->markupIds.clear();
+		def->markups.reserve(mesh.markups.size());
+		def->markupIds.reserve(mesh.markups.size());
+		for (const NavigationVolumeID& markupVolumeId : mesh.markups)
+		{
+			CRY_ASSERT(m_markupVolumes.validate(markupVolumeId));
+
+			def->markupIds.push_back(markupVolumeId);
+			def->markups.push_back(m_markupVolumes[markupVolumeId]);
+		}
 	}
 
 	result.volumeCopy = static_cast<uint16>(index);
 
 	++def->refCount;
 
-	MNM::CTileGenerator::Params params;
-
-	SetupGenerator(meshID, paramsGrid, x, y, z, params, &def->boundary,
-	               def->exclusions.empty() ? nullptr : &def->exclusions[0], def->exclusions.size());
-
-	if (mt)
+	MNM::CTileGenerator::Params params;	
+	SetupGenerator(meshID, paramsGrid, x, y, z, params, *def, bMarkupUpdate);
+	if (bMt)
 	{
-		NavigationGenerationJob job(params, &result.state, &result.tile, &result.hashValue);
+		NavigationGenerationJob job(params, &result.state, &result.tile, &result.metaData, &result.hashValue);
 		job.RegisterJobState(&result.jobState);
 		job.SetPriorityLevel(JobManager::eStreamPriority);
 		job.Run();
 	}
 	else
 	{
-		GenerateTileJob(params, &result.state, &result.tile, &result.hashValue);
+		GenerateTileJob(params, &result.state, &result.tile, &result.metaData, &result.hashValue);
 	}
 
 	if (gAIEnv.CVars.DebugDrawNavigation)
@@ -1199,6 +1444,83 @@ bool NavigationSystem::SpawnJob(TileTaskResult& result, NavigationMeshID meshID,
 	}
 
 	return true;
+}
+
+void NavigationSystem::CommitMarkupData(const TileTaskResult& result, const MNM::TileID tileId)
+{
+	CRY_ASSERT(m_markupsData.capacity() == m_markupVolumes.capacity());
+	
+	const VolumeDefCopy& def = m_volumeDefCopy[result.volumeCopy];
+	const NavigationMesh& mesh = m_meshes[result.meshID];
+
+	MNM::SMarkupVolumeData::MeshTriangles* pMeshMarkupTriangles = nullptr;
+	
+	// Remove old triangle ids for the tile first
+	for (NavigationVolumeID markupID : def.markupIds)
+	{
+		if (m_markupsData.validate(markupID))
+		{
+			// Markup volume should be valid too at this point
+			CRY_ASSERT(m_markupVolumes.validate(markupID));
+
+			MNM::SMarkupVolumeData& markupData = m_markupsData[markupID];
+
+			for (MNM::SMarkupVolumeData::MeshTriangles& meshMarkupTriangles : markupData.meshTriangles)
+			{
+				if (meshMarkupTriangles.meshId == result.meshID)
+				{
+					auto endIt = meshMarkupTriangles.triangleIds.end();
+					for (auto it = meshMarkupTriangles.triangleIds.begin(); it != endIt;)
+					{
+						if (MNM::ComputeTileID(*it) == tileId)
+						{
+							endIt = endIt - 1;
+							std::iter_swap(it, endIt);
+							continue;
+						}
+						++it;
+					}
+					if (endIt != meshMarkupTriangles.triangleIds.end())
+					{
+						meshMarkupTriangles.triangleIds.erase(endIt, meshMarkupTriangles.triangleIds.end());
+					}
+					break;
+				}
+			}
+		}
+	}
+
+	for (const MNM::CTileGenerator::SMetaData::SMarkupTriangles& markupTriangles : result.metaData.markupTriangles)
+	{
+		NavigationVolumeID markupID = def.markupIds[markupTriangles.markupIdx];
+
+		if (!m_markupsData.validate(markupID))
+		{
+			m_markupsData.insert(markupID, MNM::SMarkupVolumeData());
+		}
+
+		MNM::SMarkupVolumeData::MeshTriangles* pMeshMarkupTriangles = nullptr;
+		MNM::SMarkupVolumeData& markupData = m_markupsData[markupID];
+		for (MNM::SMarkupVolumeData::MeshTriangles& meshMarkupTriangles : markupData.meshTriangles)
+		{
+			if (meshMarkupTriangles.meshId == result.meshID)
+			{
+				pMeshMarkupTriangles = &meshMarkupTriangles;
+				break;
+			}
+		}
+		if(!pMeshMarkupTriangles)
+		{
+			markupData.meshTriangles.emplace_back(MNM::SMarkupVolumeData::MeshTriangles(result.meshID));
+			pMeshMarkupTriangles = &markupData.meshTriangles.back();
+		}
+
+		// Add new triangle ids
+		for (uint16 triangleIdx : markupTriangles.trianglesIdx)
+		{
+			pMeshMarkupTriangles->triangleIds.push_back(MNM::ComputeTriangleID(tileId, triangleIdx));
+		}
+	}
 }
 
 void NavigationSystem::CommitTile(TileTaskResult& result)
@@ -1221,18 +1543,13 @@ void NavigationSystem::CommitTile(TileTaskResult& result)
 			MNM::TileID tileID = mesh.navMesh.SetTile(result.x, result.y, result.z, result.tile);
 			mesh.navMesh.ConnectToNetwork(tileID);
 
+			CommitMarkupData(result, tileID);
+
 			m_offMeshNavigationManager.RefreshConnections(result.meshID, tileID);
 			gAIEnv.pMNMPathfinder->OnNavigationMeshChanged(result.meshID, tileID);
 
-			const AgentType& agentType = m_agentTypes[mesh.agentTypeID - 1];
-			AgentType::Callbacks::const_iterator cit = agentType.callbacks.begin();
-			AgentType::Callbacks::const_iterator cend = agentType.callbacks.end();
-
-			for (; cit != cend; ++cit)
-			{
-				const NavigationMeshChangeCallback& callback = *cit;
-				callback(mesh.agentTypeID, result.meshID, tileID);
-			}
+			AgentType& agentType = m_agentTypes[mesh.agentTypeID - 1];
+			agentType.callbacks.CallSafe(mesh.agentTypeID, result.meshID, tileID);
 		}
 		break;
 	case TileTaskResult::Failed:
@@ -1246,15 +1563,8 @@ void NavigationSystem::CommitTile(TileTaskResult& result)
 				m_offMeshNavigationManager.RefreshConnections(result.meshID, tileID);
 				gAIEnv.pMNMPathfinder->OnNavigationMeshChanged(result.meshID, tileID);
 
-				const AgentType& agentType = m_agentTypes[mesh.agentTypeID - 1];
-				AgentType::Callbacks::const_iterator cit = agentType.callbacks.begin();
-				AgentType::Callbacks::const_iterator cend = agentType.callbacks.end();
-
-				for (; cit != cend; ++cit)
-				{
-					const NavigationMeshChangeCallback& callback = *cit;
-					callback(mesh.agentTypeID, result.meshID, tileID);
-				}
+				AgentType& agentType = m_agentTypes[mesh.agentTypeID - 1];
+				agentType.callbacks.CallSafe(mesh.agentTypeID, result.meshID, tileID);
 			}
 		}
 		break;
@@ -1619,7 +1929,7 @@ void NavigationSystem::ComputeAccessibility(const Vec3& debugLocation, Navigatio
 		const uint16 zOffsetMultiplier = min(minZOffsetMultiplier, (uint16)agentTypeProperties.settings.agent.height);
 		const MNM::real_t verticalUpwardRange = arePropertiesValid ? MNM::real_t(zOffsetMultiplier * agentTypeProperties.settings.voxelSize.z) : MNM::real_t(.2f);
 
-		MNM::TriangleID seedTriangleID = mesh.navMesh.GetTriangleAt(seedLocation - origin, verticalDownwardRange, verticalUpwardRange);
+		MNM::TriangleID seedTriangleID = mesh.navMesh.GetTriangleAt(seedLocation - origin, verticalDownwardRange, verticalUpwardRange, nullptr);
 
 		if (seedTriangleID)
 		{
@@ -1684,10 +1994,12 @@ bool NavigationSystem::IsInUse() const
 
 MNM::TileID NavigationSystem::GetTileIdWhereLocationIsAtForMesh(NavigationMeshID meshID, const Vec3& location)
 {
+	//TODO: Use filter?
+
 	NavigationMesh& mesh = GetMesh(meshID);
 
 	const MNM::real_t range = MNM::real_t(1.0f);
-	MNM::TriangleID triangleID = mesh.navMesh.GetTriangleAt(location, range, range);
+	MNM::TriangleID triangleID = mesh.navMesh.GetTriangleAt(location, range, range, nullptr);
 
 	return MNM::ComputeTileID(triangleID);
 }
@@ -1760,12 +2072,14 @@ bool NavigationSystem::IsLocationInMesh(NavigationMeshID meshID, const Vec3& loc
 MNM::TriangleID NavigationSystem::GetClosestMeshLocation(NavigationMeshID meshID, const Vec3& location, float vrange,
                                                          float hrange, Vec3* meshLocation, float* distance) const
 {
+	//TODO: Use filter?
+	
 	if (meshID && m_meshes.validate(meshID))
 	{
 		MNM::vector3_t loc(MNM::real_t(location.x), MNM::real_t(location.y), MNM::real_t(location.z));
 		const NavigationMesh& mesh = m_meshes[meshID];
 		MNM::real_t verticalRange(vrange);
-		if (const MNM::TriangleID enclosingTriID = mesh.navMesh.GetTriangleAt(loc, verticalRange, verticalRange))
+		if (const MNM::TriangleID enclosingTriID = mesh.navMesh.GetTriangleAt(loc, verticalRange, verticalRange, nullptr))
 		{
 			if (meshLocation)
 				*meshLocation = location;
@@ -1780,7 +2094,7 @@ MNM::TriangleID NavigationSystem::GetClosestMeshLocation(NavigationMeshID meshID
 			MNM::real_t distanceFixed;
 			MNM::vector3_t closest;
 
-			if (const MNM::TriangleID closestTriID = mesh.navMesh.GetClosestTriangle(loc, MNM::real_t(vrange), MNM::real_t(hrange), &distanceFixed, &closest))
+			if (const MNM::TriangleID closestTriID = mesh.navMesh.GetClosestTriangle(loc, MNM::real_t(vrange), MNM::real_t(hrange), nullptr, &distanceFixed, &closest))
 			{
 				if (meshLocation)
 					*meshLocation = closest.GetVec3();
@@ -1794,41 +2108,6 @@ MNM::TriangleID NavigationSystem::GetClosestMeshLocation(NavigationMeshID meshID
 	}
 
 	return MNM::TriangleID(0);
-}
-
-bool NavigationSystem::GetGroundLocationInMesh(NavigationMeshID meshID, const Vec3& location,
-                                               float vDownwardRange, float hRange, Vec3* meshLocation) const
-{
-	if (meshID && m_meshes.validate(meshID))
-	{
-		MNM::vector3_t loc(MNM::real_t(location.x), MNM::real_t(location.y), MNM::real_t(location.z));
-		const NavigationMesh& mesh = m_meshes[meshID];
-		MNM::real_t verticalRange(vDownwardRange);
-		if (const MNM::TriangleID enclosingTriID = mesh.navMesh.GetTriangleAt(loc, verticalRange, MNM::real_t(0.05f)))
-		{
-			MNM::vector3_t v0, v1, v2;
-			mesh.navMesh.GetVertices(enclosingTriID, v0, v1, v2);
-			MNM::vector3_t closest = ClosestPtPointTriangle(loc, v0, v1, v2);
-			if (meshLocation)
-				*meshLocation = closest.GetVec3();
-
-			return true;
-		}
-		else
-		{
-			MNM::vector3_t closest;
-
-			if (const MNM::TriangleID closestTriID = mesh.navMesh.GetClosestTriangle(loc, verticalRange, MNM::real_t(hRange), nullptr, &closest))
-			{
-				if (meshLocation)
-					*meshLocation = closest.GetVec3();
-
-				return true;
-			}
-		}
-	}
-
-	return false;
 }
 
 bool NavigationSystem::AgentTypeSupportSmartObjectUserClass(NavigationAgentTypeID agentTypeID, const char* smartObjectUserClass) const
@@ -1885,6 +2164,7 @@ void NavigationSystem::Clear()
 		AgentType& agentType = *it;
 		agentType.meshes.clear();
 		agentType.exclusions.clear();
+		agentType.markups.clear();
 	}
 
 	for (uint16 i = 0; i < m_meshes.capacity(); ++i)
@@ -1898,6 +2178,13 @@ void NavigationSystem::Clear()
 		if (!m_volumes.index_free(i))
 			DestroyVolume(NavigationVolumeID(m_volumes.get_index_id(i)));
 	}
+
+	for (uint16 i = 0; i < m_markupVolumes.capacity(); ++i)
+	{
+		if (!m_markupVolumes.index_free(i))
+			DestroyMarkupVolume(NavigationVolumeID(m_markupVolumes.get_index_id(i)));
+	}
+	m_markupsData.clear();
 
 	m_volumesManager.Clear();
 
@@ -1950,6 +2237,7 @@ bool NavigationSystem::ReloadConfig()
 
 	Clear();
 
+	m_annotationsLibrary.Clear();
 	m_agentTypes.clear();
 
 	XmlNodeRef rootNode = GetISystem()->LoadXmlFromFile(m_configName.c_str());
@@ -1961,202 +2249,267 @@ bool NavigationSystem::ReloadConfig()
 	}
 
 	const char* tagName = rootNode->getTag();
-
-	if (!stricmp(tagName, "Navigation"))
+	if (stricmp(tagName, "Navigation"))
 	{
-		rootNode->getAttr("version", m_configurationVersion);
+		AIWarning(
+			"Unexpected tag '%s' found at line %d while parsing Navigation XML '%s'...",
+			rootNode->getTag(), rootNode->getLine(), m_configName.c_str());
+		return false;
+	}
 
-		size_t childCount = rootNode->getChildCount();
+	rootNode->getAttr("version", m_configurationVersion);
 
-		for (size_t i = 0; i < childCount; ++i)
+	//Area Flags
+	if (XmlNodeRef childNode = rootNode->findChild("AreaFlags"))
+	{
+		size_t areaFlagsCount = childNode->getChildCount();
+		for (size_t at = 0; at < areaFlagsCount; ++at)
 		{
-			XmlNodeRef childNode = rootNode->getChild(i);
-
-			if (!stricmp(childNode->getTag(), "AgentTypes"))
+			XmlNodeRef areaFlagNode = childNode->getChild(at);
+			uint32 id = 0;
+			const char* szFlagName = nullptr;
+			if (!areaFlagNode->getAttr("name", &szFlagName))
 			{
-				size_t agentTypeCount = childNode->getChildCount();
+				AIWarning("Missing 'name' attribute for 'Flag' tag at line %d while parsing NavigationXML '%s'...",
+					areaFlagNode->getLine(), m_configName.c_str());
+				return false;
+			}
 
-				for (size_t at = 0; at < agentTypeCount; ++at)
+			if (!areaFlagNode->getAttr("id", id))
+			{
+				AIWarning("Missing 'id' attribute for 'Flag' tag at line %d while parsing NavigationXML '%s'...",
+					areaFlagNode->getLine(), m_configName.c_str());
+				return false;
+			}
+			m_annotationsLibrary.CreateAreaFlag(id, szFlagName);
+		}
+	}
+
+	// Custom types from from the config
+	if (XmlNodeRef childNode = rootNode->findChild("AreaTypes"))
+	{
+		ColorB color;
+		if (childNode->getAttr("defaultColor", color))
+		{
+			m_annotationsLibrary.SetDefaultAreaColor(color);
+		}
+		
+		size_t areaTypeCount = childNode->getChildCount();
+		for (size_t at = 0; at < areaTypeCount; ++at)
+		{
+			XmlNodeRef areaTypeNode = childNode->getChild(at);
+
+			const char* szAreaName = nullptr;
+			if (!areaTypeNode->getAttr("name", &szAreaName))
+			{
+				AIWarning("Missing 'name' attribute for 'AreaType' tag at line %d while parsing NavigationXML '%s'...",
+					areaTypeNode->getLine(), m_configName.c_str());
+				return false;
+			}
+
+			uint32 id = 0;
+			if (!areaTypeNode->getAttr("id", id))
+			{
+				AIWarning("Missing 'id' attribute for 'AreaType' tag at line %d while parsing NavigationXML '%s'...",
+					areaTypeNode->getLine(), m_configName.c_str());
+				return false;
+			}
+
+			bool bHasColor = areaTypeNode->getAttr("color", color);
+
+			uint32 areaFlags = 0;
+			for (size_t childIdx = 0; childIdx < (size_t)areaTypeNode->getChildCount(); ++childIdx)
+			{
+				XmlNodeRef agentTypeChildNode = areaTypeNode->getChild(childIdx);
+
+				if (!stricmp(agentTypeChildNode->getTag(), "Flag"))
 				{
-					XmlNodeRef agentTypeNode = childNode->getChild(at);
+					const char* szFlagName = agentTypeChildNode->getContent();
 
-					if (!agentTypeNode->haveAttr("name"))
+					NavigationAreaFlagID flagId = m_annotationsLibrary.GetAreaFlagID(szFlagName);
+					if (flagId.IsValid())
 					{
-						AIWarning("Missing 'name' attribute for 'AgentType' tag at line %d while parsing NavigationXML '%s'...",
-						          agentTypeNode->getLine(), m_configName.c_str());
-
-						return false;
+						const MNM::SAreaFlag* pFlag = m_annotationsLibrary.GetAreaFlag(flagId);
+						areaFlags |= pFlag->value;
 					}
-
-					const char* name = 0;
-					INavigationSystem::CreateAgentTypeParams params;
-
-					for (size_t attr = 0; attr < (size_t)agentTypeNode->getNumAttributes(); ++attr)
+					else
 					{
-						const char* attrName = 0;
-						const char* attrValue = 0;
-
-						if (!agentTypeNode->getAttributeByIndex(attr, &attrName, &attrValue))
-							continue;
-
-						bool valid = false;
-						if (!stricmp(attrName, "name"))
-						{
-							if (attrValue && *attrValue)
-							{
-								valid = true;
-								name = attrValue;
-							}
-						}
-						else if (!stricmp(attrName, "radius"))
-						{
-							int sradius = 0;
-							if (sscanf(attrValue, "%d", &sradius) == 1 && sradius > 0)
-							{
-								valid = true;
-								params.radiusVoxelCount = sradius;
-							}
-						}
-						else if (!stricmp(attrName, "height"))
-						{
-							int sheight = 0;
-							if (sscanf(attrValue, "%d", &sheight) == 1 && sheight > 0)
-							{
-								valid = true;
-								params.heightVoxelCount = sheight;
-							}
-						}
-						else if (!stricmp(attrName, "climbableHeight"))
-						{
-							int sclimbableheight = 0;
-							if (sscanf(attrValue, "%d", &sclimbableheight) == 1 && sclimbableheight >= 0)
-							{
-								valid = true;
-								params.climbableVoxelCount = sclimbableheight;
-							}
-						}
-						else if (!stricmp(attrName, "climbableInclineGradient"))
-						{
-							float sclimbableinclinegradient = 0.f;
-							if (sscanf(attrValue, "%f", &sclimbableinclinegradient) == 1)
-							{
-								valid = true;
-								params.climbableInclineGradient = sclimbableinclinegradient;
-							}
-						}
-						else if (!stricmp(attrName, "climbableStepRatio"))
-						{
-							float sclimbablestepratio = 0.f;
-							if (sscanf(attrValue, "%f", &sclimbablestepratio) == 1)
-							{
-								valid = true;
-								params.climbableStepRatio = sclimbablestepratio;
-							}
-						}
-						else if (!stricmp(attrName, "maxWaterDepth"))
-						{
-							int smaxwaterdepth = 0;
-							if (sscanf(attrValue, "%d", &smaxwaterdepth) == 1 && smaxwaterdepth >= 0)
-							{
-								valid = true;
-								params.maxWaterDepthVoxelCount = smaxwaterdepth;
-							}
-						}
-						else if (!stricmp(attrName, "voxelSize"))
-						{
-							float x, y, z;
-							int c = sscanf(attrValue, "%g,%g,%g", &x, &y, &z);
-
-							valid = (c == 1) || (c == 3);
-							if (c == 1)
-								params.voxelSize = Vec3(x);
-							else if (c == 3)
-								params.voxelSize = Vec3(x, y, z);
-						}
-						else
-						{
-							AIWarning(
-							  "Unknown attribute '%s' for '%s' tag found at line %d while parsing Navigation XML '%s'...",
-							  attrName, agentTypeNode->getTag(), agentTypeNode->getLine(), m_configName.c_str());
-
-							return false;
-						}
-
-						if (!valid)
-						{
-							AIWarning("Invalid '%s' attribute value for '%s' tag at line %d while parsing NavigationXML '%s'...",
-							          attrName, agentTypeNode->getTag(), agentTypeNode->getLine(), m_configName.c_str());
-
-							return false;
-						}
+						AIWarning("Undefined flag '%s' for area type '%s' tag at line %d while parsing NavigationXML '%s'...",
+							szFlagName, szAreaName, agentTypeChildNode->getLine(), m_configName.c_str());
 					}
+				}
+			}
+			m_annotationsLibrary.CreateAreaType(id, szAreaName, areaFlags, bHasColor ? &color : nullptr);
+		}
+	}
 
-					for (size_t childIdx = 0; childIdx < m_agentTypes.size(); ++childIdx)
+	//Agent Types
+	if (XmlNodeRef childNode = rootNode->findChild("AgentTypes"))
+	{
+		size_t agentTypeCount = childNode->getChildCount();
+
+		for (size_t at = 0; at < agentTypeCount; ++at)
+		{
+			XmlNodeRef agentTypeNode = childNode->getChild(at);
+
+			if (!agentTypeNode->haveAttr("name"))
+			{
+				AIWarning("Missing 'name' attribute for 'AgentType' tag at line %d while parsing NavigationXML '%s'...",
+					agentTypeNode->getLine(), m_configName.c_str());
+
+				return false;
+			}
+
+			const char* name = 0;
+			INavigationSystem::CreateAgentTypeParams params;
+
+			for (size_t attr = 0; attr < (size_t)agentTypeNode->getNumAttributes(); ++attr)
+			{
+				const char* attrName = 0;
+				const char* attrValue = 0;
+
+				if (!agentTypeNode->getAttributeByIndex(attr, &attrName, &attrValue))
+					continue;
+
+				bool valid = false;
+				if (!stricmp(attrName, "name"))
+				{
+					if (attrValue && *attrValue)
 					{
-						const AgentType& agentType = m_agentTypes[childIdx];
-
-						assert(name);
-
-						if (!stricmp(agentType.name.c_str(), name))
-						{
-							AIWarning("AgentType '%s' redefinition at line %d while parsing NavigationXML '%s'...",
-							          name, agentTypeNode->getLine(), m_configName.c_str());
-
-							return false;
-						}
+						valid = true;
+						name = attrValue;
 					}
-
-					NavigationAgentTypeID agentTypeID = CreateAgentType(name, params);
-					if (!agentTypeID)
-						return false;
-
-					//////////////////////////////////////////////////////////////////////////
-					/// Add supported SO classes for this AgentType/Mesh
-
-					for (size_t childIdx = 0; childIdx < (size_t)agentTypeNode->getChildCount(); ++childIdx)
+				}
+				else if (!stricmp(attrName, "radius"))
+				{
+					int sradius = 0;
+					if (sscanf(attrValue, "%d", &sradius) == 1 && sradius > 0)
 					{
-						XmlNodeRef agentTypeChildNode = agentTypeNode->getChild(childIdx);
+						valid = true;
+						params.radiusVoxelCount = sradius;
+					}
+				}
+				else if (!stricmp(attrName, "height"))
+				{
+					int sheight = 0;
+					if (sscanf(attrValue, "%d", &sheight) == 1 && sheight > 0)
+					{
+						valid = true;
+						params.heightVoxelCount = sheight;
+					}
+				}
+				else if (!stricmp(attrName, "climbableHeight"))
+				{
+					int sclimbableheight = 0;
+					if (sscanf(attrValue, "%d", &sclimbableheight) == 1 && sclimbableheight >= 0)
+					{
+						valid = true;
+						params.climbableVoxelCount = sclimbableheight;
+					}
+				}
+				else if (!stricmp(attrName, "climbableInclineGradient"))
+				{
+					float sclimbableinclinegradient = 0.f;
+					if (sscanf(attrValue, "%f", &sclimbableinclinegradient) == 1)
+					{
+						valid = true;
+						params.climbableInclineGradient = sclimbableinclinegradient;
+					}
+				}
+				else if (!stricmp(attrName, "climbableStepRatio"))
+				{
+					float sclimbablestepratio = 0.f;
+					if (sscanf(attrValue, "%f", &sclimbablestepratio) == 1)
+					{
+						valid = true;
+						params.climbableStepRatio = sclimbablestepratio;
+					}
+				}
+				else if (!stricmp(attrName, "maxWaterDepth"))
+				{
+					int smaxwaterdepth = 0;
+					if (sscanf(attrValue, "%d", &smaxwaterdepth) == 1 && smaxwaterdepth >= 0)
+					{
+						valid = true;
+						params.maxWaterDepthVoxelCount = smaxwaterdepth;
+					}
+				}
+				else if (!stricmp(attrName, "voxelSize"))
+				{
+					float x, y, z;
+					int c = sscanf(attrValue, "%g,%g,%g", &x, &y, &z);
 
-						if (!stricmp(agentTypeChildNode->getTag(), "SmartObjectUserClasses"))
+					valid = (c == 1) || (c == 3);
+					if (c == 1)
+						params.voxelSize = Vec3(x);
+					else if (c == 3)
+						params.voxelSize = Vec3(x, y, z);
+				}
+				else
+				{
+					AIWarning(
+						"Unknown attribute '%s' for '%s' tag found at line %d while parsing Navigation XML '%s'...",
+						attrName, agentTypeNode->getTag(), agentTypeNode->getLine(), m_configName.c_str());
+
+					return false;
+				}
+
+				if (!valid)
+				{
+					AIWarning("Invalid '%s' attribute value for '%s' tag at line %d while parsing NavigationXML '%s'...",
+						attrName, agentTypeNode->getTag(), agentTypeNode->getLine(), m_configName.c_str());
+
+					return false;
+				}
+			}
+
+			for (size_t childIdx = 0; childIdx < m_agentTypes.size(); ++childIdx)
+			{
+				const AgentType& agentType = m_agentTypes[childIdx];
+
+				assert(name);
+
+				if (!stricmp(agentType.name.c_str(), name))
+				{
+					AIWarning("AgentType '%s' redefinition at line %d while parsing NavigationXML '%s'...",
+						name, agentTypeNode->getLine(), m_configName.c_str());
+
+					return false;
+				}
+			}
+
+			NavigationAgentTypeID agentTypeID = CreateAgentType(name, params);
+			if (!agentTypeID)
+				return false;
+
+			//////////////////////////////////////////////////////////////////////////
+			/// Add supported SO classes for this AgentType/Mesh
+
+			for (size_t childIdx = 0; childIdx < (size_t)agentTypeNode->getChildCount(); ++childIdx)
+			{
+				XmlNodeRef agentTypeChildNode = agentTypeNode->getChild(childIdx);
+
+				if (!stricmp(agentTypeChildNode->getTag(), "SmartObjectUserClasses"))
+				{
+					AgentType& agentType = m_agentTypes[agentTypeID - 1];
+
+					size_t soClassesCount = agentTypeChildNode->getChildCount();
+					agentType.smartObjectUserClasses.reserve(soClassesCount);
+
+					for (size_t socIdx = 0; socIdx < soClassesCount; ++socIdx)
+					{
+						XmlNodeRef smartObjectClassNode = agentTypeChildNode->getChild(socIdx);
+
+						if (!stricmp(smartObjectClassNode->getTag(), "class") && smartObjectClassNode->haveAttr("name"))
 						{
-							AgentType& agentType = m_agentTypes[agentTypeID - 1];
-
-							size_t soClassesCount = agentTypeChildNode->getChildCount();
-							agentType.smartObjectUserClasses.reserve(soClassesCount);
-
-							for (size_t socIdx = 0; socIdx < soClassesCount; ++socIdx)
-							{
-								XmlNodeRef smartObjectClassNode = agentTypeChildNode->getChild(socIdx);
-
-								if (!stricmp(smartObjectClassNode->getTag(), "class") && smartObjectClassNode->haveAttr("name"))
-								{
-									stl::push_back_unique(agentType.smartObjectUserClasses, smartObjectClassNode->getAttr("name"));
-								}
-							}
+							stl::push_back_unique(agentType.smartObjectUserClasses, smartObjectClassNode->getAttr("name"));
 						}
 					}
 				}
 			}
-			else
-			{
-				AIWarning(
-				  "Unexpected tag '%s' found at line %d while parsing Navigation XML '%s'...",
-				  childNode->getTag(), childNode->getLine(), m_configName.c_str());
-
-				return false;
-			}
 		}
-
-		return true;
 	}
-	else
-	{
-		AIWarning(
-		  "Unexpected tag '%s' found at line %d while parsing Navigation XML '%s'...",
-		  rootNode->getTag(), rootNode->getLine(), m_configName.c_str());
-	}
-
-	return false;
+	return true;
 }
 
 void NavigationSystem::ComputeWorldAABB()
@@ -2287,6 +2640,8 @@ void NavigationSystem::StopWorldMonitoring()
 
 bool NavigationSystem::GetClosestPointInNavigationMesh(const NavigationAgentTypeID agentID, const Vec3& location, float vrange, float hrange, Vec3* meshLocation, float minIslandArea) const
 {
+	//TODO: use filter
+	
 	const NavigationMeshID meshID = GetEnclosingMeshID(agentID, location);
 	if (meshID && m_meshes.validate(meshID))
 	{
@@ -2295,7 +2650,7 @@ bool NavigationSystem::GetClosestPointInNavigationMesh(const NavigationAgentType
 		MNM::real_t verticalRange(vrange);
 
 		//first check vertical range, because if we are over navmesh, we want that one
-		if (const MNM::TriangleID enclosingTriID = mesh.navMesh.GetTriangleAt(loc, verticalRange, verticalRange, minIslandArea))
+		if (const MNM::TriangleID enclosingTriID = mesh.navMesh.GetTriangleAt(loc, verticalRange, verticalRange, nullptr, minIslandArea))
 		{
 			MNM::vector3_t v0, v1, v2;
 			mesh.navMesh.GetVertices(enclosingTriID, v0, v1, v2);
@@ -2312,7 +2667,7 @@ bool NavigationSystem::GetClosestPointInNavigationMesh(const NavigationAgentType
 		{
 			MNM::vector3_t closest;
 
-			if (const MNM::TriangleID closestTriID = mesh.navMesh.GetClosestTriangle(loc, MNM::real_t(vrange), MNM::real_t(hrange), nullptr, &closest, minIslandArea))
+			if (const MNM::TriangleID closestTriID = mesh.navMesh.GetClosestTriangle(loc, MNM::real_t(vrange), MNM::real_t(hrange), nullptr, nullptr, &closest, minIslandArea))
 			{
 				if (meshLocation)
 				{
@@ -2325,22 +2680,6 @@ bool NavigationSystem::GetClosestPointInNavigationMesh(const NavigationAgentType
 	}
 
 	return false;
-}
-
-bool NavigationSystem::IsLocationValidInNavigationMesh(const NavigationAgentTypeID agentID, const Vec3& location) const
-{
-	const NavigationMeshID meshID = GetEnclosingMeshID(agentID, location);
-	bool isValid = false;
-	const float horizontalRange = 1.0f;
-	const float verticalRange = 1.0f;
-	if (meshID)
-	{
-		Vec3 locationInMesh(ZERO);
-		float accuracy = .0f;
-		const MNM::TriangleID triangleID = GetClosestMeshLocation(meshID, location, verticalRange, horizontalRange, &locationInMesh, &accuracy);
-		isValid = (triangleID && accuracy == .0f);
-	}
-	return isValid;
 }
 
 bool NavigationSystem::IsPointReachableFromPosition(const NavigationAgentTypeID agentID, const IEntity* pEntityToTestOffGridLinks, const Vec3& startLocation, const Vec3& endLocation) const
@@ -2401,15 +2740,17 @@ MNM::GlobalIslandID NavigationSystem::GetGlobalIslandIdAtPosition(const Navigati
 	return startingIslandID;
 }
 
-bool NavigationSystem::IsLocationContainedWithinTriangleInNavigationMesh(const NavigationAgentTypeID agentID, const Vec3& location, float downRange, float upRange) const
+bool NavigationSystem::IsLocationValidInNavigationMesh(const NavigationAgentTypeID agentID, const Vec3& location, float downRange, float upRange) const
 {
+	//TODO: Use filter?
+	
 	if (const NavigationMeshID meshID = GetEnclosingMeshID(agentID, location))
 	{
 		if (m_meshes.validate(meshID))
 		{
 			MNM::vector3_t loc(MNM::real_t(location.x), MNM::real_t(location.y), MNM::real_t(location.z));
 			const NavigationMesh& mesh = m_meshes[meshID];
-			const MNM::TriangleID enclosingTriID = mesh.navMesh.GetTriangleAt(loc, MNM::real_t(downRange), MNM::real_t(upRange));
+			const MNM::TriangleID enclosingTriID = mesh.navMesh.GetTriangleAt(loc, MNM::real_t(downRange), MNM::real_t(upRange), nullptr);
 			return enclosingTriID != 0;
 		}
 	}
@@ -2419,6 +2760,8 @@ bool NavigationSystem::IsLocationContainedWithinTriangleInNavigationMesh(const N
 
 MNM::TriangleID NavigationSystem::GetTriangleIDWhereLocationIsAtForMesh(const NavigationAgentTypeID agentID, const Vec3& location)
 {
+	//TODO: Use filter?
+	
 	NavigationMeshID meshId = GetEnclosingMeshID(agentID, location);
 	if (meshId)
 	{
@@ -2439,13 +2782,13 @@ MNM::TriangleID NavigationSystem::GetTriangleIDWhereLocationIsAtForMesh(const Na
 		const uint16 zOffsetMultiplier = min(minZOffsetMultiplier, (uint16)agentTypeProperties.settings.agent.height);
 		const MNM::real_t verticalUpwardRange = arePropertiesValid ? MNM::real_t(zOffsetMultiplier * agentTypeProperties.settings.voxelSize.z) : MNM::real_t(.2f);
 
-		return mesh.navMesh.GetTriangleAt(location - paramsGrid.origin, verticalDownwardRange, verticalUpwardRange);
+		return mesh.navMesh.GetTriangleAt(location - paramsGrid.origin, verticalDownwardRange, verticalUpwardRange, nullptr);
 	}
 
 	return MNM::TriangleID(0);
 }
 
-bool NavigationSystem::NavMeshTestRaycastHit(NavigationAgentTypeID agentTypeID, const Vec3& startPos, const Vec3& toPos, MNM::SRayHitOutput* pOutHit) const
+bool NavigationSystem::NavMeshTestRaycastHit(NavigationAgentTypeID agentTypeID, const Vec3& startPos, const Vec3& toPos, const INavMeshQueryFilter* pFilter, MNM::SRayHitOutput* pOutHit) const
 {
 	NavigationMeshID meshId = GetEnclosingMeshID(agentTypeID, startPos);
 	if (!meshId)
@@ -2468,11 +2811,11 @@ bool NavigationSystem::NavMeshTestRaycastHit(NavigationAgentTypeID agentTypeID, 
 	const uint16 zOffsetMultiplier = min(minZOffsetMultiplier, (uint16)agentTypeProperties.settings.agent.height);
 	const MNM::real_t verticalUpwardRange = arePropertiesValid ? MNM::real_t(zOffsetMultiplier * agentTypeProperties.settings.voxelSize.z) : MNM::real_t(.2f);
 
-	MNM::TriangleID startTriangle = mesh.navMesh.GetTriangleAt(startPos - paramsGrid.origin, verticalDownwardRange, verticalUpwardRange);
-	MNM::TriangleID endTriangle = mesh.navMesh.GetTriangleAt(toPos - paramsGrid.origin, verticalDownwardRange, verticalUpwardRange);
+	MNM::TriangleID startTriangle = mesh.navMesh.GetTriangleAt(startPos - paramsGrid.origin, verticalDownwardRange, verticalUpwardRange, pFilter);
+	MNM::TriangleID endTriangle = mesh.navMesh.GetTriangleAt(toPos - paramsGrid.origin, verticalDownwardRange, verticalUpwardRange, pFilter);
 	
 	MNM::CNavMesh::RayCastRequest<512> request;
-	MNM::CNavMesh::ERayCastResult result = mesh.navMesh.RayCast(startPos - paramsGrid.origin, startTriangle, toPos - paramsGrid.origin, endTriangle, request);
+	MNM::CNavMesh::ERayCastResult result = mesh.navMesh.RayCast(startPos - paramsGrid.origin, startTriangle, toPos - paramsGrid.origin, endTriangle, request, pFilter);
 	
 	bool isHit = result == MNM::CNavMesh::eRayCastResult_Hit;
 	if (isHit && pOutHit)
@@ -2511,6 +2854,8 @@ const MNM::INavMesh* NavigationSystem::GetMNMNavMesh(NavigationMeshID meshID) co
 
 size_t NavigationSystem::GetTriangleCenterLocationsInMesh(const NavigationMeshID meshID, const Vec3& location, const AABB& searchAABB, Vec3* centerLocations, size_t maxCenterLocationCount, float minIslandArea) const
 {
+	//TODO: Use filter?
+	
 	if (m_meshes.validate(meshID))
 	{
 		const MNM::vector3_t min(MNM::real_t(searchAABB.min.x), MNM::real_t(searchAABB.min.y), MNM::real_t(searchAABB.min.z));
@@ -2519,7 +2864,7 @@ size_t NavigationSystem::GetTriangleCenterLocationsInMesh(const NavigationMeshID
 		const MNM::aabb_t aabb(min, max);
 		const size_t maxTriangleCount = 4096;
 		MNM::TriangleID triangleIDs[maxTriangleCount];
-		const size_t triangleCount = mesh.navMesh.GetTriangles(aabb, triangleIDs, maxTriangleCount, minIslandArea);
+		const size_t triangleCount = mesh.navMesh.GetTriangles(aabb, triangleIDs, maxTriangleCount, nullptr, minIslandArea);
 		MNM::Tile::STriangle triangle;
 
 		if (triangleCount > 0)
@@ -2545,66 +2890,24 @@ size_t NavigationSystem::GetTriangleCenterLocationsInMesh(const NavigationMeshID
 	return 0;
 }
 
-size_t NavigationSystem::GetTriangleBorders(const NavigationMeshID meshID, const AABB& aabb, Vec3* pBorders, size_t maxBorderCount, float minIslandArea) const
+size_t NavigationSystem::GetTriangleBorders(const NavigationMeshID meshID, const AABB& aabb, Vec3* pBorders, size_t maxBorderCount, const INavMeshQueryFilter* pFilter, float minIslandArea /*= 0.0f*/) const
 {
 	size_t numBorders = 0;
+	if (!m_meshes.validate(meshID))
+		return numBorders;
 
-	if (m_meshes.validate(meshID))
-	{
-		const MNM::vector3_t min(MNM::real_t(aabb.min.x), MNM::real_t(aabb.min.y), MNM::real_t(aabb.min.z));
-		const MNM::vector3_t max(MNM::real_t(aabb.max.x), MNM::real_t(aabb.max.y), MNM::real_t(aabb.max.z));
-		const NavigationMesh& mesh = m_meshes[meshID];
-		const MNM::aabb_t aabb(min, max);
-		const size_t maxTriangleCount = 4096;
-		MNM::TriangleID triangleIDs[maxTriangleCount];
-		const size_t triangleCount = mesh.navMesh.GetTriangles(aabb, triangleIDs, maxTriangleCount, minIslandArea);
-		//MNM::Tile::Triangle triangle;
+	const MNM::vector3_t min(MNM::real_t(aabb.min.x), MNM::real_t(aabb.min.y), MNM::real_t(aabb.min.z));
+	const MNM::vector3_t max(MNM::real_t(aabb.max.x), MNM::real_t(aabb.max.y), MNM::real_t(aabb.max.z));
+	const NavigationMesh& mesh = m_meshes[meshID];
+	const MNM::aabb_t mnmAABB(min, max);
 
-		if (triangleCount > 0)
-		{
-			MNM::vector3_t verts[3];
-
-			for (size_t i = 0; i < triangleCount; ++i)
-			{
-				size_t linkedEdges = 0;
-				mesh.navMesh.GetLinkedEdges(triangleIDs[i], linkedEdges);
-				mesh.navMesh.GetVertices(triangleIDs[i], verts[0], verts[1], verts[2]);
-
-				for (size_t e = 0; e < 3; ++e)
-				{
-					if ((linkedEdges & (size_t(1) << e)) == 0)
-					{
-						if (pBorders != NULL)
-						{
-							const Vec3 v0 = verts[e].GetVec3();
-							const Vec3 v1 = verts[(e + 1) % 3].GetVec3();
-							const Vec3 vOther = verts[(e + 2) % 3].GetVec3();
-
-							const Vec3 edge = Vec3(v0 - v1).GetNormalized();
-							const Vec3 otherEdge = Vec3(v0 - vOther).GetNormalized();
-							const Vec3 up = edge.Cross(otherEdge);
-							const Vec3 out = up.Cross(edge);
-
-							pBorders[numBorders * 3 + 0] = v0;
-							pBorders[numBorders * 3 + 1] = v1;
-							pBorders[numBorders * 3 + 2] = out;
-						}
-
-						++numBorders;
-
-						if (pBorders != NULL && numBorders == maxBorderCount)
-							return numBorders;
-					}
-				}
-			}
-		}
-	}
-
-	return numBorders;
+	return mesh.navMesh.GetMeshBorders(mnmAABB, pFilter, pBorders, maxBorderCount, minIslandArea);
 }
 
 size_t NavigationSystem::GetTriangleInfo(const NavigationMeshID meshID, const AABB& aabb, Vec3* centerLocations, uint32* islandids, size_t max_count, float minIslandArea) const
 {
+	//TODO: Use filter?
+	
 	if (m_meshes.validate(meshID))
 	{
 		const MNM::vector3_t min(MNM::real_t(aabb.min.x), MNM::real_t(aabb.min.y), MNM::real_t(aabb.min.z));
@@ -2613,7 +2916,7 @@ size_t NavigationSystem::GetTriangleInfo(const NavigationMeshID meshID, const AA
 		const MNM::aabb_t aabb(min, max);
 		const size_t maxTriangleCount = 4096;
 		MNM::TriangleID triangleIDs[maxTriangleCount];
-		const size_t triangleCount = mesh.navMesh.GetTriangles(aabb, triangleIDs, maxTriangleCount, minIslandArea);
+		const size_t triangleCount = mesh.navMesh.GetTriangles(aabb, triangleIDs, maxTriangleCount, nullptr, minIslandArea);
 		MNM::Tile::STriangle triangle;
 
 		if (triangleCount > 0)
@@ -2780,6 +3083,44 @@ bool NavigationSystem::ReadFromFile(const char* fileName, bool bAfterExporting)
 				}
 			}
 
+			{
+				std::vector<Vec3> markupVerticesBuffer;
+
+				uint32 markupsCount;
+				file.ReadType(&markupsCount);
+
+				for (uint32 idx = 0; idx < markupsCount; ++idx)
+				{
+					NavigationVolumeID markupId;
+					MNM::SMarkupVolumeParams params;
+					uint32 verticesCount;
+					MNM::AreaAnnotation::value_type areaAnnotation;
+					
+					ReadNavigationIdType(file, markupId);
+					
+					file.ReadType(&params.height);
+					file.ReadType(&areaAnnotation);
+					file.ReadType(&params.bExpandByAgentRadius);
+					file.ReadType(&params.bStoreTriangles);
+					file.ReadType(&verticesCount);
+
+					params.areaAnnotation = areaAnnotation;
+
+					markupVerticesBuffer.resize(verticesCount);
+					for (uint32 vtxIdx = 0; vtxIdx < verticesCount; ++vtxIdx)
+					{
+						Vec3& vtx = markupVerticesBuffer[vtxIdx];
+						file.ReadType(&vtx.x, 3);
+					}
+
+					CRY_ASSERT_MESSAGE(markupId != NavigationVolumeID(), "Markup volume with invalid id loaded!");
+					CRY_ASSERT_MESSAGE(!m_markupVolumes.validate(markupId), "Markup volume with the same id was already loaded!");
+
+					CreateMarkupVolume(markupId);
+					SetMarkupVolume(0, markupVerticesBuffer.data(), verticesCount, markupId, params);
+				}
+			}
+
 			uint32 agentsCount;
 			file.ReadType(&agentsCount);
 			for (uint32 i = 0; i < agentsCount; ++i)
@@ -2803,6 +3144,22 @@ bool NavigationSystem::ReadFromFile(const char* fileName, bool bAfterExporting)
 					file.Seek(fileSeekPositionForNextAgent, SEEK_SET);
 					continue;
 				}
+
+				{
+					// Reading markup volumes
+					AgentType::MarkupVolumes markups;
+					uint32 markupsCount;
+					file.ReadType(&markupsCount);
+					markups.reserve(markupsCount);
+					for (uint32 mIdx = 0; mIdx < markupsCount; ++mIdx)
+					{
+						NavigationVolumeID markupId;
+						ReadNavigationIdType(file, markupId);
+						markups.push_back(markupId);
+					}
+					m_agentTypes[agentTypeID - 1].markups = markups;
+				}
+
 				// ---------------------------------------------
 				// Reading navmesh for the different agents type
 
@@ -2905,6 +3262,20 @@ bool NavigationSystem::ReadFromFile(const char* fileName, bool bAfterExporting)
 #endif
 					m_agentTypes[agentTypeID - 1].exclusions = exclusions;
 
+					NavigationMesh::Markups markups;
+					{
+						// Reading markup volumes
+						uint32 markupsCount;
+						file.ReadType(&markupsCount);
+						markups.reserve(markupsCount);
+						for (uint32 mIdx = 0; mIdx < markupsCount; ++mIdx)
+						{
+							NavigationVolumeID markupId;
+							ReadNavigationIdType(file, markupId);
+							markups.push_back(markupId);
+						}
+					}
+
 					// Reading tile count
 					uint32 tilesCount = 0;
 					file.ReadType(&tilesCount);
@@ -2957,6 +3328,7 @@ bool NavigationSystem::ReadFromFile(const char* fileName, bool bAfterExporting)
 #else
 					SetMeshBoundaryVolume(newMeshID, boundaryID);
 #endif
+					mesh.markups = markups;
 					mesh.exclusions = exclusions;
 					mesh.navMesh.SetTotalIslands(totalIslands);
 					for (uint32 j = 0; j < tilesCount; ++j)
@@ -3019,6 +3391,52 @@ bool NavigationSystem::ReadFromFile(const char* fileName, bool bAfterExporting)
 
 						mesh.navMesh.SetTile(x, y, z, tile);
 					}
+				}
+			}
+
+			// Read markups data
+			uint32 dataCount;
+			file.ReadType(&dataCount);
+			for (uint32 idx = 0; idx < dataCount; ++idx)
+			{
+				NavigationVolumeID markupId;
+				ReadNavigationIdType(file, markupId);
+
+				m_markupsData.insert(markupId, MNM::SMarkupVolumeData());
+				MNM::SMarkupVolumeData& markupData = m_markupsData[markupId];
+
+				uint32 meshTrianglesCount;
+				file.ReadType(&meshTrianglesCount);
+
+				for (uint32 meshTriIdx = 0; meshTriIdx < meshTrianglesCount; ++meshTriIdx)
+				{
+					NavigationMeshID meshId;
+					ReadNavigationIdType(file, meshId);
+
+					const MNM::CNavMesh& navMesh = m_meshes[meshId].navMesh;
+
+					MNM::SMarkupVolumeData::MeshTriangles meshTriangles(meshId);
+
+					uint32 trianglesCount;
+					file.ReadType(&trianglesCount);
+					meshTriangles.triangleIds.reserve(trianglesCount);
+					for (uint32 triIdx = 0; triIdx < trianglesCount; ++triIdx)
+					{
+						uint32 x, y, z;
+						uint16 triIndex;
+						file.ReadType(&x);
+						file.ReadType(&y);
+						file.ReadType(&z);
+						file.ReadType(&triIndex);
+
+						const MNM::TileID tileId = navMesh.GetTileID(x, y, z);
+						CRY_ASSERT(tileId);
+
+						const MNM::TriangleID triId = MNM::ComputeTriangleID(tileId, triIndex);
+
+						meshTriangles.triangleIds.push_back(triId);
+					}
+					markupData.meshTriangles.push_back(meshTriangles);
 				}
 			}
 
@@ -3211,6 +3629,36 @@ bool NavigationSystem::SaveToFile(const char* fileName) const PREFAST_SUPPRESS_W
 			}
 		}
 
+		// Saving markup boundary areas and data
+		{
+			//TODO: gather markup volumes to save
+			const uint32 markupsCount = static_cast<uint32>(m_markupVolumes.size());
+			file.WriteType(&markupsCount);
+
+			for (uint32 idx = 0; idx < m_markupVolumes.capacity(); ++idx)
+			{
+				if(m_markupVolumes.index_free(idx))
+					continue;
+
+				const MNM::SMarkupVolume& markupVolume = m_markupVolumes.get_index(idx);
+				NavigationVolumeID volumeId = NavigationVolumeID(m_markupVolumes.get_index_id(idx));
+
+				const uint32 verticesCount = markupVolume.GetBoundaryVertices().size();
+				MNM::AreaAnnotation::value_type areaAnnotation = markupVolume.areaAnnotation.GetRawValue();
+
+				WriteNavigationIdType(file, volumeId);
+				file.WriteType(&markupVolume.height);
+				file.WriteType(&areaAnnotation);
+				file.WriteType(&markupVolume.bExpandByAgentRadius);
+				file.WriteType(&markupVolume.bStoreTriangles);
+				file.WriteType(&verticesCount);
+				for (const Vec3& vertex : markupVolume.GetBoundaryVertices())
+				{
+					file.WriteType(&vertex.x, 3);
+				}
+			}
+		}
+
 		// Saving number of agents
 		uint32 agentsCount = static_cast<uint32>(GetAgentTypeCount());
 		file.Write(&agentsCount, sizeof(agentsCount));
@@ -3235,6 +3683,16 @@ bool NavigationSystem::SaveToFile(const char* fileName) const PREFAST_SUPPRESS_W
 
 			AgentType::Meshes::const_iterator mit = agentType.meshes.begin();
 			AgentType::Meshes::const_iterator mend = agentType.meshes.end();
+			{
+				// Saving markup volumes for agent
+				uint32 markupsCount = agentType.markups.size();
+				file.WriteType(&markupsCount);
+				for (NavigationVolumeID markupID : agentType.markups)
+				{
+					WriteNavigationIdType(file, markupID);
+				}
+			}
+
 			uint32 meshesCount = agentType.meshes.size();
 			file.Write(&meshesCount, sizeof(meshesCount));
 
@@ -3318,6 +3776,16 @@ bool NavigationSystem::SaveToFile(const char* fileName) const PREFAST_SUPPRESS_W
 					}
 				}
 	#endif
+
+				{
+					// Saving markup volumes for mesh
+					uint32 markupsCount = mesh.markups.size();
+					file.WriteType(&markupsCount);
+					for (NavigationVolumeID markupID : mesh.markups)
+					{
+						WriteNavigationIdType(file, markupID);
+					}
+				}
 
 				// Saving tiles count
 				uint32 tileCount = navMesh.GetTileCount();
@@ -3430,9 +3898,51 @@ bool NavigationSystem::SaveToFile(const char* fileName) const PREFAST_SUPPRESS_W
 			totalAgentMemory = endingAgentDataPosition - totalAgentMemoryPositionInFile - sizeof(totalAgentMemory);
 			file.Seek(totalAgentMemoryPositionInFile, SEEK_SET);
 			file.Write(&totalAgentMemory, sizeof(totalAgentMemory));
-
 			file.Seek(endingAgentDataPosition, SEEK_SET);
 		}
+
+		const uint32 dataCount = static_cast<uint32>(m_markupsData.size());
+		file.WriteType(&dataCount);
+
+		for (uint32 idx = 0; idx < m_markupsData.capacity(); ++idx)
+		{
+			if (m_markupsData.index_free(idx))
+				continue;
+
+			const MNM::SMarkupVolumeData& markupData = m_markupsData.get_index(idx);
+			NavigationVolumeID markupId = NavigationVolumeID(m_markupsData.get_index_id(idx));
+
+			WriteNavigationIdType(file, markupId);
+
+			const uint32 meshTrianglesCount = markupData.meshTriangles.size();
+			file.WriteType(&meshTrianglesCount);
+
+			for (const MNM::SMarkupVolumeData::MeshTriangles& meshTriangles : markupData.meshTriangles)
+			{
+				const MNM::CNavMesh& navMesh = m_meshes[meshTriangles.meshId].navMesh;
+
+				WriteNavigationIdType(file, meshTriangles.meshId);
+
+				const uint32 trianglesCount = meshTriangles.triangleIds.size();
+				file.WriteType(&trianglesCount);
+				for (MNM::TriangleID triId : meshTriangles.triangleIds)
+				{
+					const MNM::TileID tileId = MNM::ComputeTileID(triId);
+					const uint16 triIndex = MNM::ComputeTriangleIndex(triId);
+
+					const MNM::vector3_t tileCoords = navMesh.GetTileContainerCoordinates(tileId);
+					const uint32 x = tileCoords.x.as_uint();
+					const uint32 y = tileCoords.y.as_uint();
+					const uint32 z = tileCoords.z.as_uint();
+
+					file.WriteType(&x);
+					file.WriteType(&y);
+					file.WriteType(&z);
+					file.WriteType(&triIndex);
+				}
+			}
+		}
+
 		file.Close();
 	}
 
@@ -3746,24 +4256,33 @@ MNM::TileID NavigationSystemDebugDraw::DebugDrawTileGeneration(NavigationSystem&
 		debugGenerator = MNM::CTileGenerator();
 
 		MNM::STile tile;
+		MNM::CTileGenerator::SMetaData metaData;
 		MNM::CTileGenerator::Params params;
 
-		std::vector<MNM::BoundingVolume> exclusions;
-		exclusions.resize(mesh.exclusions.size());
+		NavigationSystem::VolumeDefCopy def;
+		if (mesh.boundary)
+		{
+			def.boundary = navigationSystem.m_volumes[mesh.boundary];
+		}
 
-		NavigationMesh::ExclusionVolumes::const_iterator eit = mesh.exclusions.begin();
-		NavigationMesh::ExclusionVolumes::const_iterator eend = mesh.exclusions.end();
+		def.exclusions.resize(mesh.exclusions.size());
+		for (size_t eindex = 0; eindex < mesh.exclusions.size(); ++eindex)
+		{
+			def.exclusions[eindex] = navigationSystem.m_volumes[mesh.exclusions[eindex]];
+		}
 
-		for (size_t eindex = 0; eit != eend; ++eit, ++eindex)
-			exclusions[eindex] = navigationSystem.m_volumes[*eit];
-
-		navigationSystem.SetupGenerator(settings.meshID, paramsGrid, static_cast<uint16>(selectedX), static_cast<uint16>(selectedY), static_cast<uint16>(selectedZ), params,
-		                                mesh.boundary ? &navigationSystem.m_volumes[mesh.boundary] : 0,
-		                                exclusions.empty() ? 0 : &exclusions[0], exclusions.size());
+		def.markups.resize(mesh.markups.size());
+		def.markupIds.resize(mesh.markups.size());
+		for (size_t mindex = 0; mindex < mesh.markups.size(); ++mindex)
+		{
+			def.markups[mindex] = navigationSystem.m_markupVolumes[mesh.markups[mindex]];
+			def.markupIds[mindex] = mesh.markups[mindex];
+		}
+		navigationSystem.SetupGenerator(settings.meshID, paramsGrid, static_cast<uint16>(selectedX), static_cast<uint16>(selectedY), static_cast<uint16>(selectedZ), params, def, false);
 
 		params.flags |= MNM::CTileGenerator::Params::DebugInfo | MNM::CTileGenerator::Params::NoHashTest;
 
-		if (debugGenerator.Generate(params, tile, 0))
+		if (debugGenerator.Generate(params, tile, metaData, 0))
 		{
 			tileID = mesh.navMesh.SetTile(selectedX, selectedY, selectedZ, tile);
 
@@ -3918,7 +4437,10 @@ void NavigationSystemDebugDraw::DebugDrawRayCast(NavigationSystem& navigationSys
 	MNM::vector3_t end = MNM::vector3_t(
 		MNM::real_t(endLoc.x), MNM::real_t(endLoc.y), MNM::real_t(endLoc.z)) - origin;
 
-	MNM::TriangleID triStart = navMesh.GetTriangleAt(start, range, range);
+	//TODO: use global filter for debugging
+	SNavMeshQueryFilterDefault filter;
+
+	MNM::TriangleID triStart = navMesh.GetTriangleAt(start, range, range, &filter);
 	if (!triStart)
 		return;
 
@@ -3930,11 +4452,10 @@ void NavigationSystemDebugDraw::DebugDrawRayCast(NavigationSystem& navigationSys
 		renderFlags.SetAlphaBlendMode(e_AlphaBlended);
 		renderAuxGeom->SetRenderFlags(renderFlags);
 
-		MNM::TriangleID triEnd = navMesh.GetTriangleAt(end, range, range);
+		MNM::TriangleID triEnd = navMesh.GetTriangleAt(end, range, range, &filter);
 
 		MNM::CNavMesh::RayCastRequest<512> raycastRequest;
-
-		MNM::CNavMesh::ERayCastResult result = navMesh.RayCast(start, triStart, end, triEnd, raycastRequest);
+		MNM::CNavMesh::ERayCastResult result = navMesh.RayCast(start, triStart, end, triEnd, raycastRequest, &filter);
 
 		for (size_t i = 0; i < raycastRequest.wayTriCount; ++i)
 		{
@@ -4011,9 +4532,12 @@ void NavigationSystemDebugDraw::DebugDrawClosestPoint(NavigationSystem& navigati
 	const MNM::vector3_t fixedPointStartLoc(MNM::real_t(startLoc.x), MNM::real_t(startLoc.y), MNM::real_t(startLoc.z));
 	const MNM::real_t range = MNM::real_t(5.0f);
 
+	//TODO: use global filter for debugging
+	SNavMeshQueryFilterDefault filter;
+
 	MNM::real_t distance(.0f);
 	MNM::vector3_t closestPosition;
-	if (MNM::TriangleID closestTriangle = navMesh.GetClosestTriangle(fixedPointStartLoc, range, range, &distance, &closestPosition))
+	if (MNM::TriangleID closestTriangle = navMesh.GetClosestTriangle(fixedPointStartLoc, range, range, &filter, &distance, &closestPosition))
 	{
 		IRenderAuxGeom* renderAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom();
 		const Vec3 verticalOffset = Vec3(.0f, .0f, .1f);
@@ -4046,7 +4570,7 @@ void NavigationSystemDebugDraw::DebugDrawGroundPoint(NavigationSystem& navigatio
 	const Vec3& startLoc = debugObject.entityPos;
 
 	Vec3 closestPosition;
-	if (navigationSystem.GetGroundLocationInMesh(meshID, startLoc, 100.0f, 0.25f, &closestPosition))
+	if (navigationSystem.GetClosestMeshLocation(meshID, startLoc, 100.0f, 0.25f, &closestPosition, nullptr))
 	{
 		IRenderAuxGeom* renderAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom();
 		const Vec3 verticalOffset = Vec3(.0f, .0f, .1f);
@@ -4136,9 +4660,13 @@ void NavigationSystemDebugDraw::DebugDrawPathFinder(NavigationSystem& navigation
 	const MNM::real_t hrange = MNM::real_t(1.0f);
 	const MNM::real_t vrange = MNM::real_t(1.0f);
 
+	//TODO: use global filter for debugging
+	SNavMeshQueryFilterDefault filter;
+	filter.SetExcludeFlags(BIT(1));
+
 	MNM::vector3_t fixedPointStartLoc;
 	const MNM::TriangleID triStart = navMesh.GetClosestTriangle(
-		MNM::vector3_t(startLoc) - origin, vrange, hrange, nullptr, &fixedPointStartLoc);
+		MNM::vector3_t(startLoc) - origin, vrange, hrange, &filter, nullptr, &fixedPointStartLoc);
 	//fixedPointStartLoc += origin;
 
 	if (triStart)
@@ -4151,7 +4679,7 @@ void NavigationSystemDebugDraw::DebugDrawPathFinder(NavigationSystem& navigation
 
 	MNM::vector3_t fixedPointEndLoc;
 	const MNM::TriangleID triEnd = navMesh.GetClosestTriangle(
-		MNM::vector3_t(endLoc) - origin, vrange, hrange, nullptr, &fixedPointEndLoc);
+		MNM::vector3_t(endLoc) - origin, vrange, hrange, &filter, nullptr, &fixedPointEndLoc);
 
 	if (triEnd)
 	{
@@ -4192,8 +4720,13 @@ void NavigationSystemDebugDraw::DebugDrawPathFinder(NavigationSystem& navigation
 		const size_t k_MaxWaySize = 512;
 		const float pathSharingPenalty = .0f;
 		const float pathLinkSharingPenalty = .0f;
-		MNM::CNavMesh::WayQueryRequest inputParams(debugObjectStart.entityId, triStart, startLoc, triEnd, endLoc,
-			offMeshNavigation, *offMeshNavigationManager, dangersInfo, MNMCustomPathCostComputerSharedPtr());  // no custom cost-computer (where should we get it from!?)
+
+		MNM::CNavMesh::WayQueryRequest inputParams(
+			debugObjectStart.entityId,
+			triStart, startLoc, triEnd, endLoc,
+			offMeshNavigation, *offMeshNavigationManager, 
+			dangersInfo, &filter, MNMCustomPathCostComputerSharedPtr());  // no custom cost-computer (where should we get it from!?));
+
 		MNM::CNavMesh::WayQueryResult result(k_MaxWaySize);
 
 		const bool hasPathfindingFinished = (navMesh.FindWay(inputParams, workingSet, result) == MNM::CNavMesh::eWQR_Done);
@@ -4319,10 +4852,45 @@ void NavigationSystemDebugDraw::DebugDrawIslandConnection(NavigationSystem& navi
 	dc->Draw2dLabel(10.0f, 250.0f, 1.6f, isReachable ? Col_ForestGreen : Col_VioletRed, false, isReachable ? "The two islands ARE connected" : "The two islands ARE NOT connected");
 }
 
+struct DefaultTriangleColorSelector : public MNM::ITriangleColorSelector
+{
+	DefaultTriangleColorSelector(NavigationSystem& navigationSystem, const char* szFlagToDraw) 
+		: m_navigationSystem(navigationSystem)
+	{
+		const MNM::CAnnotationsLibrary& annotationsLib = navigationSystem.GetAnnotations();
+		NavigationAreaFlagID flagId = annotationsLib.GetAreaFlagID(szFlagToDraw);
+		const MNM::SAreaFlag* pFlag = annotationsLib.GetAreaFlag(flagId);
+		if (pFlag)
+		{
+			m_flagsToDrawMask = pFlag->value;
+		}
+	}
+	
+	virtual ColorB GetAnnotationColor(MNM::AreaAnnotation annotation) const
+	{
+		const MNM::CAnnotationsLibrary& annotationsLib = m_navigationSystem.GetAnnotations();
+
+		MNM::AreaAnnotation::value_type flags = annotation.GetFlags();
+		MNM::AreaAnnotation::value_type flagsToDraw = flags & m_flagsToDrawMask;
+		ColorB color;
+		if (annotationsLib.GetFirstFlagColor(flagsToDraw, color))
+		{
+			return color;
+		}
+		annotationsLib.GetAreaColor(annotation, color);
+		return color;
+	};
+
+	NavigationSystem& m_navigationSystem;
+	MNM::AreaAnnotation::value_type m_flagsToDrawMask = 0;
+};
+
 void NavigationSystemDebugDraw::DebugDrawNavigationMeshesForSelectedAgent(NavigationSystem& navigationSystem, MNM::TileID excludeTileID)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
+	DefaultTriangleColorSelector colorSelector(navigationSystem, gAIEnv.CVars.MNMDebugDrawFlag);
+	
 	AgentType& agentType = navigationSystem.m_agentTypes[m_agentTypeID - 1];
 	AgentType::Meshes::const_iterator it = agentType.meshes.begin();
 	AgentType::Meshes::const_iterator end = agentType.meshes.end();
@@ -4344,27 +4912,27 @@ void NavigationSystemDebugDraw::DebugDrawNavigationMeshesForSelectedAgent(Naviga
 		{
 		case 0:
 		case 1:
-			mesh.navMesh.Draw(drawFlag, excludeTileID);
+			mesh.navMesh.Draw(drawFlag, colorSelector, excludeTileID);
 			break;
 		case 2:
-			mesh.navMesh.Draw(drawFlag | MNM::STile::DrawInternalLinks, excludeTileID);
+			mesh.navMesh.Draw(drawFlag | MNM::STile::DrawInternalLinks, colorSelector, excludeTileID);
 			break;
 		case 3:
 			mesh.navMesh.Draw(drawFlag | MNM::STile::DrawInternalLinks |
-			                  MNM::STile::DrawExternalLinks | MNM::STile::DrawOffMeshLinks, excludeTileID);
+			                  MNM::STile::DrawExternalLinks | MNM::STile::DrawOffMeshLinks, colorSelector, excludeTileID);
 			break;
 		case 4:
 			mesh.navMesh.Draw(drawFlag | MNM::STile::DrawInternalLinks |
 			                  MNM::STile::DrawExternalLinks | MNM::STile::DrawOffMeshLinks |
-			                  MNM::STile::DrawTrianglesId, excludeTileID);
+			                  MNM::STile::DrawTrianglesId, colorSelector, excludeTileID);
 			break;
 		case 5:
 			mesh.navMesh.Draw(drawFlag | MNM::STile::DrawInternalLinks | MNM::STile::DrawExternalLinks |
-			                  MNM::STile::DrawOffMeshLinks | MNM::STile::DrawTrianglesId | MNM::STile::DrawIslandsId, excludeTileID);
+			                  MNM::STile::DrawOffMeshLinks | MNM::STile::DrawTrianglesId | MNM::STile::DrawIslandsId, colorSelector, excludeTileID);
 			break;
 		case 6:
 			mesh.navMesh.Draw(drawFlag | MNM::STile::DrawInternalLinks |
-			                  MNM::STile::DrawExternalLinks | MNM::STile::DrawOffMeshLinks | MNM::STile::DrawTriangleBackfaces, excludeTileID);
+			                  MNM::STile::DrawExternalLinks | MNM::STile::DrawOffMeshLinks | MNM::STile::DrawTriangleBackfaces, colorSelector, excludeTileID);
 			break;
 
 		default:
@@ -4542,20 +5110,23 @@ void NavigationSystemDebugDraw::NavigationSystemWorkingProgress::Draw()
 
 	BeginDraw();
 
-	const float width = (float)gEnv->pRenderer->GetWidth();
-	const float height = (float)gEnv->pRenderer->GetHeight();
+	IRenderAuxGeom *pAux = gEnv->pRenderer->GetIRenderAuxGeom();
+	const CCamera& rCamera = pAux->GetCamera();
+
+	const float width  = (float)rCamera.GetViewSurfaceX();
+	const float height = (float)rCamera.GetViewSurfaceZ();
 
 	const ColorB backGroundColor(0, 255, 0, CLAMP((int)(0.35f * m_timeUpdating * 255.0f), 0, 255));
 	const ColorB progressColor(0, 255, 0, CLAMP((int)(0.8f * m_timeUpdating * 255.0f), 0, 255));
 
 	const float progressFraction = (m_initialQueueSize > 0) ? clamp_tpl(1.0f - ((float)m_currentQueueSize / (float)m_initialQueueSize), 0.0f, 1.0f) : 1.0f;
 
-	const Vec2 progressBarLocation(0.1f, 0.91f);
-	const Vec2 progressBarSize(0.2f, 0.025f);
+	Vec2 progressBarLocation(0.1f * width, 0.91f * height);
+	Vec2 progressBarSize(0.2f * width, 0.025f * height);
 
 	const float white[4] = { 1.0f, 1.0f, 1.0f, 0.85f * m_timeUpdating };
 
-	IRenderAuxText::Draw2dLabel(progressBarLocation.x * width, (progressBarLocation.y * height) - 18.0f, 1.4f, white, false, "Processing Navigation Meshes");
+	IRenderAuxText::Draw2dLabel(progressBarLocation.x, progressBarLocation.y - 18.0f, 1.4f, white, false, "Processing Navigation Meshes");
 
 	DrawQuad(progressBarLocation, progressBarSize, backGroundColor);
 	DrawQuad(progressBarLocation, Vec2(progressBarSize.x * progressFraction, progressBarSize.y), progressColor);
@@ -4570,8 +5141,7 @@ void NavigationSystemDebugDraw::NavigationSystemWorkingProgress::BeginDraw()
 	{
 		m_oldRenderFlags = pRenderAux->GetRenderFlags();
 
-		SAuxGeomRenderFlags newFlags = e_Def3DPublicRenderflags;
-		newFlags.SetMode2D3DFlag(e_Mode2D);
+		SAuxGeomRenderFlags newFlags = e_Def2DPublicRenderflags;
 		newFlags.SetAlphaBlendMode(e_AlphaBlended);
 
 		pRenderAux->SetRenderFlags(newFlags);
@@ -4589,25 +5159,17 @@ void NavigationSystemDebugDraw::NavigationSystemWorkingProgress::EndDraw()
 
 void NavigationSystemDebugDraw::NavigationSystemWorkingProgress::DrawQuad(const Vec2& origin, const Vec2& size, const ColorB& color)
 {
-	Vec3 quadVertices[4];
-	const vtx_idx auxIndices[6] = { 2, 1, 0, 2, 3, 1 };
-
-	quadVertices[0] = Vec3(origin.x, origin.y, 1.0f);
-	quadVertices[1] = Vec3(origin.x + size.x, origin.y, 1.0f);
-	quadVertices[2] = Vec3(origin.x, origin.y + size.y, 1.0f);
-	quadVertices[3] = Vec3(origin.x + size.x, origin.y + size.y, 1.0f);
-
-	IRenderAuxGeom* pRenderAux = gEnv->pRenderer->GetIRenderAuxGeom();
-	if (pRenderAux)
+	if (IRenderAuxGeom* pRenderAux = gEnv->pRenderer->GetIRenderAuxGeom())
 	{
-		const SAuxGeomRenderFlags oldFlags = pRenderAux->GetRenderFlags();
-		SAuxGeomRenderFlags flags = oldFlags;
-		flags.SetMode2D3DFlag(e_Mode2D);
-		flags.SetDrawInFrontMode(e_DrawInFrontOn);
-		flags.SetDepthTestFlag(e_DepthTestOff);
-		pRenderAux->SetRenderFlags(flags);
+		Vec3 quadVertices[4];
+		const vtx_idx auxIndices[6] = { 2, 1, 0, 2, 3, 1 };
+
+		quadVertices[0] = Vec3(origin.x, origin.y, 1.0f);
+		quadVertices[1] = Vec3(origin.x + size.x, origin.y, 1.0f);
+		quadVertices[2] = Vec3(origin.x, origin.y + size.y, 1.0f);
+		quadVertices[3] = Vec3(origin.x + size.x, origin.y + size.y, 1.0f);
+
 		pRenderAux->DrawTriangles(quadVertices, 4, auxIndices, 6, color);
-		pRenderAux->SetRenderFlags(oldFlags);
 	}
 }
 

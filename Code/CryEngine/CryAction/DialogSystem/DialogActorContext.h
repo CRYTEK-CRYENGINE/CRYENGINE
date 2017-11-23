@@ -73,7 +73,7 @@ protected:
 	bool DoLocalPlayerChecks(const float dt);
 
 	// IEntityEventListener
-	virtual void OnEntityEvent(IEntity* pEntity, SEntityEvent& event);
+	virtual void OnEntityEvent(IEntity* pEntity, const SEntityEvent& event);
 	// ~IEntityEventListener
 
 	// IGoalPipeListener

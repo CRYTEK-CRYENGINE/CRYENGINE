@@ -39,8 +39,12 @@ void CMonoObject::ReleaseGCHandle()
 
 std::shared_ptr<CMonoString> CMonoObject::ToString() const
 {
-	MonoInternals::MonoObject* pException = nullptr;
+	if (MonoInternals::mono_object_get_class(m_pObject) == MonoInternals::mono_get_string_class())
+	{
+		return CMonoDomain::CreateString(reinterpret_cast<MonoInternals::MonoString*>(m_pObject));
+	}
 
+	MonoInternals::MonoObject* pException = nullptr;
 	MonoInternals::MonoString* pStr = MonoInternals::mono_object_to_string(m_pObject, &pException);
 	if (pException != nullptr)
 	{
@@ -114,4 +118,17 @@ std::shared_ptr<CMonoObject> CMonoObject::Clone()
 void* CMonoObject::UnboxObject()
 {
 	return mono_object_unbox(m_pObject);
+}
+
+bool CMonoObject::ReferenceEquals(const CMonoObject& other) const
+{
+	return ReferenceEquals(other.GetManagedObject());
+}
+
+bool CMonoObject::ReferenceEquals(MonoInternals::MonoObject* pOtherObject) const
+{
+	MonoInternals::MonoException* pException = nullptr;
+	MonoInternals::MonoBoolean isEqual = const_cast<CMonoObject*>(this)->GetClass()->GetAssembly()->GetDomain()->GetReferenceEqualsMethod()(m_pObject, pOtherObject, &pException);
+
+	return isEqual != 0 && pException == nullptr;
 }

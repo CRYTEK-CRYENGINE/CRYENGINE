@@ -934,7 +934,7 @@ void CDurangoGPUMemoryManager::QueueCopy(const CopyDesc& copy)
 
 void CDurangoGPUMemoryManager::Relocate_Int(CDeviceTexture* pDevTex, char* pOldTexBase, char* pTexBase, UINT_PTR size)
 {
-	pDevTex->Unbind();
+//	pDevTex->Unbind();
 
 	const SDeviceTextureDesc* pDesc = pDevTex->GetTDesc();
 

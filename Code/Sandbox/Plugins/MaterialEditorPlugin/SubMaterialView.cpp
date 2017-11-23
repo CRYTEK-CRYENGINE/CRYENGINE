@@ -21,6 +21,12 @@ public:
 		m_previewWidget = pPreviewWidget;
 	}
 
+	~Model()
+	{
+		if(m_pMaterial)
+			m_pMaterial->signalSubMaterialsChanged.DisconnectObject(this);
+	}
+
 	void SetMaterial(CMaterial* pMaterial)
 	{
 		if (m_pMaterial != pMaterial)
@@ -84,6 +90,7 @@ public:
 		else
 		{
 			//invalidate the right preview
+			CRY_ASSERT(row < m_pPreviewPixmaps.size());
 			m_pPreviewPixmaps[row] = RenderMaterial(GetMaterialForRow(row));
 
 			const auto idx = index(row, 0, QModelIndex());
@@ -280,6 +287,7 @@ CSubMaterialView::~CSubMaterialView()
 {
 	m_pMatEd->signalMaterialLoaded.DisconnectObject(this);
 	m_pMatEd->signalMaterialForEditChanged.DisconnectObject(this);
+	m_pMatEd->signalMaterialPropertiesChanged.DisconnectObject(this);
 }
 
 void CSubMaterialView::OnMaterialChanged(CMaterial* pEditorMaterial)

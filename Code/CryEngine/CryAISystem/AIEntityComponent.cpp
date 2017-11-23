@@ -25,7 +25,7 @@ void CAIEntityComponent::Initialize()
 	m_pEntity->SetAIObjectID(m_objectReference.GetObjectID());
 }
 
-void CAIEntityComponent::ProcessEvent(SEntityEvent& event)
+void CAIEntityComponent::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

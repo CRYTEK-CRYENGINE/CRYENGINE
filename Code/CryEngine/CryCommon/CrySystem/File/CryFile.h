@@ -95,7 +95,7 @@ class CCryFile
 public:
 	CCryFile();
 	CCryFile(ICryPak* pIPak);    //!< Allow an alternative ICryPak interface.
-	CCryFile(const char* filename, const char* mode);
+	CCryFile(const char* filename, const char* mode, int nOpenFlagsEx = 0);
 	~CCryFile();
 
 	bool Open(const char* filename, const char* mode, int nOpenFlagsEx = 0);
@@ -191,11 +191,11 @@ inline CCryFile::CCryFile(ICryPak* pIPak)
 }
 
 //////////////////////////////////////////////////////////////////////////
-inline CCryFile::CCryFile(const char* filename, const char* mode)
+inline CCryFile::CCryFile(const char* filename, const char* mode, int nOpenFlagsEx)
 {
 	m_file = 0;
 	m_pIPak = gEnv ? gEnv->pCryPak : NULL;
-	Open(filename, mode);
+	Open(filename, mode, nOpenFlagsEx);
 }
 
 //////////////////////////////////////////////////////////////////////////

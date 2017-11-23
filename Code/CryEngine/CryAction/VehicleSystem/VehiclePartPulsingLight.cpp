@@ -50,7 +50,7 @@ void CVehiclePartPulsingLight::UpdateLight(const float frameTime)
 		m_colorMult += m_minColorMult;
 		m_colorChangeTimer = fNewColorTimer;
 
-		CDLight& light = info.pLight->GetLightProperties();
+		SRenderLight& light = info.pLight->GetLightProperties();
 		light.SetLightColor(ColorF(m_diffuseCol * m_diffuseMult[0] * m_colorMult));
 	}
 }

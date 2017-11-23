@@ -64,26 +64,14 @@ struct SCompiledWaterVolume : NoCopy
 
 	void ReleaseDeviceResources()
 	{
-		if (m_pMaterialResourceSet)
-		{
-			gRenDev->m_pRT->RC_ReleaseRS(m_pMaterialResourceSet);
-		}
-
-		if (m_pPerInstanceResourceSet)
-		{
-			gRenDev->m_pRT->RC_ReleaseRS(m_pPerInstanceResourceSet);
-		}
-
-		if (m_pPerInstanceCB)
-		{
-			gRenDev->m_pRT->RC_ReleaseCB(m_pPerInstanceCB);
-			m_pPerInstanceCB = nullptr;
-		}
+		m_pMaterialResourceSet.reset();
+		m_pPerInstanceResourceSet.reset();
+		m_pPerInstanceCB.reset();
 	}
 
 	CDeviceResourceSetPtr     m_pMaterialResourceSet;
 	CDeviceResourceSetPtr     m_pPerInstanceResourceSet;
-	CConstantBuffer*          m_pPerInstanceCB;
+	CConstantBufferPtr        m_pPerInstanceCB;
 
 	const CDeviceInputStream* m_vertexStreamSet;
 	const CDeviceInputStream* m_indexStreamSet;
@@ -147,7 +135,7 @@ void CREWaterVolume::mfCenter(Vec3& vCenter, CRenderObject* pObj)
 		vCenter += pObj->GetTranslation();
 }
 
-bool CREWaterVolume::Compile(CRenderObject* pObj)
+bool CREWaterVolume::Compile(CRenderObject* pObj,CRenderView *pRenderView)
 {
 	if (!m_pCompiledObject)
 	{
@@ -158,8 +146,7 @@ bool CREWaterVolume::Compile(CRenderObject* pObj)
 	cro.m_bValid = 0;
 
 	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
-	SRenderPipeline& rp(rd->m_RP);
-	auto nThreadID = rp.m_nProcessThreadID;
+
 	CRY_ASSERT(rd->m_pRT->IsRenderThread());
 	auto* pWaterStage = rd->GetGraphicsPipeline().GetWaterStage();
 
@@ -221,7 +208,7 @@ bool CREWaterVolume::Compile(CRenderObject* pObj)
 	psoDescription.objectRuntimeMask |= g_HWSR_MaskBit[HWSR_COMPUTE_SKINNING];
 
 	// fog related runtime mask, this changes eventual PSOs.
-	const bool bFog = rp.m_TI[nThreadID].m_FS.m_bEnable;
+	const bool bFog = pRenderView->IsGlobalFogEnabled();
 	const bool bVolumetricFog = (rd->m_bVolumetricFogEnabled != 0);
 #if defined(VOLUMETRIC_FOG_SHADOWS)
 	const bool bVolFogShadow = (rd->m_bVolFogShadowsEnabled != 0);
@@ -313,7 +300,7 @@ bool CREWaterVolume::Compile(CRenderObject* pObj)
 
 	// UpdatePerInstanceCB uses not thread safe functions like CreateConstantBuffer(),
 	// so this needs to be called here instead of DrawToCommandList().
-	UpdatePerInstanceCB(cro, *pObj, bRenderFogShadowWater, bCaustics);
+	UpdatePerInstanceCB(cro, *pObj, bRenderFogShadowWater, bCaustics, pRenderView);
 
 	CRY_ASSERT(cro.m_pMaterialResourceSet);
 	CRY_ASSERT(cro.m_pPerInstanceCB);
@@ -338,7 +325,7 @@ void CREWaterVolume::DrawToCommandList(CRenderObject* pObj, const struct SGraphi
 #if defined(ENABLE_PROFILING_CODE)
 	if (!cobj.m_bValid || !cobj.m_pMaterialResourceSet->IsValid())
 	{
-		CryInterlockedIncrement(&SPipeStat::Out()->m_nIncompleteCompiledObjects);
+		CryInterlockedIncrement(&SRenderStatistics::Write().m_nIncompleteCompiledObjects);
 	}
 #endif
 
@@ -421,16 +408,17 @@ void CREWaterVolume::UpdatePerInstanceCB(
   watervolume::SCompiledWaterVolume& RESTRICT_REFERENCE compiledObj,
   const CRenderObject& renderObj,
   bool bRenderFogShadowWater,
-  bool bCaustics) const
+  bool bCaustics,
+  CRenderView *pRenderView) const
 {
 	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
-	SRenderPipeline& rp(rd->m_RP);
-	SCGParamsPF& PF = rd->m_cEF.m_PF[rp.m_nProcessThreadID];
+	SRenderPipeline& rp(gRenDev->m_RP);
+	SRenderViewShaderConstants& PF = pRenderView->GetShaderConstants();
 	const auto cameraPos = PF.pCameraPos;
 
 	if (!compiledObj.m_pPerInstanceCB)
 	{
-		compiledObj.m_pPerInstanceCB = rd->m_DevBufMan.CreateConstantBufferRaw(sizeof(watervolume::SPerInstanceConstantBuffer));
+		compiledObj.m_pPerInstanceCB = rd->m_DevBufMan.CreateConstantBuffer(sizeof(watervolume::SPerInstanceConstantBuffer));
 	}
 
 	if (!compiledObj.m_pPerInstanceCB)

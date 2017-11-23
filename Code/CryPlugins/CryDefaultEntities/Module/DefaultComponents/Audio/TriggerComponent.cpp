@@ -136,7 +136,7 @@ uint64 CTriggerComponent::GetEventMask() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CTriggerComponent::ProcessEvent(SEntityEvent& event)
+void CTriggerComponent::ProcessEvent(const SEntityEvent& event)
 {
 	if (m_pIEntityAudioComponent != nullptr)
 	{

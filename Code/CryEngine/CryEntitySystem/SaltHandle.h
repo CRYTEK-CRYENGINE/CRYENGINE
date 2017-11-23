@@ -2,9 +2,6 @@
 
 #pragma once
 
-#ifndef __SALTHANDLE
-	#define __SALTHANDLE
-
 // handle can be ==0 nil, or !=0 to store a reference to an object
 // this object can be valid or invalid
 template<class TSalt = unsigned short, class TIndex = unsigned short>
@@ -68,5 +65,3 @@ private: // --------------------------------------------------------------
 		m_Index = 0;
 	}
 };
-
-#endif // __SALTHANDLE

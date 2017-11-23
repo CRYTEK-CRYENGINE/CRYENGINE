@@ -12,13 +12,14 @@ public:
 	// IEntityComponent
 	virtual void Initialize() override;
 
-	virtual void ProcessEvent(SEntityEvent& event) override;
+	virtual void ProcessEvent(const SEntityEvent& event) override;
 	virtual uint64 GetEventMask() const override;
 	// ~IEntityComponent
 
 	static void ReflectType(Schematyc::CTypeDesc<CAIEntityComponent>& desc)
 	{
 		desc.SetGUID("{435E4CAE-2A4D-453C-BAAB-F3006E329DA7}"_cry_guid);
+		desc.SetComponentFlags({ IEntityComponent::EFlags::NoSave });
 	}
 
 	tAIObjectID GetAIObjectID() const { return m_objectReference.GetObjectID(); }

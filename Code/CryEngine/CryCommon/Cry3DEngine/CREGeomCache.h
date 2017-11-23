@@ -40,9 +40,7 @@ public:
 
 	// CRenderElement interface
 	virtual bool mfUpdate(InputLayoutHandle eVertFormat, int Flags, bool bTessellation) override;
-	virtual void mfPrepare(bool bCheckOverflow) override;
-	virtual bool mfDraw(CShader* ef, SShaderPass* sfm) override;
-
+	
 	// CREGeomCache interface
 	virtual void                       InitializeRenderElement(const uint numMeshes, _smart_ptr<IRenderMesh>* pMeshes, uint16 materialId);
 	virtual void                       SetupMotionBlur(CRenderObject* pRenderObject, const SRenderingPassInfo& passInfo);

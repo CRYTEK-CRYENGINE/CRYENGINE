@@ -3329,7 +3329,7 @@ void CNetContextState::DrawDebugScreens()
 							pRenderAuxGeom->DrawAABB(aabb, pEntity->GetWorldTM(), false, color, eBBD_Faceted);
 
 							Vec3 aabbCenterPos = pEntity->GetWorldTM() * aabb.GetCenter();
-							Vec3 viewPos = pRenderer->GetCamera().GetPosition();
+							Vec3 viewPos = GetISystem()->GetViewCamera().GetPosition();
 							Vec3 dir = (viewPos - aabbCenterPos).GetNormalized();
 							Vec3 textPos;
 

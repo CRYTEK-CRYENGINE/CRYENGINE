@@ -3,7 +3,7 @@
 #include "DefaultComponents/Cameras/ICameraManager.h"
 
 class IPlugin_CryDefaultEntities
-	: public ICryPlugin
+	: public Cry::IEnginePlugin
 	, public ISystemEventListener
 {
 public:

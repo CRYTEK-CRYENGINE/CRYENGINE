@@ -153,7 +153,7 @@ void CEntityComponentLuaScript::Update(SEntityUpdateContext& ctx)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntityComponentLuaScript::ProcessEvent(SEntityEvent& event)
+void CEntityComponentLuaScript::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -511,10 +511,18 @@ void CEntityComponentLuaScript::ProcessEvent(SEntityEvent& event)
 		}
 		break;
 	case ENTITY_EVENT_HIDE:
-		m_pScript->CallStateFunction(CurrentState(), m_pThis, ScriptState_OnHidden);
+		{
+			m_pEntity->UpdateComponentEventMask(this);
+
+			m_pScript->CallStateFunction(CurrentState(), m_pThis, ScriptState_OnHidden);
+		}
 		break;
 	case ENTITY_EVENT_UNHIDE:
-		m_pScript->CallStateFunction(CurrentState(), m_pThis, ScriptState_OnUnhidden);
+		{
+			m_pEntity->UpdateComponentEventMask(this);
+
+			m_pScript->CallStateFunction(CurrentState(), m_pThis, ScriptState_OnUnhidden);
+		}
 		break;
 	case ENTITY_EVENT_XFORM_FINISHED_EDITOR:
 		m_pScript->Call_OnTransformFromEditorDone(m_pThis);
@@ -529,7 +537,7 @@ uint64 CEntityComponentLuaScript::GetEventMask() const
 	// All events except runtime expensive ones
 	uint64 eventMasks = ~ENTITY_PERFORMANCE_EXPENSIVE_EVENTS_MASK;
 
-	if (m_bUpdateFuncImplemented && m_bUpdateEnabledOverride)
+	if (m_bUpdateFuncImplemented && m_bUpdateEnabledOverride && (!m_pEntity->IsHidden() || (m_pEntity->GetFlags() & ENTITY_FLAG_UPDATE_HIDDEN) != 0))
 	{
 		eventMasks |= BIT64(ENTITY_EVENT_UPDATE);
 	}

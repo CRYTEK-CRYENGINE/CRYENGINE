@@ -29,11 +29,6 @@
 	#include <timeapi.h>
 #endif
 
-	#if USE_STEAM
-		#include "Steamworks/public/steam/steam_api.h"
-		#include "SaveReaderWriter_Steam.h"
-	#endif
-
 IPlatformOS* IPlatformOS::Create(const uint8 createParams)
 {
 	return new CPlatformOS_PC(createParams);
@@ -326,95 +321,36 @@ void CPlatformOS_PC::EndSaveLoad(unsigned int user)
 {
 }
 
-bool CPlatformOS_PC::UseSteamReadWriter() const
-{
-	#if USE_STEAM
-	ICVar* pUseCloud = gEnv->pConsole ? gEnv->pConsole->GetCVar("sys_useSteamCloudForPlatformSaving") : NULL;
-	if (pUseCloud && pUseCloud->GetIVal() != 0)
-	{
-		if (gEnv->pSystem && gEnv->pSystem->SteamInit())
-		{
-			if (SteamRemoteStorage()->IsCloudEnabledForAccount() && SteamRemoteStorage()->IsCloudEnabledForApp())
-			{
-				return true;
-			}
-		}
-	}
-	#endif // USE_STEAM
-	return false;
-}
-
 IPlatformOS::ISaveReaderPtr CPlatformOS_PC::SaveGetReader(const char* fileName, unsigned int /*user*/)
 {
-	#if USE_STEAM
-	if (UseSteamReadWriter())
-	{
-		CSaveReader_SteamPtr pSaveReader(new CSaveReader_Steam(fileName));
+	CSaveReader_CryPakPtr pSaveReader(new CSaveReader_CryPak(fileName));
 
-		if (!pSaveReader || pSaveReader->LastError() != IPlatformOS::eFOC_Success)
-		{
-			return CSaveReader_SteamPtr();
-		}
-		else
-		{
-			return pSaveReader;
-		}
+	if (!pSaveReader || pSaveReader->LastError() != IPlatformOS::eFOC_Success)
+	{
+		return CSaveReader_CryPakPtr();
 	}
 	else
-	#endif // USE_STEAM
 	{
-		CSaveReader_CryPakPtr pSaveReader(new CSaveReader_CryPak(fileName));
-
-		if (!pSaveReader || pSaveReader->LastError() != IPlatformOS::eFOC_Success)
-		{
-			return CSaveReader_CryPakPtr();
-		}
-		else
-		{
-			return pSaveReader;
-		}
+		return pSaveReader;
 	}
 }
 
 IPlatformOS::ISaveWriterPtr CPlatformOS_PC::SaveGetWriter(const char* fileName, unsigned int /*user*/)
 {
-	#if USE_STEAM
-	if (UseSteamReadWriter())
+	CSaveWriter_CryPakPtr pSaveWriter(new CSaveWriter_CryPak(fileName));
+
+	if (!pSaveWriter || pSaveWriter->LastError() != IPlatformOS::eFOC_Success)
 	{
-		CSaveWriter_SteamPtr pSaveWriter(new CSaveWriter_Steam(fileName));
-
-		if (!pSaveWriter || pSaveWriter->LastError() != IPlatformOS::eFOC_Success)
-		{
-			return CSaveWriter_SteamPtr();
-		}
-		else
-		{
-			if (m_bLevelLoad)
-			{
-				m_bSaveDuringLevelLoad = true;
-			}
-
-			return pSaveWriter;
-		}
+		return CSaveWriter_CryPakPtr();
 	}
 	else
-	#endif
 	{
-		CSaveWriter_CryPakPtr pSaveWriter(new CSaveWriter_CryPak(fileName));
-
-		if (!pSaveWriter || pSaveWriter->LastError() != IPlatformOS::eFOC_Success)
+		if (m_bLevelLoad)
 		{
-			return CSaveWriter_CryPakPtr();
+			m_bSaveDuringLevelLoad = true;
 		}
-		else
-		{
-			if (m_bLevelLoad)
-			{
-				m_bSaveDuringLevelLoad = true;
-			}
 
-			return pSaveWriter;
-		}
+		return pSaveWriter;
 	}
 }
 
@@ -1058,13 +994,6 @@ bool CPlatformOS_PC::GetLocalIPAddress(char* ipAddress, uint32& ip, int length) 
 
 IPlatformOS::IFileFinderPtr CPlatformOS_PC::GetFileFinder(unsigned int user)
 {
-	#if USE_STEAM
-	if (UseSteamReadWriter())
-	{
-		return IFileFinderPtr(new CFileFinderSteam());
-	}
-	#endif
-
 	return IFileFinderPtr(new CFileFinderCryPak());
 }
 

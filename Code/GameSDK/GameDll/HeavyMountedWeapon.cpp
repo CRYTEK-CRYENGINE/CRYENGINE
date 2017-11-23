@@ -662,7 +662,7 @@ void CHeavyMountedWeapon::SetUnMountedConfiguration()
 }
 
 
-void CHeavyMountedWeapon::ProcessEvent(SEntityEvent& event)
+void CHeavyMountedWeapon::ProcessEvent(const SEntityEvent& event)
 {
 	if ((event.event == ENTITY_EVENT_XFORM) && IsMounted() && GetOwnerId())
 	{

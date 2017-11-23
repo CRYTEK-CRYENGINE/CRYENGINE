@@ -607,7 +607,7 @@ void COctreeNode::UpdateStaticInstancing()
 	m_bStaticInstancingIsDirty = false;
 }
 
-void COctreeNode::AddLightSource(CDLight* pSource, const SRenderingPassInfo& passInfo)
+void COctreeNode::AddLightSource(SRenderLight* pSource, const SRenderingPassInfo& passInfo)
 {
 	bool bIsVisible = false;
 	if (pSource->m_Flags & DLF_DEFERRED_CUBEMAPS)
@@ -645,7 +645,7 @@ void COctreeNode::AddLightSource(CDLight* pSource, const SRenderingPassInfo& pas
 bool IsAABBInsideHull(const SPlaneObject* pHullPlanes, int nPlanesNum, const AABB& aabbBox);
 bool IsSphereInsideHull(const SPlaneObject* pHullPlanes, int nPlanesNum, const Sphere& objSphere);
 
-void COctreeNode::FillShadowCastersList(bool bNodeCompletellyInFrustum, CDLight* pLight, ShadowMapFrustum* pFr, PodArray<SPlaneObject>* pShadowHull, uint32 nRenderNodeFlags, const SRenderingPassInfo& passInfo)
+void COctreeNode::FillShadowCastersList(bool bNodeCompletellyInFrustum, SRenderLight* pLight, ShadowMapFrustum* pFr, PodArray<SPlaneObject>* pShadowHull, uint32 nRenderNodeFlags, const SRenderingPassInfo& passInfo)
 {
 	if (GetCVars()->e_Objects)
 	{
@@ -2509,12 +2509,15 @@ void COctreeNode::RenderContent(int nRenderMask, const Vec3& vAmbColor, const SR
 	renderContentJob.SetClassInstance(this);
 	renderContentJob.SetPriorityLevel(JobManager::eHighPriority);
 	renderContentJob.Run();
+
+//	auto lambda = [=]() { RenderContentJobEntry(nRenderMask, vAmbColor, passInfo); };
+//	gEnv->pJobManager->AddLambdaJob("RenderContent", lambda, JobManager::eHighPriority);
 }
 
 //////////////////////////////////////////////////////////////////////////
 void COctreeNode::RenderContentJobEntry(int nRenderMask, Vec3 vAmbColor, SRenderingPassInfo passInfo)
 {
-	PodArray<CDLight*>* pAffectingLights = GetAffectingLights(passInfo);
+	PodArray<SRenderLight*>* pAffectingLights = GetAffectingLights(passInfo);
 	bool bSunOnly = pAffectingLights && (pAffectingLights->Count() == 1) && (pAffectingLights->GetAt(0)->m_Flags & DLF_SUN) && !m_pVisArea;
 
 	SSectorTextureSet* pTerrainTexInfo = NULL;
@@ -2576,7 +2579,7 @@ void AddSpriteInfo(CThreadSafeRendererContainer<SVegetationSpriteInfo>& arrSprit
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void COctreeNode::RenderVegetations(TDoublyLinkedList<IRenderNode>* lstObjects, int nRenderMask, bool bNodeCompletelyInFrustum, PodArray<CDLight*>* pAffectingLights, bool bSunOnly, SSectorTextureSet* pTerrainTexInfo, const SRenderingPassInfo& passInfo)
+void COctreeNode::RenderVegetations(TDoublyLinkedList<IRenderNode>* lstObjects, int nRenderMask, bool bNodeCompletelyInFrustum, PodArray<SRenderLight*>* pAffectingLights, bool bSunOnly, SSectorTextureSet* pTerrainTexInfo, const SRenderingPassInfo& passInfo)
 {
 	FUNCTION_PROFILER_3DENGINE;
 
@@ -2644,7 +2647,7 @@ void COctreeNode::RenderVegetations(TDoublyLinkedList<IRenderNode>* lstObjects, 
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void COctreeNode::RenderBrushes(TDoublyLinkedList<IRenderNode>* lstObjects, bool bNodeCompletelyInFrustum, PodArray<CDLight*>* pAffectingLights, bool bSunOnly, SSectorTextureSet* pTerrainTexInfo, const SRenderingPassInfo& passInfo)
+void COctreeNode::RenderBrushes(TDoublyLinkedList<IRenderNode>* lstObjects, bool bNodeCompletelyInFrustum, PodArray<SRenderLight*>* pAffectingLights, bool bSunOnly, SSectorTextureSet* pTerrainTexInfo, const SRenderingPassInfo& passInfo)
 {
 	FUNCTION_PROFILER_3DENGINE;
 
@@ -2693,7 +2696,7 @@ void COctreeNode::RenderBrushes(TDoublyLinkedList<IRenderNode>* lstObjects, bool
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void COctreeNode::RenderDecalsAndRoads(TDoublyLinkedList<IRenderNode>* lstObjects, int nRenderMask, const Vec3& vAmbColor, bool bNodeCompletelyInFrustum, PodArray<CDLight*>* pAffectingLights, bool bSunOnly, const SRenderingPassInfo& passInfo)
+void COctreeNode::RenderDecalsAndRoads(TDoublyLinkedList<IRenderNode>* lstObjects, int nRenderMask, const Vec3& vAmbColor, bool bNodeCompletelyInFrustum, PodArray<SRenderLight*>* pAffectingLights, bool bSunOnly, const SRenderingPassInfo& passInfo)
 {
 	FUNCTION_PROFILER_3DENGINE;
 
@@ -2749,7 +2752,7 @@ void COctreeNode::RenderDecalsAndRoads(TDoublyLinkedList<IRenderNode>* lstObject
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void COctreeNode::RenderCommonObjects(TDoublyLinkedList<IRenderNode>* lstObjects, int nRenderMask, const Vec3& vAmbColor, bool bNodeCompletelyInFrustum, PodArray<CDLight*>* pAffectingLights, bool bSunOnly, SSectorTextureSet* pTerrainTexInfo, const SRenderingPassInfo& passInfo)
+void COctreeNode::RenderCommonObjects(TDoublyLinkedList<IRenderNode>* lstObjects, int nRenderMask, const Vec3& vAmbColor, bool bNodeCompletelyInFrustum, PodArray<SRenderLight*>* pAffectingLights, bool bSunOnly, SSectorTextureSet* pTerrainTexInfo, const SRenderingPassInfo& passInfo)
 {
 	FUNCTION_PROFILER_3DENGINE;
 
@@ -2802,7 +2805,7 @@ void COctreeNode::RenderCommonObjects(TDoublyLinkedList<IRenderNode>* lstObjects
 					CLightEntity* pLightEnt = (CLightEntity*)pObj;
 
 					// first check against camera view frustum
-					CDLight* pLight = &pLightEnt->m_light;
+					SRenderLight* pLight = &pLightEnt->m_light;
 					if (pLight->m_Flags & DLF_DEFERRED_CUBEMAPS)
 					{
 						OBB obb(OBB::CreateOBBfromAABB(Matrix33(pLight->m_ObjMatrix), AABB(-pLight->m_ProbeExtents, pLight->m_ProbeExtents)));
@@ -3283,7 +3286,7 @@ void COctreeNode::CompileCharacter(ICharacterInstance* pChar, uint32& nInternalF
 }
 
 //////////////////////////////////////////////////////////////////////////
-int16 CObjManager::GetNearestCubeProbe(PodArray<CDLight*>* pAffectingLights, IVisArea* pVisArea, const AABB& objBox, bool bSpecular, Vec4* pEnvProbeMults)
+int16 CObjManager::GetNearestCubeProbe(PodArray<SRenderLight*>* pAffectingLights, IVisArea* pVisArea, const AABB& objBox, bool bSpecular, Vec4* pEnvProbeMults)
 {
 	// Only used for alpha blended geometry - but still should be optimized further
 	float fMinDistance = FLT_MAX;
@@ -3361,7 +3364,7 @@ void CObjManager::FillTerrainTexInfo(IOctreeNode* pOcNode, float fEntDistance, s
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CObjManager::RenderBrush(CBrush* pEnt, PodArray<CDLight*>* pAffectingLights,
+void CObjManager::RenderBrush(CBrush* pEnt, PodArray<SRenderLight*>* pAffectingLights,
 	SSectorTextureSet* pTerrainTexInfo,
 	const AABB& objBox,
 	float fEntDistance,
@@ -3544,7 +3547,7 @@ void COctreeNode::CheckInitAffectingLights(const SRenderingPassInfo& passInfo)
 
 		if (!m_pVisArea || m_pVisArea->IsAffectedByOutLights())
 		{
-			PodArray<CDLight*>* pSceneLights = Get3DEngine()->GetDynamicLightSources();
+			PodArray<SRenderLight*>* pSceneLights = Get3DEngine()->GetDynamicLightSources();
 			if (pSceneLights->Count() && (pSceneLights->GetAt(0)->m_Flags & DLF_SUN))
 				m_lstAffectingLights.Add(pSceneLights->GetAt(0));
 		}
@@ -3554,7 +3557,7 @@ void COctreeNode::CheckInitAffectingLights(const SRenderingPassInfo& passInfo)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-PodArray<CDLight*>* COctreeNode::GetAffectingLights(const SRenderingPassInfo& passInfo)
+PodArray<SRenderLight*>* COctreeNode::GetAffectingLights(const SRenderingPassInfo& passInfo)
 {
 	CheckInitAffectingLights(passInfo);
 
@@ -3650,7 +3653,7 @@ void COctreeNode::GetNearestCubeProbe(float& fMinDistance, int& nMaxPriority, CL
 		if (pObj->GetRenderNodeType() == eERType_Light)
 		{
 			CLightEntity* pLightEnt = (CLightEntity*)pObj;
-			CDLight* pLight = &pLightEnt->m_light;
+			SRenderLight* pLight = &pLightEnt->m_light;
 
 			if (pLightEnt->GetLayerId() != uint16(~0) && (pObj->m_dwRndFlags & ERF_HIDDEN))
 				continue;

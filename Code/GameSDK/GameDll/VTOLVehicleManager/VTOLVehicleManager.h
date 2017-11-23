@@ -100,7 +100,7 @@ public:
 	void Update(float frameTime);
 
 	// IEntityEventListener
-	virtual void OnEntityEvent( IEntity *pEntity,SEntityEvent &event );
+	virtual void OnEntityEvent( IEntity *pEntity, const SEntityEvent& event );
 	// ~IEntityEventListener
 
 	// IMPPathFollower

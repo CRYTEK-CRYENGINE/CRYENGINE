@@ -60,10 +60,6 @@ public:
 	CREBreakableGlass();
 	virtual ~CREBreakableGlass();
 
-	// CRenderElement interface
-	virtual void mfPrepare(bool bCheckOverflow);
-	virtual bool mfDraw(CShader* ef, SShaderPass* sfm);
-
 	// CREBreakableGlass interface
 	virtual bool InitialiseRenderElement(const SBreakableGlassInitParams& params);
 	virtual void ReleaseRenderElement();

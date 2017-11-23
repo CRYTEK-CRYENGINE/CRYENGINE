@@ -1084,7 +1084,7 @@ void CNavPath::TrimPath(float trimLength, bool twoD)
 	}
 }
 
-Vec3 GetSafePositionInMesh(const NavigationMesh& mesh, const Vec3& testLocation, const float verticalRange, const float horizontalRange)
+Vec3 GetSafePositionInMesh(const NavigationMesh& mesh, const Vec3& testLocation, const float verticalRange, const float horizontalRange, const INavMeshQueryFilter* pFilter)
 {
 	Vec3 safePosition = testLocation;
 
@@ -1093,10 +1093,10 @@ Vec3 GetSafePositionInMesh(const NavigationMesh& mesh, const Vec3& testLocation,
 	const MNM::real_t vRange(verticalRange);
 	const MNM::real_t hRange(horizontalRange);
 
-	if (!mesh.navMesh.GetTriangleAt(testLocationFixedPoint, vRange, vRange))
+	if (!mesh.navMesh.GetTriangleAt(testLocationFixedPoint, vRange, vRange, pFilter))
 	{
 		MNM::vector3_t closestLocation;
-		if (mesh.navMesh.GetClosestTriangle(testLocationFixedPoint, vRange, hRange, nullptr, &closestLocation))
+		if (mesh.navMesh.GetClosestTriangle(testLocationFixedPoint, vRange, hRange, pFilter, nullptr, &closestLocation))
 		{
 			safePosition = closestLocation.GetVec3();
 		}
@@ -1108,7 +1108,7 @@ Vec3 GetSafePositionInMesh(const NavigationMesh& mesh, const Vec3& testLocation,
 //===================================================================
 // MovePathEndsOutOfObstacles
 //===================================================================
-void CNavPath::MovePathEndsOutOfObstacles(const CPathObstacles& obstacles)
+void CNavPath::MovePathEndsOutOfObstacles(const CPathObstacles& obstacles, const INavMeshQueryFilter* pFilter)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
@@ -1144,7 +1144,7 @@ void CNavPath::MovePathEndsOutOfObstacles(const CPathObstacles& obstacles)
 			{
 				const float displacement = (newPosition - pathStart).len();
 
-				pathStart = GetSafePositionInMesh(mesh, newPosition - gridParams.origin, 2.0f, displacement / gridParams.voxelSize.x);
+				pathStart = GetSafePositionInMesh(mesh, newPosition - gridParams.origin, 2.0f, displacement / gridParams.voxelSize.x, pFilter);
 			}
 		}
 
@@ -1157,7 +1157,7 @@ void CNavPath::MovePathEndsOutOfObstacles(const CPathObstacles& obstacles)
 			{
 				const float displacement = (newPosition - pathEnd).len();
 
-				pathEnd = GetSafePositionInMesh(mesh, newPosition - gridParams.origin, 2.0f, displacement / gridParams.voxelSize.x);
+				pathEnd = GetSafePositionInMesh(mesh, newPosition - gridParams.origin, 2.0f, displacement / gridParams.voxelSize.x, pFilter);
 			}
 		}
 	}
@@ -1184,7 +1184,7 @@ void CNavPath::MovePathEndsOutOfObstacles(const CPathObstacles& obstacles)
 // other things (depending on the navCapMask too). radius also needs to
 // get used.
 //===================================================================
-bool CNavPath::CheckPath(const TPathPoints& pathList, float radius) const
+bool CNavPath::CheckPath(const TPathPoints& pathList, float radius, const INavMeshQueryFilter* pFilter) const
 {
 	const bool usingMNM = (GetMeshID() != NavigationMeshID(0));
 
@@ -1219,23 +1219,22 @@ bool CNavPath::CheckPath(const TPathPoints& pathList, float radius) const
 					endLocation.Set(MNM::real_t(to.x), MNM::real_t(to.y), MNM::real_t(to.z));
 
 					triangleStartID = triangleEndID;
-					triangleEndID = mesh.navMesh.GetTriangleAt(endLocation - origin, verticalRange, verticalRange);
+					triangleEndID = mesh.navMesh.GetTriangleAt(endLocation - origin, verticalRange, verticalRange, pFilter);
 				}
 				else
 				{
 					startLocation.Set(MNM::real_t(from.x), MNM::real_t(from.y), MNM::real_t(from.z));
 					endLocation.Set(MNM::real_t(to.x), MNM::real_t(to.y), MNM::real_t(to.z));
 
-					triangleStartID = mesh.navMesh.GetTriangleAt(startLocation - origin, verticalRange, verticalRange);
-					triangleEndID = mesh.navMesh.GetTriangleAt(endLocation - origin, verticalRange, verticalRange);
+					triangleStartID = mesh.navMesh.GetTriangleAt(startLocation - origin, verticalRange, verticalRange, pFilter);
+					triangleEndID = mesh.navMesh.GetTriangleAt(endLocation - origin, verticalRange, verticalRange, pFilter);
 				}
 
 				if (!triangleStartID || !triangleEndID)
 					return false;
 
 				MNM::CNavMesh::RayCastRequest<512> raycastRequest;
-
-				if (mesh.navMesh.RayCast(startLocation, triangleStartID, endLocation, triangleEndID, raycastRequest) != MNM::CNavMesh::eRayCastResult_NoHit)
+				if (mesh.navMesh.RayCast(startLocation, triangleStartID, endLocation, triangleEndID, raycastRequest, pFilter) != MNM::CNavMesh::eRayCastResult_NoHit)
 					return false;
 			}
 		}
@@ -1246,7 +1245,7 @@ bool CNavPath::CheckPath(const TPathPoints& pathList, float radius) const
 //===================================================================
 // AdjustPathAroundObstacleShape2D
 //===================================================================
-bool CNavPath::AdjustPathAroundObstacleShape2D(const SPathObstacleShape2D& obstacle, IAISystem::tNavCapMask navCapMask)
+bool CNavPath::AdjustPathAroundObstacleShape2D(const SPathObstacleShape2D& obstacle, IAISystem::tNavCapMask navCapMask, const INavMeshQueryFilter* pFilter)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
@@ -1455,9 +1454,9 @@ bool CNavPath::AdjustPathAroundObstacleShape2D(const SPathObstacleShape2D& obsta
 	float checkRadius = 0.3f;
 	if (distFwd < distBwd)
 	{
-		if (CheckPath(pathFwd, checkRadius))
+		if (CheckPath(pathFwd, checkRadius, pFilter))
 			m_pathPoints.insert(itCutExitAfter, pathFwd.begin(), pathFwd.end());
-		else if (CheckPath(pathBwd, checkRadius))
+		else if (CheckPath(pathBwd, checkRadius, pFilter))
 			m_pathPoints.insert(itCutExitAfter, pathBwd.begin(), pathBwd.end());
 		else
 			return false;
@@ -1465,9 +1464,9 @@ bool CNavPath::AdjustPathAroundObstacleShape2D(const SPathObstacleShape2D& obsta
 	}
 	else
 	{
-		if (CheckPath(pathBwd, checkRadius))
+		if (CheckPath(pathBwd, checkRadius, pFilter))
 			m_pathPoints.insert(itCutExitAfter, pathBwd.begin(), pathBwd.end());
-		else if (CheckPath(pathFwd, checkRadius))
+		else if (CheckPath(pathFwd, checkRadius, pFilter))
 			m_pathPoints.insert(itCutExitAfter, pathFwd.begin(), pathFwd.end());
 		else
 			return false;
@@ -1478,12 +1477,12 @@ bool CNavPath::AdjustPathAroundObstacleShape2D(const SPathObstacleShape2D& obsta
 //===================================================================
 // AdjustPathAroundObstacle
 //===================================================================
-bool CNavPath::AdjustPathAroundObstacle(const CPathObstacle& obstacle, IAISystem::tNavCapMask navCapMask)
+bool CNavPath::AdjustPathAroundObstacle(const CPathObstacle& obstacle, IAISystem::tNavCapMask navCapMask, const INavMeshQueryFilter* pFilter)
 {
 	switch (obstacle.GetType())
 	{
 	case CPathObstacle::ePOT_Shape2D:
-		return AdjustPathAroundObstacleShape2D(obstacle.GetShape2D(), navCapMask);
+		return AdjustPathAroundObstacleShape2D(obstacle.GetShape2D(), navCapMask, pFilter);
 	default:
 		AIError("CNavPath::AdjustPathAroundObstacle unhandled type %d", obstacle.GetType());
 	}
@@ -1493,29 +1492,29 @@ bool CNavPath::AdjustPathAroundObstacle(const CPathObstacle& obstacle, IAISystem
 //===================================================================
 // AdjustPathAroundObstacles
 //===================================================================
-bool CNavPath::AdjustPathAroundObstacles(const CPathObstacles& obstacles, IAISystem::tNavCapMask navCapMask)
+bool CNavPath::AdjustPathAroundObstacles(const CPathObstacles& obstacles, IAISystem::tNavCapMask navCapMask, const INavMeshQueryFilter* pFilter)
 {
-	MovePathEndsOutOfObstacles(obstacles);
+	MovePathEndsOutOfObstacles(obstacles, pFilter);
 
 	for (TPathObstacles::const_iterator it = obstacles.GetCombinedObstacles().begin(); it != obstacles.GetCombinedObstacles().end(); ++it)
 	{
 		const CPathObstacle& obstacle = **it;
-		if (!AdjustPathAroundObstacle(obstacle, navCapMask))
+		if (!AdjustPathAroundObstacle(obstacle, navCapMask, pFilter))
 			return false;
 	}
 	return true;
 }
 
-bool CNavPath::AdjustPathAroundObstacles(const Vec3& currentpos, const AgentMovementAbility& movementAbility)
+bool CNavPath::AdjustPathAroundObstacles(const Vec3& currentpos, const AgentMovementAbility& movementAbility, const INavMeshQueryFilter* pFilter)
 {
 	m_obstacles.CalculateObstaclesAroundLocation(currentpos, movementAbility, this);
 
-	MovePathEndsOutOfObstacles(m_obstacles);
+	MovePathEndsOutOfObstacles(m_obstacles, pFilter);
 
 	for (TPathObstacles::const_iterator it = m_obstacles.GetCombinedObstacles().begin(); it != m_obstacles.GetCombinedObstacles().end(); ++it)
 	{
 		const CPathObstacle& obstacle = **it;
-		if (!AdjustPathAroundObstacle(obstacle, movementAbility.pathfindingProperties.navCapMask))
+		if (!AdjustPathAroundObstacle(obstacle, movementAbility.pathfindingProperties.navCapMask, pFilter))
 			return false;
 	}
 	return true;
@@ -1684,6 +1683,26 @@ float CNavPath::GetDistToSmartObject(bool b2D) const
 		curPos = pathIt->vPos;
 	}
 	return std::numeric_limits<float>::max();
+}
+
+bool CNavPath::CanPassFilter(size_t fromPointIndex, const INavMeshQueryFilter* pFilter)
+{
+	if (!pFilter)
+		return true;
+	
+	const TPathPoints& pathPoints = GetPath();
+	if (fromPointIndex >= pathPoints.size())
+		return true;
+
+	const MNM::INavMesh* pNavMesh = gAIEnv.pNavigationSystem->GetMNMNavMesh(m_params.meshID);
+	for (auto it = std::next(pathPoints.begin(), fromPointIndex); it != pathPoints.end(); ++it)
+	{
+		if (!pNavMesh->CanTrianglePassFilter(it->iTriId, *pFilter))
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
 const PathPointDescriptor::OffMeshLinkData* CNavPath::GetLastPathPointMNNSOData() const

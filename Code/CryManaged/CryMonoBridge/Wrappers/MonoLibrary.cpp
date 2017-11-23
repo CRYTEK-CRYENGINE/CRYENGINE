@@ -83,7 +83,7 @@ bool CMonoLibrary::Load()
 	#ifndef _RELEASE
 	// load debug information
 	string sDebugDatabasePath = m_assemblyPath;
-	sDebugDatabasePath.append(".mdb");
+	PathUtil::ReplaceExtension(sDebugDatabasePath, ".pdb");
 
 	CCryFile debugFile;
 	debugFile.Open(sDebugDatabasePath, "rb", ICryPak::FLAGS_PATH_REAL);
@@ -121,33 +121,19 @@ bool CMonoLibrary::Load()
 	string fileName = PathUtil::GetFile(m_assemblyPath);
 	assemblyPath = PathUtil::Make(tempBinaryDirectory, fileName);
 
-	// Also copy debug databases, if present
+	// If mdb
 	string mdbPathSource = m_assemblyPath + ".mdb";
 	string mdbPathTarget = assemblyPath + ".mdb";
 
-	// It could be that old .dll and .mdb files are still in the temporary directory.
+	// Also copy debug databases, if present
+	string pdbPathSource = PathUtil::ReplaceExtension(m_assemblyPath, ".pdb");
+	string pdbPathTarget = PathUtil::ReplaceExtension(assemblyPath, ".pdb");
+
+	// It could be that old .dll, mdb and .pdb files are still in the temporary directory.
 	// This can cause unexpected behavior or out of sync debug-symbols, so delete the old files first.
-	if (FILE* handle = gEnv->pCryPak->FOpen(mdbPathTarget, "rb", ICryPak::FOPEN_HINT_QUIET | ICryPak::FLAGS_PATH_REAL))
-	{
-		gEnv->pCryPak->FClose(handle);
-		gEnv->pCryPak->RemoveFile(mdbPathTarget);
-	}
-
-	if (FILE* handle = gEnv->pCryPak->FOpen(assemblyPath, "rb", ICryPak::FOPEN_HINT_QUIET | ICryPak::FLAGS_PATH_REAL))
-	{
-		gEnv->pCryPak->FClose(handle);
-		gEnv->pCryPak->RemoveFile(assemblyPath);
-	}
-
-	// The path can be relative, so the default IsFileExist is not a sure way to check if the file exists.
-	// Instead we try opening the file and if it works the file exists.
-	if (auto handle = gEnv->pCryPak->FOpen(mdbPathSource, "rb", ICryPak::FOPEN_HINT_QUIET | ICryPak::FLAGS_PATH_REAL))
-	{
-		gEnv->pCryPak->FClose(handle);
-		gEnv->pCryPak->CopyFileOnDisk(mdbPathSource, mdbPathTarget, false);
-	}
-
-	gEnv->pCryPak->CopyFileOnDisk(m_assemblyPath, assemblyPath, false);
+	RemoveAndCopyFile(mdbPathSource, mdbPathTarget);
+	RemoveAndCopyFile(pdbPathSource, pdbPathTarget);
+	RemoveAndCopyFile(m_assemblyPath, assemblyPath);
 	#endif
 
 	m_pAssembly = MonoInternals::mono_domain_assembly_open(m_pDomain->GetMonoDomain(), assemblyPath);
@@ -173,11 +159,12 @@ void CMonoLibrary::Unload()
 
 void CMonoLibrary::Reload()
 {
-	Load();
-
-	for (auto it = m_classes.begin(); it != m_classes.end(); ++it)
+	if (Load())
 	{
-		it->get()->ReloadClass();
+		for (auto it = m_classes.begin(); it != m_classes.end(); ++it)
+		{
+			it->get()->ReloadClass();
+		}
 	}
 }
 
@@ -207,7 +194,7 @@ void CMonoLibrary::Deserialize(CMonoObject* pSerializer)
 		return;
 	}
 
-	static_cast<CAppDomain*>(m_pDomain)->DeserializeObject(pSerializer, true);
+	static_cast<CAppDomain*>(m_pDomain)->DeserializeObject(pSerializer, nullptr);
 
 	for (auto it = m_classes.begin(); it != m_classes.end(); ++it)
 	{
@@ -233,6 +220,12 @@ CMonoClass* CMonoLibrary::GetClass(const char* szNamespace, const char* szClassN
 	m_classes.emplace_back(std::make_shared<CMonoClass>(this, szNamespace, szClassName));
 
 	std::shared_ptr<CMonoClass> pClass = m_classes.back();
+	if (pClass->GetMonoClass() == nullptr)
+	{
+		m_classes.pop_back();
+		return nullptr;
+	}
+
 	pClass->SetWeakPointer(pClass);
 
 	return pClass.get();
@@ -241,6 +234,10 @@ CMonoClass* CMonoLibrary::GetClass(const char* szNamespace, const char* szClassN
 std::shared_ptr<CMonoClass> CMonoLibrary::GetTemporaryClass(const char* szNamespace, const char* szClassName)
 {
 	std::shared_ptr<CMonoClass> pClass = std::make_shared<CMonoClass>(this, szNamespace, szClassName);
+	if (pClass->GetMonoClass() == nullptr)
+	{
+		return nullptr;
+	}
 
 	// Since this class may expire at any time the class has to contain a weak pointer of itself
 	// This is converted to a shared_ptr when the class creates objects, to ensure that the class always outlives its instances
@@ -289,6 +286,24 @@ MonoInternals::MonoObject* CMonoLibrary::GetManagedObject()
 const char* CMonoLibrary::GetImageName() const
 {
 	return MonoInternals::mono_image_get_name(m_pImage);
+}
+
+bool CMonoLibrary::RemoveAndCopyFile(string sourceFile, string targetFile) const
+{
+	// The path can be relative, so the default IsFileExist is not a sure way to check if the file exists.
+	// Instead we try opening the file and if it works the file exists.
+	if (FILE* handle = gEnv->pCryPak->FOpen(targetFile, "rb", ICryPak::FOPEN_HINT_QUIET | ICryPak::FLAGS_PATH_REAL))
+	{
+		gEnv->pCryPak->FClose(handle);
+		gEnv->pCryPak->RemoveFile(targetFile);
+	}
+
+	if (FILE* handle = gEnv->pCryPak->FOpen(sourceFile, "rb", ICryPak::FOPEN_HINT_QUIET | ICryPak::FLAGS_PATH_REAL))
+	{
+		gEnv->pCryPak->FClose(handle);
+		return gEnv->pCryPak->CopyFileOnDisk(sourceFile, targetFile, false);
+	}
+	return false;
 }
 
 const char* CMonoLibrary::GetFilePath()

@@ -224,7 +224,7 @@ void CLedgeObject::HandleEvent( const SGameObjectEvent& gameObjectEvent )
 	}
 }
 
-void CLedgeObject::ProcessEvent( SEntityEvent& entityEvent )
+void CLedgeObject::ProcessEvent( const SEntityEvent& entityEvent )
 {
 	switch( entityEvent.event )
 	{
@@ -241,6 +241,11 @@ void CLedgeObject::ProcessEvent( SEntityEvent& entityEvent )
 		}
 		break;
 	}
+}
+
+uint64 CLedgeObject::GetEventMask() const
+{
+	return BIT64(ENTITY_EVENT_XFORM) | BIT64(ENTITY_EVENT_EDITOR_PROPERTY_CHANGED);
 }
 
 void CLedgeObject::GetMemoryUsage( ICrySizer *pSizer ) const

@@ -629,7 +629,7 @@ void CGameRulesObjective_CTF::OnAction(const ActionId &action, int activationMod
 }
 
 //-------------------------------------------------------------------------
-void CGameRulesObjective_CTF::OnEntityEvent( IEntity *pEntity, SEntityEvent &event )
+void CGameRulesObjective_CTF::OnEntityEvent( IEntity *pEntity, const SEntityEvent& event )
 {
 	EntityId entityId = pEntity->GetId();
 

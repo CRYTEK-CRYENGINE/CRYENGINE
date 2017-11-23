@@ -347,11 +347,11 @@ bool CManualFrameStepController::OnInputEvent(const SInputEvent& inputEvent)
 {
 	if (gEnv->pRenderer)
 	{
-		int viewX, viewY, width, height;
-		gEnv->pRenderer->GetViewport(&viewX, &viewY, &width, &height);
+		const int w = IRenderAuxGeom::GetAux()->GetCamera().GetViewSurfaceX();
+		const int h = IRenderAuxGeom::GetAux()->GetCamera().GetViewSurfaceZ();
 
-		float x = float(viewX) + float(width / 2) - 110.0f;
-		float y = float(viewY) + float(height) - 70.0f;
+		float x = float(0) + float(w / 2) - 110.0f;
+		float y = float(0) + float(h) - 70.0f;
 
 		IRenderAuxText::Draw2dLabel(x, y, 2.0f, Col_Red, false, "ManualFrameStep active");
 		x += 25.0f;

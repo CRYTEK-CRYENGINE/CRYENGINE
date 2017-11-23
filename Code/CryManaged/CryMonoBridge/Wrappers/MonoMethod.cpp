@@ -85,8 +85,13 @@ void CMonoMethod::VisitParameters(std::function<void(int index, MonoInternals::M
 	}
 }
 
-string CMonoMethod::GetSignatureDescription(bool bIncludeNamespace) const
+string CMonoMethod::GetSignatureDescription(bool bIncludeNamespace, bool bForceSkipCache) const
 {
+	if (m_description.size() > 0 && !bForceSkipCache)
+	{
+		return m_description;
+	}
+
 	MonoInternals::MonoMethodSignature* pSignature = MonoInternals::mono_method_signature(m_pMethod);
 	char* desc = MonoInternals::mono_signature_get_desc(pSignature, bIncludeNamespace);
 	const char* szName = GetName();
@@ -95,12 +100,14 @@ string CMonoMethod::GetSignatureDescription(bool bIncludeNamespace) const
 	result.Format(":%s(%s)", szName, desc);
 
 	MonoInternals::mono_free(desc);
+
+	const_cast<CMonoMethod*>(this)->m_description = result;
 	return result;
 }
 
 void CMonoMethod::PrepareForSerialization()
 {
-	m_description = GetSignatureDescription(false);
+	GetSignatureDescription(false, true);
 
 	// Invalidate the method so we don't try to use it later
 	m_pMethod = nullptr;

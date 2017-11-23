@@ -157,9 +157,6 @@ struct IAIDebugRenderer
 	//! (see ai_StatsTarget for an example).
 	virtual void SetDrawInFront(bool bOn) = 0;
 
-	//! Set material color.
-	virtual void SetMaterialColor(float fRed, float fGreen, float fBlue, float fAlpha) = 0;
-
 	//! Methods which can be used to save/restore drawing context
 	//! (e.g. flags like alpha blending, back face culling, etc).
 	virtual unsigned int PopState() = 0;

@@ -3,10 +3,10 @@
 #include "StdAfx.h"
 #include "ConnectionsWidget.h"
 
-#include "AudioAssets.h"
+#include "SystemAssets.h"
 #include "AudioControlsEditorPlugin.h"
-#include <IAudioSystemEditor.h>
-#include <IAudioSystemItem.h>
+#include <IEditorImpl.h>
+#include <ImplItem.h>
 #include "ImplementationManager.h"
 #include "MiddlewareDataWidget.h"
 #include "MiddlewareDataModel.h"
@@ -78,7 +78,7 @@ CConnectionsWidget::CConnectionsWidget(QWidget* pParent)
 	// Then hide the entire widget.
 	setHidden(true);
 
-	CAudioControlsEditorPlugin::GetAssetsManager()->signalConnectionRemoved.Connect([&](CAudioControl* pControl)
+	CAudioControlsEditorPlugin::GetAssetsManager()->signalConnectionRemoved.Connect([&](CSystemControl* pControl)
 		{
 			if (m_pControl == pControl)
 			{
@@ -100,6 +100,7 @@ CConnectionsWidget::~CConnectionsWidget()
 {
 	CAudioControlsEditorPlugin::GetAssetsManager()->signalConnectionRemoved.DisconnectById(reinterpret_cast<uintptr_t>(this));
 	CAudioControlsEditorPlugin::GetImplementationManger()->signalImplementationAboutToChange.DisconnectById(reinterpret_cast<uintptr_t>(this));
+	delete m_pConnectionModel;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -167,24 +168,24 @@ void CConnectionsWidget::RemoveSelectedConnection()
 			if (messageBox->Execute() == QDialogButtonBox::Yes)
 			{
 				CUndo undo("Disconnected Audio Control from Audio System");
-				IAudioSystemEditor const* const pAudioSystemEditorImpl = CAudioControlsEditorPlugin::GetAudioSystemEditorImpl();
+				IEditorImpl const* const pEditorImpl = CAudioControlsEditorPlugin::GetImplEditor();
 
-				if (pAudioSystemEditorImpl != nullptr)
+				if (pEditorImpl != nullptr)
 				{
-					std::vector<IAudioSystemItem*> items;
-					items.reserve(selectedIndices.size());
+					std::vector<CImplItem*> implItems;
+					implItems.reserve(selectedIndices.size());
 
 					for (QModelIndex const& index : selectedIndices)
 					{
 						CID const id = index.data(static_cast<int>(CConnectionModel::EConnectionModelRoles::Id)).toInt();
-						items.push_back(pAudioSystemEditorImpl->GetControl(id));
+						implItems.emplace_back(pEditorImpl->GetControl(id));
 					}
 
-					for (IAudioSystemItem* const pItem : items)
+					for (CImplItem* const pImplItem : implItems)
 					{
-						if (pItem != nullptr)
+						if (pImplItem != nullptr)
 						{
-							m_pControl->RemoveConnection(pItem);
+							m_pControl->RemoveConnection(pImplItem);
 						}
 					}
 				}
@@ -194,7 +195,7 @@ void CConnectionsWidget::RemoveSelectedConnection()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CConnectionsWidget::SetControl(CAudioControl* pControl)
+void CConnectionsWidget::SetControl(CSystemControl* pControl)
 {
 	if (m_pControl != pControl)
 	{

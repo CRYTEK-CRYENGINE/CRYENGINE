@@ -3481,7 +3481,7 @@ void CmdGoto(IConsoleCmdArgs *pArgs)
 	// * third person game should work by using player position
 	// * level name could be part of the string
 
-	const CCamera &rCam = gEnv->pRenderer->GetCamera();
+	const CCamera &rCam = GetISystem()->GetViewCamera();
 	Matrix33 m = Matrix33(rCam.GetMatrix());
 
 	int iArgCount = pArgs->GetArgCount();

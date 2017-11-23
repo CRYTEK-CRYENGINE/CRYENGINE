@@ -305,7 +305,7 @@ void CWaterWaveRenderNode::Render(const SRendParams& rParam, const SRenderingPas
 	IRenderer* pRenderer(GetRenderer());
 
 	// get render objects
-	CRenderObject* pRenderObj(pRenderer->EF_GetObject_Temp(passInfo.ThreadID()));
+	CRenderObject* pRenderObj(passInfo.GetIRenderView()->AllocateTemporaryRenderObject());
 	if (!pRenderObj)
 		return; // false;
 

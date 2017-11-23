@@ -103,11 +103,19 @@ public:
 	virtual void ThreadEntry() override
 	{
 		const threadID levelLoadingThreadId = CryGetCurrentThreadId();
-		gEnv->pRenderer->SetLevelLoadingThreadId(levelLoadingThreadId);
+
+		if (gEnv->pRenderer) //Renderer may be unavailable when turned off
+		{
+			gEnv->pRenderer->SetLevelLoadingThreadId(levelLoadingThreadId);
+		}
 
 		const ILevelInfo* pLoadedLevelInfo = m_pLevelSystem->LoadLevel(m_levelName.c_str());
 		const bool bResult = (pLoadedLevelInfo != NULL);
-		gEnv->pRenderer->SetLevelLoadingThreadId(0);
+
+		if (gEnv->pRenderer) //Renderer may be unavailable when turned off
+		{
+			gEnv->pRenderer->SetLevelLoadingThreadId(0);
+		}
 
 		m_state = bResult ? eState_Succeeded : eState_Failed;
 	}

@@ -45,44 +45,22 @@ struct SMFXAudioEffectRtpc
 //////////////////////////////////////////////////////////////////////////
 struct SMFXEmitterParameter
 {
-	typedef CryVariant<bool, int, float, ColorF> TValue;
-
 	SMFXEmitterParameter()
-		: type(IParticleAttributes::ET_Count)
 	{}
 
-	SMFXEmitterParameter(const char* szName, bool value)
+	template<typename T>
+	SMFXEmitterParameter(const char* szName, T value)
 		: name(szName)
-		, type(IParticleAttributes::ET_Boolean)
-		, value(value)
-	{}
-
-	SMFXEmitterParameter(const char* szName, int value)
-		: name(szName)
-		, type(IParticleAttributes::ET_Integer)
-		, value(value)
-	{}
-
-	SMFXEmitterParameter(const char* szName, float value)
-		: name(szName)
-		, type(IParticleAttributes::ET_Float)
-		, value(value)
-	{}
-
-	SMFXEmitterParameter(const char* szName, ColorF value)
-		: name(szName)
-		, type(IParticleAttributes::ET_Color)
 		, value(value)
 	{}
 
 	bool operator==(const SMFXEmitterParameter& rhs) const
 	{
-		return name == rhs.name && type == rhs.type;
+		return name == rhs.name && value.index() == rhs.value.index();
 	}
 
 	CryFixedStringT<32> name;
-	IParticleAttributes::EType type;
-	TValue value;
+	IParticleAttributes::TValue value;
 };
 typedef std::vector<SMFXEmitterParameter> TMFXEmitterParameters;
 

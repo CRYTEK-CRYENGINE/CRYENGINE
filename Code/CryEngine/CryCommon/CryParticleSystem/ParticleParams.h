@@ -738,9 +738,9 @@ struct ParticleParams
 
 		void Correct()
 		{
-			nFirstTile = std::min<uint8>(nFirstTile, nTilesX * nTilesY - 1);
-			nAnimFramesCount = std::min<uint8>(nAnimFramesCount, GetTileCount());
-			nVariantCount = std::min<uint8>(nVariantCount, GetTileCount() / nAnimFramesCount);
+			nFirstTile = std::min<uint>(nFirstTile, nTilesX * nTilesY - 1);
+			nAnimFramesCount = std::min<uint>(nAnimFramesCount, GetTileCount());
+			nVariantCount = std::min<uint>(nVariantCount, GetTileCount() / nAnimFramesCount);
 		}
 
 		AUTO_STRUCT_INFO;

@@ -15,7 +15,7 @@ class ImageObject;
 
 namespace ImageTIFF
 {
-	bool UpdateAndSaveSettingsToTIF(const char* filenameRead, const char* filenameWrite, const string& settings);
+	bool UpdateAndSaveSettingsToTIF(const char* filenameRead, const char* filenameWrite, const string& settings, bool isCryTif2012);
 	bool UpdateAndSaveSettingsToTIF(const char* filenameRead, const char* filenameWrite, const CImageProperties* pProps, const string* pOriginalSettings, bool bLogSettings);
 
 	string LoadSpecialInstructionsByUsingTIFFLoader(const char* filenameRead);

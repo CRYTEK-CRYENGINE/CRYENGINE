@@ -3,7 +3,6 @@
 %import "CryCommon.i"
 
 %import "CryEntitySystem.i"
-%import "CryGame.i"
 %import "CryAnimation.i"
 
 %ignore GetGameObjectExtensionRMIData;
@@ -54,6 +53,11 @@
 %}
 
 %ignore IGameFrameworkEngineModule;
+
+%feature("director") IGameFrameworkListener;
+%feature("director") IGameWarningsListener;
+%feature("director") IBreakEventListener;
+%include "../../../../CryEngine/CryCommon/CryGame/IGameFramework.h"
 
 %import "../../../../CryEngine/CryCommon/CryNetwork/INetwork.h"
 

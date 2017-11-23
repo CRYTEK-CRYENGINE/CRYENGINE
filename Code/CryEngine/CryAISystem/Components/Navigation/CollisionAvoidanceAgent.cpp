@@ -38,6 +38,11 @@ NavigationAgentTypeID CCollisionAvoidanceAgent::GetNavigationTypeId() const
 	return m_pOwningNavigationComponent->GetNavigationTypeId();
 }
 
+const INavMeshQueryFilter* CCollisionAvoidanceAgent::GetNavigationQueryFilter() const
+{
+	return m_pOwningNavigationComponent->GetNavigationQueryFilter();
+}
+
 const char* CCollisionAvoidanceAgent::GetName() const
 {
 	return m_pAttachedEntity->GetName();

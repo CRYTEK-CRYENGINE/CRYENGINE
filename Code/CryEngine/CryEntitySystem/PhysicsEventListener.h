@@ -1,18 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   PhysicsEventListener.h
-//  Version:     v1.00
-//  Created:     18/8/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __PhysicsEventListener_h__
-#define __PhysicsEventListener_h__
 #pragma once
 
 // forward declaration.
@@ -59,5 +46,3 @@ private:
 		return m_jointFxCount < CVar::es_MaxJointFx ? ++m_jointFxCount : 0;
 	}
 };
-
-#endif // __PhysicsEventListener_h__

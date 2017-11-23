@@ -1,16 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   Entity.h
-//  Version:     v1.00
-//  Created:     18/5/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #include "stdafx.h"
 #include "Entity.h"
 #include "AffineParts.h"
@@ -42,9 +31,9 @@
 #include "ClipVolumeProxy.h"
 #include "DynamicResponseProxy.h"
 #include <CryExtension/CryCreateClassInstance.h>
-#include <CryGame/IGameFramework.h>
 #include <CrySchematyc/CoreAPI.h>
 #include <CrySchematyc/Utils/ClassProperties.h>
+#include <CryGame/IGameFramework.h>
 
 // enable this to check nan's on position updates... useful for debugging some weird crashes
 #define ENABLE_NAN_CHECK
@@ -172,7 +161,7 @@ void CEntity::SetFlagsExtended(uint32 flagsExtended)
 };
 
 //////////////////////////////////////////////////////////////////////////
-bool CEntity::SendEvent(SEntityEvent& event)
+bool CEntity::SendEvent(const SEntityEvent& event)
 {
 	CRY_PROFILE_REGION(PROFILE_ENTITY, "Entity::SendEvent");
 	CRYPROFILE_SCOPE_PROFILE_MARKER("Entity::SendEvent");
@@ -238,25 +227,23 @@ bool CEntity::Init(SEntitySpawnParams& params)
 {
 	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Entity, 0, "Init: %s", params.sName ? params.sName : "(noname)");
 
-	{
-		bool bIsPreview = (params.nFlagsExtended & ENTITY_FLAG_EXTENDED_PREVIEW) != 0;
+	const bool isPreview = (params.nFlagsExtended & ENTITY_FLAG_EXTENDED_PREVIEW) != 0;
 
-		if (bIsPreview)
-		{
-			m_simulationMode = Schematyc::ESimulationMode::Preview;
-		}
-		else if (gEnv->IsEditing() && !gEnv->pSystem->IsLoading())
-		{
-			m_simulationMode = EEntitySimulationMode::Editor;
-		}
-		else if (gEnv->pGameFramework->IsGameStarted())
-		{
-			m_simulationMode = EEntitySimulationMode::Game;
-		}
-		else
-		{
-			m_simulationMode = EEntitySimulationMode::Idle;
-		}
+	if (isPreview)
+	{
+		m_simulationMode = Schematyc::ESimulationMode::Preview;
+	}
+	else if (gEnv->IsEditing() && !gEnv->pSystem->IsLoading())
+	{
+		m_simulationMode = EEntitySimulationMode::Editor;
+	}
+	else if (gEnv->pGameFramework->IsGameStarted())
+	{
+		m_simulationMode = EEntitySimulationMode::Game;
+	}
+	else
+	{
+		m_simulationMode = EEntitySimulationMode::Idle;
 	}
 
 	CEntityClass* pClass = static_cast<CEntityClass*>(params.pClass);
@@ -274,6 +261,17 @@ bool CEntity::Init(SEntitySpawnParams& params)
 		{
 			return false;
 		}
+	}
+
+	if (params.pParent != nullptr)
+	{
+		static_cast<CEntity*>(params.pParent)->AttachChild(this, params.attachmentParams);
+		SetLocalTM(Matrix34::Create(params.vScale, params.qRotation, params.vPosition));
+
+		// Reset the (from now on assumed to be world space) coordinates
+		params.vScale = Vec3(1.f);
+		params.qRotation = IDENTITY;
+		params.vPosition = ZERO;
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -966,7 +964,7 @@ void CEntity::ActivateEntityIfNecessary()
 {
 	bool bEnable = ShouldActivate();
 
-	if (bEnable != m_bInActiveList)
+	if (bEnable != (m_bInActiveList != 0))
 	{
 		g_pIEntitySystem->ActivateEntity(this, bEnable);
 	}
@@ -1748,6 +1746,34 @@ void CEntity::RemoveAllComponents()
 	m_componentChangeState++;
 }
 
+void CEntity::ReplaceComponent(IEntityComponent* pExistingComponent, std::shared_ptr<IEntityComponent> pNewComponent)
+{
+	m_components.ForEach([this, pExistingComponent, &pNewComponent](SEntityComponentRecord& componentRecord)
+	{
+		if (componentRecord.pComponent.get() == pExistingComponent)
+		{
+			componentRecord.pComponent = pNewComponent;
+
+			componentRecord.registeredEventsMask = componentRecord.pComponent->GetEventMask();
+			componentRecord.eventPriority = componentRecord.pComponent->GetEventPriority();
+
+			// Check if the remaining components are still interested in updates
+			m_bRequiresComponentUpdate = 0;
+
+			for (const SEntityComponentRecord& otherComponentRecord : m_components.GetVector())
+			{
+				if (otherComponentRecord.pComponent && (otherComponentRecord.registeredEventsMask & BIT64(ENTITY_EVENT_UPDATE)) != 0)
+				{
+					m_bRequiresComponentUpdate = 1;
+					break;
+				}
+			}
+
+			OnComponentMaskChanged(*componentRecord.pComponent, componentRecord.registeredEventsMask);
+		}
+	});
+}
+
 //////////////////////////////////////////////////////////////////////////
 IEntityComponent* CEntity::GetComponentByTypeId(const CryInterfaceID& typeId) const
 {
@@ -2464,9 +2490,7 @@ ICharacterInstance* CEntity::GetCharacter(int nSlot)
 //////////////////////////////////////////////////////////////////////////
 int CEntity::SetCharacter(ICharacterInstance* pCharacter, int nSlot, bool bUpdatePhysics)
 {
-	int nUsedSlot = -1;
-
-	nUsedSlot = m_render.SetSlotCharacter(nSlot, pCharacter);
+	int nUsedSlot = m_render.SetSlotCharacter(nSlot, pCharacter);
 	if (bUpdatePhysics)
 	{
 		m_physics.UpdateSlotGeometry(nUsedSlot);
@@ -2697,19 +2721,19 @@ int CEntity::LoadParticleEmitter(int nSlot, IParticleEffect* pEffect, SpawnParam
 }
 
 //////////////////////////////////////////////////////////////////////////
-int CEntity::LoadLight(int nSlot, CDLight* pLight)
+int CEntity::LoadLight(int nSlot, SRenderLight* pLight)
 {
 	return LoadLightImpl(nSlot, pLight);
 }
 
-int CEntity::LoadLightImpl(int nSlot, CDLight* pLight)
+int CEntity::LoadLightImpl(int nSlot, SRenderLight* pLight)
 {
 	uint16 layerId = ~0;
 	return m_render.LoadLight(nSlot, pLight, layerId);
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CEntity::UpdateLightClipBounds(CDLight& light)
+bool CEntity::UpdateLightClipBounds(SRenderLight& light)
 {
 	bool bLightBoxValid = false;
 	for (IEntityLink* pLink = m_pEntityLinks; pLink; pLink = pLink->next)
@@ -3010,7 +3034,7 @@ struct SEventName
 };
 
 //////////////////////////////////////////////////////////////////////////
-void CEntity::LogEvent(SEntityEvent& event, CTimeValue dt)
+void CEntity::LogEvent(const SEntityEvent& event, CTimeValue dt)
 {
 	static int s_LastLoggedFrame = 0;
 
@@ -3119,7 +3143,7 @@ void CEntity::OnEditorGameModeChanged(bool bEnterGameMode)
 	}
 
 	// We only want to reset when we return from game mode to editor mode.
-	if (m_pSchematycObject && !bEnterGameMode)
+	if (m_pSchematycObject != nullptr)
 	{
 		m_pSchematycObject->SetSimulationMode(m_simulationMode, Schematyc::EObjectSimulationUpdatePolicy::OnChangeOnly, false);
 	}

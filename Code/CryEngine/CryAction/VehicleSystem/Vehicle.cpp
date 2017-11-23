@@ -1227,7 +1227,7 @@ TVehicleSoundEventId CVehicle::AddSoundEvent(SVehicleSoundInfo& info)
 }
 
 //------------------------------------------------------------------------
-void CVehicle::ProcessEvent(SEntityEvent& entityEvent)
+void CVehicle::ProcessEvent(const SEntityEvent& entityEvent)
 {
 	switch (entityEvent.event)
 	{

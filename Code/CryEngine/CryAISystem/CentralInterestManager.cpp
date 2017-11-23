@@ -551,7 +551,7 @@ void CCentralInterestManager::DeregisterObject(IEntity* pEntity)
 }
 
 //------------------------------------------------------------------------------------------------------------------------
-void CCentralInterestManager::OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+void CCentralInterestManager::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
 	assert(pEntity);
 

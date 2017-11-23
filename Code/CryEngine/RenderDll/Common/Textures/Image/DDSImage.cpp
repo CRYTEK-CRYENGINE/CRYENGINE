@@ -417,11 +417,6 @@ bool CImageDDSFile::SetHeaderFromMemory(byte* pFileStart, byte* pFileAfterHeader
 
 	// check for nativeness of texture
 	const uint32 imageFlags = CImageExtensionHelper::GetImageFlags(&m_DDSHeader);
-	if (!CImageExtensionHelper::IsImageNative(imageFlags))
-	{
-		mfSet_error(eIFE_BadFormat, "Not converted for this platform");
-		return false;
-	}
 
 	// setup texture properties
 	m_Width  = m_DDSHeader.dwWidth;
@@ -519,8 +514,6 @@ bool CImageDDSFile::SetHeaderFromMemory(byte* pFileStart, byte* pFileAfterHeader
 		m_Flags |= FIM_GREYSCALE;
 	if (imageFlags & CImageExtensionHelper::EIF_FileSingle)
 		m_Flags |= FIM_FILESINGLE;
-	if (imageFlags & CImageExtensionHelper::EIF_X360NotPretiled)
-		m_Flags |= FIM_X360_NOT_PRETILED;
 	if (imageFlags & CImageExtensionHelper::EIF_AttachedAlpha)
 		m_Flags |= FIM_HAS_ATTACHED_ALPHA;
 	if (imageFlags & CImageExtensionHelper::EIF_SupressEngineReduce)
@@ -540,7 +533,7 @@ bool CImageDDSFile::SetHeaderFromMemory(byte* pFileStart, byte* pFileAfterHeader
 			m_cMinColor = ColorF(-1.0f, -1.0f, -1.0f, -1.0f);
 			m_cMaxColor = ColorF(1.0f, 1.0f, 1.0f, 1.0f);
 
-			//			mfSet_error(eIFE_BadFormat, "Texture has to have a signed format");
+//			mfSet_error(eIFE_BadFormat, "Texture has to have a signed format");
 		}
 	}
 

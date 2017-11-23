@@ -47,7 +47,7 @@ public:
 	DynamicCoverManager();
 
 	// IEntityEventListener
-	virtual void OnEntityEvent(IEntity* entity, SEntityEvent& event);
+	virtual void OnEntityEvent(IEntity* entity, const SEntityEvent& event);
 	//~IEntityEventListener
 
 	void AddValidationSegment(const ValidationSegment& segment);

@@ -78,4 +78,5 @@ typedef uint8                         byte;
 
 
 #define __assume(x)
+#define __analysis_assume(x)
 #define _msize(p) malloc_usable_size(p)

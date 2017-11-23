@@ -152,6 +152,11 @@ void CMaterialEditor::OnSubMaterialsChanged(CMaterial::SubMaterialChange change)
 			SelectMaterialForEdit(nullptr);
 		break;
 	case CMaterial::SlotCountChanged:
+		if (m_pMaterial->IsMultiSubMaterial() && m_pMaterial->GetSubMaterialCount() == 0)
+		{
+			SelectMaterialForEdit(nullptr);
+		}
+		break;
 	default:
 		break;
 	}
@@ -189,6 +194,7 @@ void CMaterialEditor::OnLayoutChange(const QVariantMap& state)
 			BroadcastPopulateInspector();
 		}
 	}
+	CAssetEditor::OnLayoutChange(state);
 }
 
 bool CMaterialEditor::OnOpenAsset(CAsset* pAsset)

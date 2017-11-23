@@ -258,7 +258,7 @@ void CJob::Job_Execute()
 	Execute(false);
 	if (gEnv->pRenderer)
 	{
-		gEnv->pRenderer->GetIRenderAuxGeom()->Commit(1);
+		//gEnv->pRenderer->GetIRenderAuxGeom()->Submit(1);
 	}
 }
 

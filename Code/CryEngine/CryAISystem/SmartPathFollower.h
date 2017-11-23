@@ -209,7 +209,9 @@ public:
 	// Sets whether or not the pathfollower is allowed to cut corners if there is space to do so. (default: true)
 	virtual void SetAllowCuttingCorners(const bool allowCuttingCorners) override;
 
-	virtual bool IsRemainingPathAffectedByNavMeshChange(const NavigationMeshID affectedMeshID, const MNM::TileID affectedTileID) const override;
+	virtual bool IsRemainingPathAffectedByNavMeshChange(const NavigationMeshID affectedMeshID, const MNM::TileID affectedTileID, bool bAnnotationChange, bool bDataChange) const override;
+
+	virtual bool IsRemainingPathAffectedByFilterChange(const INavMeshQueryFilter* pFilter) const override;
 };
 
 #endif

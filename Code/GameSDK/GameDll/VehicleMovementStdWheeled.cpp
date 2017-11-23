@@ -2020,7 +2020,7 @@ void CVehicleMovementStdWheeled::UpdateSurfaceEffects(const float deltaTime)
   if (status.speed < 0.01f)
     return;
 
-  float distSq = m_pVehicle->GetEntity()->GetWorldPos().GetSquaredDistance(gEnv->pRenderer->GetCamera().GetPosition());
+  float distSq = m_pVehicle->GetEntity()->GetWorldPos().GetSquaredDistance(GetISystem()->GetViewCamera().GetPosition());
   if (distSq > sqr(300.f) || (distSq > sqr(50.f) && !m_pVehicle->GetGameObject()->IsProbablyVisible()))
     return;
 

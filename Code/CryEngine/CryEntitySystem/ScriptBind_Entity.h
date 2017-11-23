@@ -1400,7 +1400,7 @@ private: // --------------------------------------------------------------------
 
 	ISystem*       m_pISystem;
 
-	bool ParseLightParams(IScriptTable* pLightTable, CDLight& light);
+	bool ParseLightParams(IScriptTable* pLightTable, SRenderLight& light);
 	bool ParseFogVolumesParams(IScriptTable* pTable, CEntity* pEntity, SFogVolumeProperties& properties);
 
 	// Parse script table to the entity physical params table.

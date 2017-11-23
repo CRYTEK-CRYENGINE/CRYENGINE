@@ -1,18 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   ProximityTriggerSystem.h
-//  Version:     v1.00
-//  Created:     5/12/2005 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __ProximityTriggerSystem_h__
-#define __ProximityTriggerSystem_h__
 #pragma once
 
 class CEntityComponentTriggerBounds;
@@ -139,5 +126,3 @@ inline void SProximityElement::operator delete(void* ptr)
 	if (ptr)
 		CProximityTriggerSystem::g_pProximityElement_PoolAlloc->Deallocate(ptr);
 }
-
-#endif // __ProximityTriggerSystem_h__

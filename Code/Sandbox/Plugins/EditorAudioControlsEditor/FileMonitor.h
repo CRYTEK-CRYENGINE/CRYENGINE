@@ -26,7 +26,7 @@ public:
 protected:
 
 	// IFileChangeListener
-	virtual void OnFileChange(const char* filename, EChangeType eType) override;
+	virtual void OnFileChange(char const* filename, EChangeType eType) override;
 	// ~IFileChangeListener
 
 	virtual void ReloadData() {}
@@ -72,7 +72,7 @@ private:
 	virtual void ReloadData() override;
 	// ~CFileMonitor
 
-	std::vector<const char*> m_monitorFolders;
+	std::vector<char const*> m_monitorFolders;
 };
 } // namespace ACE
 

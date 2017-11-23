@@ -21,7 +21,6 @@ Texture2DArray<float4> shadowMask : register(t8);
 
 float4 g_LightPos < vsregister = c12; psregister = c4; > ;
 half4 g_LightDiffuse < psregister = c5; > ;
-float4 g_WorldViewPos  : PB_CameraPos < vsregister = c13; psregister = c6; >;
 
 float4 g_ScreenSize  : PB_ScreenSize < vsregister = c15; psregister = c7; >;
 float4x4 g_mLightProj <  psregister = c9; > ;
@@ -993,7 +992,7 @@ pixoutMRT AmbientPS( vtxOutWPOS IN )
 	// Height based ambient is disabled with PBR since it has just diffuse and no specular contribution
 /*
 	// Height based ambient
-  half3 vPositionWS = GetWorldPos( fDepth, IN.CamVec ) + g_WorldViewPos.xyz;  
+  half3 vPositionWS = GetWorldPos( fDepth, IN.CamVec ) + CV_WorldViewPosition.xyz;  
   OUT.Diffuse.rgb = lerp( cAmbientGround , OUT.Diffuse.rgb , saturate( (vPositionWS.z - g_vAmbHeightParams.x) * g_vAmbHeightParams.z ) )  * (vNormal.z*0.25h+0.75h);
 
 #if %_RT_SAMPLE2
@@ -1127,7 +1126,7 @@ pixout SSRRaytracePS( vtxOutWPOS IN )
 		0.627993h, -0.772384h, -0.212489h, 0.769486h
 	};
 
-	const float borderSize = 0.07 * PS_HPosScale.x;  // Fade out at borders
+	const float borderSize = 0.07 * CV_HPosScale.x;  // Fade out at borders
 	const float2 halfTexel = g_ScreenSize.zw;
 
 	float2 ScreenTC = MapViewportToRaster(IN.baseTC.xy);
@@ -1137,7 +1136,7 @@ pixout SSRRaytracePS( vtxOutWPOS IN )
 	const float fDepth = GetLinearDepth( _tex0, ScreenTC );
 	float3 vPositionWS = GetWorldPos( fDepth, IN.CamVec );
 	float3 viewVec = normalize( vPositionWS );
-	vPositionWS += g_WorldViewPos.xyz;
+	vPositionWS += CV_WorldViewPosition.xyz;
 		
 	const float maxReflDist = 1.5 * fDepth * PS_NearFarClipDist.y;
 	float3 reflVec = normalize( reflect( viewVec, attribs.NormalWorld ) ) * maxReflDist;
@@ -1206,7 +1205,7 @@ pixout SSRRaytracePS( vtxOutWPOS IN )
 		borderDist = min( 1 - max( reprojPos.x, reprojPos.y ), borderDist );
 		float edgeWeight = borderDist > borderSize ? 1 : sqrt(borderDist / borderSize);
 
-		reprojPos.xy *= PS_HPosScale.zw;
+		reprojPos.xy *= CV_HPosScale.zw;
 		
 		reprojPos.xy = MapViewportToRaster(reprojPos.xy);
 
@@ -1675,7 +1674,7 @@ pixout HeightMapAOPS( vtxOutWPOS IN )
 	half2 vJitterSinCos0 = half2( sin( PI_X2 * jitterIndex ), cos( PI_X2 * jitterIndex ) );
 	const half2x2 mSampleRotMat0 = { vJitterSinCos0.y, vJitterSinCos0.x, -vJitterSinCos0.x, vJitterSinCos0.y };
 	
-	float3 worldPos0  = GetWorldPos( depth0, IN.CamVec ) + g_WorldViewPos.xyz;
+	float3 worldPos0  = GetWorldPos( depth0, IN.CamVec ) + CV_WorldViewPosition.xyz;
 	float mip0 = min(depth0 * PS_NearFarClipDist.y / distThreshold, 3);
 	float hmao0 = calcHMAO(worldPos0, mSampleRotMat0, samplesNum, _texB, sampleRadius, mip0);
 	float hmao1 = hmao0;
@@ -1687,7 +1686,7 @@ pixout HeightMapAOPS( vtxOutWPOS IN )
 		half2 vJitterSinCos1 = half2( sin( PI_X2 * jitterIndex1 ), cos( PI_X2 * jitterIndex1 ) );
 		const half2x2 mSampleRotMat1 = { vJitterSinCos1.y, vJitterSinCos1.x, -vJitterSinCos1.x, vJitterSinCos1.y };
 		
-		float3 worldPos1 = GetWorldPos( depth1, IN.CamVec ) + g_WorldViewPos.xyz;	
+		float3 worldPos1 = GetWorldPos( depth1, IN.CamVec ) + CV_WorldViewPosition.xyz;	
 		float mip1 = min(depth1 * PS_NearFarClipDist.y / distThreshold, 3);
 		hmao1 = calcHMAO(worldPos1, mSampleRotMat1, samplesNum, _texB, sampleRadius, mip1);
 	}

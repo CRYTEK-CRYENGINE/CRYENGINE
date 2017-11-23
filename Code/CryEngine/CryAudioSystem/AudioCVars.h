@@ -4,6 +4,9 @@
 
 #include <CryAudio/IAudioSystem.h>
 
+struct ICVar;
+struct IConsoleCmdArgs;
+
 namespace CryAudio
 {
 class CCVars final
@@ -12,9 +15,7 @@ public:
 
 	CCVars() = default;
 	CCVars(CCVars const&) = delete;
-	CCVars(CCVars&&) = delete;
 	CCVars& operator=(CCVars const&) = delete;
-	CCVars& operator=(CCVars&&) = delete;
 
 	void    RegisterVariables();
 	void    UnregisterVariables();
@@ -42,7 +43,6 @@ public:
 	int    m_ignoreWindowFocus = 0;
 	int    m_drawAudioDebug = 0;
 	int    m_fileCacheManagerDebugFilter = 0;
-	int    m_audioLoggingOptions = 0;
 	int    m_hideInactiveAudioObjects = 0;
 	int    m_audioObjectsRayType = 0;
 	ICVar* m_pDebugFilter = nullptr;

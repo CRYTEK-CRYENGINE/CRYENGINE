@@ -23,6 +23,8 @@ namespace Command
 
 void LoadControllers(const GlobalAnimationHeaderCAF& rGAH, const Command::CState& state, IController** controllers)
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	memset(controllers, 0, state.m_jointCount * sizeof(IController*));
 
 	if (rGAH.IsAssetOnDemand())
@@ -157,8 +159,11 @@ void SampleAddAnimFull::Execute(const CState& state, CEvaluationContext& context
 {
 	DEFINE_PROFILER_FUNCTION();
 
-	const QuatT* const defaultPose = state.m_pDefaultSkeleton->m_poseDefaultData.GetJointsRelativeMain();
-	const float* const defaultScale = state.m_pDefaultSkeleton->m_poseDefaultData.GetScalingRelative();
+	const QuatT* const pDefaultPose = state.m_pDefaultSkeleton->m_poseDefaultData.GetJointsRelative();
+	const float* const pDefaultScale = state.m_pDefaultSkeleton->m_poseDefaultData.GetScalingRelative();
+
+	const QuatT* const pFallbackPose = state.m_pFallbackPoseData->GetJointsRelative();
+	const float* const pFallbackScale = state.m_pFallbackPoseData->GetScalingRelative();
 
 	const auto& rCAF = [&]() -> const GlobalAnimationHeaderCAF&
 	{
@@ -195,29 +200,31 @@ void SampleAddAnimFull::Execute(const CState& state, CEvaluationContext& context
 
 	if (rCAF.IsAssetAdditive())
 	{
+		CRY_PROFILE_REGION(PROFILE_ANIMATION, "SampleAddAnimFull::Execute:UpdatePoseAdd");
+
 		for (uint32 j = startingJointIndex; j < state.m_jointCount; ++j)
 		{
-			QuatT tempPose(defaultPose[j].q, defaultPose[j].t);
-			Diag33 tempScale = Diag33(defaultScale ? defaultScale[j] : 1.0f);
+			QuatT tempPose = pFallbackPose[j];
+			Diag33 tempScale = Diag33(pDefaultScale ? pDefaultScale[j] : 1.0f);
 
 			if (parrJointControllers[j])
 			{
 				const JointState ops = parrJointControllers[j]->GetOPS(keyTimeNew, tempPose.q, tempPose.t, tempScale);
 				if (ops & eJS_Orientation)
 				{
-					tempPose.q *= defaultPose[j].q;
+					tempPose.q *= pDefaultPose[j].q;
 				}
 				if (ops & eJS_Position)
 				{
-					tempPose.t += defaultPose[j].t;
+					tempPose.t += pDefaultPose[j].t;
 				}
 				if (ops & eJS_Scale)
 				{
-					tempScale *= Diag33(defaultScale ? defaultScale[j] : 1.0f);
+					tempScale *= Diag33(pDefaultScale ? pDefaultScale[j] : 1.0f);
 					context.m_isScalingPresent = true;
 				}
 
-				tempPose.q *= fsgnnz(defaultPose[j].q | tempPose.q);
+				tempPose.q *= fsgnnz(pDefaultPose[j].q | tempPose.q);
 			}
 			assert(tempPose.IsValid());
 
@@ -228,11 +235,13 @@ void SampleAddAnimFull::Execute(const CState& state, CEvaluationContext& context
 	}
 	else
 	{
-		const QuatT* parrHemispherePose = Console::GetInst().ca_SampleQuatHemisphereFromCurrentPose ? outputRelPose : defaultPose; // joints to compare with in quaternion dot product
+		CRY_PROFILE_REGION(PROFILE_ANIMATION, "SampleAddAnimFull::Execute:UpdatePose");
+
+		const QuatT* parrHemispherePose = Console::GetInst().ca_SampleQuatHemisphereFromCurrentPose ? outputRelPose : pDefaultPose; // joints to compare with in quaternion dot product
 		for (uint32 j = startingJointIndex; j < state.m_jointCount; ++j)
 		{
-			QuatT tempPose(defaultPose[j].q, defaultPose[j].t);
-			Diag33 tempScale = Diag33(defaultScale ? defaultScale[j] : 1.0f);
+			QuatT tempPose = pFallbackPose[j];
+			Diag33 tempScale = Diag33(pDefaultScale ? pDefaultScale[j] : 1.0f);
 
 			if (parrJointControllers[j])
 			{
@@ -277,8 +286,13 @@ void SampleAddPoseFull::Execute(const CState& state, CEvaluationContext& context
 	DEFINE_PROFILER_FUNCTION();
 
 	const CDefaultSkeleton::SJoint* const pModelJoint = state.m_pDefaultSkeleton->m_arrModelJoints.data();
-	const QuatT* const parrDefJoints = state.m_pDefaultSkeleton->m_poseDefaultData.GetJointsRelativeMain();
-	const float* const parrDefScaling = state.m_pDefaultSkeleton->m_poseDefaultData.GetScalingRelative();
+
+	const QuatT* const pDefaultPose = state.m_pDefaultSkeleton->m_poseDefaultData.GetJointsRelative();
+	const float* const pDefaultScale = state.m_pDefaultSkeleton->m_poseDefaultData.GetScalingRelative();
+
+	const QuatT* const pFallbackPose = state.m_pFallbackPoseData->GetJointsRelative();
+	const float* const pFallbackScale = state.m_pFallbackPoseData->GetScalingRelative();
+
 	const auto& rGlobalAnimHeaderAIM = [&]() -> const GlobalAnimationHeaderAIM&
 	{
 		assert(m_nEAnimID >= 0);
@@ -301,7 +315,7 @@ void SampleAddPoseFull::Execute(const CState& state, CEvaluationContext& context
 	const auto parrRelJointsDst = static_cast<QuatT*>(context.m_buffers[nBufferID + 0]);
 	const auto parrRelScalingDst = static_cast<float*>(context.m_buffers[nBufferID + 3]);
 	const auto parrStatusDst = static_cast<JointState*>(context.m_buffers[nBufferID + 1]);
-	const QuatT* parrHemispherePose = Console::GetInst().ca_SampleQuatHemisphereFromCurrentPose ? parrRelJointsDst : parrDefJoints; // joints to compare with in quaternion dot product
+	const QuatT* parrHemispherePose = Console::GetInst().ca_SampleQuatHemisphereFromCurrentPose ? parrRelJointsDst : pDefaultPose; // joints to compare with in quaternion dot product
 
 	const f32 fKeyTimeNew = rGlobalAnimHeaderAIM.NTime2KTime(m_fETimeNew);
 	for (uint32 j = 0; j < state.m_jointCount; ++j)
@@ -322,9 +336,9 @@ void SampleAddPoseFull::Execute(const CState& state, CEvaluationContext& context
 		}
 		else
 		{
-			rot = parrDefJoints[j].q;
-			pos = parrDefJoints[j].t;
-			scl = Diag33(parrDefScaling ? parrDefScaling[j] : 1.0f);
+			rot = pFallbackPose[j].q;
+			pos = pFallbackPose[j].t;
+			scl = Diag33(pFallbackScale ? pFallbackScale[j] : 1.0f);
 		}
 		assert(rot.IsUnit());
 		assert(rot.IsValid());

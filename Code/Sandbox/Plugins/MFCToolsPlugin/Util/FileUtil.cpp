@@ -622,7 +622,7 @@ void CFileUtil::EditTextFile(const char* txtFile, int line, ETextFileType fileTy
 	{
 		// Failed.
 		file = file.SpanExcluding("/");
-		// Try standart open.
+		// Try standard open.
 		hInst = ShellExecute(NULL, "open", file, NULL, NULL, SW_SHOWNORMAL);
 		if ((DWORD_PTR)hInst <= 32)
 		{

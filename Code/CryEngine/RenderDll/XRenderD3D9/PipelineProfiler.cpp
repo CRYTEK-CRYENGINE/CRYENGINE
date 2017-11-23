@@ -3,6 +3,7 @@
 #include "StdAfx.h"
 #include "PipelineProfiler.h"
 #include "DriverD3D.h"
+#include <Common/RenderDisplayContext.h>
 
 CRenderPipelineProfiler::CRenderPipelineProfiler()
 {
@@ -120,8 +121,8 @@ uint32 CRenderPipelineProfiler::InsertSection(const char* name, uint32 profileSe
 	{
 	#if defined(ENABLE_PROFILING_CODE)	
 		// Note: Stats from multithreaded sections need to be subtracted, they get handled later
-		section.numDIPs = gcpRendD3D->GetCurrentNumberOfDrawCalls() - gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nScenePassDIPs;
-		section.numPolys = gcpRendD3D->RT_GetPolyCount() - gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nScenePassPolygons;
+		section.numDIPs = gcpRendD3D->GetCurrentNumberOfDrawCalls() - SRenderStatistics::Write().m_nScenePassDIPs;
+		section.numPolys = gcpRendD3D->RT_GetPolyCount() - SRenderStatistics::Write().m_nScenePassPolygons;
 	#endif
 		section.startTimeCPU = gEnv->pTimer->GetAsyncTime();
 		section.startTimestamp = frameData.m_timestampGroup.IssueTimestamp(nullptr);
@@ -172,8 +173,8 @@ void CRenderPipelineProfiler::EndSection(const char* name)
 		if (!(section.flags & eProfileSectionFlags_MultithreadedSection))
 		{
 		#if defined(ENABLE_PROFILING_CODE)		
-			section.numDIPs = (gcpRendD3D->GetCurrentNumberOfDrawCalls() - gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nScenePassDIPs) - section.numDIPs;
-			section.numPolys = (gcpRendD3D->RT_GetPolyCount() - gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_nScenePassPolygons) - section.numPolys;
+			section.numDIPs = (gcpRendD3D->GetCurrentNumberOfDrawCalls() - SRenderStatistics::Write().m_nScenePassDIPs) - section.numDIPs;
+			section.numPolys = (gcpRendD3D->RT_GetPolyCount() - SRenderStatistics::Write().m_nScenePassPolygons) - section.numPolys;
 		#endif
 			section.endTimeCPU = gEnv->pTimer->GetAsyncTime();
 			section.endTimestamp = frameData.m_timestampGroup.IssueTimestamp(nullptr);
@@ -268,7 +269,7 @@ void CRenderPipelineProfiler::UpdateGPUTimes(uint32 frameDataIndex)
 void CRenderPipelineProfiler::UpdateThreadTimings()
 {
 	const float weight = 8.0f / 9.0f;
-	const uint32 fillThreadID = (uint32)gcpRendD3D->m_RP.m_nFillThreadID;
+	const uint32 fillThreadID = (uint32)gRenDev->GetMainThreadID();
 
 	m_threadTimings.waitForMain = (gcpRendD3D->m_fTimeWaitForMain[fillThreadID] * (1.0f - weight) + m_threadTimings.waitForMain * weight);
 	m_threadTimings.waitForRender = (gcpRendD3D->m_fTimeWaitForRender[fillThreadID] * (1.0f - weight) + m_threadTimings.waitForRender * weight);
@@ -302,19 +303,25 @@ void CRenderPipelineProfiler::ResetBasicStats(RPProfilerStats* pBasicStats, bool
 	}
 }
 
-void CRenderPipelineProfiler::ComputeAverageStats()
+void CRenderPipelineProfiler::ComputeAverageStats(SFrameData& frameData)
 {
 	static int s_frameCounter = 0;
 	const int kUpdateFrequency = 60;
 
-	const uint32 processThreadID = (uint32)gcpRendD3D->m_RP.m_nProcessThreadID;
-	const uint32 fillThreadID = (uint32)gcpRendD3D->m_RP.m_nFillThreadID;
+	const uint32 processThreadID = (uint32)gRenDev->GetRenderThreadID();
+	const uint32 fillThreadID = (uint32)gRenDev->GetMainThreadID();
+
+	// Simple Exponential Smoothing Weight
+	// (1-a) * oldVal  + a * newVal
+	// Range of "a": [0.0,1.0]
+	const float smoothWeightDataOld = 1.f - CRenderer::CV_r_profilerSmoothingWeight;
+	const float smoothWeightDataNew = CRenderer::CV_r_profilerSmoothingWeight;
 
 	// GPU times
 	for (uint32 i = 0; i < RPPSTATS_NUM; ++i)
 	{
 		RPProfilerStats& basicStat = m_basicStats[processThreadID][i];
-		basicStat.gpuTimeSmoothed = 0.9f * m_basicStats[fillThreadID][i].gpuTimeSmoothed + 0.1f * basicStat.gpuTime;
+		basicStat.gpuTimeSmoothed = smoothWeightDataOld * m_basicStats[fillThreadID][i].gpuTimeSmoothed + smoothWeightDataNew * basicStat.gpuTime;
 		float gpuTimeMax = std::max(basicStat._gpuTimeMaxNew, m_basicStats[fillThreadID][i]._gpuTimeMaxNew);
 		basicStat._gpuTimeMaxNew = std::max(gpuTimeMax, basicStat.gpuTime);
 
@@ -323,6 +330,13 @@ void CRenderPipelineProfiler::ComputeAverageStats()
 			basicStat.gpuTimeMax = basicStat._gpuTimeMaxNew;
 			basicStat._gpuTimeMaxNew = 0;
 		}
+	}
+
+	for (uint32 i = 0; i < frameData.m_numSections; ++i)
+	{
+		SProfilerSection& section = frameData.m_sections[i];
+		section.gpuTimeSmoothed = smoothWeightDataOld * section.gpuTimeSmoothed + smoothWeightDataNew * section.gpuTime;
+		section.cpuTimeSmoothed = smoothWeightDataOld * section.cpuTimeSmoothed + smoothWeightDataNew * section.endTimeCPU.GetDifferenceInSeconds(section.startTimeCPU) * 1000.0f;
 	}
 
 	s_frameCounter += 1;
@@ -346,7 +360,7 @@ ILINE void CRenderPipelineProfiler::SubtractFromStats(RPProfilerStats& outStats,
 
 void CRenderPipelineProfiler::UpdateBasicStats(uint32 frameDataIndex)
 {
-	RPProfilerStats* pBasicStats = m_basicStats[gcpRendD3D->m_RP.m_nProcessThreadID];
+	RPProfilerStats* pBasicStats = m_basicStats[gRenDev->GetRenderThreadID()];
 
 	ResetBasicStats(pBasicStats, false);
 
@@ -538,7 +552,7 @@ void CRenderPipelineProfiler::UpdateBasicStats(uint32 frameDataIndex)
 
 	AddToStats(pBasicStats[eRPPSTATS_OverallFrame], frameData.m_sections[0]);
 
-	ComputeAverageStats();
+	ComputeAverageStats(frameData);
 }
 
 void CRenderPipelineProfiler::DisplayDetailedPassStats(uint32 frameDataIndex)
@@ -548,14 +562,16 @@ void CRenderPipelineProfiler::DisplayDetailedPassStats(uint32 frameDataIndex)
 		return;
 	
 	CD3D9Renderer* rd = gcpRendD3D;
-	SDisplayContext* pDC = rd->GetActiveDisplayContext();
+	CRenderDisplayContext* pDC = rd->GetActiveDisplayContext();
 	SFrameData& frameData = m_frameData[frameDataIndex];
-	uint32 elemsPerColumn = (pDC->m_Height - 60) / 16;
+	uint32 elemsPerColumn = (pDC->GetDisplayResolution()[1] - 60) / 16;
+
+	// TODO: relative/normalized coordinate system in screen-space
+	float sx = /*VIRTUAL_SCREEN_WIDTH */ float(pDC->GetDisplayResolution()[0]);
+	float sy = /*VIRTUAL_SCREEN_HEIGHT*/ float(pDC->GetDisplayResolution()[1]);
 
 	// Dim background to make text more readable
-	rd->SetState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
-	rd->Draw2dImage(0, 0, VIRTUAL_SCREEN_WIDTH, VIRTUAL_SCREEN_HEIGHT, CTexture::s_ptexWhite->GetID(), 0, 0, 1, 1, 0, ColorF(0.05f, 0.05f, 0.05f, 0.5f));
-	rd->SetState(GS_NODEPTHTEST);
+	IRenderAuxImage::Draw2dImage(0, 0, sx, sy, CRendererResources::s_ptexWhite->GetID(), 0, 0, 1, 1, 0, ColorF(0.05f, 0.05f, 0.05f, 0.5f));
 	
 	ColorF color = frameData.m_numSections >= SFrameData::kMaxNumSections ? Col_Red : ColorF(1.0f, 1.0f, 0.2f, 1);
 	m_avgFrameTime = 0.8f * gEnv->pTimer->GetRealFrameTime() + 0.2f * m_avgFrameTime; // exponential moving average for frame time
@@ -624,8 +640,8 @@ void CRenderPipelineProfiler::DisplayDetailedPassStats(uint32 frameDataIndex)
 
 		it->second.bUsed = true;
 
-		float gpuTime = section.gpuTime;
-		float cpuTime = section.endTimeCPU.GetDifferenceInSeconds(section.startTimeCPU);
+		float gpuTimeSmoothed = section.gpuTimeSmoothed;
+		float cpuTimeSmoothed = section.cpuTimeSmoothed;
 		float ypos = 30.0f + (it->second.nPos % elemsPerColumn) * 16.0f;
 		float xpos = 20.0f + ((int)(it->second.nPos / elemsPerColumn)) * 600.0f;
 		
@@ -636,16 +652,16 @@ void CRenderPipelineProfiler::DisplayDetailedPassStats(uint32 frameDataIndex)
 		else
 		{
 			// Highlight items which are more expensive relative to the other items in the list
-			color.r = color.g = color.b = 0.4f + 0.3f * std::min(gpuTime / medianTimeGPU, 2.0f);
+			color.r = color.g = color.b = 0.4f + 0.3f * std::min(gpuTimeSmoothed / medianTimeGPU, 2.0f);
 			// Tint items which are expensive relative to the overall frame time
-			color.b *= clamp_tpl(1.2f - (gpuTime / frameTimeGPU) * 8.0f, 0.0f, 1.0f);
+			color.b *= clamp_tpl(1.2f - (gpuTimeSmoothed / frameTimeGPU) * 8.0f, 0.0f, 1.0f);
 		}
 		
 		IRenderAuxText::Draw2dLabel(xpos + max((int)(abs(section.recLevel) - 2), 0) * 15.0f, ypos, 1.5f, &color.r, false, "%s", section.name);
-		IRenderAuxText::Draw2dLabel(xpos + 300, ypos, 1.5f, &color.r, false, "%.2fms", gpuTime);
+		IRenderAuxText::Draw2dLabel(xpos + 300, ypos, 1.5f, &color.r, false, "%.2fms", gpuTimeSmoothed);
 		if (!(section.flags & eProfileSectionFlags_MultithreadedSection))
 		{
-			IRenderAuxText::Draw2dLabel(xpos + 380, ypos, 1.5f, &color.r, false, "%.2fms", cpuTime * 1000.0f);
+			IRenderAuxText::Draw2dLabel(xpos + 380, ypos, 1.5f, &color.r, false, "%.2fms", cpuTimeSmoothed);
 		}
 		else
 		{
@@ -664,10 +680,11 @@ const float columnHeight = 0.027f;
 
 void DrawText(float x, float y, float size, ColorF color, const char* text)
 {
-	SDisplayContext* pDC = gcpRendD3D->GetActiveDisplayContext();
-	float aspect = (float)pDC->m_Width / (float)pDC->m_Height;
-	float sx = VIRTUAL_SCREEN_WIDTH / aspect;
-	float sy = VIRTUAL_SCREEN_HEIGHT;
+	// TODO: relative/normalized coordinate system in screen-space
+	CRenderDisplayContext* pDC = gcpRendD3D->GetActiveDisplayContext();
+	float aspect = pDC->GetAspectRatio();
+	float sx = VIRTUAL_SCREEN_WIDTH  /*float(pDC->GetDisplayResolution()[0]) */ / aspect;
+	float sy = VIRTUAL_SCREEN_HEIGHT /*float(pDC->GetDisplayResolution()[1])*/;
 
 	IRenderAuxText::DrawText(Vec3(x * sx, y * sy, 1.f), IRenderAuxText::ASize(size * 1.55f / aspect, size * 1.1f), color, eDrawText_800x600 | eDrawText_2D | eDrawText_LegacyBehavior, text);
 }
@@ -682,13 +699,15 @@ void DrawText(float x, float y, float size, ColorF color, const char* format, va
 
 void DrawBox(float x, float y, float width, float height, ColorF color)
 {
+	// TODO: relative/normalized coordinate system in screen-space
 	CD3D9Renderer* rd = gcpRendD3D;
-	SDisplayContext* pDC = rd->GetActiveDisplayContext();
-	float aspect = (float)pDC->m_Width / (float)pDC->m_Height;
-	float sx = VIRTUAL_SCREEN_WIDTH / aspect;
-	float sy = VIRTUAL_SCREEN_HEIGHT;
-	const Vec2 overscanOffset = Vec2(rd->s_overscanBorders.x * VIRTUAL_SCREEN_WIDTH, rd->s_overscanBorders.y * VIRTUAL_SCREEN_HEIGHT);
-	rd->Draw2dImage(x * sx + overscanOffset.x, y * sy + overscanOffset.y, width * sx, height * sy, CTexture::s_ptexWhite->GetID(), 0, 0, 1, 1, 0, color);
+	CRenderDisplayContext* pDC = rd->GetActiveDisplayContext();
+	float aspect = pDC->GetAspectRatio();
+	float sx = /*VIRTUAL_SCREEN_WIDTH */ float(pDC->GetDisplayResolution()[0]) / aspect;
+	float sy = /*VIRTUAL_SCREEN_HEIGHT*/ float(pDC->GetDisplayResolution()[1]);
+//	const Vec2 overscanOffset = Vec2(rd->s_overscanBorders.x * VIRTUAL_SCREEN_WIDTH, rd->s_overscanBorders.y * VIRTUAL_SCREEN_HEIGHT);
+	const Vec2 overscanOffset = Vec2(rd->s_overscanBorders.x * pDC->GetDisplayResolution()[0], rd->s_overscanBorders.y * pDC->GetDisplayResolution()[1]);
+	IRenderAuxImage::Draw2dImage(x * sx + overscanOffset.x, y * sy + overscanOffset.y, width * sx, height * sy, CRendererResources::s_ptexWhite->GetID(), 0, 0, 1, 1, 0, color);
 }
 
 void DrawTable(float x, float y, float width, int numColumns, const char* title)
@@ -752,7 +771,7 @@ void CRenderPipelineProfiler::DisplayOverviewStats()
 		{ "    Flares",          eRPPSTATS_VfxFlares        },
 	};
 
-	rd->SetState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
+	//rd->SetState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
 
 	// Threading info
 	{
@@ -786,7 +805,7 @@ void CRenderPipelineProfiler::DisplayOverviewStats()
 		int numColumns = sizeof(statsGroups) / sizeof(StatsGroup);
 		DebugUI::DrawTable(0.05f, 0.27f, 0.45f, numColumns, "GPU Time");
 
-		RPProfilerStats* pBasicStats = m_basicStats[gcpRendD3D->m_RP.m_nProcessThreadID];
+		RPProfilerStats* pBasicStats = m_basicStats[gRenDev->GetRenderThreadID()];
 		for (uint32 i = 0; i < numColumns; ++i)
 		{
 			const RPProfilerStats& stats = pBasicStats[statsGroups[i].statIndex];

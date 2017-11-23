@@ -156,7 +156,7 @@ void CGameVolume_Water::HandleEvent(const SGameObjectEvent& gameObjectEvent)
 	}
 }
 
-void CGameVolume_Water::ProcessEvent(SEntityEvent& event)
+void CGameVolume_Water::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

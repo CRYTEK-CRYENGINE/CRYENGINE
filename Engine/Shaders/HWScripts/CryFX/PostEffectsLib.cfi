@@ -9,13 +9,8 @@
 float4 vsParams[16] < register = c0; >;
 float4 psParams[16] < register = c50; >;
 
-float4   RotGridScreenOffset : PB_RotGridScreenOff;
 float   AnimGenParams = { PB_time 1.0 };
 float4   WorldViewPos  : PB_CameraPos;
-
-float4   CameraUp : PB_CameraUp;
-float4   CameraRight : PB_CameraRight;
-float4   CamFront : PB_CameraFront;
 
 float4  ScrSize : PB_ScreenSize;
 
@@ -232,7 +227,7 @@ vtxOut CustomViewPortBaseVS(vtxIn IN)
   vtxOut OUT = (vtxOut)0; 
 
   float4 vPos = IN.Position;
-  OUT.HPosition = mul(vpMatrix, vPos);  
+  OUT.HPosition = mul(CV_ViewProjMatr, vPos);  
   OUT.baseTC.xy = IN.baseTC.xy;
 
   // output with correct aspect ratio into wz

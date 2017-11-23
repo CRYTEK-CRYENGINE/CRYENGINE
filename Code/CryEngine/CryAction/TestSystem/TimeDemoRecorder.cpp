@@ -1488,8 +1488,10 @@ void CTimeDemoRecorder::PostUpdate()
 		}
 	}
 
-	if ((m_bPlaying || m_bRecording) && m_demo_noinfo <= 0)
+	if (gEnv->pRenderer && (m_bPlaying || m_bRecording) && m_demo_noinfo <= 0)
+	{
 		RenderInfo(1);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1708,7 +1710,7 @@ bool CTimeDemoRecorder::PlayFrame()
 	{
 		m_pTimeDemoInfo->frames[m_currentFrame].fFrameRate = (float)(1.0 / deltaFrameTime.GetSeconds());
 		m_pTimeDemoInfo->frames[m_currentFrame].nPolysRendered = nPolygons;
-		m_pTimeDemoInfo->frames[m_currentFrame].nDrawCalls = gEnv->pRenderer->GetCurrentNumberOfDrawCalls();
+		m_pTimeDemoInfo->frames[m_currentFrame].nDrawCalls = gEnv->pRenderer ? gEnv->pRenderer->GetCurrentNumberOfDrawCalls() : 0;
 	}
 	//////////////////////////////////////////////////////////////////////////
 	m_lastFrameTime = GetTime();
@@ -2068,10 +2070,6 @@ void CTimeDemoRecorder::LogInfo(const char* format, ...)
 	cry_vsprintf(szBuffer, format, ArgList);
 	va_end(ArgList);
 
-	va_start(ArgList, format);
-	gEnv->pLog->LogV(IMiniLog::eMessage, format, ArgList);
-	va_end(ArgList);
-
 	gEnv->pLog->Log("%s", szBuffer);
 
 	string filename = PathUtil::Make("%USER%/TestResults", PathUtil::ReplaceExtension(CTimeDemoRecorder::s_timedemo_file->GetString(), "log"));
@@ -2152,7 +2150,7 @@ void CTimeDemoRecorder::OnSpawn(IEntity* pEntity, SEntitySpawnParams& params)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CTimeDemoRecorder::OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+void CTimeDemoRecorder::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
 	CRY_ASSERT(m_bRecording);
 
@@ -2336,6 +2334,10 @@ void CTimeDemoRecorder::OnFrameProfilerPeak(CFrameProfiler* pProfiler, float fPe
 //////////////////////////////////////////////////////////////////////////
 int CTimeDemoRecorder::ComputePolyCount()
 {
+	if (!gEnv->pRenderer)
+	{
+		return 0;
+	}
 	int nPolygons, nShadowVolPolys;
 	gEnv->pRenderer->GetPolyCount(nPolygons, nShadowVolPolys);
 	m_nPolysCounter += nPolygons;

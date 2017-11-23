@@ -20,6 +20,7 @@ class CMonoDomain
 	friend class CCompiledMonoLibrary;
 	friend class CMonoClass;
 	friend class CMonoRuntime;
+	friend class CMonoMethod;
 
 protected:
 	CMonoDomain() = default;
@@ -37,6 +38,8 @@ public:
 
 	// Called to unload an app domain and then reload it afterwards, useful to use newly compiled assemblies without restarting
 	virtual bool Reload() = 0;
+	//! Check whether or not we are currently reloading the app domain
+	virtual bool IsReloading() { return false; }
 
 	std::shared_ptr<CMonoString> CreateString(const char* szString);
 	static std::shared_ptr<CMonoString> CreateString(MonoInternals::MonoString* pManagedString);
@@ -46,8 +49,12 @@ public:
 
 	MonoInternals::MonoDomain* GetHandle() const { return m_pDomain; }
 
+	using ReferenceEqualsFunction = MonoInternals::MonoBoolean(*)(MonoInternals::MonoObject*, MonoInternals::MonoObject*, MonoInternals::MonoException**);
+	ReferenceEqualsFunction GetReferenceEqualsMethod() const { return m_referenceEqualsThunk; }
+
 protected:
 	void Unload();
+	void CacheObjectMethods();
 
 	MonoInternals::MonoDomain* GetMonoDomain() const { return m_pDomain; }
 
@@ -57,4 +64,7 @@ protected:
 	bool m_bNativeDomain;
 
 	std::vector<std::unique_ptr<CMonoLibrary>> m_loadedLibraries;
+
+	std::weak_ptr<CMonoMethod> m_pReferenceEqualsMethod;
+	ReferenceEqualsFunction m_referenceEqualsThunk = nullptr;
 };

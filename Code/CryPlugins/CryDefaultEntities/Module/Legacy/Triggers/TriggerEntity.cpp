@@ -55,7 +55,7 @@ CTriggerEntity::CTriggerEntity()
 {
 }
 
-void CTriggerEntity::ProcessEvent(SEntityEvent& event)
+void CTriggerEntity::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

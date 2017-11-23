@@ -1255,11 +1255,6 @@ pixoutParticleVolumeFogPS ParticleVolumeFogPS(OutputParticleVolumeFogGS IN)
 // Needs to match the technique numbers in CRenderer::EF_GetParticleListAndBatchFlags function.
 
 technique ParticlesTessellated
-<
-	string Script =  
-		"TechniqueCustomRender=CustomRenderPass;"
-//    "TechniqueThickness=ThicknessPass;"
->
 {
 	pass p0
 	{
@@ -1276,11 +1271,6 @@ technique ParticlesTessellated
 }
 
 technique Particles
-<
-	string Script =  
-			"TechniqueCustomRender=CustomRenderPass;"
-//    "TechniqueThickness=ThicknessPass;"
->
 {
 	pass p0
 	{
@@ -1295,9 +1285,6 @@ technique Particles
 }
 
 technique ParticlesPulled
-<
-	string Script = "TechniqueCustomRender=CustomRenderPass;"
->
 {
 	pass p0
 	{
@@ -1312,9 +1299,6 @@ technique ParticlesPulled
 }
 
 technique ParticlesGpu
-<
-	string Script = "TechniqueCustomRender=CustomRenderPass;"
->
 {
 	pass p0
 	{
@@ -1345,6 +1329,4 @@ technique ParticlesVolumeFog
 		AlphaBlendEnable = true;
 	}
 }
-
-#include "ParticlesCustomPass.cfi"
 

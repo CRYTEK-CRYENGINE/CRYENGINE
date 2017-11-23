@@ -60,7 +60,7 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 	// IEntityEventListener
-	virtual void OnEntityEvent(IEntity* pEntity, SEntityEvent& event);
+	virtual void OnEntityEvent(IEntity* pEntity, const SEntityEvent& event);
 
 	void         RegisterEvents();
 	virtual void UnregisterEvents();
@@ -416,7 +416,7 @@ template<bool TBlocking> void CFlowNode_AIBase<TBlocking >::OnGoalPipeEvent(IPip
 
 //
 //-------------------------------------------------------------------------------------------------------------
-template<bool TBlocking> void CFlowNode_AIBase<TBlocking >::OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+template<bool TBlocking> void CFlowNode_AIBase<TBlocking >::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -1082,7 +1082,7 @@ public:
 	virtual EForceMethod GetForceMethod(IFlowNode::SActivationInfo* pActInfo) const;
 	virtual void         PreExecute(SActivationInfo* pActInfo);
 
-	void                 OnEntityEvent(IEntity* pEntity, SEntityEvent& event);
+	void                 OnEntityEvent(IEntity* pEntity, const SEntityEvent& event);
 
 	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo);
 
@@ -1128,7 +1128,7 @@ public:
 	virtual EForceMethod GetForceMethod(IFlowNode::SActivationInfo* pActInfo) const;
 	virtual void         PreExecute(SActivationInfo* pActInfo);
 
-	void                 OnEntityEvent(IEntity* pEntity, SEntityEvent& event);
+	void                 OnEntityEvent(IEntity* pEntity, const SEntityEvent& event);
 
 	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo);
 	virtual void         Serialize(SActivationInfo*, TSerialize ser);
@@ -1465,7 +1465,7 @@ CFlowNode_AIVehicleStickPath::EForceMethod CFlowNode_AIVehicleStickPath::GetForc
 	return static_cast<EForceMethod>(GetPortInt(pActInfo, 9));   // Replace this number with an enum value
 }
 
-void CFlowNode_AIVehicleStickPath::OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+void CFlowNode_AIVehicleStickPath::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_SCRIPT_EVENT)
 	{
@@ -1654,7 +1654,7 @@ CFlowNode_AIVehicleChaseTarget::EForceMethod CFlowNode_AIVehicleChaseTarget::Get
 	return static_cast<EForceMethod>(GetPortInt(pActInfo, 7));   // Replace this number with an enum value
 }
 
-void CFlowNode_AIVehicleChaseTarget::OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+void CFlowNode_AIVehicleChaseTarget::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_SCRIPT_EVENT)
 	{

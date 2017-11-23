@@ -257,6 +257,11 @@ void CMNMPathfinder::CancelResultDispatchingForRequest(MNM::QueuedPathID request
 
 bool CMNMPathfinder::CheckIfPointsAreOnStraightWalkableLine(const NavigationMeshID& meshID, const Vec3& source, const Vec3& destination, float heightOffset) const
 {
+	return CheckIfPointsAreOnStraightWalkableLine(meshID, source, destination, nullptr, heightOffset);
+}
+
+bool CMNMPathfinder::CheckIfPointsAreOnStraightWalkableLine(const NavigationMeshID& meshID, const Vec3& source, const Vec3& destination, const INavMeshQueryFilter* pFilter, float heightOffset) const
+{
 	if (meshID == 0)
 		return false;
 
@@ -270,15 +275,14 @@ bool CMNMPathfinder::CheckIfPointsAreOnStraightWalkableLine(const NavigationMesh
 	MNM::vector3_t endLoc = MNM::vector3_t(MNM::real_t(destination.x), MNM::real_t(destination.y), MNM::real_t(destination.z));
 
 	const MNM::real_t verticalRange(2.0f);
-	MNM::TriangleID triStart = navMesh.GetTriangleAt(startLoc, verticalRange, verticalRange);
-	MNM::TriangleID triEnd = navMesh.GetTriangleAt(endLoc, verticalRange, verticalRange);
+	MNM::TriangleID triStart = navMesh.GetTriangleAt(startLoc, verticalRange, verticalRange, pFilter);
+	MNM::TriangleID triEnd = navMesh.GetTriangleAt(endLoc, verticalRange, verticalRange, pFilter);
 
 	if (!triStart || !triEnd)
 		return false;
 
 	MNM::CNavMesh::RayCastRequest<512> raycastRequest;
-
-	if (navMesh.RayCast(startLoc, triStart, endLoc, triEnd, raycastRequest) != MNM::CNavMesh::eRayCastResult_NoHit)
+	if (navMesh.RayCast(startLoc, triStart, endLoc, triEnd, raycastRequest, pFilter) != MNM::CNavMesh::eRayCastResult_NoHit)
 		return false;
 
 	return true;
@@ -291,12 +295,9 @@ void CMNMPathfinder::SetupNewValidPathRequests()
 	for (size_t i = 0; (i < freeAvailableSlotsToProcessNewRequests) && !m_requestedPathsQueue.empty(); ++i)
 	{
 		MNM::QueuedPathID idQueuedRequest = m_requestedPathsQueue.front_id();
-		MNM::PathfinderUtils::QueuedRequest requestToServe = m_requestedPathsQueue.front();
-		m_requestedPathsQueue.pop_front();
+		MNM::PathfinderUtils::QueuedRequest& requestToServe = m_requestedPathsQueue.front();
 
-		MNM::PathfinderUtils::ProcessingContextsPool::PoolIterator pProcessingContext;
-		MNM::PathfinderUtils::ProcessingContextId id;
-		id = m_processingContextsPool.GetFirstAvailableContextId();
+		MNM::PathfinderUtils::ProcessingContextId id = m_processingContextsPool.GetFirstAvailableContextId();
 		if (id != MNM::PathfinderUtils::kInvalidProcessingContextId)
 		{
 			MNM::PathfinderUtils::ProcessingContext& processingContext = m_processingContextsPool.GetContextAtPosition(id);
@@ -320,6 +321,8 @@ void CMNMPathfinder::SetupNewValidPathRequests()
 		{
 			CRY_ASSERT_MESSAGE(0, "Trying to setup new requests while not having available slots in the pool.");
 		}
+
+		m_requestedPathsQueue.pop_front();
 	}
 }
 
@@ -395,6 +398,7 @@ void CMNMPathfinder::WaitForJobToFinish(MNM::PathfinderUtils::ProcessingContext&
 
 void CMNMPathfinder::DispatchResults()
 {
+	if(m_pathfindingFailedEventsToDispatch.size())
 	{
 		MNM::PathfinderUtils::PathfindingFailedEvent failedEvent;
 		while (m_pathfindingFailedEventsToDispatch.try_pop_back(failedEvent))
@@ -403,6 +407,7 @@ void CMNMPathfinder::DispatchResults()
 		}
 	}
 
+	if(m_pathfindingCompletedEventsToDispatch.size())
 	{
 		MNM::PathfinderUtils::PathfindingCompletedEvent succeeded;
 		while (m_pathfindingCompletedEventsToDispatch.try_pop_back(succeeded))
@@ -439,10 +444,10 @@ void CMNMPathfinder::OnNavigationMeshChanged(const NavigationMeshID meshId, cons
 		MNM::PathfinderUtils::ProcessingRequest& processingRequest = processingContext.processingRequest;
 
 		if (!processingRequest.IsValid())
-			return;
+			continue;
 
 		if (processingRequest.meshID != meshId)
-			return;
+			continue;
 
 		if (!processingContext.workingSet.aStarOpenList.TileWasVisited(tileId))
 		{
@@ -463,7 +468,7 @@ void CMNMPathfinder::OnNavigationMeshChanged(const NavigationMeshID meshId, cons
 			}
 
 			if (!neighbourTileWasVisited)
-				return;
+				continue;
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -519,47 +524,31 @@ bool CMNMPathfinder::SetupForNextPathRequest(MNM::QueuedPathID requestID, const 
 	const uint16 zOffsetMultiplier = min(uint16(2), (uint16)agentTypeProperties.settings.agent.height);
 	const MNM::real_t verticalUpwardRange = arePropertiesValid ? MNM::real_t(zOffsetMultiplier * agentTypeProperties.settings.voxelSize.z) : MNM::real_t(.0f);
 
+	const INavMeshQueryFilter* pFilter = request.pFilter.get();
+
 	Vec3 safeStartLocation(request.requestParams.startLocation);
 	MNM::TriangleID triangleStartID;
-	if (!(triangleStartID = navMesh.GetTriangleAt(startLocation - origin, verticalRange, verticalUpwardRange)))
+	if (!ApplySnappingRules(navMesh, request.requestParams.snappingRules, triangleStartID, safeStartLocation, startLocation - origin, verticalRange, verticalUpwardRange, horizontalRange, pFilter))
 	{
-		MNM::vector3_t closest;
-		if (!(triangleStartID = navMesh.GetClosestTriangle(startLocation - origin, verticalRange, horizontalRange, NULL, &closest)))
-		{
-			const IEntity* pEntity = gEnv->pEntitySystem->GetEntity(request.requesterEntityId);
-			AIWarning("Navigation system couldn't find NavMesh triangle at path start point (%.2f, %2f, %2f) for agent '%s'.",
-				request.requestParams.startLocation.x, request.requestParams.startLocation.y, request.requestParams.startLocation.z,
-				pEntity ? pEntity->GetName() : "'missing entity'");
-			return false;
-		}
-		else
-		{
-			safeStartLocation = closest.GetVec3();
-		}
+		const IEntity* pEntity = gEnv->pEntitySystem->GetEntity(request.requesterEntityId);
+		AIWarning("Navigation system couldn't find NavMesh triangle at path start point (%.2f, %2f, %2f) for agent '%s'.",
+			request.requestParams.startLocation.x, request.requestParams.startLocation.y, request.requestParams.startLocation.z,
+			pEntity ? pEntity->GetName() : "'missing entity'");
+		return false;
 	}
 
 	Vec3 safeEndLocation(request.requestParams.endLocation);
-	MNM::TriangleID triangleEndID = navMesh.GetTriangleAt(endLocation - origin, verticalRange, verticalRange);
-	if (!triangleEndID)
+	MNM::TriangleID triangleEndID;
+	if (!ApplySnappingRules(navMesh, request.requestParams.snappingRules, triangleEndID, safeEndLocation, endLocation - origin, verticalRange, verticalUpwardRange, horizontalRange, pFilter))
 	{
-		MNM::vector3_t closest;
-		triangleEndID = navMesh.GetClosestTriangle(endLocation - origin, verticalRange, horizontalRange, NULL, &closest);
-		if (triangleEndID)
-		{
-			safeEndLocation = closest.GetVec3();
-		}
-		else
-		{
-			const IEntity* pEntity = gEnv->pEntitySystem->GetEntity(request.requesterEntityId);
-			AIWarning("Navigation system couldn't find NavMesh triangle at path destination point (%.2f, %.2f, %.2f) for agent '%s'.",
-				request.requestParams.endLocation.x, request.requestParams.endLocation.y, request.requestParams.endLocation.z,
-				pEntity ? pEntity->GetName() : "'missing entity'");
-			return false;
-		}
+		const IEntity* pEntity = gEnv->pEntitySystem->GetEntity(request.requesterEntityId);
+		AIWarning("Navigation system couldn't find NavMesh triangle at path destination point (%.2f, %.2f, %.2f) for agent '%s'.",
+			request.requestParams.endLocation.x, request.requestParams.endLocation.y, request.requestParams.endLocation.z,
+			pEntity ? pEntity->GetName() : "'missing entity'");
+		return false;
 	}
 
 	// The data for MNM are good until this point so we can set up the path finding
-	processingRequest.requesterEntityId = request.requesterEntityId;
 	processingRequest.meshID = meshID;
 	processingRequest.fromTriangleID = triangleStartID;
 	processingRequest.toTriangleID = triangleEndID;
@@ -573,6 +562,29 @@ bool CMNMPathfinder::SetupForNextPathRequest(MNM::QueuedPathID requestID, const 
 	processingContext.workingSet.aStarOpenList.SetUpForPathSolving(mesh.navMesh.GetTriangleCount(), triangleStartID, startLocation, startToEndDist);
 
 	return true;
+}
+
+bool CMNMPathfinder::ApplySnappingRules(const MNM::CNavMesh& navMesh, const SSnapToNavMeshRulesInfo& snappingRules, MNM::TriangleID& triangleID, Vec3& safeLocation, const MNM::vector3_t& locationRelToOrigin, const MNM::real_t vDefaultRange, const MNM::real_t vUpwardRange, const MNM::real_t hDefaultRange, const INavMeshQueryFilter* pFilter)
+{
+	if (snappingRules.bVerticalSearch)
+	{
+		if (triangleID = navMesh.GetTriangleAt(locationRelToOrigin, vDefaultRange, vUpwardRange, pFilter))
+		{
+			return true;
+		}
+
+	}
+	if (snappingRules.bBoxSearch)
+	{
+		MNM::vector3_t closestLocation;
+		if (triangleID = navMesh.GetClosestTriangle(locationRelToOrigin, vDefaultRange, hDefaultRange, pFilter, nullptr, &closestLocation))
+		{
+			safeLocation = closestLocation.GetVec3();
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void CMNMPathfinder::ProcessPathRequest(MNM::PathfinderUtils::ProcessingContext& processingContext)
@@ -592,10 +604,13 @@ void CMNMPathfinder::ProcessPathRequest(MNM::PathfinderUtils::ProcessingContext&
 	assert(offMeshNavigationManager);
 	const MNM::OffMeshNavigation& meshOffMeshNav = offMeshNavigationManager->GetOffMeshNavigationForMesh(processingRequest.meshID);
 
-	MNM::CNavMesh::WayQueryRequest inputParams(processingRequest.requesterEntityId, processingRequest.fromTriangleID,
-	                                           processingRequest.data.requestParams.startLocation - gridParams.origin, processingRequest.toTriangleID,
-	                                           processingRequest.data.requestParams.endLocation - gridParams.origin, meshOffMeshNav, *offMeshNavigationManager,
-	                                           processingRequest.data.GetDangersInfos(), processingRequest.data.requestParams.pCustomPathCostComputer);
+	MNM::CNavMesh::WayQueryRequest inputParams(
+		processingRequest.data.requesterEntityId, processingRequest.fromTriangleID,
+		processingRequest.data.requestParams.startLocation - gridParams.origin, processingRequest.toTriangleID,
+		processingRequest.data.requestParams.endLocation - gridParams.origin, meshOffMeshNav, *offMeshNavigationManager,
+		processingRequest.data.GetDangersInfos(),
+		processingRequest.data.pFilter.get(),
+		processingRequest.data.requestParams.pCustomPathCostComputer);
 
 	if (navMesh.FindWay(inputParams, processingContext.workingSet, processingContext.queryResult) == MNM::CNavMesh::eWQR_Continuing)
 		return;

@@ -22,7 +22,7 @@ const char* MovementActor::GetName() const
 	return pEntity ? pEntity->GetName() : "(none)";
 }
 
-void MovementActor::RequestPathTo(const Vec3& destination, float lengthToTrimFromThePathEnd, const MNMDangersFlags dangersFlags /* = eMNMDangers_None */, const bool considerActorsAsPathObstacles, const MNMCustomPathCostComputerSharedPtr& pCustomPathCostComputer)
+void MovementActor::RequestPathTo(const Vec3& destination, float lengthToTrimFromThePathEnd, const SSnapToNavMeshRulesInfo& snappingRules, const MNMDangersFlags dangersFlags /* = eMNMDangers_None */, const bool considerActorsAsPathObstacles, const MNMCustomPathCostComputerSharedPtr& pCustomPathCostComputer)
 {
 	const bool cutPathAtSmartObject = false;
 
@@ -34,6 +34,7 @@ void MovementActor::RequestPathTo(const Vec3& destination, float lengthToTrimFro
 	{
 		MNMPathRequest request(pEntity->GetPos(), destination, Vec3(0, 1, 0), -1, 0.0f, lengthToTrimFromThePathEnd, true, NULL, this->pAdapter->GetNavigationAgentTypeID(), dangersFlags);
 		request.pCustomPathCostComputer = pCustomPathCostComputer;
+		request.snappingRules = snappingRules;
 		callbacks.queuePathRequestFunction(request);
 	}
 }

@@ -397,6 +397,10 @@ void AIConsoleVars::Init()
 	                       " Fast machine [10]\n"
 	                       " Slow machine [4]\n"
 	                       " Smooth [1]\n");
+	REGISTER_CVAR2("ai_MNMDebugDrawFlag", &MNMDebugDrawFlag, "", VF_CHEAT | VF_CHEAT_NOCHECK,
+		"Filter MNM triangles to draw by their annotation flag name. Draw calor of triangle is defined by the flag.\n"
+		"Usage: ai_DebugDrawMNMFlag name\n"
+		"Default is empty\n");
 	REGISTER_CVAR2("ai_NavmeshTileDistanceDraw", &NavmeshTileDistanceDraw, 200.0f, VF_CHEAT | VF_CHEAT_NOCHECK,
 	               "Maximum distance from the camera for tile to be drawn.\n"
 	               "Usage: ai_NavmeshTileDistanceDraw [0.0-...]\n"

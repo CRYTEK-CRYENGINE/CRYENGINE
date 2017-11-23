@@ -1,16 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   SubstitutionProxy.cpp
-//  Version:     v1.00
-//  Created:     7/6/2005 by Timur.
-//  Compilers:   Visual Studio.NET
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #include "stdafx.h"
 #include "SubstitutionProxy.h"
 #include "Entity.h"
@@ -67,7 +56,7 @@ bool CEntityComponentSubstitution::NeedGameSerialize()
 	return m_pSubstitute != 0;
 };
 
-void CEntityComponentSubstitution::ProcessEvent(SEntityEvent& event)
+void CEntityComponentSubstitution::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

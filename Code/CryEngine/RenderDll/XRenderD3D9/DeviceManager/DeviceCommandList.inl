@@ -53,6 +53,8 @@ inline void CDeviceCommandList::Reset()
 	m_primitiveTypeForProfiling = eptUnknown;
 	m_profilingStats.Reset();
 #endif
+
+	ClearStateImpl(false);
 }
 
 inline void CDeviceCommandList::LockToThread()
@@ -269,7 +271,7 @@ inline void CDeviceGraphicsCommandInterface::Draw(uint32 VertexCountPerInstance,
 		DrawImpl(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 
 #if defined(ENABLE_PROFILING_CODE)
-		int nPrimitives;
+		int nPrimitives = VertexCountPerInstance;
 
 		switch (m_primitiveTypeForProfiling)
 		{
@@ -321,7 +323,7 @@ inline void CDeviceGraphicsCommandInterface::DrawIndexed(uint32 IndexCountPerIns
 		DrawIndexedImpl(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 
 #if defined(ENABLE_PROFILING_CODE)
-		int nPrimitives;
+		int nPrimitives = IndexCountPerInstance;
 
 		switch (m_primitiveTypeForProfiling)
 		{

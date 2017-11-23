@@ -23,8 +23,8 @@ public:
 	virtual IMaterial*               GetMaterial(Vec3* pHitPos = NULL) const { return m_pMaterial; }
 	virtual IMaterial*               GetMaterialOverride()                   { return m_pMaterial; }
 	virtual float                    GetMaxViewDist();
-	virtual void                     SetLightProperties(const CDLight& light);
-	virtual CDLight&                 GetLightProperties() { return m_light; };
+	virtual void                     SetLightProperties(const SRenderLight& light);
+	virtual SRenderLight&            GetLightProperties() { return m_light; };
 	virtual void                     Release(bool);
 	virtual void                     SetMatrix(const Matrix34& mat);
 	virtual const Matrix34&          GetMatrix() { return m_Matrix; }
@@ -73,7 +73,7 @@ public:
 	CLightEntity();
 	~CLightEntity();
 
-	CDLight               m_light;
+	SRenderLight               m_light;
 	bool                  m_bShadowCaster : 1;
 
 	_smart_ptr<IMaterial> m_pMaterial;

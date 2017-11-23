@@ -41,15 +41,14 @@ namespace Cry
 			// IEntityComponent
 			virtual void Initialize() final;
 
-			virtual void ProcessEvent(SEntityEvent& event) final;
+			virtual void ProcessEvent(const SEntityEvent& event) final;
 			virtual uint64 GetEventMask() const final;
+
+			virtual void ShutDown() final { Reset(); }
 			// ~IEntityComponent
 
 		public:
-			virtual ~CPathfindingComponent() 
-			{
-				Reset();
-			}
+			virtual ~CPathfindingComponent() = default;
 
 			static void ReflectType(Schematyc::CTypeDesc<CPathfindingComponent>& desc)
 			{

@@ -197,6 +197,16 @@ void CEnvRegistry::VisitDataTypes(const EnvDataTypeConstVisitor& visitor) const
 	}
 }
 
+void CEnvRegistry::RegisterListener(IEnvRegistryListener* pListener)
+{
+	m_listeners.push_back(pListener);
+}
+
+void CEnvRegistry::UnregisterListener(IEnvRegistryListener* pListener)
+{
+	stl::find_and_erase(m_listeners, pListener);
+}
+
 const IEnvSignal* CEnvRegistry::GetSignal(const CryGUID& guid) const
 {
 	Signals::const_iterator itSignal = m_signals.find(guid);
@@ -392,6 +402,11 @@ bool CEnvRegistry::RegisterPackageElements(const EnvPackageElements& packageElem
 
 		m_elements.insert(Elements::value_type(packageElement.elementGUID, packageElement.pElement));
 
+		for (auto listeners : m_listeners)
+		{
+			listeners->OnEnvElementAdd(packageElement.pElement);
+		}
+
 		switch (packageElement.pElement->GetType())
 		{
 		case EEnvElementType::Module:
@@ -492,6 +507,11 @@ void CEnvRegistry::ReleasePackageElements(const EnvPackageElements& packageEleme
 		if (pScope)
 		{
 			pScope->DetachChild(*packageElement.pElement);
+		}
+
+		for (auto listeners : m_listeners)
+		{
+			listeners->OnEnvElementDelete(packageElement.pElement);
 		}
 
 		switch (packageElement.pElement->GetType())

@@ -138,8 +138,7 @@ private:
 	bool                         SxmlMissingFromHDD(ZipDir::FileEntryTree* pSourceDir, const char* currentPath, ZipDir::CacheRWPtr pCache);
 
 	bool                         DecryptAndCheckSigning(const char* pInData, int inDataLen, char** pOutData, int* pOutDataLen, const uint8 key[16]);
-	bool                         UseSteamReadWriter() const;
-
+	
 private:
 	CStableFPSWatcher                             m_fpsWatcher;
 	CListenerSet<IPlatformOS::IPlatformListener*> m_listeners;

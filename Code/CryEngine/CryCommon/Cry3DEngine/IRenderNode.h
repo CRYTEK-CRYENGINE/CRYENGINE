@@ -357,7 +357,7 @@ public:
 		return (EGIMode)(((m_dwRndFlags & ERF_GI_MODE_BIT0) ? 1 : 0) | ((m_dwRndFlags & ERF_GI_MODE_BIT1) ? 2 : 0) | ((m_dwRndFlags & ERF_GI_MODE_BIT2) ? 4 : 0));
 	}
 
-	virtual void SetMinSpec(int nMinSpec) { m_dwRndFlags &= ~ERF_SPEC_BITS_MASK; m_dwRndFlags |= (nMinSpec << ERF_SPEC_BITS_SHIFT) & ERF_SPEC_BITS_MASK; };
+	virtual void SetMinSpec(RenderFlagsType nMinSpec) { m_dwRndFlags &= ~ERF_SPEC_BITS_MASK; m_dwRndFlags |= (nMinSpec << ERF_SPEC_BITS_SHIFT) & ERF_SPEC_BITS_MASK; };
 
 	//! Allows to adjust default max view distance settings.
 	//! If fMaxViewDistRatio is 100 - default max view distance is used.
@@ -624,8 +624,8 @@ private:
 struct ILightSource : public IRenderNode
 {
 	// <interfuscator:shuffle>
-	virtual void                     SetLightProperties(const CDLight& light) = 0;
-	virtual CDLight&                 GetLightProperties() = 0;
+	virtual void                     SetLightProperties(const SRenderLight& light) = 0;
+	virtual SRenderLight&                 GetLightProperties() = 0;
 	virtual const Matrix34&          GetMatrix() = 0;
 	virtual struct ShadowMapFrustum* GetShadowFrustum(int nId = 0) = 0;
 	virtual bool                     IsLightAreasVisible() = 0;
@@ -1070,5 +1070,4 @@ struct IGeomCacheRenderNode : public IRenderNode
 struct ICharacterRenderNode : public IRenderNode
 {
 	virtual void SetCharacter(struct ICharacterInstance* pCharacter) = 0;
-	virtual void SetCharacterRenderOffset(const QuatTS& renderOffset) = 0;
 };

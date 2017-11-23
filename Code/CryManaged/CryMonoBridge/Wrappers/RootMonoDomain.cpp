@@ -10,6 +10,8 @@ void CRootMonoDomain::Initialize()
 {
 	m_pDomain = MonoInternals::mono_jit_init_version("CryEngine", "v4.0.30319");
 	m_bNativeDomain = true;
+
+	CacheObjectMethods();
 }
 
 CMonoLibrary& CRootMonoDomain::GetNetCoreLibrary()

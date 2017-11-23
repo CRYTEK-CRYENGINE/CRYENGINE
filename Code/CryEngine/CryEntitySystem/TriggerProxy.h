@@ -1,18 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   TriggerProxy.h
-//  Version:     v1.00
-//  Created:     5/12/2005 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __TriggerProxy_h__
-#define __TriggerProxy_h__
 #pragma once
 
 #include "Entity.h"
@@ -36,7 +23,7 @@ public:
 	// IEntityComponent interface implementation.
 	//////////////////////////////////////////////////////////////////////////
 	virtual void Initialize() final;
-	virtual void ProcessEvent(SEntityEvent& event) final;
+	virtual void ProcessEvent(const SEntityEvent& event) final;
 	virtual uint64 GetEventMask() const final { return BIT64(ENTITY_EVENT_XFORM)|BIT64(ENTITY_EVENT_ENTERAREA)|BIT64(ENTITY_EVENT_LEAVEAREA); };
 	//////////////////////////////////////////////////////////////////////////
 
@@ -76,5 +63,3 @@ private:
 	SProximityElement* m_pProximityTrigger;
 	EntityId           m_forwardingEntity;
 };
-
-#endif // __TriggerProxy_h__

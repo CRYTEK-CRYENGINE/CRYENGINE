@@ -1,16 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   CameraProxy.h
-//  Version:     v1.00
-//  Created:     5/12/2005 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #include "stdafx.h"
 #include "CameraProxy.h"
 #include <CryNetwork/ISerialize.h>
@@ -31,7 +20,7 @@ void CEntityComponentCamera::Initialize()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntityComponentCamera::ProcessEvent(SEntityEvent& event)
+void CEntityComponentCamera::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

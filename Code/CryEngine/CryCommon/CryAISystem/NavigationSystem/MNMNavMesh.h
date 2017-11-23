@@ -2,6 +2,8 @@
 
 #include "MNMTile.h"
 
+struct INavMeshQueryFilter;
+
 namespace MNM
 {
 
@@ -13,6 +15,12 @@ struct SRayHitOutput
 	float distance;
 };
 
+struct ITriangleColorSelector
+{
+	virtual ~ITriangleColorSelector() {}
+	virtual ColorB GetAnnotationColor(AreaAnnotation annotation) const = 0;
+};
+
 namespace NavMesh
 {
 
@@ -20,28 +28,6 @@ namespace NavMesh
 struct SParams
 {
 	Vec3 originWorld;   //! Origin position of the NavMesh in the world coordinate space.
-};
-
-//! Filter functor for INavMesh::QueryTriangles.
-struct IQueryTrianglesFilter
-{
-	virtual ~IQueryTrianglesFilter() {}
-
-	enum class EResult : uint8
-	{
-		Rejected = 0,    //!< Triangle is rejected.
-		Accepted = 1     //!< Triangle is accepted.
-	};
-
-	//! Called for each tested triangle.
-	//! /param triangleId Id of tested triangle.
-	//! /return Result of the filter.
-	virtual EResult Check(TriangleID triangleId) = 0;
-
-	// #MNM_TODO pavloi 2016.08.12: calling virtual function for each considered triangle is not nice.
-	// Consider changing this interface into one, which accepts an array of triangles, something like:
-	// virtual ResultBitmask_uint64 Check(const TriangleID triangleIds[64], const size_t count) = 0;
-	// It will accept array with up to 64 triangles and return uint64 bitmask with filter results.
 };
 
 //! Returns the tile grid coordinate offset of the neighbor tile.
@@ -110,7 +96,7 @@ struct INavMesh
 	//! \param maxTrianglesCount Size of output buffer for result triangleId's.
 	//! \param pOutTriangles Array buffer for result triangleId's.
 	//! \return Count of found triangleId's.
-	virtual size_t QueryTriangles(const aabb_t& queryAabbWorld, NavMesh::IQueryTrianglesFilter* pOptionalFilter, const size_t maxTrianglesCount, TriangleID* pOutTriangles) const = 0;
+	virtual size_t QueryTriangles(const aabb_t& queryAabbWorld, INavMeshQueryFilter* pOptionalFilter, const size_t maxTrianglesCount, TriangleID* pOutTriangles) const = 0;
 
 	//! Finds a single triangle closest to the point. /see QueryTriangles() for a way to get candidate triangles.
 	//! \param queryPosWorld Query point in a world coordinate space.
@@ -126,6 +112,17 @@ struct INavMesh
 	//! \param outTileData STileData structure to fill
 	//! \return true if tile is found and outTileData is filled.
 	virtual bool GetTileData(const TileID tileId, Tile::STileData& outTileData) const = 0;
+
+	//! Returns triangle area annotation
+	//! \param triangleID id of the triangle
+	//! \return Pointer to triangle area annotation or null if the triangle isn't found
+	virtual const AreaAnnotation* GetTriangleAnnotation(TriangleID triangleID) const = 0;
+
+	//! Returns whether the triangle can passes the NavMesh query filter
+	//! \param triangleID Id of the triangle
+	//! \param filter Query filter to check triangle with
+	//! \return Returns true if the triangle is valid and passes the provided filter
+	virtual bool CanTrianglePassFilter(const TriangleID triangleID, const INavMeshQueryFilter& filter) const = 0;
 };
 
 } // namespace MNM

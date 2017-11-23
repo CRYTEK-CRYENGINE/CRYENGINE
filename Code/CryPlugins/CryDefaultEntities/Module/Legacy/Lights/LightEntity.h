@@ -140,7 +140,7 @@ protected:
 	int m_lightSlot;
 
 	// Light parameters, updated in the OnResetState function
-	CDLight m_light;
+	SRenderLight m_light;
 
 	bool m_bActive = true;
 

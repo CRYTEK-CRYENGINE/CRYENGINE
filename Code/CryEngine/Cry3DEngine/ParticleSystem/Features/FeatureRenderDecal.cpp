@@ -140,9 +140,12 @@ void CFeatureRenderDecals::RenderDeferred(CParticleEmitter* pEmitter, CParticleC
 		if (!(state & ESB_Alive))
 			continue;
 
+		const float size = sizes.Load(particleId);
+		if (size <= 0.0f)
+			continue;
+
 		const Vec3 position = positions.Load(particleId);
 		const Quat orientation = orientations.Load(particleId);
-		const float size = sizes.Load(particleId);
 
 		Vec3 texBlend;
 		decalTiler.GetTextureRect(decal.rectTexture, texBlend, particleId);

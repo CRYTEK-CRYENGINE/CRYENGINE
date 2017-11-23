@@ -28,7 +28,7 @@ public:
 	virtual inline ISerializableInfoPtr GetSpawnInfo()                                                                  { return NULL; }
 	virtual inline void                 Update(SEntityUpdateContext& ctx, int)                                          {}
 	virtual inline void                 HandleEvent(const SGameObjectEvent& event)                                      {}
-	virtual inline void                 ProcessEvent(SEntityEvent& event)                                               {}
+	virtual inline void                 ProcessEvent(const SEntityEvent& event)                                               {}
 	virtual uint64                      GetEventMask() const final { return 0; };
 	virtual inline void                 SetChannelId(uint16 id)                                                         {}
 	virtual inline void                 PostUpdate(float frameTime)                                                     {}

@@ -269,7 +269,7 @@ namespace EntityEffects
 	{
 		CRY_ASSERT(m_pOwnerEntity);
 
-		CDLight light;
+		SRenderLight light;
 		light.m_Flags |= attachParams.deferred ? DLF_DEFERRED_LIGHT : 0;
 		light.m_Flags |= attachParams.castShadows ?  DLF_CASTSHADOW_MAPS : 0;
 		light.SetLightColor(ColorF(attachParams.color.x * attachParams.diffuseMultiplier, attachParams.color.y * attachParams.diffuseMultiplier, attachParams.color.z * attachParams.diffuseMultiplier, 1.0f));

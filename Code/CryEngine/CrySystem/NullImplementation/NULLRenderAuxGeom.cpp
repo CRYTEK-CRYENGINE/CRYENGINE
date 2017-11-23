@@ -739,6 +739,13 @@ void CNULLRenderAuxGeom::DrawLines(const Vec3* v, uint32 numPoints, const vtx_id
 #endif
 }
 
+void CNULLRenderAuxGeom::DrawLineStrip(const Vec3* v, uint32 numPoints, const ColorB* col, float thickness /* = 1.0f*/)
+{
+#ifdef ENABLE_WGL_DEBUG_RENDERER
+	assert(false && "ToDo: Not implemented.");
+#endif
+}
+
 void CNULLRenderAuxGeom::DrawLines(const Vec3* v, uint32 numPoints, const vtx_idx* ind, uint32 numIndices, const ColorB* col, float thickness /* = 1::0f  */)
 {
 #ifdef ENABLE_WGL_DEBUG_RENDERER
@@ -844,4 +851,9 @@ void CNULLRenderAuxGeom::DrawSphere(const Vec3& pos, float radius, const ColorB&
 #ifdef ENABLE_WGL_DEBUG_RENDERER
 	m_spheres.push_back(SSphere(SPoint(pos, col), radius));
 #endif
+}
+
+void CNULLRenderAuxGeom::PushImage(const SRender2DImageDescription &image)
+{
+
 }

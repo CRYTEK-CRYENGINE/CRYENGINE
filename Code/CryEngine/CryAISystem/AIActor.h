@@ -50,6 +50,7 @@ public:
 	void Serialize(TSerialize ser);
 
 	virtual NavigationAgentTypeID GetNavigationTypeId() const override;
+	virtual const INavMeshQueryFilter* GetNavigationQueryFilter() const override;
 	virtual const char* GetName() const override;
 	virtual TreatType GetTreatmentType() const override;
 

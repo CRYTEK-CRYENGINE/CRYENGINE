@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "AudioImpl.h"
@@ -8,6 +8,7 @@
 #include "AudioObject.h"
 #include "AudioImplCVars.h"
 #include "ATLEntities.h"
+#include <Logger.h>
 #include <sndfile.hh>
 #include <CrySystem/File/ICryPak.h>
 #include <CrySystem/IProjectManager.h>
@@ -38,7 +39,7 @@ ERequestStatus CImpl::Init(uint32 const objectPoolSize, uint32 const eventPoolSi
 
 	if (strlen(szAssetDirectory) == 0)
 	{
-		g_implLogger.Log(ELogType::Error, "<Audio - PortAudio>: No asset folder set!");
+		Cry::Audio::Log(ELogType::Error, "<Audio - PortAudio>: No asset folder set!");
 		szAssetDirectory = "no-asset-folder-set";
 	}
 
@@ -51,7 +52,7 @@ ERequestStatus CImpl::Init(uint32 const objectPoolSize, uint32 const eventPoolSi
 
 	if (err != paNoError)
 	{
-		g_implLogger.Log(ELogType::Error, "Failed to initialize PortAudio: %s", Pa_GetErrorText(err));
+		Cry::Audio::Log(ELogType::Error, "Failed to initialize PortAudio: %s", Pa_GetErrorText(err));
 	}
 
 #if defined(INCLUDE_PORTAUDIO_IMPL_PRODUCTION_CODE)
@@ -77,7 +78,7 @@ ERequestStatus CImpl::ShutDown()
 
 	if (err != paNoError)
 	{
-		g_implLogger.Log(ELogType::Error, "Failed to shut down PortAudio: %s", Pa_GetErrorText(err));
+		Cry::Audio::Log(ELogType::Error, "Failed to shut down PortAudio: %s", Pa_GetErrorText(err));
 	}
 
 	return (err == paNoError) ? ERequestStatus::Success : ERequestStatus::Failure;
@@ -139,7 +140,7 @@ ERequestStatus CImpl::RegisterInMemoryFile(SFileInfo* const pFileInfo)
 		}
 		else
 		{
-			g_implLogger.Log(ELogType::Error, "Invalid AudioFileEntryData passed to the PortAudio implementation of RegisterInMemoryFile");
+			Cry::Audio::Log(ELogType::Error, "Invalid AudioFileEntryData passed to the PortAudio implementation of RegisterInMemoryFile");
 		}
 	}
 
@@ -161,7 +162,7 @@ ERequestStatus CImpl::UnregisterInMemoryFile(SFileInfo* const pFileInfo)
 		}
 		else
 		{
-			g_implLogger.Log(ELogType::Error, "Invalid AudioFileEntryData passed to the PortAudio implementation of UnregisterInMemoryFile");
+			Cry::Audio::Log(ELogType::Error, "Invalid AudioFileEntryData passed to the PortAudio implementation of UnregisterInMemoryFile");
 		}
 	}
 
@@ -323,14 +324,14 @@ ITrigger const* CImpl::ConstructTrigger(XmlNodeRef const pRootNode)
 
 				if (failure)
 				{
-					g_implLogger.Log(ELogType::Error, "Failed to close SNDFILE during CImpl::NewAudioTrigger");
+					Cry::Audio::Log(ELogType::Error, "Failed to close SNDFILE during CImpl::NewAudioTrigger");
 				}
 			}
 		}
 	}
 	else
 	{
-		g_implLogger.Log(ELogType::Warning, "Unknown PortAudio tag: %s", szTag);
+		Cry::Audio::Log(ELogType::Warning, "Unknown PortAudio tag: %s", szTag);
 	}
 
 	return static_cast<ITrigger*>(pTrigger);

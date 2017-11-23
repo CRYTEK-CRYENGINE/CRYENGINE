@@ -3,17 +3,20 @@
 #pragma once
 
 #include <QWidget>
-#include <ACETypes.h>
+#include <SystemTypes.h>
 
 class QToolButton;
 class QVBoxLayout;
 
 namespace ACE
 {
+class CSystemAssetsManager;
+class CSystemControl;
 class CMiddlewareDataFilterProxyModel;
 class CMiddlewareDataModel;
 class CAudioTreeView;
 class CElidedLabel;
+class CImplItem;
 
 class CMiddlewareDataWidget final : public QWidget
 {
@@ -21,21 +24,26 @@ class CMiddlewareDataWidget final : public QWidget
 
 public:
 
-	CMiddlewareDataWidget();
+	CMiddlewareDataWidget(CSystemAssetsManager* pAssetsManager);
 	virtual ~CMiddlewareDataWidget() override;
 
 	void Reset();
 	void BackupTreeViewStates();
 	void RestoreTreeViewStates();
 
+signals:
+
+	void SelectConnectedSystemControl(CSystemControl const* const pControl);
+
 private slots:
 
-	void OnContextMenu(QPoint const& pos) const;
+	void OnContextMenu(QPoint const& pos);
 
 private:
 
 	void InitFilterWidgets(QVBoxLayout* const pMainLayout);
 
+	CSystemAssetsManager* const            m_pAssetsManager;
 	CMiddlewareDataFilterProxyModel* const m_pFilterProxyModel;
 	CMiddlewareDataModel* const            m_pAssetsModel;
 	CElidedLabel* const                    m_pImplNameLabel;

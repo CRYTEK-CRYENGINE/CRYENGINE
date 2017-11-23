@@ -102,6 +102,8 @@ protected:
 		for (uint i = 0; i < numEntries; ++i)
 		{
 			CParticleComponentRuntime* pChildComponentRuntime = context.m_runtime.GetEmitter()->GetRuntimeFor(m_components[i]);
+			if (!pChildComponentRuntime)
+				continue;
 			SChaosKey chaosKey = context.m_spawnRng;
 
 			for (const auto& trigger : triggers)

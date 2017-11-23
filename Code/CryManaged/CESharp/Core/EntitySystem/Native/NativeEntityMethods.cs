@@ -38,7 +38,7 @@ namespace CryEngine.NativeInternals
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern public static void AddComponentSignalParameter(Type componentType, int signalId, string paramName, Type type);
-
+        
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern public static void SendComponentSignal(IntPtr entityPtr, ulong componentGuidHipart, ulong componentGuidLopart, int signalId, object[] parameters);
 

@@ -1,10 +1,11 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "AudioImpl.h"
 #include "AudioImplCVars.h"
 #include "SoundEngineUtil.h"
 #include "SoundEngineTypes.h"
+#include <Logger.h>
 #include <CrySystem/File/CryFile.h>
 #include <CryString/CryPath.h>
 #include <CryAudio/IAudioSystem.h>
@@ -54,7 +55,7 @@ CImpl::CImpl()
 
 	if (strlen(szAssetDirectory) == 0)
 	{
-		g_implLogger.Log(ELogType::Error, "<Audio - SDL_mixer>: No asset folder set!");
+		Cry::Audio::Log(ELogType::Error, "<Audio - SDL_mixer>: No asset folder set!");
 		szAssetDirectory = "no-asset-folder-set";
 	}
 
@@ -192,7 +193,7 @@ ERequestStatus CImpl::RegisterInMemoryFile(SFileInfo* const pFileInfo)
 		}
 		else
 		{
-			g_implLogger.Log(ELogType::Error, "Invalid AudioFileEntryData passed to the SDL Mixer implementation of RegisterInMemoryFile");
+			Cry::Audio::Log(ELogType::Error, "Invalid AudioFileEntryData passed to the SDL Mixer implementation of RegisterInMemoryFile");
 		}
 	}
 
@@ -215,7 +216,7 @@ ERequestStatus CImpl::UnregisterInMemoryFile(SFileInfo* const pFileInfo)
 		}
 		else
 		{
-			g_implLogger.Log(ELogType::Error, "Invalid AudioFileEntryData passed to the SDL Mixer implementation of UnregisterInMemoryFile");
+			Cry::Audio::Log(ELogType::Error, "Invalid AudioFileEntryData passed to the SDL Mixer implementation of UnregisterInMemoryFile");
 		}
 	}
 	return result;

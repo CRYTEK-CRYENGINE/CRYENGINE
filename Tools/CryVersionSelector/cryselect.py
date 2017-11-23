@@ -427,7 +427,6 @@ class CrySwitch(tk.Frame):
             self.combo.current(len(self.engine_list) - 1)
 
 def cmd_switch(args):
-    title = 'Switch CRYENGINE version'
     if not os.path.isfile(args.project_file):
         error_project_not_found(args)
 

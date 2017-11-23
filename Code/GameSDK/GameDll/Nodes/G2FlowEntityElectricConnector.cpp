@@ -190,7 +190,7 @@ public:
 			pEnt->AddEntityLink(tag, 0,CryGUID::Null());
 	}
 
-	void OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+	void OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 	{
 		if (!m_pGraph->IsEnabled() || m_pGraph->IsSuspended() || !m_pGraph->IsActive())
 			return;

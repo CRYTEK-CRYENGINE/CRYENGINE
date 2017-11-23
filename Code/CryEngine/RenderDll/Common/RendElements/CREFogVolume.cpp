@@ -45,26 +45,14 @@ struct SCompiledFogVolume : NoCopy
 
 	void ReleaseDeviceResources()
 	{
-		if (m_pMaterialResourceSet)
-		{
-			gRenDev->m_pRT->RC_ReleaseRS(m_pMaterialResourceSet);
-		}
-
-		if (m_pPerInstanceResourceSet)
-		{
-			gRenDev->m_pRT->RC_ReleaseRS(m_pPerInstanceResourceSet);
-		}
-
-		if (m_pPerInstanceCB)
-		{
-			gRenDev->m_pRT->RC_ReleaseCB(m_pPerInstanceCB);
-			m_pPerInstanceCB = nullptr;
-		}
+		m_pMaterialResourceSet.reset();
+		m_pPerInstanceResourceSet.reset();
+		m_pPerInstanceCB.reset();
 	}
 
 	CDeviceResourceSetPtr     m_pMaterialResourceSet = nullptr;
 	CDeviceResourceSetPtr     m_pPerInstanceResourceSet = nullptr;
-	CConstantBuffer*          m_pPerInstanceCB = nullptr;
+	CConstantBufferPtr        m_pPerInstanceCB = nullptr;
 
 	const CDeviceInputStream* m_vertexStreamSet = nullptr;
 	const CDeviceInputStream* m_indexStreamSet = nullptr;
@@ -170,138 +158,7 @@ CREFogVolume::~CREFogVolume()
 	}
 }
 
-void CREFogVolume::mfPrepare(bool bCheckOverflow)
-{
-	if (bCheckOverflow)
-		gRenDev->FX_CheckOverflow(0, 0, this);
-	gRenDev->m_RP.m_pRE = this;
-	gRenDev->m_RP.m_RendNumIndices = 0;
-	gRenDev->m_RP.m_RendNumVerts = 0;
-}
-
-bool CREFogVolume::mfDraw(CShader* ef, SShaderPass* sfm)
-{
-	CD3D9Renderer* rd(gcpRendD3D);
-
-#if !defined(_RELEASE)
-	if (ef->m_eShaderType != eST_PostProcess)
-	{
-		CryWarning(VALIDATOR_MODULE_RENDERER, VALIDATOR_ERROR, "Incorrect shader set for fog volume");
-		return false;
-	}
-#endif
-
-	PROFILE_LABEL_SCOPE("FOG_VOLUME");
-
-	rd->m_RP.m_PersFlags2 |= RBPF2_MSAA_SAMPLEFREQ_PASS;
-	rd->FX_SetMSAAFlagsRT();
-
-	// render
-	uint32 nPasses(0);
-	ef->FXBegin(&nPasses, 0);
-	if (0 == nPasses)
-	{
-		assert(0);
-		rd->m_RP.m_PersFlags2 &= ~RBPF2_MSAA_SAMPLEFREQ_PASS;
-		return(false);
-	}
-	ef->FXBeginPass(0);
-
-	if (m_viewerInsideVolume)
-	{
-		rd->SetCullMode(R_CULL_FRONT);
-		int nState = GS_NOCOLMASK_A | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA;
-		nState |= m_nearCutoff ? 0 : GS_NODEPTHTEST;
-		rd->FX_SetState(nState);
-	}
-	else
-	{
-		rd->SetCullMode(R_CULL_BACK);
-		rd->FX_SetState(GS_NOCOLMASK_A | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
-	}
-
-	// set vs constants
-	static CCryNameR invObjSpaceMatrixName("invObjSpaceMatrix");
-	ef->FXSetVSFloat(invObjSpaceMatrixName, (const Vec4*)&m_matWSInv.m00, 3);
-
-	const Vec4 cNearCutoffVec(m_nearCutoff, (!m_viewerInsideVolume ? 1.0f : 0.0f), 0.0f, 0.0f);
-	static CCryNameR nearCutoffName("nearCutoff");
-	ef->FXSetVSFloat(nearCutoffName, &cNearCutoffVec, 1);
-
-	// set ps constants
-	const Vec4 cFogColVec(m_fogColor.r, m_fogColor.g, m_fogColor.b, 0);
-	static CCryNameR fogColorName("fogColor");
-	ef->FXSetPSFloat(fogColorName, &cFogColVec, 1);
-
-	const Vec4 cGlobalDensityVec(m_globalDensity, 1.44269502f * m_globalDensity, 0, 0);
-	static CCryNameR globalDensityName("globalDensity");
-	ef->FXSetPSFloat(globalDensityName, &cGlobalDensityVec, 1);
-
-	const Vec4 cDensityOffsetVec(m_densityOffset, m_densityOffset, m_densityOffset, m_densityOffset);
-	static CCryNameR densityOffsetName("densityOffset");
-	ef->FXSetPSFloat(densityOffsetName, &cDensityOffsetVec, 1);
-
-	const Vec4 cHeigthFallOffBasePointVec(m_heightFallOffBasePoint, 0);
-	static CCryNameR heightFallOffBasePointName("heightFallOffBasePoint");
-	ef->FXSetPSFloat(heightFallOffBasePointName, &cHeigthFallOffBasePointVec, 1);
-
-	const Vec4 cHeightFallOffDirScaledVec(m_heightFallOffDirScaled, 0);
-	static CCryNameR heightFallOffDirScaledName("heightFallOffDirScaled");
-	ef->FXSetPSFloat(heightFallOffDirScaledName, &cHeightFallOffDirScaledVec, 1);
-
-	const Vec4 cOutsideSoftEdgesLerpVec(m_softEdgesLerp.x, m_softEdgesLerp.y, 0, 0);
-	static CCryNameR outsideSoftEdgesLerpName("outsideSoftEdgesLerp");
-	ef->FXSetPSFloat(outsideSoftEdgesLerpName, &cOutsideSoftEdgesLerpVec, 1);
-
-	// commit all render changes
-	rd->FX_Commit();
-
-	// set vertex declaration and streams of skydome
-	if (!FAILED(rd->FX_SetVertexDeclaration(0, EDefaultInputLayouts::P3F_C4B_T2F)))
-	{
-		// define bounding box geometry
-		const uint32 c_numBBVertices(8);
-		SVF_P3F_C4B_T2F bbVertices[c_numBBVertices] =
-		{
-			{ Vec3(m_localAABB.min.x, m_localAABB.min.y, m_localAABB.min.z) },
-			{ Vec3(m_localAABB.min.x, m_localAABB.max.y, m_localAABB.min.z) },
-			{ Vec3(m_localAABB.max.x, m_localAABB.max.y, m_localAABB.min.z) },
-			{ Vec3(m_localAABB.max.x, m_localAABB.min.y, m_localAABB.min.z) },
-			{ Vec3(m_localAABB.min.x, m_localAABB.min.y, m_localAABB.max.z) },
-			{ Vec3(m_localAABB.min.x, m_localAABB.max.y, m_localAABB.max.z) },
-			{ Vec3(m_localAABB.max.x, m_localAABB.max.y, m_localAABB.max.z) },
-			{ Vec3(m_localAABB.max.x, m_localAABB.min.y, m_localAABB.max.z) }
-		};
-
-		const uint32 c_numBBIndices(36);
-		static const uint16 bbIndices[c_numBBIndices] =
-		{
-			0, 1, 2, 0, 2, 3,
-			7, 6, 5, 7, 5, 4,
-			3, 2, 6, 3, 6, 7,
-			4, 5, 1, 4, 1, 0,
-			1, 5, 6, 1, 6, 2,
-			4, 0, 3, 4, 3, 7
-		};
-
-		// copy vertices into dynamic VB
-		TempDynVB<SVF_P3F_C4B_T2F>::CreateFillAndBind(bbVertices, c_numBBVertices, 0);
-
-		// copy indices into dynamic IB
-		TempDynIB16::CreateFillAndBind(bbIndices, c_numBBIndices);
-		// draw skydome
-		rd->FX_DrawIndexedPrimitive(eptTriangleList, 0, 0, c_numBBVertices, 0, c_numBBIndices);
-	}
-
-	ef->FXEndPass();
-	ef->FXEnd();
-
-	rd->m_RP.m_PersFlags2 &= ~RBPF2_MSAA_SAMPLEFREQ_PASS;
-
-	return(true);
-}
-
-bool CREFogVolume::Compile(CRenderObject* pObj)
+bool CREFogVolume::Compile(CRenderObject* pObj,CRenderView *pRenderView)
 {
 	if (!m_pCompiledObject)
 	{
@@ -382,7 +239,7 @@ bool CREFogVolume::Compile(CRenderObject* pObj)
 					materialResources.SetConstantBuffer(bindPoint.slotNumber, rd->m_DevBufMan.GetNullConstantBuffer(), bindPoint.stages);
 					break;
 				case SResourceBinding::EResourceType::Texture:
-					materialResources.SetTexture(bindPoint.slotNumber, CTexture::s_ptexBlack, binding.view, bindPoint.stages);
+					materialResources.SetTexture(bindPoint.slotNumber, CRendererResources::s_ptexBlack, binding.view, bindPoint.stages);
 					break;
 				default:
 					CRY_ASSERT("Not implemented!");
@@ -424,7 +281,7 @@ void CREFogVolume::DrawToCommandList(CRenderObject* pObj, const struct SGraphics
 #if defined(ENABLE_PROFILING_CODE)
 	if (!cobj.m_bValid)
 	{
-		CryInterlockedIncrement(&SPipeStat::Out()->m_nIncompleteCompiledObjects);
+		CryInterlockedIncrement(&SRenderStatistics::Write().m_nIncompleteCompiledObjects);
 	}
 #endif
 
@@ -489,7 +346,7 @@ void CREFogVolume::UpdatePerInstanceCB(render_element::fogvolume::SCompiledFogVo
 
 	if (!compiledObj.m_pPerInstanceCB)
 	{
-		compiledObj.m_pPerInstanceCB = rd->m_DevBufMan.CreateConstantBufferRaw(sizeof(render_element::fogvolume::SPerInstanceConstantBuffer));
+		compiledObj.m_pPerInstanceCB = rd->m_DevBufMan.CreateConstantBuffer(sizeof(render_element::fogvolume::SPerInstanceConstantBuffer));
 	}
 
 	if (!compiledObj.m_pPerInstanceCB)

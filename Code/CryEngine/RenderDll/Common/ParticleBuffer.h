@@ -115,10 +115,10 @@ private:
 
 private:
 	std::array<SubBuffer, EBT_Total>   m_subBuffers;
-	stream_handle_t                    m_spriteIndexBufferHandle;
-	const CDeviceInputStream*          m_spriteIndexBufferStream;
+	stream_handle_t                    m_spriteIndexBufferHandle = 0;
+	const CDeviceInputStream*          m_spriteIndexBufferStream = nullptr;
 	TDeviceFences                      m_fences;
-	uint                               m_maxSpriteCount;
-	uint                               m_ids[RT_COMMAND_BUF_COUNT];
-	bool                               m_valid;
+	uint                               m_maxSpriteCount = 0;
+	uint                               m_ids[RT_COMMAND_BUF_COUNT] = {};
+	bool                               m_valid = false;
 };

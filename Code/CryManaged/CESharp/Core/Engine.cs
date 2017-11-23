@@ -1,9 +1,11 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.IO;
 using System.Linq;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -93,6 +95,8 @@ namespace CryEngine
 		{
 			// Make sure we unify shutdown behavior with unload
 			OnUnloadStart();
+
+			CryEngine.GameFramework.Instance?.Dispose();
 
 			GC.Collect();
 			GC.WaitForPendingFinalizers();

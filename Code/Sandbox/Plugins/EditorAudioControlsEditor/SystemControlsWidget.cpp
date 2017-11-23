@@ -7,17 +7,13 @@
 #include "AudioControlsEditorPlugin.h"
 #include "MiddlewareDataWidget.h"
 #include "MiddlewareDataModel.h"
-#include "AudioAssets.h"
-#include "AudioAssetsManager.h"
+#include "SystemAssets.h"
+#include "SystemAssetsManager.h"
 #include "SystemControlsEditorIcons.h"
 #include "AudioTreeView.h"
 
 #include <CryAudio/IAudioSystem.h>
-#include <IAudioSystemEditor.h>
-#include <IAudioSystemItem.h>
-#include <IEditor.h>
 #include <QtUtil.h>
-#include <EditorStyleHelper.h>
 #include <FilePathUtil.h>
 #include <CrySystem/File/CryFile.h>
 #include <CryString/CryPath.h>
@@ -39,13 +35,12 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
-
 namespace ACE
 {
 //////////////////////////////////////////////////////////////////////////
-CSystemControlsWidget::CSystemControlsWidget(CAudioAssetsManager* pAssetsManager)
+CSystemControlsWidget::CSystemControlsWidget(CSystemAssetsManager* pAssetsManager)
 	: m_pAssetsManager(pAssetsManager)
-	, m_pAssetsModel(new CSystemControlsModel(m_pAssetsManager))
+	, m_pLibraryModel(new CAudioLibraryModel(m_pAssetsManager))
 	, m_pFilterProxyModel(new CSystemControlsFilterProxyModel(this))
 	, m_pSearchBox(new QSearchBox())
 	, m_pFilterButton(new QToolButton())
@@ -53,16 +48,16 @@ CSystemControlsWidget::CSystemControlsWidget(CAudioAssetsManager* pAssetsManager
 	, m_pTreeView(new CAudioTreeView())
 {
 	auto const libCount = m_pAssetsManager->GetLibraryCount();
-	m_libraryModels.resize(libCount);
+	m_controlsModels.resize(libCount);
 
 	for (int i = 0; i < libCount; ++i)
 	{
-		m_libraryModels[i] = new CAudioLibraryModel(m_pAssetsManager, m_pAssetsManager->GetLibrary(i));
+		m_controlsModels[i] = new CSystemControlsModel(m_pAssetsManager, m_pAssetsManager->GetLibrary(i));
 	}
 
-	m_pMountingProxyModel = new CMountingProxyModel(WrapMemberFunction(this, &CSystemControlsWidget::CreateLibraryModelFromIndex));
+	m_pMountingProxyModel = new CMountingProxyModel(WrapMemberFunction(this, &CSystemControlsWidget::CreateControlsModelFromIndex));
 	m_pMountingProxyModel->SetHeaderDataCallbacks(1, &GetHeaderData);
-	m_pMountingProxyModel->SetSourceModel(m_pAssetsModel);
+	m_pMountingProxyModel->SetSourceModel(m_pLibraryModel);
 
 	m_pFilterProxyModel->setSourceModel(m_pMountingProxyModel);
 	m_pFilterProxyModel->setDynamicSortFilter(true);
@@ -84,9 +79,11 @@ CSystemControlsWidget::CSystemControlsWidget(CAudioAssetsManager* pAssetsManager
 	m_pTreeView->setDragDropMode(QAbstractItemView::DragDrop);
 	m_pTreeView->setDefaultDropAction(Qt::MoveAction);
 	m_pTreeView->setSelectionMode(QAbstractItemView::ExtendedSelection);
+	m_pTreeView->setSelectionBehavior(QAbstractItemView::SelectRows);
 	m_pTreeView->setContextMenuPolicy(Qt::CustomContextMenu);
 	m_pTreeView->setModel(m_pFilterProxyModel);
 	m_pTreeView->sortByColumn(0, Qt::AscendingOrder);
+	m_pTreeView->viewport()->installEventFilter(this);
 	m_pTreeView->installEventFilter(this);
 	pSplitter->addWidget(m_pTreeView);
 	
@@ -101,7 +98,7 @@ CSystemControlsWidget::CSystemControlsWidget(CAudioAssetsManager* pAssetsManager
 	
 	QObject::connect(m_pMountingProxyModel, &CMountingProxyModel::rowsInserted, this, &CSystemControlsWidget::SelectNewAsset);
 	
-	m_pAssetsManager->signalItemAboutToBeAdded.Connect([&](CAudioAsset* const pItem)
+	m_pAssetsManager->signalItemAboutToBeAdded.Connect([&](CSystemAsset* const pItem)
 	{
 		ResetFilters();
 	}, reinterpret_cast<uintptr_t>(this));
@@ -111,7 +108,7 @@ CSystemControlsWidget::CSystemControlsWidget(CAudioAssetsManager* pAssetsManager
 		ResetFilters();
 	}, reinterpret_cast<uintptr_t>(this));
 
-	m_pAssetsManager->signalLibraryAboutToBeRemoved.Connect([&](CAudioLibrary* const pLibrary)
+	m_pAssetsManager->signalLibraryAboutToBeRemoved.Connect([&](CSystemLibrary* const pLibrary)
 	{
 		int const libCount = m_pAssetsManager->GetLibraryCount();
 
@@ -119,11 +116,17 @@ CSystemControlsWidget::CSystemControlsWidget(CAudioAssetsManager* pAssetsManager
 		{
 			if (m_pAssetsManager->GetLibrary(i) == pLibrary)
 			{
-				m_libraryModels[i]->deleteLater();
-				m_libraryModels.erase(m_libraryModels.begin() + i);
+				m_controlsModels[i]->deleteLater();
+				m_controlsModels.erase(m_controlsModels.begin() + i);
 				break;
 			}
 		}
+	}, reinterpret_cast<uintptr_t>(this));
+
+	m_pAssetsManager->signalAssetRenamed.Connect([&]()
+	{
+		m_pFilterProxyModel->invalidate();
+		m_pTreeView->scrollTo(m_pTreeView->currentIndex());
 	}, reinterpret_cast<uintptr_t>(this));
 }
 
@@ -133,19 +136,18 @@ CSystemControlsWidget::~CSystemControlsWidget()
 	m_pAssetsManager->signalLibraryAboutToBeRemoved.DisconnectById(reinterpret_cast<uintptr_t>(this));
 	m_pAssetsManager->signalItemAboutToBeAdded.DisconnectById(reinterpret_cast<uintptr_t>(this));
 	m_pAssetsManager->signalLibraryAboutToBeAdded.DisconnectById(reinterpret_cast<uintptr_t>(this));
+	m_pAssetsManager->signalAssetRenamed.DisconnectById(reinterpret_cast<uintptr_t>(this));
 
 	StopControlExecution();
-	delete m_pAssetsModel;
+	delete m_pLibraryModel;
 
-	int const libCount = m_libraryModels.size();
-
-	for (int i = 0; i < libCount; ++i)
+	for (auto const pControlsModel : m_controlsModels)
 	{
-		m_libraryModels[i]->DisconnectFromSystem();
-		delete m_libraryModels[i];
+		pControlsModel->DisconnectFromSystem();
+		delete pControlsModel;
 	}
 
-	m_libraryModels.clear();
+	m_controlsModels.clear();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -157,7 +159,7 @@ void CSystemControlsWidget::InitAddControlWidget(QHBoxLayout* const pLayout)
 	QMenu* const pAddButtonMenu = new QMenu();
 	QObject::connect(pAddButtonMenu, &QMenu::aboutToShow, this, &CSystemControlsWidget::UpdateCreateButtons);
 
-	pAddButtonMenu->addAction(GetItemTypeIcon(EItemType::Library), tr("Library"), [&]()
+	pAddButtonMenu->addAction(GetItemTypeIcon(ESystemItemType::Library), tr("Library"), [&]()
 	{
 		m_isCreatedFromMenu = true;
 		m_pAssetsManager->CreateLibrary(Utils::GenerateUniqueLibraryName("new_library", *m_pAssetsManager));
@@ -165,43 +167,43 @@ void CSystemControlsWidget::InitAddControlWidget(QHBoxLayout* const pLayout)
 
 	pAddButtonMenu->addSeparator();
 
-	m_pCreateParentFolderAction = new QAction(GetItemTypeIcon(EItemType::Folder), tr("Parent Folder"), pAddButtonMenu);
+	m_pCreateParentFolderAction = new QAction(GetItemTypeIcon(ESystemItemType::Folder), tr("Parent Folder"), pAddButtonMenu);
 	QObject::connect(m_pCreateParentFolderAction, &QAction::triggered, [&]() { CreateParentFolder(); });
 	m_pCreateParentFolderAction->setVisible(false);
 	pAddButtonMenu->addAction(m_pCreateParentFolderAction);
 
-	m_pCreateFolderAction = new QAction(GetItemTypeIcon(EItemType::Folder), tr("Folder"), pAddButtonMenu);
+	m_pCreateFolderAction = new QAction(GetItemTypeIcon(ESystemItemType::Folder), tr("Folder"), pAddButtonMenu);
 	QObject::connect(m_pCreateFolderAction, &QAction::triggered, [&]() { CreateFolder(GetSelectedAsset()); });
 	m_pCreateFolderAction->setVisible(false);
 	pAddButtonMenu->addAction(m_pCreateFolderAction);
 
-	m_pCreateTriggerAction = new QAction(GetItemTypeIcon(EItemType::Trigger), tr("Trigger"), pAddButtonMenu);
-	QObject::connect(m_pCreateTriggerAction, &QAction::triggered, [&]() { CreateControl("new_trigger", EItemType::Trigger, GetSelectedAsset()); });
+	m_pCreateTriggerAction = new QAction(GetItemTypeIcon(ESystemItemType::Trigger), tr("Trigger"), pAddButtonMenu);
+	QObject::connect(m_pCreateTriggerAction, &QAction::triggered, [&]() { CreateControl("new_trigger", ESystemItemType::Trigger, GetSelectedAsset()); });
 	m_pCreateTriggerAction->setVisible(false);
 	pAddButtonMenu->addAction(m_pCreateTriggerAction);
 
-	m_pCreateParameterAction = new QAction(GetItemTypeIcon(EItemType::Parameter), tr("Parameter"), pAddButtonMenu);
-	QObject::connect(m_pCreateParameterAction, &QAction::triggered, [&]() { CreateControl("new_parameter", EItemType::Parameter, GetSelectedAsset()); });
+	m_pCreateParameterAction = new QAction(GetItemTypeIcon(ESystemItemType::Parameter), tr("Parameter"), pAddButtonMenu);
+	QObject::connect(m_pCreateParameterAction, &QAction::triggered, [&]() { CreateControl("new_parameter", ESystemItemType::Parameter, GetSelectedAsset()); });
 	m_pCreateParameterAction->setVisible(false);
 	pAddButtonMenu->addAction(m_pCreateParameterAction);
 
-	m_pCreateSwitchAction = new QAction(GetItemTypeIcon(EItemType::Switch), tr("Switch"), pAddButtonMenu);
-	QObject::connect(m_pCreateSwitchAction, &QAction::triggered, [&]() { CreateControl("new_switch", EItemType::Switch, GetSelectedAsset()); });
+	m_pCreateSwitchAction = new QAction(GetItemTypeIcon(ESystemItemType::Switch), tr("Switch"), pAddButtonMenu);
+	QObject::connect(m_pCreateSwitchAction, &QAction::triggered, [&]() { CreateControl("new_switch", ESystemItemType::Switch, GetSelectedAsset()); });
 	m_pCreateSwitchAction->setVisible(false);
 	pAddButtonMenu->addAction(m_pCreateSwitchAction);
 
-	m_pCreateStateAction = new QAction(GetItemTypeIcon(EItemType::State), tr("State"), pAddButtonMenu);
-	QObject::connect(m_pCreateStateAction, &QAction::triggered, [&]() { CreateControl("new_state", EItemType::State, GetSelectedAsset()); });
+	m_pCreateStateAction = new QAction(GetItemTypeIcon(ESystemItemType::State), tr("State"), pAddButtonMenu);
+	QObject::connect(m_pCreateStateAction, &QAction::triggered, [&]() { CreateControl("new_state", ESystemItemType::State, GetSelectedAsset()); });
 	m_pCreateStateAction->setVisible(false);
 	pAddButtonMenu->addAction(m_pCreateStateAction);
 
-	m_pCreateEnvironmentAction = new QAction(GetItemTypeIcon(EItemType::Environment), tr("Environment"), pAddButtonMenu);
-	QObject::connect(m_pCreateEnvironmentAction, &QAction::triggered, [&]() { CreateControl("new_environment", EItemType::Environment, GetSelectedAsset()); });
+	m_pCreateEnvironmentAction = new QAction(GetItemTypeIcon(ESystemItemType::Environment), tr("Environment"), pAddButtonMenu);
+	QObject::connect(m_pCreateEnvironmentAction, &QAction::triggered, [&]() { CreateControl("new_environment", ESystemItemType::Environment, GetSelectedAsset()); });
 	m_pCreateEnvironmentAction->setVisible(false);
 	pAddButtonMenu->addAction(m_pCreateEnvironmentAction);
 
-	m_pCreatePreloadAction = new QAction(GetItemTypeIcon(EItemType::Preload), tr("Preload"), pAddButtonMenu);
-	QObject::connect(m_pCreatePreloadAction, &QAction::triggered, [&]() { CreateControl("new_preload", EItemType::Preload, GetSelectedAsset()); });
+	m_pCreatePreloadAction = new QAction(GetItemTypeIcon(ESystemItemType::Preload), tr("Preload"), pAddButtonMenu);
+	QObject::connect(m_pCreatePreloadAction, &QAction::triggered, [&]() { CreateControl("new_preload", ESystemItemType::Preload, GetSelectedAsset()); });
 	m_pCreatePreloadAction->setVisible(false);
 	pAddButtonMenu->addAction(m_pCreatePreloadAction);
 
@@ -280,56 +282,56 @@ void CSystemControlsWidget::InitTypeFilters()
 	QCheckBox* const pFilterTriggersCheckbox = new QCheckBox(tr("Triggers"));
 	QObject::connect(pFilterTriggersCheckbox, &QCheckBox::toggled, [&](bool const isVisible)
 	{
-		ShowControlType(EItemType::Trigger, isVisible);
+		ShowControlType(ESystemItemType::Trigger, isVisible);
 	});
 
 	pFilterTriggersCheckbox->setChecked(true);
 	pFilterTriggersCheckbox->setToolTip(tr("Show/hide Triggers"));
-	pFilterTriggersCheckbox->setIcon(GetItemTypeIcon(EItemType::Trigger));
+	pFilterTriggersCheckbox->setIcon(GetItemTypeIcon(ESystemItemType::Trigger));
 	pTypeFiltersLayout->addWidget(pFilterTriggersCheckbox);
 
 	QCheckBox* const pFilterParametersCheckbox = new QCheckBox(tr("Parameters"));
 	QObject::connect(pFilterParametersCheckbox, &QCheckBox::toggled, [&](bool const isVisible)
 	{
-		ShowControlType(EItemType::Parameter, isVisible);
+		ShowControlType(ESystemItemType::Parameter, isVisible);
 	});
 
 	pFilterParametersCheckbox->setChecked(true);
 	pFilterParametersCheckbox->setToolTip(tr("Show/hide Parameters"));
-	pFilterParametersCheckbox->setIcon(GetItemTypeIcon(EItemType::Parameter));
+	pFilterParametersCheckbox->setIcon(GetItemTypeIcon(ESystemItemType::Parameter));
 	pTypeFiltersLayout->addWidget(pFilterParametersCheckbox);
 
 	QCheckBox* const pFilterSwitchesCheckbox = new QCheckBox(tr("Switches"));
 	QObject::connect(pFilterSwitchesCheckbox, &QCheckBox::toggled, [&](bool const isVisible)
 	{
-		ShowControlType(EItemType::Switch, isVisible);
+		ShowControlType(ESystemItemType::Switch, isVisible);
 	});
 
 	pFilterSwitchesCheckbox->setChecked(true);
 	pFilterSwitchesCheckbox->setToolTip(tr("Show/hide Switches"));
-	pFilterSwitchesCheckbox->setIcon(GetItemTypeIcon(EItemType::Switch));
+	pFilterSwitchesCheckbox->setIcon(GetItemTypeIcon(ESystemItemType::Switch));
 	pTypeFiltersLayout->addWidget(pFilterSwitchesCheckbox);
 
 	QCheckBox* const pFilterEnvironmentsCheckbox = new QCheckBox(tr("Environments"));
 	QObject::connect(pFilterEnvironmentsCheckbox, &QCheckBox::toggled, [&](bool const isVisible)
 	{
-		ShowControlType(EItemType::Environment, isVisible);
+		ShowControlType(ESystemItemType::Environment, isVisible);
 	});
 
 	pFilterEnvironmentsCheckbox->setChecked(true);
 	pFilterEnvironmentsCheckbox->setToolTip(tr("Show/hide Environments"));
-	pFilterEnvironmentsCheckbox->setIcon(GetItemTypeIcon(EItemType::Environment));
+	pFilterEnvironmentsCheckbox->setIcon(GetItemTypeIcon(ESystemItemType::Environment));
 	pTypeFiltersLayout->addWidget(pFilterEnvironmentsCheckbox);
 
 	QCheckBox* const pFilterPreloadsCheckbox = new QCheckBox(tr("Preloads"));
 	QObject::connect(pFilterPreloadsCheckbox, &QCheckBox::toggled, [&](bool const isVisible)
 	{
-		ShowControlType(EItemType::Preload, isVisible);
+		ShowControlType(ESystemItemType::Preload, isVisible);
 	});
 
 	pFilterPreloadsCheckbox->setChecked(true);
 	pFilterPreloadsCheckbox->setToolTip(tr("Show/hide Preloads"));
-	pFilterPreloadsCheckbox->setIcon(GetItemTypeIcon(EItemType::Preload));
+	pFilterPreloadsCheckbox->setIcon(GetItemTypeIcon(ESystemItemType::Preload));
 	pTypeFiltersLayout->addWidget(pFilterPreloadsCheckbox);
 
 	m_pFilterWidget = QtUtil::MakeScrollable(pTypeFiltersLayout);
@@ -355,18 +357,26 @@ bool CSystemControlsWidget::eventFilter(QObject* pObject, QEvent* pEvent)
 			}
 		}
 	}
+	else if ((pEvent->type() == QEvent::MouseButtonDblClick) && !m_pTreeView->IsEditing())
+	{
+		ExecuteControl();
+	}
+	else if (pEvent->type() == QEvent::Drop)
+	{
+		m_pTreeView->selectionModel()->clearSelection();
+		m_pTreeView->selectionModel()->clearCurrentIndex();
+	}
+
 	return QWidget::eventFilter(pObject, pEvent);
 }
 
 //////////////////////////////////////////////////////////////////////////
-std::vector<CAudioControl*> CSystemControlsWidget::GetSelectedControls()
+std::vector<CSystemAsset*> CSystemControlsWidget::GetSelectedAssets() const
 {
 	QModelIndexList const& indexes = m_pTreeView->selectionModel()->selectedIndexes();
-	std::vector<CAudioLibrary*> libraries;
-	std::vector<CAudioFolder*> folders;
-	std::vector<CAudioControl*> controls;
-	AudioModelUtils::GetAssetsFromIndices(indexes, libraries, folders, controls);
-	return controls;
+	std::vector<CSystemAsset*> assets;
+	AudioModelUtils::GetAssetsFromIndexesCombined(indexes, assets);
+	return assets;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -377,22 +387,22 @@ void CSystemControlsWidget::Reload()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSystemControlsWidget::ShowControlType(EItemType const type, bool const isVisible)
+void CSystemControlsWidget::ShowControlType(ESystemItemType const type, bool const isVisible)
 {
 	m_pFilterProxyModel->EnableControl(isVisible, type);
 
-	if (type == EItemType::Switch)
+	if (type == ESystemItemType::Switch)
 	{
-		m_pFilterProxyModel->EnableControl(isVisible, EItemType::State);
+		m_pFilterProxyModel->EnableControl(isVisible, ESystemItemType::State);
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-CAudioControl* CSystemControlsWidget::CreateControl(string const& name, EItemType type, CAudioAsset* const pParent)
+CSystemControl* CSystemControlsWidget::CreateControl(string const& name, ESystemItemType type, CSystemAsset* const pParent)
 {
 	m_isCreatedFromMenu = true;
 
-	if (type != EItemType::State)
+	if (type != ESystemItemType::State)
 	{
 		return m_pAssetsManager->CreateControl(Utils::GenerateUniqueControlName(name, type, *m_pAssetsManager), type, pParent);
 	}
@@ -403,31 +413,31 @@ CAudioControl* CSystemControlsWidget::CreateControl(string const& name, EItemTyp
 }
 
 //////////////////////////////////////////////////////////////////////////
-CAudioAsset* CSystemControlsWidget::CreateFolder(CAudioAsset* const pParent)
+CSystemAsset* CSystemControlsWidget::CreateFolder(CSystemAsset* const pParent)
 {
 	m_isCreatedFromMenu = true;
-	return m_pAssetsManager->CreateFolder(Utils::GenerateUniqueName("new_folder", EItemType::Folder, pParent), pParent);
+	return m_pAssetsManager->CreateFolder(Utils::GenerateUniqueName("new_folder", ESystemItemType::Folder, pParent), pParent);
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CSystemControlsWidget::CreateParentFolder()
 {
-	std::vector<CAudioLibrary*> libraries;
-	std::vector<CAudioFolder*> folders;
-	std::vector<CAudioControl*> controls;
-	std::vector<CAudioAsset*> assetsToMove;
+	std::vector<CSystemLibrary*> libraries;
+	std::vector<CSystemFolder*> folders;
+	std::vector<CSystemControl*> controls;
+	std::vector<CSystemAsset*> assetsToMove;
 
 	auto const& selection = m_pTreeView->selectionModel()->selectedRows();
-	AudioModelUtils::GetAssetsFromIndices(selection, libraries, folders, controls);
+	AudioModelUtils::GetAssetsFromIndexesSeparated(selection, libraries, folders, controls);
 
 	for (auto const pFolder : folders)
 	{
-		assetsToMove.emplace_back(static_cast<CAudioAsset*>(pFolder));
+		assetsToMove.emplace_back(static_cast<CSystemAsset*>(pFolder));
 	}
 
 	for (auto const pControl : controls)
 	{
-		assetsToMove.emplace_back(static_cast<CAudioAsset*>(pControl));
+		assetsToMove.emplace_back(static_cast<CSystemAsset*>(pControl));
 	}
 
 	auto const pParent = assetsToMove[0]->GetParent();
@@ -445,7 +455,7 @@ void CSystemControlsWidget::OnContextMenu(QPoint const& pos)
 	pContextMenu->addMenu(pAddMenu);
 	pContextMenu->addSeparator();
 
-	pAddMenu->addAction(GetItemTypeIcon(EItemType::Library), tr("Library"), [&]()
+	pAddMenu->addAction(GetItemTypeIcon(ESystemItemType::Library), tr("Library"), [&]()
 	{
 		m_isCreatedFromMenu = true;
 		m_pAssetsManager->CreateLibrary(Utils::GenerateUniqueLibraryName("new_library", *m_pAssetsManager));
@@ -455,15 +465,15 @@ void CSystemControlsWidget::OnContextMenu(QPoint const& pos)
 
 	if (!selection.isEmpty())
 	{
-		std::vector<CAudioLibrary*> libraries;
-		std::vector<CAudioFolder*> folders;
-		std::vector<CAudioControl*> controls;
+		std::vector<CSystemLibrary*> libraries;
+		std::vector<CSystemFolder*> folders;
+		std::vector<CSystemControl*> controls;
 
-		AudioModelUtils::GetAssetsFromIndices(selection, libraries, folders, controls);
+		AudioModelUtils::GetAssetsFromIndexesSeparated(selection, libraries, folders, controls);
 
 		if (IsParentFolderAllowed())
 		{
-			pAddMenu->addAction(GetItemTypeIcon(EItemType::Folder), tr("Parent Folder"), [&]() { CreateParentFolder(); });
+			pAddMenu->addAction(GetItemTypeIcon(ESystemItemType::Folder), tr("Parent Folder"), [&]() { CreateParentFolder(); });
 		}
 
 		if (selection.size() == 1)
@@ -472,33 +482,33 @@ void CSystemControlsWidget::OnContextMenu(QPoint const& pos)
 
 			if (index.isValid())
 			{
-				CAudioAsset const* const pAsset = AudioModelUtils::GetAssetFromIndex(index);
+				CSystemAsset const* const pAsset = AudioModelUtils::GetAssetFromIndex(index);
 
 				if (pAsset != nullptr)
 				{
-					EItemType const assetType = pAsset->GetType();
+					ESystemItemType const assetType = pAsset->GetType();
 
-					if ((assetType == EItemType::Library) || (assetType == EItemType::Folder))
+					if ((assetType == ESystemItemType::Library) || (assetType == ESystemItemType::Folder))
 					{
-						CAudioAsset* pParent = nullptr;
+						CSystemAsset* pParent = nullptr;
 
-						if (assetType == EItemType::Folder)
+						if (assetType == ESystemItemType::Folder)
 						{
-							pParent = static_cast<CAudioAsset*>(folders[0]);
+							pParent = static_cast<CSystemAsset*>(folders[0]);
 						}
 						else
 						{
-							pParent = static_cast<CAudioAsset*>(libraries[0]);
+							pParent = static_cast<CSystemAsset*>(libraries[0]);
 						}
 
-						pAddMenu->addAction(GetItemTypeIcon(EItemType::Folder), tr("Folder"), [&]() { CreateFolder(pParent); });
-						pAddMenu->addAction(GetItemTypeIcon(EItemType::Trigger), tr("Trigger"), [&]() { CreateControl("new_trigger", EItemType::Trigger, pParent); });
-						pAddMenu->addAction(GetItemTypeIcon(EItemType::Parameter), tr("Parameter"), [&]() { CreateControl("new_parameter", EItemType::Parameter, pParent); });
-						pAddMenu->addAction(GetItemTypeIcon(EItemType::Switch), tr("Switch"), [&]() { CreateControl("new_switch", EItemType::Switch, pParent); });
-						pAddMenu->addAction(GetItemTypeIcon(EItemType::Environment), tr("Environment"), [&]() { CreateControl("new_environment", EItemType::Environment, pParent); });
-						pAddMenu->addAction(GetItemTypeIcon(EItemType::Preload), tr("Preload"), [&]() { CreateControl("new_preload", EItemType::Preload, pParent); });
+						pAddMenu->addAction(GetItemTypeIcon(ESystemItemType::Folder), tr("Folder"), [&]() { CreateFolder(pParent); });
+						pAddMenu->addAction(GetItemTypeIcon(ESystemItemType::Trigger), tr("Trigger"), [&]() { CreateControl("new_trigger", ESystemItemType::Trigger, pParent); });
+						pAddMenu->addAction(GetItemTypeIcon(ESystemItemType::Parameter), tr("Parameter"), [&]() { CreateControl("new_parameter", ESystemItemType::Parameter, pParent); });
+						pAddMenu->addAction(GetItemTypeIcon(ESystemItemType::Switch), tr("Switch"), [&]() { CreateControl("new_switch", ESystemItemType::Switch, pParent); });
+						pAddMenu->addAction(GetItemTypeIcon(ESystemItemType::Environment), tr("Environment"), [&]() { CreateControl("new_environment", ESystemItemType::Environment, pParent); });
+						pAddMenu->addAction(GetItemTypeIcon(ESystemItemType::Preload), tr("Preload"), [&]() { CreateControl("new_preload", ESystemItemType::Preload, pParent); });
 
-						if (pParent->GetType() == EItemType::Library)
+						if (pParent->GetType() == ESystemItemType::Library)
 						{
 							//TODO: Take into account files in the "levels" folder
 							pContextMenu->addAction(tr("Open Containing Folder"), [&]()
@@ -514,21 +524,21 @@ void CSystemControlsWidget::OnContextMenu(QPoint const& pos)
 
 			if (controls.size() == 1)
 			{
-				CAudioControl* const pControl = controls[0];
-				EItemType const controlType = pControl->GetType();
+				CSystemControl* const pControl = controls[0];
+				ESystemItemType const controlType = pControl->GetType();
 
-				if (controlType == EItemType::Trigger)
+				if (controlType == ESystemItemType::Trigger)
 				{
 					QAction* const pTriggerAction = new QAction(tr("Execute Trigger"), pContextMenu);
 					QObject::connect(pTriggerAction, &QAction::triggered, [&]() { ExecuteControl(); });
 					pContextMenu->insertSeparator(pContextMenu->actions().at(0));
 					pContextMenu->insertAction(pContextMenu->actions().at(0), pTriggerAction);
 				}
-				else if (controlType == EItemType::Switch)
+				else if (controlType == ESystemItemType::Switch)
 				{
-					pAddMenu->addAction(GetItemTypeIcon(EItemType::State), tr("State"), [&]() { CreateControl("new_state", EItemType::State, pControl); });
+					pAddMenu->addAction(GetItemTypeIcon(ESystemItemType::State), tr("State"), [&]() { CreateControl("new_state", ESystemItemType::State, pControl); });
 				}
-				else if (controlType == EItemType::Preload)
+				else if (controlType == ESystemItemType::Preload)
 				{
 					if (pControl->GetScope() == CCrc32::Compute("global") && !pControl->IsAutoLoad())
 					{
@@ -549,7 +559,7 @@ void CSystemControlsWidget::OnContextMenu(QPoint const& pos)
 
 			for (auto const pControl : controls)
 			{
-				if ((pControl->GetType() == EItemType::Preload) && (pControl->GetScope() == CCrc32::Compute("global")) && !pControl->IsAutoLoad())
+				if ((pControl->GetType() == ESystemItemType::Preload) && (pControl->GetScope() == CCrc32::Compute("global")) && !pControl->IsAutoLoad())
 				{
 					hasOnlyGlobalPreloads = true;
 				}
@@ -627,17 +637,17 @@ void CSystemControlsWidget::DeleteSelectedControl()
 		{
 			CUndo undo("Audio Control Removed");
 
-			std::vector<CAudioAsset*> selectedItems;
+			std::vector<CSystemAsset*> selectedItems;
 
 			for (auto const& index : selection)
 			{
 				if (index.isValid())
 				{
-					selectedItems.push_back(AudioModelUtils::GetAssetFromIndex(index));
+					selectedItems.emplace_back(AudioModelUtils::GetAssetFromIndex(index));
 				}
 			}
 
-			std::vector<CAudioAsset*> itemsToDelete;
+			std::vector<CSystemAsset*> itemsToDelete;
 			Utils::SelectTopLevelAncestors(selectedItems, itemsToDelete);
 
 			for (auto const pItem : itemsToDelete)
@@ -651,9 +661,9 @@ void CSystemControlsWidget::DeleteSelectedControl()
 //////////////////////////////////////////////////////////////////////////
 void CSystemControlsWidget::ExecuteControl()
 {
-	CAudioAsset const* const pAsset = AudioModelUtils::GetAssetFromIndex(m_pTreeView->currentIndex());
+	CSystemAsset const* const pAsset = AudioModelUtils::GetAssetFromIndex(m_pTreeView->currentIndex());
 
-	if ((pAsset != nullptr) && (pAsset->GetType() == EItemType::Trigger))
+	if ((pAsset != nullptr) && (pAsset->GetType() == ESystemItemType::Trigger))
 	{
 		CAudioControlsEditorPlugin::ExecuteTrigger(pAsset->GetName());
 	}
@@ -666,31 +676,31 @@ void CSystemControlsWidget::StopControlExecution()
 }
 
 //////////////////////////////////////////////////////////////////////////
-QAbstractItemModel* CSystemControlsWidget::CreateLibraryModelFromIndex(QModelIndex const& sourceIndex)
+QAbstractItemModel* CSystemControlsWidget::CreateControlsModelFromIndex(QModelIndex const& sourceIndex)
 {
-	if (sourceIndex.model() != m_pAssetsModel)
+	if (sourceIndex.model() != m_pLibraryModel)
 	{
 		return nullptr;
 	}
 
-	size_t const numLibraries = m_libraryModels.size();
+	size_t const numLibraries = m_controlsModels.size();
 	size_t const row = static_cast<size_t>(sourceIndex.row());
 
 	if (row >= numLibraries)
 	{
-		m_libraryModels.resize(row + 1);
+		m_controlsModels.resize(row + 1);
 
 		for (size_t i = numLibraries; i < row + 1; ++i)
 		{
-			m_libraryModels[i] = new CAudioLibraryModel(m_pAssetsManager, m_pAssetsManager->GetLibrary(i));
+			m_controlsModels[i] = new CSystemControlsModel(m_pAssetsManager, m_pAssetsManager->GetLibrary(i));
 		}
 	}
 
-	return m_libraryModels[row];
+	return m_controlsModels[row];
 }
 
 //////////////////////////////////////////////////////////////////////////
-CAudioAsset* CSystemControlsWidget::GetSelectedAsset() const
+CSystemAsset* CSystemControlsWidget::GetSelectedAsset() const
 {
 	QModelIndex const& index = m_pTreeView->currentIndex();
 
@@ -705,18 +715,31 @@ CAudioAsset* CSystemControlsWidget::GetSelectedAsset() const
 //////////////////////////////////////////////////////////////////////////
 void CSystemControlsWidget::SelectNewAsset(QModelIndex const& parent, int const row)
 {
-	if (m_isCreatedFromMenu)
+	if (!CAudioControlsEditorPlugin::GetAssetsManager()->IsLoading())
 	{
 		QModelIndex const& assetIndex = m_pFilterProxyModel->mapFromSource(m_pMountingProxyModel->index(row, 0, parent));
-		m_pTreeView->setCurrentIndex(assetIndex);
-		m_pTreeView->edit(assetIndex);
-		m_isCreatedFromMenu = false;
-	}
-	else if (!CAudioControlsEditorPlugin::GetAssetsManager()->IsLoading())
-	{
-		QModelIndex const& parentIndex = m_pFilterProxyModel->mapFromSource(parent);
-		m_pTreeView->expand(parentIndex);
-		m_pTreeView->setCurrentIndex(parentIndex);
+
+		if (m_isCreatedFromMenu)
+		{
+			m_pTreeView->setCurrentIndex(assetIndex);
+			m_pTreeView->edit(assetIndex);
+			m_isCreatedFromMenu = false;
+		}
+		else
+		{
+			QModelIndex const& parentIndex = m_pFilterProxyModel->mapFromSource(parent);
+			m_pTreeView->expand(parentIndex);
+			m_pTreeView->selectionModel()->select(assetIndex, QItemSelectionModel::Select | QItemSelectionModel::Rows);
+
+			if (m_pTreeView->selectionModel()->selectedRows().size() == 1)
+			{
+				m_pTreeView->setCurrentIndex(assetIndex);
+			}
+			else
+			{
+				m_pTreeView->scrollTo(assetIndex);
+			}
+		}
 	}
 }
 
@@ -733,18 +756,18 @@ void CSystemControlsWidget::UpdateCreateButtons()
 
 		if (index.isValid())
 		{
-			CAudioAsset const* const pAsset = AudioModelUtils::GetAssetFromIndex(index);
+			CSystemAsset const* const pAsset = AudioModelUtils::GetAssetFromIndex(index);
 
 			if (pAsset != nullptr)
 			{
-				EItemType const itemType = pAsset->GetType();
-				bool const isLibraryOrFolder = (itemType == EItemType::Library) || (itemType == EItemType::Folder);
+				ESystemItemType const itemType = pAsset->GetType();
+				bool const isLibraryOrFolder = (itemType == ESystemItemType::Library) || (itemType == ESystemItemType::Folder);
 
 				m_pCreateFolderAction->setVisible(isLibraryOrFolder);
 				m_pCreateTriggerAction->setVisible(isLibraryOrFolder);
 				m_pCreateParameterAction->setVisible(isLibraryOrFolder);
 				m_pCreateSwitchAction->setVisible(isLibraryOrFolder);
-				m_pCreateStateAction->setVisible(itemType == EItemType::Switch);
+				m_pCreateStateAction->setVisible(itemType == ESystemItemType::Switch);
 				m_pCreateEnvironmentAction->setVisible(isLibraryOrFolder);
 				m_pCreatePreloadAction->setVisible(isLibraryOrFolder);
 				return;
@@ -768,16 +791,16 @@ bool CSystemControlsWidget::IsParentFolderAllowed()
 
 	if (!selection.isEmpty())
 	{
-		std::vector<CAudioLibrary*> libraries;
-		std::vector<CAudioFolder*> folders;
-		std::vector<CAudioControl*> controls;
+		std::vector<CSystemLibrary*> libraries;
+		std::vector<CSystemFolder*> folders;
+		std::vector<CSystemControl*> controls;
 
-		AudioModelUtils::GetAssetsFromIndices(selection, libraries, folders, controls);
+		AudioModelUtils::GetAssetsFromIndexesSeparated(selection, libraries, folders, controls);
 
 		if (libraries.empty() && (!folders.empty() || !controls.empty()))
 		{
 			bool isAllowed = true;
-			CAudioAsset const* pParent;
+			CSystemAsset const* pParent;
 
 			if (!folders.empty())
 			{
@@ -801,7 +824,7 @@ bool CSystemControlsWidget::IsParentFolderAllowed()
 			{
 				for (auto const pControl : controls)
 				{
-					if ((pControl->GetParent() != pParent) || (pControl->GetType() == EItemType::State))
+					if ((pControl->GetParent() != pParent) || (pControl->GetType() == ESystemItemType::State))
 					{
 						isAllowed = false;
 						break;
@@ -845,5 +868,21 @@ void CSystemControlsWidget::RestoreTreeViewStates()
 bool CSystemControlsWidget::IsEditing() const
 {
 	return m_pTreeView->IsEditing();
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CSystemControlsWidget::SelectConnectedSystemControl(CSystemControl const* const pControl)
+{
+	if (pControl != nullptr)
+	{
+		ResetFilters();
+		auto const matches = m_pFilterProxyModel->match(m_pFilterProxyModel->index(0, 0, QModelIndex()), static_cast<int>(EDataRole::Id), pControl->GetId(), 1, Qt::MatchRecursive);
+
+		if (!matches.isEmpty())
+		{
+			m_pTreeView->setFocus();
+			m_pTreeView->selectionModel()->setCurrentIndex(matches.first(), QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+		}
+	}
 }
 } // namespace ACE

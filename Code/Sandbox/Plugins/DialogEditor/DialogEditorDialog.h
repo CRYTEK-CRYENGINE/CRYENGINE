@@ -106,7 +106,6 @@ public:
 	BOOL           Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd);
 	CXTPTaskPanel& GetTaskPanel() { return m_taskPanel; }
 
-	void           OnObjectEvent(CBaseObject* object, int event);
 	void           RecalcLayout(BOOL bNotify = TRUE);
 
 protected:

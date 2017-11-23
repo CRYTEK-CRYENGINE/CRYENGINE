@@ -165,8 +165,8 @@ void CPersistantDebug::UpdateTags(float frameTime, SObj& obj, bool doFirstPass)
 			// Determine position
 			SColumn& column = obj.columns[iterList->params.column - 1];
 			Vec3 screenPos(iterList->vScreenPos);
-			screenPos.x = screenPos.x * 0.01f * gEnv->pRenderer->GetWidth();
-			screenPos.y = screenPos.y * 0.01f * gEnv->pRenderer->GetHeight() - textBoxSize.y - column.height;
+			screenPos.x = screenPos.x * 0.01f * gEnv->pRenderer->GetOverlayWidth();
+			screenPos.y = screenPos.y * 0.01f * gEnv->pRenderer->GetOverlayHeight() - textBoxSize.y - column.height;
 			column.height += textBoxSize.y;
 
 			// Adjust X value for multi-columns

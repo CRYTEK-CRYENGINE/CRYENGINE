@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   SceneTree.cpp
@@ -173,32 +173,18 @@ struct CTaskConveyor
 
 		if (!(nRequestFrameId % 500))
 		{
-			Cry3DEngineBase::PrintMessage("%s: %d of %d tasks processed, pool %d MB of %d MB, compute=%d and store=%d",
-			                              szConveyorName.c_str(),
-			                              nRequestFrameId, nTasksAll, CVoxelSegment::GetBrickPoolUsageLoadedMB(), CVoxelSegment::GetBrickPoolUsageMB(),
-			                              pTasks_Compute->Count(), pTasks_Store->Count());
+			PrintMessage("%s: %d of %d tasks processed, pool %d MB of %d MB, compute=%d and store=%d",
+			             szConveyorName.c_str(),
+			             nRequestFrameId, nTasksAll, CVoxelSegment::GetBrickPoolUsageLoadedMB(), CVoxelSegment::GetBrickPoolUsageMB(),
+			             pTasks_Compute->Count(), pTasks_Store->Count());
 		}
 
 		nRequestFrameId++;
 	}
 };
 
-struct SVoxRndDataFileHdr
-{
-	ETEX_Format nVoxTexFormat;
-	uint32      nVoxFlags;
-};
-
 void CSvoEnv::ReconstructTree(bool bMultiPoint)
 {
-	LOADING_TIME_PROFILE_SECTION;
-	char szFolder[256] = "";
-	CVoxelSegment::MakeFolderName(szFolder);
-	CVoxelSegment::m_strRenderDataFileName = szFolder;
-	CVoxelSegment::m_strRenderDataFileName += GLOBAL_CLOUD_MESH_FILE_NAME;
-
-	int nNodesCreated = 0;
-
 	if (GetCVars()->e_svoTI_Active)
 	{
 		PrintMessage("Constructing voxel tree ...");
@@ -207,88 +193,45 @@ void CSvoEnv::ReconstructTree(bool bMultiPoint)
 		PrintMessage("Voxel texture format: %s", GetRenderer()->GetTextureFormatName(m_nVoxTexFormat));
 
 		SAFE_DELETE(m_pSvoRoot);
-		m_pSvoRoot = new CSvoNode(AABB(Vec3(0, 0, 0), Vec3((float)GetCVars()->e_svoRootSize)), NULL);
-		m_pSvoRoot->AllocateSegment(CVoxelSegment::m_nNextCloudId++, 0, ecss_NotLoaded, ecss_NotLoaded, true);
-		nNodesCreated++;
 
-		//		PrintMessage("Collecting level geometry . . .");
-		//	if(!m_pTree->m_pCloud->m_pNodeTrisXYZ)
-		//	m_pTree->m_pCloud->FindTrianglesForVoxelization(0);
+		AllocateRootNode();
 
 		m_bReady = true;
 
 		CVoxelSegment::CheckAllocateTexturePool();
 	}
-	else if (FILE* f = fopen(CVoxelSegment::m_strRenderDataFileName, "rb"))
-	{
-		PrintMessage("Loading voxel tree ...");
-
-		// read file header
-		SVoxRndDataFileHdr header;
-		fread(&header, 1, sizeof(header), f);
-		m_nVoxTexFormat = header.nVoxTexFormat;
-		if (m_nVoxTexFormat != eTF_BC3 && m_nVoxTexFormat != eTF_R8G8B8A8)
-			m_nVoxTexFormat = eTF_BC3; // old file format
-		PrintMessage("Voxel texture format: %s", GetRenderer()->GetTextureFormatName(m_nVoxTexFormat));
-		fclose(f);
-
-		SAFE_DELETE(m_pSvoRoot);
-		m_pSvoRoot = new CSvoNode(m_worldBox, NULL);
-
-		LoadTree(nNodesCreated);
-
-		CVoxelSegment::CheckAllocateTexturePool();
-	}
-
-	m_bReady = true;
-
-	if (nNodesCreated > 1)
-		PrintMessage("%d tree nodes created", nNodesCreated);
 }
 
-void CSvoEnv::LoadTree(int& nNodesCreated)
+void CSvoEnv::AllocateRootNode()
 {
-	char szFolder[256] = "";
-	CVoxelSegment::MakeFolderName(szFolder);
-	string filespec = szFolder;
-	filespec += GLOBAL_CLOUD_TREE_FILE_NAME;
+	float fRootSize = GetCVars()->e_svoRootless ? SVO_ROOTLESS_PARENT_SIZE : max((float)Get3DEngine()->GetTerrainSize(), SVO_ROOTLESS_PARENT_SIZE);
 
-	if (FILE* f = fopen(filespec, "rb"))
+	m_pSvoRoot = new CSvoNode(AABB(Vec3(0, 0, 0), Vec3(fRootSize)), nullptr);
+
+	m_pSvoRoot->AllocateSegment(CVoxelSegment::m_nNextCloudId++, 0, ecss_NotLoaded, ecss_NotLoaded, true);
+}
+
+int CSvoEnv::ExportSvo(ICryArchive* pArchive)
+{
+	float fTimeStart = GetCurAsyncTimeSec();
+
+	PrintMessage("======= Compiling SVO for entire level =======");
+
+	SAFE_DELETE(m_pSvoRoot);
+
+	AllocateRootNode();
+
+	if (m_pSvoRoot)
 	{
-		PrintMessage("Loading tree from %s", filespec.c_str());
+		uint32 dummyCounter = 0;
+		uint32 totalSizeCounter = 0;
+		PodArray<byte> dummyArray;
+		m_pSvoRoot->SaveNode(dummyArray, dummyCounter, pArchive, totalSizeCounter);
 
-		int nDataSize = 0;
-		fread(&nDataSize, 1, sizeof(nDataSize), f);
-
-		PodArray<int> arrData;
-		arrData.CheckAllocated(nDataSize / 4);
-
-		int nLoadedItems = fread(arrData.GetElements(), 1, arrData.GetDataSize(), f);
-		fclose(f);
-
-		int* pData = arrData.GetElements();
-
-		if (m_pSvoRoot)
-		{
-			if (Cry3DEngineBase::GetCVars()->e_svoTI_Active)
-			{
-				m_pSvoRoot->AllocateSegment(CVoxelSegment::m_nNextCloudId++, 0, ecss_NotLoaded, ecss_NotLoaded, true);
-				nNodesCreated++;
-			}
-			else
-			{
-				m_pSvoRoot->Load(pData, nNodesCreated, NULL, NULL);
-			}
-		}
-
-		if (pData - arrData.GetElements() == arrData.Count() || Cry3DEngineBase::GetCVars()->e_svoTI_Active)
-		{
-			PrintMessage("%d K bytes loaded", arrData.GetDataSize() / 1024);
-			m_bReady = true;
-		}
-		else
-			PrintMessage("Error loading %s", filespec.c_str());
+		PrintMessage("======= Finished SVO data export: %.1f MB in %1.1f sec =======", (float)totalSizeCounter / 1024.f / 1024.f, GetCurAsyncTimeSec() - fTimeStart);
 	}
+
+	return m_pSvoRoot ? 1 : 0;
 }
 
 Vec3* GeneratePointsOnHalfSphere(int n);
@@ -303,38 +246,41 @@ bool CSvoEnv::Render()
 
 	CVoxelSegment::CheckAllocateTexturePool();
 
+	CVoxelSegment::UpdateObjectLayersInfo();
+
 	CollectLights();
 
 	CollectAnalyticalOccluders();
 
 	if (Get3DEngine()->m_pObjectsTree)
 	{
-		m_pGlobalSpecCM = 0;
-		m_fGlobalSpecCM_Mult = 0;
+		CRY_PROFILE_REGION(PROFILE_3DENGINE, "CGlobalCloud::Render_FindProbe");
+
+		m_pGlobalEnvProbe = nullptr;
 
 		PodArray<IRenderNode*> arrObjects;
-		Get3DEngine()->m_pObjectsTree->GetObjectsByType(arrObjects, eERType_Light, &m_worldBox, 0, (uint64)~0, false);
+		Get3DEngine()->m_pObjectsTree->GetObjectsByType(arrObjects, eERType_Light, &m_worldBox, 0, (uint64) ~0, false);
 
 		float fMaxRadius = 999;
 
 		for (int nL = 0; nL < arrObjects.Count(); nL++)
 		{
 			ILightSource* pRN = (ILightSource*)arrObjects[nL];
-
-			CDLight& rLight = pRN->GetLightProperties();
+			SRenderLight& rLight = pRN->GetLightProperties();
 
 			if (rLight.m_fRadius > fMaxRadius && rLight.m_Flags & DLF_DEFERRED_CUBEMAPS)
 			{
 				fMaxRadius = rLight.m_fRadius;
-				m_pGlobalSpecCM = rLight.GetSpecularCubemap();
-				m_fGlobalSpecCM_Mult = rLight.m_SpecMult;
+				m_pGlobalEnvProbe = &rLight;
 			}
 		}
 	}
 
 	// Teleport SVO root when camera comes close to the border of current SVO bounds
-	if (m_pSvoRoot && CVoxelSegment::m_nStreamingTasksInProgress == 0)
+	if (GetCVars()->e_svoRootless && m_pSvoRoot && CVoxelSegment::m_nStreamingTasksInProgress == 0 && GetCVars()->e_svoTI_Apply && SVO_ROOTLESS_PARENT_SIZE < Get3DEngine()->GetTerrainSize())
+	{
 		ProcessSvoRootTeleport();
+	}
 
 	static int nPrev_UpdateLighting = GetCVars()->e_svoTI_UpdateLighting;
 	if ((!nPrev_UpdateLighting || gEnv->IsEditing()) && GetCVars()->e_svoTI_UpdateLighting && GetCVars()->e_svoTI_IntegrationMode && m_bReady && m_pSvoRoot)
@@ -352,30 +298,10 @@ bool CSvoEnv::Render()
 	bool bMultiUserMode = false;
 	int nUserId = /*gSSRSystem ? gSSRSystem->GetCurRenderUserId(bMultiUserMode) : */ 0;
 
-	if (IEntity* pEnt = GetSystem()->GetIEntitySystem()->FindEntityByName("MRI_Proxy"))
-	{
-		gSvoEnv->m_matDvrTm = pEnt->GetWorldTM();
-
-		float fScale = 1.f / 32.f;
-		Matrix44 mScale;
-		mScale.SetIdentity();
-		mScale.m00 = mScale.m11 = mScale.m22 = mScale.m33 = fScale;
-		gSvoEnv->m_matDvrTm = gSvoEnv->m_matDvrTm * mScale;
-
-		Matrix44 mTrans;
-		mTrans.SetIdentity();
-		mTrans.SetTranslation(Vec3(-128 * fScale, -128 * fScale, -128 * fScale));
-
-		gSvoEnv->m_matDvrTm = gSvoEnv->m_matDvrTm * mTrans;
-	}
-	else
-	{
-		gSvoEnv->m_matDvrTm.SetIdentity();
-	}
-
+	#ifdef FEATURE_SVO_GI_DVR // direct volume rendering
 	CRenderObject* pObjVox = 0;
 	{
-		pObjVox = Cry3DEngineBase::GetIdentityCRenderObject((*CVoxelSegment::m_pCurrPassInfo).ThreadID());
+		pObjVox = Cry3DEngineBase::GetIdentityCRenderObject((*CVoxelSegment::m_pCurrPassInfo));
 		pObjVox->m_II.m_AmbColor = Cry3DEngineBase::Get3DEngine()->GetSkyColor();
 		pObjVox->m_II.m_Matrix.SetIdentity();
 		pObjVox->m_nSort = 0;
@@ -388,6 +314,7 @@ bool CSvoEnv::Render()
 		pData->m_fTempVars[3] = (float)(nVoxTexMaxDim / nVoxBloMaxDim);
 		pData->m_fTempVars[4] = 0;//GetCVars()->e_svoDVR!=1 ? 0 : 11.111f;
 	}
+	#endif
 
 	if (m_bReady && m_pSvoRoot)
 	{
@@ -411,23 +338,24 @@ bool CSvoEnv::Render()
 
 			m_pSvoRoot->CheckReadyForRendering(0, m_arrForStreaming);
 
-			m_pSvoRoot->Render(0, 1, pObjVox, 0, arrVertsOut, m_arrForStreaming);
+			m_pSvoRoot->Render(0, 1, 0, arrVertsOut, m_arrForStreaming);
 
 			CheckUpdateMeshPools();
 		}
 
-		// render DVR proxies
-		/*if(arrVertsOut.Count() && GetCVars()->e_svoDVR == 10)
-		   {
-		   uint16 nDummyIndex = 0;
+	#ifdef FEATURE_SVO_GI_DVR // direct volume rendering
+		if (arrVertsOut.Count() && GetCVars()->e_svoDVR == 10)
+		{
+			uint16 nDummyIndex = 0;
 
-		   static SInputShaderResources res;
-		   static _smart_ptr< IMaterial > pMat = Cry3DEngineBase::MakeSystemMaterialFromShader("Total_Illumination.RenderDvrProxiesPass_GS", &res);
-		   pObjVox->m_pCurrMaterial = pMat;
+			static SInputShaderResources res;
+			static _smart_ptr<IMaterial> pMat = Cry3DEngineBase::MakeSystemMaterialFromShader("Total_Illumination.RenderDvrProxiesPass_GS", &res);
+			pObjVox->m_pCurrMaterial = pMat;
 
-		   Cry3DEngineBase::GetRenderer()->EF_AddPolygonToScene( pMat->GetShaderItem(),
-		    arrVertsOut.Count(), &arrVertsOut[0], NULL, pObjVox, (*CVoxelSegment::m_pCurrPassInfo), &nDummyIndex, 1, false );
-		   }*/
+			Cry3DEngineBase::GetRenderer()->EF_AddPolygonToScene(pMat->GetShaderItem(),
+			                                                     arrVertsOut.Count(), &arrVertsOut[0], nullptr, pObjVox, (*CVoxelSegment::m_pCurrPassInfo), &nDummyIndex, 1, false);
+		}
+	#endif
 	}
 
 	int nMaxLoadedNodes = Cry3DEngineBase::GetCVars()->e_svoMaxBricksOnCPU;
@@ -440,6 +368,7 @@ bool CSvoEnv::Render()
 		CRY_PROFILE_REGION(PROFILE_3DENGINE, "CGlobalCloud::Render_StartStreaming");
 
 		for (int nTreeLevel = 0; (nTreeLevel < nVoxStreamQueueMaxSize); nTreeLevel++)
+		{
 			for (int nDistId = 0; (nDistId < nVoxStreamQueueMaxSize); nDistId++)
 			{
 				if (!m_bFirst_StartStreaming)
@@ -454,6 +383,7 @@ bool CSvoEnv::Render()
 
 				m_arrForStreaming[nTreeLevel][nDistId].Clear();
 			}
+		}
 
 		m_bFirst_StartStreaming = false;
 	}
@@ -474,10 +404,10 @@ bool CSvoEnv::Render()
 			int nNodesUnloaded = 0;
 
 			while ((nNodesUnloaded < nNumNodesToDelete) &&
-				(CVoxelSegment::m_arrLoadedSegments[0]->m_eStreamingStatus != ecss_InProgress) &&
-				(CVoxelSegment::m_arrLoadedSegments[0]->m_nLastRendFrameId < (GetCurrPassMainFrameID() - 32)))
+			       (CVoxelSegment::m_arrLoadedSegments[0]->m_eStreamingStatus != ecss_InProgress) &&
+			       (CVoxelSegment::m_arrLoadedSegments[0]->m_nLastRendFrameId < (GetCurrPassMainFrameID() - 32)))
 			{
-				CVoxelSegment * pSeg = CVoxelSegment::m_arrLoadedSegments[0];
+				CVoxelSegment* pSeg = CVoxelSegment::m_arrLoadedSegments[0];
 
 				pSeg->FreeRenderData();
 				pSeg->m_eStreamingStatus = ecss_NotLoaded;
@@ -545,6 +475,7 @@ bool CSvoEnv::Render()
 		}
 	}
 
+	#ifdef FEATURE_SVO_GI_DVR // direct volume rendering
 	// render DVR quad
 	if (GetCVars()->e_svoDVR == 10)
 	{
@@ -570,17 +501,19 @@ bool CSvoEnv::Render()
 		   static _smart_ptr< IMaterial > pMat = Cry3DEngineBase::MakeSystemMaterialFromShader("Total_Illumination.BlendDvrIntoScene", &res);
 
 		   int nRGBD=0, nNORM=0, nOPAC=0;
-		   GetRenderer()->GetISvoRenderer()->GetDynamicTextures(nRGBD, nNORM, nOPAC, NULL, NULL);
+		   GetRenderer()->GetISvoRenderer()->GetDynamicTextures(nRGBD, nNORM, nOPAC, nullptr, nullptr);
 		   pObjVox->m_nTextureID = nRGBD;
 
 		   pObjVox->m_pCurrMaterial = pMat;
 
 		   Cry3DEngineBase::GetRenderer()->EF_AddPolygonToScene( pMat->GetShaderItem(),
-		   4, &arrVerts[0], NULL, pObjVox, (*CVoxelSegment::m_pCurrPassInfo), &arrIndices[0], 6, false );
+		   4, &arrVerts[0], nullptr, pObjVox, (*CVoxelSegment::m_pCurrPassInfo), &arrIndices[0], 6, false );
 		 */
 	}
 	else if (GetCVars()->e_svoDVR > 1)
 	{
+		auto& camera = GetISystem()->GetViewCamera();
+
 		SVF_P3F_C4B_T2F arrVerts[4];
 		ZeroStruct(arrVerts);
 		uint16 arrIndices[] = { 0, 2, 1, 2, 3, 1 };
@@ -590,8 +523,9 @@ bool CSvoEnv::Render()
 			for (int y = 0; y < 2; y++)
 			{
 				int i = x * 2 + y;
-				float X = (float)(GetRenderer()->GetWidth() * x);
-				float Y = (float)(GetRenderer()->GetHeight() * y);
+				float X = (float)(camera.GetViewSurfaceX() * x);
+				float Y = (float)(camera.GetViewSurfaceZ() * y);
+
 				GetRenderer()->UnProjectFromScreen(X, Y, 0.05f, &arrVerts[i].xyz.x, &arrVerts[i].xyz.y, &arrVerts[i].xyz.z);
 			}
 		}
@@ -614,6 +548,7 @@ bool CSvoEnv::Render()
 		if (ICVar* pV = gEnv->pConsole->GetCVar("r_UseAlphaBlend"))
 			pV->Set(1);
 	}
+	#endif
 
 	if (Cry3DEngineBase::GetCVars()->e_svoDebug == 4 && 0)
 	{
@@ -677,6 +612,8 @@ bool CSvoEnv::Render()
 
 void CSvoEnv::ProcessSvoRootTeleport()
 {
+	FUNCTION_PROFILER_3DENGINE;
+
 	if (GetCVars()->e_svoDebug == 3 || GetCVars()->e_svoDebug == 6)
 		Cry3DEngineBase::Get3DEngine()->DrawBBox(m_pSvoRoot->m_nodeBox, Col_Yellow);
 
@@ -736,8 +673,12 @@ void CSvoEnv::ProcessSvoRootTeleport()
 						}
 
 						SAFE_DELETE(m_pSvoRoot->m_ppChilds[nChildIdNew]);
+
 						m_pSvoRoot->m_ppChilds[nChildIdNew] = m_pSvoRoot->m_ppChilds[nChildIdOld];
-						m_pSvoRoot->m_ppChilds[nChildIdOld] = NULL;
+						m_pSvoRoot->m_ppChilds[nChildIdOld] = nullptr;
+
+						m_pSvoRoot->m_arrChildNotNeeded[nChildIdNew] = m_pSvoRoot->m_arrChildNotNeeded[nChildIdOld];
+						m_pSvoRoot->m_arrChildNotNeeded[nChildIdOld] = false;
 					}
 				}
 			}
@@ -762,7 +703,7 @@ CSvoNode* CSvoNode::FindNodeByPosition(const Vec3& vPosWS, int nTreeLevelToFind,
 	if (m_ppChilds && m_ppChilds[nChildId])
 		return m_ppChilds[nChildId]->FindNodeByPosition(vPosWS, nTreeLevelToFind, nTreeLevelCur + 1);
 
-	return NULL;
+	return nullptr;
 }
 
 void CSvoNode::OnStatLightsChanged(const AABB& objBox)
@@ -905,7 +846,7 @@ Vec3i ComputeDataCoord(int nAtlasOffset)
 	return vOffset3D;
 }
 
-void CSvoNode::Render(PodArray<struct SPvsItem>* pSortedPVS, uint64 nNodeKey, CRenderObject* pObj, int nTreeLevel, PodArray<SVF_P3F_C4B_T2F>& arrVertsOut, PodArray<CVoxelSegment*> arrForStreaming[nVoxStreamQueueMaxSize][nVoxStreamQueueMaxSize])
+void CSvoNode::Render(PodArray<struct SPvsItem>* pSortedPVS, uint64 nNodeKey, int nTreeLevel, PodArray<SVF_P3F_C4B_T2F>& arrVertsOut, PodArray<CVoxelSegment*> arrForStreaming[nVoxStreamQueueMaxSize][nVoxStreamQueueMaxSize])
 {
 	float fBoxSize = m_nodeBox.GetSize().x;
 
@@ -983,7 +924,7 @@ void CSvoNode::Render(PodArray<struct SPvsItem>* pSortedPVS, uint64 nNodeKey, CR
 			//			if(m_pCloud->m_voxVolumeBox.IsReset() || CVoxelSegment::voxCamera.IsAABBVisible_E(m_pCloud->m_voxVolumeBox))
 			{
 				if (CVoxelSegment::m_voxCam.IsAABBVisible_E(m_nodeBox))
-					m_pSeg->RenderMesh(pObj, arrVertsOut);
+					m_pSeg->RenderMesh(arrVertsOut);
 			}
 		}
 
@@ -1025,7 +966,7 @@ void CSvoNode::Render(PodArray<struct SPvsItem>* pSortedPVS, uint64 nNodeKey, CR
 			int nChildId = childId[c];
 			CSvoNode* pChild = m_ppChilds[nChildId];
 			if (pChild)
-				pChild->Render(NULL, (nNodeKey << 3) + (nChildId), pObj, nTreeLevel, arrVertsOut, arrForStreaming);
+				pChild->Render(nullptr, (nNodeKey << 3) + (nChildId), nTreeLevel, arrVertsOut, arrForStreaming);
 		}
 	}
 }
@@ -1156,10 +1097,9 @@ CSvoEnv::CSvoEnv(const AABB& worldBox)
 	m_nDebugDrawVoxelsCounter = 0;
 	m_nVoxTexFormat = eTF_R8G8B8A8; // eTF_BC3
 
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-		#ifdef FEATURE_SVO_GI_USE_MESH_RT
+	#ifdef FEATURE_SVO_GI_USE_MESH_RT
 	m_nTexTrisPoolId = 0;
-		#endif
+	#endif
 	m_nTexRgb0PoolId = 0;
 	m_nTexRgb1PoolId = 0;
 	m_nTexDynlPoolId = 0;
@@ -1168,12 +1108,10 @@ CSvoEnv::CSvoEnv(const AABB& worldBox)
 	m_nTexRgb4PoolId = 0;
 	m_nTexNormPoolId = 0;
 	m_nTexAldiPoolId = 0;
-	#endif
 	m_nTexOpasPoolId = 0;
 	m_nTexNodePoolId = 0;
 
 	m_prevCheckVal = -1000000;
-	m_matDvrTm = Matrix44(Matrix34::CreateIdentity());
 	m_fStreamingStartTime = 0;
 	m_nNodeCounter = 0;
 	m_nDynNodeCounter_DYNL = m_nDynNodeCounter = 0;
@@ -1187,9 +1125,10 @@ CSvoEnv::CSvoEnv(const AABB& worldBox)
 
 	m_worldBox = worldBox;
 	m_bReady = false;
-	m_pSvoRoot = new CSvoNode(AABB(Vec3(0, 0, 0), Vec3((float)GetCVars()->e_svoRootSize)), NULL);
-	m_pGlobalSpecCM = (ITexture*)0;
-	m_fGlobalSpecCM_Mult = 1;
+
+	AllocateRootNode();
+
+	m_pGlobalEnvProbe = nullptr;
 	m_fSvoFreezeTime = -1;
 	ZeroStruct(gSvoEnv->m_arrVoxelizeMeshesCounter);
 	GetRenderer()->GetISvoRenderer(); // allocate SVO sub-system in renderer
@@ -1208,10 +1147,9 @@ CSvoEnv::~CSvoEnv()
 
 	SAFE_DELETE(m_pSvoRoot);
 
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-		#ifdef FEATURE_SVO_GI_USE_MESH_RT
+	#ifdef FEATURE_SVO_GI_USE_MESH_RT
 	GetRenderer()->RemoveTexture(m_nTexTrisPoolId);
-		#endif
+	#endif
 	GetRenderer()->RemoveTexture(m_nTexRgb0PoolId);
 	GetRenderer()->RemoveTexture(m_nTexRgb1PoolId);
 	GetRenderer()->RemoveTexture(m_nTexDynlPoolId);
@@ -1220,7 +1158,6 @@ CSvoEnv::~CSvoEnv()
 	GetRenderer()->RemoveTexture(m_nTexRgb4PoolId);
 	GetRenderer()->RemoveTexture(m_nTexNormPoolId);
 	GetRenderer()->RemoveTexture(m_nTexAldiPoolId);
-	#endif
 	GetRenderer()->RemoveTexture(m_nTexOpasPoolId);
 	GetRenderer()->RemoveTexture(m_nTexNodePoolId);
 
@@ -1228,25 +1165,16 @@ CSvoEnv::~CSvoEnv()
 	GetCVars()->e_svoTI_Apply = 0;
 	GetCVars()->e_svoLoadTree = 0;
 	GetCVars()->e_svoEnabled = 0;
-	gSvoEnv = NULL;
+	gSvoEnv = nullptr;
 
 	{
 		AUTO_MODIFYLOCK(CVoxelSegment::m_arrLockedTextures.m_Lock);
-		for (int i = 0; i < CVoxelSegment::m_arrLockedTextures.Count(); i++)
-			CVoxelSegment::m_arrLockedTextures[i]->Release();
-		CVoxelSegment::m_arrLockedTextures.Reset();
+		CVoxelSegment::m_arrLockedTextures.clear();
 	}
 
 	{
 		AUTO_MODIFYLOCK(CVoxelSegment::m_arrLockedMaterials.m_Lock);
-		for (int i = 0; i < CVoxelSegment::m_arrLockedMaterials.Count(); i++)
-			CVoxelSegment::m_arrLockedMaterials[i]->Release();
-		CVoxelSegment::m_arrLockedMaterials.Reset();
-	}
-
-	if (gEnv->pRenderer)
-	{
-		gEnv->pRenderer->FreeResources(FRR_SVOGI);
+		CVoxelSegment::m_arrLockedMaterials.clear();
 	}
 }
 
@@ -1269,7 +1197,7 @@ CSvoNode::CSvoNode(const AABB& box, CSvoNode* pParent)
 	m_nodeBox = box;
 
 	if (!pParent)
-		gSvoEnv->m_vSvoOriginAndSize = Vec4(box.min, box.max.x- box.min.x);
+		gSvoEnv->m_vSvoOriginAndSize = Vec4(box.min, box.max.x - box.min.x);
 
 	gSvoEnv->m_nNodeCounter++;
 }
@@ -1285,67 +1213,190 @@ CSvoNode::~CSvoNode()
 	}
 	m_pSeg = 0;
 
+	SAFE_DELETE_ARRAY(m_pChildFileOffsets);
+
 	gSvoEnv->m_nNodeCounter--;
 }
 
-void CSvoNode::Load(int*& pData, int& nNodesCreated, CSvoNode* pParent, AABB* pAreaBox)
+uint32 CSvoNode::SaveNode(PodArray<byte>& rS, uint32& nodesCounterRec, ICryArchive* pArchive, uint32& totalSizeCounter)
 {
-	m_pParent = pParent;
+	assert(m_pSeg);
 
-	int nChildsMask = *pData;
-	pData++;
-
-	if (nChildsMask)
+	if (m_pSeg->m_eStreamingStatus != ecss_Ready)
 	{
-		if (!m_ppChilds)
+		assert(m_pSeg->m_eStreamingStatus != ecss_InProgress);
+
+		// start streaming
+		m_pSeg->m_eStreamingStatus = ecss_InProgress;
+		m_pSeg->m_nStreamingTasksInProgress++;
+
+		// async callback
+		m_pSeg->VoxelizeMeshes(0, true);
+
+		// sync callback
+		m_pSeg->StreamOnComplete(0, 0);
+	}
+
+	assert(m_pSeg->m_eStreamingStatus == ecss_Ready);
+
+	// auto allocate new childs same way it happens during rendering
+	if (Cry3DEngineBase::GetCVars()->e_svoTI_Active && m_pSeg && m_pSeg->m_eStreamingStatus == ecss_Ready /*&& m_pSeg->m_pBlockInfo*/)
+	{
+		if (m_pSeg->m_dwChildTrisTest || (m_pSeg->GetBoxSize() > Cry3DEngineBase::GetCVars()->e_svoMaxNodeSize) || (Cry3DEngineBase::GetCVars()->e_svoTI_Troposphere_Subdivide))
 		{
-			m_ppChilds = new CSvoNode*[8];
-			memset(m_ppChilds, 0, sizeof(m_ppChilds[0]) * 8);
+			CheckAllocateChilds();
 		}
 	}
 
-	for (int nChildId = 0; nChildId < 8; nChildId++)
+	if (m_nodeBox.GetSize().x > SVO_ROOTLESS_PARENT_SIZE)
 	{
-		if (nChildsMask & (1 << nChildId))
+		// just continue recursion
+
+		for (int childId = 0; childId < 8; childId++)
 		{
-			if (!m_ppChilds[nChildId])
-				m_ppChilds[nChildId] = new CSvoNode(GetChildBBox(nChildId), this);
-			nNodesCreated++;
+			if (m_ppChilds && m_ppChilds[childId])
+			{
+				m_ppChilds[childId]->SaveNode(rS, nodesCounterRec, pArchive, totalSizeCounter);
+			}
 		}
-		else if (m_ppChilds && m_ppChilds[nChildId])
+
+		return 0;
+	}
+	else if (m_nodeBox.GetSize().x == SVO_ROOTLESS_PARENT_SIZE)
+	{
+		// create new export file for every child and continue recursion
+
+		for (int childId = 0; childId < 8; childId++)
 		{
-			SAFE_DELETE(m_ppChilds[nChildId]);
+			if (m_ppChilds && m_ppChilds[childId])
+			{
+				char szFileName[256];
+				m_ppChilds[childId]->MakeNodeFilePath(szFileName);
+
+				if (pArchive->FindFile(szFileName) == nullptr)
+				{
+					PodArray<byte> arrSegmentData;
+					arrSegmentData.PreAllocate(32 * 1024 * 1024);
+
+					uint32 nodesCounter = 0;
+					float startTime = Cry3DEngineBase::GetTimer()->GetAsyncCurTime();
+
+					AABB terrainBox = AABB(Vec3(0, 0, 0), Vec3((float)gEnv->p3DEngine->GetTerrainSize(), (float)gEnv->p3DEngine->GetTerrainSize(), (float)gEnv->p3DEngine->GetTerrainSize()));
+					terrainBox.Expand(-Vec3(Cry3DEngineBase::GetCVars()->e_svoTI_VoxelizeMapBorder + 1.f, Cry3DEngineBase::GetCVars()->e_svoTI_VoxelizeMapBorder + 1.f, 0));
+					bool isInPlayableArea = terrainBox.IsIntersectBox(m_ppChilds[childId]->m_nodeBox);
+
+					if (isInPlayableArea)
+					{
+						m_ppChilds[childId]->SaveNode(arrSegmentData, nodesCounter, pArchive, totalSizeCounter);
+					}
+
+					if (nodesCounter)
+					{
+						assert(pArchive);
+
+						// We do not use PAK compression because we will stream from those files (each SVO node is compressed independently)
+						pArchive->UpdateFile(szFileName, arrSegmentData.GetElements(), arrSegmentData.GetDataSize(), ICryArchive::METHOD_STORE);
+						totalSizeCounter += arrSegmentData.GetDataSize();
+
+						int segmentGridDim = int(Cry3DEngineBase::Get3DEngine()->GetTerrainSize() / (SVO_ROOTLESS_PARENT_SIZE / 2));
+						Cry3DEngineBase::PrintMessage("Exported segment %s, Progress = %d %%", szFileName,
+						                              int(100.f * float(CVoxelSegment::m_nExportVisitedAreasCounter + 1) / float(segmentGridDim * segmentGridDim * segmentGridDim)));
+
+						Cry3DEngineBase::PrintMessage("%d KB stored in %.1f sec (%d nodes, total size = %.1f MB)",
+						                              arrSegmentData.Count() / 1024, Cry3DEngineBase::GetTimer()->GetAsyncCurTime() - startTime,
+						                              nodesCounter, (float)totalSizeCounter / 1024.f / 1024.f);
+					}
+					else
+					{
+						pArchive->RemoveFile(szFileName);
+					}
+				}
+
+				SAFE_DELETE(m_ppChilds[childId]);
+
+				CVoxelSegment::m_nExportVisitedAreasCounter++;
+			}
 		}
+
+		return 0;
 	}
 
-	int nCloudsNum = *pData;
-	pData++;
+	assert(m_pSeg);
 
-	if (nCloudsNum)
+	assert(m_pParent); // levels smaller than SVO_ROOTLESS_PARENT_SIZE not supported for now
+
+	#ifdef SVO_DEBUG
+	Vec3i vKey = (Vec3i)m_nodeBox.GetCenter();
+	int nBoxSize = (int)m_nodeBox.GetSize().z;
+	if (nBoxSize == Cry3DEngineBase::GetCVars()->e_svoMaxNodeSize)
 	{
-		int nCloudId = *pData;
-		pData++;
-		if (!m_pSeg)
-			AllocateSegment(nCloudId, 0, ecss_NotLoaded, ecss_NotLoaded, true);
-		m_pSeg->m_nFileStreamOffset64 = *(int64*)pData;
-		pData++;
-		pData++;
-		m_pSeg->m_nFileStreamSize = *pData;
-		pData++;
+		Cry3DEngineBase::PrintMessage("Voxelizing SVO area %04d_%04d_%04d_%04d", vKey.x, vKey.y, vKey.z, nBoxSize);
 	}
-	else
+	#endif
+
+	uint32 nodeDataSize = rS.Count();
+
+	m_pSeg->SaveVoxels(rS);
+
+	if (m_pSeg->m_voxData.pVoxData[SVoxData::OPA3D] ? (m_pSeg->m_vCropTexSize.x * m_pSeg->m_vCropTexSize.y * m_pSeg->m_vCropTexSize.z * sizeof(ColorB)) : 0)
 	{
-		SAFE_DELETE(m_pSeg);
+		nodesCounterRec++;
 	}
 
-	if (pAreaBox && !Overlap::AABB_AABB(*pAreaBox, m_nodeBox))
-		return;
+	static int nodesProcessed = 0;
 
-	for (int nChildId = 0; nChildId < 8; nChildId++)
+	if (!(++nodesProcessed % 2000))
 	{
-		if (m_ppChilds && m_ppChilds[nChildId])
-			m_ppChilds[nChildId]->Load(pData, nNodesCreated, this, pAreaBox);
+		Cry3DEngineBase::PrintMessage("SVO nodes processed: %d K", nodesProcessed / 1000);
 	}
+
+	// calculate node data size
+	nodeDataSize = (rS.Count() - nodeDataSize);
+
+	// information about childs is appended only if childs exist; at loading time presence of this chunk will be detected by size of remaining data
+	if (m_ppChilds)
+	{
+		int childOffsetsPos = rS.Count();
+
+		const uint32 arrZeros[8 * 2] = { 0 };
+
+		// preallocate space for child offsets
+		rS.AddList((byte*)arrZeros, sizeof(arrZeros)); // file offset
+
+		for (int childId = 0; childId < 8; childId++)
+		{
+			if (m_ppChilds && m_ppChilds[childId])
+			{
+				((uint32*)&rS[childOffsetsPos])[childId * 2 + 0] = rS.Count();  // file offset
+
+				int childNodeDataSize = m_ppChilds[childId]->SaveNode(rS, nodesCounterRec, pArchive, totalSizeCounter);
+
+				((uint32*)&rS[childOffsetsPos])[childId * 2 + 1] = childNodeDataSize;  // file data size
+			}
+		}
+
+		nodeDataSize += 8 * sizeof(uint32) * 2;
+	}
+
+	#ifdef SVO_DEBUG
+	if (nBoxSize == Cry3DEngineBase::GetCVars()->e_svoMaxNodeSize)
+	{
+		Cry3DEngineBase::PrintMessage("%d tris voxelized", m_pSeg->m_pTrisInArea ? m_pSeg->m_pTrisInArea->Count() : 0);
+	}
+	#endif
+
+	return nodeDataSize;
+}
+
+void CSvoNode::MakeNodeFilePath(char* szFileName)
+{
+	Vec3_tpl<uint16> vPos = (Vec3_tpl<uint16> )m_nodeBox.GetCenter();
+
+	uint16 nBoxSize = (uint16)m_nodeBox.GetSize().z;
+
+	const char* pLevelPath = Cry3DEngineBase::Get3DEngine()->GetLevelFilePath(COMPILED_SVO_FOLDER_NAME);
+
+	sprintf(szFileName, "%s%04d_%04d_%04d_%04d.crysvo", pLevelPath, vPos.x, vPos.y, vPos.z, nBoxSize);
 }
 
 CVoxelSegment* CSvoNode::AllocateSegment(int nCloudId, int nStationId, int nLod, EFileStreamingStatus eStreamingStatus, bool bDroppedOnDisk)
@@ -1730,10 +1781,9 @@ bool CSvoEnv::GetSvoStaticTextures(I3DEngine::SSvoStaticTexInfo& svoInfo, PodArr
 	svoInfo.pTexTree = GetRenderer()->EF_GetTextureByID(m_nTexNodePoolId);
 	svoInfo.pTexOpac = GetRenderer()->EF_GetTextureByID(m_nTexOpasPoolId);
 
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-		#ifdef FEATURE_SVO_GI_USE_MESH_RT
+	#ifdef FEATURE_SVO_GI_USE_MESH_RT
 	svoInfo.pTexTris = GetRenderer()->EF_GetTextureByID(m_nTexTrisPoolId);
-		#endif
+	#endif
 	svoInfo.pTexRgb0 = GetRenderer()->EF_GetTextureByID(m_nTexRgb0PoolId);
 	svoInfo.pTexRgb1 = GetRenderer()->EF_GetTextureByID(m_nTexRgb1PoolId);
 	svoInfo.pTexDynl = GetRenderer()->EF_GetTextureByID(m_nTexDynlPoolId);
@@ -1742,13 +1792,13 @@ bool CSvoEnv::GetSvoStaticTextures(I3DEngine::SSvoStaticTexInfo& svoInfo, PodArr
 	svoInfo.pTexRgb4 = GetRenderer()->EF_GetTextureByID(m_nTexRgb4PoolId);
 	svoInfo.pTexNorm = GetRenderer()->EF_GetTextureByID(m_nTexNormPoolId);
 	svoInfo.pTexAldi = GetRenderer()->EF_GetTextureByID(m_nTexAldiPoolId);
+	#ifdef FEATURE_SVO_GI_USE_MESH_RT
 	svoInfo.pTexTriA = GetRenderer()->EF_GetTextureByID(gSvoEnv->m_arrRTPoolTris.m_nTexId);
 	svoInfo.pTexTexA = GetRenderer()->EF_GetTextureByID(gSvoEnv->m_arrRTPoolTexs.m_nTexId);
 	svoInfo.pTexIndA = GetRenderer()->EF_GetTextureByID(gSvoEnv->m_arrRTPoolInds.m_nTexId);
-	svoInfo.pGlobalSpecCM = m_pGlobalSpecCM;
 	#endif
 
-	svoInfo.fGlobalSpecCM_Mult = m_fGlobalSpecCM_Mult;
+	GetGlobalEnvProbeProperties(svoInfo.pGlobalSpecCM, svoInfo.fGlobalSpecCM_Mult);
 
 	svoInfo.nTexDimXY = CVoxelSegment::nVoxTexPoolDimXY;
 	svoInfo.nTexDimZ = CVoxelSegment::nVoxTexPoolDimZ;
@@ -2133,9 +2183,9 @@ void CSvoEnv::DetectMovement_StatLights()
 					{
 						ILightSource* pLS = (ILightSource*)pNode;
 
-						CDLight& m_light = pLS->GetLightProperties();
+						SRenderLight& m_light = pLS->GetLightProperties();
 
-						if (!Overlap::Sphere_AABB(Sphere(m_light.m_BaseOrigin, m_light.m_fRadius), pSeg->m_pNode->m_nodeBox))
+						if (!Overlap::Sphere_AABB(Sphere(m_light.m_BaseOrigin, m_light.m_fClipRadius), pSeg->m_pNode->m_nodeBox))
 							continue;
 
 						if ((m_light.m_Flags & DLF_PROJECT) && (m_light.m_fLightFrustumAngle < 90.f) && m_light.m_pLightImage)
@@ -2272,7 +2322,7 @@ int CSvoEnv::GetWorstPointInSubSet(const int nStart, const int nEnd)
 
 void CSvoEnv::CheckUpdateMeshPools()
 {
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
+	#ifdef FEATURE_SVO_GI_USE_MESH_RT
 	{
 		PodArrayRT<Vec4>& rAr = gSvoEnv->m_arrRTPoolTris;
 
@@ -2283,8 +2333,8 @@ void CSvoEnv::CheckUpdateMeshPools()
 			gEnv->pRenderer->RemoveTexture(rAr.m_nTexId);
 			rAr.m_nTexId = 0;
 
-			rAr.m_nTexId = gEnv->pRenderer->DownLoadToVideoMemory3D((byte*)rAr.GetElements(),
-			                                                        CVoxelSegment::nVoxTexPoolDimXY, CVoxelSegment::nVoxTexPoolDimXY, CVoxelSegment::nVoxTexPoolDimZ, eTF_R32G32B32A32F, eTF_R32G32B32A32F, 1, false, FILTER_POINT, rAr.m_nTexId, 0, FT_DONT_STREAM);
+			rAr.m_nTexId = gEnv->pRenderer->UploadToVideoMemory3D((byte*)rAr.GetElements(),
+			                                                      CVoxelSegment::nVoxTexPoolDimXY, CVoxelSegment::nVoxTexPoolDimXY, CVoxelSegment::nVoxTexPoolDimZ, eTF_R32G32B32A32F, eTF_R32G32B32A32F, 1, false, FILTER_POINT, rAr.m_nTexId, 0, FT_DONT_STREAM);
 
 			rAr.m_bModified = 0;
 		}
@@ -2300,8 +2350,8 @@ void CSvoEnv::CheckUpdateMeshPools()
 			gEnv->pRenderer->RemoveTexture(rAr.m_nTexId);
 			rAr.m_nTexId = 0;
 
-			rAr.m_nTexId = gEnv->pRenderer->DownLoadToVideoMemory3D((byte*)rAr.GetElements(),
-			                                                        CVoxelSegment::nVoxTexPoolDimXY, CVoxelSegment::nVoxTexPoolDimXY, CVoxelSegment::nVoxTexPoolDimZ, m_nVoxTexFormat, m_nVoxTexFormat, 1, false, FILTER_POINT, rAr.m_nTexId, 0, FT_DONT_STREAM);
+			rAr.m_nTexId = gEnv->pRenderer->UploadToVideoMemory3D((byte*)rAr.GetElements(),
+			                                                      CVoxelSegment::nVoxTexPoolDimXY, CVoxelSegment::nVoxTexPoolDimXY, CVoxelSegment::nVoxTexPoolDimZ, m_nVoxTexFormat, m_nVoxTexFormat, 1, false, FILTER_POINT, rAr.m_nTexId, 0, FT_DONT_STREAM);
 
 			rAr.m_bModified = 0;
 		}
@@ -2317,8 +2367,8 @@ void CSvoEnv::CheckUpdateMeshPools()
 			gEnv->pRenderer->RemoveTexture(rAr.m_nTexId);
 			rAr.m_nTexId = 0;
 
-			rAr.m_nTexId = gEnv->pRenderer->DownLoadToVideoMemory3D((byte*)rAr.GetElements(),
-			                                                        CVoxelSegment::nVoxTexPoolDimXY, CVoxelSegment::nVoxTexPoolDimXY, CVoxelSegment::nVoxTexPoolDimZ, m_nVoxTexFormat, m_nVoxTexFormat, 1, false, FILTER_POINT, rAr.m_nTexId, 0, FT_DONT_STREAM);
+			rAr.m_nTexId = gEnv->pRenderer->UploadToVideoMemory3D((byte*)rAr.GetElements(),
+			                                                      CVoxelSegment::nVoxTexPoolDimXY, CVoxelSegment::nVoxTexPoolDimXY, CVoxelSegment::nVoxTexPoolDimZ, m_nVoxTexFormat, m_nVoxTexFormat, 1, false, FILTER_POINT, rAr.m_nTexId, 0, FT_DONT_STREAM);
 
 			rAr.m_bModified = 0;
 		}
@@ -2334,6 +2384,16 @@ bool C3DEngine::GetSvoStaticTextures(I3DEngine::SSvoStaticTexInfo& svoInfo, PodA
 void C3DEngine::GetSvoBricksForUpdate(PodArray<SSvoNodeInfo>& arrNodeInfo, float fNodeSize, PodArray<SVF_P3F_C4B_T2F>* pVertsOut)
 {
 	CSvoManager::GetSvoBricksForUpdate(arrNodeInfo, fNodeSize, pVertsOut);
+}
+
+bool C3DEngine::IsSvoReady(bool testPostponed) const
+{
+	return (CVoxelSegment::m_nStreamingTasksInProgress == 0) && ((CVoxelSegment::m_nPostponedCounter == 0) || (testPostponed == false));
+}
+
+int C3DEngine::GetSvoCompiledData(ICryArchive* pArchive)
+{
+	return CSvoManager::ExportSvo(pArchive);
 }
 
 void C3DEngine::LoadTISettings(XmlNodeRef pInputNode)
@@ -2433,6 +2493,23 @@ void C3DEngine::LoadTISettings(XmlNodeRef pInputNode)
 
 	GetCVars()->e_svoTI_ConstantAmbientDebug = (float)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "ConstantAmbientDebug", "0"));
 
+	GetCVars()->e_svoStreamVoxels = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "StreamVoxels", "0"));
+
+	// fall back to run-time voxelization if voxel file data is not prepared
+	if (CSvoNode::IsStreamingActive())
+	{
+		char szFileName[256];
+		const char* pLevelPath = Cry3DEngineBase::Get3DEngine()->GetLevelFilePath(COMPILED_SVO_FOLDER_NAME);
+		sprintf(szFileName, "%s*.crysvo", pLevelPath);
+
+		_finddata_t fd;
+		if (gEnv->pCryPak->FindFirst(szFileName, &fd) < 0)
+		{
+			PrintMessage("%s: Error: Streaming of voxels is enabled in level settings but files are missing. Falling back to run-time voxelization", __FUNCTION__);
+			GetCVars()->e_svoStreamVoxels = 0;
+		}
+	}
+
 	if (GetCVars()->e_svoTI_IntegrationMode < 1) // AO
 	{
 		GetCVars()->e_svoTI_NumberOfBounces = min(GetCVars()->e_svoTI_NumberOfBounces, 1);
@@ -2456,6 +2533,11 @@ void CVars::RegisterTICVars()
 {
 	#define CVAR_CPP
 	#include "SceneTreeCVars.inl"
+
+	if (GetRenderer())
+	{
+		GetRenderer()->GetISvoRenderer()->InitCVarValues(); // allocate SVO sub-system in renderer
+	}
 }
 
 static int32 SLightTI_Compare(const void* v1, const void* v2)
@@ -2488,66 +2570,69 @@ void CSvoEnv::CollectLights()
 
 	Vec3 vCamPos = CVoxelSegment::m_voxCam.GetPosition();
 
-	if (int nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Light, nodeBox, (IRenderNode**)0))
+	if (GetCVars()->e_svoTI_IntegrationMode || GetCVars()->e_svoTI_PointLightsMultiplier)
 	{
-		PodArray<IRenderNode*> arrObjects(nCount, nCount);
-		nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Light, nodeBox, arrObjects.GetElements());
-
-		for (int nL = 0; nL < nCount; nL++)
+		if (int nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Light, nodeBox, (IRenderNode**)0))
 		{
-			ILightSource* pRN = (ILightSource*)arrObjects[nL];
+			PodArray<IRenderNode*> arrObjects(nCount, nCount);
+			nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Light, nodeBox, arrObjects.GetElements());
 
-			static ICVar* e_svoMinNodeSize = gEnv->pConsole->GetCVar("e_svoMinNodeSize");
-
-			CDLight& rLight = pRN->GetLightProperties();
-
-			I3DEngine::SLightTI lightTI;
-			ZeroStruct(lightTI);
-
-			IRenderNode::EGIMode eVoxMode = pRN->GetGIMode();
-
-			if (eVoxMode)
+			for (int nL = 0; nL < nCount; nL++)
 			{
-				lightTI.vPosR = Vec4(rLight.m_Origin, rLight.m_fRadius);
+				ILightSource* pRN = (ILightSource*)arrObjects[nL];
 
-				if ((rLight.m_Flags & DLF_PROJECT) && (rLight.m_fLightFrustumAngle < 90.f) && rLight.m_pLightImage)
-					lightTI.vDirF = Vec4(pRN->GetMatrix().GetColumn(0), rLight.m_fLightFrustumAngle * 2);
-				else
-					lightTI.vDirF = Vec4(0, 0, 0, 0);
+				static ICVar* e_svoMinNodeSize = gEnv->pConsole->GetCVar("e_svoMinNodeSize");
 
-				if (eVoxMode == IRenderNode::eGM_DynamicVoxelization)
-					lightTI.vCol = rLight.m_Color.toVec4();
-				else
-					lightTI.vCol = rLight.m_BaseColor.toVec4();
+				SRenderLight& rLight = pRN->GetLightProperties();
 
-				lightTI.vCol.w = (rLight.m_Flags & DLF_CASTSHADOW_MAPS) ? 1.f : 0.f;
+				I3DEngine::SLightTI lightTI;
+				ZeroStruct(lightTI);
 
-				if (rLight.m_Flags & DLF_SUN)
-					lightTI.fSortVal = -1;
-				else
-					lightTI.fSortVal = vCamPos.GetDistance(rLight.m_Origin) / max(24.f, rLight.m_fRadius);
+				IRenderNode::EGIMode eVoxMode = pRN->GetGIMode();
 
-				if (eVoxMode == IRenderNode::eGM_DynamicVoxelization || (!GetCVars()->e_svoTI_IntegrationMode && !(rLight.m_Flags & DLF_SUN)))
+				if (eVoxMode)
 				{
-					if ((pRN->GetDrawFrame(0) > 10) && (pRN->GetDrawFrame(0) >= (int)GetCurrPassMainFrameID()))
+					lightTI.vPosR = Vec4(rLight.m_Origin, rLight.m_fRadius);
+
+					if ((rLight.m_Flags & DLF_PROJECT) && (rLight.m_fLightFrustumAngle < 90.f) && rLight.m_pLightImage)
+						lightTI.vDirF = Vec4(pRN->GetMatrix().GetColumn(0), rLight.m_fLightFrustumAngle * 2);
+					else
+						lightTI.vDirF = Vec4(0, 0, 0, 0);
+
+					if (eVoxMode == IRenderNode::eGM_DynamicVoxelization)
+						lightTI.vCol = rLight.m_Color.toVec4();
+					else
+						lightTI.vCol = rLight.m_BaseColor.toVec4();
+
+					lightTI.vCol.w = (rLight.m_Flags & DLF_CASTSHADOW_MAPS) ? 1.f : 0.f;
+
+					if (rLight.m_Flags & DLF_SUN)
+						lightTI.fSortVal = -1;
+					else
+						lightTI.fSortVal = vCamPos.GetDistance(rLight.m_Origin) / max(24.f, rLight.m_fRadius);
+
+					if (eVoxMode == IRenderNode::eGM_DynamicVoxelization || (eVoxMode == IRenderNode::eGM_StaticVoxelization && !GetCVars()->e_svoTI_IntegrationMode && !(rLight.m_Flags & DLF_SUN)))
 					{
-						m_lightsTI_D.Add(lightTI);
-						m_aabbLightsTI_D.Add(pRN->GetBBox());
+						if ((pRN->GetDrawFrame(0) > 10) && (pRN->GetDrawFrame(0) >= (int)GetCurrPassMainFrameID()))
+						{
+							m_lightsTI_D.Add(lightTI);
+							m_aabbLightsTI_D.Add(pRN->GetBBox());
+						}
 					}
+					else
+						m_lightsTI_S.Add(lightTI);
 				}
-				else
-					m_lightsTI_S.Add(lightTI);
 			}
+
+			if (m_lightsTI_S.Count() > 1)
+				qsort(m_lightsTI_S.GetElements(), m_lightsTI_S.Count(), sizeof(m_lightsTI_S[0]), SLightTI_Compare);
+
+			if (m_lightsTI_D.Count() > 1)
+				qsort(m_lightsTI_D.GetElements(), m_lightsTI_D.Count(), sizeof(m_lightsTI_D[0]), SLightTI_Compare);
+
+			if (m_lightsTI_D.Count() > 8)
+				m_lightsTI_D.PreAllocate(8);
 		}
-
-		if (m_lightsTI_S.Count() > 1)
-			qsort(m_lightsTI_S.GetElements(), m_lightsTI_S.Count(), sizeof(m_lightsTI_S[0]), SLightTI_Compare);
-
-		if (m_lightsTI_D.Count() > 1)
-			qsort(m_lightsTI_D.GetElements(), m_lightsTI_D.Count(), sizeof(m_lightsTI_D[0]), SLightTI_Compare);
-
-		if (m_lightsTI_D.Count() > 8)
-			m_lightsTI_D.PreAllocate(8);
 	}
 }
 
@@ -2638,7 +2723,7 @@ void CSvoEnv::CollectAnalyticalOccluders()
 				n--;
 				continue;
 			}
-			
+
 			if (m_AnalyticalOccluders[nStage][n].type == (float)I3DEngine::SAnalyticalOccluder::eCapsule)
 				m_AnalyticalOccluders[nStage][n].c = (m_AnalyticalOccluders[nStage][n].v0 + m_AnalyticalOccluders[nStage][n].v1) * 0.5f;
 		}
@@ -2795,6 +2880,24 @@ void CSvoEnv::AddAnalyticalOccluder(IRenderNode* pRN, Vec3 camPos)
 	}
 }
 
+void CSvoEnv::GetGlobalEnvProbeProperties(_smart_ptr<ITexture>& specEnvCM, float& mult)
+{
+	if (!m_pGlobalEnvProbe)
+	{
+		specEnvCM = nullptr;
+		mult = 1.0f;
+		return;
+	}
+
+	specEnvCM = m_pGlobalEnvProbe->GetSpecularCubemap();
+	mult = m_pGlobalEnvProbe->GetSpecularMult();
+}
+
+bool CSvoNode::IsStreamingActive()
+{
+	return !gEnv->IsEditor() && Cry3DEngineBase::GetCVars()->e_svoStreamVoxels;
+}
+
 void CSvoNode::CheckAllocateChilds()
 {
 	if (m_nodeBox.GetSize().x <= Cry3DEngineBase::GetCVars()->e_svoMinNodeSize)
@@ -2806,21 +2909,26 @@ void CSvoNode::CheckAllocateChilds()
 
 	for (int nChildId = 0; nChildId < 8; nChildId++)
 	{
-		if (m_arrChildNotNeeded[nChildId])
+		bool bChildNotNeeded = (!m_pChildFileOffsets || !m_pChildFileOffsets[nChildId].second) && IsStreamingActive() && (m_nodeBox.GetSize().x < SVO_ROOTLESS_PARENT_SIZE);
+
+		if (m_arrChildNotNeeded[nChildId] || bChildNotNeeded)
 		{
-			if (m_ppChilds[nChildId])
+			if (m_ppChilds && m_ppChilds[nChildId])
+			{
 				SAFE_DELETE(m_ppChilds[nChildId]);
+			}
 			continue;
-			;
 		}
 
 		AABB childBox = GetChildBBox(nChildId);
 
-		if (Cry3DEngineBase::GetCVars()->e_svoTI_VoxelizaionPostpone && (!m_ppChilds || !m_ppChilds[nChildId]) && (childBox.GetSize().z == Cry3DEngineBase::GetCVars()->e_svoMaxNodeSize))
+		if (!IsStreamingActive() && Cry3DEngineBase::GetCVars()->e_svoTI_VoxelizaionPostpone && (!m_ppChilds || !m_ppChilds[nChildId]) && (childBox.GetSize().z == Cry3DEngineBase::GetCVars()->e_svoMaxNodeSize))
 		{
 			bool bThisIsAreaParent, bThisIsLowLodNode;
-			if (!CVoxelSegment::CheckCollectObjectsForVoxelization(childBox, NULL, bThisIsAreaParent, bThisIsLowLodNode, true))
+			if (!CVoxelSegment::CheckCollectObjectsForVoxelization(childBox, nullptr, bThisIsAreaParent, bThisIsLowLodNode, true))
 			{
+				assert(!CVoxelSegment::m_bExportMode || !"Some meshes are not streamed in, stream cgf must be off for now during EXPORT processs");
+
 				if (Cry3DEngineBase::GetCVars()->e_svoDebug == 7)
 					Cry3DEngineBase::Get3DEngine()->DrawBBox(childBox, Col_Lime);
 				CVoxelSegment::m_nPostponedCounter++;
@@ -2853,6 +2961,38 @@ void CSvoNode::CheckAllocateChilds()
 				m_ppChilds[nChildId] = new CSvoNode(childBox, this);
 
 				m_ppChilds[nChildId]->AllocateSegment(CVoxelSegment::m_nNextCloudId++, 0, 0, ecss_NotLoaded, true);
+
+				if (IsStreamingActive() && m_nodeBox.GetSize().x <= SVO_ROOTLESS_PARENT_SIZE)
+				{
+					if (m_ppChilds[nChildId]->m_nodeBox.GetSize().x == SVO_ROOTLESS_PARENT_SIZE / 2)
+					{
+						char szAreaFileName[256];
+						m_ppChilds[nChildId]->MakeNodeFilePath(szAreaFileName);
+
+						if (gEnv->pCryPak->IsFileExist(szAreaFileName))
+						{
+							//
+							m_ppChilds[nChildId]->m_pSeg->m_nFileStreamOffset64 = 0;
+
+							const int parentNodeFileStreamSize = 132;
+							//assert(parentNodeFileStreamSize == (sizeof(int) + sizeof(uint32) * 2 * 8));
+
+							m_ppChilds[nChildId]->m_pSeg->m_nFileStreamSize = parentNodeFileStreamSize;
+						}
+						else
+						{
+							m_arrChildNotNeeded[nChildId] = true;
+
+							SAFE_DELETE(m_ppChilds[nChildId]);
+						}
+					}
+					else
+					{
+						m_ppChilds[nChildId]->m_pSeg->m_nFileStreamOffset64 = m_pChildFileOffsets[nChildId].first;
+
+						m_ppChilds[nChildId]->m_pSeg->m_nFileStreamSize = m_pChildFileOffsets[nChildId].second;
+					}
+				}
 			}
 		}
 	}

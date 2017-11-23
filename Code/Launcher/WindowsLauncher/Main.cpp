@@ -12,7 +12,6 @@
 #pragma comment(lib, "shlwapi.lib")
 
 #include <CryCore/Platform/CryLibrary.h>
-#include <CryGame/IGameFramework.h>
 
 #include <CrySystem/IConsole.h>
 #include <CrySystem/File/ICryPak.h>

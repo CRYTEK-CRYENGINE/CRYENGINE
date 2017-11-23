@@ -22,7 +22,7 @@ CLodValue CCharInstance::ComputeLod(int wantedLod, const SRenderingPassInfo& pas
 }
 
 //! Render object ( register render elements into renderer )
-void CCharInstance::Render(const struct SRendParams& RendParams, const QuatTS& Offset, const SRenderingPassInfo& passInfo)
+void CCharInstance::Render(const struct SRendParams& RendParams, const SRenderingPassInfo& passInfo)
 {
 	if (GetFlags() & CS_FLAG_COMPOUND_BASE)
 	{
@@ -47,7 +47,7 @@ void CCharInstance::Render(const struct SRendParams& RendParams, const QuatTS& O
 
 	assert(RendParams.pMatrix);
 
-	Matrix34 RenderMat34 = *RendParams.pMatrix * Matrix34(Offset);
+	const Matrix34& RenderMat34 = *RendParams.pMatrix;
 
 	//f32 axisX = RenderMat34.GetColumn0().GetLength();
 	//f32 axisY = RenderMat34.GetColumn1().GetLength();
@@ -105,7 +105,7 @@ void CCharInstance::Render(const struct SRendParams& RendParams, const QuatTS& O
 		attachmentRendParams.dwFObjFlags |= uAdditionalObjFlags;
 	}
 
-	const f32 fFOV = g_pIRenderer->GetCamera().GetFov();
+	const f32 fFOV = passInfo.GetCamera().GetFov();
 	const f32 fZoomFactor = 0.0f + 1.0f * (RAD2DEG(fFOV) / 60.f);
 	const f32 attachmentCullingRation = (gEnv->bMultiplayer) ? Console::GetInst().ca_AttachmentCullingRationMP : Console::GetInst().ca_AttachmentCullingRation;
 	const f32 fZoomDistanceSq = sqr(RendParams.fDistance * fZoomFactor / attachmentCullingRation);
@@ -123,6 +123,12 @@ void CCharInstance::Render(const struct SRendParams& RendParams, const QuatTS& O
 
 	// draw weapon and binded objects
 	m_AttachmentManager.DrawAttachments(attachmentRendParams, RenderMat34, passInfo, fZoomFactor, fZoomDistanceSq);
+
+#ifndef _RELEASE
+	// in-game debug rendering of characters attachments proxies 
+	const uint32 uiProxies = (uint32)Console::GetInst().ca_DebugAttachmentsProxies;
+	m_AttachmentManager.DrawProxies(uiProxies ? uiProxies : 0x80);
+#endif
 }
 
 void CCharInstance::RenderCGA(const struct SRendParams& RendParams, const Matrix34& RenderMat34, const SRenderingPassInfo& passInfo)
@@ -179,7 +185,7 @@ void CCharInstance::RenderCGA(const struct SRendParams& RendParams, const Matrix
 		// Convert "Camera Space" to "World Space"
 		if (RendParams.dwFObjFlags & FOB_NEAREST)
 		{
-			wsRenderMat34.AddTranslation(gEnv->pRenderer->GetCamera().GetPosition());
+			wsRenderMat34.AddTranslation(passInfo.GetCamera().GetPosition());
 		}
 
 		if (Console::GetInst().ca_DrawSkeleton)
@@ -192,7 +198,7 @@ void CCharInstance::RenderCGA(const struct SRendParams& RendParams, const Matrix
 
 void CCharInstance::RenderCHR(const SRendParams& RendParams, const Matrix34& rRenderMat34, const SRenderingPassInfo& passInfo)
 {
-	CRenderObject* pObj = g_pIRenderer->EF_GetObject_Temp(passInfo.ThreadID());
+	CRenderObject* pObj = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 	if (!pObj)
 		return;
 
@@ -281,7 +287,7 @@ void CCharInstance::RenderCHR(const SRendParams& RendParams, const Matrix34& rRe
 	}
 	pObj->m_DissolveRef = RendParams.nDissolveRef;
 
-	pD->m_pSkinningData = GetSkinningData();
+	pD->m_pSkinningData = GetSkinningData(passInfo);
 	pObj->m_ObjFlags |= FOB_SKINNED | FOB_INSHADOW;
 
 	Vec3 skinOffset(ZERO);
@@ -323,7 +329,7 @@ void CCharInstance::RenderCHR(const SRendParams& RendParams, const Matrix34& rRe
 #ifndef _RELEASE
 				static ICVar* p_e_debug_draw = gEnv->pConsole->GetCVar("e_DebugDraw");
 				if (p_e_debug_draw && p_e_debug_draw->GetIVal() != 0)
-					pModelMesh->DrawDebugInfo(this->m_pDefaultSkeleton, m_nAnimationLOD, rRenderMat34, p_e_debug_draw->GetIVal(), pMaterial, pObj, RendParams, passInfo.IsGeneralPass(), (IRenderNode*)RendParams.pRenderNode, m_SkeletonPose.GetAABB());
+					pModelMesh->DrawDebugInfo(this->m_pDefaultSkeleton, m_nAnimationLOD, rRenderMat34, p_e_debug_draw->GetIVal(), pMaterial, pObj, RendParams, passInfo.IsGeneralPass(), (IRenderNode*)RendParams.pRenderNode, m_SkeletonPose.GetAABB(),passInfo);
 #endif
 				//	float fColor[4] = {1,0,1,1};
 				//	extern f32 g_YLine;
@@ -338,7 +344,7 @@ void CCharInstance::RenderCHR(const SRendParams& RendParams, const Matrix34& rRe
 					Matrix34 wsRenderMat34(rRenderMat34);
 					// Convert "Camera Space" to "World Space"
 					if (pObj->m_ObjFlags & FOB_NEAREST)
-						wsRenderMat34.AddTranslation(gEnv->pRenderer->GetCamera().GetPosition());
+						wsRenderMat34.AddTranslation(passInfo.GetCamera().GetPosition());
 					g_pAuxGeom->SetRenderFlags(e_Def3DPublicRenderflags);
 				}
 			}
@@ -358,7 +364,7 @@ bool CCharInstance::MotionBlurMotionCheck(uint64 nObjFlags) const
 	return false;
 }
 
-SSkinningData* CCharInstance::GetSkinningData()
+SSkinningData* CCharInstance::GetSkinningData(const SRenderingPassInfo& passInfo)
 {
 	DEFINE_PROFILER_FUNCTION();
 
@@ -378,7 +384,7 @@ SSkinningData* CCharInstance::GetSkinningData()
 		return arrSkinningRendererData[nList].pSkinningData;
 	}
 
-	SSkinningData* pSkinningData = gEnv->pRenderer->EF_CreateSkinningData(numSkinningBones, bNeedJobSyncVar);
+	SSkinningData* pSkinningData = gEnv->pRenderer->EF_CreateSkinningData(passInfo.GetIRenderView(), numSkinningBones, bNeedJobSyncVar);
 	pSkinningData->pCustomTag = this;
 	arrSkinningRendererData[nList].pSkinningData = pSkinningData;
 	arrSkinningRendererData[nList].nFrameID = nFrameID;

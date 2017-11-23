@@ -2448,6 +2448,8 @@ IFlashLoadMovieHandler* CFlashPlayer::ms_pLoadMovieHandler(0);
 CFlashPlayer::CFlashPlayer()
 	: m_refCount(1)
 	, m_releaseGuardCount(0)
+	, m_clearFlags(0)
+	, m_clearColor(Clr_Transparent)
 	, m_compDepth(0)
 	, m_stereoCustomMaxParallax(-1.0f)
 	, m_allowEgdeAA(false)
@@ -3191,7 +3193,12 @@ void CFlashPlayer::Render(bool stereo)
 		return;
 
 	AddRef();
-	gEnv->pRenderer->RT_FlashRender(this, stereo);
+	gEnv->pRenderer->FlashRender(this, stereo);
+}
+
+IScaleformPlayback* CFlashPlayer::GetPlayback()
+{
+	return m_pRenderer->GetPlayback();
 }
 
 void CFlashPlayer::RenderCallback(EFrameType ft, bool releaseOnExit)
@@ -3216,6 +3223,7 @@ void CFlashPlayer::RenderCallback(EFrameType ft, bool releaseOnExit)
 			if (m_pMovieView && !devLost)
 			{
 				UpdateRenderFlags();
+				m_pRenderer->SetClearFlags(m_clearFlags, m_clearColor);
 				m_pRenderer->SetCompositingDepth(m_compDepth);
 				m_pRenderer->SetStereoMode(ft != EFT_Mono, ft == EFT_StereoLeft);
 				m_pRenderer->StereoEnforceFixedProjectionDepth(m_stereoFixedProjDepth);
@@ -3261,6 +3269,7 @@ void CFlashPlayer::RenderPlaybackLocklessCallback(int cbIdx, EFrameType ft, bool
 			if (!devLost)
 			{
 				// UpdateRenderFlags(); // not needed as we only play back the pre-recorded commands
+				m_pRenderer->SetClearFlags(m_clearFlags, m_clearColor);
 				m_pRenderer->SetCompositingDepth(m_compDepth);
 				m_pRenderer->SetStereoMode(ft != EFT_Mono, ft == EFT_StereoLeft);
 				m_pRenderer->StereoEnforceFixedProjectionDepth(m_stereoFixedProjDepth);
@@ -3292,6 +3301,14 @@ void CFlashPlayer::DummyRenderCallback(EFrameType ft, bool releaseOnExit)
 {
 	if (releaseOnExit)
 		Release();
+}
+
+void CFlashPlayer::SetClearFlags(uint32 clearFlags, ColorF clearColor)
+{
+	//SYNC_THREADS; //don't sync (should hardly produce read/write conflicts and thus rendering glitches, if ever)
+
+	m_clearFlags = clearFlags;
+	m_clearColor = clearColor;
 }
 
 void CFlashPlayer::SetCompositingDepth(float depth)
@@ -4530,12 +4547,12 @@ void CFlashPlayer::RenderFlashInfo()
 			int fontCacheTexId = GTextureXRenderBase::GetFontCacheTextureID();
 			if (pRenderer->EF_GetTextureByID(fontCacheTexId))
 			{
-				pRenderer->SetState(GS_NODEPTHTEST);
-				pRenderer->Draw2dImage(0, 0, 450, 450, -1, 0.0f, 1.0f, 1.0f, 0.0f);
-				pRenderer->SetState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
-				pRenderer->Draw2dImageStretchMode(true);
-				pRenderer->Draw2dImage(0, 0, 450, 450, fontCacheTexId, 0.0f, 1.0f, 1.0f, 0.0f);
-				pRenderer->Draw2dImageStretchMode(false);
+				//pRenderer->SetState(GS_NODEPTHTEST);
+				IRenderAuxImage::Draw2dImage(0, 0, 450, 450, -1, 0.0f, 1.0f, 1.0f, 0.0f);
+				//pRenderer->SetState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
+				//pRenderer->Draw2dImageStretchMode(true);
+				IRenderAuxImage::Draw2dImage(0, 0, 450, 450, fontCacheTexId, 0.0f, 1.0f, 1.0f, 0.0f);
+				//pRenderer->Draw2dImageStretchMode(false);
 			}
 			return;
 		}
@@ -4546,8 +4563,8 @@ void CFlashPlayer::RenderFlashInfo()
 				s_dimBG = !s_dimBG;
 			if (s_dimBG)
 			{
-				pRenderer->SetState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
-				pRenderer->Draw2dImage(0, 0, 800, 600, -1, 0.0f, 1.0f, 1.0f, 0.0f, 0, 0, 0, 0, 0.75f, 1);
+				//pRenderer->SetState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
+				IRenderAuxImage::Draw2dImage(0, 0, 800, 600, -1, 0.0f, 1.0f, 1.0f, 0.0f, 0, 0, 0, 0, 0.75f, 1);
 			}
 		}
 
@@ -4641,7 +4658,7 @@ void CFlashPlayer::RenderFlashInfo()
 				if (logToConsole)
 					gEnv->pLog->Log("Used (kb): %5" PRISIZE_T "\tFootprint (kb): %5" PRISIZE_T "\t[Heap] %s", InKB(totalUsed), InKB(totalFoot), pHeap->GetName());
 
-				PrintHeapInfo phi(xAdj + 10.0f, yAdj + 48.0f, (float) pRenderer->GetHeight(), s_startIdx, logToConsole);
+				PrintHeapInfo phi(xAdj + 10.0f, yAdj + 48.0f, (float) pRenderer->GetOverlayHeight(), s_startIdx, logToConsole);
 				pHeap->VisitChildHeaps(&phi);
 
 				DrawText(xAdj + 10.0f, yAdj + 24.0f, colorList, "Used (kb): %5" PRISIZE_T "\tFootprint (kb): %5" PRISIZE_T "\t[Heap] %s (self)", InKB(totalUsed - phi.GetSumTotalUsed()), InKB(totalFoot - phi.GetSumTotalFoot()), pHeap->GetName());

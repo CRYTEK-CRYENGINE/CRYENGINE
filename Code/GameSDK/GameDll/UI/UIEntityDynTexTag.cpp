@@ -136,7 +136,7 @@ void CUIEntityDynTexTag::OnInstanceDestroyed( IUIElement* pSender, IUIElement* p
 }
 
 ////////////////////////////////////////////////////////////////////////////
-void CUIEntityDynTexTag::OnEntityEvent( IEntity *pEntity,SEntityEvent &event )
+void CUIEntityDynTexTag::OnEntityEvent( IEntity *pEntity, const SEntityEvent& event )
 {
 	assert(event.event == ENTITY_EVENT_DONE);
 	RemoveAllEntityTags( pEntity->GetId(), false );

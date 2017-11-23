@@ -47,7 +47,7 @@ struct IEnvElement
 	virtual EEnvElementType    GetType() const = 0;
 	virtual EnvElementFlags    GetFlags() const = 0;
 
-	virtual CryGUID              GetGUID() const = 0;
+	virtual CryGUID            GetGUID() const = 0;
 	virtual const char*        GetName() const = 0;
 	virtual SSourceFileInfo    GetSourceFileInfo() const = 0;
 	virtual const char*        GetDescription() const = 0;

@@ -3262,7 +3262,7 @@ protected:
 		Vec3 targetPosition(ZERO);
 		if (GetTargetPosition(pipeUser, OUT targetPosition))
 		{
-			if (gEnv->pAISystem->GetNavigationSystem()->IsLocationContainedWithinTriangleInNavigationMesh(pipeUser.GetNavigationTypeID(), targetPosition, 5.0f, 0.5f))
+			if (gEnv->pAISystem->GetNavigationSystem()->IsLocationValidInNavigationMesh(pipeUser.GetNavigationTypeID(), targetPosition, 5.0f, 0.5f))
 			{
 				const MNMPathRequest request(pipeUser.GetEntity()->GetWorldPos(),
 				                             targetPosition, ZERO, -1, 0.0f, 0.0f, true,

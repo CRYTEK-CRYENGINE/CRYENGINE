@@ -18,15 +18,13 @@ public:
 	CREFogVolume();
 	virtual ~CREFogVolume();
 
-	virtual void mfPrepare(bool bCheckOverflow) override;
-	virtual bool mfDraw(CShader* ef, SShaderPass* sfm) override;
 
 	virtual void GetMemoryUsage(ICrySizer* pSizer) const override
 	{
 		pSizer->AddObject(this, sizeof(*this));
 	}
 
-	virtual bool Compile(CRenderObject* pObj) override;
+	virtual bool Compile(CRenderObject* pObj, CRenderView *pRenderView) override;
 	virtual void DrawToCommandList(CRenderObject* pObj, const struct SGraphicsPipelinePassContext& ctx) override;
 
 public:

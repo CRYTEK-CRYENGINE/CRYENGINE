@@ -22,6 +22,21 @@ ResourceViewHandle s_RTVDefaults[] =
 // CStretchRectPass
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+CStretchRectPass *CStretchRectPass::s_pPass = nullptr;
+
+CStretchRectPass &CStretchRectPass::GetPass()
+{
+	if (!s_pPass)
+		s_pPass = new CStretchRectPass;
+	return *s_pPass;
+}
+void CStretchRectPass::Shutdown()
+{
+	if (s_pPass)
+		delete s_pPass;
+	s_pPass = NULL;
+}
+
 void CStretchRectPass::Execute(CTexture* pSrcRT, CTexture* pDestRT)
 {
 	//Check if the required shader is loaded
@@ -160,16 +175,18 @@ void CStretchRegionPass::Execute(CTexture* pSrcRT, CTexture* pDestRT, const RECT
 	int renderState = GS_NODEPTHTEST;
 
 	m_pass.SetViewport(viewport);
+	m_pass.BeginAddingPrimitives();
 
 	// FIXME: I had to Reset primitive here because otherwise it doesn't recognize texture change
 	m_Primitive.Reset();
-	PreparePrimitive(m_Primitive, rcS, renderState, viewport, bResample, bBigDownsample, pSrcRT, pDestRT);
-
-	m_pass.AddPrimitive(&m_Primitive);
-	m_pass.Execute();
+	if (PreparePrimitive(m_Primitive, m_pass, rcS, renderState, viewport, bResample, bBigDownsample, pSrcRT, pDestRT))
+	{
+		m_pass.AddPrimitive(&m_Primitive);
+		m_pass.Execute();
+	}
 }
 
-void CStretchRegionPass::PreparePrimitive(CRenderPrimitive& prim, const RECT& rcS, int renderState, const D3DViewPort& targetViewport, bool bResample, bool bBigDownsample, CTexture *pSrcRT, CTexture *pDestRT)
+bool CStretchRegionPass::PreparePrimitive(CRenderPrimitive& prim, CPrimitiveRenderPass& targetPass, const RECT& rcS, int renderState, const D3DViewPort& targetViewport, bool bResample, bool bBigDownsample, CTexture *pSrcRT, CTexture *pDestRT)
 {
 	static CCryNameTSCRC techTexToTex("TextureToTexture");
 	static CCryNameTSCRC techTexToTexResampled("TextureToTextureResampledReg");
@@ -210,16 +227,21 @@ void CStretchRegionPass::PreparePrimitive(CRenderPrimitive& prim, const RECT& rc
 	prim.SetTexture(0, pSrcRT);
 	prim.SetSampler(0, bResample ? EDefaultSamplerStates::LinearClamp : EDefaultSamplerStates::PointClamp);
 
-	m_pass.BeginAddingPrimitives();
+	if (prim.Compile(targetPass) == CRenderPrimitive::eDirty_None)
+	{
+		auto& constantManager = prim.GetConstantManager();
+		constantManager.BeginNamedConstantUpdate();
 
-	auto& constantManager = prim.GetConstantManager();
-	constantManager.BeginNamedConstantUpdate();
+		constantManager.SetNamedConstant(param0Name, params0, eHWSC_Pixel);
+		constantManager.SetNamedConstant(param1Name, params1, eHWSC_Pixel);
+		constantManager.SetNamedConstant(paramTCName, ParamsTC, eHWSC_Vertex);
 
-	constantManager.SetNamedConstant(param0Name, params0, eHWSC_Pixel);
-	constantManager.SetNamedConstant(param1Name, params1, eHWSC_Pixel);
-	constantManager.SetNamedConstant(paramTCName, ParamsTC, eHWSC_Vertex);
+		constantManager.EndNamedConstantUpdate(&targetPass.GetViewport());
 
-	constantManager.EndNamedConstantUpdate();
+		return true;
+	}
+
+	return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -250,7 +272,8 @@ void CSharpeningUpsamplePass::Execute(CTexture* pSrcRT, CTexture* pDestRT)
 	m_pass.SetRenderTarget(0, pDestRT);
 	m_pass.SetTechnique(CShaderMan::s_shPostAA, techName, 0);
 	m_pass.SetState(GS_NODEPTHTEST);
-	m_pass.SetTextureSamplerPair(0, pSrcRT, EDefaultSamplerStates::LinearClamp, EDefaultResourceViews::sRGB);
+	m_pass.SetSampler(0, EDefaultSamplerStates::LinearClamp);
+	m_pass.SetTexture(0, pSrcRT);
 	m_pass.BeginConstantUpdate();
 	m_pass.SetConstant(param0Name, params0, eHWSC_Pixel);
 	m_pass.Execute();
@@ -287,9 +310,11 @@ void CNearestDepthUpsamplePass::Execute(CTexture* pOrgDS, CTexture* pSrcRT, CTex
 	pPass.SetRenderTarget(0, pDestRT);
 	pPass.SetTechnique(CShaderMan::s_shPostEffects, techName, 0);
 	pPass.SetState(GS_NODEPTHTEST | GS_NOCOLMASK_A | GS_BLSRC_ONE | (bAlphaBased ? GS_BLDST_SRCALPHA : GS_BLDST_ONE));
-	pPass.SetTextureSamplerPair(1, pSrcRT, EDefaultSamplerStates::LinearClamp);
-	pPass.SetTextureSamplerPair(2, pOrgDS, EDefaultSamplerStates::PointClamp);
-	pPass.SetTextureSamplerPair(3, pSrcDS, EDefaultSamplerStates::PointClamp);
+	pPass.SetTexture(0, pSrcRT);
+	pPass.SetTexture(1, pOrgDS);
+	pPass.SetTexture(2, pSrcDS);
+	pPass.SetSampler(0, EDefaultSamplerStates::PointClamp);
+	pPass.SetSampler(1, EDefaultSamplerStates::LinearClamp);
 	pPass.BeginConstantUpdate();
 	pPass.SetConstant(param0Name, params0, eHWSC_Pixel);
 	pPass.Execute();
@@ -497,7 +522,7 @@ void CGaussianBlurPass::ComputeParams(int texWidth, int texHeight, int numSample
 	float s1 = 1.0f / (float)texWidth;
 	float t1 = 1.0f / (float)texHeight;
 
-	float weights[16];
+	float weights[16] = {};
 	float weightSum = 0.0f;
 
 	// Compute Gaussian weights
@@ -547,7 +572,8 @@ void CGaussianBlurPass::Execute(CTexture* pScrDestRT, CTexture* pTempRT, float s
 
 	if (!m_passH.InputChanged(pScrDestRT->GetTextureID(), pTempRT->GetTextureID()) &&
 	    !m_passV.InputChanged(pScrDestRT->GetTextureID(), pTempRT->GetTextureID()) &&
-	    m_scale == scale && m_distribution == distribution)
+	    m_scale == scale &&
+		m_distribution == distribution)
 	{
 		m_passH.Execute();
 		m_passV.Execute();
@@ -563,16 +589,20 @@ void CGaussianBlurPass::Execute(CTexture* pScrDestRT, CTexture* pTempRT, float s
 	static CCryNameR param1Name("PB_psOffsets");
 
 	Vec4 clampTC(0.0f, 1.0f, 0.0f, 1.0f);
-	if (pScrDestRT->GetWidth() == rd->GetWidth() && pScrDestRT->GetHeight() == rd->GetHeight())
+	if (pScrDestRT->GetWidth () == CRendererResources::s_renderWidth &&
+		pScrDestRT->GetHeight() == CRendererResources::s_renderHeight)
 	{
+		const auto& downscaleFactor = gRenDev->GetRenderQuality().downscaleFactor;
 		// Clamp manually in shader since texture clamp won't apply for smaller viewport
-		clampTC = Vec4(0.0f, rd->m_RP.m_CurDownscaleFactor.x, 0.0f, rd->m_RP.m_CurDownscaleFactor.y);
+		clampTC = Vec4(0.0f, downscaleFactor.x, 0.0f, downscaleFactor.y);
 	}
 
 	const int numSamples = 16;
-	if (m_scale != scale || m_distribution != distribution)
+	if (m_scale != scale ||
+		m_distribution != distribution)
 	{
 		ComputeParams(pScrDestRT->GetWidth(), pScrDestRT->GetHeight(), numSamples, scale, distribution);
+
 		m_scale = scale;
 		m_distribution = distribution;
 	}
@@ -603,6 +633,7 @@ void CGaussianBlurPass::Execute(CTexture* pScrDestRT, CTexture* pTempRT, float s
 	m_passV.SetConstant(clampTCName, clampTC, eHWSC_Pixel);
 	m_passV.Execute();
 }
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CMipmapGenPass
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -646,6 +677,36 @@ void CMipmapGenPass::Execute(CTexture* pScrDestRT, int mipCount)
 #endif
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// CClearSurfacePass
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+CClearSurfacePass::CClearSurfacePass()
+{
+}
+
+CClearSurfacePass::~CClearSurfacePass()
+{
+}
+
+void CClearSurfacePass::Execute(const CTexture* pDepthTex, const int nFlags, const float cDepth, const uint8 cStencil)
+{
+	// Full screen clear, no need to do custom pass
+	CDeviceCommandListRef commandList = GetDeviceObjectFactory().GetCoreCommandList();
+	commandList.GetGraphicsInterface()->ClearSurface(pDepthTex->GetDevTexture(pDepthTex->IsMSAA())->LookupDSV(EDefaultResourceViews::DepthStencil), nFlags, cDepth, cStencil);
+}
+
+void CClearSurfacePass::Execute(const CTexture* pColorTex, const ColorF& cClear)
+{
+	// Full screen clear, no need to do custom pass
+	CDeviceCommandListRef commandList = GetDeviceObjectFactory().GetCoreCommandList();
+	commandList.GetGraphicsInterface()->ClearSurface(pColorTex->GetDevTexture(pColorTex->IsMSAA())->LookupRTV(EDefaultResourceViews::RenderTarget), cClear);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// CClearRegionPass
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 CClearRegionPass::CClearRegionPass()
 {
 	CryStackAllocWithSizeVector(SVF_P3F, 6, quadVertices, CDeviceBufferManager::AlignBufferSizeForStreaming);
@@ -674,18 +735,16 @@ void CClearRegionPass::Execute(CTexture* pDepthTex, const int nFlags, const floa
 
 	commandList.GetGraphicsInterface()->ClearSurface(pDsv, nFlags, cDepth, cStencil, numRects, pRects);
 #else
-	if (!numRects || (numRects == 1 && pRects->left <= 0 && pRects->top <= 0 && pRects->right >= pDepthTex->GetWidthNonVirtual() && pRects->bottom >= pDepthTex->GetHeightNonVirtual()))
+	if (!numRects || (numRects == 1 && pRects->left <= 0 && pRects->top <= 0 && pRects->right >= pDepthTex->GetWidth() && pRects->bottom >= pDepthTex->GetHeight()))
 	{
 		// Full screen clear, no need to do custom pass
-		CDeviceCommandListRef commandList = GetDeviceObjectFactory().GetCoreCommandList();
-		commandList.GetGraphicsInterface()->ClearSurface(pDepthTex->GetDevTexture()->LookupDSV(EDefaultResourceViews::DepthStencil), nFlags, cDepth, cStencil);
-		return;
+		return CClearSurfacePass::Execute(pDepthTex, nFlags, cDepth, cStencil);
 	}
 
 	D3DViewPort viewport;
 	viewport.TopLeftX = viewport.TopLeftY = 0.0f;
-	viewport.Width  = (float)pDepthTex->GetWidthNonVirtual();
-	viewport.Height = (float)pDepthTex->GetHeightNonVirtual();
+	viewport.Width  = (float)pDepthTex->GetWidth();
+	viewport.Height = (float)pDepthTex->GetHeight();
 	viewport.MinDepth = 0.0f;
 	viewport.MaxDepth = 1.0f;
 
@@ -722,12 +781,10 @@ void CClearRegionPass::Execute(CTexture* pTex, const ColorF& cClear, const uint 
 	CDeviceCommandListRef commandList = GetDeviceObjectFactory().GetCoreCommandList();
 	commandList.GetGraphicsInterface()->ClearSurface(pTex->GetDevTexture()->LookupRTV(EDefaultResourceViews::RenderTarget), cClear, numRects, pRects);
 #else
-	if (!numRects || (numRects == 1 && pRects->left <= 0 && pRects->top <= 0 && pRects->right >= pTex->GetWidthNonVirtual() && pRects->bottom >= pTex->GetHeightNonVirtual()))
+	if (!numRects || (numRects == 1 && pRects->left <= 0 && pRects->top <= 0 && pRects->right >= pTex->GetWidth() && pRects->bottom >= pTex->GetHeight()))
 	{
 		// Full screen clear, no need to do custom pass
-		CDeviceCommandListRef commandList = GetDeviceObjectFactory().GetCoreCommandList();
-		commandList.GetGraphicsInterface()->ClearSurface(pTex->GetDevTexture()->LookupRTV(EDefaultResourceViews::RenderTarget), cClear);
-		return;
+		return CClearSurfacePass::Execute(pTex, cClear);
 	}
 
 	D3DViewPort viewport;
@@ -751,16 +808,17 @@ void CClearRegionPass::Execute(CTexture* pTex, const ColorF& cClear, const uint 
 	for (int i = 0; i < numRects; ++i)
 	{
 		auto& prim = m_clearPrimitives[i];
-		PreparePrimitive(prim, renderState, stencilState, cClear, 0, 0, pRects[i], viewport);
-
-		m_clearPass.AddPrimitive(&prim);
+		if (PreparePrimitive(prim, renderState, stencilState, cClear, 0, 0, pRects[i], viewport))
+		{
+			m_clearPass.AddPrimitive(&prim);
+		}
 	}
 
 	m_clearPass.Execute();
 #endif
 }
 
-void CClearRegionPass::PreparePrimitive(CRenderPrimitive& prim, int renderState, int stencilState, const ColorF& cClear, float cDepth, int stencilRef, const RECT& rect, const D3DViewPort& targetViewport)
+bool CClearRegionPass::PreparePrimitive(CRenderPrimitive& prim, int renderState, int stencilState, const ColorF& cClear, float cDepth, int stencilRef, const RECT& rect, const D3DViewPort& targetViewport)
 {
 	static CCryNameTSCRC techClear("Clear");
 
@@ -770,34 +828,42 @@ void CClearRegionPass::PreparePrimitive(CRenderPrimitive& prim, int renderState,
 	prim.SetStencilState(stencilState, stencilRef);
 	prim.SetCustomVertexStream(m_quadVertices, EDefaultInputLayouts::P3F, sizeof(SVF_P3F));
 	prim.SetDrawInfo(eptTriangleList, 0, 0, 6);
-	prim.Compile(m_clearPass);
 
-	auto& constantManager = prim.GetConstantManager();
-	constantManager.BeginNamedConstantUpdate();
+	if (prim.Compile(m_clearPass) == CRenderPrimitive::eDirty_None)
+	{
+		auto& constantManager = prim.GetConstantManager();
+		constantManager.BeginNamedConstantUpdate();
 
-	float clipSpaceL = rect.left / targetViewport.Width  *  2.0f - 1.0f;
-	float clipSpaceT = rect.top / targetViewport.Height * -2.0f + 1.0f;
-	float clipSpaceR = rect.right / targetViewport.Width  *  2.0f - 1.0f;
-	float clipSpaceB = rect.bottom / targetViewport.Height * -2.0f + 1.0f;
+		float clipSpaceL = rect.left / targetViewport.Width  *  2.0f - 1.0f;
+		float clipSpaceT = rect.top / targetViewport.Height * -2.0f + 1.0f;
+		float clipSpaceR = rect.right / targetViewport.Width  *  2.0f - 1.0f;
+		float clipSpaceB = rect.bottom / targetViewport.Height * -2.0f + 1.0f;
 
-	Vec4 vClearRect;
-	vClearRect.x = (clipSpaceR - clipSpaceL) * 0.5f;
-	vClearRect.y = (clipSpaceT - clipSpaceB) * 0.5f;
-	vClearRect.z = (clipSpaceR + clipSpaceL) * 0.5f;
-	vClearRect.w = (clipSpaceT + clipSpaceB) * 0.5f;
+		Vec4 vClearRect;
+		vClearRect.x = (clipSpaceR - clipSpaceL) * 0.5f;
+		vClearRect.y = (clipSpaceT - clipSpaceB) * 0.5f;
+		vClearRect.z = (clipSpaceR + clipSpaceL) * 0.5f;
+		vClearRect.w = (clipSpaceT + clipSpaceB) * 0.5f;
 
-	static CCryNameR paramClearRect("vClearRect");
-	constantManager.SetNamedConstant(paramClearRect, vClearRect, eHWSC_Vertex);
+		static CCryNameR paramClearRect("vClearRect");
+		static CCryNameR paramClearDepth("vClearDepth");
+		static CCryNameR paramClearColor("vClearColor");
 
-	static CCryNameR paramClearDepth("vClearDepth");
-	constantManager.SetNamedConstant(paramClearDepth, Vec4(cDepth, 0, 0, 0), eHWSC_Vertex);
+		constantManager.SetNamedConstant(paramClearRect, vClearRect, eHWSC_Vertex);
+		constantManager.SetNamedConstant(paramClearDepth, Vec4(cDepth, 0, 0, 0), eHWSC_Vertex);
+		constantManager.SetNamedConstant(paramClearColor, cClear.toVec4(), eHWSC_Pixel);
 
-	static CCryNameR paramClearColor("vClearColor");
-	constantManager.SetNamedConstant(paramClearColor, cClear.toVec4(), eHWSC_Pixel);
+		constantManager.EndNamedConstantUpdate(&m_clearPass.GetViewport());
 
-	constantManager.EndNamedConstantUpdate();
-	
+		return true;
+	}
+
+	return false;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// CAnisotropicVerticalBlurPass
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void CAnisotropicVerticalBlurPass::Execute(CTexture* pTex, int nAmount, float fScale, float fDistribution, bool bAlphaOnly)
 {
@@ -819,12 +885,6 @@ void CAnisotropicVerticalBlurPass::Execute(CTexture* pTex, int nAmount, float fS
 	{
 		return;
 	}
-
-	// TODO: remove after removing old graphics pipeline.
-	// Get current viewport
-	int iTempX, iTempY, iWidth, iHeight;
-	gRenDev->GetViewport(&iTempX, &iTempY, &iWidth, &iHeight);
-	gcpRendD3D->RT_SetViewport(0, 0, pTex->GetWidth(), pTex->GetHeight());
 
 	static CCryNameTSCRC techName("AnisotropicVertical");
 	static CCryNameR paramName("blurParams0");
@@ -894,8 +954,4 @@ void CAnisotropicVerticalBlurPass::Execute(CTexture* pTex, int nAmount, float fS
 			pass.Execute();
 		}
 	}
-
-	// TODO: remove after removing old graphics pipeline.
-	// Restore previous viewport
-	gcpRendD3D->RT_SetViewport(iTempX, iTempY, iWidth, iHeight);
 }

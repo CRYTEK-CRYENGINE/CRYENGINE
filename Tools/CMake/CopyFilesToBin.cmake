@@ -25,39 +25,39 @@ set (BinaryFileList_LINUX64
 	${SDK_DIR}/ncurses/lib/libncursesw.so.6
 	)
 
-	
+
 macro(add_optional_runtime_files)
 
 	if (OPTION_ENABLE_BROFILER)
 		set (BinaryFileList_Win64 ${BinaryFileList_Win64} "${SDK_DIR}/Brofiler/ProfilerCore64.dll")
 		set (BinaryFileList_Win32 ${BinaryFileList_Win32} "${SDK_DIR}/Brofiler/ProfilerCore32.dll")
 	endif()
-	
+
 	if(OPTION_ENABLE_CRASHRPT)
 		set (BinaryFileList_Win64 ${BinaryFileList_Win64} "${SDK_DIR}/CrashRpt/1403/bin/x64/crashrpt_lang.ini")
 		set (BinaryFileList_Win64 ${BinaryFileList_Win64} "${SDK_DIR}/CrashRpt/1403/bin/x64/CrashSender1403.exe")
 		set (BinaryFileList_Win32 ${BinaryFileList_Win32} "${SDK_DIR}/CrashRpt/1403/bin/x86/crashrpt_lang.ini")
 		set (BinaryFileList_Win32 ${BinaryFileList_Win32} "${SDK_DIR}/CrashRpt/1403/bin/x86/CrashSender1403.exe")
 	endif()
-	
+
 	if (OPTION_CRYMONO)
-		set (BinaryFileList_Win64 ${BinaryFileList_Win64} "${SDK_DIR}/Mono/bin/x64/mono-2.0.dll")
-		set (BinaryFileList_Win32 ${BinaryFileList_Win32} "${SDK_DIR}/Mono/bin/x86/mono-2.0.dll")
+		set (BinaryFileList_Win64 ${BinaryFileList_Win64} "${SDK_DIR}/Mono/lib/x64/mono-2.0-sgen.dll")
+		set (BinaryFileList_Win32 ${BinaryFileList_Win32} "${SDK_DIR}/Mono/lib/x86/mono-2.0-sgen.dll")
 	endif()
 
 	if (PLUGIN_VR_OCULUS OR AUDIO_OCULUS_HRTF)
 		set (BinaryFileList_Win64 ${BinaryFileList_Win64} "${SDK_DIR}/audio/oculus/wwise/x64/bin/plugins/OculusSpatializerWwise.dll")
 		set (BinaryFileList_Win32 ${BinaryFileList_Win32} "${SDK_DIR}/audio/oculus/wwise/Win32/bin/plugins/OculusSpatializerWwise.dll")
 	endif()
-	
+
 	if (PLUGIN_VR_OPENVR)
 		set (BinaryFileList_Win64 ${BinaryFileList_Win64} "${SDK_DIR}/OpenVR/bin/win64/*.*")
 	endif()
-	
+
 	if (PLUGIN_VR_OSVR)
 		set (BinaryFileList_Win64 ${BinaryFileList_Win64} "${SDK_DIR}/OSVR/dll/*.dll")
 	endif()
-	
+
 	if (OPTION_SANDBOX)
 		if (CMAKE_BUILD_TYPE)
 			set (BinaryFileList_Win64 ${BinaryFileList_Win64}
@@ -145,14 +145,14 @@ macro(deploy_pyside_files)
 		get_filename_component (dirname "${FILE_NAME}" DIRECTORY)
 		set(PDB_NAME "${dirname}${name_without_extension}.pdb")
 		set(FILE_PATH "${PYSIDE_SOURCE}${FILE_NAME}")
-		set(PDB_PATH "${PYSIDE_SOURCE}${PDB_NAME}")	
+		set(PDB_PATH "${PYSIDE_SOURCE}${PDB_NAME}")
 		deploy_runtime_file("${FILE_PATH}" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/PySide2/${FILE_NAME}")
 		install(FILES "${FILE_PATH}" DESTINATION bin/PySide2)
 		if(EXISTS "${PDB_PATH}")
 			deploy_runtime_file("${PDB_PATH}" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/PySide2/${PDB_NAME}")
 			install(FILES "${PDB_PATH}" DESTINATION bin/PySide2)
 		endif()
-	endforeach()	
+	endforeach()
 endmacro()
 
 macro(deploy_pyside)
@@ -162,7 +162,7 @@ macro(deploy_pyside)
 	# Only copy debug DLLs and .pyd's if we are building in debug mode, otherwise take only the release versions.
 	if(CMAKE_BUILD_TYPE)
 		set(USE_CONFIG Debug)
-	endif()		
+	endif()
 	set(PYSIDE_DLLS "pyside2-python2.7-dbg.dll" "shiboken2-python2.7-dbg.dll")
 	file(GLOB FILES_TO_COPY RELATIVE "${PYSIDE_SOURCE}" "${PYSIDE_SOURCE}*_d.pyd")
 	deploy_pyside_files()
@@ -171,14 +171,14 @@ macro(deploy_pyside)
 	endif()
 	set(PYSIDE_DLLS "pyside2-python2.7.dll" "shiboken2-python2.7.dll")
 	file(GLOB FILES_TO_COPY RELATIVE "${PYSIDE_SOURCE}" "${PYSIDE_SOURCE}*[^_][^d].pyd")
-	deploy_pyside_files()	
+	deploy_pyside_files()
 	set(USE_CONFIG)
 	set(PYSIDE_DLLS)
 	file(GLOB FILES_TO_COPY RELATIVE "${PYSIDE_SOURCE}" "${PYSIDE_SOURCE}*.py" "${PYSIDE_SOURCE}scripts/*.py")
 	deploy_pyside_files()
-	
+
 	deploy_runtime_dir("${PYSIDE_SDK_SOURCE}pyside2uic" "pyside2uic")
-	
+
 endmacro()
 
 macro(copy_binary_files_to_target)
@@ -188,7 +188,7 @@ macro(copy_binary_files_to_target)
 	endif()
 
 	message( STATUS "copy_binary_files_to_target start ${BUILD_PLATFORM}" )
-	
+
 	add_optional_runtime_files()
 
 	set( file_list_name "BinaryFileList_${BUILD_PLATFORM}" )
@@ -206,7 +206,7 @@ macro(copy_binary_files_to_target)
 		endforeach()
 		set(USE_CONFIG)
 	endforeach()
-  
+
 	if (ORBIS)
 		deploy_runtime_files("${SDK_DIR}/Orbis/target/sce_module/*.prx" "app/sce_module")
 	endif()
@@ -248,7 +248,7 @@ macro(copy_binary_files_to_target)
 			list(GET DEPLOY_FILES ${idxIncr2} destination)
 
 			if(source MATCHES "<") # Source contains generator expression; deploy at build time
-				add_custom_command(OUTPUT ${destination} 
+				add_custom_command(OUTPUT ${destination}
 					COMMAND ${CMAKE_COMMAND} "-DSOURCE=\"${source}\"" "-DDESTINATION=\"${destination}\"" -P "${TOOLS_CMAKE_DIR}/deploy_runtime_files.cmake"
 					COMMENT "Deploying ${source_file}"
 					DEPENDS "${source}")

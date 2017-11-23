@@ -714,7 +714,7 @@ namespace BehaviorTree
 			// Check if target is in navigation mesh
 			if (m_failIfTargetNotInNavigationMesh)
 			{
-				if (!gEnv->pAISystem->GetNavigationSystem()->IsLocationContainedWithinTriangleInNavigationMesh(agent.GetAIActor()->GetNavigationTypeID(), targetPosition, 5.0f, 0.5f))
+				if (!gEnv->pAISystem->GetNavigationSystem()->IsLocationValidInNavigationMesh(agent.GetAIActor()->GetNavigationTypeID(), targetPosition, 5.0f, 0.5f))
 				{
 					return false;
 				}

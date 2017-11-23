@@ -68,7 +68,7 @@ bool CLensGhost::PreparePrimitives(const SPreparePrimitivesContext& context)
 	ApplyGeneralFlags(rtFlags);
 	ApplyOcclusionBokehFlag(rtFlags);
 
-	CTexture* pGhostTex = GetTexture() ? GetTexture() : CTexture::s_ptexBlack;
+	CTexture* pGhostTex = GetTexture() ? GetTexture() : CRendererResources::s_ptexBlack;
 	m_primitive.SetTechnique(CShaderMan::s_ShaderLensOptics, techGhost, rtFlags);
 	m_primitive.SetRenderState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ONE);
 	m_primitive.SetPrimitiveType(CRenderPrimitive::ePrim_FullscreenQuadCentered);
@@ -82,7 +82,7 @@ bool CLensGhost::PreparePrimitives(const SPreparePrimitivesContext& context)
 		if (m_globalOcclusionBokeh)
 			ApplyOcclusionPattern(constants, m_primitive);
 		else
-			m_primitive.SetTexture(5, CTexture::s_ptexBlack);
+			m_primitive.SetTexture(5, CRendererResources::s_ptexBlack);
 
 		ColorF c = m_globalColor;
 		c.NormalizeCol(c);

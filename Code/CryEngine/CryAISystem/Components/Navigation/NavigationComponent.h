@@ -6,6 +6,7 @@
 #include "CollisionAvoidanceAgent.h"
 
 #include <CryAISystem/MovementRequest.h>
+#include <CryAISystem/NavigationSystem/INavigationQuery.h>
 
 #include <CrySerialization/Forward.h>
 #include <CryEntitySystem/IEntityComponent.h>
@@ -103,7 +104,7 @@ public:
 	virtual void   Initialize() override;
 	virtual void   OnShutDown() override;
 
-	virtual void   ProcessEvent(SEntityEvent& event) override;
+	virtual void   ProcessEvent(const SEntityEvent& event) override;
 	virtual uint64 GetEventMask() const override;
 	// ~IEntityComponent
 
@@ -150,6 +151,7 @@ private:
 	Vec3                                 GetPosition() const;
 
 	NavigationAgentTypeID                GetNavigationTypeId() const             { return m_movementAdapter.GetNavigationAgentTypeID(); }
+	const INavMeshQueryFilter*        GetNavigationQueryFilter() const { return &m_navigationQueryFilter; }
 
 	const SMovementProperties&           GetMovementProperties() const           { return m_movementProperties; }
 	const SCollisionAvoidanceProperties& GetCollisionAvoidanceProperties() const { return m_collisionAvoidanceProperties; }
@@ -188,6 +190,8 @@ private:
 	bool                          m_lastPathRequestFailed;
 
 	StateUpdatedCallback          m_stateUpdatedCallback;
+
+	SNavMeshQueryFilterDefault    m_navigationQueryFilter;
 };
 
 void ReflectType(Schematyc::CTypeDesc<CEntityAINavigationComponent::SCollisionAvoidanceProperties::EType>& desc);

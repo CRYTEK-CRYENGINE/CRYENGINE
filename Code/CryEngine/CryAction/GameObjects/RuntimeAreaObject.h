@@ -42,7 +42,8 @@ public:
 	virtual ISerializableInfoPtr GetSpawnInfo() override                                                                  { return NULL; }
 	virtual void                 Update(SEntityUpdateContext& ctx, int slot) override                                     {}
 	virtual void                 HandleEvent(const SGameObjectEvent& gameObjectEvent) override                            {}
-	virtual void                 ProcessEvent(SEntityEvent& entityEvent) override;
+	virtual void                 ProcessEvent(const SEntityEvent& entityEvent) override;
+	virtual uint64               GetEventMask() const override;
 	virtual void                 SetChannelId(uint16 id) override                                                         {}
 	virtual void                 PostUpdate(float frameTime) override                                                     { CRY_ASSERT(false); }
 	virtual void                 PostRemoteSpawn() override                                                               {}

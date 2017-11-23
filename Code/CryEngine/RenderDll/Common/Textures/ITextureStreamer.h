@@ -58,6 +58,8 @@ protected:
 		return m_textures;
 	}
 
+	CryCriticalSection& GetAccessLock() { return m_accessLock; }
+
 private:
 	size_t StatsComputeRequiredMipMemUsage();
 
@@ -65,6 +67,9 @@ private:
 	TStreamerTextureVec m_pendingRelinks;
 	TStreamerTextureVec m_pendingUnlinks;
 	TStreamerTextureVec m_textures;
+	
+	// MT Locks access to m_pendingRelinks,m_pendingUnlinks,m_textures
+	CryCriticalSection  m_accessLock;
 };
 
 #endif

@@ -4,6 +4,9 @@ using CryEngine.Common;
 
 namespace CryEngine.Animations
 {
+	/// <summary>
+	/// Defines an action of an animation context.
+	/// </summary>
 	public sealed class AnimationContextAction
 	{
 		internal AnimationContextActionList NativeHandle { get; private set; }

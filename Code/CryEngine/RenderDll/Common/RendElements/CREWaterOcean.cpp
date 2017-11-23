@@ -52,33 +52,9 @@ struct SCompiledWaterOcean : NoCopy
 		, m_reserved(0)
 	{}
 
-	~SCompiledWaterOcean()
-	{
-		ReleaseDeviceResources();
-	}
-
-	void ReleaseDeviceResources()
-	{
-		if (m_pMaterialResourceSet)
-		{
-			gRenDev->m_pRT->RC_ReleaseRS(m_pMaterialResourceSet);
-		}
-
-		if (m_pPerInstanceResourceSet)
-		{
-			gRenDev->m_pRT->RC_ReleaseRS(m_pPerInstanceResourceSet);
-		}
-
-		if (m_pPerInstanceCB)
-		{
-			gRenDev->m_pRT->RC_ReleaseCB(m_pPerInstanceCB);
-			m_pPerInstanceCB = nullptr;
-		}
-	}
-
 	CDeviceResourceSetPtr     m_pMaterialResourceSet;
 	CDeviceResourceSetPtr     m_pPerInstanceResourceSet;
-	CConstantBuffer*          m_pPerInstanceCB;
+	CConstantBufferPtr        m_pPerInstanceCB;
 
 	const CDeviceInputStream* m_vertexStreamSet;
 	const CDeviceInputStream* m_indexStreamSet;
@@ -166,10 +142,10 @@ CREWaterOcean::CREWaterOcean()
 
 	if (m_pRenderTarget->m_nIDInPool >= 0)
 	{
-		if ((int)CTexture::s_CustomRT_2D.Num() <= m_pRenderTarget->m_nIDInPool)
-			CTexture::s_CustomRT_2D.Expand(m_pRenderTarget->m_nIDInPool + 1);
+		if ((int)CRendererResources::s_CustomRT_2D.Num() <= m_pRenderTarget->m_nIDInPool)
+			CRendererResources::s_CustomRT_2D.Expand(m_pRenderTarget->m_nIDInPool + 1);
 	}
-	m_pRenderTarget->m_pTarget[0] = CTexture::s_ptexRT_2D;
+	m_pRenderTarget->m_pTarget = CRendererResources::s_ptexRT_2D;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -178,21 +154,6 @@ CREWaterOcean::CREWaterOcean()
 CREWaterOcean::~CREWaterOcean()
 {
 	ReleaseOcean();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void CREWaterOcean::Release(bool bForce /*= false*/)
-{
-	// NOTE: ReleaseDeviceResources() must be called here because a device resource set holds the pointer to ocean reflection texture grabbed from SHRenderTarget::GetEnv2D(),
-	//       and it has to be released before SDynTexture::ShutDown() is called. Otherwise a assertion happens in SDynTexture::ReleaseDynamicRT().
-	if (m_pCompiledObject)
-	{
-		m_pCompiledObject->ReleaseDeviceResources();
-	}
-
-	CRenderElement::Release(bForce);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -242,7 +203,7 @@ bool CREWaterOcean::RequestVerticesBuffer(SVF_P3F_C4B_T2F** pOutputVertices, uin
 
 	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 	SRenderPipeline& rp(rd->m_RP);
-	auto nThreadID = rp.m_nFillThreadID;
+	auto nThreadID = gRenDev->GetMainThreadID();
 	CRY_ASSERT(rd->m_pRT->IsMainThread());
 
 	*pOutputVertices = new SVF_P3F_C4B_T2F[nVerticesCount];
@@ -274,7 +235,7 @@ bool CREWaterOcean::SubmitVerticesBuffer(uint32 nVerticesCount, uint32 nIndicesC
 
 	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 	SRenderPipeline& rp(rd->m_RP);
-	auto nThreadID = rp.m_nFillThreadID;
+	auto nThreadID = gRenDev->GetMainThreadID();
 	CRY_ASSERT(rd->m_pRT->IsMainThread());
 
 	auto& requests = m_verticesUpdateRequests[nThreadID];
@@ -385,18 +346,18 @@ void CREWaterOcean::FrameUpdate()
 	const int nGridSize = 64;
 
 	// Update Vertex Texture
-	if (!CTexture::IsTextureExist(CTexture::s_ptexWaterOcean))
+	if (!CTexture::IsTextureExist(CRendererResources::s_ptexWaterOcean))
 	{
-		CTexture::s_ptexWaterOcean->Create2DTexture(nGridSize, nGridSize, 1, FT_DONT_RELEASE | FT_NOMIPS | FT_STAGE_UPLOAD, 0, eTF_R32G32B32A32F);
+		CRendererResources::s_ptexWaterOcean->Create2DTexture(nGridSize, nGridSize, 1, FT_DONT_RELEASE | FT_NOMIPS | FT_STAGE_UPLOAD, 0, eTF_R32G32B32A32F);
 	}
 
-	CTexture* pTexture = CTexture::s_ptexWaterOcean;
+	CTexture* pTexture = CRendererResources::s_ptexWaterOcean;
 
 	// Copy data..
 	if (CTexture::IsTextureExist(pTexture))
 	{
 		const float fUpdateTime = 0.125f * gEnv->pTimer->GetCurrTime();// / clamp_tpl<float>(pParams1.x, 0.55f, 1.0f);
-		int nFrameID = gRenDev->GetFrameID();
+		int nFrameID = gRenDev->GetRenderFrameID();
 		void* pRawPtr = NULL;
 		WaterSimMgr()->Update(nFrameID, fUpdateTime, false, pRawPtr);
 
@@ -439,7 +400,7 @@ void CREWaterOcean::ReleaseOcean()
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool CREWaterOcean::Compile(CRenderObject* pObj)
+bool CREWaterOcean::Compile(CRenderObject* pObj,CRenderView *pRenderView)
 {
 	if (!m_pCompiledObject)
 	{
@@ -450,8 +411,8 @@ bool CREWaterOcean::Compile(CRenderObject* pObj)
 	cro.m_bValid = 0;
 
 	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
-	SRenderPipeline& rp(rd->m_RP);
-	auto nThreadID = rp.m_nProcessThreadID;
+	SRenderPipeline& rp(gRenDev->m_RP);
+	auto nThreadID = gRenDev->GetRenderThreadID();
 	CRY_ASSERT(rd->m_pRT->IsRenderThread());
 	auto* pWaterStage = rd->GetGraphicsPipeline().GetWaterStage();
 
@@ -493,7 +454,7 @@ bool CREWaterOcean::Compile(CRenderObject* pObj)
 	}
 
 	N3DEngineCommon::SOceanInfo& OceanInfo = gRenDev->m_p3DEngineCommon.m_OceanInfo;
-	const bool bAboveWater = gRenDev->GetRCamera().vOrigin.z > OceanInfo.m_fWaterLevel;
+	const bool bAboveWater = pRenderView->GetCamera(CCamera::eEye_Left).GetPosition().z > OceanInfo.m_fWaterLevel;
 	cro.m_bAboveWater = bAboveWater ? 1 : 0;
 
 	const InputLayoutHandle vertexFormat =  EDefaultInputLayouts::P3F_C4B_T2F;
@@ -552,7 +513,7 @@ bool CREWaterOcean::Compile(CRenderObject* pObj)
 	psoDescription.objectRuntimeMask |= g_HWSR_MaskBit[HWSR_COMPUTE_SKINNING];
 
 	// fog related runtime mask, this changes eventual PSOs.
-	const bool bFog = rp.m_TI[nThreadID].m_FS.m_bEnable;
+	const bool bFog = pRenderView->IsGlobalFogEnabled();
 	const bool bVolumetricFog = (rd->m_bVolumetricFogEnabled != 0);
 	psoDescription.objectRuntimeMask |= bFog ? g_HWSR_MaskBit[HWSR_FOG] : 0;
 	psoDescription.objectRuntimeMask |= bVolumetricFog ? g_HWSR_MaskBit[HWSR_VOLUMETRIC_FOG] : 0;
@@ -611,7 +572,7 @@ void CREWaterOcean::DrawToCommandList(CRenderObject* pObj, const struct SGraphic
 #if defined(ENABLE_PROFILING_CODE)
 	if (!cobj.m_bValid || !cobj.m_pMaterialResourceSet->IsValid())
 	{
-		CryInterlockedIncrement(&SPipeStat::Out()->m_nIncompleteCompiledObjects);
+		CryInterlockedIncrement(&SRenderStatistics::Write().m_nIncompleteCompiledObjects);
 	}
 #endif
 
@@ -700,11 +661,11 @@ void CREWaterOcean::UpdatePerInstanceResourceSet(water::SCompiledWaterOcean& RES
 {
 	CDeviceResourceSetDesc perInstanceResources(waterStage.GetDefaultPerInstanceResources(), nullptr, nullptr);
 
-	auto* pDisplacementTex = (oceanParam.bWaterOceanFFT) ? CTexture::s_ptexWaterOcean : CTexture::s_ptexBlack;
+	auto* pDisplacementTex = (oceanParam.bWaterOceanFFT) ? CRendererResources::s_ptexWaterOcean : CRendererResources::s_ptexBlack;
 	perInstanceResources.SetTexture(water::ePerInstanceTexture_OceanDisplacement, pDisplacementTex, EDefaultResourceViews::Default, EShaderStage_Pixel | EShaderStage_Vertex | EShaderStage_Domain);
 
 	// get ocean reflection texture from render target.
-	auto* pReflectionTex = CTexture::s_ptexBlack;
+	auto* pReflectionTex = CRendererResources::s_ptexBlack;
 	if (m_pRenderTarget)
 	{
 		SEnvTexture* pEnvTex = m_pRenderTarget->GetEnv2D();
@@ -728,7 +689,7 @@ void CREWaterOcean::UpdatePerInstanceCB(water::SCompiledWaterOcean& RESTRICT_REF
 
 	if (!compiledObj.m_pPerInstanceCB)
 	{
-		compiledObj.m_pPerInstanceCB = rd->m_DevBufMan.CreateConstantBufferRaw(sizeof(water::SPerInstanceConstantBuffer));
+		compiledObj.m_pPerInstanceCB = rd->m_DevBufMan.CreateConstantBuffer(sizeof(water::SPerInstanceConstantBuffer));
 	}
 
 	if (!compiledObj.m_pPerInstanceCB)

@@ -18,8 +18,6 @@ public:
 
 	virtual CAnimParamType              GetParameterType() const override { return m_paramType; }
 
-	virtual void                        Release() override                { if (--m_nRefCounter <= 0) { delete this; } }
-
 	virtual int                         GetNumKeys() const override;
 	virtual bool                        HasKeys() const override;
 	virtual void                        RemoveKey(int num) override;

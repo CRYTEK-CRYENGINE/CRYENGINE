@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   VoxelSegment.cpp
@@ -52,19 +52,19 @@ int CVoxelSegment::m_nUpdatesInProgressTex = 0;
 int CVoxelSegment::m_nVoxTrisCounter = 0;
 int CVoxelSegment::nVoxTexPoolDimXY = 0;
 int CVoxelSegment::nVoxTexPoolDimZ = 0;
+bool CVoxelSegment::m_bExportMode = false;
+int CVoxelSegment::m_nExportVisitedAreasCounter = 0;
+PodArray<C3DEngine::SLayerActivityInfo> CVoxelSegment::m_arrObjectLayersInfo;
+uint CVoxelSegment::m_arrObjectLayersInfoVersion = 0;
+
 std::map<CStatObj*, float> CVoxelSegment::m_cgfTimeStats;
 CryReadModifyLock CVoxelSegment::m_cgfTimeStatsLock;
 
-PodArrayRT<ITexture*> CVoxelSegment::m_arrLockedTextures;
-PodArrayRT<IMaterial*> CVoxelSegment::m_arrLockedMaterials;
+CLockedMap<ITexture*, _smart_ptr<ITexture>> CVoxelSegment::m_arrLockedTextures;
+CLockedMap<IMaterial*, _smart_ptr<IMaterial>> CVoxelSegment::m_arrLockedMaterials;
 
 PodArray<CVoxelSegment*> CVoxelSegment::m_arrLoadedSegments;
 SRenderingPassInfo* CVoxelSegment::m_pCurrPassInfo = 0;
-
-#if CRY_PLATFORM_ORBIS
-int   _fseeki64(FILE* pFile, int64 nOffset, int nOrigin) { return fseek(pFile, (int32)nOffset, nOrigin); }
-int64 _ftelli64(FILE* pFile)                             { return ftell(pFile); }
-#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Streaming engine
@@ -85,104 +85,57 @@ public:
 			if (p[0]->nRequestFrameId < p[1]->nRequestFrameId)
 				return -1;
 
-	#ifdef FEATURE_SVO_GI_USE_FILE_STREAMING
-			if (p[0]->nFileOffset > p[1]->nFileOffset)
-				return 1;
-			if (p[0]->nFileOffset < p[1]->nFileOffset)
-				return -1;
-	#endif
 			return 0;
 		}
 
 		CVoxelSegment* pObj;
-	#ifdef FEATURE_SVO_GI_USE_FILE_STREAMING
-		int64          nFileOffset;
-		int            nBytesToRead;
-		byte*          pReadData;
-	#endif
 		uint           nRequestFrameId;
 	};
 
-	void        ThreadEntry();
+	void ThreadEntry();
 
-  #if CRY_PLATFORM_ORBIS
+	#if CRY_PLATFORM_ORBIS
 	static void* FileReadThreadFunc(void* pUD)
 	{
 		CVoxStreamEngine* pEng = (CVoxStreamEngine*)pUD;
 		pEng->ThreadEntry();
 		return NULL;
 	}
-  #else
+	#else
 	static void FileReadThreadFunc(void* pUD)
 	{
 		CVoxStreamEngine* pEng = (CVoxStreamEngine*)pUD;
 		pEng->ThreadEntry();
 	}
-  #endif
+	#endif
 
 	SThreadSafeArray<SVoxStreamItem*, 512> m_arrForFileRead;
 	SThreadSafeArray<SVoxStreamItem*, 512> m_arrForSyncCallBack;
-	#ifdef FEATURE_SVO_GI_USE_FILE_STREAMING
-	byte* m_pMemPool;
-	int   m_nPoolSize;
-	int   m_nPoolPos;
-	FILE* m_pFile;
-	#endif
-	bool  m_bDoResort;
+	bool m_bDoResort;
 
-	CVoxStreamEngine(string strFileName, int nPoolSize)
+	CVoxStreamEngine()
 	{
 		m_bDoResort = false;
-	#ifdef FEATURE_SVO_GI_USE_FILE_STREAMING
-		m_nPoolSize = nPoolSize;
-		m_pMemPool = NULL;
-		m_nPoolPos = 0;
-		m_pFile = fopen(strFileName, "rb");
-		if (m_pFile || Cry3DEngineBase::GetCVars()->e_svoTI_Active)
-	#endif
 		{
-			//			const char * szThreadName = "SvoStreamEngine";
-			//      if(!gEnv->pThreadManager->SpawnThread(this, szThreadName))
-			//      {
-			//        CRY_ASSERT_MESSAGE(false, string().Format("Error spawning \"%s\" thread.", szThreadName).c_str());
-			//        __debugbreak();
-			//      }
-			//			_beginthread(FileReadThreadFunc,0,(void*)this);
-
 	#if CRY_PLATFORM_DURANGO
 			void* m_thread;
 			uint32 m_threadId;
 
 			m_threadId = 0;
-			m_thread = (void*)CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)FileReadThreadFunc, (void*)this, 0, (LPDWORD)&m_threadId);
+			m_thread = (void*)CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)FileReadThreadFunc, (void*)this, 0, (LPDWORD)&m_threadId);
 			SetThreadPriority(m_thread, THREAD_PRIORITY_BELOW_NORMAL);
 			if (Cry3DEngineBase::GetCVars()->e_svoTI_ThreadAffinity0 >= 0)
 			{
 				SetThreadAffinityMask(m_thread, BIT64(Cry3DEngineBase::GetCVars()->e_svoTI_ThreadAffinity0));
 			}
-
-			m_threadId = 0;
-			m_thread = (void*)CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)FileReadThreadFunc, (void*)this, 0, (LPDWORD)&m_threadId);
-			SetThreadPriority(m_thread, THREAD_PRIORITY_BELOW_NORMAL);
-			if (Cry3DEngineBase::GetCVars()->e_svoTI_ThreadAffinity1 >= 0)
-			{
-				SetThreadAffinityMask(m_thread, BIT64(Cry3DEngineBase::GetCVars()->e_svoTI_ThreadAffinity1));
-			}
 	#elif CRY_PLATFORM_ORBIS
 			ScePthread m_thread0;
+
 			::scePthreadCreate(&m_thread0, nullptr, FileReadThreadFunc, (void*)this, "VoxelThread_0");
 			::scePthreadSetprio(m_thread0, THREAD_PRIORITY_BELOW_NORMAL);
 			if (Cry3DEngineBase::GetCVars()->e_svoTI_ThreadAffinity0 >= 0)
 			{
 				::scePthreadSetaffinity(m_thread0, BIT64(Cry3DEngineBase::GetCVars()->e_svoTI_ThreadAffinity0));
-			}
-
-			ScePthread m_thread1;
-			::scePthreadCreate(&m_thread1, nullptr, FileReadThreadFunc, (void*)this, "VoxelThread_1");
-			::scePthreadSetprio(m_thread1, THREAD_PRIORITY_BELOW_NORMAL);
-			if (Cry3DEngineBase::GetCVars()->e_svoTI_ThreadAffinity1 >= 0)
-			{
-				::scePthreadSetaffinity(m_thread1, BIT64(Cry3DEngineBase::GetCVars()->e_svoTI_ThreadAffinity1));
 			}
 	#else
 			_beginthread(FileReadThreadFunc, 0, (void*)this);
@@ -203,11 +156,8 @@ public:
 
 	void DecompressVoxStreamItem(SVoxStreamItem item)
 	{
-	#ifdef FEATURE_SVO_GI_USE_FILE_STREAMING
-		item.pObj->StreamAsyncOnComplete(item.pReadData, item.nBytesToRead, (int)0);
-	#else
-		item.pObj->StreamAsyncOnComplete(0, 0, 0);
-	#endif
+		item.pObj->StreamAsyncOnComplete(0, 0);
+
 		SVoxStreamItem* pNewItem = new SVoxStreamItem;
 		*pNewItem = item;
 
@@ -218,7 +168,7 @@ public:
 	{
 		while (SVoxStreamItem* pItem = m_arrForSyncCallBack.GetNextTaskFromQeue())
 		{
-			pItem->pObj->StreamOnComplete();
+			pItem->pObj->StreamOnComplete(0, 0);
 			delete pItem;
 			CVoxelSegment::m_nTasksInProgressALL--;
 		}
@@ -229,6 +179,7 @@ public:
 }* pVoxStreamEngine = 0;
 
 DECLARE_JOB("VoxelSegmentFileDecompress", TDecompressVoxStreamItemJob, CVoxStreamEngine::DecompressVoxStreamItem);
+DECLARE_JOB("VoxelSegmentBuildVoxels", TBuildVoxelsJob, CVoxelSegment::BuildVoxels);
 
 void CVoxStreamEngine::ThreadEntry()
 {
@@ -245,28 +196,6 @@ void CVoxStreamEngine::ThreadEntry()
 
 		if (SVoxStreamItem* pItem = m_arrForFileRead.GetNextTaskFromQeue())
 		{
-	#ifdef FEATURE_SVO_GI_USE_FILE_STREAMING
-			if (pItem->nBytesToRead > 0)
-			{
-				// load data
-				_fseeki64(m_pFile, pItem->nFileOffset, SEEK_SET);
-
-				if (m_nPoolPos + pItem->nBytesToRead >= m_nPoolSize)
-				{
-					m_nPoolPos = 0;
-					// Cry3DEngineBase::PrintMessage("Pool restart");
-				}
-
-				if (!m_pMemPool)
-					m_pMemPool = new byte[m_nPoolSize];
-
-				pItem->pReadData = &m_pMemPool[m_nPoolPos];
-				m_nPoolPos += pItem->nBytesToRead;
-
-				if (pItem->nBytesToRead != ::fread(pItem->pReadData, 1, pItem->nBytesToRead, m_pFile))
-					CVoxelSegment::ErrorTerminate("FileReadThreadFunc, fread");
-			}
-	#endif
 			if (Cry3DEngineBase::GetCVars()->e_svoMaxStreamRequests > 4)
 			{
 				TDecompressVoxStreamItemJob job(*pItem);
@@ -277,7 +206,6 @@ void CVoxStreamEngine::ThreadEntry()
 			else
 			{
 				DecompressVoxStreamItem(*pItem);
-				// todo: wait in loop until all done, don't uase jobs
 			}
 
 			delete pItem;
@@ -303,11 +231,6 @@ bool CVoxStreamEngine::StartRead(CVoxelSegment* pObj, int64 nFileOffset, int nBy
 
 	SVoxStreamItem* pNewItem = new SVoxStreamItem;
 	pNewItem->pObj = pObj;
-	#ifdef FEATURE_SVO_GI_USE_FILE_STREAMING
-	pNewItem->nFileOffset = nFileOffset;
-	pNewItem->nBytesToRead = nBytesToRead;
-	pNewItem->pReadData = 0;
-	#endif
 	pNewItem->nRequestFrameId = GetCurrPassMainFrameID() / 10;
 
 	CVoxelSegment::m_nTasksInProgressALL++;
@@ -344,13 +267,6 @@ CVoxelSegment::CVoxelSegment(class CSvoNode* pNode, bool bDumpToDiskInUse, EFile
 	m_pBlockInfo = 0;
 	m_pNode = pNode;
 	m_pParentCloud = 0;
-	m_pVoxOpacit = 0;
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-	m_pVoxVolume = m_pVoxNormal = 0;
-		#ifdef FEATURE_SVO_GI_USE_MESH_RT
-	m_pVoxTris = 0;
-		#endif
-	#endif
 	m_vCropBoxMin.zero();
 	m_vCropTexSize.zero();
 	m_vSegOrigin = Vec3(0, 0, 0);
@@ -440,26 +356,7 @@ CVoxelSegment::~CVoxelSegment()
 	FreeRenderData();
 }
 
-int32 IntersectPlaneAABB(const Plane& plane, const AABB& aabb)
-{
-	Vec3 extents = aabb.GetSize() * 0.5f;
-
-	f32 d1 = plane.DistFromPlane(aabb.GetCenter());
-
-	f32 d2 =
-	  fabs(extents.x * plane.n.Dot(Vec3(1, 0, 0))) +
-	  fabs(extents.y * plane.n.Dot(Vec3(0, 1, 0))) +
-	  fabs(extents.z * plane.n.Dot(Vec3(0, 0, 1)));
-
-	if (d1 - d2 > FLT_EPSILON)
-		return +1;
-	if (d1 + d2 < -FLT_EPSILON)
-		return -1;
-
-	return 0;
-}
-
-void CVoxelSegment::RenderMesh(CRenderObject* pObj, PodArray<SVF_P3F_C4B_T2F>& arrVertsOut)
+void CVoxelSegment::RenderMesh(PodArray<SVF_P3F_C4B_T2F>& arrVertsOut)
 {
 	m_nLastRendFrameId = GetCurrPassMainFrameID();
 
@@ -480,22 +377,38 @@ void CVoxelSegment::RenderMesh(CRenderObject* pObj, PodArray<SVF_P3F_C4B_T2F>& a
 	}
 }
 
-bool CVoxelSegment::LoadFromMem(CMemoryBlock* pMB)
+bool CVoxelSegment::LoadVoxels(byte* pDataRead, int nDataSize)
 {
-	byte* pData = (byte*)pMB->GetData();
+	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "LoadVoxels");
+
+	byte* pData = (byte*)pDataRead;
+
 	SVoxSegmentFileHeader* pHeader = (SVoxSegmentFileHeader*)pData;
-	m_nSegID = pHeader->nSecId;
-	m_boxOS = pHeader->box;
-	//m_vAverNormal = pHeader->vAverNormal;
+
+	m_boxOS = m_pNode->m_nodeBox;
+	m_boxOS.min -= m_vSegOrigin;
+	m_boxOS.max -= m_vSegOrigin;
 
 	pData += sizeof(SVoxSegmentFileHeader);
 
 	FreeAllBrickData();
 
-	m_vCropTexSize = pHeader->vCropTexSize;
-	m_vCropBoxMin = pHeader->vCropBoxMin;
+	m_vCropTexSize.x = pHeader->cropTexSize.x;
+	m_vCropTexSize.y = pHeader->cropTexSize.y;
+	m_vCropTexSize.z = pHeader->cropTexSize.z;
+
+	m_vCropBoxMin.x = pHeader->cropBoxMin.x;
+	m_vCropBoxMin.y = pHeader->cropBoxMin.y;
+	m_vCropBoxMin.z = pHeader->cropBoxMin.z;
+
+	bool bUnpackFrom16bit = true;
 
 	int nTexDataSize = (m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z * sizeof(ColorB));
+
+	if (bUnpackFrom16bit)
+	{
+		nTexDataSize /= 2;
+	}
 
 	if (gSvoEnv->m_nVoxTexFormat == eTF_BC3)
 	{
@@ -505,44 +418,77 @@ bool CVoxelSegment::LoadFromMem(CMemoryBlock* pMB)
 
 	if (int nDataSize = nTexDataSize)
 	{
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-		// loads RGB
-		CheckAllocateBrick(m_pVoxVolume, nDataSize / sizeof(ColorB));
-		memcpy(m_pVoxVolume, pData, nDataSize);
-		pData += nDataSize;
+		assert(m_objLayerMap.empty());
 
-		// load normals
-		CheckAllocateBrick(m_pVoxNormal, nDataSize / sizeof(ColorB));
-		memcpy(m_pVoxNormal, pData, nDataSize);
-		pData += nDataSize;
-	#endif
-
-		CheckAllocateBrick(m_pVoxOpacit, nDataSize / sizeof(ColorB));
-		memcpy(m_pVoxOpacit, pData, nDataSize);
-		pData += nDataSize;
-
-		if (gSvoEnv->m_nVoxTexFormat == eTF_R8G8B8A8)
+		// for every layer
+		for (int s = 0; s < pHeader->cropTexSize.w; s++)
 		{
-			uint8 nMaxAlphaInBrick = 0;
+			uint32 nLayerId = *((uint32*)pData);
+			pData += sizeof(uint32);
 
-			int nPixNum = m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z;
-			for (int i = 0; i < nPixNum; i++)
+			SVoxData voxData;
+
+			assert(GetSubSetsNum() == pHeader->cropBoxMin.w); // number of subset in file must be compatible with current GI settings
+
+			// for every subset
+			for (int s = 0; s < GetSubSetsNum(); s++)
 			{
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-				ColorB& col = m_pVoxVolume[i];
-				std::swap(col.r, col.b);
-				nMaxAlphaInBrick = max(nMaxAlphaInBrick, col.a);
+				CheckAllocateBrick(voxData.pVoxData[s], nDataSize / sizeof(ColorB));
 
-				ColorB& nor = m_pVoxNormal[i];
-				std::swap(nor.r, nor.b);
-	#endif
-				ColorB& op = m_pVoxOpacit[i];
-				std::swap(op.r, op.b);
+				if (bUnpackFrom16bit)
+				{
+					byte* pDataOut = (byte*)voxData.pVoxData[s];
+
+					for (int i = 0; i < nTexDataSize; i++)
+					{
+						(*pDataOut) = (((*pData) >> 0) & 15) << 4;
+						pDataOut++;
+
+						(*pDataOut) = (((*pData) >> 4) & 15) << 4;
+						pDataOut++;
+
+						pData++;
+					}
+				}
+				else
+				{
+					memcpy(voxData.pVoxData[s], pData, nDataSize);
+
+					pData += nDataSize;
+				}
+
+				if (gSvoEnv->m_nVoxTexFormat == eTF_R8G8B8A8)
+				{
+					uint8 nMaxAlphaInBrick = 0;
+
+					// swap r and b
+					int nPixNum = m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z;
+
+					for (int p = 0; p < nPixNum; p++)
+					{
+						if (voxData.pVoxData[s])
+						{
+							ColorB& col = voxData.pVoxData[s][p];
+							std::swap(col.r, col.b);
+
+							if (s == 0)
+							{
+								nMaxAlphaInBrick = max(nMaxAlphaInBrick, col.a);
+							}
+						}
+					}
+
+					m_fMaxAlphaInBrick = 1.f / 255.f * (float)nMaxAlphaInBrick;
+				}
 			}
 
-			m_fMaxAlphaInBrick = 1.f / 255.f * (float)nMaxAlphaInBrick;
+			m_objLayerMap[nLayerId] = voxData;
 		}
+
+		CombineLayers();
 	}
+
+	assert((pData - pDataRead) == nDataSize);
 
 	return true;
 }
@@ -571,14 +517,12 @@ Vec3i CVoxelSegment::GetDxtDim()
 
 void CVoxelSegment::FreeAllBrickData()
 {
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-		#ifdef FEATURE_SVO_GI_USE_MESH_RT
-	FreeBrick(m_pVoxTris);
-		#endif
-	FreeBrick(m_pVoxNormal);
-	FreeBrick(m_pVoxVolume);
-	#endif
-	FreeBrick(m_pVoxOpacit);
+	FreeBrickLayers();
+
+	for (int s = 0; s < GetSubSetsNum(); s++)
+	{
+		FreeBrick(m_voxData.pVoxData[s]);
+	}
 
 	m_nodeTrisAllMerged.Reset();
 	m_boxTris.Reset();
@@ -589,6 +533,30 @@ void CVoxelSegment::FreeAllBrickData()
 		m_pVertInArea->Reset();
 		m_pMatsInArea->Reset();
 	}
+}
+
+void CVoxelSegment::FreeBrickLayers()
+{
+	for (auto& it : m_objLayerMap)
+	{
+		T_ObjectLayerId nLayerId = it.first;
+
+		SVoxData& voxData = it.second;
+
+		for (int s = 0; s < GetSubSetsNum(); s++)
+		{
+			if (voxData.pVoxData[s] != m_voxData.pVoxData[s])
+			{
+				FreeBrick(voxData.pVoxData[s]);
+			}
+			else
+			{
+				voxData.pVoxData[s] = nullptr;
+			}
+		}
+	}
+
+	m_objLayerMap.clear();
 }
 
 void CVoxelSegment::FreeRenderData()
@@ -604,52 +572,111 @@ void CVoxelSegment::MakeFolderName(char szFolder[256], bool bCreateDirectory)
 {
 	char szLevelFolder[MAX_PATH_LENGTH];
 	cry_strcpy(szLevelFolder, Cry3DEngineBase::Get3DEngine()->GetLevelFolder());
-	cry_strcat(szLevelFolder, "SvoData");
-	cry_sprintf(szFolder, 256, "%s/", szLevelFolder);
+	cry_sprintf(szFolder, 256, "%s", szLevelFolder);
 }
 
-string CVoxelSegment::m_strRenderDataFileName = "";
-
-void CVoxelSegment::StreamAsyncOnComplete(byte* pDataRead, int nBytesRead, int nTID)
+void CVoxelSegment::StreamAsyncOnComplete(IReadStream* pStream, unsigned nError)
 {
 	FUNCTION_PROFILER_3DENGINE;
 
 	if (m_nFileStreamSize < 0)
 	{
-		VoxelizeMeshes(nTID);
+		VoxelizeMeshes(0);
 		return;
 	}
 
+	if (pStream->IsError())
+	{
+		m_eStreamingStatus = ecss_Ready;
+		return;
+	}
+
+	byte* pDataRead = (byte*)pStream->GetBuffer();
+	int nBytesRead = pStream->GetBytesRead();
+
 	byte* pData = (byte*)pDataRead;
+
 	int nCompressedSize = *(int*)pData;
-	pData += 4;
+	pData += sizeof(int);
 
 	if (nCompressedSize)
 	{
-		if ((nCompressedSize < 0) || (nCompressedSize > nVoxTexMaxDim * nVoxTexMaxDim * nVoxTexMaxDim * 4 * 4))
+		if ((nCompressedSize < 0) || (nCompressedSize > nVoxTexMaxDim * nVoxTexMaxDim * nVoxTexMaxDim * 4 * 2))
+		{
 			ErrorTerminate("%s: Data corruption detected", __FUNCTION__);
+		}
 
-		CMemoryBlock mbComp;
-		mbComp.Allocate(nCompressedSize);
-		memcpy(mbComp.GetData(), pData, mbComp.GetSize());
-		pData += mbComp.GetSize();
+		CMemoryBlock mbZip;
+		mbZip.Allocate(nCompressedSize);
+		memcpy(mbZip.GetData(), pData, mbZip.GetSize());
 
-		CMemoryBlock* pUnpacked = CMemoryBlock::DecompressFromMemBlock(&mbComp, GetSystem());
+		pData += mbZip.GetSize();
+		while ((pData - pDataRead) & 3)
+		{
+			pData++;
+		}
+
+		CMemoryBlock* pUnpacked = CMemoryBlock::DecompressFromMemBlock(&mbZip, GetSystem());
+
 		if (!pUnpacked || !pUnpacked->GetSize())
-			ErrorTerminate("%s: DecompressFromMemBlock error %s", __FUNCTION__, m_strRenderDataFileName.c_str());
+		{
+			ErrorTerminate("%s: DecompressFromMemBlock error", __FUNCTION__);
+		}
 		else
-			LoadFromMem(pUnpacked);
+		{
+			LoadVoxels((byte*)pUnpacked->GetData(), pUnpacked->GetSize());
+		}
 
 		delete pUnpacked;
 	}
 
-	if (pData - (byte*)pDataRead != nBytesRead)
-		PrintMessage("Error reading mesh from %s, %.1f", m_strRenderDataFileName.c_str(), float(nBytesRead) / 1024.f / 1024.f);
-	//	else
-	//	PrintMessage("Loaded mesh from %s, %.1f", m_strRenderDataFileName.c_str(), float(nBytesRead)/1024.f/1024.f);
+	// load child info if available
+	if ((pData - pDataRead) + int(sizeof(uint32) * 2 * 8) <= nBytesRead)
+	{
+		bool bChildsExist = false;
+
+		for (int nChildId = 0; nChildId < 8; nChildId++)
+		{
+			if (((uint32*)pData)[nChildId * 2 + 1])
+			{
+				bChildsExist = true;
+				break;
+			}
+		}
+
+		if (bChildsExist)
+		{
+			m_pNode->m_pChildFileOffsets = new std::pair<uint32, uint32>[8];
+
+			for (int nChildId = 0; nChildId < 8; nChildId++)
+			{
+				m_pNode->m_pChildFileOffsets[nChildId].first = *(uint32*)pData; // file offset
+				pData += sizeof(uint32);
+
+				m_pNode->m_pChildFileOffsets[nChildId].second = *(uint32*)pData; // data size
+				pData += sizeof(uint32);
+
+				if (m_pNode->m_pChildFileOffsets[nChildId].second)
+				{
+					m_dwChildTrisTest |= (1 << nChildId);
+				}
+			}
+		}
+		else
+		{
+			pData += sizeof(uint32) * 2 * 8;
+		}
+	}
+
+	assert((pData - pDataRead) <= nBytesRead);
+
+	if ((pData - pDataRead) > nBytesRead)
+	{
+		ErrorTerminate("%s: Data size error, nBytesRead = %d, (pData - pDataRead) = %d", __FUNCTION__, nBytesRead, (pData - pDataRead));
+	}
 }
 
-void CVoxelSegment::StreamOnComplete()
+void CVoxelSegment::StreamOnComplete(IReadStream* pStream, unsigned nError)
 {
 	FUNCTION_PROFILER_3DENGINE;
 
@@ -660,7 +687,7 @@ void CVoxelSegment::StreamOnComplete()
 	if (m_arrLoadedSegments.Find(this) < 0)
 		m_arrLoadedSegments.Add(this);
 
-	if (m_vCropTexSize.GetVolume() == 0 || !m_pVoxOpacit)
+	if (m_vCropTexSize.GetVolume() == 0 || !m_voxData.pVoxData[SVoxData::OPA3D])
 	{
 		if (GetBoxSize() <= GetCVars()->e_svoMaxNodeSize && m_pParentCloud && !Cry3DEngineBase::GetCVars()->e_svoTI_Troposphere_Subdivide)
 		{
@@ -684,26 +711,48 @@ void CVoxelSegment::UnloadStreamableData()
 	m_arrLoadedSegments.Delete(this);
 
 	m_eStreamingStatus = ecss_NotLoaded;
-
-	//	char szFileName[256];
-	//MakeFileName("CCM", szFileName);
-
-	//	PrintMessage("Unloaded mesh (%d) %s", m_arrLoadedSegments.Count(), szFileName);
 }
 
 bool CVoxelSegment::StartStreaming()
 {
-	if (m_eStreamingStatus == ecss_InProgress)
-		return true;
-
 	if (m_eStreamingStatus != ecss_NotLoaded)
+	{
 		return true;
+	}
 
-	if (!pVoxStreamEngine)
-		pVoxStreamEngine = new CVoxStreamEngine(m_strRenderDataFileName, 128 * 1024 * 1024);
+	if (CSvoNode::IsStreamingActive() && m_pNode->m_nodeBox.GetSize().x <= SVO_ROOTLESS_PARENT_SIZE / 2)
+	{
+		// stream voxels from disk
 
-	if (!pVoxStreamEngine->StartRead(this, m_nFileStreamOffset64, m_nFileStreamSize))
-		return false;
+		assert(m_nFileStreamOffset64 >= 0 && m_nFileStreamSize);
+
+		StreamReadParams params;
+		params.nOffset = m_nFileStreamOffset64;
+		params.nSize = m_nFileStreamSize;
+		params.ePriority = estpAboveNormal;
+
+		CSvoNode* pAreaNode = m_pNode;
+
+		while (pAreaNode->m_nodeBox.GetSize().x < SVO_ROOTLESS_PARENT_SIZE / 2)
+		{
+			pAreaNode = pAreaNode->m_pParent;
+		}
+
+		char szAreaFileName[256];
+		pAreaNode->MakeNodeFilePath(szAreaFileName);
+
+		GetSystem()->GetStreamEngine()->StartRead(eStreamTaskTypeGeometry, szAreaFileName, this, &params);
+	}
+	else
+	{
+		// generate voxels on CPU
+
+		if (!pVoxStreamEngine)
+			pVoxStreamEngine = new CVoxStreamEngine();
+
+		if (!pVoxStreamEngine->StartRead(this, m_nFileStreamOffset64, m_nFileStreamSize))
+			return false;
+	}
 
 	m_eStreamingStatus = ecss_InProgress;
 
@@ -716,36 +765,40 @@ void CVoxelSegment::CropVoxTexture(int nTID, bool bCompSurfDist)
 {
 	m_vCropTexSize.Set(0, 0, 0);
 
-	if (!GetBrickDataSize(m_pVoxOpacit))
+	if (!GetBrickDataSize(m_voxData.pVoxData[SVoxData::OPA3D]))
+	{
 		return;
+	}
 
 	Vec3i vMin(nVoxTexMaxDim, nVoxTexMaxDim, nVoxTexMaxDim);
 	Vec3i vMax(0, 0, 0);
 
-	for (int x = 0; x < nVoxTexMaxDim; x++)
-		for (int y = 0; y < nVoxTexMaxDim; y++)
-			for (int z = 0; z < nVoxTexMaxDim; z++)
-			{
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-				ColorB& colOut = m_pVoxVolume[z * nVoxTexMaxDim * nVoxTexMaxDim + y * nVoxTexMaxDim + x];
-				ColorB& norOut = m_pVoxNormal[z * nVoxTexMaxDim * nVoxTexMaxDim + y * nVoxTexMaxDim + x];
-	#endif
+	for (auto& it : m_objLayerMap)
+	{
+		T_ObjectLayerId nLayerId = it.first;
 
-				ColorB& opaOut = m_pVoxOpacit[z * nVoxTexMaxDim * nVoxTexMaxDim + y * nVoxTexMaxDim + x];
+		SVoxData& voxData = it.second;
 
-				if (opaOut.r || opaOut.g || opaOut.b)
+		for (int x = 0; x < nVoxTexMaxDim; x++)
+			for (int y = 0; y < nVoxTexMaxDim; y++)
+				for (int z = 0; z < nVoxTexMaxDim; z++)
 				{
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-					norOut.a = 255;
-	#endif
-				}
+					const int id = z * nVoxTexMaxDim * nVoxTexMaxDim + y * nVoxTexMaxDim + x;
 
-				if ((opaOut.r || opaOut.g || opaOut.b) /*|| GetCVars()->e_svoTI_Active*/ || Cry3DEngineBase::GetCVars()->e_svoTI_Troposphere_Subdivide)
-				{
-					vMin.CheckMin(Vec3i(x, y, z));
-					vMax.CheckMax(Vec3i(x + 1, y + 1, z + 1));
+					ColorB& opaOut = voxData.pVoxData[SVoxData::OPA3D][id];
+
+					if ((opaOut.r || opaOut.g || opaOut.b) || Cry3DEngineBase::GetCVars()->e_svoTI_Troposphere_Subdivide)
+					{
+						vMin.CheckMin(Vec3i(x, y, z));
+						vMax.CheckMax(Vec3i(x + 1, y + 1, z + 1));
+					}
+
+					if (voxData.pVoxData[SVoxData::NORML] && (opaOut.r || opaOut.g || opaOut.b))
+					{
+						voxData.pVoxData[SVoxData::NORML][id].a = 255;
+					}
 				}
-			}
+	}
 
 	m_vCropTexSize = vMax - vMin;
 
@@ -762,100 +815,50 @@ void CVoxelSegment::CropVoxTexture(int nTID, bool bCompSurfDist)
 
 	if (m_vCropTexSize.x > 0 && m_vCropTexSize.y > 0 && m_vCropTexSize.z > 0)
 	{
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-		#ifdef FEATURE_SVO_GI_USE_MESH_RT
-		ColorB* pTex3dOptTRIS = new ColorB[m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z];
-		memset(pTex3dOptTRIS, 0, m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z * sizeof(ColorB));
-		#endif
-		ColorB* pTex3dOptRGBA = new ColorB[m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z];
-		memset(pTex3dOptRGBA, 0, m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z * sizeof(ColorB));
+		for (auto& it : m_objLayerMap)
+		{
+			T_ObjectLayerId nLayerId = it.first;
 
-		ColorB* pTex3dOptNorm = new ColorB[m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z];
-		memset(pTex3dOptNorm, 0, m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z * sizeof(ColorB));
-	#endif
+			SVoxData& voxDataIn = it.second;
 
-		ColorB* pTex3dOptOpas = new ColorB[m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z];
-		memset(pTex3dOptOpas, 0, m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z * sizeof(ColorB));
+			SVoxData voxTemp;
+			for (int s = 0; s < GetSubSetsNum(); s++)
+			{
+				voxTemp.pVoxData[s] = new ColorB[m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z];
+				memset(voxTemp.pVoxData[s], 0, m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z * sizeof(ColorB));
+			}
 
-		for (int x = 0; x < m_vCropTexSize.x; x++)
-			for (int y = 0; y < m_vCropTexSize.y; y++)
-				for (int z = 0; z < m_vCropTexSize.z; z++)
-				{
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-		#ifdef FEATURE_SVO_GI_USE_MESH_RT
-					ColorB& triOut = pTex3dOptTRIS[z * m_vCropTexSize.x * m_vCropTexSize.y + y * m_vCropTexSize.x + x];
-		#endif
-					ColorB& colOut = pTex3dOptRGBA[z * m_vCropTexSize.x * m_vCropTexSize.y + y * m_vCropTexSize.x + x];
-					ColorB& norOut = pTex3dOptNorm[z * m_vCropTexSize.x * m_vCropTexSize.y + y * m_vCropTexSize.x + x];
-	#endif
-					ColorB& opaOut = pTex3dOptOpas[z * m_vCropTexSize.x * m_vCropTexSize.y + y * m_vCropTexSize.x + x];
-
-					int x_in = x + vMin.x;
-					int y_in = y + vMin.y;
-					int z_in = z + vMin.z;
-
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-		#ifdef FEATURE_SVO_GI_USE_MESH_RT
-					ColorB& triIn = m_pVoxTris[z_in * nVoxTexMaxDim * nVoxTexMaxDim + y_in * nVoxTexMaxDim + x_in];
-		#endif
-					ColorB& colIn = m_pVoxVolume[z_in * nVoxTexMaxDim * nVoxTexMaxDim + y_in * nVoxTexMaxDim + x_in];
-					ColorB& norIn = m_pVoxNormal[z_in * nVoxTexMaxDim * nVoxTexMaxDim + y_in * nVoxTexMaxDim + x_in];
-	#endif
-					ColorB& opaIn = m_pVoxOpacit[z_in * nVoxTexMaxDim * nVoxTexMaxDim + y_in * nVoxTexMaxDim + x_in];
-
-					if (opaIn.r || opaIn.g || opaIn.b)
+			// copy cropped data into temp
+			for (int x = 0; x < m_vCropTexSize.x; x++)
+				for (int y = 0; y < m_vCropTexSize.y; y++)
+					for (int z = 0; z < m_vCropTexSize.z; z++)
 					{
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-		#ifdef FEATURE_SVO_GI_USE_MESH_RT
-						if (m_pVoxTris)
-							triOut = triIn;
-		#endif
-						colOut = colIn;
-						norOut = norIn;
-	#endif
+						int x_in = x + vMin.x;
+						int y_in = y + vMin.y;
+						int z_in = z + vMin.z;
 
-						opaOut = opaIn;
+						int id_in = z_in * nVoxTexMaxDim * nVoxTexMaxDim + y_in * nVoxTexMaxDim + x_in;
+
+						ColorB& opaIn = voxDataIn.pVoxData[SVoxData::OPA3D][id_in];
+
+						if (opaIn.r || opaIn.g || opaIn.b)
+						{
+							int id_out = z * m_vCropTexSize.x * m_vCropTexSize.y + y * m_vCropTexSize.x + x;
+
+							for (int s = 0; s < GetSubSetsNum(); s++)
+							{
+								voxTemp.pVoxData[s][id_out] = voxDataIn.pVoxData[s][id_in];
+							}
+						}
 					}
-				}
-		/*
-		   static float fTimeSumm = 0;
 
-		   {
-		   float fTimeStart = GetCurAsyncTimeSec();
-
-		   if(bCompSurfDist)
-		   {
-		   #ifdef FEATURE_SVO_GI_ALLOW_HQ
-		    ComputeDistancesFast_MinDistToSurf(pTex3dOptRGBA, pTex3dOptNorm, pTex3dOptOpas, nTID);
-		   #endif
-		   }
-
-		   fTimeSumm += GetCurAsyncTimeSec()-fTimeStart;
-		   }
-
-		   static int nCount = 0;
-		   nCount++;
-		   if(nCount==1000)
-		   {
-		   Cry3DEngineBase::PrintMessage("%s: fTimeSumm = %.1f for %d nodes", __FUNCTION__, fTimeSumm, nCount);
-		   //CVoxelSegment::ErrorTerminate("CVoxelSegment::SetDistanceToClosestVoxel: fTimeSumm = %.1f for %d nodes", fTimeSumm, nCount);
-		   }
-		 */
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-		#ifdef FEATURE_SVO_GI_USE_MESH_RT
-		if (m_pVoxTris)
-			memcpy(m_pVoxTris, pTex3dOptTRIS, sizeof(ColorB) * m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z);
-		SAFE_DELETE_ARRAY(pTex3dOptTRIS);
-		#endif
-		memcpy(m_pVoxVolume, pTex3dOptRGBA, sizeof(ColorB) * m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z);
-		SAFE_DELETE_ARRAY(pTex3dOptRGBA);
-
-		memcpy(m_pVoxNormal, pTex3dOptNorm, sizeof(ColorB) * m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z);
-		SAFE_DELETE_ARRAY(pTex3dOptNorm);
-	#endif
-
-		memcpy(m_pVoxOpacit, pTex3dOptOpas, sizeof(ColorB) * m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z);
-		SAFE_DELETE_ARRAY(pTex3dOptOpas);
+			// copy back from temp
+			for (int s = 0; s < GetSubSetsNum(); s++)
+			{
+				memcpy(voxDataIn.pVoxData[s], voxTemp.pVoxData[s], sizeof(ColorB) * m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z);
+				SAFE_DELETE_ARRAY(voxTemp.pVoxData[s]);
+			}
+		}
 
 		m_vCropBoxMin = vMin;
 	}
@@ -947,19 +950,12 @@ bool CVoxelSegment::UpdateBrickRenderData()
 
 	const int nDataSizeStatsScale = 4;
 
-	static int nLastStatFrame = 0;
-	if (nLastStatFrame != GetCurrPassMainFrameID())
+	#ifndef _RELEASE
 	{
-		nLastStatFrame = GetCurrPassMainFrameID();
-
 		// count stats
 		m_nPoolUsageItems = 0;
 		m_nPoolUsageBytes = 0;
 
-		// remove 4 oldest blocks
-		SBlockMinMax* pOldestBlockInfo[4] = { 0, 0, 0, 0 };
-		uint nOldestVisFrameId[4] = { ~0U, ~0U, ~0U, ~0U };
-		const uint nMaxAllowedFrameId = GetCurrPassMainFrameID() - 16;
 		const uint nNumBlocks = m_pBlockPacker->GetNumBlocks();
 		for (uint nBlockId = 0; nBlockId < nNumBlocks; nBlockId++)
 		{
@@ -970,6 +966,7 @@ bool CVoxelSegment::UpdateBrickRenderData()
 			}
 		}
 	}
+	#endif
 
 	// TODO: pack multiple bricks into single compressed block and upload to GPU only once
 
@@ -1044,6 +1041,7 @@ bool CVoxelSegment::UpdateBrickRenderData()
 	if (m_pBlockInfo == 0)
 	{
 		Cry3DEngineBase::PrintMessage("UpdateBrickRenderData postponed %d", GetCurrPassMainFrameID());
+		gSvoEnv->m_fSvoFreezeTime = -1; // prevent hang in case of full sync update
 		return false;
 	}
 
@@ -1054,8 +1052,10 @@ bool CVoxelSegment::UpdateBrickRenderData()
 	Vec3i vOffset(m_pBlockInfo->m_dwMinX, m_pBlockInfo->m_dwMinY, m_pBlockInfo->m_dwMinZ);
 	m_nAllocatedAtlasOffset = vOffset.z * nAtlasDimMaxXY * nAtlasDimMaxXY + vOffset.y * nAtlasDimMaxXY + vOffset.x;
 
-	if (m_vCropTexSize.GetVolume() && m_pVoxOpacit)
+	if (m_vCropTexSize.GetVolume() && m_voxData.pVoxData[SVoxData::OPA3D])
+	{
 		UpdateVoxRenderData();
+	}
 
 	UpdateNodeRenderData();
 
@@ -1087,108 +1087,121 @@ void CVoxelSegment::UpdateStreamingEngine()
 		pVoxStreamEngine->ProcessSyncCallBacks();
 }
 
+void CVoxelSegment::UpdateObjectLayersInfo()
+{
+	// Copy only if modified
+	if (m_arrObjectLayersInfoVersion == Get3DEngine()->m_objectLayersModificationId)
+	{
+		return;
+	}
+
+	m_arrObjectLayersInfoVersion = Get3DEngine()->m_objectLayersModificationId;
+	m_arrObjectLayersInfo = Get3DEngine()->m_arrObjectLayersActivity;
+}
+
 void CVoxelSegment::CheckAllocateTexturePool()
 {
 	int nFlagsReadOnly = FT_DONT_STREAM;
 	int nFlagsReadWrite = FT_DONT_STREAM | FT_USAGE_UNORDERED_ACCESS | FT_USAGE_UAV_RWTEXTURE;
 
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-	if (!gSvoEnv->m_nTexRgb0PoolId)
+	if (GetSubSetsNum() > 1)
 	{
-		gSvoEnv->m_nTexRgb0PoolId = gEnv->pRenderer->DownLoadToVideoMemory3D(NULL,
-		                                                                     nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadWrite);
-		m_nSvoDataPoolsCounter++;
-	}
-
-	if (Cry3DEngineBase::GetCVars()->e_svoTI_Active && Cry3DEngineBase::GetCVars()->e_svoTI_IntegrationMode)
-	{
-		// direct lighting
-		if (!gSvoEnv->m_nTexRgb1PoolId)
+		if (!gSvoEnv->m_nTexRgb0PoolId)
 		{
-			gSvoEnv->m_nTexRgb1PoolId = gEnv->pRenderer->DownLoadToVideoMemory3D(NULL,
-			                                                                     nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadWrite);
+			gSvoEnv->m_nTexRgb0PoolId = gEnv->pRenderer->UploadToVideoMemory3D(NULL,
+			                                                                   nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadWrite);
 			m_nSvoDataPoolsCounter++;
 		}
 
-		// dyn direct lighting
-		if (!gSvoEnv->m_nTexDynlPoolId && Cry3DEngineBase::GetCVars()->e_svoTI_DynLights)
+		if (Cry3DEngineBase::GetCVars()->e_svoTI_Active && Cry3DEngineBase::GetCVars()->e_svoTI_IntegrationMode)
 		{
-			gSvoEnv->m_nTexDynlPoolId = gEnv->pRenderer->DownLoadToVideoMemory3D(NULL,
-			                                                                     nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadWrite);
-			m_nSvoDataPoolsCounter++;
-		}
+			// direct lighting
+			if (!gSvoEnv->m_nTexRgb1PoolId)
+			{
+				gSvoEnv->m_nTexRgb1PoolId = gEnv->pRenderer->UploadToVideoMemory3D(NULL,
+				                                                                   nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadWrite);
+				m_nSvoDataPoolsCounter++;
+			}
 
-		// propagation
-		if (!gSvoEnv->m_nTexRgb2PoolId && Cry3DEngineBase::GetCVars()->e_svoTI_NumberOfBounces > 1)
-		{
-			gSvoEnv->m_nTexRgb2PoolId = gEnv->pRenderer->DownLoadToVideoMemory3D(NULL,
-			                                                                     nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadWrite);
-			m_nSvoDataPoolsCounter++;
-		}
+			// dyn direct lighting
+			if (!gSvoEnv->m_nTexDynlPoolId && Cry3DEngineBase::GetCVars()->e_svoTI_DynLights)
+			{
+				gSvoEnv->m_nTexDynlPoolId = gEnv->pRenderer->UploadToVideoMemory3D(NULL,
+				                                                                   nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadWrite);
+				m_nSvoDataPoolsCounter++;
+			}
 
-		// propagation
-		if (!gSvoEnv->m_nTexRgb3PoolId && Cry3DEngineBase::GetCVars()->e_svoTI_NumberOfBounces > 2)
-		{
-			gSvoEnv->m_nTexRgb3PoolId = gEnv->pRenderer->DownLoadToVideoMemory3D(NULL,
-			                                                                     nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadWrite);
-			m_nSvoDataPoolsCounter++;
-		}
+			// propagation
+			if (!gSvoEnv->m_nTexRgb2PoolId && Cry3DEngineBase::GetCVars()->e_svoTI_NumberOfBounces > 1)
+			{
+				gSvoEnv->m_nTexRgb2PoolId = gEnv->pRenderer->UploadToVideoMemory3D(NULL,
+				                                                                   nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadWrite);
+				m_nSvoDataPoolsCounter++;
+			}
 
-		// mesh
-		#ifdef FEATURE_SVO_GI_USE_MESH_RT
-		if (!gSvoEnv->m_nTexTrisPoolId && Cry3DEngineBase::GetCVars()->e_svoTI_RT_MaxDist)
-		{
-			gSvoEnv->m_nTexTrisPoolId = gEnv->pRenderer->DownLoadToVideoMemory3D(NULL,
-			                                                                     nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadWrite);
-			m_nSvoDataPoolsCounter++;
-		}
-		#endif
-		// snow
-		if (!gSvoEnv->m_nTexRgb4PoolId && Cry3DEngineBase::GetCVars()->e_svoTI_Troposphere_Snow_Height)
-		{
-			gSvoEnv->m_nTexRgb4PoolId = gEnv->pRenderer->DownLoadToVideoMemory3D(NULL,
-			                                                                     nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadWrite);
-			m_nSvoDataPoolsCounter++;
-		}
-	}
+			// propagation
+			if (!gSvoEnv->m_nTexRgb3PoolId && Cry3DEngineBase::GetCVars()->e_svoTI_NumberOfBounces > 2)
+			{
+				gSvoEnv->m_nTexRgb3PoolId = gEnv->pRenderer->UploadToVideoMemory3D(NULL,
+				                                                                   nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadWrite);
+				m_nSvoDataPoolsCounter++;
+			}
 
-	{
-		if (!gSvoEnv->m_nTexNormPoolId)
-		{
-			gSvoEnv->m_nTexNormPoolId = gEnv->pRenderer->DownLoadToVideoMemory3D(NULL,
-			                                                                     nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadOnly);
-			m_nSvoDataPoolsCounter++;
-		}
-
-		if (!gSvoEnv->m_nTexAldiPoolId && Cry3DEngineBase::GetCVars()->e_svoTI_Diffuse_Cache)
-		{
-			gSvoEnv->m_nTexAldiPoolId = gEnv->pRenderer->DownLoadToVideoMemory3D(NULL,
-			                                                                     nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadWrite);
-			m_nSvoDataPoolsCounter++;
-		}
-	}
+			// mesh
+	#ifdef FEATURE_SVO_GI_USE_MESH_RT
+			if (!gSvoEnv->m_nTexTrisPoolId && Cry3DEngineBase::GetCVars()->e_svoTI_RT_MaxDist)
+			{
+				gSvoEnv->m_nTexTrisPoolId = gEnv->pRenderer->UploadToVideoMemory3D(NULL,
+				                                                                   nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadWrite);
+				m_nSvoDataPoolsCounter++;
+			}
 	#endif
+			// snow
+			if (!gSvoEnv->m_nTexRgb4PoolId && Cry3DEngineBase::GetCVars()->e_svoTI_Troposphere_Snow_Height)
+			{
+				gSvoEnv->m_nTexRgb4PoolId = gEnv->pRenderer->UploadToVideoMemory3D(NULL,
+				                                                                   nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadWrite);
+				m_nSvoDataPoolsCounter++;
+			}
+		}
+
+		{
+			if (!gSvoEnv->m_nTexNormPoolId)
+			{
+				gSvoEnv->m_nTexNormPoolId = gEnv->pRenderer->UploadToVideoMemory3D(NULL,
+				                                                                   nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadOnly);
+				m_nSvoDataPoolsCounter++;
+			}
+
+			if (!gSvoEnv->m_nTexAldiPoolId && Cry3DEngineBase::GetCVars()->e_svoTI_Diffuse_Cache)
+			{
+				gSvoEnv->m_nTexAldiPoolId = gEnv->pRenderer->UploadToVideoMemory3D(NULL,
+				                                                                   nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadWrite);
+				m_nSvoDataPoolsCounter++;
+			}
+		}
+	}
 
 	if (!gSvoEnv->m_nTexOpasPoolId)
 	{
-#ifndef _RELEASE
+	#ifndef _RELEASE
 		int nVoxDataSize = nVoxTexPoolDimXY * nVoxTexPoolDimXY * nVoxTexPoolDimZ * sizeof(ColorB);
-		byte * pDataZero = new byte[nVoxDataSize];
+		byte* pDataZero = new byte[nVoxDataSize];
 		memset(pDataZero, 0, nVoxDataSize);
-#else
-		byte * pDataZero = 0;
-#endif
+	#else
+		byte* pDataZero = 0;
+	#endif
 
-		gSvoEnv->m_nTexOpasPoolId = gEnv->pRenderer->DownLoadToVideoMemory3D(pDataZero,
-			nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadOnly);
+		gSvoEnv->m_nTexOpasPoolId = gEnv->pRenderer->UploadToVideoMemory3D(pDataZero,
+		                                                                   nVoxTexPoolDimXY, nVoxTexPoolDimXY, nVoxTexPoolDimZ, gSvoEnv->m_nVoxTexFormat, gSvoEnv->m_nVoxTexFormat, 1, false, FILTER_LINEAR, 0, 0, nFlagsReadOnly);
 		m_nSvoDataPoolsCounter++;
 
-		gSvoEnv->m_nTexNodePoolId = gEnv->pRenderer->DownLoadToVideoMemory3D(pDataZero,
-			nVoxNodPoolDimXY, nVoxNodPoolDimXY, nVoxNodPoolDimZ, eTF_R32G32B32A32F, eTF_R32G32B32A32F, 1, false, FILTER_POINT, 0, 0, nFlagsReadOnly);
+		gSvoEnv->m_nTexNodePoolId = gEnv->pRenderer->UploadToVideoMemory3D(pDataZero,
+		                                                                   nVoxNodPoolDimXY, nVoxNodPoolDimXY, nVoxNodPoolDimZ, eTF_R32G32B32A32F, eTF_R32G32B32A32F, 1, false, FILTER_POINT, 0, 0, nFlagsReadOnly);
 
-#ifndef _RELEASE
+	#ifndef _RELEASE
 		delete[] pDataZero;
-#endif
+	#endif
 	}
 }
 
@@ -1269,83 +1282,34 @@ void CVoxelSegment::UpdateVoxRenderData()
 	FUNCTION_PROFILER_3DENGINE;
 
 	assert(m_pBlockInfo->m_pUserData == this);
+
 	Vec3i vOffset(m_pBlockInfo->m_dwMinX, m_pBlockInfo->m_dwMinY, m_pBlockInfo->m_dwMinZ);
 
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-		#ifdef FEATURE_SVO_GI_USE_MESH_RT
-	byte* pImgTri = (byte*)m_pVoxTris;
-		#endif
-	byte* pImgRgb = (byte*)m_pVoxVolume;
-	byte* pImgNor = (byte*)m_pVoxNormal;
-	#endif
-	byte* pImgOpa = (byte*)m_pVoxOpacit;
-
-	Vec3i vSizeFin;
-	vSizeFin.x = (m_vCropTexSize.x);
-	vSizeFin.y = (m_vCropTexSize.y);
-	vSizeFin.z = (m_vCropTexSize.z);
+	Vec3i vSizeFin = m_vCropTexSize;
 
 	if (gSvoEnv->m_nVoxTexFormat == eTF_BC3)
 	{
 		vSizeFin = GetDxtDim();
 	}
 
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
+	int arrTexId[SVoxData::MAX_NUM] = { gSvoEnv->m_nTexOpasPoolId, gSvoEnv->m_nTexRgb0PoolId, gSvoEnv->m_nTexNormPoolId };
 
-	gEnv->pRenderer->UpdateTextureInVideoMemory(
-	  gSvoEnv->m_nTexRgb0PoolId,
-	  pImgRgb,
-	  vOffset.x * nVoxBloMaxDim,
-	  vOffset.y * nVoxBloMaxDim,
-	  vSizeFin.x,
-	  vSizeFin.y,
-	  gSvoEnv->m_nVoxTexFormat,
-	  vOffset.z * nVoxBloMaxDim,
-	  vSizeFin.z);
-	CVoxelSegment::m_nUpdatesInProgressTex++;
-
-		#ifdef FEATURE_SVO_GI_USE_MESH_RT
-	if (Cry3DEngineBase::GetCVars()->e_svoTI_Active && gSvoEnv->m_nTexTrisPoolId)
+	for (int s = 0; s < GetSubSetsNum(); s++)
 	{
-		gEnv->pRenderer->UpdateTextureInVideoMemory(
-		  gSvoEnv->m_nTexTrisPoolId,
-		  pImgTri,
-		  vOffset.x * nVoxBloMaxDim,
-		  vOffset.y * nVoxBloMaxDim,
-		  vSizeFin.x,
-		  vSizeFin.y,
-		  gSvoEnv->m_nVoxTexFormat,
-		  vOffset.z * nVoxBloMaxDim,
-		  vSizeFin.z);
-		CVoxelSegment::m_nUpdatesInProgressTex++;
+		if (m_voxData.pVoxData[s])
+		{
+			gEnv->pRenderer->UpdateTextureInVideoMemory(
+			  arrTexId[s],
+			  (byte*)m_voxData.pVoxData[s],
+			  vOffset.x * nVoxBloMaxDim, vOffset.y * nVoxBloMaxDim,
+			  vSizeFin.x, vSizeFin.y,
+			  gSvoEnv->m_nVoxTexFormat,
+			  vOffset.z * nVoxBloMaxDim,
+			  vSizeFin.z);
+
+			CVoxelSegment::m_nUpdatesInProgressTex++;
+		}
 	}
-		#endif
-
-	gEnv->pRenderer->UpdateTextureInVideoMemory(
-	  gSvoEnv->m_nTexNormPoolId,
-	  pImgNor,
-	  vOffset.x * nVoxBloMaxDim,
-	  vOffset.y * nVoxBloMaxDim,
-	  vSizeFin.x,
-	  vSizeFin.y,
-	  gSvoEnv->m_nVoxTexFormat,
-	  vOffset.z * nVoxBloMaxDim,
-	  vSizeFin.z);
-	CVoxelSegment::m_nUpdatesInProgressTex++;
-
-	#endif
-
-	gEnv->pRenderer->UpdateTextureInVideoMemory(
-	  gSvoEnv->m_nTexOpasPoolId,
-	  pImgOpa,
-	  vOffset.x * nVoxBloMaxDim,
-	  vOffset.y * nVoxBloMaxDim,
-	  vSizeFin.x,
-	  vSizeFin.y,
-	  gSvoEnv->m_nVoxTexFormat,
-	  vOffset.z * nVoxBloMaxDim,
-	  vSizeFin.z);
-	CVoxelSegment::m_nUpdatesInProgressTex++;
 }
 
 void CVoxelSegment::ReleaseAtlasBlock()
@@ -1452,7 +1416,7 @@ ColorF CVoxelSegment::GetBilinearAt(float iniX, float iniY, const ColorB* pImg, 
 	return (top * (1.f - ry) + bot * ry) * fBr;
 }
 
-void CVoxelSegment::VoxelizeMeshes(int nTID)
+void CVoxelSegment::VoxelizeMeshes(int nTID, bool bMT)
 {
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "VoxelizeMeshes");
 
@@ -1471,28 +1435,20 @@ void CVoxelSegment::VoxelizeMeshes(int nTID)
 			gSvoEnv->m_arrVoxelizeMeshesCounter[1]++;
 	}
 
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-		#ifdef FEATURE_SVO_GI_USE_MESH_RT
-	CheckAllocateBrick(m_pVoxTris, m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z, true);
-		#endif
-	CheckAllocateBrick(m_pVoxVolume, m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z, true);
-	CheckAllocateBrick(m_pVoxNormal, m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z, true);
-	#endif
-	CheckAllocateBrick(m_pVoxOpacit, m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z, true);
+	for (int s = 0; s < GetSubSetsNum(); s++)
+	{
+		CheckAllocateBrick(m_voxData.pVoxData[s], m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z, true);
+	}
 
 	Vec3 vBoxCenter = m_pNode->m_nodeBox.GetCenter();
 
 	// voxelize node tris
-	if ((m_nodeTrisAllMerged.Count() || Cry3DEngineBase::GetCVars()->e_svoTI_Troposphere_Subdivide) && m_pVoxOpacit && m_pTrisInArea && pNodeTrisXYZ)
+	if ((m_nodeTrisAllMerged.Count() || Cry3DEngineBase::GetCVars()->e_svoTI_Troposphere_Subdivide) && m_voxData.pVoxData[SVoxData::OPA3D] && m_pTrisInArea && pNodeTrisXYZ)
 	{
-		Vec4 voxNodeData[nVoxNodMaxDim * nVoxNodMaxDim * nVoxNodMaxDim];
-		ZeroStruct(voxNodeData);
-		voxNodeData[0] = Vec4(m_boxOS.min + m_vSegOrigin, 0);
-		voxNodeData[1] = Vec4(m_boxOS.max + m_vSegOrigin, 0);
-
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-		// collect overlapping portals
 		PodArray<CVisArea*> arrPortals;
+
+		// collect overlapping portals
+		if (GetSubSetsNum() > 1)
 		{
 			for (int v = 0;; v++)
 			{
@@ -1504,60 +1460,194 @@ void CVoxelSegment::VoxelizeMeshes(int nTID)
 					arrPortals.Add(pVisArea);
 			}
 		}
-	#endif
 
-		for (int X = 0; X < nVoxTexMaxDim; X++)
-			for (int Y = 0; Y < nVoxTexMaxDim; Y++)
-				for (int Z = 0; Z < nVoxTexMaxDim; Z++)
+		if (m_objLayerMap.empty())
+		{
+			m_objLayerMap[AllObjectLayersId] = m_voxData;
+		}
+
+		if (bMT)
+		{
+			const int VOX_THREADS_NUM = 8;
+
+			JobManager::SJobState jobState[VOX_THREADS_NUM];
+			PodArray<int> arrTrisInt[VOX_THREADS_NUM];
+
+			for (int nT = 0; nT < VOX_THREADS_NUM; nT++)
+			{
+				int nX0 = nT * nVoxTexMaxDim / VOX_THREADS_NUM;
+				int nX1 = nX0 + nVoxTexMaxDim / VOX_THREADS_NUM;
+
+				SBuildVoxelsParams params;
+				params.X0 = nX0;
+				params.X1 = nX1;
+				params.pNodeTrisXYZ = pNodeTrisXYZ;
+				params.arrPortals = &arrPortals;
+
+				arrTrisInt[nT].PreAllocate(SVO_MAX_TRIS_PER_VOXEL);
+				params.pTrisInt = &arrTrisInt[nT];
+
+				TBuildVoxelsJob job(params);
+				job.SetClassInstance(this);
+				job.SetPriorityLevel(JobManager::eHighPriority);
+				job.RegisterJobState(&jobState[nT]);
+				job.Run();
+			}
+
+			for (int nT = 0; nT < VOX_THREADS_NUM; nT++)
+			{
+				gEnv->GetJobManager()->WaitForJob(jobState[nT]);
+			}
+		}
+		else
+		{
+			SBuildVoxelsParams params;
+			params.X0 = 0;
+			params.X1 = nVoxTexMaxDim;
+			params.pNodeTrisXYZ = pNodeTrisXYZ;
+			params.arrPortals = &arrPortals;
+
+			PodArray<int> trisInt;
+			trisInt.PreAllocate(SVO_MAX_TRIS_PER_VOXEL);
+			params.pTrisInt = &trisInt;
+
+			BuildVoxels(params);
+		}
+
+		if (!Cry3DEngineBase::GetCVars()->e_svoTI_Troposphere_Subdivide)
+		{
+			CropVoxTexture(nTID, true);
+		}
+
+		if (!m_bExportMode)
+		{
+			CombineLayers();
+		}
+	}
+	else
+	{
+		m_vCropTexSize.zero();
+		m_vCropBoxMin.zero();
+	}
+
+	if (Cry3DEngineBase::GetCVars()->e_svoTI_Troposphere_Subdivide)
+	{
+		// allocate all nodes
+		m_vCropTexSize.zero();
+		m_vCropTexSize.Set(nVoxTexMaxDim, nVoxTexMaxDim, nVoxTexMaxDim);
+	}
+
+	SAFE_DELETE_ARRAY(pNodeTrisXYZ);
+}
+
+void CVoxelSegment::CombineLayers()
+{
+	if (m_objLayerMap.size() != 1 || m_objLayerMap.begin()->second.pVoxData[SVoxData::OPA3D] != m_voxData.pVoxData[SVoxData::OPA3D])
+	{
+		for (int s = 0; s < GetSubSetsNum(); s++)
+		{
+			CheckAllocateBrick(m_voxData.pVoxData[s], m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z, true);
+		}
+
+		for (auto& it : m_objLayerMap)
+		{
+			T_ObjectLayerId nLayerId = it.first;
+
+			SVoxData& layerVoxData = it.second;
+
+			if (nLayerId && ((nLayerId >= m_arrObjectLayersInfo.Count()) || !m_arrObjectLayersInfo[nLayerId].bActive))
+			{
+				continue;
+			}
+
+			int nPixNum = m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z;
+
+			for (int s = 0; s < GetSubSetsNum(); s++)
+			{
+				for (int p = 0; p < nPixNum; p++)
 				{
-					const int id = Z * nVoxTexMaxDim * nVoxTexMaxDim + Y * nVoxTexMaxDim + X;
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-					ColorB& colOut = m_pVoxVolume[id];
-					ColorB& norOut = m_pVoxNormal[id];
-	#endif
-					ColorB& opaOutFin = m_pVoxOpacit[id];
-					Vec4 vMin = voxNodeData[0] + (voxNodeData[1] - voxNodeData[0]) * Vec4((float) X / nVoxTexMaxDim, (float) Y / nVoxTexMaxDim, (float) Z / nVoxTexMaxDim, 1);
-					Vec4 vMax = voxNodeData[0] + (voxNodeData[1] - voxNodeData[0]) * Vec4((float) (X + 1) / nVoxTexMaxDim, (float) (Y + 1) / nVoxTexMaxDim, (float) (Z + 1) / nVoxTexMaxDim, 1);
-
-					// safety border support
-					//      Vec4 vCenter(m_vOrigin.x,m_vOrigin.y,m_vOrigin.z,0);
-					//        vMin += (vMin - vCenter)/(nVoxTexMaxDim/2)/2;
-					//        vMax += (vMax - vCenter)/(nVoxTexMaxDim/2)/2;
-
-					AABB voxBox;
-					voxBox.min.Set(vMin.x, vMin.y, vMin.z);
-					voxBox.max.Set(vMax.x, vMax.y, vMax.z);
-
-					AABB voxBoxRT = voxBox;
-					voxBoxRT.Expand(voxBoxRT.GetSize() / 2);
-
-					if (Overlap::AABB_AABB(voxBox, m_boxTris))
+					for (int c = 0; c < 4; c++)
 					{
-						PodArray<int> trisInt;
-						PodArray<int> trisIntRT;
+						m_voxData.pVoxData[s][p][c] = max(m_voxData.pVoxData[s][p][c], layerVoxData.pVoxData[s][p][c]);
+					}
+				}
+			}
+		}
+	}
+
+	FreeBrickLayers();
+}
+
+void CVoxelSegment::BuildVoxels(SBuildVoxelsParams params)
+{
+	int X0 = params.X0;
+	int X1 = params.X1;
+	PodArray<int>* pNodeTrisXYZ = params.pNodeTrisXYZ;
+	PodArray<CVisArea*>* arrPortals = params.arrPortals;
+
+	Vec4 voxNodeData[nVoxNodMaxDim * nVoxNodMaxDim * nVoxNodMaxDim];
+	ZeroStruct(voxNodeData);
+	voxNodeData[0] = Vec4(m_boxOS.min + m_vSegOrigin, 0);
+	voxNodeData[1] = Vec4(m_boxOS.max + m_vSegOrigin, 0);
+
+	const int nSSDim = 4;
+	const int nSDim = nSSDim / 2;
+
+	PodArray<int> arrSubOpa[nSDim][nSDim][nSDim];
+
+	for (int X = X0; X < X1; X++)
+	{
+		for (int Y = 0; Y < nVoxTexMaxDim; Y++)
+		{
+			for (int Z = 0; Z < nVoxTexMaxDim; Z++)
+			{
+				Vec4 vMin = voxNodeData[0] + (voxNodeData[1] - voxNodeData[0]) * Vec4((float) X / nVoxTexMaxDim, (float) Y / nVoxTexMaxDim, (float) Z / nVoxTexMaxDim, 1);
+				Vec4 vMax = voxNodeData[0] + (voxNodeData[1] - voxNodeData[0]) * Vec4((float) (X + 1) / nVoxTexMaxDim, (float) (Y + 1) / nVoxTexMaxDim, (float) (Z + 1) / nVoxTexMaxDim, 1);
+
+				// safety border support
+				//      Vec4 vCenter(m_vOrigin.x,m_vOrigin.y,m_vOrigin.z,0);
+				//        vMin += (vMin - vCenter)/(nVoxTexMaxDim/2)/2;
+				//        vMax += (vMax - vCenter)/(nVoxTexMaxDim/2)/2;
+
+				AABB voxBox;
+				voxBox.min.Set(vMin.x, vMin.y, vMin.z);
+				voxBox.max.Set(vMax.x, vMax.y, vMax.z);
+
+				if (Overlap::AABB_AABB(voxBox, m_boxTris))
+				{
+					// loop through found layers
+					for (auto& it : m_objLayerMap)
+					{
+						T_ObjectLayerId nLayerId = it.first;
+
+						SVoxData& voxData = it.second;
+
+						const int id = Z * nVoxTexMaxDim * nVoxTexMaxDim + Y * nVoxTexMaxDim + X;
+
+						ColorB& opaOutFin = voxData.pVoxData[SVoxData::OPA3D][id];
+
+						PodArray<int>& trisInt = *params.pTrisInt;
+						trisInt.Clear();
+
 						bool bVisAreaTrisDetected = false;
 
 						AUTO_READLOCK(m_superMeshLock);
 
 						// collect tris only for this voxel; TODO: check maybe pNodeTrisXYZ[id] already have only what is needed and trisInt can be dropped
-						for (int d = 0; d < pNodeTrisXYZ[id].Count(); d++)
+						for (int d = 0; (d < pNodeTrisXYZ[id].Count()) && (trisInt.Count() < SVO_MAX_TRIS_PER_VOXEL); d++)
 						{
 							int trId = pNodeTrisXYZ[id].GetAt(d);
 
 							SRayHitTriangleIndexed& tr = (*m_pTrisInArea)[trId];
 
-							Vec3 arrV[3] = { (*m_pVertInArea)[tr.arrVertId[0]].v, (*m_pVertInArea)[tr.arrVertId[1]].v, (*m_pVertInArea)[tr.arrVertId[2]].v };
-
-							if (Overlap::AABB_Triangle(voxBoxRT, arrV[0], arrV[1], arrV[2])) // 14s
+							if (tr.nObjLayerId == nLayerId)
 							{
-								trisIntRT.Add(trId);
+								Vec3 arrV[3] = { (*m_pVertInArea)[tr.arrVertId[0]].v, (*m_pVertInArea)[tr.arrVertId[1]].v, (*m_pVertInArea)[tr.arrVertId[2]].v };
 
 								if (Overlap::AABB_Triangle(voxBox, arrV[0], arrV[1], arrV[2])) // 14s
 								{
 									if (tr.nHitObjType == HIT_OBJ_TYPE_VISAREA)
 										bVisAreaTrisDetected = true;
-
-									assert(trisInt.Find(trId) < 0);
 
 									trisInt.Add(trId);
 								}
@@ -1570,34 +1660,32 @@ void CVoxelSegment::VoxelizeMeshes(int nTID)
 							int nTrisCount = 0;
 							int nFirstTriIndex = StoreIndicesIntoPool(trisIntRT, nTrisCount);
 							int nId = nFirstTriIndex;
-							m_pVoxTris[id].r = nId & 255;
+							m_voxData.pVoxTris[id].r = nId & 255;
 							nId /= 256;
-							m_pVoxTris[id].g = nId & 255;
+							m_voxData.pVoxTris[id].g = nId & 255;
 							nId /= 256;
-							m_pVoxTris[id].b = nId & 255;
+							m_voxData.pVoxTris[id].b = nId & 255;
 							nId /= 256;
-							m_pVoxTris[id].a = nTrisCount;
+							m_voxData.pVoxTris[id].a = nTrisCount;
 						}
 	#endif
 
 						// OPA
 						{
-							const int nSSDim = 4;
-
-							const int nSDim = nSSDim / 2;
-
-							PodArray<int> arrSubOpa[nSDim][nSDim][nSDim];
-
 							{
 								// Fill nSDim x nSDim x nSDim super voxel
 
 								Vec3 vSubVoxSize = voxBox.GetSize() / (float)nSDim;
 
 								for (int x = 0; x < nSDim; x++)
+								{
 									for (int y = 0; y < nSDim; y++)
+									{
 										for (int z = 0; z < nSDim; z++)
 										{
 											PodArray<int>& opaOutSub = arrSubOpa[x][y][z];
+
+											opaOutSub.Clear();
 
 											AABB SubBox;
 											SubBox.min = voxBox.min + vSubVoxSize.CompMul(Vec3((float)x, (float)y, (float)z));
@@ -1620,37 +1708,40 @@ void CVoxelSegment::VoxelizeMeshes(int nTID)
 												}
 											}
 										}
+									}
+								}
 							}
 
 							uint8 arrSubSubOpa[nSSDim][nSSDim][nSSDim];
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 							Vec4 arrSubSubNor[nSSDim][nSSDim][nSSDim];
 							ColorF arrSubSubCol[nSSDim][nSSDim][nSSDim];
 							float arrSubSubEmi[nSSDim][nSSDim][nSSDim];
-	#endif
+
 							ZeroStruct(arrSubSubOpa);
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-							ZeroStruct(arrSubSubNor);
-							ZeroStruct(arrSubSubCol);
-							ZeroStruct(arrSubSubEmi);
-	#endif
+
+							if (GetSubSetsNum() > 1)
+							{
+								ZeroStruct(arrSubSubNor);
+								ZeroStruct(arrSubSubCol);
+								ZeroStruct(arrSubSubEmi);
+							}
 
 							// Fill nSSDim x nSSDim x nSSDim super voxel
 
 							Vec3 vSubSubVoxSize = voxBox.GetSize() / (float)nSSDim;
 
 							for (int x = 0; x < nSSDim; x++)
+							{
 								for (int y = 0; y < nSSDim; y++)
+								{
 									for (int z = 0; z < nSSDim; z++)
 									{
 										PodArray<int>& opaOutSub = arrSubOpa[x / 2][y / 2][z / 2];
 
 										uint8& opaOutSubSub = arrSubSubOpa[x][y][z];
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 										Vec4& norOutSubSub = arrSubSubNor[x][y][z];
 										ColorF& colOutSubSub = arrSubSubCol[x][y][z];
 										float& EmiOutSubSub = arrSubSubEmi[x][y][z];
-	#endif
 
 										AABB SubSubBox;
 										SubSubBox.min = voxBox.min + vSubSubVoxSize.CompMul(Vec3((float)x, (float)y, (float)z));
@@ -1662,21 +1753,22 @@ void CVoxelSegment::VoxelizeMeshes(int nTID)
 										AABB SubSubBoxP = SubSubBox;
 										SubSubBoxP.Expand(Vec3(.25, .25, .25));
 
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-										bool bVoxelInPortal = false;
-
-										for (int v = 0; v < arrPortals.Count(); v++)
+										if (GetSubSetsNum() > 1)
 										{
-											if (Overlap::AABB_AABB(*arrPortals[v]->GetAABBox(), SubSubBoxP))
-											{
-												bVoxelInPortal = true;
-												break;
-											}
-										}
+											bool bVoxelInPortal = false;
 
-										if (bVoxelInPortal) // skip sub-voxels in the portal
-											continue;
-	#endif
+											for (int v = 0; v < arrPortals->Count(); v++)
+											{
+												if (Overlap::AABB_AABB(*(*arrPortals)[v]->GetAABBox(), SubSubBoxP))
+												{
+													bVoxelInPortal = true;
+													break;
+												}
+											}
+
+											if (bVoxelInPortal) // skip sub-voxels in the portal
+												continue;
+										}
 
 										for (int c = 0; c < opaOutSub.Count(); c++)
 										{
@@ -1696,80 +1788,92 @@ void CVoxelSegment::VoxelizeMeshes(int nTID)
 												if (colTraced.a)
 												{
 													opaOutSubSub = max(opaOutSubSub, min(tr.nOpacity, (uint8)SATURATEB(colTraced.a * 255.f)));
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-													norOutSubSub += Vec4(tr.vFaceNorm, 1);
 
-													colOutSubSub.r += colTraced.r;
-													colOutSubSub.g += colTraced.g;
-													colOutSubSub.b += colTraced.b;
-													colOutSubSub.a += 1.f;
+													if (GetSubSetsNum() > 1)
+													{
+														norOutSubSub += Vec4(tr.vFaceNorm, 1);
 
-													SSvoMatInfo& rMI = m_pMatsInArea->GetAt(tr.nMatID);
-													if (rMI.pMat)
-														EmiOutSubSub = +rMI.pMat->GetShaderItem(0).m_pShaderResources->GetFinalEmittance().Luminance();
-	#else
-													if (opaOutSubSub == 255)
-														break;
-	#endif
+														colOutSubSub.r += colTraced.r;
+														colOutSubSub.g += colTraced.g;
+														colOutSubSub.b += colTraced.b;
+														colOutSubSub.a += 1.f;
+
+														SSvoMatInfo& rMI = m_pMatsInArea->GetAt(tr.nMatID);
+														if (rMI.pMat)
+														{
+															EmiOutSubSub = +rMI.pMat->GetShaderItem(0).m_pShaderResources->GetFinalEmittance().Luminance();
+														}
+													}
+													else
+													{
+														if (opaOutSubSub == 255)
+														{
+															break;
+														}
+													}
 												}
 											}
 										}
 									}
+								}
+							}
 
 							// Compute tri-planar opacity
 
 							uint8 arrQuad[3][nSSDim][nSSDim];
 							ZeroStruct(arrQuad);
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 							Vec4 vNorFin(0, 0, 0, 0);
 							ColorF vColFin(0, 0, 0, 0);
 							float fEmiFin(0);
-	#endif
 
 							for (int _x = 0; _x < nSSDim; _x++)
+							{
 								for (int _y = 0; _y < nSSDim; _y++)
+								{
 									for (int _z = 0; _z < nSSDim; _z++)
 									{
 										uint8& opaCh = arrSubSubOpa[_x][_y][_z];
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 										Vec4& norCh = arrSubSubNor[_x][_y][_z];
 										ColorF& colCh = arrSubSubCol[_x][_y][_z];
 										float& EmiCh = arrSubSubEmi[_x][_y][_z];
-	#endif
 
 										arrQuad[0][_y][_z] = max(arrQuad[0][_y][_z], opaCh);
 										arrQuad[1][_x][_z] = max(arrQuad[1][_x][_z], opaCh);
 										arrQuad[2][_x][_y] = max(arrQuad[2][_x][_y], opaCh);
 
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-										vNorFin += norCh;
-										vColFin += colCh;
-										fEmiFin += EmiCh;
-	#endif
+										if (GetSubSetsNum() > 1)
+										{
+											vNorFin += norCh;
+											vColFin += colCh;
+											fEmiFin += EmiCh;
+										}
 									}
+								}
+							}
 
 							// we do not normalize normal, length of the normal says how reliable the normal is
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 							if (vNorFin.w)
+							{
 								vNorFin = vNorFin / vNorFin.w;
+							}
 
 							if (vColFin.a)
 							{
 								fEmiFin /= vColFin.a;
-
 								vColFin /= vColFin.a;
 							}
-	#endif
 
 							ColorF opaSummF(0, 0, 0, 0);
 
 							for (int k = 0; k < nSSDim; k++)
+							{
 								for (int m = 0; m < nSSDim; m++)
 								{
 									opaSummF.r += arrQuad[0][k][m];
 									opaSummF.g += arrQuad[1][k][m];
 									opaSummF.b += arrQuad[2][k][m];
 								}
+							}
 
 							opaSummF.r /= nSSDim * nSSDim;
 							opaSummF.g /= nSSDim * nSSDim;
@@ -1791,64 +1895,38 @@ void CVoxelSegment::VoxelizeMeshes(int nTID)
 							if (bVisAreaTrisDetected && (opaOutFin.r || opaOutFin.g || opaOutFin.b))
 							{
 								opaOutFin.r = opaOutFin.g = opaOutFin.b = 255; // full opaque
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-								vColFin.r = vColFin.g = vColFin.b = 0; // full black
-	#endif
+								vColFin.r = vColFin.g = vColFin.b = 0;         // full black
 							}
 
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-							norOut.a = (opaOutFin.r || opaOutFin.g || opaOutFin.b) ? 255 : 0; // contains 255 for any geometry and 0 for empty space
+							if (GetSubSetsNum() > 1)
+							{
+								ColorB& norOut = voxData.pVoxData[SVoxData::NORML][id];
 
-							for (int c = 0; c < 3; c++)
-								norOut[c] = SATURATEB(int(vNorFin[2 - c] * 127.5f + 127.5f));
+								norOut.a = (opaOutFin.r || opaOutFin.g || opaOutFin.b) ? 255 : 0; // contains 255 for any geometry and 0 for empty space
 
-							colOut.r = SATURATEB((int)(vColFin.r * 255.f));
-							colOut.g = SATURATEB((int)(vColFin.g * 255.f));
-							colOut.b = SATURATEB((int)(vColFin.b * 255.f));
-							colOut.a = SATURATEB((int)(fEmiFin * 255.f));
-	#endif
-							if (opaOutFin.r || opaOutFin.g || opaOutFin.b)
-								m_nVoxNum++;
+								for (int c = 0; c < 3; c++)
+								{
+									norOut[c] = SATURATEB(int(vNorFin[2 - c] * 127.5f + 127.5f));
+								}
+
+								ColorB& colOut = voxData.pVoxData[SVoxData::COLOR][id];
+
+								colOut.r = SATURATEB((int)(vColFin.r * 255.f));
+								colOut.g = SATURATEB((int)(vColFin.g * 255.f));
+								colOut.b = SATURATEB((int)(vColFin.b * 255.f));
+								colOut.a = SATURATEB((int)(fEmiFin * 255.f));
+
+								if (opaOutFin.r || opaOutFin.g || opaOutFin.b)
+								{
+									m_nVoxNum++;
+								}
+							}
 						}
 					}
 				}
-
-		//		UpdateTerrainNormals(m_pNode->m_nodeBox.GetCenter(), 1000000, m_pVoxTerrain);
-
-		// dilation
-		//ComputeDistancesFast( m_pVoxVolume, m_pVoxNormal, m_pVoxOpacit, nTID );
-
-		if (!Cry3DEngineBase::GetCVars()->e_svoTI_Troposphere_Subdivide)
-			CropVoxTexture(nTID, true);
+			}
+		}
 	}
-	else
-	{
-		m_vCropTexSize.zero();
-		m_vCropBoxMin.zero();
-	}
-
-	if (Cry3DEngineBase::GetCVars()->e_svoTI_Troposphere_Subdivide)
-	{
-		// allocate all nodes
-		m_vCropTexSize.zero();
-		m_vCropTexSize.Set(nVoxTexMaxDim, nVoxTexMaxDim, nVoxTexMaxDim);
-	}
-
-	//  if(m_pVoxVolume)
-	//  {
-	//    int nPixNum = m_vCropTexSize.x *m_vCropTexSize.y * m_vCropTexSize.z;
-	//    FILE * f = 0;
-	//    char fName[128];
-	//    cry_sprintf(fName, "E:\\BR\\brick_%5d__%2d_%2d_%2d.BR", m_nId, m_vCropTexSize.x, m_vCropTexSize.y, m_vCropTexSize.z);
-	//    fopen_s(&f, fName, "wb");
-	//    if(f)
-	//    {
-	//      fwrite(m_pVoxVolume, sizeof(ColorB), nPixNum, f);
-	//      fclose(f);
-	//    }
-	//  }
-
-	SAFE_DELETE_ARRAY(pNodeTrisXYZ);
 }
 
 static int32 CompareTriArea(const void* v1, const void* v2)
@@ -1897,7 +1975,7 @@ bool CVoxelSegment::CheckCollectObjectsForVoxelization(const AABB& cloudBoxWS, P
 					if (pNode->GetRndFlags() & (ERF_COLLISION_PROXY | ERF_RAYCAST_PROXY))
 						continue;
 
-					if (!GetCVars()->e_svoTI_VoxelizeHiddenObjects && (pNode->GetRndFlags() & ERF_HIDDEN))
+					if (!GetCVars()->e_svoTI_VoxelizeHiddenObjects && (pNode->GetRndFlags() & ERF_HIDDEN) && !m_bExportMode)
 						continue;
 
 					if (bThisIsLowLodNode)
@@ -1910,6 +1988,7 @@ bool CVoxelSegment::CheckCollectObjectsForVoxelization(const AABB& cloudBoxWS, P
 					float fMaxViewDist = pNode->GetBBox().GetRadius() * GetCVars()->e_ViewDistRatio;
 
 					float fMinAllowedViewDist = (pNode->GetRenderNodeType() == eERType_Vegetation) ? (GetCVars()->e_svoTI_ObjectsMaxViewDistance * 2) : GetCVars()->e_svoTI_ObjectsMaxViewDistance;
+					fMinAllowedViewDist *= GetCVars()->e_svoTI_ObjectsMaxViewDistanceScale;
 
 					if (bThisIsLowLodNode)
 					{
@@ -1921,6 +2000,18 @@ bool CVoxelSegment::CheckCollectObjectsForVoxelization(const AABB& cloudBoxWS, P
 
 					if (fMaxViewDist < fMinAllowedViewDist)
 					{
+						nCulled++;
+						continue;
+					}
+
+					if (pNode->GetBBox().GetSize().z > 256.f)
+					{
+						//            const T_ObjectLayerId layerId = pNode->GetLayerId();
+						//
+						//            CStatObj* pStatObj = (CStatObj*)pNode->GetEntityStatObj();
+						//            gEnv->pLog->LogWarning("%s: Warning: Too big object skipped at position (%.1f, %.1f, %.1f), name: '%s', layer: %d, CGF name: '%s'",
+						//                                   __FUNC__, pNode->GetBBox().GetCenter().x, pNode->GetBBox().GetCenter().y, pNode->GetBBox().GetCenter().z
+						//                                   , pNode->GetName(), layerId, pStatObj ? pStatObj->GetFilePath() : "NONE");
 						nCulled++;
 						continue;
 					}
@@ -1978,6 +2069,9 @@ bool CVoxelSegment::CheckCollectObjectsForVoxelization(const AABB& cloudBoxWS, P
 
 						if (parrObjects)
 						{
+							AUTO_MODIFYLOCK(CVoxelSegment::m_arrLockedMaterials.m_Lock);
+							CVoxelSegment::m_arrLockedMaterials[info.pMat] = info.pMat;
+
 							parrObjects->Add(info);
 						}
 						else if (eStreamingStatusParent != ecss_Ready && bUnloadable)
@@ -2045,7 +2139,7 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 		// add terrain
 		if (Get3DEngine()->m_bShowTerrainSurface)
 		{
-			float fStartTime = GetCurAsyncTimeSec();
+			//float fStartTime = GetCurAsyncTimeSec();
 
 			CTerrain* pTerrain = GetTerrain();
 			int nWorldSize = pTerrain->GetTerrainSize();
@@ -2059,9 +2153,7 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 
 			SRayHitTriangle ht;
 			ZeroStruct(ht);
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 			ht.c[0] = ht.c[1] = ht.c[2] = Col_White;
-	#endif
 			ht.nOpacity = 255;
 			ht.nHitObjType = HIT_OBJ_TYPE_TERRAIN;
 			Plane pl;
@@ -2105,10 +2197,9 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 							{
 								ht.nTriArea = SATURATEB(int(SVO_CPU_VOXELIZATION_AREA_SCALE * 0.5f * (ht.v[1] - ht.v[0]).Cross(ht.v[2] - ht.v[0]).GetLength()));
 								pl.SetPlane(ht.v[0], ht.v[1], ht.v[2]);
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 								ht.n = pl.n;
-	#endif
-								superMesh.AddSuperTriangle(ht, arrVertHash);
+
+								superMesh.AddSuperTriangle(ht, arrVertHash, AllObjectLayersId);
 							}
 
 							I = 0;
@@ -2126,10 +2217,9 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 							{
 								ht.nTriArea = SATURATEB(int(SVO_CPU_VOXELIZATION_AREA_SCALE * 0.5f * (ht.v[1] - ht.v[0]).Cross(ht.v[2] - ht.v[0]).GetLength()));
 								pl.SetPlane(ht.v[0], ht.v[1], ht.v[2]);
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 								ht.n = pl.n;
-	#endif
-								superMesh.AddSuperTriangle(ht, arrVertHash);
+
+								superMesh.AddSuperTriangle(ht, arrVertHash, AllObjectLayersId);
 							}
 						}
 						else
@@ -2149,10 +2239,9 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 							{
 								ht.nTriArea = SATURATEB(int(SVO_CPU_VOXELIZATION_AREA_SCALE * 0.5f * (ht.v[1] - ht.v[0]).Cross(ht.v[2] - ht.v[0]).GetLength()));
 								pl.SetPlane(ht.v[0], ht.v[1], ht.v[2]);
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 								ht.n = pl.n;
-	#endif
-								superMesh.AddSuperTriangle(ht, arrVertHash);
+
+								superMesh.AddSuperTriangle(ht, arrVertHash, AllObjectLayersId);
 							}
 
 							I = 0;
@@ -2170,10 +2259,9 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 							{
 								ht.nTriArea = SATURATEB(int(SVO_CPU_VOXELIZATION_AREA_SCALE * 0.5f * (ht.v[1] - ht.v[0]).Cross(ht.v[2] - ht.v[0]).GetLength()));
 								pl.SetPlane(ht.v[0], ht.v[1], ht.v[2]);
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 								ht.n = pl.n;
-	#endif
-								superMesh.AddSuperTriangle(ht, arrVertHash);
+
+								superMesh.AddSuperTriangle(ht, arrVertHash, AllObjectLayersId);
 							}
 						}
 					}
@@ -2228,13 +2316,12 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 			{
 				{
 					AUTO_MODIFYLOCK(CVoxelSegment::m_arrLockedMaterials.m_Lock);
-					CVoxelSegment::m_arrLockedMaterials.Add(info.pMat);
-					info.pMat->AddRef();
+					CVoxelSegment::m_arrLockedMaterials[info.pMat] = info.pMat;
+
 					for (int s = 0; s < info.pMat->GetSubMtlCount(); s++)
 					{
 						IMaterial* pSubMtl = info.pMat->GetSafeSubMtl(s);
-						CVoxelSegment::m_arrLockedMaterials.Add(pSubMtl);
-						pSubMtl->AddRef();
+						CVoxelSegment::m_arrLockedMaterials[pSubMtl] = pSubMtl;
 					}
 				}
 
@@ -2246,7 +2333,7 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 				{
 					SRayHitTriangle ht = arrTris[t];
 
-					// Workaround for over occlusion from vegetation; TODO: make thin geoemtry produce less occlusion
+					// Workaround for over occlusion from vegetation; TODO: make thin geometry produce less occlusion
 					if (ht.pMat)
 					{
 						SShaderItem& rSI = ht.pMat->GetShaderItem();
@@ -2282,9 +2369,8 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 					ht.nTriArea = SATURATEB(int(SVO_CPU_VOXELIZATION_AREA_SCALE * 0.5f * (ht.v[1] - ht.v[0]).Cross(ht.v[2] - ht.v[0]).GetLength()));
 					Plane pl;
 					pl.SetPlane(ht.v[0], ht.v[1], ht.v[2]);
-#ifdef FEATURE_SVO_GI_ALLOW_HQ
 					ht.n = pl.n;
-#endif
+
 					if (!ht.v[0].IsEquivalent(ht.v[1], fEpsilon) && !ht.v[1].IsEquivalent(ht.v[2], fEpsilon) && !ht.v[2].IsEquivalent(ht.v[0], fEpsilon))
 						if ((ht.nTriArea || !GetCVars()->e_svoTI_ObjectsMaxViewDistance) && Overlap::AABB_Triangle(cloudBoxWS, ht.v[0], ht.v[1], ht.v[2]))
 						{
@@ -2306,7 +2392,9 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 							}
 
 							if (!bSkipUnderTerrain)
-								superMesh.AddSuperTriangle(ht, arrVertHash);
+							{
+								superMesh.AddSuperTriangle(ht, arrVertHash, info.nObjLayerId);
+							}
 						}
 				}
 
@@ -2335,13 +2423,13 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 			}
 		}
 
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-		AABB cloudBoxWS_VisAreaEx = cloudBoxWS;
-		cloudBoxWS_VisAreaEx.Expand(Vec3(SVO_CPU_VOXELIZATION_OFFSET_VISAREA, SVO_CPU_VOXELIZATION_OFFSET_VISAREA, SVO_CPU_VOXELIZATION_OFFSET_VISAREA));
+		if (GetSubSetsNum() > 1)
+		{
+			AABB cloudBoxWS_VisAreaEx = cloudBoxWS;
+			cloudBoxWS_VisAreaEx.Expand(Vec3(SVO_CPU_VOXELIZATION_OFFSET_VISAREA, SVO_CPU_VOXELIZATION_OFFSET_VISAREA, SVO_CPU_VOXELIZATION_OFFSET_VISAREA));
 
-		// add visarea shapes
-		if (!bThisIsLowLodNode)
-			for (int v = 0;; v++)
+			// add visarea shapes
+			for (int v = 0; !bThisIsLowLodNode; v++)
 			{
 				superMesh.Clear(&arrVertHash[0][0][0]);
 
@@ -2379,7 +2467,8 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 						ht.nTriArea = SATURATEB(int(SVO_CPU_VOXELIZATION_AREA_SCALE * 0.5f * (ht.v[1] - ht.v[0]).Cross(ht.v[2] - ht.v[0]).GetLength()));
 						pl.SetPlane(ht.v[0], ht.v[1], ht.v[2]);
 						ht.n = pl.n;
-						superMesh.AddSuperTriangle(ht, arrVertHash);
+
+						superMesh.AddSuperTriangle(ht, arrVertHash, AllObjectLayersId);
 					}
 
 					ht.v[0] = v1;
@@ -2391,7 +2480,8 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 						ht.nTriArea = SATURATEB(int(SVO_CPU_VOXELIZATION_AREA_SCALE * 0.5f * (ht.v[1] - ht.v[0]).Cross(ht.v[2] - ht.v[0]).GetLength()));
 						pl.SetPlane(ht.v[0], ht.v[1], ht.v[2]);
 						ht.n = pl.n;
-						superMesh.AddSuperTriangle(ht, arrVertHash);
+
+						superMesh.AddSuperTriangle(ht, arrVertHash, AllObjectLayersId);
 					}
 				}
 
@@ -2409,7 +2499,8 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 							ht.nTriArea = SATURATEB(int(SVO_CPU_VOXELIZATION_AREA_SCALE * 0.5f * (ht.v[1] - ht.v[0]).Cross(ht.v[2] - ht.v[0]).GetLength()));
 							pl.SetPlane(ht.v[0], ht.v[1], ht.v[2]);
 							ht.n = pl.n;
-							superMesh.AddSuperTriangle(ht, arrVertHash);
+
+							superMesh.AddSuperTriangle(ht, arrVertHash, AllObjectLayersId);
 						}
 					}
 				}
@@ -2418,7 +2509,7 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 
 				AddSuperMesh(superMesh, SVO_CPU_VOXELIZATION_OFFSET_VISAREA);
 			}
-	#endif
+		}
 
 		//		if(allTrisInArea.Count())
 		//		qsort(allTrisInArea.GetElements(), allTrisInArea.Count(), sizeof(allTrisInArea[0]), CompareTriArea);
@@ -2460,7 +2551,7 @@ void CVoxelSegment::FindTrianglesForVoxelization(int nTID, PodArray<int>*& rpNod
 
 		AUTO_READLOCK(m_superMeshLock);
 
-		if (gEnv->IsEditor() && (gSvoEnv->m_fStreamingStartTime < 0))
+		if (gEnv->IsEditor() && (gSvoEnv->m_fStreamingStartTime < 0) && !m_bExportMode)
 		{
 			// slow but reliable for editing
 			for (int trId = 0; trId < (*m_pTrisInArea).Count(); trId++)
@@ -2536,9 +2627,15 @@ void CVoxelSegment::AddTriangle(const SRayHitTriangleIndexed& tr, int trId, PodA
 	int z1 = clamp_tpl<int>((int)(((triBox.max.z - nodeBoxWS.min.z) / vBoxSize.z * nDim)), (int)0, nDim - 1);
 
 	for (int z = z0; z <= z1; z++)
+	{
 		for (int y = y0; y <= y1; y++)
+		{
 			for (int x = x0; x <= x1; x++)
+			{
 				rpNodeTrisXYZ[z * nVoxTexMaxDim * nVoxTexMaxDim + y * nVoxTexMaxDim + x].Add(trId);
+			}
+		}
+	}
 
 	m_nodeTrisAllMerged.Add(trId);
 
@@ -2559,6 +2656,23 @@ void CVoxelSegment::AddTriangle(const SRayHitTriangleIndexed& tr, int trId, PodA
 		if (Overlap::AABB_Triangle(childBox, arrV[0], arrV[1], arrV[2]))
 			m_dwChildTrisTest |= (1 << nChildId);
 	}
+
+	if (m_objLayerMap.find(tr.nObjLayerId) == m_objLayerMap.end())
+	{
+		//    if (tr.nObjLayerId)
+		//    {
+		//      PrintMessage("Allocating layer id %d", tr.nObjLayerId);
+		//    }
+
+		SVoxData voxData;
+
+		for (int s = 0; s < GetSubSetsNum(); s++)
+		{
+			CheckAllocateBrick(voxData.pVoxData[s], nVoxTexMaxDim * nVoxTexMaxDim * nVoxTexMaxDim);
+		}
+
+		m_objLayerMap[tr.nObjLayerId] = voxData;
+	}
 }
 
 void CVoxelSegment::SetVoxCamera(const CCamera& newCam)
@@ -2567,24 +2681,6 @@ void CVoxelSegment::SetVoxCamera(const CCamera& newCam)
 
 	if (gSvoEnv)
 	{
-		if (gSvoEnv->m_matDvrTm.GetTranslation().x || gSvoEnv->m_matDvrTm.GetTranslation().y || gSvoEnv->m_matDvrTm.GetTranslation().z)
-		{
-			Matrix34 m34 = CVoxelSegment::m_voxCam.GetMatrix();
-			Quat q(m34);
-			Matrix33 rot(q);
-			Vec3 vPos = CVoxelSegment::m_voxCam.GetPosition();
-			vPos = gSvoEnv->m_matDvrTm.GetInverted().TransformPoint(vPos);
-			m34.SetIdentity();
-			m34.SetTranslation(vPos);
-			m34 = m34 * rot;
-			CVoxelSegment::m_voxCam.SetMatrix(m34);
-
-			//    PrintMessage("cam = %.1f,%.1f,%.1f",
-			//      CVoxelSegment::voxCam.GetPosition().x,
-			//      CVoxelSegment::voxCam.GetPosition().y,
-			//      CVoxelSegment::voxCam.GetPosition().z);
-		}
-
 		gSvoEnv->m_nDebugDrawVoxelsCounter = 0;
 	}
 }
@@ -2596,7 +2692,7 @@ ColorF CVoxelSegment::ProcessMaterial(const SRayHitTriangleIndexed& tr, const Ve
 
 	SSvoMatInfo& rMI = m_pMatsInArea->GetAt(tr.nMatID);
 
-	SShaderItem* pShItem = rMI.pMat ? &rMI.pMat->GetShaderItem() : NULL;
+	SShaderItem* pShItem = rMI.pMat ? &rMI.pMat->GetShaderItem() : nullptr;
 
 	Vec3 arrV[3] = { (*m_pVertInArea)[tr.arrVertId[0]].v, (*m_pVertInArea)[tr.arrVertId[1]].v, (*m_pVertInArea)[tr.arrVertId[2]].v };
 
@@ -2607,8 +2703,7 @@ ColorF CVoxelSegment::ProcessMaterial(const SRayHitTriangleIndexed& tr, const Ve
 
 		vHitTC = arrT[0] * w0 + arrT[1] * w1 + arrT[2] * w2;
 
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-		if (!(pShItem && pShItem->m_pShader) || pShItem->m_pShader->GetFlags2() & EF2_VERTEXCOLORS)
+		if (GetSubSetsNum() > 1 && (!(pShItem && pShItem->m_pShader) || pShItem->m_pShader->GetFlags2() & EF2_VERTEXCOLORS))
 		{
 			ColorB arrC[3] = { (*m_pVertInArea)[tr.arrVertId[0]].c, (*m_pVertInArea)[tr.arrVertId[1]].c, (*m_pVertInArea)[tr.arrVertId[2]].c };
 
@@ -2635,7 +2730,6 @@ ColorF CVoxelSegment::ProcessMaterial(const SRayHitTriangleIndexed& tr, const Ve
 				}
 			}
 		}
-	#endif
 	}
 	else
 	{
@@ -2772,7 +2866,7 @@ void CVoxelSegment::StoreAreaTrisIntoTriPool(PodArray<SRayHitTriangle>& allTrisI
 
 void CVoxelSegment::CheckStoreTextureInPool(SShaderItem* pShItem, uint16& nTexW, uint16& nTexH, int** ppSysTexId)
 {
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
+	#ifdef FEATURE_SVO_GI_USE_MESH_RT
 	static int nAtlasSlotId = 0;
 	if (nAtlasSlotId >= nVoxTexPoolDimZ)
 		return;
@@ -2908,7 +3002,7 @@ void CVoxelSegment::DebugDrawVoxels()
 {
 	if (Cry3DEngineBase::GetCVars()->e_svoDebug == 6 || Cry3DEngineBase::GetCVars()->e_svoDebug == 3)
 	{
-		if (m_pVoxOpacit && CVoxelSegment::m_voxCam.IsAABBVisible_F(m_pNode->m_nodeBox) && gSvoEnv->m_nDebugDrawVoxelsCounter < 100000)
+		if (m_voxData.pVoxData[SVoxData::OPA3D] && CVoxelSegment::m_voxCam.IsAABBVisible_F(m_pNode->m_nodeBox) && gSvoEnv->m_nDebugDrawVoxelsCounter < 100000)
 		{
 			Vec4 voxNodeData[nVoxNodMaxDim * nVoxNodMaxDim * nVoxNodMaxDim];
 			ZeroStruct(voxNodeData);
@@ -2930,7 +3024,7 @@ void CVoxelSegment::DebugDrawVoxels()
 					for (int z = 0; z < m_vCropTexSize.z; z++)
 					{
 						int id = z * m_vCropTexSize.x * m_vCropTexSize.y + y * m_vCropTexSize.x + x;
-						ColorB& opaOutFin = m_pVoxOpacit[id];
+						ColorB& opaOutFin = m_voxData.pVoxData[SVoxData::OPA3D][id];
 
 						if (opaOutFin.r || opaOutFin.g || opaOutFin.b)
 						{
@@ -3033,7 +3127,7 @@ int SSuperMesh::AddVertex(const SRayHitVertex& rVert, PodArray<SMINDEX> arrVertH
 	return vertsInArea.Count() - 1;
 }
 
-void SSuperMesh::AddSuperTriangle(SRayHitTriangle& htIn, PodArray<SMINDEX> arrVertHash[nHashDim][nHashDim][nHashDim])
+void SSuperMesh::AddSuperTriangle(SRayHitTriangle& htIn, PodArray<SMINDEX> arrVertHash[nHashDim][nHashDim][nHashDim], T_ObjectLayerId nObjLayerId)
 {
 	if (!m_pTrisInArea)
 	{
@@ -3047,10 +3141,7 @@ void SSuperMesh::AddSuperTriangle(SRayHitTriangle& htIn, PodArray<SMINDEX> arrVe
 		return;
 
 	SRayHitTriangleIndexed htOut;
-
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 	htOut.vFaceNorm = htIn.n;
-	#endif
 
 	SSvoMatInfo matInfo;
 	matInfo.pMat = htIn.pMat;
@@ -3073,9 +3164,8 @@ void SSuperMesh::AddSuperTriangle(SRayHitTriangle& htIn, PodArray<SMINDEX> arrVe
 					if (pITex)
 					{
 						AUTO_MODIFYLOCK(CVoxelSegment::m_arrLockedTextures.m_Lock);
-						CVoxelSegment::m_arrLockedTextures.Add(pITex);
+						CVoxelSegment::m_arrLockedTextures[pITex] = pITex;
 						matInfo.pTexRgb = (ColorB*)pITex->GetLowResSystemCopy(matInfo.nTexWidth, matInfo.nTexHeight, &pLowResSystemCopyAtlasId);
-						pITex->AddRef();
 					}
 				}
 			}
@@ -3084,6 +3174,7 @@ void SSuperMesh::AddSuperTriangle(SRayHitTriangle& htIn, PodArray<SMINDEX> arrVe
 		m_pMatsInArea->Add(matInfo);
 	}
 	htOut.nMatID = nMatId;
+	htOut.nObjLayerId = nObjLayerId;
 
 	#ifdef FEATURE_SVO_GI_USE_MESH_RT
 	htOut.nGLobalId = htIn.nGLobalId;
@@ -3101,9 +3192,8 @@ void SSuperMesh::AddSuperTriangle(SRayHitTriangle& htIn, PodArray<SMINDEX> arrVe
 			SRayHitVertex hv;
 			hv.v = htIn.v[v];
 			hv.t = htIn.t[v];
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 			hv.c = htIn.c[v];
-	#endif
+
 			nVID = AddVertex(hv, arrVertHash, *m_pVertInArea);
 		}
 
@@ -3181,9 +3271,8 @@ void SSuperMesh::AddSuperMesh(SSuperMesh& smIn, float fVertexOffset)
 						if (pITex)
 						{
 							AUTO_MODIFYLOCK(CVoxelSegment::m_arrLockedTextures.m_Lock);
-							CVoxelSegment::m_arrLockedTextures.Add(pITex);
+							CVoxelSegment::m_arrLockedTextures[pITex] = pITex;
 							matInfo.pTexRgb = (ColorB*)pITex->GetLowResSystemCopy(matInfo.nTexWidth, matInfo.nTexHeight, &pLowResSystemCopyAtlasId);
-							pITex->AddRef();
 						}
 					}
 				}
@@ -3203,7 +3292,7 @@ void SSuperMesh::AddSuperMesh(SSuperMesh& smIn, float fVertexOffset)
 		AddSuperMesh(smIn, -1.f);
 	}
 
-	smIn.Clear(NULL);
+	smIn.Clear(nullptr);
 }
 
 SSuperMesh::SSuperMesh()
@@ -3243,6 +3332,178 @@ void SSuperMesh::Clear(PodArray<SMINDEX>* parrVertHash)
 	m_boxTris.Reset();
 }
 
+void CVoxelSegment::SaveVoxels(PodArray<byte>& arrData)
+{
+	int nTexDataSize = m_voxData.pVoxData[SVoxData::OPA3D] ? (m_vCropTexSize.x * m_vCropTexSize.y * m_vCropTexSize.z * sizeof(ColorB)) : 0;
 
-	#pragma warning(pop)
+	bool bPackTo16bit = true;
+
+	if (bPackTo16bit && nTexDataSize)
+	{
+		nTexDataSize /= 2;
+	}
+
+	if (gSvoEnv->m_nVoxTexFormat == eTF_BC3)
+	{
+		Vec3i vDxtDim = GetDxtDim();
+		nTexDataSize = (vDxtDim.x * vDxtDim.y * vDxtDim.z * sizeof(ColorB)) / 4;
+	}
+
+	int nDataSize = nTexDataSize * m_objLayerMap.size() + m_objLayerMap.size() * sizeof(uint32) + sizeof(SVoxSegmentFileHeader);
+
+	byte* pDataStart = new byte[nDataSize];
+	byte* pDataPtr = pDataStart;
+
+	// store header
+	SVoxSegmentFileHeader* pHeader = (SVoxSegmentFileHeader*)pDataStart;
+
+	pHeader->cropTexSize.x = m_vCropTexSize.x;
+	pHeader->cropTexSize.y = m_vCropTexSize.y;
+	pHeader->cropTexSize.z = m_vCropTexSize.z;
+
+	pHeader->cropBoxMin.x = m_vCropBoxMin.x;
+	pHeader->cropBoxMin.y = m_vCropBoxMin.y;
+	pHeader->cropBoxMin.z = m_vCropBoxMin.z;
+
+	pHeader->dummy.zero();
+
+	assert(m_objLayerMap.size() <= 255);
+	pHeader->cropTexSize.w = (byte)m_objLayerMap.size();
+
+	assert(GetSubSetsNum() <= 255);
+	pHeader->cropBoxMin.w = GetSubSetsNum();
+
+	pDataPtr += sizeof(SVoxSegmentFileHeader);
+
+	for (auto& it : m_objLayerMap)
+	{
+		T_ObjectLayerId nLayerId = it.first;
+
+		// store layer id's
+		*((uint32*)pDataPtr) = nLayerId;
+		pDataPtr += sizeof(uint32);
+
+		// store voxel data
+		if (nTexDataSize)
+		{
+			for (int s = 0; s < GetSubSetsNum(); s++)
+			{
+				byte* pDataIn = (byte*)it.second.pVoxData[s];
+
+				if (gSvoEnv->m_nVoxTexFormat == eTF_BC3)
+				{
+					CompressToDxt((ColorB*)it.second.pVoxData[s], pDataIn, 0);
+				}
+
+				if (bPackTo16bit)
+				{
+					for (int i = 0; i < nTexDataSize; i++)
+					{
+						byte b0 = (*(pDataIn + 0)) >> 4;
+						byte b1 = (*(pDataIn + 1)) >> 4;
+
+						(*pDataPtr) = b0 | (b1 << 4);
+
+						pDataIn += 2;
+						pDataPtr++;
+					}
+				}
+				else
+				{
+					memcpy(pDataPtr, pDataIn, nTexDataSize);
+
+					pDataPtr += nTexDataSize;
+				}
+			}
+		}
+	}
+
+	assert(pDataPtr == pDataStart + nDataSize);
+
+	// compress entire data block
+	if (m_objLayerMap.size() && nTexDataSize)
+	{
+		CMemoryBlock* pZipped = CMemoryBlock::CompressToMemBlock(pDataStart, nDataSize, GetSystem());  // TODO: try CCryPak::RawCompress
+		int nZipSize = pZipped->GetSize();
+
+		arrData.AddList((byte*)&nZipSize, sizeof(nZipSize));
+		arrData.AddList((byte*)pZipped->GetData(), nZipSize);
+
+		while (arrData.Count() & 3)
+		{
+			arrData.Add(103);
+		}
+	}
+	else
+	{
+		int nZipSize = 0;
+
+		arrData.AddList((byte*)&nZipSize, sizeof(nZipSize));
+	}
+
+	SAFE_DELETE_ARRAY(pDataStart);
+}
+
+PodArray<byte> m_arrSaveCompTexture_Data[16];
+
+void CVoxelSegment::SaveCompTexture(const void* data, size_t size, void* userData)
+{
+	int64 nId = (int64)userData;
+	m_arrSaveCompTexture_Data[nId].Clear();
+	m_arrSaveCompTexture_Data[nId].AddList((byte*)data, size);
+}
+
+int CVoxelSegment::CompressToDxt(ColorB* pImgSource, byte*& pDxtOut, int nTID)
+{
+	Vec3i vSizeFin = GetDxtDim();
+
+	static PodArray<ColorB> arrImgResizedPool[16];
+	PodArray<ColorB>& arrImgResized = arrImgResizedPool[nTID];
+
+	arrImgResized.CheckAllocated(nVoxTexMaxDim * nVoxTexMaxDim * nVoxTexMaxDim);
+	memset(arrImgResized.GetElements(), 0, arrImgResized.GetDataSize());
+
+	for (int z = 0; z < vSizeFin.z; z++)
+	{
+		for (int y = 0; y < vSizeFin.y; y++)
+		{
+			for (int x = 0; x < vSizeFin.x; x++)
+			{
+				Vec3i vXyzCropped;
+				vXyzCropped.x = min(x, m_vCropTexSize.x - 1);
+				vXyzCropped.y = min(y, m_vCropTexSize.y - 1);
+				vXyzCropped.z = min(z, m_vCropTexSize.z - 1);
+
+				ColorB& rIn = pImgSource[vXyzCropped.z * m_vCropTexSize.x * m_vCropTexSize.y + vXyzCropped.y * m_vCropTexSize.x + vXyzCropped.x];
+				ColorB& rOut = arrImgResized[z * vSizeFin.x * vSizeFin.y + y * vSizeFin.x + x];
+				rOut = rIn;
+			}
+		}
+	}
+
+	static PodArray<byte> arrImgDxtPool[16];
+	PodArray<byte>& arrImgDxt = arrImgDxtPool[nTID];
+
+	arrImgDxt.CheckAllocated(nVoxTexMaxDim * nVoxTexMaxDim * nVoxTexMaxDim);
+	memset(arrImgDxt.GetElements(), 0, arrImgDxt.GetDataSize());
+
+	//		static int n=0;
+	//	PrintMessage("Compress %d : %d x %d x %d", n++, vSizeFin.x, vSizeFin.y, vSizeFin.z);
+
+	for (int nL = 0; nL < vSizeFin.z; nL++)
+	{
+		ColorB* pLayerIn = arrImgResized.GetElements() + (vSizeFin.x * vSizeFin.y * nL);
+
+		byte* pLayerOut = arrImgDxt.GetElements() + (vSizeFin.x * vSizeFin.y * nL);
+
+		GetRenderer()->DXTCompress((byte*)pLayerIn, vSizeFin.x, vSizeFin.y, gSvoEnv->m_nVoxTexFormat, false, 0, 4, SaveCompTexture);
+
+		memcpy(pLayerOut, m_arrSaveCompTexture_Data[nTID].GetElements(), m_arrSaveCompTexture_Data[nTID].GetDataSize());
+	}
+
+	pDxtOut = (byte*)arrImgDxt.GetElements();
+
+	return 0;
+}
+
 #endif

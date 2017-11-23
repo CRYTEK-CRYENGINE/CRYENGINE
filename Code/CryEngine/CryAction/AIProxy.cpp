@@ -1663,6 +1663,13 @@ IActor* CAIProxy::GetActor() const
 
 //
 //----------------------------------------------------------------------------------------------------------
+void CAIProxy::OnActorRemoved()
+{
+	m_pIActor = nullptr;
+}
+
+//
+//----------------------------------------------------------------------------------------------------------
 void CAIProxy::SendSignal(int signalID, const char* szText, IEntity* pSender, const IAISignalExtraData* pData, uint32 crc /* = 0u */)
 {
 	IF_UNLIKELY (crc == 0u)

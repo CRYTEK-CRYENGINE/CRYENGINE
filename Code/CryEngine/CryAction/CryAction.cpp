@@ -330,6 +330,10 @@ CCryAction::CCryAction(SSystemInitParams& initParams)
 	m_pScriptBindUIAction(0),
 	m_pPersistantDebug(0),
 	m_pColorGradientManager(nullptr),
+#ifdef USE_NETWORK_STALL_TICKER_THREAD
+	m_pNetworkStallTickerThread(nullptr),
+	m_networkStallTickerReferences(0),
+#endif // #ifdef USE_NETWORK_STALL_TICKER_THREAD
 	m_pMaterialEffectsCVars(0),
 	m_pEnableLoadingScreen(0),
 	m_pShowLanBrowserCVAR(0),
@@ -1859,7 +1863,7 @@ bool CCryAction::Initialize(SSystemInitParams& startupParams)
 	m_pEffectSystem = new CEffectSystem;
 	m_pEffectSystem->Init();
 	m_pUIDraw = new CUIDraw;
-	m_pLevelSystem = new CLevelSystem(m_pSystem, "levels");
+	m_pLevelSystem = new CLevelSystem(m_pSystem);
 
 	InlineInitializationProcessing("CCryAction::Init CLevelSystem");
 
@@ -2271,9 +2275,6 @@ bool CCryAction::CompleteInit()
 #endif
 
 	CBreakReplicator::RegisterClasses();
-
-	if (gEnv->pAISystem)
-		gEnv->pAISystem->CompleteInit();
 
 	if (gEnv->pRenderer)
 	{
@@ -2705,7 +2706,7 @@ bool CCryAction::PostSystemUpdate(bool haveFocus, CEnumFlags<ESystemUpdateFlags>
 #endif
 	}
 
-	bool continueRunning;
+	bool continueRunning = true;
 
 	if (auto* pGame = CCryAction::GetCryAction()->GetIGame())
 	{

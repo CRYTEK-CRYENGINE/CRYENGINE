@@ -112,6 +112,7 @@ struct MovementRequest
 	bool            considerActorsAsPathObstacles;
 	float           lengthToTrimFromThePathEnd;
 	MNMCustomPathCostComputerSharedPtr pCustomPathCostComputer;
+	SSnapToNavMeshRulesInfo snappingRules;
 };
 
 //! Contains information about the status of a request.

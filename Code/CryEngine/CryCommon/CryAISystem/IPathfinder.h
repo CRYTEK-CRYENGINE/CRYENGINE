@@ -22,7 +22,6 @@
 
 class CAIActor;
 
-struct IAIPathAgent;
 
 #include <CryMemory/IMemory.h> // <> required for Interfuscator
 #include <CryAISystem/INavigationSystem.h>
@@ -30,6 +29,7 @@ struct IAIPathAgent;
 #include <CryAISystem/IMNM.h>
 #include <CryAISystem/IAgent.h>
 #include <CryAISystem/NavigationSystem/MNMTile.h>
+#include <CryAISystem/NavigationSystem/INavigationQuery.h>
 
 /* WARNING: These interfaces and structures are soon to be deprecated.
             Use at your own risk of having to change your code later!
@@ -116,7 +116,8 @@ struct PathFollowerParams
 		isAllowedToShortcut(true),
 		snapEndPointToGround(true),
 		navCapMask(IAISystem::NAV_UNSET),
-		passRadius(0.5f)
+		passRadius(0.5f),
+		pQueryFilter(nullptr)
 	{}
 
 	// OLD: Remove this when possible, Animation to take over majority of logic.
@@ -137,6 +138,8 @@ struct PathFollowerParams
 	bool  isAllowedToShortcut;
 	bool  snapEndPointToGround; //!< try to make sure, that the path ends on the ground
 
+
+	const INavMeshQueryFilter* pQueryFilter;
 	// TODO: Add to serialize...
 	//! The navigation capabilities of the agent.
 	IAISystem::tNavCapMask navCapMask;
@@ -356,7 +359,8 @@ public:
 
 	virtual bool        UpdateAndSteerAlongPath(Vec3& dirOut, float& distToEndOut, float& distToPathOut, bool& isResolvingSticking, Vec3& pathDirOut, Vec3& pathAheadDirOut, Vec3& pathAheadPosOut, Vec3 currentPos, const Vec3& currentVel, float lookAhead, float pathRadius, float dt, bool resolveSticking, bool twoD) = 0;
 
-	virtual bool        AdjustPathAroundObstacles(const Vec3& currentpos, const AgentMovementAbility& movementAbility) = 0;
+	virtual bool        AdjustPathAroundObstacles(const Vec3& currentpos, const AgentMovementAbility& movementAbility, const INavMeshQueryFilter* pFilter) = 0;
+	virtual bool        CanPassFilter(size_t fromPointIndex, const INavMeshQueryFilter* pFilter) = 0;
 
 	virtual void        TrimPath(float length, bool twoD) = 0;
 	;
@@ -481,7 +485,11 @@ public:
 	virtual void SetAllowCuttingCorners(const bool allowCuttingCorners) = 0;
 
 	//! Checks for whether the attached path is affected by a NavMesh change or whether it would be still be fully traversable from its current position.
-	virtual bool IsRemainingPathAffectedByNavMeshChange(const NavigationMeshID affectedMeshID, const MNM::TileID affectedTileID) const = 0;
+	virtual bool IsRemainingPathAffectedByNavMeshChange(const NavigationMeshID affectedMeshID, const MNM::TileID affectedTileID, bool bAnnotationChange, bool bDataChange) const = 0;
+
+	//! Checks whether the attached path is affected by a NavMesh filter change, returns false when the remaining path cannot pass the filter.
+	virtual bool IsRemainingPathAffectedByFilterChange(const INavMeshQueryFilter* pFilter) const = 0;
+
 	// </interfuscator:shuffle>
 };
 
@@ -617,6 +625,24 @@ enum EMNMDangers
 
 typedef uint32 MNMDangersFlags;
 
+//! Parameters for snapping of the path's start/end positions onto the NavMesh.
+struct SSnapToNavMeshRulesInfo
+{
+	SSnapToNavMeshRulesInfo()
+		: bVerticalSearch(true)
+		, bBoxSearch(true)
+	{}
+
+	SSnapToNavMeshRulesInfo(const bool verticalSearch, const bool boxSearch)
+		: bVerticalSearch(verticalSearch)
+		, bBoxSearch(boxSearch)
+	{}
+
+	//<! Rules will be checked/applied in this order:
+	bool bVerticalSearch;   //!< Tries to snap vertically
+	bool bBoxSearch;	//!< Tries to snap using a box horizontally+vertically.
+};
+
 struct MNMPathRequest
 {
 	typedef Functor2<const MNM::QueuedPathID&, MNMPathRequestResult&> Callback;
@@ -635,6 +661,7 @@ struct MNMPathRequest
 		, beautify(true)
 		, pRequesterEntity(nullptr)
 		, pCustomPathCostComputer(nullptr)
+		, pFilter(nullptr)
 	{
 
 	}
@@ -655,8 +682,8 @@ struct MNMPathRequest
 		, beautify(true)
 		, pRequesterEntity(nullptr)
 		, pCustomPathCostComputer(nullptr)
+		, pFilter(nullptr)
 	{
-
 	}
 
 	Callback              resultCallback;
@@ -672,11 +699,13 @@ struct MNMPathRequest
 	int                   forceTargetBuildingId;
 	float                 endTolerance;
 	float                 endDistance;
+	SSnapToNavMeshRulesInfo	  snappingRules;
 	bool                  allowDangerousDestination;
 	MNMDangersFlags       dangersToAvoidFlags;
+	const INavMeshQueryFilter* pFilter;
 
-	IEntity*        pRequesterEntity;
 	MNMCustomPathCostComputerSharedPtr pCustomPathCostComputer;  // can be provided by the game code to allow for computing path-finding costs in more ways than just through the built-in "danger areas" (see MNMDangersFlags)
+	IEntity*              pRequesterEntity;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -697,6 +726,7 @@ struct IMNMPathfinder
 	virtual void CancelPathRequest(MNM::QueuedPathID requestId) = 0;
 
 	virtual bool CheckIfPointsAreOnStraightWalkableLine(const NavigationMeshID& meshID, const Vec3& source, const Vec3& destination, float heightOffset = 0.2f) const = 0;
+	virtual bool CheckIfPointsAreOnStraightWalkableLine(const NavigationMeshID& meshID, const Vec3& source, const Vec3& destination, const INavMeshQueryFilter* pFilter, float heightOffset = 0.2f) const = 0;
 
 	// </interfuscator:shuffle>
 };

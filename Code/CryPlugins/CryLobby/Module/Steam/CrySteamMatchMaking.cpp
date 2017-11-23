@@ -1386,7 +1386,12 @@ void CCrySteamMatchMaking::StartSessionCreate(CryMatchMakingTaskID mmTaskID)
 		lobbyType = k_ELobbyTypePublic;
 	}
 
-	SteamAPICall_t hSteamAPICall = SteamMatchmaking()->CreateLobby(lobbyType, pSession->data.m_numPublicSlots + pSession->data.m_numPrivateSlots);
+	ISteamMatchmaking* matchMaking = SteamMatchmaking();
+	SteamAPICall_t hSteamAPICall = k_uAPICallInvalid;
+	if (matchMaking)
+	{
+		hSteamAPICall = matchMaking->CreateLobby(lobbyType, pSession->data.m_numPublicSlots + pSession->data.m_numPrivateSlots);
+	}
 	if (hSteamAPICall == k_uAPICallInvalid)
 	{
 		UpdateTaskError(mmTaskID, eCLE_InternalError);

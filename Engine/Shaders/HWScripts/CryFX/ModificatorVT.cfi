@@ -51,7 +51,7 @@ cbuffer CBPerInstanceNewBackend : register(b12)
 	#if %_RT_PER_INSTANCE_CB_TEMP
 		return PerInstanceBlendTerrainColInfo;
 	#else
-		return BlendTerrainColInfo;
+		return float4(0);
 	#endif
 #endif
 	}
@@ -65,7 +65,7 @@ cbuffer CBPerInstanceNewBackend : register(b12)
 	#elif %_RT_PER_INSTANCE_CB_TEMP
 		return PerInstanceTerrainLayerInfo;
 	#else
-		return LayerTexGen;
+		return float4x4(0);
 	#endif
 	}
 #endif
@@ -73,11 +73,7 @@ cbuffer CBPerInstanceNewBackend : register(b12)
 float4 Get_SPI_SkinningInfo()
 {
 #if !%TEMP_TERRAIN && !%TEMP_VEGETATION && (%_RT_SKELETON_SSD || %_RT_SKELETON_SSD_LINEAR)
-	#if %_RT_PER_INSTANCE_CB_TEMP
-		return PerInstanceSkinningInfo;
-	#else
-		return float4(vSkinPrecisionOffset.xyz, fSkinningExtraWeights.x);
-	#endif
+	return PerInstanceSkinningInfo;
 #else
 	return float4(0, 0, 0, 0);
 #endif
@@ -88,10 +84,7 @@ float3x4 Get_SPI_ObjWorldMat(int nIndex)
  #if %_RT_ENVIRONMENT_CUBEMAP
 	return SInstancingData[nIndex].PerInstanceWorldMatrix;
  #else
-  #if %_RT_PER_INSTANCE_CB_TEMP
 	return PerInstanceWorldMatrix;
-  #endif
-	return ObjWorldMatrix;
  #endif
 }
 
@@ -127,10 +120,8 @@ float4 Get_SPI_BendInfo(int nIndex, float3 worldPos)
 {
 #if %_RT_ENVIRONMENT_CUBEMAP
 	return DecodeBending(worldPos, SInstancingData[nIndex].PerInstanceCustomData.x,SInstancingData[nIndex].PerInstanceCustomData.y);
-#elif %_RT_PER_INSTANCE_CB_TEMP
-	return DecodeBending(worldPos, PerInstanceCustomData.x,PerInstanceCustomData.y);
- #else
-	return BendInfo;
+#else
+	return DecodeBending(worldPos, PerInstanceCustomData.x,PerInstanceCustomData.y); 
  #endif
 }
 
@@ -147,11 +138,7 @@ float4 Get_SPI_VertexAO(int nIndex)
 
 float Get_MaterialAlphaTest()
 {
-#if %_RT_PER_INSTANCE_CB_TEMP
 	return CM_DetailTilingAndAlphaRef.z; // alpha ref value is stored in material CB
-#else
-	return AlphaTest.w;
-#endif
 }
 
 float Get_SPI_Dissolve()

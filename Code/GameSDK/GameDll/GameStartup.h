@@ -3,6 +3,7 @@
 #pragma once
 
 #include <CryGame/IGameFramework.h>
+#include <CryGame/IGameStartup.h>
 #include <CrySystem/IWindowMessageHandler.h>
 
 #if defined(CVARS_WHITELIST)

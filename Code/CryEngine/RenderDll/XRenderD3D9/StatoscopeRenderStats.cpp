@@ -160,7 +160,7 @@ void CGraphicsDG::Write(IStatoscopeFrameRecord& fr)
 	m_pRenderer->EF_Query(EFQ_NumActivePostEffects, nNumActivePostEffects);
 	fr.AddValue(nNumActivePostEffects);
 
-	PodArray<CDLight*>* pLights = gEnv->p3DEngine->GetDynamicLightSources();
+	PodArray<SRenderLight*>* pLights = gEnv->p3DEngine->GetDynamicLightSources();
 	int nDynamicLights = (int)pLights->Count();
 	int nShadowCastingLights = 0;
 
@@ -172,7 +172,7 @@ void CGraphicsDG::Write(IStatoscopeFrameRecord& fr)
 
 	for (int i = 0; i < nDynamicLights; i++)
 	{
-		CDLight* pLight = pLights->GetAt(i);
+		SRenderLight* pLight = pLights->GetAt(i);
 
 		if (pLight->m_Flags & DLF_CASTSHADOW_MAPS)
 		{

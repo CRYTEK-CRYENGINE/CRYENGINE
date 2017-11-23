@@ -17,6 +17,37 @@ CAppDomain::CAppDomain(char *name, bool bActivate)
 	CreateDomain(name, bActivate);
 
 	m_bNativeDomain = true;
+
+	CacheObjectMethods();
+
+	char executableFolder[_MAX_PATH];
+	CryGetExecutableFolder(_MAX_PATH, executableFolder);
+
+	string libraryPath = PathUtil::Make(executableFolder, "CryEngine.Common");
+	m_pLibCommon = LoadLibrary(libraryPath);
+	if (m_pLibCommon == nullptr)
+	{
+		CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "Failed to load managed common library!");
+		return;
+	}
+
+	libraryPath = PathUtil::Make(executableFolder, "CryEngine.Core");
+	m_pLibCore = LoadLibrary(libraryPath);
+	if (m_pLibCore == nullptr)
+	{
+		CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "Failed to load managed core library!");
+		return;
+	}
+
+	// Get the equivalent of gEnv
+	std::shared_ptr<CMonoClass> pEngineClass = m_pLibCore->GetTemporaryClass("CryEngine", "Engine");
+	CRY_ASSERT(pEngineClass != nullptr);
+
+	// Call the static Initialize function
+	if (std::shared_ptr<CMonoMethod> pMethod = pEngineClass->FindMethod("OnEngineStart").lock())
+	{
+		pMethod->Invoke();
+	}
 }
 
 CAppDomain::CAppDomain(MonoInternals::MonoDomain* pMonoDomain)
@@ -28,6 +59,24 @@ CAppDomain::CAppDomain(MonoInternals::MonoDomain* pMonoDomain)
 #endif
 
 	m_bNativeDomain = false;
+
+	CacheObjectMethods();
+}
+
+CAppDomain::~CAppDomain()
+{
+	if (m_pLibCore != nullptr)
+	{
+		// Get the equivalent of gEnv
+		std::shared_ptr<CMonoClass> pEngineClass = m_pLibCore->GetTemporaryClass("CryEngine", "Engine");
+		CRY_ASSERT(pEngineClass != nullptr);
+
+		// Call the static Shutdown function
+		if (std::shared_ptr<CMonoMethod> pMethod = pEngineClass->FindMethod("OnEngineShutdown").lock())
+		{
+			pMethod->Invoke();
+		}
+	}
 }
 
 void CAppDomain::CreateDomain(char *name, bool bActivate)
@@ -57,6 +106,18 @@ void CAppDomain::CreateDomain(char *name, bool bActivate)
 
 bool CAppDomain::Reload()
 {
+	m_isReloading = true;
+
+	// Trigger removal of C++ listeners, since the memory they belong to will be invalid shortly
+	std::shared_ptr<CMonoClass> pEngineClass = GetMonoRuntime()->GetCryCoreLibrary()->GetTemporaryClass("CryEngine", "Engine");
+	CRY_ASSERT(pEngineClass != nullptr);
+
+	// Call the static Shutdown function
+	if (std::shared_ptr<CMonoMethod> pMethod = pEngineClass->FindMethod("OnUnloadStart").lock())
+	{
+		pMethod->Invoke();
+	}
+
 	// Make note of whether we were active or not, so we can reapply state to the new domain
 	bool bWasActive = IsActive();
 
@@ -85,7 +146,43 @@ bool CAppDomain::Reload()
 		pLibrary->Reload();
 	}
 
-	DeserializeDomainData(serializedData);
+	CacheObjectMethods();
+
+	// Notify plug-ins of reload
+	pEngineClass->ReloadClass();
+
+	// Create the deserializer
+	m_serializationTicks = 0;
+	std::shared_ptr<CMonoObject> pSerializer = CreateDeserializer(serializedData);
+
+	// Deserialize our internal libraries before notifying the run-time
+	// This ensures that we can register components before deserializing them
+	m_pLibCommon->Deserialize(pSerializer.get());
+	m_pLibCore->Deserialize(pSerializer.get());
+
+	// Now notify the run-time
+	GetMonoRuntime()->OnCoreLibrariesDeserialized();
+
+	// Deserialize other libraries
+	for (const std::unique_ptr<CMonoLibrary>& pLibrary : m_loadedLibraries)
+	{
+		if (pLibrary.get() != m_pLibCommon && pLibrary.get() != m_pLibCore)
+		{
+			pLibrary->Deserialize(pSerializer.get());
+		}
+	}
+
+	GetMonoRuntime()->OnPluginLibrariesDeserialized();
+
+	CryLogAlways("Total de-serialization time: %f ms", (1000.f * gEnv->pTimer->TicksToSeconds(m_serializationTicks)));
+
+	// Notify the framework so that internal listeners etc. can be added again.
+	if (std::shared_ptr<CMonoMethod> pMethod = pEngineClass->FindMethod("OnReloadDone").lock())
+	{
+		pMethod->Invoke();
+	}
+
+	m_isReloading = false;
 
 	return true;
 }
@@ -120,26 +217,30 @@ void CAppDomain::SerializeDomainData(std::vector<char>& serializedData)
 	}
 
 	// Grab the serialized buffer
-	std::shared_ptr<CMonoObject> pManagedBuffer = pMemoryStream->GetClass()->FindMethod("GetBuffer")->Invoke(pMemoryStream.get());
-	
-	serializedData.resize(pManagedBuffer->GetArraySize());
-	char* arrayBuffer = pManagedBuffer->GetArrayAddress(sizeof(char), 0);
+	if (std::shared_ptr<CMonoMethod> pMethod = pMemoryStream->GetClass()->FindMethod("GetBuffer").lock())
+	{
+		std::shared_ptr<CMonoObject> pManagedBuffer = pMethod->Invoke(pMemoryStream.get());
 
-	memcpy(serializedData.data(), arrayBuffer, serializedData.size());
+		serializedData.resize(pManagedBuffer->GetArraySize());
+		char* arrayBuffer = pManagedBuffer->GetArrayAddress(sizeof(char), 0);
 
-	CryLogAlways("Total serialization time: %f ms, %iMB used", (1000.f * gEnv->pTimer->TicksToSeconds(m_serializationTicks)), serializedData.size() / (1024 * 1024));
+		memcpy(serializedData.data(), arrayBuffer, serializedData.size());
+
+		CryLogAlways("Total serialization time: %f ms, %iMB used", (1000.f * gEnv->pTimer->TicksToSeconds(m_serializationTicks)), serializedData.size() / (1024 * 1024));
+	}
+	else
+	{
+		CRY_ASSERT(false);
+	}
 }
 
-void CAppDomain::DeserializeDomainData(const std::vector<char>& serializedData)
+std::shared_ptr<CMonoObject> CAppDomain::CreateDeserializer(const std::vector<char>& serializedData)
 {
-	// Now serialize the statics contained inside this library
-	CMonoLibrary& netCoreLibrary = GetMonoRuntime()->GetRootDomain()->GetNetCoreLibrary();
-
-	m_serializationTicks = 0;
-
 	std::shared_ptr<CMonoClass> pCryObjectReaderClass = GetMonoRuntime()->GetCryCoreLibrary()->GetTemporaryClass("CryEngine.Serialization", "ObjectReader");
 
 	CMonoDomain* pDomain = pCryObjectReaderClass->GetAssembly()->GetDomain();
+
+	CMonoLibrary& netCoreLibrary = GetMonoRuntime()->GetRootDomain()->GetNetCoreLibrary();
 
 	MonoInternals::MonoArray* pMonoManagedBuffer = MonoInternals::mono_array_new(pDomain->GetMonoDomain(), MonoInternals::mono_get_byte_class(), serializedData.size());
 	std::shared_ptr<CMonoClass> pBufferClass = netCoreLibrary.GetClassFromMonoClass(MonoInternals::mono_object_get_class((MonoInternals::MonoObject*)pMonoManagedBuffer));
@@ -162,36 +263,37 @@ void CAppDomain::DeserializeDomainData(const std::vector<char>& serializedData)
 	void* readerConstructorParams[1];
 	readerConstructorParams[0] = pMemoryStream->GetManagedObject();
 
-	std::shared_ptr<CMonoObject> pSerializer = std::static_pointer_cast<CMonoObject>(pCryObjectReaderClass->CreateInstance(readerConstructorParams, 1));
-
-	for (const std::unique_ptr<CMonoLibrary>& pLibrary : m_loadedLibraries)
-	{
-		pLibrary->Deserialize(pSerializer.get());
-	}
-
-	CryLogAlways("Total de-serialization time: %f ms", (1000.f * gEnv->pTimer->TicksToSeconds(m_serializationTicks)));
+	return std::static_pointer_cast<CMonoObject>(pCryObjectReaderClass->CreateInstance(readerConstructorParams, 1));
 }
 
 void CAppDomain::SerializeObject(CMonoObject* pSerializer, MonoInternals::MonoObject* pObject, bool bIsAssembly)
 {
-	int64 startTime = CryGetTicks();
+	if (std::shared_ptr<CMonoMethod> pMethod = pSerializer->GetClass()->FindMethod(bIsAssembly ? "WriteStatics" : "Write", 1).lock())
+	{
+		void* writeParams[1];
+		writeParams[0] = pObject;
 
-	void* writeParams[1];
-	writeParams[0] = pObject;
-
-	pSerializer->GetClass()->FindMethod(bIsAssembly ? "WriteStatics" : "Write", 1)->Invoke(pSerializer, writeParams);
-
-	m_serializationTicks += CryGetTicks() - startTime;
+		int64 startTime = CryGetTicks();
+		pMethod->Invoke(pSerializer, writeParams);
+		m_serializationTicks += CryGetTicks() - startTime;
+	}
+	else
+	{
+		CRY_ASSERT(false);
+	}
 }
 
-std::shared_ptr<CMonoObject> CAppDomain::DeserializeObject(CMonoObject* pSerializer, bool bIsAssembly)
+std::shared_ptr<CMonoObject> CAppDomain::DeserializeObject(CMonoObject* pSerializer, const CMonoClass* const pObjectClass)
 {
-	int64 startTime = CryGetTicks();
-
 	// Now serialize the statics contained inside this library
-	std::shared_ptr<CMonoObject> pReadResult = pSerializer->GetClass()->FindMethod(bIsAssembly ? "ReadStatics" : "Read")->Invoke(pSerializer);
+	if (std::shared_ptr<CMonoMethod> pMethod = pSerializer->GetClass()->FindMethod(pObjectClass == nullptr ? "ReadStatics" : "Read").lock())
+	{
+		int64 startTime = CryGetTicks();
+		std::shared_ptr<CMonoObject> pReadResult = pMethod->Invoke(pSerializer);
+		m_serializationTicks += CryGetTicks() - startTime;
 
-	m_serializationTicks += CryGetTicks() - startTime;
+		return pReadResult;
+	}
 
-	return pReadResult;
+	return nullptr;
 }

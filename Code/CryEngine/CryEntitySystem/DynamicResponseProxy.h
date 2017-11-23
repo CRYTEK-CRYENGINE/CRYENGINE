@@ -23,7 +23,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// IEntityComponent interface implementation.
 	//////////////////////////////////////////////////////////////////////////
-	virtual void         ProcessEvent(SEntityEvent& event) override;
+	virtual void         ProcessEvent(const SEntityEvent& event) override;
 	virtual uint64       GetEventMask() const override;
 	virtual EEntityProxy GetProxyType() const override { return ENTITY_PROXY_DYNAMICRESPONSE; }
 	virtual void         GetMemoryUsage(ICrySizer* pSizer) const override

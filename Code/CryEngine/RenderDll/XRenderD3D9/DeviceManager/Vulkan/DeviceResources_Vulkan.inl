@@ -287,30 +287,36 @@ SResourceDimension CDeviceBuffer::GetDimension() const
 
 STextureLayout CDeviceTexture::GetLayout() const
 {
-	STextureLayout result;
-	result.m_eDstFormat = result.m_eSrcFormat = gcpRendD3D->m_hwTexFormatSupport.GetClosestFormatSupported(DeviceFormats::ConvertToTexFormat(m_eNativeFormat), result.m_pPixelFormat);
-	result.m_eTT = m_eTT;
-	result.m_eFlags = m_eFlags;
-	result.m_bIsSRGB = m_bIsSrgb;
+	STextureLayout Layout;
+
+	Layout.m_eSrcFormat =
+	Layout.m_eDstFormat = CRendererResources::s_hwTexFormatSupport.GetClosestFormatSupported(DeviceFormats::ConvertToTexFormat(m_eNativeFormat), Layout.m_pPixelFormat);
+	Layout.m_eTT = m_eTT;
+	Layout.m_eFlags = m_eFlags;
+	Layout.m_bIsSRGB = m_bIsSrgb;
 
 	NCryVulkan::CImageResource* const pImage = m_pNativeResource ? m_pNativeResource->AsImage() : nullptr;
+
 	if (pImage)
 	{
-		result.m_nWidth = static_cast<uint16>(pImage->GetWidth());
-		result.m_nHeight = static_cast<uint16>(pImage->GetHeight());
-		result.m_nDepth = static_cast<uint16>(pImage->GetDepth());
-		result.m_nArraySize = static_cast<uint8>(pImage->GetSliceCount());
-		result.m_nMips = static_cast<int8>(pImage->GetMipCount());
-		result.m_eFlags |= MapResourceFlags(pImage);
+		Layout.m_nWidth = static_cast<uint16>(pImage->GetWidth());
+		Layout.m_nHeight = static_cast<uint16>(pImage->GetHeight());
+		Layout.m_nDepth = static_cast<uint16>(pImage->GetDepth());
+		Layout.m_nArraySize = static_cast<uint8>(pImage->GetSliceCount());
+		Layout.m_nMips = static_cast<int8>(pImage->GetMipCount());
+		Layout.m_eFlags |= MapResourceFlags(pImage);
 	}
-	return result;
+
+	return Layout;
 }
 
 STextureLayout CDeviceTexture::GetLayout(D3DBaseView* pView)
 {
 	STextureLayout Layout = {};
+
 	NCryVulkan::CImageResource* const pImage = pView->GetResource()->AsImage();
 	const NCryVulkan::CImageView* const pImageView = pImage ? static_cast<NCryVulkan::CImageView*>(pView) : nullptr;
+
 	if (pImage && pImageView)
 	{
 		uint32 nWidth = pImage->GetWidth();
@@ -337,7 +343,8 @@ STextureLayout CDeviceTexture::GetLayout(D3DBaseView* pView)
 		nHeight = std::max(nHeight >> nFirstMip, 1U);
 		nDepth  = std::max(nDepth  >> nFirstMip, 1U);
 
-		Layout.m_eDstFormat = Layout.m_eSrcFormat = gcpRendD3D->m_hwTexFormatSupport.GetClosestFormatSupported(eTF, Layout.m_pPixelFormat);
+		Layout.m_eSrcFormat =
+		Layout.m_eDstFormat = CRendererResources::s_hwTexFormatSupport.GetClosestFormatSupported(eTF, Layout.m_pPixelFormat);
 		Layout.m_eTT = eTT;
 		Layout.m_eFlags = nFlags;
 		Layout.m_nWidth = nWidth;
@@ -346,6 +353,7 @@ STextureLayout CDeviceTexture::GetLayout(D3DBaseView* pView)
 		Layout.m_nMips = nMips;
 		Layout.m_nArraySize = nSlices;
 	}
+
 	return Layout;
 }
 
@@ -381,11 +389,6 @@ SResourceDimension CDeviceTexture::GetDimension(uint8 mip /*= 0*/, uint8 slices 
 	Dimension.Subresources = (slices ? slices : Layout.m_nArraySize) * (Layout.m_nMips - mip);
 
 	return Dimension;
-}
-
-void CDeviceTexture::Unbind()
-{
-	VK_NOT_IMPLEMENTED;
 }
 
 #ifdef DEVRES_USE_STAGING_POOL

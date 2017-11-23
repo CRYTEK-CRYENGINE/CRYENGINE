@@ -71,3 +71,8 @@ void COpticsReference::RenderPreview(SLensFlareRenderParam* pParam, const Vec3& 
 	for (int i = 0, iSize(m_OpticsList.size()); i < iSize; ++i)
 		m_OpticsList[i]->RenderPreview(pParam, vPos);
 }
+
+void COpticsReference::DeleteThis()
+{
+	delete this;
+}

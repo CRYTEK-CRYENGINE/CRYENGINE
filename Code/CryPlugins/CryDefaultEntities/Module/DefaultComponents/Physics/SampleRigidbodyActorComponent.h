@@ -18,7 +18,7 @@ namespace Cry
 
 			virtual void Initialize() final { Physicalize(); }
 
-			virtual void ProcessEvent(SEntityEvent& event) final
+			virtual void ProcessEvent(const SEntityEvent& event) final
 			{
 				if (event.event == ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED)
 				{

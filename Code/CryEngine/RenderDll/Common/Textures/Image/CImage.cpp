@@ -89,7 +89,7 @@ _smart_ptr<CImageFile> CImageFile::mfLoad_file(const string& filename, const uin
 	}
 
 	char ext[16];
-	if (!mfInvokeRC(sFileToLoad, filename, ext, 16))
+	if (!mfInvokeRC(sFileToLoad, filename, ext, 16, true))
 		return NULL;
 
 	_smart_ptr<CImageFile> pImageFile;
@@ -137,8 +137,7 @@ _smart_ptr<CImageFile> CImageFile::mfStream_File(const string& filename, const u
 	}
 
 	char ext[16];
-
-	if (!mfInvokeRC(sFileToLoad, filename, ext, 16))
+	if (!mfInvokeRC(sFileToLoad, filename, ext, 16, true))
 		return NULL;
 
 	_smart_ptr<CImageFile> pImageFile;
@@ -156,7 +155,7 @@ _smart_ptr<CImageFile> CImageFile::mfStream_File(const string& filename, const u
 	return pImageFile;
 }
 
-bool CImageFile::mfInvokeRC(const string& sFileToLoad, const string& filename, char* extOut, size_t extOutCapacity)
+bool CImageFile::mfInvokeRC(const string& sFileToLoad, const string& filename, char* extOut, size_t extOutCapacity, bool immediate)
 {
 	cry_strcpy(extOut, extOutCapacity, PathUtil::GetExt(sFileToLoad));
 
@@ -169,7 +168,7 @@ bool CImageFile::mfInvokeRC(const string& sFileToLoad, const string& filename, c
 			CTextureCompiler& txCompiler = CTextureCompiler::GetInstance();
 			char buffer[512];
 
-			if (!txCompiler.ProcessTextureIfNeeded(filename, buffer, sizeof(buffer)))
+			if (!txCompiler.ProcessTextureIfNeeded(filename, buffer, sizeof(buffer), immediate))
 			{
 				gEnv->pLog->LogError("ProcessTextureIfNeeded() failed (missing rc.exe?)");
 				return false;

@@ -4,7 +4,7 @@
 
 struct ICharacterInstance;
 
-class CCharacterRenderNode : public ICharacterRenderNode, private Cry3DEngineBase
+class CCharacterRenderNode final : public ICharacterRenderNode, private Cry3DEngineBase
 {
 	friend class COctreeNode;
 
@@ -71,7 +71,6 @@ public:
 	// Implement ICharacterRenderNode
 	//////////////////////////////////////////////////////////////////////////
 	virtual void SetCharacter(ICharacterInstance* pCharacter) final;
-	virtual void SetCharacterRenderOffset(const QuatTS& renderOffset) final;
 	//////////////////////////////////////////////////////////////////////////
 
 	static void PrecacheCharacter(const float fImportance, ICharacterInstance* pCharacter, IMaterial* pSlotMat,
@@ -98,8 +97,6 @@ private:
 	mutable AABB m_cachedBoundsWorld;
 	// Cached Local space bounding box
 	mutable AABB m_cachedBoundsLocal;
-
-	QuatTS   m_renderOffset;
 
 	Vec3*    m_pCameraSpacePos = nullptr;
 

@@ -584,7 +584,7 @@ void CXConsole::RegisterVar(ICVar* pCVar, ConsoleVarFunc pChangeFunc)
 		  (isConst || isCheat || isReadOnly || isDeprecated))
 		{
 			allowChange = !isDeprecated && ((gEnv->pSystem->IsDevMode()) || (gEnv->IsEditor()));
-			if ((strcmp(pCVar->GetString(), var.m_value.c_str()) != 0) && (!(gEnv->IsEditor()) || isDeprecated))
+			if (pCVar->GetString() != var.m_value && !allowChange)
 			{
 #if LOG_CVAR_INFRACTIONS
 				LogChangeMessage(pCVar->GetName(), isConst, isCheat,
@@ -1647,10 +1647,10 @@ void CXConsole::Draw()
 	if (!m_bConsoleActive && con_display_last_messages == 0)
 		return;
 
-	if (m_pRenderer->GetIRenderAuxGeom())
-		m_pRenderer->GetIRenderAuxGeom()->Flush();
+	//if (m_pRenderer->GetIRenderAuxGeom())
+		//m_pRenderer->GetIRenderAuxGeom()->Flush();
 
-	m_pRenderer->PushProfileMarker("DISPLAY_CONSOLE");
+	//m_pRenderer->PushProfileMarker("DISPLAY_CONSOLE");
 
 	if (m_nScrollPos <= 0)
 	{
@@ -1674,41 +1674,42 @@ void CXConsole::Draw()
 
 		CScopedWireFrameMode scopedWireFrame(m_pRenderer, R_SOLID_MODE);
 
+		// TODO: relative/normalized coordinate system in screen-space
 		if (!m_nProgressRange)
 		{
 			if (m_bStaticBackground)
 			{
-				m_pRenderer->SetState(GS_NODEPTHTEST);
-				m_pRenderer->Draw2dImage(0, 0, 800, 600, m_pImage ? m_pImage->GetTextureID() : m_nWhiteTexID, 0.0f, 1.0f, 1.0f, 0.0f);
+				//m_pRenderer->SetState(GS_NODEPTHTEST);
+				IRenderAuxImage::Draw2dImage(0.0f, 0.0f, float(m_pRenderer->GetOverlayWidth()) /*800*/, float(m_pRenderer->GetOverlayHeight()) /*600*/, m_pImage ? m_pImage->GetTextureID() : m_nWhiteTexID, 0.0f, 1.0f, 1.0f, 0.0f);
 			}
 			else
 			{
-				m_pRenderer->Set2DMode(true, m_pRenderer->GetWidth(), m_pRenderer->GetHeight());
+				//m_pRenderer->Set2DMode(true, m_pRenderer->GetWidth(), m_pRenderer->GetOverlayHeight());
 
 				float fReferenceSize = 600.0f;
 
-				float fSizeX = (float)m_pRenderer->GetWidth();
-				float fSizeY = m_nTempScrollMax * m_pRenderer->GetHeight() / fReferenceSize;
+				float fSizeX = (float)m_pRenderer->GetOverlayWidth();
+				float fSizeY = m_nTempScrollMax * m_pRenderer->GetOverlayHeight() / fReferenceSize;
 
-				m_pRenderer->SetState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
-				m_pRenderer->DrawImage(0, 0, fSizeX, fSizeY, m_nWhiteTexID, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.7f);
-				m_pRenderer->DrawImage(0, fSizeY, fSizeX, 2.0f * m_pRenderer->GetHeight() / fReferenceSize, m_nWhiteTexID, 0, 0, 0, 0, 0.0f, 0.0f, 0.0f, 1.0f);
+				//m_pRenderer->SetState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
+				IRenderAuxImage::DrawImage(0, 0, fSizeX, fSizeY, m_nWhiteTexID, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.7f);
+				IRenderAuxImage::DrawImage(0, fSizeY, fSizeX, 2.0f * m_pRenderer->GetOverlayHeight() / fReferenceSize, m_nWhiteTexID, 0, 0, 0, 0, 0.0f, 0.0f, 0.0f, 1.0f);
 
-				m_pRenderer->Set2DMode(false, 0, 0);
+				//m_pRenderer->Set2DMode(false, 0, 0);
 			}
 		}
 
 		// draw progress bar
 		if (m_nProgressRange)
 		{
-			m_pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
-			m_pRenderer->Draw2dImage(0.0, 0.0, 800.0f, 600.0f, m_nLoadingBackTexID, 0.0f, 1.0f, 1.0f, 0.0f);
+			//m_pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
+			IRenderAuxImage::Draw2dImage(0.0f, 0.0f, float(m_pRenderer->GetOverlayWidth()) /*800*/, float(m_pRenderer->GetOverlayHeight()) /*600*/, m_nLoadingBackTexID, 0.0f, 1.0f, 1.0f, 0.0f);
 		}
 
 		DrawBuffer(m_nScrollPos, "console");
 	}
 
-	m_pRenderer->PopProfileMarker("DISPLAY_CONSOLE");
+	//m_pRenderer->PopProfileMarker("DISPLAY_CONSOLE");
 }
 
 void CXConsole::DrawBuffer(int nScrollPos, const char* szEffect)
@@ -1803,7 +1804,7 @@ void CXConsole::ScrollConsole()
 	if (!m_pRenderer)
 		return;
 
-	int nCurrHeight = m_pRenderer->GetHeight();
+	int nCurrHeight = m_pRenderer->GetOverlayHeight();
 
 	switch (m_sdScrollDir)
 	{

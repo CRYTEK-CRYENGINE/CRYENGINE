@@ -129,8 +129,20 @@ class CCryLibrary
 {
 public:
 	CCryLibrary(const char* szLibraryPath)
+		: m_hModule(nullptr)
 	{
-		m_hModule = CryLoadLibrary(szLibraryPath);
+		if (szLibraryPath != nullptr)
+		{
+			m_hModule = CryLoadLibrary(szLibraryPath);
+		}
+	}
+
+	CCryLibrary(const CCryLibrary& other) = delete;
+
+	CCryLibrary(CCryLibrary&& other)
+		: m_hModule(std::move(other.m_hModule))
+	{
+		other.m_hModule = nullptr;
 	}
 
 	~CCryLibrary()
@@ -148,6 +160,20 @@ public:
 	TProcedure GetProcedureAddress(const char* szName)
 	{
 		return (TProcedure)CryGetProcAddress(m_hModule, szName);
+	}
+
+	void Set(const char* szLibraryPath)
+	{
+		if (m_hModule != nullptr)
+		{
+			CryFreeLibrary(m_hModule);
+			m_hModule = nullptr;
+		}
+
+		if (szLibraryPath != nullptr)
+		{
+			m_hModule = CryLoadLibrary(szLibraryPath);
+		}
 	}
 
 	HMODULE m_hModule;

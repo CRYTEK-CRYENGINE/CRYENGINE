@@ -2490,20 +2490,22 @@ void CAISystem::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lpar
 	switch (event)
 	{
 	case ESYSTEM_EVENT_GAME_POST_INIT_DONE: //= ESYSTEM_EVENT_REGISTER_SCHEMATYC_ENV
+	{
+		CompleteInit();
+
+		gEnv->pSchematyc->GetEnvRegistry().RegisterPackage(
+			SCHEMATYC_MAKE_ENV_PACKAGE(
+				"8bdb92e7-cf17-4773-99d2-92a18a86dcb6"_cry_guid,
+				"AISystem", Schematyc::g_szCrytek, "AI System",
+				SCHEMATYC_MEMBER_DELEGATE(&CAISystem::RegisterSchematycEnvPackage, *this)));
+
+		if (UQS::Core::IHub* pHub = UQS::Core::IHubPlugin::GetHubPtr())
 		{
-			gEnv->pSchematyc->GetEnvRegistry().RegisterPackage(
-				SCHEMATYC_MAKE_ENV_PACKAGE(
-					"8bdb92e7-cf17-4773-99d2-92a18a86dcb6"_cry_guid,
-					"AISystem", Schematyc::g_szCrytek, "AI System",
-					SCHEMATYC_MEMBER_DELEGATE(&CAISystem::RegisterSchematycEnvPackage, *this)));
-
-			if (UQS::Core::IHub* pHub = UQS::Core::IHubPlugin::GetHubPtr())
-			{
-				pHub->RegisterHubEventListener(&CAiUqsHubEventListener::GetInstance());
-			}
-
-			break;
+			pHub->RegisterHubEventListener(&CAiUqsHubEventListener::GetInstance());
 		}
+
+		break;
+	}
 	}
 }
 

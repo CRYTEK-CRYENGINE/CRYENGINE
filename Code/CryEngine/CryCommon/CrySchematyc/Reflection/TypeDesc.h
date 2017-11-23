@@ -362,6 +362,8 @@ protected:
 
 	bool              AddBase(const CCommonTypeDesc& typeDesc, ptrdiff_t offset);
 	CClassMemberDesc& AddMember(const CCommonTypeDesc& typeDesc, ptrdiff_t offset, uint32 id, const char* szName, const char* szLabel, const char* szDescription, Utils::IDefaultValuePtr&& pDefaultValue);
+	void              ClearBases() { m_bases.clear(); }
+	void              ClearMembers() { m_members.clear(); }
 
 private:
 

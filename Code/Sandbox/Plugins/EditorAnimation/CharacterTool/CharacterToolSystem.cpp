@@ -115,6 +115,8 @@ void System::Initialize()
 	explorerData->AddProvider(sourceAssetList.get(), "Source Assets");
 #endif
 
+	explorerData->Populate();
+
 	gizmoSink.reset(new GizmoSink());
 	characterSpaceProvider.reset(new CharacterSpaceProvider(document.get()));
 

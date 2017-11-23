@@ -1153,7 +1153,7 @@ void CAnimatedCharacter::UpdateCharacterPtrs()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAnimatedCharacter::ProcessEvent(SEntityEvent& event)
+void CAnimatedCharacter::ProcessEvent(const SEntityEvent& event)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
@@ -1277,6 +1277,11 @@ void CAnimatedCharacter::ProcessEvent(SEntityEvent& event)
 		}
 		break;
 	}
+}
+
+uint64 CAnimatedCharacter::GetEventMask() const
+{
+	return BIT64(ENTITY_EVENT_PRE_SERIALIZE) | BIT64(ENTITY_EVENT_ANIM_EVENT) | BIT64(ENTITY_EVENT_XFORM) | BIT64(ENTITY_EVENT_SCRIPT_REQUEST_COLLIDERMODE) | BIT64(ENTITY_EVENT_DONE) | BIT64(ENTITY_EVENT_INIT) | BIT64(ENTITY_EVENT_RESET);
 }
 
 float CAnimatedCharacter::FilterView(SViewParams& viewParams) const

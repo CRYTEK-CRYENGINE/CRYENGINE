@@ -6,25 +6,27 @@
 
 namespace ACE
 {
-class IAudioSystemEditor;
+struct IEditorImpl;
 
 class CImplementationManager final : public QObject
 {
 	Q_OBJECT
 
 public:
+
 	CImplementationManager();
 	virtual ~CImplementationManager() override;
 
-	bool                     LoadImplementation();
-	void                     Release();
-	ACE::IAudioSystemEditor* GetImplementation();
+	bool                LoadImplementation();
+	void                Release();
+	IEditorImpl*        GetImplementation();
 
 	CCrySignal<void()> signalImplementationAboutToChange;
 	CCrySignal<void()> signalImplementationChanged;
 
 private:
-	ACE::IAudioSystemEditor* ms_pAudioSystemImpl;
-	HMODULE                  ms_hMiddlewarePlugin;
+
+	IEditorImpl* m_pEditorImpl;
+	HMODULE      m_hMiddlewarePlugin;
 };
 } // namespace ACE

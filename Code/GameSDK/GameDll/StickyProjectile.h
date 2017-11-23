@@ -73,7 +73,7 @@ public:
 	void NetSetStuck(CProjectile* pProjectile, bool stuck);
 
 	// IEntityEventListener
-	virtual void OnEntityEvent( IEntity *pEntity,SEntityEvent &event );
+	virtual void OnEntityEvent( IEntity *pEntity, const SEntityEvent& event );
 	//~IEntityEventListener
 
 private:

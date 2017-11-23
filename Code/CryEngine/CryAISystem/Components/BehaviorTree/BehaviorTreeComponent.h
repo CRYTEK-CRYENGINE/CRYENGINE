@@ -31,7 +31,7 @@ public:
 	// IEntityComponent
 	virtual void          OnShutDown() override;
 	virtual uint64        GetEventMask() const override;
-	virtual void          ProcessEvent(SEntityEvent& event) override;
+	virtual void          ProcessEvent(const SEntityEvent& event) override;
 	// ~IEntityComponent
 
 	static void           ReflectType(Schematyc::CTypeDesc<CEntityAIBehaviorTreeComponent>& desc);

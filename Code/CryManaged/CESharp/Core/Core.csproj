@@ -21,6 +21,7 @@
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
     <Optimize>false</Optimize>
+    <DocumentationFile>..\..\..\..\bin\win_x64\CryEngine.Core.XML</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <OutputPath>..\..\..\..\bin\win_x64</OutputPath>
@@ -83,6 +84,8 @@
     <Compile Include="Audio\AudioListener.cs" />
     <Compile Include="Audio\AudioObjectTransformation.cs" />
     <Compile Include="Audio\Native\NativeAudioMethods.cs" />
+    <Compile Include="Compilation\CompilationFailedException.cs" />
+    <Compile Include="Compilation\Compiler.cs" />
     <Compile Include="Console\Attributes.cs" />
     <Compile Include="Console\ConsoleCommand.cs" />
     <Compile Include="Console\ConsoleVariable.cs" />
@@ -150,12 +153,12 @@
     <Compile Include="Serialization\DomainSerializer.cs" />
     <Compile Include="Serialization\ObjectReader.cs" />
     <Compile Include="Serialization\ObjectWriter.cs" />
+    <Compile Include="Serialization\ISerializedObject.cs" />
     <Compile Include="Util\Attribute.cs" />
     <Compile Include="Util\Event.cs" />
     <Compile Include="Util\IconType.cs" />
     <Compile Include="Util\ReflectionHelper.cs" />
     <Compile Include="Util\Tools.cs" />
-    <Compile Include="Attributes.cs" />
     <Compile Include="Camera.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="GameFramework.cs" />
@@ -178,8 +181,8 @@
     <Compile Include="Engine.cs" />
     <Compile Include="EntitySystem\Attributes\EntityClassAttribute.cs" />
     <Compile Include="EntitySystem\Attributes\EntityComponentAttribute.cs" />
-	<Compile Include="EntitySystem\Attributes\SchematycMethodAttribute.cs" />
-	<Compile Include="EntitySystem\Attributes\SchematycSignalAttribute.cs" />
+    <Compile Include="EntitySystem\Attributes\SchematycMethodAttribute.cs" />
+    <Compile Include="EntitySystem\Attributes\SchematycSignalAttribute.cs" />
     <Compile Include="Particles\ParticleManager.cs" />
     <Compile Include="Particles\ParticleEffectListener.cs" />
     <Compile Include="Particles\ParticleEffect.cs" />

@@ -511,7 +511,7 @@ void CComponentsWidget::OnContextMenu(const QPoint& point)
 	else
 	{
 		if (m_pModel)
-			m_pContextMenuContent->SetDictionary(m_pModel->GetAvailableComponentsDictionary());
+			m_pContextMenuContent->SetDictionary(*m_pModel->GetAvailableComponentsDictionary());
 
 		m_pContextMenu->ShowAt(menuPos);
 	}
@@ -522,7 +522,7 @@ void CComponentsWidget::OnAddButton(bool checked)
 	const QPoint menuPos = m_pAddButton->mapToGlobal(m_pAddButton->mapFromParent(m_pAddButton->pos()));
 
 	if (m_pModel)
-		m_pContextMenuContent->SetDictionary(m_pModel->GetAvailableComponentsDictionary());
+		m_pContextMenuContent->SetDictionary(*m_pModel->GetAvailableComponentsDictionary());
 
 	m_pContextMenu->ShowAt(menuPos, QPopupWidget::TopRight);
 }

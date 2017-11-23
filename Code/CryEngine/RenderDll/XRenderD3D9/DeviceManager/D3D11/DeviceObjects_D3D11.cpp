@@ -6,7 +6,252 @@
 #include "../../../Common/ReverseDepth.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	#define DX11_COMMANDLIST_REDUNDANT_STATE_FILTERING
+#define DX11_COMMANDLIST_REDUNDANT_STATE_FILTERING
+
+struct CRY_ALIGN(16) SStateBlend
+{
+	uint64 nHashVal;
+	D3D11_BLEND_DESC Desc;
+	ID3D11BlendState* pState;
+
+	SStateBlend()
+	{
+		memset(this, 0, sizeof(*this));
+	}
+
+	static uint64 GetHash(const D3D11_BLEND_DESC& InDesc)
+	{
+		uint32 hashLow = InDesc.AlphaToCoverageEnable |
+			(InDesc.RenderTarget[0].BlendEnable << 1) | (InDesc.RenderTarget[1].BlendEnable << 2) | (InDesc.RenderTarget[2].BlendEnable << 3) | (InDesc.RenderTarget[3].BlendEnable << 4) |
+			(InDesc.RenderTarget[0].SrcBlend << 5) | (InDesc.RenderTarget[0].DestBlend << 10) |
+			(InDesc.RenderTarget[0].SrcBlendAlpha << 15) | (InDesc.RenderTarget[0].DestBlendAlpha << 20) |
+			(InDesc.RenderTarget[0].BlendOp << 25) | (InDesc.RenderTarget[0].BlendOpAlpha << 28);
+		uint32 hashHigh = InDesc.RenderTarget[0].RenderTargetWriteMask |
+			(InDesc.RenderTarget[1].RenderTargetWriteMask << 4) |
+			(InDesc.RenderTarget[2].RenderTargetWriteMask << 8) |
+			(InDesc.RenderTarget[3].RenderTargetWriteMask << 12) |
+			(InDesc.IndependentBlendEnable << 16);
+
+		return (((uint64)hashHigh) << 32) | ((uint64)hashLow);
+	}
+};
+
+struct CRY_ALIGN(16) SStateRaster
+{
+	uint64 nValuesHash;
+	uint32 nHashVal;
+	ID3D11RasterizerState* pState;
+	D3D11_RASTERIZER_DESC Desc;
+
+	SStateRaster()
+	{
+		memset(this, 0, sizeof(*this));
+		Desc.DepthClipEnable = true;
+		Desc.FillMode = D3D11_FILL_SOLID;
+		Desc.FrontCounterClockwise = TRUE;
+	}
+
+	static uint32 GetHash(const D3D11_RASTERIZER_DESC& InDesc)
+	{
+		uint32 nHash;
+		nHash = InDesc.FillMode | (InDesc.CullMode << 2) |
+			(InDesc.DepthClipEnable << 4) | (InDesc.FrontCounterClockwise << 5) |
+			(InDesc.ScissorEnable << 6) | (InDesc.MultisampleEnable << 7) | (InDesc.AntialiasedLineEnable << 8) |
+			(InDesc.DepthBias << 9);
+		return nHash;
+	}
+
+	static uint64 GetValuesHash(const D3D11_RASTERIZER_DESC& InDesc)
+	{
+		uint64 nHash;
+		//avoid breaking strict alising rules
+		union f32_u
+		{
+			float        floatVal;
+			unsigned int uintVal;
+		};
+		f32_u uDepthBiasClamp;
+		uDepthBiasClamp.floatVal = InDesc.DepthBiasClamp;
+		f32_u uSlopeScaledDepthBias;
+		uSlopeScaledDepthBias.floatVal = InDesc.SlopeScaledDepthBias;
+		nHash = (((uint64)uDepthBiasClamp.uintVal) |
+			((uint64)uSlopeScaledDepthBias.uintVal) << 32);
+		return nHash;
+	}
+
+};
+inline uint32 sStencilState(const D3D11_DEPTH_STENCILOP_DESC& Desc)
+{
+	uint32 nST = (Desc.StencilFailOp << 0) |
+		(Desc.StencilDepthFailOp << 4) |
+		(Desc.StencilPassOp << 8) |
+		(Desc.StencilFunc << 12);
+	return nST;
+}
+struct CRY_ALIGN(16) SStateDepth
+{
+	uint64 nHashVal;
+	D3D11_DEPTH_STENCIL_DESC Desc;
+	ID3D11DepthStencilState* pState;
+	SStateDepth() : nHashVal(), pState()
+	{
+		Desc.DepthEnable = TRUE;
+		Desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+		Desc.DepthFunc = D3D11_COMPARISON_LESS;
+		Desc.StencilEnable = FALSE;
+		Desc.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
+		Desc.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
+
+		Desc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+		Desc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+		Desc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+		Desc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+
+		Desc.BackFace = Desc.FrontFace;
+	}
+
+	static uint64 GetHash(const D3D11_DEPTH_STENCIL_DESC& InDesc)
+	{
+		uint64 nHash;
+		nHash = (InDesc.DepthEnable << 0) |
+			(InDesc.DepthWriteMask << 1) |
+			(InDesc.DepthFunc << 2) |
+			(InDesc.StencilEnable << 6) |
+			(InDesc.StencilReadMask << 7) |
+			(InDesc.StencilWriteMask << 15) |
+			(((uint64)sStencilState(InDesc.FrontFace)) << 23) |
+			(((uint64)sStencilState(InDesc.BackFace)) << 39);
+		return nHash;
+	}
+};
+
+class CDeviceStatesManagerDX11
+{
+public:
+	CDeviceStatesManagerDX11() {}
+	~CDeviceStatesManagerDX11() {}
+
+	void ShutDown()
+	{
+		for (auto &state : m_StatesDP)
+		{
+			SAFE_RELEASE(state.pState);
+		}
+		for (auto &state : m_StatesRS)
+		{
+			SAFE_RELEASE(state.pState);
+		}
+		for (auto &state : m_StatesBL)
+		{
+			SAFE_RELEASE(state.pState);
+		}
+		m_StatesBL.clear();
+		m_StatesRS.clear();
+		m_StatesDP.clear();
+	}
+
+	static CDeviceStatesManagerDX11* GetInstance()
+	{
+		static CDeviceStatesManagerDX11 sStatesManager;
+		return &sStatesManager;
+	}
+
+	uint32 GetOrCreateBlendState(const D3D11_BLEND_DESC& desc)
+	{
+		uint32 i;
+		HRESULT hr = S_OK;
+		uint64 nHash = SStateBlend::GetHash(desc);
+		for (i = 0; i < (uint32)m_StatesBL.size(); i++)
+		{
+			if (m_StatesBL[i].nHashVal == nHash)
+				break;
+		}
+		if (i == m_StatesBL.size())
+		{
+			m_StatesBL.push_back(SStateBlend());
+			SStateBlend* pState = &m_StatesBL.back();
+			pState->Desc = desc;
+			pState->nHashVal = nHash;
+#if defined(RENDERER_ENABLE_LEGACY_PIPELINE) || defined(CRY_RENDERER_DIRECT3D)
+			hr = gcpRendD3D->GetDevice().CreateBlendState(&pState->Desc, &pState->pState);
+#else
+			pState->pState = nullptr;
+			hr = S_OK;
+#endif
+			assert(SUCCEEDED(hr));
+		}
+		return SUCCEEDED(hr) ? i : uint32(-1);
+	}
+
+	uint32 GetOrCreateRasterState(const D3D11_RASTERIZER_DESC& rasterizerDec, const bool bAllowMSAA = true)
+	{
+		uint32 i;
+		HRESULT hr = S_OK;
+
+		D3D11_RASTERIZER_DESC desc = rasterizerDec;
+
+		//BOOL bMSAA = bAllowMSAA && m_RP.m_MSAAData.Type > 1;
+		//if (bMSAA != desc.MultisampleEnable)
+			desc.MultisampleEnable = false;
+
+		uint32 nHash = SStateRaster::GetHash(desc);
+		uint64 nValuesHash = SStateRaster::GetValuesHash(desc);
+		for (i = 0; i < (uint32)m_StatesRS.size(); i++)
+		{
+			if (m_StatesRS[i].nHashVal == nHash && m_StatesRS[i].nValuesHash == nValuesHash)
+				break;
+		}
+		if (i == m_StatesRS.size())
+		{
+			m_StatesRS.push_back(SStateRaster());
+			SStateRaster* pState = &m_StatesRS.back();
+			pState->Desc = desc;
+			pState->nHashVal = nHash;
+			pState->nValuesHash = nValuesHash;
+#if defined(RENDERER_ENABLE_LEGACY_PIPELINE) || defined(CRY_RENDERER_DIRECT3D)
+			hr = gcpRendD3D->GetDevice().CreateRasterizerState(&pState->Desc, &pState->pState);
+#else
+			pState->pState = nullptr;
+			hr = S_OK;
+#endif
+			assert(SUCCEEDED(hr));
+		}
+		return SUCCEEDED(hr) ? i : uint32(-1);
+	}
+
+	uint32 GetOrCreateDepthState(const D3D11_DEPTH_STENCIL_DESC& desc)
+	{
+		uint32 i;
+		HRESULT hr = S_OK;
+		uint64 nHash = SStateDepth::GetHash(desc);
+		const int kNumStates = (int)m_StatesDP.size();
+		for (i = 0; i < kNumStates; i++)
+		{
+			if (m_StatesDP[i].nHashVal == nHash)
+				break;
+		}
+		if (i == kNumStates)
+		{
+			m_StatesDP.push_back(SStateDepth());
+			SStateDepth* pState = &m_StatesDP.back();
+			pState->Desc = desc;
+			pState->nHashVal = nHash;
+#if defined(RENDERER_ENABLE_LEGACY_PIPELINE) || defined(CRY_RENDERER_DIRECT3D)
+			hr = gcpRendD3D->GetDevice().CreateDepthStencilState(&pState->Desc, &pState->pState);
+#else
+			pState->pState = nullptr;
+			hr = S_OK;
+#endif
+			assert(SUCCEEDED(hr));
+		}
+		return SUCCEEDED(hr) ? i : uint32(-1);
+	}
+
+public:
+	std::vector<SStateBlend>      m_StatesBL;
+	std::vector<SStateRaster>     m_StatesRS;
+	std::vector<SStateDepth>      m_StatesDP;
+};
 
 class CDeviceGraphicsPSO_DX11 : public CDeviceGraphicsPSO
 {
@@ -82,17 +327,17 @@ CDeviceGraphicsPSO::EInitResult CDeviceGraphicsPSO_DX11::Init(const CDeviceGraph
 
 	psoDesc.FillDescs(rasterizerDesc, blendDesc, depthStencilDesc);
 
-	uint32 rasterStateIndex = rd->GetOrCreateRasterState(rasterizerDesc);
-	uint32 blendStateIndex = rd->GetOrCreateBlendState(blendDesc);
-	uint32 depthStateIndex = rd->GetOrCreateDepthState(depthStencilDesc);
+	uint32 rasterStateIndex = CDeviceStatesManagerDX11::GetInstance()->GetOrCreateRasterState(rasterizerDesc);
+	uint32 blendStateIndex = CDeviceStatesManagerDX11::GetInstance()->GetOrCreateBlendState(blendDesc);
+	uint32 depthStateIndex = CDeviceStatesManagerDX11::GetInstance()->GetOrCreateDepthState(depthStencilDesc);
 
 	if (rasterStateIndex == uint32(-1) || blendStateIndex == uint32(-1) || depthStateIndex == uint32(-1))
 		return EInitResult::Failure;
 
-	m_pDepthStencilState = rd->m_StatesDP[depthStateIndex].pState;
-	m_pRasterizerState = rd->m_StatesRS[rasterStateIndex].pState;
+	m_pDepthStencilState = CDeviceStatesManagerDX11::GetInstance()->m_StatesDP[depthStateIndex].pState;
+	m_pRasterizerState = CDeviceStatesManagerDX11::GetInstance()->m_StatesRS[rasterStateIndex].pState;
 	m_RasterizerStateIndex = rasterStateIndex;
-	m_pBlendState = rd->m_StatesBL[blendStateIndex].pState;
+	m_pBlendState = CDeviceStatesManagerDX11::GetInstance()->m_StatesBL[blendStateIndex].pState;
 
 	// input layout
 	m_pInputLayout = nullptr;
@@ -127,7 +372,7 @@ CDeviceGraphicsPSO::EInitResult CDeviceGraphicsPSO_DX11::Init(const CDeviceGraph
 	if (!ValidateShadersAndTopologyCombination(psoDesc, m_pHwShaderInstances))
 		return EInitResult::ErrorShadersAndTopologyCombination;
 
-	m_PrimitiveTopology = rd->FX_ConvertPrimitiveType(psoDesc.m_PrimitiveType);
+	m_PrimitiveTopology = static_cast<D3DPrimitiveType>(psoDesc.m_PrimitiveType);
 
 	m_ShaderFlags_RT = psoDesc.m_ShaderFlags_RT;
 	m_ShaderFlags_MD = psoDesc.m_ShaderFlags_MD;
@@ -486,14 +731,19 @@ void CDeviceCommandListImpl::ClearStateImpl(bool bOutputMergerOnly) const
 {
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 
-	D3DDepthSurface* pDSV = 0;
-	D3DSurface*      pRTVs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT] = { 0 };
-	D3DUAV*          pUAVs[D3D11_PS_CS_UAV_REGISTER_COUNT        ] = { 0 };
+	if (rd->GetDeviceContext().IsValid())
+	{
+		D3DDepthSurface* pDSV = 0;
+		D3DSurface*      pRTVs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT] = { 0 };
+		D3DUAV*          pUAVs[D3D11_PS_CS_UAV_REGISTER_COUNT        ] = { 0 };
 
-	if (bOutputMergerOnly)
-		rd->GetDeviceContext().OMSetRenderTargets/*AndUnorderedAccessViews*/(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, pRTVs, pDSV/*, 0, D3D11_PS_CS_UAV_REGISTER_COUNT, pUAVs, nullptr*/);
-	else
-		rd->GetDeviceContext().ClearState();
+		if (bOutputMergerOnly)
+			rd->GetDeviceContext().OMSetRenderTargets/*AndUnorderedAccessViews*/(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, pRTVs, pDSV/*, 0, D3D11_PS_CS_UAV_REGISTER_COUNT, pUAVs, nullptr*/);
+		else
+			rd->GetDeviceContext().ClearState();
+	}
+
+	rd->m_DevMan.ClearState();
 }
 
 void CDeviceCommandListImpl::ResetImpl()
@@ -501,10 +751,10 @@ void CDeviceCommandListImpl::ResetImpl()
 	const uint8 InvalidShaderPointer = (uint8)(uint64)CDeviceResourceSet_DX11::InvalidPointer;
 	CRY_ASSERT((InvalidShaderPointer & 0x1) != 0);
 
-	memset(m_sharedState.shader, InvalidShaderPointer, sizeof(m_sharedState.shader));
+	memset(m_sharedState.shader            , InvalidShaderPointer, sizeof(m_sharedState.shader));
 	memset(m_sharedState.shaderResourceView, InvalidShaderPointer, sizeof(m_sharedState.shaderResourceView));
-	memset(m_sharedState.samplerState, InvalidShaderPointer, sizeof(m_sharedState.samplerState));
-	memset(m_sharedState.constantBuffer, InvalidShaderPointer, sizeof(m_sharedState.constantBuffer));
+	memset(m_sharedState.samplerState      , InvalidShaderPointer, sizeof(m_sharedState.samplerState));
+	memset(m_sharedState.constantBuffer    , InvalidShaderPointer, sizeof(m_sharedState.constantBuffer));
 	m_sharedState.validShaderStages = EShaderStage_All;
 
 	m_sharedState.numSRVs.fill(0);
@@ -594,11 +844,6 @@ void CDeviceGraphicsCommandInterfaceImpl::SetPipelineStateImpl(const CDeviceGrap
 
 	m_sharedState.numSRVs = pDevicePSO->m_NumSRVs;
 	m_sharedState.numSamplers = pDevicePSO->m_NumSamplers;
-
-	// TheoM TODO: REMOVE once shaders are set up completely via pso
-	rd->m_RP.m_FlagsShader_RT = pDevicePSO->m_ShaderFlags_RT;
-	rd->m_RP.m_FlagsShader_MD = pDevicePSO->m_ShaderFlags_MD;
-	rd->m_RP.m_FlagsShader_MDV = pDevicePSO->m_ShaderFlags_MDV;
 }
 
 void CDeviceGraphicsCommandInterfaceImpl::SetResourcesImpl(uint32 bindSlot, const CDeviceResourceSet* pResources)
@@ -820,15 +1065,15 @@ void CDeviceGraphicsCommandInterfaceImpl::ApplyRasterizerState()
 
 		if (m_graphicsState.custom.depthConstBias != 0.0f || m_graphicsState.custom.depthSlopeBias != 0.0f)
 		{
-			auto rsDesc = gcpRendD3D->m_StatesRS[m_graphicsState.custom.rasterizerStateIndex].Desc;
+			auto rsDesc = CDeviceStatesManagerDX11::GetInstance()->m_StatesRS[m_graphicsState.custom.rasterizerStateIndex].Desc;
 			rsDesc.DepthBias = int(m_graphicsState.custom.depthConstBias);
 			rsDesc.SlopeScaledDepthBias = m_graphicsState.custom.depthSlopeBias;
 			rsDesc.DepthBiasClamp = m_graphicsState.custom.depthBiasClamp;
 
-			uint32 newRasterizerStateIndex = gcpRendD3D->GetOrCreateRasterState(rsDesc);
+			uint32 newRasterizerStateIndex = CDeviceStatesManagerDX11::GetInstance()->GetOrCreateRasterState(rsDesc);
 			if (newRasterizerStateIndex >= 0)
 			{
-				pRasterizerState = gcpRendD3D->m_StatesRS[newRasterizerStateIndex].pState;
+				pRasterizerState = CDeviceStatesManagerDX11::GetInstance()->m_StatesRS[newRasterizerStateIndex].pState;
 			}
 		}
 
@@ -1388,7 +1633,7 @@ void CDeviceObjectFactory::ForfeitCommandLists(std::vector<CDeviceCommandListUPt
 
 void CDeviceObjectFactory::ReleaseResourcesImpl()
 {
-
+	CDeviceStatesManagerDX11::GetInstance()->ShutDown();
 }
 
 ////////////////////////////////////////////////////////////////////////////

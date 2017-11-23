@@ -67,23 +67,25 @@ void CSmartObject::Display(DisplayContext& dc)
 	}
 	else if (!(dc.flags & DISPLAY_2D))
 	{
-		float color[4];
-		color[0] = dc.GetColor().r * (1.0f / 255.0f);
-		color[1] = dc.GetColor().g * (1.0f / 255.0f);
-		color[2] = dc.GetColor().b * (1.0f / 255.0f);
-		color[3] = dc.GetColor().a * (1.0f / 255.0f);
-
-		SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(GetIEditor()->GetSystem()->GetViewCamera());
-
-		Matrix34 tempTm = wtm;
-		SRendParams rp;
-		rp.pMatrix = &tempTm;
-		rp.AmbientColor = ColorF(color[0], color[1], color[2], 1);
-		rp.fAlpha = color[3];
-		rp.dwFObjFlags |= FOB_TRANS_MASK;
-		//rp.nShaderTemplate = EFT_HELPER;
 		if (m_pStatObj)
+		{
+			float color[4];
+			color[0] = dc.GetColor().r * (1.0f / 255.0f);
+			color[1] = dc.GetColor().g * (1.0f / 255.0f);
+			color[2] = dc.GetColor().b * (1.0f / 255.0f);
+			color[3] = dc.GetColor().a * (1.0f / 255.0f);
+
+			Matrix34 tempTm = wtm;
+			SRendParams rp;
+			rp.pMatrix = &tempTm;
+			rp.AmbientColor = ColorF(color[0], color[1], color[2], 1);
+			rp.fAlpha = color[3];
+			rp.dwFObjFlags |= FOB_TRANS_MASK;
+			//rp.nShaderTemplate = EFT_HELPER;
+
+			SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(GetIEditor()->GetSystem()->GetViewCamera(), SRenderingPassInfo::DEFAULT_FLAGS, true, dc.GetDisplayContextHandle());
 			m_pStatObj->Render(rp, passInfo);
+		}
 	}
 
 	dc.SetColor(GetColor());

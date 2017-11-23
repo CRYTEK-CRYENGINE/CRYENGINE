@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -91,6 +91,7 @@ public:
 	virtual void          OnUnloadLevel() override;
 	virtual void          OnLanguageChanged() override;
 	virtual IProfileData* GetProfileData() const override;
+	virtual void          Log(ELogType const type, char const* const szFormat, ...) override;
 	// ~CryAudio::IAudioSystem
 
 	// ISystemEventListener
@@ -114,7 +115,7 @@ private:
 	bool        ProcessRequests(AudioRequests& requestQueue);
 	static void OnCallback(SRequestInfo const* const pRequestInfo);
 
-	bool                               m_bSystemInitialized;
+	bool                               m_isInitialized;
 	CTimeValue                         m_lastUpdateTime;
 	float                              m_deltaTime;
 	CMainThread                        m_mainThread;
@@ -126,6 +127,10 @@ private:
 	CryEvent                           m_mainEvent;
 	CryEvent                           m_audioThreadWakeupEvent;
 	CryFixedStringT<MaxFilePathLength> m_configPath;
+
+#if defined(ENABLE_AUDIO_LOGGING)
+	int m_loggingOptions;
+#endif // ENABLE_AUDIO_LOGGING
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 	void DrawAudioDebugData();

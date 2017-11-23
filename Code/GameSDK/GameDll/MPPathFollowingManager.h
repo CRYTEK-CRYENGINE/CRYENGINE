@@ -56,7 +56,7 @@ public:
 	void NotifyListenersOfPathCompletion(EntityId pathFollowingEntityId);
 
 	// IEntityEventListener
-	virtual void OnEntityEvent( IEntity *pEntity,SEntityEvent &event );
+	virtual void OnEntityEvent( IEntity *pEntity, const SEntityEvent& event );
 	// ~IEntityEventListener
 
 #ifndef _RELEASE

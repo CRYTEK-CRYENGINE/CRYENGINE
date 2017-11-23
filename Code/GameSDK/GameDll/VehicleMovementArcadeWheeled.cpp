@@ -1391,8 +1391,8 @@ void CVehicleMovementArcadeWheeled::DebugDrawMovement(const float deltaTime)
 	
 	SVehiclePhysicsStatus* physStatus = &m_physStatus[k_mainThread];
 
-	const int width = pRenderer->GetWidth();
-	const int height = pRenderer->GetHeight();
+	const int width  = pRenderer->GetOverlayWidth();
+	const int height = pRenderer->GetOverlayHeight();
 
 
 	Matrix33 bodyRot( physStatus->q );
@@ -1580,7 +1580,7 @@ void CVehicleMovementArcadeWheeled::DebugDrawMovement(const float deltaTime)
 	//========================
 	// Draw Gears and RPM dial
 	//========================
-	pRenderer->Set2DMode(true, width, height);
+	pAuxGeom->SetOrthographicProjection(true, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f);
 	{
 		float radius = 40.f;
 		Vec3 centre (0.2f*(float)width, 0.8f*(float)height, 0.f);
@@ -1690,7 +1690,7 @@ void CVehicleMovementArcadeWheeled::DebugDrawMovement(const float deltaTime)
 		IRenderAuxText::Draw2dLabel(x-20.f, y+20.f, 1.3f, color, false, "FMOD Skid Value");
 	}
 
-	pRenderer->Set2DMode(false, width, height);
+	pAuxGeom->SetOrthographicProjection(false);
 	pAuxGeom->SetRenderFlags(oldFlags);
 }
 
@@ -3799,7 +3799,7 @@ void CVehicleMovementArcadeWheeled::UpdateSurfaceEffects(const float deltaTime)
 	if (status.speed < 0.01f)
 		return;
 
-	float distSq = m_pVehicle->GetEntity()->GetWorldPos().GetSquaredDistance(gEnv->pRenderer->GetCamera().GetPosition());
+	float distSq = m_pVehicle->GetEntity()->GetWorldPos().GetSquaredDistance(GetISystem()->GetViewCamera().GetPosition());
 	if (distSq > sqr(300.f) || (distSq > sqr(50.f) && !m_isProbablyVisible ))
 		return;
 

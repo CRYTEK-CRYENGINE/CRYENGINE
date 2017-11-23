@@ -737,9 +737,8 @@ CRY_UNIT_TEST_SUITE(Math)
 
 #ifdef CRY_HARDWARE_VECTOR4
 
-#ifndef _DEBUG
-	#define VECTOR_PROFILE
-#endif
+// Enable this macro only to get vector timing results. Normally off, as it slows down compilation.
+// #define VECTOR_PROFILE
 
 CRY_UNIT_TEST_SUITE(MathVector)
 {
@@ -814,7 +813,7 @@ CRY_UNIT_TEST_SUITE(MathVector)
 		{
 			auto res1 = code1(tester1.elems[i]);
 			auto res2 = code2(tester2.elems[i]);
-			CRY_ASSERT_MESSAGE(IsEquivalent(res1, res2, tolerance), message);
+			CRY_ASSERT_MESSAGE(IsEquivalent(res1, res2, tolerance), message, i);
 		}
 	}
 
@@ -827,7 +826,8 @@ CRY_UNIT_TEST_SUITE(MathVector)
 
 	void VectorTest(TestMode mode)
 	{
-		#define	VECTOR_PROFILE_CODE(tester, code) { \
+	#ifdef VECTOR_PROFILE
+		#define	VECTOR_PROFILE_TESTER(tester, code) { \
 			auto& e = tester.elems[0]; \
 			typedef decltype(code) Result; \
 			Result results[VCount]; \
@@ -842,23 +842,31 @@ CRY_UNIT_TEST_SUITE(MathVector)
 				tester.times[stat] += time; \
 		}
 
+		#define	VECTOR_PROFILE_CODE(code)  { \
+			VECTOR_PROFILE_TESTER(test4H, code) \
+			VECTOR_PROFILE_TESTER(test4,  code) \
+			VECTOR_PROFILE_TESTER(test3H, code) \
+			VECTOR_PROFILE_TESTER(test3,  code) \
+			++stat; \
+		}
+
+	#else
+		#define	VECTOR_PROFILE_CODE(code)
+	#endif
+
 		#define	VECTOR_TEST_CODE(code, tolerance) \
 			if (mode == TestMode::Verify) \
 			{ \
 				if (add_names) TestNames.push_back(#code); \
-				VerifyCode<Element4H, Element4>("mismatch: " #code, test4H, test4, [](Element4H& e) { return (code); }, [](Element4& e) { return (code); }, tolerance); \
-				VerifyCode<Element3H, Element3>("mismatch: " #code, test3H, test3, [](Element3H& e) { return (code); }, [](Element3& e) { return (code); }, tolerance); \
+				VerifyCode<Element4H, Element4>("mismatch 4/4H #%d: " #code, test4H, test4, [](Element4H& e) { return (code); }, [](Element4& e) { return (code); }, tolerance); \
+				VerifyCode<Element3H, Element3>("mismatch 3/3H #%d: " #code, test3H, test3, [](Element3H& e) { return (code); }, [](Element3& e) { return (code); }, tolerance); \
 			} \
 			else \
 			{ \
-				VECTOR_PROFILE_CODE(test4H, code) \
-				VECTOR_PROFILE_CODE(test4,  code) \
-				VECTOR_PROFILE_CODE(test3H, code) \
-				VECTOR_PROFILE_CODE(test3,  code) \
-				++stat; \
+				VECTOR_PROFILE_CODE(code) \
 			} \
 
-		static const float Tolerance = -1e5f;
+		static const float Tolerance = -1e-5f;
 		bool add_names = TestNames.empty();
 
 		int stat = 0;
@@ -1369,6 +1377,83 @@ CRY_UNIT_TEST(CUT_AlignedVector)
 
 	CRY_UNIT_TEST_ASSERT(vec.size() == 3);
 	CRY_UNIT_TEST_ASSERT(((INT_PTR)(&vec[0]) % 16) == 0);
+}
+
+CRY_UNIT_TEST_SUITE(SmartPointer)
+{
+	bool gHasCalledDtor = false;
+
+	template<typename TargetType>
+	class I : public TargetType
+	{
+	public:
+		virtual ~I() {
+			gHasCalledDtor = true;
+		}
+		virtual int GetValue() const = 0;
+	};
+
+	template<typename TargetType>
+	class C : public I<TargetType>
+	{
+		int value = 0;
+	public:
+
+		C() = default;
+		C(const C&) = default;
+		explicit C(int _val) : value(_val) {}
+
+		virtual int GetValue() const override
+		{
+			return value;
+		}
+	};
+
+	CRY_UNIT_TEST(CUT_SmartPtr)
+	{
+		typedef _smart_ptr<I<_i_reference_target_t>> Ptr;
+		gHasCalledDtor = false;
+		{
+			Ptr ptr = new C<_i_reference_target_t>();
+			CRY_UNIT_TEST_CHECK_EQUAL(ptr->UseCount(), 1);
+			{
+				Ptr ptr2 = ptr;
+				CRY_UNIT_TEST_CHECK_EQUAL(ptr->UseCount(), 2);
+				CRY_UNIT_TEST_CHECK_EQUAL(ptr2->UseCount(), 2);
+
+				Ptr ptr3 = nullptr;
+				ptr3 = ptr2;
+				CRY_UNIT_TEST_CHECK_EQUAL(ptr->UseCount(), 3);
+				CRY_UNIT_TEST_CHECK_EQUAL(ptr2->UseCount(), 3);
+				CRY_UNIT_TEST_CHECK_EQUAL(ptr3->UseCount(), 3);
+			}
+			CRY_UNIT_TEST_CHECK_EQUAL(ptr->UseCount(), 1);
+		}
+		CRY_UNIT_TEST_ASSERT(gHasCalledDtor);
+	}
+
+	CRY_UNIT_TEST(CUT_SmartPtr_Copy)
+	{
+		typedef C<_i_reference_target_t> MyType;
+		typedef _smart_ptr<MyType> Ptr;
+		Ptr ptr1 = new MyType(42);
+		Ptr ptr2 = new MyType(0x1337);
+		Ptr ptr3 = ptr2;
+		CRY_UNIT_TEST_CHECK_EQUAL(ptr1->UseCount(), 1);
+		CRY_UNIT_TEST_CHECK_EQUAL(ptr2->UseCount(), 2);
+
+		//when object pointed by _smart_ptr gets assigned, it should copy the value but not the refcount
+		*ptr2 = *ptr1;
+		CRY_UNIT_TEST_CHECK_EQUAL(ptr1->UseCount(), 1);
+		CRY_UNIT_TEST_CHECK_EQUAL(ptr2->UseCount(), 2);
+		CRY_UNIT_TEST_CHECK_EQUAL(ptr1->GetValue(), 42);
+		CRY_UNIT_TEST_CHECK_EQUAL(ptr2->GetValue(), 42);
+
+		//when a new object is copy constructed, it should copy the value but not the refcount
+		_smart_ptr<I<_i_reference_target_t>> ptr4 = new MyType(*ptr2);
+		CRY_UNIT_TEST_CHECK_EQUAL(ptr4->GetValue(), 42);
+		CRY_UNIT_TEST_CHECK_EQUAL(ptr4->UseCount(), 1);
+	}
 }
 
 struct Counts

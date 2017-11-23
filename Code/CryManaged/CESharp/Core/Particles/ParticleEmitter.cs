@@ -15,14 +15,6 @@ namespace CryEngine
 			}
 		}
 
-		public bool Instant
-		{
-			get
-			{
-				return NativeHandle.IsInstant();
-			}
-		}
-
 		public int AttachedEntitySlot
 		{
 			get

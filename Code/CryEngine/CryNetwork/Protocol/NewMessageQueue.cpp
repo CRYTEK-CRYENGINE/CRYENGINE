@@ -1263,7 +1263,8 @@ bool CMessageQueue::AreMessagesToWrite(const SSchedulingParams& params)
 
 	#if DEEP_BANDWIDTH_ANALYSIS
 
-uint32 g_DBASizePriorToUpdate;
+bool g_DBAEnabled = false;
+uint32 g_DBASizePriorToUpdate = 0;
 CryStringLocal g_DBAMainProfileBuffer;
 CryStringLocal g_DBASmallProfileBuffer;
 CryStringLocal g_DBALargeProfileBuffer;
@@ -1371,6 +1372,11 @@ struct SNetMessageProfileLogger
 		return fout;
 	}
 
+	static bool IsDumpEnabled()
+	{
+		return CNetCVars::Get().net_profile_deep_bandwidth_logging != 0;
+	}
+
 	void Dump()
 	{
 		static int firstTimeLogging = 1;
@@ -1381,7 +1387,7 @@ struct SNetMessageProfileLogger
 			lastPacketsSent = g_socketBandwidth.bandwidthStats.m_total.m_totalPacketsSent;
 			lastBandwidthSent = g_socketBandwidth.bandwidthStats.m_total.m_totalBandwidthSent;
 		}
-		if (CNetCVars::Get().net_profile_deep_bandwidth_logging)
+		if (IsDumpEnabled())
 		{
 			static ICVar* pName = gEnv->pConsole->GetCVar("net_profile_deep_bandwidth_logname");
 
@@ -1440,6 +1446,8 @@ void CMessageQueue::WriteMessages(IMessageOutput* pOut, const SSchedulingParams&
 
 	#if DEEP_BANDWIDTH_ANALYSIS
 	static SNetMessageProfileLogger profiler;
+	g_DBAEnabled = SNetMessageProfileLogger::IsDumpEnabled();
+	const bool DBAEnabled = g_DBAEnabled;
 	#endif
 
 	VerifyBlocking();
@@ -1462,7 +1470,10 @@ void CMessageQueue::WriteMessages(IMessageOutput* pOut, const SSchedulingParams&
 	#endif // ENABLE_PACKET_PREDICTION
 
 	#if DEEP_BANDWIDTH_ANALYSIS
-	profiler.OnWriteMessages(params.now, params.pChannel);
+	IF_UNLIKELY (DBAEnabled)
+	{
+		profiler.OnWriteMessages(params.now, params.pChannel);
+	}
 	#endif
 
 	#if ENABLE_URGENT_RMIS
@@ -1545,8 +1556,11 @@ void CMessageQueue::WriteMessages(IMessageOutput* pOut, const SSchedulingParams&
 			writtenHeader = true;
 			debugPacketDataSizeEndData(eDPDST_MessagesHeader, pStm->GetBitSize());
 	#if DEEP_BANDWIDTH_ANALYSIS
-			uint32 sizeHeader = (uint32)pStm->GetBitSize();
-			profiler.OnMessage(params.pChannel, 'prel', "Packet prelude", sizeHeader);
+			IF_UNLIKELY (DBAEnabled)
+			{
+				uint32 sizeHeader = (uint32)pStm->GetBitSize();
+				profiler.OnMessage(params.pChannel, 'prel', "Packet prelude", sizeHeader);
+			}
 	#endif
 		}
 
@@ -1564,9 +1578,12 @@ void CMessageQueue::WriteMessages(IMessageOutput* pOut, const SSchedulingParams&
 
 		uint32 sizeBefore = pStm->GetApproximateSize();
 	#if DEEP_BANDWIDTH_ANALYSIS
-		float accSizeBefore = pStm->GetBitSize();
-		g_DBASizePriorToUpdate = accSizeBefore;
-		g_DBAMainProfileBuffer = "";
+		const float accSizeBefore = pStm->GetBitSize();
+		IF_UNLIKELY (DBAEnabled)
+		{
+			g_DBASizePriorToUpdate = accSizeBefore;
+			g_DBAMainProfileBuffer = "";
+		}
 	#endif
 	#if ENABLE_PACKET_PREDICTION
 		MessageTagMap::iterator prevTagValues;
@@ -1644,9 +1661,12 @@ void CMessageQueue::WriteMessages(IMessageOutput* pOut, const SSchedulingParams&
 		}
 		uint32 sizeAfter = pStm->GetApproximateSize();
 	#if DEEP_BANDWIDTH_ANALYSIS
-		g_DBALargeProfileBuffer.Format("%s%s", pEntSend->msg.pSendable ? pEntSend->msg.pSendable->GetDescription() : "<null>", g_DBAMainProfileBuffer.c_str());
-		g_DBAMainProfileBuffer = "";
-		profiler.OnMessage(params.pChannel, pEntSend->pAG ? pEntSend->pAG->id : 'none', g_DBALargeProfileBuffer.c_str(), ((float)pStm->GetBitSize()) - accSizeBefore);
+		IF_UNLIKELY (DBAEnabled)
+		{
+			g_DBALargeProfileBuffer.Format("%s%s", pEntSend->msg.pSendable ? pEntSend->msg.pSendable->GetDescription() : "<null>", g_DBAMainProfileBuffer.c_str());
+			g_DBAMainProfileBuffer = "";
+			profiler.OnMessage(params.pChannel, pEntSend->pAG ? pEntSend->pAG->id : 'none', g_DBALargeProfileBuffer.c_str(), ((float)pStm->GetBitSize()) - accSizeBefore);
+		}
 	#endif
 	#if ENABLE_PACKET_PREDICTION
 		if (mTag.messageId != 0xFFFFFFFF)

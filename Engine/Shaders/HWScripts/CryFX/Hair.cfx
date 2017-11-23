@@ -79,7 +79,6 @@ Texture2D DirectionTex : register(t4)
   UIDescription = "Tangent space map for defining hair direction";
 > = TM_Detail;
 
-float4x4 mViewProj : PI_Composite;
 half4 AmbientOpPB  : PB_AmbientOpacity;
 
 // Tweakables /////////////////
@@ -331,19 +330,19 @@ float4 HairShading(vert2FragHair IN, bool bOpaquePass)
 	attribs.normal = normalize(mul(normalMap.xyz, matTangentToWS));
 	attribs.normalSpecProbe = attribs.normal;
 	
-#if !%_RT_PER_INSTANCE_CB_TEMP
-	if (bOpaquePass)
-	{
-		half4 occlusionTex = GetSceneTexProj(sceneNormalsBentTex, IN.Common.screenProj.xyzw);
-		occlusionTex.xyz = occlusionTex.xyz * 2 - 1;
-	#if %_RT_STATIC_INST_DATA
-		float ssdoAmount = SPIAlphaTest.z;
-	#else
-		float ssdoAmount = AlphaTest.z; // just cvar value CV_r_ssdoAmountDirect. TODO: put into per pass cbuffer
-	#endif
-		attribs.custom.dirOcc = occlusionTex * ssdoAmount * 0.5;
-	}
-#endif
+//#if !%_RT_PER_INSTANCE_CB_TEMP
+//	if (bOpaquePass)
+//	{
+//		half4 occlusionTex = GetSceneTexProj(sceneNormalsBentTex, IN.Common.screenProj.xyzw);
+//		occlusionTex.xyz = occlusionTex.xyz * 2 - 1;
+//	#if %_RT_STATIC_INST_DATA
+//		float ssdoAmount = SPIAlphaTest.z;
+//	#else
+//		float ssdoAmount = AlphaTest.z; // just cvar value CV_r_ssdoAmountDirect. TODO: put into per pass cbuffer
+//	#endif
+//		attribs.custom.dirOcc = occlusionTex * ssdoAmount * 0.5;
+//	}
+//#endif
 
 	half shiftAmount = 0;
 	half3 hairDir = IN.Common.vBinormal.xyz;
@@ -850,7 +849,7 @@ pixout Hair_MotionBlurPassPS(vert2fragMotionBlur IN)
 	float fOpacity = saturate(GetAlphaTex(diffuseTex, IN.baseTC) * AlphaBlendMultiplier) * AmbientOpPB.a;
 
 	#if !%THIN_HAIR
-		clip(fOpacity - PBAlphaTest.w);
+		clip(fOpacity - Get_MaterialAlphaTest());
 	#else
 		clip(fOpacity - ThinHairThreshold);
 	#endif

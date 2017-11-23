@@ -2,13 +2,19 @@
 
 #pragma once
 
-struct ISensorMap;
-struct ISensorTagLibrary;
-
-struct ISensorSystem
+namespace Cry
 {
-	virtual ~ISensorSystem() {}
+	namespace SensorSystem
+	{
+		struct ISensorMap;
+		struct ISensorTagLibrary;
 
-	virtual ISensorTagLibrary& GetTagLibrary() = 0;
-	virtual ISensorMap&        GetMap() = 0;
-};
+		struct ISensorSystem
+		{
+			virtual ~ISensorSystem() {}
+
+			virtual ISensorTagLibrary& GetTagLibrary() = 0;
+			virtual ISensorMap&        GetMap() = 0;
+		};
+	}
+}

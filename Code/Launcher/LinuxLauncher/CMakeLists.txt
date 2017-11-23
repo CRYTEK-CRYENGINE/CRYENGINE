@@ -8,7 +8,6 @@ add_sources("NoUberFile"
 		"assert.h"
 	SOURCE_GROUP "Source Files"
 		"Assert.cpp"
-		"EngineSymbols.cpp"
 		"Main.cpp"
 )
 end_sources()

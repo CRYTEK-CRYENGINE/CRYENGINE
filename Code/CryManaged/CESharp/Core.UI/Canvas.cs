@@ -136,15 +136,19 @@ namespace CryEngine.UI
 		{
 			if(TargetTexture == null)
 			{
+				/*
 				var ix = 800.0f / Global.gEnv.pRenderer.GetWidth();
 				var iy = 600.0f / Global.gEnv.pRenderer.GetHeight();
 				Global.gEnv.pRenderer.Push2dImage(x * ix, y * iy, w * ix, h * iy, id, u0, v0, u1, v1, a, c.R, c.G, c.B, c.A);
+				*/
 			}
 			else
 			{
+				/*
 				var tw = (float)TargetTexture.Width;
 				var th = (float)TargetTexture.Height;
 				Global.gEnv.pRenderer.PushUITexture(id, TargetTexture.ID, x / tw, y / th, w / tw, h / th, u0, v0, u1, v1, c.R, c.G, c.B, c.A);
+				*/
 			}
 		}
 

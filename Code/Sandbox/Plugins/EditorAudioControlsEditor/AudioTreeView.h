@@ -37,7 +37,7 @@ private:
 	void   RestoreExpandedChildren(QModelIndex const& index);
 	void   RestoreSelectionChildren(QModelIndex const& index);
 
-	bool         m_bSelectionChanged;
+	bool         m_hasSelectionChanged;
 	QSet<uint32> m_expandedBackup;
 	QSet<uint32> m_selectionBackup;
 };

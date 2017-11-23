@@ -606,6 +606,7 @@ struct STranscoderSelect<eEncoding_UTF8, OutputEncoding, Sink, eErrorRecovery_Fa
 template<EErrorRecovery R>
 struct SIsSafeEncoding
 {
+	PREFAST_SUPPRESS_WARNING(6285)
 	static const bool value =
 	  R == eErrorRecovery_Discard ||
 	  R == eErrorRecovery_Replace ||

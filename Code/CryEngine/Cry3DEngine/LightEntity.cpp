@@ -156,7 +156,7 @@ void C3DEngine::UpdateSunLightSource(const SRenderingPassInfo& passInfo)
 	if (!m_pSun)
 		m_pSun = (CLightEntity*)CreateLightSource();
 
-	CDLight DynLight;
+	SRenderLight DynLight;
 
 	//	float fGSMBoxSize = (float)Get3DEngine()->m_fGsmRange;
 	//	Vec3 vCameraDir = GetCamera().GetMatrix().GetColumn(1).GetNormalized();
@@ -443,10 +443,7 @@ int CLightEntity::UpdateGSMLightSourceNearestShadowFrustum(int nFrustumIndex, co
 			ShadowMapFrustumPtr& pFr = m_pShadowMapInfo->pGSM[nFrustumIndex];
 			if (!pFr) pFr = new ShadowMapFrustum;
 
-			auto nearestShadowViews = pFr->m_pShadowsView;
 			*pFr = *m_pShadowMapInfo->pGSM[0];        // copy first cascade
-			pFr->m_pShadowsView = nearestShadowViews; // restore original shadow views
-
 			pFr->m_eFrustumType = ShadowMapFrustum::e_Nearest;
 			pFr->bUseShadowsPool = false;
 			pFr->bUseAdditiveBlending = true;
@@ -2040,7 +2037,7 @@ void CLightEntity::Render(const SRendParams& rParams, const SRenderingPassInfo& 
 		{
 			if (GetCVars()->e_DynamicLights == 2)
 			{
-				CDLight* pL = &m_light;
+				SRenderLight* pL = &m_light;
 				float fSize = 0.05f * (sinf(GetCurTimeSec() * 10.f) + 2.0f);
 				DrawSphere(pL->m_Origin, fSize, pL->m_Color);
 				IRenderAuxText::DrawLabelF(pL->m_Origin, 1.3f, "id=%d, rad=%.1f, vdr=%d", pL->m_Id, pL->m_fRadius, (int)m_ucViewDistRatio);
@@ -2127,7 +2124,7 @@ void CLightEntity::OffsetPosition(const Vec3& delta)
 void CLightEntity::ProcessPerObjectFrustum(ShadowMapFrustum* pFr, struct SPerObjectShadow* pPerObjectShadow, ILightSource* pLightSource, const SRenderingPassInfo& passInfo)
 {
 	assert(pFr);
-	CDLight& light = pLightSource->GetLightProperties();
+	SRenderLight& light = pLightSource->GetLightProperties();
 
 	pFr->m_eFrustumType = ShadowMapFrustum::e_PerObject;
 	pFr->RequestUpdate();

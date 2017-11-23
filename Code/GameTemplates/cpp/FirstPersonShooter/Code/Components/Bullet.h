@@ -52,7 +52,7 @@ public:
 	}
 
 	virtual uint64 GetEventMask() const override { return BIT64(ENTITY_EVENT_COLLISION); }
-	virtual void ProcessEvent(SEntityEvent& event) override
+	virtual void ProcessEvent(const SEntityEvent& event) override
 	{
 		// Handle the OnCollision event, in order to have the entity removed on collision
 		if (event.event == ENTITY_EVENT_COLLISION)

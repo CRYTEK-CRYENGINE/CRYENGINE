@@ -453,7 +453,7 @@ pixout_gbuffer SkinZPassPS(vert2fragZ_C IN)
 #endif
 
 #if %_RT_DISSOLVE
-	half2 noiseTC = IN.WPos.xy/(100.0f*PS_HPosScale.xy);
+	half2 noiseTC = IN.WPos.xy/(100.0f*CV_HPosScale.xy);
 
 	half fNoise = GetDissolveTex(dissolveNoiseTex, noiseTC).g;
 

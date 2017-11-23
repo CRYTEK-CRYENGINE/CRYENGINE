@@ -176,7 +176,7 @@ void CSmartMine::HandleEvent( const SGameObjectEvent& gameObjectEvent )
 	}
 }
 
-void CSmartMine::ProcessEvent( SEntityEvent& entityEvent )
+void CSmartMine::ProcessEvent( const SEntityEvent& entityEvent )
 {
 	switch(entityEvent.event)
 	{
@@ -218,6 +218,11 @@ void CSmartMine::ProcessEvent( SEntityEvent& entityEvent )
 		break;
 
 	}
+}
+
+uint64 CSmartMine::GetEventMask() const
+{
+	return BIT64(ENTITY_EVENT_RESET) | BIT64(ENTITY_EVENT_ENTERAREA) | BIT64(ENTITY_EVENT_LEAVEAREA) | BIT64(ENTITY_EVENT_HIDE) | BIT64(ENTITY_EVENT_UNHIDE);
 }
 
 void CSmartMine::GetMemoryUsage( ICrySizer *pSizer ) const

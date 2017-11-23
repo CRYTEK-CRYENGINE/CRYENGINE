@@ -33,13 +33,13 @@ CD3DOsvrRenderer::~CD3DOsvrRenderer()
 
 }
 
-bool CD3DOsvrRenderer::Initialize()
+bool CD3DOsvrRenderer::Initialize(int initialWidth, int initialHeight)
 {
 	D3DDevice* d3d11Device = m_pRenderer->GetDevice_Unsynchronized().GetRealDevice();
 	D3DDeviceContext* d3d11DeviceContext = m_pRenderer->GetDeviceContext_Unsynchronized().GetRealDeviceContext();
 
-	m_eyeWidth = m_pRenderer->GetWidth();
-	m_eyeHeight = m_pRenderer->GetHeight();
+	m_eyeWidth  = initialWidth;
+	m_eyeHeight = initialHeight;
 
 	if (!m_pOsvrDevice->InitializeRenderer(d3d11Device, d3d11DeviceContext))
 	{
@@ -128,13 +128,13 @@ void CD3DOsvrRenderer::Shutdown()
 	m_pOsvrDevice->ShutdownRenderer();
 }
 
-void CD3DOsvrRenderer::OnResolutionChanged()
+void CD3DOsvrRenderer::OnResolutionChanged(int newWidth, int newHeight)
 {
-	if (m_eyeWidth != m_pRenderer->GetWidth() ||
-	    m_eyeHeight != m_pRenderer->GetHeight())
+	if (m_eyeWidth  != newWidth ||
+	    m_eyeHeight != newHeight)
 	{
 		Shutdown();
-		Initialize();
+		Initialize(newWidth, newHeight);
 	}
 }
 
@@ -152,16 +152,14 @@ void CD3DOsvrRenderer::RestoreDeviceStateAfterFrameSubmit()
 {
 
 	//refresh viewport. Have to actually change the viewport so that it gets changed to the device itself
-	int ox, oy, ow, oh;
-	m_pRenderer->GetViewport(&ox, &oy, &ow, &oh);
-	m_pRenderer->RT_SetViewport(ox, oy, ow, oh + 1);
-	m_pRenderer->FX_SetViewport();
-	m_pRenderer->RT_SetViewport(ox, oy, ow, oh);
-	m_pRenderer->FX_SetViewport();
+	//int ox, oy, ow, oh;
+	//m_pRenderer->GetViewport(&ox, &oy, &ow, &oh);
+	//m_pRenderer->RT_SetViewport(ox, oy, ow, oh + 1);
+	//m_pRenderer->FX_SetViewport();
+	//m_pRenderer->RT_SetViewport(ox, oy, ow, oh);
+	//m_pRenderer->FX_SetViewport();
 
-	m_pRenderer->FX_RestoreRenderTarget(0);
-
-	m_pRenderer->FX_ResetVertexDeclaration();
+	//m_pRenderer->FX_RestoreRenderTarget(0);
 }
 
 void CD3DOsvrRenderer::SubmitFrame()
@@ -207,6 +205,8 @@ void CD3DOsvrRenderer::RenderSocialScreen()
 			{
 				if (!CShaderMan::s_shPostEffects) return;
 
+					ASSERT_LEGACY_PIPELINE
+						/*
 				//Assume that the current viewport is the viewport that the social screen is supposed to be rendered.
 				int ox, oy, ow, oh;
 				m_pRenderer->GetViewport(&ox, &oy, &ow, &oh);
@@ -220,6 +220,7 @@ void CD3DOsvrRenderer::RenderSocialScreen()
 				PostProcessUtils().CopyTextureToScreen(right);
 
 				m_pRenderer->RT_SetViewport(ox, oy, ow, oh);
+				*/
 
 			}
 			break;

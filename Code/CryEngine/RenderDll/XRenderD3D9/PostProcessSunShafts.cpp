@@ -24,7 +24,7 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool CSunShafts::Preprocess()
+bool CSunShafts::Preprocess(const SRenderViewInfo& viewInfo)
 {
 	if (CRenderer::CV_r_UseMergedPosts)
 		return false;
@@ -37,7 +37,8 @@ bool CSunShafts::Preprocess()
 
 bool CSunShafts::IsVisible()
 {
-
+	//OLD PIPELINE
+	/*
 	bool bQualityCheck = CPostEffectsMgr::CheckPostProcessQuality(eRQ_Medium, eSQ_Medium);
 
 	// We need to check every case and compare against merged post effects case
@@ -79,7 +80,7 @@ bool CSunShafts::IsVisible()
 			Initialize();
 
 		//bool bReady = pOcclQuery->IsReady();
-		bool bSunShaftsVisible = ((int)m_nVisSampleCount > (CTexture::s_ptexBackBuffer->GetWidth() * CTexture::s_ptexBackBuffer->GetHeight() / 100));   // || !bReady;
+		bool bSunShaftsVisible = ((int)m_nVisSampleCount > (CRendererResources::s_ptexBackBuffer->GetWidth() * CRendererResources::s_ptexBackBuffer->GetHeight() / 100));   // || !bReady;
 		m_bShaftsEnabled &= bSunShaftsVisible;
 
 		m_nVisSampleCount = pOcclQuery->GetVisibleSamples(CRenderer::CV_r_sunshafts == 2);
@@ -97,13 +98,15 @@ bool CSunShafts::IsVisible()
 			gcpRendD3D->FX_SetState(GS_DEPTHFUNC_LEQUAL | GS_NOCOLMASK_RGBA);
 
 			pOcclQuery->BeginQuery();
-			SD3DPostEffectsUtils::DrawFullScreenTriWPOS(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight(), 1.0f);
+			SD3DPostEffectsUtils::DrawFullScreenTriWPOS(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight(), 1.0f);
 			pOcclQuery->EndQuery();
 			PostProcessUtils().ShEndPass();
 		}
 	}
-
 	return m_bShaftsEnabled;
+	*/
+
+	return false;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -111,6 +114,8 @@ bool CSunShafts::IsVisible()
 
 bool CSunShafts::SunShaftsGen(CTexture* pSunShafts, CTexture* pPingPongRT)
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	PROFILE_LABEL_SCOPE("SUNSHAFTS_GEN");
 
 	gRenDev->m_cEF.mfRefreshSystemShader("Sunshafts", CShaderMan::s_shPostSunShafts);
@@ -121,7 +126,7 @@ bool CSunShafts::SunShaftsGen(CTexture* pSunShafts, CTexture* pPingPongRT)
 	int iTempX, iTempY, iWidth, iHeight;
 	gcpRendD3D->GetViewport(&iTempX, &iTempY, &iWidth, &iHeight);
 
-	CTexture* pBackBufferTex = CTexture::s_ptexBackBuffer;
+	CTexture* pBackBufferTex = CRendererResources::s_ptexBackBuffer;
 
 	//moved here because used later on
 	static CCryNameR pParam1Name("SunShafts_SunPos");
@@ -152,11 +157,11 @@ bool CSunShafts::SunShaftsGen(CTexture* pSunShafts, CTexture* pPingPongRT)
 	gcpRendD3D->FX_SetState(GS_NODEPTHTEST);
 
 	// Get sample size ratio (based on empirical "best look" approach)
-	float fSampleSize = ((float)CTexture::s_ptexBackBuffer->GetWidth() / (float)pSunShafts->GetWidth()) * 0.5f;
+	float fSampleSize = ((float)CRendererResources::s_ptexBackBuffer->GetWidth() / (float)pSunShafts->GetWidth()) * 0.5f;
 
 	// Set samples position
-	float s1 = fSampleSize / (float) CTexture::s_ptexBackBuffer->GetWidth();  // 2.0 better results on lower res images resizing
-	float t1 = fSampleSize / (float) CTexture::s_ptexBackBuffer->GetHeight();
+	float s1 = fSampleSize / (float) CRendererResources::s_ptexBackBuffer->GetWidth();  // 2.0 better results on lower res images resizing
+	float t1 = fSampleSize / (float) CRendererResources::s_ptexBackBuffer->GetHeight();
 	// Use rotated grid
 	Vec4 pParams0 = Vec4(s1 * 0.95f, t1 * 0.25f, -s1 * 0.25f, t1 * 0.96f);
 	Vec4 pParams1 = Vec4(-s1 * 0.96f, -t1 * 0.25f, s1 * 0.25f, -t1 * 0.96f);
@@ -167,8 +172,8 @@ bool CSunShafts::SunShaftsGen(CTexture* pSunShafts, CTexture* pPingPongRT)
 	CShaderMan::s_shPostSunShafts->FXSetPSFloat(pParam3Name, &pParams0, 1);
 	CShaderMan::s_shPostSunShafts->FXSetPSFloat(pParam4Name, &pParams1, 1);
 
-	PostProcessUtils().SetTexture(CTexture::s_ptexZTargetScaled[0], 0, FILTER_POINT);
-	PostProcessUtils().SetTexture(CTexture::s_ptexHDRTargetScaled[0], 1, (gRenDev->m_RP.m_eQuality >= eRQ_High) ? FILTER_POINT : FILTER_LINEAR);
+	PostProcessUtils().SetTexture(CRendererResources::s_ptexZTargetScaled[0], 0, FILTER_POINT);
+	PostProcessUtils().SetTexture(CRendererResources::s_ptexHDRTargetScaled[0], 1, (gRenDev->m_RP.m_eQuality >= eRQ_High) ? FILTER_POINT : FILTER_LINEAR);
 
 	gcpRendD3D->FX_SetState(GS_NODEPTHTEST);
 	PostProcessUtils().DrawFullScreenTri(pSunShafts->GetWidth(), pSunShafts->GetHeight());
@@ -247,13 +252,15 @@ bool CSunShafts::SunShaftsGen(CTexture* pSunShafts, CTexture* pPingPongRT)
 	gRenDev->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE0];
 
 	//SAFE_DELETE(pSunShaftsTemp);
-
+*/
 	return true;
 }
 
 // DEPRECATED
 void CSunShafts::Render()
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	PROFILE_LABEL_SCOPE("MERGED_SUNSHAFTS_COLORCORRECTION");
 
 	gRenDev->m_cEF.mfRefreshSystemShader("Sunshafts", CShaderMan::s_shPostSunShafts);
@@ -268,7 +275,7 @@ void CSunShafts::Render()
 	{
 		CColorGrading* pColorGrad = 0;
 		if (!PostEffectMgr()->GetEffects().empty())
-			pColorGrad = static_cast<CColorGrading*>(PostEffectMgr()->GetEffect(ePFX_ColorGrading));
+			pColorGrad = static_cast<CColorGrading*>(PostEffectMgr()->GetEffect(EPostEffectID::ColorGrading));
 
 		if (pColorGrad && pColorGrad->UpdateParams(pMergeParams))
 			bColorGrading = true;
@@ -280,7 +287,7 @@ void CSunShafts::Render()
 	int iTempX, iTempY, iWidth, iHeight;
 	gcpRendD3D->GetViewport(&iTempX, &iTempY, &iWidth, &iHeight);
 
-	CTexture* pBackBufferTex = CTexture::s_ptexBackBuffer;
+	CTexture* pBackBufferTex = CRendererResources::s_ptexBackBuffer;
 
 	static CCryNameR pParam1Name("SunShafts_SunPos");
 	Vec3 pSunPos = gEnv->p3DEngine->GetSunDir() * 1000.0f;
@@ -295,15 +302,15 @@ void CSunShafts::Render()
 	/////////////////////////////////////////////
 	// Create shafts mask texture
 
-	uint32 nWidth = CTexture::s_ptexBackBufferScaled[1]->GetWidth();
-	uint32 nHeight = CTexture::s_ptexBackBufferScaled[1]->GetHeight();
+	uint32 nWidth = CRendererResources::s_ptexBackBufferScaled[1]->GetWidth();
+	uint32 nHeight = CRendererResources::s_ptexBackBufferScaled[1]->GetHeight();
 	if (gRenDev->m_RP.m_eQuality >= eRQ_High)
 	{
-		nWidth = CTexture::s_ptexBackBufferScaled[0]->GetWidth();
-		nHeight = CTexture::s_ptexBackBufferScaled[0]->GetHeight();
+		nWidth = CRendererResources::s_ptexBackBufferScaled[0]->GetWidth();
+		nHeight = CRendererResources::s_ptexBackBufferScaled[0]->GetHeight();
 	}
 
-	SDynTexture* pSunShaftsRT = new SDynTexture(nWidth, nHeight, CTexture::s_ptexBackBufferScaled[1]->GetDstFormat(), eTT_2D, FT_STATE_CLAMP | FT_USAGE_RENDERTARGET, "TempBlurRT");
+	SDynTexture* pSunShaftsRT = new SDynTexture(nWidth, nHeight, CRendererResources::s_ptexBackBufferScaled[1]->GetDstFormat(), eTT_2D, FT_STATE_CLAMP | FT_USAGE_RENDERTARGET, "TempBlurRT");
 	if (!pSunShaftsRT)
 		return;
 
@@ -368,7 +375,7 @@ void CSunShafts::Render()
 	if (pSunShafts)
 		PostProcessUtils().SetTexture(pSunShafts, 2, FILTER_LINEAR);
 
-	PostProcessUtils().SetTexture(CTexture::s_ptexZTarget, 4, FILTER_POINT);
+	PostProcessUtils().SetTexture(CRendererResources::s_ptexZTarget, 4, FILTER_POINT);
 
 	CShaderMan::s_shPostSunShafts->FXSetPSFloat(pParam1Name, &pParamSunPos, 1);
 
@@ -378,6 +385,7 @@ void CSunShafts::Render()
 
 	SAFE_DELETE(pSunShaftsRT);
 	gRenDev->m_RP.m_FlagsShader_RT = nSaveFlagsShader_RT;
+*/
 }
 
 #pragma warning(pop)

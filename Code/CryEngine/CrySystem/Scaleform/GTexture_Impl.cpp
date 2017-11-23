@@ -116,7 +116,7 @@ GTextureXRender::~GTextureXRender()
 		if (ms_fontCacheTextureID == m_texID)
 			ms_fontCacheTextureID = 0;
 	#endif
-		pRenderer->RT_FlashRemoveTexture(pTexture);
+		pRenderer->FlashRemoveTexture(pTexture);
 	}
 }
 
@@ -318,11 +318,7 @@ bool GTextureXRender::InitDynamicTexture(int width, int height, GImage::ImageFor
 	{
 		IRenderer* pRenderer(gEnv->pRenderer);
 		assert(m_texID == -1);
-		m_texID = pRenderer->SF_CreateTexture(width, height, mipmaps + 1, 0, MapImageType(format), FT_DONT_STREAM
-	#if CRY_PLATFORM_ORBIS
-		                                      | FT_USAGE_DYNAMIC
-	#endif
-		                                      );
+		m_texID = pRenderer->SF_CreateTexture(width, height, mipmaps + 1, 0, MapImageType(format), FT_DONT_STREAM);
 		if (m_texID > 0)
 		{
 			ITexture* pTexture(pRenderer->EF_GetTextureByID(m_texID));
@@ -453,7 +449,7 @@ GTextureXRenderYUV::~GTextureXRenderYUV()
 				CryInterlockedAdd(&ms_textureMemoryUsed, -size);
 			}
 	#endif
-			pRenderer->RT_FlashRemoveTexture(pTexture);
+			pRenderer->FlashRemoveTexture(pTexture);
 		}
 	}
 }
@@ -543,7 +539,7 @@ bool GTextureXRenderYUV::InitDynamicTexture(int width, int height, GImage::Image
 				{
 					ITexture* pTexture = pRenderer->EF_GetTextureByID(texId);
 					assert(pTexture);
-					pRenderer->RT_FlashRemoveTexture(pTexture);
+					pRenderer->FlashRemoveTexture(pTexture);
 				}
 				else
 					break;

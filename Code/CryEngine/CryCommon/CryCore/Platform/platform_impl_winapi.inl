@@ -184,7 +184,7 @@ uint32 CryGetFileAttributes(const char* lpFileName)
 	Unicode::Convert(widePath, lpFileName);
 	res = GetFileAttributesExW(widePath.c_str(), GetFileExInfoStandard, &data);
 #endif
-	return res != INVALID_FILE_ATTRIBUTES ? data.dwFileAttributes : -1;
+	return res != 0 ? data.dwFileAttributes : -1;
 }
 
 //////////////////////////////////////////////////////////////////////////

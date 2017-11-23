@@ -203,7 +203,7 @@ void CGeomCacheRenderNode::Render(const struct SRendParams& rendParams, const SR
 			drawParams.pMaterial = m_pMaterial;
 
 			IRenderer* const pRenderer = GetRenderer();
-			CRenderObject* pRenderObject = pRenderer->EF_GetObject_Temp(passInfo.ThreadID());
+			CRenderObject* pRenderObject = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 
 			if (pRenderObject)
 			{
@@ -225,7 +225,7 @@ void CGeomCacheRenderNode::Render(const struct SRendParams& rendParams, const SR
 
 					if (pGraphicsPipelineCV->GetIVal() == 0)
 					{
-						pRenderer->EF_AddEf(pCREGeomCache, shaderItem, pRenderObject, passInfo, EFSLIST_GENERAL, afterWater);
+						passInfo.GetIRenderView()->AddRenderObject(pCREGeomCache, shaderItem, pRenderObject, passInfo, EFSLIST_GENERAL, afterWater);
 					}
 					else
 					{
@@ -287,7 +287,7 @@ void CGeomCacheRenderNode::Render(const struct SRendParams& rendParams, const SR
 										}
 									}
 
-									pRenderer->EF_AddEf(pREMesh, shaderItem, pInstanceRenderObject, passInfo, EFSLIST_GENERAL, afterWater);
+									passInfo.GetIRenderView()->AddRenderObject(pREMesh, shaderItem, pInstanceRenderObject, passInfo, EFSLIST_GENERAL, afterWater);
 								}
 							}
 						}

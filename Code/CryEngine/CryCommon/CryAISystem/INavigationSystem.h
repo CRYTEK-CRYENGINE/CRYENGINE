@@ -11,9 +11,9 @@
 #include <CryAISystem/NavigationSystem/NavigationIdTypes.h>
 #include <functional>
 
-struct IAIPathAgent;
 struct IOffMeshNavigationManager;
 struct INavigationUpdatesManager;
+struct INavMeshQueryFilter;
 
 #ifdef SW_NAVMESH_USE_GUID
 typedef uint64 NavigationMeshGUID;
@@ -22,6 +22,7 @@ typedef uint64 NavigationVolumeGUID;
 
 typedef Functor3<NavigationAgentTypeID, NavigationMeshID, uint32> NavigationMeshChangeCallback;
 typedef Functor2wRet<IPhysicalEntity&, uint32&, bool>             NavigationMeshEntityCallback;
+typedef uint32 NavigationAgentTypesMask;
 
 struct INavigationSystemUser
 {
@@ -35,6 +36,9 @@ struct INavigationSystemUser
 
 namespace MNM
 {
+struct IAnnotationsLibrary;
+struct SMarkupVolumeParams;
+
 namespace TileGenerator
 {
 struct IExtension;
@@ -112,6 +116,9 @@ struct INavigationSystem
 	virtual const char*           GetAgentTypeName(NavigationAgentTypeID agentTypeID) const = 0;
 	virtual size_t                GetAgentTypeCount() const = 0;
 
+	virtual const MNM::IAnnotationsLibrary& GetAnnotationLibrary() const = 0;
+	virtual MNM::AreaAnnotation   GetAreaTypeAnnotation(const NavigationAreaTypeID areaTypeID) const = 0;
+
 #ifdef SW_NAVMESH_USE_GUID
 	virtual NavigationMeshID CreateMesh(const char* name, NavigationAgentTypeID agentTypeID, const CreateMeshParams& params, NavigationMeshGUID guid) = 0;
 	virtual NavigationMeshID CreateMesh(const char* name, NavigationAgentTypeID agentTypeID, const CreateMeshParams& params, NavigationMeshID requestedID, NavigationMeshGUID guid) = 0;
@@ -126,6 +133,8 @@ struct INavigationSystem
 	virtual void SetMeshEntityCallback(NavigationAgentTypeID agentTypeID, const NavigationMeshEntityCallback& callback) = 0;
 	virtual void AddMeshChangeCallback(NavigationAgentTypeID agentTypeID, const NavigationMeshChangeCallback& callback) = 0;
 	virtual void RemoveMeshChangeCallback(NavigationAgentTypeID agentTypeID, const NavigationMeshChangeCallback& callback) = 0;
+	virtual void AddMeshAnnotationChangeCallback(NavigationAgentTypeID agentTypeID, const NavigationMeshChangeCallback& callback) = 0;
+	virtual void RemoveMeshAnnotationChangeCallback(NavigationAgentTypeID agentTypeID, const NavigationMeshChangeCallback& callback) = 0;
 
 #ifdef SW_NAVMESH_USE_GUID
 	virtual void SetMeshBoundaryVolume(NavigationMeshID meshID, NavigationVolumeID volumeID, NavigationVolumeGUID guid) = 0;
@@ -143,6 +152,11 @@ struct INavigationSystem
 	virtual void               SetVolume(NavigationVolumeID volumeID, Vec3* vertices, size_t vertexCount, float height) = 0;
 	virtual bool               ValidateVolume(NavigationVolumeID volumeID) const = 0;
 	virtual NavigationVolumeID GetVolumeID(NavigationMeshID meshID) const = 0;
+
+	virtual NavigationVolumeID CreateMarkupVolume(NavigationVolumeID requestedID) = 0;
+	virtual void SetMarkupVolume(const NavigationAgentTypesMask enabledAgentTypesMask, const Vec3* vertices, size_t vertexCount, const NavigationVolumeID volumeID, const MNM::SMarkupVolumeParams& params) = 0;
+	virtual void DestroyMarkupVolume(NavigationVolumeID volumeID) = 0;
+	virtual void SetAnnotationForMarkupTriangles(NavigationVolumeID volumeID, const MNM::AreaAnnotation& areaAnnotation) = 0;
 
 #ifdef SW_NAVMESH_USE_GUID
 	virtual void SetExclusionVolume(const NavigationAgentTypeID* agentTypeIDs, size_t agentTypeIDCount, NavigationVolumeID volumeID, NavigationVolumeGUID guid) = 0;
@@ -186,12 +200,10 @@ struct INavigationSystem
 
 	virtual bool                  GetClosestPointInNavigationMesh(const NavigationAgentTypeID agentID, const Vec3& location, float vrange, float hrange, Vec3* meshLocation, float minIslandArea = 0.f) const = 0;
 
-	virtual bool                  IsLocationValidInNavigationMesh(const NavigationAgentTypeID agentID, const Vec3& location) const = 0;
-
 	//! A cheap test to see if two points are connected, without the expense of computing a full path between them.
 	virtual bool   IsPointReachableFromPosition(const NavigationAgentTypeID agentID, const IEntity* pEntityToTestOffGridLinks, const Vec3& startLocation, const Vec3& endLocation) const = 0;
 
-	virtual bool   IsLocationContainedWithinTriangleInNavigationMesh(const NavigationAgentTypeID agentID, const Vec3& location, float downRange, float upRange) const = 0;
+	virtual bool   IsLocationValidInNavigationMesh(const NavigationAgentTypeID agentID, const Vec3& location, float downRange = 1.0f, float upRange = 1.0f) const = 0;
 	virtual size_t GetTriangleCenterLocationsInMesh(const NavigationMeshID meshID, const Vec3& location, const AABB& searchAABB, Vec3* centerLocations, size_t maxCenterLocationCount, float minIslandArea = 0.f) const = 0;
 	
 	//! Performs raycast on navmesh.
@@ -200,12 +212,12 @@ struct INavigationSystem
 	//! \param endPos End position of the ray
 	//! \param pOutHit Optional pointer for a return value of additional information about the hit. This structure is valid only when the hit is reported. 
 	//! \return Returns true if the ray is hits navmesh boundary before end position.
-	virtual bool   NavMeshTestRaycastHit(NavigationAgentTypeID agentTypeID, const Vec3& startPos, const Vec3& endPos, MNM::SRayHitOutput* pOutHit) const = 0;
+	virtual bool   NavMeshTestRaycastHit(NavigationAgentTypeID agentTypeID, const Vec3& startPos, const Vec3& endPos, const INavMeshQueryFilter* pFilter, MNM::SRayHitOutput* pOutHit) const = 0;
 
 	//! Returns all borders (unconnected edges) in the specified AABB.
 	//! There are 3 Vec3's per border edge, vert 0, vert 1, and a normal pointing out from the edge.
 	//! You can pass NULL for pBorders to return the total number of borders (multiply this by 3 to get the total number of Vec3's you need to pass in).
-	virtual size_t GetTriangleBorders(const NavigationMeshID meshID, const AABB& aabb, Vec3* pBorders, size_t maxBorderCount, float minIslandArea = 0.f) const = 0;
+	virtual size_t GetTriangleBorders(const NavigationMeshID meshID, const AABB& aabb, Vec3* pBorders, size_t maxBorderCount, const INavMeshQueryFilter* pFilter, float minIslandArea = 0.f) const = 0;
 
 	//! Gets triangle centers, and island ids - this is used to compute spawn points for an area.
 	virtual size_t GetTriangleInfo(const NavigationMeshID meshID, const AABB& aabb, Vec3* centerLocations, uint32* islandids, size_t max_count, float minIslandArea = 0.f) const = 0;
@@ -257,51 +269,5 @@ struct INavigationSystem
 
 	// </interfuscator:shuffle>
 };
-
-inline bool Serialize(Serialization::IArchive& archive, NavigationAgentTypeID& value, const char* szName, const char* szLabel)
-{
-	INavigationSystem* pNavigationSystem = gEnv->pAISystem->GetNavigationSystem();
-
-	const size_t agentTypeCount = pNavigationSystem->GetAgentTypeCount();
-
-	Serialization::StringList agentTypeNamesList;
-	agentTypeNamesList.reserve(agentTypeCount);
-
-	for (size_t i = 0; i < agentTypeCount; ++i)
-	{
-		const NavigationAgentTypeID id = pNavigationSystem->GetAgentTypeID(i);
-		const char* szName = pNavigationSystem->GetAgentTypeName(id);
-		if (szName)
-		{
-			agentTypeNamesList.push_back(szName);
-		}
-	}
-
-	stack_string stringValue;
-	bool bResult = false;
-	if (archive.isInput())
-	{
-		Serialization::StringListValue temp(agentTypeNamesList, 0);
-		bResult = archive(temp, szName, szLabel);
-		stringValue = temp.c_str();
-		value = pNavigationSystem->GetAgentTypeID(stringValue);
-	}
-	else if (archive.isOutput())
-	{
-		if (value == NavigationAgentTypeID() && agentTypeNamesList.size())
-		{
-			stringValue = agentTypeNamesList[0].c_str();
-			value = pNavigationSystem->GetAgentTypeID(stringValue);
-		}
-		else
-		{
-			stringValue = pNavigationSystem->GetAgentTypeName(value);
-		}
-
-		const int pos = agentTypeNamesList.find(stringValue);
-		bResult = archive(Serialization::StringListValue(agentTypeNamesList, pos), szName, szLabel);
-	}
-	return bResult;
-}
 
 #endif // __INavigationSystem_h__

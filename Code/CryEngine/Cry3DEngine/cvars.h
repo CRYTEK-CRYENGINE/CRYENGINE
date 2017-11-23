@@ -419,7 +419,6 @@ struct CVars : public Cry3DEngineBase
 	float e_DecalsNeighborMaxLifeTime;
 	DeclareConstFloatCVar(e_StreamCgfVisObjPriority);
 	int   e_ObjectLayersActivation;
-	DeclareConstIntCVar(e_DecalsScissor, 1);
 	float e_VegetationSpritesDistanceCustomRatioMin;
 	float e_LodTransitionSpriteDistRatio;
 	float e_LodTransitionSpriteMinDist;

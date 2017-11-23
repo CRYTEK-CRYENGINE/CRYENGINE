@@ -57,7 +57,7 @@ CParticleEmitter::CParticleEmitter(CParticleEffect* pEffect, uint emitterId)
 	m_profilerColor = ColorF(r, g, b);
 
 	if (m_pEffect)
-		m_attributeInstance.Reset(m_pEffect->GetAttributeTable(), EAttributeScope::PerEmitter);
+		m_attributeInstance.Reset(m_pEffect->GetAttributeTable());
 }
 
 CParticleEmitter::~CParticleEmitter()
@@ -111,7 +111,7 @@ void CParticleEmitter::Render(const struct SRendParams& rParam, const SRendering
 	renderContext.m_distance = GetPos().GetDistance(passInfo.GetCamera().GetPosition());
 	ColorF fogVolumeContrib;
 	CFogVolumeRenderNode::TraceFogVolumes(GetPos(), fogVolumeContrib, passInfo);
-	renderContext.m_fogVolumeId = GetRenderer()->PushFogVolumeContribution(fogVolumeContrib, passInfo);
+	renderContext.m_fogVolumeId = passInfo.GetIRenderView()->PushFogVolumeContribution(fogVolumeContrib, passInfo);
 	
 	for (auto& pRuntime : m_componentRuntimes)
 	{
@@ -134,7 +134,7 @@ void CParticleEmitter::Update()
 	m_pEffectOriginal->Compile();
 	if (m_active && m_effectEditVersion != m_pEffectOriginal->GetEditVersion() + m_emitterEditVersion)
 	{
-		m_attributeInstance.Reset(m_pEffectOriginal->GetAttributeTable(), EAttributeScope::PerEmitter);
+		m_attributeInstance.Reset(m_pEffectOriginal->GetAttributeTable());
 		UpdateRuntimes();
 		m_effectEditVersion = m_pEffectOriginal->GetEditVersion() + m_emitterEditVersion;
 	}
@@ -194,6 +194,9 @@ void CParticleEmitter::UpdateBoundingBox(const float frameTime)
 
 void CParticleEmitter::DebugRender() const
 {
+	if (!GetRenderer())
+		return;
+
 	IRenderAuxGeom* pRenderAux = gEnv->pRenderer->GetIRenderAuxGeom();
 
 	if (m_bounds.IsReset())
@@ -249,7 +252,7 @@ float CParticleEmitter::GetMaxViewDist()
 {
 	IRenderer* pRenderer = GetRenderer();
 	const float angularDensity =
-		(pRenderer ? GetPSystem()->GetMaxAngularDensity(pRenderer->GetCamera()) : 1080.0f)
+		(pRenderer ? GetPSystem()->GetMaxAngularDensity(GetISystem()->GetViewCamera()) : 1080.0f)
 		* m_viewDistRatio;
 
 	float maxViewDist = 0.0f;
@@ -370,6 +373,14 @@ void CParticleEmitter::Activate(bool activate)
 	m_active = activate;
 }
 
+bool CParticleEmitter::IsAlive() const
+{
+	for (auto const& pRuntime : m_componentRuntimes)
+		if (pRuntime->IsAlive())
+			return true;
+	return false;
+}
+
 void CParticleEmitter::Restart()
 {
 	Activate(false);
@@ -438,8 +449,11 @@ void CParticleEmitter::EmitParticle(const EmitParticleData* pData)
 
 void CParticleEmitter::SetEmitterFeatures(TParticleFeatures& features)
 {
-	m_emitterFeatures = features;
-	m_emitterEditVersion++;
+	if (features.m_editVersion != m_emitterEditVersion)
+	{
+		m_emitterFeatures = features;
+		m_emitterEditVersion = features.m_editVersion;
+	}
 }
 
 void CParticleEmitter::SetEntity(IEntity* pEntity, int nSlot)
@@ -570,12 +584,18 @@ void CParticleEmitter::UpdateRuntimes()
 			pRuntime->AddSubInstances({&instance, 1});
 		}
 		CParticleComponent* pComponent = pRuntime->GetComponent();
-		pComponent->PrepareRenderObjects(this, pComponent, true);
+		if (GetRenderer())
+		{
+			pComponent->PrepareRenderObjects(this, pComponent, true);
+		}
 	}
 }
 
 void CParticleEmitter::ResetRenderObjects()
 {
+	if (!GetRenderer())
+		return;
+
 	if (!m_pEffect)
 		return;
 

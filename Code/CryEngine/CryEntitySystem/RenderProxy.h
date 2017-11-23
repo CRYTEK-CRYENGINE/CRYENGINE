@@ -1,18 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   RenderProxy.h
-//  Version:     v1.00
-//  Created:     19/5/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __RenderProxy_h__
-#define __RenderProxy_h__
 #pragma once
 
 #include "EntitySystem.h"
@@ -42,7 +29,7 @@ public:
 
 	// Must be called after constructor.
 	void PostInit();
-	void ProcessEvent(SEntityEvent& event);
+	void ProcessEvent(const SEntityEvent& event);
 
 	void Serialize(TSerialize ser);
 	bool NeedNetworkSerialize();
@@ -83,7 +70,7 @@ public:
 	int  LoadCharacter(int nSlot, const char* sFilename, int nLoadFlags = 0);
 	int  LoadParticleEmitter(int nSlot, IParticleEffect* pEffect, SpawnParams const* params = NULL, bool bPrime = false, bool bSerialize = false);
 	int  SetParticleEmitter(int nSlot, IParticleEmitter* pEmitter, bool bSerialize = false);
-	int  LoadLight(int nSlot, CDLight* pLight, uint16 layerId);
+	int  LoadLight(int nSlot, SRenderLight* pLight, uint16 layerId);
 	int  LoadCloudBlocker(int nSlot, const SCloudBlockerProperties& properties);
 	int  LoadFogVolume(int nSlot, const SFogVolumeProperties& properties);
 	int  FadeGlobalDensity(int nSlot, float fadeTime, float newGlobalDensity);
@@ -177,5 +164,3 @@ private:
 	// Rendering related member variables, Passed to 3d engine render nodes.
 	IEntity::SRenderNodeParams m_renderNodeParams;
 };
-
-#endif // __RenderProxy_h__

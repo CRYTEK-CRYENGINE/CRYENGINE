@@ -93,6 +93,8 @@ public:
 // hacky enum definitions
 %csconstvalue("0x0 << EAuxGeomPublicRenderflagBitMasks.e_Mode2D3DShift") e_Mode3D;
 %csconstvalue("0x1 << EAuxGeomPublicRenderflagBitMasks.e_Mode2D3DShift") e_Mode2D;
+%csconstvalue("0x2 << EAuxGeomPublicRenderflagBitMasks.e_Mode2D3DShift") e_ModeText;
+%csconstvalue("0x3 << EAuxGeomPublicRenderflagBitMasks.e_Mode2D3DShift") e_ModeUnit;
 %csconstvalue("0x0 << EAuxGeomPublicRenderflagBitMasks.e_AlphaBlendingShift") e_AlphaNone;
 %csconstvalue("0x1 << EAuxGeomPublicRenderflagBitMasks.e_AlphaBlendingShift") e_AlphaAdditive;
 %csconstvalue("0x2 << EAuxGeomPublicRenderflagBitMasks.e_AlphaBlendingShift") e_AlphaBlended;

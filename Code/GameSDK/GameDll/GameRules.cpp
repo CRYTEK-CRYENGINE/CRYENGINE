@@ -1570,7 +1570,7 @@ void CGameRules::HandleEvent( const SGameObjectEvent& event)
 }
 
 //------------------------------------------------------------------------
-void CGameRules::ProcessEvent( SEntityEvent& event)
+void CGameRules::ProcessEvent( const SEntityEvent& event)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
@@ -1673,10 +1673,6 @@ void CGameRules::ProcessEvent( SEntityEvent& event)
 
 		break;
 	}
-  case ENTITY_EVENT_POST_SERIALIZE:
-    {
-      break;
-    }
 	case ENTITY_EVENT_START_GAME:
 	{
 		m_timeOfDayInitialized = false;
@@ -1772,6 +1768,11 @@ void CGameRules::ProcessEvent( SEntityEvent& event)
 		break;
 	}
 
+}
+
+uint64 CGameRules::GetEventMask() const
+{
+	return BIT64(ENTITY_EVENT_PRE_SERIALIZE) | BIT64(ENTITY_EVENT_RESET) | BIT64(ENTITY_EVENT_START_GAME) | BIT64(ENTITY_EVENT_ENTER_SCRIPT_STATE);
 }
 
 //------------------------------------------------------------------------
@@ -8246,7 +8247,7 @@ void CGameRules::OnComplete(SHostMigrationInfo& hostMigrationInfo)
 }
 
 //------------------------------------------------------------------------
-void CGameRules::OnEntityEvent( IEntity *pEntity, SEntityEvent &event )
+void CGameRules::OnEntityEvent( IEntity *pEntity, const SEntityEvent &event )
 {
 	if (event.event == ENTITY_EVENT_DONE)
 	{

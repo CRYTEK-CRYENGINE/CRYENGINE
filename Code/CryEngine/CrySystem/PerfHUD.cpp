@@ -792,7 +792,7 @@ bool CPerfHUD::OnInputEvent(const SInputEvent& rInputEvent)
 						if (!m_hwMouseEnabled)
 						{
 							gEnv->pHardwareMouse->IncrementCounter();
-							gEnv->pHardwareMouse->SetHardwareMousePosition(gEnv->pRenderer->GetWidth() * 0.5f, gEnv->pRenderer->GetHeight() * 0.5f);
+							gEnv->pHardwareMouse->SetHardwareMousePosition(gEnv->pRenderer->GetOverlayWidth() * 0.5f, gEnv->pRenderer->GetOverlayHeight() * 0.5f);
 							m_hwMouseEnabled = true;
 						}
 					}
@@ -842,7 +842,7 @@ void CPerfHUD::SetState(EHudState state)
 		else if (state == eHudInFocus)
 		{
 			gEnv->pHardwareMouse->IncrementCounter();
-			gEnv->pHardwareMouse->SetHardwareMousePosition(gEnv->pRenderer->GetWidth() * 0.5f, gEnv->pRenderer->GetHeight() * 0.5f);
+			gEnv->pHardwareMouse->SetHardwareMousePosition(gEnv->pRenderer->GetOverlayWidth() * 0.5f, gEnv->pRenderer->GetOverlayHeight() * 0.5f);
 			m_hwMouseEnabled = true;
 		}
 
@@ -1569,9 +1569,9 @@ void CRenderStatsWidget::Update()
 	//
 	// Camera
 	//
-	Matrix33 m = Matrix33(pRenderer->GetCamera().GetMatrix());
+	Matrix33 m = Matrix33(GetISystem()->GetViewCamera().GetMatrix());
 	m_runtimeData.cameraRot = RAD2DEG(Ang3::GetAnglesXYZ(m));
-	m_runtimeData.cameraPos = pRenderer->GetCamera().GetPosition();
+	m_runtimeData.cameraPos = GetISystem()->GetViewCamera().GetPosition();
 
 	//
 	// Polys / Draw Prims
@@ -1626,7 +1626,7 @@ void CRenderStatsWidget::Update()
 	//
 	// Forward Lights
 	//
-	PodArray<CDLight*>* pLights = gEnv->p3DEngine->GetDynamicLightSources();
+	PodArray<SRenderLight*>* pLights = gEnv->p3DEngine->GetDynamicLightSources();
 	const uint32 nDynamicLights = pLights->Count();
 
 	if (nDynamicLights)
@@ -1635,7 +1635,7 @@ void CRenderStatsWidget::Update()
 
 		for (uint32 i = 0; i < nDynamicLights; i++)
 		{
-			CDLight* pLight = pLights->GetAt(i);
+			SRenderLight* pLight = pLights->GetAt(i);
 
 			if (pLight->m_Flags & DLF_CASTSHADOW_MAPS)
 			{
@@ -2233,8 +2233,8 @@ void CRenderBatchWidget::Update_ModeBatchStats()
 
 	IRenderer::RNDrawcallsMapMesh& drawCallsInfo = gEnv->pRenderer->GetDrawCallsInfoPerMesh();
 
-	IRenderer::RNDrawcallsMapMeshItor pEnd = drawCallsInfo.end();
-	IRenderer::RNDrawcallsMapMeshItor pItor = drawCallsInfo.begin();
+	auto pEnd = drawCallsInfo.end();
+	auto pItor = drawCallsInfo.begin();
 
 	//Per RenderNode Stats
 	for (; pItor != pEnd; ++pItor)

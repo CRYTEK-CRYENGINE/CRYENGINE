@@ -1191,7 +1191,7 @@ int CScriptBind_Entity::LoadLight(IFunctionHandler* pH, int nSlot, SmartScriptTa
 {
 	GET_ENTITY;
 
-	CDLight light;
+	SRenderLight light;
 	if (ParseLightParams(table, light))
 	{
 		pEntity->UpdateLightClipBounds(light);
@@ -1214,7 +1214,7 @@ int CScriptBind_Entity::UpdateLightClipBounds(IFunctionHandler* pH, int nSlot)
 	{
 		if (slotInfo.pLight)
 		{
-			CDLight& light = slotInfo.pLight->GetLightProperties();
+			SRenderLight& light = slotInfo.pLight->GetLightProperties();
 			if (!pEntity->UpdateLightClipBounds(light))
 				light.m_Flags &= ~DLF_HAS_CLIP_VOLUME;
 		}
@@ -1234,7 +1234,7 @@ int CScriptBind_Entity::SetLightColorParams(IFunctionHandler* pH, int nSlot, Vec
 	{
 		if (slotInfo.pLight)
 		{
-			CDLight& light = slotInfo.pLight->GetLightProperties();
+			SRenderLight& light = slotInfo.pLight->GetLightProperties();
 			light.SetLightColor(ColorF(color.x, color.y, color.z, 1.0f));
 			light.SetSpecularMult(specular_multiplier);
 		}
@@ -2226,7 +2226,7 @@ int CScriptBind_Entity::SetAttachmentLight(IFunctionHandler* pH, int characterSl
 		return pH->EndFunction();
 	}
 
-	CDLight light;
+	SRenderLight light;
 
 	if (ParseLightParams(lightTable, light))
 	{
@@ -7284,7 +7284,7 @@ int CScriptBind_Entity::IsEntityInsideArea(IFunctionHandler* pH, int areaId, Scr
 	return pH->EndFunction();
 }
 
-bool CScriptBind_Entity::ParseLightParams(IScriptTable* pLightTable, CDLight& light)
+bool CScriptBind_Entity::ParseLightParams(IScriptTable* pLightTable, SRenderLight& light)
 {
 	light.m_nLightStyle = 0;
 	light.SetPosition(Vec3(ZERO));

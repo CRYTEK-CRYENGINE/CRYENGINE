@@ -462,7 +462,7 @@ void CLaserBeam::OnRayCastDataReceived( const QueuedRayID& rayID, const RayCastR
 		laserLength = range + 0.1f;
 	}
 
-	const CCamera& camera = gEnv->pRenderer->GetCamera();
+	const CCamera& camera = GetISystem()->GetViewCamera();
 
 	// Hit near plane
 	if (m_lastLaserUpdateDirection.Dot(camera.GetViewdir()) < 0.0f)

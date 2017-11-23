@@ -20,6 +20,7 @@ private:
 
 		STarget                target;
 		ELockMode              eLockMode;
+		const IKLimbType* m_pIkLimbType;
 	};
 
 	CPoseAlignerChain();
@@ -62,7 +63,6 @@ private:
 	SState m_stateExecute;
 
 	// Execute states
-	const IKLimbType* m_pIkLimbType;
 	Vec3              m_targetLockPosition;
 	Quat              m_targetLockOrientation;
 	Plane             m_targetLockPlane;

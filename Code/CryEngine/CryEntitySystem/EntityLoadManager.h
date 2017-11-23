@@ -34,7 +34,6 @@ public:
 	void     GetMemoryStatistics(ICrySizer* pSizer) const
 	{
 		pSizer->Add(*this);
-		pSizer->AddContainer(m_queuedAttachments);
 		pSizer->AddContainer(m_queuedFlowgraphs);
 	}
 
@@ -53,13 +52,8 @@ private:
 	bool ExtractEntityLoadParams(XmlNodeRef& entityNode, SEntityLoadParams& outLoadParams, const Vec3& segmentOffset, bool bWarningMsg) const;
 
 	// Batch creation helpers
-	void AddQueuedAttachment(EntityId nParent, EntityGUID parentGuid, EntityId nChild, const Vec3& pos, const Quat& rot, const Vec3& scale, const int flags, const char* target);
 	void AddQueuedFlowgraph(CEntity* pEntity, XmlNodeRef& pNode);
 	void AddQueuedEntityLink(CEntity* pEntity, XmlNodeRef& pNode);
-
-	// Attachment queue for post Entity batch creation
-	typedef std::vector<SEntityAttachment> TQueuedAttachments;
-	TQueuedAttachments m_queuedAttachments;
 
 	// Flowgraph queue for Flowgraph initiation at post Entity batch creation
 	struct SQueuedFlowGraph

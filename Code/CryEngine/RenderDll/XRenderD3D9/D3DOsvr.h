@@ -21,15 +21,15 @@ public:
 	virtual ~CD3DOsvrRenderer();
 
 	// IHDMRenderer implementation
-	virtual bool                      Initialize() override;
-	virtual void                      Shutdown() override;
-	virtual void                      OnResolutionChanged() override;
-	virtual void                      ReleaseBuffers() override;
-	virtual void                      PrepareFrame() override;
-	virtual void                      SubmitFrame() override;
-	virtual void                      RenderSocialScreen() override;
-	virtual RenderLayer::CProperties* GetQuadLayerProperties(RenderLayer::EQuadLayers id) override   { return nullptr; }
-	virtual RenderLayer::CProperties* GetSceneLayerProperties(RenderLayer::ESceneLayers id) override { return nullptr; }
+	virtual bool                      Initialize(int initialWidth, int initialHeight) final;
+	virtual void                      Shutdown() final;
+	virtual void                      OnResolutionChanged(int newWidth, int newHeight) final;
+	virtual void                      ReleaseBuffers() final;
+	virtual void                      PrepareFrame() final;
+	virtual void                      SubmitFrame() final;
+	virtual void                      RenderSocialScreen() final;
+	virtual RenderLayer::CProperties* GetQuadLayerProperties(RenderLayer::EQuadLayers id) final   { return nullptr; }
+	virtual RenderLayer::CProperties* GetSceneLayerProperties(RenderLayer::ESceneLayers id) final { return nullptr; }
 private:
 
 	static const uint32 EyeCount = 2;

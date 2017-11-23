@@ -138,7 +138,7 @@ public:
 	void Release()
 	{
 		if (CryInterlockedDecrement(&m_nRefCount) <= 0)
-			delete this;
+			DeleteThis();
 	}
 
 	// <interfuscator:shuffle>
@@ -173,6 +173,9 @@ public:
 #if defined(FLARES_SUPPORT_EDITING)
 	virtual DynArray<FuncVariableGroup> GetEditorParamGroups() = 0;
 #endif
+
+protected:
+	virtual void                DeleteThis() = 0;
 
 private:
 	volatile int m_nRefCount;

@@ -177,7 +177,7 @@ public:
 	};
 
 	//IEntityEvent
-	virtual void                   ProcessEvent(SEntityEvent& entityEvent) final;
+	virtual void                   ProcessEvent(const SEntityEvent& entityEvent) final;
 	virtual uint64                 GetEventMask() const final;
 	virtual ComponentEventPriority GetEventPriority() const final;
 	//~IEntityEvent

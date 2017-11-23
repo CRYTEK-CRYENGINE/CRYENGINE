@@ -45,7 +45,7 @@ bool CMPPath::GetEntityPoolSignature( TSerialize signature )
 	return true;
 }
 
-void CMPPath::ProcessEvent( SEntityEvent& details )
+void CMPPath::ProcessEvent( const SEntityEvent& details )
 {
 	if(details.event == ENTITY_EVENT_LEVEL_LOADED)
 	{
@@ -55,4 +55,9 @@ void CMPPath::ProcessEvent( SEntityEvent& details )
 			pPathFollowingManager->RegisterPath(GetEntityId());
 		}
 	}
+}
+
+uint64 CMPPath::GetEventMask() const
+{
+	return BIT64(ENTITY_EVENT_LEVEL_LOADED);
 }

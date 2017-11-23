@@ -5,9 +5,6 @@
 //-----------------------------------------------------------------------------------------------
 
 #include <CryCore/Platform/platform.h>
-#include <CrySystem/ISystem.h>  // prerequisite for IGame.h
-#include <CryGame/IGame.h>
-#include <CryGame/IGameFramework.h>
 #include <CryExtension/ClassWeaver.h>
 #include <CryExtension/CryCreateClassInstance.h>
 

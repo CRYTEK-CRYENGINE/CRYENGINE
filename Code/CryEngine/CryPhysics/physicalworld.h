@@ -448,6 +448,7 @@ public:
 			case PLOCK_WORLD_STEP: return &m_lockStep;
 			case PLOCK_QUEUE: return &m_lockQueue;
 			case PLOCK_AREAS: return &m_lockAreas;
+			case PLOCK_TRACE_PENDING_RAYS: return &m_lockTPR;
 			default:
 				if ((unsigned int)(idx-PLOCK_CALLER0)<=(unsigned int)MAX_PHYS_THREADS)
 					return m_lockCaller+(idx-PLOCK_CALLER0);
@@ -492,14 +493,15 @@ public:
 		}
 		return res;
 	}
-	template<class Etype> int SignalEvent(Etype *pEvent, int bLogged) {
+	int SignalEvent(EventPhys *pEvent, int bLogged) {
 		int nres = 0;
 		EventClient *pClient;
 		ReadLock lock(m_lockEventClients);
-		for(pClient = m_pEventClients[Etype::id][bLogged]; pClient; pClient=pClient->next)
+		for(pClient = m_pEventClients[pEvent->idval][bLogged]; pClient; pClient=pClient->next)
 			nres += pClient->OnEvent(pEvent);
 		return nres;
 	}
+	virtual int NotifyEventClients(EventPhys *pEvent, int bLogged) { return SignalEvent(pEvent,bLogged); }
 
 	virtual int SerializeWorld(const char *fname, int bSave);
 	virtual int SerializeGeometries(const char *fname, int bSave);

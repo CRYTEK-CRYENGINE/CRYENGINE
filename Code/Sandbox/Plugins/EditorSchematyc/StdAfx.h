@@ -4,6 +4,8 @@
 // CryEngine headers.
 
 #include <CryCore/Project/CryModuleDefs.h>
+#define eCryModule eCryM_Legacy
+
 #include <CryCore/Platform/platform.h>
 
 // MFC & XTToolkit Pro headers.

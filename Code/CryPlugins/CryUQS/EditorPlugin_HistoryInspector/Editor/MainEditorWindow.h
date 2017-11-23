@@ -72,6 +72,7 @@ private:
 	void OnTreeViewCurrentChanged(const QModelIndex &current, const QModelIndex &previous);
 
 private:
+	string                           m_windowTitle;
 	UQS::Core::IQueryHistoryManager* m_pQueryHistoryManager;
 	SQuery*                          m_pFreshlyAddedOrUpdatedQuery;
 	CHistoricQueryTreeView*          m_pTreeView;

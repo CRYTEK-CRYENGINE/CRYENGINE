@@ -17,15 +17,9 @@ v2f_sh Common_SG_VS(app2vertSGGeneral IN_common)
 	// Nearest objects are in camera space, we don't want to render the nearest shadows in camera space
 	// so convert to world space
 
-	#if %_RT_PER_INSTANCE_CB_TEMP
-		PerInstanceWorldMatrix[0][3] += g_VS_WorldViewPos.x; 
-		PerInstanceWorldMatrix[1][3] += g_VS_WorldViewPos.y; 
-		PerInstanceWorldMatrix[2][3] += g_VS_WorldViewPos.z;
-	#else
-		ObjWorldMatrix[0][3] += g_VS_WorldViewPos.x; 
-		ObjWorldMatrix[1][3] += g_VS_WorldViewPos.y; 
-		ObjWorldMatrix[2][3] += g_VS_WorldViewPos.z;
-	#endif
+	PerInstanceWorldMatrix[0][3] += g_VS_WorldViewPos.x; 
+	PerInstanceWorldMatrix[1][3] += g_VS_WorldViewPos.y; 
+	PerInstanceWorldMatrix[2][3] += g_VS_WorldViewPos.z;
 
 #endif
 

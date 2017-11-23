@@ -733,7 +733,7 @@ public:
 
 	// Vertex Transformation
 public:
-	SSkinningData*          GetVertexTransformationData(const bool bVertexAnimation, uint8 nRenderLOD);
+	SSkinningData*          GetVertexTransformationData(const bool bVertexAnimation, uint8 nRenderLOD, const SRenderingPassInfo& passInfo);
 	_smart_ptr<IRenderMesh> CreateVertexAnimationRenderMesh(uint lod, uint id);
 
 #ifdef EDITOR_PCDEBUGCODE

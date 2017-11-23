@@ -85,6 +85,35 @@ static uchar s_CornerTable[3][3][3] =
 	// *INDENT-ON* - disable uncrustify's indenting, as I want to preserve specific comment formatting.
 };
 
+namespace DistanceTransform
+{
+	static const size_t KStraight = 2;
+	static const size_t KDiagonal = 3;
+
+	struct SSweepElement
+	{
+		int x;
+		int y;
+		int k;
+	};
+
+	static const size_t SweepPixelCount = 4;
+	static const SSweepElement downSweep[SweepPixelCount] =
+	{
+		{ -1, 0,  KStraight },
+		{ -1, -1, KDiagonal },
+		{ 0,  -1, KStraight },
+		{ 1,  -1, KDiagonal },
+	};
+	const SSweepElement upSweep[SweepPixelCount] =
+	{
+		{ 1,  0, KStraight },
+		{ 1,  1, KDiagonal },
+		{ 0,  1, KStraight },
+		{ -1, 1, KDiagonal },
+	};
+}
+
 namespace PinchCornerTable
 {
 
@@ -98,6 +127,7 @@ enum EBitMask : uint8
 // using neighbour classes.
 // Indexing order: left, front-left, front.
 // TODO pavloi 2016.03.21: s_CornerTable and s_PinchCornerTable can be merged together (bitmask).
+
 static const uint8 s_PinchCornerTable[3][3][3] =
 {
 	// *INDENT-OFF* - disable uncrustify's indenting, as I want to preserve specific comment formatting.
@@ -120,6 +150,34 @@ static const uint8 s_PinchCornerTable[3][3][3] =
 		{ 0          , 0   , 0    }, // WB
 	},
 	// *INDENT-ON* - disable uncrustify's indenting, as I want to preserve specific comment formatting.
+};
+
+// Paint pinch corner table used to detect unremovable pinch points on contours using paint differences.
+// SamePaint       (SP) = 1,
+// DifferentPaint1 (D1) = 0,
+// DifferentPaint2 (D2) = 2,
+static const uint8 s_PaintPinchCornerTable[3][3][3] =
+{
+	//*INDENT-OFF* - disable uncrustify's indenting, as I want to preserve specific comment formatting.
+	{// D1
+	 //  D1, SP, D2
+		{ 0, 0, 1 }, // D1
+		{ 1, 0, 1 }, // SP
+		{ 1, 1, 1 }, // D2
+	},
+	{// SP
+	 //  D1, SP, D2
+		{ 0, 1, 1 }, // D1
+		{ 0, 0, 0 }, // SP
+		{ 1, 1, 0 }, // D2
+	},
+	{// D2
+	 //  D1, SP, D2
+		{ 1, 1, 1 }, // D1
+		{ 1, 0, 1 }, // SP
+		{ 1, 0, 0 }, // D2
+	},
+	//*INDENT-ON* - disable uncrustify's indenting, as I want to preserve specific comment formatting.
 };
 
 }
@@ -152,7 +210,7 @@ void CTileGenerator::Clear()
 	m_spanGridFlagged.Clear();
 }
 
-bool CTileGenerator::Generate(const Params& params, STile& tile, uint32* tileHash)
+bool CTileGenerator::Generate(const Params& params, STile& tile, SMetaData& tileMetaData, uint32* tileHash)
 {
 	if ((params.sizeX > MaxTileSizeX) || (params.sizeY > MaxTileSizeY) || (params.sizeZ > MaxTileSizeZ))
 		return false;
@@ -219,37 +277,63 @@ bool CTileGenerator::Generate(const Params& params, STile& tile, uint32* tileHas
 	CompactSpanGrid().Swap(m_spanGridFlagged);
 
 	uint32 hashSeed = 0;
-	if (fullyContained)
+	if (fullyContained && !m_params.markupsCount)
 		hashSeed = 0xf007b00b;
 	else
 	{
 		HashComputer hash;
 
-		if (m_params.boundary || m_params.exclusionCount)
+		if (!fullyContained)
 		{
-			for (size_t e = 0; e < m_params.exclusionCount; ++e)
+			if (m_params.boundary || m_params.exclusionCount)
 			{
-				const BoundingVolume& volume = m_params.exclusions[e];
-
-				for (const Vec3& v : volume.GetBoundaryVertices())
+				for (size_t e = 0; e < m_params.exclusionCount; ++e)
 				{
-					hash.Add(v);
+					const BoundingVolume& volume = m_params.exclusions[e];
+
+					for (const Vec3& v : volume.GetBoundaryVertices())
+					{
+						hash.Add(v);
+					}
+
+					hash.Add(volume.height);
 				}
 
-				hash.Add(volume.height);
-			}
-
-			if (m_params.boundary)
-			{
-				const BoundingVolume& volume = *m_params.boundary;
-
-				for (const Vec3& v : volume.GetBoundaryVertices())
+				if (m_params.boundary)
 				{
-					hash.Add(v);
-				}
+					const BoundingVolume& volume = *m_params.boundary;
 
-				hash.Add(volume.height);
+					for (const Vec3& v : volume.GetBoundaryVertices())
+					{
+						hash.Add(v);
+					}
+
+					hash.Add(volume.height);
+				}
 			}
+		}
+		
+		for (size_t mIdx = 0; mIdx < m_params.markupsCount; ++mIdx)
+		{
+			const SMarkupVolume& volume = m_params.markups[mIdx];
+
+			BoundingVolume::ExtendedOverlap eoverlap = volume.Contains(aabb);
+			if (eoverlap == BoundingVolume::NoOverlap)
+				continue;
+
+			MarkupData markupData;
+			markupData.paintIdx = -1;
+			markupData.markupIdx = mIdx;
+			markupData.pVolume = &volume;
+			m_markups.push_back(markupData);
+
+			for (const Vec3& v : volume.GetBoundaryVertices())
+			{
+				hash.Add(v);
+			}
+			hash.Add(static_cast<uint32>(volume.bStoreTriangles));
+			hash.Add(volume.areaAnnotation.GetRawValue());
+			hash.Add(volume.height);
 		}
 
 		hash.Complete();
@@ -321,6 +405,7 @@ bool CTileGenerator::Generate(const Params& params, STile& tile, uint32* tileHas
 	tile.SetHashValue(hashValue);
 
 	m_mesh.CopyIntoTile(tile);
+	m_mesh.CopyMetaData(tileMetaData);
 
 	if (m_params.flags & Params::BuildBVTree)
 		tile.CopyNodes(&m_bvtree.front(), static_cast<uint16>(m_bvtree.size()));
@@ -436,7 +521,7 @@ bool CTileGenerator::GenerateFromVoxelizedVolume(const AABB& aabb, const bool fu
 	ComputeDistanceTransform();
 	//BlurDistanceTransform();
 
-	if (!ExtractContours())
+	if (!ExtractContours(aabb))
 		return false;
 
 	FilterBadRegions(m_params.minWalkableArea);
@@ -942,26 +1027,6 @@ void CTileGenerator::ComputeDistanceTransform()
 	// I see no dependency on this particular value and it should be something like uint16::max instead.
 	std::fill(m_distances.begin(), m_distances.end(), NoLabel);
 
-	const size_t KStraight = 2;
-	const size_t KDiagonal = 3;
-
-	struct SweepElement
-	{
-		int x;
-		int y;
-		int k;
-	};
-
-	const size_t SweepPixelCount = 4;
-
-	const SweepElement downSweep[SweepPixelCount] =
-	{
-		{ -1, 0,  KStraight },
-		{ -1, -1, KDiagonal },
-		{ 0,  -1, KStraight },
-		{ 1,  -1, KDiagonal },
-	};
-
 	for (size_t y = 0; y < gridHeight; ++y)
 	{
 		for (size_t x = 0; x < gridWidth; ++x)
@@ -978,23 +1043,23 @@ void CTileGenerator::ComputeDistanceTransform()
 					const size_t top = span.bottom + span.height;
 					const uint16 current = m_distances[index + s];
 
-					uint16 sweepValues[SweepPixelCount];
+					uint16 sweepValues[DistanceTransform::SweepPixelCount];
 
-					for (size_t p = 0; p < SweepPixelCount; ++p)
+					for (size_t p = 0; p < DistanceTransform::SweepPixelCount; ++p)
 					{
 						sweepValues[p] = 0;
 
-						const size_t nx = x + downSweep[p].x;
-						const size_t ny = y + downSweep[p].y;
+						const size_t nx = x + DistanceTransform::downSweep[p].x;
+						const size_t ny = y + DistanceTransform::downSweep[p].y;
 
 						size_t nindex;
 						if (m_spanGrid.GetSpanAt(nx, ny, top, climbableVoxelCount, nindex))
-							sweepValues[p] = m_distances[nindex] + downSweep[p].k;
+							sweepValues[p] = m_distances[nindex] + DistanceTransform::downSweep[p].k;
 					}
 
 					uint16 minimum = sweepValues[0];
 
-					for (size_t p = 1; p < SweepPixelCount; ++p)
+					for (size_t p = 1; p < DistanceTransform::SweepPixelCount; ++p)
 					{
 						minimum = std::min<uint16>(minimum, sweepValues[p]);
 					}
@@ -1005,14 +1070,6 @@ void CTileGenerator::ComputeDistanceTransform()
 			}
 		}
 	}
-
-	const SweepElement upSweep[SweepPixelCount] =
-	{
-		{ 1,  0, KStraight },
-		{ 1,  1, KDiagonal },
-		{ 0,  1, KStraight },
-		{ -1, 1, KDiagonal },
-	};
 
 	for (size_t y = gridHeight - 1; y; --y)
 	{
@@ -1031,23 +1088,23 @@ void CTileGenerator::ComputeDistanceTransform()
 					const size_t top = span.bottom + span.height;
 					const uint16 current = m_distances[index + s];
 
-					uint16 sweepValues[SweepPixelCount];
+					uint16 sweepValues[DistanceTransform::SweepPixelCount];
 
-					for (size_t p = 0; p < SweepPixelCount; ++p)
+					for (size_t p = 0; p < DistanceTransform::SweepPixelCount; ++p)
 					{
 						sweepValues[p] = 0;
 
-						const size_t nx = x + upSweep[p].x;
-						const size_t ny = y + upSweep[p].y;
+						const size_t nx = x + DistanceTransform::upSweep[p].x;
+						const size_t ny = y + DistanceTransform::upSweep[p].y;
 
 						size_t nindex;
 						if (m_spanGrid.GetSpanAt(nx, ny, top, climbableVoxelCount, nindex))
-							sweepValues[p] = m_distances[nindex] + upSweep[p].k;
+							sweepValues[p] = m_distances[nindex] + DistanceTransform::upSweep[p].k;
 					}
 
 					uint16 minimum = sweepValues[0];
 
-					for (size_t p = 1; p < SweepPixelCount; ++p)
+					for (size_t p = 1; p < DistanceTransform::SweepPixelCount; ++p)
 					{
 						minimum = std::min<uint16>(minimum, sweepValues[p]);
 					}
@@ -1464,6 +1521,52 @@ bool CTileGenerator::GatherSurroundingInfo(const Vec2i& vertex, const Vec2i& dir
 	return result;
 }
 
+inline bool IsPaintPinchPoint(const size_t index, const size_t lIndex, const size_t flIndex, const size_t fIndex, const CTileGenerator::SpanExtraInfo& paints)
+{
+	enum NeighbourPinchClassification
+	{
+		SamePaint = 1,
+		DifferentPaint1 = 0,
+		DifferentPaint2 = 2,
+	};
+
+	NeighbourPinchClassification lPinchClass = SamePaint;
+	NeighbourPinchClassification flPinchClass = SamePaint;
+	NeighbourPinchClassification fPinchClass = SamePaint;
+	NeighbourPinchClassification currDifferent = DifferentPaint1;
+
+	const uint16 paint = paints[index];
+	if (paints[lIndex] != paint)
+	{
+		lPinchClass = currDifferent;
+	}
+	if (paints[flIndex] != paint)
+	{
+		if (paints[flIndex] == paints[lIndex])
+		{
+			flPinchClass = lPinchClass;
+		}
+		else
+		{
+			currDifferent = NeighbourPinchClassification(currDifferent ^ DifferentPaint2);
+			flPinchClass = currDifferent;
+		}
+	}
+	if (paints[fIndex] != paint)
+	{
+		if (paints[fIndex] == paints[flIndex])
+		{
+			fPinchClass = flPinchClass;
+		}
+		else
+		{
+			currDifferent = NeighbourPinchClassification(currDifferent ^ DifferentPaint2);
+			fPinchClass = currDifferent;
+		}
+	}
+	return PinchCornerTable::s_PaintPinchCornerTable[lPinchClass][flPinchClass][fPinchClass] != 0;
+}
+
 void CTileGenerator::DetermineContourVertex(const Vec2i& vertex, const Vec2i& direction, const uint16 top,
                                             const uint16 climbableVoxelCount, ContourVertex& contourVertex, const bool bInternalContour, SContourVertexDebugInfo* pDebugInfo) const
 {
@@ -1474,9 +1577,9 @@ void CTileGenerator::DetermineContourVertex(const Vec2i& vertex, const Vec2i& di
 	const size_t cy = vertex.y + yoffs;
 	size_t cz = top;
 
+	size_t index = -1;
 	bool internalBorderV = false;
 	{
-		size_t index;
 		// TODO pavloi 2016.03.15: can't we pass index in this function instead searching for it again?
 
 		// TODO pavloi 2016.03.21: how current vertex can ever be BorderLabelV? Any border voxels are unwalkable
@@ -1486,6 +1589,7 @@ void CTileGenerator::DetermineContourVertex(const Vec2i& vertex, const Vec2i& di
 			internalBorderV = (m_labels[index] & BorderLabelV) != 0;
 
 		assert((internalBorderV && bInternalContour) || !internalBorderV);
+		assert(index != -1);
 	}
 
 	// NOTE pavloi 2016.03.15: either we above lower borderV, or we're hitting an upper borderV.
@@ -1604,10 +1708,7 @@ void CTileGenerator::DetermineContourVertex(const Vec2i& vertex, const Vec2i& di
 					DebugAddContourVertexUnremovableReason(pDebugInfo, "BndV BorderChange");
 				}
 			}
-		}
 
-		if (flags & ContourVertex::TileBoundaryV)
-		{
 			if (cz < borderV + Top(m_params))
 				cz = borderV;
 		}
@@ -1618,6 +1719,14 @@ void CTileGenerator::DetermineContourVertex(const Vec2i& vertex, const Vec2i& di
 	{
 		flags |= ContourVertex::Unremovable;
 		DebugAddContourVertexUnremovableReason(pDebugInfo, "Pinch");
+	}
+	else
+	{
+		if (IsPaintPinchPoint(index, left.index, frontLeft.index, front.index, m_paint))
+		{
+			flags |= ContourVertex::Unremovable;
+			DebugAddContourVertexUnremovableReason(pDebugInfo, "PaintPinch");
+		}
 	}
 
 	contourVertex.x = static_cast<uint16>(cx);
@@ -1715,7 +1824,7 @@ void CTileGenerator::TraceContour(CTileGenerator::TracerPath& path, const Tracer
 	while (tracer != start);
 }
 
-int CTileGenerator::LabelTracerPath(const CTileGenerator::TracerPath& path, size_t climbableVoxelCount, Region& region, Contour& contour, const uint16 internalLabel, const uint16 internalLabelFlags, const uint16 externalLabel)
+int CTileGenerator::LabelTracerPath(const CTileGenerator::TracerPath& path, size_t climbableVoxelCount, Region& region, Contour& contour, const uint16 internalLabel, const uint16 internalLabelFlags, const uint16 externalLabel, const bool bIsHole)
 {
 	const int numSteps = path.steps.size();
 	contour.reserve(numSteps);
@@ -1745,13 +1854,6 @@ int CTileGenerator::LabelTracerPath(const CTileGenerator::TracerPath& path, size
 		// Add a vertex at each point.
 		DetermineContourVertex(Vec2i(curr.pos), curr.GetDir(), curr.pos.z, static_cast<uint16>(climbableVoxelCount), *&vertex, bInternalContour, pDebugInfo);
 
-		// Get the paint values for the current neighbour and the next neighbour. If they don't match then we must have a vert.
-		const bool bImportantVert = (m_paint[curr.indexOut] != m_paint[next.indexOut]);
-		if (bImportantVert)
-		{
-			vertex.flags |= ContourVertex::Unremovable;
-			DebugAddContourVertexUnremovableReason(pDebugInfo, "Paint change");
-		}
 		if (next.bPinchPoint)
 		{
 			if (!(vertex.flags & ContourVertex::Unremovable))
@@ -1848,7 +1950,7 @@ void CTileGenerator::TidyUpContourEnd(Contour& contour)
 	}
 }
 
-uint16 CTileGenerator::GetPaintVal(size_t x, size_t y, size_t z, size_t index, size_t borderH, size_t borderV, size_t erosion)
+uint16 CTileGenerator::GetPaintVal(const AABB& aabb, size_t x, size_t y, size_t z, size_t index, size_t borderH, size_t borderV, size_t erosion)
 {
 	// TODO pavloi 2016.03.15: there is already a function bool IsWalkable(uint16 label, uint16 distance, size_t erosion)
 	// which returns false exactly when we apply BadPaint here.
@@ -1864,7 +1966,395 @@ uint16 CTileGenerator::GetPaintVal(size_t x, size_t y, size_t z, size_t index, s
 	return OkPaintStart;
 }
 
-void CTileGenerator::CalcPaintValues()
+void CTileGenerator::CreatePaintPalette()
+{
+	// Sort markup areas by area type
+	std::sort(m_markups.begin(), m_markups.end(), [](const MarkupData& a, const MarkupData& b) {
+		return a.pVolume->areaAnnotation.GetType() < b.pVolume->areaAnnotation.GetType();
+	});
+	
+	m_paintPalette.reserve(m_markups.size() + 1);
+	m_paintPalette.push_back(PaintData{ m_params.defaultAreaAnotation, -1 });
+	
+	for (MarkupData& markupData : m_markups)
+	{
+		if (markupData.pVolume->bStoreTriangles)
+		{
+			// Create unique paint value
+			markupData.paintIdx = m_paintPalette.size();
+			m_paintPalette.emplace_back(PaintData{ markupData.pVolume->areaAnnotation, markupData.markupIdx });
+		}
+		else
+		{
+			// Try to find non-unique paint value with the same area annotation
+			uint16 pId = 0;
+			uint16 count = uint16(m_paintPalette.size());
+			for (; pId < count; ++pId)
+			{
+				if (m_paintPalette[pId].markupIdx == -1 && markupData.pVolume->areaAnnotation == m_paintPalette[pId].areaAnotation)
+				{
+					break;
+				}
+			}
+			if (pId < count)
+			{
+				markupData.paintIdx = pId;
+			}
+			else
+			{
+				// Create non-unique paint value
+				markupData.paintIdx = m_paintPalette.size();
+				m_paintPalette.emplace_back(PaintData{ markupData.pVolume->areaAnnotation, -1 });
+			}
+		}
+	}
+}
+
+void CTileGenerator::PaintMarkups(const AABB& tileAabb)
+{
+	if (!m_markups.size())
+		return;
+	
+	const int borderH = (int)BorderSizeH(m_params);
+	const Vec2i canvasSize(m_spanGrid.GetWidth(), m_spanGrid.GetHeight());
+	const Vec2i borderSize(borderH, borderH);
+
+	const Vec3 voxelSize = m_params.voxelSize;
+	const Vec3 voxelSizeInv = Vec3(1.0f / voxelSize.x, 1.0f / voxelSize.y, 1.0f / voxelSize.z);
+	
+	for (const MarkupData& markupData : m_markups)
+	{
+		if (markupData.pVolume->bExpandByAgentRadius)
+		{
+			PaintMarkupExpanded(markupData, tileAabb, canvasSize, borderSize, voxelSize, voxelSizeInv);
+		}
+		else
+		{
+			PaintMarkupDirect(markupData, tileAabb, canvasSize, borderSize, voxelSize, voxelSizeInv);
+		}
+	}
+}
+
+void CTileGenerator::PaintMarkupDirect(const MarkupData& markupData, const AABB& tileAabb, const Vec2i& canvasSize, const Vec2i& borderSize, const Vec3& voxelSize, const Vec3& voxelSizeInv)
+{
+	const Vec2i paintEnd = canvasSize - borderSize;
+	const auto& vertices = markupData.pVolume->GetBoundaryVertices();
+	const size_t count = vertices.size();
+
+	std::vector<Vec3> tranformedVertices(count);
+	for (size_t i = 0; i < count; ++i)
+	{
+		tranformedVertices[i] = vertices[i] - tileAabb.min;
+	}
+
+	AABB tranformedAABB = markupData.pVolume->aabb;
+	tranformedAABB.Move(-tileAabb.min);
+	
+	const int yStart = max(borderSize.y, int(tranformedAABB.min.y * voxelSizeInv.y));
+	const int yEnd = min(paintEnd.y, int(tranformedAABB.max.y * voxelSizeInv.y));
+
+	const int zStart = int(tranformedAABB.min.z * voxelSizeInv.z);
+	const int zEnd = int(tranformedAABB.max.z * voxelSizeInv.z);
+
+	std::vector<int> xPositions;
+	xPositions.reserve(count);
+
+	for (int y = yStart; y < yEnd; ++y)
+	{
+		xPositions.clear();
+		
+		float yLine = y * voxelSize.y;
+		
+		for (size_t i = 0, j = count - 1; i < count; j = i++)
+		{
+			const Vec3& p0 = tranformedVertices[j];
+			const Vec3& p1 = tranformedVertices[i];
+
+			if (p1.y < yLine && p0.y >= yLine || p0.y < yLine && p1.y >= yLine)
+			{
+				const float xPos = p0.x + (p1.x - p0.x) * (yLine - p0.y) / (p1.y - p0.y);
+				xPositions.push_back(int(xPos * voxelSizeInv.x));
+			}
+		}
+
+		const size_t xCount = xPositions.size();
+		if(xCount == 0)
+			continue;
+
+		CRY_ASSERT((xCount & 2) != 0);
+		size_t i = 0;
+		while (i < xCount - 1)
+		{
+			if (xPositions[i] > xPositions[i + 1])
+			{
+				std::swap(xPositions[i], xPositions[i + 1]);
+				if (i) --i;
+			}
+			else
+			{
+				++i;
+			}
+		}
+
+		for (i = 0; i < xCount; i += 2)
+		{
+			if(xPositions[i] >= paintEnd.x)
+				break;
+
+			if (xPositions[i + 1] < borderSize.x)
+				continue;
+
+			if (xPositions[i] < borderSize.x)
+				xPositions[i] = borderSize.x;
+			if (xPositions[i + 1] >= paintEnd.x)
+				xPositions[i + 1] = paintEnd.x - 1;
+
+			for (int x = xPositions[i]; x <= xPositions[i + 1]; ++x)
+			{
+				const size_t spanGridIndex = (y * canvasSize.x) + x;
+				const CompactSpanGrid::Cell& cell = m_spanGrid[spanGridIndex];
+				for (size_t s = 0; s < cell.count; ++s)
+				{
+					const size_t index = cell.index + s;
+					const CompactSpanGrid::Span& span = m_spanGrid.GetSpan(index);
+					const uint32 spanTop = span.bottom + span.height;
+
+					if (spanTop >= zStart && spanTop <= zEnd)
+					{
+						m_paint[index] = OkPaintStart + markupData.paintIdx;
+					}
+				}
+			}
+		}
+	}
+}
+
+struct MarkupCanvas
+{
+public:
+	Vec2i m_paintMin;
+	Vec2i m_paintMax;
+	Vec2i m_rasterMin;
+	Vec2i m_rasterMax;
+	Vec2i m_size;
+	int m_agentRadius;
+	uint16 m_paintIdx;
+	std::vector<uint16> m_paint;
+	std::vector<uint16> m_distances;
+
+	MarkupCanvas(const Vec2i& rasterMin, const Vec2i& rasterMax, const Vec2i& boundsMin, const Vec2i& boundsMax, int agentRadius, uint16 paintIdx)
+		: m_rasterMin(rasterMin)
+		, m_rasterMax(rasterMax)
+		, m_agentRadius(agentRadius)
+		, m_paintIdx(paintIdx)
+	{
+		m_paintMin = Vec2i(max(boundsMin.x, rasterMin.x - agentRadius), max(boundsMin.y, rasterMin.y - agentRadius));
+		m_paintMax = Vec2i(min(boundsMax.x, rasterMax.x + agentRadius), min(boundsMax.y, rasterMax.y + agentRadius));
+		
+		m_size = m_paintMax - m_paintMin;
+		m_paint.resize(m_size.x * m_size.y);
+		std::fill(m_paint.begin(), m_paint.end(), CTileGenerator::NoPaint);
+
+		m_distances.resize(m_size.x * m_size.y);
+		std::fill(m_distances.begin(), m_distances.end(), 0xffff - uint16(DistanceTransform::KDiagonal));
+	}
+
+	void Rasterize(const std::vector<Vec3>& vertices, const Vec3& voxelSize, const Vec3& voxelSizeInv)
+	{
+		const size_t count = vertices.size();
+		
+		std::vector<int> xPositions;
+		xPositions.reserve(count);
+
+		for (int y = m_rasterMin.y; y < m_rasterMax.y; ++y)
+		{
+			xPositions.clear();
+
+			const float yLine = y * voxelSize.y;
+
+			for (size_t i = 0, j = count - 1; i < count; j = i++)
+			{
+				const Vec3& p0 = vertices[j];
+				const Vec3& p1 = vertices[i];
+
+				if (p1.y < yLine && p0.y >= yLine || p0.y < yLine && p1.y >= yLine)
+				{
+					const float xPos = p0.x + (p1.x - p0.x) * (yLine - p0.y) / (p1.y - p0.y);
+					xPositions.push_back(int(xPos * voxelSizeInv.x) - m_paintMin.x);
+				}
+			}
+
+			const size_t xCount = xPositions.size();
+			if (xCount == 0)
+				continue;
+
+			CRY_ASSERT((xCount & 2) != 0);
+			size_t i = 0;
+			while (i < xCount - 1)
+			{
+				if (xPositions[i] > xPositions[i + 1])
+				{
+					std::swap(xPositions[i], xPositions[i + 1]);
+					if (i) --i;
+				}
+				else
+				{
+					++i;
+				}
+			}
+
+			const int yCanvas = y - m_paintMin.y;
+
+			for (i = 0; i < xCount; i += 2)
+			{
+				if (xPositions[i] >= m_size.x)
+					break;
+
+				if (xPositions[i + 1] < 0)
+					continue;
+
+				if (xPositions[i] < 0)
+					xPositions[i] = 0;
+				if (xPositions[i + 1] >= m_size.x)
+					xPositions[i + 1] = m_size.x - 1;
+
+				for (int x = xPositions[i]; x <= xPositions[i + 1]; ++x)
+				{
+					const size_t index = (yCanvas * m_size.x) + x;
+					m_paint[index] = CTileGenerator::OkPaintStart + m_paintIdx;
+					m_distances[index] = 0;
+				}
+			}
+		}
+	}
+
+	void Erode()
+	{
+		for (size_t y = 0; y < m_size.y; ++y)
+		{
+			for (size_t x = 0; x < m_size.x; ++x)
+			{
+				const size_t index = (y * m_size.x) + x;
+				uint16 bestValue = m_distances[index];
+
+				for (size_t p = 0; p < DistanceTransform::SweepPixelCount; ++p)
+				{
+					const size_t nx = x + DistanceTransform::downSweep[p].x;
+					const size_t ny = y + DistanceTransform::downSweep[p].y;
+
+					if (nx < m_size.x && ny < m_size.y)
+					{
+						const size_t nindex = (ny * m_size.x) + nx;
+						const uint16 nvalue = m_distances[nindex] + DistanceTransform::downSweep[p].k;
+						if (nvalue < bestValue)
+						{
+							bestValue = nvalue;
+						}
+					}
+				}
+				m_distances[index] = bestValue;
+			}
+		}
+		for (size_t y = m_size.y - 1; y < m_size.y; --y)
+		{
+			for (size_t x = m_size.x - 1; x < m_size.x; --x)
+			{
+				const size_t index = (y * m_size.x) + x;
+				uint16 bestValue = m_distances[index];
+
+				for (size_t p = 0; p < DistanceTransform::SweepPixelCount; ++p)
+				{
+					const size_t nx = x + DistanceTransform::upSweep[p].x;
+					const size_t ny = y + DistanceTransform::upSweep[p].y;
+
+					if (nx < m_size.x && ny < m_size.y)
+					{
+						const size_t nindex = (ny * m_size.x) + nx;
+						const uint16 nvalue = m_distances[nindex] + DistanceTransform::upSweep[p].k;
+						if (nvalue < bestValue)
+						{
+							bestValue = nvalue;
+						}
+					}
+				}
+				m_distances[index] = bestValue;
+			}
+		}
+
+		const uint16 erosion = (m_agentRadius + 1) << 1;
+		for (size_t y = 0; y < m_size.y; ++y)
+		{
+			for (size_t x = 0; x < m_size.x; ++x)
+			{
+				const size_t index = (y * m_size.x) + x;
+				if (m_distances[index] < erosion)
+				{
+					m_paint[index] = CTileGenerator::OkPaintStart + m_paintIdx;
+				}
+			}
+		}
+	}
+};
+
+void CTileGenerator::PaintMarkupExpanded(const MarkupData& markupData, const AABB& tileAabb, const Vec2i& canvasSize, const Vec2i& borderSize, const Vec3& voxelSize, const Vec3& voxelSizeInv)
+{
+	const Vec2i tilePaintMin = borderSize;
+	const Vec2i tilePaintMax = canvasSize - borderSize;
+
+	AABB tranformedAABB = markupData.pVolume->aabb;
+	tranformedAABB.Move(-tileAabb.min);
+
+	const Vec2i rasterMin(max(borderSize.x, int(tranformedAABB.min.x * voxelSizeInv.x)), max(borderSize.y, int(tranformedAABB.min.y * voxelSizeInv.y)));
+	const Vec2i rasterMax(min(tilePaintMax.x, int(tranformedAABB.max.x * voxelSizeInv.x)), min(tilePaintMax.y, int(tranformedAABB.max.y * voxelSizeInv.y)));
+
+	if (rasterMin.x >= rasterMax.x || rasterMin.y >= rasterMax.y)
+		return;
+
+	const std::vector<Vec3>& vertices = markupData.pVolume->GetBoundaryVertices();
+	const size_t count = vertices.size();
+	std::vector<Vec3> tranformedVertices(count);
+	for (size_t i = 0; i < count; ++i)
+	{
+		tranformedVertices[i] = vertices[i] - tileAabb.min;
+	}
+
+	MarkupCanvas markupCanvas(rasterMin, rasterMax, tilePaintMin, tilePaintMax, m_params.agent.radius, markupData.paintIdx);
+	markupCanvas.Rasterize(tranformedVertices, voxelSize, voxelSizeInv);
+	markupCanvas.Erode();
+
+	const int zStart = int(tranformedAABB.min.z * voxelSizeInv.z);
+	const int zEnd = int(tranformedAABB.max.z * voxelSizeInv.z);
+
+	for (size_t y = 0; y < markupCanvas.m_size.y; ++y)
+	{
+		for (size_t x = 0; x < markupCanvas.m_size.x; ++x)
+		{
+			const size_t markupIndex = y * markupCanvas.m_size.x + x;
+			const uint16 paint = markupCanvas.m_paint[markupIndex];
+			if(paint == NoPaint)
+				continue;
+			
+			size_t spanX = x + markupCanvas.m_paintMin.x;
+			size_t spanY = y + markupCanvas.m_paintMin.y;
+
+			const size_t spanGridIndex = (spanY * canvasSize.x) + spanX;
+			const CompactSpanGrid::Cell& cell = m_spanGrid[spanGridIndex];
+			for (size_t s = 0; s < cell.count; ++s)
+			{
+				const size_t index = cell.index + s;
+				const CompactSpanGrid::Span& span = m_spanGrid.GetSpan(index);
+				const uint32 spanTop = span.bottom + span.height;
+
+				if (spanTop >= zStart && spanTop <= zEnd)
+				{
+					m_paint[index] = OkPaintStart + markupData.paintIdx;
+				}
+			}
+		}
+	}
+}
+
+void CTileGenerator::CalcPaintValues(const AABB& aabb)
 {
 	// Adds the "paint" values to each voxel.
 	// Different paint values represent different walkable regions that should NOT be merged.
@@ -1880,8 +2370,12 @@ void CTileGenerator::CalcPaintValues()
 
 	// TODO pavloi 2016.03.15: looks like m_paint is never accounted in memory profiler.
 
+	CreatePaintPalette();
+
 	m_paint.resize(m_distances.size());
 	std::fill(m_paint.begin(), m_paint.end(), NoPaint);
+
+	PaintMarkups(aabb);
 
 	const size_t borderH = BorderSizeH(m_params);
 	const size_t borderV = BorderSizeV(m_params);
@@ -1898,13 +2392,21 @@ void CTileGenerator::CalcPaintValues()
 			{
 				const size_t index = cell.index + s;
 				const CompactSpanGrid::Span& span = m_spanGrid.GetSpan(index);
-				m_paint[index] = GetPaintVal(x, y, span.bottom + span.height, index, borderH, borderV, erosion);
+
+				if (m_distances[index] < erosion || IsBorderLabel(m_labels[index]))
+				{
+					m_paint[index] = BadPaint;
+				}
+				else if(m_paint[index] == NoPaint)
+				{
+					m_paint[index] = OkPaintStart;
+				}
 			}
 		}
 	}
 }
 
-size_t CTileGenerator::ExtractContours()
+size_t CTileGenerator::ExtractContours(const AABB& aabb)
 {
 	m_profiler.StartTimer(ContourExtraction);
 
@@ -1921,7 +2423,7 @@ size_t CTileGenerator::ExtractContours()
 	std::fill(m_labels.begin(), m_labels.end(), NoLabel);
 	PaintBorder(&m_labels.front(), borderH, borderV);
 
-	CalcPaintValues();
+	CalcPaintValues(aabb);
 
 	uint16 regionCount = 0;
 	m_regions.reserve(128);
@@ -2005,24 +2507,33 @@ size_t CTileGenerator::ExtractContours()
 							m_regions.resize(++regionCount);
 
 							Region& region = m_regions.back();
+							region.paint = paint;
 
-							region.spanCount += LabelTracerPath(path, climbableVoxelCount, region, region.contour, newLabel, ExternalContour, NoLabel);
+							region.spanCount += LabelTracerPath(path, climbableVoxelCount, region, region.contour, newLabel, ExternalContour, NoLabel, false);
 
 							// Also trace the hole contour for the previous painted colour.
 							if ((prev.label & ExternalContour) == 0 && (label & InternalContour) == 0)
 							{
-								Region& holeRegion = m_regions[prevLabelSafe];
-								holeRegion.holes.reserve(64);
-								holeRegion.holes.resize(holeRegion.holes.size() + 1);
+								if (prevLabelSafe < m_regions.size())
+								{
+									Region& holeRegion = m_regions[prevLabelSafe];
+									holeRegion.holes.reserve(64);
+									holeRegion.holes.resize(holeRegion.holes.size() + 1);
 
-								NeighbourInfoRequirements holeReq;
-								holeReq.notPaint = prev.paint;
+									NeighbourInfoRequirements holeReq;
+									holeReq.notPaint = prev.paint;
 
-								TraceContour(path, startTracer, erosion, climbableVoxelCount, holeReq);
-								LabelTracerPath(path, climbableVoxelCount, holeRegion, holeRegion.holes.back(), NoLabel, InternalContour, prev.label);
+									TraceContour(path, startTracer, erosion, climbableVoxelCount, holeReq);
+									LabelTracerPath(path, climbableVoxelCount, holeRegion, holeRegion.holes.back(), NoLabel, InternalContour, prev.label, true);
 
-								// Store for Debugging.
-								CacheTracerPath(path);
+									// Store for Debugging.
+									CacheTracerPath(path);
+								}
+								else
+								{
+									CRY_ASSERT(prevLabelSafe < m_regions.size());
+									AIWarning("[MNM] Contour tracing wanted to create hole in invalid region. Tile origin [%.2f, %.2f, %.2f]", m_params.origin.x, m_params.origin.y, m_params.origin.z);
+								}
 							}
 						}
 						else
@@ -2050,8 +2561,9 @@ size_t CTileGenerator::ExtractContours()
 						m_regions.resize(++regionCount);
 
 						Region& region = m_regions.back();
+						region.paint = paint;
 
-						region.spanCount += LabelTracerPath(path, climbableVoxelCount, region, region.contour, newLabel, ExternalContour, NoLabel);
+						region.spanCount += LabelTracerPath(path, climbableVoxelCount, region, region.contour, newLabel, ExternalContour, NoLabel, false);
 					}
 					else
 					{
@@ -2075,7 +2587,7 @@ size_t CTileGenerator::ExtractContours()
 							holeReq.notPaint = prev.paint;
 
 							TraceContour(path, startTracer, erosion, climbableVoxelCount, holeReq);
-							LabelTracerPath(path, climbableVoxelCount, holeRegion, holeRegion.holes.back(), NoLabel, InternalContour, prev.label);
+							LabelTracerPath(path, climbableVoxelCount, holeRegion, holeRegion.holes.back(), NoLabel, InternalContour, prev.label, true);
 
 							// Store for Debugging.
 							CacheTracerPath(path);
@@ -2156,9 +2668,9 @@ void CTileGenerator::FilterBadRegions(size_t minSpanCount)
 	{
 		Region& region = m_regions[i];
 
-		if (((region.flags & Region::TileBoundary) == 0)
-		    && ((region.flags & Region::TileBoundaryV) == 0)
-		    && (region.spanCount && (region.spanCount <= minSpanCount)))
+		if (((region.flags & (Region::TileBoundary | Region::TileBoundaryV)) == 0)
+		    && (region.spanCount && (region.spanCount <= minSpanCount))
+			&& region.paint <= Paint::OkPaintStart)
 		{
 			Region().swap(region);
 		}
@@ -2412,6 +2924,8 @@ void CTileGenerator::SimplifyContours()
 			m_polygons.pop_back();
 			continue;
 		}
+
+		poly.paint = region.paint;
 
 		if (region.holes.empty())
 			continue;
@@ -2740,12 +3254,11 @@ size_t CTileGenerator::Triangulate(PolygonContour& contour, const size_t agentHe
 			}
 
 			Tile::STriangle& triangle = m_mesh.InsertTriangle();
+			++triCount;
 
 			triangle.linkCount = 0;
 			triangle.firstLink = 0;
 			triangle.islandID = 0;
-
-			triangle.triangleFlags = Tile::STriangle::eFlags_None;
 
 			triangle.vertex[0] = v0i;
 			triangle.vertex[1] = v1i;
@@ -2776,11 +3289,8 @@ size_t CTileGenerator::Triangulate(PolygonContour& contour, const size_t agentHe
 				contour[indices[updi2]].flags |= PolygonVertex::Reflex;
 			else if (IsEar(updi2, &contour[0], contour.size(), indices, vertexCount, agentHeight))
 				contour[indices[updi2]].flags |= PolygonVertex::Ear;
-
-			++triCount;
 		}
 	}
-
 	return triCount;
 }
 
@@ -3072,7 +3582,21 @@ size_t CTileGenerator::Triangulate()
 				vv.flags |= IsEar(v, &contour[0], contourSize, agentHeight) ? PolygonVertex::Ear : 0;
 		}
 
-		triCount += Triangulate(polygon.contour, agentHeight, borderH, borderV, lookUp);
+		size_t newTriCount = Triangulate(polygon.contour, agentHeight, borderH, borderV, lookUp);
+
+		//////////////////////////////////////////////////////////////////////////
+		// Resolve paint
+		// TODO: create function
+		if (newTriCount)
+		{
+			size_t triStart = m_mesh.GetTriangles().size() - newTriCount;
+			size_t triEnd = m_mesh.GetTriangles().size() - 1;
+			m_mesh.SetAnotationForTriangles(triStart, triEnd, m_paintPalette[polygon.paint - Paint::OkPaintStart]);
+		}
+		
+		//////////////////////////////////////////////////////////////////////////
+
+		triCount += newTriCount;
 	}
 
 	m_profiler.StopTimer(Triangulation);
@@ -3440,7 +3964,7 @@ CTileGenerator::CGeneratedMesh::TileVertexKey CTileGenerator::CGeneratedMesh::Ge
 	return (z << 32) | (y << 16) | (x);
 }
 
-bool CTileGenerator::CGeneratedMesh::AddTrianglesWorld(const Triangle* pTriangles, const size_t count, const Tile::STriangle::EFlags flags)
+bool CTileGenerator::CGeneratedMesh::AddTrianglesWorld(const Triangle* pTriangles, const size_t count, const AreaAnnotation areaTypeFlags)
 {
 	if (!pTriangles || count == 0)
 	{
@@ -3489,7 +4013,7 @@ bool CTileGenerator::CGeneratedMesh::AddTrianglesWorld(const Triangle* pTriangle
 		triTile.linkCount = 0;
 		triTile.firstLink = 0;
 		triTile.islandID = 0;
-		triTile.triangleFlags = flags;
+		triTile.areaAnnotation = areaTypeFlags;
 
 		for (int i = 0; i < 3; ++i)
 		{
@@ -3531,6 +4055,45 @@ uint32 CTileGenerator::CGeneratedMesh::CompleteAndGetHashValue()
 {
 	m_hashComputer.Complete();
 	return m_hashComputer.GetValue();
+}
+
+
+void CTileGenerator::CGeneratedMesh::CopyMetaData(SMetaData& tileMetaData) const
+{
+	tileMetaData = std::move(m_metaData);
+}
+
+void CTileGenerator::CGeneratedMesh::SetAnotationForTriangles(const size_t indexStart, const size_t indexEnd, const PaintData& paintData)
+{
+	CRY_ASSERT(indexStart >= 0 && indexStart < m_triangles.size());
+	CRY_ASSERT(indexEnd >= 0 && indexEnd < m_triangles.size());
+	for (size_t i = indexStart; i <= indexEnd; ++i)
+	{
+		m_triangles[i].areaAnnotation = paintData.areaAnotation;
+	}
+
+	if (paintData.markupIdx != -1)
+	{
+		uint16 markupIdx = (uint16)paintData.markupIdx;
+		size_t count = indexEnd - indexStart + 1;
+
+		auto it = std::find_if(m_metaData.markupTriangles.begin(), m_metaData.markupTriangles.end(), [markupIdx](const SMetaData::SMarkupTriangles& markupTriangles)
+		{
+			return markupTriangles.markupIdx == markupIdx;
+		});
+
+		if (it == m_metaData.markupTriangles.end())
+		{
+			m_metaData.markupTriangles.emplace_back(SMetaData::SMarkupTriangles(markupIdx));
+			it = m_metaData.markupTriangles.end() - 1;
+		}
+
+		it->trianglesIdx.reserve(it->trianglesIdx.capacity() + count);
+		for (size_t i = indexStart; i <= indexEnd; ++i)
+		{
+			it->trianglesIdx.push_back(uint16(i));
+		}
+	}
 }
 
 }

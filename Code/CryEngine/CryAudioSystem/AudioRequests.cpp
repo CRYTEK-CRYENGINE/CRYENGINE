@@ -2,6 +2,7 @@
 
 #include "stdafx.h"
 #include "AudioInternalInterfaces.h"
+#include "Common/Logger.h"
 
 namespace CryAudio
 {
@@ -58,7 +59,7 @@ SAudioRequestData* AllocateRequestData(SAudioRequestData const* const pRequestDa
 				AM_REQUEST_BLOCK(EAudioManagerRequestType::GetAudioFileData)
 			default:
 				{
-					g_logger.Log(ELogType::Error, "Unknown audio manager request type (%u)", pBase->type);
+					Cry::Audio::Log(ELogType::Error, "Unknown audio manager request type (%u)", pBase->type);
 					CRY_ASSERT(false);
 
 					break;
@@ -93,7 +94,7 @@ SAudioRequestData* AllocateRequestData(SAudioRequestData const* const pRequestDa
 				AO_REQUEST_BLOCK(EAudioObjectRequestType::SetName)
 			default:
 				{
-					g_logger.Log(ELogType::Error, "Unknown audio object request type (%u)", pBase->type);
+					Cry::Audio::Log(ELogType::Error, "Unknown audio object request type (%u)", pBase->type);
 					CRY_ASSERT(false);
 
 					break;
@@ -112,7 +113,7 @@ SAudioRequestData* AllocateRequestData(SAudioRequestData const* const pRequestDa
 				AL_REQUEST_BLOCK(EAudioListenerRequestType::ReleaseListener)
 			default:
 				{
-					g_logger.Log(ELogType::Error, "Unknown audio listener request type (%u)", pBase->type);
+					Cry::Audio::Log(ELogType::Error, "Unknown audio listener request type (%u)", pBase->type);
 					CRY_ASSERT(false);
 
 					break;
@@ -136,7 +137,7 @@ SAudioRequestData* AllocateRequestData(SAudioRequestData const* const pRequestDa
 				ACM_REQUEST_BLOCK(EAudioCallbackManagerRequestType::ReportPhysicalizedEvent)
 			default:
 				{
-					g_logger.Log(ELogType::Error, "Unknown audio callback manager request type (%u)", pBase->type);
+					Cry::Audio::Log(ELogType::Error, "Unknown audio callback manager request type (%u)", pBase->type);
 					CRY_ASSERT(false);
 
 					break;
@@ -147,7 +148,7 @@ SAudioRequestData* AllocateRequestData(SAudioRequestData const* const pRequestDa
 		}
 	default:
 		{
-			g_logger.Log(ELogType::Error, "Unknown audio request type (%u)", requestType);
+			Cry::Audio::Log(ELogType::Error, "Unknown audio request type (%u)", requestType);
 			CRY_ASSERT(false);
 
 			break;

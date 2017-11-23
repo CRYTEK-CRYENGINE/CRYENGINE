@@ -74,9 +74,9 @@ struct CCachedFileData : public _i_reference_target_t
 		pSizer->AddObject(m_pFileEntry);
 	}
 
-	// need to overload addref and release to prevent a race condition in
-	virtual void AddRef();
-	virtual void Release();
+	// override addref and release to prevent a race condition
+	virtual void AddRef() const override;
+	virtual void Release() const override;
 
 public:
 	void* m_pFileData;

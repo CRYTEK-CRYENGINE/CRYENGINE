@@ -1,16 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   Entity.h
-//  Version:     v1.00
-//  Created:     18/5/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #pragma once
 
 
@@ -171,7 +160,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	virtual void Serialize(TSerialize ser, int nFlags) final;
 
-	virtual bool SendEvent(SEntityEvent& event) final;
+	virtual bool SendEvent(const SEntityEvent& event) final;
 
 	virtual void AddEventListener(EEntityEvent event, IEntityEventListener* pListener) final;
 	virtual void RemoveEventListener(EEntityEvent event, IEntityEventListener* pListener) final;
@@ -214,6 +203,7 @@ public:
 	virtual bool              AddComponent(std::shared_ptr<IEntityComponent> pComponent, IEntityComponent::SInitParams *pInitParams) final;
 	virtual void              RemoveComponent(IEntityComponent* pComponent) final;
 	virtual void              RemoveAllComponents() final;
+	virtual void              ReplaceComponent(IEntityComponent* pExistingComponent, std::shared_ptr<IEntityComponent> pNewComponent) final;
 	virtual IEntityComponent* GetComponentByTypeId(const CryInterfaceID& interfaceID) const final;
 	virtual void              GetComponentsByTypeId(const CryInterfaceID& interfaceID, DynArray<IEntityComponent*>& components) const final;
 	virtual IEntityComponent* GetComponentByGUID(const CryGUID& guid) const final;
@@ -302,10 +292,10 @@ public:
 	#endif
 	virtual int                        SetParticleEmitter(int nSlot, IParticleEmitter* pEmitter, bool bSerialize = false) final;
 	virtual int                        LoadParticleEmitter(int nSlot, IParticleEffect* pEffect, SpawnParams const* params = NULL, bool bPrime = false, bool bSerialize = false) final;
-	virtual int                        LoadLight(int nSlot, CDLight* pLight) final;
-	int                                LoadLightImpl(int nSlot, CDLight* pLight);
+	virtual int                        LoadLight(int nSlot, SRenderLight* pLight) final;
+	int                                LoadLightImpl(int nSlot, SRenderLight* pLight);
 
-	virtual bool                       UpdateLightClipBounds(CDLight& light);
+	virtual bool                       UpdateLightClipBounds(SRenderLight& light);
 	int                                LoadCloudBlocker(int nSlot, const SCloudBlockerProperties& properties);
 	virtual int                        LoadFogVolume(int nSlot, const SFogVolumeProperties& properties) override;
 
@@ -424,7 +414,7 @@ protected:
 	// Attachment.
 	//////////////////////////////////////////////////////////////////////////
 	void OnRellocate(int nWhyFlags);
-	void LogEvent(SEntityEvent& event, CTimeValue dt);
+	void LogEvent(const SEntityEvent& event, CTimeValue dt);
 	//////////////////////////////////////////////////////////////////////////
 
 private:

@@ -119,7 +119,7 @@ void CGraphView::ShowGraphContextMenu(QPointF screenPos)
 		CAbstractDictionary* pAvailableNodesDictionary = pModel->GetRuntimeContext().GetAvailableNodesDictionary();
 		if (pAvailableNodesDictionary)
 		{
-			m_pSearchPopupContent->SetDictionary(pAvailableNodesDictionary);
+			m_pSearchPopupContent->SetDictionary(*pAvailableNodesDictionary);
 			m_pSearchPopup->ShowAt(QPoint(screenPos.x(), screenPos.y()));
 		}
 	}

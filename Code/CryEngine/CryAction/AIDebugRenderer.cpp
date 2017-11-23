@@ -299,7 +299,7 @@ void CAIDebugRenderer::Draw2dImage(float fX, float fY, float fWidth, float fHeig
 {
 	if (m_pRenderer)
 	{
-		m_pRenderer->Draw2dImage(fX, fY, fWidth, fHeight, nTextureID, fS0, fT0, fS1, fT1, fAngle, fR, fG, fB, fA, fZ);
+		IRenderAuxImage::Draw2dImage(fX, fY, fWidth, fHeight, nTextureID, fS0, fT0, fS1, fT1, fAngle, fR, fG, fB, fA, fZ);
 	}
 }
 
@@ -733,14 +733,6 @@ void CAIDebugRenderer::SetDrawInFront(bool bOn)
 	SAuxGeomRenderFlags flags = pRenderAuxGeom->GetRenderFlags();
 	flags.SetDrawInFrontMode(bOn ? e_DrawInFrontOn : e_DrawInFrontOff);
 	pRenderAuxGeom->SetRenderFlags(flags);
-}
-
-void CAIDebugRenderer::SetMaterialColor(float fRed, float fGreen, float fBlue, float fAlpha)
-{
-	if (m_pRenderer)
-	{
-		m_pRenderer->SetMaterialColor(fRed, fGreen, fBlue, fAlpha);
-	}
 }
 
 unsigned int CAIDebugRenderer::PopState()

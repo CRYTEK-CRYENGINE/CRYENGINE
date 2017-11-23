@@ -6,7 +6,7 @@
 
 struct IPerceptionManager;
 
-struct ICryPerceptionSystemPlugin : public ICryPlugin
+struct ICryPerceptionSystemPlugin : public Cry::IEnginePlugin
 {
 	CRYINTERFACE_DECLARE_GUID(ICryPerceptionSystemPlugin, "30c9bf81-e5fd-42df-ac3c-bc5fc1e6f0b4"_cry_guid);
 

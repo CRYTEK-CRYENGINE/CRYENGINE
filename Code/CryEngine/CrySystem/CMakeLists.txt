@@ -515,8 +515,6 @@ add_sources("NoUberFile"
 	SOURCE_GROUP "PlatformOS"
 		"PlatformOS/PlatformOS_PC.cpp"
 		"PlatformOS/PlatformOS_PC.h"
-		"PlatformOS/SaveReaderWriter_Steam.h"
-		"PlatformOS/SaveReaderWriter_Steam.cpp"
 )
 
 end_sources()

@@ -1,18 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   CameraProxy.h
-//  Version:     v1.00
-//  Created:     5/12/2005 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __CameraProxy_h__
-#define __CameraProxy_h__
 #pragma once
 
 #include "Entity.h"
@@ -36,7 +23,7 @@ public:
 	// IEntityComponent interface implementation.
 	//////////////////////////////////////////////////////////////////////////
 	virtual void Initialize() final;
-	virtual void ProcessEvent(SEntityEvent& event) final;
+	virtual void ProcessEvent(const SEntityEvent& event) final;
 	virtual uint64 GetEventMask() const final;
 	//////////////////////////////////////////////////////////////////////////
 
@@ -62,5 +49,3 @@ public:
 private:
 	CCamera  m_camera;
 };
-
-#endif // __CameraProxy_h__

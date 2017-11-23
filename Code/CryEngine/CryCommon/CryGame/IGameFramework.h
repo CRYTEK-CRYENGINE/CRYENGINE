@@ -3,10 +3,11 @@
 #pragma once
 
 #include <CryEntitySystem/IEntityComponent.h>
-#include <CryGame/IGameStartup.h> // <> required for Interfuscator
 #include <CryGame/IGameFrameworkExtension.h>
 #include <CryMath/Cry_Color.h>
 #include <CrySystem/TimeValue.h>
+#include <CryLobby/CommonICryMatchMaking.h>
+#include <CryNetwork/INetwork.h>
 
 struct pe_explosion;
 struct IPhysicalEntity;
@@ -22,6 +23,10 @@ struct ICustomActionManager;
 struct ICustomEventManager;
 struct ISerializeHelper;
 struct IGameVolumes;
+struct IGame;
+struct IGameServerNub;
+struct IGameClientNub;
+struct INetworkedClientListener;
 
 //! Define to control the logging of breakability code.
 #define BREAK_LOGGING 0

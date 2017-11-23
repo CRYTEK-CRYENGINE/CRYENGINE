@@ -197,9 +197,6 @@ extern void SliceAndSleep(const char* pFunc, int line);
 #define ENABLE_FLASH_INFO
 #endif
 
-// Remove the line below to disable the console in release builds
-#define ENABLE_DEVELOPER_CONSOLE_IN_RELEASE
-
 #if !defined(ENABLE_LW_PROFILERS) && !defined(ENABLE_DEVELOPER_CONSOLE_IN_RELEASE)
 	#ifndef USE_NULLFONT
 		#define USE_NULLFONT      1
@@ -323,6 +320,11 @@ extern void SliceAndSleep(const char* pFunc, int line);
 #endif
 
 #include "ProjectDefinesInclude.h"
+
+#ifdef RELEASE
+// Forces the .cryproject and system.cfg file to be read from a .pak file instead of directly from disk.
+#define CRY_FORCE_CRYPROJECT_IN_PAK
+#endif
 
 //Encryption & security defines
 

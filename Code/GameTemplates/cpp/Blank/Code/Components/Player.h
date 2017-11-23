@@ -38,7 +38,7 @@ public:
 	virtual void Initialize() override;
 
 	virtual uint64 GetEventMask() const override;
-	virtual void ProcessEvent(SEntityEvent& event) override;
+	virtual void ProcessEvent(const SEntityEvent& event) override;
 	// ~IEntityComponent
 
 	// Reflect type to set a unique identifier for this component

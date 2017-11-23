@@ -9,9 +9,29 @@
 #include "../GraphicsPipeline/Common/GraphicsPipelineStateSet.h"
 
 #define REDUNDANCY_ASSERT(...)
+static uint8 g_StencilFuncLookup[8] =
+{
+	D3D11_COMPARISON_ALWAYS,        // FSS_STENCFUNC_ALWAYS   0x0
+	D3D11_COMPARISON_NEVER,         // FSS_STENCFUNC_NEVER    0x1
+	D3D11_COMPARISON_LESS,          // FSS_STENCFUNC_LESS     0x2
+	D3D11_COMPARISON_LESS_EQUAL,    // FSS_STENCFUNC_LEQUAL   0x3
+	D3D11_COMPARISON_GREATER,       // FSS_STENCFUNC_GREATER  0x4
+	D3D11_COMPARISON_GREATER_EQUAL, // FSS_STENCFUNC_GEQUAL   0x5
+	D3D11_COMPARISON_EQUAL,         // FSS_STENCFUNC_EQUAL    0x6
+	D3D11_COMPARISON_NOT_EQUAL      // FSS_STENCFUNC_NOTEQUAL 0x7
+};
 
-extern uint8 g_StencilFuncLookup[8];
-extern uint8 g_StencilOpLookup[8];
+static uint8 g_StencilOpLookup[8] =
+{
+	D3D11_STENCIL_OP_KEEP,          // FSS_STENCOP_KEEP    0x0
+	D3D11_STENCIL_OP_REPLACE,       // FSS_STENCOP_REPLACE 0x1
+	D3D11_STENCIL_OP_INCR_SAT,      // FSS_STENCOP_INCR    0x2
+	D3D11_STENCIL_OP_DECR_SAT,      // FSS_STENCOP_DECR    0x3
+	D3D11_STENCIL_OP_ZERO,          // FSS_STENCOP_ZERO    0x4
+	D3D11_STENCIL_OP_INCR,          // FSS_STENCOP_INCR_WRAP 0x5
+	D3D11_STENCIL_OP_DECR,          // FSS_STENCOP_DECR_WRAP 0x6
+	D3D11_STENCIL_OP_INVERT         // FSS_STENCOP_INVERT 0x7
+};
 
 CDeviceObjectFactory CDeviceObjectFactory::m_singleton;
 
@@ -995,20 +1015,20 @@ CDeviceResourceSetDesc::EDirtyFlags CDeviceResourceSetDesc::SetResources(const C
 
 CDeviceResourceSetDesc::CDeviceResourceSetDesc(const CDeviceResourceSetDesc& other)
 {
-	SetResources(other);
-
 	m_invalidateCallbackOwner = this;
 	m_invalidateCallback      = OnResourceInvalidated;
 	m_dirtyFlags              = other.m_dirtyFlags.load();
+
+	SetResources(other);
 }
 
 CDeviceResourceSetDesc::CDeviceResourceSetDesc(const CDeviceResourceSetDesc& other, void* pInvalidateCallbackOwner, const SResourceBinding::InvalidateCallbackFunction& invalidateCallback)
 {
-	SetResources(other);
-
 	m_invalidateCallbackOwner = pInvalidateCallbackOwner;
 	m_invalidateCallback      = invalidateCallback;
 	m_dirtyFlags              = other.m_dirtyFlags.load();
+
+	SetResources(other);
 }
 
 CDeviceResourceSetDesc::~CDeviceResourceSetDesc()
@@ -1388,12 +1408,12 @@ void CDeviceCommandList::Close()
 	#if defined(ENABLE_PROFILING_CODE)
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 
-	CryInterlockedAdd(&rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_nNumPSOSwitches, &m_numPSOSwitches);
-	CryInterlockedAdd(&rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_nNumLayoutSwitches, &m_numLayoutSwitches);
-	CryInterlockedAdd(&rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_nNumResourceSetSwitches, &m_numResourceSetSwitches);
-	CryInterlockedAdd(&rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_nNumInlineSets, &m_numInlineSets);
-	CryInterlockedAdd(&rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_nDIPs, &m_numDIPs);
-	CryInterlockedAdd(&rd->m_RP.m_PS[rd->m_RP.m_nProcessThreadID].m_nPolygons[renderList], &m_numPolygons);
+	CryInterlockedAdd(&gRenDev->m_RP.m_PS[gRenDev->GetRenderThreadID()].m_nNumPSOSwitches, &m_numPSOSwitches);
+	CryInterlockedAdd(&gRenDev->m_RP.m_PS[gRenDev->GetRenderThreadID()].m_nNumLayoutSwitches, &m_numLayoutSwitches);
+	CryInterlockedAdd(&gRenDev->m_RP.m_PS[gRenDev->GetRenderThreadID()].m_nNumResourceSetSwitches, &m_numResourceSetSwitches);
+	CryInterlockedAdd(&gRenDev->m_RP.m_PS[gRenDev->GetRenderThreadID()].m_nNumInlineSets, &m_numInlineSets);
+	CryInterlockedAdd(&gRenDev->m_RP.m_PS[gRenDev->GetRenderThreadID()].m_nDIPs, &m_numDIPs);
+	CryInterlockedAdd(&gRenDev->m_RP.m_PS[gRenDev->GetRenderThreadID()].m_nPolygons[renderList], &m_numPolygons);
 	gcpRendD3D->GetGraphicsPipeline().IncrementNumInvalidDrawcalls(m_numInvalidDIPs);
 	#endif
 #endif
@@ -1533,8 +1553,8 @@ bool CDeviceRenderPassDesc::SetRenderTarget(uint32 slot, CTexture* pTexture, Res
 bool CDeviceRenderPassDesc::SetDepthTarget(CTexture* pTexture, ResourceViewHandle hView)
 {
 	CRY_ASSERT(!pTexture || !m_renderTargets[0].pTexture || (
-	           pTexture->GetWidthNonVirtual () == m_renderTargets[0].pTexture->GetWidthNonVirtual () &&
-	           pTexture->GetHeightNonVirtual() == m_renderTargets[0].pTexture->GetHeightNonVirtual()));
+	           pTexture->GetWidth () == m_renderTargets[0].pTexture->GetWidth () &&
+	           pTexture->GetHeight() == m_renderTargets[0].pTexture->GetHeight()));
 
 	const SResourceBindPoint bindPoint(SResourceBindPoint::ESlotType::TextureAndBuffer, -1, EShaderStage_Pixel);
 	bool result = UpdateResource(bindPoint, m_depthTarget, SResourceBinding(pTexture, hView));
@@ -1654,7 +1674,10 @@ bool CDeviceRenderPass_Base::Update(const CDeviceRenderPassDesc& passDesc)
 	currentFormats[formatCount++] = passDesc.GetDepthTarget().GetResourceFormat();
 
 	for (const auto& target : passDesc.GetRenderTargets())
+	{
+		PREFAST_SUPPRESS_WARNING(28020)
 		currentFormats[formatCount++] = target.GetResourceFormat();
+	}
 
 	if (m_nUpdateCount == 0)
 	{
@@ -1784,15 +1807,20 @@ CDeviceRenderPassPtr CDeviceObjectFactory::GetOrCreateRenderPass(const CDeviceRe
 	auto pPass = std::make_shared<CDeviceRenderPass>();
 	pPass->Update(passDesc);
 
-	m_RenderPassCache.emplace(std::piecewise_construct,
-		std::forward_as_tuple(passDesc, pPass.get(), OnRenderPassInvalidated),
-		std::forward_as_tuple(pPass));
+	{
+		CryAutoCriticalSectionNoRecursive lock(m_RenderPassCacheLock);
+		m_RenderPassCache.emplace(std::piecewise_construct,
+			std::forward_as_tuple(passDesc, pPass.get(), OnRenderPassInvalidated),
+			std::forward_as_tuple(pPass));
+	}
 
 	return pPass;
 }
 
 CDeviceRenderPassPtr CDeviceObjectFactory::GetRenderPass(const CDeviceRenderPassDesc& passDesc)
 {
+	CryAutoCriticalSectionNoRecursive lock(m_RenderPassCacheLock);
+
 	auto it = m_RenderPassCache.find(passDesc);
 	if (it != m_RenderPassCache.end())
 		return it->second;
@@ -1803,6 +1831,8 @@ CDeviceRenderPassPtr CDeviceObjectFactory::GetRenderPass(const CDeviceRenderPass
 
 const CDeviceRenderPassDesc* CDeviceObjectFactory::GetRenderPassDesc(const CDeviceRenderPass_Base* pPass)
 {
+	CryAutoCriticalSectionNoRecursive lock(m_RenderPassCacheLock);
+
 	for (const auto& it : m_RenderPassCache)
 	{
 		if (it.second.get() == pPass)
@@ -1816,6 +1846,8 @@ const CDeviceRenderPassDesc* CDeviceObjectFactory::GetRenderPassDesc(const CDevi
 
 void CDeviceObjectFactory::EraseRenderPass(CDeviceRenderPass* pPass, bool bRemoveInvalidateCallbacks)
 {
+	CryAutoCriticalSectionNoRecursive lock(m_RenderPassCacheLock);
+
 	for (auto it = m_RenderPassCache.begin(), itEnd = m_RenderPassCache.end(); it != itEnd; ++it)
 	{
 		if (it->second.get() == pPass)
@@ -1836,13 +1868,13 @@ void CDeviceObjectFactory::EraseRenderPass(CDeviceRenderPass* pPass, bool bRemov
 
 void CDeviceObjectFactory::TrimRenderPasses()
 {
+	CryAutoCriticalSectionNoRecursive lock(m_RenderPassCacheLock);
+
 	EraseUnusedEntriesFromCache(m_RenderPassCache);
 }
 
 bool CDeviceObjectFactory::OnRenderPassInvalidated(void* pRenderPass, SResourceBindPoint bindPoint, UResourceReference pResource, uint32 flags)
 {
-	CRY_ASSERT(gRenDev->m_pRT->IsRenderThread());
-
 	auto pPass     = reinterpret_cast<CDeviceRenderPass*>(pRenderPass);
 
 	// Don't keep the pointer and unregister the callback when the resource goes out of scope
@@ -1916,7 +1948,11 @@ void CDeviceObjectFactory::ReleaseResources()
 	m_InvalidComputePsos.clear();
 
 	m_ResourceLayoutCache.clear();
-	m_RenderPassCache.clear();
+
+	{
+		CryAutoCriticalSectionNoRecursive lock(m_RenderPassCacheLock);
+		m_RenderPassCache.clear();
+	}
 
 	ReleaseSamplerStates();
 	ReleaseInputLayouts();

@@ -129,6 +129,7 @@ namespace UQS
 		CQuery_Regular::CQuery_Regular(const SCtorContext& ctorContext)
 			: CQueryBase(ctorContext, true)  // true = yes, we need some time budget from CQueryManager for some potentially complex computations
 			, m_currentPhaseFn(&CQuery_Regular::Phase1_PrepareGenerationPhase)
+			, m_currentItemIndexForCreatingDebugRepresentations(0)
 			, m_maxCandidates(0)
 			, m_remainingItemWorkingDatasIndexForCheapInstantEvaluators(0)
 		{
@@ -152,8 +153,6 @@ namespace UQS
 		CQuery_Regular::EUpdateState CQuery_Regular::OnUpdate(Shared::CUqsString& error)
 		{
 			assert(m_currentPhaseFn);	// query has already finished before; cannot recycle a query
-
-			++m_elapsedFramesPerPhase.back();
 
 			const SPhaseUpdateContext phaseUpdateContext(error);
 
@@ -192,9 +191,10 @@ namespace UQS
 				}
 
 				// if we're still in the same phase, it means that the phase figured that it either ran out of time or that it just couldn't do any more work in the current frame
-				// -> we prematurely interrupt the running query and continue from here on the next frame
+				// -> we prematurely interrupt the running query and continue from here on the next frame (and reflect that in the current phase's frame counter)
 				if (oldPhaseFn == m_currentPhaseFn)
 				{
+					++m_elapsedFramesPerPhase.back();
 					break;
 				}
 				else
@@ -342,14 +342,21 @@ namespace UQS
 				const Client::IItemFactory& itemFactory = m_generatedItems.GetItemFactory();
 				CDebugRenderWorldPersistent& debugRenderWorld = m_pHistory->GetDebugRenderWorldPersistent();
 
-				for (size_t i = 0, n = m_generatedItems.GetItemCount(); i < n; ++i)
+				for (size_t n = m_generatedItems.GetItemCount(); m_currentItemIndexForCreatingDebugRepresentations < n; ++m_currentItemIndexForCreatingDebugRepresentations)
 				{
-					const void* pItem = m_generatedItems.GetItemAtIndex(i);
-					m_pHistory->CreateItemDebugProxyViaItemFactoryForItem(itemFactory, pItem, i);
-					debugRenderWorld.AssociateAllUpcomingAddedPrimitivesWithItem(i);
+					const void* pItem = m_generatedItems.GetItemAtIndex(m_currentItemIndexForCreatingDebugRepresentations);
+					m_pHistory->CreateItemDebugProxyViaItemFactoryForItem(itemFactory, pItem, m_currentItemIndexForCreatingDebugRepresentations);
+					debugRenderWorld.AssociateAllUpcomingAddedPrimitivesWithItem(m_currentItemIndexForCreatingDebugRepresentations);
 					debugRenderWorld.ItemConstructionBegin();
 					itemFactory.AddItemToDebugRenderWorld(pItem, debugRenderWorld);
 					debugRenderWorld.ItemConstructionEnd();
+
+					// check for having run out of time every 16th item
+					if ((m_currentItemIndexForCreatingDebugRepresentations & 0xF) == 0 && m_timeBudgetForCurrentUpdate.IsExhausted())
+					{
+						// continue in the next frame
+						return EPhaseStatus::Ok;
+					}
 				}
 			}
 			m_currentPhaseFn = &CQuery_Regular::Phase4_PrepareEvaluationPhase;
@@ -677,7 +684,6 @@ namespace UQS
 			assert(taskToUpdate.pWorkingData->bitsDiscardedByInstantEvaluators == 0);
 			assert(taskToUpdate.pWorkingData->bitsDiscardedByDeferredEvaluators == 0);
 			assert(taskToUpdate.pWorkingData->bitsWorkingDeferredEvaluators != 0);
-			assert(taskToUpdate.pWorkingData->bitsFinishedDeferredEvaluators == 0);
 			assert(!taskToUpdate.pWorkingData->bDisqualifiedDueToBadScore);
 			assert(taskToUpdate.pWorkingData->bitsExceptionByInstantEvaluatorFunctionCalls == 0);
 			assert(taskToUpdate.pWorkingData->bitsExceptionByInstantEvaluatorsThemselves == 0);

@@ -25,6 +25,12 @@ static_assert(sizeof(IScaleformPlayback::IndexFormat) == sizeof(GRenderer::Index
 static_assert(sizeof(IScaleformPlayback::BitmapDesc) == sizeof(GRenderer::BitmapDesc), "Bad BitmapDesc used");
 static_assert(sizeof(IScaleformPlayback::SubmitMaskMode) == sizeof(GRenderer::SubmitMaskMode), "Bad SubmitMaskMode used");
 
+static_assert(uint32(IScaleformPlayback::VertexFormat::Vertex_None) == uint32(GRenderer::VertexFormat::Vertex_None), "Bad VertexFormat index for Vertex_None");
+static_assert(uint32(IScaleformPlayback::VertexFormat::Vertex_XY16i) == uint32(GRenderer::VertexFormat::Vertex_XY16i), "Bad VertexFormat index for Vertex_XY16i");
+static_assert(uint32(IScaleformPlayback::VertexFormat::Vertex_XY32f) == uint32(GRenderer::VertexFormat::Vertex_XY32f), "Bad VertexFormat index for Vertex_XY32f");
+static_assert(uint32(IScaleformPlayback::VertexFormat::Vertex_XY16iC32) == uint32(GRenderer::VertexFormat::Vertex_XY16iC32), "Bad VertexFormat index for Vertex_XY16iC32");
+static_assert(uint32(IScaleformPlayback::VertexFormat::Vertex_XY16iCF32) == uint32(GRenderer::VertexFormat::Vertex_XY16iCF32), "Bad VertexFormat index for Vertex_XY16iCF32");
+
 #if defined(_DEBUG)
 
 #define _RECORD_CMD_PREFIX			   \
@@ -802,6 +808,11 @@ namespace CScaleformRecordingClearInternal
 		}
 		float val;
 	};
+}
+
+void CScaleformRecording::SetClearFlags(uint32 clearFlags, ColorF clearColor)
+{
+	m_pPlayback->SetClearFlags(clearFlags, clearColor);
 }
 
 void CScaleformRecording::SetCompositingDepth(float depth)

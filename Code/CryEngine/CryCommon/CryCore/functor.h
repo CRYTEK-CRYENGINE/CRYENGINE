@@ -1512,12 +1512,25 @@ public:
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Call all functors in this list.
+	// Call all functors in this list. Functors shouldn't be added or removed during inside the calls.
 	//////////////////////////////////////////////////////////////////////////
 	template<class... TArgs>
 	void Call(TArgs... args)
 	{
 		for (typename Container::iterator it = m_functors.begin(); it != m_functors.end(); ++it)
+		{
+			(*it)(args...);
+		}
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+	// Call all functors in this list. It is possible to add or remove functors inside the calls.
+	//////////////////////////////////////////////////////////////////////////
+	template<class... TArgs>
+	void CallSafe(TArgs... args)
+	{
+		Container temp(m_functors);
+		for (typename Container::iterator it = temp.begin(); it != temp.end(); ++it)
 		{
 			(*it)(args...);
 		}

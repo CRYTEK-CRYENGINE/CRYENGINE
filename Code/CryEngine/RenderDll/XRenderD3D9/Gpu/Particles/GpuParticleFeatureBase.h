@@ -20,6 +20,7 @@ class CParticleComponentRuntime;
 struct SUpdateContext
 {
 	CParticleComponentRuntime* pRuntime;
+	CRenderView*               pRenderView;
 	CGpuBuffer*                pReadbackBuffer;
 	CGpuBuffer*                pCounterBuffer;
 	CGpuBuffer*                pScratchBuffer;

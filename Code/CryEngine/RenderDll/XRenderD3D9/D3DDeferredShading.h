@@ -60,36 +60,29 @@ public:
 	}
 
 	void Render(CRenderView* pRenderView);
-	void SetupPasses();
+	void SetupPasses(CRenderView* pRenderView);
 	void SetupGlobalConsts();
 
 	//shadows
 	void        ResolveCurrentBuffers();
 	void        RestoreCurrentBuffers();
-	bool        PackAllShadowFrustums(bool bPreLoop);
+	bool        PackAllShadowFrustums(CRenderView *pRenderView);
 	bool        PackToPool(CPowerOf2BlockPacker* pBlockPack, SRenderLight& light, const int nLightID, const int nFirstCandidateLight, bool bClearPool);
 
 	void        FilterGBuffer();
-	void        PrepareClipVolumeData(bool& bOutdoorVisible);
 	bool        AmbientPass(const SRenderLight* pGlobalCubemap, bool& bOutdoorVisible);
 
 	bool        DeferredDecalPass(const SDeferredDecal& rDecal, uint32 indDecal);
-	bool        ShadowLightPasses(const SRenderLight& light, const int nLightID);
+
 	void        DrawDecalVolume(const SDeferredDecal& rDecal, Matrix44A& mDecalLightProj, ECull volumeCull);
 	void        DrawLightVolume(EShapeMeshType meshType, const Matrix44& mVolumeToWorld, const Vec4& vSphereAdjust = Vec4(ZERO));
-	void        LightPass(const SRenderLight* const __restrict pDL, bool bForceStencilDisable = false);
-	void        DeferredCubemaps(const RenderLightsList& rCubemaps, uint32 nStartIndex = 0);
-	void        DeferredCubemapPass(const SRenderLight* const __restrict pDL);
-	void        DeferredLights(RenderLightsList& rLights, bool bCastShadows);
+	//void        DeferredLights(CRenderView *pRenderView,RenderLightsList& rLights, bool bCastShadows);
 	void        DeferredShadingPass();
 
-	void        CreateDeferredMaps();
-	void        DestroyDeferredMaps();
 	void        Release();
-	void        Debug();
 	void        DebugGBuffer();
 
-	RenderLightIndex AddLight(const CDLight& pDL, float fMult, const SRenderingPassInfo& passInfo);
+	RenderLightIndex AddLight(const SRenderLight& pDL, float fMult, const SRenderingPassInfo& passInfo);
 
 	void        AddGIClipVolume(IRenderMesh* pClipVolume, const Matrix34& mxTransform);
 	inline void ResetLights();
@@ -155,9 +148,6 @@ public:
 		return Vec4(fMinZ, max(fMinW, 0.000001f), fMaxZ, max(fMaxW, 0.000001f));
 	}
 
-	void             GetScissors(const Vec3& vCenter, float fRadius, short& sX, short& sY, short& sWidth, short& sHeight) const;
-	void             SetupScissors(bool bEnable, uint16 x, uint16 y, uint16 w, uint16 h) const;
-
 	const Matrix44A& GetCameraProjMatrix() const { return m_mViewProj; }
 
 private:
@@ -186,14 +176,12 @@ private:
 		, m_pParamDecalSpecular("g_DecalSpecular")
 		, m_pParamDecalMipLevels("g_DecalMipLevels")
 		, m_pClipVolumeParams("g_vVisAreasParams")
-		, m_pLBufferDiffuseRT(CTexture::s_ptexCurrentSceneDiffuseAccMap)
-		, m_pLBufferSpecularRT(CTexture::s_ptexSceneSpecularAccMap)
-		, m_pNormalsRT(CTexture::s_ptexSceneNormalsMap)
-		, m_pDepthRT(CTexture::s_ptexZTarget)
-		, m_pMSAAMaskRT(CTexture::s_ptexBackBuffer)
-		, m_pResolvedStencilRT(CTexture::s_ptexStereoR)
-		, m_pDiffuseRT(CTexture::s_ptexSceneDiffuse)
-		, m_pSpecularRT(CTexture::s_ptexSceneSpecular)
+		, m_pNormalsRT(CRendererResources::s_ptexSceneNormalsMap)
+		, m_pDepthRT(CRendererResources::s_ptexLinearDepth)
+		, m_pMSAAMaskRT(CRendererResources::s_ptexBackBuffer)
+		, m_pResolvedStencilRT(CRendererResources::s_ptexVelocity)
+		, m_pDiffuseRT(CRendererResources::s_ptexSceneDiffuse)
+		, m_pSpecularRT(CRendererResources::s_ptexSceneSpecular)
 		, m_nLightsProcessedCount(0)
 		, m_nCurLighID(-1)
 		, m_nWarningFrame(0)
@@ -226,9 +214,6 @@ private:
 		Release();
 	}
 
-	// Allow disable mrt usage: for double zspeed and on other passes less fillrate hit
-	void SpecularAccEnableMRT(bool bEnable);
-
 private:
 	uint32 m_nVisAreasGIRef[RT_COMMAND_BUF_COUNT][MAX_REND_RECURSION_LEVELS];
 
@@ -249,9 +234,6 @@ private:
 	Vec3               m_pCamFront;
 	float              m_fCamFar;
 	float              m_fCamNear;
-
-	float              m_fRatioWidth;
-	float              m_fRatioHeight;
 
 	CShader*           m_pShader;
 	CCryNameTSCRC      m_pDeferredDecalTechName;
@@ -285,9 +267,6 @@ private:
 
 	Vec4               vWorldBasisX, vWorldBasisY, vWorldBasisZ;
 
-	CTexture*          m_pLBufferDiffuseRT;
-	CTexture*          m_pLBufferSpecularRT;
-
 	CRY_ALIGN(16) Vec4 m_vClipVolumeParams[MAX_DEFERRED_CLIP_VOLUMES];
 
 	CTexture*                m_pDiffuseRT;
@@ -306,8 +285,8 @@ private:
 	uint32                   m_nThreadID;
 	int32                    m_nRecurseLevel;
 
-	uint                     m_nCurrentShadowPoolLight;
-	uint                     m_nFirstCandidateShadowPoolLight;
+	uint                     m_nFirstShadowPoolLight;
+	uint                     m_nLastShadowPoolLight;
 	uint                     m_nShadowPoolSize;
 	bool                     m_bClearPool;
 
@@ -317,7 +296,7 @@ private:
 	short                    m_nCurTargetHeight;
 	static CDeferredShading* m_pInstance;
 
-	friend class CTiledShading;
+	friend class CTiledLightVolumesStage;
 	friend class CShadowMapStage;
 	friend class CVolumetricFogStage; // for access to m_nCurrentShadowPoolLight and m_nFirstCandidateShadowPoolLight.
 

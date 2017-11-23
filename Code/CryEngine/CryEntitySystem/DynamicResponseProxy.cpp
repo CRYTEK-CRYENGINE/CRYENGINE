@@ -26,7 +26,7 @@ void CEntityComponentDynamicResponse::Initialize()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntityComponentDynamicResponse::ProcessEvent(SEntityEvent& event)
+void CEntityComponentDynamicResponse::ProcessEvent(const SEntityEvent& event)
 {
 	if (m_pResponseActor && event.event == ENTITY_EVENT_RESET)
 	{

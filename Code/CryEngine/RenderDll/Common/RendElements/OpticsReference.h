@@ -37,6 +37,7 @@ public:
 	void                Invalidate() override;
 
 	void                RenderPreview(SLensFlareRenderParam* pParam, const Vec3& vPos) override;
+	void                DeleteThis() override;
 
 public:
 	string                             m_name;

@@ -9,15 +9,18 @@
 
 #include <cctype>
 
+// Temporary using statement to not break YASLI_ENUM_BEGIN_NESTED below
+// Before fixing, validate that serialization to disk is the same, it currently serializes a string.
+using namespace Cry;
 using namespace Cry::ProjectManagerInternals;
 
 #if CRY_PLATFORM_WINDOWS
 #include <Shlwapi.h>
 #endif
 
-YASLI_ENUM_BEGIN_NESTED(ICryPluginManager, EPluginType, "PluginType")
-YASLI_ENUM_VALUE_NESTED(ICryPluginManager, EPluginType::Native, "Native")
-YASLI_ENUM_VALUE_NESTED(ICryPluginManager, EPluginType::Managed, "Managed")
+YASLI_ENUM_BEGIN_NESTED(IPluginManager, EPluginType, "PluginType")
+YASLI_ENUM_VALUE_NESTED(IPluginManager, EPluginType::Native, "Native")
+YASLI_ENUM_VALUE_NESTED(IPluginManager, EPluginType::Managed, "Managed")
 YASLI_ENUM_END()
 
 CProjectManager::CProjectManager()
@@ -130,8 +133,14 @@ bool CProjectManager::ParseProjectFile()
 		m_project.filePath = projectFile.c_str();
 	}
 
+#ifndef CRY_FORCE_CRYPROJECT_IN_PAK
+	int flags = ICryPak::FOPEN_ONDISK;
+#else
+	int flags = 0;
+#endif
 	CCryFile file;
-	file.Open(m_project.filePath.c_str(), "rb", ICryPak::FOPEN_ONDISK);
+	file.Open(m_project.filePath.c_str(), "rb", flags);
+
 	std::vector<char> projectFileJson;
 	if (file.GetHandle() != nullptr)
 	{
@@ -226,10 +235,12 @@ bool CProjectManager::ParseProjectFile()
 		// Update the project file if the loaded version was outdated
 		if (m_project.version != LatestProjectFileVersion)
 		{
+			// Add plug-ins that were made default since this version
+			AddDefaultPlugins(m_project.version);
+
 			// Add default plug-ins since they were hardcoded before version 1
 			if (m_project.version == 0)
 			{
-				AddDefaultPlugins();
 				LoadLegacyPluginCSV();
 				LoadLegacyGameCfg();
 			}
@@ -329,7 +340,7 @@ void CProjectManager::MigrateFromLegacyWorkflowIfNecessary()
 		m_project.assetDirectoryFullPath = PathUtil::Make(m_project.rootDirectory, m_project.assetDirectory);
 
 		// Make sure we include default plug-ins
-		AddDefaultPlugins();
+		AddDefaultPlugins(0);
 		LoadLegacyPluginCSV();
 		LoadLegacyGameCfg();
 
@@ -409,9 +420,9 @@ void CProjectManager::LoadLegacyPluginCSV()
 		const char* pNewline = Parser_StrChr(pTokenStart, pBufferEnd, '\n');
 		const char* pSemicolon = Parser_StrChr(pTokenStart, pNewline, ';');
 
-		ICryPluginManager::EPluginType pluginType = ICryPluginManager::EPluginType::Native;
+		Cry::IPluginManager::EType pluginType = Cry::IPluginManager::EType::Native;
 		if (Parser_StrEquals(pTokenStart, pSemicolon, "C#"))
-			pluginType = ICryPluginManager::EPluginType::Managed;
+			pluginType = Cry::IPluginManager::EType::Managed;
 
 		// Parsing of plugin name
 		pTokenStart = Parser_NextChar(pSemicolon, pNewline);
@@ -462,15 +473,19 @@ void CProjectManager::OnLoadConfigurationEntry(const char* szKey, const char* sz
 	}
 }
 
-void CProjectManager::AddDefaultPlugins()
+void CProjectManager::AddDefaultPlugins(unsigned int previousVersion)
 {
-	for (const char* szDefaultPlugin : CCryPluginManager::GetDefaultPlugins())
+	for (const CCryPluginManager::TDefaultPluginPair& defaultPlugin : CCryPluginManager::GetDefaultPlugins())
 	{
-		AddPlugin(ICryPluginManager::EPluginType::Native, szDefaultPlugin);
+		// If the version the plug-in was made default in is higher than the version we're upgrading from, add to project
+		if (defaultPlugin.first > previousVersion)
+		{
+			AddPlugin(Cry::IPluginManager::EType::Native, defaultPlugin.second);
+		}
 	}
 }
 
-void CProjectManager::AddPlugin(ICryPluginManager::EPluginType type, const char* szFileName)
+void CProjectManager::AddPlugin(Cry::IPluginManager::EType type, const char* szFileName)
 {
 	// Make sure duplicates aren't added
 	for(const SPluginDefinition& pluginDefinition : m_project.plugins)
@@ -564,7 +579,7 @@ void CProjectManager::RegenerateCSharpSolution(const char* szDirectory) const
 			sourceFileRelativePath = fullpath.substr(rootDataFolder.length(), fullpath.length() - rootDataFolder.length());
 		}
 
-		includes += "<Compile Include=\"" + PathUtil::ToDosPath(sourceFileRelativePath) + "\" />\n";
+		includes += "    <Compile Include=\"" + PathUtil::ToDosPath(sourceFileRelativePath) + "\" />\n";
 	}
 
 	string csProjName = "Game.csproj";
@@ -648,7 +663,7 @@ void CProjectManager::FindSourceFilesInDirectoryRecursive(const char* szDirector
 	string searchPath = PathUtil::Make(szDirectory, szExtension);
 
 	_finddata_t fd;
-	intptr_t handle = gEnv->pCryPak->FindFirst(searchPath, &fd);
+	intptr_t handle = gEnv->pCryPak->FindFirst(searchPath, &fd, ICryPak::FLAGS_NEVER_IN_PAK);
 	if (handle != -1)
 	{
 		do
@@ -662,7 +677,7 @@ void CProjectManager::FindSourceFilesInDirectoryRecursive(const char* szDirector
 	// Find additional directories
 	searchPath = PathUtil::Make(szDirectory, "*.*");
 
-	handle = gEnv->pCryPak->FindFirst(searchPath, &fd);
+	handle = gEnv->pCryPak->FindFirst(searchPath, &fd, ICryPak::FLAGS_NEVER_IN_PAK);
 	if (handle != -1)
 	{
 		do

@@ -17,6 +17,7 @@ struct ICryFont;
 struct IFFont;
 
 struct IRenderer;
+struct IRenderAuxGeom;
 
 extern "C"
 #ifdef CRYFONT_EXPORTS
@@ -179,15 +180,9 @@ struct IFFont
 	virtual void         GetGradientTextureCoord(float& minU, float& minV, float& maxU, float& maxV) const = 0;
 
 	virtual unsigned int GetEffectId(const char* pEffectName) const = 0;
-	// </interfuscator:shuffle>
-};
 
-//////////////////////////////////////////////////////////////////////////
-struct IFFont_RenderProxy
-{
-	// <interfuscator:shuffle>
-	virtual ~IFFont_RenderProxy(){}
-	virtual void RenderCallback(float x, float y, float z, const char* pStr, const bool asciiMultiLine, const STextDrawContext& ctx) = 0;
+	//! Only to be used by renderer, from the render thread.
+	virtual void RT_RenderCallback(float x, float y, float z, const char* pStr, const bool asciiMultiLine, const STextDrawContext& ctx,IRenderAuxGeom* pAux) = 0;
 	// </interfuscator:shuffle>
 };
 

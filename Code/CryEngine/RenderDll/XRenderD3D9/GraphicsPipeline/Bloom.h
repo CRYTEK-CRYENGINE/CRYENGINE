@@ -8,7 +8,6 @@
 class CBloomStage : public CGraphicsPipelineStage
 {
 public:
-	void Init();
 	void Execute();
 
 private:

@@ -2,13 +2,13 @@
 
 #include <CrySystem/ISystem.h>
 #include <CrySystem/IProjectManager.h>
-#include <CryExtension/ICryPluginManager.h>
+#include <CrySystem/ICryPluginManager.h>
 #include <CrySerialization/yasli/STL.h>
 
 struct SPluginDefinition
 {
 	SPluginDefinition() {}
-	SPluginDefinition(ICryPluginManager::EPluginType pluginType, const char* szPath)
+	SPluginDefinition(Cry::IPluginManager::EType pluginType, const char* szPath)
 		: type(pluginType)
 		, path(szPath) {}
 
@@ -27,7 +27,7 @@ struct SPluginDefinition
 		return !(*this == rhs);
 	}
 
-	ICryPluginManager::EPluginType type;
+	Cry::IPluginManager::EType type;
 	string path;
 };
 
@@ -40,7 +40,7 @@ namespace Cry
 			// Serialize the project file
 			bool Serialize(Serialization::IArchive& ar);
 
-			int version = 0;
+			unsigned int version = 0;
 			// why do we need this?
 			string type;
 			// Project name
@@ -88,9 +88,13 @@ namespace Cry
 			std::vector<SConsoleInstruction> consoleCommands;
 		};
 
-		template<int version> struct SProjectFileParser {};
+		template<unsigned int version> struct SProjectFileParser {};
 
-		constexpr int LatestProjectFileVersion = 2;
+		//! Latest version of the project syntax
+		//! Bump this when syntax changes, or default plug-ins are added
+		//! This allows us to automatically migrate and support older versions
+		//! Version 0 = pre-project system, allows for migrating from legacy (game.cfg etc) to .cryproject
+		constexpr unsigned int LatestProjectFileVersion = 3;
 
 		template<>
 		struct SProjectFileParser<LatestProjectFileVersion>
@@ -240,9 +244,9 @@ protected:
 
 	void LoadLegacyPluginCSV();
 	void LoadLegacyGameCfg();
-	void AddDefaultPlugins();
+	void AddDefaultPlugins(unsigned int previousVersion);
 
-	void AddPlugin(ICryPluginManager::EPluginType type, const char* szFileName);
+	void AddPlugin(Cry::IPluginManager::EType type, const char* szFileName);
 
 	string LoadTemplateFile(const char* szPath, std::function<string(const char* szAlias)> aliasReplacementFunc) const;
 	void FindSourceFilesInDirectoryRecursive(const char* szDirectory, const char* szExtension, std::vector<string>& sourceFiles) const;

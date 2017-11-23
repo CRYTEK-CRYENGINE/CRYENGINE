@@ -971,9 +971,9 @@ void CShaderMan::mfAddRTCombination_r(int nComb, FXShaderCacheCombinations& Cmbs
 
 void CShaderMan::mfAddRTCombinations(FXShaderCacheCombinations& CmbsMapSrc, FXShaderCacheCombinations& CmbsMapDst, CHWShader* pSH, bool bListOnly)
 {
-	if (pSH->m_nFrameLoad == gRenDev->GetFrameID())
+	if (pSH->m_nFrameLoad == gRenDev->GetMainFrameID())
 		return;
-	pSH->m_nFrameLoad = gRenDev->GetFrameID();
+	pSH->m_nFrameLoad = gRenDev->GetMainFrameID();
 	uint32 dwType = pSH->m_dwShaderType;
 	if (!dwType)
 		return;
@@ -1640,15 +1640,10 @@ void CShaderMan::_PrecacheShaderList(bool bStatsOnly)
 					m_szShaderPrecache = "";
 				}
 			}
-			gRenDev->m_RP.m_FlagsShader_RT = 0;
-			gRenDev->m_RP.m_FlagsShader_LT = 0;
-			gRenDev->m_RP.m_FlagsShader_MD = 0;
-			gRenDev->m_RP.m_FlagsShader_MDV = 0;
-			gRenDev->m_RP.m_FlagsShader_PipelineState = 0;
-			CShader* pSH = CShaderMan::mfForName(str1, 0, NULL, cmb->Ident.m_GLMask);
 
-			gRenDev->m_RP.m_pShader = pSH;
-			assert(gRenDev->m_RP.m_pShader != 0);
+			CShader* pSH = CShaderMan::mfForName(str1, 0, NULL, cmb->Ident.m_GLMask);
+			if (!pSH)
+				continue;
 
 			std::vector<SCacheCombination>* pCmbs = &Cmbs;
 			FXShaderCacheCombinations CmbsMapRTSrc;
@@ -1757,11 +1752,7 @@ void CShaderMan::_PrecacheShaderList(bool bStatsOnly)
 					for (int n = 0; n < pTech->m_Passes.Num(); n++)
 					{
 						SShaderPass* pPass = &pTech->m_Passes[n];
-						gRenDev->m_RP.m_FlagsShader_RT = cmba->Ident.m_RTMask;
-						gRenDev->m_RP.m_FlagsShader_LT = cmba->Ident.m_LightMask;
-						gRenDev->m_RP.m_FlagsShader_MD = cmba->Ident.m_MDMask;
-						gRenDev->m_RP.m_FlagsShader_MDV = cmba->Ident.m_MDVMask;
-						gRenDev->m_RP.m_FlagsShader_PipelineState = cmba->Ident.m_pipelineState.opaque;
+
 						// Adjust some flags for low spec
 						CHWShader* shaders[] = { pPass->m_PShader, pPass->m_VShader };
 						for (int i = 0; i < 2; i++)
@@ -1769,20 +1760,17 @@ void CShaderMan::_PrecacheShaderList(bool bStatsOnly)
 							CHWShader* shader = shaders[i];
 							if (shader && (!m_szShaderPrecache || !stricmp(m_szShaderPrecache, shader->m_EntryFunc.c_str()) != 0))
 							{
-								uint64 nFlagsOrigShader_RT = gRenDev->m_RP.m_FlagsShader_RT & shader->m_nMaskAnd_RT | shader->m_nMaskOr_RT;
-								uint64 nFlagsOrigShader_GL = shader->m_nMaskGenShader;
-								uint32 nFlagsOrigShader_LT = gRenDev->m_RP.m_FlagsShader_LT;
+								shader->PrecacheShader(pSH, cmba->Ident, nFlags);
 
-								shader->mfSetV(nFlags);
-
-								if (nFlagsOrigShader_RT != gRenDev->m_RP.m_FlagsShader_RT || nFlagsOrigShader_GL != shader->m_nMaskGenShader || nFlagsOrigShader_LT != gRenDev->m_RP.m_FlagsShader_LT)
+								uint64 nFlagsOrigShader_RT = cmba->Ident.m_RTMask & shader->m_nMaskAnd_RT | shader->m_nMaskOr_RT;
+								if (nFlagsOrigShader_RT != cmba->Ident.m_RTMask)
 								{
 									m_nCombinationsEmpty++;
 									if (!bStatsOnly)
-										shader->mfAddEmptyCombination(pSH, nFlagsOrigShader_RT, nFlagsOrigShader_GL, nFlagsOrigShader_LT);
-									shader->m_nMaskGenShader = nFlagsOrigShader_GL;
+										shader->mfAddEmptyCombination(pSH, nFlagsOrigShader_RT, shader->m_nMaskGenShader, cmba->Ident.m_LightMask);
 								}
 							}
+							
 						}
 
 						if (CParserBin::m_nPlatform & (SF_D3D11 | SF_DURANGO |  SF_ORBIS | SF_GL4 | SF_VULKAN))
@@ -1793,7 +1781,7 @@ void CShaderMan::_PrecacheShaderList(bool bStatsOnly)
 								CHWShader* shader = d3d11Shaders[i];
 								if (shader && (!m_szShaderPrecache || !stricmp(m_szShaderPrecache, shader->m_EntryFunc.c_str()) != 0))
 								{
-									shader->mfSetV(nFlags);
+									shader->PrecacheShader(pSH,cmba->Ident,nFlags);
 								}
 							}
 						}
@@ -2186,6 +2174,7 @@ void CShaderMan::_MergeShaders()
 		cry_sprintf(szName1, "%s%s", szName, szExt);
 		uint32 nLen = strlen(szName1);
 		pCache = CHWShader::mfInitCache(szNameA, NULL, false, CRC32, false);
+		assert(pCache);
 		SResFileLookupData* pData;
 		if (pCache->m_pRes[CACHE_USER] && (pData = pCache->m_pRes[CACHE_USER]->GetLookupData(false, 0, 0)))
 			CRC32 = pData->m_CRC32;
@@ -2229,6 +2218,7 @@ void CShaderMan::_MergeShaders()
 		}
 		cry_strcat(szDest, p + 1);
 		pCache = CHWShader::mfInitCache(szDest, NULL, true, CRC32, false);
+		assert(pCache);
 		CResFile* pRes = pCache->m_pRes[CACHE_USER];
 		pRes->mfClose();
 		pRes->mfOpen(RA_CREATE, &gRenDev->m_cEF.m_ResLookupDataMan[CACHE_USER]);
@@ -2390,7 +2380,7 @@ bool CShaderMan::mfPreloadBinaryShaders()
 			continue;
 		if (fileinfo.attrib & _A_SUBDIR)
 			continue;
-		const char* szExt = fpGetExtension(fileinfo.name);
+		const char* szExt = PathUtil::GetExt(fileinfo.name);
 		if (!stricmp(szExt, ".cfib"))
 			FilesCFI.push_back(fileinfo.name);
 		else if (!stricmp(szExt, ".cfxb"))
@@ -2412,7 +2402,7 @@ bool CShaderMan::mfPreloadBinaryShaders()
 
 			const string& file = FilesCFI[i];
 			cry_strcpy(sName, file.c_str());
-			fpStripExtension(sName, sName);
+			PathUtil::RemoveExtension(sName);
 			SShaderBin* pBin = m_Bin.GetBinShader(sName, true, 0);
 			assert(pBin);
 		}
@@ -2427,7 +2417,7 @@ bool CShaderMan::mfPreloadBinaryShaders()
 
 			const string& file = FilesCFX[i];
 			cry_strcpy(sName, file.c_str());
-			fpStripExtension(sName, sName);
+			PathUtil::RemoveExtension(sName);
 			SShaderBin* pBin = m_Bin.GetBinShader(sName, false, 0);
 			assert(pBin);
 		}

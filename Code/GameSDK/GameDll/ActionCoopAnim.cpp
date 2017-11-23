@@ -173,7 +173,7 @@ void CActionCoopAnimation::SendStateEventCoopAnim()
 	m_player.StateMachineHandleEventMovement( SStateEventCoopAnim(m_targetEntityID) );
 }
 
-void CActionCoopAnimation::OnEntityEvent( IEntity *pEntity,SEntityEvent &event )
+void CActionCoopAnimation::OnEntityEvent( IEntity *pEntity, const SEntityEvent& event )
 {
 	if(!pEntity)
 		return;

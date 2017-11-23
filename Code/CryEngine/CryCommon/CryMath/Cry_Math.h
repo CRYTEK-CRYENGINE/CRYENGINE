@@ -59,8 +59,30 @@ constexpr f32 gf_ln2 = 0.69314718055994530941723212145818f;       //!< ln(2)
 constexpr f64 sqrt2 = 1.4142135623730950488016887242097;
 constexpr f64 sqrt3 = 1.7320508075688772935274463415059;
 
-#define DEG2RAD(a) ((a) * (gf_PI / 180.0f))
-#define RAD2DEG(a) ((a) * (180.0f / gf_PI))
+#if !defined(SWIG)
+template<typename T>
+constexpr auto DEG2RAD(T&& deg) -> decltype(deg * 1.f)
+{
+	return deg * (gf_PI / 180.0f);
+}
+
+constexpr f64 DEG2RAD(f64 deg)
+{
+	return deg * (g_PI / 180.0);
+}
+
+template<typename T>
+constexpr auto RAD2DEG(T&& rad) -> decltype(rad * 1.f)
+{
+	return rad * (180.0f / gf_PI);
+}
+
+constexpr f64 RAD2DEG(f64 rad)
+{
+	return rad * (180.0 / g_PI);
+}
+#endif
+
 
 // Define min and max as proper template
 #ifdef min

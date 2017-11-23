@@ -39,7 +39,8 @@ public:
 	bool ProcessTextureIfNeeded(
 	  const char* originalFilename,
 	  char* processedFilename,
-	  size_t processedFilenameSizeInBytes);
+	  size_t processedFilenameSizeInBytes,
+	  bool immediate = true);
 
 private:
 	class CQueuedRC

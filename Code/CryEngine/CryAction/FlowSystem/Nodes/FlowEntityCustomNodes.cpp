@@ -1467,7 +1467,7 @@ public:
 		}
 	}
 
-	virtual void OnEntityEvent(IEntity* pEntity, SEntityEvent& evt) override
+	virtual void OnEntityEvent(IEntity* pEntity, const SEntityEvent& evt) override
 	{
 		switch(evt.event)
 		{

@@ -228,7 +228,7 @@ void CMineField::HandleEvent( const SGameObjectEvent& gameObjectEvent )
 	}
 }
 
-void CMineField::ProcessEvent( SEntityEvent& entityEvent )
+void CMineField::ProcessEvent( const SEntityEvent& entityEvent )
 {
 	switch(entityEvent.event)
 	{
@@ -295,6 +295,11 @@ void CMineField::ProcessEvent( SEntityEvent& entityEvent )
 		}
 		break;
 	}
+}
+
+uint64 CMineField::GetEventMask() const
+{
+	return BIT64(ENTITY_EVENT_RESET) | BIT64(ENTITY_EVENT_LEVEL_LOADED) | BIT64(ENTITY_EVENT_LINK) | BIT64(ENTITY_EVENT_DELINK);
 }
 
 void CMineField::GetMemoryUsage( ICrySizer *pSizer ) const

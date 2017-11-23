@@ -1,9 +1,10 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "ATLEntities.h"
 #include <CryAudio/IAudioSystem.h>
 #include <CrySystem/ISystem.h> // needed for gEnv in Release builds
+#include <Logger.h>
 #include <fmod_common.h>
 #include <fmod.hpp>
 
@@ -128,7 +129,7 @@ bool CStandaloneFile::IsReady()
 
 		if (state == FMOD_OPENSTATE_ERROR)
 		{
-			g_implLogger.Log(ELogType::Error, "Failed to load audio file %s", m_fileName.c_str());
+			Cry::Audio::Log(ELogType::Error, "Failed to load audio file %s", m_fileName.c_str());
 		}
 	}
 

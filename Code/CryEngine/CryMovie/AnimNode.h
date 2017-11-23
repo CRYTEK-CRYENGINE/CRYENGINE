@@ -50,8 +50,6 @@ public:
 public:
 	CAnimNode(const int id);
 
-	virtual void                            Release() override                    { if (--IAnimNode::m_nRefCounter <= 0) { delete this; } }
-
 	virtual void                            SetName(const char* name) override    { m_name = name; };
 	virtual const char*                     GetName() override                    { return m_name; };
 

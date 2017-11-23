@@ -4,8 +4,9 @@ using CryEngine.Common;
 
 namespace CryEngine.Animations
 {
-	//Wraps the native IAttachment class
-	
+	/// <summary>
+	/// An attachment on a character. Wraps the native IAttachment class.
+	/// </summary>
 	public class CharacterAttachment
 	{
 		/// <summary>

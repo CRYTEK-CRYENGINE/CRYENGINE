@@ -11,8 +11,6 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-#ifndef __frameprofilesystem_h__
-#define __frameprofilesystem_h__
 #pragma once
 
 #include <CrySystem/Profilers/FrameProfiler/FrameProfiler.h>
@@ -42,11 +40,7 @@ public:
 	//! If set profiling data will be displayed.
 	bool                        m_bDisplay;
 	//! True if network profiling is enabled.
-	bool                        m_bNetworkProfiling;
-	//! True if network profiling is enabled.
 	bool                        m_bMemoryProfiling;
-	//! If set memory info by modules will be displayed.
-	bool                        m_bDisplayMemoryInfo;
 	//! Put memory info also in the log.
 	bool                        m_bLogMemoryInfo;
 
@@ -56,8 +50,19 @@ public:
 	static threadID             s_nFilterThreadId;
 
 	// Cvars.
-	static int profile_callstack;
-	static int profile_log;
+	int   profile_graph;
+	float profile_graphScale;
+	int   profile_pagefaults;
+	int   profile_network;
+	int   profile_additionalsub;
+	float profile_peak;
+	float profile_peak_display;
+	float profile_min_display_ms;
+	float profile_row, profile_col;
+	int   profile_meminfo;
+	int   profile_sampler_max_samples;
+	int   profile_callstack;
+	int   profile_log;
 
 	//struct SPeakRecord
 	//{
@@ -329,8 +334,6 @@ public:
 	//! Currently active profilers array.
 	Profilers* m_pProfilers;
 
-	float      m_peakTolerance;
-
 	//! List of several latest peaks.
 	std::vector<SPeakRecord>          m_peaks;
 	std::vector<SPeakRecord>          m_absolutepeaks;
@@ -339,7 +342,6 @@ public:
 	EProfiledSubsystem                m_subsystemFilter;
 	bool                              m_bSubsystemFilterEnabled;
 	int                               m_maxProfileCount;
-	float                             m_peakDisplayDuration;
 
 	//////////////////////////////////////////////////////////////////////////
 	//! Smooth frame time in milliseconds.
@@ -349,7 +351,6 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// Graphs.
 	//////////////////////////////////////////////////////////////////////////
-	bool                       m_bDrawGraph;
 	std::vector<unsigned char> m_timeGraphPageFault;
 	std::vector<unsigned char> m_timeGraphFrameTime;
 	#if defined(JOBMANAGER_SUPPORT_FRAMEPROFILER)
@@ -368,7 +369,6 @@ public:
 	int   m_histogramsCurrPos;
 	int   m_histogramsMaxPos;
 	int   m_histogramsHeight;
-	float m_histogramScale;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Selection/Render.
@@ -382,8 +382,6 @@ public:
 	int    m_nPagesFaultsLastFrame;
 	int    m_nPagesFaultsPerSec;
 	int64  m_nLastPageFaultCount;
-	bool   m_bPageFaultsGraph;
-	bool   m_bRenderAdditionalSubsystems;
 
 	string m_filterThreadName;
 
@@ -456,7 +454,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// Sampling related.
 	//////////////////////////////////////////////////////////////////////////
-	void StartSampling(int nMaxSamples);
+	void StartSampling();
 
 	//////////////////////////////////////////////////////////////////////////
 	// Adds a value to profiler.
@@ -484,7 +482,6 @@ public:
 
 	//! Enable/Disable profile samples gathering.
 	void         Enable(bool bCollect, bool bDisplay);
-	void         EnableMemoryProfile(bool bEnable);
 	void         SetSubsystemFilter(bool bFilterSubsystem, EProfiledSubsystem subsystem);
 	void         EnableHistograms(bool bEnableHistograms);
 	bool         IsEnabled() const   { return m_bEnabled; }
@@ -492,22 +489,11 @@ public:
 	bool         IsProfiling() const { return m_bCollect; }
 	void         SetDisplayQuantity(EDisplayQuantity quantity);
 	void         AddPeak(SPeakRecord& peak);
-	void         SetHistogramScale(float fScale)         { m_histogramScale = fScale; }
-	void         SetDrawGraph(bool bDrawGraph)           { m_bDrawGraph = bDrawGraph; };
-	void         SetNetworkProfiler(bool bNet)           { m_bNetworkProfiling = bNet; };
-	void         SetPeakTolerance(float fPeakTimeMillis) { m_peakTolerance = fPeakTimeMillis; }
-	void         SetPageFaultsGraph(bool bEnabled)       { m_bPageFaultsGraph = bEnabled; }
-	void         SetAdditionalSubsystems(bool bEnabled)  { m_bRenderAdditionalSubsystems = bEnabled; }
-	bool         GetAdditionalSubsystems() const         { return m_bRenderAdditionalSubsystems; }
 
 	void         SetSubsystemFilter(const char* sFilterName);
 	void         SetSubsystemFilterThread(const char* sFilterThreadName);
 
 	void         UpdateOfflineHistory(CFrameProfiler* pProfiler);
-
-	// sets the time interval for which peaks will be displayed
-	void  SetPeakDisplayDuration(float duration) { m_peakDisplayDuration = duration; }
-	float GetPeakDisplayDuration() const         { return m_peakDisplayDuration; }
 
 	//////////////////////////////////////////////////////////////////////////
 	// Rendering.
@@ -614,7 +600,6 @@ struct CFrameProfileSystem : public IFrameProfileSystem
 	void                                 SetPageFaultsGraph(bool bEnabled)          {}
 	void                                 SetThreadSupport(int)                      {}
 
-	void                                 EnableMemoryProfile(bool bEnable)          {}
 	virtual bool                         IsVisible() const                          { return true; }
 	virtual const CFrameProfilerSection* GetCurrentProfilerSection()                { return NULL; }
 
@@ -628,5 +613,3 @@ protected:
 };
 
 #endif // USE_FRAME_PROFILER
-
-#endif // __frameprofilesystem_h__

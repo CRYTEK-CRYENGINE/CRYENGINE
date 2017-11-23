@@ -130,7 +130,7 @@ void CVehicleSeatActionWeaponsBone::UpdateWeaponTM(SVehicleWeapon& weapon)
 			}
 			else if (isLocal)
 			{
-				const CCamera& cam = gEnv->pRenderer->GetCamera();
+				const CCamera& cam = GetISystem()->GetViewCamera();
 				pos = cam.GetPosition();
 				dir = cam.GetViewdir();
 			}

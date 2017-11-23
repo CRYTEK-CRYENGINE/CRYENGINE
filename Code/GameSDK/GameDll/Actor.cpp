@@ -410,6 +410,14 @@ CActor::~CActor()
 	UnRegisterDBAGroups();
 	ReleaseLegsColliders();
 	CActorManager::GetActorManager()->ActorRemoved(this);
+
+	if (IAIObject *pAI = GetEntity()->GetAI())
+	{
+		if (pAI->GetProxy())
+		{
+			pAI->GetProxy()->OnActorRemoved();
+		}
+	}
 }
 
 //------------------------------------------------------------------------
@@ -1629,7 +1637,7 @@ IEntity *CActor::LinkToVehicle(EntityId vehicleId)
   if (pLinked)  
     pLinked->AttachChild(GetEntity(), ENTITY_XFORM_USER|IEntity::ATTACHMENT_KEEP_TRANSFORMATION);
   else
-    GetEntity()->DetachThis(IEntity::ATTACHMENT_KEEP_TRANSFORMATION,/*ENTITY_XFORM_USER*/0);
+    GetEntity()->DetachThis(IEntity::ATTACHMENT_KEEP_TRANSFORMATION);
   
 	return pLinked;
 }
@@ -1651,12 +1659,12 @@ IEntity *CActor::LinkToEntity(EntityId entityId, bool bKeepTransformOnDetach)
   if (pLinked)
     pLinked->AttachChild(GetEntity(), 0);
   else
-		GetEntity()->DetachThis(bKeepTransformOnDetach ? IEntity::ATTACHMENT_KEEP_TRANSFORMATION : 0, bKeepTransformOnDetach ? ENTITY_XFORM_USER : 0);
+		GetEntity()->DetachThis(bKeepTransformOnDetach ? IEntity::ATTACHMENT_KEEP_TRANSFORMATION : IEntity::EAttachmentFlags(), bKeepTransformOnDetach ? ENTITY_XFORM_USER : EEntityXFormFlags());
 
 	return pLinked;
 }
 
-void CActor::ProcessEvent(SEntityEvent& event)
+void CActor::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -1814,6 +1822,23 @@ void CActor::ProcessEvent(SEntityEvent& event)
 			break;
 		}
   }  
+}
+
+uint64 CActor::GetEventMask() const
+{
+	return BIT64(ENTITY_EVENT_HIDE)
+		| BIT64(ENTITY_EVENT_INVISIBLE)
+		| BIT64(ENTITY_EVENT_UNHIDE)
+		| BIT64(ENTITY_EVENT_VISIBLE)
+		| BIT64(ENTITY_EVENT_RESET)
+		| BIT64(ENTITY_EVENT_ANIM_EVENT)
+		| BIT64(ENTITY_EVENT_DONE)
+		| BIT64(ENTITY_EVENT_TIMER)
+		| BIT64(ENTITY_EVENT_PREPHYSICSUPDATE)
+		| BIT64(ENTITY_EVENT_INIT)
+		| BIT64(ENTITY_EVENT_RELOAD_SCRIPT)
+		| BIT64(ENTITY_EVENT_ADD_TO_RADAR)
+		| BIT64(ENTITY_EVENT_REMOVE_FROM_RADAR);
 }
 
 void CActor::BecomeRemotePlayer()

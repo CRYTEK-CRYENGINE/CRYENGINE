@@ -68,7 +68,7 @@ uint16 CLightVolumesMgr::RegisterVolume(const Vec3& vPos, f32 fRadius, uint8 nCl
 	return 0;
 }
 
-void CLightVolumesMgr::RegisterLight(const CDLight& pDL, uint32 nLightID, const SRenderingPassInfo& passInfo)
+void CLightVolumesMgr::RegisterLight(const SRenderLight& pDL, uint32 nLightID, const SRenderingPassInfo& passInfo)
 {
 	IF (nLightID < LV_MAX_LIGHTS && (m_bUpdateLightVolumes & !(pDL.m_Flags & LV_DLF_LIGHTVOLUMES_MASK)), 1)
 	{

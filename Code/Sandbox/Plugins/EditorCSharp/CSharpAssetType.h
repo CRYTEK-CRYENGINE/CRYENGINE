@@ -12,8 +12,8 @@ private:
 public:
 	DECLARE_ASSET_TYPE_DESC(CSharpSourcefileAssetType);
 
-	virtual const char*   GetTypeName() const           { return "CS_Source"; }
-	virtual const char*   GetUiTypeName() const         { return QT_TR_NOOP("C# Class"); }
+	virtual const char*   GetTypeName() const           { return "CSharpScript"; }
+	virtual const char*   GetUiTypeName() const         { return QT_TR_NOOP("C# script"); }
 	virtual const char* GetFileExtension() const { return "cs"; }
 	virtual bool CanBeCreated() const override { return true; }
 	virtual bool IsImported() const { return false; }
@@ -25,4 +25,5 @@ protected:
 
 private:
 	virtual CryIcon GetIconInternal() const override;
+	string GetCleanName(const string& name) const;
 };

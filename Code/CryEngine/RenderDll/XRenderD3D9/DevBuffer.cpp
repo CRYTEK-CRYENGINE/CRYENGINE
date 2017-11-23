@@ -215,15 +215,7 @@ static const char* ConstantToString(BUFFER_BIND_TYPE type)
 
 static inline int _GetThreadID()
 {
-	return gRenDev->m_pRT->IsRenderThread() ? gRenDev->m_RP.m_nProcessThreadID : gRenDev->m_RP.m_nFillThreadID;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-// If buffer is bound to device, remove it from device (Must be called before releasing the buffer!)
-static inline void UnsetStreamSources(CDeviceBuffer* buffer)
-{
-	if (buffer)
-		gcpRendD3D->FX_UnbindBuffer(buffer->GetBuffer());
+	return gRenDev->m_pRT->IsRenderThread() ? gRenDev->GetRenderThreadID() : gRenDev->GetMainThreadID();
 }
 
 //===============================================================================
@@ -381,7 +373,6 @@ struct SBufferPoolBank
 
 	~SBufferPoolBank()
 	{
-		UnsetStreamSources(m_buffer);
 		SAFE_RELEASE(m_buffer);
 	}
 };
@@ -1326,7 +1317,6 @@ struct CPartitionAllocator
 	~CPartitionAllocator()
 	{
 		DEVBUFFERMAN_ASSERT(m_partition == 0);
-		UnsetStreamSources(m_buffer);
 		SAFE_RELEASE(m_buffer);
 	}
 
@@ -1482,6 +1472,11 @@ retry:
 				CryLogAlways("Failed to create constant buffer pool");
 				return false;
 			}
+
+#ifdef CRY_RENDERER_VULKAN
+			auto setLayout = GetDeviceObjectFactory().GetInlineConstantBufferLayout();
+			buffer->GetBaseBuffer()->AsDynamicOffsetBuffer()->CreateDynamicDescriptorSet(setLayout, nsize);
+#endif
 
 			uint8* base_ptr;
 			CDeviceObjectFactory::ExtractBasePointer(buffer->GetBuffer(), D3D11_MAP_WRITE_NO_OVERWRITE, base_ptr);
@@ -1802,7 +1797,6 @@ struct CBufferPoolImpl final
 			if (bank.m_buffer)
 				CDeviceObjectFactory::ReleaseBasePointer(bank.m_buffer->GetBuffer());
 #endif
-			UnsetStreamSources(bank.m_buffer);
 			SAFE_RELEASE(bank.m_buffer);
 			bank.m_base_ptr = nullptr;
 		}
@@ -2081,7 +2075,6 @@ retry:
 			CDeviceObjectFactory::ReleaseBasePointer(bank->m_buffer->GetBuffer());
 #endif
 			// Extending the allocator failed, so the newly created bank is rolled back
-			UnsetStreamSources(bank->m_buffer);
 			SAFE_RELEASE(bank->m_buffer);
 			m_bank_table.Free(bank->m_handle);
 			m_banks.erase(m_banks.end() - 1);
@@ -2103,7 +2096,6 @@ retry:
 #if !BUFFER_USE_STAGED_UPDATES
 			CDeviceObjectFactory::ReleaseBasePointer(item->m_buffer->GetBuffer());
 #endif
-			UnsetStreamSources(item->m_buffer);
 			SAFE_RELEASE(item->m_buffer);
 			m_item_table.Free(item->m_handle);
 			return;
@@ -2671,7 +2663,6 @@ public:
 			CDeviceObjectFactory::ReleaseBasePointer(m_backing_buffer.m_buffer->GetBuffer());
 		}
 
-		UnsetStreamSources(m_backing_buffer.m_buffer);
 		SAFE_RELEASE(m_backing_buffer.m_buffer);
 		m_backing_buffer.m_capacity = 0;
 		m_backing_buffer.m_free_space = 0;
@@ -2847,7 +2838,6 @@ public:
 	}
 	bool FreeResources() final
 	{
-		UnsetStreamSources(m_backing_buffer.m_buffer);
 		SAFE_RELEASE(m_backing_buffer.m_buffer);
 		m_backing_buffer.m_capacity = 0;
 		m_backing_buffer.m_free_space = 0;
@@ -3158,12 +3148,6 @@ struct SPoolManager
 	// This lock must be held when operating on the buffers
 	SRecursiveSpinLock m_lock;
 
-	// Special debugging staging buffers if debug consistency check is enabled
-#if defined(CD3D9RENDERER_DEBUG_CONSISTENCY_CHECK) && BUFFER_USE_STAGED_UPDATES
-	CStagingBufferUpdater<CDeviceObjectFactory::BIND_VERTEX_BUFFER> m_debug_staging_vb;
-	CStagingBufferUpdater<CDeviceObjectFactory::BIND_INDEX_BUFFER>  m_debug_staging_ib;
-#endif
-
 #if ENABLE_STATOSCOPE
 	SStatoscopeData m_sdata[2];
 #endif
@@ -3176,10 +3160,6 @@ struct SPoolManager
 
 	SPoolManager()
 		: m_initialized()
-#if defined(CD3D9RENDERER_DEBUG_CONSISTENCY_CHECK) && BUFFER_USE_STAGED_UPDATES
-		, m_debug_staging_vb(m_staging_resources[BU_STATIC])
-		, m_debug_staging_ib(m_staging_resources[BU_STATIC])
-#endif
 	{
 		memset(m_pools, 0x0, sizeof(m_pools));
 		memset(m_fences, 0x0, sizeof(m_fences));
@@ -3256,13 +3236,6 @@ struct SPoolManager
 		m_buffer_creators[BBT_VERTEX_BUFFER][BU_TRANSIENT_RT] = &SDynamicFreeBufferVB::Create;
 		m_buffer_creators[BBT_INDEX_BUFFER][BU_TRANSIENT_RT] = &SDynamicFreeBufferIB::Create;
 
-#if defined(CD3D9RENDERER_DEBUG_CONSISTENCY_CHECK) && BUFFER_USE_STAGED_UPDATES
-		if (m_debug_staging_vb.CreateResources() == false || m_debug_staging_ib.CreateResources() == false)
-		{
-			CryLogAlways("SPoolManager::Initialize: could not create debug staging buffers");
-			goto error;
-		}
-#endif
 
 #if ENABLE_STATOSCOPE
 		memset(m_sdata, 0, sizeof(m_sdata));
@@ -3327,13 +3300,6 @@ error:
 			m_fences[i] = DeviceFenceHandle();
 		}
 
-#if defined(CD3D9RENDERER_DEBUG_CONSISTENCY_CHECK) && BUFFER_USE_STAGED_UPDATES
-		if (m_debug_staging_vb.FreeResources() == false || m_debug_staging_ib.FreeResources() == false)
-		{
-			CryLogAlways("SPoolManager::Initialize: could not destroy debug staging buffers");
-			success = false;
-		}
-#endif
 		m_pNullConstantBuffer.reset();
 		m_nullBufferTyped.Release();
 		m_nullBufferStructured.Release();
@@ -3616,53 +3582,6 @@ void CDeviceBufferManager::Update(uint32 frameId, bool called_during_loading)
 	// will be pending and therefore it is safe to just reuse the previous allocation.
 	GetDeviceObjectFactory().IssueFence(s_PoolManager.m_fences[frameId & SPoolConfig::POOL_FRAME_QUERY_MASK]);
 }
-
-#if defined(CD3D9RENDERER_DEBUG_CONSISTENCY_CHECK)
-
-//////////////////////////////////////////////////////////////////////////////////////
-void* CDeviceBufferManager::BeginReadDirectIB(D3DIndexBuffer* pIB, buffer_size_t size, buffer_size_t offset)
-{
-	#if BUFFER_ENABLE_DIRECT_ACCESS
-	uint8* base_ptr = NULL;
-	CDeviceObjectFactory::ExtractBasePointer(pIB, D3D11_MAP_READ, base_ptr);
-	return base_ptr + offset;
-	#elif BUFFER_USE_STAGED_UPDATES
-	return s_PoolManager.m_debug_staging_ib.BeginRead(pIB, size, offset);
-	#else
-	return NULL;
-	#endif
-}
-
-//////////////////////////////////////////////////////////////////////////////////////
-void* CDeviceBufferManager::BeginReadDirectVB(D3DVertexBuffer* pVB, buffer_size_t size, buffer_size_t offset)
-{
-	#if BUFFER_ENABLE_DIRECT_ACCESS
-	uint8* base_ptr = NULL;
-	CDeviceObjectFactory::ExtractBasePointer(pVB, D3D11_MAP_READ, base_ptr);
-	return base_ptr + offset;
-	#elif BUFFER_USE_STAGED_UPDATES
-	return s_PoolManager.m_debug_staging_vb.BeginRead(pVB, size, offset);
-	#else
-	return NULL;
-	#endif
-}
-
-//////////////////////////////////////////////////////////////////////////////////////
-void CDeviceBufferManager::EndReadDirectIB(D3DIndexBuffer* pIB)
-{
-	#if BUFFER_USE_STAGED_UPDATES
-	s_PoolManager.m_debug_staging_ib.EndReadWrite(pIB, 0, 0);
-	#endif
-}
-
-//////////////////////////////////////////////////////////////////////////////////////
-void CDeviceBufferManager::EndReadDirectVB(D3DVertexBuffer* pVB)
-{
-	#if BUFFER_USE_STAGED_UPDATES
-	s_PoolManager.m_debug_staging_vb.EndReadWrite(pVB, 0, 0);
-	#endif
-}
-#endif
 
 //////////////////////////////////////////////////////////////////////////////////////
 CConstantBuffer* CDeviceBufferManager::CreateConstantBufferRaw(buffer_size_t size, bool dynamic, bool ts)
@@ -4016,16 +3935,27 @@ CConstantBuffer::CConstantBuffer(uint32 handle)
 CConstantBuffer::~CConstantBuffer()
 {
 #if CONSTANT_BUFFER_ENABLE_DIRECT_ACCESS == 0
-	UnsetStreamSources(m_buffer);
-	SAFE_RELEASE(m_buffer);
+	if (m_buffer)
+	{
+		if (!gRenDev->m_pRT || gRenDev->m_pRT->IsRenderThread())
+		{
+			m_buffer->Release();
+		}
+		else
+		{
+			// Only on DX11 have to send Release to the RenderThread
+			CDeviceBuffer* pDevBuffer = m_buffer;
+			gRenDev->ExecuteRenderThreadCommand([pDevBuffer] { pDevBuffer->Release(); }, 
+				ERenderCommandFlags::RenderLoadingThread_defer | ERenderCommandFlags::LevelLoadingThread_defer);
+		}
+		m_buffer = nullptr;
+	}
 #endif
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
 void CConstantBuffer::ReturnToPool()
 {
-	assert(m_lock || gRenDev->m_pRT->IsRenderThread());
-
 	CConditonalDevManLock lock(&gcpRendD3D->m_DevBufMan, m_lock);
 #if CONSTANT_BUFFER_ENABLE_DIRECT_ACCESS
 	if (m_used)
@@ -4120,7 +4050,7 @@ void CConstantBuffer::EndWrite(bool requires_flush)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
-void CConstantBuffer::UpdateBuffer(const void* src, buffer_size_t size, buffer_size_t offset /*= 0*/, int numDataBlocks /*= 1*/)
+bool CConstantBuffer::UpdateBuffer(const void* src, buffer_size_t size, buffer_size_t offset /*= 0*/, int numDataBlocks /*= 1*/)
 {
 	assert(m_dynamic || size == m_size);
 	
@@ -4152,7 +4082,7 @@ void CConstantBuffer::UpdateBuffer(const void* src, buffer_size_t size, buffer_s
 		if (!(m_buffer = CDeviceBuffer::Create(Layout, nullptr)))
 		{
 			CryLogAlways("CConstantBuffer::BeginWrite: could not allocate buffer of size %" PRISIZE_T, m_size);
-			return;
+			return false;
 		}
 
 		m_used = 1;
@@ -4175,6 +4105,8 @@ void CConstantBuffer::UpdateBuffer(const void* src, buffer_size_t size, buffer_s
 	}
 #endif
 	m_nUpdCount++;
+
+	return true;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////

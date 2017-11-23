@@ -96,7 +96,7 @@ bool CShaderMan::mfReloadShaderIncludes(const char* szPath, int nFlags)
 				continue;
 			if (!stricmp(&nmf[len], ".cfi"))
 			{
-				fpStripExtension(fileinfo.name, nmf);
+				PathUtil::RemoveExtension(nmf);
 				bool bCh = false;
 				SShaderBin* pBin = m_Bin.GetBinShader(nmf, true, 0, &bCh);
 				if (bCh)
@@ -124,7 +124,6 @@ bool CShaderMan::mfReloadAllShaders(int nFlags, uint32 nFlagsHW)
 
 	if (!gRenDev->IsShaderCacheGenMode())
 	{
-		gRenDev->m_pRT->RC_ResetToDefault();
 		gRenDev->FlushRTCommands(true, true, true);
 	}
 
@@ -254,7 +253,7 @@ bool CShaderMan::mfReloadFile(const char* szPath, const char* szName, int nFlags
 
 	m_nFrameForceReload++;
 
-	const char* szExt = fpGetExtension(szName);
+	const char* szExt = PathUtil::GetExt(szName);
 	if (!stricmp(szExt, ".cfx"))
 	{
 		m_bReload = true;
@@ -763,8 +762,13 @@ CShader* CShaderMan::mfForName(const char* nameSh, int flags, const CShaderResou
 	cry_sprintf(nameNew, "%sCryFX/%s.cfx", m_ShadersPath, nameEf);
 	ef->m_NameFile = nameNew;
 	ef->m_Flags |= flags;
-	gRenDev->m_pRT->RC_ParseShader(ef, nMaskGen | nMaskGenHW, flags, (CShaderResources*)Res);
-	return ef;
+	
+	_smart_ptr<CShader> pShader(ef);
+	_smart_ptr<CShaderResources> pResources( const_cast<CShaderResources*>(Res) );
+	gRenDev->ExecuteRenderThreadCommand(
+		[=]{ this->RT_ParseShader(pShader, nMaskGen | nMaskGenHW, flags, pResources); },
+		ERenderCommandFlags::LevelLoadingThread_defer
+	);
 
 	return ef;
 }

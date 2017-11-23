@@ -13,6 +13,7 @@ struct IMannequinWriter
 {
 	virtual ~IMannequinWriter() {}
 	virtual void SaveFile(const char* szFilename, XmlNodeRef xmlNode, EFileEntryType fileEntryType) = 0;
+	virtual void WriteModifiedFiles() = 0;
 };
 
 struct IMannequinEditorListener

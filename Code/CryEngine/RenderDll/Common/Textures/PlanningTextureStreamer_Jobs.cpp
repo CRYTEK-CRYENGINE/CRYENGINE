@@ -283,20 +283,6 @@ void CPlanningTextureStreamer::Job_UpdateMip(CTexture* pTexture, const float fMi
 		CTexture::s_TextureUpdates += 1;
 #endif
 	}
-
-	// And source textures for composition
-	if (pTexture->CTexture::GetFlags() & FT_COMPOSITE)
-	{
-		DynArray<STexComposition>& composition = pTexture->m_composition;
-
-		for (int i = 0, c = composition.size(); i != c; ++i)
-		{
-			CTexture* pTexFrame = (CTexture*)&*composition[i].pTexture;
-
-			if (pTexFrame->IsStreamed())
-				Job_UpdateMip(pTexFrame, fMipFactor, nFlags, nUpdateId);
-		}
-	}
 }
 
 int CPlanningTextureStreamer::Job_Bias(SPlanningSortState& sortState, SPlanningTextureOrderKey* pKeys, size_t nNumPrecachedTexs, size_t nStreamLimit)
@@ -394,7 +380,7 @@ size_t CPlanningTextureStreamer::Job_Plan(SPlanningSortState& sortState, const S
 					bool bOnlyNeedsTopMip = cacheMip == 0 && cachedMip == 1;
 
 					uint32 nSortKey =
-					  (!key.nIsComposite << 31)
+					  (1 << 31)
 					  | ((int)(cachedMip < (max(0, key.GetFpMinMipCur()) >> 8)) << 30)
 					  | ((int)!key.IsHighPriority() << 29)
 					  | ((int)bOnlyNeedsTopMip << 28)
@@ -454,7 +440,7 @@ size_t CPlanningTextureStreamer::Job_Plan(SPlanningSortState& sortState, const S
 				if (nRequests < MaxRequests)  // Persistent mips should always be present - needed in case stream unload occurred
 				{
 					uint32 nSortKey =
-					  (!key.nIsComposite << 31)
+					  (1 << 31)
 					  | ((int)(cachedMip < (max(0, key.GetFpMinMipCur()) >> 8)) << 30)
 					  | ((int)!key.IsHighPriority() << 29)
 					  | ((int)!key.IsVisible() << 27)
@@ -570,10 +556,10 @@ void CPlanningTextureStreamer::Job_CheckEnqueueForStreaming(CTexture* pTexture, 
 	const int nMipIdSigned = fpMipIdSigned >> 8;
 
 	if (CRenderer::CV_r_TexturesStreamingDebug == 2)
-		iLog->Log("Updating mips: %s - Current: %i, Previous: %i", pTexture->m_SrcName.c_str(), pTexture->GetRequiredMipNonVirtual(), nNewMip);
+		iLog->Log("Updating mips: %s - Current: %i, Previous: %i", pTexture->m_SrcName.c_str(), pTexture->GetRequiredMip(), nNewMip);
 
 #if defined(ENABLE_TEXTURE_STREAM_LISTENER)
-	if (pTexture->GetRequiredMipNonVirtual() != nNewMip)
+	if (pTexture->GetRequiredMip() != nNewMip)
 	{
 		ITextureStreamListener* pListener = CTexture::s_pStreamListener;
 		if (pListener)

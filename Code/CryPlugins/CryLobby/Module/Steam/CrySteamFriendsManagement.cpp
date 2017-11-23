@@ -338,7 +338,6 @@ void CCrySteamFriendsManagement::StartFriendsManagementIsUserFriend(CryFriendsMa
 			case k_EFriendRelationshipRequestInitiator:   // Intentional fall-through
 			case k_EFriendRelationshipIgnored:            // Intentional fall-through
 			case k_EFriendRelationshipIgnoredFriend:      // Intentional fall-through
-			case k_EFriendRelationshipSuggested:          // Intentional fall-through
 			default:
 				pFriend[index] = false;
 				break;
@@ -421,7 +420,6 @@ void CCrySteamFriendsManagement::StartFriendsManagementIsUserBlocked(CryFriendsM
 			case k_EFriendRelationshipRequestInitiator:   // Intentional fall-through
 			case k_EFriendRelationshipIgnored:            // Intentional fall-through
 			case k_EFriendRelationshipIgnoredFriend:      // Intentional fall-through
-			case k_EFriendRelationshipSuggested:          // Intentional fall-through
 			default:
 				pFriend[index] = false;
 				break;

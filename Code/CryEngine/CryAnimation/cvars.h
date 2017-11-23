@@ -81,6 +81,7 @@ struct CRY_ALIGN(128) Console
 	DeclareConstIntCVar(ca_DebugFacial, 0);
 	DeclareConstIntCVar(ca_DebugFacialEyes, 0);
 	DeclareConstIntCVar(ca_DebugAnimationStreaming, 0);
+	DeclareConstIntCVar(ca_DebugAttachmentsProxies, 0);
 	DeclareConstIntCVar(ca_DebugCriticalErrors, 0);
 	DeclareConstIntCVar(ca_UseIMG_CAF, 1);
 	DeclareConstIntCVar(ca_UseIMG_AIM, 1);
@@ -173,6 +174,8 @@ struct CRY_ALIGN(128) Console
 	f32 ca_cloth_stiffness_tang;
 	f32 ca_cloth_damping;
 	f32 ca_cloth_air_resistance;
+
+	int32 ca_ResetCulledJointsToBindPose;
 
 	f32 ca_MotionBlurMovementThreshold;
 

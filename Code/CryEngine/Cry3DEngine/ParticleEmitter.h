@@ -103,7 +103,6 @@ public:
 	const SpawnParams&           GetSpawnParams() const                { return m_SpawnParams; }
 
 	virtual bool                 IsAlive() const;
-	virtual bool                 IsInstant() const;
 	virtual void                 Activate(bool bActive);
 	virtual void                 Kill();
 	virtual void                 Restart();

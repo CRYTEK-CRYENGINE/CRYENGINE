@@ -3,13 +3,13 @@
 #include "StdAfx.h"
 #include "AudioControlsEditorPlugin.h"
 
-#include "AudioAssets.h"
+#include "SystemAssets.h"
 #include "AudioControlsEditorWindow.h"
 #include "AudioControlsLoader.h"
 #include "AudioControlsWriter.h"
 #include "ImplementationManager.h"
 
-#include <IAudioSystemEditor.h>
+#include <IEditorImpl.h>
 #include <CryAudio/IAudioSystem.h>
 #include <CryAudio/IObject.h>
 #include <CryMath/Cry_Camera.h>
@@ -24,7 +24,7 @@ REGISTER_PLUGIN(ACE::CAudioControlsEditorPlugin);
 
 namespace ACE
 {
-CAudioAssetsManager CAudioControlsEditorPlugin::s_assetsManager;
+CSystemAssetsManager CAudioControlsEditorPlugin::s_assetsManager;
 std::set<string> CAudioControlsEditorPlugin::s_currentFilenames;
 CryAudio::IObject* CAudioControlsEditorPlugin::s_pIAudioObject = nullptr;
 CryAudio::ControlId CAudioControlsEditorPlugin::s_audioTriggerId = CryAudio::InvalidControlId;
@@ -69,11 +69,11 @@ CAudioControlsEditorPlugin::~CAudioControlsEditorPlugin()
 void CAudioControlsEditorPlugin::SaveModels()
 {
 	signalAboutToSave();
-	IAudioSystemEditor* pImpl = s_implementationManager.GetImplementation();
+	IEditorImpl* pEditorImpl = s_implementationManager.GetImplementation();
 
-	if (pImpl)
+	if (pEditorImpl != nullptr)
 	{
-		CAudioControlsWriter writer(&s_assetsManager, pImpl, s_currentFilenames);
+		CAudioControlsWriter writer(&s_assetsManager, pEditorImpl, s_currentFilenames);
 	}
 
 	s_loadingErrorMask = EErrorCode::NoError;
@@ -81,20 +81,20 @@ void CAudioControlsEditorPlugin::SaveModels()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAudioControlsEditorPlugin::ReloadModels(bool const bReloadImplementation)
+void CAudioControlsEditorPlugin::ReloadModels(bool const reloadImplementation)
 {
 	// Do not call signalAboutToLoad and signalLoaded in here!
 	GetIEditor()->GetIUndoManager()->Suspend();
 
-	IAudioSystemEditor* const pImpl = s_implementationManager.GetImplementation();
+	IEditorImpl* const pEditorImpl = s_implementationManager.GetImplementation();
 
-	if (pImpl != nullptr)
+	if (pEditorImpl != nullptr)
 	{
 		s_assetsManager.Clear();
 
-		if (bReloadImplementation)
+		if (reloadImplementation)
 		{
-			pImpl->Reload();
+			pEditorImpl->Reload();
 		}
 
 		CAudioControlsLoader loader(&s_assetsManager);
@@ -116,13 +116,13 @@ void CAudioControlsEditorPlugin::ReloadScopes()
 }
 
 //////////////////////////////////////////////////////////////////////////
-CAudioAssetsManager* CAudioControlsEditorPlugin::GetAssetsManager()
+CSystemAssetsManager* CAudioControlsEditorPlugin::GetAssetsManager()
 {
 	return &s_assetsManager;
 }
 
 //////////////////////////////////////////////////////////////////////////
-IAudioSystemEditor* CAudioControlsEditorPlugin::GetAudioSystemEditorImpl()
+IEditorImpl* CAudioControlsEditorPlugin::GetImplEditor()
 {
 	return s_implementationManager.GetImplementation();
 }

@@ -80,6 +80,11 @@ public:
 	Vec3 GetTetrCenter(int i) {
 		return (m_pVtx[m_pTetr[i].ivtx[0]]+m_pVtx[m_pTetr[i].ivtx[1]]+m_pVtx[m_pTetr[i].ivtx[2]]+m_pVtx[m_pTetr[i].ivtx[3]])*0.25f;
 	}
+	template<class T> int GetFaceIdx(int itet, int iface, T* idx) {
+		for(int i=0,j=3-iface,dir=(iface&1)*2-1; i<3; (j+=dir)&=3)
+			idx[i++] = m_pTetr[itet].ivtx[j];
+		return 3;
+	}
 
 	IPhysicalWorld *m_pWorld;
 

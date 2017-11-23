@@ -173,14 +173,13 @@ bool CCoverSystem::ReloadConfig()
 
 void CCoverSystem::Reset()
 {
-	OccupiedCover::iterator it = m_occupied.begin();
-	OccupiedCover::iterator end = m_occupied.end();
-
-	for (; it != end; ++it)
-		m_locations.insert(GetCoverLocation(it->first), it->first);
-
+	for (const OccupiedCover::value_type& occupiedCover : m_occupied)
+	{
+		m_locations.insert(GetCoverLocation(occupiedCover.first), occupiedCover.first);
+	}
 	m_occupied.clear();
-	for (auto& coverUser : m_coverUsers)
+	
+	for (CoverUsersMap::value_type& coverUser : m_coverUsers)
 	{
 		coverUser.second->Reset();
 	}
@@ -201,7 +200,11 @@ void CCoverSystem::Clear()
 	ClearAndReserveCoverLocationCache();
 
 	m_dynamicCoverManager.Clear();
-	m_coverUsers.clear();
+	
+	for (CoverUsersMap::value_type& coverUser : m_coverUsers)
+	{
+		coverUser.second->Reset();
+	}
 	m_coverSurfaceListeners.clear();
 }
 

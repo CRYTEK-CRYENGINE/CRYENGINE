@@ -28,7 +28,7 @@
 
 #define ENTITY_MAX_DIST_FACTOR  100
 #define MAX_VALID_OBJECT_VOLUME (10000000000.f)
-#define DEFAULT_CGF_NAME        ("%ENGINE%\\EngineAssets\\Objects\\Default.cgf")
+#define DEFAULT_CGF_NAME        ("%ENGINE%\\EngineAssets\\Objects\\primitive_sphere.cgf")
 
 struct CStatObj;
 struct IIndoorBase;
@@ -229,14 +229,14 @@ public:
 
 	PodArray<StatInstGroup> m_lstStaticTypes;
 
-	uint64 GetShadowFrustumsList(PodArray<CDLight*>* pAffectingLights, const AABB& aabbReceiver,
+	uint64 GetShadowFrustumsList(PodArray<SRenderLight*>* pAffectingLights, const AABB& aabbReceiver,
 	                             float fObjDistance, uint32 nDLightMask, bool bIncludeNearFrustums,
 	                             const SRenderingPassInfo& passInfo);
 
 	CThreadSafeRendererContainer<SVegetationSpriteInfo> m_arrVegetationSprites[MAX_RECURSION_LEVELS][nThreadsNum];
 
 	void MakeShadowCastersList(CVisArea* pReceiverArea, const AABB& aabbReceiver,
-	                           int dwAllowedTypes, int32 nRenderNodeFlags, Vec3 vLightPos, CDLight* pLight, ShadowMapFrustum* pFr, PodArray<struct SPlaneObject>* pShadowHull, const SRenderingPassInfo& passInfo);
+	                           int dwAllowedTypes, int32 nRenderNodeFlags, Vec3 vLightPos, SRenderLight* pLight, ShadowMapFrustum* pFr, PodArray<struct SPlaneObject>* pShadowHull, const SRenderingPassInfo& passInfo);
 
 	int MakeStaticShadowCastersList(IRenderNode* pIgnoreNode, ShadowMapFrustum* pFrustum, const PodArray<struct SPlaneObject>* pShadowHull, int renderNodeExcludeFlags, int nMaxNodes, const SRenderingPassInfo& passInfo);
 
@@ -259,8 +259,6 @@ public:
 	LoadedObjects m_lstLoadedObjects;
 
 protected:
-	CREFarTreeSprites* m_REFarTreeSprites;
-
 #if CRY_PLATFORM_WINDOWS && CRY_PLATFORM_64BIT
 	#pragma warning( push )               //AMD Port
 	#pragma warning( disable : 4267 )
@@ -295,10 +293,10 @@ public:
 		return 0;
 	}
 
-	int16 GetNearestCubeProbe(PodArray<CDLight*>* pAffectingLights, IVisArea* pVisArea, const AABB& objBox, bool bSpecular = true, Vec4* pEnvProbeMults = nullptr);
+	int16 GetNearestCubeProbe(PodArray<SRenderLight*>* pAffectingLights, IVisArea* pVisArea, const AABB& objBox, bool bSpecular = true, Vec4* pEnvProbeMults = nullptr);
 
 	void  RenderObject(IRenderNode* o,
-	                   PodArray<CDLight*>* pAffectingLights,
+	                   PodArray<SRenderLight*>* pAffectingLights,
 	                   const Vec3& vAmbColor,
 	                   const AABB& objBox,
 	                   float fEntDistance,
@@ -306,17 +304,17 @@ public:
 	                   EERType eERType,
 	                   const SRenderingPassInfo& passInfo);
 
-	void RenderVegetation(class CVegetation* pEnt, PodArray<CDLight*>* pAffectingLights,
+	void RenderVegetation(class CVegetation* pEnt, PodArray<SRenderLight*>* pAffectingLights,
 													const AABB &objBox, float fEntDistance, bool bSunOnly,
 													SSectorTextureSet * pTerrainTexInfo, bool nCheckOcclusion, const SRenderingPassInfo &passInfo);
-	void RenderBrush(class CBrush* pEnt, PodArray<CDLight*>* pAffectingLights,
+	void RenderBrush(class CBrush* pEnt, PodArray<SRenderLight*>* pAffectingLights,
 										 SSectorTextureSet * pTerrainTexInfo,
 										 const AABB &objBox, float fEntDistance, bool bSunOnly,
 										 CVisArea * pVisArea, bool nCheckOcclusion, const SRenderingPassInfo &passInfo);
 
 	int  ComputeDissolve(const CLodValue& lodValueIn, IRenderNode* pEnt, float fEntDistance, CLodValue arrlodValuesOut[2]);
 
-	void RenderDecalAndRoad(IRenderNode* pEnt, PodArray<CDLight*>* pAffectingLights,
+	void RenderDecalAndRoad(IRenderNode* pEnt, PodArray<SRenderLight*>* pAffectingLights,
 	                        const Vec3& vAmbColor, const AABB& objBox, float fEntDistance,
 	                        bool bSunOnly, bool nCheckOcclusion, const SRenderingPassInfo& passInfo);
 
@@ -343,9 +341,9 @@ public:
 	// tmp containers (replacement for local static vars)
 
 	//  void DrawObjSpritesSorted(PodArray<CVegetation*> *pList, float fMaxViewDist, int useBending);
-	//	void ProcessActiveShadowReceiving(IRenderNode * pEnt, float fEntDistance, CDLight * pLight, bool bFocusOnHead);
+	//	void ProcessActiveShadowReceiving(IRenderNode * pEnt, float fEntDistance, SRenderLight * pLight, bool bFocusOnHead);
 
-	//	void SetupEntityShadowMapping( IRenderNode * pEnt, SRendParams * pDrawParams, float fEntDistance, CDLight * pLight );
+	//	void SetupEntityShadowMapping( IRenderNode * pEnt, SRendParams * pDrawParams, float fEntDistance, SRenderLight * pLight );
 	//////////////////////////////////////////////////////////////////////////
 
 	void RegisterForStreaming(IStreamable* pObj);
@@ -381,11 +379,11 @@ public:
 	static bool IsAfterWater(const Vec3& vPos, const Vec3& vCamPos, const SRenderingPassInfo& passInfo, float fUserWaterLevel = WATER_LEVEL_UNKNOWN);
 
 	void        GetObjectsStreamingStatus(I3DEngine::SObjectsStreamingStatus& outStatus);
-	//	bool ProcessShadowMapCasting(IRenderNode * pEnt, CDLight * pLight);
+	//	bool ProcessShadowMapCasting(IRenderNode * pEnt, SRenderLight * pLight);
 
-	//	bool IsSphereAffectedByShadow(IRenderNode * pCaster, IRenderNode * pReceiver, CDLight * pLight);
+	//	bool IsSphereAffectedByShadow(IRenderNode * pCaster, IRenderNode * pReceiver, SRenderLight * pLight);
 	//	void MakeShadowCastersListInArea(CBasicArea * pArea, const AABB & boxReceiver,
-	//		int dwAllowedTypes, Vec3 vLightPos, CDLight * pLight, ShadowMapFrustum * pFr, PodArray<struct SPlaneObject> * pShadowHull );
+	//		int dwAllowedTypes, Vec3 vLightPos, SRenderLight * pLight, ShadowMapFrustum * pFr, PodArray<struct SPlaneObject> * pShadowHull );
 	//	void DrawEntityShadowFrustums(IRenderNode * pEnt);
 
 	void FreeNotUsedCGFs();
@@ -394,7 +392,7 @@ public:
 	//	const CCamera & EntViewCamera,
 	//bool bAllInside, float fMaxViewDist, IRenderNodeInfo * pEntInfo);
 	//	void InitEntityShadowMapInfoStructure(IRenderNode * pEnt);
-	//	float CalculateEntityShadowVolumeExtent(IRenderNode * pEntity, CDLight * pLight);
+	//	float CalculateEntityShadowVolumeExtent(IRenderNode * pEntity, SRenderLight * pLight);
 	//	void MakeShadowBBox(Vec3 & vBoxMin, Vec3 & vBoxMax, const Vec3 & vLightPos, float fLightRadius, float fShadowVolumeExtent);
 	void MakeUnitCube();
 

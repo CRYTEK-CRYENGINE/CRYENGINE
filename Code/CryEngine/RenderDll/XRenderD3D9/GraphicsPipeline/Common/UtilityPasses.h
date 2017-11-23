@@ -17,6 +17,7 @@ struct IUtilityRenderPass
 		DepthDownsamplePass,
 		GaussianBlurPass,
 		MipmapGenPass,
+		ClearSurfacePass,
 		ClearRegionPass,
 		AnisotropicVerticalBlurPass,
 
@@ -34,10 +35,16 @@ class CStretchRectPass : public IUtilityRenderPass
 public:
 	void Execute(CTexture* pSrcRT, CTexture* pDestRT);
 
+	static CStretchRectPass &GetPass();
+	static void Shutdown();
+
 	static EPassId GetPassId() { return EPassId::StretchRectPass; }
 
 protected:
 	CFullscreenPass m_pass;
+
+private:
+	static CStretchRectPass *s_pPass;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -50,7 +57,7 @@ public:
 	~CStretchRegionPass() {};
 
 	void Execute(CTexture* pSrcRT, CTexture* pDestRT, const RECT *pSrcRect=NULL, const RECT *pDstRect=NULL, bool bBigDownsample=false);
-	void PreparePrimitive(CRenderPrimitive& prim, const RECT& rcS, int renderState, const D3DViewPort& targetViewport, bool bResample, bool bBigDownsample, CTexture *pSrcRT, CTexture *pDstRT);
+	bool PreparePrimitive(CRenderPrimitive& prim, CPrimitiveRenderPass& targetPass, const RECT& rcS, int renderState, const D3DViewPort& targetViewport, bool bResample, bool bBigDownsample, CTexture *pSrcRT, CTexture *pDstRT);
 
 	static CStretchRegionPass &GetPass();
 	static void Shutdown();
@@ -190,7 +197,24 @@ protected:
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class CClearRegionPass : public IUtilityRenderPass
+class CClearSurfacePass : public IUtilityRenderPass
+{
+public:
+	CClearSurfacePass();
+	virtual ~CClearSurfacePass();
+
+	static void Execute(const CTexture* pDepthTex, const int nFlags, const float cDepth, const uint8 cStencil);
+	static void Execute(const CTexture* pTex, const ColorF& cClear);
+
+	static EPassId GetPassId() { return EPassId::ClearSurfacePass; }
+
+protected:
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class CClearRegionPass : public CClearSurfacePass
 {
 public:
 	CClearRegionPass();
@@ -202,7 +226,7 @@ public:
 	static EPassId GetPassId() { return EPassId::ClearRegionPass; }
 
 protected:
-	void PreparePrimitive(CRenderPrimitive& prim, int renderState, int stencilState, const ColorF& cClear, float cDepth, int stencilRef, const RECT& rect, const D3DViewPort& targetViewport);
+	bool PreparePrimitive(CRenderPrimitive& prim, int renderState, int stencilState, const ColorF& cClear, float cDepth, int stencilRef, const RECT& rect, const D3DViewPort& targetViewport);
 
 	CPrimitiveRenderPass          m_clearPass;
 	std::vector<CRenderPrimitive> m_clearPrimitives;

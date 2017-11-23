@@ -221,10 +221,6 @@ endif()
 include("${TOOLS_CMAKE_DIR}/modules/Boost.cmake")
 include("${TOOLS_CMAKE_DIR}/modules/ncurses.cmake")
 
-if (OPTION_STEAM)
-	include(${TOOLS_CMAKE_DIR}/modules/Steamworks.cmake)
-endif()
-
 set_property(DIRECTORY "${CRYENGINE_DIR}" PROPERTY COMPILE_DEFINITIONS ${global_defines})
 set_property(DIRECTORY "${CRYENGINE_DIR}" PROPERTY INCLUDE_DIRECTORIES ${global_includes})
 set_property(DIRECTORY "${CRYENGINE_DIR}" PROPERTY LINK_DIRECTORIES ${global_links})

@@ -115,7 +115,7 @@ SPerPassWaterParams GetPerPassWaterParams()
 	params.causticViewProjMatr = cbPerPassWater.causticViewProjMatr;
 	params.waterRippleLookup = cbPerPassWater.waterRippleLookup;
 #else
-	params.causticViewProjMatr = vpMatrix;
+	params.causticViewProjMatr = CV_ViewProjMatr;
 	params.waterRippleLookup = WaterRipplesLookupParams;
 #endif
 
@@ -550,7 +550,7 @@ SWaterVolumeParams GetWaterVolumeParams()
 	params.volFogShadowRange = cbWaterVolume.volFogShadowRange;
 	params.vCausticParams = cbWaterVolume.vCausticParams;
 #else
-	params.PerInstanceWorldMatrix = float4x4(ObjWorldMatrix, float4(0.0f, 0.0f, 0.0f, 1.0f));
+	params.PerInstanceWorldMatrix = float4x4(Get_SPI_ObjWorldMat(0), float4(0.0f, 0.0f, 0.0f, 1.0f));
 	params.OceanParams0 = OceanParams0;
 	params.OceanParams1 = OceanParams1;
 	params.vBBoxMin = vBBoxMin;

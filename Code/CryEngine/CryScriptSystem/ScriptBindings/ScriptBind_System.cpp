@@ -1169,7 +1169,7 @@ int CScriptBind_System::DeformTerrainUsingMat(IFunctionHandler* pH)
 int CScriptBind_System::ScreenToTexture(IFunctionHandler* pH)
 {
 	SCRIPT_CHECK_PARAMETERS(0);
-	m_pRenderer->ScreenToTexture(0);
+	//m_pRenderer->ScreenToTexture(0);
 	return pH->EndFunction();
 }
 
@@ -1533,11 +1533,11 @@ int CScriptBind_System::SetScissor(IFunctionHandler* pH)
 	pH->GetParam(3, w);
 	pH->GetParam(4, h);
 
-	gEnv->pRenderer->SetScissor(
-	  (int)gEnv->pRenderer->ScaleCoordX(x),
-	  (int)gEnv->pRenderer->ScaleCoordY(y),
-	  (int)gEnv->pRenderer->ScaleCoordX(w),
-	  (int)gEnv->pRenderer->ScaleCoordY(h));
+//	gEnv->pRenderer->SetScissor(
+//	  (int)gEnv->pRenderer->ScaleCoordX(x),
+//	  (int)gEnv->pRenderer->ScaleCoordY(y),
+//	  (int)gEnv->pRenderer->ScaleCoordX(w),
+//	  (int)gEnv->pRenderer->ScaleCoordY(h));
 
 	return pH->EndFunction();
 }
@@ -1859,27 +1859,6 @@ int CScriptBind_System::EnumAAFormats(IFunctionHandler* pH)
 	SCRIPT_CHECK_PARAMETERS(3);
 	m_pLog->Log("Enumerating MSAA modes...");
 	SmartScriptTable pAAArray(m_pSS);
-	int numFormats = m_pRenderer->EnumAAFormats(NULL);
-	if (numFormats)
-	{
-		SAAFormat* AAFormats = new SAAFormat[numFormats];
-		m_pRenderer->EnumAAFormats(AAFormats);
-
-		for (int i = 0; i < numFormats; i++)
-		{
-			SAAFormat* pAAForm = &AAFormats[i];
-			SmartScriptTable pAA(m_pSS);
-
-			pAA->SetValue("desc", pAAForm->szDescr);
-			pAA->SetValue("samples", pAAForm->nSamples);
-			pAA->SetValue("quality", pAAForm->nQuality);
-
-			pAAArray->SetAt(pAAArray->Count() + 1, pAA);
-		}
-
-		delete[]AAFormats;
-	}
-
 	return pH->EndFunction(pAAArray);
 }
 

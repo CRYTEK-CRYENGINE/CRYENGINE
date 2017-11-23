@@ -225,7 +225,7 @@ void CJaw::OnReset()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CJaw::ProcessEvent(SEntityEvent &event)
+void CJaw::ProcessEvent(const SEntityEvent& event)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 

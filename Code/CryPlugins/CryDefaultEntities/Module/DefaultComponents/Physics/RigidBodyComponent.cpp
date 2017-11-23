@@ -80,7 +80,7 @@ static void ReflectType(Schematyc::CTypeDesc<CRigidBodyComponent::SCollisionSign
 {
 	desc.SetGUID("{3E2E1015-0B63-44EC-9993-21E568295CB4}"_cry_guid);
 	desc.SetLabel("On Collision");
-	desc.AddMember(&CRigidBodyComponent::SCollisionSignal::otherEntity, 'ent', "OtherEntityId", "OtherEntityId", "Other Colliding Entity Id", Schematyc::ExplicitEntityId());
+	desc.AddMember(&CRigidBodyComponent::SCollisionSignal::otherEntity, 'ent', "OtherEntity", "OtherEntity", "Other Colliding Entity", Schematyc::ExplicitEntityId());
 	desc.AddMember(&CRigidBodyComponent::SCollisionSignal::surfaceType, 'srf', "SurfaceType", "SurfaceType", "Material Surface Type at the collision point", "");
 }
 
@@ -110,10 +110,16 @@ void CRigidBodyComponent::Physicalize()
 	physParams.nSlot = std::numeric_limits<int>::max();
 	m_pEntity->Physicalize(physParams);
 
+	pe_params_buoyancy buoyancyParams;
+	buoyancyParams.waterDensity = m_buoyancyParameters.density;
+	buoyancyParams.waterResistance = m_buoyancyParameters.resistance;
+	buoyancyParams.waterDamping = m_buoyancyParameters.damping;
+	m_pEntity->GetPhysicalEntity()->SetParams(&buoyancyParams);
+
 	Enable(m_bEnabledByDefault);
 }
 
-void CRigidBodyComponent::ProcessEvent(SEntityEvent& event)
+void CRigidBodyComponent::ProcessEvent(const SEntityEvent& event)
 {
 
 	switch (event.event)
@@ -127,15 +133,27 @@ void CRigidBodyComponent::ProcessEvent(SEntityEvent& event)
 			EntityId otherEntityId = INVALID_ENTITYID;
 
 			ISurfaceTypeManager* pSurfaceTypeManager = gEnv->p3DEngine->GetMaterialManager()->GetSurfaceTypeManager();
-			if (ISurfaceType* pSurfaceType = pSurfaceTypeManager->GetSurfaceType(physCollision->idmat[1]))
+
+			IEntity* pOtherEntity = gEnv->pEntitySystem->GetEntityFromPhysics(physCollision->pEntity[0]);
+			ISurfaceType* pSurfaceType = pSurfaceTypeManager->GetSurfaceType(physCollision->idmat[0]);
+
+			if (pOtherEntity == m_pEntity || pOtherEntity == nullptr)
+			{
+				pSurfaceType = pSurfaceTypeManager->GetSurfaceType(physCollision->idmat[1]);
+				pOtherEntity = gEnv->pEntitySystem->GetEntityFromPhysics(physCollision->pEntity[1]);
+			}
+
+			if (pSurfaceType != nullptr)
 			{
 				surfaceTypeName = pSurfaceType->GetName();
 			}
 
-			if (IEntity* pOtherEntity = gEnv->pEntitySystem->GetEntityFromPhysics(physCollision->pEntity[1]))
+			if (pOtherEntity == nullptr)
 			{
-				otherEntityId = pOtherEntity->GetId();
+				return;
 			}
+
+			otherEntityId = pOtherEntity->GetId();
 
 			// Send OnCollision signal
 			if (Schematyc::IObject* pSchematycObject = m_pEntity->GetSchematycObject())

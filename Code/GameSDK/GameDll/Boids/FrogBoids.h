@@ -29,7 +29,7 @@ public:
 	virtual void Kill( const Vec3 &hitPoint,const Vec3 &force );
 	virtual void Physicalize( SBoidContext &bc );
 	virtual void OnPickup( bool bPickup,float fSpeed );
-	virtual void OnCollision( SEntityEvent &event );
+	virtual void OnCollision( const SEntityEvent &event );
 
 protected:
 

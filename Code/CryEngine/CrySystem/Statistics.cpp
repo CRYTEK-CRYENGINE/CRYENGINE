@@ -1422,9 +1422,13 @@ void CEngineStats::CollectTextures()
 				m_stats.textures.push_back(pTexture);
 				m_stats.nSummary_TextureSize += nTexSize;
 
-				if (pTexture->GetFlags() & (FT_USAGE_DYNAMIC | FT_USAGE_RENDERTARGET))
+				if (pTexture->GetFlags() & (FT_USAGE_RENDERTARGET | FT_USAGE_DEPTHSTENCIL | FT_USAGE_UNORDERED_ACCESS))
 				{
-					m_stats.nSummary_EngineTextureSize += nTexSize;
+					int numCopies = 1;
+					numCopies += (pTexture->GetFlags() & FT_STAGE_UPLOAD)   ? 1 : 0;
+					numCopies += (pTexture->GetFlags() & FT_STAGE_READBACK) ? 1 : 0;
+
+					m_stats.nSummary_EngineTextureSize += numCopies * nTexSize;
 				}
 				else
 				{
@@ -3459,21 +3463,26 @@ void CStatsToExcelExporter::ExportTextures(SCryEngineStats& stats)
 		AddCell(pTexture->GetNumMips());
 		AddCell(pTexture->GetTypeName(), CELL_CENTERED);
 		AddCell(pTexture->GetFormatName(), CELL_CENTERED);
+		int numCopies = 1;
 		if (pTexture->IsStreamedVirtual())
 			AddCell("Streamed", CELL_CENTERED);
 		else
 		{
 			const char* pTexDesc = "Static";
 			uint32 texFlags      = pTexture->GetFlags();
-			if (texFlags & FT_USAGE_RENDERTARGET)
+			if (texFlags & (FT_USAGE_RENDERTARGET | FT_USAGE_DEPTHSTENCIL | FT_USAGE_UNORDERED_ACCESS))
 				pTexDesc = "Render Target";
-			else if (texFlags & FT_USAGE_DYNAMIC)
+			else if (texFlags & (FT_STAGE_UPLOAD|FT_STAGE_READBACK))
+			{
 				pTexDesc = "Dynamic";
+				numCopies += (texFlags & FT_STAGE_UPLOAD)   ? 1 : 0;
+				numCopies += (texFlags & FT_STAGE_READBACK) ? 1 : 0;
+			}
 			else if (texFlags & FT_USAGE_ATLAS)
 				pTexDesc = "Atlas";
 			AddCell(pTexDesc, CELL_CENTERED);
 		}
-		AddCell(pTexture->GetDeviceDataSize() / 1024);
+		AddCell(numCopies * pTexture->GetDeviceDataSize() / 1024);
 		{
 			char pTexDesc[16];
 			const uint32 nFrameId = pTexture->GetAccessFrameId();

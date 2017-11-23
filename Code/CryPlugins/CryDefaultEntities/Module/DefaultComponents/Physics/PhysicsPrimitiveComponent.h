@@ -23,7 +23,7 @@ namespace Cry
 				AddPrimitive();
 			}
 
-			virtual void ProcessEvent(SEntityEvent& event) final
+			virtual void ProcessEvent(const SEntityEvent& event) final
 			{
 				if (event.event == ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED)
 				{
@@ -81,6 +81,14 @@ namespace Cry
 #ifndef RELEASE
 			virtual IEntityComponentPreviewer* GetPreviewer() final { return this; }
 #endif
+
+			virtual void OnShutDown() final
+			{
+				if (IPhysicalEntity* pPhysicalEntity = m_pEntity->GetPhysicalEntity())
+				{
+					pPhysicalEntity->RemoveGeometry(m_pEntity->GetPhysicalEntityPartId0(GetEntitySlotId()));
+				}
+			}
 			// ~IEntityComponent
 
 #ifndef RELEASE
@@ -110,13 +118,7 @@ namespace Cry
 
 		public:
 			CPhysicsPrimitiveComponent() {}
-			virtual ~CPhysicsPrimitiveComponent()
-			{
-				if (IPhysicalEntity* pPhysicalEntity = m_pEntity->GetPhysicalEntity())
-				{
-					pPhysicalEntity->RemoveGeometry(m_pEntity->GetPhysicalEntityPartId0(GetEntitySlotId()));
-				}
-			}
+			virtual ~CPhysicsPrimitiveComponent() = default;
 			
 			virtual std::unique_ptr<pe_geomparams> GetGeomParams() const { return stl::make_unique<pe_geomparams>(); }
 			virtual IGeometry* CreateGeometry() const = 0;

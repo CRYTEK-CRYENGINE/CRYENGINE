@@ -226,7 +226,7 @@ public:
 		}
 	}
 
-	void OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+	void OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 	{
 		if (event.event == m_event)
 		{

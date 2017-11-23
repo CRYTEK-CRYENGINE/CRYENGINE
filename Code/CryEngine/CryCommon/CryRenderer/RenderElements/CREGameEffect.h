@@ -11,9 +11,6 @@
 struct IREGameEffect
 {
 	virtual ~IREGameEffect(){}
-
-	virtual void mfPrepare(bool bCheckOverflow) = 0;
-	virtual bool mfDraw(CShader* ef, SShaderPass* sfm, CRenderObject* renderObj) = 0;
 };
 
 //! Render element that uses the IREGameEffect interface for its functionality.
@@ -23,10 +20,6 @@ public:
 
 	CREGameEffect();
 	~CREGameEffect();
-
-	// CRenderElement interface
-	void mfPrepare(bool bCheckOverflow);
-	bool mfDraw(CShader* ef, SShaderPass* sfm);
 
 	// CREGameEffect interface
 	inline void           SetPrivateImplementation(IREGameEffect* pImpl) { m_pImpl = pImpl; }

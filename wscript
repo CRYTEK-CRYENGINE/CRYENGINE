@@ -1126,7 +1126,8 @@ def ExecuteBootstrap(bld):
 	ret = subprocess.call(
                 executable + [
                         '-d' + bootstrap_dat,
-                        '-m' + bootstrap_digest.abspath()])
+                        '-m' + bootstrap_digest.abspath(),
+						'--addrelevance=buildmachine'])
 	if ret == 0:
 		bld.msg('branch bootstrap', 'done')
 	else:

@@ -108,7 +108,7 @@ struct SFeatureDispatchers
 	TFeatureDispatcher<const SUpdateContext&, TParticleId, Vec3&> GetEmitOffset { &CParticleFeature::GetEmitOffset };
 
 	TFeatureDispatcher<const SUpdateContext&> InitParticles { &CParticleFeature::InitParticles };
-	TFeatureDispatcher<const SUpdateContext&> PostInitParticles { &CParticleFeature::InitParticles };
+	TFeatureDispatcher<const SUpdateContext&> PostInitParticles { &CParticleFeature::PostInitParticles };
 	TFeatureDispatcher<const SUpdateContext&, TConstArray<TParticleId>> KillParticles { &CParticleFeature::KillParticles };
 
 	TFeatureDispatcher<const SUpdateContext&> PreUpdateParticles { &CParticleFeature::PreUpdateParticles };

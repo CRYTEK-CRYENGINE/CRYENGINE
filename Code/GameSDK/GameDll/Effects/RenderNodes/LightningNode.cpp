@@ -248,8 +248,8 @@ void CLightningRenderNode::Render(const struct SRendParams& rParam, const SRende
 		return;
 
 	IRenderer* pRenderer = gEnv->pRenderer;
-	const CCamera& camera = pRenderer->GetCamera();
-	CRenderObject* pRenderObject = pRenderer->EF_GetObject_Temp(passInfo.ThreadID());
+	const CCamera& camera = GetISystem()->GetViewCamera();
+	CRenderObject* pRenderObject = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 	Vec3 cameraPosition = camera.GetPosition();
 	float distanceToCamera = sqrt_tpl(Distance::Point_AABBSq(cameraPosition, GetBBox())) * passInfo.GetZoomFactor();
 

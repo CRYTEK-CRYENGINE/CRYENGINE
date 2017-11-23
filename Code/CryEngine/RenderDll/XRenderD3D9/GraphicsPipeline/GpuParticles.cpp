@@ -4,60 +4,59 @@
 #include "Gpu/Particles/GpuParticleManager.h"
 #include "GpuParticles.h"
 
-CGpuParticlesStage::CGpuParticlesStage()
+CComputeParticlesStage::CComputeParticlesStage()
 	: m_oldFrameIdExecute(-1)
 	, m_oldFrameIdPreDraw(-1)
 	, m_oldFrameIdPostDraw(-1)
 {
 }
 
-CGpuParticlesStage::~CGpuParticlesStage()
+CComputeParticlesStage::~CComputeParticlesStage()
 {
 	if (m_pGpuParticleManager)
 		m_pGpuParticleManager->CleanupResources();
 }
 
-void CGpuParticlesStage::Init()
+void CComputeParticlesStage::Init()
 {
 	if (!m_pGpuParticleManager)
 		m_pGpuParticleManager = std::unique_ptr<gpu_pfx2::CManager>(new gpu_pfx2::CManager());
 }
 
-void CGpuParticlesStage::Prepare(CRenderView* pRenderView)
+void CComputeParticlesStage::Execute()
 {
-}
-
-void CGpuParticlesStage::Execute(CRenderView* pRenderView)
-{
-	int CurrentFrameID = gcpRendD3D.GetFrameID(false);
+	CRenderView* pRenderView = RenderView();
+	int CurrentFrameID = pRenderView->GetFrameId();
 	if (CurrentFrameID != m_oldFrameIdExecute)
 	{
-		m_pGpuParticleManager->RenderThreadUpdate();
+		m_pGpuParticleManager->RenderThreadUpdate(pRenderView);
 		m_oldFrameIdExecute = CurrentFrameID;
 	}
 }
 
-void CGpuParticlesStage::PreDraw(CRenderView* pRenderView)
+void CComputeParticlesStage::PreDraw()
 {
-	int CurrentFrameID = gcpRendD3D.GetFrameID(false);
+	CRenderView* pRenderView = RenderView();
+	int CurrentFrameID = pRenderView->GetFrameId();
 	if (CurrentFrameID != m_oldFrameIdPreDraw)
 	{
-		m_pGpuParticleManager->RenderThreadPreUpdate();
+		m_pGpuParticleManager->RenderThreadPreUpdate(pRenderView);
 		m_oldFrameIdPreDraw = CurrentFrameID;
 	}
 }
 
-void CGpuParticlesStage::PostDraw(CRenderView* pRenderView)
+void CComputeParticlesStage::PostDraw()
 {
-	int CurrentFrameID = gcpRendD3D.GetFrameID(false);
+	CRenderView* pRenderView = RenderView();
+	int CurrentFrameID = pRenderView->GetFrameId();
 	if (CurrentFrameID != m_oldFrameIdPostDraw)
 	{
-		m_pGpuParticleManager->RenderThreadPostUpdate();
+		m_pGpuParticleManager->RenderThreadPostUpdate(pRenderView);
 		m_oldFrameIdPostDraw = CurrentFrameID;
 	}
 }
 
 gpu_pfx2::IManager* CD3D9Renderer::GetGpuParticleManager()
 {
-	return GetGraphicsPipeline().GetGpuParticlesStage()->GetGpuParticleManager();
+	return GetGraphicsPipeline().GetComputeParticlesStage()->GetGpuParticleManager();
 }

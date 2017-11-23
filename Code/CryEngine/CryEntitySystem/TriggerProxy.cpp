@@ -1,16 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   TriggerProxy.h
-//  Version:     v1.00
-//  Created:     5/12/2005 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #include "stdafx.h"
 #include "TriggerProxy.h"
 #include <CryNetwork/ISerialize.h>
@@ -59,7 +48,7 @@ void CEntityComponentTriggerBounds::Reset()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntityComponentTriggerBounds::ProcessEvent(SEntityEvent& event)
+void CEntityComponentTriggerBounds::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

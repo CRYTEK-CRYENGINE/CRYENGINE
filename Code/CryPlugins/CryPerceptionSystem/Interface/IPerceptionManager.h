@@ -3,7 +3,7 @@
 #pragma once
 
 #include "ICryPerceptionSystemPlugin.h"
-#include <CryExtension/ICryPluginManager.h>
+#include <CrySystem/ICryPluginManager.h>
 
 enum EAIStimulusType
 {

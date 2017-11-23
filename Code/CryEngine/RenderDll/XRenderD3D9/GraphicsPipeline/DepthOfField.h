@@ -9,7 +9,6 @@
 class CDepthOfFieldStage : public CGraphicsPipelineStage
 {
 public:
-	void Init();
 	void Execute();
 
 private:

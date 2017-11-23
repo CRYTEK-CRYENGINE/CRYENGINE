@@ -132,7 +132,7 @@ private:
 class CAttributeSampler
 {
 public:
-	CAttributeSampler(const SUpdateContext& context, const string& m_attributeName);
+	CAttributeSampler(const SUpdateContext& context, const CAttributeReference& attr);
 	ILINE floatv Sample(TParticleGroupId particleId) const
 	{
 		return m_attributeValue;
@@ -310,7 +310,7 @@ ILINE void CDomain::Dispatch(const SUpdateContext& context, const SUpdateRange& 
 	case EDomain::Attribute:
 		((TBase*)this)->DoModify(
 		  context, range, stream,
-		  detail::CAttributeSampler(context, m_attributeName));
+		  detail::CAttributeSampler(context, m_attribute));
 		break;
 	case EDomain::Random:
 		((TBase*)this)->DoModify(

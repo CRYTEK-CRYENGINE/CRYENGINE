@@ -410,7 +410,7 @@ void CGameRulesHoldObjectiveBase::CleanUpEntity(SHoldEntityDetails *pDetails)
 }
 
 //------------------------------------------------------------------------
-void CGameRulesHoldObjectiveBase::OnEntityEvent( IEntity *pEntity,SEntityEvent &event )
+void CGameRulesHoldObjectiveBase::OnEntityEvent( IEntity *pEntity, const SEntityEvent& event )
 {
 	EntityId insideId = (EntityId) event.nParam[0];
 	int teamId = g_pGame->GetGameRules()->GetTeam(insideId);

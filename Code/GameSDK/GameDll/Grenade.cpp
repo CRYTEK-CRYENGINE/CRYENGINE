@@ -217,7 +217,7 @@ bool CGrenade::ShouldCollisionsDamageTarget() const
 }
 
 //------------------------------------------------------------------------
-void CGrenade::ProcessEvent(SEntityEvent &event)
+void CGrenade::ProcessEvent(const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_TIMER && event.nParam[0] == ePTIMER_LIFETIME)
 	{

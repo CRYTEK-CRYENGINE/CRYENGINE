@@ -32,14 +32,14 @@ namespace Cry
 			}
 		}
 
-		CLineConstraintComponent::~CLineConstraintComponent()
-		{
-			Remove();
-		}
-
 		void CLineConstraintComponent::Initialize()
 		{
 			Reset();
+		}
+
+		void CLineConstraintComponent::OnShutDown()
+		{
+			Remove();
 		}
 
 		void CLineConstraintComponent::Reset()
@@ -54,7 +54,7 @@ namespace Cry
 			}
 		}
 
-		void CLineConstraintComponent::ProcessEvent(SEntityEvent& event)
+		void CLineConstraintComponent::ProcessEvent(const SEntityEvent& event)
 		{
 			if (event.event == ENTITY_EVENT_START_GAME)
 			{

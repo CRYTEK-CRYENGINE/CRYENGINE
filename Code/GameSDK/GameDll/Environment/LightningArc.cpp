@@ -54,7 +54,7 @@ bool CLightningArc::Init(IGameObject* pGameObject)
 
 
 
-void CLightningArc::ProcessEvent(SEntityEvent& event)
+void CLightningArc::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -67,7 +67,10 @@ void CLightningArc::ProcessEvent(SEntityEvent& event)
 	}
 }
 
-
+uint64 CLightningArc::GetEventMask() const
+{
+	return BIT64(ENTITY_EVENT_LEVEL_LOADED) | BIT64(ENTITY_EVENT_RESET);
+}
 
 void CLightningArc::Update(SEntityUpdateContext& ctx, int updateSlot)
 {

@@ -204,6 +204,11 @@ namespace UQS
 			m_finalStatistics = finalStatistics;
 		}
 
+		void CHistoricQuery::OnWarningOccurred(const char* szWarningMessage)
+		{
+			m_warningMessages.push_back(szWarningMessage);
+		}
+
 		void CHistoricQuery::OnGenerationPhaseFinished(size_t numGeneratedItems, const CQueryBlueprint& queryBlueprint)
 		{
 			//
@@ -727,6 +732,10 @@ namespace UQS
 			{
 				color = bHighlight ? Col_Red : Col_DeepPink;
 			}
+			else if (!m_warningMessages.empty())
+			{
+				color = bHighlight ? Col_OrangeRed : Col_Orange;
+			}
 			else
 			{
 				color = bHighlight ? Col_Cyan : Col_White;
@@ -740,6 +749,7 @@ namespace UQS
 
 			const CTimeValue elapsedTime = ComputeElapsedTimeFromQueryCreationToDestruction();
 			const bool bFoundTooFewItems = (m_finalStatistics.numItemsInFinalResultSet == 0) || (m_finalStatistics.numItemsInFinalResultSet < m_finalStatistics.numDesiredItems);
+			const bool bEncounteredSomeWarnings = !m_warningMessages.empty();
 			const IQueryHistoryConsumer::SHistoricQueryOverview overview(
 				color,
 				m_querierName.c_str(),
@@ -752,7 +762,9 @@ namespace UQS
 				m_queryCreatedTimestamp,
 				m_queryDestroyedTimestamp,
 				bFoundTooFewItems,
-				m_bExceptionOccurred);
+				m_bExceptionOccurred,
+				bEncounteredSomeWarnings
+			);
 			consumer.AddOrUpdateHistoricQuery(overview);
 		}
 
@@ -781,6 +793,22 @@ namespace UQS
 				else
 				{
 					consumer.AddTextLineToCurrentHistoricQuery(color, "No exception");
+				}
+			}
+
+			// warning messages
+			{
+				if (m_warningMessages.empty())
+				{
+					consumer.AddTextLineToCurrentHistoricQuery(color, "No warnings");
+				}
+				else
+				{
+					consumer.AddTextLineToCurrentHistoricQuery(Col_Orange, "%i warnings:", (int)m_warningMessages.size());
+					for (const string& warningMessage : m_warningMessages)
+					{
+						consumer.AddTextLineToCurrentHistoricQuery(Col_Orange, "%s", warningMessage.c_str());
+					}
 				}
 			}
 
@@ -1078,6 +1106,7 @@ namespace UQS
 			ar(m_bGotCanceledPrematurely, "m_bGotCanceledPrematurely");
 			ar(m_bExceptionOccurred, "m_bExceptionOccurred");
 			ar(m_exceptionMessage, "m_exceptionMessage");
+			ar(m_warningMessages, "m_warningMessages");
 			ar(m_debugRenderWorldPersistent, "m_debugRenderWorldPersistent");
 			ar(m_items, "m_items");
 			ar(m_instantEvaluatorNames, "m_instantEvaluatorNames");
@@ -1119,21 +1148,17 @@ namespace UQS
 
 			if (parentQueryID.IsValid())
 			{
-				for (auto it = m_history.begin(); it != m_history.end(); )
+				// search backwards from the end as this will find the insert position quicker
+				// (this leverages the fact that child queries will often get started at roughly the same time as their parent, thus having them reside quite at the end)
+				for (auto rit = m_history.rbegin(), rendIt = m_history.rend(); rit != rendIt; ++rit)
 				{
-					const CHistoricQuery* pCurrentHistoricQuery = it->get();
+					const CHistoricQuery* pCurrentHistoricQuery = rit->get();
 
-					++it;
-
-					// found our parent? -> remember for possibly inserting after him
-					if (pCurrentHistoricQuery->GetQueryID() == parentQueryID)
+					// found a child of our parent or our parent itself? => insert after this query then
+					if (pCurrentHistoricQuery->GetParentQueryID() == parentQueryID || pCurrentHistoricQuery->GetQueryID() == parentQueryID)
 					{
-						insertPos = it;
-					}
-					// found another child of our parent? -> remember for possibly inserting after it
-					else if (pCurrentHistoricQuery->GetParentQueryID() == parentQueryID)
-					{
-						insertPos = it;
+						insertPos = rit.base();  // notice: this conversion from reverse- to forward-iterator will make insertPos point to exactly where we want to insert the new historic query
+						break;
 					}
 				}
 			}

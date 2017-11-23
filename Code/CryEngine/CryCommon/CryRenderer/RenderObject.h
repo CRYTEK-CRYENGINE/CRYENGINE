@@ -8,6 +8,7 @@
 
 struct IRenderNode;
 class CCompiledRenderObject;
+struct SSectorTextureSet;
 
 //////////////////////////////////////////////////////////////////////////
 /// CRenderObject::m_ObjFlags: Flags used by shader pipeline
@@ -207,6 +208,7 @@ public:
 	{
 		Matrix34 m_Matrix;
 		ColorF   m_AmbColor;
+		ColorF   m_FogVolumeContribution;
 	};
 
 	// Structure used to pass information about vegetation bending to the shaders.

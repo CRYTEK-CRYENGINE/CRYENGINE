@@ -91,7 +91,7 @@ protected:
 	int m_lightSlot;
 
 	// Light parameters, updated in the OnResetState function
-	CDLight m_light;
+	SRenderLight m_light;
 
 	ColorF m_color = ColorF(1.0f, 1.0f, 1.0f);
 	float m_diffuseMultiplier = 1.0f;

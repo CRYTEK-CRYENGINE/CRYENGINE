@@ -1383,7 +1383,7 @@ void CMenuRender3DModelMgr::UpdateLight(int lightIndex,float frameTime)
 
 		if(lightData.pLightSource)
 		{
-			CDLight menuLight;
+			SRenderLight menuLight;
 
 			const Vec3 lightPos = lightData.pos;
 			Vec3 lightDataColor = lightData.color;
@@ -1719,9 +1719,9 @@ void CMenuRender3DModelMgr::DebugDraw()
 			else
 				tex =	gEnv->pRenderer->EF_GetTextureByName("$BackBuffer");
 
-			gEnv->pRenderer->Draw2dImage(0, 0, 800*scale, 600*scale, -1, 0.0f,0.0f,1.0f,1.0f,	0.f,
+			IRenderAuxImage::Draw2dImage(0, 0, 800*scale, 600*scale, -1, 0.0f,0.0f,1.0f,1.0f,	0.f,
 				0.0f, 0.0f, 0.0f, 1.0f, 0.f);
-			gEnv->pRenderer->Draw2dImage(0.0f,0.0f, 800*scale, 600*scale, tex->GetTextureID(), 0.0f, 1.0f, 1.0f, 0.0f);
+			IRenderAuxImage::Draw2dImage(0.0f,0.0f, 800*scale, 600*scale, tex->GetTextureID(), 0.0f, 1.0f, 1.0f, 0.0f);
 
 			pAuxRenderer->DrawLine(Vec3(0,0,0), ColorB(255,255,255),Vec3(0,1*scale,0), ColorB(255,255,255), 1.0f);
 			pAuxRenderer->DrawLine(Vec3(0,0,0), ColorB(255,255,255),Vec3(1*scale,0,0), ColorB(255,255,255), 1.0f);

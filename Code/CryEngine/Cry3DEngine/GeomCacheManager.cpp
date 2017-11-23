@@ -1666,8 +1666,8 @@ void CGeomCacheManager::DrawDebugInfo()
 	flags.SetAlphaBlendMode(e_AlphaNone);
 	pRenderAuxGeom->SetRenderFlags(flags);
 
-	const float screenHeight = (float)gEnv->pRenderer->GetHeight();
-	const float screenWidth = (float)gEnv->pRenderer->GetWidth();
+	const float screenWidth  = float(pRenderAuxGeom->GetCamera().GetViewSurfaceX());
+	const float screenHeight = float(pRenderAuxGeom->GetCamera().GetViewSurfaceZ());
 
 	const float topOffset = screenHeight * 0.01f;
 	const float sideOffset = screenWidth * 0.01f;

@@ -84,6 +84,7 @@ protected slots:
 	void      OnEventsImport();
 	void      OnEventsExport();
 private:
+	void      ResetTimelineZoom();
 	void      WriteTimeline();
 	void      ReadTimeline();
 

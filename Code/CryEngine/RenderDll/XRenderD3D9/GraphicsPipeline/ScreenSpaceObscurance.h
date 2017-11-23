@@ -10,7 +10,7 @@ class CScreenSpaceObscuranceStage : public CGraphicsPipelineStage
 {
 public:
 	void Init();
-	void Execute(ShadowMapFrustum* pHeightMapFrustum, CTexture* pHeightMapAOScreenDepthTex, CTexture* pHeightMapAOTex);
+	void Execute();
 
 private:
 	CStretchRectPass  m_passCopyFromESRAM;

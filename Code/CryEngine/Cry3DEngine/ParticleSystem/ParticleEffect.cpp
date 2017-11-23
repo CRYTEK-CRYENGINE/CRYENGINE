@@ -43,7 +43,6 @@ void CParticleEffect::Compile()
 		return;
 
 	m_numRenderObjects = 0;
-	m_attributeInstance.Reset(m_pAttributes, EAttributeScope::PerEffect);
 	for (auto& component : m_components)
 	{
 		component->m_pEffect = this;
@@ -251,6 +250,11 @@ void CParticleEffect::SetChanged()
 Serialization::SStruct CParticleEffect::GetEffectOptionsSerializer() const
 {
 	return Serialization::SStruct(*m_pAttributes);
+}
+
+TParticleAttributesPtr CParticleEffect::CreateAttributesInstance() const
+{
+	return TParticleAttributesPtr(new CAttributeInstance(m_pAttributes));
 }
 
 const ParticleParams& CParticleEffect::GetDefaultParams() const

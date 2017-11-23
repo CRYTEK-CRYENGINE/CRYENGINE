@@ -45,7 +45,7 @@ public:
 	virtual void Launch(const Vec3 &pos, const Vec3 &dir, const Vec3 &velocity, float speedScale);
 	virtual bool CanDetonate();
 	virtual bool Detonate();
-	virtual void ProcessEvent(SEntityEvent &event);
+	virtual void ProcessEvent(const SEntityEvent& event);
 	virtual void FullSerialize(TSerialize ser);
 	virtual bool NetSerialize(TSerialize ser, EEntityAspects aspect, uint8 profile, int pflags);
 	virtual NetworkAspectType GetNetSerializeAspects();

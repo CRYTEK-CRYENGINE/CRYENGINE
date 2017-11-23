@@ -1637,6 +1637,11 @@ FILE* CCryPak::FOpen(const char* pName, const char* szMode, unsigned nInputFlags
 		nAdjustFlags |= FLAGS_PATH_REAL;
 	}
 
+	if (nInputFlags & FLAGS_NO_LOWCASE)
+	{
+		nAdjustFlags |= FLAGS_NO_LOWCASE;
+	}
+
 	const char* szFullPath = AdjustFileName(pName, szFullPathBuf, nAdjustFlags);
 
 	if (nOSFlags & (_O_WRONLY | _O_RDWR))
@@ -3213,13 +3218,13 @@ int64 CCachedFileData::ReadData(void* pBuffer, int64 nFileOffset, int64 nReadSiz
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CCachedFileData::AddRef()
+void CCachedFileData::AddRef() const
 {
 	CryInterlockedIncrement(&m_nRefCounter);
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CCachedFileData::Release()
+void CCachedFileData::Release() const
 {
 	const int nCount = CryInterlockedDecrement(&m_nRefCounter);
 	assert(nCount >= 0);

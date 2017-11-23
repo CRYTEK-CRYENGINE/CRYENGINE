@@ -5,6 +5,9 @@ using CryEngine.Common;
 
 namespace CryEngine.Animations
 {
+	/// <summary>
+	/// Manages animation databases and controller definitions.
+	/// </summary>
 	public sealed class AnimationDatabaseManager
 	{
 		internal IAnimationDatabaseManager NativeHandle { get; private set; }

@@ -2833,6 +2833,8 @@ void CAnimationDatabaseManager::SaveAll(IMannequinWriter* pWriter) const
 		CTagDefinition* pTagDefinition = cit->second;
 		SaveTagDefinition(pWriter, pTagDefinition);
 	}
+
+	pWriter->WriteModifiedFiles();
 }
 
 void CAnimationDatabaseManager::SaveSubADB

@@ -615,7 +615,7 @@ void CGameObject::ForceUpdateExtension(IGameObjectExtension* pExt, int slot)
 }
 
 //------------------------------------------------------------------------
-void CGameObject::ProcessEvent(SEntityEvent& event)
+void CGameObject::ProcessEvent(const SEntityEvent& event)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
@@ -1995,7 +1995,7 @@ void CGameObject::UnRegisterExtForEvents(IGameObjectExtension* piExtention, cons
 
 void CGameObject::OnNetworkedEntityTransformChanged(int whyFlags)
 {
-	if (gEnv->bMultiplayer && (m_pEntity->GetFlags() & (ENTITY_FLAG_CLIENT_ONLY | ENTITY_FLAG_SERVER_ONLY)) == 0)
+	if (gEnv->bMultiplayer && (m_pEntity->GetFlags() & (ENTITY_FLAG_CLIENT_ONLY | ENTITY_FLAG_SERVER_ONLY)) == 0 && gEnv->pNetContext)
 	{
 		bool doAspectUpdate = true;
 		if (whyFlags & (ENTITY_XFORM_FROM_PARENT | ENTITY_XFORM_NO_PROPOGATE))

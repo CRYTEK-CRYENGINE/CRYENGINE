@@ -58,7 +58,7 @@ uint64 CParameterComponent::GetEventMask() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CParameterComponent::ProcessEvent(SEntityEvent& event)
+void CParameterComponent::ProcessEvent(const SEntityEvent& event)
 {
 #if defined(INCLUDE_DEFAULT_PLUGINS_PRODUCTION_CODE)
 	if (m_pIEntityAudioComponent != nullptr)

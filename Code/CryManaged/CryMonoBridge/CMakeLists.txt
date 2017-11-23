@@ -72,7 +72,6 @@ if (OPTION_CRYMONO_SWIG)
 			"SWIG/CryDynamicResponseSystem.i"
 			"SWIG/CryEntitySystem.i"
 			"SWIG/CryFont.i"
-			"SWIG/CryGame.i"
 			"SWIG/CryInput.i"
 			"SWIG/CryMonoBridge.i"
 			"SWIG/CryLiveCreate.i"
@@ -109,7 +108,102 @@ target_include_directories(${THIS_PROJECT} PRIVATE "${CRYENGINE_DIR}/Code/CryEng
 if (OPTION_CRYMONO_SWIG)
 	# Create the common mono assembly generation environment variables
 	create_mono_compiler_settings()
-	process_mono_swig(CryEngine.Common ${MONO_CPU_PLATFORM} ${MONO_LANGUAGE_VERSION})
+	
+	# Build SWIG
+	set(CMAKE_MODULE_LINKER_FLAGS_PROFILE ${CMAKE_SHARED_LINKER_FLAGS_PROFILE})
+	set(swig_inputs)
+	set(swig_globals)
+	foreach(sourcefile ${SOURCES})
+		if ("${sourcefile}" MATCHES ".*\\.\\i$")
+			set(swig_inputs ${swig_inputs} "${sourcefile}")
+		endif()
+		if ("${sourcefile}" MATCHES ".*\\.\\swig$")
+			set(swig_globals ${swig_globals} "${sourcefile}")
+		endif()
+	endforeach()
+
+	set(SWIG_EXECUTABLE "${SDK_DIR}/swig/swig")
+
+	if (NOT PRODUCT_NAME)
+		set(PRODUCT_NAME ${THIS_PROJECT})
+	endif()
+	file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${MONO_SWIG_OUTPUT_ASSEMBLY_NAME}_meta.cs"
+		"using System.Reflection;\n"
+		"using System.Runtime.CompilerServices;\n"
+		"[assembly: InternalsVisibleTo(\"CryEngine.Core\")]\n"
+		"[assembly: AssemblyProduct(\"${PRODUCT_NAME}\")]\n"
+		"[assembly: AssemblyTitle(\"${PRODUCT_NAME}\")]\n"
+		"[assembly: AssemblyDescription(\"${PRODUCT_NAME}\")]\n"
+		"[assembly: AssemblyVersion(\"${METADATA_VERSION}\")]\n"
+		"[assembly: AssemblyCompany(\"${METADATA_COMPANY}\")]\n"
+		"[assembly: AssemblyCopyright(\"${METADATA_COPYRIGHT}\")]\n"
+		)
+
+	set(mono_inputs "${CMAKE_CURRENT_BINARY_DIR}/${MONO_SWIG_OUTPUT_ASSEMBLY_NAME}_meta.cs")
+
+	foreach(f ${swig_inputs})
+		string(LENGTH "${f}" flen)
+		math(EXPR flen ${flen}-2)
+		string(SUBSTRING "${f}" 0 ${flen} basename)
+		file(RELATIVE_PATH bindir "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}")
+		set(basename "${basename}")
+		set(f_cpp "${basename}.cpp")
+		set(f_cs "${basename}.cs")
+		set(f_h "${basename}.h")
+		if(WIN64)
+			set(defs -D_WIN32 -D_WIN64)
+		elseif(WIN32)
+			set(defs -D_WIN32)
+		else()
+			message(ERROR "Mono not supported on this platform")
+		endif()
+
+		get_target_property(target_defs ${THIS_PROJECT} COMPILE_DEFINITIONS)
+		foreach(d ${target_defs})
+			set(defs ${defs} -D${d})
+		endforeach()
+		set(defs ${defs} -D_MT -D_DLL -D_USRDLL)
+
+		get_filename_component(f_cs_dir "${f_cs}" DIRECTORY)
+		get_filename_component(f_cs_name "${f_cs}" NAME)
+
+		# Detect dependencies
+		execute_process(
+			COMMAND "${SWIG_EXECUTABLE}" -MM ${defs} -csharp "${f}"
+			OUTPUT_VARIABLE swig_deps
+			WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+		)
+		string(REGEX MATCHALL "\n  [^ ][^ ][^ :]+" temp ${swig_deps})
+		set(swig_deps)
+		foreach(t ${temp})
+			string(STRIP "${t}" t)
+			set(swig_deps ${swig_deps} "${t}")
+		endforeach()
+
+		set(defs ${defs} -D_$<UPPER_CASE:$<CONFIG>> -D$<UPPER_CASE:$<CONFIG>>)
+
+		set(mono_inputs ${mono_inputs} "${f_cs}")
+		add_custom_command(
+			OUTPUT "${f_cpp}" "${f_h}" "${f_cs}"
+			COMMAND "${SWIG_EXECUTABLE}" -c++ ${defs} -DSWIG_CSHARP_NO_IMCLASS_STATIC_CONSTRUCTOR ${secondary_defs} -csharp -o "${bindir}/${f_cpp}" -outdir "${bindir}/${f_cs_dir}" -outfile "${f_cs_name}" -namespace ${MONO_SWIG_OUTPUT_ASSEMBLY_NAME} -pch-file "\\\"StdAfx.h\\\"" -fno-include-guards -dllimport ${THIS_PROJECT} "${f}"
+			MAIN_DEPENDENCY "${f}"
+			WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+			DEPENDS ${swig_deps}
+		)
+		set_property(DIRECTORY "${CRYENGINE_DIR}" APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${swig_deps} "${CMAKE_CURRENT_SOURCE_DIR}/${f}")
+		set(secondary_defs -DSWIG_CXX_EXCLUDE_SWIG_INTERFACE_FUNCTIONS -DSWIG_CSHARP_EXCLUDE_STRING_HELPER -DSWIG_CSHARP_EXCLUDE_EXCEPTION_HELPER)
+		target_sources(${THIS_PROJECT} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/${f_cpp}" "${CMAKE_CURRENT_BINARY_DIR}/${f_h}")
+		EXCLUDE_FILE_FROM_MSVC_PRECOMPILED_HEADER("${CMAKE_CURRENT_BINARY_DIR}/${f_cpp}")
+		source_group("Generated" FILES "${CMAKE_CURRENT_BINARY_DIR}/${f_cpp}" "${CMAKE_CURRENT_BINARY_DIR}/${f_h}")
+		set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/${f_h}" PROPERTIES HEADER_FILE_ONLY true GENERATED true)
+	endforeach()
+
+	add_custom_command(
+		TARGET ${THIS_PROJECT} PRE_LINK
+		COMMAND "${CSC_PATH}" /target:library /langversion:${MONO_LANGUAGE_VERSION} /platform:${MONO_CPU_PLATFORM} /optimize /debug:portable ${mono_inputs} /out:"${OUTPUT_DIRECTORY}/${MONO_SWIG_OUTPUT_ASSEMBLY_NAME}.dll"
+		DEPENDS ${mono_inputs}
+		WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+	)
 endif()
 	
 if(WIN32)
@@ -121,5 +215,5 @@ if(WIN32)
 		set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS " ${LIBPATH_FLAG}\"${SDK_DIR}/Mono/lib/x86\"")
 	endif()		
 	
-	target_link_libraries(${THIS_PROJECT} PRIVATE Shell32)
+	target_link_libraries(${THIS_PROJECT} PRIVATE Shell32 mono-2.0-sgen)
 endif()

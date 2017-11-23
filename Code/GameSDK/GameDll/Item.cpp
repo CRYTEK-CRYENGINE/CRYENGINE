@@ -720,7 +720,7 @@ void CItem::HandleEvent( const SGameObjectEvent &evt )
 }
 
 //------------------------------------------------------------------------
-void CItem::ProcessEvent(SEntityEvent &event)
+void CItem::ProcessEvent(const SEntityEvent& event)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
@@ -820,6 +820,11 @@ void CItem::ProcessEvent(SEntityEvent &event)
 		}
 		break;
 	}
+}
+
+uint64 CItem::GetEventMask() const
+{
+	return BIT64(ENTITY_EVENT_ANIM_EVENT) | BIT64(ENTITY_EVENT_TIMER) | BIT64(ENTITY_EVENT_RESET) | BIT64(ENTITY_EVENT_PRE_SERIALIZE) | BIT64(ENTITY_EVENT_DEACTIVATED);
 }
 
 //------------------------------------------------------------------------

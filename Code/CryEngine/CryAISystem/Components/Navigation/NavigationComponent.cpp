@@ -91,13 +91,14 @@ void CEntityAINavigationComponent::ReflectType(Schematyc::CTypeDesc<CEntityAINav
 	desc.SetDescription("Navigation system agent component");
 	desc.SetIcon("icons:Navigation/Move_Classic.ico");
 	desc.SetEditorCategory("AI");
-	desc.SetIcon("icons:Navigation/Move_Classic.ico");
 	desc.SetComponentFlags({ IEntityComponent::EFlags::Singleton, IEntityComponent::EFlags::Socket, IEntityComponent::EFlags::Attach });
 
 	desc.AddMember(&CEntityAINavigationComponent::m_agentTypeId, 'agt', "agent", "Navigation Agent Type", nullptr, NavigationAgentTypeID());
 	desc.AddMember(&CEntityAINavigationComponent::m_bUpdateTransformation, 'ut', "updateTransf", "Update Transformation", "Entity transformation is automatically modified by the agent when enabled", false);
 	desc.AddMember(&CEntityAINavigationComponent::m_movementProperties, 'move', "movement", "Movement", nullptr, SMovementProperties());
 	desc.AddMember(&CEntityAINavigationComponent::m_collisionAvoidanceProperties, 'cola', "colavoid", "Collision Avoidance", nullptr, SCollisionAvoidanceProperties());
+
+	desc.AddMember(&CEntityAINavigationComponent::m_navigationQueryFilter, 'nqft', "queryFilter", "Navigation Query Filter", nullptr, SNavMeshQueryFilterDefault());
 }
 
 void CEntityAINavigationComponent::Register(Schematyc::IEnvRegistrar& registrar)
@@ -245,7 +246,7 @@ uint64 CEntityAINavigationComponent::GetEventMask() const
 	return eventMask;
 }
 
-void CEntityAINavigationComponent::ProcessEvent(SEntityEvent& event)
+void CEntityAINavigationComponent::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -391,7 +392,7 @@ bool CEntityAINavigationComponent::IsRayObstructed(const Vec3& toPosition) const
 	if (startMeshId != endMeshId)
 		return true;
 
-	return !pPathfinder->CheckIfPointsAreOnStraightWalkableLine(startMeshId, startPosition, toPosition, 0.0f);
+	return !pPathfinder->CheckIfPointsAreOnStraightWalkableLine(startMeshId, startPosition, toPosition, &m_navigationQueryFilter, 0.0f);
 }
 
 bool CEntityAINavigationComponent::TestRaycastHit(const Vec3& toPositon, Vec3& hitPos, Vec3& hitNorm) const
@@ -399,7 +400,7 @@ bool CEntityAINavigationComponent::TestRaycastHit(const Vec3& toPositon, Vec3& h
 	MNM::SRayHitOutput rayHit;
 	const Vec3& startPos = GetPosition();
 
-	if (gEnv->pAISystem->GetNavigationSystem()->NavMeshTestRaycastHit(m_agentTypeId, startPos, toPositon, &rayHit))
+	if (gEnv->pAISystem->GetNavigationSystem()->NavMeshTestRaycastHit(m_agentTypeId, startPos, toPositon, &m_navigationQueryFilter, &rayHit))
 	{
 		hitPos = rayHit.position;
 		hitNorm = rayHit.normal2D;
@@ -484,6 +485,8 @@ void CEntityAINavigationComponent::MovementRequestCompleted(const MovementReques
 		else
 		{
 			pSchematycObject->ProcessSignal(SNavigationFailedSignal(), GetGUID());
+
+			StopMovement();
 		}
 	}
 }
@@ -491,7 +494,10 @@ void CEntityAINavigationComponent::MovementRequestCompleted(const MovementReques
 void CEntityAINavigationComponent::QueueRequestPathFindingRequest(MNMPathRequest& request)
 {
 	m_lastPathRequestFailed = false;
+
 	request.resultCallback = functor(*this, &CEntityAINavigationComponent::OnMNMPathfinderResult);
+	request.pFilter = &m_navigationQueryFilter;
+
 	m_pathRequestId = gEnv->pAISystem->GetMNMPathfinder()->RequestPathTo(GetEntity()->GetId(), request);
 }
 
@@ -507,10 +513,14 @@ void CEntityAINavigationComponent::CancelRequestedPath()
 void CEntityAINavigationComponent::OnMNMPathfinderResult(const MNM::QueuedPathID& requestId, MNMPathRequestResult& result)
 {
 	m_pathRequestId = 0;
+
+	m_pNavigationPath = result.pPath;
+	m_pPathfollower->AttachToPath(result.pPath.get());
+	
 	if (result.HasPathBeenFound())
 	{
-		m_pNavigationPath = result.pPath;
-		m_pPathfollower->AttachToPath(result.pPath.get());
+	/*	m_pNavigationPath = result.pPath;
+		m_pPathfollower->AttachToPath(result.pPath.get());*/
 	}
 	else
 	{
@@ -535,17 +545,20 @@ void CEntityAINavigationComponent::NewStateComputed(const PathFollowResult& resu
 {
 	m_requestedVelocity = result.velocityOut;
 
-	if (m_collisionAvoidanceProperties.type != SCollisionAvoidanceProperties::EType::Active || pSender == &m_collisionAgent)
+	//TODO: Make Collision avoidance part of movement system, so the pathfollow result will have result after applying collision avoidance
+	if (m_collisionAvoidanceProperties.type == SCollisionAvoidanceProperties::EType::Active)
 	{
-		if (Schematyc::IObject* pSchematycObject = GetEntity()->GetSchematycObject())
-		{
-			pSchematycObject->ProcessSignal(SStateUpdatedSignal{ result.velocityOut }, GetGUID());
-		}
+		if (m_requestedVelocity.GetLengthSquared() > 0.00001f && pSender != &m_collisionAgent)
+			return;
+	}
 
-		if (m_stateUpdatedCallback)
-		{
-			m_stateUpdatedCallback(result.velocityOut);
-		}
+	if (Schematyc::IObject* pSchematycObject = GetEntity()->GetSchematycObject())
+	{
+		pSchematycObject->ProcessSignal(SStateUpdatedSignal{ result.velocityOut }, GetGUID());
+	}
+	if (m_stateUpdatedCallback)
+	{
+		m_stateUpdatedCallback(result.velocityOut);
 	}
 }
 
@@ -561,6 +574,7 @@ void CEntityAINavigationComponent::FillPathFollowerParams(PathFollowerParams& pa
 	params.maxAccel = m_movementProperties.maxAcceleration;
 	params.maxDecel = m_movementProperties.maxDeceleration;
 	params.stopAtEnd = m_movementProperties.bStopAtEnd;
+	params.pQueryFilter = &m_navigationQueryFilter;
 }
 
 Vec3 CEntityAINavigationComponent::GetPosition() const

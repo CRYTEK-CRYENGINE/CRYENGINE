@@ -14,6 +14,7 @@ struct IParticleEffect;
 struct IPhysicalEntity;
 struct phys_geometry;
 struct IRenderNode;
+struct IStatObj;
 
 //! Breakable glass sim initialisation params.
 struct SBreakableGlassInitParams

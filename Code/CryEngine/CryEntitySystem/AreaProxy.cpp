@@ -151,7 +151,7 @@ void CEntityComponentArea::OnEnable(bool bIsEnable, bool bIsCallScript)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntityComponentArea::ProcessEvent(SEntityEvent& event)
+void CEntityComponentArea::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -504,21 +504,27 @@ void CEntityComponentArea::LegacySerializeXML(XmlNodeRef& entityNode, XmlNodeRef
 			areaNode->setAttr("BoxMax", bmax);
 
 			// Set sound obstruction
-			XmlNodeRef const pNodeSoundData = areaNode->newChild("SoundData");
-
-			if (pNodeSoundData)
+			if (!m_abObstructSound.empty())
 			{
-				CRY_ASSERT(m_abObstructSound.size() == 6);
-				size_t nIndex = 0;
+				XmlNodeRef const pNodeSoundData = areaNode->newChild("SoundData");
 
-				for (bool const bObstructed : m_abObstructSound)
+				if (pNodeSoundData)
 				{
-					CryFixedStringT<16> sTemp;
-					sTemp.Format("Side%" PRISIZE_T, ++nIndex);
+					size_t index = 0;
 
-					XmlNodeRef const pNodeSide = pNodeSoundData->newChild(sTemp.c_str());
-					pNodeSide->setAttr("ObstructSound", bObstructed);
+					for (bool const isObstructed : m_abObstructSound)
+					{
+						CryFixedStringT<16> temp;
+						temp.Format("Side%" PRISIZE_T, ++index);
+
+						XmlNodeRef const pNodeSide = pNodeSoundData->newChild(temp.c_str());
+						pNodeSide->setAttr("ObstructSound", isObstructed);
+					}
 				}
+			}
+			else
+			{
+				CRY_ASSERT_MESSAGE(m_abObstructSound.size() == 6, "AreaBox is missing obstruct sound data. Its initialization could have failed!");
 			}
 		}
 		else if (type == ENTITY_AREA_TYPE_GRAVITYVOLUME)

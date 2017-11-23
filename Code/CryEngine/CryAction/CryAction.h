@@ -88,7 +88,7 @@ class CNetMessageDistpatcher;
 class CEntityContainerMgr;
 class CEntityAttachmentExNodeRegistry;
 
-class CCryAction final :
+class CCryAction :
 	public IGameFramework
 {
 
@@ -282,7 +282,7 @@ public:
 
 	static CCryAction*          GetCryAction() { return m_pThis; }
 
-	CGameServerNub*             GetGameServerNub();
+	virtual CGameServerNub*     GetGameServerNub();
 	CGameClientNub*             GetGameClientNub();
 	CGameContext*               GetGameContext();
 	CScriptBind_Vehicle*        GetVehicleScriptBind()     { return m_pScriptBindVehicle; }

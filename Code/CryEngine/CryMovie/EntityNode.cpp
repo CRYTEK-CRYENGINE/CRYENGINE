@@ -1891,6 +1891,8 @@ void CAnimEntityNode::Activate(bool bActivate)
 	}
 	else
 	{
+		RestoreEntityDefaultValues();
+
 #ifdef CHECK_FOR_TOO_MANY_ONPROPERTY_SCRIPT_CALLS
 		IEntity* pEntity = GetEntity();
 
@@ -2689,7 +2691,7 @@ void CAnimEntityNode::AnimateLookAt(CLookAtTrack* pTrack, SAnimContext& animCont
 		// Override _LocalPlayer position with camera position - looks a lot better
 		if (m_lookAtLocalPlayer)
 		{
-			pos = gEnv->pRenderer->GetCamera().GetPosition();
+			pos = GetISystem()->GetViewCamera().GetPosition();
 		}
 		else
 		{
@@ -3408,6 +3410,50 @@ void CAnimEntityNode::UpdateTargetCamera(IEntity* pEntity, const Quat& rotation)
 		}
 
 		pEntityCamera->SetWorldTM(tm, ENTITY_XFORM_TRACKVIEW);
+	}
+}
+
+void CAnimEntityNode::RestoreEntityDefaultValues()
+{
+	if (!gEnv->IsEditor() || gEnv->IsEditorGameMode())
+	{
+		return;
+	}
+
+	IEntity* pEntity = GetEntity();
+	if (pEntity)
+	{
+		for (const auto& track : m_tracks)
+		{
+			const CAnimParamType& paramType = track->GetParameterType();
+
+			if (paramType.GetType() != eAnimParamType_ByString)
+			{
+				continue;
+			}
+
+			auto propertyIt = m_entityPropertyNameLookupMap.find(paramType.GetName());
+			if (propertyIt == m_entityPropertyNameLookupMap.end())
+			{
+				continue;
+			}
+
+			const IPropertyParamInfo& paramInfo = *m_entityProperties[propertyIt->second].get();
+			if (paramInfo.GetType() != IPropertyParamInfo::EType::ComponentProperty)
+			{
+				continue;
+			}
+
+			// Restore the param value stored in the track.
+
+			const SComponentPropertyParamInfo& param = static_cast<const SComponentPropertyParamInfo&>(paramInfo);
+			IEntityComponent* pComponent = pEntity->GetComponentByGUID(param.componentInstanceGUID);
+			if (pComponent && param.setValueCallback(track->GetDefaultValue()))
+			{
+				SEntityEvent event(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
+				pComponent->SendEvent(event);
+			}
+		}
 	}
 }
 

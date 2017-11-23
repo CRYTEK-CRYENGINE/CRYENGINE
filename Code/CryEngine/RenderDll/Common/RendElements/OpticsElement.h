@@ -63,7 +63,7 @@ public:
 		CPrimitiveRenderPass&                       pass;
 		std::vector<CPrimitiveRenderPass*>&         prePasses;
 
-		const CStandardGraphicsPipeline::SViewInfo* pViewInfo;
+		const SRenderViewInfo* pViewInfo;
 		int                                         viewInfoCount;
 
 		Vec3                                        lightWorldPos;
@@ -204,6 +204,8 @@ protected:
 	void         updateXformMatrix();
 	virtual void Invalidate() {}
 
+	virtual void DeleteThis();
+
 public:
 	void SetScale(Vec2 scale)
 	{
@@ -280,7 +282,7 @@ public:
 	void              ApplyGeneralFlags(uint64& rtFlags);
 	void              ApplyOcclusionBokehFlag(uint64& rtFlags);
 	void              ApplySpectrumTexFlag(uint64& rtFlags, bool enabled);
-	void              ApplyCommonParams(SShaderParamsBase& shaderParams, const SViewport& viewport, const Vec3& lightProjPos, const Vec2& size);
+	void              ApplyCommonParams(SShaderParamsBase& shaderParams, const SRenderViewport& viewport, const Vec3& lightProjPos, const Vec2& size);
 
 
 	virtual EFlareType GetType()       { return eFT__Base__; }

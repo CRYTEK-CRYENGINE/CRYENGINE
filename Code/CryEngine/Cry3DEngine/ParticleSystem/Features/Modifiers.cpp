@@ -788,11 +788,6 @@ SERIALIZATION_CLASS_NAME(IModifier, CModConfigSpec, "ConfigSpec", "Config Spec")
 class CModAttribute : public IModifier
 {
 public:
-	CModAttribute()
-		: m_scale(1.0f)
-		, m_bias(0.0f)
-		, m_spawnOnly(false) {}
-
 	virtual void AddToParam(CParticleComponent* pComponent, IParamMod* pParam) override
 	{
 		if (m_spawnOnly)
@@ -809,7 +804,7 @@ public:
 	virtual void Serialize(Serialization::IArchive& ar) override
 	{
 		IModifier::Serialize(ar);
-		ar(m_name, "Name", "Attribute Name");
+		ar(m_attribute, "Name", "Attribute Name");
 		ar(m_scale, "Scale", "Scale");
 		ar(m_bias, "Bias", "Bias");
 		ar(m_spawnOnly, "SpawnOnly", "Spawn Only");
@@ -821,8 +816,7 @@ public:
 
 		CParticleContainer& container = context.m_container;
 		const CAttributeInstance& attributes = context.m_runtime.GetEmitter()->GetAttributeInstance();
-		const auto attributeId = attributes.FindAttributeIdByName(m_name.c_str());
-		const float attribute = attributes.GetAsFloat(attributeId, 1.0f);
+		const float attribute = m_attribute.GetValueAs(attributes, 1.0f);
 		const floatv value = ToFloatv(attribute * m_scale + m_bias);
 
 		for (auto particleGroupId : SGroupRange(range))
@@ -840,10 +834,10 @@ public:
 	}
 
 private:
-	string m_name;
-	SFloat m_scale;
-	SFloat m_bias;
-	bool   m_spawnOnly;
+	CAttributeReference m_attribute;
+	SFloat              m_scale     = 1;
+	SFloat              m_bias      = 0;
+	bool                m_spawnOnly = false;
 };
 
 SERIALIZATION_CLASS_NAME(IModifier, CModAttribute, "Attribute", "Attribute");

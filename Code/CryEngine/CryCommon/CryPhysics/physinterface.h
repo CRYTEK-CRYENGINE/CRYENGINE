@@ -2749,7 +2749,7 @@ enum entity_query_flags
 	ent_no_ondemand_activation = 0x80000,  //!< can only be used in RayWorldIntersection
 	ent_delayed_deformations   = 0x80000   //!< queues procedural breakage requests; can only be used in SimulateExplosion
 };
-enum phys_locks { PLOCK_WORLD_STEP = 1, PLOCK_QUEUE, PLOCK_AREAS, PLOCK_CALLER0, PLOCK_CALLER1 };
+enum phys_locks { PLOCK_WORLD_STEP = 1, PLOCK_QUEUE, PLOCK_TRACE_PENDING_RAYS, PLOCK_AREAS, PLOCK_CALLER0, PLOCK_CALLER1 };
 
 struct phys_profile_info
 {
@@ -2903,6 +2903,7 @@ struct PhysicsVars : SolverSettings
 	float breakageMinAxisInertia; //!< For procedural breaking, each axis must have a minium inertia compared to the axis with the largest inertia (0.01-1.00)
 
 	int   bForceSyncPhysics;
+	int   idEntBreakOnAwake;
 };
 
 struct ray_hit
@@ -3066,7 +3067,7 @@ struct EventPhysUpdateMesh : EventPhysMono
 	int             iReason;       //!< see enum reason
 	IGeometry*      pMesh;         //!< ->GetForeignData(DATA_MESHUPDATE) returns a list of bop_meshupdates
 	bop_meshupdate* pLastUpdate;   //!< the last mesh update for at moment when the event was generated
-	Matrix34        mtxSkelToMesh; //!< skeleton's frame -> mesh's frame transform
+	Matrix34f       mtxSkelToMesh; //!< skeleton's frame -> mesh's frame transform
 	IGeometry*      pMeshSkel;     //!< for deformable bodies
 	int             idx;           //!< used for event deferring by listeners
 };
@@ -3459,6 +3460,7 @@ struct IPhysicalWorld
 	virtual void             PumpLoggedEvents() = 0; //!< calls event clients for logged events
 	virtual uint32           GetPumpLoggedEventsTicks() = 0;
 	virtual void             ClearLoggedEvents() = 0;
+	virtual int              NotifyEventClients(EventPhys* pEvent, int bLogged) = 0; // immediately calls listeners for the event; returns the sum of their return results
 
 	virtual IPhysicalEntity* AddGlobalArea() = 0; //!< adds a global phys area or returns an existing one
 	//! AddArea - adds a 2d-contour area. Computes the best fitting plane for the points and projects them on it
@@ -3482,7 +3484,7 @@ struct IPhysicalWorld
 	virtual int              GetWatermanStatus(pe_status* status) = 0; //!< pe_status_waterman
 	virtual void             DestroyWaterManager() = 0;
 
-	virtual volatile int*    GetInternalLock(int idx) = 0; //!< returns one of phys_lock locks
+	virtual volatile int*    GetInternalLock(int idx) = 0; //!< returns one of phys_locks locks
 
 	virtual int              SerializeWorld(const char* fname, int bSave) = 0; //!< saves/loads the world state (without geometries) in a text file
 	virtual int              SerializeGeometries(const char* fname, int bSave) = 0;

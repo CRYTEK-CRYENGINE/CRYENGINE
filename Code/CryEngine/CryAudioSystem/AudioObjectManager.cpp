@@ -9,6 +9,7 @@
 #include "AudioCVars.h"
 #include "IAudioImpl.h"
 #include "SharedAudioData.h"
+#include "Common/Logger.h"
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 	#include <CryRenderer/IRenderAuxGeom.h>
@@ -163,7 +164,7 @@ void CAudioObjectManager::ReportStartedEvent(CATLEvent* const pEvent)
 	}
 	else
 	{
-		g_logger.Log(ELogType::Warning, "NULL pEvent in CAudioObjectManager::ReportStartedEvent");
+		Cry::Audio::Log(ELogType::Warning, "NULL pEvent in CAudioObjectManager::ReportStartedEvent");
 	}
 }
 
@@ -178,7 +179,7 @@ void CAudioObjectManager::ReportFinishedEvent(CATLEvent* const pEvent, bool cons
 	}
 	else
 	{
-		g_logger.Log(ELogType::Warning, "NULL pEvent in CAudioObjectManager::ReportFinishedEvent");
+		Cry::Audio::Log(ELogType::Warning, "NULL pEvent in CAudioObjectManager::ReportFinishedEvent");
 	}
 }
 
@@ -193,7 +194,7 @@ void CAudioObjectManager::GetStartedStandaloneFileRequestData(CATLStandaloneFile
 	}
 	else
 	{
-		g_logger.Log(ELogType::Warning, "NULL _pStandaloneFile in CAudioObjectManager::GetStartedStandaloneFileRequestData");
+		Cry::Audio::Log(ELogType::Warning, "NULL _pStandaloneFile in CAudioObjectManager::GetStartedStandaloneFileRequestData");
 	}
 }
 
@@ -208,7 +209,7 @@ void CAudioObjectManager::ReportFinishedStandaloneFile(CATLStandaloneFile* const
 	}
 	else
 	{
-		g_logger.Log(ELogType::Warning, "NULL _pStandaloneFile in CAudioObjectManager::ReportFinishedStandaloneFile");
+		Cry::Audio::Log(ELogType::Warning, "NULL _pStandaloneFile in CAudioObjectManager::ReportFinishedStandaloneFile");
 	}
 }
 

@@ -12,12 +12,12 @@ class CLensOpticsStage : public CGraphicsPipelineStage
 {
 public:
 	void      Init();
-	void      Execute(CRenderView* pRenderView);
+	void      Execute();
 
 	bool      HasContent() const { return m_primitivesRendered>0; }
 
 private:
-	void      UpdateOcclusionQueries(CStandardGraphicsPipeline::SViewInfo* pViewInfo, int viewInfoCount);
+	void      UpdateOcclusionQueries(SRenderViewInfo* pViewInfo, int viewInfoCount);
 
 	CPrimitiveRenderPass  m_passLensOptics;
 	CSoftOcclusionManager m_softOcclusionManager;

@@ -2,7 +2,6 @@
 #include "DebugDrawComponent.h"
 
 #include <CryRenderer/IRenderAuxGeom.h>
-
 #include <CryGame/IGameFramework.h>
 
 namespace Cry
@@ -166,7 +165,7 @@ void CDebugDrawComponent::Draw2DText(Schematyc::CSharedString text, float size, 
 	gEnv->pGameFramework->GetIPersistantDebug()->Add2DText(text.c_str(), size, color, duration);
 }
 
-void CDebugDrawComponent::ProcessEvent(SEntityEvent& event)
+void CDebugDrawComponent::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

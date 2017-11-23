@@ -55,7 +55,7 @@ public:
 	virtual float GetExtent(EGeomForm eForm) override;
 	virtual void GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const override;
 	virtual CLodValue ComputeLod(int wantedLod, const SRenderingPassInfo &passInfo) override;
-	virtual void Render(const SRendParams &rParams, const QuatTS &Offset, const SRenderingPassInfo &passInfo) override;
+	virtual void Render(const SRendParams &rParams, const SRenderingPassInfo &passInfo) override;
 	virtual void                   SetFlags(int nFlags) override                        { m_rpFlags = nFlags; }
 	virtual int                    GetFlags() const override                            { return m_rpFlags; }
 	virtual int                    GetObjectType() const override                       { return m_pDefaultSkeleton->m_ObjectType; }
@@ -105,7 +105,7 @@ public:
 
 	void RuntimeInit(CDefaultSkeleton * pExtDefaultSkeleton);
 
-	SSkinningData* GetSkinningData();
+	SSkinningData* GetSkinningData(const SRenderingPassInfo& passInfo);
 
 	void           SetFilePath(const string& filePath) { m_strFilePath = filePath; }
 

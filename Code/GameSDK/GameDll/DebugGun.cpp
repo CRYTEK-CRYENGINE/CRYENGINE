@@ -80,7 +80,7 @@ void CDebugGun::Update( SEntityUpdateContext& ctx, int update)
   IRenderAuxGeom* pAuxGeom = pRenderer->GetIRenderAuxGeom();
   pAuxGeom->SetRenderFlags(e_Def3DPublicRenderflags);
 
-  IRenderAuxText::Draw2dLabel(pRenderer->GetWidth()/5.f, pRenderer->GetHeight()-35, fontLarge, drawColor, false, "Firemode: %s (%.1f)", m_fireModes[m_fireMode].first.c_str(), m_fireModes[m_fireMode].second);
+  IRenderAuxText::Draw2dLabel(pRenderer->GetOverlayWidth()/5.f, pRenderer->GetOverlayHeight()-35, fontLarge, drawColor, false, "Firemode: %s (%.1f)", m_fireModes[m_fireMode].first.c_str(), m_fireModes[m_fireMode].second);
 
   ray_hit rayhit;
 
@@ -99,8 +99,8 @@ void CDebugGun::Update( SEntityUpdateContext& ctx, int update)
     IActorSystem* pActorSystem = g_pGame->GetIGameFramework()->GetIActorSystem();
     IVehicleSystem* pVehicleSystem = g_pGame->GetIGameFramework()->GetIVehicleSystem();
 
-    int x = (int)(pRenderer->GetWidth() *0.5f) + dx;
-    int y = (int)(pRenderer->GetHeight()*0.5f) + dx - dy;
+    int x = (int)(pRenderer->GetOverlayWidth() *0.5f) + dx;
+    int y = (int)(pRenderer->GetOverlayHeight()*0.5f) + dx - dy;
 
     // draw normal
     ColorB colNormal(200,0,0,128);

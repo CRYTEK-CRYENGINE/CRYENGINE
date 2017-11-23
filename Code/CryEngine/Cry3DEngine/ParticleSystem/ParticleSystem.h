@@ -76,7 +76,7 @@ public:
 	static const SParticleFeatureParams* GetDefaultFeatureParam(EFeatureType);
 
 private:
-	void              TrimEmitters();
+	void              TrimEmitters(bool finished_only);
 	void              InvalidateCachedRenderObjects();
 	CParticleEffect*  CastEffect(const PParticleEffect& pEffect) const;
 	CParticleEmitter* CastEmitter(const PParticleEmitter& pEmitter) const;
@@ -95,6 +95,7 @@ private:
 	TParticleEmitters          m_newEmitters;
 	std::vector<TParticleHeap> m_memHeap;
 	_smart_ptr<IMaterial>      m_pFlareMaterial;
+	bool                       m_bResetEmitters = false;
 	QuatT                      m_lastCameraPose = IDENTITY;
 	QuatT                      m_cameraMotion   = ZERO;
 	uint                       m_nextEmitterId  = 0;

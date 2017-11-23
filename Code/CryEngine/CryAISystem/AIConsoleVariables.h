@@ -306,6 +306,7 @@ struct AIConsoleVars
 	float       ProneVisibleRange;
 
 	int         MNMDebugAccessibility; // TODO: remove
+	const char* MNMDebugDrawFlag;
 
 	int         MNMEditorBackgroundUpdate;
 

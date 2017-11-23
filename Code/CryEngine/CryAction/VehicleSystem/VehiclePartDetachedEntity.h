@@ -37,7 +37,8 @@ public:
 	virtual ISerializableInfoPtr GetSpawnInfo()                                                                { return 0; }
 	virtual void                 Update(SEntityUpdateContext& ctx, int slot);
 	virtual void                 HandleEvent(const SGameObjectEvent& event);
-	virtual void                 ProcessEvent(SEntityEvent& event);
+	virtual void                 ProcessEvent(const SEntityEvent& event);
+	virtual uint64               GetEventMask() const;
 	virtual void                 SetChannelId(uint16 id)                 {};
 	virtual void                 PostUpdate(float frameTime)             { CRY_ASSERT(false); }
 	virtual void                 PostRemoteSpawn()                       {};

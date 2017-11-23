@@ -22,6 +22,11 @@ public:
 	CTypedConstantBuffer(const CTypedConstantBuffer<T>& cb) : m_hostBuffer(AlignHostBuffer()), m_constantBuffer(nullptr) { m_hostBuffer = cb.m_hostBuffer; }
 	CTypedConstantBuffer(CConstantBufferPtr incb) : m_hostBuffer(AlignHostBuffer()), m_constantBuffer(incb) {}
 
+	void Clear()
+	{
+		m_constantBuffer.reset();
+	}
+
 	bool               IsDeviceBufferAllocated() { return m_constantBuffer != nullptr; }
 	CConstantBufferPtr GetDeviceConstantBuffer()
 	{

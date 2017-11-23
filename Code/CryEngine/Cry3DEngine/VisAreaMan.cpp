@@ -505,14 +505,11 @@ void CVisAreaManager::PortalsDrawDebug()
 	   else*/
 	{
 		// debug draw areas
-		GetRenderer()->SetMaterialColor(0, 1, 0, 0.25f);
 		Vec3 oneVec(1, 1, 1);
 		for (int v = 0; v < m_lstVisAreas.Count(); v++)
 		{
-			DrawBBox(m_lstVisAreas[v]->m_boxArea.min, m_lstVisAreas[v]->m_boxArea.max); //, DPRIM_SOLID_BOX);
+			DrawBBox(m_lstVisAreas[v]->m_boxArea.min, m_lstVisAreas[v]->m_boxArea.max,ColorB(0,255,0,64)); //, DPRIM_SOLID_BOX);
 			IRenderAuxText::DrawLabelEx((m_lstVisAreas[v]->m_boxArea.min + m_lstVisAreas[v]->m_boxArea.max) * 0.5f, 1, (float*)&oneVec, 0, 1, m_lstVisAreas[v]->GetName());
-
-			GetRenderer()->SetMaterialColor(0, 1, 0, 0.25f);
 			DrawBBox(m_lstVisAreas[v]->m_boxStatics, Col_LightGray);
 		}
 
@@ -574,7 +571,8 @@ void CVisAreaManager::DrawVisibleSectors(const SRenderingPassInfo& passInfo)
 			{
 				passInfo.GetRendItemSorter().IncreaseOctreeCounter();
 				// create a new RenderingPassInfo object, which a camera matching the visarea
-				pArea->GetObjectsTree()->Render_Object_Nodes(false, OCTREENODE_RENDER_FLAG_OBJECTS, vAmbColor, SRenderingPassInfo::CreateTempRenderingInfo(CVisArea::s_tmpCameras[pArea->m_lstCurCamerasIdx + c], passInfo));
+				pArea->GetObjectsTree()->Render_Object_Nodes(false, OCTREENODE_RENDER_FLAG_OBJECTS, vAmbColor,
+					SRenderingPassInfo::CreateTempRenderingInfo(CVisArea::s_tmpCameras[pArea->m_lstCurCamerasIdx + c], passInfo));
 			}
 		}
 	}
@@ -640,10 +638,11 @@ void CVisAreaManager::CheckVis(const SRenderingPassInfo& passInfo)
 	SetCurAreas(passInfo);
 
 	CCamera camRoot = passInfo.GetCamera();
+
 	camRoot.m_ScissorInfo.x1 = 0;
 	camRoot.m_ScissorInfo.y1 = 0;
-	camRoot.m_ScissorInfo.x2 = GetRenderer()->GetWidth(); // todo: use values from camera
-	camRoot.m_ScissorInfo.y2 = GetRenderer()->GetHeight();
+	camRoot.m_ScissorInfo.x2 = camRoot.GetViewSurfaceX();
+	camRoot.m_ScissorInfo.y2 = camRoot.GetViewSurfaceZ();
 
 	if (GetCVars()->e_Portals == 3)
 	{
@@ -1047,7 +1046,7 @@ CVisArea* CVisAreaManager::CreateVisArea(VisAreaGUID visGUID)
 	return new CVisArea(visGUID);
 }
 
-bool CVisAreaManager::IsEntityVisAreaVisibleReqursive(CVisArea* pVisArea, int nMaxReqursion, PodArray<CVisArea*>* pUnavailableAreas, const CDLight* pLight, const SRenderingPassInfo& passInfo)
+bool CVisAreaManager::IsEntityVisAreaVisibleReqursive(CVisArea* pVisArea, int nMaxReqursion, PodArray<CVisArea*>* pUnavailableAreas, const SRenderLight* pLight, const SRenderingPassInfo& passInfo)
 {
 	int nAreaId = pUnavailableAreas->Count();
 	pUnavailableAreas->Add(pVisArea);
@@ -1082,7 +1081,7 @@ bool CVisAreaManager::IsEntityVisAreaVisibleReqursive(CVisArea* pVisArea, int nM
 	return bFound;
 }
 
-bool CVisAreaManager::IsEntityVisAreaVisible(IRenderNode* pEnt, int nMaxReqursion, const CDLight* pLight, const SRenderingPassInfo& passInfo)
+bool CVisAreaManager::IsEntityVisAreaVisible(IRenderNode* pEnt, int nMaxReqursion, const SRenderLight* pLight, const SRenderingPassInfo& passInfo)
 {
 	if (!pEnt)
 		return false;
@@ -1399,8 +1398,7 @@ void CVisAreaManager::DrawOcclusionAreasIntoCBuffer(const SRenderingPassInfo& pa
 			for (int i = 0; i < m_lstActiveOcclVolumes.Count(); i++)
 			{
 				CVisArea* pArea = m_lstActiveOcclVolumes[i];
-				GetRenderer()->SetMaterialColor(0, 1, 0, 1);
-				DrawBBox(pArea->m_boxStatics.min, pArea->m_boxStatics.max);
+				DrawBBox(pArea->m_boxStatics.min, pArea->m_boxStatics.max,ColorB(0,255,0));
 			}
 		}
 	}
@@ -1502,18 +1500,16 @@ void CVisAreaManager::PrecacheLevel(bool bPrecacheAllVisAreas, Vec3* pPrecachePo
 		//place camera in the middle of a sector and render sector from different directions
 		for (int i = 0; i < 6 /*&& bGeomFound*/; i++)
 		{
-			GetRenderer()->BeginFrame();
-
 			// setup camera
 			CCamera cam = gEnv->pSystem->GetViewCamera();
 			Matrix33 mat = Matrix33::CreateRotationVDir(arrCamDir[i], 0);
 			cam.SetMatrix(mat);
 			cam.SetPosition(vAreaCenter);
-			cam.SetFrustum(GetRenderer()->GetWidth(), GetRenderer()->GetHeight(), gf_PI / 2, cam.GetNearPlane(), cam.GetFarPlane());
-			//			Get3DEngine()->SetupCamera(cam);
+			cam.SetFrustum(GetRenderer()->GetOverlayWidth(), GetRenderer()->GetOverlayHeight(), gf_PI / 2, cam.GetNearPlane(), cam.GetFarPlane());
+		//	Get3DEngine()->SetupCamera(cam);
 
+			GetRenderer()->BeginFrame(0);
 			Get3DEngine()->RenderWorld(SHDF_ZPASS | SHDF_ALLOWHDR | SHDF_ALLOWPOSTPROCESS | SHDF_ALLOW_WATER | SHDF_ALLOW_AO, SRenderingPassInfo::CreateGeneralPassRenderingInfo(cam), "PrecacheVisAreas");
-
 			GetRenderer()->RenderDebug();
 			GetRenderer()->EndFrame();
 
@@ -1534,17 +1530,15 @@ void CVisAreaManager::PrecacheLevel(bool bPrecacheAllVisAreas, Vec3* pPrecachePo
 		CryLog("  Precaching PrecacheCamera point %d of %d", p, nPrecachePointsNum);
 		for (int i = 0; i < 6; i++) //loop over 6 camera orientations
 		{
-			GetRenderer()->BeginFrame();
-
 			// setup camera
 			CCamera cam = gEnv->pSystem->GetViewCamera();
 			Matrix33 mat = Matrix33::CreateRotationVDir(arrCamDir[i], 0);
 			cam.SetMatrix(mat);
 			cam.SetPosition(pPrecachePoints[p]);
-			cam.SetFrustum(GetRenderer()->GetWidth(), GetRenderer()->GetHeight(), gf_PI / 2, cam.GetNearPlane(), cam.GetFarPlane());
+			cam.SetFrustum(GetRenderer()->GetOverlayWidth(), GetRenderer()->GetOverlayHeight(), gf_PI / 2, cam.GetNearPlane(), cam.GetFarPlane());
 
+			GetRenderer()->BeginFrame(0);
 			Get3DEngine()->RenderWorld(SHDF_ZPASS | SHDF_ALLOWHDR | SHDF_ALLOWPOSTPROCESS | SHDF_ALLOW_WATER | SHDF_ALLOW_AO, SRenderingPassInfo::CreateGeneralPassRenderingInfo(cam), "PrecacheOutdoor");
-
 			GetRenderer()->RenderDebug();
 			GetRenderer()->EndFrame();
 
@@ -1610,7 +1604,7 @@ void CVisAreaManager::IntersectWithBox(const AABB& aabbBox, PodArray<CVisArea*>*
 	}
 }
 
-void CVisAreaManager::AddLightSourceReqursive(CDLight* pLight, CVisArea* pArea, const int32 nDeepness, const SRenderingPassInfo& passInfo)
+void CVisAreaManager::AddLightSourceReqursive(SRenderLight* pLight, CVisArea* pArea, const int32 nDeepness, const SRenderingPassInfo& passInfo)
 {
 	if (pArea->IsObjectsTreeValid())
 	{
@@ -1627,7 +1621,7 @@ void CVisAreaManager::AddLightSourceReqursive(CDLight* pLight, CVisArea* pArea, 
 	}
 }
 
-void CVisAreaManager::AddLightSource(CDLight* pLight, const SRenderingPassInfo& passInfo)
+void CVisAreaManager::AddLightSource(SRenderLight* pLight, const SRenderingPassInfo& passInfo)
 {
 	CVisArea* pLightArea = (CVisArea*)GetVisAreaFromPos(pLight->m_Origin);
 

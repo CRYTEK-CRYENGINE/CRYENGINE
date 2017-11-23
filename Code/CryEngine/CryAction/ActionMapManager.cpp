@@ -138,7 +138,7 @@ void CActionMapManager::Update()
 		const float xMargin = 40.f;
 
 		IFFont* defaultFont = gEnv->pCryFont->GetFont("default");
-		float yPos = gEnv->pRenderer->GetHeight() - 100.f;
+		float yPos = gEnv->pRenderer->GetOverlayHeight() - 100.f;
 		float secondColumnOffset = 0.f;
 
 		STextDrawContext ctx;
@@ -169,7 +169,7 @@ void CActionMapManager::Update()
 			}
 		}
 
-		yPos = gEnv->pRenderer->GetHeight() - 100.f;
+		yPos = gEnv->pRenderer->GetOverlayHeight() - 100.f;
 
 		for (TActionMapMap::iterator it = m_actionMaps.begin(); it != m_actionMaps.end(); ++it)
 		{

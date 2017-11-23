@@ -14,9 +14,6 @@ float Script : STANDARDSGLOBAL
            "ShaderType = Sky;"
 >;
 
-/// Un-Tweakables //////////////////////
-float4 TFactor     : PB_TFactor;
-
 sampler2D whiteSampler = sampler_state
 {
   Texture = $White;
@@ -83,7 +80,7 @@ pixout SkyPS(v2f IN)
   pixout OUT;
 
   half4 baseColor = GetTexture2D(whiteSampler, IN.baseTC.xy);
-  half4 Color = baseColor * TFactor;
+  half4 Color = baseColor; // * CV_GlobalColor
 
    // Debug output
  #if %_RT_DEBUG0 || %_RT_DEBUG1 || %_RT_DEBUG2 || %_RT_DEBUG3

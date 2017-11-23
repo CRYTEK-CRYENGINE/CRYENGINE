@@ -1,4 +1,8 @@
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #pragma once
+
+#include <CryExtension/CryGUID.h>
 
 // Interface for CrySystem and Editor to initialize game projects
 struct IProjectManager

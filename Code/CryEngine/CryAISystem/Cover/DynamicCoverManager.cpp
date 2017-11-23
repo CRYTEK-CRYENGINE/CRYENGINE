@@ -6,7 +6,7 @@
 
 const bool DynamicCoverDeferred = false;
 
-void DynamicCoverManager::OnEntityEvent(IEntity* entity, SEntityEvent& event)
+void DynamicCoverManager::OnEntityEvent(IEntity* entity, const SEntityEvent& event)
 {
 	assert(m_entityCover.find(entity->GetId()) != m_entityCover.end());
 	assert((event.event == ENTITY_EVENT_XFORM) || (event.event == ENTITY_EVENT_DONE));

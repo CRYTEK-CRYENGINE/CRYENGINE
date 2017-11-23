@@ -1,13 +1,23 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using CryEngine.Common;
 
 namespace CryEngine.EntitySystem
 {
+	/// <summary>
+	/// Contains the source and target object of a collision event.
+	/// </summary>
 	public struct CollisionEvent
 	{
+		/// <summary>
+		/// The source object of the collision.
+		/// </summary>
 		public PhysicsObject Source { get; set; }
+		
+		/// <summary>
+		/// The target object of the collision.
+		/// </summary>
 		public PhysicsObject Target { get; set; }
 	}
 

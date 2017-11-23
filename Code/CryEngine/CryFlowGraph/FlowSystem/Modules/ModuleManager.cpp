@@ -298,7 +298,7 @@ void CFlowGraphModuleManager::ScanFolder(const string& folderName, bool bGlobal)
 	}
 }
 
-void CFlowGraphModuleManager::RescanModuleNames(bool bGlobal)
+void CFlowGraphModuleManager::RescanModuleNames(bool bGlobal, const char* szLoadedLevelName)
 {
 	LOADING_TIME_PROFILE_SECTION_ARGS(bGlobal ? "Global Modules" : "Level Modules");
 
@@ -319,10 +319,11 @@ void CFlowGraphModuleManager::RescanModuleNames(bool bGlobal)
 		}
 		else if (gEnv->pGameFramework->GetILevelSystem())
 		{
-			ILevelInfo* pLevel = gEnv->pGameFramework->GetILevelSystem()->GetCurrentLevel();
+			ILevelInfo* pLevel = gEnv->pGameFramework->GetILevelSystem()->GetLevelInfo(szLoadedLevelName);
 			if (pLevel)
 			{
 				path = pLevel->GetPath();
+				path.append("/");
 			}
 		}
 
@@ -337,7 +338,7 @@ void CFlowGraphModuleManager::RescanModuleNames(bool bGlobal)
 	ScanFolder(PathUtil::AddSlash(path), bGlobal);
 }
 
-void CFlowGraphModuleManager::ScanAndReloadModules(bool bScanGlobalModules, bool bScanLevelModules)
+void CFlowGraphModuleManager::ScanAndReloadModules(bool bScanGlobalModules, bool bScanLevelModules, const char* szLoadedLevelName)
 {
 	LOADING_TIME_PROFILE_SECTION;
 
@@ -347,13 +348,13 @@ void CFlowGraphModuleManager::ScanAndReloadModules(bool bScanGlobalModules, bool
 	if (bScanGlobalModules)
 	{
 		ClearModules();
-		RescanModuleNames(true);  // global
+		RescanModuleNames(true, szLoadedLevelName);  // global
 	}
 
 	if (bScanLevelModules)
 	{
 		ClearLevelModules();
-		RescanModuleNames(false); // level
+		RescanModuleNames(false, szLoadedLevelName); // level
 	}
 
 	// Second pass: loading the actual graphs with their nodes and edges
@@ -556,13 +557,14 @@ void CFlowGraphModuleManager::OnSystemEvent(ESystemEvent event, UINT_PTR wparam,
 				gEnv->pGameFramework->RegisterListener(this, "FlowGraphModuleManager", FRAMEWORKLISTENERPRIORITY_GAME);
 			}
 #endif
-
-			ScanAndReloadModules(true, false); // load global modules only
+			const char* szLevelName = reinterpret_cast<const char*>(wparam);
+			ScanAndReloadModules(true, false, szLevelName); // load global modules only
 		}
 		break;
 	case ESYSTEM_EVENT_LEVEL_LOAD_START:
 		{
-			ScanAndReloadModules(false, true); // load level modules
+			const char* szLevelName = reinterpret_cast<const char*>(wparam);
+			ScanAndReloadModules(false, true, szLevelName); // load level modules
 		}
 		break;
 	case ESYSTEM_EVENT_LEVEL_UNLOAD:

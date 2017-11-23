@@ -142,6 +142,7 @@
       <AnalyticalGI type="BOOL" value="0" TipCVar="e_svoTI_*"/>
       <TraceVoxels type="BOOL" value="1" TipCVar="e_svoTI_*"/>
       <TranslucentBrightness type="Float" value="2.5"  min="0" max="8" TipCVar="e_svoTI_*"/>
+      <StreamVoxels type="BOOL" value="0" TipCVar="e_svo*"/>
     </Total_Illumination_v2>
 
   </Environment>

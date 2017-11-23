@@ -155,7 +155,7 @@ void CC4Projectile::HandleEvent(const SGameObjectEvent &event)
 }
 
 //--------------------------------------------
-void CC4Projectile::ProcessEvent(SEntityEvent &event)
+void CC4Projectile::ProcessEvent(const SEntityEvent& event)
 {
 	BaseClass::ProcessEvent(event);
 
@@ -496,7 +496,7 @@ void CC4Projectile::SetLightParams()
 {
 	SC4ExplosiveParams* pExplosiveParams = m_pAmmoParams->pC4ExplosiveParams;
 
-	CDLight lightParams;
+	SRenderLight lightParams;
 	//Members of the same team see armed status - enemies always see red
 	lightParams.m_Flags |= DLF_POINT;
 	lightParams.SetLightColor(m_armed && m_OnSameTeam ? pExplosiveParams->armedLightColour : pExplosiveParams->disarmedLightColour);
@@ -527,12 +527,12 @@ void CC4Projectile::UpdateLight(float fFrameTime, bool forceColorChange)
 		finalMult += pExplosiveParams->pulseMinColorMultiplier;
 		m_pulseTimer = fNewPulseTimer;
 		
-		CDLight& light = m_pLightSource->GetLightProperties();
+		SRenderLight& light = m_pLightSource->GetLightProperties();
 		light.SetLightColor(ColorF(m_armed && m_OnSameTeam ? pExplosiveParams->armedLightColour * finalMult : pExplosiveParams->disarmedLightColour * finalMult));
 	}
 	else if(forceColorChange)
 	{
-		CDLight& light = m_pLightSource->GetLightProperties();
+		SRenderLight& light = m_pLightSource->GetLightProperties();
 		light.SetLightColor(ColorF(m_armed && m_OnSameTeam ? pExplosiveParams->armedLightColour : pExplosiveParams->disarmedLightColour));
 	}
 }

@@ -1413,7 +1413,7 @@ bool CDeathCameraModeSinglePlayer::UpdateView(const CPlayer& clientPlayer, SView
 				pKilEnt->GetLocalBounds(localBounds);
 				m_fKillerHeightOffset = localBounds.GetCenter().z;
 
-				m_bIsKillerInFrustrum = gEnv->pRenderer->GetCamera().IsPointVisible(vKillerPos);
+				m_bIsKillerInFrustrum = GetISystem()->GetViewCamera().IsPointVisible(vKillerPos);
 			}
 
 			CPlayerVisTable::SVisibilityParams queryTargetParams(m_killerEid);

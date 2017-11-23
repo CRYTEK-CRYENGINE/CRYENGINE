@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "AudioImpl.h"
@@ -6,6 +6,7 @@
 #include "AudioObject.h"
 #include "AudioImplCVars.h"
 #include "ATLEntities.h"
+#include <Logger.h>
 #include <CrySystem/File/ICryPak.h>
 #include <CrySystem/IProjectManager.h>
 #include <CryAudio/IAudioSystem.h>
@@ -71,7 +72,7 @@ ERequestStatus CImpl::Init(uint32 const objectPoolSize, uint32 const eventPoolSi
 
 	if (strlen(szAssetDirectory) == 0)
 	{
-		g_implLogger.Log(ELogType::Error, "<Audio - Fmod>: No asset folder set!");
+		Cry::Audio::Log(ELogType::Error, "<Audio - Fmod>: No asset folder set!");
 		szAssetDirectory = "no-asset-folder-set";
 	}
 
@@ -254,7 +255,7 @@ ERequestStatus CImpl::RegisterInMemoryFile(SFileInfo* const pFileInfo)
 		}
 		else
 		{
-			g_implLogger.Log(ELogType::Error, "Invalid FileData passed to the Fmod implementation of RegisterInMemoryFile");
+			Cry::Audio::Log(ELogType::Error, "Invalid FileData passed to the Fmod implementation of RegisterInMemoryFile");
 		}
 	}
 
@@ -291,7 +292,7 @@ ERequestStatus CImpl::UnregisterInMemoryFile(SFileInfo* const pFileInfo)
 		}
 		else
 		{
-			g_implLogger.Log(ELogType::Error, "Invalid FileData passed to the Fmod implementation of UnregisterInMemoryFile");
+			Cry::Audio::Log(ELogType::Error, "Invalid FileData passed to the Fmod implementation of UnregisterInMemoryFile");
 		}
 	}
 
@@ -357,7 +358,7 @@ IObject* CImpl::ConstructGlobalObject()
 
 	if (!stl::push_back_unique(m_constructedObjects, pObject))
 	{
-		g_implLogger.Log(ELogType::Warning, "Trying to construct an already registered audio object.");
+		Cry::Audio::Log(ELogType::Warning, "Trying to construct an already registered audio object.");
 	}
 
 	return static_cast<IObject*>(pObject);
@@ -370,7 +371,7 @@ IObject* CImpl::ConstructObject(char const* const szName /*= nullptr*/)
 
 	if (!stl::push_back_unique(m_constructedObjects, pObject))
 	{
-		g_implLogger.Log(ELogType::Warning, "Trying to construct an already registered audio object.");
+		Cry::Audio::Log(ELogType::Warning, "Trying to construct an already registered audio object.");
 	}
 
 	return static_cast<IObject*>(pObject);
@@ -383,7 +384,7 @@ void CImpl::DestructObject(IObject const* const pIObject)
 
 	if (!stl::find_and_erase(m_constructedObjects, pObject))
 	{
-		g_implLogger.Log(ELogType::Warning, "Trying to delete a non-existing audio object.");
+		Cry::Audio::Log(ELogType::Warning, "Trying to delete a non-existing audio object.");
 	}
 
 	delete pObject;
@@ -492,7 +493,7 @@ ITrigger const* CImpl::ConstructTrigger(XmlNodeRef const pRootNode)
 		}
 		else
 		{
-			g_implLogger.Log(ELogType::Warning, "Unknown Fmod event: %s", path.c_str());
+			Cry::Audio::Log(ELogType::Warning, "Unknown Fmod event: %s", path.c_str());
 		}
 	}
 	else if (_stricmp(szTag, s_szFmodSnapshotTag) == 0)
@@ -524,12 +525,12 @@ ITrigger const* CImpl::ConstructTrigger(XmlNodeRef const pRootNode)
 		}
 		else
 		{
-			g_implLogger.Log(ELogType::Warning, "Unknown Fmod snapshot: %s", path.c_str());
+			Cry::Audio::Log(ELogType::Warning, "Unknown Fmod snapshot: %s", path.c_str());
 		}
 	}
 	else
 	{
-		g_implLogger.Log(ELogType::Warning, "Unknown Fmod tag: %s", szTag);
+		Cry::Audio::Log(ELogType::Warning, "Unknown Fmod tag: %s", szTag);
 	}
 
 	return static_cast<ITrigger*>(pTrigger);
@@ -574,7 +575,7 @@ IParameter const* CImpl::ConstructParameter(XmlNodeRef const pRootNode)
 	}
 	else
 	{
-		g_implLogger.Log(ELogType::Warning, "Unknown Fmod tag: %s", szTag);
+		Cry::Audio::Log(ELogType::Warning, "Unknown Fmod tag: %s", szTag);
 	}
 
 	return static_cast<IParameter*>(pParameter);
@@ -623,7 +624,7 @@ ISwitchState const* CImpl::ConstructSwitchState(XmlNodeRef const pRootNode)
 	}
 	else
 	{
-		g_implLogger.Log(ELogType::Warning, "Unknown Fmod tag: %s", szTag);
+		Cry::Audio::Log(ELogType::Warning, "Unknown Fmod tag: %s", szTag);
 	}
 
 	return static_cast<ISwitchState*>(pSwitchState);
@@ -664,7 +665,7 @@ IEnvironment const* CImpl::ConstructEnvironment(XmlNodeRef const pRootNode)
 		}
 		else
 		{
-			g_implLogger.Log(ELogType::Warning, "Unknown Fmod bus: %s", path.c_str());
+			Cry::Audio::Log(ELogType::Warning, "Unknown Fmod bus: %s", path.c_str());
 		}
 	}
 	else if (_stricmp(szTag, s_szFmodSnapshotTag) == 0)
@@ -682,7 +683,7 @@ IEnvironment const* CImpl::ConstructEnvironment(XmlNodeRef const pRootNode)
 		}
 		else
 		{
-			g_implLogger.Log(ELogType::Warning, "Unknown Fmod snapshot: %s", path.c_str());
+			Cry::Audio::Log(ELogType::Warning, "Unknown Fmod snapshot: %s", path.c_str());
 		}
 	}
 
@@ -962,7 +963,7 @@ bool CImpl::LoadMasterBanks()
 	{
 		// This does not qualify for a fallback to the NULL implementation!
 		// Still notify the user about this failure!
-		g_implLogger.Log(ELogType::Error, "Fmod failed to load master banks");
+		Cry::Audio::Log(ELogType::Error, "Fmod failed to load master banks");
 		return true;
 	}
 

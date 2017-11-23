@@ -4,7 +4,6 @@
 #include <CryCore/Platform/platform_impl.inl>
 #include "resource.h"
 #include <CryCore/Platform/CryLibrary.h>
-#include <CryGame/IGameFramework.h>
 #include <CrySystem/IConsole.h>
 
 #include <CryCore/Platform/CryWindows.h>
@@ -64,6 +63,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	SSystemInitParams startupParams;
 	startupParams.sLogFileName = "Server.log";
 	startupParams.bDedicatedServer = true;
+	startupParams.bSkipInput = true;
 	cry_strcpy(startupParams.szSystemCmdLine, cmdLine.c_str());
 
 	unsigned buf[4];

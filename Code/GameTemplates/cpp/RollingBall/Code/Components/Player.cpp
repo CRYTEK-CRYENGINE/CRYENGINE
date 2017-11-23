@@ -122,7 +122,7 @@ uint64 CPlayerComponent::GetEventMask() const
 		;
 }
 
-void CPlayerComponent::ProcessEvent(SEntityEvent& event)
+void CPlayerComponent::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

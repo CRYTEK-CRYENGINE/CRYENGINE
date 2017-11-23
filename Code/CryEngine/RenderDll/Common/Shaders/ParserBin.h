@@ -497,7 +497,6 @@ enum EToken
 	eT_Glass,
 	eT_Vegetation,
 	eT_Particle,
-	eT_GenerateSprites,
 	eT_GenerateClouds,
 	eT_ScanWater,
 
@@ -510,7 +509,6 @@ enum EToken
 	eT_TechniqueCustomRender,
 	eT_TechniqueEffectLayer,
 	eT_TechniqueDebug,
-	eT_TechniqueSoftAlphaTest,
 	eT_TechniqueWaterRefl,
 	eT_TechniqueWaterCaustic,
 	eT_TechniqueZPrepass,

@@ -79,6 +79,7 @@ void CryAssertHandler(SAssertData const& data, SAssertCond& cond, char const* co
 		      };                                                               \
 		      ::Detail::CryAssertHandler(assertData, assertCond, __VA_ARGS__); \
 		    }                                                                  \
+		    PREFAST_ASSUME(condition);                                         \
 		  } while (false)
 
 		#define CRY_ASSERT_TRACE(condition, parenthese_message) \

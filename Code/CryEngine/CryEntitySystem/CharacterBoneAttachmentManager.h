@@ -2,12 +2,11 @@
 
 #pragma once
 
-#ifndef _CHARACTERBONE_ATTACHMENT_MANAGER_
-	#define _CHARACTERBONE_ATTACHMENT_MANAGER_
+#pragma once
 
 class CEntity;
 
-	#include <CryCore/Containers/VectorMap.h>
+#include <CryCore/Containers/VectorMap.h>
 
 class CCharacterBoneAttachmentManager
 {
@@ -39,5 +38,3 @@ private:
 
 	VectorMap<SBinding, SAttachmentData> m_attachments;
 };
-
-#endif

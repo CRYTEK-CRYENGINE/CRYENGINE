@@ -20,11 +20,15 @@ namespace UQS
 		public:
 			explicit                                   CItemList();
 			                                           ~CItemList();
+
+			// IItemList
 			virtual void                               CreateItemsByItemFactory(size_t numItemsToCreate) override;
+			virtual void                               CloneItems(const void* pOriginalItems, size_t numItemsToClone) override;
 			virtual size_t                             GetItemCount() const override;
 			virtual Client::IItemFactory&              GetItemFactory() const override;
 			virtual void*                              GetItems() const override;
 			virtual void                               CopyOtherToSelf(const IItemList& other) override;
+			// ~IItemList
 
 			void                                       SetItemFactory(Client::IItemFactory& itemFactory);
 			void                                       CopyOtherToSelfViaIndexList(const IItemList& other, const size_t* pIndexes, size_t numIndexes);

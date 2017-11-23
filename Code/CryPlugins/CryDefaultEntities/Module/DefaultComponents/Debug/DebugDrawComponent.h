@@ -21,7 +21,7 @@ namespace Cry
 			static void Register(Schematyc::CEnvRegistrationScope& componentScope);
 
 			// IEntityComponent
-			virtual void ProcessEvent(SEntityEvent& event) final;
+			virtual void ProcessEvent(const SEntityEvent& event) final;
 			virtual uint64 GetEventMask() const final;
 			// ~IEntityComponent
 

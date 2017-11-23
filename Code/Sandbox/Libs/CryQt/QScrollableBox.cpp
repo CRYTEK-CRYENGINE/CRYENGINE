@@ -63,6 +63,19 @@ void QScrollableBox::insertWidget(int i, QWidget * widget)
 	m_scrollArea->update();
 }
 
+void QScrollableBox::clearWidgets()
+{
+	QLayoutItem* item;
+	while ((item = m_layout->takeAt(0)) != nullptr)
+	{
+		item->widget()->deleteLater();
+		m_layout->removeItem(item);
+		delete item;
+	}
+
+	m_scrollArea->update();
+}
+
 int QScrollableBox::indexOf(QWidget* w)
 {
 	return m_layout->indexOf(w);

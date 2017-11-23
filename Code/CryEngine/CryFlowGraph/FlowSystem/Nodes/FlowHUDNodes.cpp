@@ -158,10 +158,10 @@ public:
 
 				int aspectRatioFlag = 0;
 
-				if (x < 1.f || y < 1.f)
+				if ((x < 1.f || y < 1.f) && gEnv->pRenderer)
 				{
-					int screenX, screenY, screenWidth, screenHeight;
-					pRenderer->GetViewport(&screenX, &screenY, &screenWidth, &screenHeight);
+					const int screenWidth  = std::max(IRenderAuxGeom::GetAux()->GetCamera().GetViewSurfaceX(), 1);
+					const int screenHeight = std::max(IRenderAuxGeom::GetAux()->GetCamera().GetViewSurfaceZ(), 1);
 
 					if (x < 1.f)
 						x *= (float)screenWidth;

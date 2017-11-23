@@ -10,6 +10,7 @@
 #pragma once
 
 #include "GpuComputeBackend.h"
+#include "GraphicsPipeline/Common/ComputeRenderPass.h"
 
 namespace gpu
 {

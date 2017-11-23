@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "AudioSystem.h"
@@ -12,6 +12,15 @@
 
 namespace CryAudio
 {
+enum class ELoggingOptions : EnumFlagsType
+{
+	None,
+	Errors = BIT(6),   // a
+	Warnings = BIT(7), // b
+	Comments = BIT(8), // c
+};
+CRY_CREATE_ENUM_FLAG_OPERATORS(ELoggingOptions);
+
 ///////////////////////////////////////////////////////////////////////////
 void CMainThread::Init(CSystem* const pSystem)
 {
@@ -59,13 +68,12 @@ bool CMainThread::IsActive()
 
 //////////////////////////////////////////////////////////////////////////
 CSystem::CSystem()
-	: m_bSystemInitialized(false)
+	: m_isInitialized(false)
 	, m_lastUpdateTime()
 	, m_deltaTime(0.0f)
 	, m_atl()
 {
 	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this, "CryAudio::CSystem");
-	m_mainThread.Init(this);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -145,7 +153,7 @@ void CSystem::PushRequest(CAudioRequest const& request)
 	}
 	else
 	{
-		g_logger.Log(ELogType::Warning, "Discarded PushRequest due to ATL not allowing for new ones!");
+		Log(ELogType::Warning, "Discarded PushRequest due to ATL not allowing for new ones!");
 	}
 }
 
@@ -239,7 +247,7 @@ void CSystem::InternalUpdate()
 
 		if (m_audioThreadWakeupEvent.Wait(10))
 		{
-			// Only reset if the event was signalled, not timed-out!
+			// Only reset if the event was signaled, not timed-out!
 			m_audioThreadWakeupEvent.Reset();
 		}
 	}
@@ -248,42 +256,68 @@ void CSystem::InternalUpdate()
 ///////////////////////////////////////////////////////////////////////////
 bool CSystem::Initialize()
 {
-	if (!m_bSystemInitialized)
+	if (!m_isInitialized)
 	{
-		if (m_mainThread.IsActive())
-		{
-			m_mainThread.Deactivate();
-		}
+#if defined(ENABLE_AUDIO_LOGGING)
+		REGISTER_CVAR2("s_LoggingOptions", &m_loggingOptions, AlphaBits64("abc"), VF_CHEAT | VF_CHEAT_NOCHECK | VF_BITFIELD,
+		               "Toggles the logging of audio related messages.\n"
+		               "Usage: s_LoggingOptions [0ab...] (flags can be combined)\n"
+		               "Default: abc\n"
+		               "0: Logging disabled\n"
+		               "a: Errors\n"
+		               "b: Warnings\n"
+		               "c: Comments\n");
+#endif // ENABLE_AUDIO_LOGGING
 
+		g_cvars.RegisterVariables();
 		m_configPath = CryFixedStringT<MaxFilePathLength>((PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR AUDIO_SYSTEM_DATA_ROOT CRY_NATIVE_PATH_SEPSTR "ace" CRY_NATIVE_PATH_SEPSTR).c_str());
 		m_atl.Initialize(this);
+		CRY_ASSERT_MESSAGE(!m_mainThread.IsActive(), "AudioSystem thread active before initialization!");
+		m_mainThread.Init(this);
 		m_mainThread.Activate();
-		m_bSystemInitialized = true;
+		AddRequestListener(&CSystem::OnCallback, nullptr, ESystemEvents::TriggerExecuted | ESystemEvents::TriggerFinished);
+		m_isInitialized = true;
+	}
+	else
+	{
+		CRY_ASSERT_MESSAGE(false, "AudioSystem has already been initialized!");
 	}
 
-	AddRequestListener(&CSystem::OnCallback, nullptr, ESystemEvents::TriggerExecuted | ESystemEvents::TriggerFinished);
-
-	return m_bSystemInitialized;
+	return m_isInitialized;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 void CSystem::Release()
 {
-	RemoveRequestListener(&CSystem::OnCallback, nullptr);
+	if (m_isInitialized)
+	{
+		RemoveRequestListener(&CSystem::OnCallback, nullptr);
 
-	SAudioManagerRequestData<EAudioManagerRequestType::ReleaseAudioImpl> releaseImplData;
-	CAudioRequest releaseImplRequest(&releaseImplData);
-	releaseImplRequest.flags = ERequestFlags::ExecuteBlocking;
-	PushRequest(releaseImplRequest);
+		SAudioManagerRequestData<EAudioManagerRequestType::ReleaseAudioImpl> releaseImplData;
+		CAudioRequest releaseImplRequest(&releaseImplData);
+		releaseImplRequest.flags = ERequestFlags::ExecuteBlocking;
+		PushRequest(releaseImplRequest);
 
-	m_mainThread.Deactivate();
-	bool const bSuccess = m_atl.ShutDown();
-	m_bSystemInitialized = false;
+		m_mainThread.Deactivate();
+		bool const bSuccess = m_atl.ShutDown();
+		g_cvars.UnregisterVariables();
 
-	delete this;
+#if defined(ENABLE_AUDIO_LOGGING)
+		IConsole* const pIConsole = gEnv->pConsole;
 
-	g_cvars.UnregisterVariables();
+		if (pIConsole != nullptr)
+		{
+			pIConsole->UnregisterVariable("s_LoggingOptions");
+		}
+#endif // ENABLE_AUDIO_LOGGING
 
+		m_isInitialized = false;
+		delete this;
+	}
+	else
+	{
+		CRY_ASSERT_MESSAGE(false, "AudioSystem has already been released or was never properly initialized!");
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -743,6 +777,69 @@ IProfileData* CSystem::GetProfileData() const
 #else
 	return nullptr;
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CSystem::Log(ELogType const type, char const* const szFormat, ...)
+{
+#if defined(ENABLE_AUDIO_LOGGING)
+	if (szFormat != nullptr && szFormat[0] != '\0' && gEnv->pLog->GetVerbosityLevel() != -1)
+	{
+		CRY_PROFILE_REGION(PROFILE_AUDIO, "CSystem::Log");
+
+		char buffer[256];
+		va_list ArgList;
+		va_start(ArgList, szFormat);
+		cry_vsprintf(buffer, szFormat, ArgList);
+		va_end(ArgList);
+
+		float const currentTime = gEnv->pTimer->GetAsyncCurTime();
+		ELoggingOptions const loggingOptions = static_cast<ELoggingOptions>(m_loggingOptions);
+
+		switch (type)
+		{
+		case ELogType::Warning:
+			{
+				if ((loggingOptions& ELoggingOptions::Warnings) != 0)
+				{
+					gEnv->pSystem->Warning(VALIDATOR_MODULE_AUDIO, VALIDATOR_WARNING, VALIDATOR_FLAG_AUDIO, nullptr, "<Audio> <%.3f>: %s", currentTime, buffer);
+				}
+
+				break;
+			}
+		case ELogType::Error:
+			{
+				if ((loggingOptions& ELoggingOptions::Errors) != 0)
+				{
+					gEnv->pSystem->Warning(VALIDATOR_MODULE_AUDIO, VALIDATOR_ERROR, VALIDATOR_FLAG_AUDIO, nullptr, "<Audio> <%.3f>: %s", currentTime, buffer);
+				}
+
+				break;
+			}
+		case ELogType::Comment:
+			{
+				if ((gEnv->pLog != nullptr) && (gEnv->pLog->GetVerbosityLevel() >= 4) && ((loggingOptions& ELoggingOptions::Comments) != 0))
+				{
+					CryLogAlways("<Audio> <%.3f>: %s", currentTime, buffer);
+				}
+
+				break;
+			}
+		case ELogType::Always:
+			{
+				CryLogAlways("<Audio> <%.3f>: %s", currentTime, buffer);
+
+				break;
+			}
+		default:
+			{
+				CRY_ASSERT(false);
+
+				break;
+			}
+		}
+	}
+#endif // ENABLE_AUDIO_LOGGING
 }
 
 //////////////////////////////////////////////////////////////////////////

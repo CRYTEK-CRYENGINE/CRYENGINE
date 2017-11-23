@@ -12,10 +12,9 @@
 #include "Common/RenderView.h"
 #include "DriverD3D.h"
 #include "GraphicsPipeline/Common/FullscreenPass.h"
+#include "GraphicsPipeline/Common/ComputeRenderPass.h"
 
 std::vector<CPoissonDiskGen> CPoissonDiskGen::s_kernelSizeGens;
-
-bool CShadowUtils::bShadowFrustumCacheValid = false;
 
 void CShadowUtils::CalcScreenToWorldExpansionBasis(const CCamera& cam, float fViewWidth, float fViewHeight, Vec3& vWBasisX, Vec3& vWBasisY, Vec3& vWBasisZ, bool bWPos)
 {
@@ -62,10 +61,9 @@ void CShadowUtils::CalcScreenToWorldExpansionBasis(const CCamera& cam, float fVi
 
 }
 
-void CShadowUtils::ProjectScreenToWorldExpansionBasis(const Matrix44r& mShadowTexGen, const CCamera& cam, const Vec2& vJitter, float fViewWidth, float fViewHeight, Vec4r& vWBasisX, Vec4r& vWBasisY, Vec4r& vWBasisZ, Vec4r& vCamPos, bool bWPos, SRenderTileInfo* pSTileInfo)
+void CShadowUtils::ProjectScreenToWorldExpansionBasis(const Matrix44r& mShadowTexGen, const CCamera& cam, const Vec2& vJitter, float fViewWidth, float fViewHeight, Vec4r& vWBasisX, Vec4r& vWBasisY, Vec4r& vWBasisZ, Vec4r& vCamPos, bool bWPos)
 {
 	const Matrix34& camMatrix = cam.GetMatrix();
-	const bool bTileRendering = pSTileInfo && (pSTileInfo->nGridSizeX > 1 || pSTileInfo->nGridSizeY > 1);
 
 	Vec3 vNearEdge = cam.GetEdgeN();
 
@@ -95,13 +93,6 @@ void CShadowUtils::ProjectScreenToWorldExpansionBasis(const Matrix44r& mShadowTe
 	//Add view position to constant vector to avoid additional ADD in the shader
 	//vZ = vZ + cam.GetPosition();
 
-	//multi-tiled render handling
-	if (bTileRendering)
-	{
-		vZ = vZ + (vX * (2.0f * (pSTileInfo->nGridSizeX - 1.0f - pSTileInfo->nPosX) / pSTileInfo->nGridSizeX));
-		vZ = vZ - (vY * (2.0f * (pSTileInfo->nGridSizeY - 1.0f - pSTileInfo->nPosY) / pSTileInfo->nGridSizeY));
-	}
-
 	//TFIX calc how k-scale does work with this projection
 	//WPos basis adjustments
 	if (bWPos)
@@ -118,13 +109,6 @@ void CShadowUtils::ProjectScreenToWorldExpansionBasis(const Matrix44r& mShadowTe
 		//vY *= -2.0f; //uncomment for ScreenTC
 	}
 
-	//multi-tiled render handling
-	if (bTileRendering)
-	{
-		vX *= 1.0f / pSTileInfo->nGridSizeX;
-		vY *= 1.0f / pSTileInfo->nGridSizeY;
-	}
-
 	//TOFIX: create PB components for these params
 	//creating common projection matrix for depth reconstruction
 	vWBasisX = mShadowTexGen * Vec4r(vX, 0.0f);
@@ -132,105 +116,6 @@ void CShadowUtils::ProjectScreenToWorldExpansionBasis(const Matrix44r& mShadowTe
 	vWBasisZ = mShadowTexGen * Vec4r(vZ, 0.0f);
 	vCamPos = mShadowTexGen * Vec4r(cam.GetPosition(), 1.0f);
 
-}
-
-void CShadowUtils::CalcLightBoundRect(const SRenderLight* pLight, const CRenderCamera& RCam, Matrix44A& mView, Matrix44A& mProj, Vec2* pvMin, Vec2* pvMax, IRenderAuxGeom* pAuxRend)
-{
-	Vec3 vViewVec = Vec3(pLight->m_Origin - RCam.vOrigin);
-	float fDistToLS = vViewVec.GetLength();
-
-	if (fDistToLS <= pLight->m_fRadius)
-	{
-		//optimization when we are inside light frustum
-		*pvMin = Vec2(0, 0);
-		*pvMax = Vec2(1, 1);
-		return;
-	}
-
-	float fRadiusSquared = pLight->m_fRadius * pLight->m_fRadius;
-
-	//distance from Light Source center to the bound plane
-	float fDistToBoundPlane = fRadiusSquared / fDistToLS;
-
-	float fQuadEdge = sqrtf(fRadiusSquared - fDistToBoundPlane * fDistToBoundPlane);
-
-	vViewVec.SetLength(fDistToLS - fDistToBoundPlane);
-
-	Vec3 vCenter = RCam.vOrigin + vViewVec;
-
-	Vec3 vUp = vViewVec.Cross(RCam.vY.Cross(vViewVec));
-	Vec3 vRight = vViewVec.Cross(RCam.vX.Cross(vViewVec));
-
-	vUp.normalize();
-	vRight.normalize();
-
-	float fRadius = pLight->m_fRadius;
-
-	Vec3 pBRectVertices[4] =
-	{
-		vCenter + (vUp * fQuadEdge) - (vRight * fQuadEdge),
-		vCenter + (vUp * fQuadEdge) + (vRight * fQuadEdge),
-		vCenter - (vUp * fQuadEdge) + (vRight * fQuadEdge),
-		vCenter - (vUp * fQuadEdge) - (vRight * fQuadEdge)
-	};
-
-	Vec3 pBBoxVertices[8] =
-	{
-		Vec3(Vec3(vCenter.x, vCenter.y, vCenter.z) + Vec3(-fRadius, -fRadius, fRadius)),
-		Vec3(Vec3(vCenter.x, vCenter.y, vCenter.z) + Vec3(-fRadius, fRadius,  fRadius)),
-		Vec3(Vec3(vCenter.x, vCenter.y, vCenter.z) + Vec3(fRadius,  -fRadius, fRadius)),
-		Vec3(Vec3(vCenter.x, vCenter.y, vCenter.z) + Vec3(fRadius,  fRadius,  fRadius)),
-
-		Vec3(Vec3(vCenter.x, vCenter.y, vCenter.z) + Vec3(-fRadius, -fRadius, -fRadius)),
-		Vec3(Vec3(vCenter.x, vCenter.y, vCenter.z) + Vec3(-fRadius, fRadius,  -fRadius)),
-		Vec3(Vec3(vCenter.x, vCenter.y, vCenter.z) + Vec3(fRadius,  -fRadius, -fRadius)),
-		Vec3(Vec3(vCenter.x, vCenter.y, vCenter.z) + Vec3(fRadius,  fRadius,  -fRadius))
-	};
-
-	//TODO: cache inverted mitrices for all deff meshes reconstructions
-	Matrix44A mInvView = mView.GetInverted();
-
-	*pvMin = Vec2(1, 1);
-	*pvMax = Vec2(0, 0);
-
-	for (int i = 0; i < 4; i++)
-	{
-		if (pAuxRend != NULL)
-		{
-			pAuxRend->DrawPoint(pBRectVertices[i], RGBA8(0xff, 0xff, 0xff, 0xff), 10);
-
-			int32 nPrevVert = (i - 1) < 0 ? 3 : (i - 1);
-
-			pAuxRend->DrawLine(pBRectVertices[nPrevVert], RGBA8(0xff, 0xff, 0x0, 0xff), pBRectVertices[i], RGBA8(0xff, 0xff, 0x0, 0xff), 3.0f);
-		}
-
-		Vec4 vScreenPoint = Vec4(pBRectVertices[i], 1.0) * mProj;
-
-		//projection space clamping
-		vScreenPoint.w = max(vScreenPoint.w, 0.00000000000001f);
-
-		vScreenPoint.x = max(vScreenPoint.x, -(vScreenPoint.w));
-		vScreenPoint.x = min(vScreenPoint.x, vScreenPoint.w);
-		vScreenPoint.y = max(vScreenPoint.y, -(vScreenPoint.w));
-		vScreenPoint.y = min(vScreenPoint.y, vScreenPoint.w);
-
-		//NDC
-		vScreenPoint /= vScreenPoint.w;
-
-		//output coords
-		//generate viewport (x=0,y=0,height=1,width=1)
-		Vec2 vWin;
-		vWin.x = (1 + vScreenPoint.x) / 2;
-		vWin.y = (1 + vScreenPoint.y) / 2;  //flip coords for y axis
-
-		assert(vWin.x >= 0.0f && vWin.x <= 1.0f);
-		assert(vWin.y >= 0.0f && vWin.y <= 1.0f);
-
-		pvMin->x = min(pvMin->x, vWin.x);
-		pvMin->y = min(pvMin->y, vWin.y);
-		pvMax->x = max(pvMax->x, vWin.x);
-		pvMax->y = max(pvMax->y, vWin.y);
-	}
 }
 
 void CShadowUtils::GetProjectiveTexGen(const SRenderLight* pLight, int nFace, Matrix44A* mTexGen)
@@ -663,7 +548,7 @@ bool CShadowUtils::SetupShadowsForFog(SShadowCascades& shadowCascades, CRenderVi
 
 	const bool valid = GetShadowCascades(shadowCascades, pRenderView);
 
-	gcpRendD3D->FX_SetupForwardShadows(pRenderView, false);
+	//gcpRendD3D->FX_SetupForwardShadows(pRenderView, false);
 
 	return valid;
 }
@@ -696,7 +581,7 @@ void CShadowUtils::SetShadowSamplingContextToRenderPass(
 
 	if (shadowNoiseTextureSlot >= 0)
 	{
-		pass.SetTexture(shadowNoiseTextureSlot, CTexture::s_ptexShadowJitterMap);
+		pass.SetTexture(shadowNoiseTextureSlot, CRendererResources::s_ptexShadowJitterMap);
 	}
 }
 
@@ -760,7 +645,7 @@ bool CShadowUtils::GetShadowCascades(SShadowCascades& shadowCascades, CRenderVie
 	auto& shadowFrustumArray = pRenderView->GetShadowFrustumsByType(CRenderView::eShadowFrustumRenderType_SunDynamic);
 
 	// fill shadow cascades with default shadow map texture.
-	std::fill(std::begin(shadowCascades.pShadowMap), std::end(shadowCascades.pShadowMap), CTexture::s_ptexFarPlane);
+	std::fill(std::begin(shadowCascades.pShadowMap), std::end(shadowCascades.pShadowMap), CRendererResources::s_ptexFarPlane);
 
 	// check all shadow map textures are valid and set them to array.
 	bool valid = true;
@@ -771,7 +656,7 @@ bool CShadowUtils::GetShadowCascades(SShadowCascades& shadowCascades, CRenderVie
 		auto pFrustm = shadowFrustumArray[i];
 		if (pFrustm && pFrustm->pFrustum && pFrustm->pFrustum->pDepthTex)
 		{
-			if (pFrustm->pFrustum->pDepthTex == CTexture::s_ptexFarPlane)
+			if (pFrustm->pFrustum->pDepthTex == CRendererResources::s_ptexFarPlane)
 			{
 				valid = false;
 			}
@@ -784,7 +669,7 @@ bool CShadowUtils::GetShadowCascades(SShadowCascades& shadowCascades, CRenderVie
 	shadowCascades.pCloudShadowMap =
 		(cloudShadowTexId > 0)
 		? CTexture::GetByID(cloudShadowTexId)
-		: CTexture::s_ptexWhite;
+		: CRendererResources::s_ptexWhite;
 
 	return valid;
 }
@@ -794,7 +679,7 @@ bool CShadowUtils::GetShadowCascadesSamplingInfo(SShadowCascadesSamplingInfo& sa
 	CRY_ASSERT(pRenderView != nullptr);
 
 	EShaderQuality shaderQuality = gcpRendD3D->m_cEF.m_ShaderProfiles[eST_Shadow].GetShaderQuality();
-	SCGParamsPF& PF = gcpRendD3D->m_cEF.m_PF[gcpRendD3D->m_RP.m_nProcessThreadID];
+	SRenderViewShaderConstants& PF = pRenderView->GetShaderConstants();
 	const bool bCloudShadow = gcpRendD3D->m_bCloudShadowsEnabled && (gcpRendD3D->GetCloudShadowTextureId() > 0);
 
 	auto& shadowFrustumArray = pRenderView->GetShadowFrustumsByType(CRenderView::eShadowFrustumRenderType_SunDynamic);
@@ -902,7 +787,7 @@ Matrix44 CShadowUtils::GetClipToTexSpaceMatrix(const ShadowMapFrustum* pFrustum,
 }
 
 
-CShadowUtils::SShadowSamplingInfo CShadowUtils::GetDeferredShadowSamplingInfo(ShadowMapFrustum* pFr, int nSide, const CCamera& cam, const SViewport& viewport, const Vec2& subpixelOffset)
+CShadowUtils::SShadowSamplingInfo CShadowUtils::GetDeferredShadowSamplingInfo(ShadowMapFrustum* pFr, int nSide, const CCamera& cam, const SRenderViewport& viewport, const Vec2& subpixelOffset)
 {
 	CShadowUtils::SShadowSamplingInfo result;
 	Matrix44 lightViewProj;
@@ -910,7 +795,7 @@ CShadowUtils::SShadowSamplingInfo CShadowUtils::GetDeferredShadowSamplingInfo(Sh
 
 	// screenToWorldBasis: screen -> world space
 	Vec4r vWBasisX, vWBasisY, vWBasisZ, vCamPosShadowSpace, vWBasisMagnitues;
-	CShadowUtils::ProjectScreenToWorldExpansionBasis(result.shadowTexGen, cam, subpixelOffset, float(viewport.nWidth), float(viewport.nHeight), vWBasisX, vWBasisY, vWBasisZ, vCamPosShadowSpace, true, nullptr);
+	CShadowUtils::ProjectScreenToWorldExpansionBasis(result.shadowTexGen, cam, subpixelOffset, float(viewport.width), float(viewport.height), vWBasisX, vWBasisY, vWBasisZ, vCamPosShadowSpace, true);
 	Vec4r vWBasisMagnitudes = Vec4r(vWBasisX.GetLength(), vWBasisY.GetLength(), vWBasisZ.GetLength(), 1.0f);
 
 	// noise projection
@@ -951,7 +836,7 @@ CShadowUtils::SShadowSamplingInfo CShadowUtils::GetDeferredShadowSamplingInfo(Sh
 
 			Matrix44A shadowMatPrev = pPrevFr->mLightViewMatrix * clipToTexSpace;  // NOTE: no sub-rect here as blending code assumes full [0-1] UV range;
 			Vec4r vWBasisPrevX, vWBasisPrevY, vWBasisPrevZ, vCamPosShadowSpacePrev;
-			CShadowUtils::ProjectScreenToWorldExpansionBasis(shadowMatPrev.GetTransposed(), cam, subpixelOffset, float(viewport.nWidth), float(viewport.nHeight), vWBasisPrevX, vWBasisPrevY, vWBasisPrevZ, vCamPosShadowSpacePrev, true, nullptr);
+			CShadowUtils::ProjectScreenToWorldExpansionBasis(shadowMatPrev.GetTransposed(), cam, subpixelOffset, float(viewport.width), float(viewport.height), vWBasisPrevX, vWBasisPrevY, vWBasisPrevZ, vCamPosShadowSpacePrev, true);
 
 			blendTexGen.SetRow4(0, vWBasisPrevX);
 			blendTexGen.SetRow4(1, vWBasisPrevY);
@@ -1152,9 +1037,10 @@ void CShadowUtils::GetIrregKernel(float sData[][4], int nSamplesNum)
 	   sData[i].f[3] = 0;
 	   }*/
 
-	CPoissonDiskGen& pdg = CPoissonDiskGen::GetGenForKernelSize(nSamplesNum);
 
 #ifdef PACKED_SAMPLES
+	CPoissonDiskGen& pdg = CPoissonDiskGen::GetGenForKernelSize((nSamplesNum + 1) & ~0x1);
+
 	for (int i = 0, nIdx = 0; i < nSamplesNum; i += 2, nIdx++)
 	{
 		Vec2 vSample = pdg.GetSample(i);
@@ -1165,6 +1051,8 @@ void CShadowUtils::GetIrregKernel(float sData[][4], int nSamplesNum)
 		sData[nIdx][3] = vSample.y;
 	}
 #else
+	CPoissonDiskGen& pdg = CPoissonDiskGen::GetGenForKernelSize(nSamplesNum);
+
 	for (int i = 0, nIdx = 0; i < nSamplesNum; i++, nIdx++)
 	{
 		Vec2 vSample = pdg.GetSample(i);
@@ -1203,46 +1091,6 @@ ShadowMapFrustum& CShadowUtils::GetFirstFrustum(CRenderView* pRenderView, int nL
 	assert(!SMFrustums.empty());
 	ShadowMapFrustum& firstFrustum = *SMFrustums.front()->pFrustum;
 	return firstFrustum;
-}
-
-const CShadowUtils::ShadowFrustumIDs* CShadowUtils::GetShadowFrustumList(uint64 nMask)
-{
-	// TODO: proper fix for per render object shadow light mask
-	return NULL;
-
-	if (!nMask)
-		return NULL;
-
-	if (!bShadowFrustumCacheValid)
-	{
-		// clear all allocated lists
-		for (CRenderer::ShadowFrustumListsCache::iterator it = gRenDev->m_FrustumsCache.begin();
-		     it != gRenDev->m_FrustumsCache.end(); ++it)
-			(it->second)->Clear();
-		bShadowFrustumCacheValid = true;
-	}
-
-	CShadowUtils::ShadowFrustumIDs* pList = stl::find_in_map(gRenDev->m_FrustumsCache, nMask, NULL);
-	if (!pList)
-		pList = new CShadowUtils::ShadowFrustumIDs;
-	if (pList->empty())
-	{
-		assert(nSunLightID <= 0xFF);
-		// add sun index and lods encoded in higher bits
-		for (int i = 0; i < 8; ++i)
-		{
-			if (nMask & (uint64(1) << i))
-				pList->Add((i << 8) | (nSunLightID & 0xFF));
-		}
-		// other lights have 1 lod and index encoded in low bits
-		for (int i = 8; i < 64 && (uint64(1) << i) <= nMask; ++i)
-		{
-			if (nMask & (uint64(1) << i))
-				pList->Add(i);
-		}
-		gRenDev->m_FrustumsCache[nMask] = pList;
-	}
-	return pList;
 }
 
 void ShadowMapFrustum::GetMemoryUsage(ICrySizer* pSizer) const

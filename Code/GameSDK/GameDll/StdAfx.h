@@ -25,7 +25,7 @@
 #endif // _MSC_VER > 1000
 
 #include <CryCore/Project/CryModuleDefs.h> 
-#define eCryModule eCryM_Game
+#define eCryModule eCryM_LegacyGameDLL
 #define RWI_NAME_TAG "RayWorldIntersection(Game)"
 #define PWI_NAME_TAG "PrimitiveWorldIntersection(Game)"
 

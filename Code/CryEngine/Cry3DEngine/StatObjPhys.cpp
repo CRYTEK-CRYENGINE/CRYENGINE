@@ -3809,7 +3809,7 @@ SSkinningData* CStatObjFoliage::GetSkinningData(const Matrix34& RenderMat34, con
 	int nNumBones = ComputeSkinningTransformationsCount();
 
 	// get data to fill
-	int nSkinningFrameID = gEnv->pRenderer->EF_GetSkinningPoolID();
+	int nSkinningFrameID = passInfo.GetIRenderView()->GetSkinningPoolIndex();
 	int nSkinningList = nSkinningFrameID % 3;
 	int nPrevSkinningList = (nSkinningFrameID - 1) % 3;
 
@@ -3882,7 +3882,7 @@ SSkinningData* CStatObjFoliage::GetSkinningData(const Matrix34& RenderMat34, con
 	// get data to fill
 	assert(jointIndex == nNumBones);
 
-	SSkinningData* pSkinningData = gEnv->pRenderer->EF_CreateSkinningData(jointIndex, false);
+	SSkinningData* pSkinningData = gEnv->pRenderer->EF_CreateSkinningData(passInfo.GetIRenderView(), jointIndex, false);
 	assert(pSkinningData);
 	PREFAST_ASSUME(pSkinningData);
 	memcpy(pSkinningData->pBoneQuatsS, pPose, jointIndex * sizeof(DualQuat));

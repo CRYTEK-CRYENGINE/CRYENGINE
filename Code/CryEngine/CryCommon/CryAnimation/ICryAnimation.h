@@ -96,7 +96,6 @@ struct CryCharMorphParams;
 struct IMaterial;
 struct IStatObj;
 struct IRenderMesh;
-class CDLight;
 
 class CDefaultSkeleton;
 
@@ -400,6 +399,7 @@ struct IDefaultSkeleton
 	// All render-meshes will be removed from the CDefaultSkeleton-class.
 	// The following functions will become deprecated.
 	virtual const phys_geometry* GetJointPhysGeom(uint32 jointIndex) const = 0;                 //!< just for statistics of physics proxies.
+	virtual CryBonePhysics*      GetJointPhysInfo(uint32 jointIndex) = 0;
 	virtual int32                GetLimbDefinitionIdx(LimbIKDefinitionHandle handle) const = 0;
 	virtual void                 PrecacheMesh(bool bFullUpdate, int nRoundId, int nLod) = 0;
 	virtual IRenderMesh*         GetIRenderMesh() const = 0;
@@ -515,11 +515,7 @@ struct ICharacterInstance : IMeshObj
 
 	//! Draw the character using specified rendering parameters.
 	//! \param RendParams Rendering parameters.
-	virtual void Render(const SRendParams& RendParams, const QuatTS& Offset, const SRenderingPassInfo& passInfo) = 0;
-	virtual void Render(const SRendParams& RendParams, const SRenderingPassInfo& passInfo) override
-	{
-		Render(RendParams, QuatTS(IDENTITY), passInfo);
-	}
+	virtual void Render(const SRendParams& RendParams, const SRenderingPassInfo& passInfo) = 0;
 
 	//! Set rendering flags defined in ECharRenderFlags for this character instance
 	//! \param nFlags Rendering flags

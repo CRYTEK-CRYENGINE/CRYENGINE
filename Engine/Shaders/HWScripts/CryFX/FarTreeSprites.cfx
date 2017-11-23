@@ -12,8 +12,6 @@
 float Script : STANDARDSGLOBAL
 <
   string Script = "ShaderDrawType = Custom;"
-                  "ShaderType = General;"
-                  "PreprType = GenerateSprites;"
 									"ForceDrawLast;"
 									"SupportsFullDeferredShading;"
                   "ForceZpass;"
@@ -22,8 +20,6 @@ float Script : STANDARDSGLOBAL
 /// Un-Tweakables //////////////////////
 float4 SpritesOutdoorAOVertInfo;
 float4 TexAtlasSize;
-
-float4 BaseTCMatrix    : PB_TerrainBaseMatrix;
 
 sampler2D BaseSampler  : register(s0);		// linear
 
@@ -233,7 +229,7 @@ pixout SpritePS(v2f IN)
   half fSunContribution;
   half4 baseColor = tex2DBilinearSprites(BaseSampler, IN.baseTC.xy, fSunContribution); 
 
-  half4 cDiffuseAccRT = DecodeLightBuffer( GetSceneTexProj( sceneDiffuseAccTex, IN.shadowTC.xyzw) ); 
+  half4 cDiffuseAccRT = DecodeLightBuffer( GetSceneTexProj( _tex0, IN.shadowTC.xyzw) ); 
 
 	half shadowOccl = 1.0h;
 	half3 vAORatios = 1.h;

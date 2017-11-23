@@ -64,7 +64,7 @@ uint64 CListenerComponent::GetEventMask() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CListenerComponent::ProcessEvent(SEntityEvent& event)
+void CListenerComponent::ProcessEvent(const SEntityEvent& event)
 {
 	if (m_bActive && m_pIListener != nullptr)
 	{

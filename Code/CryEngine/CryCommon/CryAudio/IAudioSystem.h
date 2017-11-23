@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -116,6 +116,24 @@ enum class EOcclusionType : EnumFlagsType
 	Count,
 };
 CRY_CREATE_ENUM_FLAG_OPERATORS(EOcclusionType);
+
+/**
+ * @enum CryAudio::ELogType
+ * @brief is a strongly typed enum class representing different audio specific log types
+ * @var CryAudio::ELogType::None
+ * @var CryAudio::ELogType::Comment
+ * @var CryAudio::ELogType::Warning
+ * @var CryAudio::ELogType::Error
+ * @var CryAudio::ELogType::Always
+ */
+enum class ELogType : EnumFlagsType
+{
+	None,    /**< used to initialize variables of this type and to determine whether users forgot to set a type for logging */
+	Comment, /**< message will be displayed in standard color but verbosity level must be set to at least 4 */
+	Warning, /**< message will be displayed in orange color */
+	Error,   /**< message will be displayed in red color */
+	Always,  /**< message will be displayed in standard color and always printed regardless of verbosity level */
+};
 
 struct SRequestInfo
 {
@@ -527,6 +545,14 @@ struct IAudioSystem
 	 * @return void
 	 */
 	virtual IProfileData* GetProfileData() const = 0;
+
+	/**
+	 * Logs an audio specific message and adds an audio tag plus time stamp to the string.
+	 * Note: Don't use this method directly, instead use Cry::Audio::Log()!
+	 * @param type - log message type (ELogType)
+	 * @param szFormat, ... - printf-style format string and its argument
+	 */
+	virtual void Log(ELogType const type, char const* const szFormat, ...) = 0;
 	// </interfuscator:shuffle>
 };
 } // namespace CryAudio

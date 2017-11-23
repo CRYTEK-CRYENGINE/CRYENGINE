@@ -17,4 +17,13 @@ struct SBoundingVolume
 	float       height = 0.0f;
 };
 
+//! Set of parameters used for creating Navigation markup shape volume 
+struct SMarkupVolumeParams
+{
+	AreaAnnotation areaAnnotation;
+	float height;
+	bool bStoreTriangles;
+	bool bExpandByAgentRadius;
+};
+
 } // namespace MNM

@@ -77,7 +77,7 @@ bool CLanQueryListener::IsSuicidal()
 	return false;
 }
 
-void CLanQueryListener::DeleteThis()
+void CLanQueryListener::DeleteThis() const
 {
 	delete this;
 }

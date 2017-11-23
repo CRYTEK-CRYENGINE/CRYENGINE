@@ -568,7 +568,7 @@ void CAILightManager::UpdateLights()
 	   for (unsigned i = 0, ni = pLightEnts->size(); i < ni; ++i)
 	   {
 	    ILightSource* pLightSource = *pLightEnts->Get(i);
-	    CDLight& light = pLightSource->GetLightProperties();
+	    SRenderLight& light = pLightSource->GetLightProperties();
 	    if ((light.m_Flags & DLF_FAKE) || (light.m_Flags & DLF_DIRECTIONAL))
 	      continue;
 

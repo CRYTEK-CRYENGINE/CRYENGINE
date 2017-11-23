@@ -8,7 +8,6 @@
 class CAutoExposureStage : public CGraphicsPipelineStage
 {
 public:
-	void Init();
 	void Execute();
 
 private:

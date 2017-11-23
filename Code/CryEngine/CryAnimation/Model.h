@@ -464,6 +464,10 @@ public:
 	{
 		return m_arrModelJoints[jointIndex].m_PhysInfo.pPhysGeom;
 	}
+	virtual CryBonePhysics* GetJointPhysInfo(uint32 jointIndex)
+	{
+		return &m_arrModelJoints[jointIndex].m_PhysInfo;
+	}
 	virtual const DynArray<SBoneShadowCapsule>& GetShadowCapsules() const
 	{
 		return m_ShadowCapsulesList;

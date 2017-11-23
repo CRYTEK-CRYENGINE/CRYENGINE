@@ -29,6 +29,14 @@ void CStaticMeshComponent::Register(Schematyc::CEnvRegistrationScope& componentS
 		pFunction->SetFlags({ Schematyc::EEnvFunctionFlags::Member });
 		componentScope.Register(pFunction);
 	}
+	{
+		auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&CStaticMeshComponent::SetObject, "{7E31601A-2766-4F3D-AF97-65F34556C664}"_cry_guid, "SetObject");
+		pFunction->BindInput(1, 'path', "Path");
+		pFunction->BindInput(2, 'setd', "Set Default Mass");
+		pFunction->SetDescription("Changes the type of the object");
+		pFunction->SetFlags({ Schematyc::EEnvFunctionFlags::Member });
+		componentScope.Register(pFunction); 
+	}
 }
 
 void CStaticMeshComponent::Initialize()
@@ -49,7 +57,7 @@ void CStaticMeshComponent::LoadFromDisk()
 	}
 }
 
-void CStaticMeshComponent::SetObject(IStatObj* pObject, bool bSetDefaultMass)
+void CStaticMeshComponent::SetObjectDirect(IStatObj* pObject, bool bSetDefaultMass)
 {
 	m_pCachedStatObj = pObject;
 	m_filePath.value = m_pCachedStatObj->GetFilePath();
@@ -60,6 +68,18 @@ void CStaticMeshComponent::SetObject(IStatObj* pObject, bool bSetDefaultMass)
 		{
 			m_physics.m_mass = 10;
 		}
+	}
+
+	ResetObject();
+}
+
+void CStaticMeshComponent::SetObject(Schematyc::CSharedString path, bool bSetDefaultMass)
+{
+	IStatObj* pObject = gEnv->p3DEngine->LoadStatObj(path.c_str());
+
+	if (pObject != nullptr)
+	{
+		SetObjectDirect(pObject, bSetDefaultMass);
 	}
 }
 
@@ -82,7 +102,7 @@ void CStaticMeshComponent::ResetObject()
 	}
 }
 
-void CStaticMeshComponent::ProcessEvent(SEntityEvent& event)
+void CStaticMeshComponent::ProcessEvent(const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED)
 	{

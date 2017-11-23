@@ -10,6 +10,11 @@ DynArray<FuncVariableGroup> COpticsProxy::GetEditorParamGroups()
 }
 #endif
 
+void COpticsProxy::DeleteThis()
+{
+	delete this;
+}
+
 COpticsProxy::COpticsProxy(const char* name) :
 	m_bEnable(false),
 	m_name(name),

@@ -57,6 +57,11 @@ NavigationAgentTypeID CActorCollisionAvoidance::GetNavigationTypeId() const
 	return m_pActor->GetNavigationTypeID();
 }
 
+const INavMeshQueryFilter* CActorCollisionAvoidance::GetNavigationQueryFilter() const
+{
+	return nullptr;
+}
+
 const char* CActorCollisionAvoidance::GetName() const
 {
 	return m_pActor->GetName();

@@ -27,7 +27,6 @@ CCharacterRenderNode::CCharacterRenderNode()
 	m_cachedBoundsLocal = AABB(0.0f);
 	m_matrix.SetIdentity();
 	m_nearestMatrix.SetIdentity();
-	m_renderOffset.SetIdentity();
 
 	GetInstCount(GetRenderNodeType())++;
 }
@@ -88,18 +87,16 @@ void CCharacterRenderNode::Render(const SRendParams& inputRendParams, const SRen
 
 		// Nearest objects recalculate instance matrix every frame
 		//m_bPermanentRenderObjectMatrixValid = false;
-		QuatTS offset;
-		offset.SetIdentity();
-
+		
 		m_nearestMatrix = m_matrix;	
 		CalcNearestTransform(m_nearestMatrix, passInfo);
 		rParms.pNearestMatrix = &m_nearestMatrix;
 
-		m_pCharacterInstance->Render(rParms, offset, passInfo);
+		m_pCharacterInstance->Render(rParms, passInfo);
 	}
 	else
 	{
-		m_pCharacterInstance->Render(rParms, m_renderOffset, passInfo);
+		m_pCharacterInstance->Render(rParms, passInfo);
 	}
 }
 
@@ -270,11 +267,6 @@ void CCharacterRenderNode::SetCharacter(ICharacterInstance* pCharacter)
 		m_pCharacterInstance = pCharacter;
 		InvalidatePermanentRenderObject();
 	}
-}
-
-void CCharacterRenderNode::SetCharacterRenderOffset(const QuatTS& renderOffset)
-{
-	m_renderOffset = renderOffset;
 }
 
 //////////////////////////////////////////////////////////////////////////

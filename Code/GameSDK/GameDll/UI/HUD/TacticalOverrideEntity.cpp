@@ -77,7 +77,7 @@ bool CTacticalOverrideEntity::GetEntityPoolSignature( TSerialize signature )
 }
 
 //------------------------------------------------------------------------
-void CTacticalOverrideEntity::ProcessEvent(SEntityEvent &event)
+void CTacticalOverrideEntity::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

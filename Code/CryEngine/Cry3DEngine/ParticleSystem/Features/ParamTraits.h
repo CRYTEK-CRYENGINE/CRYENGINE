@@ -50,6 +50,8 @@ struct BaseTraits
 	template<typename T> static T HardMax()   { return std::numeric_limits<T>::max(); }
 	template<typename T> static T To(T val)   { return RemoveNegZero(val); } // write to value
 	template<typename T> static T From(T val) { return RemoveNegZero(val); } // read from value
+	static bool HideDefault()                 { return false;  }
+	static cstr DefaultName()                 { return "None";  }
 };
 
 template<typename T, typename TTraits = BaseTraits>
@@ -67,12 +69,12 @@ public:
 	}
 
 	operator T() const        { return m_value; }
-	T        Get() const      { return m_value; }
+	T Get() const             { return m_value; }
+	T operator+() const       { return m_value; }
 
 	static T Default()        { return TTraits::template Default<T>(); }
 	static T HardMin()        { return TTraits::template HardMin<T>(); }
 	static T HardMax()        { return TTraits::template HardMax<T>(); }
-	static bool InfiniteMax() { return HardMax() > std::numeric_limits<T>::max(); }
 
 private:
 
@@ -99,10 +101,26 @@ struct THardLimits: THardMin<iMin, Base>
 };
 
 template<typename Base = BaseTraits>
-struct TInfinite: Base
+struct TDefaultMin: Base
+{
+	template<typename T> static T Default() { return Base::template HardMin<T>(); }
+	static bool HideDefault()               { return true; }
+};
+
+template<typename Base = BaseTraits>
+struct TDefaultMax: Base
+{
+	template<typename T> static T Default() { return Base::template HardMax<T>(); }
+	static bool HideDefault()               { return true; }
+};
+
+template<typename Base = BaseTraits>
+struct TDefaultInf: Base
 {
 	template<typename T> static T HardMax() { return std::numeric_limits<T>::infinity(); }
-	template<typename T> static T Default() { return std::numeric_limits<T>::infinity(); }
+	template<typename T> static T Default() { return HardMax<T>(); }
+	static bool HideDefault()               { return true; }
+	static cstr DefaultName()               { return "Infinity"; }
 };
 
 template<typename Base = BaseTraits>
@@ -111,17 +129,17 @@ struct TPositive: Base
 	template<typename T> static T HardMin() { return std::numeric_limits<T>::min(); }
 };
 
-typedef TValue<float>                           SFloat;
-typedef TValue<float, THardMin<0>>              UFloat;
+typedef TValue<float>                             SFloat;
+typedef TValue<float, THardMin<0>>                UFloat;
 
-typedef TValue<float, THardMin<0, TInfinite<>>> UInfFloat;
-typedef TValue<float, TPositive<TInfinite<>>>   PInfFloat;
+typedef TValue<float, THardMin<0, TDefaultInf<>>> UInfFloat;
+typedef TValue<float, TPositive<TDefaultInf<>>>   PInfFloat;
 
-typedef TValue<float, THardLimits<-1, 1>>       SUnitFloat;
-typedef TValue<float, THardLimits<0, 1>>        UUnitFloat;
+typedef TValue<float, THardLimits<-1, 1>>         SUnitFloat;
+typedef TValue<float, THardLimits<0, 1>>          UUnitFloat;
 
-typedef TValue<uint, THardLimits<0, 255>>       UByte;
-typedef TValue<uint, THardLimits<1, 256>>       UBytePos;
+typedef TValue<uint, THardLimits<0, 255>>         UByte;
+typedef TValue<uint, THardLimits<1, 256>>         UBytePos;
 
 template<int iTo, int iFrom, typename Base = BaseTraits>
 struct ConvertScale: Base

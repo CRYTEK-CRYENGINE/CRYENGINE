@@ -198,7 +198,7 @@ bool GetForcedFeatureLevel(D3D_FEATURE_LEVEL* pForcedFeatureLevel)
 }
 #endif // !defined(_RELEASE)
 
-bool DeviceInfo::CreateDevice(bool windowed, int width, int height, int backbufferWidth, int backbufferHeight, int zbpp, OnCreateDeviceCallback pCreateDeviceCallback, CreateWindowCallback pCreateWindowCallback)
+bool DeviceInfo::CreateDevice(bool windowed, int backbufferWidth, int backbufferHeight, int zbpp, OnCreateDeviceCallback pCreateDeviceCallback, CreateWindowCallback pCreateWindowCallback)
 {
 #if CRY_RENDERER_VULKAN
 	m_autoDepthStencilFmt = zbpp == 32 ? DXGI_FORMAT_R32G8X24_TYPELESS : zbpp == 24 ? DXGI_FORMAT_R24G8_TYPELESS : DXGI_FORMAT_R16G8X8_TYPELESS;
@@ -574,7 +574,19 @@ bool DeviceInfo::CreateDevice(bool windowed, int width, int height, int backbuff
 	SAFE_RELEASE(pDevice);
 	SAFE_RELEASE(pAdapter);
 
-	#if CRY_PLATFORM_WINDOWS
+#if CRY_PLATFORM_WINDOWS
+#if defined(DX11_ALLOW_D3D_DEBUG_RUNTIME)
+	if (true)
+	{
+		// TODO: Make it work, it's re right approach, maybe the flag is reset again?
+		HRESULT hr = S_FALSE;
+		ID3D11Debug* pDebugDevice = nullptr;
+		if (SUCCEEDED(m_pDevice->QueryInterface(__uuidof(ID3D11Debug), (void**)&pDebugDevice)))
+			hr = pDebugDevice->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
+		SAFE_RELEASE(pDebugDevice);
+	}
+#endif
+
 	{
 		DXGI_MODE_DESC desc;
 		memset(&desc, 0, sizeof(desc));
@@ -689,12 +701,6 @@ void DeviceInfo::SnapSettings()
 	}
 }
 
-void DeviceInfo::ResizeDXGIBuffers()
-{
-	HRESULT hr = m_pSwapChain->ResizeBuffers(0, m_swapChainDesc.BufferDesc.Width, m_swapChainDesc.BufferDesc.Height, m_swapChainDesc.BufferDesc.Format, m_swapChainDesc.Flags);
-	CRY_ASSERT(hr == S_OK);
-}
-
 #if defined(SUPPORT_DEVICE_INFO_MSG_PROCESSING)
 void DeviceInfo::OnActivate(UINT_PTR wParam, UINT_PTR lParam)
 {
@@ -759,21 +765,11 @@ void DeviceInfo::ProcessSystemEvent(ESystemEvent event, UINT_PTR wParam, UINT_PT
 			{
 				HWND hWnd = (HWND) gcpRendD3D->GetHWND();
 
+				// TODO: Select the DisplayContext associated with hWnd and limit the full-screen transition to that
 				const bool isFullscreen = gcpRendD3D->IsFullscreen();
 				if (isFullscreen)
 				{
-					GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->ClearState(true);
-
-					gcpRendD3D->GetS3DRend().ReleaseBuffers();
-					gcpRendD3D->ReleaseBackBuffers(gcpRendD3D->GetBaseDisplayContext());
-
-					//	m_pSwapChain->ResizeTarget(&SwapChainDesc().BufferDesc);
-					m_pSwapChain->SetFullscreenState(activate, 0);
-					ResizeDXGIBuffers();
-
-					gcpRendD3D->OnD3D11PostCreateDevice(m_pDevice);
-
-					gcpRendD3D->GetS3DRend().OnResolutionChanged();
+					CD3D9Renderer::OnRecreateBaseSwapChain(m_pDevice, activate);
 
 					if (activate)
 					{

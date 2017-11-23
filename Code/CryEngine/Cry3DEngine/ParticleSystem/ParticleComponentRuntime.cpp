@@ -156,6 +156,9 @@ void CParticleComponentRuntime::RemoveAllSubInstances()
 {
 	m_subInstances.clear();
 	m_subInstanceData.clear();
+
+	IOPidStream parentIds = m_container.GetIOPidStream(EPDT_ParentId);
+	parentIds.Fill(m_container.GetFullRange(), gInvalidId);
 	DebugStabilityCheck();
 }
 
@@ -589,6 +592,18 @@ void CParticleComponentRuntime::DebugStabilityCheck()
 		CRY_PFX2_ASSERT(parentId < parentCount);    // this instance is not pointing to the correct parent
 	}
 #endif
+}
+
+bool CParticleComponentRuntime::IsAlive() const
+{
+	if (HasParticles())
+		return true;
+	if (GetNumInstances())
+	{
+		if (m_pEmitter->GetTime() <= m_pComponent->GetComponentParams().m_emitterLifeTime.end)
+			return true;
+	}
+	return false;
 }
 
 bool CParticleComponentRuntime::HasParticles() const

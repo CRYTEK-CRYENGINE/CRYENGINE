@@ -427,7 +427,7 @@ float2 ClampScreenTC(float2 TC, float2 maxTC)
 
 float2 ClampScreenTC(float2 TC)
 {
-	return clamp(TC, 0, PS_HPosScale.xy);
+	return clamp(TC, 0, CV_HPosScale.xy);
 }
 
 NORMALS_FITTING_MAP

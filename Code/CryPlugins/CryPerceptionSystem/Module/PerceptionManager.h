@@ -44,8 +44,6 @@ private:
 	// !ISystemEventListener
 
 	// IAISystemComponent
-	virtual void Init() override;
-	virtual void PostInit() override;
 	virtual void Reset(IAISystem::EResetReason reason) override;
 	virtual void Update(float deltaTime) override;
 	virtual void Serialize(TSerialize ser) override;

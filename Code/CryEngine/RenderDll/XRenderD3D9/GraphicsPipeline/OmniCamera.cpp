@@ -14,7 +14,9 @@ void COmniCameraStage::Execute()
 
 	if (IsEnabled())
 	{
-		uint32 totalPixel = gcpRendD3D->GetWidth() * gcpRendD3D->GetHeight();
+		CRY_ASSERT(0 && "I doubt this function actually works");
+
+		uint32 totalPixel = CRendererResources::s_renderWidth * CRendererResources::s_renderHeight;
 		int cubeSize = 1;
 		while (cubeSize * cubeSize * 6 < totalPixel)
 			cubeSize *= 2;
@@ -24,21 +26,23 @@ void COmniCameraStage::Execute()
 			const uint32 nFlags = FT_DONT_STREAM | FT_USAGE_RENDERTARGET;
 			m_pOmniCameraTexture = CTexture::GetOrCreateTextureArray("$OmniCameraCube", cubeSize, cubeSize, 6, 1, eTT_CubeArray, nFlags, eTF_R8G8B8A8);
 		}
+
 		if (m_pOmniCameraCubeFaceStagingTexture == nullptr || m_pOmniCameraCubeFaceStagingTexture->GetWidth() != cubeSize)
 		{
 			const uint32 nFlags = FT_DONT_STREAM | FT_USAGE_RENDERTARGET;
 			m_pOmniCameraCubeFaceStagingTexture = CTexture::GetOrCreateRenderTarget("$OmniCameraCubeFaceStaging", cubeSize, cubeSize, ColorF(0, 0, 0), eTT_2D, nFlags, eTF_R8G8B8A8);
 		}
+
 		if (m_pOmniCameraTexture && m_pOmniCameraCubeFaceStagingTexture)
 		{
-			CTexture* pTargetOutputTexture = gcpRendD3D->GetCurrentTargetOutput();
-			CTexture* pScreenTexture = CTexture::s_ptexBackBuffer;
+			CTexture* pTargetTexture = RenderView()->GetColorTarget();
+			CTexture* pScreenTexture = CRendererResources::s_ptexBackBuffer;
 
 			RECT defaultRect;
 			defaultRect.left = 0;
-			defaultRect.top = 0;
-			defaultRect.right = min(pScreenTexture->GetWidth(), pTargetOutputTexture->GetWidth());
-			defaultRect.bottom = min(pScreenTexture->GetHeight(), pTargetOutputTexture->GetHeight());
+			defaultRect.top  = 0;
+			defaultRect.right  = min(pScreenTexture->GetWidth (), pTargetTexture->GetWidth ());
+			defaultRect.bottom = min(pScreenTexture->GetHeight(), pTargetTexture->GetHeight());
 
 			const SResourceRegionMapping region =
 			{
@@ -47,9 +51,11 @@ void COmniCameraStage::Execute()
 				{ defaultRect.right - defaultRect.left, defaultRect.bottom - defaultRect.top, 1, 1 }
 			};
 
-			GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(pTargetOutputTexture->GetDevTexture(), pScreenTexture->GetDevTexture(), region);
+			GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(pTargetTexture->GetDevTexture(), pScreenTexture->GetDevTexture(), region);
 
-			m_downsamplePass.Execute(pScreenTexture, m_pOmniCameraCubeFaceStagingTexture,
+			m_downsamplePass.Execute(
+				pScreenTexture,
+				m_pOmniCameraCubeFaceStagingTexture,
 				pScreenTexture->GetWidth(), pScreenTexture->GetHeight(),
 				m_pOmniCameraCubeFaceStagingTexture->GetWidth(), m_pOmniCameraCubeFaceStagingTexture->GetHeight(),
 				CDownsamplePass::EFilterType::FilterType_Box);
@@ -71,7 +77,7 @@ void COmniCameraStage::Execute()
 				static CCryNameTSCRC techName("CubeTextureToTexture");
 
 				m_cubemapToScreenPass.SetPrimitiveFlags(CRenderPrimitive::eFlags_None);
-				m_cubemapToScreenPass.SetRenderTarget(0, gcpRendD3D->GetCurrentTargetOutput());
+				m_cubemapToScreenPass.SetRenderTarget(0, pTargetTexture);
 				m_cubemapToScreenPass.SetTechnique(CShaderMan::s_shPostEffects, techName, 0);
 				m_cubemapToScreenPass.SetState(GS_NODEPTHTEST);
 				m_cubemapToScreenPass.SetTextureSamplerPair(0, m_pOmniCameraTexture, EDefaultSamplerStates::BilinearClamp);

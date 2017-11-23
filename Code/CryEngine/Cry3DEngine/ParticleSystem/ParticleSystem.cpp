@@ -62,9 +62,8 @@ PParticleEmitter CParticleSystem::CreateEmitter(PParticleEffect pEffect)
 	CParticleEffect* pCEffect = CastEffect(pEffect);
 	pCEffect->Compile();
 
-	_smart_ptr<CParticleEmitter> pEmitter = new CParticleEmitter(pCEffect, m_nextEmitterId++);
-	m_newEmitters.push_back(pEmitter);
-	return pEmitter;
+	m_newEmitters.emplace_back(new CParticleEmitter(pCEffect, m_nextEmitterId++));
+	return m_newEmitters.back();
 }
 
 TParticleAttributesPtr CParticleSystem::CreateParticleAttributes() const
@@ -76,22 +75,19 @@ void CParticleSystem::OnFrameStart()
 {
 }
 
-void CParticleSystem::TrimEmitters()
+void CParticleSystem::TrimEmitters(bool finished_only)
 {
-	for (auto& pEmitter : m_emitters)
+	stl::find_and_erase_all_if(m_emitters, [=](const _smart_ptr<CParticleEmitter>& emitter) -> bool
 	{
-		bool independent = pEmitter->IsIndependent();
-		bool hasParticles = pEmitter->HasParticles();
-		bool isAlive = pEmitter->IsAlive();
-		bool expired = isAlive && independent && !hasParticles;
-		if (!expired)
-			continue;
-		pEmitter = 0;
-	}
-
-	m_emitters.erase(
-	  std::remove(m_emitters.begin(), m_emitters.end(), _smart_ptr<CParticleEmitter>(0)),
-	  m_emitters.end());
+		if (!emitter->IsIndependent())
+			return false;
+		if (finished_only)
+		{
+			if (emitter->IsAlive())
+				return false;
+		}
+		return true;
+	});
 }
 
 void CParticleSystem::InvalidateCachedRenderObjects()
@@ -142,7 +138,8 @@ void CParticleSystem::Update()
 			CRY_PFX2_ASSERT(it.GetTotalMemory().nUsed == 0);  // some emitter leaked memory on mem stack
 		m_profiler.Display();
 
-		TrimEmitters();
+		TrimEmitters(!m_bResetEmitters);
+		m_bResetEmitters = false;
 		m_emitters.insert(m_emitters.end(), m_newEmitters.begin(), m_newEmitters.end());
 		m_newEmitters.clear();
 
@@ -299,6 +296,7 @@ IMaterial* CParticleSystem::GetFlareMaterial()
 
 void CParticleSystem::Reset()
 {
+	m_bResetEmitters = true;
 }
 
 void CParticleSystem::Serialize(TSerialize ser)
@@ -332,6 +330,8 @@ const SParticleFeatureParams* CParticleSystem::GetDefaultFeatureParam(EFeatureTy
 
 bool CParticleSystem::SerializeFeatures(IArchive& ar, TParticleFeatures& features, cstr name, cstr label) const
 {
+	if (ar.isInput())
+		features.m_editVersion++;
 	return ar(features, name, label);
 }
 

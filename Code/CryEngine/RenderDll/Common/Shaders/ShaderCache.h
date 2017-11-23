@@ -95,12 +95,6 @@ struct SPreprocessTree
 
 //=======================================================================================================
 
-struct SShaderLevelPolicies
-{
-	std::vector<string> m_WhiteGlobalList;
-	std::vector<string> m_WhitePerLevelList;
-};
-
 union UPipelineState // Pipeline state relevant for shader instantiation
 {
 	union

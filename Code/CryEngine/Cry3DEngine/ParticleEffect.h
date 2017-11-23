@@ -302,63 +302,52 @@ public:
 	CParticleEffect(const ParticleParams& params);
 	~CParticleEffect();
 
-	void Release()
-	{
-		--m_nRefCounter;
-		if (m_nRefCounter <= 0)
-			delete this;
-	}
-
 	// IParticle interface.
-	virtual int               GetVersion() const
-	{ return 1; }
-	virtual IParticleEmitter* Spawn(const ParticleLoc& loc, const SpawnParams* pSpawnParams = NULL);
+	virtual int               GetVersion() const override { return 1; }
+	virtual IParticleEmitter* Spawn(const ParticleLoc& loc, const SpawnParams* pSpawnParams = NULL) override;
 
-	virtual void              SetName(const char* sFullName);
-	virtual const char*       GetName() const
-	{ return m_strName.c_str(); }
-	virtual stack_string      GetFullName() const;
+	virtual void              SetName(const char* sFullName) override;
+	virtual const char*       GetName() const override { return m_strName.c_str(); }
+	virtual stack_string      GetFullName() const override;
 
-	virtual void              SetEnabled(bool bEnabled);
-	virtual bool              IsEnabled(uint options = 0) const;
+	virtual void              SetEnabled(bool bEnabled) override;
+	virtual bool              IsEnabled(uint options = 0) const override;
 
-	virtual bool              IsTemporary() const;
+	virtual bool              IsTemporary() const override;
 
 	//////////////////////////////////////////////////////////////////////////
 	//! Load resources, required by this particle effect (Textures and geometry).
-	virtual bool LoadResources()
-	{ return LoadResources(true); }
-	virtual void UnloadResources()
-	{ UnloadResources(true); }
+	virtual bool LoadResources() override { return LoadResources(true); }
+	virtual void UnloadResources() override	{ UnloadResources(true); }
 
 	//////////////////////////////////////////////////////////////////////////
 	// Child particle systems.
 	//////////////////////////////////////////////////////////////////////////
-	int              GetChildCount() const
+	virtual int              GetChildCount() const override
 	{ return m_children.size(); }
-	IParticleEffect* GetChild(int index) const
+	virtual IParticleEffect* GetChild(int index) const override
 	{ return &m_children[index]; }
 
-	virtual void             ClearChilds();
-	virtual void             InsertChild(int slot, IParticleEffect* pEffect);
-	virtual int              FindChild(IParticleEffect* pEffect) const;
+	virtual void             ClearChilds() override;
+	virtual void             InsertChild(int slot, IParticleEffect* pEffect) override;
+	virtual int              FindChild(IParticleEffect* pEffect) const override;
 
-	virtual void             SetParent(IParticleEffect* pParent);
-	virtual IParticleEffect* GetParent() const
+	virtual void             SetParent(IParticleEffect* pParent) override;
+	virtual IParticleEffect* GetParent() const override
 	{ return m_parent; }
 
 	//////////////////////////////////////////////////////////////////////////
-	virtual void                  SetParticleParams(const ParticleParams& params);
-	virtual const ParticleParams& GetParticleParams() const;
-	virtual const ParticleParams& GetDefaultParams() const;
+	virtual void                  SetParticleParams(const ParticleParams& params) override;
+	virtual const ParticleParams& GetParticleParams() const override;
+	virtual const ParticleParams& GetDefaultParams() const override;
 
-	virtual void                  Serialize(XmlNodeRef node, bool bLoading, bool bAll);
-	virtual void                  Serialize(Serialization::IArchive& ar);
-	virtual void                  Reload(bool bAll);
+	virtual void                  Serialize(XmlNodeRef node, bool bLoading, bool bAll) override;
+	virtual void                  Serialize(Serialization::IArchive& ar) override;
+	virtual void                  Reload(bool bAll) override;
 
-	virtual IParticleAttributes& GetAttributes();
+	virtual IParticleAttributes&  GetAttributes();
 
-	void                         GetMemoryUsage(ICrySizer* pSizer) const;
+	virtual void                  GetMemoryUsage(ICrySizer* pSizer) const override;
 
 	// Further interface.
 

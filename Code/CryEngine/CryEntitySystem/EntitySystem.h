@@ -1,18 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   EntitySystem.h
-//  Version:     v1.00
-//  Created:     24/5/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __EntitySystem_h__
-#define __EntitySystem_h__
 #pragma once
 
 #include <CryEntitySystem/IEntitySystem.h>
@@ -403,6 +390,8 @@ public:
 	virtual IBSPTree3D*              CreateBSPTree3D(const IBSPTree3D::FaceList& faceList) final;
 	virtual void                     ReleaseBSPTree3D(IBSPTree3D*& pTree) final;
 
+	void RemoveEntity(CEntity* pEntity, bool forceRemoveImmediately = false, bool ignoreSinks = false);
+
 private: // -----------------------------------------------------------------
 	void DoUpdateLoop(float fFrameTime);
 
@@ -525,5 +514,3 @@ public:
 // Precache resources mode state.
 //////////////////////////////////////////////////////////////////////////
 extern bool gPrecacheResourcesMode;
-
-#endif // __EntitySystem_h__

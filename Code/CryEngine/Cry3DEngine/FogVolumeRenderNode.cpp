@@ -447,15 +447,15 @@ void CFogVolumeRenderNode::Render(const SRendParams& rParam, const SRenderingPas
 	m_pFogVolumeRenderElement[fillThreadID]->m_noiseElapsedTime = m_noiseElapsedTime;
 	m_pFogVolumeRenderElement[fillThreadID]->m_emission = m_emission;
 
+	IRenderView* pRenderView = passInfo.GetIRenderView();
 	if (bVolFog)
 	{
-		IRenderView* pRenderView = passInfo.GetIRenderView();
 		pRenderView->AddFogVolume(m_pFogVolumeRenderElement[fillThreadID]);
 	}
 	else
 	{
 		IRenderer* pRenderer = GetRenderer();
-		CRenderObject* pRenderObject = pRenderer->EF_GetObject_Temp(fillThreadID);
+		CRenderObject* pRenderObject = pRenderView->AllocateTemporaryRenderObject();
 
 		if (!pRenderObject)
 			return;
@@ -481,7 +481,7 @@ void CFogVolumeRenderNode::Render(const SRendParams& rParam, const SRenderingPas
 		pRenderObject->m_pCurrMaterial = pMaterial;
 
 		// add to renderer
-		GetRenderer()->EF_AddEf(m_pFogVolumeRenderElement[fillThreadID], shaderItem, pRenderObject, passInfo, EFSLIST_TRANSP, nAfterWater);
+		pRenderView->AddRenderObject(m_pFogVolumeRenderElement[fillThreadID], shaderItem, pRenderObject, passInfo, EFSLIST_TRANSP, nAfterWater);
 	}
 }
 

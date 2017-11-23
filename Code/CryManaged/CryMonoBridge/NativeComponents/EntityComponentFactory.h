@@ -1,3 +1,5 @@
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+
 #pragma once
 
 #include <CryEntitySystem/IEntityComponent.h>
@@ -21,65 +23,10 @@ enum class EEntityPropertyType : uint32
 	Animation
 };
 
+class CManagedEntityComponent;
+
 struct CManagedEntityComponentFactory final : public Schematyc::CEnvElementBase<Schematyc::IEnvComponent>
 {
-public:
-	struct SProperty : public Schematyc::CCommonTypeDesc
-	{
-		SProperty(size_t memberOffset, MonoInternals::MonoReflectionProperty* pReflectionProperty, std::shared_ptr<CMonoProperty> pMonoProperty, EEntityPropertyType serType,  MonoInternals::MonoTypeEnum type, CMonoClass& typeClass, std::shared_ptr<CMonoObject> pDefaultValue);
-
-		SProperty(const SProperty& other)
-			: pProperty(other.pProperty)
-			, monoType(other.monoType)
-			, serializationType(other.serializationType)
-		{
-		}
-
-		static void DefaultConstruct(void* pPlacement);
-		static void Destroy(void* pPlacement);
-		static void CopyConstruct(void* pLHS, const void* pRHS);
-		static void CopyAssign(void* pLHS, const void* pRHS);
-		static bool Equals(const void* pLHS, const void* pRHS);
-		static bool Serialize(Serialization::IArchive& archive, void* pValue, const char* szName, const char* szLabel);
-		static void ToString(Schematyc::IString& output, const void* pInput);
-
-		std::shared_ptr<CMonoProperty> pProperty;
-		size_t offsetFromComponent;
-
-		MonoInternals::MonoTypeEnum monoType;
-		EEntityPropertyType serializationType;
-	};
-
-	CManagedEntityComponentFactory(std::shared_ptr<CMonoClass> pClass, const CryGUID& guid, const Schematyc::SSourceFileInfo& managedSourceFileInfo, const char* szName, const char* szUiCategory, const char* szUiDescription, const char* szIcon);
-
-	// Schematyc::IEnvElement
-	virtual bool IsValidScope(IEnvElement& scope) const override
-	{
-		switch (scope.GetType())
-		{
-		case Schematyc::EEnvElementType::Module:
-		case Schematyc::EEnvElementType::Class:
-		{
-			return true;
-		}
-		default:
-		{
-			return false;
-		}
-		}
-	}
-	// ~Schematyc::IEnvElement
-
-	// Schematyc::IEnvComponent
-	virtual const CEntityComponentClassDesc& GetDesc() const override { return m_classDescription; }
-	virtual std::shared_ptr<IEntityComponent> CreateFromPool() const override;
-	// ~Schematyc::IEnvComponent
-
-	void AddProperty(MonoInternals::MonoReflectionProperty* pProperty, const char* szPropertyName, const char* szPropertyLabel, const char* szPropertyDesc, EEntityPropertyType type, MonoInternals::MonoObject* pDefaultValue);
-	void AddFunction(MonoInternals::MonoReflectionMethod* pMethod);
-	int AddSignal(const char* szEventName);
-	void AddSignalParameter(int signalId, const char* szParameter, MonoInternals::MonoReflectionType* pType);
-
 	class CManagedComponentClassDescription : public CEntityComponentClassDesc
 	{
 	public:
@@ -92,30 +39,13 @@ public:
 		{
 			return CEntityComponentClassDesc::AddBase(typeDesc, GetBases().size());
 		}
+
+		void Clear() 
+		{
+			ClearBases();
+			ClearMembers();
+		}
 	};
-
-	CManagedComponentClassDescription m_classDescription;
-	std::shared_ptr<CMonoClass> m_pClass;
-
-	uint64 m_eventMask;
-
-	std::vector<std::unique_ptr<SProperty>> m_properties;
-
-	std::shared_ptr<CMonoMethod> m_pConstructorMethod;
-	std::shared_ptr<CMonoMethod> m_pInternalSetEntityMethod;
-	std::shared_ptr<CMonoMethod> m_pInitializeMethod;
-
-	std::shared_ptr<CMonoMethod> m_pTransformChangedMethod;
-	std::shared_ptr<CMonoMethod> m_pUpdateMethod;
-	std::shared_ptr<CMonoMethod> m_pUpdateMethodEditing;
-	std::shared_ptr<CMonoMethod> m_pGameModeChangeMethod;
-	std::shared_ptr<CMonoMethod> m_pHideMethod;
-	std::shared_ptr<CMonoMethod> m_pUnHideMethod;
-	std::shared_ptr<CMonoMethod> m_pCollisionMethod;
-	std::shared_ptr<CMonoMethod> m_pPrePhysicsUpdateMethod;
-
-	std::shared_ptr<CMonoMethod> m_pGameStartMethod;
-	std::shared_ptr<CMonoMethod> m_pRemoveMethod;
 
 	class CSchematycFunction final : public Schematyc::CEnvElementBase<Schematyc::IEnvFunction>
 	{
@@ -135,18 +65,18 @@ public:
 		{
 			switch (scope.GetType())
 			{
-			case Schematyc::EEnvElementType::Module:
-			case Schematyc::EEnvElementType::DataType:
-			case Schematyc::EEnvElementType::Class:
-			case Schematyc::EEnvElementType::Component:
-			case Schematyc::EEnvElementType::Action:
-			{
-				return true;
-			}
-			default:
-			{
-				return false;
-			}
+				case Schematyc::EEnvElementType::Module:
+				case Schematyc::EEnvElementType::DataType:
+				case Schematyc::EEnvElementType::Class:
+				case Schematyc::EEnvElementType::Component:
+				case Schematyc::EEnvElementType::Action:
+				{
+					return true;
+				}
+				default:
+				{
+					return false;
+				}
 			}
 		}
 		// ~IEnvElement
@@ -240,17 +170,17 @@ public:
 		{
 			switch (scope.GetType())
 			{
-			case Schematyc::EEnvElementType::Root:
-			case Schematyc::EEnvElementType::Module:
-			case Schematyc::EEnvElementType::Component:
-			case Schematyc::EEnvElementType::Action:
-			{
-				return true;
-			}
-			default:
-			{
-				return false;
-			}
+				case Schematyc::EEnvElementType::Root:
+				case Schematyc::EEnvElementType::Module:
+				case Schematyc::EEnvElementType::Component:
+				case Schematyc::EEnvElementType::Action:
+				{
+					return true;
+				}
+				default:
+				{
+					return false;
+				}
 			}
 		}
 		// ~IEnvElement
@@ -283,6 +213,140 @@ public:
 		CSignalClassDesc m_classDesc;
 	};
 
+public:
+	struct SPropertyTypeDescription : public Schematyc::CCommonTypeDesc
+	{
+		SPropertyTypeDescription(std::shared_ptr<CMonoProperty> pMonoProperty, EEntityPropertyType serType,  MonoInternals::MonoTypeEnum type, std::shared_ptr<CMonoObject> pDefaultValue);
+
+		SPropertyTypeDescription(const SPropertyTypeDescription&) = delete;
+		SPropertyTypeDescription(SPropertyTypeDescription&&) = delete;
+		SPropertyTypeDescription& operator=(const SPropertyTypeDescription&) = delete;
+		SPropertyTypeDescription& operator=(SPropertyTypeDescription&&) = delete;
+
+		static void DefaultConstruct(void* pPlacement);
+		static void Destroy(void* pPlacement);
+		static void CopyConstruct(void* pLHS, const void* pRHS);
+		static void CopyAssign(void* pLHS, const void* pRHS);
+		static bool Equals(const void* pLHS, const void* pRHS);
+		static bool Serialize(Serialization::IArchive& archive, void* pValue, const char* szName, const char* szLabel);
+		static void ToString(Schematyc::IString& output, const void* pInput);
+
+		void SetDefaultValue(std::shared_ptr<CMonoObject> pDefaultValue);
+
+		MonoInternals::MonoTypeEnum monoType;
+		EEntityPropertyType serializationType;
+		std::shared_ptr<CMonoProperty> pProperty;
+	};
+
+	struct SPropertyValue
+	{
+		SPropertyValue(const SPropertyTypeDescription& typeDesc, std::shared_ptr<CMonoObject> pManagedObject, std::shared_ptr<CMonoObject> pManagedOwnerObject)
+			: typeDescription(typeDesc)
+			, pObject(pManagedObject)
+			, pOwnerObject(pManagedOwnerObject) {}
+
+		SPropertyValue(const SPropertyValue&) = delete;
+		SPropertyValue& operator=(const SPropertyValue&) = delete;
+		SPropertyValue(SPropertyValue&& other)
+			: typeDescription(other.typeDescription)
+			, pObject(std::move(other.pObject))
+			, pOwnerObject(std::move(other.pOwnerObject)) {}
+		SPropertyValue& operator=(SPropertyValue&& other) = default;
+
+		void CacheManagedValueFromOwner() const
+		{
+			if (pOwnerObject != nullptr)
+			{
+				bool encounteredException;
+				const_cast<SPropertyValue*>(this)->pObject = typeDescription.pProperty->Get(pOwnerObject->GetManagedObject(), encounteredException);
+			}
+		}
+
+		void ApplyCachedValueToOwner() const
+		{
+			if (pOwnerObject != nullptr)
+			{
+				bool encounteredException;
+				typeDescription.pProperty->Set(pOwnerObject->GetManagedObject(), pObject != nullptr ? pObject->GetManagedObject() : nullptr, encounteredException);
+			}
+		}
+
+		const SPropertyTypeDescription& typeDescription;
+
+		std::shared_ptr<CMonoObject> pObject;
+		std::shared_ptr<CMonoObject> pOwnerObject;
+	};
+
+	CManagedEntityComponentFactory(std::shared_ptr<CMonoClass> pClass, const CryGUID& guid, const Schematyc::SSourceFileInfo& managedSourceFileInfo, const char* szName, const char* szUiCategory, const char* szUiDescription, const char* szIcon);
+
+	// Schematyc::IEnvElement
+	virtual bool IsValidScope(IEnvElement& scope) const override
+	{
+		switch (scope.GetType())
+		{
+		case Schematyc::EEnvElementType::Module:
+		case Schematyc::EEnvElementType::Class:
+		{
+			return true;
+		}
+		default:
+		{
+			return false;
+		}
+		}
+	}
+	// ~Schematyc::IEnvElement
+
+	// Schematyc::IEnvComponent
+	virtual const CEntityComponentClassDesc& GetDesc() const override { return m_classDescription; }
+	virtual std::shared_ptr<IEntityComponent> CreateFromPool() const override;
+	// ~Schematyc::IEnvComponent
+
+	void OnClassDeserialized(MonoInternals::MonoClass* pMonoClass, const Schematyc::SSourceFileInfo& managedSourceFileInfo, const char* szName, const char* szUiCategory, const char* szUiDescription, const char* szIcon);
+	void FinalizeComponentRegistration();
+	void RemoveAllComponentInstances();
+
+	void AddProperty(MonoInternals::MonoReflectionProperty* pProperty, const char* szPropertyName, const char* szPropertyLabel, const char* szPropertyDesc, EEntityPropertyType type, MonoInternals::MonoObject* pDefaultValue);
+	void AddFunction(MonoInternals::MonoReflectionMethod* pMethod);
+	int AddSignal(const char* szEventName);
+	void AddSignalParameter(int signalId, const char* szParameter, MonoInternals::MonoReflectionType* pType);
+
+	bool IsRegistered() const { return m_isRegistered; }
+	void SetIsRegistered(bool isRegistered) { m_isRegistered = isRegistered; }
+
+	std::shared_ptr<CMonoClass> GetClass() const { return m_pClass; }
+
+protected:
+	void CacheMethods(bool isAbstract);
+	
+public:
+	CManagedComponentClassDescription m_classDescription;
+	std::shared_ptr<CMonoClass> m_pClass;
+
+	uint64 m_eventMask;
+
+	std::vector<std::unique_ptr<SPropertyTypeDescription>> m_properties;
+
+	std::weak_ptr<CMonoMethod> m_pConstructorMethod;
+	std::weak_ptr<CMonoMethod> m_pInternalSetEntityMethod;
+	std::weak_ptr<CMonoMethod> m_pInitializeMethod;
+
+	std::weak_ptr<CMonoMethod> m_pTransformChangedMethod;
+	std::weak_ptr<CMonoMethod> m_pUpdateMethod;
+	std::weak_ptr<CMonoMethod> m_pUpdateMethodEditing;
+	std::weak_ptr<CMonoMethod> m_pGameModeChangeMethod;
+	std::weak_ptr<CMonoMethod> m_pHideMethod;
+	std::weak_ptr<CMonoMethod> m_pUnHideMethod;
+	std::weak_ptr<CMonoMethod> m_pCollisionMethod;
+	std::weak_ptr<CMonoMethod> m_pPrePhysicsUpdateMethod;
+
+	std::weak_ptr<CMonoMethod> m_pGameStartMethod;
+	std::weak_ptr<CMonoMethod> m_pRemoveMethod;
+
 	std::vector<std::shared_ptr<CSchematycFunction>> m_schematycFunctions;
 	std::vector<std::shared_ptr<CSchematycSignal>>   m_schematycSignals;
+
+	std::vector<std::weak_ptr<CManagedEntityComponent>> m_componentInstances;
+
+	bool m_isRegistered = true;
 };

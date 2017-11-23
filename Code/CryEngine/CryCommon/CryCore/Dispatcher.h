@@ -12,7 +12,7 @@ struct Dispatcher: std::vector<Object*>
 
 	void add(Object* obj)
 	{
-		stl::append_unique(*this, obj);
+		stl::push_back_unique(*this, obj);
 	}
 	void operator()(Args... args) const
 	{

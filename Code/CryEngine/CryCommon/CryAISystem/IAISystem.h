@@ -539,7 +539,6 @@ struct IAISystem
 	virtual ~IAISystem() {}
 
 	virtual bool                        Init() = 0;
-	virtual bool                        CompleteInit() = 0;
 
 	virtual void                        Reload() {}
 	virtual void                        Reset(EResetReason reason) = 0;

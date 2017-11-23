@@ -404,7 +404,7 @@ void CVehiclePartLight::UpdateLight(const float frameTime)
 		SEntitySlotInfo info;
 		if (m_pVehicle->GetEntity()->GetSlotInfo(m_slot, info) && info.pLight)
 		{
-			CDLight& light = info.pLight->GetLightProperties();
+			SRenderLight& light = info.pLight->GetLightProperties();
 
 			IActor* pActor = CCryAction::GetCryAction()->GetClientActor();
 			bool localPlayer = (pActor != NULL) && (pActor->GetLinkedVehicle() == m_pVehicle);

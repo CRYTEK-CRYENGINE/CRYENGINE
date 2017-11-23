@@ -202,7 +202,7 @@ void CModelMesh::DrawWireframeStatic(const Matrix34& rRenderMat34, uint32 color)
 
 #endif
 
-void CModelMesh::DrawDebugInfo(CDefaultSkeleton* pCSkel, int nLOD, const Matrix34& rRenderMat34, int DebugMode, IMaterial* pMaterial, CRenderObject* pObj, const SRendParams& RendParams, bool isGeneralPass, IRenderNode* pRenderNode, const AABB& aabb)
+void CModelMesh::DrawDebugInfo(CDefaultSkeleton* pCSkel, int nLOD, const Matrix34& rRenderMat34, int DebugMode, IMaterial* pMaterial, CRenderObject* pObj, const SRendParams& RendParams, bool isGeneralPass, IRenderNode* pRenderNode, const AABB& aabb,const SRenderingPassInfo &passInfo)
 {
 	if (m_pIRenderMesh == 0)
 		return;
@@ -227,7 +227,7 @@ void CModelMesh::DrawDebugInfo(CDefaultSkeleton* pCSkel, int nLOD, const Matrix3
 	Matrix34 tm = rRenderMat34;	
 	if (pObj->m_ObjFlags & FOB_NEAREST)
 	{
-		tm.AddTranslation(gEnv->pRenderer->GetCamera().GetPosition());
+		tm.AddTranslation(passInfo.GetCamera().GetPosition());
 	}
 	Vec3 trans = tm.GetTranslation();
 

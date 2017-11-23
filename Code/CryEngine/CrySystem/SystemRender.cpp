@@ -150,7 +150,7 @@ void CSystem::CreateRendererVars(const SSystemInitParams& startupParams)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSystem::RenderBegin()
+void CSystem::RenderBegin(uintptr_t hWnd)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
@@ -165,7 +165,7 @@ void CSystem::RenderBegin()
 	//start the rendering pipeline
 	if (rndAvail)
 	{
-		m_env.pRenderer->BeginFrame();
+		m_env.pRenderer->BeginFrame(hWnd);
 		gEnv->nMainFrameID = m_env.pRenderer->GetFrameID(false);
 	}
 	else
@@ -260,10 +260,6 @@ void CSystem::RenderEnd(bool bRenderStats)
 		}
 
 	}
-
-#if defined(USE_FRAME_PROFILER)
-	gEnv->bDeepProfiling = m_sys_profile_deep->GetIVal();
-#endif
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -462,7 +458,7 @@ void CSystem::RenderJobStats()
 	JobManager::IBackend* const __restrict pBlockingBackEnd = gEnv->GetJobManager()->GetBackEnd(JobManager::eBET_Blocking);
 
 #if defined(ENABLE_PROFILING_CODE)
-	if (m_sys_profile->GetIVal() != 0)
+	if (m_FrameProfileSystem.IsEnabled())
 	{
 #if defined(JOBMANAGER_SUPPORT_FRAMEPROFILER)
 
@@ -623,56 +619,6 @@ void CSystem::RenderStatistics()
 
 	RenderMemStats();
 
-	if (m_sys_profile_sampler->GetIVal() > 0)
-	{
-		m_sys_profile_sampler->Set(0);
-		m_FrameProfileSystem.StartSampling(m_sys_profile_sampler_max_samples->GetIVal());
-	}
-
-	// Update frame profiler from sys variable: 1 = enable and display, -1 = just enable
-	int profValue            = m_sys_profile->GetIVal();
-	static int prevProfValue = -100;
-	bool bEnable             = profValue != 0;
-	bool bDisplay            = profValue > 0;
-	if (prevProfValue != profValue)
-	{
-		prevProfValue = profValue;
-		int dispNum = abs(profValue);
-		m_FrameProfileSystem.SetDisplayQuantity((CFrameProfileSystem::EDisplayQuantity)(dispNum - 1));
-	}
-	if (bEnable != m_FrameProfileSystem.IsEnabled() || bDisplay != m_FrameProfileSystem.IsVisible())
-	{
-		m_FrameProfileSystem.Enable(bEnable, bDisplay);
-	}
-	if (m_FrameProfileSystem.IsEnabled())
-	{
-		static string sSysProfileFilter;
-		if (stricmp(m_sys_profile_filter->GetString(), sSysProfileFilter.c_str()) != 0)
-		{
-			sSysProfileFilter = m_sys_profile_filter->GetString();
-			m_FrameProfileSystem.SetSubsystemFilter(sSysProfileFilter.c_str());
-		}
-		static string sSysProfileFilterThread;
-		if (0 != sSysProfileFilterThread.compare(m_sys_profile_filter_thread->GetString()))
-		{
-			sSysProfileFilterThread = m_sys_profile_filter_thread->GetString();
-			m_FrameProfileSystem.SetSubsystemFilterThread(sSysProfileFilterThread.c_str());
-		}
-		m_FrameProfileSystem.SetHistogramScale(m_sys_profile_graphScale->GetFVal());
-		m_FrameProfileSystem.SetDrawGraph(m_sys_profile_graph->GetIVal() != 0);
-		m_FrameProfileSystem.SetNetworkProfiler(m_sys_profile_network->GetIVal() != 0);
-		m_FrameProfileSystem.SetPeakTolerance(m_sys_profile_peak->GetFVal());
-		m_FrameProfileSystem.SetPageFaultsGraph(m_sys_profile_pagefaultsgraph->GetIVal() != 0);
-		m_FrameProfileSystem.SetPeakDisplayDuration(m_sys_profile_peak_time->GetFVal());
-		m_FrameProfileSystem.SetAdditionalSubsystems(m_sys_profile_additionalsub->GetIVal() != 0);
-	}
-	static int memProfileValueOld = 0;
-	int memProfileValue           = m_sys_profile_memory->GetIVal();
-	if (memProfileValue != memProfileValueOld)
-	{
-		memProfileValueOld = memProfileValue;
-		m_FrameProfileSystem.EnableMemoryProfile(memProfileValue != 0);
-	}
 #endif
 	if (gEnv->pScaleformHelper)
 	{
@@ -710,7 +656,7 @@ void CSystem::Render()
 	//draw
 	m_env.p3DEngine->PreWorldStreamUpdate(m_ViewCamera);
 
-	if (m_pProcess && !m_bDedicatedServer)
+	if (m_env.pRenderer)
 	{
 		if (m_pProcess->GetFlags() & PROC_3DENGINE)
 		{
@@ -722,18 +668,16 @@ void CSystem::Render()
 					m_pTestSystem->BeforeRender();
 #endif
 
-				if (m_env.pRenderer && m_env.p3DEngine && !m_env.IsFMVPlaying())
+				if (m_env.p3DEngine && !m_env.IsFMVPlaying())
 				{
 					if ((!IsEquivalent(m_ViewCamera.GetPosition(), Vec3(0, 0, 0), VEC_EPSILON) && (!IsLoading())) || // never pass undefined camera to p3DEngine->RenderWorld()
 						m_env.IsDedicated() || m_env.pRenderer->IsPost3DRendererEnabled())
 					{
-						GetIRenderer()->SetViewport(0, 0, GetIRenderer()->GetWidth(), GetIRenderer()->GetHeight());
 						m_env.p3DEngine->RenderWorld(SHDF_ALLOW_WATER | SHDF_ALLOWPOSTPROCESS | SHDF_ALLOWHDR | SHDF_ZPASS | SHDF_ALLOW_AO, SRenderingPassInfo::CreateGeneralPassRenderingInfo(m_ViewCamera), __FUNCTION__);
 					}
 					else
 					{
-						// clear screen to black
-						m_env.pRenderer->ClearTargetsImmediately(FRT_CLEAR_COLOR, Col_Black);
+						m_env.pRenderer->FillFrame(Col_Black);
 					}
 				}
 
@@ -755,7 +699,6 @@ void CSystem::Render()
 		}
 		else
 		{
-			GetIRenderer()->SetViewport(0, 0, GetIRenderer()->GetWidth(), GetIRenderer()->GetHeight());
 			m_pProcess->RenderWorld(SHDF_ALLOW_WATER | SHDF_ALLOWPOSTPROCESS | SHDF_ALLOWHDR | SHDF_ZPASS | SHDF_ALLOW_AO, SRenderingPassInfo::CreateGeneralPassRenderingInfo(m_ViewCamera), __FUNCTION__);
 		}
 	}
@@ -764,10 +707,6 @@ void CSystem::Render()
 #if !defined (_RELEASE) && CRY_PLATFORM_DURANGO
 	RenderPhysicsHelpers();
 #endif
-	if (m_env.pRenderer)
-	{
-		m_env.pRenderer->SwitchToNativeResolutionBackbuffer();
-	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -923,8 +862,8 @@ void CSystem::RenderOverscanBorders()
 			const float width  = VIRTUAL_SCREEN_WIDTH - (2.0f * overscanBorderWidth);
 			const float height = VIRTUAL_SCREEN_HEIGHT - (2.0f * overscanBorderHeight);
 
-			m_env.pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
-			m_env.pRenderer->Draw2dImage(xPos, yPos,
+			//m_env.pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
+			IRenderAuxImage::Draw2dImage(xPos, yPos,
 			  width, height,
 			  whiteTextureId,
 			  uv, uv, uv, uv,

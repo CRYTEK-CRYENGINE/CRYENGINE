@@ -27,7 +27,7 @@
 #include "ObjectsTree.h"
 #include "Brush.h"
 
-void CObjManager::RenderDecalAndRoad(IRenderNode* pEnt, PodArray<CDLight*>* pAffectingLights,
+void CObjManager::RenderDecalAndRoad(IRenderNode* pEnt, PodArray<SRenderLight*>* pAffectingLights,
                                      const Vec3& vAmbColor, const AABB& objBox,
                                      float fEntDistance,
                                      bool bSunOnly, bool nCheckOcclusion,
@@ -107,7 +107,7 @@ void CObjManager::RenderDecalAndRoad(IRenderNode* pEnt, PodArray<CDLight*>* pAff
 	pEnt->Render(DrawParams, passInfo);
 }
 
-void CObjManager::RenderVegetation(CVegetation* pEnt, PodArray<CDLight*>* pAffectingLights,
+void CObjManager::RenderVegetation(CVegetation* pEnt, PodArray<SRenderLight*>* pAffectingLights,
                                    const AABB& objBox,
                                    float fEntDistance,
                                    bool bSunOnly, SSectorTextureSet* pTerrainTexInfo, bool nCheckOcclusion,
@@ -152,7 +152,7 @@ void CObjManager::RenderVegetation(CVegetation* pEnt, PodArray<CDLight*>* pAffec
 	}
 }
 
-void CObjManager::RenderObject(IRenderNode* pEnt, PodArray<CDLight*>* pAffectingLights,
+void CObjManager::RenderObject(IRenderNode* pEnt, PodArray<SRenderLight*>* pAffectingLights,
                                const Vec3& vAmbColor, const AABB& objBox,
                                float fEntDistance,
                                bool bSunOnly, EERType eERType,

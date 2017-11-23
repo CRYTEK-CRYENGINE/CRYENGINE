@@ -128,10 +128,6 @@ vtxOutSunShaftsGen SunShaftsGenVS(vtxIn IN)
 }
 
 ///////////////// pixel shader //////////////////
-
-// workaround for shader constant trashing bug on 360 - needs to be fixed soon.
-float4 hposScale : PB_HPosScale < psregister = c0; >;
-
 pixout SunShaftsMaskGenPS(vtxOut IN)
 {
   pixout OUT = (pixout) 0;

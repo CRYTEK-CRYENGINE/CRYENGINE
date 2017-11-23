@@ -2,6 +2,7 @@
 
 #include "stdafx.h"
 #include "AudioCVars.h"
+#include "Common/Logger.h"
 #include <CrySystem/ISystem.h>
 #include <CrySystem/IConsole.h>
 
@@ -265,14 +266,6 @@ void CCVars::RegisterVariables()
 	               "b: Level Specifics\n"
 	               "c: Game Hints\n");
 
-	REGISTER_CVAR2("s_AudioLoggingOptions", &m_audioLoggingOptions, 0, VF_CHEAT | VF_CHEAT_NOCHECK | VF_BITFIELD,
-	               "Toggles the logging of audio related messages.\n"
-	               "Usage: s_AudioLoggingOptions [0ab...] (flags can be combined)\n"
-	               "Default: 0 (none)\n"
-	               "a: Errors\n"
-	               "b: Warnings\n"
-	               "c: Comments\n");
-
 	REGISTER_CVAR2("s_HideInactiveAudioObjects", &m_hideInactiveAudioObjects, 1, VF_DEV_ONLY,
 	               "When drawing audio object names on the screen this cvar can be used to choose between all registered audio objects or only those that reference active audio triggers.\n"
 	               "Usage: s_HideInactiveAudioObjects [0/1]\n"
@@ -333,7 +326,6 @@ void CCVars::UnregisterVariables()
 		pConsole->UnregisterVariable("s_IgnoreWindowFocus");
 		pConsole->UnregisterVariable("s_DrawAudioDebug");
 		pConsole->UnregisterVariable("s_FileCacheManagerDebugFilter");
-		pConsole->UnregisterVariable("s_AudioLoggingOptions");
 		pConsole->UnregisterVariable("s_HideInactiveAudioObjects");
 		pConsole->UnregisterVariable("s_AudioObjectsRayType");
 		pConsole->UnregisterVariable("s_DebugFilter");
@@ -353,7 +345,7 @@ void CCVars::CmdExecuteTrigger(IConsoleCmdArgs* pCmdArgs)
 	}
 	else
 	{
-		g_logger.Log(ELogType::Error, "Usage: s_ExecuteTrigger [TriggerName]");
+		Cry::Audio::Log(ELogType::Error, "Usage: s_ExecuteTrigger [TriggerName]");
 	}
 }
 
@@ -369,7 +361,7 @@ void CCVars::CmdStopTrigger(IConsoleCmdArgs* pCmdArgs)
 	}
 	else
 	{
-		g_logger.Log(ELogType::Error, "Usage: s_StopTrigger [TriggerName]");
+		Cry::Audio::Log(ELogType::Error, "Usage: s_StopTrigger [TriggerName]");
 	}
 }
 
@@ -386,7 +378,7 @@ void CCVars::CmdSetParameter(IConsoleCmdArgs* pCmdArgs)
 	}
 	else
 	{
-		g_logger.Log(ELogType::Error, "Usage: s_SetParameter [ParameterName] [ParameterValue]");
+		Cry::Audio::Log(ELogType::Error, "Usage: s_SetParameter [ParameterName] [ParameterValue]");
 	}
 }
 
@@ -403,7 +395,7 @@ void CCVars::CmdSetSwitchState(IConsoleCmdArgs* pCmdArgs)
 	}
 	else
 	{
-		g_logger.Log(ELogType::Error, "Usage: s_SetSwitchState [SwitchName] [SwitchStateName]");
+		Cry::Audio::Log(ELogType::Error, "Usage: s_SetSwitchState [SwitchName] [SwitchStateName]");
 	}
 }
 } // namespace CryAudio

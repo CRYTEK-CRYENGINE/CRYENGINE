@@ -685,6 +685,8 @@ int CRigidEntity::Action(pe_action *_action, int bThreadSafe)
 
 			if (action->iSource!=1) {
 				m_bAwake = 1;
+				if (m_pWorld->m_vars.idEntBreakOnAwake==m_id)
+					DoBreak
 				if (m_iSimClass==1) {
 					m_iSimClass = 2;	m_pWorld->RepositionEntity(this, 2);
 				}
@@ -1167,10 +1169,10 @@ int CRigidEntity::Awake(int bAwake,int iSource)
 		{
 			PREFAST_ASSUME(m_pColliders[i]);
 			if (m_pColliders[i]!=this && m_pColliders[i]->GetMassInv()>0)
-			{
 				m_pColliders[i]->Awake();
-			}
 		}
+		if (m_pWorld->m_vars.idEntBreakOnAwake==m_id)
+			DoBreak
 	}	else
 		m_bAwake = bAwake;
 	return m_iSimClass;
@@ -1208,7 +1210,7 @@ masktype CRigidEntity::MaskIgnoredColliders(int iCaller, int bScheduleForStep)
 	for(i=0; i<NMASKBITS && getmask(i)<=m_constraintMask; i++) 
 		if (m_constraintMask & getmask(i) && m_pConstraintInfos[i].flags & constraint_ignore_buddy && !(m_pConstraints[i].pent[1]->m_bProcessed & 1<<iCaller)) { 
 			AtomicAdd(&m_pConstraints[i].pent[1]->m_bProcessed, 1<<iCaller);
-			if (bScheduleForStep & inrange(m_pConstraints[i].pent[1]->m_iSimClass,2,5))
+			if (bScheduleForStep & inrange(m_pConstraints[i].pent[1]->m_iSimClass,2,5) && !(m_pConstraintInfos[i].flags & constraint_inactive))
 				m_pWorld->ScheduleForStep(m_pConstraints[i].pent[1],m_lastTimeStep);
 		}
 	return m_constraintMask;
@@ -2774,6 +2776,7 @@ int CRigidEntity::Step(float time_interval)
 		ip.bNoIntersection = bSlowRot;//bUseSimpleSolver;
 		ip.maxSurfaceGapAngle = DEG2RAD(3.5f);
 		m_qNew.Normalize();
+		m_sizeFastDir *= (m_bSmallAndFastForced^1 | bHasContacts); // force sweep if no contacts and small_and_fast was set manually (for projectiles)
 
 		if (!EnforceConstraints(time_interval) && m_velFastDir*(time_interval-bNoUnproj)>m_sizeFastDir*0.5f*(1-m_alwaysSweep)) {
 			SweepAgain:
@@ -4818,7 +4821,7 @@ void CRigidEntity::DrawHelperInformation(IPhysRenderer *pRenderer, int flags)
 {
 #if USE_IMPROVED_RIGID_ENTITY_SYNCHRONISATION
 	if (m_pWorld->m_vars.netDebugDraw && m_pNetStateHistory && m_bAwake) {
-		IRenderAuxGeom* pAux = gEnv->pRenderer ? gEnv->pRenderer->GetIRenderAuxGeom() : NULL;
+		IRenderAuxGeom* pAux = IRenderAuxGeom::GetAux();
 		if (pAux) {
 			{
 				ReadLock lock(m_lockNetInterp);

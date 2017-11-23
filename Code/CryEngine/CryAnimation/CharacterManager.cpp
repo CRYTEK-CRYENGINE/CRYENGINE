@@ -1657,7 +1657,8 @@ uint32 CharacterManager::GetRendererMainThreadId()
 
 void CharacterManager::UpdateRendererFrame()
 {
-	s_renderFrameIdLocal++;
+	if (!s_bPaused)
+		s_renderFrameIdLocal++;
 }
 
 // should be called every frame
@@ -2919,14 +2920,15 @@ ICharacterInstance* CharacterManager::LoadCharacterDefinition(const string pathn
 		if (IsBaseSKEL == 0 && IsBaseCGA == 0 && nLogWarnings && !gEnv->IsEditor())
 			CryFatalError("CryAnimation: base-character must be a CRY_SKEL_FILE_EXT or a CGA: %s", pathname.c_str());
 
-		pCharInstance = (CCharInstance*)CreateInstance(pFilepathSKEL, nLoadingFlags);
-		if (pCharInstance == 0 && nLogWarnings)
+		pCharInstance = static_cast<CCharInstance*>(CreateInstance(pFilepathSKEL, nLoadingFlags));
+		if (!pCharInstance)
 		{
-			g_pILog->LogError("Couldn't create base-character: %s", pFilepathSKEL);
-			return NULL;
+			if (nLogWarnings)
+			{
+				g_pILog->LogError("Couldn't create base-character: %s", pFilepathSKEL);
+			}
+			return nullptr;
 		}
-
-		PREFAST_ASSUME(pCharInstance);        // caught above
 
 		if (m_arrCacheForCDF[cdfId].m_pBaseModelMaterial)
 			pCharInstance->SetIMaterial_Instance(m_arrCacheForCDF[cdfId].m_pBaseModelMaterial);
@@ -4030,7 +4032,7 @@ void CharacterManager::RenderDebugInstances(const SRenderingPassInfo& passInfo)
 		if (pMtl)
 			rp.pMaterial = pMtl;
 
-		pExampleInst->Render(rp, QuatTS(IDENTITY), passInfo);
+		pExampleInst->Render(rp, passInfo);
 	}
 }
 

@@ -113,12 +113,17 @@ void CVehiclePartDetachedEntity::Update(SEntityUpdateContext& ctx, int slot)
 }
 
 //------------------------------------------------------------------------
-void CVehiclePartDetachedEntity::ProcessEvent(SEntityEvent& event)
+void CVehiclePartDetachedEntity::ProcessEvent(const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_RESET)
 	{
 		gEnv->pEntitySystem->RemoveEntity(GetEntity()->GetId());
 	}
+}
+
+uint64 CVehiclePartDetachedEntity::GetEventMask() const 
+{
+	return BIT64(ENTITY_EVENT_RESET);
 }
 
 //------------------------------------------------------------------------

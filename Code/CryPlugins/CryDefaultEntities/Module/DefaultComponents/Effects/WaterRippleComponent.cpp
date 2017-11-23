@@ -37,7 +37,7 @@ namespace Cry
 		{
 		}
 
-		void CWaterRippleComponent::ProcessEvent(SEntityEvent& event)
+		void CWaterRippleComponent::ProcessEvent(const SEntityEvent& event)
 		{
 			switch (event.event)
 			{

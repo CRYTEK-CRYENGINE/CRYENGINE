@@ -10,14 +10,12 @@
 
 #include <CrySystem/VR/IHMDManager.h>
 
-#include <CryGame/IGameFramework.h>
 #include <CryRenderer/IStereoRenderer.h>
 #include <Cry3DEngine/IIndexedMesh.h>
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <CryMath/Cry_Color.h>
 #include <CryMath/Cry_Camera.h>
 
-#include "..\CryAction\IViewSystem.h"
 #include <CryCore/Platform/CryWindows.h>
 
 // -------------------------------------------------------------------------
@@ -413,8 +411,8 @@ Device* Device::CreateInstance(vr::IVRSystem* pSystem)
 // -------------------------------------------------------------------------
 void Device::GetCameraSetupInfo(float& fov, float& aspectRatioFactor) const
 {
-	float fNear = gEnv->pRenderer->GetCamera().GetNearPlane();
-	float fFar = gEnv->pRenderer->GetCamera().GetFarPlane();
+	float fNear = GetISystem()->GetViewCamera().GetNearPlane();
+	float fFar = GetISystem()->GetViewCamera().GetFarPlane();
 
 	vr::HmdMatrix44_t proj = m_system->GetProjectionMatrix(vr::EVREye::Eye_Left, fNear, fFar);
 
@@ -675,8 +673,8 @@ void Device::CreateDevice()
 		gEnv->pLog->Log("[HMD][OpenVR] Could not create overlay: %s", vr::VR_GetVRInitErrorAsEnglishDescription(eError));
 	}
 
-	float fNear = gEnv->pRenderer->GetCamera().GetNearPlane();
-	float fFar = gEnv->pRenderer->GetCamera().GetFarPlane();
+	float fNear = GetISystem()->GetViewCamera().GetNearPlane();
+	float fFar = GetISystem()->GetViewCamera().GetFarPlane();
 
 	vr::HmdMatrix44_t proj = m_system->GetProjectionMatrix(vr::EVREye::Eye_Left, fNear, fFar);
 
@@ -693,7 +691,7 @@ void Device::CreateDevice()
 	//m_pSystem->GetWindowBounds(&x,&y,&w,&h);
 	//m_pSystem->AttachToWindow(gEnv->pRenderer->GetCurrentContextHWND());
 	//the previous calls to get the compositor window resolution were (temporarily?) dropped from the OpenVR SDK, therefore we report the suggested render resolution as Hmd screen resolution - even though that is NOT correct in the case of the HTC Vive!!!
-	GetRenderTargetSize(m_devInfo.screenWidth, m_devInfo.screenHeight);
+	GetPreferredRenderResolution(m_devInfo.screenWidth, m_devInfo.screenHeight);
 	m_devInfo.manufacturer = GetTrackedDeviceCharPointer(vr::k_unTrackedDeviceIndex_Hmd, vr::ETrackedDeviceProperty::Prop_ManufacturerName_String);
 	m_devInfo.productName = GetTrackedDeviceCharPointer(vr::k_unTrackedDeviceIndex_Hmd, vr::ETrackedDeviceProperty::Prop_TrackingSystemName_String);
 	m_devInfo.fovH = fovh;

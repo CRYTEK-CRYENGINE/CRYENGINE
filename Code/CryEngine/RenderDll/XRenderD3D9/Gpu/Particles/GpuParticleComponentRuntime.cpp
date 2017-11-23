@@ -37,7 +37,7 @@ void CParticleComponentRuntime::UpdateParticles(SUpdateContext& context, CDevice
 
 	m_parameters->deltaTime = context.deltaTime;
 	m_parameters->currentTime += context.deltaTime;
-	m_parameters->viewProjection = gcpRendD3D->m_CameraProjMatrix;
+	m_parameters->viewProjection = context.pRenderView->GetViewInfo(CCamera::eEye_Left).cameraProjMatrix;
 	m_parameters->sortMode = m_params.sortMode;
 
 	const CCamera& cam = gEnv->p3DEngine->GetRenderingCamera();
@@ -130,7 +130,7 @@ void CParticleComponentRuntime::SetUpdateConstantBuffer(EConstantBufferSlot slot
 
 void CParticleComponentRuntime::UpdateData(const SUpdateParams& params, TConstArray<SSpawnEntry> entries, TConstArray<SParentData> parentData)
 {
-	auto& updateData = m_updateData[gRenDev->m_RP.m_nFillThreadID];
+	auto& updateData = m_updateData[gRenDev->m_nFillThreadID];
 
 	static_cast<SUpdateParams&>(updateData) = params;
 	updateData.parentData = parentData;
@@ -139,7 +139,7 @@ void CParticleComponentRuntime::UpdateData(const SUpdateParams& params, TConstAr
 
 void CParticleComponentRuntime::AddParticles(SUpdateContext& context)
 {
-	const auto& updateData = m_updateData[gRenDev->m_RP.m_nProcessThreadID];
+	const auto& updateData = m_updateData[gRenDev->m_nProcessThreadID];
 
 	// copy parameters from CPU features
 	m_particleInitializationParameters = updateData;

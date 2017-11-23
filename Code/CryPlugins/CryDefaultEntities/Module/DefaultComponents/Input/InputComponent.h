@@ -5,8 +5,8 @@
 #include <CrySchematyc/IObject.h>
 #include <CrySchematyc/Utils/SharedString.h>
 #include <CrySchematyc/Env/IEnvRegistrar.h>
-
 #include <CryGame/IGameFramework.h>
+
 #include <IActionMapManager.h>
 
 class CPlugin_CryDefaultEntities;

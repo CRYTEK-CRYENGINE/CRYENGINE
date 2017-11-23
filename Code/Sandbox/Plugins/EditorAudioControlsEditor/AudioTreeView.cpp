@@ -127,6 +127,7 @@ void CAudioTreeView::RestoreExpanded()
 	if (!m_expandedBackup.isEmpty())
 	{
 		int const rowCount = model()->rowCount();
+
 		for (int i = 0; i < rowCount; ++i)
 		{
 			RestoreExpandedChildren(model()->index(i, 0));
@@ -162,7 +163,7 @@ void CAudioTreeView::RestoreExpandedChildren(QModelIndex const& index)
 void CAudioTreeView::BackupSelection()
 {
 	m_selectionBackup.clear();
-	m_bSelectionChanged = false;
+	m_hasSelectionChanged = false;
 
 	QModelIndexList const& selectedList = selectionModel()->selectedRows();
 
@@ -175,7 +176,7 @@ void CAudioTreeView::BackupSelection()
 //////////////////////////////////////////////////////////////////////////
 void CAudioTreeView::RestoreSelection()
 {
-	if (!m_selectionBackup.isEmpty() && !m_bSelectionChanged)
+	if (!m_selectionBackup.isEmpty() && !m_hasSelectionChanged)
 	{
 		int const rowCount = model()->rowCount();
 
@@ -223,7 +224,7 @@ void CAudioTreeView::OnSelectionChanged(QItemSelection const& selected, QItemSel
 	{
 		if (!m_selectionBackup.contains(GetItemId(index)))
 		{
-			m_bSelectionChanged = true;
+			m_hasSelectionChanged = true;
 			break;
 		}
 	}

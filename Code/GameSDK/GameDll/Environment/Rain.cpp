@@ -119,7 +119,7 @@ void CRain::Update(SEntityUpdateContext& ctx, int updateSlot)
 	const IActor* pClient = g_pGame->GetIGameFramework()->GetClientActor();
 	if (pClient && Reset())
 	{
-		const Vec3 vCamPos = gEnv->pRenderer->GetCamera().GetPosition();
+		const Vec3 vCamPos = GetISystem()->GetViewCamera().GetPosition();
 		Vec3 vR = (GetEntity()->GetWorldPos() - vCamPos) / max(m_params.fRadius, 1e-3f);
 		float fAttenAmount = max(0.f, 1.0f - vR.dot(vR));
 		fAttenAmount *= m_params.fAmount;
@@ -153,8 +153,13 @@ void CRain::HandleEvent(const SGameObjectEvent& event)
 {
 }
 
+uint64 CRain::GetEventMask() const
+{
+	return BIT64(ENTITY_EVENT_RESET) | BIT64(ENTITY_EVENT_HIDE) | BIT64(ENTITY_EVENT_DONE);
+}
+
 //------------------------------------------------------------------------
-void CRain::ProcessEvent(SEntityEvent& event)
+void CRain::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

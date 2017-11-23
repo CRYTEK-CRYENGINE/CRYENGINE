@@ -12,6 +12,9 @@
 
 #if defined(FEATURE_SVO_GI)
 
+#include "GraphicsPipeline/Common/ComputeRenderPass.h"
+#include "GraphicsPipeline/Common/FullscreenPass.h"
+
 class CSvoComputePass : public CComputeRenderPass
 {
 public:
@@ -55,16 +58,19 @@ class CSvoRenderer : public ISvoRenderer
 {
 public:
 
+	// ISvoRenderer
+	void                 Release() final;
+	void                 InitCVarValues() final;
+
 	static CSvoRenderer* GetInstance(bool bCheckAlloce = false);
-	void                 Release();
 	static bool          IsActive();
-	void                 UpdateCompute();
-	void                 UpdateRender();
+	void                 UpdateCompute(CRenderView* pRenderView);
+	void                 UpdateRender(CRenderView *pRenderView);
 	int                  GetIntegratioMode();
 	int                  GetIntegratioMode(bool& bSpecTracingInUse);
 	bool                 GetUseLightProbes() { return e_svoTI_SkyColorMultiplier >= 0; }
 	void                 DebugDrawStats(const RPProfilerStats* pBasicStats, float& ypos, const float ystep, float xposms);
-	static bool          SetSamplers(int nCustomID, EHWShaderClass eSHClass, int nTUnit, SamplerStateHandle nTState, int nTexMaterialSlot, int nSUnit);
+
 	static bool          SetShaderParameters(float*& pSrc, uint32 paramType, UFloat4* sData);
 	static CTexture*     GetRsmColorMap(const ShadowMapFrustum& rFr, bool bCheckUpdate = false);
 	static CTexture*     GetRsmNormlMap(const ShadowMapFrustum& rFr, bool bCheckUpdate = false);
@@ -76,8 +82,8 @@ public:
 	CTexture*            GetSpecularFinRT();
 	float                GetSsaoAmount()           { return IsActive() ? e_svoTI_SSAOAmount : 1.f; }
 	float                GetVegetationMaxOpacity() { return e_svoTI_VegetationMaxOpacity; }
-	CTexture*            GetRsmPoolCol()           { return IsActive() ? m_pRsmPoolCol : NULL; }
-	CTexture*            GetRsmPoolNor()           { return IsActive() ? m_pRsmPoolNor : NULL; }
+	CTexture*            GetRsmPoolCol()           { return IsActive() ? s_pRsmPoolCol.get() : NULL; }
+	CTexture*            GetRsmPoolNor()           { return IsActive() ? s_pRsmPoolNor.get() : NULL; }
 	static void          GetRsmTextures(_smart_ptr<CTexture>& pRsmColorMap, _smart_ptr<CTexture>& pRsmNormlMap, _smart_ptr<CTexture>& pRsmPoolCol, _smart_ptr<CTexture>& pRsmPoolNor);
 	ColorF               GetSkyColor() { return m_texInfo.vSkyColorTop; }
 
@@ -86,8 +92,10 @@ protected:
 	CSvoRenderer();
 	virtual ~CSvoRenderer() {}
 
-	void             SetEditingHelper(const Sphere& sp);
-	bool             IsShaderItemUsedForVoxelization(SShaderItem& rShaderItem, IRenderNode* pRN);
+	// ISvoRenderer
+	void             SetEditingHelper(const Sphere& sp) final;
+	bool             IsShaderItemUsedForVoxelization(SShaderItem& rShaderItem, IRenderNode* pRN) final;
+
 	static CTexture* GetGBuffer(int nId);
 	void             UpscalePass(SSvoTargetsSet* pTS);
 	void             DemosaicPass(SSvoTargetsSet* pTS);
@@ -113,9 +121,10 @@ protected:
 	template<class T> void SetupLightSources(PodArray<I3DEngine::SLightTI>& lightsTI, T & rp);
 	template<class T> void BindTiledLights(PodArray<I3DEngine::SLightTI>& lightsTI, T & rp);
 	void DrawPonts(PodArray<SVF_P3F_C4B_T2F>& arrVerts);
-	void InitCVarValues();
 	void VoxelizeRE();
 	bool VoxelizeMeshes(CShader* ef, SShaderPass* sfm);
+
+	CRenderView* RenderView() const { return m_pRenderView; };
 
 	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 	_smart_ptr<CTexture>
@@ -130,10 +139,13 @@ protected:
 	CShader*  m_pShader;
 	_smart_ptr<CTexture> m_pNoiseTex;
 	_smart_ptr<CTexture> m_pCloudShadowTex;
-	static _smart_ptr<CTexture> m_pRsmColorMap;
-	static _smart_ptr<CTexture> m_pRsmNormlMap;
-	static _smart_ptr<CTexture> m_pRsmPoolCol;
-	static _smart_ptr<CTexture> m_pRsmPoolNor;
+	static _smart_ptr<CTexture> s_pRsmColorMap;
+	static _smart_ptr<CTexture> s_pRsmNormlMap;
+	static _smart_ptr<CTexture> s_pRsmPoolCol;
+	static _smart_ptr<CTexture> s_pRsmPoolNor;
+
+	// Currently used render view
+	CRenderView* m_pRenderView;
 
 	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 	struct SVoxPool
@@ -272,7 +284,7 @@ protected:
 		INIT_SVO_CVAR(float, e_svoTI_PointLightsBias);      \
 	  // INIT_ALL_SVO_CVARS
 
-	#define INIT_SVO_CVAR(_type, _var) _type _var;
+	#define INIT_SVO_CVAR(_type, _var) _type _var = 0;
 	INIT_ALL_SVO_CVARS;
 	#undef INIT_SVO_CVAR
 };

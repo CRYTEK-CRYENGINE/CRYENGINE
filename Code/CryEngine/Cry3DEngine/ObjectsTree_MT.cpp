@@ -17,7 +17,7 @@
 //////////////////////////////////////////////////////////////////////////
 void CObjManager::PrepareCullbufferAsync(const CCamera& rCamera)
 {
-	if (!(gEnv->IsDedicated()))
+	if (gEnv->pRenderer)
 	{
 		m_CullThread.PrepareCullbufferAsync(rCamera);
 	}
@@ -26,7 +26,7 @@ void CObjManager::PrepareCullbufferAsync(const CCamera& rCamera)
 //////////////////////////////////////////////////////////////////////////
 void CObjManager::BeginOcclusionCulling(const SRenderingPassInfo& passInfo)
 {
-	if (!gEnv->IsDedicated())
+	if (gEnv->pRenderer)
 	{
 		m_CullThread.CullStart(passInfo);
 	}
@@ -35,7 +35,7 @@ void CObjManager::BeginOcclusionCulling(const SRenderingPassInfo& passInfo)
 //////////////////////////////////////////////////////////////////////////
 void CObjManager::EndOcclusionCulling()
 {
-	if (!gEnv->IsDedicated())
+	if (gEnv->pRenderer)
 	{
 		m_CullThread.CullEnd();
 	}
@@ -46,7 +46,7 @@ void CObjManager::RenderBufferedRenderMeshes(const SRenderingPassInfo& passInfo)
 {
 	CRY_PROFILE_REGION(PROFILE_3DENGINE, "3DEngine: RenderBufferedRenderMeshes");
 	CRYPROFILE_SCOPE_PROFILE_MARKER("RenderBufferedRenderMeshes");
-
+	
 	SCheckOcclusionOutput outputData;
 	while (1)
 	{

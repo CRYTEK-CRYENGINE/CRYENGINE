@@ -201,7 +201,7 @@ namespace Cry
 			UseHandbrake(false);
 		}
 
-		void CVehiclePhysicsComponent::ProcessEvent(SEntityEvent& event)
+		void CVehiclePhysicsComponent::ProcessEvent(const SEntityEvent& event)
 		{
 			if (event.event == ENTITY_EVENT_COLLISION)
 			{

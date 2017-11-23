@@ -9,7 +9,7 @@
 namespace CryVR
 {
 namespace Osvr {
-struct IOsvrPlugin : public ICryPlugin
+struct IOsvrPlugin : public Cry::IEnginePlugin
 {
 	CRYINTERFACE_DECLARE_GUID(IOsvrPlugin, "47512e92-6a94-404d-a2c9-a14f0633eebe"_cry_guid);
 

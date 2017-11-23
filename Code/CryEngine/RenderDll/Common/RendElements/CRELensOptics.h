@@ -8,9 +8,6 @@ public:
 	CRELensOptics(void);
 	~CRELensOptics(void) {}
 
-	virtual bool mfCompile(CParserBin& Parser, SParserFrame& Frame) { return true; }
-	virtual void mfPrepare(bool bCheckOverflow) {};
-	virtual bool mfDraw(CShader* ef, SShaderPass* sfm) { return true; }
 	virtual void mfExport(struct SShaderSerializeContext& SC)                 {};
 	virtual void mfImport(struct SShaderSerializeContext& SC, uint32& offset) {};
 };

@@ -32,10 +32,12 @@ FILE* CIOWrapper::FopenLocked(const char* file, const char* mode)
 #if CRY_PLATFORM_WINDOWS
 	HANDLE handle;
 
-	// The file must exist if opens for reading.
-	auto creationDisposition = strchr(mode, 'r') ? OPEN_EXISTING : OPEN_ALWAYS;
+	// The file must exist if opens for 'r' or 'r+'.
+	const auto creationDisposition = strchr(mode, 'r') ? OPEN_EXISTING : OPEN_ALWAYS;
 
-	handle = CreateFile(file, GENERIC_READ | GENERIC_WRITE, 0, 0, creationDisposition, 0, 0);
+	const auto accessMode = (creationDisposition == OPEN_EXISTING) && !strchr(mode, '+') ? GENERIC_READ : (GENERIC_READ | GENERIC_WRITE);
+
+	handle = CreateFile(file, accessMode, 0, 0, creationDisposition, 0, 0);
 
 	if (handle == INVALID_HANDLE_VALUE)
 	{

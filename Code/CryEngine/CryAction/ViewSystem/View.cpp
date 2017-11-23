@@ -791,7 +791,7 @@ void CView::UpdateAudioListener(Matrix34 const& worldTM)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CView::OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+void CView::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
 	switch (event.event)
 	{

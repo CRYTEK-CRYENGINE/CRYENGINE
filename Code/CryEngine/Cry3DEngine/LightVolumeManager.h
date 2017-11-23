@@ -37,7 +37,7 @@ public:
 	void   Init();
 	void   Reset();
 	uint16 RegisterVolume(const Vec3& vPos, f32 fRadius, uint8 nClipVolumeRef, const SRenderingPassInfo& passInfo);
-	void   RegisterLight(const CDLight& pDL, uint32 nLightID, const SRenderingPassInfo& passInfo);
+	void   RegisterLight(const SRenderLight& pDL, uint32 nLightID, const SRenderingPassInfo& passInfo);
 	void   Update(const SRenderingPassInfo& passInfo);
 	void   Clear(const SRenderingPassInfo& passInfo);
 	void   GetLightVolumes(threadID nThreadID, SLightVolume*& pLightVols, uint32& nNumVols);

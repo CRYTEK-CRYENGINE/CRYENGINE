@@ -30,7 +30,7 @@ namespace Cry
 			SpawnEntity();
 		}
 
-		void CChildEntityComponent::ProcessEvent(SEntityEvent& event)
+		void CChildEntityComponent::ProcessEvent(const SEntityEvent& event)
 		{
 			if (event.event == ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED)
 			{

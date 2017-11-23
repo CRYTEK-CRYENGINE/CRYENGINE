@@ -152,6 +152,7 @@ void Console::Init()
 	ca_DebugTextLayer = 0xffffffff;
 	DefineConstIntCVar(ca_DebugCommandBuffer, 0, VF_CHEAT | VF_DUMPTODISK, "if this is 1, it will print the amount of commands for the blend-buffer");
 	DefineConstIntCVar(ca_DebugAnimationStreaming, 0, VF_CHEAT | VF_DUMPTODISK, "if this is 1, then it shows what animations are streamed in");
+	DefineConstIntCVar(ca_DebugAttachmentsProxies, 0, 0, "draw characters attachments proxies: 0 - disabled; 1 - dynamic proxies; 2 - auxiliary proxies; 4 - cloth proxies; 8 - ragdoll proxies");
 	DefineConstIntCVar(ca_LoadUncompressedChunks, 0, VF_CHEAT, "If this 1, then uncompressed chunks prefer compressed while loading");
 	DefineConstIntCVar(ca_UseMorph, 1, VF_CHEAT, "the morph skinning step is skipped (it's part of overall skinning during rendering)");
 	DefineConstIntCVar(ca_NoAnim, 0, VF_CHEAT, "the animation isn't updated (the characters remain in the same pose)");
@@ -285,6 +286,7 @@ void Console::Init()
 	REGISTER_CVAR(ca_FacialAnimationRadius, 30.f, VF_CHEAT, "Maximum distance at which facial animations are updated - handles zooming correctly");
 
 	//sampling
+	REGISTER_CVAR(ca_ResetCulledJointsToBindPose, 0, 0, "Specifies whether culled joints should be reset to bind pose or preserve their transform from last evaluated frame (0 = preserve, 1 = reset).");
 	DefineConstIntCVar(ca_SampleQuatHemisphereFromCurrentPose, 0, VF_NULL, "For override animation sampling, use current pose for quat hemisphere sign");
 
 	DefineConstIntCVar(ca_DrawCloth, 1, VF_CHEAT, "bitfield: 2 shows particles, 4 shows proxies, 6 shows both");

@@ -35,6 +35,7 @@ public:
 	SRenderNodeTempData() { ZeroStruct(*this); assert((void*)this == (void*)&this->userData); }
 	~SRenderNodeTempData() { Free(); };
 
+	CRenderObject* GetRenderObject(int nLod);
 	void Free();
 	void FreeRenderObjects();
 	void InvalidateRenderObjectsInstanceData();
@@ -48,7 +49,6 @@ public:
 	void MarkForDelete()
 	{
 		userData.bToDelete = true;
-		userData.pOwnerNode = 0;
 	}
 };
 

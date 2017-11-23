@@ -412,7 +412,7 @@ void CVehicleMovementStdBoat::UpdateSurfaceEffects(const float deltaTime)
   IEntity* pEntity = m_pVehicle->GetEntity();
   const Matrix34& worldTM = pEntity->GetWorldTM();
   
-  float distSq = worldTM.GetTranslation().GetSquaredDistance(gEnv->pRenderer->GetCamera().GetPosition());
+  float distSq = worldTM.GetTranslation().GetSquaredDistance(GetISystem()->GetViewCamera().GetPosition());
   if (distSq > sqr(300.f) || (distSq > sqr(50.f) && !m_pVehicle->GetGameObject()->IsProbablyVisible()))
     return;
 

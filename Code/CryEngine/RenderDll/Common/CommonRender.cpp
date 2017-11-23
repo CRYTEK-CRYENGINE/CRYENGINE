@@ -148,8 +148,11 @@ bool CBaseResource::UnRegister()
 void CBaseResource::UnregisterAndDelete()
 {
 	UnRegister();
-	if (gRenDev && gRenDev->m_pRT)
-		gRenDev->m_pRT->RC_ReleaseBaseResource(this);
+	if (!m_bDeleted)
+	{
+		m_bDeleted = true;
+		gRenDev->ScheduleResourceForDelete(this);
+	}
 }
 
 //=================================================================
@@ -193,7 +196,7 @@ void SResourceBinding::AddInvalidateCallback(void* pCallbackOwner, SResourceBind
 	{
 		case EResourceType::ConstantBuffer:                                                                       break;
 		case EResourceType::Texture:        pTexture->AddInvalidateCallback(pCallbackOwner, bindPoint, callback); break;
-		case EResourceType::Buffer:         pBuffer->AddInvalidateCallback(pCallbackOwner, bindPoint, callback);  break;
+		case EResourceType::Buffer:         pBuffer ->AddInvalidateCallback(pCallbackOwner, bindPoint, callback); break;
 		case EResourceType::Sampler:                                                                              break;
 		default:                            CRY_ASSERT(false);
 	}
@@ -205,7 +208,7 @@ void SResourceBinding::RemoveInvalidateCallback(void* pCallbackOwner, SResourceB
 	{
 		case EResourceType::ConstantBuffer:                                                                       break;
 		case EResourceType::Texture:        pTexture->RemoveInvalidateCallbacks(pCallbackOwner, bindPoint);       break;
-		case EResourceType::Buffer:         pBuffer->RemoveInvalidateCallbacks(pCallbackOwner, bindPoint);        break;
+		case EResourceType::Buffer:         pBuffer ->RemoveInvalidateCallbacks(pCallbackOwner, bindPoint);       break;
 		case EResourceType::Sampler:                                                                              break;
 		default:                            CRY_ASSERT(false);
 	}
@@ -290,6 +293,22 @@ void CResourceBindingInvalidator::RemoveInvalidateCallbacks(void* listener, cons
 			m_invalidateCallbacks.erase(*eraseIt);
 		m_invalidationLock.WUnlock();
 	}
+}
+
+void CResourceBindingInvalidator::InvalidateDeviceResource(CGpuBuffer* pBuffer, uint32 dirtyFlags) threadsafe
+{
+//	pBuffer->AddRef();
+	InvalidateDeviceResource(UResourceReference(pBuffer), dirtyFlags);
+	CRY_ASSERT_MESSAGE(!(dirtyFlags & eResourceDestroyed) || (CountInvalidateCallbacks() == 0), "CGpuBuffer %s is destroyd but the invalidation callbacks haven't been removed!", "Unknown" /*pBuffer->GetName()*/);
+//	pBuffer->Release();
+}
+
+void CResourceBindingInvalidator::InvalidateDeviceResource(CTexture* pTexture, uint32 dirtyFlags) threadsafe
+{
+	pTexture->AddRef();
+	InvalidateDeviceResource(UResourceReference(pTexture), dirtyFlags);
+	CRY_ASSERT_MESSAGE(!(dirtyFlags & eResourceDestroyed) || (CountInvalidateCallbacks() == 0), "CTexture %s is destroyd but the invalidation callbacks haven't been removed!", pTexture->GetName());
+	pTexture->Release();
 }
 
 void CResourceBindingInvalidator::InvalidateDeviceResource(UResourceReference pResource, uint32 dirtyFlags) threadsafe

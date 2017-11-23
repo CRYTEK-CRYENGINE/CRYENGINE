@@ -28,6 +28,7 @@ CKeyboard::CKeyboard(CDXInput& input) :
 	CDXInputDevice(input, "keyboard", GUID_SysKeyboard)
 {
 	m_deviceType = eIDT_Keyboard;
+	m_baseflags = DISCL_NONEXCLUSIVE | DISCL_FOREGROUND;
 	s_instance = this;
 }
 

@@ -1,18 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   PhysicsProxy.h
-//  Version:     v1.00
-//  Created:     25/5/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __PhysicsProxy_h__
-#define __PhysicsProxy_h__
 #pragma once
 
 // forward declarations.
@@ -59,7 +46,7 @@ public:
 	;
 	CEntity* GetEntity() const { return m_pEntity; };
 
-	void     ProcessEvent(SEntityEvent& event);
+	void     ProcessEvent(const SEntityEvent& event);
 
 	void     SerializeXML(XmlNodeRef& entityNode, bool bLoading);
 	bool     NeedNetworkSerialize();
@@ -120,7 +107,7 @@ public:
 
 private:
 	IPhysicalWorld*  PhysicalWorld() const { return gEnv->pPhysicalWorld; }
-	void             OnEntityXForm(SEntityEvent& event);
+	void             OnEntityXForm(const SEntityEvent& event);
 	void             OnChangedPhysics(bool bEnabled);
 	void             DestroyPhysicalEntity(bool bDestroyCharacters = true, int iMode = 0);
 
@@ -161,5 +148,3 @@ private:
 	// Pointer to physical object.
 	IPhysicalEntity* m_pPhysicalEntity = nullptr;
 };
-
-#endif // __PhysicsProxy_h__

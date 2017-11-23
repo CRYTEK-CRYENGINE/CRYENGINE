@@ -96,6 +96,6 @@ void CShake::HandleEvent(const SGameObjectEvent &event)
 }
 
 //------------------------------------------------------------------------
-void CShake::ProcessEvent(SEntityEvent &event)
+void CShake::ProcessEvent(const SEntityEvent& event)
 {
 }

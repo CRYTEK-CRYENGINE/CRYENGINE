@@ -129,6 +129,10 @@ struct IMovementSystem
 	//! Unregister your entity from the movement system to stop using its services.
 	virtual void UnregisterEntity(const EntityId entityId) = 0;
 
+	//! Check whether the entity is registered in the movement system.
+	//! \return True if the entity is registered in the movement system or false otherwise.
+	virtual bool IsEntityRegistered(const EntityId entityId) = 0;
+
 	//! Ask the movement system to satisfy your request.
 	//! The movement system will contact you via the callback to inform you whether the request has been satisfied or not.
 	//! If you submit a callback you are responsible for calling CancelRequest before the callback becomes invalid.

@@ -170,6 +170,7 @@ private:
 	void UpdateEntityPosRotVel(const Vec3& targetPos, const Quat& targetRot, const bool initialState, const int flags, SAnimTime fTime);
 	void StopEntity();
 	void UpdateTargetCamera(IEntity* pEntity, const Quat& rotation);
+	void RestoreEntityDefaultValues();
 
 	//! Reference to game entity.
 	EntityGUID       m_entityGuid;

@@ -1,18 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   EntityNodeProxy.h
-//  Version:     v1.00
-//  Created:     23/11/2010 by Benjamin B.
-//  Description:
-// -------------------------------------------------------------------------
-//  History:	The EntityNodeProxy handles events that are specific to EntityNodes
-//						(e.g. Footsteps).
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __EntityNodeProxy_h__
-#define __EntityNodeProxy_h__
 #pragma once
 
 #include "EntitySystem.h"
@@ -31,7 +18,7 @@ public:
 	// IEntityComponent interface implementation.
 	//////////////////////////////////////////////////////////////////////////
 	virtual void Initialize() final;
-	virtual void ProcessEvent(SEntityEvent& event) final;
+	virtual void ProcessEvent(const SEntityEvent& event) final;
 	virtual uint64 GetEventMask() const final;
 	//////////////////////////////////////////////////////////////////////////
 
@@ -40,5 +27,3 @@ public:
 
 	virtual void         Release() final { delete this; }
 };
-
-#endif

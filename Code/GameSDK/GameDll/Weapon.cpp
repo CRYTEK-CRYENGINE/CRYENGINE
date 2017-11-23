@@ -1088,7 +1088,7 @@ void CWeapon::HandleEvent(const SGameObjectEvent &evt)
 }
 
 //------------------------------------------------------------------------
-void CWeapon::ProcessEvent(SEntityEvent& event)
+void CWeapon::ProcessEvent(const SEntityEvent& event)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
@@ -1134,6 +1134,11 @@ void CWeapon::ProcessEvent(SEntityEvent& event)
 	}
 
 	BaseClass::ProcessEvent(event);
+}
+
+uint64 CWeapon::GetEventMask() const
+{
+	return BaseClass::GetEventMask() | BIT64(ENTITY_EVENT_HIDE) | BIT64(ENTITY_EVENT_RESET) | BIT64(ENTITY_EVENT_ANIM_EVENT);
 }
 
 bool CWeapon::ResetParams()

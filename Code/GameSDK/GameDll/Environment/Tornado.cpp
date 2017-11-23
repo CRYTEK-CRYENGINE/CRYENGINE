@@ -276,7 +276,7 @@ void CTornado::HandleEvent(const SGameObjectEvent &event)
 }
 
 //------------------------------------------------------------------------
-void CTornado::ProcessEvent(SEntityEvent &event)
+void CTornado::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -284,6 +284,11 @@ void CTornado::ProcessEvent(SEntityEvent &event)
 		Reset();
 		break;
 	}
+}
+
+uint64 CTornado::GetEventMask() const
+{
+	return BIT64(ENTITY_EVENT_RESET);
 }
 
 //------------------------------------------------------------------------

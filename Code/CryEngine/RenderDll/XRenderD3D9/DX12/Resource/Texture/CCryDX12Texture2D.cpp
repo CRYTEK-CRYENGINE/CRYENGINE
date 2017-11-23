@@ -191,6 +191,11 @@ CCryDX12Texture2D* CCryDX12Texture2D::Create(CCryDX12Device* pDevice, const FLOA
 	}
 
 	ID3D12Resource* resource = NULL;
+	if (pInitialData)
+	{
+		// Anticipate deferred initial upload
+		resourceUsage = D3D12_RESOURCE_STATE_COPY_DEST;
+	}
 
 	HRESULT hresult = S_OK;
 	if (pDesc->MiscFlags & D3D11_RESOURCE_MISC_HIFREQ_HEAP)

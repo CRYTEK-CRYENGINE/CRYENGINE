@@ -14,9 +14,7 @@
 #include <SDL.h>
 #include <SDL_Extension.h>
 
-#include <CryGame/IGameStartup.h>
 #include <CryEntitySystem/IEntity.h>
-#include <CryGame/IGameFramework.h>
 #include <CrySystem/IConsole.h>
 #include <sys/types.h>
 #include <netdb.h>

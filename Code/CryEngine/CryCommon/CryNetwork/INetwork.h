@@ -1762,6 +1762,8 @@ struct INetChannel : public INetMessageSink
 	virtual bool IsMigratingChannel() const = 0;
 	// </interfuscator:shuffle>
 
+	virtual bool GetRemoteNetAddress(uint32& uip, uint16& port, bool firstLocal = true) = 0;
+
 #ifndef OLD_VOICE_SYSTEM_DEPRECATED
 	virtual CTimeValue TimeSinceVoiceTransmission() = 0;
 	virtual CTimeValue TimeSinceVoiceReceipt(EntityId id) = 0;

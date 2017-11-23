@@ -70,8 +70,7 @@ public:
 
 	// pfx1 IParticleEmitter
 	virtual int          GetVersion() const override                        { return 2; }
-	virtual bool         IsAlive() const override                           { return m_registered; }
-	virtual bool         IsInstant() const override                         { return false; }
+	virtual bool         IsAlive() const override;
 	virtual void         Restart() override;
 	virtual void         SetEffect(const IParticleEffect* pEffect) override {}
 	virtual void         SetEmitGeom(const GeomRef& geom) override;

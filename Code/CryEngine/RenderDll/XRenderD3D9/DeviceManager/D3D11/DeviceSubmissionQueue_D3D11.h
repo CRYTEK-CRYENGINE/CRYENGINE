@@ -171,13 +171,13 @@ private:
 	void BindIA(CCryDeviceContextWrapper& rDeviceContext);
 
 	bool ValidateDrawcall();
-	void ClearState();
 
 public:
 	CSubmissionQueue_DX11();
 	~CSubmissionQueue_DX11();
 
 	void           Init();
+	void           ClearState();
 	void           RT_Tick();
 
 	inline void    BindConstantBuffer(SHADER_TYPE type, const CConstantBuffer* Buffer, uint32 slot);

@@ -369,7 +369,7 @@ void CVehiclePart::UpdateObjectFromVar()
 		OnSetClass(m_pPartClass);
 	}
 
-	SetModified(false);
+	SetModified(false, false);
 }
 
 //////////////////////////////////////////////////////////////////////////

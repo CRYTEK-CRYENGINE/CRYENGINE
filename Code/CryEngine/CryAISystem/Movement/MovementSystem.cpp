@@ -75,6 +75,12 @@ void MovementSystem::UnregisterEntity(const EntityId entityId)
 	m_actors.erase(std::remove_if(m_actors.begin(), m_actors.end(), ActorMatchesIdPredicate(entityId)), m_actors.end());
 }
 
+bool MovementSystem::IsEntityRegistered(const EntityId entityId)
+{
+	Actors::const_iterator actorIt = std::find_if(m_actors.begin(), m_actors.end(), ActorMatchesIdPredicate(entityId));
+	return actorIt != m_actors.end();
+}
+
 MovementRequestID MovementSystem::QueueRequest(const MovementRequest& request)
 {
 	assert(request.entityID);

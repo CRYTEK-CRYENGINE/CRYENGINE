@@ -1,8 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-#ifndef __CLIPVOLUMEPROXY_H__
-#define __CLIPVOLUMEPROXY_H__
-
 #pragma once
 
 #include "EntitySystem.h"
@@ -26,7 +23,7 @@ public:
 	// IEntityComponent.h interface implementation.
 	//////////////////////////////////////////////////////////////////////////
 	virtual void Initialize() override;
-	virtual void ProcessEvent(SEntityEvent& event) override;
+	virtual void ProcessEvent(const SEntityEvent& event) override;
 	virtual uint64 GetEventMask() const final;
 	//////////////////////////////////////////////////////////////////////////
 
@@ -69,5 +66,3 @@ private:
 };
 
 DECLARE_SHARED_POINTERS(CEntityComponentClipVolume)
-
-#endif //__CLIPVOLUMEPROXY_H__

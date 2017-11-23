@@ -372,7 +372,7 @@
                             "data": "Layer Color",
                             "visible": true,
                             "visualIndex": 0,
-                            "width": 10
+                            "width": 6
                         },
                         "Loaded in Game": {
                             "data": "Loaded in Game",
@@ -449,7 +449,7 @@
                     ],
                     "headerSortingOrder": {
                         "sortOrder": 0,
-                        "sortedSection": 4
+                        "sortedSection": 3
                     },
                     "version": 1
                 }

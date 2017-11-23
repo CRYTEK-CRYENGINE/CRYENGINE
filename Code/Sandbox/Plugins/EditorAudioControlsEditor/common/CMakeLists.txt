@@ -6,10 +6,10 @@ start_sources()
 sources_platform(ALL)
 add_sources("NoUberFile"
 	SOURCE_GROUP "Root"
-		"ACETypes.h"
-		"IAudioConnection.h"
-		"IAudioSystemItem.h"
-		"IAudioSystemEditor.h"
+		"IEditorImpl.h"
+		"ImplConnection.h"
+		"ImplItem.h"
+		"SystemTypes.h"
 )
 
 end_sources()

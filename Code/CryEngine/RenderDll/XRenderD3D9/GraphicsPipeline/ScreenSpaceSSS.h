@@ -9,7 +9,6 @@
 class CScreenSpaceSSSStage : public CGraphicsPipelineStage
 {
 public:
-	void Init();
 	void Execute(CTexture* pIrradianceTex);
 
 private:

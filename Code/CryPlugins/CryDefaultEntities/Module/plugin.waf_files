@@ -28,6 +28,10 @@
             "DefaultComponents/Cameras/CameraManager.h", 
             "DefaultComponents/Cameras/ICameraManager.h"
         ], 
+        "Cameras/VirtualReality": [
+            "DefaultComponents/Cameras/VirtualReality/RoomscaleCamera.cpp", 
+            "DefaultComponents/Cameras/VirtualReality/RoomscaleCamera.h"
+        ], 
         "Constraints": [
             "DefaultComponents/Constraints/PointConstraint.cpp", 
             "DefaultComponents/Constraints/PointConstraint.h", 
@@ -152,6 +156,10 @@
             "DefaultComponents/Physics/Vehicles/VehicleComponent.h", 
             "DefaultComponents/Physics/Vehicles/WheelComponent.cpp", 
             "DefaultComponents/Physics/Vehicles/WheelComponent.h"
+        ], 
+        "Physics/VirtualReality": [
+            "DefaultComponents/Physics/VirtualReality/VirtualRealityInteractionComponent.cpp", 
+            "DefaultComponents/Physics/VirtualReality/VirtualRealityInteractionComponent.h"
         ], 
         "Root": [
             "PluginDll.cpp", 

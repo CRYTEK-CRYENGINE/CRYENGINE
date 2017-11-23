@@ -2,7 +2,7 @@
   "NoUberFile": {
     "Root": [
       "ATLEntityData.h", 
-      "AudioLogger.h", 
+      "Logger.h", 
       "IAudioImpl.h", 
       "SharedAudioData.h", 
       "PoolObject.h", 

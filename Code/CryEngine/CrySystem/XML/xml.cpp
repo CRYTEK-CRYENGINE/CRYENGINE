@@ -1067,8 +1067,7 @@ void CXmlNode::AddToXmlString(XmlString& xml, int level, FILE* pFile, IPlatformO
 	xml += ">\n";
 }
 
-#if !CRY_PLATFORM_APPLE && !CRY_PLATFORM_LINUX && !HAS_STPCPY
-ILINE static char* stpcpy(char* dst, const char* src)
+inline static char* cry_stpcpy(char* dst, const char* src)
 {
 	while (src[0])
 	{
@@ -1079,7 +1078,6 @@ ILINE static char* stpcpy(char* dst, const char* src)
 	dst[0] = 0;
 	return dst;
 }
-#endif
 
 char* CXmlNode::AddToXmlStringUnsafe(char* xml, int level, char* endPtr, FILE* pFile, IPlatformOS::ISaveWriterPtr pSaveWriter, size_t chunkSize) const
 {
@@ -1095,7 +1093,7 @@ char* CXmlNode::AddToXmlStringUnsafe(char* xml, int level, char* endPtr, FILE* p
 	if (!m_pAttributes || m_pAttributes->empty())
 	{
 		*(xml++) = '<';
-		xml = stpcpy(xml, m_tag);
+		xml = cry_stpcpy(xml, m_tag);
 		if (*m_content == 0 && !bHasChildren)
 		{
 			*(xml++) = '/';
@@ -1108,13 +1106,13 @@ char* CXmlNode::AddToXmlStringUnsafe(char* xml, int level, char* endPtr, FILE* p
 	else
 	{
 		*(xml++) = '<';
-		xml = stpcpy(xml, m_tag);
+		xml = cry_stpcpy(xml, m_tag);
 		*(xml++) = ' ';
 
 		// Put attributes.
 		for (XmlAttributes::const_iterator it = m_pAttributes->begin(); it != m_pAttributes->end(); )
 		{
-			xml = stpcpy(xml, it->key);
+			xml = cry_stpcpy(xml, it->key);
 			*(xml++) = '=';
 			*(xml++) = '\"';
 #ifndef _RELEASE
@@ -1123,7 +1121,7 @@ char* CXmlNode::AddToXmlStringUnsafe(char* xml, int level, char* endPtr, FILE* p
 				__debugbreak();
 			}
 #endif
-			xml = stpcpy(xml, it->value);
+			xml = cry_stpcpy(xml, it->value);
 			++it;
 			*(xml++) = '\"';
 			if (it != m_pAttributes->end())
@@ -1148,13 +1146,13 @@ char* CXmlNode::AddToXmlStringUnsafe(char* xml, int level, char* endPtr, FILE* p
 		__debugbreak();
 	}
 #endif
-	xml = stpcpy(xml, m_content);
+	xml = cry_stpcpy(xml, m_content);
 
 	if (!bHasChildren)
 	{
 		*(xml++) = '<';
 		*(xml++) = '/';
-		xml = stpcpy(xml, m_tag);
+		xml = cry_stpcpy(xml, m_tag);
 		*(xml++) = '>';
 		*(xml++) = '\n';
 		return xml;
@@ -1176,7 +1174,7 @@ char* CXmlNode::AddToXmlStringUnsafe(char* xml, int level, char* endPtr, FILE* p
 	}
 	*(xml++) = '<';
 	*(xml++) = '/';
-	xml = stpcpy(xml, m_tag);
+	xml = cry_stpcpy(xml, m_tag);
 	*(xml++) = '>';
 	*(xml++) = '\n';
 

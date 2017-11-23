@@ -12,28 +12,29 @@ class CPrimitiveRenderPass;
 
 struct SCompiledRenderPrimitive : private NoCopy
 {
-	SCompiledRenderPrimitive();
+	SCompiledRenderPrimitive() {};
 	SCompiledRenderPrimitive(SCompiledRenderPrimitive&& other);
 
 	void Reset();
 
-	struct SInstanceInfo
+	struct SDrawInfo
 	{
-		std::vector<SDeviceObjectHelpers::SConstantBufferBindInfo>  constantBuffers;
-
-		uint32        vertexOrIndexCount;
-		uint32        vertexOrIndexOffset;
-		uint32        vertexBaseOffset;
+		uint32        vertexOrIndexCount  = 0;
+		uint32        vertexOrIndexOffset = 0;
+		uint32        vertexBaseOffset    = 0;
 	};
 
 	CDeviceGraphicsPSOPtr      m_pPipelineState;
 	CDeviceResourceLayoutPtr   m_pResourceLayout;
 	CDeviceResourceSetPtr      m_pResources;
-	const CDeviceInputStream*  m_pVertexInputSet;
-	const CDeviceInputStream*  m_pIndexInputSet;
+	const CDeviceInputStream*  m_pVertexInputSet = nullptr;
+	const CDeviceInputStream*  m_pIndexInputSet  = nullptr;
+	
+	// Reserve 3 optional inline constant buffers for a primitive
+	std::array<SDeviceObjectHelpers::SConstantBufferBindInfo,3> m_inlineConstantBuffers;
 
-	uint8                      m_stencilRef;
-	std::vector<SInstanceInfo> m_instances;
+	uint8                      m_stencilRef = 0;
+	SDrawInfo                  m_drawInfo;
 };
 
 
@@ -214,10 +215,12 @@ public:
 	void   SetDepthTarget(CTexture* pDepthTarget, ResourceViewHandle hDepthTargetView = EDefaultResourceViews::DepthStencil);
 	void   SetOutputUAV(uint32 slot, CGpuBuffer* pBuffer);
 	void   SetViewport(const D3DViewPort& viewport);
+	void   SetViewport(const SRenderViewport& viewport);
 	void   SetScissor(bool bEnable, const D3DRectangle& scissor);
 	void   SetTargetClearMask(uint32 clearMask);
 
 	bool   IsOutputDirty() const { return m_renderPassDesc.HasChanged(); }
+	const  D3DViewPort& GetViewport() const { return m_viewport; }
 
 	void   Reset();
 

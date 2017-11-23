@@ -59,7 +59,7 @@
                           "data": "Layer Color",
                           "visible": true,
                           "visualIndex": 0,
-                          "width": 10
+                          "width": 6
                         },
                         "Visible": {
                           "data": "Visible",
@@ -214,7 +214,7 @@
                     ],
                     "headerSortingOrder": {
                         "sortOrder": 0,
-                        "sortedSection": 4
+                        "sortedSection": 3
                     }
                 }
             }

@@ -1016,7 +1016,7 @@ void CDialogCHR::RenderCharacter(const SRenderContext& rc, ICharacterInstance* p
 	const SRenderingPassInfo& passInfo = *rc.passInfo;
 	gEnv->p3DEngine->PrecacheCharacter(NULL, 1.f, pCharInstance, pCharInstance->GetIMaterial(), localEntityMat, 0, 1.f, 4, true, passInfo);
 	pCharInstance->SetViewdir(rc.camera->GetViewdir());
-	pCharInstance->Render(rp, QuatTS(IDENTITY), passInfo);
+	pCharInstance->Render(rp, passInfo);
 }
 
 void CDialogCHR::RenderPhysics(const SRenderContext& rc, ICharacterInstance* pCharacter)

@@ -1,16 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   PhysicsProxy.cpp
-//  Version:     v1.00
-//  Created:     25/5/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #include "stdafx.h"
 #include "PhysicsProxy.h"
 #include "Entity.h"
@@ -222,7 +211,7 @@ CEntity* GetAdam(CEntity* pAdam, Matrix34& mtx)
 	return pAdam;
 }
 
-void CEntityPhysics::ProcessEvent(SEntityEvent& event)
+void CEntityPhysics::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -624,7 +613,7 @@ void CEntityPhysics::SerializeXML(XmlNodeRef& entityNode, bool bLoading)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntityPhysics::OnEntityXForm(SEntityEvent& event)
+void CEntityPhysics::OnEntityXForm(const SEntityEvent& event)
 {
 	if (event.nParam[0] & ENTITY_XFORM_IGNORE_PHYSICS || 
 		  event.nParam[0] & ENTITY_XFORM_FROM_PARENT && (

@@ -1149,15 +1149,16 @@ int CResFile::mfFileRead(SDirEntry* de)
 		else if (m_version == RESVERSION_DEBUG)
 		{
 			gEnv->pCryPak->FReadRaw(buf, de->size, 1, m_handle);
-			pOE->pData = new byte[de->size - 20];
-			de->flags |= RF_TEMPDATA;
-			if (!pOE->pData)
+			int allocSize = (int)de->size - 20;
+			if (allocSize < 0 || allocSize > 128*1024*1024)
 			{
+				mfSetError("FileRead - Corrupt DirEntiy size");
 				SAFE_DELETE_ARRAY(buf);
-				mfSetError("FileRead - Allocation fault");
 				return 0;
 			}
-			memcpy(pOE->pData, &buf[10], de->size - 20);
+			pOE->pData = new byte[allocSize];
+			de->flags |= RF_TEMPDATA;
+			memcpy(pOE->pData, &buf[10], allocSize);
 		}
 		else
 		{
@@ -1950,142 +1951,6 @@ void CResFile::GetMemoryUsage(ICrySizer* pSizer) const
 ResDir* CResFile::mfGetDirectory()
 {
 	return &m_Dir;
-}
-
-//======================================================================
-
-void fpStripExtension(const char* const in, char* const out, const size_t bytes)
-{
-	assert(in && out && (bytes || in == out)); // if this hits, check the call site
-	const size_t inlen = strlen(in);
-	ptrdiff_t len = inlen - 1;
-
-	if (len <= 1)
-	{
-		assert(bytes >= 2); // if this hits, bad buffer was passed in
-		cry_strcpy(out, bytes, in);
-		return;
-	}
-
-	while (in[len])
-	{
-		if (in[len] == '.')
-		{
-			int n = (int)len;
-			while (in[n] != 0)
-			{
-				if (in[n] == '+')
-				{
-					assert(bytes > inlen); // if this hits, bad buffer was passed in
-					cry_strcpy(out, bytes, in);
-					return;
-				}
-				n++;
-			}
-			break;
-		}
-		len--;
-		if (!len)
-		{
-			assert(bytes > inlen); // if this hits, bad buffer was passed in
-			cry_strcpy(out, bytes, in);
-			return;
-		}
-	}
-	assert(bytes > len); // if this hits, bad buffer was passed in
-	cry_strcpy(out, bytes, in, len);
-}
-
-const char* fpGetExtension(const char* in)
-{
-	assert(in); // if this hits, check the call site
-	ptrdiff_t len = strlen(in) - 1;
-	while (len)
-	{
-		if (in[len] == '.')
-			return &in[len];
-		len--;
-	}
-	return NULL;
-}
-
-void fpAddExtension(char* path, const char* extension, size_t bytes)
-{
-	assert(path && extension && bytes); // if this hits, check the call site
-	char* src;
-
-	assert(*path); // if this hits, src underflow
-	src = path + strlen(path) - 1;
-
-	while (*src != '/' && src != path)
-	{
-		if (*src == '.')
-			return;                 // it has an extension
-		src--;
-	}
-
-	assert(bytes > strlen(path) + strlen(extension)); // if this hits, bad buffer was passed in
-	strcat(path, extension);
-}
-
-void fpConvertDOSToUnixName(char* dst, const char* src, size_t bytes)
-{
-	assert(dst && src && bytes); // if this hits, check the call site
-	assert(bytes > strlen(src)); // if this hits, bad buffer was passed in
-	while (*src)
-	{
-		if (*src == '\\')
-			*dst = '/';
-		else
-			*dst = *src;
-		dst++;
-		src++;
-	}
-	*dst = 0;
-}
-
-void fpConvertUnixToDosName(char* dst, const char* src, size_t bytes)
-{
-	assert(dst && src && bytes); // if this hits, check the call site
-	assert(bytes > strlen(src)); // if this hits, bad buffer was passed in
-	while (*src)
-	{
-		if (*src == '/')
-			*dst = '\\';
-		else
-			*dst = *src;
-		dst++;
-		src++;
-	}
-	*dst = 0;
-}
-
-void fpUsePath(const char* name, const char* path, char* dst, size_t bytes)
-{
-	assert(name && dst && bytes); // if this hits, check the call site
-
-	if (!path)
-	{
-		assert(bytes > strlen(name)); // if this hits, bad buffer was passed in
-		strcpy(dst, name);
-		return;
-	}
-
-	assert(bytes > strlen(path)); // if this hits, bad buffer was passed in
-	strcpy(dst, path);
-
-	assert(*path); // if this hits, path underflow
-	char c = path[strlen(path) - 1];
-	if (c != '/' && c != '\\')
-	{
-		assert(bytes > strlen(path) + strlen(name) + 1); // it this hits, bad buffer was passed in
-		strcat(dst, "/");
-	}
-	else
-	{
-		assert(bytes > strlen(path) + strlen(name)); // it this hits, bad buffer was passed in
-	}
-	strcat(dst, name);
 }
 
 #include <CryCore/TypeInfo_impl.h>

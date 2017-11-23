@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   3dengine.cpp
@@ -53,7 +53,9 @@ char* CSvoManager::GetStatusString(int nLine)
 
 	static ICVar* pDisplayInfo = GetConsole()->GetCVar("r_DisplayInfo");
 	if (pDisplayInfo->GetIVal() < 2)
-		return NULL;
+	{
+		return nullptr;
+	}
 
 	if (nLine == (nSlot++))
 	{
@@ -126,7 +128,7 @@ char* CSvoManager::GetStatusString(int nLine)
 	}
 	#endif
 
-	return NULL;
+	return nullptr;
 }
 
 void CSvoManager::Update(const SRenderingPassInfo& passInfo, CCamera& newCam)
@@ -201,7 +203,7 @@ void CSvoManager::Render()
 
 		CheckAllocateGlobalCloud();
 
-		if (gSvoEnv)
+		if (gSvoEnv && !CVoxelSegment::m_bExportMode)
 		{
 			if (gSvoEnv->m_bFirst_SvoFreezeTime)
 				gSvoEnv->m_fSvoFreezeTime = gEnv->pTimer->GetAsyncCurTime();
@@ -212,6 +214,7 @@ void CSvoManager::Render()
 				while (gSvoEnv->m_fSvoFreezeTime > 0)
 				{
 					gSvoEnv->Render();
+					gEnv->pSystem->GetStreamEngine()->Update();
 					CrySleep(5);
 				}
 
@@ -249,6 +252,35 @@ void CSvoManager::GetSvoBricksForUpdate(PodArray<I3DEngine::SSvoNodeInfo>& arrNo
 {
 	if (gSvoEnv)
 		gSvoEnv->GetSvoBricksForUpdate(arrNodeInfo, fNodeSize, pVertsOut);
+}
+
+int CSvoManager::ExportSvo(ICryArchive* pArchive)
+{
+	if (GetCVars()->e_StreamCgf)
+	{
+		assert(!"e_StreamCgf must be 0 for successful SVO export");
+		PrintMessage("SVO export error: e_StreamCgf must be 0 for successful SVO export");
+		return 0;
+	}
+
+	CVoxelSegment::m_bExportMode = true;
+	CVoxelSegment::m_nExportVisitedAreasCounter = 0;
+
+	if (!gSvoEnv)
+	{
+		CSvoManager::Render();
+	}
+
+	int nResult = 0;
+
+	if (gSvoEnv)
+	{
+		nResult = gSvoEnv->ExportSvo(pArchive);
+	}
+
+	CVoxelSegment::m_bExportMode = false;
+
+	return nResult;
 }
 
 void CSvoManager::RegisterMovement(const AABB& objBox)

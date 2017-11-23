@@ -7,8 +7,6 @@
 
 
 #include <CryCore/Platform/CryLibrary.h>
-#include <CryGame/IGameStartup.h>
-#include <CryGame/IGameFramework.h>
 #include <CrySystem/IConsole.h>
 
 #include <sys/types.h>

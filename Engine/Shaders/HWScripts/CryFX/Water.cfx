@@ -29,12 +29,6 @@ float Script : STANDARDSGLOBAL
 //////////////////////////////////////////////////////////////////////////
 // TODO: remove after old graphics pipeline is removed.
 
-// getting a warning here
-float4x4 mReflProj : PI_TexMatrix
-<
-  string 'Sampler' (ReflectionSampler)
->;
-
 // Fog parameters
 // For ocean comes from render element
 float4 cOceanFogColorDensity = { PB_FromRE[8], PB_FromRE[9], PB_FromRE[10], PB_FromRE[11] };

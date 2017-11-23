@@ -2388,15 +2388,12 @@ void CArticulatedEntity::DrawHelperInformation(IPhysRenderer *pRenderer, int fla
 			quaternionf q_parent;
 			if (m_joints[i].iParent>=0) q_parent = m_joints[m_joints[i].iParent].quat;
 			else q_parent = m_qNew;
-			quaternionf j_q = q_parent*m_joints[i].quat0*Quat::CreateRotationXYZ(m_joints[i].q+m_joints[i].qext);
-			Vec3 j_pos = m_pos+m_qrot*m_parts[m_joints[i].iStartPart].pos;
+			quaternionf j_q = q_parent*m_joints[i].quat0;
+			int ipart = m_joints[i].iStartPart;
+			box bbox; m_parts[ipart].pPhysGeom->pGeom->GetBBox(&bbox);
+			Vec3 j_pos = m_pos + m_qrot*(m_parts[ipart].pos-m_joints[i].quat*m_infos[ipart].pos0) + m_joints[i].quat*m_joints[i].pivot[1];
 			Vec3 axes[3] = {j_q.GetColumn0(), j_q.GetColumn1(),j_q.GetColumn2()};
-			if ((m_joints[i].flags&all_angles_locked)==all_angles_locked) pRenderer->DrawText(j_pos,"all_angles_locked",0);
-			else{
-				int axes_locked=0;
-				for(int j=0;j<3;++j) if (!(m_joints[i].flags&angle0_locked<<j)) axes_locked|=(1<<j);
-				pRenderer->DrawFrame(j_pos,&axes[0], 0.07f,&m_joints[i].limits[0],axes_locked);
-			}
+			pRenderer->DrawFrame(j_pos, axes, max(max(bbox.size.x,bbox.size.y),bbox.size.z)*m_parts[ipart].scale, m_joints[i].limits, m_joints[i].flags ^ all_angles_locked);
 		}
 	}
 }

@@ -190,7 +190,7 @@ void CWaterRipplesGenerator::HandleEvent( const SGameObjectEvent &gameObjectEven
 	}
 }
 
-void CWaterRipplesGenerator::ProcessEvent(SEntityEvent &event)
+void CWaterRipplesGenerator::ProcessEvent(const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_XFORM)
 	{
@@ -212,6 +212,11 @@ void CWaterRipplesGenerator::ProcessEvent(SEntityEvent &event)
 			Reset();
 		}
 	}
+}
+
+uint64 CWaterRipplesGenerator::GetEventMask() const
+{
+	return BIT64(ENTITY_EVENT_XFORM) | BIT64(ENTITY_EVENT_RESET);
 }
 
 void CWaterRipplesGenerator::ProcessHit(bool isMoving)

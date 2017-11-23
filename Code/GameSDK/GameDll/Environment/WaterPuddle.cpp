@@ -17,7 +17,7 @@ void CWaterPuddle::SerializeSpawnInfo(TSerialize ser) {}
 ISerializableInfoPtr CWaterPuddle::GetSpawnInfo() {return 0;}
 void CWaterPuddle::Update(SEntityUpdateContext& ctx, int slot) {}
 void CWaterPuddle::HandleEvent(const SGameObjectEvent& gameObjectEvent) {}
-void CWaterPuddle::ProcessEvent(SEntityEvent& entityEvent) {}
+void CWaterPuddle::ProcessEvent(const SEntityEvent& entityEvent) {}
 void CWaterPuddle::SetChannelId(uint16 id) {}
 void CWaterPuddle::PostUpdate(float frameTime) {}
 void CWaterPuddle::PostRemoteSpawn() {}

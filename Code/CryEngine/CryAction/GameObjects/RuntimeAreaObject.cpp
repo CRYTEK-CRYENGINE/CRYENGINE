@@ -42,7 +42,7 @@ bool CRuntimeAreaObject::NetSerialize(TSerialize ser, EEntityAspects aspect, uin
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CRuntimeAreaObject::ProcessEvent(SEntityEvent& entityEvent)
+void CRuntimeAreaObject::ProcessEvent(const SEntityEvent& entityEvent)
 {
 	switch (entityEvent.event)
 	{
@@ -93,6 +93,12 @@ void CRuntimeAreaObject::ProcessEvent(SEntityEvent& entityEvent)
 			break;
 		}
 	}
+}
+
+///////////////////////////////////////////////////////////////////////////
+uint64 CRuntimeAreaObject::GetEventMask() const
+{
+	return BIT64(ENTITY_EVENT_ENTERAREA) | BIT64(ENTITY_EVENT_LEAVEAREA) | BIT64(ENTITY_EVENT_MOVEINSIDEAREA);
 }
 
 ///////////////////////////////////////////////////////////////////////////

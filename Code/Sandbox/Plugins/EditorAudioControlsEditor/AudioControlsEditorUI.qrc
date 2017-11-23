@@ -1,10 +1,31 @@
 <RCC>
-    <qresource prefix="/">
-        <file>Icons/Environment.ico</file>
-        <file>Icons/Parameter.ico</file>
-        <file>Icons/Switch.ico</file>
-        <file>Icons/Trigger.ico</file>
-        <file>Icons/Preload.ico</file>
-        <file>Icons/State.ico</file>
+    <qresource prefix="/icons">
+        <file alias="audio/fmod/bank.ico">Icons/fmod/bank.ico</file>
+        <file alias="audio/fmod/event.ico">Icons/fmod/event.ico</file>
+        <file alias="audio/fmod/folder_closed.ico">Icons/fmod/folder_closed.ico</file>
+        <file alias="audio/fmod/folder_open.ico">Icons/fmod/folder_open.ico</file>
+        <file alias="audio/fmod/group.ico">Icons/fmod/group.ico</file>
+        <file alias="audio/fmod/return.ico">Icons/fmod/return.ico</file>
+        <file alias="audio/fmod/snapshot.ico">Icons/fmod/snapshot.ico</file>
+        <file alias="audio/fmod/tag.ico">Icons/fmod/tag.ico</file>
+        <file alias="audio/portaudio/event.ico">Icons/portaudio/event.ico</file>
+        <file alias="audio/sdlmixer/event.ico">Icons/sdlmixer/event.ico</file>
+        <file alias="audio/system/environment.ico">Icons/system/environment.ico</file>
+        <file alias="audio/system/parameter.ico">Icons/system/parameter.ico</file>
+        <file alias="audio/system/preload.ico">Icons/system/preload.ico</file>
+        <file alias="audio/system/state.ico">Icons/system/state.ico</file>
+        <file alias="audio/system/switch.ico">Icons/system/switch.ico</file>
+        <file alias="audio/system/trigger.ico">Icons/system/trigger.ico</file>
+        <file alias="audio/wwise/auxbus.ico">Icons/wwise/auxbus.ico</file>
+        <file alias="audio/wwise/event.ico">Icons/wwise/event.ico</file>
+        <file alias="audio/wwise/gameparameter.ico">Icons/wwise/gameparameter.ico</file>
+        <file alias="audio/wwise/physicalfolder.ico">Icons/wwise/physicalfolder.ico</file>
+        <file alias="audio/wwise/soundbank.ico">Icons/wwise/soundbank.ico</file>
+        <file alias="audio/wwise/state.ico">Icons/wwise/state.ico</file>
+        <file alias="audio/wwise/stategroup.ico">Icons/wwise/stategroup.ico</file>
+        <file alias="audio/wwise/switch.ico">Icons/wwise/switch.ico</file>
+        <file alias="audio/wwise/switchgroup.ico">Icons/wwise/switchgroup.ico</file>
+        <file alias="audio/wwise/virtualfolder.ico">Icons/wwise/virtualfolder.ico</file>
+        <file alias="audio/wwise/workunit.ico">Icons/wwise/workunit.ico</file>
     </qresource>
 </RCC>

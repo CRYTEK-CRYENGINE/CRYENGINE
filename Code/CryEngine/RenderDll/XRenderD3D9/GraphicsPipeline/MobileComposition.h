@@ -8,8 +8,8 @@
 class CMobileCompositionStage : public CGraphicsPipelineStage
 {
 public:
-	void Init();
-	void Execute(CRenderView* pCurrentRenderView);
+	void Init() final;
+	void Execute();
 
 private:
 	CDepthDownsamplePass m_passDepthDownsample2;

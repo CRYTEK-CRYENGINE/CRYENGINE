@@ -26,7 +26,7 @@ namespace Cry
 			// IEntityComponent
 			virtual void Initialize() final;
 
-			virtual void ProcessEvent(SEntityEvent& event) final;
+			virtual void ProcessEvent(const SEntityEvent& event) final;
 			virtual uint64 GetEventMask() const final;
 			// ~IEntityComponent
 
@@ -45,6 +45,7 @@ namespace Cry
 				desc.AddMember(&CParticleComponent::m_bEnabled, 'actv', "Enabled", "Enabled", "Whether or not the particle should emit by default", true);
 				desc.AddMember(&CParticleComponent::m_effectName, 'file', "FilePath", "Effect", "Determines the particle effect to load", "");
 
+				desc.AddMember(&CParticleComponent::m_attributes, 'attr', "Attributes", "Emitter Attributes", nullptr, CParticleComponent::SAttributes());
 				desc.AddMember(&CParticleComponent::m_features, 'feat', "Features", "Emitter Features", nullptr, CParticleComponent::SFeatures());
 				desc.AddMember(&CParticleComponent::m_spawnParams, 'spaw', "SpawnParams", "Spawn Parameters", nullptr, CParticleComponent::SSpawnParameters());
 			}
@@ -64,6 +65,8 @@ namespace Cry
 					{
 						m_pEntity->LoadParticleEmitter(GetOrMakeEntitySlotId(), pEffect, &m_spawnParams);
 						pEmitter = m_pEntity->GetParticleEmitter(GetEntitySlotId());
+						if (pEmitter)
+							pEmitter->GetAttributes().TransferInto(m_attributes.get());
 					}
 					else if (pEmitter)
 					{
@@ -75,6 +78,7 @@ namespace Cry
 					}
 					if (pEmitter)
 					{
+						pEmitter->GetAttributes().Reset(m_attributes.get());
 						pEmitter->SetEmitterFeatures(m_features);
 					}
 					m_bCurrentlyActive = bActivate;
@@ -125,6 +129,10 @@ namespace Cry
 				{
 					desc.SetGUID("{24AE6687-F855-4736-9C71-3419083BAECB}"_cry_guid);
 					desc.SetLabel("Emitter Attributes");
+				}
+				void Serialize(Serialization::IArchive& archive)
+				{
+					return get()->Serialize(archive);
 				}
 			};
 

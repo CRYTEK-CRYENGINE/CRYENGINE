@@ -1080,12 +1080,20 @@ template<class T, size_t S> inline bool operator==(const CryStackStringT<T, S>& 
 { return s1.compare(s2) == 0; }
 template<class T, size_t S> inline bool operator==(const typename CryStackStringT<T, S>::value_type* s1, const CryStackStringT<T, S>& s2)
 { return s2.compare(s1) == 0; }
+template<class T, size_t S> inline bool operator==(const CryStackStringT<T, S>& s1, const CryStringT<T>& s2)
+{ return s1 == s2.c_str(); }
+template<class T, size_t S> inline bool operator==(const CryStringT<T>& s1, const CryStackStringT<T, S>& s2)
+{ return s1.c_str() == s2; }
 template<class T, size_t S> inline bool operator!=(const CryStackStringT<T, S>& s1, const CryStackStringT<T, S>& s2)
 { return s1.compare(s2) != 0; }
 template<class T, size_t S> inline bool operator!=(const CryStackStringT<T, S>& s1, const typename CryStackStringT<T, S>::value_type* s2)
 { return s1.compare(s2) != 0; }
 template<class T, size_t S> inline bool operator!=(const typename CryStackStringT<T, S>::value_type* s1, const CryStackStringT<T, S>& s2)
 { return s2.compare(s1) != 0; }
+template<class T, size_t S> inline bool operator!=(const CryStackStringT<T, S>& s1, const CryStringT<T>& s2)
+{ return s1 != s2.c_str(); }
+template<class T, size_t S> inline bool operator!=(const CryStringT<T>& s1, const CryStackStringT<T, S>& s2)
+{ return s1.c_str() != s2; }
 template<class T, size_t S> inline bool operator<(const CryStackStringT<T, S>& s1, const CryStackStringT<T, S>& s2)
 { return s1.compare(s2) < 0; }
 template<class T, size_t S> inline bool operator<(const CryStackStringT<T, S>& s1, const typename CryStackStringT<T, S>::value_type* s2)

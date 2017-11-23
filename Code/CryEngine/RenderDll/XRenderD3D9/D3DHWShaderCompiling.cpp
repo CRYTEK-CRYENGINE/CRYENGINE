@@ -34,8 +34,16 @@ SShaderAsyncInfo& CAsyncShaderTask::BuildList()    { return g_BuildList; }
 
 CryEvent SShaderAsyncInfo::s_RequestEv;
 
-int CHWShader_D3D::s_nDevicePSDataSize;
-int CHWShader_D3D::s_nDeviceVSDataSize;
+int CHWShader_D3D::s_nDevicePSDataSize = 0;
+int CHWShader_D3D::s_nDeviceVSDataSize = 0;
+
+namespace
+{
+	inline int GetCurrentFrameID()
+	{
+		return (gRenDev->m_pRT->IsRenderThread()) ? gRenDev->GetRenderFrameID() : gRenDev->GetMainFrameID();
+	};
+}
 
 class CSpinLock
 {
@@ -527,7 +535,9 @@ void CHWShader_D3D::mfGatherFXParameters(SHWSInstance* pInst, std::vector<SCGBin
 				continue;
 			assert(!smp.m_pDynTexSource);
 			if (smp.m_bGlobal)
-				mfAddGlobalSampler(smp);
+			{
+				//mfAddGlobalSampler(smp);
+			}
 			else
 				pInst->m_pSamplers.push_back(smp);
 		}
@@ -1213,7 +1223,8 @@ bool CHWShader_D3D::mfGenerateScript(CShader* pSH, SHWSInstance* pInst, std::vec
 	if (nSFlags & HWSG_GS_MULTIRES)
 	{
 		// Generate script vor VS first;
-		pInst = s_pCurInstVS;
+		//@TODO: Do this without global variable
+		//pInst = s_pCurInstVS;
 		assert(pInst);
 
 		CHWShader_D3D* curVS = (CHWShader_D3D *)s_pCurHWVS;
@@ -2298,17 +2309,17 @@ std::vector<SEmptyCombination> SEmptyCombination::s_Combinations;
 bool CHWShader_D3D::mfAddEmptyCombination(CShader* pSH, uint64 nRT, uint64 nGL, uint32 nLT)
 {
 	CD3D9Renderer* rd = gcpRendD3D;
-	SRenderPipeline& RESTRICT_REFERENCE rRP = rd->m_RP;
+	SRenderPipeline& RESTRICT_REFERENCE rRP = gRenDev->m_RP;
 
 	SEmptyCombination Comb;
 	Comb.nGLNew = m_nMaskGenShader;
 	Comb.nRTNew = rRP.m_FlagsShader_RT & m_nMaskAnd_RT | m_nMaskOr_RT;
-	Comb.nLTNew = rRP.m_FlagsShader_LT;
+	Comb.nLTNew = 0;
 	Comb.nGLOrg = nGL;
 	Comb.nRTOrg = nRT & m_nMaskAnd_RT | m_nMaskOr_RT;
 	Comb.nLTOrg = nLT;
 	Comb.nMD = rRP.m_FlagsShader_MD;
-	Comb.nMDV = rRP.m_FlagsShader_MDV;
+	Comb.nMDV = 0;
 	if (m_eSHClass == eHWSC_Pixel)
 	{
 		Comb.nMD &= ~HWMD_TEXCOORD_FLAG_MASK;
@@ -2316,15 +2327,15 @@ bool CHWShader_D3D::mfAddEmptyCombination(CShader* pSH, uint64 nRT, uint64 nGL, 
 	}
 
 	Comb.pShader = this;
-	if (Comb.nRTNew != Comb.nRTOrg || Comb.nGLNew != Comb.nGLOrg || Comb.nLTNew != Comb.nLTOrg)
-		SEmptyCombination::s_Combinations.push_back(Comb);
+	//if (Comb.nRTNew != Comb.nRTOrg || Comb.nGLNew != Comb.nGLOrg || Comb.nLTNew != Comb.nLTOrg)
+	//	SEmptyCombination::s_Combinations.push_back(Comb);
 
 	m_nMaskGenShader = nGL;
 
 	return true;
 }
 
-bool CHWShader_D3D::mfStoreEmptyCombination(SEmptyCombination& Comb)
+bool CHWShader_D3D::mfStoreEmptyCombination(CShader* pSH, SEmptyCombination& Comb)
 {
 	if (!m_pGlobalCache || !m_pGlobalCache->m_pRes[CACHE_USER])
 		return false;
@@ -2338,7 +2349,7 @@ bool CHWShader_D3D::mfStoreEmptyCombination(SEmptyCombination& Comb)
 	Ident.m_LightMask = Comb.nLTNew;
 	Ident.m_MDMask = Comb.nMD;
 	Ident.m_MDVMask = Comb.nMDV;
-	SHWSInstance* pInstNew = mfGetInstance(gRenDev->m_RP.m_pShader, Ident, 0);
+	SHWSInstance* pInstNew = mfGetInstance(pSH, Ident, 0);
 	mfGenName(pInstNew, nameNew, 128, 1);
 	SDirEntry* deNew = rf->mfGetEntry(nameNew);
 	//assert(deNew);
@@ -2350,7 +2361,7 @@ bool CHWShader_D3D::mfStoreEmptyCombination(SEmptyCombination& Comb)
 	Ident.m_LightMask = Comb.nLTOrg;
 	Ident.m_MDMask = Comb.nMD;
 	Ident.m_MDVMask = Comb.nMDV;
-	SHWSInstance* pInstOrg = mfGetInstance(gRenDev->m_RP.m_pShader, Ident, 0);
+	SHWSInstance* pInstOrg = mfGetInstance(pSH, Ident, 0);
 	mfGenName(pInstOrg, nameOrg, 128, 1);
 	SDirEntry* deOrg = rf->mfGetEntry(nameOrg);
 	if (deOrg)
@@ -2753,8 +2764,7 @@ SShaderCache* CHWShader::mfInitCache(const char* name, CHWShader* pSH, bool bChe
 	//	LOADING_TIME_PROFILE_SECTION(iSystem);
 
 	CHWShader_D3D* pSHHW = (CHWShader_D3D*)pSH;
-	char nameCache[256];
-
+	
 	if (!CRenderer::CV_r_shadersAllowCompilation)
 		bCheckValid = false;
 
@@ -2765,9 +2775,8 @@ SShaderCache* CHWShader::mfInitCache(const char* name, CHWShader* pSH, bool bChe
 	{
 		char namedst[256];
 		pSHHW->mfGetDstFileName(pSHHW->m_pCurInst, pSHHW, namedst, 256, 0);
-		fpStripExtension(namedst, nameCache);
-		fpAddExtension(nameCache, ".fxcb");
-		name = nameCache;
+		PathUtil::ReplaceExtension(namedst, "fxcb");
+		name = namedst;
 	}
 
 	SShaderCache* pCache = NULL;
@@ -2904,6 +2913,8 @@ bool CHWShader_D3D::mfUploadHW(SHWSInstance* pInst, byte* pBuf, uint32 nSize, CS
 	HRESULT hr = S_OK;
 	if (!pInst->m_Handle.m_pShader)
 		pInst->m_Handle.SetShader(new SD3DShader);
+
+	assert(pInst->m_Handle.m_pShader != nullptr);
 
 	if ((m_eSHClass == eHWSC_Vertex) && (!(nFlags & HWSF_PRECACHE)) && !pInst->m_bFallback)
 		mfUpdateFXVertexFormat(pInst, pSH);
@@ -3381,15 +3392,9 @@ int CHWShader_D3D::mfAsyncCompileReady(SHWSInstance* pInst)
 	gRenDev->m_cEF.m_ShaderCacheStats.m_nNumShaderAsyncCompiles = SShaderAsyncInfo::s_nPendingAsyncShaders;
 
 	SShaderAsyncInfo* pAsync = pInst->m_pAsync;
-	int nFrame = gRenDev->GetFrameID(false);
-	if (pAsync->m_nFrame == nFrame)
+	int nFrame = GetCurrentFrameID();
+	if (pAsync->m_nFrame != nFrame)
 	{
-		if (pAsync->m_fMinDistance > gRenDev->m_RP.m_fMinDistance)
-			pAsync->m_fMinDistance = gRenDev->m_RP.m_fMinDistance;
-	}
-	else
-	{
-		pAsync->m_fMinDistance = gRenDev->m_RP.m_fMinDistance;
 		pAsync->m_nFrame = nFrame;
 	}
 
@@ -3401,11 +3406,19 @@ int CHWShader_D3D::mfAsyncCompileReady(SHWSInstance* pInst)
 	bool bResult = true;
 	int nRefCount;
 
-	SShaderTechnique* pTech = gRenDev->m_RP.m_pCurTechnique;
+	SShaderTechnique* pTech = nullptr;//gRenDev->m_RP.m_pCurTechnique;
 	CShader* pSH = pAsync->m_pFXShader;
 	{
 		if (pAsync->m_bPending)
 			return 0;
+
+		if (pSH)
+		{
+			if (pSH->m_fMinVisibleDistance < pAsync->m_fMinDistance)
+				pAsync->m_fMinDistance = pSH->m_fMinVisibleDistance;
+		}
+
+		mfPrintCompileInfo(pInst);
 
 		mfGetDstFileName(pInst, this, nmDst, 256, 3);
 		gEnv->pCryPak->AdjustFileName(nmDst, nameSrc, 0);
@@ -3414,7 +3427,7 @@ int CHWShader_D3D::mfAsyncCompileReady(SHWSInstance* pInst)
 		if ((pAsync->m_pErrors && !pAsync->m_Errors.empty()) || !pAsync->m_pDevShader)
 		{
 			if (CRenderer::CV_r_logShaders)
-				gcpRendD3D->LogShv("Async %d: **Failed to compile 0x%x '%s' shader\n", gRenDev->GetFrameID(false), pInst, nameSrc);
+				gcpRendD3D->LogShv("Async %d: **Failed to compile 0x%x '%s' shader\n", GetCurrentFrameID(), pInst, nameSrc);
 			string Errors = pAsync->m_Errors;
 			string Text = pAsync->m_Text;
 			CShader* pFXShader = pAsync->m_pFXShader;
@@ -3435,7 +3448,7 @@ int CHWShader_D3D::mfAsyncCompileReady(SHWSInstance* pInst)
 			bResult = false;
 		}
 		else if (CRenderer::CV_r_logShaders)
-			gcpRendD3D->LogShv("Async %d: Finished compiling 0x%x '%s' shader\n", gRenDev->GetFrameID(false), pInst, nameSrc);
+			gcpRendD3D->LogShv("Async %d: Finished compiling 0x%x '%s' shader\n", GetCurrentFrameID(), pInst, nameSrc);
 		pShader = pAsync->m_pDevShader;
 		pErrorMsgs = pAsync->m_pErrors;
 		strErr = pAsync->m_Errors;
@@ -3512,8 +3525,7 @@ bool CHWShader_D3D::mfRequestAsync(CShader* pSH, SHWSInstance* pInst, std::vecto
 	}
 
 	pInst->m_pAsync = new SShaderAsyncInfo;
-	pInst->m_pAsync->m_fMinDistance = gRenDev->m_RP.m_fMinDistance;
-	pInst->m_pAsync->m_nFrame = gRenDev->GetFrameID(false);
+	pInst->m_pAsync->m_nFrame = GetCurrentFrameID();
 	pInst->m_pAsync->m_InstBindVars = InstBindVars;
 	pInst->m_pAsync->m_pShader = this;
 	pInst->m_pAsync->m_pShader->AddRef();
@@ -3533,6 +3545,11 @@ bool CHWShader_D3D::mfRequestAsync(CShader* pSH, SHWSInstance* pInst, std::vecto
 	pInst->m_pAsync->m_Name = szEntry;
 	pInst->m_pAsync->m_Profile = szProfile;
 
+	if (pSH)
+	{
+		pInst->m_pAsync->m_fMinDistance = pSH->m_fMinVisibleDistance;
+	}
+
 	// Generate request line text to store on the shaderlist for next shader cache gen
 	{
 		char szShaderGenName[512];
@@ -3551,7 +3568,7 @@ bool CHWShader_D3D::mfRequestAsync(CShader* pSH, SHWSInstance* pInst, std::vecto
 	CAsyncShaderTask::InsertPendingShader(pInst->m_pAsync);
 
 	if (CRenderer::CV_r_logShaders)
-		gcpRendD3D->LogShv("Async %d: Requested compiling 0x%x '%s' shader\n", gRenDev->GetFrameID(false), pInst, nameSrc);
+		gcpRendD3D->LogShv("Async %d: Requested compiling 0x%x '%s' shader\n", GetCurrentFrameID(), pInst, nameSrc);
 #endif
 	return false;
 }
@@ -3718,7 +3735,7 @@ bool CHWShader_D3D::mfCompileHLSL_Int(CShader* pSH, char* prog_text, D3DBlob** p
 		hr = D3DCompile(prog_text, strlen(prog_text), GetName(), NULL, NULL, pFunCCryName, szProfile, nFlags, 0, (ID3DBlob**) ppShader, (ID3DBlob**) ppErrorMsgs);
 		if (FAILED(hr) || !*ppShader)
 		{
-			if (*ppErrorMsgs)
+			if (ppErrorMsgs && *ppErrorMsgs)
 			{
 				const char* err = (const char*)ppErrorMsgs[0]->GetBufferPointer();
 				strErr += err;
@@ -3864,7 +3881,7 @@ void CHWShader_D3D::mfPrintCompileInfo(SHWSInstance* pInst)
 		string pName;
 		SShaderCombIdent Ident(m_nMaskGenFX, pInst->m_Ident);
 		gRenDev->m_cEF.mfInsertNewCombination(Ident, pInst->m_eClass, szGenName, 0, &pName, false);
-		CryLog(" Compile %s (%d instructions, %d tempregs, %d/%d constants) ... ", pName.c_str(), pInst->m_nInstructions, pInst->m_nTempRegs, nParams, nConsts);
+		CryLog(" Compile (FX:0x%I64x, GL:0x%I64x) %s (%d instructions, %d tempregs, %d/%d constants) ... ", m_nMaskGenFX, pInst->m_Ident.m_GLMask, pName.c_str(), pInst->m_nInstructions, pInst->m_nTempRegs, nParams, nConsts);
 		int nSize = strlen(szGenName);
 		mfGenName(pInst, &szGenName[nSize], 512 - nSize, 1);
 		CryLog("           --- Cache entry: %s", szGenName);
@@ -3959,10 +3976,6 @@ bool CHWShader_D3D::mfCreateShaderEnv(int nThread, SHWSInstance* pInst, D3DBlob*
 				       mfProfileString(pInst->m_eClass), pSH->GetName(), nCombination, gRenDev->m_cEF.m_nCombinationsProcessOverall);
 			}
 		}
-		else
-		{
-			pSH->mfPrintCompileInfo(pInst);
-		}
 	}
 
 	mfGatherFXParameters(pInst, &pInst->m_pBindVars, &InstBindVars, pSH, bShaderThread ? 1 : 0, pFXShader);
@@ -4016,8 +4029,9 @@ bool CHWShader_D3D::mfActivate(CShader* pSH, uint32 nFlags, FXShaderToken* Table
 		    return false;
 		   }*/
 		mfGetDstFileName(pInst, this, nameCacheUnstripped, 256, 0);
-		fpStripExtension(nameCacheUnstripped, nameCache);
-		fpAddExtension(nameCache, ".fxcb");
+
+		cry_strcpy(nameCache, nameCacheUnstripped);
+		PathUtil::ReplaceExtension(nameCache, "fxcb");
 		if (!m_pDevCache)
 			m_pDevCache = mfInitDevCache(nameCache, this);
 
@@ -4038,8 +4052,7 @@ bool CHWShader_D3D::mfActivate(CShader* pSH, uint32 nFlags, FXShaderToken* Table
 			if (gRenDev->m_cEF.m_nCombinationsProcess >= 0)
 			{
 				mfGetDstFileName(pInst, this, nameCache, 256, 0);
-				fpStripExtension(nameCache, nameCache);
-				fpAddExtension(nameCache, ".fxcb");
+				PathUtil::ReplaceExtension(nameCache, "fxcb");
 				FXShaderCacheNamesItor it = m_ShaderCacheList.find(nameCache);
 				if (it == m_ShaderCacheList.end())
 					m_ShaderCacheList.insert(FXShaderCacheNamesItor::value_type(nameCache, m_CRC32));

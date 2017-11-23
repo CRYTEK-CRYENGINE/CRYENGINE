@@ -71,7 +71,7 @@ void CPathfindingComponent::SetMaxAcceleration(float maxAcceleration)
 	m_pPathFollower->SetParams(params);
 }
 
-void CPathfindingComponent::ProcessEvent(SEntityEvent& event)
+void CPathfindingComponent::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

@@ -20,7 +20,7 @@ public:
 	virtual ~CEntityComponentAudio() override;
 
 	// IEntityComponent
-	virtual void         ProcessEvent(SEntityEvent& event) override;
+	virtual void         ProcessEvent(const SEntityEvent& event) override;
 	virtual void         Initialize() override;
 	virtual uint64       GetEventMask() const override;
 	virtual EEntityProxy GetProxyType() const override                    { return ENTITY_PROXY_AUDIO; }

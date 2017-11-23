@@ -6,24 +6,27 @@
 #include "D3DPostProcess.h"
 #include "GraphicsPipeline/ClipVolumes.h"
 
-void CHeightMapAOStage::Init()
+void CHeightMapAOStage::Update()
 {
+	m_bHeightMapAOExecuted = false;
+	m_pHeightMapFrustum = nullptr;
+	m_pHeightMapAOScreenDepthTex = CRendererResources::s_ptexWhite;
+	m_pHeightMapAOTex = CRendererResources::s_ptexWhite;
 }
 
-void CHeightMapAOStage::Execute(ShadowMapFrustum*& pHeightMapFrustum, CTexture*& pHeightMapAOScreenDepthTex, CTexture*& pHeightMapAOTex)
+void CHeightMapAOStage::Execute()
 {
 	CD3D9Renderer* const __restrict pRenderer = gcpRendD3D;
 
-	pHeightMapFrustum = nullptr;
-	pHeightMapAOScreenDepthTex = nullptr;
-	pHeightMapAOTex = nullptr;
+	CRY_ASSERT(!m_bHeightMapAOExecuted);
+	m_bHeightMapAOExecuted = true;
 
 	if (!CRenderer::CV_r_HeightMapAO)
 		return;
 
 	if (CDeferredShading::Instance().GetResolvedStencilRT() == nullptr)
 	{
-		CDeferredShading::Instance().SetupPasses();
+		CDeferredShading::Instance().SetupPasses(RenderView());
 	}
 
 	// Prepare Height Map AO frustum
@@ -34,19 +37,22 @@ void CHeightMapAOStage::Execute(ShadowMapFrustum*& pHeightMapFrustum, CTexture*&
 		ShadowMapFrustum* pFrustum = heightmapAOFrustums.front()->pFrustum;
 		if (pFrustum->pDepthTex)
 		{
-			pRenderer->ConfigShadowTexgen(0, pFrustum, -1, false, false);
-			pHeightMapFrustum = pFrustum;
+			pRenderer->ConfigShadowTexgen(RenderView(),0, pFrustum, -1, false, false);
+			m_pHeightMapFrustum = pFrustum;
 			pHeightmapRenderView = reinterpret_cast<CRenderView*>(heightmapAOFrustums.front()->pShadowsView.get());
 		}
 	}
 
-	if (pHeightMapFrustum)
+	if (m_pHeightMapFrustum)
 	{
 		PROFILE_LABEL_SCOPE("HEIGHTMAP_OCC");
 
 		const int resolutionIndex = clamp_tpl(CRenderer::CV_r_HeightMapAO - 1, 0, 2);
-		CTexture* pDepthTextures[] = { CTexture::s_ptexZTargetScaled[1], CTexture::s_ptexZTargetScaled[0], CTexture::s_ptexZTarget };
-		CTexture* pDestRT = CTexture::s_ptexHeightMapAO[0];
+		CTexture* pDepthTextures[] = { CRendererResources::s_ptexLinearDepthScaled[1], CRendererResources::s_ptexLinearDepthScaled[0], CRendererResources::s_ptexLinearDepth };
+		CTexture* pDestRT = CRendererResources::s_ptexHeightMapAO[0];
+
+		m_pHeightMapAOScreenDepthTex = pDepthTextures[resolutionIndex];
+		m_pHeightMapAOTex = CRendererResources::s_ptexHeightMapAO[1];
 
 		if (pHeightmapRenderView->GetRenderItems(0).size() > 0)
 		{
@@ -56,15 +62,15 @@ void CHeightMapAOStage::Execute(ShadowMapFrustum*& pHeightMapFrustum, CTexture*&
 			{
 				{ 0, 0, 0, 0 }, // src position
 				{ 0, 0, 0, 0 }, // dst position
-				CTexture::s_ptexHeightMapAODepth[0]->GetDevTexture()->GetDimension()
+				CRendererResources::s_ptexHeightMapAODepth[0]->GetDevTexture()->GetDimension()
 			};
 
 			GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(
-				CTexture::s_ptexHeightMapAODepth[0]->GetDevTexture(), // DSV
-				CTexture::s_ptexHeightMapAODepth[1]->GetDevTexture(), // SRV
+				CRendererResources::s_ptexHeightMapAODepth[0]->GetDevTexture(), // DSV
+				CRendererResources::s_ptexHeightMapAODepth[1]->GetDevTexture(), // SRV
 				mapping);
 
-			m_passMipmapGen.Execute(CTexture::s_ptexHeightMapAODepth[1], 3);
+			m_passMipmapGen.Execute(CRendererResources::s_ptexHeightMapAODepth[1], 3);
 		}
 
 		// Generate occlusion
@@ -81,11 +87,12 @@ void CHeightMapAOStage::Execute(ShadowMapFrustum*& pHeightMapFrustum, CTexture*&
 				m_passSampling.SetRenderTarget(0, pDestRT);
 				m_passSampling.SetState(GS_NODEPTHTEST);
 
-				m_passSampling.SetTextureSamplerPair(0, CTexture::s_ptexSceneNormalsMap, EDefaultSamplerStates::PointClamp);
-				m_passSampling.SetTextureSamplerPair(1, pDepthTextures[resolutionIndex], EDefaultSamplerStates::PointClamp);
-				m_passSampling.SetTextureSamplerPair(10, CTexture::s_ptexSceneNormalsBent, EDefaultSamplerStates::PointClamp);
-				m_passSampling.SetTextureSamplerPair(11, CTexture::s_ptexHeightMapAODepth[1], EDefaultSamplerStates::TrilinearBorder_White);
+				m_passSampling.SetTextureSamplerPair(0, CRendererResources::s_ptexSceneNormalsMap, EDefaultSamplerStates::PointClamp);
+				m_passSampling.SetTextureSamplerPair(1, m_pHeightMapAOScreenDepthTex, EDefaultSamplerStates::PointClamp);
+				m_passSampling.SetTextureSamplerPair(10, CRendererResources::s_ptexSceneNormalsBent, EDefaultSamplerStates::PointClamp);
+				m_passSampling.SetTextureSamplerPair(11, CRendererResources::s_ptexHeightMapAODepth[1], EDefaultSamplerStates::TrilinearBorder_White);
 				m_passSampling.SetRequireWorldPos(true);
+				m_passSampling.SetRequirePerViewConstantBuffer(true);
 			}
 
 			static CCryNameR nameParams("HMAO_Params");
@@ -100,7 +107,7 @@ void CHeightMapAOStage::Execute(ShadowMapFrustum*& pHeightMapFrustum, CTexture*&
 
 			const float texelsPerMeter = CRenderer::CV_r_HeightMapAOResolution / CRenderer::CV_r_HeightMapAORange;
 			const bool enableMinMaxSampling = CRenderer::CV_r_HeightMapAO < 3;
-			Vec4 paramHMAO(CRenderer::CV_r_HeightMapAOAmount, texelsPerMeter / CTexture::s_ptexHeightMapAODepth[1]->GetWidth(), enableMinMaxSampling ? 1.0f : 0.0f, 0.0f);
+			Vec4 paramHMAO(CRenderer::CV_r_HeightMapAOAmount, texelsPerMeter / CRendererResources::s_ptexHeightMapAODepth[1]->GetWidth(), enableMinMaxSampling ? 1.0f : 0.0f, 0.0f);
 			m_passSampling.SetConstant(nameParams, paramHMAO, eHWSC_Pixel);
 
 			Vec4 translation = Vec4(texToWorld.m03, texToWorld.m13, texToWorld.m23, 0);
@@ -130,11 +137,11 @@ void CHeightMapAOStage::Execute(ShadowMapFrustum*& pHeightMapFrustum, CTexture*&
 
 				static CCryNameTSCRC techSmoothing("HMAO_Blur");
 				m_passSmoothing.SetTechnique(pShader, techSmoothing, rtMask);
-				m_passSmoothing.SetRenderTarget(0, CTexture::s_ptexHeightMapAO[1]);
+				m_passSmoothing.SetRenderTarget(0, m_pHeightMapAOTex);
 				m_passSmoothing.SetState(GS_NODEPTHTEST);
 
 				m_passSmoothing.SetTextureSamplerPair(0, pDestRT, EDefaultSamplerStates::PointClamp);
-				m_passSmoothing.SetTextureSamplerPair(1, pDepthTextures[resolutionIndex], EDefaultSamplerStates::PointClamp);
+				m_passSmoothing.SetTextureSamplerPair(1, m_pHeightMapAOScreenDepthTex, EDefaultSamplerStates::PointClamp);
 				m_passSmoothing.SetTextureSamplerPair(2, CDeferredShading::Instance().GetResolvedStencilRT(), EDefaultSamplerStates::PointClamp);
 			}
 
@@ -149,8 +156,5 @@ void CHeightMapAOStage::Execute(ShadowMapFrustum*& pHeightMapFrustum, CTexture*&
 
 			m_passSmoothing.Execute();
 		}
-
-		pHeightMapAOScreenDepthTex = pDepthTextures[resolutionIndex];
-		pHeightMapAOTex = CTexture::s_ptexHeightMapAO[1];
 	}
 }

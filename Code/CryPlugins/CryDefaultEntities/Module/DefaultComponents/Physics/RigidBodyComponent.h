@@ -6,7 +6,6 @@
 #include <CrySchematyc/ResourceTypes.h>
 #include <CrySchematyc/MathTypes.h>
 #include <CrySchematyc/Env/IEnvRegistrar.h>
-#include "../Geometry/StaticMeshComponent.h"
 
 class CPlugin_CryDefaultEntities;
 
@@ -25,11 +24,29 @@ namespace Cry
 			// IEntityComponent
 			virtual void Initialize() final;
 
-			virtual void ProcessEvent(SEntityEvent& event) final;
+			virtual void ProcessEvent(const SEntityEvent& event) final;
 			virtual uint64 GetEventMask() const final;
 			// ~IEntityComponent
 
 		public:
+			struct SBuoyancyParameters
+			{
+				inline bool operator==(const SBuoyancyParameters &rhs) const { return 0 == memcmp(this, &rhs, sizeof(rhs)); }
+
+				static void ReflectType(Schematyc::CTypeDesc<SBuoyancyParameters>& desc)
+				{
+					desc.SetGUID("{2C5EFA87-F7D0-43F1-90B8-576EEB60FC37}"_cry_guid);
+					desc.SetLabel("Buoyancy Parameters");
+					desc.AddMember(&CRigidBodyComponent::SBuoyancyParameters::damping, 'damp', "Damping", "Damping", "Uniform damping while submerged, will be scaled with submerged fraction", 1.f);
+					desc.AddMember(&CRigidBodyComponent::SBuoyancyParameters::density, 'dens', "Density", "Density", "Density of the fluid", 1.f);
+					desc.AddMember(&CRigidBodyComponent::SBuoyancyParameters::resistance, 'rest', "Resistance", "Resistance", "Resistance of the fluid", 1.f);
+				}
+
+				Schematyc::PositiveFloat damping = 1.f;
+				Schematyc::PositiveFloat density = 1.f;
+				Schematyc::PositiveFloat resistance = 1.f;
+			};
+
 			static void ReflectType(Schematyc::CTypeDesc<CRigidBodyComponent>& desc)
 			{
 				desc.SetGUID("{912C6CE8-56F7-4FFA-9134-F98D4E307BD6}"_cry_guid);
@@ -46,13 +63,13 @@ namespace Cry
 				// Mark the Area component as incompatible
 				desc.AddComponentInteraction(SEntityComponentRequirements::EType::Incompatibility, "{EC7F145B-D48F-4863-B9C2-3D3E2C8DCC61}"_cry_guid);
 				// Static meshes must be initialized since they need to have slots assigned during physicalization
-				desc.AddComponentInteraction<CStaticMeshComponent>(SEntityComponentRequirements::EType::SoftDependency);
+				desc.AddComponentInteraction(SEntityComponentRequirements::EType::SoftDependency, "{6DDD0033-6AAA-4B71-B8EA-108258205E29}"_cry_guid);
 
 				desc.AddMember(&CRigidBodyComponent::m_bNetworked, 'netw', "Networked", "Network Synced", "Syncs the physical entity over the network, and keeps it in sync with the server", false);
-
 				desc.AddMember(&CRigidBodyComponent::m_bEnabledByDefault, 'enab', "EnabledByDefault", "Enabled by Default", "Whether the component is enabled by default", true);
 				desc.AddMember(&CRigidBodyComponent::m_type, 'type', "Type", "Type", "Type of physicalized object to create", CRigidBodyComponent::EPhysicalType::Rigid);
 				desc.AddMember(&CRigidBodyComponent::m_bSendCollisionSignal, 'send', "SendCollisionSignal", "Send Collision Signal", "Whether or not this component should listen for collisions and report them", false);
+				desc.AddMember(&CRigidBodyComponent::m_buoyancyParameters, 'buoy', "Buoyancy", "Buoyancy Parameters", "Fluid behavior related to this entity", SBuoyancyParameters());
 			}
 
 			struct SCollisionSignal
@@ -170,6 +187,7 @@ namespace Cry
 			bool m_bEnabledByDefault = true;
 			EPhysicalType m_type = EPhysicalType::Rigid;
 			bool m_bSendCollisionSignal = false;
+			SBuoyancyParameters m_buoyancyParameters;
 		};
 
 		static void ReflectType(Schematyc::CTypeDesc<CRigidBodyComponent::EPhysicalType>& desc)

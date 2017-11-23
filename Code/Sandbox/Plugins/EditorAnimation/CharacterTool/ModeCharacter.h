@@ -35,6 +35,8 @@ public:
 	void OnViewportRender(const SRenderContext& rc) override;
 	void OnViewportKey(const SKeyEvent& ev) override;
 	void OnViewportMouse(const SMouseEvent& ev) override;
+
+	bool OnViewportMouseProxy(const SMouseEvent& ev);
 protected slots:
 	void OnTransformPanelChanged();
 	void OnTransformPanelChangeFinished();
@@ -63,6 +65,7 @@ private:
 	void WriteTransformPanel();
 	void UpdateToolbar();
 	void HandleSceneChange(int layerMask, bool continuous);
+	void OnClickProxyCreate();
 
 	ICharacterInstance*         m_character;
 	unique_ptr<QAction>         m_actionMoveTool;

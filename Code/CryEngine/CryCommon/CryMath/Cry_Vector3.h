@@ -366,8 +366,8 @@ template<typename F> struct Vec3_tpl
 	}
 
 	//F* fptr = vec;
-	CRY_DEPRECATED(operator F*()) { return (F*)this; }
-	template<class T> explicit CRY_DEPRECATED(Vec3_tpl(const T* src)) { x = src[0]; y = src[1]; z = src[2]; }
+	CRY_DEPRECATED("Use begin() instead") operator F*() { return (F*)this; }
+	template<class T> explicit CRY_DEPRECATED("Use Vec3_tpl(const Vec3_tpl&) instead") Vec3_tpl(const T* src) { x = src[0]; y = src[1]; z = src[2]; }
 
 	ILINE Vec3_tpl& zero()                                 { x = y = z = 0; return *this; }
 	ILINE F         len() const

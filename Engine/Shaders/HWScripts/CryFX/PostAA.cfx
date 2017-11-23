@@ -127,7 +127,6 @@ cbuffer CBPostAA : register(b0)
 		float4x4 matReprojection;
 		float4   params;
 		float4   screenSize;
-		float4   worldViewPos;
 	} cbPostAA;
 };
 
@@ -338,7 +337,7 @@ pixout LumaEdgeDetectionSMAA_PS(vtxOut IN)
 {
   pixout OUT = (pixout) 0;
 
-	PS_ScreenSize.zw *= SCALE_PIXELSIZE * PS_HPosScale.xy;
+	PS_ScreenSize.zw *= SCALE_PIXELSIZE * CV_HPosScale.xy;
 
   float2 threshold = SMAA_THRESHOLD;
 
@@ -985,35 +984,30 @@ technique DebugPostAA
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+SamplerState subsampledSS : register(s0) = SS_BilinearClamp;
+Texture2D subsampledTex : register(t0);
+
 pixout UpscaleImagePS(vtxOut IN)
 {
 	// vParams.xy: source width, source height
-	
-	pixout OUT = (pixout) 0;
-	
-	float2 texCoords = IN.baseTC.xy * vParams.xy + 0.5;
+	float2 texCoords = IN.baseTC.xy * vParams.xy + 0.5f;
 	float2 intPart = floor(texCoords);
 	float2 f = texCoords - intPart;
-	
+
 	// Apply smoothstep function to get a mixture between nearest neighbor and linear filtering
-	f = f*f * (3 - 2*f);
+	f = f * f * (3 - 2 * f);
 
 	texCoords = intPart + f;
 	texCoords = (texCoords - 0.5) / vParams.xy;
-	
-	// Read linearized texture
-	OUT.Color = tex2D(_tex0, texCoords);
-	
-	OUT.Color.rgb = LinearToSRGB(OUT.Color.rgb);
-	
-  return OUT;
+
+	return (pixout)subsampledTex.Sample(subsampledSS, texCoords);
 }
 
 technique UpscaleImage
 {
-  pass p0
-  {
-    VertexShader = BaseVS();
-    PixelShader = UpscaleImagePS() PostAA_PS;
-  }
+	pass p0
+	{
+		VertexShader = BaseVS();
+		PixelShader = UpscaleImagePS() PostAA_PS;
+	}
 }

@@ -7,13 +7,162 @@
 #include "GraphicsPipeline/LensOptics.h"
 #include "ColorGrading.h"
 
+#include <Common/RenderDisplayContext.h>
+
 struct PostAAConstants
 {
 	Matrix44 matReprojection;
 	Vec4     params;
 	Vec4     screenSize;
-	Vec4     worldViewPos;
 };
+
+// 4x4 N-Queens pattern
+static const Vec2 vNQAA4x[4] =
+{
+	Vec2(+3.0f / 8.0f, +1.0f / 8.0f),
+	Vec2(+1.0f / 8.0f, -3.0f / 8.0f),
+	Vec2(-1.0f / 8.0f, +3.0f / 8.0f),
+	Vec2(-3.0f / 8.0f, -1.0f / 8.0f)
+};
+
+// 5x5 N-Queens pattern
+static const Vec2 vNQAA5x[5] =
+{
+	Vec2(+4.0f / 10.0f, -4.0f / 10.0f),
+	Vec2(+2.0f / 10.0f, +2.0f / 10.0f),
+	Vec2(+0.0f / 10.0f, -2.0f / 10.0f),
+	Vec2(-2.0f / 10.0f, +4.0f / 10.0f),
+	Vec2(-4.0f / 10.0f, +0.0f / 10.0f)
+};
+
+// 8x8 N-Queens pattern
+static const Vec2 vNQAA8x[8] =
+{
+	Vec2(+7.0f / 16.0f, -7.0f / 16.0f),
+	Vec2(+5.0f / 16.0f, +5.0f / 16.0f),
+	Vec2(+3.0f / 16.0f, +1.0f / 16.0f),
+	Vec2(+1.0f / 16.0f, +7.0f / 16.0f),
+	Vec2(-1.0f / 16.0f, -5.0f / 16.0f),
+	Vec2(-3.0f / 16.0f, -1.0f / 16.0f),
+	Vec2(-5.0f / 16.0f, +3.0f / 16.0f),
+	Vec2(-7.0f / 16.0f, -3.0f / 16.0f)
+};
+
+static const Vec2 vSSAA2x[2] =
+{
+	Vec2(-0.25f, +0.25f),
+	Vec2(+0.25f, -0.25f)
+};
+
+static const Vec2 vSSAA3x[3] =
+{
+	Vec2(-1.0f / 3.0f, -1.0f / 3.0f),
+	Vec2(+1.0f / 3.0f, +0.0f / 3.0f),
+	Vec2(+0.0f / 3.0f, +1.0f / 3.0f)
+};
+
+static const Vec2 vSSAA4x_regular[4] =
+{
+	Vec2(-0.25f, -0.25f), Vec2(-0.25f, +0.25f),
+	Vec2(+0.25f, -0.25f), Vec2(+0.25f, +0.25f)
+};
+
+static const Vec2 vSSAA4x_rotated[4] =
+{
+	Vec2(-0.125f, -0.375f), Vec2(+0.375f, -0.125f),
+	Vec2(-0.375f, +0.125f), Vec2(+0.125f, +0.375f)
+};
+
+static const Vec2 vSMAA4x[2] =
+{
+	Vec2(-0.125f, -0.125f),
+	Vec2(+0.125f, +0.125f)
+};
+
+static const Vec2 vSSAA8x[8] =
+{
+	Vec2(0.0625,  -0.1875),  Vec2(-0.0625,   0.1875),
+	Vec2(0.3125,  0.0625),   Vec2(-0.1875,   -0.3125),
+	Vec2(-0.3125, 0.3125),   Vec2(-0.4375,   -0.0625),
+	Vec2(0.1875,  0.4375),   Vec2(0.4375,    -0.4375)
+};
+
+static const Vec2 vSGSSAA8x8[8] =
+{
+	Vec2(6.0f / 7.0f, 0.0f / 7.0f) - Vec2(0.5f, 0.5f), Vec2(2.0f / 7.0f, 1.0f / 7.0f) - Vec2(0.5f, 0.5f),
+	Vec2(4.0f / 7.0f, 2.0f / 7.0f) - Vec2(0.5f, 0.5f), Vec2(0.0f / 7.0f, 3.0f / 7.0f) - Vec2(0.5f, 0.5f),
+	Vec2(7.0f / 7.0f, 4.0f / 7.0f) - Vec2(0.5f, 0.5f), Vec2(3.0f / 7.0f, 5.0f / 7.0f) - Vec2(0.5f, 0.5f),
+	Vec2(5.0f / 7.0f, 6.0f / 7.0f) - Vec2(0.5f, 0.5f), Vec2(1.0f / 7.0f, 7.0f / 7.0f) - Vec2(0.5f, 0.5f)
+};
+
+void CPostAAStage::CalculateJitterOffsets(CRenderView* pRenderView)
+{
+	pRenderView->m_vProjMatrixSubPixoffset = Vec2(0.0f, 0.0f);
+
+	// TODO: Support temporal AA in the editor
+	uint32 aaMode = CRenderer::FX_GetAntialiasingType();
+
+	if (aaMode && gcpRendD3D->IsEditorMode())
+		aaMode = 1U << (eAT_SMAA_1X * CRenderer::CV_r_AntialiasingModeEditor);
+
+	if (aaMode & eAT_REQUIRES_SUBPIXELSHIFT_MASK)
+	{
+		int jitterPattern = CRenderer::CV_r_AntialiasingTAAPattern;
+		if (jitterPattern == 1)
+		{
+			if (aaMode & eAT_SMAA_2TX_MASK)  jitterPattern = 2;
+			else if (aaMode & eAT_TSAA_MASK) jitterPattern = 5;
+			else                             jitterPattern = 0;
+		}
+
+		const int nSampleID = SPostEffectsUtils::m_iFrameCounter;
+		Vec2 vCurrSubSample = Vec2(0, 0);
+		switch (jitterPattern)
+		{
+		case 2:
+			vCurrSubSample = vSSAA2x[nSampleID % 2];
+			break;
+		case 3:
+			vCurrSubSample = vSSAA3x[nSampleID % 3];
+			break;
+		case 4:
+			vCurrSubSample = vSSAA4x_regular[nSampleID % 4];
+			break;
+		case 5:
+			vCurrSubSample = vSSAA4x_rotated[nSampleID % 4];
+			break;
+		case 6:
+			vCurrSubSample = vSSAA8x[nSampleID % 8];
+			break;
+		case 7:
+			vCurrSubSample = vSGSSAA8x8[nSampleID % 8];
+			break;
+		case 8:
+			vCurrSubSample = Vec2(SPostEffectsUtils::srandf(), SPostEffectsUtils::srandf()) * 0.5f;
+			break;
+		case 9:
+			vCurrSubSample = Vec2(SPostEffectsUtils::HaltonSequence(SPostEffectsUtils::m_iFrameCounter % 8, 2) - 0.5f,
+				SPostEffectsUtils::HaltonSequence(SPostEffectsUtils::m_iFrameCounter % 8, 3) - 0.5f);
+			break;
+		case 10:
+			vCurrSubSample = Vec2(SPostEffectsUtils::HaltonSequence(SPostEffectsUtils::m_iFrameCounter % 16, 2) - 0.5f,
+				SPostEffectsUtils::HaltonSequence(SPostEffectsUtils::m_iFrameCounter % 16, 3) - 0.5f);
+			break;
+		case 11:
+			vCurrSubSample = Vec2(SPostEffectsUtils::HaltonSequence(SPostEffectsUtils::m_iFrameCounter % 1024, 2) - 0.5f,
+				SPostEffectsUtils::HaltonSequence(SPostEffectsUtils::m_iFrameCounter % 1024, 3) - 0.5f);
+			break;
+		}
+
+		const auto& downscaleFactor = gRenDev->GetRenderQuality().downscaleFactor;
+
+		const int32 renderWidth  = pRenderView->GetRenderResolution()[0];
+		const int32 renderHeight = pRenderView->GetRenderResolution()[1];
+
+		pRenderView->m_vProjMatrixSubPixoffset.x = (vCurrSubSample.x * 2.0f / (float)renderWidth ) / downscaleFactor.x;
+		pRenderView->m_vProjMatrixSubPixoffset.y = (vCurrSubSample.y * 2.0f / (float)renderHeight) / downscaleFactor.y;
+	}
+}
 
 void CPostAAStage::Init()
 {
@@ -27,11 +176,12 @@ void CPostAAStage::Init()
 
 void CPostAAStage::ApplySMAA(CTexture*& pCurrRT)
 {
+	auto& RESTRICT_REFERENCE commandList = GetDeviceObjectFactory().GetCoreCommandList();
 	CD3D9Renderer* pRenderer = gcpRendD3D;
 
-	CTexture* pEdgesRT = CTexture::s_ptexSceneNormalsMap;   // Reusing ESRAM resident target
-	CTexture* pBlendWeightsRT = CTexture::s_ptexHDRTarget;  // Reusing ESRAM resident target (FP16 RT accessed using point filtering which gives full rate on GCN)
-	CTexture* pDestRT = CTexture::s_ptexSceneNormalsMap;
+	CTexture* pEdgesRT = CRendererResources::s_ptexSceneNormalsMap;   // Reusing ESRAM resident target
+	CTexture* pBlendWeightsRT = CRendererResources::s_ptexHDRTarget;  // Reusing ESRAM resident target (FP16 RT accessed using point filtering which gives full rate on GCN)
+	CTexture* pDestRT = CRendererResources::s_ptexSceneNormalsMap;
 
 	assert(pBlendWeightsRT->GetDstFormat() != eTF_R11G11B10F);  // Alpha channel required
 
@@ -47,14 +197,16 @@ void CPostAAStage::ApplySMAA(CTexture*& pCurrRT)
 		if (gcpRendD3D->m_nStencilMaskRef > STENC_MAX_REF)
 		{
 			// Stencil initialized to 1 - 0 is reserved for MSAAed samples
-			gcpRendD3D->EF_ClearTargetsImmediately(FRT_CLEAR_STENCIL);
+			CClearSurfacePass::Execute(CRendererResources::s_ptexSceneDepth, CLEAR_STENCIL, 0.0f, 1);
+
 			gcpRendD3D->m_nStencilMaskRef = 1;
 		}
+
 		stencilRef = gcpRendD3D->m_nStencilMaskRef;
 	}
 
-	pRenderer->FX_ClearTarget(pEdgesRT, Clr_Transparent);
-	pRenderer->FX_ClearTarget(pBlendWeightsRT, Clr_Transparent);
+	CClearSurfacePass::Execute(pEdgesRT, Clr_Transparent);
+	CClearSurfacePass::Execute(pBlendWeightsRT, Clr_Transparent);
 
 	// Pass 1: Edge Detection
 	{
@@ -65,8 +217,9 @@ void CPostAAStage::ApplySMAA(CTexture*& pCurrRT)
 			m_passSMAAEdgeDetection.SetTechnique(CShaderMan::s_shPostAA, techEdgeDetection, 0);
 			m_passSMAAEdgeDetection.SetTargetClearMask(CPrimitiveRenderPass::eClear_Color0);
 			m_passSMAAEdgeDetection.SetRenderTarget(0, pEdgesRT);
-			m_passSMAAEdgeDetection.SetDepthTarget(pRenderer->m_pZTexture);
+			m_passSMAAEdgeDetection.SetDepthTarget(CRendererResources::s_ptexSceneDepth);
 			m_passSMAAEdgeDetection.SetState(GS_NODEPTHTEST);
+			m_passSMAAEdgeDetection.SetRequirePerViewConstantBuffer(true);
 			m_passSMAAEdgeDetection.SetTextureSamplerPair(0, pCurrRT, EDefaultSamplerStates::PointClamp);
 		}
 		if (CRenderer::CV_r_AntialiasingModeSCull)
@@ -92,7 +245,7 @@ void CPostAAStage::ApplySMAA(CTexture*& pCurrRT)
 			m_passSMAABlendWeights.SetTechnique(CShaderMan::s_shPostAA, techBlendWeights, 0);
 			m_passSMAABlendWeights.SetTargetClearMask(CPrimitiveRenderPass::eClear_Color0);
 			m_passSMAABlendWeights.SetRenderTarget(0, pBlendWeightsRT);
-			m_passSMAABlendWeights.SetDepthTarget(pRenderer->m_pZTexture);
+			m_passSMAABlendWeights.SetDepthTarget(CRendererResources::s_ptexSceneDepth);
 			m_passSMAABlendWeights.SetState(GS_NODEPTHTEST);
 			m_passSMAABlendWeights.SetTextureSamplerPair(0, pEdgesRT, EDefaultSamplerStates::LinearClamp);
 			m_passSMAABlendWeights.SetTextureSamplerPair(1, m_pTexAreaSMAA, EDefaultSamplerStates::LinearClamp);
@@ -136,8 +289,8 @@ void CPostAAStage::ApplyTemporalAA(CTexture*& pCurrRT, CTexture*& pMgpuRT, uint3
 	CD3D9Renderer* pRenderer = gcpRendD3D;
 
 	CShader* pShader = CShaderMan::s_shPostAA;
-	CTexture* pDestRT = GetUtils().GetTaaRT(true);
-	CTexture* pPrevRT = ((SPostEffectsUtils::m_iFrameCounter - m_lastFrameID) < 10) ? GetUtils().GetTaaRT(false) : pCurrRT;
+	CTexture* pDestRT = GetUtils().GetTaaRT(RenderView(), true);
+	CTexture* pPrevRT = ((SPostEffectsUtils::m_iFrameCounter - m_lastFrameID) < 10) ? GetUtils().GetTaaRT(RenderView(),false) : pCurrRT;
 
 	assert((pCurrRT->GetFlags() & FT_USAGE_ALLOWREADSRGB));
 
@@ -159,26 +312,26 @@ void CPostAAStage::ApplyTemporalAA(CTexture*& pCurrRT, CTexture*& pMgpuRT, uint3
 
 		m_passTemporalAA.SetTextureSamplerPair(0, pCurrRT, EDefaultSamplerStates::LinearClamp);
 		m_passTemporalAA.SetTextureSamplerPair(1, pPrevRT, EDefaultSamplerStates::LinearClamp);
-		m_passTemporalAA.SetTextureSamplerPair(2, CTexture::s_ptexZTarget, EDefaultSamplerStates::PointClamp);
-		m_passTemporalAA.SetTextureSamplerPair(3, GetUtils().GetVelocityObjectRT(), EDefaultSamplerStates::PointClamp);
+		m_passTemporalAA.SetTextureSamplerPair(2, CRendererResources::s_ptexLinearDepth, EDefaultSamplerStates::PointClamp);
+		m_passTemporalAA.SetTextureSamplerPair(3, GetUtils().GetVelocityObjectRT(RenderView()), EDefaultSamplerStates::PointClamp);
 		m_passTemporalAA.SetTextureSamplerPair(4, pCurrRT, EDefaultSamplerStates::LinearClamp, EDefaultResourceViews::sRGB);
 		m_passTemporalAA.SetTextureSamplerPair(5, pPrevRT, EDefaultSamplerStates::LinearClamp);
-		m_passTemporalAA.SetTexture(16, pRenderer->m_DepthBufferOrig.pTexture);
+		m_passTemporalAA.SetTexture(16, CRendererResources::s_ptexSceneDepth);
 	}
 
 	(pMgpuRT = pDestRT)->MgpuResourceUpdate(true);
 	m_passTemporalAA.BeginConstantUpdate();
 
 	{
-		CStandardGraphicsPipeline::SViewInfo viewInfo[2];
-		int viewInfoCount = pRenderer->GetGraphicsPipeline().GetViewInfo(viewInfo);
-
+		size_t viewInfoCount = RenderView()->GetViewInfoCount();
+	
 		auto constants = m_passTemporalAA.BeginTypedConstantUpdate<PostAAConstants>(eConstantBufferShaderSlot_PerBatch, EShaderStage_Pixel);
-
-		const float rcpWidth = 1.0f / (float)pRenderer->GetWidth();
-		const float rcpHeight = 1.0f / (float)pRenderer->GetHeight();
-		constants->screenSize = Vec4((float)pRenderer->GetWidth(), (float)pRenderer->GetHeight(), rcpWidth, rcpHeight);
-		constants->worldViewPos = Vec4(pRenderer->GetRCamera().vOrigin, 0);
+		
+		auto screenResolution = Vec2i(CRendererResources::s_renderWidth, CRendererResources::s_renderHeight);
+		const float rcpWidth = 1.0f / (float)screenResolution.x;
+		const float rcpHeight = 1.0f / (float)screenResolution.y;
+		constants->screenSize = Vec4((float)screenResolution.x, (float)screenResolution.y, rcpWidth, rcpHeight);
+		
 		constants->params = Vec4(max(CRenderer::CV_r_AntialiasingTAASharpening + 1.0f, 1.0f), 0.0f, CRenderer::CV_r_AntialiasingTAAFalloffLowFreq + 1e-6f, CRenderer::CV_r_AntialiasingTAAFalloffHiFreq + 1e-6f);
 		if (aaMode & eAT_TSAA_MASK)
 			constants->params = Vec4(CRenderer::CV_r_AntialiasingTSAASubpixelDetection, CRenderer::CV_r_AntialiasingTSAASmoothness, 0, 0);
@@ -186,9 +339,11 @@ void CPostAAStage::ApplyTemporalAA(CTexture*& pCurrRT, CTexture*& pMgpuRT, uint3
 		// Compute reprojection matrix with highest possible precision to minimize numeric diffusion
 		// TODO: Make sure NEAREST projection is handled correctly
 		Matrix44_tpl<f64> matReprojection64[2];
-		for (int i = 0; i < viewInfoCount; ++i)
+		for (size_t i = 0; i < viewInfoCount; ++i)
 		{
-			Matrix44A matProj = viewInfo[i].projMatrix;
+			const auto& viewInfo = RenderView()->GetViewInfo( static_cast<CCamera::EEye>(i) );
+			
+			Matrix44A matProj = viewInfo.unjitteredProjMatrix; // Use Projection matrix without the pixel shift
 
 			// Changing stereo mode from dual-rendering to post-stereo causes 1 frame mismatch between projection matrix and stereo mode from GetStereoMode().
 			const bool exceptionalCase = (pRenderer->GetS3DRend().GetStereoMode() == STEREO_MODE_POST_STEREO && CRenderer::CV_r_StereoMode == STEREO_MODE_DUAL_RENDERING);
@@ -198,7 +353,7 @@ void CPostAAStage::ApplyTemporalAA(CTexture*& pCurrRT, CTexture*& pMgpuRT, uint3
 			       || (matProj.m20 == 0 && matProj.m21 == 0)); // Ensure jittering is removed from projection matrix
 
 			Matrix44_tpl<f64> matViewInv, matProjInv;
-			mathMatrixLookAtInverse(&matViewInv, &viewInfo[i].viewMatrix);
+			mathMatrixLookAtInverse(&matViewInv, &viewInfo.viewMatrix);
 			const bool bCanInvert = mathMatrixPerspectiveFovInverse(&matProjInv, &matProj);
 			assert(bCanInvert);
 
@@ -213,7 +368,7 @@ void CPostAAStage::ApplyTemporalAA(CTexture*& pCurrRT, CTexture*& pMgpuRT, uint3
 			  0, 0, 1, 0,
 			  -1.0, 1.0, 0, 1);
 
-			Matrix44 mPrevView = viewInfo[i].prevCameraMatrix;
+			Matrix44 mPrevView = viewInfo.prevCameraMatrix;
 			matReprojection64[i] = matProjInv * matViewInv * Matrix44_tpl<f64>(mPrevView) * Matrix44_tpl<f64>(matProj);
 			matReprojection64[i] = matScaleBias2 * matReprojection64[i] * matScaleBias1;
 		}
@@ -224,7 +379,6 @@ void CPostAAStage::ApplyTemporalAA(CTexture*& pCurrRT, CTexture*& pMgpuRT, uint3
 		{
 			constants.BeginStereoOverride(true);
 			constants->matReprojection = (Matrix44)matReprojection64[1];
-			constants->worldViewPos = Vec4(viewInfo[1].pRenderCamera->vOrigin, 0);
 		}
 
 		m_passTemporalAA.EndTypedConstantUpdate(constants);
@@ -236,23 +390,12 @@ void CPostAAStage::ApplyTemporalAA(CTexture*& pCurrRT, CTexture*& pMgpuRT, uint3
 	m_lastFrameID = SPostEffectsUtils::m_iFrameCounter;
 }
 
-void CPostAAStage::DoFinalComposition(CTexture*& pCurrRT, uint32 aaMode)
+void CPostAAStage::DoFinalComposition(CTexture*& pCurrRT, CTexture* pDestRT, uint32 aaMode)
 {
-	CD3D9Renderer* pRenderer = gcpRendD3D;
-
 	PROFILE_LABEL_SCOPE("FLARES, GRAIN");
 
-	CTexture* pTexLensOptics = CTexture::s_ptexSceneTargetR11G11B10F[0];
-	CTexture* pOutputRT = nullptr;
-
-	if (pRenderer->IsNativeScalingEnabled())
-	{
-		pOutputRT = CTexture::s_ptexSceneSpecular;
-	}
-	else
-	{
-		pOutputRT = pRenderer->GetCurrentTargetOutput();
-	}
+	CTexture* pTexLensOptics = CRendererResources::s_ptexSceneTargetR11G11B10F[0];
+	CRY_ASSERT(pCurrRT != pDestRT);
 
 	static uint64 prevRTMask = 0;
 	uint64 rtMask = 0;
@@ -261,17 +404,17 @@ void CPostAAStage::DoFinalComposition(CTexture*& pCurrRT, uint32 aaMode)
 	if (CRenderer::CV_r_colorRangeCompression)
 		rtMask |= g_HWSR_MaskBit[HWSR_SAMPLE4];
 
-	if (pRenderer->GetGraphicsPipeline().GetLensOpticsStage()->HasContent())
+	if (GetStdGraphicsPipeline().GetLensOpticsStage()->HasContent())
 	{
 		rtMask |= g_HWSR_MaskBit[HWSR_SAMPLE1];
-		if (CRenderer::CV_r_FlaresChromaShift > 0.5f / (float)pRenderer->GetWidth())  // Only relevant if bigger than half pixel
+		if (CRenderer::CV_r_FlaresChromaShift > 0.5f / (float)CRendererResources::s_renderWidth)  // Only relevant if bigger than half pixel
 			rtMask |= g_HWSR_MaskBit[HWSR_SAMPLE3];
 	}
 
-	CTexture* pColorChartTex = CTexture::s_ptexBlack;
+	CTexture* pColorChartTex = CRendererResources::s_ptexBlack;
 	if (CRenderer::CV_r_FlaresEnableColorGrading)
 	{
-		CColorGradingStage* pColorGradingStage = (CColorGradingStage*)pRenderer->GetGraphicsPipeline().GetStage(eStage_ColorGrading);
+		CColorGradingStage* pColorGradingStage = (CColorGradingStage*)GetStdGraphicsPipeline().GetStage(eStage_ColorGrading);
 		if (CTexture* pColorChartTexTentative = pColorGradingStage->GetColorChart())
 		{
 			pColorChartTex = pColorChartTexTentative;
@@ -279,18 +422,20 @@ void CPostAAStage::DoFinalComposition(CTexture*& pCurrRT, uint32 aaMode)
 		}
 	}
 
-	if (m_passComposition.InputChanged(pCurrRT->GetID(), pOutputRT->GetID(), CTexture::s_ptexCurLumTexture->GetID(), pColorChartTex->GetID()) || rtMask != prevRTMask)
+	if (m_passComposition.InputChanged(pCurrRT->GetID(), pDestRT->GetID(), CRendererResources::s_ptexCurLumTexture->GetID(), pColorChartTex->GetID()) || rtMask != prevRTMask)
 	{
 		static CCryNameTSCRC techComposition("PostAAComposites");
+
 		m_passComposition.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 		m_passComposition.SetTechnique(CShaderMan::s_shPostAA, techComposition, rtMask);
-		m_passComposition.SetRenderTarget(0, pOutputRT);
+		m_passComposition.SetRenderTarget(0, pDestRT);
 		m_passComposition.SetState(GS_NODEPTHTEST);
 		m_passComposition.SetTextureSamplerPair(0, pCurrRT, EDefaultSamplerStates::LinearClamp);
 		m_passComposition.SetTextureSamplerPair(5, pTexLensOptics, EDefaultSamplerStates::PointClamp);
-		m_passComposition.SetTextureSamplerPair(6, CTexture::s_ptexFilmGrainMap, EDefaultSamplerStates::PointWrap);
-		m_passComposition.SetTextureSamplerPair(7, CTexture::s_ptexCurLumTexture, EDefaultSamplerStates::PointClamp);
+		m_passComposition.SetTextureSamplerPair(6, CRendererResources::s_ptexFilmGrainMap, EDefaultSamplerStates::PointWrap);
+		m_passComposition.SetTextureSamplerPair(7, CRendererResources::s_ptexCurLumTexture, EDefaultSamplerStates::PointClamp);
 		m_passComposition.SetTextureSamplerPair(8, pColorChartTex, EDefaultSamplerStates::LinearClamp);
+
 		prevRTMask = rtMask;
 	}
 
@@ -331,33 +476,28 @@ void CPostAAStage::Execute()
 
 	PROFILE_LABEL_SCOPE("POST_AA");
 
-	CD3D9Renderer* rd = gcpRendD3D;
-	CTexture* pCurrRT = CTexture::s_ptexSceneDiffuse;
+	CTexture* pCurrRT = CRendererResources::s_ptexSceneDiffuse;
+	CTexture* pCurrDS = CRendererResources::s_ptexSceneDepth;
 	CTexture* pMgpuRT = NULL;
 
-	uint32 aaMode = rd->FX_GetAntialiasingType();
+	// TODO: Support temporal AA in the editor
+	uint32 aaMode = CRenderer::FX_GetAntialiasingType();
 
-	if (rd->IsHDRModeEnabled() && (aaMode & (eAT_SMAA_MASK |  eAT_TSAA_MASK)) && pCurrRT)
-	{
-		rd->FX_PopRenderTarget(0);
-	}
-	rd->FX_SetActiveRenderTargets();
-
-	rd->m_RP.m_PersFlags2 |= RBPF2_NOPOSTAA;
+	if (aaMode && gcpRendD3D->IsEditorMode())
+		aaMode = 1U << (eAT_SMAA_1X * CRenderer::CV_r_AntialiasingModeEditor);
 
 	if (aaMode & eAT_SMAA_MASK)
-	{
 		ApplySMAA(pCurrRT);
-	}
-
-	if ((aaMode & eAT_REQUIRES_PREVIOUSFRAME_MASK))
-	{
+	if (aaMode & eAT_REQUIRES_PREVIOUSFRAME_MASK)
 		ApplyTemporalAA(pCurrRT, pMgpuRT, aaMode);
+
+	// TODO: Un-jitter depth buffer for AuxGeom depth tests (alternative: jitter aux)
+	// TODO: Don't do anything and throw away depth when no depth-test/aux is used
+	if (const auto* pRO = RenderView()->GetRenderOutput())
+	{
+		DoFinalComposition(pCurrRT, pRO->GetColorTarget(), aaMode);
+		CStretchRectPass::GetPass().Execute(pCurrDS, pRO->GetDepthTarget());
 	}
-
-	DoFinalComposition(pCurrRT, aaMode);
-
-	rd->m_RP.m_PersFlags2 |= RBPF2_NOPOSTAA;
 
 	if (pMgpuRT)
 	{

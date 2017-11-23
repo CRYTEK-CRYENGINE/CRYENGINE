@@ -146,6 +146,8 @@ public:
 	virtual const char*               GetPreviousBehaviorName() const;
 	virtual void                      UpdateMeAlways(bool doUpdateMeAlways);
 	virtual void                      ResendTargetSignalsNextFrame();
+
+	virtual void                      OnActorRemoved();
 	//------------------  ~IAIActorProxy
 
 	void        SetMinFireTime(float fTime) { m_fMinFireTime = fTime; }

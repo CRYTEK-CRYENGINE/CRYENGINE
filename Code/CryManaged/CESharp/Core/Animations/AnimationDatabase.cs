@@ -4,6 +4,9 @@ using CryEngine.Common;
 
 namespace CryEngine.Animations
 {
+	/// <summary>
+	/// Manages an animation database file and returns requested information from the database.
+	/// </summary>
 	public sealed class AnimationDatabase
 	{
 		/// <summary>

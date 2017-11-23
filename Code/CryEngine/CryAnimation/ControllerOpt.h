@@ -415,8 +415,8 @@ public:
 	}
 
 	// Deliberately nerf'd - instance must be immutable, as it can be moved by defrag
-	void AddRef() override   {}
-	void Release()  override {}
+	void AddRef() const override   {}
+	void Release()  const override {}
 
 	~CControllerOptNonVirtual(){}
 

@@ -112,12 +112,12 @@ public:
 
 	bool IsWritable() const
 	{
-		return !!(m_eFlags & (CDeviceObjectFactory::BIND_DEPTH_STENCIL | CDeviceObjectFactory::BIND_RENDER_TARGET | CDeviceObjectFactory::USAGE_UAV_READWRITE));
+		return (!!(m_eFlags & (CDeviceObjectFactory::BIND_DEPTH_STENCIL | CDeviceObjectFactory::BIND_RENDER_TARGET | CDeviceObjectFactory::USAGE_UAV_READWRITE)));
 	}
 
 	bool IsResolvable() const
 	{
-		return !!(m_eFlags & (CDeviceObjectFactory::BIND_DEPTH_STENCIL)) | m_bIsMSAA;
+		return (!!(m_eFlags & (CDeviceObjectFactory::BIND_DEPTH_STENCIL))) | m_bIsMSAA;
 	}
 
 	enum ESubstitutionResult
@@ -425,8 +425,6 @@ public:
 	{
 		return m_bCube;
 	}
-
-	void Unbind();
 
 #if defined(DEVICE_TEXTURE_STORE_OWNER)
 	void SetOwner(CTexture* pOwner) { m_pDebugOwner = pOwner; }

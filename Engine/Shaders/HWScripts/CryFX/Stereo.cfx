@@ -9,7 +9,6 @@ float Script : STANDARDSGLOBAL
   string Script = "ShaderDrawType = Custom;";
 >;
 
-float4x4 CompMatrix : PI_Composite < vsregister = c0; >;
 float2 ScreenSize : PB_ScreenSize;
 
 Texture2D StereoL : register(t0);

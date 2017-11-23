@@ -8,10 +8,9 @@
 class CToneMappingStage : public CGraphicsPipelineStage
 {
 public:
-	void Init();
 	void Execute();
 	void ExecuteDebug();
-	void ExecuteFixedExposure();
+	void ExecuteFixedExposure(CTexture* pColorTex, CTexture* pDepthTex);
 	void DisplayDebugInfo();
 
 private:

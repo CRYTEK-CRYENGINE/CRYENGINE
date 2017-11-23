@@ -211,7 +211,7 @@ uint64 CEntityAICoverUserComponent::GetEventMask() const
 	return ENTITY_EVENT_BIT(ENTITY_EVENT_LEVEL_LOADED) | ENTITY_EVENT_BIT(ENTITY_EVENT_RESET);
 }
 
-void CEntityAICoverUserComponent::ProcessEvent(SEntityEvent& event)
+void CEntityAICoverUserComponent::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

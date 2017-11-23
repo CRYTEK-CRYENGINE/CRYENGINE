@@ -30,6 +30,7 @@ public:
 	void ExchangeDepthTarget(CTexture* pNewDepthTarget, ResourceViewHandle hDepthStencilView = EDefaultResourceViews::DepthStencil);
 	void SetFlags(EPassFlags flags)  { m_passFlags = flags; }
 	void SetViewport(const D3DViewPort& viewport);
+	void SetViewport(const SRenderViewport& viewport);
 	void SetDepthBias(float constBias, float slopeBias, float biasClamp);
 
 	void BeginExecution();

@@ -937,13 +937,12 @@ void CBreakableGlassRenderNode::Render(const SRendParams& renderParams, const SR
 {
 	if (m_glassParams.pGlassMaterial && m_pBreakableGlassRE)
 	{
-		const int renderThreadListID = passInfo.ThreadID();
 		IMaterial* pMaterial = m_glassParams.pGlassMaterial;
 
 		// Set render element parameters
 		SBreakableGlassREParams* pREParams = (SBreakableGlassREParams*)m_pBreakableGlassRE->GetParams();
 
-		const CCamera& camera = gEnv->pRenderer->GetCamera();
+		const CCamera& camera = passInfo.GetCamera();
 		const Vec3 cameraPos = camera.GetPosition();
 		pREParams->centre = cameraPos;
 
@@ -961,7 +960,7 @@ void CBreakableGlassRenderNode::Render(const SRendParams& renderParams, const SR
 			}
 
 			// Submit render object for cracks
-			if (CRenderObject* pRenderObject = gEnv->pRenderer->EF_GetObject_Temp(renderThreadListID))
+			if (CRenderObject* pRenderObject = passInfo.GetIRenderView()->AllocateTemporaryRenderObject())
 			{
 				// Set render object properties
 				pRenderObject->m_II.m_Matrix = m_matrix;
@@ -975,11 +974,11 @@ void CBreakableGlassRenderNode::Render(const SRendParams& renderParams, const SR
 				pRenderObject->m_nTextureID = renderParams.nTextureID;
 
 				// Add render element and render object to render list
-				gEnv->pRenderer->EF_AddEf(m_pBreakableGlassRE, pMaterial->GetShaderItem(), pRenderObject, passInfo, EFSLIST_TRANSP, beforeWater);
+				passInfo.GetIRenderView()->AddRenderObject(m_pBreakableGlassRE, pMaterial->GetShaderItem(), pRenderObject, passInfo, EFSLIST_TRANSP, beforeWater);
 			}
 
 			// Submit render object for plane
-			if (CRenderObject* pRenderObject = gEnv->pRenderer->EF_GetObject_Temp(renderThreadListID))
+			if (CRenderObject* pRenderObject = passInfo.GetIRenderView()->AllocateTemporaryRenderObject())
 			{
 				// Offset glass surface towards edge nearest viewer
 				const Vec3 normal = m_matrix.GetColumn2().GetNormalizedFast();
@@ -1002,7 +1001,7 @@ void CBreakableGlassRenderNode::Render(const SRendParams& renderParams, const SR
 				pRenderObject->m_nTextureID = renderParams.nTextureID;
 
 				// Add render element and render object to render list
-				gEnv->pRenderer->EF_AddEf(m_pBreakableGlassRE, pMaterial->GetShaderItem(), pRenderObject, passInfo, EFSLIST_TRANSP, afterWater);
+				passInfo.GetIRenderView()->AddRenderObject(m_pBreakableGlassRE, pMaterial->GetShaderItem(), pRenderObject, passInfo, EFSLIST_TRANSP, afterWater);
 			}
 		}
 
@@ -1021,7 +1020,7 @@ void CBreakableGlassRenderNode::Render(const SRendParams& renderParams, const SR
 				const float alpha = min(physFrag.m_lifetime * physFrag.m_lifetime, 1.0f);
 
 				// Submit render object for full fragment
-				if (CRenderObject* pRenderObject = gEnv->pRenderer->EF_GetObject_Temp(renderThreadListID))
+				if (CRenderObject* pRenderObject = passInfo.GetIRenderView()->AllocateTemporaryRenderObject())
 				{
 					// All phys fragments have to be drawn at least once regardless of state
 					// - This allows internal buffer states/syncs to remain balanced
@@ -1040,7 +1039,7 @@ void CBreakableGlassRenderNode::Render(const SRendParams& renderParams, const SR
 					pRenderObject->m_nTextureID = renderParams.nTextureID;
 
 					// Add render element and render object to render list
-					gEnv->pRenderer->EF_AddEf(m_pBreakableGlassRE, pMaterial->GetShaderItem(), pRenderObject, passInfo, EFSLIST_TRANSP, afterWater);
+					passInfo.GetIRenderView()->AddRenderObject(m_pBreakableGlassRE, pMaterial->GetShaderItem(), pRenderObject, passInfo, EFSLIST_TRANSP, afterWater);
 				}
 
 #ifdef GLASS_DEBUG_MODE

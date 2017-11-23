@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <string>
+class CGraphicsPipeline;
 
 class CRenderPassBase
 {
@@ -10,6 +10,8 @@ public:
 	void SetLabel(const char* label)  { m_label = label; }
 	const char* GetLabel() const      { return m_label.c_str(); }
 
+	CGraphicsPipeline& GetGraphicsPipeline() const;
+
 protected:
-	std::string m_label;
+	string m_label;
 };

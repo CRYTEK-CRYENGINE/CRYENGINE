@@ -66,7 +66,7 @@ void CD3DOculusRenderer::CopyMultiGPUFrameData()
 	// Quad layers
 	for (uint32 i = 0; i < RenderLayer::eQuadLayers_Total; ++i)
 	{
-		CCryDX12Texture2D* qRV = (CCryDX12Texture2D*)CTexture::s_ptexQuadLayers[i]->GetDevTexture()->GetBaseTexture();
+		CCryDX12Texture2D* qRV = (CCryDX12Texture2D*)CRendererResources::s_ptexQuadLayers[i]->GetDevTexture()->GetBaseTexture();
 
 		NCryDX12::CResource& qRVResource = qRV->GetDX12Resource(); qRVResource.VerifyBackBuffer();
 
@@ -105,7 +105,7 @@ void CD3DOculusRenderer::CopyMultiGPUFrameData()
 
 	for (uint32 i = 0; i < RenderLayer::eQuadLayers_Total; ++i)
 	{
-		CCryDX12Texture2D* qRV = (CCryDX12Texture2D*)CTexture::s_ptexQuadLayers[i]->GetDevTexture()->GetBaseTexture();
+		CCryDX12Texture2D* qRV = (CCryDX12Texture2D*)CRendererResources::s_ptexQuadLayers[i]->GetDevTexture()->GetBaseTexture();
 
 		NCryDX12::CResource& qRVResource = qRV->GetDX12Resource(); qRVResource.VerifyBackBuffer();
 

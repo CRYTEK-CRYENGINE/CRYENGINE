@@ -28,8 +28,6 @@ public:
 	virtual const char*                 GetSubTrackName(int nIndex) const override             { return NULL; };
 	virtual void                        SetSubTrackName(int nIndex, const char* name) override { assert(0); }
 
-	virtual void                        Release() override                                     { if (--m_nRefCounter <= 0) { delete this; } }
-
 	virtual int                         GetNumKeys() const override                            { return m_keys.size(); }
 	virtual bool                        HasKeys() const override                               { return !m_keys.empty(); }
 	virtual void                        RemoveKey(int num) override;

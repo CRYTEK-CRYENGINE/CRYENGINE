@@ -176,7 +176,7 @@ public:
 				IRenderer* pRenderer = gEnv->pRenderer;
 				if (pRenderer)
 				{
-					const CCamera& rCam = pRenderer->GetCamera();
+					const CCamera& rCam = GetISystem()->GetViewCamera();
 					const Ang3 angles = RAD2DEG(rCam.GetAngles());
 
 					ActivateOutput(pActInfo, EOP_CamPos, rCam.GetPosition());

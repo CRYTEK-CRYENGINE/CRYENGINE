@@ -21,7 +21,7 @@ enum EImFileError { eIFE_OK = 0, eIFE_IOerror, eIFE_OutOfMemory, eIFE_BadFormat,
 //efine FIM_____________________ 0x00400
 	#define FIM_SPLITTED             0x00800 //!< Textures is stored in splitted files.
 	#define FIM_SRGB_READ            0x01000 //!< Texture is stores in sRGB-space.
-	#define FIM_X360_NOT_PRETILED    0x02000 //!< REMOVE: for dds textures that cannot be pretiled.
+//efine FIM_____________________ 0x02000
 	#define FIM_READ_VIA_STREAMS     0x04000 //!< REMOVE: issue file reads through the stream engine, for cases where reads may contend with the disc.
 	#define FIM_RENORMALIZED_TEXTURE 0x08000 //!< Textures are stored with a dynamic range, the range is stored in the header.
 	#define FIM_HAS_ATTACHED_ALPHA   0x10000 //!< Texture has an attached alpha companion texture.

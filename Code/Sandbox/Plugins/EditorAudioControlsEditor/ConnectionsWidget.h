@@ -9,7 +9,7 @@ class QDeepFilterProxyModel;
 
 namespace ACE
 {
-class CAudioControl;
+class CSystemControl;
 class CConnectionModel;
 class CAudioTreeView;
 
@@ -22,7 +22,7 @@ public:
 	CConnectionsWidget(QWidget* pParent = nullptr);
 	virtual ~CConnectionsWidget() override;
 
-	void SetControl(CAudioControl* pControl);
+	void SetControl(CSystemControl* pControl);
 	void Reload();
 	void BackupTreeViewStates();
 	void RestoreTreeViewStates();
@@ -40,7 +40,7 @@ private:
 	void RemoveSelectedConnection();
 	void RefreshConnectionProperties();
 
-	CAudioControl*               m_pControl;
+	CSystemControl*              m_pControl;
 	QPropertyTree* const         m_pConnectionProperties;
 	QDeepFilterProxyModel* const m_pFilterProxyModel;
 	CConnectionModel* const      m_pConnectionModel;

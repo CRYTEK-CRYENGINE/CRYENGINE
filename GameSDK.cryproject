@@ -1,13 +1,13 @@
 {
-	"version": 2,
+	"version": 3,
 	"type": "CRYENGINE Project",
-	"info": { "name": "CRYENGINE", "guid": "981c2e0b-5ce6-ce71-f0be-eab93bbd43f6" },
+	"info": { "name": "GameSDK", "guid": "981c2e0b-5ce6-ce71-f0be-eab93bbd43f6" },
 	"content": {
 		"assets": [ "GameSDK" ],
 		"code": [ "" ],
 		"libs": [
 			{
-				"name": "CRYENGINE",
+				"name": "GameSDK",
 				"shared": { "any": "CryGameSDK", "win_x64": "", "win_x86": "" }
 			}
 		]
@@ -18,12 +18,17 @@
 			{ "type": "EPluginType::Native", "path": "CryDefaultEntities" },
 			{ "type": "EPluginType::Native", "path": "CrySensorSystem" },
 			{ "type": "EPluginType::Native", "path": "CryPerceptionSystem" },
-			{ "type": "EPluginType::Native", "path": "CryUQS_Core" }
+			{ "type": "EPluginType::Native", "path": "CryUQS_Core" },
+			{ "type": "EPluginType::Native", "path": "CryGamePlatform" },
+			{ "type": "EPluginType::Native", "path": "CryLobby" }
 		]
 	},
 	"console_variables": [
 		{ "name": "ca_useIMG_CAF", "value": "0" },
 		{ "name": "sys_ime", "value": "1" },
-		{ "name": "sys_target_platforms", "value": "pc,ps4,xboxone,linux" }
-	]
+		{ "name": "sys_target_platforms", "value": "pc,ps4,xboxone,linux" },
+		{ "name": "sys_splashscreen", "value": "Libs/UI/textures/startscreen.tif" },
+		{ "name": "net_useSteamAsOnlineLobby", "value": "1" }
+	],
+	"console_commands": [ ]
 }

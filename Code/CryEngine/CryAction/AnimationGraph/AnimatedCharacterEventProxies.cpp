@@ -22,7 +22,7 @@ CAnimatedCharacterComponent_Base::CAnimatedCharacterComponent_Base()
 {
 }
 
-void CAnimatedCharacterComponent_Base::ProcessEvent(SEntityEvent& event)
+void CAnimatedCharacterComponent_Base::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

@@ -1,13 +1,16 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
+	#include <CryMath/Cry_Math.h>
 struct IRenderAuxGeom;
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 
 namespace CryAudio
 {
+class CATLEvent;
+
 namespace Impl
 {
 struct IImpl;
@@ -21,9 +24,7 @@ public:
 	~CAudioEventManager();
 
 	CAudioEventManager(CAudioEventManager const&) = delete;
-	CAudioEventManager(CAudioEventManager&&) = delete;
 	CAudioEventManager& operator=(CAudioEventManager const&) = delete;
-	CAudioEventManager& operator=(CAudioEventManager&&) = delete;
 
 	void                Init(Impl::IImpl* const pIImpl);
 	void                Release();
@@ -44,6 +45,6 @@ public:
 
 	void DrawDebugInfo(IRenderAuxGeom& auxGeom, Vec3 const& listenerPosition, float const posX, float posY) const;
 
-#endif //INCLUDE_AUDIO_PRODUCTION_CODE
+#endif // INCLUDE_AUDIO_PRODUCTION_CODE
 };
 } // namespace CryAudio

@@ -268,6 +268,7 @@ CPhysicalWorld::CPhysicalWorld(ILog *pLog) : m_nWorkerThreads(0)
 	0;
 #endif
 	m_vars.breakageMinAxisInertia = 0.01f;
+	m_vars.idEntBreakOnAwake = -1000;
 
 	memset(m_grpProfileData, 0, sizeof(m_grpProfileData));
 	m_grpProfileData[ 0].pName = "Rigid bodies";
@@ -834,7 +835,7 @@ void SEntityGrid::Setup(int axisz, Vec3 org, int nx,int ny, float stepx,float st
 	origin = org;
 	Basis.SetIdentity();
 	AllocateGrid(cells, size);
-	log2PODscale = log2PODscale;
+	log2PODscale = _log2PODscale;
 	PODstride.set(1,ny>>3+log2PODscale);
 	bCyclic = _bCyclic;
 }
@@ -4471,6 +4472,23 @@ int CPhysicalWorld::RayTraceEntity(IPhysicalEntity *pient, Vec3 origin,Vec3 dir,
 
 	if (((CPhysicalPlaceholder*)pient)->m_iSimClass!=5) {
 		CPhysicalEntity *pent = ((CPhysicalPlaceholder*)pient)->GetEntity();
+		auto FillHit = [pHit,pent](const geom_contact& cont, int ipart) {
+			pHit->dist = cont.t;
+			pHit->pCollider = pent; 
+			pHit->surface_idx = pent->GetMatId(cont.id[0], pHit->ipart=ipart);
+			pHit->pt = cont.pt;
+			pHit->n = cont.n;
+		};
+
+		if (pent->m_flags & pef_use_geom_callbacks || !pent->m_nParts) {
+			SRayTraceRes rtr(&aray, nullptr);
+			if (ncont = pent->RayTrace(rtr)) {
+				FillHit(rtr.pcontacts[ncont-1], 0);
+				pHit->partid = rtr.pcontacts[ncont-1].iNode[0];
+				return 1;
+			}
+			return 0;
+		}
 
 		if (pp) {
 			pos = pp->pos; qrot = pp->q;
@@ -4507,13 +4525,10 @@ int CPhysicalWorld::RayTraceEntity(IPhysicalEntity *pient, Vec3 origin,Vec3 dir,
 				ncont = part.pPhysGeom->pGeom->Intersect(&aray,&gwd,0,&ip,pcontacts);
 				for(; ncont>0 && (pcontacts[ncont-1].t>pHit->dist || pcontacts[ncont-1].n*dir>0); ncont--);
 				if (ncont>0) {
-					pHit->dist = pcontacts[ncont-1].t;
-					pHit->pCollider = pent; pHit->partid = pent->m_parts[pHit->ipart=i].id;
-					pHit->surface_idx = pent->GetMatId(pcontacts[ncont-1].id[0],i);
+					FillHit(pcontacts[ncont-1], i);
+					pHit->partid = pent->m_parts[i].id;
 					pHit->idmatOrg = pcontacts[ncont-1].id[0] + (part.surface_idx+1 & pcontacts[ncont-1].id[0]>>31);
 					pHit->foreignIdx = part.pPhysGeom->pGeom->GetForeignIdx(pcontacts[ncont-1].iPrim[0]);
-					pHit->pt = pcontacts[ncont-1].pt;
-					pHit->n = pcontacts[ncont-1].n;
 				}
 			}
 		}

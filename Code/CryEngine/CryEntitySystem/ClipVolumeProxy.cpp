@@ -39,7 +39,7 @@ void CEntityComponentClipVolume::Initialize()
 	m_pClipVolume = gEnv->p3DEngine->CreateClipVolume();
 }
 
-void CEntityComponentClipVolume::ProcessEvent(SEntityEvent& event)
+void CEntityComponentClipVolume::ProcessEvent(const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_XFORM ||
 	    event.event == ENTITY_EVENT_HIDE ||

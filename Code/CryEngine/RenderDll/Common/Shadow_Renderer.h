@@ -149,7 +149,6 @@ public:
 	uint32                          m_Flags;
 
 	// Render view that is used to accumulate items for this frustum.
-	std::array<_smart_ptr<IRenderView>, RT_COMMAND_BUF_COUNT> m_pShadowsView; // a pool of shadows view.
 	std::shared_ptr<ShadowCacheData>                          pShadowCacheData;
 
 public:
@@ -440,7 +439,7 @@ public:
 
 	void                         SortRenderItemsForFrustumAsync(int side, struct SRendItem* pFirst, size_t nNumRendItems);
 
-	void                         RenderShadowFrustum(CRenderView* pRenderView, CRenderView* pShadowsView, int side, bool bJobCasters);
+	void                         RenderShadowFrustum(IRenderViewPtr pShadowsView, int side, bool bJobCasters);
 	void                         Job_RenderShadowCastersToView(const SRenderingPassInfo& passInfo, bool bJobCasters);
 
 	CRenderView*                 GetNextAvailableShadowsView(CRenderView* pMainRenderView, ShadowMapFrustum* pOwnerFrustum);
@@ -535,13 +534,13 @@ struct ShadowFrustumMGPUCache : public ISyncMainWithRenderListener
 
 struct SShadowFrustumToRender
 {
-	ShadowMapFrustumPtr     pFrustum;
-	SRenderLight*           pLight;
-	int                     nLightID;
-	_smart_ptr<IRenderView> pShadowsView;
+	ShadowMapFrustumPtr pFrustum;
+	SRenderLight*       pLight;
+	int                 nLightID;
+	IRenderViewPtr      pShadowsView;
 
 	SShadowFrustumToRender() : pFrustum(0), pLight(0), nLightID(0) {}
-	SShadowFrustumToRender(ShadowMapFrustum* pFrustum, SRenderLight* pLight, int nLightID, IRenderView* pShadowsView)
+	SShadowFrustumToRender(ShadowMapFrustum* pFrustum, SRenderLight* pLight, int nLightID, IRenderViewPtr pShadowsView)
 		: pFrustum(pFrustum)
 		, pLight(pLight)
 		, nLightID(nLightID)

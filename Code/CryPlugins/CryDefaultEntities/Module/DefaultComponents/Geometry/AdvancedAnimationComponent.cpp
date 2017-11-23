@@ -89,7 +89,7 @@ namespace Cry
 			ResetCharacter();
 		}
 
-		void CAdvancedAnimationComponent::ProcessEvent(SEntityEvent& event)
+		void CAdvancedAnimationComponent::ProcessEvent(const SEntityEvent& event)
 		{
 			if (event.event == ENTITY_EVENT_UPDATE)
 			{

@@ -1,16 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   BreakableManager.cpp
-//  Version:     v1.00
-//  Created:     7/6/2005 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #include "stdafx.h"
 #include <CryAnimation/ICryAnimation.h>
 #include "BreakableManager.h"
@@ -1605,7 +1594,7 @@ class CTimeoutKillComponent : public IEntityComponent
 	CRY_ENTITY_COMPONENT_INTERFACE_AND_CLASS_GUID(CTimeoutKillComponent, "CTimeoutKillComponent", "b55e276d-1ca5-aa14-87fb-ca961e102dff"_cry_guid)
 
 public:
-	virtual void ProcessEvent(SEntityEvent& event) final
+	virtual void ProcessEvent(const SEntityEvent& event) final
 	{
 		if (event.event == ENTITY_EVENT_TIMER)
 		{
@@ -2461,7 +2450,8 @@ int CBreakableManager::HandlePhysics_UpdateMeshEvent(const EventPhysUpdateMesh* 
 				pDeformedStatObj = (IStatObj*)pUpdateEvent->pMesh->GetForeignData();
 			else if (pStatObj)
 			{
-				pDeformedStatObj = pStatObj->SkinVertices(md->pVertices, pUpdateEvent->mtxSkelToMesh);
+				Matrix34 mtxSkelToMeshAligned = pUpdateEvent->mtxSkelToMesh;
+				pDeformedStatObj = pStatObj->SkinVertices(md->pVertices, mtxSkelToMeshAligned);
 				if (pUpdateEvent->pMesh->GetPrimitiveCount() > 1)
 					pUpdateEvent->pMesh->SetForeignData(pDeformedStatObj, 0);
 			}

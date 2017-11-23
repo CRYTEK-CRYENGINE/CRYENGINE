@@ -565,7 +565,7 @@ void CStickyProjectile::SendHitInfo(const CProjectile* pProjectile, IEntity* pTa
 	}
 }
 
-void CStickyProjectile::OnEntityEvent( IEntity *pEntity,SEntityEvent &event )
+void CStickyProjectile::OnEntityEvent( IEntity *pEntity, const SEntityEvent& event )
 {
 	switch(event.event)
 	{

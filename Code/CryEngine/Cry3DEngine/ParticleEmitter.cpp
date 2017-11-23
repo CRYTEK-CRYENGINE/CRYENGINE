@@ -607,11 +607,6 @@ void CParticleEmitter::UpdateContainers()
 		Register(false);
 }
 
-bool CParticleEmitter::IsInstant() const
-{
-	return GetStopAge() + GetSpawnParams().fPulsePeriod == 0.f;
-}
-
 void CParticleEmitter::SetEmitGeom(GeomRef const& geom)
 {
 	if (geom != GetEmitGeom())
@@ -922,7 +917,7 @@ void CParticleEmitter::Render(SRendParams const& RenParams, const SRenderingPass
 
 	ColorF fogVolumeContrib;
 	CFogVolumeRenderNode::TraceFogVolumes(GetPos(), fogVolumeContrib, passInfo);
-	PartParams.m_nFogVolumeContribIdx = GetRenderer()->PushFogVolumeContribution(fogVolumeContrib, passInfo);
+	PartParams.m_nFogVolumeContribIdx = passInfo.GetIRenderView()->PushFogVolumeContribution(fogVolumeContrib, passInfo);
 
 	// Compute camera distance with top effect's SortBoundsScale.
 	PartParams.m_fMainBoundsScale = m_pTopEffect->IsEnabled() ? +m_pTopEffect->GetParams().fSortBoundsScale : 1.f;
@@ -1071,7 +1066,7 @@ void CParticleEmitter::RenderDebugInfo()
 			AABB bbDyn;
 			GetDynamicBounds(bbDyn);
 
-			CCamera const& cam = GetRenderer()->GetCamera();
+			CCamera const& cam = GetISystem()->GetViewCamera();
 			ColorF color(1, 1, 1, 1);
 
 			// Compute label position, in bb clipped to camera.
@@ -1095,7 +1090,7 @@ void CParticleEmitter::RenderDebugInfo()
 
 			SParticleCounts counts;
 			GetCounts(counts);
-			float fPixToScreen = 1.f / ((float)GetRenderer()->GetWidth() * (float)GetRenderer()->GetHeight());
+			float fPixToScreen = 1.f / ((float)GetRenderer()->GetOverlayWidth() * (float)GetRenderer()->GetOverlayHeight());
 
 			if (!bSelected)
 			{
@@ -1107,7 +1102,7 @@ void CParticleEmitter::RenderDebugInfo()
 
 				// Modulate alpha by screen-space bounds extents.
 				int aiOut[4];
-				cam.CalcScreenBounds(aiOut, &bbDyn, GetRenderer()->GetWidth(), GetRenderer()->GetHeight());
+				cam.CalcScreenBounds(aiOut, &bbDyn, GetRenderer()->GetOverlayWidth(), GetRenderer()->GetOverlayHeight());
 				float fCoverage = (aiOut[2] - aiOut[0]) * (aiOut[3] - aiOut[1]) * fPixToScreen;
 
 				// And by pixel and particle counts.

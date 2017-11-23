@@ -498,8 +498,8 @@ void* GetNearestTo(const TCenterSortArray& array, const Vec2& center, const floa
 	}
 	else if(gEnv->pRenderer)
 	{
-		renderSize.x = (float)gEnv->pRenderer->GetWidth();
-		renderSize.y = (float)gEnv->pRenderer->GetHeight();
+		renderSize.x = (float)gEnv->pRenderer->GetOverlayWidth();
+		renderSize.y = (float)gEnv->pRenderer->GetOverlayHeight();
 	}
 
 	float xCompression = 1.0f;

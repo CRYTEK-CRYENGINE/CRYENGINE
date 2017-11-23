@@ -1749,7 +1749,7 @@ int CTriMesh::RegisterIntersection(primitive *pprim1,primitive *pprim2, geometry
 			unproj.dir = ((n_avg^dir)^dir).normalized();
 			unproj.vel = 1.0f;
 		}	else
-			unproj.dir /= (unproj.vel=unproj.dir.len());
+			unproj.dir /= max(1e-8f, unproj.vel=unproj.dir.len());
 		tmax = unproj.tmax = pGTest[0]->pParams->time_interval*unproj.vel;
 	} else {
 		if (pGTest[0]->pParams->axisOfRotation.len2()==0) {

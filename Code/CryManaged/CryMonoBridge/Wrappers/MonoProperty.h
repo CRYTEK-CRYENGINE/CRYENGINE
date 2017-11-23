@@ -17,8 +17,8 @@ public:
 		MonoInternals::MonoProperty *property;
 	};
 
-	CMonoProperty(MonoInternals::MonoProperty* pProperty);
-	CMonoProperty(MonoInternals::MonoReflectionProperty* pProperty);
+	CMonoProperty(MonoInternals::MonoProperty* pProperty, const char* szName);
+	CMonoProperty(MonoInternals::MonoReflectionProperty* pProperty, const char* szName);
 	virtual ~CMonoProperty() {}
 
 	std::shared_ptr<CMonoObject> Get(MonoInternals::MonoObject* pObject, bool &bEncounteredException) const;
@@ -26,6 +26,7 @@ public:
 	void Set(MonoInternals::MonoObject* pObject, void** pParams, bool &bEncounteredException) const;
 	
 	MonoInternals::MonoProperty* GetHandle() const { return m_pProperty; }
+	void OnDeserialized(MonoInternals::MonoProperty* pNewHandle) { m_pProperty = pNewHandle; }
 
 	CMonoMethod GetGetMethod() const;
 	CMonoMethod GetSetMethod() const;
@@ -33,6 +34,9 @@ public:
 	MonoInternals::MonoType* GetUnderlyingType(MonoInternals::MonoReflectionProperty* pReflectionProperty) const;
 	MonoInternals::MonoClass* GetUnderlyingClass(MonoInternals::MonoReflectionProperty* pReflectionProperty) const;
 
+	const char* GetName() const { return m_name.c_str(); }
+
 protected:
+	string m_name;
 	MonoInternals::MonoProperty* m_pProperty;
 };

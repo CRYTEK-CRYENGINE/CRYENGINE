@@ -11,9 +11,9 @@ class QString;
 namespace ACE
 {
 class CConnectionsWidget;
-class CAudioAssetsManager;
-class IAudioSystemItem;
-class CAudioControl;
+class CSystemAssetsManager;
+class CImplItem;
+class CSystemAsset;
 
 class CPropertiesWidget final : public QWidget
 {
@@ -21,7 +21,7 @@ class CPropertiesWidget final : public QWidget
 
 public:
 
-	explicit CPropertiesWidget(CAudioAssetsManager* pAssetsManager);
+	explicit CPropertiesWidget(CSystemAssetsManager* pAssetsManager);
 	virtual ~CPropertiesWidget() override;
 
 	void Reload();
@@ -30,15 +30,15 @@ public:
 
 public slots:
 
-	void SetSelectedControls(std::vector<CAudioControl*> const& selectedControls);
+	void SetSelectedAssets(std::vector<CSystemAsset*> const& selectedAssets);
 
 private:
 
-	CAudioAssetsManager* const m_pAssetsManager;
-	CConnectionsWidget* const  m_pConnectionsWidget;
-	QPropertyTree* const       m_pPropertyTree;
-	QLabel*                    m_pConnectionsLabel;
-	std::unique_ptr<QString>   m_pUsageHint;
-	bool                       m_supressUpdates = false;
+	CSystemAssetsManager* const m_pAssetsManager;
+	CConnectionsWidget* const   m_pConnectionsWidget;
+	QPropertyTree* const        m_pPropertyTree;
+	QLabel*                     m_pConnectionsLabel;
+	std::unique_ptr<QString>    m_pUsageHint;
+	bool                        m_supressUpdates = false;
 };
 } // namespace ACE

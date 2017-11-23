@@ -79,7 +79,7 @@ uint64 COcclusionComponent::GetEventMask() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void COcclusionComponent::ProcessEvent(SEntityEvent& event)
+void COcclusionComponent::ProcessEvent(const SEntityEvent& event)
 {
 #if defined(INCLUDE_DEFAULT_PLUGINS_PRODUCTION_CODE)
 	if (event.event == ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED)

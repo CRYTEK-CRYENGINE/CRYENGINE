@@ -296,8 +296,11 @@ void CPipeUser::Reset(EObjectResetType type)
 	{
 	case AIOBJRESET_INIT:
 	{
-		gAIEnv.pMovementSystem->RegisterEntity(GetEntityID(), m_callbacksForPipeuser, m_movementActorAdapter);
-		gAIEnv.pMovementSystem->AddActionAbilityCallbacks(GetEntityID(), m_coverMovementAbility);
+		if (!gAIEnv.pMovementSystem->IsEntityRegistered(GetEntityID()))
+		{
+			gAIEnv.pMovementSystem->RegisterEntity(GetEntityID(), m_callbacksForPipeuser, m_movementActorAdapter);
+			gAIEnv.pMovementSystem->AddActionAbilityCallbacks(GetEntityID(), m_coverMovementAbility);
+		}
 
 		ICoverUser::Params params;
 		params.distanceToCover = m_Parameters.distanceToCover;
@@ -4242,7 +4245,7 @@ bool CPipeUser::AdjustPathAroundObstacles()
 	{
 		CalculatePathObstacles();
 
-		return m_Path.AdjustPathAroundObstacles(m_pathAdjustmentObstacles, m_movementAbility.pathfindingProperties.navCapMask);
+		return m_Path.AdjustPathAroundObstacles(m_pathAdjustmentObstacles, m_movementAbility.pathfindingProperties.navCapMask, nullptr);
 	}
 
 	return true;

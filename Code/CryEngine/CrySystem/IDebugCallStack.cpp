@@ -248,7 +248,7 @@ void IDebugCallStack::Screenshot(const char* szFileName)
 	static int g_numScreenshots = 0;
 	if (gEnv && gEnv->pRenderer && !g_numScreenshots++)
 	{
-		if (gEnv->pRenderer->ScreenShot(szFileName, 0, eScreenShotMode_AppCrash))
+		if (gEnv->pRenderer->ScreenShot(szFileName, 0))
 		{
 			WriteLineToLog("Successfully created screenshot.");
 		}

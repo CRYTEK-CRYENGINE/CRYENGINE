@@ -17,10 +17,12 @@
 #include <Cry3DEngine/IRenderNode.h>
 #include <CrySerialization/IArchive.h>
 #include <CrySerialization/Enum.h>
+#include <CrySerialization/Color.h>
 #include <CryMemory/IMemory.h>
 #include <CrySystem/TimeValue.h>
 #include <CryAudio/IAudioSystem.h>
 #include <Cry3DEngine/GeomRef.h>
+#include <CryCore/CryVariant.h>
 
 class SmartScriptTable;
 
@@ -118,7 +120,19 @@ struct SpawnParams
 
 		if (bOverrideSeed)
 		{
-			ar(nSeed, "seed", "Random Seed");
+			if (ar.isEdit())
+			{
+				int seed = nSeed;
+				ar(seed, "seed", "Random Seed");
+				if (!isneg(seed))
+				{
+					nSeed = seed;
+				}
+			}
+			else
+			{
+				ar(nSeed, "seed", "Random Seed");
+			}
 		}
 	}
 };
@@ -197,9 +211,25 @@ struct ParticleLoc : QuatTS
 };
 
 //! Interface to control particle attributes
+
+// Execute common code for all attribute types.
+// Similiar in function to std::visit, but allows a separate type variable to be used,
+// and doesn't require the construction of an external functor class.
+// This could be done without a macro, but only if auto parameters are allowed in lambdas,
+// which is not yet supported on all compilers.
+#define DO_FOR_ATTRIBUTE_TYPE(type, T, code) \
+	switch (type) \
+	{ \
+	case IParticleAttributes::ET_Boolean: { using T = bool;   code; break; } \
+	case IParticleAttributes::ET_Integer: { using T = int;    code; break; } \
+	case IParticleAttributes::ET_Float:   { using T = float;  code; break; } \
+	case IParticleAttributes::ET_Color:   { using T = ColorB; code; break; } \
+	} \
+
 struct IParticleAttributes
 {
 	typedef uint TAttributeId;
+
 	enum EType
 	{
 		ET_Boolean,
@@ -210,33 +240,108 @@ struct IParticleAttributes
 		ET_Count,
 	};
 
-	virtual void         Reset(const IParticleAttributes* pCopySource = nullptr) = 0;
-	virtual void         Serialize(Serialization::IArchive& ar) = 0;
-	virtual void         TransferInto(IParticleAttributes* pReceiver) const = 0;
-	virtual TAttributeId FindAttributeIdByName(cstr name) const = 0;
-	virtual uint         GetNumAttributes() const = 0;
-	virtual cstr         GetAttributeName(TAttributeId idx) const = 0;
-	virtual EType        GetAttributeType(TAttributeId idx) const = 0;
+	typedef CryVariant<bool, int, float, ColorB> TVariant;
 
-	virtual bool         GetAsBoolean(TAttributeId id, bool defaultValue) const = 0;
-	virtual int          GetAsInteger(TAttributeId id, int defaultValue) const = 0;
-	virtual float        GetAsFloat(TAttributeId id, float defaultValue) const = 0;
-	virtual ColorB       GetAsColorB(TAttributeId id, ColorB defaultValue) const = 0;
-	virtual ColorF       GetAsColorF(TAttributeId id, ColorF defaultValue) const = 0;
+	struct TValue: TVariant
+	{
+		using TVariant::TVariant;
+		using TVariant::operator=;
 
-	virtual void         SetAsBoolean(TAttributeId id, bool value) = 0;
-	virtual int          SetAsInteger(TAttributeId id, int value) = 0;
-	virtual float        SetAsFloat(TAttributeId id, float value) = 0;
-	virtual void         SetAsColor(TAttributeId id, ColorB value) = 0;
-	virtual void         SetAsColor(TAttributeId id, ColorF value) = 0;
+		// Redeclaring default constructors required, because gcc is confused by the ColorF constructors below
+		TValue()                                       {}
+		TValue(const TValue& in)                       : TVariant(static_cast<const TVariant&>(in)) {}
+		TValue& operator=(const TValue& in)            { TVariant::operator=(static_cast<const TVariant&>(in)); return *this; }
+
+		TValue(const ColorF& in)                       : TVariant(ColorB(in)) {}
+		TValue& operator=(const ColorF& in)            { emplace<ColorB>(ColorB(in)); return *this; }
+
+		explicit TValue(EType type)                    { SetType(type); }
+
+		template<typename T> T        get() const      { return stl::get<T>(*this); }
+		template<typename T> T&       get()            { return stl::get<T>(*this); }
+		template<typename T> const T* get_if() const   { return stl::get_if<T>(this); }
+		template<typename T> T*       get_if()         { return stl::get_if<T>(this); }
+
+		EType                         Type() const     { return (EType)index(); }
+		void                          SetType(EType type)
+		{
+			DO_FOR_ATTRIBUTE_TYPE(type, T, *this = T());
+		}
+
+		template<typename T> void Serialize(Serialization::IArchive& ar, cstr name, cstr label, T defVal = T())
+		{
+			const T* pVal = get_if<T>();
+			T val = pVal ? *pVal : defVal;
+
+			ar(val, name, label);
+
+			if (ar.isInput())
+				*this = val;
+		}
+
+		void Serialize(Serialization::IArchive& ar, EType type, cstr name, cstr label)
+		{
+			DO_FOR_ATTRIBUTE_TYPE(type, T, Serialize<T>(ar, name, label));
+		}
+
+		void Serialize(Serialization::IArchive& ar)
+		{
+			EType type = Type();
+			ar(type, "Type", "^>85>");
+			Serialize(ar, type, "Value", "^");
+		}
+	};
+
+	virtual void          Reset(const IParticleAttributes* pCopySource = nullptr) = 0;
+	virtual void          Serialize(Serialization::IArchive& ar) = 0;
+	virtual void          TransferInto(IParticleAttributes* pReceiver) const = 0;
+	virtual TAttributeId  FindAttributeIdByName(cstr name) const = 0;
+	virtual uint          GetNumAttributes() const = 0;
+	virtual cstr          GetAttributeName(TAttributeId idx) const = 0;
+	virtual EType         GetAttributeType(TAttributeId idx) const = 0;
+	virtual const TValue& GetValue(TAttributeId idx) const = 0;
+	virtual TValue        GetValue(TAttributeId idx, const TValue& defaultValue) const = 0;
+	virtual bool          SetValue(TAttributeId idx, const TValue& value) = 0;
+
+	template<typename T> T GetValueAs(TAttributeId idx, T defaultValue) const
+	{
+		return GetValue(idx, defaultValue).template get<T>();
+	}
+	
+	const TValue& GetValue(cstr name) const
+	{
+		return GetValue(FindAttributeIdByName(name));
+	}
+	bool SetValue(cstr name, const TValue& value)
+	{
+		return SetValue(FindAttributeIdByName(name), value);
+	}
+
+	// Deprecated
+	bool         GetAsBoolean(TAttributeId id, bool defaultValue = false) const         { return GetValueAs(id, defaultValue); }
+	int          GetAsInteger(TAttributeId id, int defaultValue = 0) const              { return GetValueAs(id, defaultValue); }
+	float        GetAsFloat(TAttributeId id, float defaultValue = 0) const              { return GetValueAs(id, defaultValue); }
+	ColorB       GetAsColorB(TAttributeId id, ColorB defaultValue = ColorB(0U)) const   { return GetValueAs(id, defaultValue); }
+	ColorF       GetAsColorF(TAttributeId id, ColorF defaultValue = ColorF(0.0f)) const { return GetValueAs(id, ColorB(defaultValue)); }
+
+	void         SetAsBoolean(TAttributeId id, bool value) { SetValue(id, value); }
+	void         SetAsInteger(TAttributeId id, int value)  { SetValue(id, value); }
+	void         SetAsFloat(TAttributeId id, float value)  { SetValue(id, value); }
+	void         SetAsColor(TAttributeId id, ColorB value) { SetValue(id, value); }
+	void         SetAsColor(TAttributeId id, ColorF value) { SetValue(id, ColorB(value)); }
 };
 
+SERIALIZATION_ENUM_IMPLEMENT(IParticleAttributes::EType,
+	Boolean,
+	Integer,
+	Float,
+	Color
+);
 typedef std::shared_ptr<IParticleAttributes> TParticleAttributesPtr;
 
 namespace pfx2
 {
-	struct IParticleFeature;
-	typedef std::vector<_smart_ptr<IParticleFeature>> TParticleFeatures;
+	struct TParticleFeatures;
 };
 
 //! Interface to control a particle effect.
@@ -361,10 +466,6 @@ struct IParticleEffect : public _i_reference_target_t
 	//! \param bChildren When true, also recursively reloads effect children.
 	virtual void Reload(bool bChildren) = 0;
 
-	// Summary:
-	// Arguments:
-	virtual IParticleAttributes& GetAttributes() = 0;
-
 	// </interfuscator:shuffle>
 };
 
@@ -379,9 +480,6 @@ struct IParticleEmitter : public IRenderNode, public CMultiThreadRefCount
 
 	//! Returns whether emitter still alive in engine.
 	virtual bool IsAlive() const = 0;
-
-	//! Returns whether emitter requires no further attachment.
-	virtual bool IsInstant() const = 0;
 
 	//! Sets emitter state to active or inactive. Emitters are initially active.
 	//! if bActive is true, Emitter updates and emits as normal, and deletes itself if limited lifetime.

@@ -9,7 +9,7 @@ class CPowerOf2BlockPacker
 {
 public:
 	CTexture* m_pTexture;
-	float     m_fLastUsed;
+	CTimeValue m_timeLastUsed;
 
 public:
 	// constructor

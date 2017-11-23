@@ -5,6 +5,9 @@ using CryEngine.Common;
 
 namespace CryEngine.Animations
 {
+	/// <summary>
+	/// Handles advanced character animations in the CRYENGINE.
+	/// </summary>
 	public class Mannequin
 	{
 		#region singleton properties and fields

@@ -116,7 +116,7 @@ static void cmd_setFBScale(IConsoleCmdArgs* pParams)
 		newScale = gEnv->pRenderer->SetViewportDownscale(newScale.x, newScale.y);
 	}
 
-	int nWidth = gEnv->pRenderer->GetWidth();
+	int nWidth  = gEnv->pRenderer->GetWidth();
 	int nHeight = gEnv->pRenderer->GetHeight();
 
 	gEnv->pLog->LogWithType(ILog::eInputResponse, "Current Viewport Resolution: %dx%d",

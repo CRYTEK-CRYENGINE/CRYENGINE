@@ -121,7 +121,7 @@ uint64 CEntityAIBehaviorTreeComponent::GetEventMask() const
 		ENTITY_EVENT_BIT(ENTITY_EVENT_START_GAME);
 }
 
-void CEntityAIBehaviorTreeComponent::ProcessEvent(SEntityEvent& event)
+void CEntityAIBehaviorTreeComponent::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

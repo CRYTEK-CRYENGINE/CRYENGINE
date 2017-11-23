@@ -244,7 +244,7 @@ void CEntityFlowNode::ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
 	}
 }
 
-void CEntityFlowNode::OnEntityEvent(IEntity*pEntity, SEntityEvent& event)
+void CEntityFlowNode::OnEntityEvent(IEntity*pEntity, const SEntityEvent& event)
 {
 	if (!m_pGraph->IsEnabled() || m_pGraph->IsSuspended() || !m_pGraph->IsActive())
 		return;

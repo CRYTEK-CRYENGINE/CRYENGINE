@@ -24,7 +24,7 @@ namespace UQS
 			// passed in to AddOrUpdateHistoricQuery()
 			struct SHistoricQueryOverview
 			{
-				explicit                  SHistoricQueryOverview(const ColorF& _color, const char *_szQuerierName, const CQueryID& _queryID, const CQueryID& _parentQueryID, const char* _szQueryBlueprintName, size_t _numGeneratedItems, size_t _numResultingItems, const CTimeValue& _timeElapsedUntilResult, const CTimeValue& _timestampQueryCreated, const CTimeValue& _timestampQueryDestroyed, bool _bFoundTooFewItems, bool _bQueryEncounteredAnException);
+				explicit                  SHistoricQueryOverview(const ColorF& _color, const char *_szQuerierName, const CQueryID& _queryID, const CQueryID& _parentQueryID, const char* _szQueryBlueprintName, size_t _numGeneratedItems, size_t _numResultingItems, const CTimeValue& _timeElapsedUntilResult, const CTimeValue& _timestampQueryCreated, const CTimeValue& _timestampQueryDestroyed, bool _bFoundTooFewItems, bool _bQueryEncounteredAnException, bool _bQueryEncounteredSomeWarnings);
 
 				// TODO: itemType of the generated items
 
@@ -40,6 +40,7 @@ namespace UQS
 				CTimeValue                timestampQueryDestroyed;
 				bool                      bFoundTooFewItems;
 				bool                      bQueryEncounteredAnException;
+				bool                      bQueryEncounteredSomeWarnings;
 			};
 
 			virtual                       ~IQueryHistoryConsumer() {}
@@ -62,7 +63,7 @@ namespace UQS
 			virtual void                  AddDeferredEvaluatorName(const char* szDeferredEvaluatorName) = 0;
 		};
 
-		inline IQueryHistoryConsumer::SHistoricQueryOverview::SHistoricQueryOverview(const ColorF& _color, const char *_szQuerierName, const CQueryID& _queryID, const CQueryID& _parentQueryID, const char* _szQueryBlueprintName, size_t _numGeneratedItems, size_t _numResultingItems, const CTimeValue& _timeElapsedUntilResult, const CTimeValue& _timestampQueryCreated, const CTimeValue& _timestampQueryDestroyed, bool _bFoundTooFewItems, bool _bQueryEncounteredAnException)
+		inline IQueryHistoryConsumer::SHistoricQueryOverview::SHistoricQueryOverview(const ColorF& _color, const char *_szQuerierName, const CQueryID& _queryID, const CQueryID& _parentQueryID, const char* _szQueryBlueprintName, size_t _numGeneratedItems, size_t _numResultingItems, const CTimeValue& _timeElapsedUntilResult, const CTimeValue& _timestampQueryCreated, const CTimeValue& _timestampQueryDestroyed, bool _bFoundTooFewItems, bool _bQueryEncounteredAnException, bool _bQueryEncounteredSomeWarnings)
 			: color(_color)
 			, szQuerierName(_szQuerierName)
 			, queryID(_queryID)
@@ -75,6 +76,7 @@ namespace UQS
 			, timestampQueryDestroyed(_timestampQueryDestroyed)
 			, bFoundTooFewItems(_bFoundTooFewItems)
 			, bQueryEncounteredAnException(_bQueryEncounteredAnException)
+			, bQueryEncounteredSomeWarnings(_bQueryEncounteredSomeWarnings)
 		{
 			// nothing
 		}

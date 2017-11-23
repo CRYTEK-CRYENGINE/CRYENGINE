@@ -283,7 +283,7 @@ void CFeatureRenderSprites::CullParticles(SSpritesContext* pSpritesContext)
 			}
 		}
 
-		const float alpha = alphas.SafeLoad(particleId) * cull;
+		const float alpha = alphas.SafeLoad(particleId) * max(cull, 0.0f);
 		if (alpha > 0.0f)
 		{
 			particleIds[pSpritesContext->m_numSprites++] = particleId;

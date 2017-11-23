@@ -44,7 +44,7 @@ void CEntityComponentRope::Update(SEntityUpdateContext& ctx)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntityComponentRope::ProcessEvent(SEntityEvent& event)
+void CEntityComponentRope::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

@@ -57,8 +57,6 @@ CryCriticalSection CFrameProfileSystem::m_staticProfilersLock;
 // FrameProfilerSystem Implementation.
 //////////////////////////////////////////////////////////////////////////
 
-int CFrameProfileSystem::profile_callstack = 0;
-int CFrameProfileSystem::profile_log = 0;
 threadID CFrameProfileSystem::s_nFilterThreadId = 0;
 
 //////////////////////////////////////////////////////////////////////////
@@ -69,9 +67,7 @@ CFrameProfileSystem::CFrameProfileSystem()
 	, m_bCollectionPaused(false)
 	, m_bCollect(false)
 	, m_bDisplay(false)
-	, m_bNetworkProfiling(false)
 	, m_bMemoryProfiling(true)
-	, m_bDisplayMemoryInfo(false)
 	, m_bLogMemoryInfo(false)
 	, m_pRenderer(nullptr)
 	, m_displayQuantity(SELF_TIME)
@@ -87,13 +83,10 @@ CFrameProfileSystem::CFrameProfileSystem()
 	, m_frameOverheadSecAvg(0.0f)
 	, m_ProfilerThreads(GetCurrentThreadId())
 	, m_pCurrentCustomSection(nullptr)
-	, m_peakTolerance(PEAK_TOLERANCE)
 	, m_bDisplayedProfilersValid(false)
 	, m_subsystemFilter(PROFILE_RENDERER)
 	, m_bSubsystemFilterEnabled(false)
 	, m_maxProfileCount(999)
-	, m_peakDisplayDuration(8.0f)
-	, m_bDrawGraph(false)
 	#if defined(JOBMANAGER_SUPPORT_FRAMEPROFILER)
 	, m_nWorkerGraphCurPos(0)
 	#endif
@@ -103,7 +96,6 @@ CFrameProfileSystem::CFrameProfileSystem()
 	, m_histogramsCurrPos(0)
 	, m_histogramsMaxPos(200)
 	, m_histogramsHeight(16)
-	, m_histogramScale(100.0f)
 	, m_selectedRow(-1)
 	, ROW_SIZE(0.0f)
 	, COL_SIZE(0.0f)
@@ -113,8 +105,6 @@ CFrameProfileSystem::CFrameProfileSystem()
 	, m_nPagesFaultsLastFrame(0)
 	, m_nPagesFaultsPerSec(0)
 	, m_nLastPageFaultCount(0)
-	, m_bPageFaultsGraph(false)
-	, m_bRenderAdditionalSubsystems(false)
 {
 	s_pFrameProfileSystem = this;
 	#if CRY_PLATFORM_WINDOWS
@@ -170,7 +160,7 @@ CFrameProfileSystem::CFrameProfileSystem()
 	m_ThreadFrameStats = new JobManager::CWorkerFrameStats(0);
 	m_BlockingFrameStats = new JobManager::CWorkerFrameStats(0);
 	#endif
-};
+}
 
 //////////////////////////////////////////////////////////////////////////
 CFrameProfileSystem::~CFrameProfileSystem()
@@ -195,6 +185,112 @@ void CFrameProfileSystem::Init()
 {
 	gEnv->callbackStartSection = &StartProfilerSection;
 	gEnv->callbackEndSection = &EndProfilerSection;
+
+	REGISTER_INT_CB("profile", 0, 0, 
+		"Allows CPU profiling\n"
+		"Usage: profile #\n"
+		"Where # sets the profiling to:\n"
+		"	0: Profiling off\n"
+		"	1: Self Time\n"
+		"	2: Hierarchical Time\n"
+		"	3: Extended Self Time\n"
+		"	4: Extended Hierarchical Time\n"
+		"	5: Peaks Time\n"
+		"	6: Subsystem Info\n"
+		"	7: Calls Numbers\n"
+		"	8: Standard Deviation\n"
+		"	9: Memory Allocation\n"
+		"	10: Memory Allocation (Bytes)\n"
+		"	11: Stalls\n"
+		"	-1: Profiling enabled, but not displayed\n"
+		"Default is 0 (off)",
+		[](ICVar* pEnable)
+		{
+			// Update frame profiler from sys variable: 1 = enable and display, -1 = just enable
+			int profValue = pEnable->GetIVal();
+			bool bEnable  = profValue != 0;
+			bool bDisplay = profValue > 0;
+			int dispNum   = abs(profValue);
+			s_pFrameProfileSystem->SetDisplayQuantity((CFrameProfileSystem::EDisplayQuantity)(dispNum - 1));
+			if (bEnable != s_pFrameProfileSystem->IsEnabled() || bDisplay != s_pFrameProfileSystem->IsVisible())
+			{
+				s_pFrameProfileSystem->Enable(bEnable, bDisplay);
+			}
+		});
+
+	REGISTER_CVAR2("profile_deep", &gEnv->bDeepProfiling, 0, 0,
+		"Enable deep profiling\n"
+		"Usage: profile_deep_profiling #\n"
+		"Where # sets profiling level to:\n"
+		"	0: Regions only\n"
+		"	1: Regions and all others\n"
+		"Default is 0 (Regions only)");
+
+	REGISTER_CVAR(profile_additionalsub, 0, 0, 
+		"Enable displaying additional sub-system profiling.\n"
+		"Usage: profile_additionalsub #\n"
+		"Where where # may be:\n"
+		"	0: no additional subsystem information\n"
+		"	1: display additional subsystem information\n"
+		"Default is 0 (off)");
+
+	REGISTER_STRING_CB("profile_filter", "", 0,
+		"Profiles a specified subsystem.\n"
+		"Usage: profile_filter subsystem\n"
+		"Where 'subsystem' may be:\n"
+		"Any\n"
+		"Renderer\n"
+		"3DEngine\n"
+		"Particle\n"
+		"Animation\n"
+		"AI\n"
+		"Entity\n"
+		"Physics\n"
+		"Sound\n"
+		"System\n"
+		"Game\n"
+		"Editor\n"
+		"Script\n"
+		"Network",
+		[](ICVar* var) { s_pFrameProfileSystem->SetSubsystemFilter(var->GetString()); });
+	REGISTER_STRING_CB("profile_filter_thread", "", 0,
+		"Profiles a specified thread only.\n"
+		"Usage: profile_filter threadName\n"
+		"Where 'threadName' may be:\n"
+		"Any\n"
+		"Main\n"
+		"RenderThread\n"
+		"Network\n"
+		"etc...",
+		[](ICVar* var) { s_pFrameProfileSystem->SetSubsystemFilterThread(var->GetString()); });
+	REGISTER_CVAR(profile_graph, false, 0,
+		"Enable drawing of profiling graph.");
+	REGISTER_CVAR(profile_graphScale, 100.0f, 0,
+		"Sets the scale of profiling histograms.\n"
+		"Usage: profileGraphScale 100");
+	REGISTER_CVAR(profile_pagefaults, 0, 0,
+		"Enable drawing of page faults graph.");
+	REGISTER_CVAR(profile_network, 0, 0,
+		"Enables network profiling");
+	REGISTER_CVAR(profile_peak, PEAK_TOLERANCE, 0,
+		"Profiler Peaks Tolerance in Milliseconds");
+	REGISTER_CVAR(profile_peak_display, 8.0f, 0,
+		"hot to cold time for peak display");
+	REGISTER_CVAR(profile_min_display_ms, 0.01f, 0,
+		"Minimum time in ms for displayed functions");
+	REGISTER_CVAR2("MemInfo", &profile_meminfo, 0, 0, 
+		"Display memory information by modules\n1=on, 0=off");
+
+	REGISTER_CVAR(profile_row, 0, 0,
+		"Starting row for profile display");
+	REGISTER_CVAR(profile_col, 60, 0,
+		"Starting column for profile display");
+
+	REGISTER_INT_CB("profile_sampler", 0, 0,
+		"Set to 1 to start sampling profiling",
+		[](ICVar* var) { if (var->GetIVal()) s_pFrameProfileSystem->StartSampling(); });
+	REGISTER_CVAR(profile_sampler_max_samples, 2000, 0,
+		"Number of samples to collect for sampling profiler");
 
 	REGISTER_CVAR(profile_callstack, 0, 0, "Logs all Call Stacks of the selected profiler function for one frame");
 	REGISTER_CVAR(profile_log, 0, 0, "Logs profiler output");
@@ -366,11 +462,11 @@ void CFrameProfileSystem::EnableHistograms(bool bEnableHistograms)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFrameProfileSystem::StartSampling(int nMaxSamples)
+void CFrameProfileSystem::StartSampling()
 {
 	if (m_pSampler)
 	{
-		m_pSampler->SetMaxSamples(nMaxSamples);
+		m_pSampler->SetMaxSamples(profile_sampler_max_samples);
 		m_pSampler->Start();
 	}
 }
@@ -663,7 +759,7 @@ void CFrameProfileSystem::AccumulateProfilerSection(CFrameProfilerSection* pSect
 	else
 		pProfiler->m_pParent = 0;
 
-	if (profile_callstack)
+	if (s_pFrameProfileSystem->profile_callstack)
 	{
 		if (pProfiler == s_pFrameProfileSystem->m_pGraphProfiler)
 		{
@@ -757,7 +853,7 @@ CFrameProfilerSection const* CFrameProfileSystem::GetCurrentProfilerSection()
 //////////////////////////////////////////////////////////////////////////
 void CFrameProfileSystem::StartCustomSection(CCustomProfilerSection* pSection)
 {
-	if (!m_bNetworkProfiling)
+	if (!profile_network)
 		return;
 
 	pSection->m_excludeValue = 0;
@@ -768,7 +864,7 @@ void CFrameProfileSystem::StartCustomSection(CCustomProfilerSection* pSection)
 //////////////////////////////////////////////////////////////////////////
 void CFrameProfileSystem::EndCustomSection(CCustomProfilerSection* pSection)
 {
-	if (!m_bNetworkProfiling || m_bCollectionPaused)
+	if (!profile_network || m_bCollectionPaused)
 		return;
 
 	int total = *pSection->m_pValue;
@@ -833,13 +929,13 @@ void CFrameProfileSystem::StartFrame()
 //////////////////////////////////////////////////////////////////////////
 float CFrameProfileSystem::TranslateToDisplayValue(int64 val)
 {
-	if (!m_bNetworkProfiling && !m_bMemoryProfiling)
+	if (!profile_network && !m_bMemoryProfiling)
 		return gEnv->pTimer->TicksToSeconds(val) * 1000;
 	else if (m_displayQuantity == ALLOCATED_MEMORY)
 		return (float)(val >> 10); // In Kilobytes
 	else if (m_displayQuantity == ALLOCATED_MEMORY_BYTES)
 		return (float)val; // In bytes
-	else if (m_bNetworkProfiling)
+	else if (profile_network)
 		return (float)val;
 	return (float)val;
 }
@@ -929,7 +1025,7 @@ void CFrameProfileSystem::EndFrame()
 		gEnv->pRenderer->GetThreadIDs(id, renderThreadId);
 	}
 
-	if (!m_bEnabled && !m_bNetworkProfiling)
+	if (!m_bEnabled && !profile_network)
 	{
 		static ICVar* pDisplayInfo = nullptr;
 
@@ -1000,7 +1096,7 @@ void CFrameProfileSystem::EndFrame()
 
 	#endif
 
-	if (m_bCollectionPaused || (!m_bCollect && !m_bNetworkProfiling))
+	if (m_bCollectionPaused || (!m_bCollect && !profile_network))
 		return;
 
 	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
@@ -1081,7 +1177,7 @@ void CFrameProfileSystem::EndFrame()
 
 	int64 selfAccountedTime = 0;
 
-	float fPeakTolerance = m_peakTolerance;
+	float fPeakTolerance = profile_peak;
 	if (m_bMemoryProfiling)
 	{
 		fPeakTolerance = 0;
@@ -1204,7 +1300,7 @@ void CFrameProfileSystem::EndFrame()
 			}
 			;
 
-			if ((SUBSYSTEM_INFO != m_displayQuantity) && (GetAdditionalSubsystems()))
+			if ((SUBSYSTEM_INFO != m_displayQuantity) && profile_additionalsub)
 			{
 				float faveValue = pFrameProfiler->m_selfTimeHistory.GetAverage();
 				if (pFrameProfiler->m_subsystem < PROFILE_LAST_SUBSYSTEM)
@@ -1284,9 +1380,9 @@ void CFrameProfileSystem::EndFrame()
 				}
 				float millis;
 				if (m_displayQuantity == TOTAL_TIME || m_displayQuantity == TOTAL_TIME_EXTENDED)
-					millis = m_histogramScale * pFrameProfiler->m_totalTimeHistory.GetLast();
+					millis = profile_graphScale * pFrameProfiler->m_totalTimeHistory.GetLast();
 				else
-					millis = m_histogramScale * pFrameProfiler->m_selfTimeHistory.GetLast();
+					millis = profile_graphScale * pFrameProfiler->m_selfTimeHistory.GetLast();
 				if (millis < 0) millis = 0;
 				if (millis > 255) millis = 255;
 				pFrameProfiler->m_pGraph->m_data[m_histogramsCurrPos] = 255 - FtoI(millis); // must use ftoi.
@@ -1512,13 +1608,6 @@ void CFrameProfileSystem::RemovePeaksListener(IFrameProfilePeakCallback* pPeakCa
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFrameProfileSystem::EnableMemoryProfile(bool bEnable)
-{
-	if (bEnable != m_bDisplayMemoryInfo)
-		m_bLogMemoryInfo = true;
-	m_bDisplayMemoryInfo = bEnable;
-}
-
 bool CFrameProfileSystem::OnInputEvent(const SInputEvent& event)
 {
 	bool ret = false;

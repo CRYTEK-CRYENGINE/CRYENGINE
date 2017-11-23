@@ -116,6 +116,15 @@ inline void ReflectType(CTypeDesc<CharacterFileName>& desc)
 	desc.SetDescription("Character file name");
 }
 
+typedef SerializationUtils::SResourceNameSelector<&Serialization::ModelFilename<string>> AnyModelFileName;
+
+inline void ReflectType(CTypeDesc<AnyModelFileName>& desc)
+{
+	desc.SetGUID("{51398F30-C0DD-41F6-9391-8F70755442C0}"_cry_guid);
+	desc.SetLabel("Model Filename");
+	desc.SetDescription("Model file name");
+}
+
 typedef SerializationUtils::SResourceNameSelector<&Serialization::AnimationPath<string>> LowLevelAnimationName;
 
 inline void ReflectType(CTypeDesc<LowLevelAnimationName>& desc)

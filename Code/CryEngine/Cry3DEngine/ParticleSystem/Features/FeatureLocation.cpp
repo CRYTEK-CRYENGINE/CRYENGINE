@@ -993,7 +993,9 @@ CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureLocationBindToCamera, "Loca
 
 namespace
 {
+//
 // Box
+//
 ILINE Vec3 RandomPosZBox(SChaosKey& chaosKey)
 {
 	return Vec3(chaosKey.RandSNorm(), chaosKey.RandSNorm(), chaosKey.RandUNorm());
@@ -1008,30 +1010,31 @@ ILINE bool WrapPosZBox(Vec3& pos)
 	return pos != pos0;
 }
 
+//
 // Sector
-ILINE bool InPosZSector(const Vec3& pos, Vec2 scrWidth, float epsilon = 0.0f)
+//
+ILINE bool InScreen(const Vec3& pos, Vec2 scrWidth, float epsilon = 0.0f)
 {
 	return abs(pos.x) <= pos.z * scrWidth.x + epsilon
-	       && abs(pos.y) <= pos.z * scrWidth.y + epsilon;
+	    && abs(pos.y) <= pos.z * scrWidth.y + epsilon;
 }
 
-ILINE bool InUnitZSector(const Vec3& pos, Vec2 scrWidth, float epsilon = 0.0f)
+ILINE bool InSector(const Vec3& pos, Vec2 scrWidth, float epsilon = 0.0f)
 {
-	return InPosZSector(pos, scrWidth, epsilon)
-	       && pos.GetLengthSquared() <= 1.0f + epsilon * 2.0f;
+	return InScreen(pos, scrWidth, epsilon)
+	       && pos.len2() <= 1.0f + epsilon * 2.0f;
 }
 
-ILINE Vec3 RandomUnitZSector(SChaosKey& chaosKey, Vec2 scrWidth)
+ILINE Vec3 RandomSector(SChaosKey& chaosKey, Vec2 scrWidth)
 {
-	Vec3 pos(chaosKey.RandSNorm() * scrWidth.x, chaosKey.RandSNorm() * scrWidth.y, chaosKey.RandUNorm());
-	float r = pow(pos.z, 0.333333f);
-	pos.z = 1.0f;
-	pos *= r * rsqrt_fast(pos.GetLengthSquared());
-	assert(InUnitZSector(pos, scrWidth, 0.0001f));
+	Vec3 pos(chaosKey.RandSNorm() * scrWidth.x, chaosKey.RandSNorm() * scrWidth.y, 1.0f);
+	float r = pow(chaosKey.RandUNorm(), 0.333333f);
+	pos *= r * pos.GetInvLengthFast();
+	assert(InSector(pos, scrWidth, 0.001f));
 	return pos;
 }
 
-void WrapUnitZSector(Vec3& pos, const Vec3& posPrev, Vec2 scrWidth)
+void WrapSector(Vec3& pos, const Vec3& posPrev, Vec2 scrWidth)
 {
 	Vec3 delta = posPrev - pos;
 
@@ -1072,13 +1075,13 @@ void WrapUnitZSector(Vec3& pos, const Vec3& posPrev, Vec2 scrWidth)
 			minMoveOut = min(minMoveOut, dists[n]);
 	}
 
-	if (maxMoveIn > 0.0f)
+	if (maxMoveIn > 0.0f && maxMoveIn < minMoveOut)
 	{
 		const float moveDist = (minMoveOut - maxMoveIn) * trunc(minMoveOut / (minMoveOut - maxMoveIn));
 		if (moveDist < 1e6f)
 			pos += delta * moveDist;
 	}
-	assert(InUnitZSector(pos, scrWidth, 0.001f));
+	assert(InSector(pos, scrWidth, 0.001f));
 }
 
 CRY_UNIT_TEST(WrapSectorTest)
@@ -1087,49 +1090,31 @@ CRY_UNIT_TEST(WrapSectorTest)
 	for (int i = 0; i < 100; ++i)
 	{
 		Vec2 scrWidth(chaosKey.Rand(SChaosKey::Range(0.1f, 3.0f)), chaosKey.Rand(SChaosKey::Range(0.1f, 3.0f)));
-		Vec3 pos = RandomUnitZSector(chaosKey, scrWidth);
+		Vec3 pos = RandomSector(chaosKey, scrWidth);
 		Vec3 pos2 = pos + chaosKey.RandSphere();
-		if (!InUnitZSector(pos2, scrWidth))
+		if (!InSector(pos2, scrWidth))
 		{
 			Vec3 pos3 = pos2;
-			WrapUnitZSector(pos3, pos, scrWidth);
+			WrapSector(pos3, pos, scrWidth);
 		}
 	}
 };
 
-template<int A>
-ILINE void RotateZ(Vec3& pos, float s, float c)
-{
-	float z = c * pos.z + s * pos[A];
-	pos[A] = c * pos[A] - s * pos.z;
-	pos.z = z;
-}
-
-template<int A>
-ILINE bool WrapRotation(Vec3& pos, Vec3& posPrev, Vec3& posRot, Vec2 scrWidth)
-{
-	if (abs(posRot[A]) > posRot.z * scrWidth[A])
-	{
-		float angScr = atan(scrWidth[A]);
-		float ang = atan2(abs(posRot[A]), posRot.z);
-		float angRot = (angScr + angScr) * trunc((angScr + ang) / (angScr + angScr)) * fsgnf(posRot[A]);
-		float s, c;
-		sincos(angRot, &s, &c);
-		RotateZ<A>(posRot, s, c);
-		posPrev = posRot;
-		RotateZ<A>(pos, s, c);
-		return true;
-	}
-	return false;
-}
-
 ILINE int WrapRotation(Vec3& pos, Vec3& posPrev, const Matrix33& camRot, Vec2 scrWidth)
 {
 	Vec3 posRot = camRot * posPrev;
-	int wrapped = WrapRotation<0>(pos, posPrev, posRot, scrWidth)
-	              + WrapRotation<1>(pos, posPrev, posRot, scrWidth);
-	assert(InPosZSector(posRot, scrWidth, 0.001f));
-	return wrapped;
+	if (InScreen(posRot, scrWidth))
+		return false;
+
+	if (abs(posRot.x) > posRot.z * scrWidth.x)
+		posPrev.x = -posPrev.x;
+	if (abs(posRot.y) > posRot.z * scrWidth.y)
+		posPrev.y = -posPrev.y;
+
+	pos += posPrev - posRot;
+	assert(InScreen(pos, scrWidth, 0.001f));
+
+	return true;
 }
 
 CRY_UNIT_TEST(WrapRotationTest)
@@ -1138,16 +1123,16 @@ CRY_UNIT_TEST(WrapRotationTest)
 	for (int i = 0; i < 100; ++i)
 	{
 		Vec2 scrWidth(chaosKey.Rand(SChaosKey::Range(0.1f, 3.0f)), chaosKey.Rand(SChaosKey::Range(0.1f, 3.0f)));
-		Vec3 pos = RandomUnitZSector(chaosKey, scrWidth);
+		Vec3 pos = RandomSector(chaosKey, scrWidth);
 		if (i % 4 == 0)
 			pos.x = 0;
 		else if (i % 4 == 1)
 			pos.y = 0;
 		AngleAxis rot;
 		rot.axis = i % 4 == 0 ? Vec3(1, 0, 0) : i % 4 == 1 ? Vec3(0, 1, 0) : Vec3(chaosKey.RandCircle());
-		rot.angle = chaosKey.RandUNorm() * gf_PI;
+		rot.angle = (i+1) * 0.01f * gf_PI;
 		Vec3 pos2 = AngleAxis(-rot.angle, rot.axis) * pos;
-		if (!InPosZSector(pos2, scrWidth))
+		if (!InScreen(pos2, scrWidth))
 		{
 			Vec3 pos1 = pos;
 			Vec3 pos3 = pos2;
@@ -1171,28 +1156,48 @@ public:
 		pComponent->InitParticles.add(this);
 		pComponent->UpdateParticles.add(this);
 		m_visibility.AddToComponent(pComponent, this);
+
+		if (!m_useEmitterLocation)
+		{
+			// auto-set distance culling
+			const float visibility = m_visibility.GetValueRange().end;
+			auto& maxCamDistance = pParams->m_visibility.m_maxCameraDistance;
+			if (visibility < maxCamDistance)
+				maxCamDistance = visibility;
+		}
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
 	{
 		CParticleFeature::Serialize(ar);
 		SERIALIZE_VAR(ar, m_visibility);
+	#ifndef _RELEASE
 		SERIALIZE_VAR(ar, m_wrapSector);
 		SERIALIZE_VAR(ar, m_wrapRotation);
+		SERIALIZE_VAR(ar, m_wrapTranslation);
 		SERIALIZE_VAR(ar, m_useEmitterLocation);
+	#endif
 	}
 
 	virtual void GetSpatialExtents(const SUpdateContext& context, TConstArray<float> scales, TVarArray<float> extents) override
 	{
 		UpdateCameraData(context);
-		const float visibility = m_visibility.GetValueRange(context).end;
 		const uint numInstances = context.m_runtime.GetNumInstances();
 		for (uint i = 0; i < numInstances; ++i)
 		{
-			const Vec3 box = Vec3(m_camData.scrWidth.x, m_camData.scrWidth.y, 1.0f) * (visibility * scales[i]);
-			float extent = (box.x * 2.0f + 1.0f) * (box.y * 2.0f + 1.0f) * (box.z + 1.0f);
+			float scale = m_camData.maxDistance * scales[i];
+			const Vec3 boxUnit(m_camData.scrWidth.x, m_camData.scrWidth.y, 1.0f);
+			float extent;
 			if (m_wrapSector)
-				extent *= 0.25f;
+			{
+				float capHeight = 1.0f - rsqrt(boxUnit.len2());
+				extent = (capHeight * scale) * sqr(scale + 1.0f) * 4.0f / 3.0f;
+			}
+			else
+			{
+				const Vec3 box = boxUnit * scale;
+				extent = (box.x * 2.0f + 1.0f) * (box.y * 2.0f + 1.0f) * (box.z + 1.0f);
+			}
 			extents[i] += extent;
 		}
 	}
@@ -1215,8 +1220,8 @@ public:
 			Vec3 pos;
 			if (m_wrapSector)
 			{
-				pos = RandomUnitZSector(context.m_spawnRng, m_camData.scrWidth);
-				auxPositions.Store(particleId, pos);   // in unit-camera space
+				pos = RandomSector(context.m_spawnRng, m_camData.scrWidth);
+				auxPositions.Store(particleId, pos);
 			}
 			else
 			{
@@ -1249,22 +1254,23 @@ public:
 				Vec3 pos = positions.Load(particleId);
 				Vec3 posCam = m_camData.fromWorld * pos;
 
-				if (!InUnitZSector(posCam, m_camData.scrWidth /*, 0.002f*/))
+				if (!InSector(posCam, m_camData.scrWidth))
 				{
 					Vec3 posCamPrev = auxPositions.Load(particleId);
 
 					// Adjust for camera rotation
 					if (doCamRot && WrapRotation(posCam, posCamPrev, camMat, m_camData.scrWidth))
 					{
-						if (!InUnitZSector(posCam, m_camData.scrWidth /*, 0.002f*/))
-							WrapUnitZSector(posCam, posCamPrev, m_camData.scrWidth);
+						if (m_wrapTranslation && !InSector(posCam, m_camData.scrWidth))
+							WrapSector(posCam, posCamPrev, m_camData.scrWidth);
 					}
-					else
+					else if (m_wrapTranslation)
 					{
 						// Adjust for translation
-						WrapUnitZSector(posCam, posCamPrev, m_camData.scrWidth);
+						WrapSector(posCam, posCamPrev, m_camData.scrWidth);
 					}
 
+					assert(InSector(posCam, m_camData.scrWidth, 0.001f));
 					pos = m_camData.toWorld * posCam;
 					positions.Store(particleId, pos);
 				}
@@ -1273,7 +1279,7 @@ public:
 		}
 		else
 		{
-			for (auto particleId : context.GetUpdateRange())
+			if (m_wrapTranslation) for (auto particleId : context.GetUpdateRange())
 			{
 				Vec3 pos = positions.Load(particleId);
 				Vec3 posCam = m_camData.fromWorld * pos;
@@ -1361,13 +1367,15 @@ private:
 	static Vec2 ScreenWidth(const CCamera& cam)
 	{
 		Vec3 corner = cam.GetEdgeF();
-		return Vec2(abs(corner.x / corner.y), abs(corner.z / corner.y));
+		return Vec2(abs(corner.x), abs(corner.z)) / corner.y;
 	}
 
+	// Parameters
 	CParamMod<SModEffectField, UFloat100> m_visibility;
 
 	// Debugging and profiling options
 	bool m_wrapSector         = true;
+	bool m_wrapTranslation    = true;
 	bool m_wrapRotation       = true;
 	bool m_useEmitterLocation = false;
 };

@@ -363,7 +363,8 @@ STextureLayout CDeviceTexture::GetLayout() const
 {
 	STextureLayout Layout = {};
 
-	Layout.m_eDstFormat = Layout.m_eSrcFormat = gcpRendD3D->m_hwTexFormatSupport.GetClosestFormatSupported(DeviceFormats::ConvertToTexFormat(m_eNativeFormat), Layout.m_pPixelFormat);
+	Layout.m_eSrcFormat =
+	Layout.m_eDstFormat = CRendererResources::s_hwTexFormatSupport.GetClosestFormatSupported(DeviceFormats::ConvertToTexFormat(m_eNativeFormat), Layout.m_pPixelFormat);
 	Layout.m_eTT = m_eTT;
 	Layout.m_eFlags = m_eFlags;
 	Layout.m_bIsSRGB = m_bIsSrgb;
@@ -692,8 +693,8 @@ STextureLayout CDeviceTexture::GetLayout(D3DBaseView* pView)
 
 	STextureLayout Layout = {};
 
-	Layout.m_eDstFormat       = 
-	Layout.m_eSrcFormat       = gcpRendD3D->m_hwTexFormatSupport.GetClosestFormatSupported(eTF, Layout.m_pPixelFormat);
+	Layout.m_eSrcFormat   =
+	Layout.m_eDstFormat   = CRendererResources::s_hwTexFormatSupport.GetClosestFormatSupported(eTF, Layout.m_pPixelFormat);
 	Layout.m_eTT          = eTT;
 	Layout.m_eFlags       = nFlags;
 	Layout.m_nWidth       = nWidth;
@@ -740,20 +741,6 @@ SResourceDimension CDeviceTexture::GetDimension(uint8 mip /*= 0*/, uint8 slices 
 	Dimension.Subresources = (slices ? slices : Layout.m_nArraySize) * (Layout.m_nMips - mip);
 
 	return Dimension;
-}
-
-void CDeviceTexture::Unbind()
-{
-	for (uint32 i = 0; i < MAX_TMU; i++)
-	{
-		if (CTexture::s_TexStages[i].m_DevTexture == this)
-		{
-			CTexture::s_TexStages[i].m_DevTexture = NULL;
-
-			ID3D11ShaderResourceView* RV = NULL;
-			gcpRendD3D->GetDeviceContext().PSSetShaderResources(i, 1, &RV);
-		}
-	}
 }
 
 #ifdef DEVRES_USE_STAGING_POOL

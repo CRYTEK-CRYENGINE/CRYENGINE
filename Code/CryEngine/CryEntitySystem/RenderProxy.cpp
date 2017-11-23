@@ -1,16 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   RenderProxy.h
-//  Version:     v1.00
-//  Created:     19/5/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #include "stdafx.h"
 #include "RenderProxy.h"
 #include "Entity.h"
@@ -388,7 +377,7 @@ void CEntityRender::GetWorldBounds(AABB& bbox) const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntityRender::ProcessEvent(SEntityEvent& event)
+void CEntityRender::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -962,7 +951,7 @@ int CEntityRender::LoadParticleEmitter(int nSlot, IParticleEffect* pEffect, Spaw
 }
 
 //////////////////////////////////////////////////////////////////////////
-int CEntityRender::LoadLight(int nSlot, CDLight* pLight, uint16 layerId)
+int CEntityRender::LoadLight(int nSlot, SRenderLight* pLight, uint16 layerId)
 {
 	assert(pLight);
 	CEntitySlot* pSlot = GetOrMakeSlot(nSlot);

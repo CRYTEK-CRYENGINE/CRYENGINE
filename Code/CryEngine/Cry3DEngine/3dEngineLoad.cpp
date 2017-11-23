@@ -451,7 +451,7 @@ void C3DEngine::UnloadLevel()
 	CryComment("Removing Lights ...");
 	for (int i = 0; i < m_lstDynLights.Count(); i++)
 	{
-		CDLight* pLight = m_lstDynLights[i];
+		SRenderLight* pLight = m_lstDynLights[i];
 		FreeLightSourceComponents(pLight);
 	}
 	m_lstDynLights.Reset();
@@ -554,7 +554,7 @@ void C3DEngine::UnloadLevel()
 	// as they hold references to materials.
 	if (GetRenderer())
 	{
-		GetRenderer()->FreeResources(FRR_PERMANENT_RENDER_OBJECTS);
+		GetRenderer()->FreeSystemResources(FRR_PERMANENT_RENDER_OBJECTS);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -1053,10 +1053,12 @@ void C3DEngine::LoadMissionDataFromXMLNode(const char* szMissionName)
 		return;
 	}
 
+	/*
 	if (GetRenderer())
 	{
 		GetRenderer()->MakeMainContextActive();
 	}
+	*/
 
 	// set default values
 	m_vFogColor(1, 1, 1);

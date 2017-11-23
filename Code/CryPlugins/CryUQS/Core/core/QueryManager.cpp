@@ -221,7 +221,9 @@ namespace UQS
 					CQueryBase* pQuery = it->second.query.get();
 					CTimeValue timeBudgetForThisQuery;   // 0.0 seconds by default
 
-					if (pQuery->RequiresSomeTimeBudgetForExecution())
+					const bool bThisQueryRequiresSomeTimeBudgetForExecution = pQuery->RequiresSomeTimeBudgetForExecution();
+
+					if (bThisQueryRequiresSomeTimeBudgetForExecution)
 					{
 						size_t numRemainingQueriesThatRequireSomeTimeBudget = 1;
 
@@ -296,6 +298,21 @@ namespace UQS
 					{
 						const CTimeValue unusedTime = timeBudgetForThisQuery - timeUsedByThisQuery;
 						totalRemainingTimeBudget += unusedTime;
+					}
+					else if (bThisQueryRequiresSomeTimeBudgetForExecution)
+					{
+						//
+						// check for having exceeded the granted time by some percentage
+						// -> if this is the case, then issue a warning to the console and to the query history
+						//
+
+						const float allowedTimeBudgetExcess = (SCvars::timeBudgetExcessThresholdInPercentBeforeWarning * 0.01f) * timeBudgetForThisQuery.GetMilliSeconds();
+						const bool bExceededTimeBudgetTooMuch = (timeUsedByThisQuery - timeBudgetForThisQuery).GetMilliSeconds() > allowedTimeBudgetExcess;
+
+						if (bExceededTimeBudgetTooMuch)
+						{
+							it->second.query->EmitTimeExcessWarningToConsoleAndQueryHistory(timeBudgetForThisQuery, timeUsedByThisQuery);
+						}
 					}
 				}
 

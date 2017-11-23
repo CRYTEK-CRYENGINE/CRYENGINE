@@ -35,7 +35,7 @@ public:
 
 protected:
 	virtual bool ShouldCollisionsDamageTarget() const;
-	virtual void ProcessEvent(SEntityEvent &event);
+	virtual void ProcessEvent(const SEntityEvent& event);
 
 	bool m_detonationFailed;
 };

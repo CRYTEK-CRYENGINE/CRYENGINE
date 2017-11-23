@@ -65,7 +65,7 @@ public:
 		if (!pComponentRuntime->GetCpuRuntime())
 			return;
 
-		CDLight light;
+		SRenderLight light;
 		if (pRenderContext)
 		{
 			if (pRenderContext->m_passInfo.IsRecursivePass())

@@ -22,7 +22,7 @@ struct IMovementActor
 	virtual ~IMovementActor() {}
 
 	virtual IMovementActorAdapter&    GetAdapter() const = 0;
-	virtual void                      RequestPathTo(const Vec3& destination, float lengthToTrimFromThePathEnd, const MNMDangersFlags dangersFlags = eMNMDangers_None,
+	virtual void                      RequestPathTo(const Vec3& destination, float lengthToTrimFromThePathEnd, const SSnapToNavMeshRulesInfo& snappingRules, const MNMDangersFlags dangersFlags = eMNMDangers_None,
 	                                                const bool considerActorsAsPathObstacles = false, const MNMCustomPathCostComputerSharedPtr& pCustomPathCostComputer = nullptr) = 0;
 	virtual Movement::PathfinderState GetPathfinderState() const = 0;
 	virtual const char*               GetName() const = 0;

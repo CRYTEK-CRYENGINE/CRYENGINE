@@ -107,6 +107,10 @@ MACRO(SET_PLATFORM_TARGET_PROPERTIES TargetProject)
 	target_compile_definitions( ${THIS_PROJECT} PRIVATE "-DCODE_BASE_FOLDER=\"${CRYENGINE_DIR}/Code/\"")
 	target_link_libraries( ${THIS_PROJECT} PRIVATE ${COMMON_LIBS} )
 
+	if(OPTION_DEVELOPER_CONSOLE_IN_RELEASE)
+		target_compile_definitions( ${THIS_PROJECT} PRIVATE "-DENABLE_DEVELOPER_CONSOLE_IN_RELEASE")
+	endif()
+
 	if(OPTION_UNSIGNED_PAKS_IN_RELEASE)
 		target_compile_definitions( ${THIS_PROJECT} PRIVATE "-DSUPPORT_UNSIGNED_PAKS")
 	endif()
@@ -148,6 +152,27 @@ MACRO(SET_PLATFORM_TARGET_PROPERTIES TargetProject)
 			set_target_properties(${TargetProject} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${libout})
 			set_target_properties(${TargetProject} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${runout})
 		endforeach( OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES )
+	endif()
+
+	if (OPTION_SHOW_COMPILE_METRICS)
+		set(MSVC_COMMON_FLAGS ${MSVC_COMMON_FLAGS} /d2cgsummary)
+	endif()
+
+	if (OPTION_LTCG)
+		option(LTCG_${TargetProject} "Enable link-time code generation for ${TargetProject} (requires OPTION_LTCG)" ON)
+		if (LTCG_${TargetProject})
+			if (MSVC_VERSION)
+				set(LTCG_FLAG -LTCG)
+				get_target_property(flags ${TargetProject} LINK_FLAGS)
+				if(flags)
+					set_target_properties(${TargetProject} PROPERTIES LINK_FLAGS "${flags} ${LTCG_FLAG}")			
+				else()
+					set_target_properties(${TargetProject} PROPERTIES LINK_FLAGS "${LTCG_FLAG}")
+				endif()
+			else()
+				target_compile_options(${TargetProject} PRIVATE -flto)
+			endif()
+		endif()
 	endif()
 
 	# Patch linker flags for recode, setup environment path for executables
@@ -426,7 +451,7 @@ endmacro()
 
 macro(generate_uber_files)
 	if(UBERFILES)
-		option(UNITY_${THIS_PROJECT} "Ensable unity building for ${THIS_PROJECT} (requires OPTION_UNITY_BUILD)" ON)
+		option(UNITY_${THIS_PROJECT} "Enable unity building for ${THIS_PROJECT} (requires OPTION_UNITY_BUILD)" ON)
 	endif()
 	if(OPTION_UNITY_BUILD AND UBERFILES AND UNITY_${THIS_PROJECT})
 		list(REMOVE_DUPLICATES UBERFILES)
@@ -509,6 +534,11 @@ macro(apply_compile_settings)
 		# If option to not build engine modules is selected they are excluded from the build
 		set_target_properties(${THIS_PROJECT} PROPERTIES EXCLUDE_FROM_ALL TRUE)
 		set_target_properties(${THIS_PROJECT} PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+	endif()
+
+	get_target_property(target_type ${THIS_PROJECT} TYPE)
+	if (target_type MATCHES "EXECUTABLE")
+		target_compile_options(${THIS_PROJECT} PRIVATE -DCRY_IS_APPLICATION)
 	endif()
 endmacro()
 
@@ -622,6 +652,10 @@ function(CryLauncher target)
 	if(OPTION_STATIC_LINKING)
 		use_scaleform()
 		target_compile_definitions(${THIS_PROJECT} PRIVATE _LIB -DCRY_IS_MONOLITHIC_BUILD)
+		if (WIN32)
+			set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS_PROFILE " /NODEFAULTLIB:libcpmt.lib")
+			set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS_RELEASE " /NODEFAULTLIB:libcpmt.lib")
+		endif()
 		set(MODULES_LIST ${GAME_MODULES} ${MODULES})
 		wrap_whole_archive(${target} WRAPPED_MODULES MODULES_LIST)
 		target_link_libraries(${THIS_PROJECT} PRIVATE ${WRAPPED_MODULES})
@@ -650,6 +684,10 @@ function(CryDedicatedServer target)
 	if(OPTION_STATIC_LINKING)
 		use_scaleform()
 		target_compile_definitions(${THIS_PROJECT} PRIVATE _LIB -DCRY_IS_MONOLITHIC_BUILD)
+		if (WIN32)
+			set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS_PROFILE " /NODEFAULTLIB:libcpmt.lib")
+			set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS_RELEASE " /NODEFAULTLIB:libcpmt.lib")
+		endif()
 		set(MODULES_LIST ${GAME_MODULES} ${MODULES})
 		wrap_whole_archive(${target} WRAPPED_MODULES MODULES_LIST)
 		target_link_libraries(${THIS_PROJECT} PRIVATE ${WRAPPED_MODULES})
@@ -790,7 +828,7 @@ function(CryPipelineModule target)
 	if(WIN32)
 		set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS " /SUBSYSTEM:CONSOLE")
 	endif()
-	set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS_DEBUG /NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:msvcprtd.lib)
+	set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS_DEBUG " /NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:msvcprtd.lib")
 	apply_compile_settings()	
 endfunction()
 
@@ -817,122 +855,6 @@ macro(use_qt)
 
 	set(QT_MODULES Core Gui OpenGL Widgets)
 	use_qt_modules(${QT_MODULES})
-endmacro()
-
-macro(process_mono_swig output_module platformAssembly languageVersion)
-	set(CMAKE_MODULE_LINKER_FLAGS_PROFILE ${CMAKE_SHARED_LINKER_FLAGS_PROFILE})
-	set(swig_inputs)
-	set(swig_globals)
-	foreach(sourcefile ${SOURCES})
-		if ("${sourcefile}" MATCHES ".*\\.\\i$")
-			set(swig_inputs ${swig_inputs} "${sourcefile}")
-		endif()
-		if ("${sourcefile}" MATCHES ".*\\.\\swig$")
-			set(swig_globals ${swig_globals} "${sourcefile}")
-		endif()
-	endforeach()
-
-	set(SWIG_EXECUTABLE "${SDK_DIR}/swig/swig")
-
-	if (NOT PRODUCT_NAME)
-		set(PRODUCT_NAME ${THIS_PROJECT})
-	endif()
-	file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${output_module}_meta.cs"
-		"using System.Reflection;\n"
-		"using System.Runtime.CompilerServices;\n"
-		"[assembly: InternalsVisibleTo(\"CryEngine.Core\")]\n"
-		"[assembly: AssemblyProduct(\"${PRODUCT_NAME}\")]\n"
-		"[assembly: AssemblyTitle(\"${PRODUCT_NAME}\")]\n"
-		"[assembly: AssemblyDescription(\"${PRODUCT_NAME}\")]\n"
-		"[assembly: AssemblyVersion(\"${METADATA_VERSION}\")]\n"
-		"[assembly: AssemblyCompany(\"${METADATA_COMPANY}\")]\n"
-		"[assembly: AssemblyCopyright(\"${METADATA_COPYRIGHT}\")]\n"
-		)
-
-	set(mono_inputs "${CMAKE_CURRENT_BINARY_DIR}/${output_module}_meta.cs")
-
-	foreach(f ${swig_inputs})
-		string(LENGTH "${f}" flen)
-		math(EXPR flen ${flen}-2)
-		string(SUBSTRING "${f}" 0 ${flen} basename)
-		file(RELATIVE_PATH bindir "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}")
-		set(basename "${basename}")
-		set(f_cpp "${basename}.cpp")
-		set(f_cs "${basename}.cs")
-		set(f_h "${basename}.h")
-		if(WIN64)
-			set(defs -D_WIN32 -D_WIN64)
-		elseif(WIN32)
-			set(defs -D_WIN32)
-		else()
-			message(ERROR "Mono not supported on this platform")
-		endif()
-
-		get_target_property(target_defs ${THIS_PROJECT} COMPILE_DEFINITIONS)
-		foreach(d ${target_defs})
-			set(defs ${defs} -D${d})
-		endforeach()
-		set(defs ${defs} -D_MT -D_DLL -D_USRDLL)
-
-		get_filename_component(f_cs_dir "${f_cs}" DIRECTORY)
-		get_filename_component(f_cs_name "${f_cs}" NAME)
-
-		# Detect dependencies
-		execute_process(
-			COMMAND "${SWIG_EXECUTABLE}" -MM ${defs} -csharp "${f}"
-			OUTPUT_VARIABLE swig_deps
-			WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-		)
-		string(REGEX MATCHALL "\n  [^ ][^ ][^ :]+" temp ${swig_deps})
-		set(swig_deps)
-		foreach(t ${temp})
-			string(STRIP "${t}" t)
-			set(swig_deps ${swig_deps} "${t}")
-		endforeach()
-
-		set(defs ${defs} -D_$<UPPER_CASE:$<CONFIG>> -D$<UPPER_CASE:$<CONFIG>>)
-
-		set(mono_inputs ${mono_inputs} "${f_cs}")
-		add_custom_command(
-			OUTPUT "${f_cpp}" "${f_h}" "${f_cs}"
-			COMMAND "${SWIG_EXECUTABLE}" -c++ ${defs} -DSWIG_CSHARP_NO_IMCLASS_STATIC_CONSTRUCTOR ${secondary_defs} -csharp -o "${bindir}/${f_cpp}" -outdir "${bindir}/${f_cs_dir}" -outfile "${f_cs_name}" -namespace ${output_module} -pch-file "\\\"StdAfx.h\\\"" -fno-include-guards -dllimport ${THIS_PROJECT} "${f}"
-			MAIN_DEPENDENCY "${f}"
-			WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-			DEPENDS ${swig_deps}
-		)
-		set_property(DIRECTORY "${CRYENGINE_DIR}" APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${swig_deps} "${CMAKE_CURRENT_SOURCE_DIR}/${f}")
-		set(secondary_defs -DSWIG_CXX_EXCLUDE_SWIG_INTERFACE_FUNCTIONS -DSWIG_CSHARP_EXCLUDE_STRING_HELPER -DSWIG_CSHARP_EXCLUDE_EXCEPTION_HELPER)
-		target_sources(${THIS_PROJECT} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/${f_cpp}" "${CMAKE_CURRENT_BINARY_DIR}/${f_h}")
-		EXCLUDE_FILE_FROM_MSVC_PRECOMPILED_HEADER("${CMAKE_CURRENT_BINARY_DIR}/${f_cpp}")
-		source_group("Generated" FILES "${CMAKE_CURRENT_BINARY_DIR}/${f_cpp}" "${CMAKE_CURRENT_BINARY_DIR}/${f_h}")
-		set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/${f_h}" PROPERTIES HEADER_FILE_ONLY true GENERATED true)
-	endforeach()
-
-	set(mono_path "${SDK_DIR}/Mono/bin/mcs")
-	set(mono_lib_path "${SDK_DIR}/Mono/lib/mono")
-
-	#TODO: Metadata
-	add_custom_command(
-		TARGET ${THIS_PROJECT} PRE_LINK
-		COMMAND "${mono_path}" -target:library -langversion:${languageVersion} -platform:${platformAssembly} -optimize -g -L "${mono_lib_path}" ${mono_inputs} "-out:${OUTPUT_DIRECTORY}/${output_module}.dll"
-		DEPENDS ${mono_inputs}
-		WORKING_DIRECTORY "${CMAKE_CURRENT_BIANRY_DIR}"
-	)
-
-endmacro()
-
-macro(create_mono_compiler_settings)
-	set(MONO_LANGUAGE_VERSION 6)
-	if("${BUILD_PLATFORM}" STREQUAL "Win32")
-		set(MONO_CPU_PLATFORM x86)
-		set(MONO_LIB_PATH "${SDK_DIR}/Mono/lib/mono/x86")
-		set(MONO_PREPROCESSOR_DEFINE WIN32)
-	elseif("${BUILD_PLATFORM}" STREQUAL "Win64")
-		set(MONO_CPU_PLATFORM anycpu)
-		set(MONO_LIB_PATH "${SDK_DIR}/Mono/lib/mono/x64")
-		set(MONO_PREPROCESSOR_DEFINE WIN64)
-	endif()
-	set(MONO_PREPROCESSOR_DEFINE ${MONO_PREPROCESSOR_DEFINE}$<SEMICOLON>$<UPPER_CASE:$<CONFIG>>)
 endmacro()
 
 macro(remove_files_from_list filelist filepattern)

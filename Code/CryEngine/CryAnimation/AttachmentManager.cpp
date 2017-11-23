@@ -1892,7 +1892,7 @@ void CAttachmentManager::DrawAttachments(SRendParams& rParams, const Matrix34& r
 			{
 				Vec3 drawLoc = rWorldMat34.GetTranslation();
 				drawLoc.z += drawOffset;
-				drawOffset += DebugDrawAttachment(pCAttachmentSkin, pCAttachmentSkin->GetISkin(), drawLoc, rParams.pMaterial, debugDrawScale);
+				drawOffset += DebugDrawAttachment(pCAttachmentSkin, pCAttachmentSkin->GetISkin(), drawLoc, rParams.pMaterial, debugDrawScale,passInfo);
 			}
 #endif
 		}
@@ -1926,7 +1926,7 @@ void CAttachmentManager::DrawAttachments(SRendParams& rParams, const Matrix34& r
 			{
 				Vec3 drawLoc = rWorldMat34.GetTranslation();
 				drawLoc.z += drawOffset;
-				drawOffset += DebugDrawAttachment(pCAttachmentVCloth, pCAttachmentVCloth->GetISkin(), drawLoc, rParams.pMaterial, debugDrawScale);
+				drawOffset += DebugDrawAttachment(pCAttachmentVCloth, pCAttachmentVCloth->GetISkin(), drawLoc, rParams.pMaterial, debugDrawScale,passInfo);
 			}
 #endif
 		}
@@ -1972,7 +1972,7 @@ void CAttachmentManager::DrawAttachments(SRendParams& rParams, const Matrix34& r
 			Matrix34 FinalMat34 = rWorldMat34 * Matrix34(pCAttachmentBone->m_AttModelRelative);
 			Vec3 obbPos = FinalMat34.GetTranslation();
 			if (rParams.dwFObjFlags & FOB_NEAREST)
-				obbPos += gEnv->pRenderer->GetCamera().GetPosition();   // Convert to world space
+				obbPos += passInfo.GetCamera().GetPosition();   // Convert to world space
 			AABB caabb = pCAttachmentBone->m_pIAttachmentObject->GetAABB();
 			OBB obb2 = OBB::CreateOBBfromAABB(Matrix33(FinalMat34), caabb);
 			g_pAuxGeom->DrawOBB(obb2, obbPos, 0, RGBA8(0xff, 0x00, 0x1f, 0xff), eBBD_Extremes_Color_Encoded);
@@ -1990,7 +1990,7 @@ void CAttachmentManager::DrawAttachments(SRendParams& rParams, const Matrix34& r
 			Matrix34 FinalMat34 = rWorldMat34 * Matrix34(pCAttachmentFace->m_AttModelRelative);
 			Vec3 obbPos = FinalMat34.GetTranslation();
 			if (rParams.dwFObjFlags & FOB_NEAREST)
-				obbPos += gEnv->pRenderer->GetCamera().GetPosition();   // Convert to world space
+				obbPos += passInfo.GetCamera().GetPosition();   // Convert to world space
 			AABB caabb = pCAttachmentFace->m_pIAttachmentObject->GetAABB();
 			OBB obb2 = OBB::CreateOBBfromAABB(Matrix33(FinalMat34), caabb);
 			g_pAuxGeom->DrawOBB(obb2, obbPos, 0, RGBA8(0x1f, 0x00, 0xff, 0xff), eBBD_Extremes_Color_Encoded);
@@ -2673,7 +2673,7 @@ void CAttachmentManager::Verification()
 
 #if !defined(_RELEASE)
 
-float CAttachmentManager::DebugDrawAttachment(IAttachment* pAttachment, ISkin* pSkin, Vec3 drawLoc, IMaterial* pMaterial, float drawScale)
+float CAttachmentManager::DebugDrawAttachment(IAttachment* pAttachment, ISkin* pSkin, Vec3 drawLoc, IMaterial* pMaterial, float drawScale,const SRenderingPassInfo &passInfo)
 {
 	if (!pMaterial || !pAttachment || !pSkin || !pSkin->GetIRenderMesh(0))
 		return 0.0f;
@@ -2684,7 +2684,7 @@ float CAttachmentManager::DebugDrawAttachment(IAttachment* pAttachment, ISkin* p
 	const float white = max(1.0f - (nTexMemUsage / fTextMemBudget), 0.0f);
 
 	float color[4] = { 1, white, white, 1 };
-	float fDist = (gEnv->pRenderer->GetCamera().GetPosition() - drawLoc).GetLength();
+	float fDist = (passInfo.GetCamera().GetPosition() - drawLoc).GetLength();
 
 	static float scalar = 60.0f;
 	float drawOffset = (drawScale * (fDist / scalar));

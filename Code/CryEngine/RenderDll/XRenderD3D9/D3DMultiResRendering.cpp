@@ -32,7 +32,7 @@ CVrProjectionManager::CVrProjectionManager(CD3D9Renderer* const pRenderer)
 	, m_projection(eVrProjection_Planar)
 
 {
-	m_ptexZTargetFlattened = std::move(CTexture::GetOrCreateTextureObject("$ZTargetFlattened", 0, 0, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_RENDERTARGET, CTexture::s_eTFZ));
+	m_ptexZTargetFlattened = std::move(CTexture::GetOrCreateTextureObject("$ZTargetFlattened", 0, 0, 1, eTT_2D, FT_DONT_RELEASE | FT_DONT_STREAM | FT_USAGE_RENDERTARGET, CRendererResources::s_eTFZ));
 }
 
 void CVrProjectionManager::Init(CD3D9Renderer* const pRenderer)
@@ -337,7 +337,7 @@ void CVrProjectionManager::ExecuteFlattenDepth(CTexture* pSrcRT, CTexture* pDest
 	{
 		pDestRT->SetWidth(dstWidth);
 		pDestRT->SetHeight(dstHeight);
-		pDestRT->CreateRenderTarget(CTexture::s_eTFZ, ColorF(1.0f, 1.0f, 1.0f, 1.0f));
+		pDestRT->CreateRenderTarget(CRendererResources::s_eTFZ, ColorF(1.0f, 1.0f, 1.0f, 1.0f));
 	}
 
 	if (m_passDepthFlattening.InputChanged())
@@ -370,7 +370,7 @@ void CVrProjectionManager::ExecuteLensMatchedOctagon(CTexture* pDestRT)
 	if (m_primitiveLensMatchedOctagon.IsDirty())
 	{
 		m_passLensMatchedOctagon.SetFlags(CPrimitiveRenderPass::ePassFlags_UseVrProjectionState);
-		m_passLensMatchedOctagon.SetViewport(D3D11_VIEWPORT{ 0.f, 0.f, float(pRenderer->GetWidth()), float(pRenderer->GetHeight()), 0.f, 0.f });
+		m_passLensMatchedOctagon.SetViewport(D3D11_VIEWPORT{ 0.f, 0.f, float(pDestRT->GetWidth()), float(pDestRT->GetHeight()), 0.f, 0.f });
 		m_passLensMatchedOctagon.SetDepthTarget(pDestRT);
 
 		m_passLensMatchedOctagon.BeginAddingPrimitives();

@@ -70,6 +70,7 @@ enum class ERequestStatus : EnumFlagsType
 {
 	None,
 	Success,
+	SuccessfullyStopped,
 	SuccessNeedsRefresh,
 	PartialSuccess,
 	Failure,

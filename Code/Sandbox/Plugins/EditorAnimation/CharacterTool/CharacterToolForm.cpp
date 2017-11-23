@@ -88,7 +88,7 @@ struct ViewportPlaybackHotkeyConsumer : public QViewportConsumer
 
 	void OnViewportKey(const SKeyEvent& ev) override
 	{
-		if (ev.type == ev.PRESS && ev.key != Qt::Key_Delete && ev.key != Qt::Key_D && ev.key != Qt::Key_Z)
+		if (ev.type == ev.TYPE_PRESS && ev.key != Qt::Key_Delete && ev.key != Qt::Key_D && ev.key != Qt::Key_Z)
 			playbackPanel->HandleKeyEvent(ev.key);
 	}
 };
@@ -244,6 +244,18 @@ void CharacterToolForm::Initialize()
 			EXPECTED(connect(m_displayParametersButton, SIGNAL(toggled(bool)), this, SLOT(OnDisplayParametersButton())));
 			topLayout->addWidget(m_displayParametersButton);
 
+			m_createProxyModeButton = new QToolButton();
+			m_createProxyModeButton->setText("Edit Proxies");
+			m_createProxyModeButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+			m_createProxyModeButton->setCheckable(true);
+			m_createProxyModeButton->setIcon(CryIcon("icons:common/animation_skeleton.ico"));
+			topLayout->addWidget(m_createProxyModeButton);
+
+			m_clearProxiesButton = new QToolButton();
+			m_clearProxiesButton->setText("Clear Proxies");
+			EXPECTED(connect(m_clearProxiesButton, SIGNAL(clicked()), this, SLOT(OnClearProxiesButton())));
+			topLayout->addWidget(m_clearProxiesButton);
+
 			centralLayout->addLayout(topLayout, 0);
 		}
 
@@ -345,7 +357,7 @@ QRect CharacterToolForm::GetPaneRect()
 
 ExplorerPanel* CharacterToolForm::CreateExplorerPanel()
 {
-	auto panel = new ExplorerPanel(this, &*m_system->explorerData);
+	auto panel = new ExplorerPanel(this, m_system->explorerData.get());
 	m_system->explorerPanels.push_back(panel);
 
 	EXPECTED(connect(panel, &ExplorerPanel::destroyed, this, &CharacterToolForm::OnPanelDestroyed));
@@ -492,7 +504,14 @@ void CharacterToolForm::Serialize(Serialization::IArchive& ar)
 
 void CharacterToolForm::OnIdleUpdate()
 {
-	if (gViewportPreferences.toolsRenderUpdateMutualExclusive && !m_bHasFocus) return;
+	if (gViewportPreferences.toolsRenderUpdateMutualExclusive)
+	{
+		// determine, if CT or any related widget has keyboard focus or is active window
+		bool hasCharacterToolOrAnyAccordingWidgetFocus = m_bHasFocus || m_blendSpacePreview->hasFocus() || m_blendSpacePreview->isActiveWindow();
+		for (auto const& it : m_dockWidgets) hasCharacterToolOrAnyAccordingWidgetFocus = hasCharacterToolOrAnyAccordingWidgetFocus || it->hasFocus() || it->isActiveWindow();
+
+		if (!hasCharacterToolOrAnyAccordingWidgetFocus) return;
+	}
 
 	if (m_splitViewport)
 	{
@@ -797,6 +816,19 @@ void CharacterToolForm::OnDisplayOptionsChanged(const DisplayOptions& settings)
 	vpSettings.grid.showGrid = false;
 	m_blendSpacePreview->GetViewport()->SetSettings(vpSettings);
 
+}
+
+void CharacterToolForm::OnClearProxiesButton()
+{
+	if (CharacterDefinition* cdf = m_system->document->GetLoadedCharacterDefinition())
+	{
+		cdf->RemoveRagdollAttachments();
+		GetPropertiesPanel()->PropertyTree()->revert();
+		GetPropertiesPanel()->OnChanged();
+		EntryModifiedEvent ev;
+		ev.id = m_system->document->GetActiveCharacterEntry()->id;
+		m_system->document->OnCharacterModified(ev);
+	}
 }
 
 void CharacterToolForm::OnPreRenderCompressed(const SRenderContext& context)

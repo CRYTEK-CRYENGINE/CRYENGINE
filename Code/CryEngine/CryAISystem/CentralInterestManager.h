@@ -157,7 +157,7 @@ public:
 	virtual void OnReused(IEntity* pEntity, SEntitySpawnParams& entitySpawnParams) {}
 
 	// IEntityEventListener
-	virtual void OnEntityEvent(IEntity* pEntity, SEntityEvent& event);
+	virtual void OnEntityEvent(IEntity* pEntity, const SEntityEvent& event);
 	// End of IEntityEventListener
 
 	// Expose for DebugDraw

@@ -37,7 +37,7 @@ void CParticleComponent::Initialize()
 	}
 }
 
-void CParticleComponent::ProcessEvent(SEntityEvent& event)
+void CParticleComponent::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

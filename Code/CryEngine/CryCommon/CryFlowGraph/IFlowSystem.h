@@ -1346,11 +1346,11 @@ struct IFlowNode : public _i_reference_target_t
 	IFlowNode& operator= (IFlowNode const&) { return *this; }
 
 	//! notification to be overridden in C# flow node
-	virtual void OnDelete() {}
+	virtual void OnDelete() const {}
 	
 	//! override to kick off a notification for C# flow node.
 	//! to be removed when we get rid of C# flow node completely
-	virtual void Release() override
+	virtual void Release() const override
 	{
 		if (--m_nRefCounter == 0)
 		{

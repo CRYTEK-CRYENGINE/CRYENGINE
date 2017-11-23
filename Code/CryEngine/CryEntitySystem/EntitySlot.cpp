@@ -1,16 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   EntityObject.cpp
-//  Version:     v1.00
-//  Created:     18/5/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #include "stdafx.h"
 #include "EntitySlot.h"
 #include "Entity.h"
@@ -161,8 +150,7 @@ void CEntitySlot::UpdateRenderNode(bool bForceRecreateNode)
 			ICharacterRenderNode* pCharacterRenderNode = static_cast<ICharacterRenderNode*>(gEnv->p3DEngine->CreateRenderNode(eERType_Character));
 			pCharacterRenderNode->SetOwnerEntity(m_pEntity);
 			pCharacterRenderNode->SetCharacter(GetCharacter());
-			pCharacterRenderNode->SetCharacterRenderOffset(QuatTS(m_localTM));
-			pCharacterRenderNode->SetMatrix(m_pEntity->m_worldTM);
+			pCharacterRenderNode->SetMatrix(m_worldTM);
 			m_pRenderNode = pCharacterRenderNode;
 		}
 	}
@@ -214,15 +202,7 @@ void CEntitySlot::UpdateRenderNode(bool bForceRecreateNode)
 		m_pRenderNode->SetRndFlags(renderNodeFlags);
 
 		// Update render node location
-		if (!GetCharacter())
-		{
-			m_pRenderNode->SetMatrix(m_worldTM);
-		}
-		else
-		{
-			// For characters local matrix is not used
-			m_pRenderNode->SetMatrix(m_pEntity->m_worldTM);
-		}
+		m_pRenderNode->SetMatrix(m_worldTM);
 
 		if (!m_bRegisteredRenderNode)
 		{
@@ -282,21 +262,7 @@ void CEntitySlot::OnXForm(int nWhyFlags)
 
 	if (m_pRenderNode)
 	{
-		if (!GetCharacter())
-		{
-			m_pRenderNode->SetMatrix(m_worldTM);
-		}
-		else
-		{
-			// For characters local matrix is not used
-			m_pRenderNode->SetMatrix(m_pEntity->m_worldTM);
-		}
-
-		if (nWhyFlags & ENTITY_XFORM_EDITOR)
-		{
-			// When entity moved in editor,Force shadow cache re-compute
-			gEnv->p3DEngine->OnObjectModified(m_pRenderNode, m_pRenderNode->GetRndFlags());
-		}
+		m_pRenderNode->SetMatrix(m_worldTM);
 	}
 }
 
@@ -420,11 +386,6 @@ void CEntitySlot::SetLocalTM(const Matrix34& localTM)
 	m_localTM = localTM;
 	ComputeWorldTransform();
 
-	if (GetCharacter() && m_pRenderNode)
-	{
-		ICharacterRenderNode* pCharacterRenderNode = static_cast<ICharacterRenderNode*>(m_pRenderNode);
-		pCharacterRenderNode->SetCharacterRenderOffset(QuatTS(m_localTM));
-	}
 	OnXForm(0);
 }
 
@@ -708,7 +669,7 @@ void CEntitySlot::GetSlotInfo(SEntitySlotInfo& slotInfo) const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntitySlot::SetAsLight(const CDLight& lightData, uint16 layerId)
+void CEntitySlot::SetAsLight(const SRenderLight& lightData, uint16 layerId)
 {
 	if (m_pRenderNode && m_pRenderNode->GetRenderNodeType() != eERType_Light)
 	{
@@ -724,7 +685,7 @@ void CEntitySlot::SetAsLight(const CDLight& lightData, uint16 layerId)
 	pLightNode->SetLayerId(layerId);
 	pLightNode->SetLightProperties(lightData);
 
-	CDLight& newLightData = pLightNode->GetLightProperties();
+	SRenderLight& newLightData = pLightNode->GetLightProperties();
 	newLightData.m_sName = m_pEntity->GetName(); // For debugging only.
 	newLightData.m_nEntityId = m_pEntity->GetId();
 

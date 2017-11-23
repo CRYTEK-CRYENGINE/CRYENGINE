@@ -88,7 +88,7 @@ SComponentParams::SComponentParams()
 
 void SComponentParams::Serialize(Serialization::IArchive& ar)
 {
-	auto* pComponent = ar.context<CParticleComponent>();
+	auto* pComponent = static_cast<CParticleComponent*>(ar.context<IParticleComponent>());
 	if (!pComponent || !ar.isEdit() || !ar.isOutput())
 		return;
 	char buffer[1024];
@@ -222,7 +222,7 @@ void CParticleComponent::SetParentComponent(CParticleComponent* pParentComponent
 	if (delayed)
 		m_componentParams.m_emitterLifeTime.end = gInfinity;
 	auto& children = pParentComponent->m_children;
-	stl::append_unique(children, this);
+	stl::push_back_unique(children, this);
 }
 
 void CParticleComponent::GetMaxParticleCounts(int& total, int& perFrame, float minFPS, float maxFPS) const
@@ -281,6 +281,8 @@ void CParticleComponent::RenderAll(CParticleEmitter* pEmitter, CParticleComponen
 
 bool CParticleComponent::CanMakeRuntime(CParticleEmitter* pEmitter) const
 {
+	if (!IsEnabled())
+		return false;
 	for (auto& pFeature : m_features)
 	{
 		if (pFeature->IsEnabled() && !pFeature->CanMakeRuntime(pEmitter))
@@ -298,6 +300,9 @@ void CParticleComponent::PreCompile()
 
 	m_componentParams = {};
 	m_GPUComponentParams = {};
+
+	m_parent = nullptr;
+	m_children.clear();
 
 	static_cast<SFeatureDispatchers&>(*this) = {};
 	m_gpuFeatures.clear();
@@ -386,7 +391,7 @@ IMaterial* CParticleComponent::MakeMaterial()
 		if (pMaterial)
 		{
 			IShader* pShader = pMaterial->GetShaderItem().m_pShader;
-			if (!pShader || pShader->GetShaderType() != m_componentParams.m_requiredShaderType)
+			if (!pShader || (pShader->GetFlags() & EF_LOADED && pShader->GetShaderType() != m_componentParams.m_requiredShaderType))
 				pMaterial = nullptr;
 		}
 	}
@@ -441,7 +446,7 @@ void CParticleComponent::Serialize(Serialization::IArchive& ar)
 		SetName(inputName.c_str());
 	}
 
-	Serialization::SContext context(ar, this);
+	Serialization::SContext context(ar, static_cast<IParticleComponent*>(this));
 	ar(m_componentParams, "Stats", "Component Statistics");
 	ar(m_nodePosition, "nodePos", "Node Position");
 	ar(m_features, "Features", "^");

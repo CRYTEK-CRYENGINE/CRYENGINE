@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -18,7 +18,6 @@ namespace Impl
 {
 namespace Wwise
 {
-// several Wwise-specific helper functions
 //////////////////////////////////////////////////////////////////////////
 inline void FillAKVector(Vec3 const& vCryVector, AkVector& vAKVector)
 {
@@ -48,6 +47,9 @@ inline void FillAKListenerPosition(CObjectTransformation const& transformation, 
 	FillAKVector(transformation.GetUp(), vec2);
 	outTransformation.SetOrientation(vec1, vec2);
 }
+
+extern AkGameObjectID g_listenerId; // To be removed once multi-listener support is implemented.
+extern AkGameObjectID g_globalObjectId;
 } // namespace Wwise
 } // namespace Impl
 } // namespace CryAudio

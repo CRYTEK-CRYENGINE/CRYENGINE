@@ -82,12 +82,15 @@ CBootProfiler gProfilerInstance;
 CBootProfilerThreadsInterface gThreadsInterface;
 }
 
+int CBootProfiler::CV_sys_bp_enabled = 1;
+int CBootProfiler::CV_sys_bp_level_load = 1;
 int CBootProfiler::CV_sys_bp_frames_worker_thread = 0;
 int CBootProfiler::CV_sys_bp_frames = 0;
 int CBootProfiler::CV_sys_bp_frames_sample_period = 0;
 int CBootProfiler::CV_sys_bp_frames_sample_period_rnd = 0;
 float CBootProfiler::CV_sys_bp_frames_threshold = 0.0f;
 float CBootProfiler::CV_sys_bp_time_threshold = 0.0f;
+EBootProfilerFormat CBootProfiler::CV_sys_bp_output_formats = EBootProfilerFormat::XML;
 
 class CProfileBlockTimes
 {
@@ -328,8 +331,7 @@ CBootProfilerSession::CBootProfilerSession(const char* szName) : m_name(szName)
 
 CBootProfilerSession::~CBootProfilerSession()
 {
-	const unsigned int nThreadCount = gThreadsInterface.GetThreadCount();
-	for (unsigned int i = 0; i < nThreadCount; ++i)
+	for (unsigned int i = 0; i < eMAX_THREADS_TO_PROFILE; ++i)
 	{
 		SThreadEntry& entry = m_threadEntry[i];
 		delete entry.m_pRecordsPool;
@@ -637,16 +639,8 @@ static void SaveProfileSessionToChromeTraceJson(const float funcMinTimeThreshold
 	GetISystem()->GetArchiveHost()->SaveJsonFile(filePath,Serialization::SStruct(BootProfilerSessionSerializerToJSON(pSession,funcMinTimeThreshold)));
 }
 
-static void SaveProfileSessionToDisk(const float funcMinTimeThreshold, CBootProfilerSession* pSession)
+static void SaveProfileSessionToXML(CBootProfilerSession* pSession, const float funcMinTimeThreshold)
 {
-	if (!(gEnv && gEnv->pCryPak))
-	{
-		CBootProfiler::GetInstance().QueueSessionToDelete(pSession);
-		return;
-	}
-
-	SaveProfileSessionToChromeTraceJson(funcMinTimeThreshold, pSession);
-
 	static const char* szTestResults = "%USER%/TestResults";
 	stack_string filePath;
 	filePath.Format("%s\\bp_%s.xml", szTestResults, pSession->GetName());
@@ -657,7 +651,6 @@ static void SaveProfileSessionToDisk(const float funcMinTimeThreshold, CBootProf
 	FILE* pFile = ::fopen(path, "wb");
 	if (!pFile)
 	{
-		CBootProfiler::GetInstance().QueueSessionToDelete(pSession);
 		return; //TODO: use accessible path when punning from package on durango
 	}
 
@@ -700,6 +693,24 @@ static void SaveProfileSessionToDisk(const float funcMinTimeThreshold, CBootProf
 	fprintf(pFile, "%s", buf);
 
 	::fclose(pFile);
+}
+
+static void SaveProfileSessionToDisk(const float funcMinTimeThreshold, CBootProfilerSession* pSession, EBootProfilerFormat outputFormat)
+{
+	if (!(gEnv && gEnv->pCryPak))
+	{
+		CBootProfiler::GetInstance().QueueSessionToDelete(pSession);
+		return;
+	}
+
+	if (outputFormat == EBootProfilerFormat::XML)
+	{
+		SaveProfileSessionToXML(pSession, funcMinTimeThreshold);
+	}
+	else if (outputFormat == EBootProfilerFormat::ChromeTraceJSON)
+	{
+		SaveProfileSessionToChromeTraceJson(funcMinTimeThreshold, pSession);
+	}
 
 	CBootProfiler::GetInstance().QueueSessionToDelete(pSession);
 }
@@ -712,7 +723,7 @@ void CBootProfilerSession::CollectResults(const float functionMinTimeThreshold)
 	}
 	else
 	{
-		SaveProfileSessionToDisk(functionMinTimeThreshold, this);
+		SaveProfileSessionToDisk(functionMinTimeThreshold, this, CBootProfiler::GetInstance().CV_sys_bp_output_formats);
 	}
 }
 
@@ -767,6 +778,11 @@ CBootProfiler::~CBootProfiler()
 // start session
 void CBootProfiler::StartSession(const char* sessionName)
 {
+	if (!CV_sys_bp_enabled)
+	{
+		return;
+	}
+
 	if (m_pCurrentSession)
 	{
 		CryLogAlways("BootProfiler: failed to start session '%s' as another one is active '%s'", sessionName, m_pCurrentSession->GetName());
@@ -949,6 +965,8 @@ void CBootProfiler::StopSaveSessionsThread()
 {
 	m_quitSaveThread = true;
 	m_saveThreadWakeUpEvent.Set();
+
+	gEnv->pThreadManager->JoinThread(this, eJM_Join);
 }
 
 void CBootProfiler::QueueSessionToDelete(CBootProfilerSession*pSession)
@@ -971,7 +989,7 @@ void CBootProfiler::ThreadEntry()
 
 		for (size_t i = 0; i < m_sessionsToSave.size(); ++i)
 		{
-			SaveProfileSessionToDisk(m_sessionsToSave[i].functionMinTimeThreshold, m_sessionsToSave[i].pSession);
+			SaveProfileSessionToDisk(m_sessionsToSave[i].functionMinTimeThreshold, m_sessionsToSave[i].pSession, CV_sys_bp_output_formats);
 		}
 
 		m_sessionsToSave.clear();
@@ -986,12 +1004,15 @@ void CBootProfiler::Init(ISystem* pSystem)
 
 void CBootProfiler::RegisterCVars()
 {
+	REGISTER_CVAR2("sys_bp_enabled", &CV_sys_bp_enabled, 1, VF_DEV_ONLY, "If this is set to false, new boot profiler sessions will not be started.");
+	REGISTER_CVAR2("sys_bp_level_load", &CV_sys_bp_level_load, 1, VF_DEV_ONLY, "If this is set to true, a boot profiler session will be started to profile the level loading. Ignored if sys_bp_enabled is false.");
 	REGISTER_CVAR2("sys_bp_frames_worker_thread", &CV_sys_bp_frames_worker_thread, 0, VF_DEV_ONLY | VF_REQUIRE_APP_RESTART, "If this is set to true. The system will dump the profiled session from a different thread.");
 	REGISTER_CVAR2("sys_bp_frames", &CV_sys_bp_frames, 0, VF_DEV_ONLY, "Starts frame profiling for specified number of frames using BootProfiler");
 	REGISTER_CVAR2("sys_bp_frames_sample_period", &CV_sys_bp_frames_sample_period, 0, VF_DEV_ONLY, "When in threshold mode, the period at which we are going to dump a frame.");
 	REGISTER_CVAR2("sys_bp_frames_sample_period_rnd", &CV_sys_bp_frames_sample_period_rnd, 0, VF_DEV_ONLY, "When in threshold mode, the random offset at which we are going to dump a next frame.");
 	REGISTER_CVAR2("sys_bp_frames_threshold", &CV_sys_bp_frames_threshold, 0, VF_DEV_ONLY, "Starts frame profiling but gathers the results for frames that frame time exceeded the threshold");
 	REGISTER_CVAR2("sys_bp_time_threshold", &CV_sys_bp_time_threshold, 0.1f, VF_DEV_ONLY, "If greater than 0 don't write blocks that took less time (default 0.1 ms)");
+	REGISTER_CVAR2("sys_bp_format", &CV_sys_bp_output_formats, EBootProfilerFormat::XML, VF_DEV_ONLY, "Determines the output format for the boot profiler.\n0 = XML\n1 = Chrome Trace JSON");
 
 	if (CV_sys_bp_frames_worker_thread)
 	{
@@ -1033,7 +1054,10 @@ void CBootProfiler::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR 
 	case ESYSTEM_EVENT_LEVEL_LOAD_PREPARE:
 		{
 			CV_sys_bp_time_threshold = 0.1f;
-			StartSession("level");
+			if (CV_sys_bp_level_load)
+			{
+				StartSession("level");
+			}
 			break;
 		}
 	case ESYSTEM_EVENT_LEVEL_LOAD_END:
@@ -1042,9 +1066,12 @@ void CBootProfiler::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR 
 		}
 	case ESYSTEM_EVENT_LEVEL_PRECACHE_END:
 		{
-			//level loading can be stopped here, or m_levelLoadAdditionalFrames can be used to prolong dump for this amount of frames
-			StopSession();
-			//m_levelLoadAdditionalFrames = 20;
+			if (m_pCurrentSession)
+			{
+				//level loading can be stopped here, or m_levelLoadAdditionalFrames can be used to prolong dump for this amount of frames
+				StopSession();
+				//m_levelLoadAdditionalFrames = 20;
+			}
 
 			CV_sys_bp_time_threshold = 0.0f; //gather all blocks when in runtime
 			break;

@@ -62,14 +62,6 @@ namespace CryEngine
 			}
 		}
 
-		public IParticleAttributes Attributes
-		{
-			get
-			{
-				return NativeHandle.GetAttributes();
-			}
-		}
-
 		internal ParticleEffect(IParticleEffect nativeHandle)
 		{
 			NativeHandle = nativeHandle;

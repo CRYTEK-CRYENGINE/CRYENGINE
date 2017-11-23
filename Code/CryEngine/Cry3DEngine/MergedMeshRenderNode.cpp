@@ -4537,7 +4537,7 @@ void CMergedMeshesManager::Update(const SRenderingPassInfo& passInfo)
 
 		if (Cry3DEngineBase::GetCVars()->e_MergedMeshesClusterVisualization > 1 || CryGetAsyncKeyState(0x59))
 		{
-			Vec3 cpos = gEnv->pRenderer->GetCamera().GetPosition();
+			Vec3 cpos = passInfo.GetCamera().GetPosition();
 			//cpos.x = floorf(cpos.x);
 			//cpos.y = floorf(cpos.y);
 			//cpos.z = floorf(GetTerrain()->GetZApr(cpos.x, cpos.y, 0));

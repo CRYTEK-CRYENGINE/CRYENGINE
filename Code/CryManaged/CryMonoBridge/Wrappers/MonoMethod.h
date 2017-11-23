@@ -39,10 +39,11 @@ public:
 
 	MonoInternals::MonoMethodSignature* GetSignature() const { return MonoInternals::mono_method_signature(m_pMethod); }
 
-	string GetSignatureDescription(bool bIncludeNamespace = true) const;
+	string GetSignatureDescription(bool bIncludeNamespace = true, bool bForceSkipCache = false) const;
 	const char* GetName() const { return MonoInternals::mono_method_get_name(m_pMethod); }
 	
 	MonoInternals::MonoMethod* GetHandle() const { return m_pMethod; }
+	void* GetUnmanagedThunk() const { return MonoInternals::mono_method_get_unmanaged_thunk(m_pMethod); }
 
 protected:
 	std::shared_ptr<CMonoObject> InvokeInternal(MonoInternals::MonoObject* pMonoObject, void** pParameters, bool &bEncounteredException) const;

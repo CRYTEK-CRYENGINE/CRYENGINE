@@ -483,6 +483,16 @@ ILINE Color_tpl<T> operator*(T s, const Color_tpl<T>& v)
 	return Color_tpl<T>(v.r * s, v.g * s, v.b * s, v.a * s);
 }
 
+ILINE ColorB operator*(const ColorB& v, float s)
+{
+	return ColorB(float_to_ufrac8(v.r * s), float_to_ufrac8(v.g * s), float_to_ufrac8(v.b * s), float_to_ufrac8(v.a * s));
+}
+
+ILINE ColorB operator*(float s, const ColorB& v)
+{
+	return v * s;
+}
+
 ///////////////////////////////////////////////
 template<class T>
 ILINE unsigned char Color_tpl<T >::pack_rgb332() const
@@ -1021,7 +1031,6 @@ inline void Color_tpl<T >::grey(const Color_tpl<T>& c)
 	r = m;
 	g = m;
 	b = m;
-	a = a;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////

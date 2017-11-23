@@ -99,7 +99,7 @@ protected:
 	// IEntityComponent
 	virtual void   OnShutDown() override;
 
-	virtual void   ProcessEvent(SEntityEvent& event) override;
+	virtual void   ProcessEvent(const SEntityEvent& event) override;
 	virtual uint64 GetEventMask() const override { return m_entityEventMask; };
 	// ~IEntityComponent
 

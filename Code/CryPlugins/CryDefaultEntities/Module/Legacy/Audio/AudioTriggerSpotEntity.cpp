@@ -47,7 +47,7 @@ CAudioTriggerSpotEntity::~CAudioTriggerSpotEntity()
 	Stop();
 }
 
-void CAudioTriggerSpotEntity::ProcessEvent(SEntityEvent& event)
+void CAudioTriggerSpotEntity::ProcessEvent(const SEntityEvent& event)
 {
 	if (gEnv->IsDedicated())
 		return;

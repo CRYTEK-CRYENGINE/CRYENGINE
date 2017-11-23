@@ -77,7 +77,7 @@ uint64 CEnvironmentComponent::GetEventMask() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEnvironmentComponent::ProcessEvent(SEntityEvent& event)
+void CEnvironmentComponent::ProcessEvent(const SEntityEvent& event)
 {
 #if defined(INCLUDE_DEFAULT_PLUGINS_PRODUCTION_CODE)
 	if (event.event == ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED)

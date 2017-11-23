@@ -4,10 +4,10 @@
 
 #include <bitset>
 
-#include <CryGame/IGameFramework.h>
 #include <ICryMannequin.h>
 #include <CrySchematyc/Utils/SharedString.h>
 #include <CryCore/Containers/CryArray.h>
+#include <CryGame/IGameFramework.h>
 
 #include <Animation/PoseAligner/PoseAligner.h>
 
@@ -50,7 +50,7 @@ protected:
 	// IEntityComponent
 	virtual void   Initialize() override;
 
-	virtual void   ProcessEvent(SEntityEvent& event) override;
+	virtual void   ProcessEvent(const SEntityEvent& event) override;
 	virtual uint64 GetEventMask() const override;
 	// ~IEntityComponent
 
@@ -294,7 +294,7 @@ public:
 	bool         IsAnimationDrivenMotionEnabled() const { return m_bAnimationDrivenMotion; }
 
 	virtual void SetCharacterFile(const char* szPath);
-	const char*  SetCharacterFile() const                  { return m_characterFile.value.c_str(); }
+	const char*  GetCharacterFile() const                  { return m_characterFile.value.c_str(); }
 	virtual void SetMannequinAnimationDatabaseFile(const char* szPath);
 	const char*  GetMannequinAnimationDatabaseFile() const { return m_databasePath.value.c_str(); }
 

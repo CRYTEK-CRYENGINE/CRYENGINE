@@ -521,6 +521,13 @@ enum class EEvaluatorType
 	Deferred
 };
 
+enum class EEvaluatorCost
+{
+	Undefined,
+	Cheap,
+	Expensive
+};
+
 class CEvaluator
 {
 public:
@@ -580,6 +587,7 @@ private:
 	mutable std::shared_ptr<CErrorCollector>    m_pErrorCollector;
 
 	EEvaluatorType                              m_evaluatorType;
+	EEvaluatorCost                              m_evaluatorCost;
 	std::unique_ptr<SEvaluatorBlueprintAdapter> m_interfaceAdapter;
 };
 

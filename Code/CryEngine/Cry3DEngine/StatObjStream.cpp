@@ -469,6 +469,8 @@ void CStatObj::DisableStreaming()
 			{
 				IReadStream_AutoPtr readStream;
 				pParentObject->StartStreaming(true, &readStream);
+				if (!(GetSystem()->GetStreamEngine()->GetPauseMask() & 1 << eStreamTaskTypeGeometry))
+					readStream->Wait();
 			}
 		}
 	}

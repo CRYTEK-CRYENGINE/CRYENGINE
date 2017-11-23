@@ -48,7 +48,7 @@ public:
 	virtual void PostUpdate(float frameTime) {}
 	virtual void PostRemoteSpawn() {}
 	virtual void HandleEvent(const SGameObjectEvent& event) {}
-	virtual void ProcessEvent(SEntityEvent& event) {}
+	virtual void ProcessEvent(const SEntityEvent& event) {}
 	virtual void SetChannelId(uint16 id) {}
 	virtual void SetAuthority(bool auth);
 	virtual void GetMemoryUsage(ICrySizer *pSizer) const;

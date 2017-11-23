@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <CryCore/Project/CryModuleDefs.h>
+#define eCryModule eCryM_Legacy
 #include <CryCore/Platform/platform.h>
 
 #define CRY_USE_XT

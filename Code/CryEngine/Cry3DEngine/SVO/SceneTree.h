@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __SCENETREE_H__
 #define __SCENETREE_H__
@@ -86,7 +86,7 @@ public:
 
 	void                 CheckAllocateChilds();
 	void                 DeleteChilds();
-	void                 Render(PodArray<struct SPvsItem>* pSortedPVS, uint64 nNodeKey, CRenderObject* pObj, int nTreeLevel, PodArray<SVF_P3F_C4B_T2F>& arrVertsOut, PodArray<class CVoxelSegment*> arrForStreaming[nVoxStreamQueueMaxSize][nVoxStreamQueueMaxSize]);
+	void                 Render(PodArray<struct SPvsItem>* pSortedPVS, uint64 nNodeKey, int nTreeLevel, PodArray<SVF_P3F_C4B_T2F>& arrVertsOut, PodArray<class CVoxelSegment*> arrForStreaming[nVoxStreamQueueMaxSize][nVoxStreamQueueMaxSize]);
 	bool                 IsStreamingInProgress();
 	void                 GetTrisInAreaStats(int& nTrisCount, int& nVertCount, int& nTrisBytes, int& nVertBytes, int& nMaxVertPerArea, int& nMatsCount);
 	void                 GetVoxSegMemUsage(int& nAllocated);
@@ -98,8 +98,8 @@ public:
 	class CVoxelSegment* AllocateSegment(int nCloudId, int nStationId, int nLod, EFileStreamingStatus eStreamingStatus, bool bDroppedOnDisk);
 	void                 ExportRenderData(int& nNodesProcessed, int nNodesAll, FILE* pFileToWrite, const int nTreeLevel, const int nTreeLevelToExport);
 	void                 TestRefCount(int& nLeaks);
-	void                 Load(int*& pData, int& nNodesCreated, CSvoNode* pParent, AABB* pAreaBox);
-	void                 Save(PodArray<int>& arrData, AABB* pAreaBox);
+	uint32               SaveNode(PodArray<byte>& arrData, uint32& nNodesCounter, ICryArchive* pArchive, uint32& totalSizeCounter);
+	void                 MakeNodeFilePath(char* szFileName);
 	void                 CutChilds();
 	bool                 CheckReadyForRendering(int nTreeLevel, PodArray<CVoxelSegment*> arrForStreaming[nVoxStreamQueueMaxSize][nVoxStreamQueueMaxSize]);
 	void                 CollectResetVisNodes(PvsMap& arrNodes, uint64 nNodeKey);
@@ -120,14 +120,16 @@ public:
 	void                 RegisterMovement(const AABB& objBox);
 	Vec3i                GetStatGeomCheckSumm();
 	CSvoNode*            FindNodeByPoolAffset(int nAllocatedAtlasOffset);
+	static bool          IsStreamingActive();
 
-	AABB           m_nodeBox;
-	CSvoNode**     m_ppChilds;
-	CSvoNode*      m_pParent;
-	CVoxelSegment* m_pSeg;
-	uint           m_nRequestSegmentUpdateFrametId;
-	bool           m_arrChildNotNeeded[8];
-	bool           m_bForceRecreate;
+	AABB                       m_nodeBox;
+	CSvoNode**                 m_ppChilds;
+	std::pair<uint32, uint32>* m_pChildFileOffsets;
+	CSvoNode*                  m_pParent;
+	CVoxelSegment*             m_pSeg;
+	uint                       m_nRequestSegmentUpdateFrametId;
+	bool                       m_arrChildNotNeeded[8];
+	bool                       m_bForceRecreate;
 };
 
 class CPointTreeNode
@@ -163,22 +165,24 @@ public:
 	void OnLevelGeometryChanged();
 	void DrawLightProbeDebug(Vec3 vPos, int nTexId);
 	void ReconstructTree(bool bMultiPoint);
+	void AllocateRootNode();
+	int  ExportSvo(ICryArchive* pArchive);
 	void LoadTree(int& nNodesCreated);
 	void DetectMovement_StaticGeom();
 	void DetectMovement_StatLights();
 	void CollectLights();
 	void CollectAnalyticalOccluders();
 	void AddAnalyticalOccluder(IRenderNode* pRN, Vec3 camPos);
+	void GetGlobalEnvProbeProperties(_smart_ptr<ITexture>& specEnvCM, float& mult);
 
 	PodArray<I3DEngine::SLightTI>            m_lightsTI_S, m_lightsTI_D;
 	PodArray<I3DEngine::SAnalyticalOccluder> m_AnalyticalOccluders[2];
-	Vec4 m_vSvoOriginAndSize;
-	AABB m_aabbLightsTI_D;
-	ITexture*                                m_pGlobalSpecCM;
-	float m_fGlobalSpecCM_Mult;
-	CSvoNode*                                m_pSvoRoot;
-	bool m_bReady;
-	PodArray<CVoxelSegment*>                 m_arrForStreaming[nVoxStreamQueueMaxSize][nVoxStreamQueueMaxSize];
+	Vec4                      m_vSvoOriginAndSize;
+	AABB                      m_aabbLightsTI_D;
+	SRenderLight*             m_pGlobalEnvProbe;
+	CSvoNode*                 m_pSvoRoot;
+	bool                      m_bReady;
+	PodArray<CVoxelSegment*>  m_arrForStreaming[nVoxStreamQueueMaxSize][nVoxStreamQueueMaxSize];
 	int                       m_nDebugDrawVoxelsCounter;
 	int                       m_nNodeCounter;
 	int                       m_nDynNodeCounter;
@@ -188,7 +192,6 @@ public:
 	float                     m_fStreamingStartTime;
 	float                     m_fSvoFreezeTime;
 	int                       m_arrVoxelizeMeshesCounter[2];
-	Matrix44                  m_matDvrTm;
 	AABB                      m_worldBox;
 	PodArray<SVF_P3F_C4B_T2F> m_arrSvoProxyVertices;
 	double                    m_prevCheckVal;
@@ -199,26 +202,24 @@ public:
 	int                       m_nTexOpasPoolId;
 	int                       m_nTexNodePoolId;
 
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-		#ifdef FEATURE_SVO_GI_USE_MESH_RT
-	int m_nTexTrisPoolId;
-		#endif
-	int m_nTexRgb0PoolId;
-	int m_nTexRgb1PoolId;
-	int m_nTexDynlPoolId;
-	int m_nTexRgb2PoolId;
-	int m_nTexRgb3PoolId;
-	int m_nTexRgb4PoolId;
-	int m_nTexNormPoolId;
-	int m_nTexAldiPoolId;
+	#ifdef FEATURE_SVO_GI_USE_MESH_RT
+	int                                                m_nTexTrisPoolId;
 	#endif
+	int                                                m_nTexRgb0PoolId;
+	int                                                m_nTexRgb1PoolId;
+	int                                                m_nTexDynlPoolId;
+	int                                                m_nTexRgb2PoolId;
+	int                                                m_nTexRgb3PoolId;
+	int                                                m_nTexRgb4PoolId;
+	int                                                m_nTexNormPoolId;
+	int                                                m_nTexAldiPoolId;
 
 	ETEX_Format                                        m_nVoxTexFormat;
 	TDoublyLinkedList<CVoxelSegment>                   m_arrSegForUnload;
 	CCustomSVOPoolAllocator<struct SCpuBrickItem, 128> m_cpuBricksAllocator;
 	CCustomSVOPoolAllocator<CSvoNode, 128>             m_nodeAllocator;
 
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
+	#ifdef FEATURE_SVO_GI_USE_MESH_RT
 	PodArrayRT<ColorB> m_arrRTPoolTexs;
 	PodArrayRT<Vec4>   m_arrRTPoolTris;
 	PodArrayRT<ColorB> m_arrRTPoolInds;

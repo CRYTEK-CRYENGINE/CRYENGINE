@@ -5,9 +5,9 @@
 #include <IPlugin.h>
 #include <IEditor.h>
 
-#include "AudioAssetsManager.h"
+#include "SystemAssetsManager.h"
 
-#include <IAudioSystemEditor.h>
+#include <IEditorImpl.h>
 #include <CryAudio/IAudioInterfacesCommonData.h>
 #include <CrySandbox/CrySignal.h>
 
@@ -28,15 +28,15 @@ public:
 	virtual ~CAudioControlsEditorPlugin() override;
 
 	int32                          GetPluginVersion() override     { return 1; }
-	const char*                    GetPluginName() override        { return "Audio Controls Editor"; }
-	const char*                    GetPluginDescription() override { return "The Audio Controls Editor enables browsing and configuring audio events exposed from the audio middleware"; }
+	char const*                    GetPluginName() override        { return "Audio Controls Editor"; }
+	char const*                    GetPluginDescription() override { return "The Audio Controls Editor enables browsing and configuring audio events exposed from the audio middleware"; }
 
 	static void                    SaveModels();
-	static void                    ReloadModels(bool const bReloadImplementation);
+	static void                    ReloadModels(bool const reloadImplementation);
 	static void                    ReloadScopes();
-	static CAudioAssetsManager*    GetAssetsManager();
+	static CSystemAssetsManager*   GetAssetsManager();
 	static CImplementationManager* GetImplementationManger();
-	static IAudioSystemEditor*     GetAudioSystemEditorImpl();
+	static IEditorImpl*            GetImplEditor();
 	static void                    ExecuteTrigger(string const& sTriggerName);
 	static void                    StopTriggerExecution();
 	static EErrorCode              GetLoadingErrorMask() { return s_loadingErrorMask; }
@@ -52,7 +52,7 @@ private:
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam) override;
 	// ~ISystemEventListener
 
-	static CAudioAssetsManager    s_assetsManager;
+	static CSystemAssetsManager   s_assetsManager;
 	static std::set<string>       s_currentFilenames;
 	static CryAudio::IObject*     s_pIAudioObject;
 	static CryAudio::ControlId    s_audioTriggerId;

@@ -87,7 +87,8 @@ private:
 	std::unique_ptr<MetaExtensionFactory> m_metaExtensionFactory;
 
 #if defined(DEBUG_MODULAR_BEHAVIOR_TREE_WEB)
-	void UpdateWebDebugChannel(const EntityId entityId, UpdateContext& updateContext, DebugTree& debugTree, BehaviorTreeInstance& instance, const bool bExecutionError);
+	bool DoesEntityWantToDoWebDebugging(const EntityId entityIdToCheckForWebDebugging, TGameWebDebugClientId* pOutClientId) const;
+	void UpdateWebDebugChannel(const TGameWebDebugClientId clientId, UpdateContext& updateContext, DebugTree& debugTree, BehaviorTreeInstance& instance, const bool bExecutionError);
 #endif
 
 	typedef string                                                                                                              BehaviorTreeName;

@@ -895,7 +895,7 @@ void CRopeRenderNode::Render(const SRendParams& rParams, const SRenderingPassInf
 
 	IRenderer* pRend = GetRenderer();
 
-	CRenderObject* pObj = pRend->EF_GetObject_Temp(passInfo.ThreadID());
+	CRenderObject* pObj = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 	if (!pObj)
 		return; // false;
 	pObj->m_pRenderNode = this;

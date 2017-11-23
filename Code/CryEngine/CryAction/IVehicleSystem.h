@@ -1221,7 +1221,7 @@ struct IVehicleMovement
 	virtual void                   RegisterActionFilter(IVehicleMovementActionFilter* pActionFilter) = 0;
 	virtual void                   UnregisterActionFilter(IVehicleMovementActionFilter* pActionFilter) = 0;
 
-	virtual void                   ProcessEvent(SEntityEvent& event) = 0;
+	virtual void                   ProcessEvent(const SEntityEvent& event) = 0;
 	virtual CryCriticalSection*    GetNetworkLock() = 0;
 
 	virtual void                   GetMemoryUsage(ICrySizer* s) const = 0;

@@ -26,7 +26,7 @@ CAudioAreaAmbienceRegistrator g_audioAreaAmbienceRegistrator;
 
 CRYREGISTER_CLASS(CAudioAreaAmbienceEntity);
 
-void CAudioAreaAmbienceEntity::ProcessEvent(SEntityEvent& event)
+void CAudioAreaAmbienceEntity::ProcessEvent(const SEntityEvent& event)
 {
 	if (gEnv->IsDedicated())
 		return;

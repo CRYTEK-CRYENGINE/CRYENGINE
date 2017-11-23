@@ -25,8 +25,8 @@
 #include <CrySystem/ITimer.h>
 #include "HardwareMouse.h"
 #include <CryCore/Platform/WindowsUtils.h>
-
 #include <CryCore/Platform/CryLibrary.h>
+#include <CryRenderer/IRenderAuxGeom.h>
 
 #if CRY_PLATFORM_WINDOWS
 	#include <CryRenderer/IImage.h>
@@ -551,8 +551,8 @@ void CHardwareMouse::SetHardwareMousePosition(float fX, float fY)
 	m_fVirtualY = fY;
 	if (gEnv && gEnv->pRenderer)
 	{
-		float fWidth = float(gEnv->pRenderer->GetWidth());
-		float fHeight = float(gEnv->pRenderer->GetHeight());
+		float fWidth  = float(gEnv->pRenderer->GetOverlayWidth());
+		float fHeight = float(gEnv->pRenderer->GetOverlayHeight());
 
 		if (m_fVirtualX < 0.0f)
 		{
@@ -771,14 +771,14 @@ void CHardwareMouse::Render()
 
 	if (gEnv && gEnv->pRenderer && m_iReferenceCounter && m_pCursorTexture && !m_hide)
 	{
-		float fScalerX = gEnv->pRenderer->ScaleCoordX(1.f);
-		float fScalerY = gEnv->pRenderer->ScaleCoordY(1.f);
+		// TODO: relative/normalized coordinate system in screen-space
+		const float fScalerX = 1.0f; //800.0f / float(gEnv->pRenderer->GetOverlayWidth());
+		const float fScalerY = 1.0f; //600.0f / float(gEnv->pRenderer->GetOverlayHeight());
 		const float fSizeX = float(m_pCursorTexture->GetWidth());
 		const float fSizeY = float(m_pCursorTexture->GetHeight());
 		float fPosX, fPosY;
 		GetHardwareMouseClientPosition(&fPosX, &fPosY);
-		gEnv->pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
-		gEnv->pRenderer->Draw2dImage(fPosX / fScalerX, fPosY / fScalerY, fSizeX / fScalerX, fSizeY / fScalerY, m_pCursorTexture->GetTextureID(), 0, 1, 1, 0, 0, 1, 1, 1, 1, 0);
+		IRenderAuxImage::Draw2dImage(fPosX * fScalerX, fPosY * fScalerY, fSizeX * fScalerX, fSizeY * fScalerY, m_pCursorTexture->GetTextureID(), 0, 1, 1, 0, 0, 1, 1, 1, 1, 0);
 	}
 }
 

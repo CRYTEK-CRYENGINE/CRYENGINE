@@ -56,9 +56,7 @@ ILINE SChaosKey::SChaosKey(SChaosKey key1, SChaosKey key2, SChaosKey key3)
 
 ILINE uint32 SChaosKey::Rand()
 {
-	++m_key;
-	uint32 result = Jumble(m_key);
-	return result;
+	return m_key = Jumble(m_key);
 }
 
 ILINE uint32 SChaosKey::Rand(uint32 range)
@@ -124,8 +122,7 @@ ILINE SChaosKeyV::SChaosKeyV(uint32 key)
 
 ILINE uint32v SChaosKeyV::Rand()
 {
-	m_keys = m_keys + ToUint32v(1);
-	return Jumble(m_keys);
+	return m_keys = Jumble(m_keys);
 }
 
 ILINE uint32v SChaosKeyV::Rand(uint32 range)

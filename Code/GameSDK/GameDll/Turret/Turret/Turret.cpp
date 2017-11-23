@@ -399,7 +399,7 @@ void CTurret::HandleEvent( const SGameObjectEvent& event )
 }
 
 
-void CTurret::ProcessEvent( SEntityEvent& event )
+void CTurret::ProcessEvent( const SEntityEvent& event )
 {
 	switch ( event.event )
 	{

@@ -30,13 +30,11 @@ public:
 	}
 
 	virtual ~CRESky();
-	virtual void          mfPrepare(bool bCheckOverflow) override;
-	virtual bool          mfDraw(CShader* ef, SShaderPass* sfm) override;
 
 	virtual InputLayoutHandle GetVertexFormat() const override;
 	virtual bool          GetGeometryInfo(SGeometryInfo& streams, bool bSupportTessellation = false) override;
 
-	virtual bool          Compile(CRenderObject* pObj) override;
+	virtual bool          Compile(CRenderObject* pObj, CRenderView *pRenderView) override;
 	virtual void          DrawToCommandList(CRenderObject* pObj, const struct SGraphicsPipelinePassContext& ctx) override;
 
 	virtual void          GetMemoryUsage(ICrySizer* pSizer) const override
@@ -64,13 +62,11 @@ public:
 	}
 
 	virtual ~CREHDRSky();
-	virtual void          mfPrepare(bool bCheckOverflow) override;
-	virtual bool          mfDraw(CShader* ef, SShaderPass* sfm) override;
 
 	virtual InputLayoutHandle GetVertexFormat() const override;
 	virtual bool          GetGeometryInfo(SGeometryInfo& streams, bool bSupportTessellation = false) override;
 
-	virtual bool          Compile(CRenderObject* pObj) override;
+	virtual bool          Compile(CRenderObject* pObj, CRenderView *pRenderView) override;
 	virtual void          DrawToCommandList(CRenderObject* pObj, const struct SGraphicsPipelinePassContext& ctx) override;
 
 	virtual void          GetMemoryUsage(ICrySizer* pSizer) const override
@@ -86,7 +82,7 @@ public:
 	class CTexture*              m_pSkyDomeTextureMie;
 	class CTexture*              m_pSkyDomeTextureRayleigh;
 
-	static void SetCommonMoonParams(CShader* ef, bool bUseMoon = false);
+	//static void SetCommonMoonParams(CShader* ef, bool bUseMoon = false);
 
 private:
 	void Init();

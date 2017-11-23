@@ -22,11 +22,13 @@ GenericPlanner::GenericPlanner(NavigationAgentTypeID navigationAgentTypeID)
 	, m_pathfinderRequestQueued(false)
 {
 	gAIEnv.pNavigationSystem->AddMeshChangeCallback(m_navigationAgentTypeID, functor(*this, &GenericPlanner::OnNavigationMeshChanged));
+	gAIEnv.pNavigationSystem->AddMeshAnnotationChangeCallback(m_navigationAgentTypeID, functor(*this, &GenericPlanner::OnNavigationAnnotationChanged));
 }
 
 GenericPlanner::~GenericPlanner()
 {
 	gAIEnv.pNavigationSystem->RemoveMeshChangeCallback(m_navigationAgentTypeID, functor(*this, &GenericPlanner::OnNavigationMeshChanged));
+	gAIEnv.pNavigationSystem->RemoveMeshAnnotationChangeCallback(m_navigationAgentTypeID, functor(*this, &GenericPlanner::OnNavigationAnnotationChanged));
 }
 
 bool GenericPlanner::IsUpdateNeeded() const
@@ -54,7 +56,7 @@ void GenericPlanner::StartWorkingOnRequest_Internal(const MovementRequestID& req
 		{
 			// Future: We could path find from a bit further along the current plan.
 
-			context.actor.RequestPathTo(request.destination, request.lengthToTrimFromThePathEnd, request.dangersFlags, request.considerActorsAsPathObstacles, request.pCustomPathCostComputer);
+			context.actor.RequestPathTo(request.destination, request.lengthToTrimFromThePathEnd, request.snappingRules, request.dangersFlags, request.considerActorsAsPathObstacles, request.pCustomPathCostComputer);
 			m_pathfinderRequestQueued = true;
 
 			//
@@ -142,6 +144,16 @@ IPlanner::Status GenericPlanner::Update(const MovementUpdateContext& context)
 
 void GenericPlanner::OnNavigationMeshChanged(NavigationAgentTypeID navigationAgentTypeID, NavigationMeshID meshID, uint32 tileID)
 {
+	QueueNavigationChange(navigationAgentTypeID, meshID, tileID, SMeshTileChange::EChangeType::AfterGeneration);
+}
+
+void GenericPlanner::OnNavigationAnnotationChanged(NavigationAgentTypeID navigationAgentTypeID, NavigationMeshID meshID, uint32 tileID)
+{
+	QueueNavigationChange(navigationAgentTypeID, meshID, tileID, SMeshTileChange::EChangeType::Annotation);
+}
+
+void GenericPlanner::QueueNavigationChange(NavigationAgentTypeID navigationAgentTypeID, NavigationMeshID meshID, uint32 tileID, const SMeshTileChange::ChangeFlags& changeFlag)
+{
 	if (gAIEnv.CVars.MovementSystemPathReplanningEnabled)
 	{
 		//
@@ -165,7 +177,16 @@ void GenericPlanner::OnNavigationMeshChanged(NavigationAgentTypeID navigationAge
 				// extra check for whether we're already aware of some previous NavMesh-change having invalidated our path (we're just waiting for the SmartObject-traversal to finish before re-planning)
 				if (!m_pendingPathReplanning.bNavMeshChanged)
 				{
-					stl::push_back_unique(m_queuedNavMeshChanges, MeshIDAndTileID(meshID, tileID));
+					SMeshTileChange meshTileChange(meshID, tileID, changeFlag);
+					auto findIt = std::find(m_queuedNavMeshChanges.begin(), m_queuedNavMeshChanges.end(), meshTileChange);
+					if (findIt != m_queuedNavMeshChanges.end())
+					{
+						findIt->changeFlags |= meshTileChange.changeFlags;
+					}
+					else
+					{
+						m_queuedNavMeshChanges.push_back(meshTileChange);
+					}
 				}
 			}
 		}
@@ -184,15 +205,16 @@ void GenericPlanner::CheckForNeedToPathReplanningDueToNavMeshChanges(const Movem
 
 	if (!m_pathfinderRequestQueued && m_plan.HasBlocks())
 	{
-		if (!m_pendingPathReplanning.bNavMeshChanged && !m_queuedNavMeshChanges.empty())
+		if (!m_pendingPathReplanning.bNavMeshChanged)
 		{
 			//
 			// Check with the path-follower for whether any of the NavMesh changes affects the path we're traversing.
 			//
-
-			for (std::vector<MeshIDAndTileID>::const_iterator it = m_queuedNavMeshChanges.begin(), end = m_queuedNavMeshChanges.end(); it != end; ++it)
+			for (const SMeshTileChange& meshTileChange : m_queuedNavMeshChanges)
 			{
-				if (context.pathFollower.IsRemainingPathAffectedByNavMeshChange(it->meshID, it->tileID))
+				const bool bAnnotationChange = meshTileChange.changeFlags.Check(SMeshTileChange::EChangeType::Annotation);
+				const bool bDataChange = meshTileChange.changeFlags.Check(SMeshTileChange::EChangeType::AfterGeneration);
+				if (context.pathFollower.IsRemainingPathAffectedByNavMeshChange(meshTileChange.meshID, meshTileChange.tileID, bAnnotationChange, bDataChange))
 				{
 					m_pendingPathReplanning.bNavMeshChanged = true;
 					break;
@@ -203,7 +225,6 @@ void GenericPlanner::CheckForNeedToPathReplanningDueToNavMeshChanges(const Movem
 		//
 		// Now, we don't need the collected NavMesh changes anymore.
 		//
-
 		stl::free_container(m_queuedNavMeshChanges);
 	}
 }

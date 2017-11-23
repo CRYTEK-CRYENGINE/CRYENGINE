@@ -1,18 +1,5 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
-// -------------------------------------------------------------------------
-//  File name:   BreakableManager.h
-//  Version:     v1.00
-//  Created:     7/6/2005 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __BreakableManager_h__
-#define __BreakableManager_h__
 #pragma once
 
 #include <CryEntitySystem/IBreakableManager.h>
@@ -116,5 +103,3 @@ private:
 	std::vector<IBreakableManager::SBrokenObjRec> m_brokenObjs;
 	std::vector<IPhysicalEntity*>                 m_brokenObjsParticles;
 };
-
-#endif //__BreakableManager_h__

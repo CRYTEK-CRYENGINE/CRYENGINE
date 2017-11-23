@@ -5,7 +5,7 @@
 #include "AudioEvent.h"
 #include "ATLEntities.h"
 #include "SharedAudioData.h"
-#include <AudioLogger.h>
+#include <Logger.h>
 #include <fmod_common.h>
 #include <CryAudio/IAudioSystem.h>
 
@@ -74,7 +74,7 @@ void CObjectBase::RemoveEvent(CEvent* const pEvent)
 	{
 		if (!stl::find_and_erase(m_pendingEvents, pEvent))
 		{
-			g_implLogger.Log(ELogType::Error, "Tried to remove an event from an audio object that does not own that event");
+			Cry::Audio::Log(ELogType::Error, "Tried to remove an event from an audio object that does not own that event");
 		}
 	}
 }
@@ -86,7 +86,7 @@ void CObjectBase::RemoveFile(CStandaloneFileBase const* const pFile)
 	{
 		if (!stl::find_and_erase(m_pendingFiles, pFile))
 		{
-			g_implLogger.Log(ELogType::Error, "Tried to remove an audio file from an audio object that is not playing that file");
+			Cry::Audio::Log(ELogType::Error, "Tried to remove an audio file from an audio object that is not playing that file");
 		}
 	}
 }
@@ -130,7 +130,7 @@ bool CObjectBase::SetEvent(CEvent* const pEvent)
 			}
 			else
 			{
-				g_implLogger.Log(ELogType::Warning, "Trying to set an unknown Fmod parameter during \"SetEvent\": %s", parameterPair.first->GetName().c_str());
+				Cry::Audio::Log(ELogType::Warning, "Trying to set an unknown Fmod parameter during \"SetEvent\": %s", parameterPair.first->GetName().c_str());
 			}
 		}
 
@@ -161,7 +161,7 @@ bool CObjectBase::SetEvent(CEvent* const pEvent)
 			}
 			else
 			{
-				g_implLogger.Log(ELogType::Warning, "Trying to set an unknown Fmod switch during \"SetEvent\": %s", switchPair.second->name.c_str());
+				Cry::Audio::Log(ELogType::Warning, "Trying to set an unknown Fmod switch during \"SetEvent\": %s", switchPair.second->name.c_str());
 			}
 		}
 
@@ -313,14 +313,12 @@ ERequestStatus CObjectBase::ExecuteTrigger(ITrigger const* const pITrigger, IEve
 		else
 		{
 			StopEvent(pTrigger->m_eventPathId);
-
-			// Return failure here so the ATL does not keep track of this event.
-			requestResult = ERequestStatus::Failure;
+			requestResult = ERequestStatus::SuccessfullyStopped;
 		}
 	}
 	else
 	{
-		g_implLogger.Log(ELogType::Error, "Invalid trigger or event pointers passed to the Fmod implementation of ExecuteTrigger.");
+		Cry::Audio::Log(ELogType::Error, "Invalid trigger or event pointers passed to the Fmod implementation of ExecuteTrigger.");
 	}
 
 	return requestResult;
@@ -356,7 +354,7 @@ ERequestStatus CObjectBase::PlayFile(IStandaloneFile* const pIStandaloneFile)
 		return ERequestStatus::Success;
 	}
 
-	g_implLogger.Log(ELogType::Error, "Invalid standalone file pointer passed to the Fmod implementation of PlayFile.");
+	Cry::Audio::Log(ELogType::Error, "Invalid standalone file pointer passed to the Fmod implementation of PlayFile.");
 	return ERequestStatus::Failure;
 }
 
@@ -372,7 +370,7 @@ ERequestStatus CObjectBase::StopFile(IStandaloneFile* const pIStandaloneFile)
 	}
 	else
 	{
-		g_implLogger.Log(ELogType::Error, "Invalid standalone file pointer passed to the Fmod implementation of StopFile.");
+		Cry::Audio::Log(ELogType::Error, "Invalid standalone file pointer passed to the Fmod implementation of StopFile.");
 	}
 
 	return ERequestStatus::Failure;
@@ -421,7 +419,7 @@ ERequestStatus CGlobalObject::SetEnvironment(IEnvironment const* const pIEnviron
 	}
 	else
 	{
-		g_implLogger.Log(ELogType::Error, "Invalid Environment pointer passed to the Fmod implementation of SetEnvironment");
+		Cry::Audio::Log(ELogType::Error, "Invalid Environment pointer passed to the Fmod implementation of SetEnvironment");
 	}
 
 	return result;
@@ -446,7 +444,7 @@ ERequestStatus CGlobalObject::SetParameter(IParameter const* const pIParameter, 
 	}
 	else
 	{
-		g_implLogger.Log(ELogType::Error, "Invalid parameter pointer passed to the Fmod implementation of SetParameter");
+		Cry::Audio::Log(ELogType::Error, "Invalid parameter pointer passed to the Fmod implementation of SetParameter");
 	}
 
 	return result;
@@ -471,7 +469,7 @@ ERequestStatus CGlobalObject::SetSwitchState(ISwitchState const* const pISwitchS
 	}
 	else
 	{
-		g_implLogger.Log(ELogType::Error, "Invalid switch pointer passed to the Fmod implementation of SetSwitchState");
+		Cry::Audio::Log(ELogType::Error, "Invalid switch pointer passed to the Fmod implementation of SetSwitchState");
 	}
 
 	return result;
@@ -480,7 +478,7 @@ ERequestStatus CGlobalObject::SetSwitchState(ISwitchState const* const pISwitchS
 //////////////////////////////////////////////////////////////////////////
 ERequestStatus CGlobalObject::SetObstructionOcclusion(float const obstruction, float const occlusion)
 {
-	g_implLogger.Log(ELogType::Error, "Trying to set occlusion and obstruction values on the global audio object!");
+	Cry::Audio::Log(ELogType::Error, "Trying to set occlusion and obstruction values on the global audio object!");
 	return ERequestStatus::Failure;
 }
 
@@ -517,7 +515,7 @@ ERequestStatus CObject::SetEnvironment(IEnvironment const* const pIEnvironment, 
 	}
 	else
 	{
-		g_implLogger.Log(ELogType::Error, "Invalid IEnvironment pointer passed to the Fmod implementation of SetEnvironment");
+		Cry::Audio::Log(ELogType::Error, "Invalid IEnvironment pointer passed to the Fmod implementation of SetEnvironment");
 		result = ERequestStatus::Failure;
 	}
 
@@ -554,7 +552,7 @@ ERequestStatus CObject::SetParameter(IParameter const* const pIParameter, float 
 						}
 						else
 						{
-							g_implLogger.Log(ELogType::Warning, "Unknown Fmod parameter index (%d) for (%s)", iter->second, pParameter->GetName().c_str());
+							Cry::Audio::Log(ELogType::Warning, "Unknown Fmod parameter index (%d) for (%s)", iter->second, pParameter->GetName().c_str());
 						}
 					}
 					else
@@ -585,7 +583,7 @@ ERequestStatus CObject::SetParameter(IParameter const* const pIParameter, float 
 				}
 				else
 				{
-					g_implLogger.Log(ELogType::Warning, "Trying to set an unknown Fmod parameter: %s", pParameter->GetName().c_str());
+					Cry::Audio::Log(ELogType::Warning, "Trying to set an unknown Fmod parameter: %s", pParameter->GetName().c_str());
 				}
 			}
 		}
@@ -603,7 +601,7 @@ ERequestStatus CObject::SetParameter(IParameter const* const pIParameter, float 
 	}
 	else
 	{
-		g_implLogger.Log(ELogType::Error, "Invalid AudioObjectData or RtpcData passed to the Fmod implementation of SetRtpc");
+		Cry::Audio::Log(ELogType::Error, "Invalid AudioObjectData or RtpcData passed to the Fmod implementation of SetRtpc");
 		result = ERequestStatus::Failure;
 	}
 
@@ -667,7 +665,7 @@ ERequestStatus CObject::SetSwitchState(ISwitchState const* const pISwitchState)
 				}
 				else
 				{
-					g_implLogger.Log(ELogType::Warning, "Trying to set an unknown Fmod switch: %s", pSwitchState->name.c_str());
+					Cry::Audio::Log(ELogType::Warning, "Trying to set an unknown Fmod switch: %s", pSwitchState->name.c_str());
 				}
 			}
 		}
@@ -685,7 +683,7 @@ ERequestStatus CObject::SetSwitchState(ISwitchState const* const pISwitchState)
 	}
 	else
 	{
-		g_implLogger.Log(ELogType::Error, "Invalid switch pointer passed to the Fmod implementation of SetSwitchState");
+		Cry::Audio::Log(ELogType::Error, "Invalid switch pointer passed to the Fmod implementation of SetSwitchState");
 		result = ERequestStatus::Failure;
 	}
 

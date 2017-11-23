@@ -18,7 +18,6 @@ struct    IMaterial;
 struct    ShadowMapFrustum;
 class CRenderObject;
 struct    IShader;
-class CDLight;
 class IReadStream;
 struct    SRenderingPassInfo;
 TYPEDEF_AUTOPTR(IReadStream);

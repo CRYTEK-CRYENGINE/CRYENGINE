@@ -28,7 +28,7 @@
 
 bool IsAABBInsideHull(const SPlaneObject* pHullPlanes, int nPlanesNum, const AABB& aabbBox);
 
-void CObjManager::MakeShadowCastersList(CVisArea* pArea, const AABB& aabbReceiver, int dwAllowedTypes, int32 nRenderNodeFlags, Vec3 vLightPos, CDLight* pLight, ShadowMapFrustum* pFr, PodArray<SPlaneObject>* pShadowHull, const SRenderingPassInfo& passInfo)
+void CObjManager::MakeShadowCastersList(CVisArea* pArea, const AABB& aabbReceiver, int dwAllowedTypes, int32 nRenderNodeFlags, Vec3 vLightPos, SRenderLight* pLight, ShadowMapFrustum* pFr, PodArray<SPlaneObject>* pShadowHull, const SRenderingPassInfo& passInfo)
 {
 	FUNCTION_PROFILER_3DENGINE;
 
@@ -203,7 +203,7 @@ int CObjManager::MakeStaticShadowCastersList(IRenderNode* pIgnoreNode, ShadowMap
 	return nRemainingNodes;
 }
 
-uint64 CObjManager::GetShadowFrustumsList(PodArray<CDLight*>* pAffectingLights, const AABB& aabbReceiver,
+uint64 CObjManager::GetShadowFrustumsList(PodArray<SRenderLight*>* pAffectingLights, const AABB& aabbReceiver,
                                           float fObjDistance, uint32 nDLightMask, bool bIncludeNearFrustums,
                                           const SRenderingPassInfo& passInfo)
 {
@@ -223,7 +223,7 @@ uint64 CObjManager::GetShadowFrustumsList(PodArray<CDLight*>* pAffectingLights, 
 	if (bIncludeNearFrustums)
 		for (int i = 0; i < 64 && i < pAffectingLights->Count(); i++)
 		{
-			CDLight* pLight = pAffectingLights->GetAt(i);
+			SRenderLight* pLight = pAffectingLights->GetAt(i);
 
 			assert(pLight->m_Id < 64);
 

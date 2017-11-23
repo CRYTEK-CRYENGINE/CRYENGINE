@@ -2,9 +2,12 @@
 
 #include "StdAfx.h"
 #include "RenderAuxGeom.h"
+#include "CommonRender.h"
+#include "Common/RenderDisplayContext.h"
 
 #if defined(ENABLE_RENDER_AUX_GEOM)
 #include "DriverD3D.h"
+#include "ReverseDepth.h"
 
 static inline uint32 PackColor(const ColorB& col)
 {
@@ -26,11 +29,8 @@ static inline uint32 AlphaFlags(const ColorB& colV)
 	return 0;
 }
 
-CAuxGeomCB::CAuxGeomCB(IRenderAuxGeomImpl* pRenderAuxGeom)
-	: m_pRenderAuxGeom(pRenderAuxGeom)
-	, m_lastFlushPos(0)
+CAuxGeomCB::CAuxGeomCB()
 {
-	CRY_ASSERT(m_pRenderAuxGeom != nullptr);
 	m_cbCurrent = AddCBuffer();
 }
 
@@ -42,17 +42,29 @@ CAuxGeomCB::~CAuxGeomCB()
 	}
 }
 
-void CAuxGeomCB::SetRenderFlags(const SAuxGeomRenderFlags& renderFlags)
+SAuxGeomRenderFlags CAuxGeomCB::SetRenderFlags(const SAuxGeomRenderFlags& renderFlags)
 {
+	SAuxGeomRenderFlags prevFlags = m_cbCurrent->m_curRenderFlags;
 	// make sure caller only tries to set public bits
 	CRY_ASSERT(0 == (renderFlags.m_renderFlags & ~e_PublicParamsMask));
 	m_cbCurrent->m_curRenderFlags = renderFlags;
+	return prevFlags;
 }
 
 SAuxGeomRenderFlags CAuxGeomCB::GetRenderFlags()
 {
 	return(m_cbCurrent->m_curRenderFlags);
 }
+
+void CAuxGeomCB::SetCamera(const CCamera& camera)
+{
+	m_cbCurrent->m_camera = camera;
+};
+
+const CCamera& CAuxGeomCB::GetCamera() const
+{
+	return m_cbCurrent->m_camera;
+};
 
 void CAuxGeomCB::DrawPoint(const Vec3& v, const ColorB& col, uint8 size)
 {
@@ -96,6 +108,7 @@ void CAuxGeomCB::DrawLine(const Vec3& v0, const ColorB& colV0, const Vec3& v1, c
 	if (thickness <= 1.0f)
 	{
 		SAuxVertex* pVertices(nullptr);
+
 		AddPrimitive(pVertices, 2, CreateLineRenderFlags(false) | AlphaFlags(colV0) | AlphaFlags(colV1));
 
 		pVertices[0].xyz = v0;
@@ -239,6 +252,27 @@ void CAuxGeomCB::DrawLines(const Vec3* v, uint32 numPoints, const vtx_idx* ind, 
 	}
 }
 
+void CAuxGeomCB::DrawLineStrip(const Vec3 * v, uint32 numPoints, const ColorB* col, float thickness)
+{
+	CRY_ASSERT(numPoints >= 2);
+
+	if (thickness <= 1.0f)
+	{
+		SAuxVertex* pVertices(nullptr);
+		AddPrimitive(pVertices, numPoints, CreateLineStripRenderFlag(false));
+
+		for (uint32 i(0); i < numPoints; ++i)
+		{
+			pVertices[i].xyz = v[i];
+			pVertices[i].color.dcolor = PackColor(col[i]);
+		}
+	}
+	else
+	{
+		DrawThickLineStrip(v, numPoints, *col, thickness);
+	}
+}
+
 void CAuxGeomCB::DrawPolyline(const Vec3* v, uint32 numPoints, bool closed, const ColorB& col, float thickness)
 {
 	CRY_ASSERT(numPoints >= 2);
@@ -343,6 +377,27 @@ void CAuxGeomCB::DrawThickLine(const Vec3& v0, const ColorB& colV0, const Vec3& 
 	pVertices[1].xyz = v1;
 	pVertices[1].color.dcolor = PackColor(colV1);
 	pVertices[1].st = Vec2(thickness, 0.0f);
+}
+
+void CAuxGeomCB::DrawThickLineStrip(const Vec3 * v, uint32 numPoints, const ColorB & col, float thickness)
+{
+	CRY_ASSERT(thickness > 0.0f);
+	CRY_ASSERT(gRenDev != nullptr);
+
+	// allocate space for two triangles
+	SAuxVertex* pVertices(nullptr);
+	AddPrimitive(pVertices, numPoints, CreateLineStripRenderFlag(false) | e_LineListParam_ProcessThickLines);
+
+	// Encode paramaters for thick line in vertex memory.
+	// The actual "aux render" implementation has to process these before feeding it to the GPU.
+	// This was done as implementation needs access to several render specific informations
+	// (see D3DRenderAuxGeom.cpp for an implementation).
+	for (uint32_t i(0); i < numPoints; ++i)
+	{
+		pVertices[i].xyz = v[i];
+		pVertices[i].color.dcolor = PackColor(col);
+		pVertices[i].st = Vec2(thickness, 0.0f);
+	}
 }
 
 void CAuxGeomCB::DrawTriangle(const Vec3& v0, const ColorB& colV0, const Vec3& v1, const ColorB& colV1, const Vec3& v2, const ColorB& colV2)
@@ -1858,6 +1913,7 @@ void CAuxGeomCB::DrawOBB(const OBB& obb, const Matrix34& mat, bool bSolid, const
 			pIndices[35] = 23;
 		}
 	}
+
 	m_cbCurrent->m_curWorldMatIdx = oldMatrixIndex;
 }
 
@@ -1976,7 +2032,6 @@ void CAuxGeomCB::DrawBone(const Vec3& p, const Vec3& c, ColorB col)
 	DrawLine(VBuffer[5], CBuffer[5], VBuffer[4], CBuffer[4]);
 }
 
-	#include "CommonRender.h"
 
 void CAuxGeomCB::RenderTextQueued(Vec3 pos, const SDrawTextInfo& ti, const char* text)
 {
@@ -1998,17 +2053,9 @@ void CAuxGeomCB::RenderTextQueued(Vec3 pos, const SDrawTextInfo& ti, const char*
 	}
 }
 
-	#include "D3DStereo.h"
-
-void CAuxGeomCB::DrawStringImmediate(IFFont_RenderProxy* pFont, float x, float y, float z, const char* pStr, const bool asciiMultiLine, const STextDrawContext& ctx)
-{
-	CRY_ASSERT(gcpRendD3D->m_pRT && gcpRendD3D->m_pRT->IsRenderThread());
-	m_pRenderAuxGeom->DrawStringImmediate(pFont, x, y, z, pStr, asciiMultiLine, ctx);
-}
-
 void CAuxGeomCB::DrawBufferRT(const SAuxVertex* data, int numVertices, int blendMode, const Matrix44* matViewProj, int texID)
 {
-	m_pRenderAuxGeom->DrawBufferRT(data, numVertices, blendMode, matViewProj, texID);
+	DrawBuffer(data, numVertices, texID != 0);
 }
 
 int32 CAuxGeomCB::PushMatrix(const Matrix34& mat)
@@ -2036,6 +2083,27 @@ void CAuxGeomCB::SetMatrixIndex(int matID)
 	m_cbCurrent->m_curWorldMatIdx = matID;
 }
 
+void CAuxGeomCB::SetOrthographicProjection(bool enable, float l /*= 0*/, float r /*= 1*/, float b /*= 0*/, float t /*= 1*/, float n /*= -1e10*/, float f /*= 1e10*/)
+{
+	if (enable)
+	{
+		Matrix44 m;
+		mathMatrixOrthoOffCenterLH(&m, l, r, b, t, n, f);
+		//m = ReverseDepthHelper::Convert(m);
+		SetOrthoMode(true, &m);
+	}
+	else
+	{
+		SetOrthoMode(false);
+	}
+}
+
+void CAuxGeomCB::PushImage(const SRender2DImageDescription &image)
+{
+	m_cbCurrent->m_2dImages.push_back(image);
+}
+
+
 void CAuxGeomCB::Flush()
 {
 	Flush(true);
@@ -2045,35 +2113,11 @@ void CAuxGeomCB::Flush(bool reset)
 {
 	FUNCTION_PROFILER_RENDERER();
 
-	size_t lastFlushPos = GetLastFlushPos();
-	size_t curFlushPos = GetCurFlushPos();
-	if ((lastFlushPos < curFlushPos) || reset)
-	{
-		UpdateLastFlushPos();
-		SAuxGeomCBRawDataPackaged data = SAuxGeomCBRawDataPackaged(AccessData());
-		m_pRenderAuxGeom->Flush(data, lastFlushPos, curFlushPos, reset);
-	}
-
-	m_pRenderAuxGeom->FlushTextMessages(m_cbCurrent->m_TextMessages, reset);
+	Draw2dImages(m_cbCurrent->m_2dImages, reset);
+	DrawTextMessages(m_cbCurrent->m_TextMessages, reset);
 }
 
-void CAuxGeomCB::Commit(uint frames)
-{
-	Flush();
-}
-
-void CAuxGeomCB::Process()
-{
-	m_pRenderAuxGeom->FlushTextMessages(m_cbCurrent->m_TextMessages, true);
-	m_lastFlushPos = 0;
-	m_cbCurrent->Reset();
-}
-
-void CAuxGeomCBWorkerThread::Flush()
-{
-}
-
-void CAuxGeomCBWorkerThread::Commit(uint frames)
+void CAuxGeomCB::Submit(uint frames)
 {
 	m_cbCurrent->SetUsed(true);
 	m_cbCurrent->SetCount(frames);
@@ -2082,56 +2126,255 @@ void CAuxGeomCBWorkerThread::Commit(uint frames)
 
 	CRY_ASSERT(m_cbCurrent->m_curTransMatIdx == -1);
 	m_cbCurrent->m_curTransMatIdx = -1;
-
-	m_cbCurrent = (SAuxGeomCBRawData*)CryInterlockedExchangePointer((void* volatile*)&m_CBReady, m_cbCurrent);
-
-	if (m_cbCurrent == nullptr)
-	{
-		for (auto const pData : m_cbData)
-		{
-			if (!pData->IsUsed())
-			{
-				m_cbCurrent = pData;
-			}
-		}
-
-		if (!m_cbCurrent)
-		{
-			m_cbCurrent = AddCBuffer();
-		}
-	}
-
-	m_lastFlushPos = 0;
-
-	m_cbCurrent->Reset();
 }
 
-void CAuxGeomCBWorkerThread::Process()
+void CAuxGeomCB::Draw2dImages(SAux2DImages& images, bool reset)
 {
-	if (SAuxGeomCBRawData* current = (SAuxGeomCBRawData*)CryInterlockedExchangePointer((void* volatile*)&m_CBReady, nullptr))
-	{
-		if (m_cbProcessed) m_cbProcessed->SetUsed(false);
+	IRenderAuxGeom* pAux = this;
 
-		m_cbProcessed = current;
+	const CCamera& camera = m_cbCurrent->m_camera;
+
+	SRenderViewport viewport = SRenderViewport(0, 0, camera.GetViewSurfaceX(), camera.GetViewSurfaceZ());
+	const float vw = static_cast<float>(viewport.width);
+	const float vh = static_cast<float>(viewport.height);
+	Vec3 scale800x600 = Vec3(vw / 800.0f, vh / 600.0f, 1.0f);
+
+	SAuxGeomRenderFlags newRenderFlags;
+	newRenderFlags.SetDepthTestFlag(e_DepthTestOff);
+	newRenderFlags.SetAlphaBlendMode(e_AlphaBlended);
+	newRenderFlags.SetMode2D3DFlag(e_Mode2D);
+	newRenderFlags.SetCullMode(e_CullModeNone);
+	SAuxGeomRenderFlags oldRenderFlags = pAux->SetRenderFlags(newRenderFlags);
+	for (const SRender2DImageDescription &img : images)
+	{
+		float xpos = img.x;// * scale800x600.x;
+		float ypos = img.y;// * scale800x600.y;
+		float w    = img.w;// * scale800x600.x;
+		float h    = img.h;// * scale800x600.y;
+		float z    = img.z;// * scale800x600.z;
+
+		pAux->SetTexture(img.textureId);
+		UCol color;
+		color.a = img.color.a;
+		color.r = img.color.r;
+		color.g = img.color.g;
+		color.b = img.color.b;
+
+		float parallax = 0;
+		/*TODO@ implement
+		if (img.stereoDepth > 0)
+		{
+			parallax = 800 * maxParallax * (1 - screenDist / img.stereoDepth);
+			//xpos = xpos + parallax * (stereoLeftEye ? -1 : 1)
+		}
+		*/
+
+		// yv.y is swapped (1-inputTexCoord.y) for compatibility of old pipeline
+		SAuxVertex verts[6] = {
+			{ Vec3(xpos,ypos,z),        color,Vec2(img.uv[0].x,1.0f - img.uv[0].y) },
+			{ Vec3(xpos + w,ypos,z),    color,Vec2(img.uv[1].x,1.0f - img.uv[0].y) },
+			{ Vec3(xpos,ypos + h,z),    color,Vec2(img.uv[0].x,1.0f - img.uv[1].y) },
+			{ Vec3(xpos + w,ypos,z),    color,Vec2(img.uv[1].x,1.0f - img.uv[0].y) },
+			{ Vec3(xpos + w,ypos + h,z),color,Vec2(img.uv[1].x,1.0f - img.uv[1].y) },
+			{ Vec3(xpos,ypos + h,z),    color,Vec2(img.uv[0].x,1.0f - img.uv[1].y) },
+		};
+		pAux->DrawBuffer(verts, 6, true);
 	}
+	pAux->SetTexture(0);
+	pAux->SetRenderFlags(oldRenderFlags);
 
-	if (SAuxGeomCBRawData* processed = m_cbProcessed)
+	if (reset)
 	{
-		if (size_t curFlushPos = processed->m_auxPushBuffer.size())
-		{
-			SAuxGeomCBRawDataPackaged data = SAuxGeomCBRawDataPackaged(processed);
-			m_pRenderAuxGeom->Flush(data, 0, curFlushPos);
-		}
-
-		m_pRenderAuxGeom->FlushTextMessages(processed->m_TextMessages, false);
-
-		if (processed->Count() == 1)
-		{
-			processed->SetUsed(false);
-			m_cbProcessed = nullptr;
-		}
+		images.clear();
 	}
 }
+
+//////////////////////////////////////////////////////////////////////////
+void CAuxGeomCB::DrawTextMessages(CTextMessages& messages, bool reset)
+{
+	if (messages.empty())
+		return;
+
+	CAuxGeomCB* pAux = this;
+
+	const CCamera& camera = m_cbCurrent->m_camera;
+
+	SRenderViewport viewport = SRenderViewport(0, 0, camera.GetViewSurfaceX(), camera.GetViewSurfaceZ());
+	const float vw = static_cast<float>(viewport.width);
+	const float vh = static_cast<float>(viewport.height);
+	Vec3 scale800x600 = Vec3(vw/800.0f,vh/600.0f,1.0f);
+
+	SAuxGeomRenderFlags prevFlags = pAux->GetRenderFlags();
+	SAuxGeomRenderFlags flags;
+	flags.SetCullMode(e_CullModeNone);
+	flags.SetDepthWriteFlag(e_DepthWriteOn);
+	flags.SetDepthTestFlag(e_DepthTestOff);
+	flags.SetMode2D3DFlag(e_ModeText);
+	flags.SetAlphaBlendMode(e_AlphaBlended);
+	pAux->SetRenderFlags(flags);
+
+	while (const CTextMessages::CTextMessageHeader* pEntry = messages.GetNextEntry())
+	{
+		const CTextMessages::SText* pText = pEntry->CastTo_Text();
+
+		Vec3 vPos(0, 0, 0);
+		int  nDrawFlags = 0;
+		const char* szText = nullptr;
+		Vec4  vColor(1, 1, 1, 1);
+		Vec2 fSize;
+		bool bDraw = true;
+
+		if (!pText)
+		{
+			return;
+		}
+
+		nDrawFlags = pText->m_nDrawFlags;
+		szText = pText->GetText();
+		vPos = pText->m_vPos;
+		vColor = pText->m_Color.toVec4() * 1.0f / 255.0f;
+		fSize = pText->m_fFontSize;
+
+		if ((nDrawFlags & eDrawText_LegacyBehavior) == 0)
+		{
+
+			bool b800x600 = (nDrawFlags & eDrawText_800x600) != 0;
+
+			float fMaxPosX = 100.0f;
+			float fMaxPosY = 100.0f;
+
+			if (!b800x600)
+			{
+				fMaxPosX = vw;
+				fMaxPosY = vh;
+			}
+
+			if (!(nDrawFlags & eDrawText_2D))
+			{
+				float fDist = 1;   //GetDistance(pTextInfo->pos,GetCamera().GetPosition());
+
+				float     farPlane = camera.GetFarPlane();
+				float K = farPlane / fDist;
+				if (fDist > farPlane * 0.5)
+					vPos = camera.GetPosition()*(1 - K) + K * vPos;
+
+				Vec3 screenPos(0, 0, 0);
+				camera.Project(vPos, screenPos);
+				vPos = screenPos;
+			}
+			else
+			{
+				if (b800x600)
+				{
+					// Make 2D coords in range 0-100
+					vPos.x *= 100.0f / vw;
+					vPos.y *= 100.0f / vh;
+				}
+			}
+
+			bDraw = vPos.x >= 0 && vPos.x <= fMaxPosX;
+			bDraw &= vPos.y >= 0 && vPos.y <= fMaxPosY;
+			bDraw &= vPos.z >= 0 && vPos.z <= 1;
+			//
+			// 			if( nDrawFlags & eDrawText_DepthTest )
+			// 			{
+			// 				sz = 1.0f - 2.0f * sz;
+			// 			}
+			// 			else
+			// 			{
+			// 				sz = 1.0f;
+			// 			}
+
+			vPos.x *= (b800x600 ? 8.f : 1.f);
+			vPos.y *= (b800x600 ? 6.f : 1.f);
+		}
+
+		if (szText && bDraw)
+		{
+			IFFont* pFont = nullptr;
+
+			if (gEnv->pSystem->GetICryFont())
+				pFont = gEnv->pSystem->GetICryFont()->GetFont("default");
+
+			if (!pFont)
+			{
+				return;
+			}
+
+			const float r = CLAMP(vColor[0], 0.0f, 1.0f);
+			const float g = CLAMP(vColor[1], 0.0f, 1.0f);
+			const float b = CLAMP(vColor[2], 0.0f, 1.0f);
+			const float a = CLAMP(vColor[3], 0.0f, 1.0f);
+
+			STextDrawContext ctx;
+			ctx.SetColor(ColorF(r, g, b, a));
+			ctx.SetCharWidthScale(1.0f);
+			ctx.EnableFrame((nDrawFlags & eDrawText_Framed) != 0);
+
+			if (nDrawFlags & eDrawText_Monospace)
+			{
+				if (nDrawFlags & eDrawText_FixedSize)
+					ctx.SetSizeIn800x600(false);
+				ctx.SetSize(Vec2(UIDRAW_TEXTSIZEFACTOR * fSize.x, UIDRAW_TEXTSIZEFACTOR * fSize.y));
+				ctx.SetCharWidthScale(0.5f);
+				ctx.SetProportional(false);
+
+				if (nDrawFlags & eDrawText_800x600)
+				{
+					vPos = Vec3(vPos.x*scale800x600.x,vPos.y*scale800x600.y,vPos.z);
+				}
+			}
+			else if (nDrawFlags & eDrawText_FixedSize)
+			{
+				ctx.SetSizeIn800x600(false);
+				ctx.SetSize(Vec2(UIDRAW_TEXTSIZEFACTOR * fSize.x, UIDRAW_TEXTSIZEFACTOR * fSize.y));
+				ctx.SetProportional(true);
+
+				if (nDrawFlags & eDrawText_800x600)
+				{
+					vPos = Vec3(vPos.x*scale800x600.x,vPos.y*scale800x600.y,vPos.z);
+				}
+			}
+			else
+			{
+				ctx.SetSizeIn800x600(true);
+				ctx.SetProportional(false);
+				ctx.SetCharWidthScale(0.5f);
+				ctx.SetSize(Vec2(UIDRAW_TEXTSIZEFACTOR * fSize.x, UIDRAW_TEXTSIZEFACTOR * fSize.y));
+			}
+
+			// align left/right/center
+			if (nDrawFlags & (eDrawText_Center | eDrawText_CenterV | eDrawText_Right))
+			{
+				Vec2 textSize = pFont->GetTextSize(szText, true, ctx);
+
+				// If we're using virtual 800x600 coordinates, convert the text size from
+				// pixels to that before using it as an offset.
+				if (ctx.m_sizeIn800x600)
+				{
+					textSize.x /= scale800x600.x;
+					textSize.y /= scale800x600.y;
+				}
+
+				if (nDrawFlags & eDrawText_Center) vPos.x -= textSize.x * 0.5f;
+				else if (nDrawFlags & eDrawText_Right) vPos.x -= textSize.x;
+
+				if (nDrawFlags & eDrawText_CenterV)
+					vPos.y -= textSize.y * 0.5f;
+			}
+
+			// Pass flags so that overscan borders can be applied if necessary
+			ctx.SetFlags(nDrawFlags);
+
+			pFont->RT_RenderCallback(vPos.x, vPos.y, vPos.z, szText, true, ctx, pAux);
+		}
+	}
+
+	pAux->SetRenderFlags(prevFlags);
+
+	messages.Clear(!reset);
+}
+
 
 void CAuxGeomCB::SAuxGeomCBRawData::GetSortedPushBuffer(size_t begin, size_t end, AuxSortedPushBuffer& auxSortedPushBuffer) const
 {
@@ -2149,26 +2392,27 @@ void CAuxGeomCB::SAuxGeomCBRawData::GetSortedPushBuffer(size_t begin, size_t end
 	std::sort(auxSortedPushBuffer.begin(), auxSortedPushBuffer.end(), PushBufferSortFunc());
 }
 
+void CAuxGeomCB::SetCurrentDisplayContext(CryDisplayContextHandle context)
+{
+	m_cbCurrent->m_displayContextHandle = context;
+}
+
 void CAuxGeomCB::AddPushBufferEntry(uint32 numVertices, uint32 numIndices, const SAuxGeomRenderFlags& renderFlags)
 {
 	CRY_ASSERT(numVertices > 0);
 
 	AuxPushBuffer& auxPushBuffer(AccessData()->m_auxPushBuffer);
 
-	if (GetWorldMatrixIndex() == -1)
-	{
-		perror("");
-	}
-
 	EPrimType primType = GetPrimType(renderFlags);
 	int textureID = IsTextured(renderFlags) ? AccessData()->m_textureID : -1;
 
 	if (false == auxPushBuffer.empty() &&
-	    auxPushBuffer[auxPushBuffer.size() - 1].m_textureID == textureID &&
-	    auxPushBuffer[auxPushBuffer.size() - 1].m_renderFlags == renderFlags &&
-	    auxPushBuffer[auxPushBuffer.size() - 1].m_transMatrixIdx == GetTransMatrixIndex() &&
-	    auxPushBuffer[auxPushBuffer.size() - 1].m_worldMatrixIdx == GetWorldMatrixIndex() &&
-	    (e_PtList == primType || e_LineList == primType || e_TriList == primType))
+		(e_PtList == primType || e_LineList == primType || e_TriList == primType || e_LineStrip == primType) &&
+	    auxPushBuffer[auxPushBuffer.size() - 1].m_displayContextHandle == m_cbCurrent->m_displayContextHandle &&
+	    auxPushBuffer[auxPushBuffer.size() - 1].m_textureID       == textureID &&
+	    auxPushBuffer[auxPushBuffer.size() - 1].m_renderFlags     == renderFlags &&
+	    auxPushBuffer[auxPushBuffer.size() - 1].m_transMatrixIdx  == GetTransMatrixIndex() &&
+	    auxPushBuffer[auxPushBuffer.size() - 1].m_worldMatrixIdx  == GetWorldMatrixIndex())
 	{
 		// Perform a runtime optimization (pre-merging) which effectively reduces the number of PB entries created.
 		// We can merge this entry with the previous one as its render flags match with the ones of the previous entry
@@ -2186,7 +2430,7 @@ void CAuxGeomCB::AddPushBufferEntry(uint32 numVertices, uint32 numIndices, const
 	else
 	{
 		// create new push buffer entry
-		auxPushBuffer.emplace_back(numVertices, numIndices, AccessData()->m_auxVertexBuffer.size(), AccessData()->m_auxIndexBuffer.size(), GetTransMatrixIndex(), GetWorldMatrixIndex(), renderFlags, textureID);
+		auxPushBuffer.emplace_back(numVertices, numIndices, AccessData()->m_auxVertexBuffer.size(), AccessData()->m_auxIndexBuffer.size(), GetTransMatrixIndex(), GetWorldMatrixIndex(), renderFlags, textureID, m_cbCurrent->m_displayContextHandle);
 	}
 }
 
@@ -2230,7 +2474,7 @@ void CAuxGeomCB::AddObject(SAuxDrawObjParams*& pDrawParams, const SAuxGeomRender
 	// create new push buffer entry
 	AuxPushBuffer& auxPushBuffer(AccessData()->m_auxPushBuffer);
 	AuxDrawObjParamBuffer& auxDrawObjParamBuffer(AccessData()->m_auxDrawObjParamBuffer);
-	auxPushBuffer.emplace_back(auxDrawObjParamBuffer.size(), GetTransMatrixIndex(), GetWorldMatrixIndex(), renderFlags);
+	auxPushBuffer.emplace_back(auxDrawObjParamBuffer.size(), GetTransMatrixIndex(), GetWorldMatrixIndex(), renderFlags, 0, m_cbCurrent->m_displayContextHandle);
 
 	// get draw param buffer ptr
 	AuxDrawObjParamBuffer::size_type oldSize(auxDrawObjParamBuffer.size());

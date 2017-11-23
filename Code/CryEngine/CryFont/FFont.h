@@ -16,7 +16,7 @@ struct ISystem;
 class CCryFont;
 class CFontTexture;
 
-class CFFont : public IFFont, public IFFont_RenderProxy
+class CFFont : public IFFont
 {
 public:
 	struct SRenderingPass
@@ -84,7 +84,7 @@ public:
 	virtual unsigned int GetEffectId(const char* pEffectName) const;
 
 public:
-	virtual void RenderCallback(float x, float y, float z, const char* pStr, const bool asciiMultiLine, const STextDrawContext& ctx);
+	virtual void RT_RenderCallback(float x, float y, float z, const char* pStr, const bool asciiMultiLine, const STextDrawContext& ctx, IRenderAuxGeom *pAux);
 
 public:
 	CFFont(ISystem* pSystem, CCryFont* pCryFont, const char* pFontName);

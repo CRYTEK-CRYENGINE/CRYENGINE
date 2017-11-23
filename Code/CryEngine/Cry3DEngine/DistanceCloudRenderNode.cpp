@@ -92,7 +92,7 @@ void CDistanceCloudRenderNode::Render(const SRendParams& rParam, const SRenderin
 	if (cam.GetViewdir().z < 0)
 		zDist = -zDist;
 
-	CRenderObject* pRenderObject(gEnv->pRenderer->EF_GetObject_Temp(passInfo.ThreadID()));
+	CRenderObject* pRenderObject(passInfo.GetIRenderView()->AllocateTemporaryRenderObject());
 	if (!pRenderObject)
 		return;
 	pRenderObject->m_nSort = HalfFlip(CryConvertFloatToHalf(zDist));

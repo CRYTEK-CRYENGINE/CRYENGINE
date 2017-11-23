@@ -176,7 +176,7 @@ void CLipSync_FacialInstance::HandleEvent(const SGameObjectEvent& event)
 {
 }
 
-void CLipSync_FacialInstance::ProcessEvent(SEntityEvent& event)
+void CLipSync_FacialInstance::ProcessEvent(const SEntityEvent& event)
 {
 }
 

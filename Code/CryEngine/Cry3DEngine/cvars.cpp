@@ -130,7 +130,7 @@ void CVars::Init()
 	                   " 5: Display color coded number of render materials\n"
 	                   " 6: Display ambient color\n"
 	                   " 7: Display tri count, number of render materials, texture memory\n"
-	                   " 8: Free slot\n"
+	                   " 8: Display per object editor MaxViewDistance\n"
 	                   " 9: Free slot\n"
 	                   "10: Render geometry with simple lines and triangles\n"
 	                   "11: Free slot\n"
@@ -145,7 +145,7 @@ void CVars::Init()
 	                   "21: Display animated object distance to camera\n"
 	                   "22: Display object's current LOD vertex count\n"
 	                   "23: Display shadow casters in red\n"
-					   "24: Show LOD info for characters\n"
+	                   "24: Show LOD info for characters\n"
 	                   "----------------debug draw list values. Any of them enable 2d on-screen listing type info debug. Specific values define the list sorting-----------\n"
 	                   " 100: tri count\n"
 	                   " 101: verts count\n"
@@ -301,8 +301,6 @@ void CVars::Init()
 	                   "Combine pieces of decals into one render call");
 	DefineConstIntCVar(e_DecalsPreCreate, 1, VF_NULL,
 	                   "Pre-create decals at load time");
-	DefineConstIntCVar(e_DecalsScissor, 1, VF_NULL,
-	                   "Enable decal rendering optimization by using scissor");
 	DefineConstIntCVar(e_DecalsClip, 1, VF_NULL,
 	                   "Clip decal geometry by decal bbox");
 	DefineConstFloatCVar(e_DecalsRange, VF_NULL,
@@ -1194,6 +1192,9 @@ void CVars::Init()
 	DefineConstIntCVar(e_GeomCacheLerpBetweenFrames, 1, VF_CHEAT, "Interpolate between geometry cache frames. Default: 1");
 
 #if defined(FEATURE_SVO_GI)
-	RegisterTICVars();
+	if (!gEnv->IsDedicated())
+	{
+		RegisterTICVars();
+	}
 #endif
 }

@@ -3,11 +3,12 @@
 #include "StdAfx.h"
 
 #include "MiddlewareDataModel.h"
-#include "IAudioSystemEditor.h"
 #include "AudioControlsEditorPlugin.h"
 #include "ImplementationManager.h"
+#include "ItemStatusHelper.h"
 
-#include <IAudioSystemItem.h>
+#include <IEditorImpl.h>
+#include <ImplItem.h>
 #include <CrySystem/File/CryFile.h>  // Includes CryPath.h in correct order.
 #include <QtUtil.h>
 #include <CrySandbox/CrySignal.h>
@@ -15,7 +16,6 @@
 
 #include <QMimeData>
 #include <QDataStream>
-#include <QColor>
 
 namespace ACE
 {
@@ -23,11 +23,11 @@ char const* const CMiddlewareDataModel::ms_szMimeType = "application/cryengine-a
 
 //////////////////////////////////////////////////////////////////////////
 CMiddlewareDataModel::CMiddlewareDataModel()
-	: m_pAudioSystem(CAudioControlsEditorPlugin::GetAudioSystemEditorImpl())
+	: m_pEditorImpl(CAudioControlsEditorPlugin::GetImplEditor())
 {
 	CAudioControlsEditorPlugin::GetImplementationManger()->signalImplementationChanged.Connect([&]()
 	{
-		m_pAudioSystem = CAudioControlsEditorPlugin::GetAudioSystemEditorImpl();
+		m_pEditorImpl = CAudioControlsEditorPlugin::GetImplEditor();
 		beginResetModel();
 		endResetModel();
 	});
@@ -35,7 +35,7 @@ CMiddlewareDataModel::CMiddlewareDataModel()
 	CAudioControlsEditorPlugin::GetImplementationManger()->signalImplementationAboutToChange.Connect([&]()
 	{
 		beginResetModel();
-		m_pAudioSystem = nullptr;
+		m_pEditorImpl = nullptr;
 		endResetModel();
 	});
 }
@@ -43,19 +43,19 @@ CMiddlewareDataModel::CMiddlewareDataModel()
 //////////////////////////////////////////////////////////////////////////
 int CMiddlewareDataModel::rowCount(QModelIndex const& parent) const
 {
-	if (m_pAudioSystem != nullptr)
+	if (m_pEditorImpl != nullptr)
 	{
-		IAudioSystemItem const* pItem = ItemFromIndex(parent);
+		CImplItem const* pImplItem = ItemFromIndex(parent);
 
-		if (pItem == nullptr)
+		if (pImplItem == nullptr)
 		{
 			// if not valid it must be a top level item so get root
-			pItem = m_pAudioSystem->GetRoot();
+			pImplItem = m_pEditorImpl->GetRoot();
 		}
 
-		if (pItem != nullptr)
+		if (pImplItem != nullptr)
 		{
-			return pItem->ChildCount();
+			return pImplItem->ChildCount();
 		}
 	}
 
@@ -71,16 +71,16 @@ int CMiddlewareDataModel::columnCount(QModelIndex const& parent) const
 //////////////////////////////////////////////////////////////////////////
 QVariant CMiddlewareDataModel::data(QModelIndex const& index, int role) const
 {
-	if (m_pAudioSystem != nullptr)
+	if (m_pEditorImpl != nullptr)
 	{
 		if (!index.isValid())
 		{
 			return QVariant();
 		}
 
-		IAudioSystemItem const* const pItem = ItemFromIndex(index);
+		CImplItem const* const pImplItem = ItemFromIndex(index);
 
-		if (pItem != nullptr)
+		if (pImplItem != nullptr)
 		{
 			switch (index.column())
 			{
@@ -89,38 +89,47 @@ QVariant CMiddlewareDataModel::data(QModelIndex const& index, int role) const
 					switch (role)
 					{
 					case Qt::DisplayRole:
-						return (const char*)pItem->GetName();
+						return static_cast<char const*>(pImplItem->GetName());
+						break;
 					case Qt::DecorationRole:
-						return CryIcon((QtUtil::ToQString(PathUtil::GetEnginePath()) + CRY_NATIVE_PATH_SEPSTR) + m_pAudioSystem->GetTypeIcon(pItem->GetType()));
+						return CryIcon(m_pEditorImpl->GetTypeIcon(pImplItem));
+						break;
 					case Qt::ForegroundRole:
-						if (pItem->IsLocalised())
+						if (pImplItem->IsLocalised())
 						{
-							return QColor(36, 180, 245);
+							return GetItemStatusColor(EItemStatus::Localized);
 						}
-						else if (!pItem->IsConnected() && (m_pAudioSystem->ImplTypeToATLType(pItem->GetType()) != EItemType::Invalid))
+						else if (!pImplItem->IsConnected() && (m_pEditorImpl->ImplTypeToSystemType(pImplItem) != ESystemItemType::Invalid))
 						{
 							// Tint non connected controls that can actually be connected to something (ie. exclude folders)
-							return QColor(255, 150, 50);
+							return GetItemStatusColor(EItemStatus::NoConnection);
 						}
 						break;
 					case Qt::ToolTipRole:
-						if (pItem->IsLocalised())
+						if (pImplItem->IsLocalised())
 						{
 							return tr("Item is localized");
 						}
-						else if (!pItem->IsConnected())
+						else if (!pImplItem->IsConnected())
 						{
-							return tr("Item is not connected to any ATL control");
+							return tr("Item is not connected to any audio system control");
 						}
 						break;
-					case static_cast<int>(EMiddlewareDataAttributes::Type):
-						return pItem->GetType();
 					case static_cast<int>(EMiddlewareDataAttributes::Connected):
-						return pItem->IsConnected();
+						return pImplItem->IsConnected();
+						break;
+					case static_cast<int>(EMiddlewareDataAttributes::Container) :
+						return pImplItem->IsContainer();
+						break;
 					case static_cast<int>(EMiddlewareDataAttributes::Placeholder):
-						return pItem->IsPlaceholder();
+						return pImplItem->IsPlaceholder();
+						break;
 					case static_cast<int>(EMiddlewareDataAttributes::Localized):
-						return pItem->IsLocalised();
+						return pImplItem->IsLocalised();
+						break;
+					case static_cast<int>(EMiddlewareDataAttributes::Id) :
+						return pImplItem->GetId();
+						break;
 					}
 				}
 				break;
@@ -146,11 +155,11 @@ Qt::ItemFlags CMiddlewareDataModel::flags(QModelIndex const& index) const
 {
 	Qt::ItemFlags flag = QAbstractItemModel::flags(index);
 
-	if (index.isValid() && (m_pAudioSystem != nullptr))
+	if (index.isValid() && (m_pEditorImpl != nullptr))
 	{
-		IAudioSystemItem const* const pItem = ItemFromIndex(index);
+		CImplItem const* const pImplItem = ItemFromIndex(index);
 
-		if ((pItem != nullptr) && !pItem->IsPlaceholder() && (m_pAudioSystem->ImplTypeToATLType(pItem->GetType()) != EItemType::NumTypes))
+		if ((pImplItem != nullptr) && !pImplItem->IsPlaceholder() && (m_pEditorImpl->ImplTypeToSystemType(pImplItem) != ESystemItemType::NumTypes))
 		{
 			flag |= Qt::ItemIsDragEnabled;
 		}
@@ -162,24 +171,24 @@ Qt::ItemFlags CMiddlewareDataModel::flags(QModelIndex const& index) const
 //////////////////////////////////////////////////////////////////////////
 QModelIndex CMiddlewareDataModel::index(int row, int column, QModelIndex const& parent /*= QModelIndex()*/) const
 {
-	if (m_pAudioSystem != nullptr)
+	if (m_pEditorImpl != nullptr)
 	{
 		if ((row >= 0) && (column >= 0))
 		{
-			IAudioSystemItem const* pParent = ItemFromIndex(parent);
+			CImplItem const* pParent = ItemFromIndex(parent);
 
 			if (pParent == nullptr)
 			{
-				pParent = m_pAudioSystem->GetRoot();
+				pParent = m_pEditorImpl->GetRoot();
 			}
 
 			if ((pParent != nullptr) && pParent->ChildCount() > row)
 			{
-				IAudioSystemItem const* const pItem = pParent->GetChildAt(row);
+				CImplItem const* const pImplItem = pParent->GetChildAt(row);
 
-				if (pItem != nullptr)
+				if (pImplItem != nullptr)
 				{
-					return createIndex(row, column, reinterpret_cast<quintptr>(pItem));
+					return createIndex(row, column, reinterpret_cast<quintptr>(pImplItem));
 				}
 			}
 		}
@@ -193,7 +202,7 @@ QModelIndex CMiddlewareDataModel::parent(QModelIndex const& index) const
 {
 	if (index.isValid())
 	{
-		IAudioSystemItem const* const pItem = ItemFromIndex(index);
+		CImplItem const* const pItem = ItemFromIndex(index);
 
 		if (pItem != nullptr)
 		{
@@ -228,11 +237,11 @@ QMimeData* CMiddlewareDataModel::mimeData(QModelIndexList const& indexes) const
 
 	for (auto const& index : indexes)
 	{
-		IAudioSystemItem const* const pItem = ItemFromIndex(index);
+		CImplItem const* const pImplItem = ItemFromIndex(index);
 
-		if (pItem != nullptr)
+		if (pImplItem != nullptr)
 		{
-			stream << pItem->GetId();
+			stream << pImplItem->GetId();
 		}
 	}
 
@@ -241,26 +250,26 @@ QMimeData* CMiddlewareDataModel::mimeData(QModelIndexList const& indexes) const
 }
 
 //////////////////////////////////////////////////////////////////////////
-IAudioSystemItem* CMiddlewareDataModel::ItemFromIndex(QModelIndex const& index) const
+CImplItem* CMiddlewareDataModel::ItemFromIndex(QModelIndex const& index) const
 {
 	if ((index.row() < 0) || (index.column() < 0))
 	{
 		return nullptr;
 	}
 
-	return static_cast<IAudioSystemItem*>(index.internalPointer());
+	return static_cast<CImplItem*>(index.internalPointer());
 }
 
 //////////////////////////////////////////////////////////////////////////
-QModelIndex CMiddlewareDataModel::IndexFromItem(IAudioSystemItem const* const pItem) const
+QModelIndex CMiddlewareDataModel::IndexFromItem(CImplItem const* const pImplItem) const
 {
-	if (pItem != nullptr)
+	if (pImplItem != nullptr)
 	{
-		IAudioSystemItem const* pParent = pItem->GetParent();
+		CImplItem const* pParent = pImplItem->GetParent();
 
 		if (pParent == nullptr)
 		{
-			pParent = m_pAudioSystem->GetRoot();
+			pParent = m_pEditorImpl->GetRoot();
 		}
 
 		if (pParent != nullptr)
@@ -269,9 +278,9 @@ QModelIndex CMiddlewareDataModel::IndexFromItem(IAudioSystemItem const* const pI
 
 			for (int i = 0; i < size; ++i)
 			{
-				if (pParent->GetChildAt(i) == pItem)
+				if (pParent->GetChildAt(i) == pImplItem)
 				{
-					return createIndex(i, 0, reinterpret_cast<quintptr>(pItem));
+					return createIndex(i, 0, reinterpret_cast<quintptr>(pImplItem));
 				}
 			}
 		}
@@ -316,6 +325,11 @@ bool CMiddlewareDataFilterProxyModel::rowMatchesFilter(int source_row, const QMo
 					return false;
 				}
 
+				if (sourceModel()->data(index, static_cast<int>(CMiddlewareDataModel::EMiddlewareDataAttributes::Container)).toBool())
+				{
+					return false;
+				}
+
 				if (sourceModel()->hasChildren(index))
 				{
 					int const rowCount = sourceModel()->rowCount(index);
@@ -326,15 +340,16 @@ bool CMiddlewareDataFilterProxyModel::rowMatchesFilter(int source_row, const QMo
 						{
 							return true;
 						}
-
-						return false;
 					}
+
+					return false;
 				}
 			}
 
 			return true;
 		}
 	}
+
 	return false;
 }
 
@@ -372,9 +387,9 @@ bool CMiddlewareDataFilterProxyModel::lessThan(QModelIndex const& left, QModelIn
 namespace AudioModelUtils
 {
 //////////////////////////////////////////////////////////////////////////
-void DecodeImplMimeData(const QMimeData* pData, std::vector<IAudioSystemItem*>& outItems)
+void DecodeImplMimeData(const QMimeData* pData, std::vector<CImplItem*>& outItems)
 {
-	IAudioSystemEditor const* const pAudioSystemEditorImpl = CAudioControlsEditorPlugin::GetAudioSystemEditorImpl();
+	IEditorImpl const* const pEditorImpl = CAudioControlsEditorPlugin::GetImplEditor();
 	QByteArray encoded = pData->data(CMiddlewareDataModel::ms_szMimeType);
 	QDataStream stream(&encoded, QIODevice::ReadOnly);
 	while (!stream.atEnd())
@@ -384,11 +399,11 @@ void DecodeImplMimeData(const QMimeData* pData, std::vector<IAudioSystemItem*>& 
 
 		if (id != ACE_INVALID_ID)
 		{
-			IAudioSystemItem* const pAudioSystemControl = pAudioSystemEditorImpl->GetControl(id);
+			CImplItem* const pImplControl = pEditorImpl->GetControl(id);
 
-			if (pAudioSystemControl != nullptr)
+			if (pImplControl != nullptr)
 			{
-				outItems.push_back(pAudioSystemControl);
+				outItems.emplace_back(pImplControl);
 			}
 		}
 	}

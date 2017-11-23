@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   CryPodArray.h
@@ -123,7 +123,8 @@ public:
 
 	inline void AddList(const PodArray<T>& lstAnother)
 	{
-		PreAllocate(m_nCount + lstAnother.Count());
+		if (m_nCount + lstAnother.Count() > m_nAllocatedCount)
+			PreAllocate((m_nCount + lstAnother.Count()) * 3 / 2 + 8);
 
 		memcpy(&m_pElements[m_nCount], &lstAnother.m_pElements[0], sizeof(m_pElements[0]) * lstAnother.Count());
 
@@ -133,7 +134,8 @@ public:
 
 	inline void AddList(T* pAnotherArray, int nAnotherCount)
 	{
-		PreAllocate(m_nCount + nAnotherCount);
+		if (m_nCount + nAnotherCount > m_nAllocatedCount)
+			PreAllocate((m_nCount + nAnotherCount) * 3 / 2 + 8);
 
 		memcpy(&m_pElements[m_nCount], pAnotherArray, sizeof(m_pElements[0]) * nAnotherCount);
 

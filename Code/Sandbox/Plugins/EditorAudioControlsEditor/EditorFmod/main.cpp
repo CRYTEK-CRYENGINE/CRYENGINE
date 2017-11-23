@@ -1,24 +1,24 @@
 // Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
+#include "EditorImpl.h"
 
 #include <CryCore/Platform/platform.h>
 #include <CryCore/Platform/platform_impl.inl>
-#include "AudioSystemEditor_fmod.h"
 #include <CrySystem/ISystem.h>
 
-using namespace ACE;
-
-CAudioSystemEditor_fmod* g_pFmodInterface;
+ACE::Fmod::CEditorImpl* g_pFmodInterface;
 
 //------------------------------------------------------------------
-extern "C" ACE_API IAudioSystemEditor * GetAudioInterface(ISystem * pSystem)
+extern "C" ACE_API ACE::IEditorImpl * GetAudioInterface(ISystem * pSystem)
 {
 	ModuleInitISystem(pSystem, "EditorFmod");
-	if (!g_pFmodInterface)
+
+	if (g_pFmodInterface == nullptr)
 	{
-		g_pFmodInterface = new CAudioSystemEditor_fmod();
+		g_pFmodInterface = new ACE::Fmod::CEditorImpl();
 	}
+
 	return g_pFmodInterface;
 }
 
@@ -32,7 +32,7 @@ BOOL __stdcall DllMain(HINSTANCE hinstDLL, ULONG fdwReason, LPVOID lpvReserved)
 		g_hInstance = hinstDLL;
 		break;
 	case DLL_PROCESS_DETACH:
-		if (g_pFmodInterface)
+		if (g_pFmodInterface != nullptr)
 		{
 			delete g_pFmodInterface;
 			g_pFmodInterface = nullptr;

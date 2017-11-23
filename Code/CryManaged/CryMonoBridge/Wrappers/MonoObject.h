@@ -48,6 +48,9 @@ public:
 		return static_cast<T*>(UnboxObject());
 	}
 
+	bool ReferenceEquals(const CMonoObject& other) const;
+	bool ReferenceEquals(MonoInternals::MonoObject* pOtherObject) const;
+
 protected:
 	void AssignObject(MonoInternals::MonoObject* pObject);
 

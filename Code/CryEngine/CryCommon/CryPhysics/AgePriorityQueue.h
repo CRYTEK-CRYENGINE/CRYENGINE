@@ -45,7 +45,7 @@ private:
 			++user;
 			age = (age_type)0;
 			priority = (priority_type)0;
-			value = _value;
+			new(&value) value_type(_value);
 		}
 
 		value_type    value;
@@ -291,6 +291,7 @@ protected:
 		if (!slot.free && (slot.user == _user(id)))
 		{
 			slot.free = true;
+			slot.value.~value_type();
 			m_free.push_back(id);
 		}
 	}

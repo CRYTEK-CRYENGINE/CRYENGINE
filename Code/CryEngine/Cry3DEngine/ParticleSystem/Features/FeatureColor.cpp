@@ -266,12 +266,6 @@ SERIALIZATION_CLASS_NAME(IColorModifier, CColorCurve, "ColorCurve", "Color Curve
 class CColorAttribute : public IColorModifier
 {
 public:
-	CColorAttribute()
-		: m_scale(1.0f)
-		, m_bias(0.0f)
-		, m_gamma(1.0f) 
-		, m_spawnOnly(false) {}
-
 	virtual void AddToParam(CParticleComponent* pComponent, CFeatureFieldColor* pParam)
 	{
 		if (m_spawnOnly)
@@ -283,7 +277,7 @@ public:
 	virtual void Serialize(Serialization::IArchive& ar)
 	{
 		IColorModifier::Serialize(ar);
-		ar(m_name, "Name", "Attribute Name");
+		ar(m_attribute, "Name", "Attribute Name");
 		ar(m_scale, "Scale", "Scale");
 		ar(m_bias, "Bias", "Bias");
 		ar(m_gamma, "Gamma", "Gamma");
@@ -296,8 +290,7 @@ public:
 
 		CParticleContainer& container = context.m_container;
 		const CAttributeInstance& attributes = context.m_runtime.GetEmitter()->GetAttributeInstance();
-		auto attributeId = attributes.FindAttributeIdByName(m_name.c_str());
-		ColorF attribute = attributes.GetAsColorF(attributeId, ColorF(1.0f, 1.0f, 1.0f));
+		ColorF attribute = m_attribute.GetValueAs(attributes, ColorB(~0U));
 		attribute.r = pow(attribute.r, m_gamma) * m_scale + m_bias;
 		attribute.g = pow(attribute.g, m_gamma) * m_scale + m_bias;
 		attribute.b = pow(attribute.b, m_gamma) * m_scale + m_bias;
@@ -312,11 +305,11 @@ public:
 	}
 
 private:
-	string m_name;
-	SFloat m_scale;
-	SFloat m_bias;
-	UFloat m_gamma;
-	bool   m_spawnOnly;
+	CAttributeReference m_attribute;
+	SFloat              m_scale     = 1;
+	SFloat              m_bias      = 0;
+	UFloat              m_gamma     = 1;
+	bool                m_spawnOnly = false;
 };
 
 SERIALIZATION_CLASS_NAME(IColorModifier, CColorAttribute, "Attribute", "Attribute");

@@ -4,10 +4,6 @@
 
 #include <CryCore/Platform/platform.h>
 
-// TODO: Make sure this project compiles without this include.
-#include "FbxMetaData.h"
-#include "FbxScene.h"
-
 #define CRY_USE_MFC
 #include <CryCore/Platform/CryAtlMfc.h> // Required to use QtViewPort
 
@@ -19,6 +15,10 @@
 #include "SandboxAPI.h"
 #include "EditorCommonAPI.h"
 #include "Material/Material.h"
+
+// TODO: Make sure this project compiles without this include.
+#include "FbxMetaData.h"
+#include "FbxScene.h"
 
 // don't allow implicit string conversions in this project
 // NOTE: This does not play well with widgets from EditorCommon. So we disable this option for now.

@@ -114,6 +114,11 @@ namespace CryEngine
 			return Global.gEnv.pRenderer.ProjectToScreen(position);
 		}
 
+		/// <summary>
+		/// Transforms a direction from world space to local space of the camera.
+		/// </summary>
+		/// <param name="direction"></param>
+		/// <returns></returns>
 		public static Vector3 TransformDirection(Vector3 direction)
 		{
 			return Rotation * direction;

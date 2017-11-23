@@ -21,21 +21,43 @@ void SRenderNodeTempData::Free()
 }
 
 //////////////////////////////////////////////////////////////////////////
+CRenderObject* SRenderNodeTempData::GetRenderObject(int nLod)
+{
+	// Object creation must be locked because CheckCreateRenderObject can be called on same node from different threads
+	WriteLock lock(userData.permanentObjectCreateLock);
+
+	// Do we have to create a new permanent render object?
+	if (userData.arrPermanentRenderObjects[nLod] == nullptr)
+	{
+		userData.arrPermanentRenderObjects[nLod] = gEnv->pRenderer->EF_GetObject();
+	}
+
+	CRenderObject* pRenderObject = userData.arrPermanentRenderObjects[nLod];
+
+	return pRenderObject;
+}
+
 void SRenderNodeTempData::FreeRenderObjects()
 {
+	// Object creation must be locked because CheckCreateRenderObject can be called on same node from different threads
+	WriteLock lock(userData.permanentObjectCreateLock);
+
 	// Release permanent CRenderObject(s)
 	for (int lod = 0; lod < MAX_STATOBJ_LODS_NUM; ++lod)
 	{
 		if (userData.arrPermanentRenderObjects[lod])
 		{
 			gEnv->pRenderer->EF_FreeObject(userData.arrPermanentRenderObjects[lod]);
-			userData.arrPermanentRenderObjects[lod] = 0;
+			userData.arrPermanentRenderObjects[lod] = nullptr;
 		}
 	}
 }
 
 void SRenderNodeTempData::InvalidateRenderObjectsInstanceData()
 {
+	// Object creation must be locked because CheckCreateRenderObject can be called on same node from different threads
+	WriteLock lock(userData.permanentObjectCreateLock);
+
 	// Release permanent CRenderObject(s)
 	for (int lod = 0; lod < MAX_STATOBJ_LODS_NUM; ++lod)
 	{
@@ -124,7 +146,7 @@ void CVisibleRenderNodesManager::UpdateVisibleNodes(int currentFrame, int maxNod
 		{
 			for (size_t i = m_firstAddedNode, num = m_visibleNodes.size(); i < num; ++i)
 			{
-				if (m_visibleNodes[i]->userData.pOwnerNode)
+				if (m_visibleNodes[i]->userData.pOwnerNode && !m_visibleNodes[i]->userData.bToDelete)
 				{
 					OnRenderNodeVisibilityChange(m_visibleNodes[i]->userData.pOwnerNode,true);
 				}
@@ -156,7 +178,7 @@ void CVisibleRenderNodesManager::UpdateVisibleNodes(int currentFrame, int maxNod
 			int diff = std::abs(currentFrame - lastSeenFrame);
 			if (diff > maxFrames || pTempData->userData.bToDelete)
 			{
-				if (pTempData->userData.pOwnerNode)
+				if (pTempData->userData.pOwnerNode && !pTempData->userData.bToDelete)
 				{
 					OnRenderNodeVisibilityChange(pTempData->userData.pOwnerNode,false);
 					pTempData->userData.pOwnerNode->m_pTempData = nullptr; // clear reference to use from owning render node.
@@ -205,7 +227,7 @@ void CVisibleRenderNodesManager::ClearAll()
 
 	for (auto* node : m_visibleNodes)
 	{
-		if (node->userData.pOwnerNode)
+		if (node->userData.pOwnerNode && !node->userData.bToDelete)
 		{
 			OnRenderNodeVisibilityChange(node->userData.pOwnerNode,false);
 			node->userData.pOwnerNode->m_pTempData = nullptr; // clear reference to use from owning render node.

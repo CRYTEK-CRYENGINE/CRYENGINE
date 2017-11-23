@@ -355,7 +355,7 @@ void CFlowEntityNode::SendEventToEntity(SActivationInfo* pActInfo, IEntity* pEnt
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFlowEntityNode::OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+void CFlowEntityNode::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
 	if (!m_pGraph->IsEnabled() || m_pGraph->IsSuspended() || !m_pGraph->IsActive())
 		return;
@@ -557,7 +557,7 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 	// IEntityEventListener
-	virtual void OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+	virtual void OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 	{
 		if (!m_pGraph || !m_pGraph->IsEnabled() || m_pGraph->IsSuspended() || !m_pGraph->IsActive())
 			return;
@@ -992,10 +992,12 @@ public:
 	void UtilDraw2DLine(float x1, float y1, float x2, float y2, const ColorF& color, float thickness)
 	{
 		IRenderer* pRenderer = gEnv->pRenderer;
-		int w = pRenderer->GetWidth();
-		int h = pRenderer->GetHeight();
-		float dx = 1.0f / w;
-		float dy = 1.0f / h;
+		IRenderAuxGeom* pAux = pRenderer->GetIRenderAuxGeom();
+		SAuxGeomRenderFlags flags = pAux->GetRenderFlags();
+		SAuxGeomRenderFlags renderFlagsRestore = flags;
+
+		const float dx = 1.0f / pAux->GetCamera().GetViewSurfaceX();
+		const float dy = 1.0f / pAux->GetCamera().GetViewSurfaceZ();
 		x1 *= dx;
 		x2 *= dx;
 		y1 *= dy;
@@ -1003,9 +1005,6 @@ public:
 
 		ColorB col((uint8)(color.r * 255.0f), (uint8)(color.g * 255.0f), (uint8)(color.b * 255.0f), (uint8)(color.a * 255.0f));
 
-		IRenderAuxGeom* pAux = pRenderer->GetIRenderAuxGeom();
-		SAuxGeomRenderFlags flags = pAux->GetRenderFlags();
-		SAuxGeomRenderFlags renderFlagsRestore = flags;
 		flags.SetMode2D3DFlag(e_Mode2D);
 		flags.SetDrawInFrontMode(e_DrawInFrontOn);
 		flags.SetDepthTestFlag(e_DepthTestOff);
@@ -1135,7 +1134,7 @@ public:
 
 				if (pEntityNode == nullptr && pRenderer)
 				{
-					const CCamera& rCam = pRenderer->GetCamera();
+					const CCamera& rCam = GetISystem()->GetViewCamera();
 					viewDir = rCam.GetViewdir();
 					srcPos = rCam.GetPosition();
 				}
@@ -1146,8 +1145,8 @@ public:
 				// Draw screen's centre if projection done from the camera position
 				if (bDebug && pEntityNode == nullptr)
 				{
-					const float w = static_cast<float>(pRenderer->GetWidth());
-					const float h = static_cast<float>(pRenderer->GetHeight());
+					const int w = std::max(IRenderAuxGeom::GetAux()->GetCamera().GetViewSurfaceX(), 1);
+					const int h = std::max(IRenderAuxGeom::GetAux()->GetCamera().GetViewSurfaceZ(), 1);
 					const float delta = 0.025f * h;
 					const float x = 0.5f * w, y = 0.5f * h;
 					const ColorF color(1.f, 1.f, 0.f, 1.f);
@@ -1523,7 +1522,7 @@ public:
 		resMat.SetFromVectors(xAxis.GetNormalized(), yAxis.GetNormalized(), zAxis.GetNormalized(), worldPos);
 	}
 
-	virtual void OnEntityEvent(IEntity* pEntity, SEntityEvent& event) {}
+	virtual void OnEntityEvent(IEntity* pEntity, const SEntityEvent& event) {}
 
 	virtual void ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
 	{
@@ -1699,7 +1698,7 @@ public:
 		config.SetCategory(EFLN_APPROVED);
 	}
 
-	void         OnEntityEvent(IEntity* pEntity, SEntityEvent& event) {}
+	void         OnEntityEvent(IEntity* pEntity, const SEntityEvent& event) {}
 
 	virtual void ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
 	{
@@ -1910,7 +1909,7 @@ public:
 		return DoResolveScriptTable(pTable, key, outKey);
 	}
 
-	void         OnEntityEvent(IEntity* pEntity, SEntityEvent& event) {}
+	void         OnEntityEvent(IEntity* pEntity, const SEntityEvent& event) {}
 
 	virtual void ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
 	{
@@ -2185,7 +2184,7 @@ public:
 		config.SetCategory(EFLN_APPROVED);
 	}
 
-	void         OnEntityEvent(IEntity* pEntity, SEntityEvent& event) {}
+	void         OnEntityEvent(IEntity* pEntity, const SEntityEvent& event) {}
 
 	virtual void ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
 	{
@@ -2712,7 +2711,7 @@ public:
 		}
 	}
 
-	void OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+	void OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 	{
 	}
 

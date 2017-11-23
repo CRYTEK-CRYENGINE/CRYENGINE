@@ -14,7 +14,6 @@ using std::vector;
 
 struct BlendSpaceDimension
 {
-	string parameterName;
 	int32  parameterId;
 	float  minimal;
 	float  maximal;
@@ -25,7 +24,7 @@ struct BlendSpaceDimension
 	bool   locked;
 
 	BlendSpaceDimension()
-		: parameterId(0)
+		: parameterId(eMotionParamID_INVALID)
 		, minimal(0)
 		, maximal(1)
 		, cellCount(8)
@@ -81,7 +80,7 @@ struct BlendSpaceAdditionalExtraction
 	int32 parameterId;
 
 	BlendSpaceAdditionalExtraction()
-		: parameterId(eMotionParamID_TravelSpeed)
+		: parameterId(eMotionParamID_INVALID)
 	{
 	}
 
@@ -222,14 +221,14 @@ struct BlendSpace
 
 struct CombinedBlendSpaceDimension
 {
-	string parameterName;
 	int    parameterId;
 	bool   locked;
 	float  parameterScale;
 	bool   chooseBlendSpace;
 
 	CombinedBlendSpaceDimension()
-		: locked(false)
+		: parameterId(eMotionParamID_INVALID)
+		, locked(false)
 		, parameterScale(1.0f)
 		, chooseBlendSpace(false)
 	{

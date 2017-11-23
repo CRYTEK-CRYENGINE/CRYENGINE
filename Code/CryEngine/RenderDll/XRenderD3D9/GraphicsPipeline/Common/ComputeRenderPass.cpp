@@ -125,7 +125,7 @@ void CComputeRenderPass::PrepareResourcesForUse(CDeviceCommandListRef RESTRICT_R
 		}
 
 		// Unmap constant buffers and mark as bound
-		m_constantManager.EndNamedConstantUpdate();
+		m_constantManager.EndNamedConstantUpdate(nullptr);
 		m_bPendingConstantUpdate = false;
 	}
 	else

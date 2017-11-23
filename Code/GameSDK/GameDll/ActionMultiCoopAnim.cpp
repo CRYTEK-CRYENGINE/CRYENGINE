@@ -56,7 +56,7 @@ void CActionMultiCoopAnimation::UpdateSceneRoot( const QuatT& sceneRoot )
 	}
 }
 
-void CActionMultiCoopAnimation::OnEntityEvent( IEntity *pEntity,SEntityEvent &event )
+void CActionMultiCoopAnimation::OnEntityEvent( IEntity *pEntity, const SEntityEvent& event )
 {
 	if(event.event==ENTITY_EVENT_DONE)
 	{

@@ -338,8 +338,6 @@ pixout DeferredWaterVolumeCausticsPS( vtxOut IN )
 	float3 vPosition = ReconstructWorldPos(IN.WPos.xy, fDepth, false);
 	half3 vNormal = DecodeGBufferNormal( wcSceneNormalsTex.Sample(pointClampSState, IN.baseTC.xy) );
 
-	//half4 cDiffuseAccRT = DecodeLightBuffer( GetSceneTex( sceneDiffuseAccTex, IN.baseTC.xy) ); 
-
 	float4 vInfoTC = mul(mLightView, float4(vPosition.xyz, 1.0f));
 	vInfoTC.xy /= vInfoTC.w;
 	vInfoTC.y = -vInfoTC.y;

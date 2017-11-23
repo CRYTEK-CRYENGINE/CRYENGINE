@@ -200,7 +200,10 @@ void CAnimCameraNode::Animate(SAnimContext& animContext)
 
 		if (m_pLastFrameActiveCameraNode != this)
 		{
-			gEnv->pRenderer->EF_DisableTemporalEffects();
+			if (gEnv->pRenderer)
+			{
+				gEnv->pRenderer->EF_DisableTemporalEffects();
+			}
 			static_cast<CMovieSystem*>(gEnv->pMovieSystem)->OnCameraCut();
 		}
 

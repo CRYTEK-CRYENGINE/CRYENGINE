@@ -104,6 +104,14 @@ struct SFileVersion
 	{
 		sprintf(s, "%d.%d.%d.%d", v[3], v[2], v[1], v[0]);
 	}
+
+	CryFixedStringT<32> ToString() const
+	{
+		CryFixedStringT<32> str;
+		str.Format("%d.%d.%d.%d", v[3], v[2], v[1], v[0]);
+
+		return str;
+	}
 };
 
 #endif // __cryversion_h__

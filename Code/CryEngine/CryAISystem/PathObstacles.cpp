@@ -773,7 +773,7 @@ void CPathObstacles::GetPathObstacles_PhysicalEntity(IPhysicalEntity* pPhysicalE
 			const float downwardsCheckDistance = (params_bbox.BBox[1].z - params_bbox.BBox[0].z) + 0.1f;  // allow checking further 10cm into the ground, just to be on the safe side
 
 			Vec3 closestPointOnMesh(ZERO);
-			if (!gAIEnv.pNavigationSystem->GetGroundLocationInMesh(meshID, testPosition, downwardsCheckDistance, 2 * boxRadius, &closestPointOnMesh))
+			if (!gAIEnv.pNavigationSystem->GetClosestMeshLocation(meshID, testPosition, downwardsCheckDistance, 2 * boxRadius, &closestPointOnMesh, nullptr))
 				return;
 
 			const float groundZ = closestPointOnMesh.z; // p3DEngine->GetTerrainEleva|tion(testPosition.x, testPosition.y);
@@ -1268,7 +1268,7 @@ bool CPathObstacles::IsPathIntersectingObstacles(const NavigationMeshID meshID, 
 			// we need to check if the position on the ground of the intersection with the polygon is at than approximate
 			// ground height as the obstacle itself
 			Vec3 groundPointOnMesh(vIntersectionPoint);
-			gAIEnv.pNavigationSystem->GetGroundLocationInMesh(meshID, vIntersectionPoint, 1.5f, 0.5f, &groundPointOnMesh);
+			gAIEnv.pNavigationSystem->GetClosestMeshLocation(meshID, vIntersectionPoint, 1.5f, 0.5f, &groundPointOnMesh, nullptr);
 			const float obstacleZ = shape2D.aabb.min.z;
 			const float intersectionPointZ = groundPointOnMesh.z;
 			const float maxZDifference = 0.5f;

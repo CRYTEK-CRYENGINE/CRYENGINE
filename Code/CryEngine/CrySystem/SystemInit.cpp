@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "SystemInit.h"
@@ -18,6 +18,7 @@
 #include <CrySystem/ICryPlugin.h>
 #include <CryExtension/CryCreateClassInstance.h>
 #include <CryMono/IMonoRuntime.h>
+#include <CryGame/IGameStartup.h>
 
 #if (CRY_PLATFORM_APPLE || CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID) && !defined(DEDICATED_SERVER)
 	#include <dlfcn.h>
@@ -47,6 +48,7 @@
 #include <CryScriptSystem/IScriptSystem.h>
 #include <CrySystem/ICmdLine.h>
 #include <CrySystem/IProcess.h>
+#include <CryReflection/IReflection.h>
 
 #include "CryPak.h"
 #include "XConsole.h"
@@ -107,12 +109,8 @@
 #include "Serialization/ArchiveHost.h"
 
 #include "CrySchematyc/ICore.h"
+#include <CrySchematyc2/Schematyc_IFramework.h>
 #include "ManualFrameStep.h"
-
-#if USE_STEAM
-	#include "Steamworks/public/steam/steam_api.h"
-	#include "Steamworks/public/steam/isteamremotestorage.h"
-#endif
 
 #if CRY_PLATFORM_IOS
 	#include "IOSConsole.h"
@@ -353,24 +351,6 @@ static void CmdCrashTest(IConsoleCmdArgs* pArgs)
 	}
 }
 
-#if USE_STEAM
-//////////////////////////////////////////////////////////////////////////
-static void CmdWipeSteamCloud(IConsoleCmdArgs* pArgs)
-{
-	if (!gEnv->pSystem->SteamInit())
-		return;
-
-	int32 fileCount = SteamRemoteStorage()->GetFileCount();
-	for (int i = 0; i < fileCount; i++)
-	{
-		int32 size = 0;
-		const char* name = SteamRemoteStorage()->GetFileNameAndSize(i, &size);
-		bool success = SteamRemoteStorage()->FileDelete(name);
-		CryLog("Deleting file: %s - success: %d", name, success);
-	}
-}
-#endif
-
 //////////////////////////////////////////////////////////////////////////
 class CCrashTestThread : public IThread
 {
@@ -583,6 +563,9 @@ static void OnSysSpecChange(ICVar* pVar)
 
 	if (gEnv->p3DEngine)
 		gEnv->p3DEngine->GetMaterialManager()->RefreshMaterialRuntime();
+
+	if (gEnv->pRenderer)
+		gEnv->pRenderer->FlushPendingUploads();
 
 	no_recursive = false;
 }
@@ -1002,6 +985,24 @@ bool CSystem::InitNetwork(const SSystemInitParams& startupParams)
 		CryFatalError("Error creating Network System!");
 		return false;
 	}
+
+	return true;
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+bool CSystem::InitReflectionSystem(const SSystemInitParams& startupParams)
+{
+	LOADING_TIME_PROFILE_SECTION(GetISystem());
+
+	if (!InitializeEngineModule(startupParams, "CryReflection", cryiidof<Cry::Reflection::IReflection>(), true))
+		return false;
+
+	if (!m_env.pReflection)
+	{
+		CryFatalError("Error initializing Reflection!");
+		return false;
+	}
+
 	return true;
 }
 
@@ -1013,9 +1014,18 @@ bool CSystem::InitSchematyc(const SSystemInitParams& startupParams)
 	if (!InitializeEngineModule(startupParams, "CrySchematyc", cryiidof<ICrySchematycCore>(), true))
 		return false;
 
-	if (!m_env.pSchematyc)
+	if (m_env.pSchematyc == nullptr)
 	{
 		CryFatalError("Error initializing Schematyc!");
+		return false;
+	}
+
+	if (!InitializeEngineModule(startupParams, "CrySchematyc2", cryiidof<Schematyc2::IFramework>(), true))
+		return false;
+
+	if (m_env.pSchematyc2 == nullptr)
+	{
+		CryFatalError("Error initializing Schematyc 2!");
 		return false;
 	}
 
@@ -1251,7 +1261,20 @@ bool CSystem::InitRenderer(SSystemInitParams& startupParams)
 
 		WIN_HWND hwnd = (startupParams.bEditor) ? (WIN_HWND)1 : m_hWnd;
 
-		m_hWnd = m_env.pRenderer->Init(0, 0, m_rWidth->GetIVal(), m_rHeight->GetIVal(), m_rColorBits->GetIVal(), m_rDepthBits->GetIVal(), m_rStencilBits->GetIVal(), m_rFullscreen->GetIVal() ? true : false, hwnd, false, startupParams.bShaderCacheGen);
+		int width  = m_rWidth ->GetIVal();
+		int height = m_rHeight->GetIVal();
+		if (gEnv->IsEditor())
+		{
+			// In Editor base default Display Context is not really used, so it is allocated with the minimal resolution.
+			width  = 32;
+			height = 32;
+		}
+
+		m_hWnd = m_env.pRenderer->Init(
+			0, 0, width, height,
+			m_rColorBits->GetIVal(), m_rDepthBits->GetIVal(), m_rStencilBits->GetIVal(),
+			m_rFullscreen->GetIVal() ? true : false, hwnd, false, startupParams.bShaderCacheGen);
+
 		startupParams.hWnd = m_hWnd;
 
 		m_env.pAuxGeomRenderer = m_env.pRenderer->GetIRenderAuxGeom();
@@ -1639,6 +1662,8 @@ bool CSystem::InitPhysics(const SSystemInitParams& startupParams)
 	               "Whether to use OBBs rather than AABBs for the entity grid setup for brushes");
 	REGISTER_CVAR2("p_num_startup_overload_checks", &pVars->nStartupOverloadChecks, pVars->nStartupOverloadChecks, 0,
 	               "For this many frames after loading a level, check if the physics gets overloaded and freezes non-player physicalized objects that are slow enough");
+	REGISTER_CVAR2("p_break_on_awake_ent_id", &pVars->idEntBreakOnAwake, pVars->idEntBreakOnAwake, 0,
+	               "Sets the id of the entity that will trigger debug break if awoken");
 
 	pVars->flagsColliderDebris = geom_colltype_debris;
 	pVars->flagsANDDebris = ~(geom_colltype_vehicle | geom_colltype6);
@@ -1836,19 +1861,25 @@ bool CSystem::InitFileSystem(const SSystemInitParams& startupParams)
 
 	((CCryPak*)m_env.pCryPak)->SetLog(m_env.pLog);
 
+	const char* szConfigPakPath = "%ENGINEROOT%/config.pak";
+	m_env.pCryPak->OpenPack(szConfigPakPath);
+
 	// Load value of sys_game_folder from system.cfg into the sys_game_folder console variable
 	ILoadConfigurationEntrySink* pCVarsWhiteListConfigSink = GetCVarsWhiteListConfigSink();
 #if CRY_PLATFORM_ANDROID && !defined(ANDROID_OBB)
 	string path = string(CryGetProjectStoragePath()) + "/system.cfg";
 	LoadConfiguration(path.c_str(), pCVarsWhiteListConfigSink, eLoadConfigInit);
 #else
-	LoadConfiguration("system.cfg", pCVarsWhiteListConfigSink, eLoadConfigInit);
+	LoadConfiguration("%ENGINEROOT%/system.cfg", pCVarsWhiteListConfigSink, eLoadConfigInit);
 #endif
 
 	if (!m_pProjectManager->ParseProjectFile())
 	{
+		m_env.pCryPak->ClosePack(szConfigPakPath);
 		return false;
 	}
+
+	m_env.pCryPak->ClosePack(szConfigPakPath);
 
 	// Legacy support for setting decryption key from IGameStartup interface
 	// Should be removed when legacy game dll's are gone
@@ -1856,9 +1887,9 @@ bool CSystem::InitFileSystem(const SSystemInitParams& startupParams)
 	{
 		HMODULE hGameDll;
 
-#if !defined(_LIB)
-		CCryLibrary gameLibrary(pLegacyGameDllCVar->GetString());
-		hGameDll = gameLibrary.m_hModule;
+#if !defined(CRY_IS_MONOLITHIC_BUILD)
+		m_gameLibrary.Set(pLegacyGameDllCVar->GetString());
+		hGameDll = m_gameLibrary.m_hModule;
 #else
 		hGameDll = CryGetCurrentModule();
 #endif
@@ -1877,7 +1908,7 @@ bool CSystem::InitFileSystem(const SSystemInitParams& startupParams)
 			}
 		}
 	}
-	
+
 	bool bRes = m_env.pCryPak->Init("");
 
 	if (bRes)
@@ -2467,13 +2498,6 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 
 	LOADING_TIME_PROFILE_SECTION;
 
-	if (strstr(startupParams.szSystemCmdLine, "-norandom"))
-		startupParams.bNoRandom = true;
-
-	// set unit test flag at start so multiple systems could handle initialization differently when needed
-	if (strstr(startupParams.szSystemCmdLine, "-run_unit_tests"))
-		startupParams.bTesting = true;
-
 	SetSystemGlobalState(ESYSTEM_GLOBAL_STATE_INIT);
 	gEnv->mMainThreadId = GetCurrentThreadId();     //Set this ASAP on startup
 
@@ -2483,6 +2507,29 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 	m_szCmdLine = startupParams.szSystemCmdLine;
 
 	m_pCmdLine = new CCmdLine(startupParams.szSystemCmdLine);
+
+	if (m_pCmdLine->FindArg(eCLAT_Pre, "norandom"))
+	{
+		startupParams.bNoRandom = true;
+	}
+
+	// set unit test flag at start so multiple systems could handle initialization differently when needed
+	if (m_pCmdLine->FindArg(eCLAT_Pre, "run_unit_tests"))
+	{
+		startupParams.bTesting = true;
+	}
+
+	// Skipping renderer is useful for automation modes when visual output is unnecessary
+	if (m_pCmdLine->FindArg(eCLAT_Pre, "skiprenderer"))
+	{
+		startupParams.bSkipRenderer = true;
+	}
+
+	// Skipping input is useful for automation modes
+	if (m_pCmdLine->FindArg(eCLAT_Pre, "skipinput"))
+	{
+		startupParams.bSkipInput = true;
+	}
 
 	m_env.szCmdLine = m_szCmdLine.c_str();
 	m_env.bTesting = startupParams.bTesting;
@@ -2516,7 +2563,38 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 #if defined(CVARS_WHITELIST)
 	m_pCVarsWhitelist = startupParams.pCVarsWhitelist;
 #endif // defined(CVARS_WHITELIST)
-	m_bDedicatedServer = startupParams.bDedicatedServer;
+
+#if !defined(_RELEASE)
+	if (!startupParams.bDedicatedServer)
+	{
+		const ICmdLineArg* dedicated = m_pCmdLine->FindArg(eCLAT_Pre, "dedicated");
+		if (dedicated)
+		{
+			startupParams.bDedicatedServer = true;
+		}
+	}
+#endif // !defined(_RELEASE)
+
+#if defined(DEDICATED_SERVER)
+	startupParams.bDedicatedServer = true;
+#endif // #if defined(DEDICATED_SERVER)
+
+#if CRY_PLATFORM_DESKTOP
+	const ICmdLineArg* pDedicatedArbitrator = m_pCmdLine->FindArg(eCLAT_Pre, "dedicatedarbitrator");
+	if (pDedicatedArbitrator)
+	{
+		startupParams.bDedicatedServer = true;
+		gEnv->bDedicatedArbitrator = true;
+	}
+#endif
+
+#if CRY_PLATFORM_DESKTOP
+	if (startupParams.bDedicatedServer)
+	{
+		m_env.SetIsDedicated(true);
+	}
+#endif
+
 	m_pCmdLine = new CCmdLine(startupParams.szSystemCmdLine);
 	m_currentLanguageAudio = "";
 #if defined(DEDICATED_SERVER)
@@ -2575,43 +2653,10 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 		m_pValidator = startupParams.pValidator;
 	}
 
-#if !defined(_RELEASE)
-	if (!m_bDedicatedServer)
-	{
-		const ICmdLineArg* dedicated = m_pCmdLine->FindArg(eCLAT_Pre, "dedicated");
-		if (dedicated)
-		{
-			m_bDedicatedServer = true;
-	#if CRY_PLATFORM_DESKTOP
-			gEnv->SetIsDedicated(true);
-	#endif
-		}
-	}
-#endif // !defined(_RELEASE)
-
-#if defined(DEDICATED_SERVER)
-	m_bDedicatedServer = true;
-	#if CRY_PLATFORM_DESKTOP
-	gEnv->SetIsDedicated(true);
-	#endif
-#endif // #if defined(DEDICATED_SERVER)
-
-#if CRY_PLATFORM_DESKTOP
-	const ICmdLineArg* pDedicatedArbitrator = m_pCmdLine->FindArg(eCLAT_Pre, "dedicatedarbitrator");
-	if (pDedicatedArbitrator)
-	{
-		m_bDedicatedServer = true;
-		gEnv->SetIsDedicated(true);
-		gEnv->bDedicatedArbitrator = true;
-	}
-#endif
-
-#if !defined(DEDICATED_SERVER)
 	if (!startupParams.bSkipRenderer)
 	{
 		m_pHmdManager = new CHmdManager();
 	}
-#endif
 
 #if CRY_PLATFORM_DESKTOP
 	#if !defined(_RELEASE)
@@ -2645,22 +2690,36 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 		#endif
 		m_pTextModeConsole = static_cast<ITextModeConsole*>(pConsole);
 
-		if (m_pUserCallback == NULL && m_bDedicatedServer)
+		if (m_pUserCallback == NULL)
 		{
-			m_pUserCallback = pConsole;
-			pConsole->SetRequireDedicatedServer(true);
-
-			headerName.append("Dedicated Server");
-			if (gEnv->bDedicatedArbitrator)
+			auto getProductVersion = [this] 
 			{
-				headerName.append(" Arbitrator");
-			}
-			headerName.append(" - Version ");
+				char version[64];
+				GetProductVersion().ToString(version);
+				return string(version);
+			};
 
-			char version[64];
-			GetProductVersion().ToString(version);
-			headerName.append(version);
-			pConsole->SetHeader(headerName.c_str());
+			if (m_env.IsDedicated())
+			{
+				m_pUserCallback = pConsole;
+				pConsole->SetRequireDedicatedServer(true);
+				headerName.append("Dedicated Server");
+				if (gEnv->bDedicatedArbitrator)
+				{
+					headerName.append(" Arbitrator");
+				}
+				headerName.append(" - Version ");
+				headerName.append(getProductVersion());
+				pConsole->SetHeader(headerName.c_str());
+			}
+			else if (m_pCmdLine->FindArg(eCLAT_Pre, "console"))
+			{
+				m_pUserCallback = pConsole;
+				pConsole->SetRequireDedicatedServer(false);
+				headerName.append("Client - Version ");
+				headerName.append(getProductVersion());
+				pConsole->SetHeader(headerName.c_str());
+			}
 		}
 	}
 		#if !defined(_RELEASE)
@@ -2673,7 +2732,7 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 		CNULLConsole* pConsole = new CNULLConsole(isDaemonMode);
 		m_pTextModeConsole = pConsole;
 
-		if (m_pUserCallback == NULL && m_bDedicatedServer)
+		if (m_pUserCallback == NULL && m_env.IsDedicated())
 			m_pUserCallback = pConsole;
 	}
 	#endif
@@ -2697,6 +2756,8 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 	InlineInitializationProcessing("CSystem::Init PlatformOS");
 
 	{
+		m_FrameProfileSystem.Init();
+
 		//////////////////////////////////////////////////////////////////////////
 		// File system, must be very early
 		//////////////////////////////////////////////////////////////////////////
@@ -2762,8 +2823,6 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 		// Set this as soon as the system cvars got initialized.
 		static_cast<CCryPak* const>(m_env.pCryPak)->SetLocalizationFolder(g_cvars.sys_localization_folder->GetString());
 
-		m_FrameProfileSystem.Init();
-
 		//////////////////////////////////////////////////////////////////////////
 		//Load engine files
 		//////////////////////////////////////////////////////////////////////////
@@ -2792,7 +2851,10 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 
 		CryGetIMemReplay()->EnableAsynchMode();
 
-		m_FrameProfileSystem.Init();
+		if (!InitReflectionSystem(startupParams))
+		{
+			return false;
+		}
 
 		m_pResourceManager->Init();
 
@@ -2866,7 +2928,7 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 			{
 				pSysSpecCVar->Set(curSpecVal);
 			}
-		}		
+		}
 
 		if (!startupParams.bSkipRenderer)
 		{
@@ -2960,7 +3022,7 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 
 		m_env.pOverloadSceneManager = new COverloadSceneManager;
 
-		if (m_bDedicatedServer && m_rDriver)
+		if (m_env.IsDedicated() && m_rDriver)
 		{
 			m_sSavedRDriver = m_rDriver->GetString();
 			m_rDriver->Set("NULL");
@@ -2978,7 +3040,7 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 		if (m_env.IsEditor())
 		{
 			if (!(stricmp(m_rDriver->GetString(), STR_DX11_RENDERER) == 0 ||
-				  stricmp(m_rDriver->GetString(), STR_DX12_RENDERER) == 0))
+			      stricmp(m_rDriver->GetString(), STR_DX12_RENDERER) == 0))
 			{
 				m_env.pLog->LogWarning("Editor only supports DX11 & DX12. Switching to DX11 Renderer.");
 				m_rDriver->Set(STR_DX11_RENDERER);
@@ -3025,7 +3087,7 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 		// AUDIO
 		//////////////////////////////////////////////////////////////////////////
 		bool bAudioInitSuccess = false;
-		if (!startupParams.bPreview && !m_bDedicatedServer && !m_bUIFrameworkMode && !startupParams.bShaderCacheGen &&
+		if (!startupParams.bPreview && !m_env.IsDedicated() && !m_bUIFrameworkMode && !startupParams.bShaderCacheGen &&
 		    (m_sys_audio_disable->GetIVal() == 0))
 		{
 			LOADING_TIME_PROFILE_SECTION_NAMED("AudioSystem initialization");
@@ -3055,7 +3117,7 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 		//////////////////////////////////////////////////////////////////////////
 		// RENDERER
 		//////////////////////////////////////////////////////////////////////////
-		if (!startupParams.bSkipRenderer && !m_bDedicatedServer)
+		if (!startupParams.bSkipRenderer && !m_env.IsDedicated())
 		{
 			assert(IsHeapValid());
 			CryLogAlways("Renderer initialization");
@@ -3076,7 +3138,7 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 		else
 		{
 #if CRY_PLATFORM_DESKTOP
-			if (m_bDedicatedServer && !isDaemonMode)
+			if (m_env.IsDedicated() && !isDaemonMode)
 			{
 				m_pNULLRenderAuxGeom = CNULLRenderAuxGeom::Create();
 				m_env.pAuxGeomRenderer = m_pNULLRenderAuxGeom;
@@ -3169,10 +3231,10 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 			m_env.pRenderer->InitSystemResources(FRR_SYSTEM_RESOURCES);
 			m_env.pRenderer->StartRenderIntroMovies();
 		}
-		else if (g_cvars.sys_rendersplashscreen && bStartScreensAllowed)
+		else if (g_cvars.sys_splashscreen != nullptr && bStartScreensAllowed && g_cvars.sys_splashscreen->GetString()[0] != '\0')
 		{
 			LOADING_TIME_PROFILE_SECTION_NAMED("Rendering Splash Screen");
-			ITexture* pTex = m_env.pRenderer->EF_LoadTexture("Libs/UI/textures/startscreen.tif", FT_DONT_STREAM | FT_NOMIPS);
+			ITexture* pTex = m_env.pRenderer->EF_LoadTexture(g_cvars.sys_splashscreen->GetString(), FT_DONT_STREAM | FT_NOMIPS);
 			if (pTex)
 			{
 				const int splashWidth = pTex->GetWidth();
@@ -3193,19 +3255,11 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 					const float x = (screenWidth - w) * 0.5f;
 					const float y = (screenHeight - h) * 0.5f;
 
-					const float vx = (800.0f / (float) screenWidth);
-					const float vy = (600.0f / (float) screenHeight);
-
-					m_env.pRenderer->SetViewport(0, 0, screenWidth, screenHeight);
 					// make sure it's rendered in full screen mode when triple buffering is enabled as well
 					for (size_t n = 0; n < 3; n++)
 					{
-						m_env.pRenderer->BeginFrame();
-						m_env.pRenderer->SetCullMode(R_CULL_NONE);
-						m_env.pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
-						m_env.pRenderer->Draw2dImageStretchMode(true);
-						m_env.pRenderer->Draw2dImage(x * vx, y * vy, w * vx, h * vy, pTex->GetTextureID(), 0.0f, 1.0f, 1.0f, 0.0f);
-						m_env.pRenderer->Draw2dImageStretchMode(false);
+						m_env.pRenderer->BeginFrame(0);
+						IRenderAuxImage::Draw2dImage(x, y, w, h, pTex->GetTextureID(), 0.0f, 1.0f, 1.0f, 0.0f);
 						m_env.pRenderer->EndFrame();
 					}
 				}
@@ -3470,7 +3524,7 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 			if (m_pUserCallback)
 				m_pUserCallback->OnInitProgress("Initializing Dynamic Response System...");
 
-			if (m_bDedicatedServer || !InitDynamicResponseSystem(startupParams))
+			if (m_env.IsDedicated() || !InitDynamicResponseSystem(startupParams))
 			{
 				CryLogAlways("No Dynamic Response System was loaded from a module, will use the NULL implementation.");
 				m_env.pDynamicResponseSystem = new NullDRS::CSystem();
@@ -3735,6 +3789,11 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 #endif
 
 	m_pManualFrameStepController = new CManualFrameStepController();
+
+	if (startupParams.bShaderCacheGen)
+	{
+		GetIConsole()->ExecuteString("r_PrecacheShaderList");
+	}
 
 	return (true);
 }
@@ -4864,27 +4923,17 @@ void CSystem::CreateSystemVars()
 
 	REGISTER_CVAR2("sys_intromoviesduringinit", &g_cvars.sys_intromoviesduringinit, 0, VF_NULL, "Render the intro movies during game initialization");
 
-	{
-		int nDefaultRenderSplashScreen = 1;
-#if CRY_PLATFORM_ORBIS
-		nDefaultRenderSplashScreen = 0;
+#ifndef CRY_PLATFORM_ORBIS
+	g_cvars.sys_splashscreen = REGISTER_STRING("sys_splashscreen", "", 0, "Specifies the path to the splashscreen texture to render at startup");
+#else
+	g_cvars.sys_splashscreen = nullptr;
 #endif
-		REGISTER_CVAR2("sys_rendersplashscreen", &g_cvars.sys_rendersplashscreen, nDefaultRenderSplashScreen, VF_NULL,
-		               "Render the splash screen during game initialization");
-	}
 
 	REGISTER_CVAR2("sys_deferAudioUpdateOptim", &g_cvars.sys_deferAudioUpdateOptim, 1, VF_NULL,
 	               "0 - disable optimisation\n"
 	               "1 - enable optimisation\n"
 	               "Default is 1");
 
-#if USE_STEAM
-	#ifndef RELEASE
-	REGISTER_CVAR2("sys_steamAppId", &g_cvars.sys_steamAppId, 0, VF_NULL, "steam appId used for development testing");
-	REGISTER_COMMAND("sys_wipeSteamCloud", CmdWipeSteamCloud, VF_CHEAT, "Delete all files from steam cloud for this user");
-	#endif // RELEASE
-	REGISTER_CVAR2("sys_useSteamCloudForPlatformSaving", &g_cvars.sys_useSteamCloudForPlatformSaving, 0, VF_NULL, "Use steam cloud for save games and profile on PC (instead of the user folder)");
-#endif
 	REGISTER_CVAR2("sys_filesystemCaseSensitivity", &g_cvars.sys_filesystemCaseSensitivity, 0, VF_NULL, "0 = Ignore letter casing mismatches, 1 = Show warning on mismatch, 2 = Show error on mismatch");
 
 	m_sysNoUpdate = REGISTER_INT("sys_noupdate", 0, VF_CHEAT,
@@ -4936,83 +4985,6 @@ void CSystem::CreateSystemVars()
 	                                          "Usage: e_EntitySuppressionLevel [0-infinity]\n"
 	                                          "Default is 0 (off)");
 
-	m_sys_profile = REGISTER_INT("profile", 0, 0, "Allows CPU profiling\n"
-	                                              "Usage: profile #\n"
-	                                              "Where # sets the profiling to:\n"
-	                                              "	0: Profiling off\n"
-	                                              "	1: Self Time\n"
-	                                              "	2: Hierarchical Time\n"
-	                                              "	3: Extended Self Time\n"
-	                                              "	4: Extended Hierarchical Time\n"
-	                                              "	5: Peaks Time\n"
-	                                              "	6: Subsystem Info\n"
-	                                              "	7: Calls Numbers\n"
-	                                              "	8: Standard Deviation\n"
-	                                              "	9: Memory Allocation\n"
-	                                              "	10: Memory Allocation (Bytes)\n"
-	                                              "	11: Stalls\n"
-	                                              "	-1: Profiling enabled, but not displayed\n"
-	                                              "Default is 0 (off)");
-
-	m_sys_profile_deep = REGISTER_INT("profile_deep", 1, 0, "Enable deep profiling\n"
-	                                                        "Usage: profile_deep_profiling #\n"
-	                                                        "Where # sets profiling level to:\n"
-	                                                        "	0: Regions only\n"
-	                                                        "	1: Regions and all others\n"
-	                                                        "Default is 0 (Regions only)");
-
-	m_sys_profile_additionalsub = REGISTER_INT("profile_additionalsub", 0, 0, "Enable displaying additional sub-system profiling.\n"
-	                                                                          "Usage: profile_additionalsub #\n"
-	                                                                          "Where where # may be:\n"
-	                                                                          "	0: no additional subsystem information\n"
-	                                                                          "	1: display additional subsystem information\n"
-	                                                                          "Default is 0 (off)");
-
-	m_sys_profile_filter = REGISTER_STRING("profile_filter", "", 0,
-	                                       "Profiles a specified subsystem.\n"
-	                                       "Usage: profile_filter subsystem\n"
-	                                       "Where 'subsystem' may be:\n"
-	                                       "Any\n"
-	                                       "Renderer\n"
-	                                       "3DEngine\n"
-	                                       "Animation\n"
-	                                       "AI\n"
-	                                       "Entity\n"
-	                                       "Physics\n"
-	                                       "Sound\n"
-	                                       "System\n"
-	                                       "Game\n"
-	                                       "Editor\n"
-	                                       "Script\n"
-	                                       "Network");
-	m_sys_profile_filter_thread = REGISTER_STRING("profile_filter_thread", "", 0,
-	                                              "Profiles a specified thread only.\n"
-	                                              "Usage: profile_filter threadName\n"
-	                                              "Where 'threadName' may be:\n"
-	                                              "Any\n"
-	                                              "Main\n"
-	                                              "RenderThread\n"
-	                                              "Network\n"
-	                                              "etc...");
-	m_sys_profile_graph = REGISTER_INT("profile_graph", 0, 0,
-	                                   "Enable drawing of profiling graph.");
-	m_sys_profile_graphScale = REGISTER_FLOAT("profile_graphScale", 100.0f, 0,
-	                                          "Sets the scale of profiling histograms.\n"
-	                                          "Usage: profileGraphScale 100");
-	m_sys_profile_pagefaultsgraph = REGISTER_INT("profile_pagefaults", 0, 0,
-	                                             "Enable drawing of page faults graph.");	
-	m_sys_profile_network = REGISTER_INT("profile_network", 0, 0,
-	                                     "Enables network profiling");
-	m_sys_profile_peak = REGISTER_FLOAT("profile_peak", 10.0f, 0,
-	                                    "Profiler Peaks Tolerance in Milliseconds");
-	m_sys_profile_peak_time = REGISTER_FLOAT("profile_peak_display", 8.0f, 0,
-	                                         "hot to cold time for peak display");
-	m_sys_profile_memory = REGISTER_INT("MemInfo", 0, 0, "Display memory information by modules\n1=on, 0=off");
-
-	m_sys_profile_sampler = REGISTER_FLOAT("profile_sampler", 0, 0,
-	                                       "Set to 1 to start sampling profiling");
-	m_sys_profile_sampler_max_samples = REGISTER_FLOAT("profile_sampler_max_samples", 2000, 0,
-	                                                   "Number of samples to collect for sampling profiler");
 	m_sys_profile_watchdog_timeout = REGISTER_INT_CB("watchdog", 0, VF_NULL,
 	                                                 "Set time out in seconds (positive) to start watching over game freezes", WatchDogTimeOutChanged);
 	m_sys_job_system_filter = REGISTER_STRING("sys_job_system_filter", "", 0,
@@ -5453,11 +5425,11 @@ const char* CSystem::GetLoadingProfilerCallstack()
 #endif
 }
 
-CBootProfilerRecord* CSystem::StartBootSectionProfiler(const char* name, const char* args,EProfileDescription type)
+CBootProfilerRecord* CSystem::StartBootSectionProfiler(const char* name, const char* args, EProfileDescription type)
 {
 #if defined(ENABLE_LOADING_PROFILER)
 	CBootProfiler& profiler = CBootProfiler::GetInstance();
-	return profiler.StartBlock(name, args,type);
+	return profiler.StartBlock(name, args, type);
 #else
 	return NULL;
 #endif

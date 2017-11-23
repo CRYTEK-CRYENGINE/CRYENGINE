@@ -297,11 +297,14 @@ namespace UQS
 				}
 			}
 #if UQS_SCHEMATYC_SUPPORT
-			if (event == ESYSTEM_EVENT_FULL_SHUTDOWN || event == ESYSTEM_EVENT_FAST_SHUTDOWN)
+			if (gEnv->pSchematyc)
 			{
-				if (!(m_overrideFlags & EHubOverrideFlags::InstantiateStdLibFactories))
+				if (event == ESYSTEM_EVENT_FULL_SHUTDOWN || event == ESYSTEM_EVENT_FAST_SHUTDOWN)
 				{
-					gEnv->pSchematyc->GetEnvRegistry().DeregisterPackage(GetSchematycPackageGUID());
+					if (!(m_overrideFlags & EHubOverrideFlags::InstantiateStdLibFactories))
+					{
+						gEnv->pSchematyc->GetEnvRegistry().DeregisterPackage(GetSchematycPackageGUID());
+					}
 				}
 			}
 #endif 

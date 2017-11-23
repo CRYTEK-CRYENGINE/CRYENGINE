@@ -786,7 +786,7 @@ bool CBrush::GetLodDistances(const SFrameLodInfo& frameLodInfo, float* distances
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInfo, SSectorTextureSet* pTerrainTexInfo, PodArray<CDLight*>* pAffectingLights)
+void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInfo, SSectorTextureSet* pTerrainTexInfo, PodArray<SRenderLight*>* pAffectingLights)
 {
 	FUNCTION_PROFILER_3DENGINE;
 
@@ -828,10 +828,11 @@ void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInf
 
 	CRenderObject* pObj = 0;
 
-	if (m_pFoliage || m_pDeform)
+	if (m_pFoliage || m_pDeform || (m_dwRndFlags & ERF_HUD))
 	{
 		// Foliage and deform do not support permanent render objects
-		pObj = gEnv->pRenderer->EF_GetObject_Temp(passInfo.ThreadID());
+		// HUD is managed in custom render-lists and also doesn't support it
+		pObj = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 	}
 
 	if (!pObj)

@@ -13,7 +13,7 @@ class CLocalGridEntity final
 
 public:
 	virtual void OnResetState() final;
-	virtual void ProcessEvent(SEntityEvent& event) final;
+	virtual void ProcessEvent(const SEntityEvent& event) final;
 	virtual uint64 GetEventMask() const final { return CDesignerEntityComponent::GetEventMask() | BIT64(ENTITY_EVENT_START_GAME) | BIT64(ENTITY_EVENT_ATTACH) | BIT64(ENTITY_EVENT_DETACH); }
 	virtual IEntityPropertyGroup* GetPropertyGroup() final { return this; }
 	virtual const char* GetLabel() const override { return "Grid Properties"; }

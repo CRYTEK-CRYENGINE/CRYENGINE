@@ -1364,12 +1364,6 @@ void CDeviceGraphicsCommandInterfaceImpl::PrepareInlineConstantBufferForUseImpl(
 
 	CRY_ASSERT(pActualBuffer->AsDynamicOffsetBuffer() != nullptr); // Needs to be a buffer with dynamic offsets
 	RequestTransition(pActualBuffer, VK_ACCESS_UNIFORM_READ_BIT);
-
-	if (pActualBuffer->AsDynamicOffsetBuffer()->GetDynamicDescriptorSet(bytes) == VK_NULL_HANDLE)
-	{
-		VkDescriptorSetLayout layout = GetDeviceObjectFactory().GetInlineConstantBufferLayout();
-		pActualBuffer->AsDynamicOffsetBuffer()->CreateDynamicDescriptorSet(layout, bytes);
-	}
 }
 
 void CDeviceGraphicsCommandInterfaceImpl::PrepareVertexBuffersForUseImpl(uint32 numStreams, uint32 lastStreamSlot, const CDeviceInputStream* vertexStreams) const
@@ -1463,7 +1457,7 @@ void CDeviceGraphicsCommandInterfaceImpl::SetInlineConstantBufferImpl(uint32 bin
 	NCryVulkan::CBufferResource* pVkBuffer = pBuffer->GetD3D(&offset, &size);
 	VK_ASSERT(pVkBuffer && pVkBuffer->GetHandle() && pVkBuffer->AsDynamicOffsetBuffer() != nullptr);
 	
-	VkDescriptorSet dynamicDescriptorSet = pVkBuffer->AsDynamicOffsetBuffer()->GetDynamicDescriptorSet(size);
+	VkDescriptorSet dynamicDescriptorSet = pVkBuffer->AsDynamicOffsetBuffer()->GetDynamicDescriptorSet();
 	CRY_ASSERT(dynamicDescriptorSet != VK_NULL_HANDLE);
 
 	m_graphicsState.custom.pendingBindings.AppendDescriptorSet(bindSlot, dynamicDescriptorSet, &offset);
@@ -1670,12 +1664,6 @@ void CDeviceComputeCommandInterfaceImpl::PrepareInlineConstantBufferForUseImpl(u
 	CBufferResource* const pActualBuffer = pBuffer->GetD3D(&offset, &bytes);
 	RequestTransition(pActualBuffer, VK_ACCESS_UNIFORM_READ_BIT);
 	CRY_ASSERT(pActualBuffer->AsDynamicOffsetBuffer() != nullptr);
-
-	if (pActualBuffer->AsDynamicOffsetBuffer()->GetDynamicDescriptorSet(bytes) == VK_NULL_HANDLE)
-	{
-		VkDescriptorSetLayout layout = GetDeviceObjectFactory().GetInlineConstantBufferLayout();
-		pActualBuffer->AsDynamicOffsetBuffer()->CreateDynamicDescriptorSet(layout, bytes);
-	}
 }
 
 void CDeviceComputeCommandInterfaceImpl::SetResourcesImpl(uint32 bindSlot, const CDeviceResourceSet* pResources)
@@ -1697,7 +1685,7 @@ void CDeviceComputeCommandInterfaceImpl::SetInlineConstantBufferImpl(uint32 bind
 	NCryVulkan::CBufferResource* pVkBuffer = pBuffer->GetD3D(&offset, &size);
 	CRY_ASSERT(pVkBuffer->AsDynamicOffsetBuffer() != nullptr); // Needs to be a buffer with dynamic offsets
 
-	VkDescriptorSet dynamicDescriptorSet = pVkBuffer->AsDynamicOffsetBuffer()->GetDynamicDescriptorSet(size);
+	VkDescriptorSet dynamicDescriptorSet = pVkBuffer->AsDynamicOffsetBuffer()->GetDynamicDescriptorSet();
 	CRY_ASSERT(dynamicDescriptorSet != VK_NULL_HANDLE);
 
 	m_computeState.custom.pendingBindings.AppendDescriptorSet(bindSlot, dynamicDescriptorSet, &offset);
@@ -2391,8 +2379,8 @@ bool CDeviceRenderPass::InitVkFrameBuffer(const CDeviceRenderPassDesc& passDesc)
 	if (imageViewCount > 0)
 	{
 		CTexture* pTex = renderTargetCount > 0 ? renderTargets[0].pTexture : depthTarget.pTexture;
-		m_frameBufferExtent.width = uint32(pTex->GetWidthNonVirtual());
-		m_frameBufferExtent.height = uint32(pTex->GetHeightNonVirtual());
+		m_frameBufferExtent.width = uint32(pTex->GetWidth());
+		m_frameBufferExtent.height = uint32(pTex->GetHeight());
 
 		VkFramebufferCreateInfo frameBufferCreateInfo;
 

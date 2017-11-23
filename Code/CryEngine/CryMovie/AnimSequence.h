@@ -12,8 +12,6 @@ class CAnimSequence : public IAnimSequence
 public:
 	CAnimSequence(IMovieSystem* pMovieSystem, uint32 id);
 
-	virtual void Release() override { if (--m_nRefCounter <= 0) { delete this; } }
-
 	// Movie system.
 	IMovieSystem*                GetMovieSystem() const { return m_pMovieSystem; };
 

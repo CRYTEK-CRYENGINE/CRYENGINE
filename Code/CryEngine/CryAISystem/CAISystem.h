@@ -155,7 +155,6 @@ public:
 	//Basic////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	virtual bool                Init();
-	virtual bool                CompleteInit();
 
 	virtual void                Reload();
 	virtual void                Reset(EResetReason reason);//TODO this is called by lots of people including destructor, but causes NEW ALLOCATIONS! Needs big refactor!
@@ -1028,6 +1027,7 @@ private:
 	////////////////////////////////////////////////////////////////////
 
 private:
+	bool CompleteInit();
 	void RegisterSchematycEnvPackage(Schematyc::IEnvRegistrar& registrar);
 
 	void RegisterFirecommandHandler(IFireCommandDesc* desc);

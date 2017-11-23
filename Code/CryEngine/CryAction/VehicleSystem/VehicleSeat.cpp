@@ -1540,7 +1540,7 @@ void CVehicleSeat::Update(float deltaTime)
 
 				pActor->GetEntity()->GetWorldBounds(worldBounds);
 
-				if (!gEnv->pRenderer->GetCamera().IsAABBVisible_F(worldBounds))
+				if (!GetISystem()->GetViewCamera().IsAABBVisible_F(worldBounds))
 				{
 					if (IAIObject* pAIObject = pActor->GetEntity()->GetAI())
 					{

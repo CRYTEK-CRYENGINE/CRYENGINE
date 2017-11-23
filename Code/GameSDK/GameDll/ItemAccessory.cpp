@@ -183,7 +183,7 @@ void CItem::AccessoryDetachAction(CItem* pAccessory, const SAccessoryParams* par
 
 	pAccessory->OnAttach(false);
 	ResetCharacterAttachment(eIGS_FirstPerson, params->attach_helper.c_str(), params->attachToOwner);
-	pAccessoryEntity->DetachThis(0);
+	pAccessoryEntity->DetachThis();
 	pAccessory->SetParentId(0);
 	pAccessory->Hide(true);
 	RemoveAccessory(pAccessoryEntity->GetClass());

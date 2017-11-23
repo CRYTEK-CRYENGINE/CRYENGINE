@@ -131,7 +131,7 @@ void CFrogBoid::OnPickup( bool bPickup,float fSpeed )
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFrogBoid::OnCollision( SEntityEvent &event )
+void CFrogBoid::OnCollision(const SEntityEvent &event)
 {
 	if (m_bThrown)
 	{

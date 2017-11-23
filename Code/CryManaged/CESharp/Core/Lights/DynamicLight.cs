@@ -18,9 +18,9 @@ namespace CryEngine
 			}
 		}
 		
-		internal CDLight NativeHandle { get; private set; }
+		internal SRenderLight NativeHandle { get; private set; }
 
-		internal DynamicLight(CDLight nativeHandle) : base(nativeHandle)
+		internal DynamicLight(SRenderLight nativeHandle) : base(nativeHandle)
 		{
 			NativeHandle = nativeHandle;
 		}
@@ -31,7 +31,7 @@ namespace CryEngine
 		/// <returns>The light.</returns>
 		public static DynamicLight CreateLight()
 		{
-			return new DynamicLight(new CDLight());
+			return new DynamicLight(new SRenderLight());
 		}
 
 		/// <summary>

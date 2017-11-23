@@ -117,7 +117,7 @@ CTexture* Streaks::GetTexture()
 		return m_pSpectrumTex;
 	}
 
-	return CTexture::s_ptexBlack;
+	return CRendererResources::s_ptexBlack;
 }
 
 void Streaks::UpdateMeshes()

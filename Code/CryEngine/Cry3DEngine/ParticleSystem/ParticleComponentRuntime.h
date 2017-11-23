@@ -65,6 +65,7 @@ public:
 	SChaosKey                 MakeSeed(TParticleId id = 0) const;
 	SChaosKey                 MakeParentSeed(TParticleId id = 0) const;
 
+	bool                      IsAlive() const;
 	bool                      HasParticles() const;
 	void                      AccumStats(SParticleStats& statsCPU, SParticleStats& statsGPU);
 

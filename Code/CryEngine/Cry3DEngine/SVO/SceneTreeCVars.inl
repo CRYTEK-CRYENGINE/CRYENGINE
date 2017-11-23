@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifdef CVAR_CPP
 
@@ -50,7 +50,8 @@ REGISTER_CVAR_AUTO(float, e_svoTI_MinReflectance, 0.2f, VF_NULL, "Controls light
 REGISTER_CVAR_AUTO(int, e_svoTI_ObjectsLod, 1, VF_NULL, "Mesh LOD used for voxelization\nChanges are visible only after re-voxelization (click <Update geometry> or restart)");
 REGISTER_CVAR_AUTO(float, e_svoTI_AnalyticalOccludersRange, 4.f, VF_NULL, "Shadow length");
 REGISTER_CVAR_AUTO(float, e_svoTI_AnalyticalOccludersSoftness, 0.5f, VF_NULL, "Shadow softness");
-REGISTER_CVAR_AUTO(int, e_svoRootSize, 512, VF_NULL, "Limits the area covered by SVO. Smaller values reduce number of tree levels and speedup the tracing. Value must be the power of 2");
+REGISTER_CVAR_AUTO(int, e_svoRootless, !gEnv->IsEditor(), VF_NULL, "Limits the area covered by SVO. Limits number of tree levels and speedup the tracing.");
+REGISTER_CVAR_AUTO(float, e_svoTI_DistantSsaoAmount, 0.5f, VF_NULL, "Large scale SSAO intensity in the distance");
 
 #ifdef CVAR_CPP
 m_arrVars.Clear();
@@ -66,17 +67,17 @@ REGISTER_CVAR_AUTO(int, e_svoTI_Active, -1, VF_NULL, "Activates voxel GI for the
 REGISTER_CVAR_AUTO(int, e_svoTI_IntegrationMode, 0, VF_EXPERIMENTAL,
                    "GI computations may be used in several ways:\n"
                    "0 = Basic diffuse GI mode\n"
-									 "      GI completely replaces default diffuse ambient lighting\n"
+                   "      GI completely replaces default diffuse ambient lighting\n"
                    "      Single light bounce (fully real-time) is supported for sun and projectors (use '_TI_DYN' in light name)\n"
-									 "      Default ambient specular (usually coming from env probes) is modulated by intensity of diffuse GI\n"
+                   "      Default ambient specular (usually coming from env probes) is modulated by intensity of diffuse GI\n"
                    "      This mode takes less memory (only opacity is voxelized) and works acceptable on consoles\n"
-									 "      Optionally this mode may be converted into low cost AO-only mode: set InjectionMultiplier=0 and UseLightProbes=true\n"
-									 "1 = Advanced diffuse GI mode (experimental)\n"
+                   "      Optionally this mode may be converted into low cost AO-only mode: set InjectionMultiplier=0 and UseLightProbes=true\n"
+                   "1 = Advanced diffuse GI mode (experimental)\n"
                    "      GI completely replaces default diffuse ambient lighting\n"
                    "      Two indirect light bounces are supported for sun and semi-static lights (use '_TI' in light name)\n"
                    "      Single fully dynamic light bounce is supported for projectors (use '_TI_DYN' in light name)\n"
                    "      Default ambient specular is modulated by intensity of diffuse GI\n"
-									 "      Please perform scene re-voxelization if IntegrationMode was changed (use UpdateGeometry)\n"
+                   "      Please perform scene re-voxelization if IntegrationMode was changed (use UpdateGeometry)\n"
                    "2 = Full GI mode (very experimental)\n"
                    "      Both ambient diffuse and ambient specular lighting is computed by voxel cone tracing\n"
                    "      This mode works fine only on good modern PC");
@@ -121,7 +122,7 @@ REGISTER_CVAR_AUTO(int, e_svoTI_LowSpecMode, 0, VF_NULL,
 REGISTER_CVAR_AUTO(int, e_svoTI_HalfresKernelPrimary, 0, VF_NULL,
                    "Use less rays for first bounce and AO\nThis gives faster frame rate and sharper lighting but may increase noise and GI aliasing");
 REGISTER_CVAR_AUTO(int, e_svoTI_HalfresKernelSecondary, 0, VF_EXPERIMENTAL,
-									 "Use less rays for secondary bounce\nThis gives faster update of cached lighting but may reduce the precision of secondary bounce\nDifference is only visible with number of bounces more than 1");
+                   "Use less rays for secondary bounce\nThis gives faster update of cached lighting but may reduce the precision of secondary bounce\nDifference is only visible with number of bounces more than 1");
 REGISTER_CVAR_AUTO(int, e_svoTI_UseLightProbes, 0, VF_NULL,
                    "If enabled - environment probes lighting is multiplied with GI\nIf disabled - diffuse contribution of environment probes is replaced with GI\nIn modes 1-2 it enables usage of global env probe for sky light instead of TOD fog color");
 REGISTER_CVAR_AUTO(float, e_svoTI_VoxelizaionLODRatio, 0, VF_NULL,
@@ -132,6 +133,8 @@ REGISTER_CVAR_AUTO(float, e_svoTI_SSAOAmount, 0, VF_NULL,
                    "Allows to scale down SSAO (SSDO) amount and radius when GI is active");
 REGISTER_CVAR_AUTO(float, e_svoTI_ObjectsMaxViewDistance, 0, VF_NULL,
                    "Voxelize only objects with maximum view distance greater than this value (only big and important objects)\nIf set to 0 - disable this check and also disable skipping of too small triangles\nChanges are visible after full re-voxelization (click <Update geometry> or restart)");
+REGISTER_CVAR_AUTO(float, e_svoTI_ObjectsMaxViewDistanceScale, 1, VF_NULL,
+                   "Scales e_svoTI_ObjectsMaxViewDistance, so it can be different on consoles.");
 REGISTER_CVAR_AUTO(int, e_svoTI_SunRSMInject, 0, VF_EXPERIMENTAL,
                    "Enable additional RSM sun injection\nHelps getting sun bounces in over-occluded areas where primary injection methods are not able to inject enough sun light");
 REGISTER_CVAR_AUTO(float, e_svoTI_SSDepthTrace, 0, VF_EXPERIMENTAL,
@@ -139,11 +142,15 @@ REGISTER_CVAR_AUTO(float, e_svoTI_SSDepthTrace, 0, VF_EXPERIMENTAL,
 REGISTER_CVAR_AUTO(int, e_svoTI_AnalyticalOccluders, 0, VF_NULL,
                    "Enable basic support for hand-placed occlusion shapes like box, cylinder and capsule\nThis also enables indirect shadows from characters (shadow capsules are defined in .chrparams file)");
 REGISTER_CVAR_AUTO(int, e_svoTI_AnalyticalGI, 0, VF_EXPERIMENTAL,
-	                 "Completely replace voxel tracing with analytical shapes tracing\nLight bouncing is supported only in integration mode 0");
+                   "Completely replace voxel tracing with analytical shapes tracing\nLight bouncing is supported only in integration mode 0");
 REGISTER_CVAR_AUTO(int, e_svoTI_TraceVoxels, 1, VF_EXPERIMENTAL,
-									 "Include voxels into tracing\nAllows to exclude voxel tracing if only proxies are needed");
+                   "Include voxels into tracing\nAllows to exclude voxel tracing if only proxies are needed");
 REGISTER_CVAR_AUTO(float, e_svoTI_TranslucentBrightness, 0, VF_NULL,
-									 "Adjusts the brightness of semi translucent surfaces\nAffects mostly vegetation leaves and grass");
+                   "Adjusts the brightness of semi translucent surfaces\nAffects mostly vegetation leaves and grass");
+REGISTER_CVAR_AUTO(int, e_svoStreamVoxels, 0, VF_NULL,
+                   "Enable steaming of voxel data from disk instead of run-time voxelization\n"
+                   "Steaming used only in launcher, in the editor voxels are always run-time generated\n"
+                   "If enabled, level export will include voxels pre-computation process which may take up to one hour for big complex levels");
 
 // dump cvars for UI help
 #ifdef CVAR_CPP
@@ -224,7 +231,11 @@ REGISTER_CVAR_AUTO(float, e_svoTI_Troposphere_CloudGenTurb_Scale, 0, VF_EXPERIME
 REGISTER_CVAR_AUTO(float, e_svoTI_Troposphere_Density, 0, VF_EXPERIMENTAL, "Density of the atmosphere");
 REGISTER_CVAR_AUTO(int, e_svoTI_Troposphere_Subdivide, 0, VF_EXPERIMENTAL, "Build detailed SVO also in areas not filled by geometry");
 REGISTER_CVAR_AUTO(float, e_svoTI_RsmConeMaxLength, 12.f, VF_NULL, "Maximum length of the RSM rays (in meters)\nShorter rays work faster");
+#if !CRY_PLATFORM_CONSOLE
 REGISTER_CVAR_AUTO(int, e_svoTI_RsmUseColors, 1, VF_NULL, "Render also albedo colors and normals during RSM generation and use it in cone tracing");
+#else
+REGISTER_CVAR_AUTO(int, e_svoTI_RsmUseColors, 0, VF_NULL, "Render also albedo colors and normals during RSM generation and use it in cone tracing");
+#endif
 REGISTER_CVAR_AUTO(int, e_svoTI_Reflect_Vox_Max, 100, VF_NULL, "Controls amount of voxels allowed to refresh every frame");
 REGISTER_CVAR_AUTO(int, e_svoTI_Reflect_Vox_MaxEdit, 10000, VF_NULL, "Controls amount of voxels allowed to refresh every frame during lights editing");
 REGISTER_CVAR_AUTO(int, e_svoTI_Reflect_Vox_Max_Overhead, 50, VF_NULL, "Controls amount of voxels allowed to refresh every frame");
@@ -242,3 +253,4 @@ REGISTER_CVAR_AUTO(int, e_svoTI_VoxelizeHiddenObjects, 0, VF_NULL, "0 = Skip hid
 REGISTER_CVAR_AUTO(int, e_svoTI_AsyncCompute, 0, VF_NULL, "Use asynchronous compute for SVO updates");
 REGISTER_CVAR_AUTO(int, e_svoTI_ThreadAffinity0, -1, VF_NULL, "Set CPU core allowed to be used for voxelization thread, -1 = use any CPU core");
 REGISTER_CVAR_AUTO(int, e_svoTI_ThreadAffinity1, -1, VF_NULL, "Set CPU core allowed to be used for voxelization thread, -1 = use any CPU core");
+REGISTER_CVAR_AUTO(float, e_svoTI_VoxelizeMapBorder, 0.f, VF_NULL, "Allows to skip voxelization of geometry near the edges of the map.");

@@ -22,7 +22,7 @@ public:
 	COcean(IMaterial* pMat);
 	~COcean();
 
-	void          Create();
+	void          Create(const SRenderingPassInfo& passInfo);
 	void          Update(const SRenderingPassInfo& passInfo);
 	void          Render(const SRenderingPassInfo& passInfo);
 

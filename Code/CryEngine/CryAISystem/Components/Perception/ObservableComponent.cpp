@@ -64,7 +64,7 @@ void CEntityAIObservableComponent::OnShutDown()
 	Reset(EEntitySimulationMode::Idle);
 }
 
-void CEntityAIObservableComponent::ProcessEvent(SEntityEvent& event)
+void CEntityAIObservableComponent::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

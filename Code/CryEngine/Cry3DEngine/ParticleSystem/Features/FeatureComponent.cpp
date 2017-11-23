@@ -8,26 +8,6 @@
 namespace pfx2
 {
 
-class CEvaluator
-{
-public:
-	void SerializeInplace(Serialization::IArchive& ar)
-	{
-		ar(m_attributeName, "Attribute", "Attribute");
-	}
-
-	bool Evaluate(CParticleEmitter* pEmitter) const
-	{
-		const CAttributeInstance& attributes = pEmitter->GetAttributeInstance();
-		const auto attributeId = attributes.FindAttributeIdByName(m_attributeName.c_str());
-		const bool attributeValue = attributes.GetAsBoolean(attributeId, true);
-		return attributeValue;
-	}
-
-private:
-	string m_attributeName;
-};
-
 //////////////////////////////////////////////////////////////////////////
 // CFeatureComponentEnableIf
 
@@ -39,18 +19,17 @@ public:
 public:
 	virtual bool CanMakeRuntime(CParticleEmitter* pEmitter) const override
 	{
-		CRY_PFX2_PROFILE_DETAILS;
-		return m_evaluator.Evaluate(pEmitter);
+		return m_attribute.GetValueAs(pEmitter->GetAttributeInstance(), true);
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
 	{
 		CParticleFeature::Serialize(ar);
-		m_evaluator.SerializeInplace(ar);
+		ar(m_attribute, "Attribute", "Attribute");
 	}
 
 private:
-	CEvaluator m_evaluator;
+	CAttributeReference m_attribute;
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureComponentEnableIf, "Component", "EnableIf", colorComponent);
@@ -72,18 +51,18 @@ public:
 	virtual void Serialize(Serialization::IArchive& ar) override
 	{
 		CParticleFeature::Serialize(ar);
-		m_evaluator.SerializeInplace(ar);
+		ar(m_attribute, "Attribute", "Attribute");
 	}
 
 	virtual void MainPreUpdate(CParticleComponentRuntime* pComponentRuntime) override
 	{
 		CRY_PFX2_PROFILE_DETAILS;
-		if (!m_evaluator.Evaluate(pComponentRuntime->GetEmitter()))
+		if (!m_attribute.GetValueAs(pComponentRuntime->GetEmitter()->GetAttributeInstance(), true))
 			pComponentRuntime->RemoveAllSubInstances();
 	}
 
 private:
-	CEvaluator m_evaluator;
+	CAttributeReference m_attribute;
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureComponentSpawnIf, "Component", "SpawnIf", colorComponent);
@@ -118,7 +97,7 @@ public:
 
 		if (isPc)
 		{
-			return
+			return m_PC &&
 				(particleSpec >= uint(m_minimumConfig)) &&
 				(particleSpec <= uint(m_maximumConfig));
 		}

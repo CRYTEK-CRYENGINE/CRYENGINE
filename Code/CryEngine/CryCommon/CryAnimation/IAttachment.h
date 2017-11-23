@@ -651,7 +651,7 @@ struct CSKELAttachment : public IAttachmentObject
 		rParams.pMaterial = (IMaterial*)(m_pCharInstance ? m_pCharInstance->GetIMaterial() : 0);
 		if (m_pReplacementMaterial)
 			rParams.pMaterial = m_pReplacementMaterial;
-		m_pCharInstance->Render(rParams, QuatTS(IDENTITY), passInfo);
+		m_pCharInstance->Render(rParams, passInfo);
 		rParams.pMaterial = pPrev;
 	};
 	virtual void        ProcessAttachment(IAttachment* pIAttachment)  override {}
@@ -796,7 +796,7 @@ public:
 
 	virtual EType GetAttachmentType() override { return eAttachment_Light; }
 
-	void          LoadLight(const CDLight& light)
+	void          LoadLight(const SRenderLight& light)
 	{
 		m_pLightSource = gEnv->p3DEngine->CreateLightSource();
 		if (m_pLightSource)
@@ -809,7 +809,7 @@ public:
 	{
 		if (m_pLightSource)
 		{
-			CDLight& light = m_pLightSource->GetLightProperties();
+			SRenderLight& light = m_pLightSource->GetLightProperties();
 			Matrix34 worldMatrix = Matrix34(pIAttachment->GetAttWorldAbsolute());
 			Vec3 origin = worldMatrix.GetTranslation();
 			light.SetPosition(origin);
@@ -847,6 +847,14 @@ inline IMaterial* CLightAttachment::GetBaseMaterial(uint32 nLOD) const
 
 struct CEffectAttachment : public IAttachmentObject
 {
+	struct SParameter
+	{
+		SParameter() : name(), value(0) { }
+		SParameter(const string& name, const IParticleAttributes::TValue& value) : name(name), value(value) { }
+		string name;
+		IParticleAttributes::TValue value;
+	};
+
 public:
 
 	virtual EType GetAttachmentType() override { return eAttachment_Effect; }
@@ -884,6 +892,8 @@ public:
 				SpawnParams sp;
 				sp.bPrime = m_bPrime;
 				m_pEmitter = m_pEffect->Spawn(loc, sp);
+				ApplyAttribsToEmitter(m_pEmitter);
+				FreeAttribs(); // just to conserve some memory, attributes are not needed any more
 			}
 			else if (m_pEmitter)
 				m_pEmitter->SetLocation(loc);
@@ -934,11 +944,34 @@ public:
 			m_pEmitter->SetSpawnParams(params);
 	}
 
+	void ClearParticleAttributes() { m_particleAttribs.clear(); }
+	void AppendParticleAttribute(const string& name, const IParticleAttributes::TValue& value) { m_particleAttribs.emplace_back(name, value); }
+
+private:
+	void FreeAttribs()
+	{
+		m_particleAttribs.clear();
+		m_particleAttribs.shrink_to_fit();
+	}
+
+	void ApplyAttribsToEmitter(IParticleEmitter* pEmitter) const
+	{
+		if (!pEmitter)
+			return;
+
+		IParticleAttributes& particleAttributes = pEmitter->GetAttributes();
+		for (const SParameter& param : m_particleAttribs)
+		{
+			particleAttributes.SetValue(param.name.c_str(), param.value);
+		}
+	}
+
 private:
 	_smart_ptr<IParticleEmitter> m_pEmitter;
 	_smart_ptr<IParticleEffect>  m_pEffect;
 	QuatTS                       m_loc;
 	bool                         m_bPrime;
+	std::vector<SParameter>      m_particleAttribs;
 };
 
 inline IMaterial* CEffectAttachment::GetBaseMaterial(uint32 nLOD) const

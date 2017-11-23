@@ -1811,17 +1811,10 @@ IParticleAttributes& CParticleEffect::GetAttributes()
 		virtual TAttributeId FindAttributeIdByName(cstr name) const                  { return -1; }
 		virtual uint         GetNumAttributes() const                                { return 0; }
 		virtual cstr         GetAttributeName(uint idx) const                        { return nullptr; }
-		virtual EType        GetAttributeType(uint idx) const                        { return ET_Float; }
-		virtual bool         GetAsBoolean(TAttributeId id, bool defaultValue) const  { return defaultValue; }
-		virtual int          GetAsInteger(TAttributeId id, int defaultValue) const   { return defaultValue; }
-		virtual float        GetAsFloat(TAttributeId id, float defaultValue) const   { return defaultValue; }
-		virtual ColorB       GetAsColorB(TAttributeId id, ColorB defaultValue) const { return defaultValue; }
-		virtual ColorF       GetAsColorF(TAttributeId id, ColorF defaultValue) const { return defaultValue; }
-		virtual void         SetAsBoolean(TAttributeId id, bool value)               {}
-		virtual int          SetAsInteger(TAttributeId id, int value)                { return value; }
-		virtual float        SetAsFloat(TAttributeId id, float value)                { return value; }
-		virtual void         SetAsColor(TAttributeId id, ColorB value)               {}
-		virtual void         SetAsColor(TAttributeId id, ColorF value)               {}
+		virtual EType        GetAttributeType(uint idx) const                        { return ET_Boolean; }
+		virtual const TValue& GetValue(TAttributeId idx) const                       { static TValue def; return def; }
+		virtual TValue        GetValue(TAttributeId idx, const TValue& def) const    { return def; }
+		virtual bool          SetValue(TAttributeId idx, const TValue& value)        { return false; }
 	} nullAttributes;
 	return nullAttributes;
 }

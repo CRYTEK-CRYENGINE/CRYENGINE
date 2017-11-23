@@ -3,23 +3,23 @@
 #include "StdAfx.h"
 #include "MobileComposition.h"
 #include "GraphicsPipeline/ClipVolumes.h"
+#include "GraphicsPipeline/TiledLightVolumes.h"
 #include "DriverD3D.h"
+
+#include <Common/RenderDisplayContext.h>
 
 void CMobileCompositionStage::Init()
 {
 }
 
-void CMobileCompositionStage::Execute(CRenderView* pCurrentRenderView)
+void CMobileCompositionStage::Execute()
 {
-	// Pop HDR target from RT stack
-	{
-		assert(gcpRendD3D->m_RTStack[0][gcpRendD3D->m_nRTStackLevel[0]].m_pTex == CTexture::s_ptexHDRTarget);
-		gcpRendD3D->FX_SetActiveRenderTargets();
-		gcpRendD3D->RT_UnbindTMUs();
-		gcpRendD3D->FX_PopRenderTarget(0);
-	}
-	
-	CTexture* pBestProbe = CTexture::s_ptexDefaultProbeCM;
+	CRenderView* pRenderView = RenderView();
+	const CRenderOutput* pOutput = pRenderView->GetRenderOutput();
+	auto* tiledLights = GetStdGraphicsPipeline().GetTiledLightVolumesStage();
+
+	CTexture* pBestProbe = CRendererResources::s_ptexDefaultProbeCM;
+	CTexture* pFinalOutput = pOutput->GetColorTarget();
 		
 	// Find largest probe
 	{
@@ -40,39 +40,35 @@ void CMobileCompositionStage::Execute(CRenderView* pCurrentRenderView)
 		}
 	}
 
-	m_passDepthDownsample2.Execute(gcpRendD3D->m_DepthBufferOrig.pTexture, CTexture::s_ptexZTargetScaled[0], true, true);
-	m_passDepthDownsample4.Execute(CTexture::s_ptexZTargetScaled[0], CTexture::s_ptexZTargetScaled[1], false, false);
-	m_passDepthDownsample8.Execute(CTexture::s_ptexZTargetScaled[1], CTexture::s_ptexZTargetScaled[2], false, false);
+	m_passDepthDownsample2.Execute(CRendererResources::s_ptexSceneDepth          , CRendererResources::s_ptexLinearDepthScaled[0], true , true);
+	m_passDepthDownsample4.Execute(CRendererResources::s_ptexLinearDepthScaled[0], CRendererResources::s_ptexLinearDepthScaled[1], false, false);
+	m_passDepthDownsample8.Execute(CRendererResources::s_ptexLinearDepthScaled[1], CRendererResources::s_ptexLinearDepthScaled[2], false, false);
 
-	uint32 numVolumes;
-	const Vec4* pVolumeParams;
-	gcpRendD3D->GetGraphicsPipeline().GetClipVolumesStage()->GetClipVolumeShaderParams(pVolumeParams, numVolumes);
-	gcpRendD3D->GetTiledShading().Render(pCurrentRenderView, (Vec4*)pVolumeParams);
-	
 	{
 		PROFILE_LABEL_SCOPE("MOBILE_LIGHTING");
 	
 		static CCryNameTSCRC tech("LightingMobile");
+
 		uint64 rtMask = (CRenderer::CV_r_GraphicsPipelineMobile == 1) ? g_HWSR_MaskBit[HWSR_SAMPLE0] : 0;
+
 		m_passLighting.SetPrimitiveFlags(CRenderPrimitive::eFlags_None);
 		m_passLighting.SetTechnique(CShaderMan::s_ShaderMobileComposition, tech, rtMask);
 		m_passLighting.SetRequireWorldPos(true);
-		m_passLighting.SetRenderTarget(0, CTexture::s_ptexHDRTarget);
+		m_passLighting.SetRenderTarget(0, CRendererResources::s_ptexHDRTarget);
 		m_passLighting.SetState(GS_NODEPTHTEST);
 		m_passLighting.SetRequirePerViewConstantBuffer(true);
 
 		m_passLighting.SetSampler(0, EDefaultSamplerStates::TrilinearClamp);
 		
-		m_passLighting.SetTexture(0, gcpRendD3D->m_DepthBufferOrig.pTexture);
-		m_passLighting.SetTexture(1, CTexture::s_ptexSceneNormalsMap);
-		m_passLighting.SetTexture(2, CTexture::s_ptexSceneDiffuse);
-		m_passLighting.SetTexture(3, CTexture::s_ptexSceneSpecular);
+		m_passLighting.SetTexture(0, CRendererResources::s_ptexSceneDepth);
+		m_passLighting.SetTexture(1, CRendererResources::s_ptexSceneNormalsMap);
+		m_passLighting.SetTexture(2, CRendererResources::s_ptexSceneDiffuse);
+		m_passLighting.SetTexture(3, CRendererResources::s_ptexSceneSpecular);
 		m_passLighting.SetTextureSamplerPair(7, pBestProbe, EDefaultSamplerStates::TrilinearClamp);
 
-		CTiledShading& tiledShading = gcpRendD3D->GetTiledShading();
-		m_passLighting.SetBuffer(16, &tiledShading.m_tileOpaqueLightMaskBuf);
-		m_passLighting.SetBuffer(17, &tiledShading.m_lightShadeInfoBuf);
-		m_passLighting.SetTexture(18, tiledShading.m_spotTexAtlas.texArray);
+		m_passLighting.SetBuffer(16, tiledLights->GetTiledOpaqueLightMaskBuffer());
+		m_passLighting.SetBuffer(17, tiledLights->GetLightShadeInfoBuffer());
+		m_passLighting.SetTexture(18, tiledLights->GetProjectedLightAtlas());
 	
 		m_passLighting.Execute();
 	}
@@ -81,13 +77,14 @@ void CMobileCompositionStage::Execute(CRenderView* pCurrentRenderView)
 		PROFILE_LABEL_SCOPE("MOBILE_TONEMAP");
 
 		static CCryNameTSCRC tech("TonemappingMobile");
+
 		m_passTonemappingTAA.SetPrimitiveFlags(CRenderPrimitive::eFlags_None);
 		m_passTonemappingTAA.SetTechnique(CShaderMan::s_ShaderMobileComposition, tech, 0);
-		m_passTonemappingTAA.SetRenderTarget(0, gcpRendD3D->GetCurrentTargetOutput());
+		m_passTonemappingTAA.SetRenderTarget(0, pFinalOutput);
 		m_passTonemappingTAA.SetState(GS_NODEPTHTEST);
 
-		m_passTonemappingTAA.SetTextureSamplerPair(0, CTexture::s_ptexHDRTarget, EDefaultSamplerStates::PointClamp);
-		m_passTonemappingTAA.SetTextureSamplerPair(1, CTexture::s_ptexVignettingMap, EDefaultSamplerStates::LinearClamp);
+		m_passTonemappingTAA.SetTextureSamplerPair(0, CRendererResources::s_ptexHDRTarget, EDefaultSamplerStates::PointClamp);
+		m_passTonemappingTAA.SetTextureSamplerPair(1, CRendererResources::s_ptexVignettingMap, EDefaultSamplerStates::LinearClamp);
 	
 		m_passTonemappingTAA.Execute();
 	}

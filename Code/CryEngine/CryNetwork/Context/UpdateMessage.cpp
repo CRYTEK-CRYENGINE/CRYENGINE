@@ -402,9 +402,13 @@ EMessageSendResult CUpdateMessage::SendMain(SHistorySyncContext& hsc, INetSender
 	EMessageSendResult res = eMSR_SentOk;
 
 #if DEEP_BANDWIDTH_ANALYSIS
-	uint32 prevSize;
-	g_DBALargeProfileBuffer.Format("|prelude %u|", (pSender->GetStreamSize() - g_DBASizePriorToUpdate));
-	prevSize = pSender->GetStreamSize();
+	const bool DBAEnabled = g_DBAEnabled;
+	uint32 dbaPrevSize;
+	IF_UNLIKELY (DBAEnabled)
+	{
+		dbaPrevSize = pSender->GetStreamSize();
+		g_DBALargeProfileBuffer.Format("|prelude %u|", (dbaPrevSize - g_DBASizePriorToUpdate));
+	}
 #endif
 	// validate that the said object still exists
 	//const SContextObject * pCtxObj = m_pView->ContextState()->GetContextObject(m_netID);
@@ -461,19 +465,25 @@ EMessageSendResult CUpdateMessage::SendMain(SHistorySyncContext& hsc, INetSender
 
 			ctx.index = aspectIdx;
 #if DEEP_BANDWIDTH_ANALYSIS
-			g_DBASmallProfileBuffer.Format("[%d-%u]", history, aspectIdx);
-			g_DBAMainProfileBuffer += g_DBASmallProfileBuffer;
+			IF_UNLIKELY (DBAEnabled)
+			{
+				g_DBASmallProfileBuffer.Format("[%d-%u]", history, aspectIdx);
+				g_DBAMainProfileBuffer += g_DBASmallProfileBuffer;
+			}
 #endif
 			switch (hsc.ctx[history][aspectIdx].Send(ctx))
 			{
 			case eHSR_Ok:
 				m_sentHistories[history] |= BIT(aspectIdx);
-#if DEEP_BANDWIDTH_ANALYSIS
-				g_DBASmallProfileBuffer.Format("|%d-%u : %u|", history, aspectIdx, (ctx.pSender->GetStreamSize() - prevSize));
-				prevSize = ctx.pSender->GetStreamSize();
-				g_DBALargeProfileBuffer += g_DBASmallProfileBuffer;
-#endif
 				SentData();
+#if DEEP_BANDWIDTH_ANALYSIS
+				IF_UNLIKELY (DBAEnabled)
+				{
+					g_DBASmallProfileBuffer.Format("|%d-%u : %u|", history, aspectIdx, (ctx.pSender->GetStreamSize() - dbaPrevSize));
+					dbaPrevSize = ctx.pSender->GetStreamSize();
+					g_DBALargeProfileBuffer += g_DBASmallProfileBuffer;
+				}
+#endif
 				break;
 			case eHSR_Failed:
 				res = eMSR_FailedMessage;
@@ -507,7 +517,7 @@ EMessageSendResult CUpdateMessage::SendMain(SHistorySyncContext& hsc, INetSender
 	}
 
 #if DEEP_BANDWIDTH_ANALYSIS
-	if (res == eMSR_SentOk)
+	IF_UNLIKELY (DBAEnabled && res == eMSR_SentOk)
 	{
 		if (CNetContextState* pContextState = m_pView->ContextState())
 		{

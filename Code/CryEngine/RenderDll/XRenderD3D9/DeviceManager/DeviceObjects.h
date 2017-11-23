@@ -1266,6 +1266,7 @@ private:
 	////////////////////////////////////////////////////////////////////////////
 	// Renderpass API
 	std::unordered_map<CDeviceRenderPassDesc, CDeviceRenderPassPtr, CDeviceRenderPassDesc::SHash, CDeviceRenderPassDesc::SEqual>  m_RenderPassCache; 
+	CryCriticalSectionNonRecursive m_RenderPassCacheLock;
 
 public:
 	////////////////////////////////////////////////////////////////////////////

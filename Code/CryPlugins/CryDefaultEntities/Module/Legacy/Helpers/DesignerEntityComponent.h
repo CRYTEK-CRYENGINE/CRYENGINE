@@ -13,7 +13,7 @@ public:
 	// IEntityComponent
 	virtual void Initialize() override { OnResetState(); }
 
-	virtual void ProcessEvent(SEntityEvent& event) override
+	virtual void ProcessEvent(const SEntityEvent& event) override
 	{
 		switch (event.event)
 		{

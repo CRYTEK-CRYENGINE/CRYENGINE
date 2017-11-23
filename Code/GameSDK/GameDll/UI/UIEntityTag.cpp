@@ -164,7 +164,7 @@ const CUIEntityTag::STagInfo* CUIEntityTag::GetTagInfo(EntityId entityId, const 
 }
 
 ////////////////////////////////////////////////////////////////////////////
-void CUIEntityTag::OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+void CUIEntityTag::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
 	assert(event.event == ENTITY_EVENT_DONE);
 	RemoveAllEntityTags(pEntity->GetId(), false);

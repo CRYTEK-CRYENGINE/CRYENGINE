@@ -9,6 +9,8 @@
 	#include "D3DPostProcess.h"
 	#include "DeviceInfo.h"
 
+	#include <Common/RenderDisplayContext.h>
+
 	#include <CrySystem/VR/IHMDManager.h>
 	#include <CrySystem/VR/IHMDDevice.h>
 	#ifdef ENABLE_BENCHMARK_SENSOR
@@ -45,12 +47,12 @@ CD3DOpenVRRenderer::~CD3DOpenVRRenderer()
 {
 }
 
-bool CD3DOpenVRRenderer::Initialize()
+bool CD3DOpenVRRenderer::Initialize(int initialWidth, int initialeight)
 {
 	D3DDevice* d3d11Device = m_pRenderer->GetDevice_Unsynchronized().GetRealDevice();
 
-	m_eyeWidth = m_pRenderer->GetWidth();
-	m_eyeHeight = m_pRenderer->GetHeight();
+	m_eyeWidth  = initialWidth;
+	m_eyeHeight = initialeight;
 
 	CryVR::OpenVR::TextureDesc eyeTextureDesc;
 	eyeTextureDesc.width = m_eyeWidth;
@@ -211,13 +213,13 @@ void CD3DOpenVRRenderer::Shutdown()
 	ReleaseBuffers();
 }
 
-void CD3DOpenVRRenderer::OnResolutionChanged()
+void CD3DOpenVRRenderer::OnResolutionChanged(int newWidth, int newHeight)
 {
-	if (m_eyeWidth != m_pRenderer->GetWidth() ||
-	    m_eyeHeight != m_pRenderer->GetHeight())
+	if (m_eyeWidth  != newWidth ||
+	    m_eyeHeight != newHeight)
 	{
 		Shutdown();
-		Initialize();
+		Initialize(newWidth, newHeight);
 	}
 }
 
@@ -275,6 +277,9 @@ struct CD3DOpenVRRenderer::SSocialScreenRenderAutoRestore
 {
 	SSocialScreenRenderAutoRestore(CTexture* pRenderTarget)
 	{
+		ASSERT_LEGACY_PIPELINE
+
+		#if 0
 		shaderFlags = gRenDev->m_RP.m_FlagsShader_RT;
 		gRenDev->GetViewport(&x, &y, &w, &h);
 
@@ -286,13 +291,18 @@ struct CD3DOpenVRRenderer::SSocialScreenRenderAutoRestore
 		gcpRendD3D->FX_SetActiveRenderTargets();
 
 		gcpRendD3D->FX_SetState(GS_NODEPTHTEST);
+		#endif
 	}
 	~SSocialScreenRenderAutoRestore()
 	{
+		ASSERT_LEGACY_PIPELINE
+
+		#if 0
 		gRenDev->m_RP.m_FlagsShader_RT = shaderFlags;
 
 		gcpRendD3D->FX_PopRenderTarget(0);
 		gcpRendD3D->SetViewport(x, y, w, h);
+		#endif
 	}
 
 	int x;
@@ -313,6 +323,9 @@ void CD3DOpenVRRenderer::RenderQuadLayers()
 		{
 			if (CTexture* pQuadTex = m_quadLayerRenderData[layerIdx].texture)
 			{
+				ASSERT_LEGACY_PIPELINE
+
+				#if 0
 				GetUtils().ShBeginPass(CShaderMan::s_shPostEffects, m_textureToTexture, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
 
 				gRenDev->FX_SetState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
@@ -320,6 +333,7 @@ void CD3DOpenVRRenderer::RenderQuadLayers()
 
 				GetUtils().DrawFullScreenTri(0, 0);
 				GetUtils().ShEndPass();
+				#endif
 			}
 		}
 	}
@@ -327,7 +341,7 @@ void CD3DOpenVRRenderer::RenderQuadLayers()
 
 void CD3DOpenVRRenderer::RenderSocialScreen()
 {
-	CTexture* pBackbufferTexture = gcpRendD3D->GetCurrentBackBuffer(gcpRendD3D->GetActiveDisplayContext());
+	CTexture* pBackbufferTexture = gcpRendD3D->GetActiveDisplayContext()->GetCurrentBackBuffer();
 	
 	if (const IHmdManager* pHmdManager = gEnv->pSystem->GetHmdManager())
 	{
@@ -349,6 +363,9 @@ void CD3DOpenVRRenderer::RenderSocialScreen()
 			case EHmdSocialScreen::UndistortedLeftEye:
 			case EHmdSocialScreen::UndistortedRightEye:
 				{
+				ASSERT_LEGACY_PIPELINE
+
+				#if 0
 				if (CShaderMan::s_shPostEffects)
 				{
 					CTexture* pTex = m_pStereoRenderer->GetEyeTarget(socialScreen == EHmdSocialScreen::UndistortedLeftEye ? LEFT_EYE : RIGHT_EYE);
@@ -375,6 +392,8 @@ void CD3DOpenVRRenderer::RenderSocialScreen()
 						GetUtils().StretchRect(pTex, pBackbufferTexture);
 					}
 				}
+				#endif
+
 				}
 				break;
 
@@ -383,6 +402,9 @@ void CD3DOpenVRRenderer::RenderSocialScreen()
 			default:
 				if (CShaderMan::s_shPostEffects)
 				{
+					ASSERT_LEGACY_PIPELINE
+
+				#if 0
 					const bool bUseMirrorTexture = socialScreen == EHmdSocialScreen::DistortedDualImage;
 
 					// Get eye textures
@@ -424,6 +446,7 @@ void CD3DOpenVRRenderer::RenderSocialScreen()
 					{
 						RenderQuadLayers();
 					}
+				#endif
 				}
 				break;
 			}

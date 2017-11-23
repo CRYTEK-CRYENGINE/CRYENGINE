@@ -15,6 +15,8 @@
 
 #if USE_STEAM
 
+#include <../../CryPlugins/CryGamePlatform/Interface/IGamePlatform.h>
+
 ////////////////////////////////////////////////////////////////////////////////
 
 	#if CRY_PLATFORM_WINDOWS && CRY_PLATFORM_64BIT
@@ -158,10 +160,9 @@ ECryLobbyError CCrySteamLobbyService::Initialise(ECryLobbyServiceFeatures featur
 
 	if (SteamUser() == NULL)
 	{
-		if (!gEnv->pSystem->SteamInit())
-		{
-			ret = eCLE_SteamInitFailed;
-		}
+		Cry::GamePlatform::IPlugin* pPlugin = gEnv->pSystem->GetIPluginManager()->QueryPlugin<Cry::GamePlatform::IPlugin>();
+		CRY_ASSERT(pPlugin != nullptr);
+		CRY_ASSERT(pPlugin->GetType() == Cry::GamePlatform::EType::Steam);
 
 		if (ret != eCLE_Success)
 		{

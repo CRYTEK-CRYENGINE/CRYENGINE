@@ -33,8 +33,6 @@
 #include "EntityLoadManager.h"
 #include <CrySystem/Profilers/IStatoscope.h>
 #include <CryEntitySystem/IBreakableManager.h>
-#include <CryGame/IGame.h>
-#include <CryGame/IGameFramework.h>
 #include "GeomCacheAttachmentManager.h"
 #include "CharacterBoneAttachmentManager.h"
 #include <CryCore/TypeInfo_impl.h>  // CRY_ARRAY_COUNT
@@ -55,6 +53,7 @@
 #include <CrySystem/File/IResourceManager.h>
 #include <CryPhysics/IDeferredCollisionEvent.h>
 #include <CryNetwork/IRemoteCommand.h>
+#include <CryGame/IGameFramework.h>
 
 #include "EntityComponentsCache.h"
 
@@ -83,7 +82,9 @@ void OnRemoveEntityCVarChange(ICVar* pArgs)
 	{
 		const char* szEntity = pArgs->GetString();
 		if (CEntity* pEnt = static_cast<CEntity*>(g_pIEntitySystem->FindEntityByName(szEntity)))
-			g_pIEntitySystem->RemoveEntity(pEnt->GetId());
+		{
+			g_pIEntitySystem->RemoveEntity(pEnt);
+		}
 	}
 }
 
@@ -386,7 +387,7 @@ void CEntitySystem::Reset()
 			{
 				pEntity->m_flags &= ~ENTITY_FLAG_UNREMOVABLE;
 				pEntity->m_nKeepAliveCounter = 0;
-				RemoveEntity(pEntity->GetId(), false);
+				RemoveEntity(pEntity, false, true);
 			}
 			else
 			{
@@ -692,10 +693,10 @@ void CEntitySystem::DeleteEntity(CEntity* pEntity)
 		if (!pEntity->m_guid.IsNull())
 			UnregisterEntityGuid(pEntity->m_guid);
 
-		delete pEntity;
-
 		// Make sure 3dengine does not keep references to this entity
 		gEnv->p3DEngine->OnEntityDeleted(pEntity);
+
+		delete pEntity;
 	}
 }
 
@@ -716,26 +717,16 @@ void CEntitySystem::ClearEntityArray()
 }
 
 //////////////////////////////////////////////////////////////////////
-void CEntitySystem::RemoveEntity(EntityId entity, bool bForceRemoveNow)
+void CEntitySystem::RemoveEntity(EntityId entity, bool forceRemoveImmediately)
 {
-	ENTITY_PROFILER
-	  assert((bool)IdToHandle(entity));
+	assert((bool)IdToHandle(entity));
 
-	CEntity* pEntity = static_cast<CEntity*>(GetEntity(entity));
-	//
-	if (CVar::es_debugEntityLifetime)
+	if (CEntity* pEntity = static_cast<CEntity*>(GetEntity(entity)))
 	{
-		CryLog("CEntitySystem::RemoveEntity %s %s 0x%x", pEntity ? pEntity->GetClass()->GetName() : "null", pEntity ? pEntity->GetName() : "null", pEntity ? pEntity->GetId() : 0);
-	}
-	//
-	if (pEntity)
-	{
-
-		if (m_bLocked)
-			CryWarning(VALIDATOR_MODULE_ENTITYSYSTEM, VALIDATOR_WARNING, "Removing entity during system lock : %s with id %i", pEntity->GetName(), (int)entity);
-
 		if (pEntity->GetId() != entity)
 		{
+			CRY_ASSERT(false);
+
 			EntityWarning("Trying to remove entity with mismatching salts. id1=%d id2=%d", entity, pEntity->GetId());
 			CheckInternalConsistency();
 			if (ICVar* pVar = gEnv->pConsole->GetCVar("net_assertlogging"))
@@ -748,13 +739,42 @@ void CEntitySystem::RemoveEntity(EntityId entity, bool bForceRemoveNow)
 			return;
 		}
 
-		if (!pEntity->m_bGarbage)
+		RemoveEntity(pEntity, forceRemoveImmediately);
+	}
+}
+
+void CEntitySystem::RemoveEntity(CEntity* pEntity, bool forceRemoveImmediately, bool ignoreSinks)
+{
+	ENTITY_PROFILER
+	
+	if (CVar::es_debugEntityLifetime)
+	{
+		CryLog("CEntitySystem::RemoveEntity %s %s 0x%x", pEntity ? pEntity->GetClass()->GetName() : "null", pEntity ? pEntity->GetName() : "null", pEntity ? pEntity->GetId() : 0);
+	}
+
+	if (pEntity)
+	{
+		if (m_bLocked)
+		{
+			CryWarning(VALIDATOR_MODULE_ENTITYSYSTEM, VALIDATOR_WARNING, "Removing entity during system lock : %s with id %i", pEntity->GetName(), pEntity->GetId());
+		}
+
+		if (pEntity->m_bGarbage)
+		{
+			// Entity was already queued for deletion
+			// Check if we request immediate removal, and if so delete immediately if it was in the pending deletion queue
+			if (forceRemoveImmediately && stl::find_and_erase(m_deletedEntities, pEntity))
+			{
+				DeleteEntity(pEntity);
+			}
+		}
+		else
 		{
 			const std::vector<IEntitySystemSink*>& sinks = m_sinks[stl::static_log2<(size_t)IEntitySystem::OnRemove>::value];
 
-			for(IEntitySystemSink* pSink : sinks)
+			for (IEntitySystemSink* pSink : sinks)
 			{
-				if (!pSink->OnRemove(pEntity))
+				if (!pSink->OnRemove(pEntity) && !ignoreSinks)
 				{
 					// basically unremovable... but hide it anyway to be polite
 					pEntity->Hide(true);
@@ -776,8 +796,10 @@ void CEntitySystem::RemoveEntity(EntityId entity, bool bForceRemoveNow)
 			if (!(pEntity->m_flags & ENTITY_FLAG_UNREMOVABLE) && pEntity->m_nKeepAliveCounter == 0)
 			{
 				pEntity->m_bGarbage = true;
-				if (bForceRemoveNow)
+				if (forceRemoveImmediately)
+				{
 					DeleteEntity(pEntity);
+				}
 				else
 				{
 					// add entity to deleted list, and actually delete entity on next update.
@@ -797,10 +819,6 @@ void CEntitySystem::RemoveEntity(EntityId entity, bool bForceRemoveNow)
 					m_deferredUsedEntities.push_back(pEntity);
 				}
 			}
-		}
-		else if (bForceRemoveNow)
-		{
-			//DeleteEntity(pEntity);
 		}
 	}
 }
@@ -2684,7 +2702,7 @@ void CEntitySystem::LoadInternalState(IDataReadStream& reader)
 
 				// entity does already exist, delete it (we will be restoring a new version)
 				pEntity->ClearFlags(ENTITY_FLAG_UNREMOVABLE);
-				g_pIEntitySystem->RemoveEntity(entityId);
+				RemoveEntity(pEntity);
 			}
 
 			// load this entity
@@ -2730,7 +2748,7 @@ void CEntitySystem::LoadInternalState(IDataReadStream& reader)
 
 					// Remove the entity
 					pEntity->ClearFlags(ENTITY_FLAG_UNREMOVABLE);
-					RemoveEntity(entityId);
+					RemoveEntity(pEntity);
 				}
 			}
 		}

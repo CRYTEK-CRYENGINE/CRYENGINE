@@ -7,7 +7,7 @@
 #include <CrySystem/VR/IHMDDevice.h>
 #include <CrySystem/VR/IHMDManager.h>
 #include "../Audio/ListenerComponent.h"
-#include <CryExtension/ICryPluginManager.h>
+#include <CrySystem/ICryPluginManager.h>
 
 #include "../../IDefaultComponentsPlugin.h"
 #include "ICameraManager.h"
@@ -32,7 +32,7 @@ namespace Cry
 		}
 
 		class CCameraComponent
-			: public IEntityComponent
+			: public ICameraComponent
 			, public IHmdDevice::IAsyncCameraCallback
 #ifndef RELEASE
 			, public IEntityComponentPreviewer
@@ -57,7 +57,7 @@ namespace Cry
 				}
 			}
 
-		virtual void ProcessEvent(SEntityEvent& event) override
+		virtual void ProcessEvent(const SEntityEvent& event) override
 		{
 			if (event.event == ENTITY_EVENT_UPDATE)
 			{
@@ -88,6 +88,16 @@ namespace Cry
 #ifndef RELEASE
 			virtual IEntityComponentPreviewer* GetPreviewer() final { return this; }
 #endif
+
+			virtual void OnShutDown() final
+			{
+				m_pCameraManager->RemoveCamera(this);
+
+				if (IHmdDevice* pDevice = gEnv->pSystem->GetHmdManager()->GetHmdDevice())
+				{
+					pDevice->SetAsyncCameraCallback(nullptr);
+				}
+			}
 			// ~IEntityComponent
 
 #ifndef RELEASE
@@ -112,21 +122,20 @@ namespace Cry
 			}
 			// ~IAsyncCameraCallback
 
+			// ICameraComponent
+			virtual void DisableAudioListener() final
+			{
+				m_pAudioListener->SetActive(false);
+			}
+			// ~ICameraComponent
+
 		public:
 			CCameraComponent()
 			{
 				m_pCameraManager = gEnv->pSystem->GetIPluginManager()->QueryPlugin<IPlugin_CryDefaultEntities>()->GetICameraManager();
 			}
 
-			virtual ~CCameraComponent() override
-			{
-				m_pCameraManager->RemoveCamera(this);
-
-				if (IHmdDevice* pDevice = gEnv->pSystem->GetHmdManager()->GetHmdDevice())
-				{
-					pDevice->SetAsyncCameraCallback(nullptr);
-				}
-			}
+			virtual ~CCameraComponent() = default;
 
 			static void ReflectType(Schematyc::CTypeDesc<CCameraComponent>& desc)
 			{
@@ -164,11 +173,6 @@ namespace Cry
 			bool IsActive() const
 			{
 				return m_pCameraManager->IsThisCameraActive(this);
-			}
-
-			void DisableAudioListener()
-			{
-				m_pAudioListener->SetActive(false);
 			}
 
 			virtual void EnableAutomaticActivation(bool bActivate) { m_bActivateOnCreate = bActivate; }

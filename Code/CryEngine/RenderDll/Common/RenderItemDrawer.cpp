@@ -92,8 +92,8 @@ void DrawCompiledRenderItemsToCommandList(
 			dynamicInstancingCount++;
 
 #if defined(ENABLE_PROFILING_CODE)
-			CryInterlockedAdd(&SPipeStat::Out()->m_nInsts, dynamicInstancingCount);
-			CryInterlockedIncrement(&SPipeStat::Out()->m_nInstCalls);
+			CryInterlockedAdd(&SRenderStatistics::Write().m_nInsts, dynamicInstancingCount);
+			CryInterlockedIncrement(&SRenderStatistics::Write().m_nInstCalls);
 #endif //ENABLE_PROFILING_CODE
 
 			tempInstancingCB->UpdateBuffer(&dynamicInstancingBuffer[0], dynamicInstancingCount * sizeof(CCompiledRenderObject::SPerInstanceShaderData));
@@ -159,8 +159,6 @@ DECLARE_JOB("ListDrawCommandRecorder", TListDrawCommandRecorder, ListDrawCommand
 
 void CRenderItemDrawer::DrawCompiledRenderItems(const SGraphicsPipelinePassContext& passContext) const
 {
-	if (gcpRendD3D->m_nGraphicsPipeline < 2)
-		return;
 	if (passContext.rendItems.IsEmpty())
 		return;
 	if (CRenderer::CV_r_NoDraw == 2) // Completely skip filling of the command list.
@@ -192,9 +190,6 @@ void CRenderItemDrawer::InitDrawSubmission()
 
 void CRenderItemDrawer::JobifyDrawSubmission(bool bForceImmediateExecution)
 {
-	if (gcpRendD3D->m_nGraphicsPipeline < 2)
-		return;
-
 	PROFILE_FRAME(JobifyDrawSubmission);
 
 	SGraphicsPipelinePassContext* pStart = m_CoalescedContexts.pStart;
@@ -289,9 +284,6 @@ void CRenderItemDrawer::JobifyDrawSubmission(bool bForceImmediateExecution)
 
 void CRenderItemDrawer::WaitForDrawSubmission()
 {
-	if (gcpRendD3D->m_nGraphicsPipeline < 2)
-		return;
-
 #if (CRY_RENDERER_DIRECT3D >= 120) || CRY_RENDERER_GNM || CRY_RENDERER_VULKAN
 	if (CRenderer::CV_r_multithreadedDrawing == 0)
 		return;

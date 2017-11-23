@@ -66,22 +66,15 @@ void ShadowMapFrustum::SortRenderItemsForFrustumAsync(int side, SRendItem* pFirs
 //////////////////////////////////////////////////////////////////////////
 CRenderView* ShadowMapFrustum::GetNextAvailableShadowsView(CRenderView* pMainRenderView, ShadowMapFrustum* pOwnerFrustum)
 {
-	// Get next view.
-	std::swap(m_pShadowsView[0], m_pShadowsView[1]);
-	if (!m_pShadowsView[0])
-	{
-		static int globalCounter = 0;
-		CryFixedStringT<128> renderViewName;
-		renderViewName.Format("Shadow View %d", globalCounter++);
-		m_pShadowsView[0] = new CRenderView(renderViewName.c_str(), CRenderView::eViewType_Shadow, pMainRenderView, pOwnerFrustum);
-	}
-
-	CRenderView* pShadowsView = static_cast<CRenderView*>(m_pShadowsView[0].get());
+	CRenderView* pShadowsView = gcpRendD3D->GetOrCreateRenderView(CRenderView::eViewType_Shadow);
 	CRY_ASSERT(pShadowsView->GetUsageMode() == IRenderView::eUsageModeUndefined || pShadowsView->GetUsageMode() == IRenderView::eUsageModeReadingDone);
 
 	pShadowsView->SetShadowFrustumOwner(pOwnerFrustum);
 	pShadowsView->SetParentView(pMainRenderView);
 	pShadowsView->SetFrameId(pMainRenderView->GetFrameId());
+	pShadowsView->SetSkinningDataPools(pMainRenderView->GetSkinningDataPools());
+
+	CRY_ASSERT_MESSAGE(!((CRenderView*)pShadowsView)->CheckPermanentRenderObjects(), "There shouldn't be any permanent render-object be present in the view!");
 
 	return pShadowsView;
 }
@@ -90,12 +83,11 @@ ShadowMapFrustumPtr ShadowMapFrustum::Clone()
 {
 	ShadowMapFrustumPtr pFrustum = new ShadowMapFrustum;
 	*pFrustum = (*this);
-	pFrustum->m_pShadowsView.fill(nullptr);
 	return pFrustum;
 }
 
 //////////////////////////////////////////////////////////////////////////
-void ShadowMapFrustum::RenderShadowFrustum(CRenderView* pRenderView, CRenderView* pShadowsView, int side, bool bJobCasters)
+void ShadowMapFrustum::RenderShadowFrustum(IRenderViewPtr pShadowsView, int side, bool bJobCasters)
 {
 	int nThreadID = SRenderThread::GetLocalThreadCommandBufferId();
 
@@ -110,8 +102,6 @@ void ShadowMapFrustum::RenderShadowFrustum(CRenderView* pRenderView, CRenderView
 		nRenderingFlags |= SRenderingPassInfo::DISABLE_RENDER_CHUNK_MERGE;
 	}
 #endif
-
-	assert(pShadowsView);
 
 	CCamera tmpCamera = GetCamera(side);
 
@@ -176,7 +166,7 @@ void SShadowRenderer::RenderFrustumsToView(CRenderView* pRenderView)
 				continue;
 			//////////////////////////////////////////////////////////////////////////
 			// Invoke IRenderNode::Render
-			pCurFrustum->RenderShadowFrustum(pRenderView, static_cast<CRenderView*>(rFrustumToRender.pShadowsView.get()), side, true);
+			pCurFrustum->RenderShadowFrustum(rFrustumToRender.pShadowsView, side, true);
 		}
 	}
 
@@ -191,7 +181,7 @@ void SShadowRenderer::RenderFrustumsToView(CRenderView* pRenderView)
 				continue;
 			//////////////////////////////////////////////////////////////////////////
 			// Invoke IRenderNode::Render
-			pCurFrustum->RenderShadowFrustum(pRenderView, static_cast<CRenderView*>(rFrustumToRender.pShadowsView.get()), side, false);
+			pCurFrustum->RenderShadowFrustum(rFrustumToRender.pShadowsView, side, false);
 		}
 	}
 
@@ -200,5 +190,6 @@ void SShadowRenderer::RenderFrustumsToView(CRenderView* pRenderView)
 	{
 		rFrustumToRender.pShadowsView->SwitchUsageMode(IRenderView::eUsageModeWritingDone);
 	}
+
 	pRenderView->PostWriteShadowViews();
 }

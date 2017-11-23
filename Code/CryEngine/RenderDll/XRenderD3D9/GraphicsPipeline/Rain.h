@@ -13,12 +13,14 @@ public:
 	CRainStage();
 	virtual ~CRainStage();
 
-	virtual void Init() override;
-	virtual void Prepare(CRenderView* pRenderView) override;
+	void Init() final;
+	void Update() final;
+	void Destroy();
+	void Prepare();
 
-	void         ExecuteRainPreprocess();
-	void         ExecuteDeferredRainGBuffer();
-	void         Execute();
+	void ExecuteRainOcclusion();
+	void ExecuteDeferredRainGBuffer();
+	void Execute();
 
 private:
 	static const int32  m_slices = 12;
@@ -26,7 +28,7 @@ private:
 	static const uint32 RainRippleTexCount = 24;
 
 private:
-	void ExecuteRainOcclusionGen(CRenderView* pRenderView);
+	void ExecuteRainOcclusionGen();
 
 private:
 	_smart_ptr<CTexture> m_pSurfaceFlowTex;

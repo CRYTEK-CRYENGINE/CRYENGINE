@@ -146,15 +146,15 @@ void CIntroMovieRenderer::UpdateViewport()
 	if (!m_pFlashPlayer)
 		return;
 
-	int videoWidth(m_pFlashPlayer->GetWidth());
+	int videoWidth (m_pFlashPlayer->GetWidth());
 	int videoHeight(m_pFlashPlayer->GetHeight());
 
-	const int screenWidth(gEnv->pRenderer->GetOverlayWidth());
-	const int screenHeight(gEnv->pRenderer->GetOverlayHeight());
+	const int screenWidth (gEnv->pRenderer->GetWidth ());
+	const int screenHeight(gEnv->pRenderer->GetHeight());
 
 	const float pixelAR = gEnv->pRenderer->GetPixelAspectRatio();
 
-	const float scaleX((float)screenWidth / (float)videoWidth);
+	const float scaleX((float)screenWidth  / (float)videoWidth);
 	const float scaleY((float)screenHeight / (float)videoHeight);
 
 	float scale(scaleY);

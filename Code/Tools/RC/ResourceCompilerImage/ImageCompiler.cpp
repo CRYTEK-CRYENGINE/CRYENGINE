@@ -600,7 +600,9 @@ bool CImageCompiler::ProcessImplementation()
 			return false;
 		}
 
-		return ImageTIFF::UpdateAndSaveSettingsToTIF(sourceFile.c_str(), GetOutputPath().c_str(), settings);
+		const bool isCryTif2012 = m_CC.config->GetAsBool("CryTIF2012", false, true);
+
+		return ImageTIFF::UpdateAndSaveSettingsToTIF(sourceFile.c_str(), GetOutputPath().c_str(), settings, isCryTif2012);
 	}
 
 	if (m_CC.config->HasKey("savepreset"))
@@ -2036,7 +2038,7 @@ bool CImageCompiler::UpdateAndSaveConfig()
 		return false;
 	}
 
-	return ImageTIFF::UpdateAndSaveSettingsToTIF(m_CC.GetSourcePath(), m_CC.GetSourcePath(), &m_Props, 0, false);
+	return ImageTIFF::UpdateAndSaveSettingsToTIF(m_CC.GetSourcePath(), m_CC.GetSourcePath(), &m_Props, nullptr, false);
 }
 
 

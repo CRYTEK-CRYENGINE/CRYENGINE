@@ -24,7 +24,7 @@ namespace Cry
 			// IEntityComponent
 			virtual void Initialize() final;
 
-			virtual void ProcessEvent(SEntityEvent& event) final;
+			virtual void ProcessEvent(const SEntityEvent& event) final;
 			virtual uint64 GetEventMask() const final;
 
 #ifndef RELEASE
@@ -153,19 +153,6 @@ namespace Cry
 				m_pEntity->Physicalize(physParams);
 
 				m_pEntity->UpdateComponentEventMask(this);
-			}
-
-			virtual void Ragdollize()
-			{
-				SEntityPhysicalizeParams physParams;
-				physParams.type = PE_ARTICULATED;
-
-				physParams.mass = m_physics.m_mass;
-				physParams.nSlot = GetEntitySlotId();
-
-				physParams.bCopyJointVelocities = true;
-
-				m_pEntity->Physicalize(physParams);
 			}
 
 			struct SPhysics

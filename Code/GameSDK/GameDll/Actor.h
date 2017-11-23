@@ -520,8 +520,8 @@ public:
 	virtual ~CActor();
 
 	// IEntityEvent
-	virtual uint64 GetEventMask() const override { return (~0); } // Actors receive all entity events
-	virtual	void ProcessEvent( SEntityEvent &event ) override;
+	virtual	void ProcessEvent( const SEntityEvent &event ) override;
+	virtual uint64 GetEventMask() const override;
 	virtual IEntityComponent::ComponentEventPriority GetEventPriority() const override;
 	// ~IEntityEvent
 

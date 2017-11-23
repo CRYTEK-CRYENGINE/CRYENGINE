@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -17,9 +17,7 @@ public:
 
 	CImpl();
 	CImpl(CImpl const&) = delete;
-	CImpl(CImpl&&) = delete;
 	CImpl& operator=(CImpl const&) = delete;
-	CImpl& operator=(CImpl&&) = delete;
 
 	// CryAudio::Impl::IImpl
 	virtual void                Update(float const deltaTime) override;

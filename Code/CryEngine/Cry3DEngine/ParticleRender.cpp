@@ -612,7 +612,7 @@ void CParticle::AddLight(const SRendParams& RenParams, const SRenderingPassInfo&
 	const float fLightIntensity = params.LightSource.fIntensity.GetValueFromMod(m_BaseMods.LightSourceIntensity, fRelativeAge);
 	const float fLightRadius = params.LightSource.fRadius.GetValueFromMod(m_BaseMods.LightSourceRadius, fRelativeAge);
 
-	CDLight dl;
+	SRenderLight dl;
 	dl.SetRadius(fLightRadius);
 	dl.SetLightColor(params.cColor.GetValueFromMod(m_BaseMods.Color, fRelativeAge) * Color3F(fLightIntensity));
 

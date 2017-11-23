@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "AudioAssets.h"
+#include "SystemAssets.h"
 
 namespace ACE
 {
-class CAudioAssetsManager;
-class IAudioSystemEditor;
+class CSystemAssetsManager;
+struct IEditorImpl;
 
 struct SLibraryScope
 {
@@ -21,19 +21,19 @@ struct SLibraryScope
 		pNodes[4] = GetISystem()->CreateXmlNode("AudioPreloads");
 	}
 
-	XmlNodeRef GetXmlNode(EItemType const type) const
+	XmlNodeRef GetXmlNode(ESystemItemType const type) const
 	{
 		switch (type)
 		{
-		case EItemType::Trigger:
+		case ESystemItemType::Trigger:
 			return pNodes[0];
-		case EItemType::Parameter:
+		case ESystemItemType::Parameter:
 			return pNodes[1];
-		case EItemType::Switch:
+		case ESystemItemType::Switch:
 			return pNodes[2];
-		case EItemType::Environment:
+		case ESystemItemType::Environment:
 			return pNodes[3];
-		case EItemType::Preload:
+		case ESystemItemType::Preload:
 			return pNodes[4];
 		}
 		return nullptr;
@@ -49,27 +49,29 @@ class CAudioControlsWriter
 {
 public:
 
-	CAudioControlsWriter(CAudioAssetsManager* pAssetsManager, IAudioSystemEditor* pAudioSystemImpl, std::set<string>& previousLibraryPaths);
+	CAudioControlsWriter(CSystemAssetsManager* pAssetsManager, IEditorImpl* pEditorImpl, std::set<string>& previousLibraryPaths);
 
 private:
 
-	void WriteLibrary(CAudioLibrary& library);
-	void WriteItem(CAudioAsset* const pItem, string const& path, LibraryStorage& library);
-	void GetScopes(CAudioAsset const* const pItem, std::unordered_set<Scope>& scopes);
-	void WriteControlToXML(XmlNodeRef const pNode, CAudioControl* pControl, string const& path);
-	void WriteConnectionsToXML(XmlNodeRef const pNode, CAudioControl* const pControl, int const platformIndex = -1);
-	void WriteEditorData(CAudioAsset const* const pLibrary, XmlNodeRef const pParentNode) const;
+	void WriteLibrary(CSystemLibrary& library);
+	void WriteItem(CSystemAsset* const pItem, string const& path, LibraryStorage& library);
+	void GetScopes(CSystemAsset const* const pItem, std::unordered_set<Scope>& scopes);
+	void WriteControlToXML(XmlNodeRef const pNode, CSystemControl* pControl, string const& path);
+	void WriteConnectionsToXML(XmlNodeRef const pNode, CSystemControl* const pControl, int const platformIndex = -1);
+	void WriteLibraryEditorData(CSystemAsset const& library, XmlNodeRef const pParentNode) const;
+	void WriteFolderEditorData(CSystemAsset const& library, XmlNodeRef const pParentNode) const;
+	void WriteControlsEditorData(CSystemAsset const& parentAsset, XmlNodeRef const pParentNode) const;
 
 	void CheckOutFile(string const& filepath);
 	void DeleteLibraryFile(string const& filepath);
 
-	CAudioAssetsManager* m_pAssetsManager;
-	IAudioSystemEditor*  m_pAudioSystemImpl;
+	CSystemAssetsManager* m_pAssetsManager;
+	IEditorImpl*          m_pEditorImpl;
 
-	std::set<string>     m_foundLibraryPaths;
+	std::set<string>      m_foundLibraryPaths;
 
-	static string const  s_controlsPath;
-	static string const  s_levelsFolder;
-	static uint const    s_currentFileVersion;
+	static string const   s_controlsPath;
+	static string const   s_levelsFolder;
+	static uint const     s_currentFileVersion;
 };
 } // namespace ACE

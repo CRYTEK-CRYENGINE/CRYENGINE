@@ -89,7 +89,7 @@ struct STile
 		DrawAll               = ~0ul,
 	};
 
-	void Draw(size_t drawFlags, vector3_t origin, TileID tileID, const std::vector<float>& islandAreas) const;
+	void Draw(size_t drawFlags, vector3_t origin, TileID tileID, const std::vector<float>& islandAreas, const ITriangleColorSelector& colorSelector) const;
 
 #if DEBUG_MNM_DATA_CONSISTENCY_ENABLED
 	void ValidateTriangles() const;

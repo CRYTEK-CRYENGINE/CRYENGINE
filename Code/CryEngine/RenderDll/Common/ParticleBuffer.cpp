@@ -152,8 +152,8 @@ void CParticleBufferSet::Create(uint poolSize)
 
 	CreateSpriteBuffer(poolSize);
 
-	const uint processId = gRenDev->m_RP.m_nProcessThreadID;
-	const uint fillId = gRenDev->m_RP.m_nFillThreadID;
+	const uint processId = gRenDev->GetRenderThreadID();
+	const uint fillId = gRenDev->GetMainThreadID();
 	m_ids[fillId] = 1;
 	m_ids[processId] = 0;
 
@@ -244,8 +244,8 @@ void CParticleBufferSet::Lock()
 	assert(m_valid);
 	assert(gRenDev->m_pRT->IsRenderThread());
 
-	const uint processId = gRenDev->m_RP.m_nProcessThreadID;
-	const uint fillId = gRenDev->m_RP.m_nFillThreadID;
+	const uint processId = gRenDev->GetRenderThreadID();
+	const uint fillId = gRenDev->GetMainThreadID();
 	if (CRenderer::CV_r_multithreaded)
 	{
 		m_ids[fillId] = (m_ids[processId] + 1) % CREParticle::numBuffers;
@@ -272,7 +272,7 @@ void CParticleBufferSet::Unlock()
 	assert(m_valid);
 	assert(gRenDev->m_pRT->IsRenderThread());
 
-	const uint processId = gRenDev->m_RP.m_nProcessThreadID;
+	const uint processId = gRenDev->GetRenderThreadID();
 	const uint bindId = m_ids[processId];
 
 	const uint numPulledElements = m_subBuffers[EBT_PositionsSRV].m_offset[bindId] / m_subBuffers[EBT_PositionsSRV].m_buffers[bindId].GetStride();
@@ -293,7 +293,7 @@ void CParticleBufferSet::SetFence()
 	assert(m_valid);
 	assert(gRenDev->m_pRT->IsRenderThread());
 
-	const uint processId = gRenDev->m_RP.m_nProcessThreadID;
+	const uint processId = gRenDev->GetRenderThreadID();
 	const uint bindId = m_ids[processId];
 
 	GetDeviceObjectFactory().IssueFence(m_fences[bindId]);
@@ -305,7 +305,7 @@ void CParticleBufferSet::WaitForFence()
 #if BUFFER_ENABLE_DIRECT_ACCESS == 1
 	assert(m_valid);
 
-	const uint fillId = gRenDev->m_RP.m_nFillThreadID;
+	const uint fillId = gRenDev->GetMainThreadID();
 	const uint cvId = m_ids[fillId];
 
 	GetDeviceObjectFactory().SyncFence(m_fences[cvId], true, false);
@@ -314,13 +314,13 @@ void CParticleBufferSet::WaitForFence()
 
 uint CParticleBufferSet::GetAllocId() const
 {
-	const uint fillId = gRenDev->m_RP.m_nFillThreadID;
-	return gRenDev->m_RP.m_particleBuffer.m_ids[fillId];
+	const uint fillId = gRenDev->GetMainThreadID();
+	return gcpRendD3D.GetGraphicsPipeline().GetParticleBufferSet().m_ids[fillId];
 }
 
 uint CParticleBufferSet::GetBindId() const
 {
-	const uint processId = gRenDev->m_RP.m_nProcessThreadID;
+	const uint processId = gRenDev->GetRenderThreadID();
 	const uint bindId = m_ids[processId];
 	return bindId;
 }
@@ -395,7 +395,7 @@ const CDeviceInputStream* CParticleBufferSet::GetIndexStream() const
 
 ILINE const CGpuBuffer& CParticleBufferSet::GetGpuBuffer(uint index) const
 {
-	const uint processId = gRenDev->m_RP.m_nProcessThreadID;
+	const uint processId = gRenDev->GetRenderThreadID();
 	const uint bindId = m_ids[processId];
 	CRY_ASSERT_MESSAGE(
 		m_subBuffers[index].m_pMemoryBase[bindId] == nullptr,
@@ -405,7 +405,7 @@ ILINE const CGpuBuffer& CParticleBufferSet::GetGpuBuffer(uint index) const
 
 ILINE const CDeviceInputStream* CParticleBufferSet::GetStreamBuffer(uint index) const
 {
-	const uint processId = gRenDev->m_RP.m_nProcessThreadID;
+	const uint processId = gRenDev->GetRenderThreadID();
 	const uint bindId = m_ids[processId];
 	CRY_ASSERT_MESSAGE(
 		m_subBuffers[index].m_pMemoryBase[bindId] == nullptr,
@@ -415,7 +415,7 @@ ILINE const CDeviceInputStream* CParticleBufferSet::GetStreamBuffer(uint index) 
 
 bool CParticleBufferSet::IsValid() const
 {
-	const uint fillId = gRenDev->m_RP.m_nFillThreadID;
+	const uint fillId = gRenDev->GetMainThreadID();
 	const uint cvId = m_ids[fillId];
 	if (!m_valid)
 		return false;

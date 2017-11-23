@@ -383,17 +383,14 @@ void CEditorGame::InitEntityArchetypeEnums(IGameToEditorInterface* pGTE, const c
 
 	if (levelFolder && levelName)
 	{
-		string levelPath = string(levelFolder) + "/" + string(levelName) + ".cry";
+		const string levelPath = string(levelFolder) + "/" + string(levelName) + ".level";
 
-		if (pCryPak && pCryPak->IsFileExist(levelPath) && pCryPak->OpenPack(levelPath))
+		if (pCryPak && pCryPak->IsFileExist(levelPath))
 		{
-			string editorXML = string(levelFolder) + "/Level.editor_xml";
-			XmlNodeRef pRoot = gEnv->pSystem->LoadXmlFromFile(editorXML);
+			XmlNodeRef pRoot = gEnv->pSystem->LoadXmlFromFile(levelPath.c_str());
 
 			if (pRoot)
 				GetArchetypesFromLevelLib(pRoot, &vecArchetypeNames);
-
-			pCryPak->ClosePack(levelPath);
 		}
 	}
 

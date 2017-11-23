@@ -5,7 +5,6 @@
 
 // Included only once here
 #include <CryCore//Platform/platform_impl.inl>
-#include <CryExtension/ICryPluginManager.h>
 
 #include "FlowSystem/FlowSystem.h"
 #include "FlowSystem/Modules/ModuleManager.h"

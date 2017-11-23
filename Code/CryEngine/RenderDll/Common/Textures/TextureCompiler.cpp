@@ -625,6 +625,13 @@ void CTextureCompiler::ConsumeQueuedResourceCompiler(TProcItem* item)
 
 	while (item)
 	{
+		// Try to spin for some time if there is a file lock on the source
+		for( int i = 0; IsFileOpened(item->src.c_str()) && (i < 5); ++i)
+		{
+			Sleep(300);
+			continue;
+		}
+
 		{
 			m_rwLockNotify.RLock();
 			std::for_each(m_sNotifyList.begin(), m_sNotifyList.end(), [=](IAsyncTextureCompileListener* notify)
@@ -689,7 +696,8 @@ void CTextureCompiler::ConsumeQueuedResourceCompiler(TProcItem* item)
 bool CTextureCompiler::ProcessTextureIfNeeded(
   const char* originalFilename,
   char* processedFilename,
-  size_t processedFilenameSizeInBytes)
+  size_t processedFilenameSizeInBytes,
+  bool immediate)
 {
 	// allocates 1k upto 4k on the stack
 	char sSrcFile[MAX_PATH];
@@ -715,15 +723,13 @@ bool CTextureCompiler::ProcessTextureIfNeeded(
 		// Adjust filename so that it is global.
 		gEnv->pCryPak->AdjustFileName(sSrcFile, sFullSrcFilename, 0);
 
-	#if defined(_RENDERER)
 		// Prevent a race-condition of date-checker and file-writer
 		// by doing an early queue-check (files are in the queue until
 		// they are completely processed)
-		if (HasQueuedResourceCompiler(sFullSrcFilename, sFullDestFilename))
+		if (!immediate && HasQueuedResourceCompiler(sFullSrcFilename, sFullDestFilename))
 		{
 			break;
 		}
-	#endif
 
 		bool bInvokeResourceCompiler = false;
 
@@ -731,51 +737,43 @@ bool CTextureCompiler::ProcessTextureIfNeeded(
 		// compare date of destination and source , recompile if needed
 		// load dds header, check hash-value of the compile settings in the dds file, recompile if needed (not done yet)
 
-		FILE* pDestFile = nullptr;
-		FILE* pSrcFile = nullptr;
+		CCryFile destinationFile, sourceFile;
 		{
 			SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
-			pDestFile = gEnv->pCryPak->FOpen(sDestFile, "rb");
+			destinationFile.Open(sDestFile, "rb");
 
 			// It can be that the file is still being opened for writing.
-			if (IsFileOpened(sSrcFile))
+			if (IsFileOpened(sFullSrcFilename))
 			{
-				// Force texture-compiling 
+				// Force the texture-compiling, the compilation queue will try to wait for the end of the file operation.
+				// see CTextureCompiler::ConsumeQueuedResourceCompiler
 				bInvokeResourceCompiler = true;
 			}
-			pSrcFile = gEnv->pCryPak->FOpen(sSrcFile, "rb");
+			sourceFile.Open(sFullSrcFilename, "rb");
 		}
 
 		// files from the pak file do not count as date comparison do not seem to work there
-		if (pDestFile)
+		if (destinationFile.IsInPak())
 		{
-			if (gEnv->pCryPak->IsInPak(pDestFile))
-			{
-				gEnv->pCryPak->FClose(pDestFile);
-				pDestFile = 0;
-			}
+			destinationFile.Close();
 		}
 
-		if (pSrcFile)
+		if (sourceFile.IsInPak())
 		{
-			if (gEnv->pCryPak->IsInPak(pSrcFile))
-			{
-				gEnv->pCryPak->FClose(pSrcFile);
-				pSrcFile = 0;
-			}
+			sourceFile.Close();
 		}
 
 		// is there no destination file?
-		if (pSrcFile && !pDestFile)
+		if (sourceFile.GetHandle() != nullptr && destinationFile.GetHandle() == nullptr)
 		{
 			bInvokeResourceCompiler = true;
 		}
 
 		// if both files exist, is the source file newer?
-		if (pSrcFile && pDestFile && !IsFileReadOnly(sFullDestFilename))
+		if (sourceFile.GetHandle() != nullptr && destinationFile.GetHandle() != nullptr && !IsFileReadOnly(sFullDestFilename))
 		{
-			ICryPak::FileTime timeSrc = gEnv->pCryPak->GetModificationTime(pSrcFile);
-			ICryPak::FileTime timeDest = gEnv->pCryPak->GetModificationTime(pDestFile);
+			ICryPak::FileTime timeSrc = gEnv->pCryPak->GetModificationTime(sourceFile.GetHandle());
+			ICryPak::FileTime timeDest = gEnv->pCryPak->GetModificationTime(destinationFile.GetHandle());
 
 			// if the timestamp is identical, then it might be:
 			//  1) a valid compiled target                          -> don't try
@@ -800,33 +798,35 @@ bool CTextureCompiler::ProcessTextureIfNeeded(
 			}
 		}
 
-		if (pDestFile)
+		destinationFile.Close();
+		
+		if (sourceFile.GetHandle() != nullptr)
 		{
-			gEnv->pCryPak->FClose(pDestFile);
-			pDestFile = 0;
-		}
-
-		if (pSrcFile)
-		{
-			gEnv->pCryPak->FClose(pSrcFile);
-			pSrcFile = 0;
+			sourceFile.Close();
 		}
 		else if (!bInvokeResourceCompiler)
 		{
 			continue;
 		}
 
-		if (bInvokeResourceCompiler && gEnv->IsEditor())
+		if (bInvokeResourceCompiler)
 		{
 			// call rc.exe
 			//
 			// All requests are time-check already, force the RC to refresh the
 			// target file in any case
-	#if defined(_RENDERER)
-			if (QueueResourceCompiler(sFullSrcFilename, sFullDestFilename, false, true) != eRcCallResult_queued)    // false=no window, true=force compile
-	#else
-			if (InvokeResourceCompiler(sFullSrcFilename, sFullDestFilename, false, true) != eRcExitCode_Success)    // false=no window, true=force compile
-	#endif
+			bool processed;
+
+			if (immediate)
+			{
+				processed = InvokeResourceCompiler(sFullSrcFilename, sFullDestFilename, false, true) == eRcExitCode_Success;    // false=no window, true=force compile
+			}
+			else
+			{
+				processed = QueueResourceCompiler(sFullSrcFilename, sFullDestFilename, false, true) == eRcCallResult_queued;    // false=no window, true=force compile
+			}
+
+			if(!processed)
 			{
 				cry_strcpy(processedFilename, processedFilenameSizeInBytes, originalFilename);
 

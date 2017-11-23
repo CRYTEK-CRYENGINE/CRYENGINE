@@ -12,6 +12,10 @@
 #include <Cry3DEngine/I3DEngine.h>
 #include <Cry3DEngine/CGF/CryHeaders.h>
 
+#include "DriverD3D.h"
+#include "Common/RenderView.h"
+#include "Common/RendererResources.h"
+
 CShader* CShaderMan::s_DefaultShader;
 CShader* CShaderMan::s_shPostEffects;
 CShader* CShaderMan::s_shPostDepthOfField;
@@ -56,7 +60,24 @@ SResourceContainer* CShaderMan::s_pContainer;                        // List/Map
 
 uint64 g_HWSR_MaskBit[HWSR_MAX];
 
-bool gbRgb;
+//////////////////////////////////////////////////////////////////////////
+// WaveForm table
+struct SStaticSinusTable
+{
+	static const uint32 sSinTableCount = 1024;
+	static float m_tSinTable[sSinTableCount];
+
+	static void InitWaveTables()
+	{
+		//Init wave Tables
+		for (uint32 i = 0; i < sSinTableCount; i++)
+		{
+			float f = (float)i;
+			m_tSinTable[i] = sin_tpl(f * (360.0f / (float)sSinTableCount) * (float)M_PI / 180.0f);
+		}
+	}
+};
+float SStaticSinusTable::m_tSinTable[sSinTableCount];
 
 ////////////////////////////////////////////////////////////////////////////////
 // Pool for texture modificators
@@ -335,28 +356,6 @@ void SShaderTechnique::UpdatePreprocessFlags(CShader* pSH)
 	}
 }
 
-SShaderTechnique* CShader::mfGetStartTechnique(int nTechnique)
-{
-	FUNCTION_PROFILER_RENDER_FLAT
-	SShaderTechnique* pTech;
-	if (m_HWTechniques.Num())
-	{
-		pTech = m_HWTechniques[0];
-		if (nTechnique > 0)
-		{
-			assert(nTechnique < (int)m_HWTechniques.Num());
-			if (nTechnique < (int)m_HWTechniques.Num())
-				pTech = m_HWTechniques[nTechnique];
-			else
-				iLog->Log("ERROR: CShader::mfGetStartTechnique: Technique %d for shader '%s' is out of range", nTechnique, GetName());
-		}
-	}
-	else
-		pTech = NULL;
-
-	return pTech;
-}
-
 SShaderTechnique* CShader::GetTechnique(int nStartTechnique, int nRequestedTechnique, bool bSilent)
 {
 	SShaderTechnique* pTech = 0;
@@ -416,7 +415,7 @@ void CShader::mfFlushCache()
 		for (m = 0; m < SEmptyCombination::s_Combinations.size(); m++)
 		{
 			SEmptyCombination& Comb = SEmptyCombination::s_Combinations[m];
-			Comb.pShader->mfStoreEmptyCombination(Comb);
+			Comb.pShader->mfStoreEmptyCombination(this, Comb);
 		}
 		SEmptyCombination::s_Combinations.clear();
 	}
@@ -447,7 +446,7 @@ void CShaderResources::PostLoad(CShader* pSH)
 			char path[1024];
 			cry_strcpy(sky, m_Textures[EFTT_DIFFUSE]->m_Name.c_str());
 			int size = strlen(sky);
-			const char* ext = fpGetExtension(sky);
+			const char* ext = PathUtil::GetExt(sky);
 			while (sky[size] != '_')
 			{
 				size--;
@@ -520,6 +519,25 @@ unsigned int CShader::GetUsedTextureTypes(void)
 }
 
 //================================================================================
+CShaderMan::CShaderMan()
+{
+	m_bInitialized = false;
+	m_bLoadedSystem = false;
+	s_DefaultShader = NULL;
+	m_pGlobalExt = NULL;
+	g_pShaderParserHelper = &m_shaderParserHelper;
+	m_nCombinationsProcess = -1;
+	m_nCombinationsProcessOverall = -1;
+	m_nCombinationsCompiled = -1;
+	m_nCombinationsEmpty = -1;
+	m_szShaderPrecache = NULL;
+	memset(m_TempVecs, 0, sizeof(Vec4) * 16);
+
+	m_eCacheMode = eSC_Normal;
+	m_nFrameSubmit = 1;
+
+	SStaticSinusTable::InitWaveTables();
+}
 
 void CShaderMan::mfReleaseShaders()
 {
@@ -926,33 +944,6 @@ void CShaderMan::mfInitLookups()
 	dirdatafilename += "lookupdata.bin";
 	m_ResLookupDataMan[CACHE_USER].LoadData(dirdatafilename.c_str(), CParserBin::m_bEndians, false);
 }
-void CShaderMan::mfInitLevelPolicies(void)
-{
-	SAFE_DELETE(m_pLevelsPolicies);
-
-	SShaderLevelPolicies* pPL = NULL;
-	char szN[256];
-	cry_strcpy(szN, "Shaders/");
-	cry_strcat(szN, "Levels.txt");
-	FILE* fp = gEnv->pCryPak->FOpen(szN, "rb", ICryPak::FOPEN_HINT_QUIET);
-	if (fp)
-	{
-		pPL = new SShaderLevelPolicies;
-		gEnv->pCryPak->FSeek(fp, 0, SEEK_END);
-		int ln = gEnv->pCryPak->FTell(fp);
-		char* buf = new char[ln + 1];
-		if (buf)
-		{
-			buf[ln] = 0;
-			gEnv->pCryPak->FSeek(fp, 0, SEEK_SET);
-			gEnv->pCryPak->FRead(buf, ln, fp);
-			mfCompileShaderLevelPolicies(pPL, buf);
-			delete[] buf;
-		}
-		gEnv->pCryPak->FClose(fp);
-	}
-	m_pLevelsPolicies = pPL;
-}
 
 void CShaderMan::mfInitGlobal(void)
 {
@@ -1140,7 +1131,6 @@ void CShaderMan::mfInit(void)
 		//memset(&CShader::m_Shaders_known[0], 0, sizeof(CShader *)*MAX_SHADERS);
 
 		mfInitGlobal();
-		mfInitLevelPolicies();
 
 		//mfInitLookups();
 
@@ -1516,8 +1506,6 @@ void CShaderMan::mfSetDefaults(void)
 	mfReleaseSystemShaders();
 	mfLoadBasicSystemShaders();
 
-	memset(&gRenDev->m_cEF.m_PF, 0, sizeof(gRenDev->m_cEF.m_PF));
-
 	if (gRenDev->IsEditorMode())
 		gRenDev->RefreshSystemShaders();
 
@@ -1566,7 +1554,7 @@ bool CShaderMan::mfGatherShadersList(const char* szPath, bool bCheckIncludes, bo
 		{
 			if (!stricmp(&nmf[len], ".cfi"))
 			{
-				fpStripExtension(fileinfo.name, nmf);
+				PathUtil::RemoveExtension(nmf);
 				SShaderBin* pBin = m_Bin.GetBinShader(nmf, true, 0, &bChanged);
 
 				// If any include file was not found in the read only cache, we'll need to update the CRCs
@@ -1582,7 +1570,7 @@ bool CShaderMan::mfGatherShadersList(const char* szPath, bool bCheckIncludes, bo
 		}
 		if (stricmp(&nmf[len], ".cfx"))
 			continue;
-		fpStripExtension(fileinfo.name, nmf);
+		PathUtil::RemoveExtension(nmf);
 		mfAddFXShaderNames(nmf, Names, bUpdateCRC);
 	}
 	while (gEnv->pCryPak->FindNext(handle, &fileinfo) != -1);
@@ -1689,7 +1677,8 @@ void CShaderMan::mfPreloadShaderExts(void)
 		if (!stricmp(fileinfo.name, "runtime.ext"))
 			continue;
 		char s[256];
-		fpStripExtension(fileinfo.name, s);
+		cry_strcpy(s, fileinfo.name);
+		PathUtil::RemoveExtension(s);
 		SShaderGen* pShGen = mfCreateShaderGenInfo(s, false);
 		assert(pShGen);
 	}
@@ -1731,47 +1720,27 @@ CShader* CShaderMan::mfNewShader(const char* szName)
 	return pSH;
 }
 
-//=========================================================
-
-bool CShaderMan::mfUpdateMergeStatus(SShaderTechnique* hs, std::vector<SCGParam>* p)
-{
-	if (!p)
-		return false;
-	for (uint32 n = 0; n < p->size(); n++)
-	{
-		if ((*p)[n].m_Flags & PF_DONTALLOW_DYNMERGE)
-		{
-			hs->m_Flags |= FHF_NOMERGE;
-			break;
-		}
-	}
-	if (hs->m_Flags & FHF_NOMERGE)
-		return true;
-	return false;
-}
-
-//=================================================================================================
-
 SEnvTexture* SHRenderTarget::GetEnv2D()
 {
 	CRenderer* rd = gRenDev;
 	SEnvTexture* pEnvTex = NULL;
 	if (m_nIDInPool >= 0)
 	{
-		assert(m_nIDInPool < (int)CTexture::s_CustomRT_2D.Num());
-		if (m_nIDInPool < (int)CTexture::s_CustomRT_2D.Num())
-			pEnvTex = &CTexture::s_CustomRT_2D[m_nIDInPool];
+		assert(m_nIDInPool < (int)CRendererResources::s_CustomRT_2D.Num());
+		if (m_nIDInPool < (int)CRendererResources::s_CustomRT_2D.Num())
+			pEnvTex = &CRendererResources::s_CustomRT_2D[m_nIDInPool];
 	}
 	else
 	{
-		const CCamera& cam = rd->GetCamera();
+		CRenderView* pRenderView = gcpRendD3D.GetGraphicsPipeline().GetCurrentRenderView();
+		const CCamera& cam = (pRenderView) ? pRenderView->GetCamera(CCamera::eEye_Left) : GetISystem()->GetViewCamera();
 		Matrix33 orientation = Matrix33(cam.GetMatrix());
 		Ang3 Angs = CCamera::CreateAnglesYPR(orientation);
 		Vec3 Pos = cam.GetPosition();
 		bool bReflect = false;
 		if (m_nFlags & (FRT_CAMERA_REFLECTED_PLANE | FRT_CAMERA_REFLECTED_WATERPLANE))
 			bReflect = true;
-		pEnvTex = CTexture::FindSuitableEnvTex(Pos, Angs, true, 0, false, rd->m_RP.m_pShader, rd->m_RP.m_pShaderResources, rd->m_RP.m_pCurObject, bReflect, rd->m_RP.m_pRE, NULL);
+		pEnvTex = CRendererResources::FindSuitableEnvTex(Pos, Angs, true, 0, false, nullptr, nullptr, nullptr, bReflect, nullptr, NULL);
 	}
 	return pEnvTex;
 }
@@ -1780,8 +1749,7 @@ void SHRenderTarget::GetMemoryUsage(ICrySizer* pSizer) const
 {
 	pSizer->Add(*this);
 	pSizer->AddObject(m_TargetName);
-	pSizer->AddObject(m_pTarget[0]);
-	pSizer->AddObject(m_pTarget[1]);
+	pSizer->AddObject(m_pTarget);
 }
 
 void CShaderResources::CreateModifiers(SInputShaderResources* pInRes)
@@ -1948,14 +1916,14 @@ void SEfResTexture::Update(int nTSlot)
 	CRenderer* rd = gRenDev;
 
 	assert(nTSlot < MAX_TMU);
-	rd->m_RP.m_ShaderTexResources[nTSlot] = this;
+
 
 	const SEfTexModificator* const pMod = m_Ext.m_pTexModifier;
 
 	IF (!pMod, 1)
 	{
 		if (nTSlot == 0)
-			rd->m_RP.m_FlagsShader_MD |= m_Ext.m_nUpdateFlags;
+			gRenDev->m_RP.m_FlagsShader_MD |= m_Ext.m_nUpdateFlags;
 	}
 	else
 	{
@@ -1966,12 +1934,12 @@ void SEfResTexture::Update(int nTSlot)
 void SEfResTexture::UpdateWithModifier(int nTSlot)
 {
 	CRenderer* rd = gRenDev;
-	int nFrameID = rd->m_RP.m_TI[rd->m_RP.m_nProcessThreadID].m_nFrameID;
-	int recursion = IsRecursiveRenderView() ? 1 : 0;
+	int nFrameID = gRenDev->GetRenderFrameID();
+	int recursion = 0;
 	if (m_Ext.m_nFrameUpdated == nFrameID && m_Ext.m_nLastRecursionLevel == recursion)
 	{
 		if (nTSlot == 0)
-			rd->m_RP.m_FlagsShader_MD |= m_Ext.m_nUpdateFlags;
+			gRenDev->m_RP.m_FlagsShader_MD |= m_Ext.m_nUpdateFlags;
 
 		return;
 	}
@@ -1988,8 +1956,8 @@ void SEfResTexture::UpdateWithModifier(int nTSlot)
 		assert(pEnv);
 		if (pEnv && pEnv->m_pTex)
 		{
-			pMod->m_TexGenMatrix = Matrix44A(rd->m_RP.m_pCurObject->m_II.m_Matrix).GetTransposed() * pEnv->m_Matrix;
-			pMod->m_TexGenMatrix = pMod->m_TexGenMatrix.GetTransposed();
+			//pMod->m_TexGenMatrix = Matrix44A(gRenDev->m_RP.m_pCurObject->m_II.m_Matrix).GetTransposed() * pEnv->m_Matrix;
+			//pMod->m_TexGenMatrix = pMod->m_TexGenMatrix.GetTransposed();
 			m_Ext.m_nUpdateFlags |= HWMD_TEXCOORD_PROJ | HWMD_TEXCOORD_GEN_OBJECT_LINEAR;
 		}
 	}
@@ -2013,6 +1981,8 @@ void SEfResTexture::UpdateWithModifier(int nTSlot)
 		m_Ext.m_nUpdateFlags |= HWMD_TEXCOORD_MATRIX;
 	}
 
+	float currentTime = gRenDev->GetAnimationTime().GetSeconds();
+
 	if (pMod->m_eMoveType[0] != ETMM_NoChange ||
 	    pMod->m_eMoveType[1] != ETMM_NoChange ||
 	    pMod->m_eRotType != ETMR_NoChange ||
@@ -2022,7 +1992,7 @@ void SEfResTexture::UpdateWithModifier(int nTSlot)
 	    pMod->m_Tiling[1] != 1.0f)
 	{
 		pMod->m_TexMatrix.SetIdentity();
-		float fTime = gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_RealTime;
+		float fTime = currentTime;
 
 		bTr = true;
 
@@ -2110,8 +2080,8 @@ void SEfResTexture::UpdateWithModifier(int nTSlot)
 			break;
 		}
 
-		float Su = rd->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_RealTime * pMod->m_OscRate[0];
-		float Sv = rd->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_RealTime * pMod->m_OscRate[1];
+		float Su = currentTime * pMod->m_OscRate[0];
+		float Sv = currentTime * pMod->m_OscRate[1];
 		switch (pMod->m_eMoveType[0])
 		{
 		case ETMM_Pan:
@@ -2256,11 +2226,6 @@ void SEfResTexture::UpdateWithModifier(int nTSlot)
 					memset(&Pl, 0, sizeof(Pl));
 					float* fPl = (float*)&Pl;
 					fPl[i] = 1.0f;
-					if (rd->m_RP.m_pCurObject)
-					{
-						PlTr = TransformPlane2_NoTrans(Matrix44A(rd->m_RP.m_pCurObject->m_II.m_Matrix).GetTransposed(), Pl);
-					}
-					else
 					{
 						PlTr = Pl;
 					}
@@ -2279,7 +2244,8 @@ void SEfResTexture::UpdateWithModifier(int nTSlot)
 					memset(&Pl, 0, sizeof(Pl));
 					float* fPl = (float*)&Pl;
 					fPl[i] = 1.0f;
-					PlTr = TransformPlane2_NoTrans(rd->m_ViewMatrix, Pl);
+					Matrix44A matView = gcpRendD3D.GetGraphicsPipeline().GetCurrentViewInfo(CCamera::eEye_Left).viewMatrix;
+					PlTr = TransformPlane2_NoTrans(matView, Pl);
 					pMod->m_TexGenMatrix(i, 0) = PlTr.n.x;
 					pMod->m_TexGenMatrix(i, 1) = PlTr.n.y;
 					pMod->m_TexGenMatrix(i, 2) = PlTr.n.z;
@@ -2302,7 +2268,7 @@ void SEfResTexture::UpdateWithModifier(int nTSlot)
 		m_Ext.m_nUpdateFlags |= HWMD_TEXCOORD_PROJ;
 
 	if (nTSlot == 0)
-		rd->m_RP.m_FlagsShader_MD |= m_Ext.m_nUpdateFlags;
+		gRenDev->m_RP.m_FlagsShader_MD |= m_Ext.m_nUpdateFlags;
 }
 
 //---------------------------------------------------------------------------
@@ -2317,11 +2283,13 @@ float CShaderMan::EvalWaveForm(SWaveForm* wf)
 	float Phase;
 	float Level;
 
+	float animationTime = gRenDev->GetAnimationTime().GetSeconds();
+
 	if (wf->m_Flags & WFF_LERP)
 	{
-		val = (int)(gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_RealTime * 597.0f);
-		val &= SRenderPipeline::sSinTableCount - 1;
-		float fLerp = gRenDev->m_RP.m_tSinTable[val] * 0.5f + 0.5f;
+		val = (int)(animationTime * 597.0f);
+		val &= SStaticSinusTable::sSinTableCount - 1;
+		float fLerp = SStaticSinusTable::m_tSinTable[val] * 0.5f + 0.5f;
 
 		if (wf->m_Amp != wf->m_Amp1)
 			Amp = LERP(wf->m_Amp, wf->m_Amp1, fLerp);
@@ -2351,59 +2319,61 @@ float CShaderMan::EvalWaveForm(SWaveForm* wf)
 		Freq = wf->m_Freq;
 	}
 
+	const char *sShaderName = "Unknown"; //gRenDev->m_RP.m_pShader->GetName();
+
 	switch (wf->m_eWFType)
 	{
 	case eWF_None:
-		Warning("WARNING: CShaderMan::EvalWaveForm called with 'EWF_None' in Shader '%s'\n", gRenDev->m_RP.m_pShader->GetName());
+		Warning("WARNING: CShaderMan::EvalWaveForm called with 'EWF_None' in Shader '%s'\n", sShaderName);
 		break;
 
 	case eWF_Sin:
-		val = (int)((gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_RealTime * Freq + Phase) * (float)SRenderPipeline::sSinTableCount);
-		return Amp * gRenDev->m_RP.m_tSinTable[val & (SRenderPipeline::sSinTableCount - 1)] + Level;
+		val = (int)((animationTime * Freq + Phase) * (float)SStaticSinusTable::sSinTableCount);
+		return Amp * SStaticSinusTable::m_tSinTable[val & (SStaticSinusTable::sSinTableCount - 1)] + Level;
 
 	// Other wave types aren't supported anymore
 	case eWF_HalfSin:
-		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType,sShaderName );
 		assert(0);
 		return 0;
 
 	case eWF_InvHalfSin:
-		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 		assert(0);
 		return 0;
 
 	case eWF_SawTooth:
-		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 		assert(0);
 		return 0;
 
 	case eWF_InvSawTooth:
-		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 		assert(0);
 		return 0;
 
 	case eWF_Square:
-		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 		assert(0);
 		return 0;
 
 	case eWF_Triangle:
-		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 		assert(0);
 		return 0;
 
 	case eWF_Hill:
-		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 		assert(0);
 		return 0;
 
 	case eWF_InvHill:
-		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 		assert(0);
 		return 0;
 
 	default:
-		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 		break;
 	}
 	return 1;
@@ -2413,59 +2383,63 @@ float CShaderMan::EvalWaveForm(SWaveForm2* wf)
 {
 	int val;
 
+	const char *sShaderName = "Unknown"; //gRenDev->m_RP.m_pShader->GetName();
+
+	float animationTime = gRenDev->GetAnimationTime().GetSeconds();
+
 	switch (wf->m_eWFType)
 	{
 	case eWF_None:
-		//Warning( 0,0,"WARNING: CShaderMan::EvalWaveForm called with 'EWF_None' in Shader '%s'\n", gRenDev->m_RP.m_pShader->GetName());
+		//Warning( 0,0,"WARNING: CShaderMan::EvalWaveForm called with 'EWF_None' in Shader '%s'\n", sShaderName);
 		break;
 
 	case eWF_Sin:
-		val = (int)((gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_RealTime * wf->m_Freq + wf->m_Phase) * (float)SRenderPipeline::sSinTableCount);
-		return wf->m_Amp * gRenDev->m_RP.m_tSinTable[val & (SRenderPipeline::sSinTableCount - 1)] + wf->m_Level;
+		val = (int)((animationTime * wf->m_Freq + wf->m_Phase) * (float)SStaticSinusTable::sSinTableCount);
+		return wf->m_Amp * SStaticSinusTable::m_tSinTable[val & (SStaticSinusTable::sSinTableCount - 1)] + wf->m_Level;
 
 	// Other wave types aren't supported anymore
 	case eWF_HalfSin:
-		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 		assert(0);
 		return 0;
 
 	case eWF_InvHalfSin:
-		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 		assert(0);
 		return 0;
 
 	case eWF_SawTooth:
-		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 		assert(0);
 		return 0;
 
 	case eWF_InvSawTooth:
-		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 		assert(0);
 		return 0;
 
 	case eWF_Square:
-		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 		assert(0);
 		return 0;
 
 	case eWF_Triangle:
-		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 		assert(0);
 		return 0;
 
 	case eWF_Hill:
-		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 		assert(0);
 		return 0;
 
 	case eWF_InvHill:
-		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 		assert(0);
 		return 0;
 
 	default:
-		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 		break;
 	}
 	return 1;
@@ -2475,98 +2449,100 @@ float CShaderMan::EvalWaveForm2(SWaveForm* wf, float frac)
 {
 	int val;
 
+	const char *sShaderName = "Unknown"; //gRenDev->m_RP.m_pShader->GetName();
+
 	if (!(wf->m_Flags & WFF_CLAMP))
 		switch (wf->m_eWFType)
 		{
 		case eWF_None:
-			Warning("CShaderMan::EvalWaveForm2 called with 'EWF_None' in Shader '%s'\n", gRenDev->m_RP.m_pShader->GetName());
+			Warning("CShaderMan::EvalWaveForm2 called with 'EWF_None' in Shader '%s'\n", sShaderName);
 			break;
 
 		case eWF_Sin:
-			val = QRound((frac * wf->m_Freq + wf->m_Phase) * (float)SRenderPipeline::sSinTableCount);
-			val &= (SRenderPipeline::sSinTableCount - 1);
-			return wf->m_Amp * gRenDev->m_RP.m_tSinTable[val] + wf->m_Level;
+			val = QRound((frac * wf->m_Freq + wf->m_Phase) * (float)SStaticSinusTable::sSinTableCount);
+			val &= (SStaticSinusTable::sSinTableCount - 1);
+			return wf->m_Amp * SStaticSinusTable::m_tSinTable[val] + wf->m_Level;
 
 		// Other wave types aren't supported anymore
 		case eWF_SawTooth:
-			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 			assert(0);
 			return 0;
 
 		case eWF_InvSawTooth:
-			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 			assert(0);
 			return 0;
 
 		case eWF_Square:
-			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 			assert(0);
 			return 0;
 
 		case eWF_Triangle:
-			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 			assert(0);
 			return 0;
 
 		case eWF_Hill:
-			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 			assert(0);
 			return 0;
 
 		case eWF_InvHill:
-			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 			assert(0);
 			return 0;
 
 		default:
-			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 			break;
 		}
 	else
 		switch (wf->m_eWFType)
 		{
 		case eWF_None:
-			Warning("Warning: CShaderMan::EvalWaveForm2 called with 'EWF_None' in Shader '%s'\n", gRenDev->m_RP.m_pShader->GetName());
+			Warning("Warning: CShaderMan::EvalWaveForm2 called with 'EWF_None' in Shader '%s'\n", sShaderName);
 			break;
 
 		case eWF_Sin:
-			val = QRound((frac * wf->m_Freq + wf->m_Phase) * (float)SRenderPipeline::sSinTableCount);
-			val &= (SRenderPipeline::sSinTableCount - 1);
-			return wf->m_Amp * gRenDev->m_RP.m_tSinTable[val] + wf->m_Level;
+			val = QRound((frac * wf->m_Freq + wf->m_Phase) * (float)SStaticSinusTable::sSinTableCount);
+			val &= (SStaticSinusTable::sSinTableCount - 1);
+			return wf->m_Amp * SStaticSinusTable::m_tSinTable[val] + wf->m_Level;
 
 		// Other wave types aren't supported anymore
 		case eWF_SawTooth:
-			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 			assert(0);
 			return 0;
 
 		case eWF_InvSawTooth:
-			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 			assert(0);
 			return 0;
 
 		case eWF_Square:
-			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 			assert(0);
 			return 0;
 
 		case eWF_Triangle:
-			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 			assert(0);
 			return 0;
 
 		case eWF_Hill:
-			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 			assert(0);
 			return 0;
 
 		case eWF_InvHill:
-			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 			assert(0);
 			return 0;
 
 		default:
-			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, gRenDev->m_RP.m_pShader->GetName());
+			Warning("Warning: CShaderMan::EvalWaveForm2: bad EWF '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 			break;
 		}
 	return 1;
@@ -2872,10 +2848,7 @@ inline bool sCompareShd(CBaseResource* a, CBaseResource* b)
 void CShaderMan::mfSortResources()
 {
 	uint32 i;
-	for (i = 0; i < MAX_TMU; i++)
-	{
-		gRenDev->m_RP.m_ShaderTexResources[i] = NULL;
-	}
+	
 	iLog->Log("-- Presort shaders by states...");
 	//return;
 	std::sort(&CShader::s_ShaderResources_known.begin()[1], CShader::s_ShaderResources_known.end(), sCompareRes);

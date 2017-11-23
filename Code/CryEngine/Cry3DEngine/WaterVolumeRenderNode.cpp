@@ -698,8 +698,8 @@ void CWaterVolumeRenderNode::Render_JobEntry(SRendParams rParam, SRenderingPassI
 	const int fillThreadID = passInfo.ThreadID();
 
 	// get render objects
-	CRenderObject* pROVol = pRenderer->EF_GetObject_Temp(fillThreadID);
-	CRenderObject* pROSurf = pRenderer->EF_GetObject_Temp(fillThreadID);
+	CRenderObject* pROVol = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
+	CRenderObject* pROSurf = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 	if (!pROVol || !pROSurf)
 		return;
 
@@ -763,7 +763,7 @@ void CWaterVolumeRenderNode::Render_JobEntry(SRendParams rParam, SRenderingPassI
 			SShaderItem& shaderItem(pMaterial->GetShaderItem(0));
 
 			// add to renderer
-			GetRenderer()->EF_AddEf(m_pVolumeRE[fillThreadID], shaderItem, pROVol, passInfo, EFSLIST_WATER_VOLUMES, aboveWaterVolumeSurface ? 0 : 1);
+			passInfo.GetIRenderView()->AddRenderObject(m_pVolumeRE[fillThreadID], shaderItem, pROVol, passInfo, EFSLIST_WATER_VOLUMES, aboveWaterVolumeSurface ? 0 : 1);
 		}
 	}
 
@@ -789,7 +789,7 @@ void CWaterVolumeRenderNode::Render_JobEntry(SRendParams rParam, SRenderingPassI
 		SShaderItem& shaderItem(m_pMaterial->GetShaderItem(0));
 
 		// add to renderer
-		GetRenderer()->EF_AddEf(m_pSurfaceRE[fillThreadID], shaderItem, pROSurf, passInfo, EFSLIST_WATER, 1);
+		passInfo.GetIRenderView()->AddRenderObject(m_pSurfaceRE[fillThreadID], shaderItem, pROSurf, passInfo, EFSLIST_WATER, 1);
 	}
 }
 

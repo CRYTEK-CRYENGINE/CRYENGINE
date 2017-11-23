@@ -6,6 +6,7 @@
 #pragma once
 
 struct ICollisionAvoidanceAgent;
+struct INavMeshQueryFilter;
 
 class CCollisionAvoidanceSystem
 {
@@ -74,7 +75,7 @@ private:
 	void                  PopulateState();
 	void                  ApplyResults(float updateTime);
 
-	AgentID               CreateAgent(NavigationAgentTypeID navigationTypeID, const char* name);
+	AgentID               CreateAgent(NavigationAgentTypeID navigationTypeID, const INavMeshQueryFilter* pFilter, const char* szName);
 	ObstacleID            CreateObstable();
 
 	void                  SetAgent(AgentID agentID, const SAgentParams& params);
@@ -166,6 +167,23 @@ private:
 		uint16 flags;
 	};
 
+	struct SCandidateVelocity
+	{
+		float distanceSq;
+		Vec2  velocity;
+
+		ILINE bool operator<(const SCandidateVelocity& other) const
+		{
+			return distanceSq < other.distanceSq;
+		}
+	};
+
+	struct SNavigationProperties
+	{
+		NavigationAgentTypeID agentTypeId;
+		const INavMeshQueryFilter* pQueryFilter;
+	};
+
 	enum { FeasibleAreaMaxVertexCount = 64, };
 
 	typedef std::vector<SNearbyAgent>    NearbyAgents;
@@ -187,21 +205,10 @@ private:
 	size_t ComputeFeasibleArea(const SConstraintLine* lines, size_t lineCount, float radius, Vec2* feasibleArea) const;
 	bool   ClipVelocityByFeasibleArea(const Vec2& velocity, Vec2* feasibleArea, size_t vertexCount, Vec2& output) const;
 
-	struct SCandidateVelocity
-	{
-		float distanceSq;
-		Vec2  velocity;
-
-		ILINE bool operator<(const SCandidateVelocity& other) const
-		{
-			return distanceSq < other.distanceSq;
-		}
-	};
-
 	size_t ComputeOptimalAvoidanceVelocity(Vec2* feasibleArea, size_t vertexCount, const SAgentParams& agent,
 	                                       const float minSpeed, const float maxSpeed, SCandidateVelocity* output) const;
 
-	Vec2 ClampSpeedWithNavigationMesh(const NavigationAgentTypeID agentTypeID, const Vec3 agentPosition, const Vec2& currentVelocity, const Vec2& velocityToClamp) const;
+	Vec2 ClampSpeedWithNavigationMesh(const SNavigationProperties& agentNavProperties, const Vec3 agentPosition, const Vec2& currentVelocity, const Vec2& velocityToClamp) const;
 	bool FindFirstWalkableVelocity(AgentID agentID, SCandidateVelocity* candidates, size_t candidateCount,
 	                               Vec2& output) const;
 
@@ -230,11 +237,12 @@ private:
 	NearbyObstacles m_nearbyObstacles;
 	ConstraintLines m_constraintLines;
 
-	typedef std::vector<NavigationAgentTypeID> AgentNavigationTypeIDs;
-	AgentNavigationTypeIDs m_agentNavigationTypesIDs;
+	std::vector<SNavigationProperties> m_agentsNavigationProperties;
 
 	typedef std::vector<string> AgentNames;
 	AgentNames m_agentNames;
+
+	bool m_bUpdating;
 };
 
 struct ICollisionAvoidanceAgent
@@ -249,9 +257,10 @@ struct ICollisionAvoidanceAgent
 	virtual ~ICollisionAvoidanceAgent() {}
 
 	virtual NavigationAgentTypeID GetNavigationTypeId() const = 0;
+	virtual const INavMeshQueryFilter* GetNavigationQueryFilter() const = 0;
 	virtual const char*           GetName() const = 0;
 
-	virtual TreatType                  GetTreatmentType() const = 0;
+	virtual TreatType             GetTreatmentType() const = 0;
 
 	virtual void                  InitializeCollisionAgent(CCollisionAvoidanceSystem::SAgentParams& agent) const = 0;
 	virtual void                  InitializeCollisionObstacle(CCollisionAvoidanceSystem::SObstacleParams& obstacle) const = 0;

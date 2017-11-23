@@ -32,14 +32,14 @@ namespace Cry
 			}
 		}
 
-		CPlaneConstraintComponent::~CPlaneConstraintComponent()
-		{
-			Remove();
-		}
-
 		void CPlaneConstraintComponent::Initialize()
 		{
 			Reset();
+		}
+
+		void CPlaneConstraintComponent::OnShutDown()
+		{
+			Remove();
 		}
 
 		void CPlaneConstraintComponent::Reset()
@@ -54,7 +54,7 @@ namespace Cry
 			}
 		}
 
-		void CPlaneConstraintComponent::ProcessEvent(SEntityEvent& event)
+		void CPlaneConstraintComponent::ProcessEvent(const SEntityEvent& event)
 		{
 			if (event.event == ENTITY_EVENT_START_GAME)
 			{

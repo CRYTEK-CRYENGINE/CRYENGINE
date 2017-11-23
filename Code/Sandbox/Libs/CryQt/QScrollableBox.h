@@ -17,6 +17,7 @@ public:
 	void addWidget(QWidget*);
 	void removeWidget(QWidget*);
 	void insertWidget(int i, QWidget*);
+	void clearWidgets();
 	int indexOf(QWidget*);
 
 protected:

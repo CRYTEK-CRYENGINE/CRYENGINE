@@ -4,7 +4,7 @@
 #include "Core.h"
 
 #include <CryCore/Platform/platform_impl.inl>
-#include <CryExtension/ICryPluginManager.h>
+#include <CrySystem/ICryPluginManager.h>
 #include <CryGame/IGameFramework.h>
 
 #include <CrySchematyc/Env/EnvPackage.h>

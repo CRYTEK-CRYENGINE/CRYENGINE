@@ -28,9 +28,8 @@ struct DeviceInfo
 	bool IsOk() const { return m_pFactory != nullptr && m_pAdapter != nullptr && m_pDevice != nullptr && m_pContext != nullptr && m_pSwapChain != nullptr; }
 	void Release();
 
-	bool CreateDevice(bool windowed, int width, int height, int backbufferWidth, int backbufferHeight, int zbpp, OnCreateDeviceCallback pCreateDeviceCallback, CreateWindowCallback pCreateWindowCallback);
+	bool CreateDevice(bool windowed, int backbufferWidth, int backbufferHeight, int zbpp, OnCreateDeviceCallback pCreateDeviceCallback, CreateWindowCallback pCreateWindowCallback);
 	void SnapSettings();
-	void ResizeDXGIBuffers();
 
 	#if defined(SUPPORT_DEVICE_INFO_MSG_PROCESSING)
 	void OnActivate(UINT_PTR wParam, UINT_PTR lParam);

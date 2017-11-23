@@ -607,7 +607,7 @@ pixout RainDropsFinalPS(vtxOutRainDrops IN)
   float3 vNormal = float3( vWeights.x - vWeights.y, vWeights.x - vWeights.z, 0.5);	// 2 adds 
   vNormal = normalize(vNormal.xyz);													// 1 nrm
 
-  float3x3 tangentToWorld = float3x3( CameraRight.xyz, CameraUp.xyz, CamFront.xyz );
+  float3x3 tangentToWorld = float3x3( CV_CameraRightVector.xyz, CV_CameraUpVector.xyz, CV_CameraFrontVector.xyz );
   float3 vSunTangent = normalize( mul( tangentToWorld, g_PS_SunLightDir.xyz ) );
 
   float3 vHalf = normalize( float3(0, 0, 1) + vSunTangent.xyz);

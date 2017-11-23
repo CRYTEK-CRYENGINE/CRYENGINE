@@ -449,7 +449,7 @@ class CCryLobby : public ICryLobbyPrivate, public IDatagramListener
 public:
 	CRYINTERFACE_BEGIN()
 		CRYINTERFACE_ADD(ICryLobby)
-		CRYINTERFACE_ADD(ICryPlugin)
+		CRYINTERFACE_ADD(Cry::IEnginePlugin)
 	CRYINTERFACE_END()
 
 	CRYGENERATE_SINGLETONCLASS_GUID(CCryLobby, "Plugin_CryLobby", "31A1557A-0DBA-4CF8-AD79-86E97CD47A4B"_cry_guid);
@@ -457,12 +457,9 @@ public:
 	CCryLobby();
 	virtual ~CCryLobby();
 
-	// ICryPlugin
-	virtual const char* GetName() const override { return "CryLobby"; }
-	virtual const char* GetCategory() const override { return "Plugin"; }
+	// Cry::IEnginePlugin
 	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override;
-	virtual void OnPluginUpdate(EPluginUpdateType updateType) override {}
-	// ~ICryPlugin
+	// ~Cry::IEnginePlugin
 
 	static ICryLobby*                  GetLobby() { return m_pLobby; }
 

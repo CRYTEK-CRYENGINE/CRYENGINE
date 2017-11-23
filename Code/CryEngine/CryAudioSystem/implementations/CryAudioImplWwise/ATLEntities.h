@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -14,9 +14,6 @@ namespace Impl
 {
 namespace Wwise
 {
-static AkGameObjectID g_listenerId = AK_INVALID_GAME_OBJECT; // To be removed once multi-listener support is implemented.
-static AkGameObjectID s_globalObjectId = AK_INVALID_GAME_OBJECT;
-
 class CObject final : public IObject, public CPoolObject<CObject, stl::PSyncNone>
 {
 public:

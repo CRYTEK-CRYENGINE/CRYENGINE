@@ -957,7 +957,6 @@ void CFormation::Draw()
 		Vec3 possight = pos + posd / 2;
 		dc->DrawCone(possight, posd, 0.05f, 0.2f, colorSight);
 		dc->DrawLine(pos, colorSight, possight, colorSight);
-		dc->SetMaterialColor(1.f, 1.f, 0.0f, alfaSud);
 	}
 
 	if (!m_FormationPoints.empty())

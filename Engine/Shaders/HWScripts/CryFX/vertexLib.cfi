@@ -167,24 +167,16 @@ struct geom2fragZ
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Common motion blur functions
 
-float3x4 MotionBlurData : PI_MotionBlurData;
-
 float4x4 Matrix_Inst_General_Prev(inout streamPos IN)
 {
 	float4x4 matInstPrev;
 
 	// Instancing support
-#if %_RT_PER_INSTANCE_CB_TEMP
+
 	matInstPrev[0] = PerInstancePrevWorldMatrix[0];
 	matInstPrev[1] = PerInstancePrevWorldMatrix[1];
 	matInstPrev[2] = PerInstancePrevWorldMatrix[2];
 	matInstPrev[3] = float4(0, 0, 0, 1);
-#else
-	matInstPrev[0] = MotionBlurData[0];
-	matInstPrev[1] = MotionBlurData[1];
-	matInstPrev[2] = MotionBlurData[2];
-	matInstPrev[3] = float4(0, 0, 0, 1);
-#endif
 
 	// Compose matrixes
 #if %_RT_NEAREST	

@@ -582,9 +582,7 @@ bool CShaderSerialize::ImportShader(CShader* pSH, CShaderManBin& binShaderMgr)
 		gRenDev->LogShaderImportMiss(pSH);
 	}
 
-	CShader* pSave = gRenDev->m_RP.m_pShader;
-	gRenDev->m_RP.m_pShader = pSH;
-	assert(gRenDev->m_RP.m_pShader != 0);
+	assert(pSH != nullptr);
 
 	int nSize = pRes->mfFileRead(pDE);
 	byte* pData = (byte*)pRes->mfFileGetBuf(pDE);
@@ -851,7 +849,6 @@ bool CShaderSerialize::ImportShader(CShader* pSH, CShaderManBin& binShaderMgr)
 
 		pSH->m_HWTechniques.AddElem(pT);
 	}
-	gRenDev->m_RP.m_pShader = pSave;
 
 	g_fTime2 += iTimer->GetAsyncCurTime() - fTime2;
 

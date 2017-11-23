@@ -18,7 +18,7 @@ public:
 	enum PrepareStateT { IDLE, PREPARE_STARTED, PREPARE_DONE, CHECK_REQUESTED, CHECK_STARTED };
 	PrepareStateT m_nPrepareState;
 	CryCriticalSection m_FollowUpLock;
-	char m_passInfoForCheckOcclusion[sizeof(SRenderingPassInfo)];
+	SRenderingPassInfo m_passInfoForCheckOcclusion;
 	uint32 m_nRunningReprojJobs;
 	uint32 m_nRunningReprojJobsAfterMerge;
 	int m_bCheckOcclusionRequested;
@@ -70,7 +70,7 @@ private:
 
 public:
 
-	void CheckOcclusion(SRenderingPassInfo passInfo);
+	void CheckOcclusion();
 	void PrepareOcclusion();
 
 	void PrepareOcclusion_RasterizeZBuffer();

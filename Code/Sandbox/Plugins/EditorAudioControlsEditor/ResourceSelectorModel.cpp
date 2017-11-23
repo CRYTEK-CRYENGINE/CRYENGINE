@@ -3,7 +3,7 @@
 #include "StdAfx.h"
 #include "ResourceSelectorModel.h"
 
-#include "AudioAssets.h"
+#include "SystemAssets.h"
 #include "SystemControlsEditorIcons.h"
 
 #include <QtUtil.h>
@@ -11,9 +11,9 @@
 namespace ACE
 {
 //////////////////////////////////////////////////////////////////////////
-QVariant CResourceControlModel::data(QModelIndex const& index, int role) const
+QVariant CResourceLibraryModel::data(QModelIndex const& index, int role) const
 {
-	CAudioLibrary const* const pLibrary = static_cast<CAudioLibrary*>(index.internalPointer());
+	CSystemLibrary const* const pLibrary = static_cast<CSystemLibrary*>(index.internalPointer());
 
 	if (pLibrary != nullptr)
 	{
@@ -24,11 +24,11 @@ QVariant CResourceControlModel::data(QModelIndex const& index, int role) const
 			break;
 
 		case Qt::DecorationRole:
-			return GetItemTypeIcon(EItemType::Library);
+			return GetItemTypeIcon(ESystemItemType::Library);
 			break;
 
 		case static_cast<int>(EDataRole::ItemType):
-			return static_cast<int>(EItemType::Library);
+			return static_cast<int>(ESystemItemType::Library);
 			break;
 
 		case static_cast<int>(EDataRole::InternalPointer):
@@ -41,11 +41,11 @@ QVariant CResourceControlModel::data(QModelIndex const& index, int role) const
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CResourceControlModel::setData(QModelIndex const& index, QVariant const& value, int role)
+bool CResourceLibraryModel::setData(QModelIndex const& index, QVariant const& value, int role)
 {
 	if (index.isValid())
 	{
-		CAudioAsset const* const pItem = static_cast<CAudioAsset*>(index.internalPointer());
+		CSystemAsset const* const pItem = static_cast<CSystemAsset*>(index.internalPointer());
 
 		if (pItem != nullptr)
 		{
@@ -57,7 +57,7 @@ bool CResourceControlModel::setData(QModelIndex const& index, QVariant const& va
 }
 
 //////////////////////////////////////////////////////////////////////////
-Qt::ItemFlags CResourceControlModel::flags(QModelIndex const& index) const
+Qt::ItemFlags CResourceLibraryModel::flags(QModelIndex const& index) const
 {
 	if (index.isValid())
 	{
@@ -68,24 +68,24 @@ Qt::ItemFlags CResourceControlModel::flags(QModelIndex const& index) const
 }
 
 //////////////////////////////////////////////////////////////////////////
-Qt::DropActions CResourceControlModel::supportedDropActions() const
+Qt::DropActions CResourceLibraryModel::supportedDropActions() const
 {
 	return Qt::IgnoreAction;
 }
 
 //////////////////////////////////////////////////////////////////////////
-QVariant CResourceLibraryModel::data(QModelIndex const& index, int role) const
+QVariant CResourceControlsModel::data(QModelIndex const& index, int role) const
 {
 	if (!index.isValid())
 	{
 		return QVariant();
 	}
 
-	CAudioAsset const* const pItem = static_cast<CAudioAsset*>(index.internalPointer());
+	CSystemAsset const* const pItem = static_cast<CSystemAsset*>(index.internalPointer());
 
 	if (pItem != nullptr)
 	{
-		EItemType const itemType = pItem->GetType();
+		ESystemItemType const itemType = pItem->GetType();
 
 		switch (role)
 		{
@@ -111,11 +111,11 @@ QVariant CResourceLibraryModel::data(QModelIndex const& index, int role) const
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CResourceLibraryModel::setData(QModelIndex const& index, QVariant const& value, int role)
+bool CResourceControlsModel::setData(QModelIndex const& index, QVariant const& value, int role)
 {
 	if (index.isValid())
 	{
-		CAudioAsset const* const pItem = static_cast<CAudioAsset*>(index.internalPointer());
+		CSystemAsset const* const pItem = static_cast<CSystemAsset*>(index.internalPointer());
 
 		if (pItem != nullptr)
 		{
@@ -127,7 +127,7 @@ bool CResourceLibraryModel::setData(QModelIndex const& index, QVariant const& va
 }
 
 //////////////////////////////////////////////////////////////////////////
-Qt::ItemFlags CResourceLibraryModel::flags(QModelIndex const& index) const
+Qt::ItemFlags CResourceControlsModel::flags(QModelIndex const& index) const
 {
 	if (index.isValid())
 	{
@@ -138,7 +138,7 @@ Qt::ItemFlags CResourceLibraryModel::flags(QModelIndex const& index) const
 }
 
 //////////////////////////////////////////////////////////////////////////
-Qt::DropActions CResourceLibraryModel::supportedDropActions() const
+Qt::DropActions CResourceControlsModel::supportedDropActions() const
 {
 	return Qt::IgnoreAction;
 }

@@ -30,7 +30,7 @@ bool CCompiledMonoLibrary::Load()
 	CMonoLibrary* pCoreLibrary = GetMonoRuntime()->GetCryCoreLibrary();
 	
 	std::shared_ptr<CMonoClass> pCompilerClass = pCoreLibrary->GetTemporaryClass("CryEngine.Compilation", "Compiler");
-	std::shared_ptr<CMonoMethod> pCompilationMethod = pCompilerClass->FindMethod("CompileCSharpSourceFiles", 1);
+	std::shared_ptr<CMonoMethod> pCompilationMethod = pCompilerClass->FindMethod("CompileCSharpSourceFiles", 2).lock();
 
 	MonoInternals::MonoArray* pStringArray = MonoInternals::mono_array_new(m_pDomain->GetMonoDomain(), MonoInternals::mono_get_string_class(), sourceFiles.size());
 	for (int i = 0; i < sourceFiles.size(); ++i)
@@ -38,15 +38,45 @@ bool CCompiledMonoLibrary::Load()
 		mono_array_set(pStringArray, MonoInternals::MonoString*, i, mono_string_new(m_pDomain->GetMonoDomain(), sourceFiles[i]));
 	}
 
-	void* pParams[1] = { pStringArray };
+	MonoInternals::MonoString* pOutString = nullptr;
+	void* pParams[2] = { pStringArray, &pOutString };
 	std::shared_ptr<CMonoObject> pResult = pCompilationMethod->InvokeStatic(pParams);
-	if (MonoInternals::MonoReflectionAssembly* pReflectionAssembly = (MonoInternals::MonoReflectionAssembly*)pResult->GetManagedObject())
+	bool hasLoadedAssembly = false;
+	if (pResult)
 	{
-		if (m_pAssembly = mono_reflection_assembly_get_assembly(pReflectionAssembly))
+		if (MonoInternals::MonoReflectionAssembly* pReflectionAssembly = (MonoInternals::MonoReflectionAssembly*)pResult->GetManagedObject())
+		{
+			if (m_pAssembly = MonoInternals::mono_reflection_assembly_get_assembly(pReflectionAssembly))
+			{
+				m_pImage = MonoInternals::mono_assembly_get_image(m_pAssembly);
+				m_assemblyPath = MonoInternals::mono_image_get_filename(m_pImage);
+				hasLoadedAssembly = true;
+			}
+		}
+	}
+	else if(!m_assemblyPath.empty())
+	{
+		// Reload previously working assembly
+		if (m_pAssembly = MonoInternals::mono_domain_assembly_open(m_pDomain->GetHandle(), m_assemblyPath))
+		{
+			m_pImage = MonoInternals::mono_assembly_get_image(m_pAssembly);
+			hasLoadedAssembly = true;
+		}
+	}
+	
+	// If no assembly has been loaded, attempt to load the dll from the default location.
+	// This prevents that no assemblies are loaded when the sandbox is started with compile errors in the C# assets.
+	if(!hasLoadedAssembly)
+	{
+		const char* szAssemblyPath = "user/scripts/CRYENGINE.CSharp.dll";
+		if (m_pAssembly = MonoInternals::mono_domain_assembly_open(m_pDomain->GetHandle(), szAssemblyPath))
 		{
 			m_pImage = MonoInternals::mono_assembly_get_image(m_pAssembly);
 		}
 	}
+
+	const char* szCompileMessage = MonoInternals::mono_string_to_utf8(pOutString);
+	GetMonoRuntime()->NotifyCompileFinished(szCompileMessage);
 
 	return true;
 }

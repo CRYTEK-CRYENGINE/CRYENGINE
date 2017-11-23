@@ -8,6 +8,7 @@
 #include <CrySystem/IWindowMessageHandler.h>
 
 #include <CryMath/Random.h>
+#include <CryCore/Platform/CryLibrary.h>
 
 #include "Timer.h"
 #include <CrySystem/CryVersion.h>
@@ -159,15 +160,9 @@ struct SSystemCVars
 	int sys_enable_crash_handler;
 
 	int sys_intromoviesduringinit;
-	int sys_rendersplashscreen;
+	ICVar* sys_splashscreen;
 
 	int sys_deferAudioUpdateOptim;
-#if USE_STEAM
-	#ifndef RELEASE
-	int     sys_steamAppId;
-	#endif // RELEASE
-	int     sys_useSteamCloudForPlatformSaving;
-#endif // USE_STEAM
 	int     sys_filesystemCaseSensitivity;
 
 	PakVars pakVars;
@@ -259,13 +254,13 @@ public:
 
 	const char*                       GetRootFolder() const override  { return m_root.c_str(); }
 
-	virtual bool                        DoFrame(CEnumFlags<ESystemUpdateFlags> updateFlags = CEnumFlags<ESystemUpdateFlags>()) override;
+	virtual bool                        DoFrame(uintptr_t hWnd = 0, CEnumFlags<ESystemUpdateFlags> updateFlags = CEnumFlags<ESystemUpdateFlags>()) override;
 	virtual IManualFrameStepController* GetManualFrameStepController() const override;
 
 	virtual bool                      UpdateLoadtime() override;
 
 	//! Begin rendering frame.
-	virtual void RenderBegin() override;
+	virtual void RenderBegin(uintptr_t hWnd) override;
 	//! Render subsystems.
 	void Render();
 	//! End rendering frame and swap back buffer.
@@ -301,8 +296,6 @@ public:
 	virtual void IncreaseCheckpointLoadCount() override;
 	virtual void SetLoadOrigin(LevelLoadOrigin origin) override;
 #endif
-
-	virtual bool                 SteamInit() override;
 
 	void                         Relaunch(bool bRelaunch) override;
 	bool                         IsRelaunch() const override        { return m_bRelaunch; };
@@ -358,7 +351,7 @@ public:
 	ISystemEventDispatcher*      GetISystemEventDispatcher() override { return m_pSystemEventDispatcher; }
 	ITestSystem*                 GetITestSystem() override            { return m_pTestSystem.get(); }
 	IUserAnalyticsSystem*        GetIUserAnalyticsSystem() override   { return m_pUserAnalyticsSystem; }
-	ICryPluginManager*           GetIPluginManager() override         { return m_pPluginManager; }
+	Cry::IPluginManager*         GetIPluginManager() override         { return m_pPluginManager; }
 	IProjectManager*             GetIProjectManager() override;
 
 	IResourceManager*            GetIResourceManager() override;
@@ -412,7 +405,7 @@ public:
 
 	virtual Serialization::IArchiveHost* GetArchiveHost() const override         { return m_pArchiveHost; }
 
-	void                                 SetViewCamera(CCamera& Camera) override { m_ViewCamera = Camera; }
+	void                                 SetViewCamera(CCamera& Camera) override;
 	CCamera&                             GetViewCamera() override                { return m_ViewCamera; }
 
 	virtual uint32                       GetCPUFlags() override                  { return m_pCpu ? m_pCpu->GetFeatures() : 0; }
@@ -555,6 +548,7 @@ private:
 	bool Init3DEngine(const SSystemInitParams& startupParams);
 	bool InitAnimationSystem(const SSystemInitParams& startupParams);
 	bool InitMovieSystem(const SSystemInitParams& startupParams);
+	bool InitReflectionSystem(const SSystemInitParams& startupParams);
 	bool InitSchematyc(const SSystemInitParams& startupParams);
 	bool InitEntitySystem(const SSystemInitParams& startupParams);
 	bool InitDynamicResponseSystem(const SSystemInitParams& startupParams);
@@ -672,7 +666,6 @@ private: // ------------------------------------------------------
 	bool               m_bNoCrashDialog;
 	bool               m_bPreviewMode;          //!< If running in Preview mode.
 	bool               m_bUIFrameworkMode;
-	bool               m_bDedicatedServer;      //!< If running as Dedicated server.
 	bool               m_bIgnoreUpdates;        //!< When set to true will ignore Update and Render calls,
 	IValidator*        m_pValidator;            //!< Pointer to validator interface.
 	bool               m_bForceNonDevMode;      //!< true when running on a cheat protected server or a client that is connected to it (not used in singlplayer)
@@ -814,20 +807,6 @@ private: // ------------------------------------------------------
 	ICVar* m_svDedicatedMaxRate;
 	ICVar* m_svAISystem;
 	ICVar* m_clAISystem;
-	ICVar* m_sys_profile;
-	ICVar* m_sys_profile_deep;
-	ICVar* m_sys_profile_additionalsub;
-	ICVar* m_sys_profile_graph;
-	ICVar* m_sys_profile_graphScale;
-	ICVar* m_sys_profile_pagefaultsgraph;
-	ICVar* m_sys_profile_filter;
-	ICVar* m_sys_profile_filter_thread;
-	ICVar* m_sys_profile_network;
-	ICVar* m_sys_profile_peak;
-	ICVar* m_sys_profile_peak_time;
-	ICVar* m_sys_profile_memory;
-	ICVar* m_sys_profile_sampler;
-	ICVar* m_sys_profile_sampler_max_samples;
 	ICVar* m_sys_profile_watchdog_timeout;
 	ICVar* m_sys_job_system_filter;
 	ICVar* m_sys_job_system_enable;
@@ -1034,6 +1013,10 @@ protected: // -------------------------------------------------------------
 
 	CMemoryFragmentationProfiler              m_MemoryFragmentationProfiler;
 
+#if !defined(CRY_IS_MONOLITHIC_BUILD)
+	CCryLibrary m_gameLibrary;
+#endif
+
 	struct SErrorMessage
 	{
 		string m_Message;
@@ -1055,8 +1038,6 @@ protected: // -------------------------------------------------------------
 	friend struct SDefaultValidator;
 	friend struct SCryEngineFoldersLoader;
 	//	friend void ScreenshotCmd( IConsoleCmdArgs *pParams );
-
-	bool m_bIsSteamInitialized;
 
 	std::vector<IWindowMessageHandler*> m_windowMessageHandlers;
 	IImeManager*                        m_pImeManager;

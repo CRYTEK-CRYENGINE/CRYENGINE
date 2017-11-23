@@ -99,7 +99,7 @@ public:
 	~CActionMultiCoopAnimation();
 
 	// IEntityEventListener
-	virtual void OnEntityEvent( IEntity *pEntity,SEntityEvent &event ) override;
+	virtual void OnEntityEvent( IEntity *pEntity, const SEntityEvent& event ) override;
 	// ~IEntityEventListener
 
 	void AddSlave( SParticipant* pSlave );

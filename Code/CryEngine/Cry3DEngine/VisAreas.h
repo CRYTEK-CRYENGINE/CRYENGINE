@@ -262,7 +262,7 @@ struct CVisAreaManager : public IVisAreaManager, Cry3DEngineBase
 	IVisArea*            GetVisAreaFromPos(const Vec3& vPos);
 	bool                 IntersectsVisAreas(const AABB& box, void** pNodeCache = 0);
 	bool                 ClipOutsideVisAreas(Sphere& sphere, Vec3 const& vNormal, void* pNodeCache = 0);
-	bool                 IsEntityVisAreaVisible(IRenderNode* pEnt, int nMaxReqursion, const CDLight* pLight, const SRenderingPassInfo& passInfo);
+	bool                 IsEntityVisAreaVisible(IRenderNode* pEnt, int nMaxReqursion, const SRenderLight* pLight, const SRenderingPassInfo& passInfo);
 	void                 MakeActiveEntransePortalsList(const CCamera* pCamera, PodArray<CVisArea*>& lstActiveEntransePortals, CVisArea* pThisPortal, const SRenderingPassInfo& passInfo);
 	void                 MergeCameras(CCamera& cam, const CCamera& camPlus, const SRenderingPassInfo& passInfo);
 	void                 DrawOcclusionAreasIntoCBuffer(const SRenderingPassInfo& passInfo);
@@ -280,9 +280,9 @@ struct CVisAreaManager : public IVisAreaManager, Cry3DEngineBase
 	virtual int          GetCompiledDataSize(SHotUpdateInfo* pExportInfo);
 	void                 UnregisterEngineObjectsInArea(const SHotUpdateInfo* pExportInfo, PodArray<IRenderNode*>& arrUnregisteredObjects, bool bOnlyEngineObjects);
 	void                 PrecacheLevel(bool bPrecacheAllVisAreas, Vec3* pPrecachePoints, int nPrecachePointsNum);
-	void                 AddLightSource(CDLight* pLight, const SRenderingPassInfo& passInfo);
-	void                 AddLightSourceReqursive(CDLight* pLight, CVisArea* pArea, const int32 nDeepness, const SRenderingPassInfo& passInfo);
-	bool                 IsEntityVisAreaVisibleReqursive(CVisArea* pVisArea, int nMaxReqursion, PodArray<CVisArea*>* pUnavailableAreas, const CDLight* pLight, const SRenderingPassInfo& passInfo);
+	void                 AddLightSource(SRenderLight* pLight, const SRenderingPassInfo& passInfo);
+	void                 AddLightSourceReqursive(SRenderLight* pLight, CVisArea* pArea, const int32 nDeepness, const SRenderingPassInfo& passInfo);
+	bool                 IsEntityVisAreaVisibleReqursive(CVisArea* pVisArea, int nMaxReqursion, PodArray<CVisArea*>* pUnavailableAreas, const SRenderLight* pLight, const SRenderingPassInfo& passInfo);
 	bool                 IsAABBVisibleFromPoint(AABB& aabb, Vec3 vPos);
 	bool                 FindShortestPathToVisArea(CVisArea* pThisArea, CVisArea* pTargetArea, PodArray<CVisArea*>& arrVisitedAreas, int& nRecursion, const struct Shadowvolume& sv);
 

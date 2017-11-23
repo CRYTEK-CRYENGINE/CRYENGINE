@@ -38,6 +38,20 @@ namespace UQS
 			m_numItems = numItemsToCreate;
 		}
 
+		void CItemList::CloneItems(const void* pOriginalItems, size_t numItemsToClone)
+		{
+			assert(pOriginalItems);
+
+			// ensure SetItemFactory() has been called prior
+			assert(m_pItemFactory);
+
+			// ensure that no items have been created yet (we don't support recycling the item list)
+			assert(!m_pItems);
+
+			m_pItems = m_pItemFactory->CloneItems(pOriginalItems, numItemsToClone);
+			m_numItems = numItemsToClone;
+		}
+
 		size_t CItemList::GetItemCount() const
 		{
 			return m_numItems;

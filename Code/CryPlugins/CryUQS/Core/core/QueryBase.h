@@ -132,6 +132,7 @@ namespace UQS
 			EUpdateState                                Update(const CTimeValue& amountOfGrantedTime, Shared::CUqsString& error);
 			void                                        Cancel();
 			void                                        GetStatistics(SStatistics& out) const;
+			void                                        EmitTimeExcessWarningToConsoleAndQueryHistory(const CTimeValue& timeGranted, const CTimeValue& timeUsed) const;
 
 			// careful: using the result while the query is still in EUpdateState::StillRunning state is undefined behavior
 			QueryResultSetUniquePtr                     ClaimResultSet();

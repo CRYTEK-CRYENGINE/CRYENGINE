@@ -605,7 +605,6 @@ void CParserBin::Init()
 	FX_REGISTER_TOKEN(Glass);
 	FX_REGISTER_TOKEN(Vegetation);
 	FX_REGISTER_TOKEN(Particle);
-	FX_REGISTER_TOKEN(GenerateSprites);
 	FX_REGISTER_TOKEN(GenerateClouds);
 	FX_REGISTER_TOKEN(ScanWater);
 
@@ -619,7 +618,6 @@ void CParserBin::Init()
 	FX_REGISTER_TOKEN(TechniqueCustomRender);
 	FX_REGISTER_TOKEN(TechniqueEffectLayer);
 	FX_REGISTER_TOKEN(TechniqueDebug);
-	FX_REGISTER_TOKEN(TechniqueSoftAlphaTest);
 	FX_REGISTER_TOKEN(TechniqueWaterRefl);
 	FX_REGISTER_TOKEN(TechniqueWaterCaustic);
 	FX_REGISTER_TOKEN(TechniqueThickness);

@@ -33,7 +33,7 @@ public:
 	// ISimpleExtension
 	virtual IEntityPropertyGroup* GetPropertyGroup() final { return this; }
 
-	virtual void ProcessEvent(SEntityEvent& event) override;
+	virtual void ProcessEvent(const SEntityEvent& event) override;
 	// ~ISimpleExtension
 
 	// IEntityPropertyGroup

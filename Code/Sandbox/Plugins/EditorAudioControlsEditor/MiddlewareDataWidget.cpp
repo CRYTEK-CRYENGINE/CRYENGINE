@@ -3,12 +3,15 @@
 #include "StdAfx.h"
 #include "MiddlewareDataWidget.h"
 
-#include "IAudioSystemEditor.h"
 #include "AudioControlsEditorPlugin.h"
 #include "MiddlewareDataModel.h"
 #include "ImplementationManager.h"
+#include "SystemAssetsManager.h"
+#include "SystemControlsEditorIcons.h"
 #include "AudioTreeView.h"
 
+#include <IEditorImpl.h>
+#include <ImplItem.h>
 #include <CryIcon.h>
 #include <QSearchBox.h>
 #include <QtUtil.h>
@@ -60,8 +63,9 @@ private:
 };
 
 //////////////////////////////////////////////////////////////////////////
-CMiddlewareDataWidget::CMiddlewareDataWidget()
-	: m_pFilterProxyModel(new CMiddlewareDataFilterProxyModel(this))
+CMiddlewareDataWidget::CMiddlewareDataWidget(CSystemAssetsManager* pAssetsManager)
+	: m_pAssetsManager(pAssetsManager)
+	, m_pFilterProxyModel(new CMiddlewareDataFilterProxyModel(this))
 	, m_pAssetsModel(new CMiddlewareDataModel())
 	, m_pHideAssignedButton(new QToolButton())
 	, m_pImplNameLabel(new CElidedLabel(""))
@@ -75,11 +79,11 @@ CMiddlewareDataWidget::CMiddlewareDataWidget()
 	QVBoxLayout* const pMainLayout = new QVBoxLayout(this);
 	pMainLayout->setContentsMargins(0, 0, 0, 0);
 
-	IAudioSystemEditor const* const pAudioImpl = CAudioControlsEditorPlugin::GetAudioSystemEditorImpl();
+	IEditorImpl const* const pEditorImpl = CAudioControlsEditorPlugin::GetImplEditor();
 
-	if (pAudioImpl != nullptr)
+	if (pEditorImpl != nullptr)
 	{
-		m_pImplNameLabel->SetLabelText(QtUtil::ToQString(pAudioImpl->GetName()));
+		m_pImplNameLabel->SetLabelText(QtUtil::ToQString(pEditorImpl->GetName()));
 	}
 
 	pMainLayout->addWidget(m_pImplNameLabel);
@@ -100,11 +104,22 @@ CMiddlewareDataWidget::CMiddlewareDataWidget()
 	
 	CAudioControlsEditorPlugin::GetImplementationManger()->signalImplementationChanged.Connect([&]()
 	{
-		IAudioSystemEditor const* const pAudioImpl = CAudioControlsEditorPlugin::GetAudioSystemEditorImpl();
+		IEditorImpl const* const pEditorImpl = CAudioControlsEditorPlugin::GetImplEditor();
 
-		if (pAudioImpl != nullptr)
+		if (pEditorImpl != nullptr)
 		{
-			m_pImplNameLabel->SetLabelText(QtUtil::ToQString(pAudioImpl->GetName()));
+			m_pImplNameLabel->SetLabelText(QtUtil::ToQString(pEditorImpl->GetName()));
+		}
+	}, reinterpret_cast<uintptr_t>(this));
+
+	m_pAssetsManager->signalIsDirty.Connect([&](bool const isDirty)
+	{
+		if (isDirty)
+		{
+			if (m_pFilterProxyModel->IsHideConnected())
+			{
+				m_pFilterProxyModel->invalidate();
+			}
 		}
 	}, reinterpret_cast<uintptr_t>(this));
 }
@@ -113,6 +128,7 @@ CMiddlewareDataWidget::CMiddlewareDataWidget()
 CMiddlewareDataWidget::~CMiddlewareDataWidget()
 {
 	CAudioControlsEditorPlugin::GetImplementationManger()->signalImplementationChanged.DisconnectById(reinterpret_cast<uintptr_t>(this));
+	m_pAssetsManager->signalIsDirty.DisconnectById(reinterpret_cast<uintptr_t>(this));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -178,13 +194,47 @@ void CMiddlewareDataWidget::InitFilterWidgets(QVBoxLayout* const pMainLayout)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CMiddlewareDataWidget::OnContextMenu(QPoint const& pos) const
+void CMiddlewareDataWidget::OnContextMenu(QPoint const& pos)
 {
 	QMenu* const pContextMenu = new QMenu();
 	auto const& selection = m_pTreeView->selectionModel()->selectedRows();
 
 	if (!selection.isEmpty())
 	{
+		if ((selection.count() == 1) && (m_pAssetsManager != nullptr))
+		{
+			IEditorImpl const* const pEditorImpl = CAudioControlsEditorPlugin::GetImplEditor();
+
+			if (pEditorImpl != nullptr)
+			{
+				CID const itemId = selection[0].data(static_cast<int>(CMiddlewareDataModel::EMiddlewareDataAttributes::Id)).toInt();
+				CImplItem const* const pImplControl = pEditorImpl->GetControl(itemId);
+
+				if ((pImplControl != nullptr) && pImplControl->IsConnected())
+				{
+					QMenu* const pConnectionsMenu = new QMenu();
+					auto const controls = m_pAssetsManager->GetControls();
+					int count = 0;
+
+					for (auto const pControl : controls)
+					{
+						if (pControl->GetConnection(pImplControl) != nullptr)
+						{
+							pConnectionsMenu->addAction(GetItemTypeIcon(pControl->GetType()), tr(pControl->GetName()), [=]() { SelectConnectedSystemControl(pControl); });
+							++count;
+						}
+					}
+
+					if (count > 0)
+					{
+						pConnectionsMenu->setTitle(tr("Connections (" + ToString(count) + ")"));
+						pContextMenu->addMenu(pConnectionsMenu);
+						pContextMenu->addSeparator();
+					}
+				}
+			}
+		}
+
 		pContextMenu->addAction(tr("Expand Selection"), [&]() { m_pTreeView->ExpandSelection(m_pTreeView->GetSelectedIndexes()); });
 		pContextMenu->addAction(tr("Collapse Selection"), [&]() { m_pTreeView->CollapseSelection(m_pTreeView->GetSelectedIndexes()); });
 		pContextMenu->addSeparator();

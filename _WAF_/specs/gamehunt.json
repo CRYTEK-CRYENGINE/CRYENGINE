@@ -1,6 +1,6 @@
 {
 	"description"                           : "Configuration to build Engine and GameHunt",
-	"valid_platforms"                       : [ "win", "durango", "orbis" ],
+	"valid_platforms"                       : [ "win" ],
 	"valid_configuration"                   : [ "debug", "profile", "performance", "release" ],
 	"visual_studio_name"                    : "Hunt",
 
@@ -53,6 +53,7 @@
 		
 		"CryCloudClient",
 		"CryDescriptor",
+		"CrySchematyc",		
 		"CrySchematycLegacyCore",
 		"CrySchematycLegacyBaseEnv",
 		"OnlineProtocol",
@@ -66,8 +67,7 @@
 		"CryUQS_Core",
 		
 		"CryAudioImplWwise",
-		"CrySchematyc",
-
+		
 		"CryGameHunt"
 	],
 		

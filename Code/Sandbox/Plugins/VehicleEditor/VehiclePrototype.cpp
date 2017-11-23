@@ -219,8 +219,6 @@ void CVehiclePrototype::Display(DisplayContext& dc)
 			if (!pRenderNode)
 				return;
 
-			SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(GetIEditor()->GetSystem()->GetViewCamera());
-
 			SRendParams rp;
 			rp.dwFObjFlags |= FOB_TRANS_MASK;
 			rp.AmbientColor = ColorF(1, 1, 1, 1);
@@ -228,6 +226,7 @@ void CVehiclePrototype::Display(DisplayContext& dc)
 			//rp.nDLightMask = GetIEditor()->Get3DEngine()->GetLightMaskFromPosition(wtm.GetTranslation(),1.f) & 0xFFFF;
 			//rp.pMaterial = GetIEditor()->GetIconManager()->GetHelperMaterial();
 
+			SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(GetIEditor()->GetSystem()->GetViewCamera(), SRenderingPassInfo::DEFAULT_FLAGS, true, dc.GetDisplayContextHandle());
 			pRenderNode->Render(rp, passInfo);
 		}
 

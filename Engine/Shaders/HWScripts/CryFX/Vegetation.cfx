@@ -31,9 +31,6 @@ float Script : STANDARDSGLOBAL
 
 // Un-Tweakables /////////////////
 
-float4 BaseTCMatrix        : PB_TerrainBaseMatrix;
-float4 BlendTerrainColInfo : PB_BlendTerrainColInfo;
-
 ///////////////// Samplers //////////////////
 OPACITYMAP
 ENVIRONMENTCUBEMAP

@@ -131,7 +131,7 @@ namespace Cry
 			}
 		}
 
-		void CBreakableJointComponent::ProcessEvent(SEntityEvent& event)
+		void CBreakableJointComponent::ProcessEvent(const SEntityEvent& event)
 		{
 			if (event.event == ENTITY_EVENT_PHYSICAL_TYPE_CHANGED)
 			{

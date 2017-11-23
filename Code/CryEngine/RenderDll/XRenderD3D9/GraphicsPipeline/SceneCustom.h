@@ -39,14 +39,19 @@ public:
 public:
 	CSceneCustomStage();
 
-	virtual void Init() override;
-	virtual void Prepare(CRenderView* pRenderView) override;
+	static bool DoDebugRendering();
+	static bool DoDebugOverlay();
+
+	void Init() final;
+	void Update() final;
+	void Prepare();
 
 	void Execute();
 	void ExecuteSilhouettePass();
-	void ExecuteHelperPass();
-	void Execute_DebugModes();
-	void Execute_SelectionID();
+	void ExecuteHelpers();
+	void ExecuteDebugger();
+	void ExecuteDebugOverlay();
+	void ExecuteSelectionHighlight();
 
 	bool CreatePipelineStates(DevicePipelineStatesArray* pStateArray, const SGraphicsPipelineStateDescription& stateDesc, CGraphicsPipelineStateLocalCache* pStateCache);
 	bool CreatePipelineState(const SGraphicsPipelineStateDescription& desc, EPass passID, CDeviceGraphicsPSOPtr& outPSO);
@@ -65,6 +70,4 @@ private:
 	CFullscreenPass          m_highlightPass;
 
 	CSceneRenderPass         m_silhouetteMaskPass;
-
-	SDepthTexture            m_depthTarget;
 };

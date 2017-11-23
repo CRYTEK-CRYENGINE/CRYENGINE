@@ -43,7 +43,6 @@ private:
 
 	Vec4  m_startColor;
 	bool  m_bActive;
-	float m_screenWidth, m_screenHeight;
 	int   m_lastActivatedKey;
 	bool  m_texPrecached;
 };

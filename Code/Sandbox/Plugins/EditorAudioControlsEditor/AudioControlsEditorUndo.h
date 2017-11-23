@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AudioAssets.h"
+#include "SystemAssets.h"
 #include "IUndoObject.h"
 #include "SystemControlsModel.h"
 
@@ -26,7 +26,7 @@ protected:
 
 	TPath                          m_path;
 	CID                            m_id;
-	std::shared_ptr<CAudioControl> m_pStoredControl;
+	std::shared_ptr<CSystemControl> m_pStoredControl;
 };
 
 class CUndoControlAdd : public IUndoControlOperation
@@ -36,18 +36,18 @@ public:
 protected:
 	virtual const char* GetDescription() override { return "Undo Control Add"; };
 
-	virtual void        Undo(bool bUndo) override;
+	virtual void        Undo(bool isUndo) override;
 	virtual void        Redo() override;
 };
 
 class CUndoControlRemove : public IUndoControlOperation
 {
 public:
-	explicit CUndoControlRemove(std::shared_ptr<CAudioControl>& pControl);
+	explicit CUndoControlRemove(std::shared_ptr<CSystemControl>& pControl);
 protected:
 	virtual const char* GetDescription() override { return "Undo Control Remove"; };
 
-	virtual void        Undo(bool bUndo) override;
+	virtual void        Undo(bool isUndo) override;
 	virtual void        Redo() override;
 };
 
@@ -70,7 +70,7 @@ public:
 protected:
 	virtual const char* GetDescription() override { return "Undo Folder Remove"; };
 
-	virtual void        Undo(bool bUndo) override;
+	virtual void        Undo(bool isUndo) override;
 	virtual void        Redo() override;
 };
 
@@ -81,7 +81,7 @@ public:
 protected:
 	virtual const char* GetDescription() override { return "Undo Folder Add"; };
 
-	virtual void        Undo(bool bUndo) override;
+	virtual void        Undo(bool isUndo) override;
 	virtual void        Redo() override;
 };
 
@@ -94,13 +94,13 @@ protected:
 	virtual const char* GetDescription() override { return "Undo Control Changed"; };
 
 	void                SwapData();
-	virtual void        Undo(bool bUndo) override;
+	virtual void        Undo(bool isUndo) override;
 	virtual void        Redo() override;
 
 	CID                        m_id;
 	string                     m_name;
 	Scope                      m_scope;
-	bool                       m_bAutoLoad;
+	bool                       m_isAutoLoad;
 	std::vector<ConnectionPtr> m_connectedControls;
 };
 
@@ -113,13 +113,13 @@ public:
 protected:
 	virtual const char* GetDescription() override { return "Undo Control Changed"; };
 
-	virtual void        Undo(bool bUndo) override;
+	virtual void        Undo(bool isUndo) override;
 	virtual void        Redo() override;
 	//void                Copy(QStandardItem* pSource, QStandardItem* pDest);
 
 	/*QATLTreeModel m_original;
 	   QATLTreeModel m_modified;*/
 
-	bool bModifiedInitialised;
+	bool m_isModifiedInitialised;
 };
 }

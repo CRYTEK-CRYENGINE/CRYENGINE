@@ -2,10 +2,12 @@
 
 #include "StdAfx.h"
 #include "FileMonitor.h"
-#include "IAudioSystemEditor.h"
-#include "AudioAssetsManager.h"
+
+#include "IEditorImpl.h"
+#include "SystemAssetsManager.h"
 #include "AudioControlsEditorPlugin.h"
 #include "AudioControlsEditorWindow.h"
+
 #include <CryString/CryPath.h>
 
 namespace ACE
@@ -27,7 +29,7 @@ CFileMonitor::~CFileMonitor()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFileMonitor::OnFileChange(const char* filename, EChangeType eType)
+void CFileMonitor::OnFileChange(char const* filename, EChangeType eType)
 {
 	start(m_delay);
 }
@@ -78,24 +80,24 @@ CFileMonitorMiddleware::CFileMonitorMiddleware(CAudioControlsEditorWindow* const
 //////////////////////////////////////////////////////////////////////////
 void CFileMonitorMiddleware::Enable()
 {
-	IAudioSystemEditor* const pAudioSystemImpl = CAudioControlsEditorPlugin::GetAudioSystemEditorImpl();
+	IEditorImpl* const pEditorImpl = CAudioControlsEditorPlugin::GetImplEditor();
 
-	if (pAudioSystemImpl != nullptr)
+	if (pEditorImpl != nullptr)
 	{
-		IImplementationSettings const* const pSettings = pAudioSystemImpl->GetSettings();
+		IImplSettings const* const pImplSettings = pEditorImpl->GetSettings();
 
-		if (pSettings != nullptr)
+		if (pImplSettings != nullptr)
 		{
 			stop();
 			m_monitorFolders.clear();
 
 			int const gameFolderPathLength = (PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR).GetLength();
 
-			string const& projectPath = pSettings->GetProjectPath();
+			string const& projectPath = pImplSettings->GetProjectPath();
 			string const& projectPathSubstr = projectPath.substr(gameFolderPathLength);
 			m_monitorFolders.emplace_back(projectPathSubstr.c_str());
 
-			string const& soundBanksPath = pSettings->GetSoundBanksPath();
+			string const& soundBanksPath = pImplSettings->GetSoundBanksPath();
 			string const& soundBanksPathSubstr = (soundBanksPath).substr(gameFolderPathLength);
 			m_monitorFolders.emplace_back(soundBanksPathSubstr.c_str());
 

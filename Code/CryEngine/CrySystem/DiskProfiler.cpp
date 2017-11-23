@@ -123,8 +123,8 @@ void Draw2dLabel(float x, float y, float font_size, const float* pfColor, bool b
 
 void CDiskProfiler::Render()
 {
-	const int width = gEnv->pRenderer->GetWidth();
-	const int height = gEnv->pRenderer->GetHeight();
+	const int width  = gEnv->pRenderer->GetOverlayWidth();
+	const int height = gEnv->pRenderer->GetOverlayHeight();
 
 	// by default it's located at the bottom of the screen
 	m_nHeightOffset = (height - 20);
@@ -134,7 +134,7 @@ void CDiskProfiler::Render()
 
 	float timeNow = gEnv->pTimer->GetAsyncCurTime();
 
-	gEnv->pRenderer->Set2DMode(true, width, height);
+	gEnv->pRenderer->GetIRenderAuxGeom()->SetOrthographicProjection(true, 0.0f, width, height, 0.0f);
 
 	IRenderAuxGeom* pAux = gEnv->pRenderer->GetIRenderAuxGeom();
 
@@ -285,7 +285,7 @@ void CDiskProfiler::Render()
 		}
 	}
 
-	gEnv->pRenderer->Set2DMode(false, 0, 0);
+	gEnv->pRenderer->GetIRenderAuxGeom()->SetOrthographicProjection(false);
 }
 
 void CDiskProfiler::Update()
@@ -325,8 +325,8 @@ void CDiskProfiler::RenderBlock(const float timeStart, const float timeEnd, cons
 
 	const float timeNow = gEnv->pTimer->GetAsyncCurTime();
 
-	const int width = gEnv->pRenderer->GetWidth();
-	const int height = gEnv->pRenderer->GetHeight();
+	const int width  = gEnv->pRenderer->GetOverlayWidth();
+	const int height = gEnv->pRenderer->GetOverlayHeight();
 
 	static const float halfSize = 8;  // bar thickness
 

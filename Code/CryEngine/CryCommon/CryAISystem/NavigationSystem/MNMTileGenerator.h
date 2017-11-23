@@ -20,7 +20,7 @@ struct SExtensionParams
 {
 	::AABB                 tileAabbWorld;         //!< Tile's bounding box
 	::AABB                 extendedTileAabbWorld; //!< Tile's extended bounding box, which includes pieces of neighbors
-	NavigationAgentTypeID  navAgentTypeId;        //!< Navigation agent type for wich the NavMesh is generated
+	NavigationAgentTypeID  navAgentTypeId;        //!< Navigation agent type for which the NavMesh is generated
 
 	const SBoundingVolume* pBoundaryVolume;       //!< Optional pointer to a boundary volume
 	const SBoundingVolume* pExclusionVolumes;     //!< Optional pointer to array of exclusion volumes
@@ -35,9 +35,9 @@ struct IMesh
 	//! Add triangles to the tile's NavMesh.
 	//! \param pTrianglesWorld Array of triangles in the world space.
 	//! \param count Count of triangles.
-	//! \param flags Triangle flags which will be set on all added triangles.
+	//! \param areaAnnotation Triangle annotation which will be set on all added triangles.
 	//! \return true if all triangles were added and there is more space left.
-	virtual bool AddTrianglesWorld(const Triangle* pTrianglesWorld, const size_t count, const Tile::STriangle::EFlags flags) = 0;
+	virtual bool AddTrianglesWorld(const Triangle* pTrianglesWorld, const size_t count, const AreaAnnotation areaAnnotation) = 0;
 };
 
 //! Tile generator extension can inject addition navigation data into MNM tile during NavMesh generation.

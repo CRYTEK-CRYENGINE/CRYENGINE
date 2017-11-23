@@ -28,6 +28,7 @@ struct IMannequinEditorManager;
 struct IMannequinGameListener;
 class CAnimationDatabase;
 struct AnimEventInstance;
+struct IMannequinWriter;
 
 struct IProceduralParams;
 DECLARE_SHARED_POINTERS(IProceduralParams);
@@ -1002,6 +1003,7 @@ public:
 	virtual const IAnimationDatabase* Load(const char* filename) = 0;
 	virtual const SControllerDef*     LoadControllerDef(const char* filename) = 0;
 	virtual const CTagDefinition*     LoadTagDefs(const char* filename, bool isTags) = 0;
+	virtual void					  SaveAll(IMannequinWriter* pWriter) const = 0;
 
 	virtual const SControllerDef*     FindControllerDef(const uint32 crcFilename) const = 0;
 	virtual const SControllerDef*     FindControllerDef(const char* filename) const = 0;

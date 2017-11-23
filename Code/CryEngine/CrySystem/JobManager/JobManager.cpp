@@ -919,8 +919,8 @@ void JobManager::CJobManager::Update(int nJobSystemProfiler)
 	gEnv->pRenderer->GetThreadIDs(nMainThreadId, nRenderThreadId);
 
 	// now compute the relative screen size, and how many pixels are represented by a time value
-	int nScreenHeight = gEnv->IsEditor() ? gEnv->pRenderer->GetHeight() : gEnv->pRenderer->GetOverlayHeight();
-	int nScreenWidth = gEnv->IsEditor() ? gEnv->pRenderer->GetWidth() : gEnv->pRenderer->GetOverlayWidth();
+	int nScreenHeight = gEnv->pRenderer->GetOverlayHeight();
+	int nScreenWidth  = gEnv->pRenderer->GetOverlayWidth();
 
 	float fScreenHeight = (float)nScreenHeight;
 	float fScreenWidth = (float)nScreenWidth;

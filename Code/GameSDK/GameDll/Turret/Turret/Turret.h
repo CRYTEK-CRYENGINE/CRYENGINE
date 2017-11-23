@@ -54,7 +54,7 @@ public:
 
 	// IEntityEvent
 	virtual uint64 GetEventMask() const { return ~(0); } // All events
-	virtual	void ProcessEvent( SEntityEvent &event );
+	virtual	void ProcessEvent( const SEntityEvent &event );
 	// ~IEntityEvent
 
 	// IGameObjectExtension

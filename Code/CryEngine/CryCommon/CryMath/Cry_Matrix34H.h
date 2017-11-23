@@ -104,6 +104,11 @@ template<typename F> struct Matrix34H
 		return mat().GetUniformScale();
 	}
 
+	ILINE Vec3 GetScale() const
+	{
+		return mat().GetScale();
+	}
+
 	Matrix34H& Magnitude(const Matrix34H& m)
 	{
 		x = crymath::abs(m.x.v);

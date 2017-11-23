@@ -35,9 +35,6 @@ SCENE_DEPTH_MAP
 
 /// Un-Tweakables //////////////////////
 
-float4 BlendTerrainColInfo : PB_BlendTerrainColInfo;
-float4x4 LayerTexGen       : PB_TerrainLayerGen;
-
 //=========================================================================
 
 // Tweakables /////////////////

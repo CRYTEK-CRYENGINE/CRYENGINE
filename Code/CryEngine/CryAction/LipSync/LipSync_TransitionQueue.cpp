@@ -466,7 +466,7 @@ void CLipSync_TransitionQueue::HandleEvent(const SGameObjectEvent& event)
 {
 }
 
-void CLipSync_TransitionQueue::ProcessEvent(SEntityEvent& event)
+void CLipSync_TransitionQueue::ProcessEvent(const SEntityEvent& event)
 {
 }
 

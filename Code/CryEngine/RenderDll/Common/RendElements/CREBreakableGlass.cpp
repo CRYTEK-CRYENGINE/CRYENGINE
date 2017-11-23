@@ -453,7 +453,7 @@ void CREBreakableGlass::Update(SBreakableGlassUpdateParams& params)
 			const uint8 buffId = fragData & 0xFF;
 			const uint8 fragId = (fragData >> 8) & 0xFF;
 
-			if (m_fragGeomBufferIds[buffId].m_fragId == fragId)
+			if (buffId < GLASSCFG_MAX_NUM_PHYS_FRAGMENTS && m_fragGeomBufferIds[buffId].m_fragId == fragId)
 			{
 				m_fragGeomBufferIds[buffId].m_fragId = GLASSCFG_FRAGMENT_ARRAY_SIZE;
 				m_fragGeomBufferIds[buffId].m_geomBufferId = NO_BUFFER;

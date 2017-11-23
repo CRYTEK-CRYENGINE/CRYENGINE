@@ -63,7 +63,7 @@ void CDomain::SerializeInplace(Serialization::IArchive& ar)
 			ar(m_sourceOwner, "Owner", "Owner");
 		break;
 	case EDomain::Attribute:
-		ar(m_attributeName, "AttributeName", "Attribute Name");
+		ar(m_attribute, "AttributeName", "Attribute Name");
 		m_sourceOwner = EDomainOwner::_None;
 		break;
 	case EDomain::Global:
@@ -120,7 +120,7 @@ string CDomain::GetSourceDescription() const
 		desc = "Parent ";
 
 	if (m_domain == EDomain::Attribute)
-		desc += "Attribute: ", desc += m_attributeName;
+		desc += "Attribute: ", desc += m_attribute.Name().c_str();
 	else if (m_domain == EDomain::Field)
 		desc += Serialization::getEnumLabel(m_fieldSource);
 	else
@@ -151,11 +151,10 @@ float CDomain::GetGlobalValue(EDomainGlobal source) const
 
 namespace detail
 {
-	CAttributeSampler::CAttributeSampler(const SUpdateContext& context, const string& m_attributeName)
+	CAttributeSampler::CAttributeSampler(const SUpdateContext& context, const CAttributeReference& attr)
 	{
 		const CAttributeInstance& attributes = context.m_runtime.GetEmitter()->GetAttributeInstance();
-		auto attributeId = attributes.FindAttributeIdByName(m_attributeName.c_str());
-		m_attributeValue = ToFloatv(attributes.GetAsFloat(attributeId, 1.0f));
+		m_attributeValue = ToFloatv(attr.GetValueAs(attributes, 1.0f));
 	}
 }
 

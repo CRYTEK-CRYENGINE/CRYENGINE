@@ -23,7 +23,6 @@
 //////////////////////////////////////////////////////////////////////////
 CEntityLoadManager::~CEntityLoadManager()
 {
-	stl::free_container(m_queuedAttachments);
 	stl::free_container(m_queuedFlowgraphs);
 }
 
@@ -517,12 +516,42 @@ bool CEntityLoadManager::CreateEntity(SEntityLoadParams& loadParams, EntityId& o
 			}
 		}
 
+		const char* szAttachmentType = entityNode->getAttr("AttachmentType");
+		spawnParams.attachmentParams.m_target = entityNode->getAttr("AttachmentTarget");
+
+		if (strcmp(szAttachmentType, "GeomCacheNode") == 0)
+		{
+			spawnParams.attachmentParams.m_nAttachFlags |= IEntity::ATTACHMENT_GEOMCACHENODE;
+		}
+		else if (strcmp(szAttachmentType, "CharacterBone") == 0)
+		{
+			spawnParams.attachmentParams.m_nAttachFlags |= IEntity::ATTACHMENT_CHARACTERBONE;
+		}
+
+		// Add attachment to parent.
+		EntityGUID parentGuid;
+		if (entityNode->getAttr("ParentGuid", parentGuid))
+		{
+			spawnParams.pParent = g_pIEntitySystem->GetEntity(g_pIEntitySystem->FindEntityByGuid(parentGuid));
+			CRY_ASSERT_MESSAGE(spawnParams.pParent != nullptr, "Parent must have been spawned before the child!");
+		}
+		else
+		{
+			// Legacy maps loading.
+			EntityId nParentId = 0;
+			if (entityNode->getAttr("ParentId", nParentId))
+			{
+				spawnParams.pParent = g_pIEntitySystem->GetEntity(nParentId);
+				CRY_ASSERT_MESSAGE(spawnParams.pParent != nullptr, "Parent must have been spawned before the child!");
+			}
+		}
+
 		if (bWasSpawned)
 		{
 			const bool bInited = g_pIEntitySystem->InitEntity(pSpawnedEntity, spawnParams);
 			if (!bInited)
 			{
-				// Failed to initialise an entity, need to bail or we'll crash
+				// Failed to initialize an entity, need to bail or we'll crash
 				return true;
 			}
 		}
@@ -553,35 +582,6 @@ bool CEntityLoadManager::CreateEntity(SEntityLoadParams& loadParams, EntityId& o
 				else
 				{
 					pSpawnedEntity->LoadGeometry(0, sGeom, 0, IEntity::EF_AUTO_PHYSICALIZE);
-				}
-			}
-
-			const char* attachmentType = entityNode->getAttr("AttachmentType");
-			const char* attachmentTarget = entityNode->getAttr("AttachmentTarget");
-
-			int flags = 0;
-			if (strcmp(attachmentType, "GeomCacheNode") == 0)
-			{
-				flags |= IEntity::ATTACHMENT_GEOMCACHENODE;
-			}
-			else if (strcmp(attachmentType, "CharacterBone") == 0)
-			{
-				flags |= IEntity::ATTACHMENT_CHARACTERBONE;
-			}
-
-			// Add attachment to parent.
-			EntityGUID parentGuid;
-			if (entityNode->getAttr("ParentGuid", parentGuid))
-			{
-				AddQueuedAttachment(0, parentGuid, spawnParams.id, spawnParams.vPosition, spawnParams.qRotation, spawnParams.vScale, flags, attachmentTarget);
-			}
-			else
-			{
-				// Legacy maps loading.
-				EntityId nParentId = 0;
-				if (entityNode->getAttr("ParentId", nParentId))
-				{
-					AddQueuedAttachment(nParentId, CryGUID::Null(), spawnParams.id, spawnParams.vPosition, spawnParams.qRotation, spawnParams.vScale, flags, attachmentTarget);
 				}
 			}
 
@@ -634,27 +634,8 @@ bool CEntityLoadManager::CreateEntity(SEntityLoadParams& loadParams, EntityId& o
 //////////////////////////////////////////////////////////////////////////
 void CEntityLoadManager::PrepareBatchCreation(int nSize)
 {
-	m_queuedAttachments.clear();
 	m_queuedFlowgraphs.clear();
-
-	m_queuedAttachments.reserve(nSize);
 	m_queuedFlowgraphs.reserve(nSize);
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CEntityLoadManager::AddQueuedAttachment(EntityId nParent, EntityGUID parentGuid, EntityId nChild, const Vec3& pos, const Quat& rot, const Vec3& scale, const int flags, const char* target)
-{
-	SEntityAttachment entityAttachment;
-	entityAttachment.child = nChild;
-	entityAttachment.parent = nParent;
-	entityAttachment.parentGuid = parentGuid;
-	entityAttachment.pos = pos;
-	entityAttachment.rot = rot;
-	entityAttachment.scale = scale;
-	entityAttachment.flags = flags;
-	entityAttachment.target = target;
-
-	m_queuedAttachments.push_back(entityAttachment);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -680,32 +661,6 @@ void CEntityLoadManager::AddQueuedEntityLink(CEntity* pEntity, XmlNodeRef& pNode
 //////////////////////////////////////////////////////////////////////////
 void CEntityLoadManager::OnBatchCreationCompleted()
 {
-	// Load attachments
-	TQueuedAttachments::iterator itQueuedAttachment = m_queuedAttachments.begin();
-	TQueuedAttachments::iterator itQueuedAttachmentEnd = m_queuedAttachments.end();
-	for (; itQueuedAttachment != itQueuedAttachmentEnd; ++itQueuedAttachment)
-	{
-		const SEntityAttachment& entityAttachment = *itQueuedAttachment;
-
-		CEntity* pChild = g_pIEntitySystem->GetEntityFromID(entityAttachment.child);
-		if (pChild)
-		{
-			EntityId parentId = entityAttachment.parent;
-			if (!entityAttachment.parentGuid.IsNull())
-			{
-				parentId = g_pIEntitySystem->FindEntityByGuid(entityAttachment.parentGuid);
-			}
-			CEntity* pParent = g_pIEntitySystem->GetEntityFromID(parentId);
-			if (pParent)
-			{
-				SChildAttachParams attachParams(entityAttachment.flags, entityAttachment.target.c_str());
-				pParent->AttachChild(pChild, attachParams);
-				pChild->SetLocalTM(Matrix34::Create(entityAttachment.scale, entityAttachment.rot, entityAttachment.pos));
-			}
-		}
-	}
-	m_queuedAttachments.clear();
-
 	// Load flowgraphs
 	TQueuedFlowgraphs::iterator itQueuedFlowgraph = m_queuedFlowgraphs.begin();
 	TQueuedFlowgraphs::iterator itQueuedFlowgraphEnd = m_queuedFlowgraphs.end();

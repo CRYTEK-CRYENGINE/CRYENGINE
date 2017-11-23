@@ -59,7 +59,7 @@ public:
 	bool InitForOne(const SCharacterParams& params, const SCooperativeAnimParams& generalParams);
 
 	//Keep track of entities involved in the animation to ensure they are still valid
-	virtual void OnEntityEvent(IEntity* pEntity, SEntityEvent& event);
+	virtual void OnEntityEvent(IEntity* pEntity, const SEntityEvent& event);
 
 private:
 

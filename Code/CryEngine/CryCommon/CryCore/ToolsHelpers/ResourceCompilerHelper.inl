@@ -229,7 +229,7 @@ static bool CallProcessHelper(const wchar_t* szStartingDirectory, const wchar_t*
 		pCancellationToken->SetHandle(0);
 	}
 
-	DWORD processExitcode;
+	DWORD processExitcode = 0;
 	if (bFailedToReadOutput || GetExitCodeProcess(pi.hProcess, &processExitcode) == 0)
 	{
 		exitCode = eRcExitCode_Error;

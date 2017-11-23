@@ -3,12 +3,13 @@
 #pragma once
 
 #include <QAbstractItemModel>
-#include <ACETypes.h>
+#include <SystemTypes.h>
 
 namespace ACE
 {
-class CAudioControl;
-class IAudioSystemEditor;
+class CSystemAssetsManager;
+class CSystemControl;
+struct IEditorImpl;
 
 class CConnectionModel final: public QAbstractItemModel
 {
@@ -17,7 +18,7 @@ public:
 	CConnectionModel();
 	virtual ~CConnectionModel() override;
 
-	void Init(CAudioControl* const pControl);
+	void Init(CSystemControl* const pControl);
 
 	enum class EConnectionModelRoles
 	{
@@ -51,9 +52,10 @@ private:
 	void ResetCache();
 	void DecodeMimeData(QMimeData const* pData, std::vector<CID>& ids) const;
 
-	CAudioControl*             m_pControl;
-	IAudioSystemEditor*        m_pAudioSystem;
-	std::vector<ConnectionPtr> m_connectionsCache;
-	std::vector<QString>       m_platformNames;
+	CSystemAssetsManager* const m_pAssetsManager;
+	CSystemControl*             m_pControl;
+	IEditorImpl*                m_pEditorImpl;
+	std::vector<ConnectionPtr>  m_connectionsCache;
+	std::vector<QString>        m_platformNames;
 };
 } // namespace ACE

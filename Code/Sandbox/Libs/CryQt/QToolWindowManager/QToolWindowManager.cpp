@@ -1085,6 +1085,14 @@ IToolWindowWrapper* QToolWindowManager::restoreWrapperState(const QVariantMap &d
 
 	if (data.contains("geometry"))
 	{
+		// Adjust position of frameless non-maximized windows since Qt will otherwise adjust for a non-existant frame (as of Qt 5.6)
+		if (wrapper->getWidget()->windowFlags().testFlag(Qt::FramelessWindowHint) && !wrapper->getWidget()->windowState().testFlag(Qt::WindowMaximized))
+		{
+			QWidget* w = wrapper->getWidget();
+			QRect r = w->geometry();
+			r.translate(QPoint(w->x() - r.x(), w->y() - r.y()));
+			w->setGeometry(r);
+		}
 		// If geometry was not saved, do not show.
 		wrapper->getWidget()->show();
 	}

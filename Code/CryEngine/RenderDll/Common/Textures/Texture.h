@@ -45,96 +45,6 @@ class CMipmapGenPass;
 
 #define MAX_MIP_LEVELS   (100)
 
-// Custom Textures IDs
-enum
-{
-	TO_RT_2D = 1,
-
-	TO_FOG,
-	TO_FROMOBJ,
-	TO_WINDGRID,
-	TO_SVOTREE,
-	TO_SVOTRIS,
-	TO_SVOGLCM,
-	TO_SVORGBS,
-	TO_SVONORM,
-	TO_SVOOPAC,
-	TO_FROMOBJ_CM,
-
-	TO_SHADOWID0,
-	TO_SHADOWID1,
-	TO_SHADOWID2,
-	TO_SHADOWID3,
-	TO_SHADOWID4,
-	TO_SHADOWID5,
-	TO_SHADOWID6,
-	TO_SHADOWID7,
-
-	TO_FROMRE0,
-	TO_FROMRE1,
-
-	TO_FROMRE0_FROM_CONTAINER,
-	TO_FROMRE1_FROM_CONTAINER,
-
-	TO_SCREENMAP,
-	TO_SHADOWMASK,
-	TO_TERRAIN_LM,
-	TO_RT_CM,
-	TO_CLOUDS_LM,
-	TO_BACKBUFFERMAP,
-	TO_PREVBACKBUFFERMAP0,
-	TO_PREVBACKBUFFERMAP1,
-	TO_MIPCOLORS_DIFFUSE,
-	TO_MIPCOLORS_BUMP,
-
-	TO_DOWNSCALED_ZTARGET_FOR_AO,
-	TO_QUARTER_ZTARGET_FOR_AO,
-	TO_WATEROCEANMAP,
-	TO_WATERVOLUMEMAP,
-
-	TO_WATERVOLUMEREFLMAP,
-	TO_WATERVOLUMEREFLMAPPREV,
-	TO_WATERVOLUMECAUSTICSMAP,
-	TO_WATERVOLUMECAUSTICSMAPTEMP,
-
-	TO_COLORCHART,
-
-	TO_ZTARGET_MS,
-
-	TO_SCENE_NORMALMAP,
-	TO_SCENE_NORMALMAP_MS,
-
-	TO_SCENE_DIFFUSE_ACC,
-	TO_SCENE_SPECULAR_ACC,
-	TO_SCENE_DIFFUSE_ACC_MS,
-	TO_SCENE_SPECULAR_ACC_MS,
-	TO_SCENE_TEXTURES,
-	TO_SCENE_TARGET,
-
-	TO_BACKBUFFERSCALED_D2,
-	TO_BACKBUFFERSCALED_D4,
-	TO_BACKBUFFERSCALED_D8,
-
-	TO_SKYDOME_MIE,
-	TO_SKYDOME_RAYLEIGH,
-	TO_SKYDOME_MOON,
-
-	TO_VOLFOGSHADOW_BUF,
-
-	TO_HDR_MEASURED_LUMINANCE,
-	TO_MODELHUD,
-};
-
-#define NUM_HDR_TONEMAP_TEXTURES 4
-#define NUM_HDR_BLOOM_TEXTURES   3
-#define MIN_DOF_COC_K            6
-
-#if CRY_RENDERER_OPENGLES
-	#define MAX_OCCLUSION_READBACK_TEXTURES 2
-#else
-	#define MAX_OCCLUSION_READBACK_TEXTURES 8
-#endif
-
 #define DYNTEXTURE_TEXCACHE_LIMIT 32
 
 inline int LogBaseTwo(int iNum)
@@ -212,12 +122,9 @@ struct SDynTexture : public IDynTexture
 	virtual int       GetTextureID();
 	virtual bool      Update(int nNewWidth, int nNewHeight);
 	bool              RT_Update(int nNewWidth, int nNewHeight);
-	virtual void      Apply(int nTUnit, SamplerStateHandle nTS = EDefaultSamplerStates::Unspecified);
-	virtual bool      ClearRT();
-	virtual bool      SetRT(int nRT, bool bPush, SDepthTexture* pDepthSurf, bool bScreenVP = false);
-	virtual bool      RT_SetRT(int nRT, int nWidth, int nHeight, bool bPush, bool bScreenVP = false);
+
 	virtual bool      SetRectStates() { return true; }
-	virtual bool      RestoreRT(int nRT, bool bPop);
+
 	virtual ITexture* GetTexture()    { return (ITexture*)m_pTexture; }
 	virtual void      Release()       { delete this; }
 	virtual void      ReleaseForce();
@@ -270,10 +177,9 @@ struct SDynTexture : public IDynTexture
 	ETEX_Format GetFormat() { return m_eTF; }
 	bool        FreeTextures(bool bOldOnly, int nNeedSpace);
 
+public:
 	typedef std::multimap<unsigned int, CTexture*, std::less<unsigned int>, stl::STLPoolAllocator<std::pair<const unsigned int, CTexture*>, stl::PoolAllocatorSynchronizationSinglethreaded>>           TextureSubset;
-	typedef TextureSubset::iterator                                                                                                                                                               TextureSubsetItor;
 	typedef std::multimap<unsigned int, TextureSubset*, std::less<unsigned int>, stl::STLPoolAllocator<std::pair<const  unsigned int, TextureSubset*>, stl::PoolAllocatorSynchronizationSinglethreaded>> TextureSet;
-	typedef TextureSet::iterator                                                                                                                                                                  TextureSetItor;
 
 	static TextureSet    s_availableTexturePool2D_BC1;
 	static TextureSubset s_checkedOutTexturePool2D_BC1;
@@ -396,21 +302,26 @@ enum ETexPool
 	eTP_Max
 };
 
+struct SDynTexture2;
+
 struct STextureSetFormat
 {
-	struct SDynTexture2*               m_pRoot;
-	ETEX_Format                        m_eTF;
-	ETexPool                           m_eTexPool;
-	ETEX_Type                          m_eTT;
-	int                                m_nTexFlags;
+	SDynTexture2*                      m_pRoot = nullptr;
+	CryCriticalSection                 m_rootLock;
+
+
+	ETEX_Format                        m_eTF = eTF_Unknown;
+	ETexPool                           m_eTexPool = eTP_Clouds;
+	ETEX_Type                          m_eTT = eTT_2D;
+	int                                m_nTexFlags = 0;
+	
 	std::vector<CPowerOf2BlockPacker*> m_TexPools;
+	CryCriticalSection                 m_TexPoolsLock;
 
 	STextureSetFormat(ETEX_Format eTF, ETexPool eTexPool, uint32 nTexFlags)
 	{
 		m_eTF = eTF;
 		m_eTexPool = eTexPool;
-		m_eTT = eTT_2D;
-		m_pRoot = NULL;
 		m_nTexFlags = nTexFlags;
 	}
 	~STextureSetFormat();
@@ -432,14 +343,24 @@ struct SDynTexture2 : public IDynTexture
 	SDynTexture2*         m_Next;             //!<
 	SDynTexture2**        m_PrevLink;         //!<
 
-	inline void UnlinkGlobal()
+	typedef std::map<uint32, STextureSetFormat*> TextureSet;
+
+	static CryCriticalSection s_texturePoolLock;    // Locks any access to the static s_TexturePool member
+	static CryRWLock          s_memoryOccupiedLock; // Locks any access to the static s_nMemoryOccupied member
+
+	static TextureSet  s_TexturePool[eTP_Max];
+	static int         s_nMemoryOccupied[eTP_Max];
+
+private:
+	//////////////////////////////////////////////////////////////////////////
+	void UnlinkGlobal()
 	{
 		if (m_Next)
 			m_Next->m_PrevLink = m_PrevLink;
 		if (m_PrevLink)
 			*m_PrevLink = m_Next;
 	}
-	inline void LinkGlobal(SDynTexture2*& Before)
+	void LinkGlobal(SDynTexture2*& Before)
 	{
 		if (Before)
 			Before->m_PrevLink = &m_Next;
@@ -447,12 +368,15 @@ struct SDynTexture2 : public IDynTexture
 		m_PrevLink = &Before;
 		Before = this;
 	}
+public:
 	void Link()
 	{
+		CryAutoCriticalSection lock(m_pOwner->m_rootLock);
 		LinkGlobal(m_pOwner->m_pRoot);
 	}
 	void Unlink()
 	{
+		CryAutoCriticalSection lock(m_pOwner->m_rootLock);
 		UnlinkGlobal();
 		m_Next = NULL;
 		m_PrevLink = NULL;
@@ -483,11 +407,8 @@ struct SDynTexture2 : public IDynTexture
 	void              ReleaseForce();
 
 	virtual bool      Update(int nNewWidth, int nNewHeight);
-	virtual void      Apply(int nTUnit, SamplerStateHandle nTS = EDefaultSamplerStates::Unspecified);
-	virtual bool      ClearRT();
-	virtual bool      SetRT(int nRT, bool bPush, SDepthTexture* pDepthSurf, bool bScreenVP = false);
+
 	virtual bool      SetRectStates();
-	virtual bool      RestoreRT(int nRT, bool bPop);
 	virtual ITexture* GetTexture() { return (ITexture*)m_pTexture; }
 	ETEX_Format       GetFormat()  { return m_pOwner->m_eTF; }
 	virtual void      SetUpdateMask();
@@ -512,27 +433,12 @@ struct SDynTexture2 : public IDynTexture
 	virtual int  GetWidth()  { return m_nWidth; }
 	virtual int  GetHeight() { return m_nHeight; }
 
-	typedef std::map<uint32, STextureSetFormat*> TextureSet2;
-	typedef TextureSet2::iterator                TextureSet2Itor;
-	static TextureSet2 s_TexturePool[eTP_Max];
-	static int         s_nMemoryOccupied[eTP_Max];
-
 	static void        ShutDown();
 	static void        Init(ETexPool eTexPool);
 	static int         GetPoolMaxSize(ETexPool eTexPool);
 	static void        SetPoolMaxSize(ETexPool eTexPool, int nSize, bool bWarn);
 	static const char* GetPoolName(ETexPool eTexPool);
 	static ETEX_Format GetPoolTexFormat(ETexPool eTexPool);
-	static int         GetPoolTexNum(ETexPool eTexPool)
-	{
-		int nT = 0;
-		for (TextureSet2Itor it = s_TexturePool[eTexPool].begin(); it != s_TexturePool[eTexPool].end(); ++it)
-		{
-			STextureSetFormat* pF = it->second;
-			nT += pF->m_TexPools.size();
-		}
-		return nT;
-	}
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -977,7 +883,8 @@ struct SEnvTexture
 
 	void Release();
 	void ReleaseDeviceObjects();
-	void RT_SetMatrix();
+
+	void SetMatrix( const CCamera &camera );
 };
 
 //===============================================================================
@@ -1090,6 +997,7 @@ struct SStreamFormatCode
 class CTexture : public ITexture, public CBaseResource
 {
 	friend struct SDynTexture;
+	friend class CRendererResources;
 	friend class CD3D9Renderer;
 	friend struct STexStreamInState;
 	friend struct STexStreamOutState;
@@ -1104,7 +1012,6 @@ class CTexture : public ITexture, public CBaseResource
 
 private:
 	CDeviceTexture*   m_pDevTexture;
-	const SPixFormat* m_pPixelFormat;
 
 	// Start block that should fit in one cache-line
 	// Reason is to minimize cache misses during texture streaming update job
@@ -1118,7 +1025,7 @@ private:
 	ETEX_Format         m_eDstFormat;
 	ETEX_TileMode       m_eSrcTileMode;
 
-	uint32              m_eFlags;     // e.g. FT_USAGE_DYNAMIC
+	uint32              m_eFlags;     // e.g. FT_USAGE_RENDERTARGET
 
 	bool                m_bStreamed             : 1;
 	bool                m_bStreamPrepared       : 1;
@@ -1162,7 +1069,6 @@ private:
 	int16               m_fpMinMipCur;
 
 	STexCacheFileHeader m_CacheFileHeader;
-	SamplerStateHandle  m_nDefState;
 
 	int32               m_nDevTextureSize;
 	int32               m_nPersistentSize;
@@ -1172,7 +1078,6 @@ private:
 
 	// End block that should fit in one cache-line
 
-	DynArray<STexComposition> m_composition;
 	float                     m_fCurrentMipBias; // streaming mip fading
 	float                     m_fAvgBrightness;
 	ColorF                    m_cMinColor;
@@ -1267,7 +1172,7 @@ public:
 		assert((m_eTT != eTT_Cube && m_eTT != eTT_CubeArray) || !(m_nArraySize % 6));
 		const STextureLayout Layout =
 		{
-			m_pPixelFormat,
+			CTexture::GetPixFormat(m_eDstFormat),
 			m_nWidth, m_nHeight, m_nDepth, m_nArraySize, m_nMips,
 			m_eSrcFormat, m_eDstFormat, m_eTT,
 			/* TODO: change FT_... to CDeviceObjectFactory::... */
@@ -1282,25 +1187,20 @@ public:
 	}
 
 
-	virtual const char*     GetName() const                    { return GetSourceName(); }
-	virtual const int       GetWidth() const                   { return m_nWidth; }
-	ILINE const int         GetWidthNonVirtual() const         { return m_nWidth; }
-	virtual const int       GetHeight() const                  { return m_nHeight; }
-	ILINE const int         GetHeightNonVirtual() const        { return m_nHeight; }
-	virtual const int       GetDepth() const                   { return m_nDepth; }
-	ILINE const int         GetDepthNonVirtual() const         { return m_nDepth; }
+	virtual const char*     GetName() const              final { return GetSourceName(); }
+	virtual const int       GetWidth() const             final { return m_nWidth; }
+	virtual const int       GetHeight() const            final { return m_nHeight; }
+	virtual const int       GetDepth() const             final { return m_nDepth; }
 	ILINE const int         GetNumSides() const                { return m_CacheFileHeader.m_nSides; }
 	ILINE const int8        GetNumPersistentMips() const       { return m_CacheFileHeader.m_nMipsPersistent; }
 	ILINE const bool        IsForceStreamHighRes() const       { return m_bForceStreamHighRes; }
 	ILINE const bool        IsStreamHighPriority() const       { return m_bStreamHighPriority; }
-	virtual const int       GetTextureID() const;
+	virtual const int       GetTextureID() const final;
 	void                    SetFlags(uint32 nFlags)            { m_eFlags = nFlags; }
-	virtual const uint32    GetFlags() const                   { return m_eFlags; }
-	ILINE const int         GetNumMipsNonVirtual() const       { return m_nMips; }
-	virtual const int       GetNumMips() const                 { return m_nMips; }
-	virtual const int       GetRequiredMip() const             { return max(0, m_fpMinMipCur >> 8); }
-	ILINE const int         GetRequiredMipNonVirtual() const   { return max(0, m_fpMinMipCur >> 8); }
-	ILINE const int         GetRequiredMipNonVirtualFP() const { return m_fpMinMipCur; }
+	virtual const uint32    GetFlags() const             final { return m_eFlags; }
+	virtual const int       GetNumMips() const           final { return m_nMips; }
+	virtual const int       GetRequiredMip() const       final { return max(0, m_fpMinMipCur >> 8); }
+	ILINE const int         GetRequiredMipFP() const           { return m_fpMinMipCur; }
 	virtual const ETEX_Type GetTextureType() const;
 	// TODO: deprecate global state based sampler state configuration
 	virtual void            SetClamp(bool bEnable)
@@ -1308,28 +1208,24 @@ public:
 		ESamplerAddressMode nMode = bEnable ? eSamplerAddressMode_Clamp : eSamplerAddressMode_Wrap;
 		SSamplerState::SetDefaultClampingMode(nMode, nMode, nMode);
 	}
-	virtual const bool IsTextureLoaded() const { return IsLoaded(); }
+	virtual const bool IsTextureLoaded() const           final { return IsLoaded(); }
 	virtual void       PrecacheAsynchronously(float fMipFactor, int nFlags, int nUpdateId, int nCounter = 1);
 	virtual byte*      GetData32(int nSide = 0, int nLevel = 0, byte* pDst = NULL, ETEX_Format eDstFormat = eTF_R8G8B8A8);
-	virtual const int  GetDeviceDataSize() const { return m_nDevTextureSize; }
-	virtual const int  GetDataSize() const
-	{
-		if (IsStreamed())
-			return StreamComputeSysDataSize(0);
-		return m_nDevTextureSize;
-	}
+	virtual const int  GetDeviceDataSize() const         final { return m_nDevTextureSize; }
+	virtual const int  GetDataSize() const               final { if (IsStreamed()) return StreamComputeSysDataSize(0); return m_nDevTextureSize; }
+
 	// TODO: deprecate global state based sampler state configuration
-	virtual bool          SetFilter(int nFilter) { return SSamplerState::SetDefaultFilterMode(nFilter); }
+	virtual bool          SetFilter(int nFilter)                   final { return SSamplerState::SetDefaultFilterMode(nFilter); }
 	virtual bool          Clear();
 	virtual bool          Clear(const ColorF& color);
-	virtual float         GetAvgBrightness() const                 { return m_fAvgBrightness; }
-	virtual void          SetAvgBrightness(float fBrightness)      { m_fAvgBrightness = fBrightness; }
-	virtual const ColorF& GetMinColor() const                      { return m_cMinColor; }
-	virtual void          SetMinColor(const ColorF& cMinColor)     { m_cMinColor = cMinColor; }
-	virtual const ColorF& GetMaxColor() const                      { return m_cMaxColor; }
-	virtual void          SetMaxColor(const ColorF& cMaxColor)     { m_cMaxColor = cMaxColor; }
-	virtual const ColorF& GetClearColor() const                    { return m_cClearColor; }
-	virtual void          SetClearColor(const ColorF& cClearColor) { m_cClearColor = cClearColor; }
+	virtual float         GetAvgBrightness() const                 final { return m_fAvgBrightness; }
+	virtual void          SetAvgBrightness(float fBrightness)      final { m_fAvgBrightness = fBrightness; }
+	virtual const ColorF& GetMinColor() const                      final { return m_cMinColor; }
+	virtual void          SetMinColor(const ColorF& cMinColor)     final { m_cMinColor = cMinColor; }
+	virtual const ColorF& GetMaxColor() const                      final { return m_cMaxColor; }
+	virtual void          SetMaxColor(const ColorF& cMaxColor)     final { m_cMaxColor = cMaxColor; }
+	virtual const ColorF& GetClearColor() const                    final { return m_cClearColor; }
+	virtual void          SetClearColor(const ColorF& cClearColor) final { m_cClearColor = cClearColor; }
 
 #if CRY_PLATFORM_DURANGO && DURANGO_USE_ESRAM
 	// The only reason this access exists, is because RenderTargets are CTexture and not CDeviceTexture,
@@ -1342,15 +1238,12 @@ public:
 	virtual const char*   GetFormatName() const;
 	virtual const char*   GetTypeName() const;
 
-	virtual const bool    IsShared() const
-	{
-		return CBaseResource::GetRefCounter() > 1;
-	}
+	virtual const bool    IsShared() const final { return CBaseResource::GetRefCounter() > 1; }
 
-	virtual const ETEX_Format GetTextureDstFormat() const { return m_eDstFormat; }
-	virtual const ETEX_Format GetTextureSrcFormat() const { return m_eSrcFormat; }
+	virtual const ETEX_Format GetTextureDstFormat() const final { return m_eDstFormat; }
+	virtual const ETEX_Format GetTextureSrcFormat() const final { return m_eSrcFormat; }
 
-	virtual const bool        IsParticularMipStreamed(float fMipFactor) const;
+	virtual const bool    IsParticularMipStreamed(float fMipFactor) const final;
 
 	// Internal functions
 	const ETEX_Format GetDstFormat() const { return m_eDstFormat; }
@@ -1383,8 +1276,6 @@ public:
 		return m_nArraySize;
 	}
 
-	void               RT_ReleaseDevice();
-
 	static inline bool IsTextureExist(const CTexture* pTex)          { return pTex && pTex->GetDevTexture(); }
 
 	const bool         IsNoTexture() const                           { return m_bNoTexture; };
@@ -1411,23 +1302,22 @@ public:
 	const bool                       UseMultisampledRTV() const                  { return m_bUseMultisampledRTV; }
 	const bool                       IsVertexTexture() const                     { return m_bVertexTexture; }
 	void                             SetVertexTexture(bool bEnable)              { m_bVertexTexture = bEnable; }
-	const bool                       IsDynamic() const                           { return ((m_eFlags & (FT_USAGE_DYNAMIC | FT_USAGE_RENDERTARGET | FT_USAGE_DEPTHSTENCIL)) != 0); }
+	const bool                       IsDynamic() const                           { return ((m_eFlags & (FT_USAGE_RENDERTARGET | FT_USAGE_DEPTHSTENCIL | FT_USAGE_UNORDERED_ACCESS)) != 0); }
 	bool                             IsStillUsedByGPU();
 	void                             Lock()                                      { m_bIsLocked = true; }
 	void                             Unlock()                                    { m_bIsLocked = false; }
 	const bool                       IsLoaded() const                            { return (m_eFlags & FT_FAILED) == 0; }
 	const bool                       IsLocked() const                            { return m_bIsLocked; }
-	ILINE const bool                 IsStreamed() const                          { return m_bStreamed; }
 	ILINE const bool                 IsInDistanceSortedList() const              { return m_bInDistanceSortedList; }
 	bool                             IsPostponed() const                         { return m_bPostponed; }
 	ILINE const bool                 IsStreaming() const                         { return m_nStreamSlot != InvalidStreamSlot; }
-	virtual const bool               IsStreamedVirtual() const                   { return IsStreamed(); }
+	const bool                       IsStreamed() const                          { return m_bStreamed; }
+	virtual const bool               IsStreamedVirtual() const             final { return IsStreamed(); }
 	virtual bool                     IsStreamedIn(const int nMinPrecacheRoundIds[MAX_STREAM_PREDICTION_ZONES]) const;
-	virtual const int                GetAccessFrameId() const                    { return m_nAccessFrameID; }
-	ILINE const int                  GetAccessFrameIdNonVirtual() const          { return m_nAccessFrameID; }
+	virtual const int                GetAccessFrameId() const              final { return m_nAccessFrameID; }
 	void                             SetResolved(bool bResolved)                 { m_bResolved = bResolved; }
-	virtual const int                GetCustomID() const final                   { return m_nCustomID; }
-	virtual void                     SetCustomID(int nID) final                  { m_nCustomID = nID; }
+	virtual const int                GetCustomID() const                   final { return m_nCustomID; }
+	virtual void                     SetCustomID(int nID)                  final { m_nCustomID = nID; }
 	const bool                       UseDecalBorderCol() const                   { return m_bUseDecalBorderCol; }
 	const bool                       IsSRGB() const                              { return m_bIsSRGB; }
 	void                             SRGBRead(bool bEnable = false)              { m_bIsSRGB = bEnable; }
@@ -1443,9 +1333,7 @@ public:
 	ILINE void                       PrefetchStreamingInfo() const               { PrefetchLine(m_pFileTexMips, 0); }
 	const STexStreamingInfo*         GetStreamingInfo() const                    { return m_pFileTexMips; }
 
-	virtual const bool               IsStreamable() const                        { return IsStreamed(); }
-
-	const bool                       IsStreamableNonVirtual() const              { return !(m_eFlags & FT_DONT_STREAM) && !(m_eTT == eTT_3D); }
+	virtual const bool               IsStreamable() const                  final { return !(m_eFlags & FT_DONT_STREAM) && !(m_eTT == eTT_3D); }
 
 	ILINE void                       DisableMgpuSync()
 	{
@@ -1469,6 +1357,7 @@ public:
 	bool            IsFPFormat() const    { return CImageExtensionHelper::IsRangeless(m_eDstFormat); };
 
 	CDeviceTexture* GetDevTexture(bool bMultisampled = false) const { return (!bMultisampled ? m_pDevTexture : m_pDevTexture->GetMSAATexture()); }
+	void            RefDevTexture(CDeviceTexture* pDeviceTex);
 	void            SetDevTexture(CDeviceTexture* pDeviceTex);
 	void            OwnDevTexture(CDeviceTexture* pDeviceTex);
 	bool            IsAsyncDevTexCreation() const { return m_bAsyncDevTexCreation; }
@@ -1486,7 +1375,6 @@ public:
 	D3DSurface*        GetSurface(int nCMSide, int nLevel);
 	D3DSurface*        GetSurface(int nCMSide, int nLevel) const;
 
-	const SPixFormat*  GetPixelFormat() const { return m_pPixelFormat; }
 	bool               Invalidate(int nNewWidth, int nNewHeight, ETEX_Format eTF);
 	const char*        GetSourceName() const  { return m_SrcName.c_str(); }
 	const int          GetSize(bool bIncludePool) const;
@@ -1565,11 +1453,11 @@ public:
 		InvalidStreamSlot  = 0xffff,
 	};
 
-	static CTextureArrayAlloc<STexStreamInState, MaxStreamTasks>        s_StreamInTasks;
-	static CTextureArrayAlloc<STexStreamPrepState*, MaxStreamPrepTasks> s_StreamPrepTasks;
+	static CTextureArrayAlloc<STexStreamInState, MaxStreamTasks>        s_StreamInTasks; //threadsafe
+	static CTextureArrayAlloc<STexStreamPrepState*, MaxStreamPrepTasks> s_StreamPrepTasks; //threadsafe
 
 #ifdef TEXSTRM_ASYNC_TEXCOPY
-	static CTextureArrayAlloc<STexStreamOutState, MaxStreamTasks> s_StreamOutTasks;
+	static CTextureArrayAlloc<STexStreamOutState, MaxStreamTasks> s_StreamOutTasks; //threadsafe
 #endif
 
 	static volatile int s_nBytesSubmittedToStreaming;
@@ -1629,7 +1517,7 @@ public:
 
 	void          StreamExpandMip(const void* pRawData, int nMip, int nBaseMipOffset, int nSideDelta);
 	static void   RT_FlushAllStreamingTasks(const bool bAbort = false);
-	static bool   IsStreamingInProgress() { return s_StreamInTasks.GetNumLive() > 0; }
+	static bool   IsStreamingInProgress();
 	static void   AbortStreamingTasks(CTexture* pTex);
 	static bool   StartStreaming(CTexture* pTex, STexPoolItem* pNewPoolItem, const int nStartMip, const int nEndMip, const int nActivateMip, EStreamTaskPriority estp);
 	bool          CanStreamInPlace(int nMip, STexPoolItem* pNewPoolItem);
@@ -1673,7 +1561,6 @@ public:
 	void                       StreamLoadFromCache(const int nFlags);
 	bool                       StreamPrepare(bool bFromLoad);
 	bool                       StreamPrepare(CImageFile* pImage);
-	bool                       StreamPrepareComposition();
 	bool                       StreamPrepare_Platform();
 	bool                       StreamPrepare_Finalise(bool bFromLoad);
 	STexPool*                  StreamGetPool(int nStartMip, int nMips);
@@ -1696,30 +1583,6 @@ public:
 	void                       Relink();
 	void                       Unlink();
 
-	inline void RT_Relink()
-	{
-		if (!IsStreamed() || IsInDistanceSortedList())
-			return;
-
-		s_pTextureStreamer->Relink(this);
-	}
-
-	inline void RT_Unlink()
-	{
-		if (IsInDistanceSortedList())
-			s_pTextureStreamer->Unlink(this);
-	}
-
-	//=======================================================
-
-	static void ApplyForID(int nTUnit, int nID, SamplerStateHandle nState, int nSUnit)
-	{
-		CTexture* pTex = GetByID(nID);
-		assert(pTex);
-		if (pTex)
-			pTex->Apply(nTUnit, nState, -1, nSUnit);
-	}
-
 	static const CCryNameTSCRC&  mfGetClassName();
 	static CTexture*             GetByID(int nID);
 	static CTexture*             GetByName(const char* szName, uint32 flags = 0);
@@ -1733,13 +1596,6 @@ public:
 	static void                 PostInit();
 	static void                 RT_FlushStreaming(bool bAbort);
 	static void                 ShutDown();
-
-	static void                 CreateSystemTargets();
-	static void                 ReleaseSystemTargets();
-	static void                 ReleaseSystemTextures(bool bFinalRelease = false);
-	static void                 LoadDefaultSystemTextures();
-	static void                 LoadScaleformSystemTextures();
-	static inline void          ResetTMUs() { memset(s_TexStateIDs, int(EDefaultSamplerStates::Unspecified), sizeof(s_TexStateIDs)); }
 
 	static bool                 ReloadFile(const char* szFileName);
 	static bool                 ReloadFile_Request(const char* szFileName);
@@ -1761,9 +1617,8 @@ public:
 	//=======================================================
 	// Lowest-level functions calling into the API-specific implementation
 	bool               RT_CreateDeviceTexture(const void* pData[]);
-	bool               RT_CreateDeviceTexture(D3DResource* pNatTex);
+
 	bool               CreateDeviceTexture(const void* pData[]);
-	bool               CreateDeviceTexture(D3DResource* pTex);
 	void               ReleaseDeviceTexture(bool bKeepLastMips, bool bFromUnload = false);
 
 	// Low-level functions calling CreateDeviceTexture()
@@ -1785,36 +1640,14 @@ public:
 	static CTexture*   GetOrCreateDepthStencil(const char* name, uint32 nWidth, uint32 nHeight, const ColorF& cClear, ETEX_Type eTT, uint32 nFlags, ETEX_Format eSrcFormat, int nCustomID = -1);
 	static CTexture*   GetOrCreate2DTexture(const char* szName, int nWidth, int nHeight, int nMips, int nFlags, byte* pData, ETEX_Format eSrcFormat, bool bAsyncDevTexCreation = false);
 	static CTexture*   GetOrCreate3DTexture(const char* szName, int nWidth, int nHeight, int nDepth, int nMips, int nFlags, byte* pData, ETEX_Format eSrcFormat);
-	static CTexture*   GetOrCreate2DCompositeTexture(const char* szName, int nWidth, int nHeight, int nMips, int nFlags, ETEX_Format eSrcFormat, const STexComposition* pCompositions, size_t nCompositions);
 	//=======================================================
 
 	// API depended functions
-	void               Unbind();
 	bool               Resolve(int nTarget = 0, bool bUseViewportSize = false);
 	
-	void               Apply(int nTUnit, SamplerStateHandle nState = EDefaultSamplerStates::Unspecified, int nTexMatSlot = EFTT_UNKNOWN, int nSUnit = -1, ResourceViewHandle hView = EDefaultResourceViews::Default, bool bMSAA = false, EHWShaderClass eHWSC = eHWSC_Pixel);
-	void               ApplySampler(int nSUnit, EHWShaderClass eHWSC = eHWSC_Pixel, SamplerStateHandle eState = EDefaultSamplerStates::Unspecified);
-	void               ApplyTexture(int nTUnit, EHWShaderClass eHWSC = eHWSC_Pixel, ResourceViewHandle hView = EDefaultResourceViews::Default, bool bMSAA = false);
-	void               SetTexStates();
-	void               UpdateTexStates();
 	void               UpdateTextureRegion(byte* pSrcData, int X, int Y, int Z, int USize, int VSize, int ZSize, ETEX_Format eSrcFormat);
 	void               RT_UpdateTextureRegion(byte* pSrcData, int X, int Y, int Z, int USize, int VSize, int ZSize, ETEX_Format eSrcFormat);
-	bool               SetNoTexture(CTexture* pDefaultTexture = s_ptexNoTexture);
-
-	static void        SetSampler(SamplerStateHandle nTS, int nSSlot, EHWShaderClass eHWSC = eHWSC_Pixel);
-
-	// Helper functions
-	static void GenerateZMaps();
-	static void DestroyZMaps();
-	static void GenerateHDRMaps();
-	// allocate or deallocate star maps
-	static void DestroyHDRMaps();
-	static void GenerateSceneMap(ETEX_Format eTF);
-	static void DestroySceneMap();
-	static void GenerateCachedShadowMaps();
-	static void DestroyCachedShadowMaps();
-	static void GenerateNearestShadowMap();
-	static void DestroyNearestShadowMap();
+	bool               SetNoTexture(CTexture* pDefaultTexture = CRendererResources::s_ptexNoTexture);
 
 #if defined(TEXTURE_GET_SYSTEM_COPY_SUPPORT)
 	static byte*        Convert(byte* pSrc, int nWidth, int nHeight, int nMips, ETEX_Format eSrcFormat, ETEX_Format eDstFormat, int nOutMips, int& nOutSize, bool bLinear);
@@ -1825,6 +1658,7 @@ public:
 	static void         ExpandMipFromFile(byte* dest, const int destSize, const byte* src, const int srcSize, const ETEX_Format srcFmt, const ETEX_Format dstFmt);
 	static uint32       TextureDataSize(uint32 nWidth, uint32 nHeight, uint32 nDepth, uint32 nMips, uint32 nSlices, const ETEX_Format eTF, ETEX_TileMode eTM = eTM_None);
 
+	static const SPixFormat* GetPixFormat(ETEX_Format eTFDst);
 	static ETEX_Format  GetClosestFormatSupported(ETEX_Format eTFDst, const SPixFormat*& pPF);
 	ETEX_Format         SetClosestFormatSupported();
 
@@ -1838,195 +1672,9 @@ public:
 	static ETEX_Format  TextureFormatForName(const char* str)    { return CImageExtensionHelper::TextureFormatForName(str); }
 	static ETEX_Type    TextureTypeForName(const char* str)      { return CImageExtensionHelper::TextureTypeForName(str); }
 
-	static SEnvTexture* FindSuitableEnvTex(Vec3& Pos, Ang3& Angs, bool bMustExist, int RendFlags, bool bUseExistingREs, CShader* pSH, CShaderResources* pRes, CRenderObject* pObj, bool bReflect, CRenderElement* pRE, bool* bMustUpdate);
-	static void         DrawSceneToCubeSide(Vec3& Pos, int tex_size, int side);
 	static bool         RenderEnvironmentCMHDR(int size, Vec3& Pos, TArray<unsigned short>& vecData);
 
 public:
-	static bool          m_bLoadedSystem;
-
-	static STexStageInfo s_TexStages[MAX_TMU];
-	static SamplerStateHandle s_TexStateIDs[eHWSC_Num][MAX_TMU];
-	static uint32        s_TexState_MipSRGBMask[MAX_TMU];
-
-	static ETEX_Format   s_eTFZ;
-
-	// ==============================================================================
-	static CTexture* s_ptexNoTexture;
-	static CTexture* s_ptexNoTextureCM;
-	static CTexture* s_ptexWhite;
-	static CTexture* s_ptexGray;
-	static CTexture* s_ptexBlack;
-	static CTexture* s_ptexBlackAlpha;
-	static CTexture* s_ptexBlackCM;
-	static CTexture* s_ptexDefaultProbeCM;
-	static CTexture* s_ptexDefaultMergedDetail;
-	static CTexture* s_ptexFlatBump;
-#if !defined(_RELEASE)
-	static CTexture* s_ptexMipMapDebug;
-	static CTexture* s_ptexColorBlue;
-	static CTexture* s_ptexColorCyan;
-	static CTexture* s_ptexColorGreen;
-	static CTexture* s_ptexColorPurple;
-	static CTexture* s_ptexColorRed;
-	static CTexture* s_ptexColorWhite;
-	static CTexture* s_ptexColorYellow;
-	static CTexture* s_ptexColorMagenta;
-	static CTexture* s_ptexColorOrange;
-#endif
-	static CTexture* s_ptexPaletteDebug;
-	static CTexture* s_ptexPaletteTexelsPerMeter;
-	static CTexture* s_ptexIconShaderCompiling;
-	static CTexture* s_ptexIconStreaming;
-	static CTexture* s_ptexIconStreamingTerrainTexture;
-	static CTexture* s_ptexIconNavigationProcessing;
-	static CTexture* s_ptexMipColors_Diffuse;
-	static CTexture* s_ptexMipColors_Bump;
-	static CTexture* s_ptexShadowJitterMap;
-	static CTexture* s_ptexEnvironmentBRDF;
-	static CTexture* s_ptexScreenNoiseMap;
-	static CTexture* s_ptexDissolveNoiseMap;
-	static CTexture* s_ptexNoise3D;
-	static CTexture* s_ptexGrainFilterMap;
-	static CTexture* s_ptexFilmGrainMap;
-	static CTexture* s_ptexVignettingMap; // todo: create at runtime based on viggneting cvars
-	static CTexture* s_ptexAOJitter;
-	static CTexture* s_ptexAOVOJitter;
-	static CTexture* s_ptexFromRE[8];
-	static CTexture* s_ptexShadowID[8];
-	static CTexture* s_ptexShadowMask;
-	static CTexture* s_ptexCachedShadowMap[MAX_GSM_LODS_NUM];
-	static CTexture* s_ptexNearestShadowMap;
-	static CTexture* s_ptexFromRE_FromContainer[2];
-	static CTexture* s_ptexFromObj;
-	static CTexture* s_ptexSvoTree;
-	static CTexture* s_ptexSvoTris;
-	static CTexture* s_ptexSvoGlobalCM;
-	static CTexture* s_ptexSvoRgbs;
-	static CTexture* s_ptexSvoNorm;
-	static CTexture* s_ptexSvoOpac;
-	static CTexture* s_ptexRT_2D;
-	static CTexture* s_ptex16_PointsOnSphere;
-	static CTexture* s_ptexNormalsFitting;
-	static CTexture* s_ptexPerlinNoiseMap;
-
-	static CTexture* s_ptexSceneNormalsMap;           // RT with normals for deferred shading
-	static CTexture* s_ptexSceneNormalsMapMS;         // Dummy normals target for binding multisampled rt
-	static CTexture* s_ptexSceneNormalsBent;
-	static CTexture* s_ptexAOColorBleed;
-	static CTexture* s_ptexSceneDiffuse;
-	static CTexture* s_ptexSceneSpecular;
-	static CTexture* s_ptexWindGrid;
-
-	static CTexture* s_ptexSceneSelectionIDs;         // Selection ID buffer used for selection and highlight passes
-	static CTexture* s_ptexSceneHalfDepthStencil;     // half resolution depth-stencil, used for selection and highlight passes.
-
-#if defined(DURANGO_USE_ESRAM)
-	static CTexture* s_ptexSceneSpecularESRAM;        // Temporary scene specular in ESRAM, aliased with other ESRAM RTs
-#endif
-
-	static CTexture* s_ptexHeightMapAO[2];
-	static CTexture* s_ptexHeightMapAODepth[2];
-
-	static CTexture*           s_ptexBackBuffer;              // back buffer copy
-	static CTexture*           s_ptexModelHudBuffer;          // used by Menu3DModelRenderer to postprocess render models
-	static CTexture*           s_ptexPrevBackBuffer[2][2];    // previous frame back buffer copies (for left and right eye)
-	static CTexture*           s_ptexCached3DHud;             // 3d hud cached overframes
-	static CTexture*           s_ptexCached3DHudScaled;       // downsampled 3d hud cached overframes
-	static CTexture*           s_ptexBackBufferScaled[3];     // backbuffer low-resolution/blurred version. 2x/4x/8x/16x smaller than screen
-	static CTexture*           s_ptexBackBufferScaledTemp[2]; // backbuffer low-resolution/blurred version. 2x/4x/8x/16x smaller than screen, temp textures (used for blurring/ping-pong)
-
-	static CTexture*           s_ptexPrevFrameScaled; // 2x
-
-	static CTexture*           s_ptexDepthBufferQuarter;     // Quater res depth buffer
-	static CTexture*           s_ptexDepthBufferHalfQuarter; // Eighth res depth buffer
-
-	static CTexture*           s_ptexWaterOcean;         // water ocean vertex texture
-	static CTexture*           s_ptexWaterVolumeDDN;     // water volume heightmap
-	static CTexture*           s_ptexWaterVolumeTemp[2]; // water volume heightmap
-	static CTexture*           s_ptexWaterVolumeRefl[2]; // water volume reflections buffer
-	static CTexture*           s_ptexWaterCaustics[2];   // caustics buffers
-	static CTexture*           s_ptexRainOcclusion;      // top-down rain occlusion
-	static CTexture*           s_ptexRainSSOcclusion[2]; // screen-space rain occlusion accumulation
-	
-	static CTexture*           s_ptexRainDropsRT[2];
-
-	static CTexture*           s_ptexRT_ShadowPool;
-	static CTexture*           s_ptexFarPlane; // shadow map representing the far plane (all tests pass)
-	static CTexture*           s_ptexCloudsLM;
-
-	static CTexture*           s_ptexSceneTarget;     // Shared rt for generic usage (refraction/srgb/diffuse accumulation/hdr motionblur/etc)
-	static CTexture*           s_ptexCurrSceneTarget; // Pointer to current scene target, mostly for reading from destination rt
-	static CTexture*           s_ptexSceneTargetR11G11B10F[2];
-	static CTexture*           s_ptexSceneTargetScaledR11G11B10F[4];
-
-	static CTexture*           s_ptexCurrentSceneDiffuseAccMap;
-	static CTexture*           s_ptexSceneDiffuseAccMap;
-	static CTexture*           s_ptexSceneSpecularAccMap;
-	static CTexture*           s_ptexSceneTexturesMap;
-	static CTexture*           s_ptexSceneDiffuseAccMapMS;
-	static CTexture*           s_ptexSceneSpecularAccMapMS;
-
-	static CTexture*           s_ptexZTarget;
-	static CTexture*           s_ptexZOcclusion[2];
-	static CTexture*           s_ptexZTargetReadBack[4];
-	static CTexture*           s_ptexZTargetDownSample[4];
-	static CTexture*           s_ptexZTargetScaled[3];
-
-	static CTexture*           s_ptexHDRTarget;
-	static CTexture*           s_ptexVelocityObjects[2]; // Dynamic object velocity (for left and right eye)
-	static CTexture*           s_ptexVelocity;
-	static CTexture*           s_ptexVelocityTiles[3];
-	static CTexture*           s_ptexHDRTargetPrev;
-	static CTexture*           s_ptexHDRTargetScaled[4];
-	static CTexture*           s_ptexHDRTargetScaledTmp[4];
-	static CTexture*           s_ptexHDRTargetScaledTempRT[4];
-	static CTexture*           s_ptexHDRDofLayers[2];
-	static CTexture*           s_ptexSceneCoC[MIN_DOF_COC_K];
-	static CTexture*           s_ptexSceneCoCTemp;
-	static CTexture*           s_ptexHDRTempBloom[2];
-	static CTexture*           s_ptexHDRFinalBloom;
-	static CTexture*           s_ptexHDRAdaptedLuminanceCur[8];
-	static int                 s_nCurLumTextureIndex;
-	static CTexture*           s_ptexCurLumTexture;
-	static CTexture*           s_ptexHDRToneMaps[NUM_HDR_TONEMAP_TEXTURES];
-	static CTexture*           s_ptexHDRMeasuredLuminance[MAX_GPU_NUM];
-	static CTexture*           s_ptexHDRMeasuredLuminanceDummy;
-	static CTexture*           s_ptexSkyDomeMie;
-	static CTexture*           s_ptexSkyDomeRayleigh;
-	static CTexture*           s_ptexSkyDomeMoon;
-
-	static CTexture*           s_ptexSceneTargetScaled;
-	static CTexture*           s_ptexSceneTargetScaledBlurred;
-
-	static CTexture*           s_ptexColorChart;
-
-	static CTexture*           s_ptexStereoL;
-	static CTexture*           s_ptexStereoR;
-	static CTexture*           s_ptexQuadLayers[2];
-
-	static CTexture*           s_ptexFlaresOcclusionRing[MAX_OCCLUSION_READBACK_TEXTURES];
-	static CTexture*           s_ptexFlaresGather;
-
-	static CTexture*           s_ptexDepthStencilRemapped;
-	static SEnvTexture         s_EnvTexts[MAX_ENVTEXTURES];
-	static TArray<SEnvTexture> s_CustomRT_2D;
-	static TArray<CTexture>    s_ShaderTemplates;
-	static bool                s_ShaderTemplatesInitialized;
-
-	static CTexture*           s_pTexNULL;
-
-	static CTexture*           s_pBackBuffer;
-	static CTexture*           s_FrontBufferTextures[2];
-
-	static CTexture*           s_ptexVolumetricFog;
-	static CTexture*           s_ptexVolumetricClipVolumeStencil;
-
-	static CTexture*           s_ptexVolCloudShadow;
-
-#if defined(VOLUMETRIC_FOG_SHADOWS)
-	static CTexture* s_ptexVolFogShadowBuf[2];
-#endif
 
 #if defined(TEXSTRM_DEFERRED_UPLOAD)
 	static ID3D11DeviceContext* s_pStreamDeferredCtx;
@@ -2047,7 +1695,7 @@ bool  WriteTIF(const void* dat, int wdth, int hgt, int bytesPerChannel, int numC
 struct IDynTextureSourceImpl : public IDynTextureSource
 {
 	virtual bool Update() = 0;
-	virtual bool Apply(int nTUnit, SamplerStateHandle nTS = EDefaultSamplerStates::Unspecified) = 0;
+
 	virtual void GetTexGenInfo(float& offsX, float& offsY, float& scaleX, float& scaleY) const = 0;
 	virtual void SetSize(uint32 width, uint32 height) = 0;
 };
@@ -2064,7 +1712,6 @@ public:
 	virtual string GetProfileInfo() const               { return string(); }
 #endif
 
-	virtual bool      Apply(int nTUnit, SamplerStateHandle nTS = EDefaultSamplerStates::Unspecified);
 	virtual void      GetTexGenInfo(float& offsX, float& offsY, float& scaleX, float& scaleY) const;
 
 	virtual ITexture* GetTexture() const                   { return m_pDynTexture->GetTexture(); }
@@ -2075,7 +1722,7 @@ public:
 
 protected:
 	virtual ~CDynTextureSource();
-	virtual void CalcSize(uint32& width, uint32& height, float distToCamera = -1) const;
+	virtual void CalcSize(uint32& width, uint32& height) const;
 
 	void         InitDynTexture(ETexPool eTexPool);
 protected:
@@ -2107,7 +1754,6 @@ public:
 #endif
 
 	virtual bool              Update();
-	virtual bool              Apply(int nTUnit, SamplerStateHandle nTS = EDefaultSamplerStates::Unspecified);
 	virtual void              GetTexGenInfo(float& offsX, float& offsY, float& scaleX, float& scaleY) const;
 
 	virtual void*             GetSourceTemp(EDynTextureSource type) const;
@@ -2334,6 +1980,10 @@ public:
 				m_pPlayer->Release();
 				m_pPlayer = 0;
 			}
+		}
+		IFlashPlayer* operator*()
+		{
+			return m_pPlayer;
 		}
 		IFlashPlayer* operator->()
 		{

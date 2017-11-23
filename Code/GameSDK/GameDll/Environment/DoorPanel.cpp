@@ -187,7 +187,7 @@ void CDoorPanel::Update( SEntityUpdateContext& ctx, int slot )
 	// Check visible distance
 	if (m_fVisibleDistanceSq > 0.0f)
 	{
-		const float fCurTime = ctx.fCurrTime;
+		const float fCurTime = gEnv->pTimer->GetCurrTime();
 		if ((fCurTime - m_fLastVisibleDistanceCheckTime) >= GetGameConstCVar(g_flashdoorpanel_distancecheckinterval))
 		{
 			m_fLastVisibleDistanceCheckTime = fCurTime;
@@ -264,7 +264,7 @@ void CDoorPanel::HandleEvent( const SGameObjectEvent& gameObjectEvent )
 	}
 }
 
-void CDoorPanel::ProcessEvent( SEntityEvent& entityEvent )
+void CDoorPanel::ProcessEvent( const SEntityEvent& entityEvent )
 {
 	switch(entityEvent.event)
 	{
@@ -316,6 +316,11 @@ void CDoorPanel::ProcessEvent( SEntityEvent& entityEvent )
 		}
 		break;
 	}
+}
+
+uint64 CDoorPanel::GetEventMask() const
+{
+	return BIT64(ENTITY_EVENT_RESET) | BIT64(ENTITY_EVENT_UNHIDE) | BIT64(ENTITY_EVENT_HIDE) | BIT64(ENTITY_EVENT_LINK) | BIT64(ENTITY_EVENT_DELINK);
 }
 
 void CDoorPanel::GetMemoryUsage( ICrySizer *pSizer ) const

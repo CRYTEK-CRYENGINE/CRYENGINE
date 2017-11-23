@@ -259,6 +259,10 @@ struct IEntityArchetype
 //! Interface entity archetype manager extension. Allows to react to archetype changes.
 struct IEntityArchetypeManagerExtension
 {
+#if (eCryModule != eCryM_LegacyGameDLL && eCryModule != eCryM_Legacy && eCryModule != eCryM_Editor && eCryModule != eCryM_EntitySystem)
+	CRY_DEPRECATED("(v5.5) Entity archetypes are deprecated in favour of Schematyc usage") IEntityArchetypeManagerExtension() = default;
+#endif
+
 	virtual ~IEntityArchetypeManagerExtension() = default;
 
 	//! Called when new archetype is added.

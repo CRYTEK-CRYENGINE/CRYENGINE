@@ -282,7 +282,7 @@ StackSizeKB:
 		<Thread name ="PhysicsWorkerThread_*" StackSizeKB="128"/>	
 
 		<!-- [RenderDLL] -->
-		<Thread name ="RenderThread" StackSizeKB="128"/>
+		<Thread name ="RenderThread" StackSizeKB="512"/>
 		<Thread name ="RenderLoadingThread" Priority="Above_Normal" StackSizeKB="128"/>
 		<Thread name ="ShaderCompile"/>	
 

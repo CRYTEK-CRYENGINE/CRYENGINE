@@ -227,7 +227,7 @@ v2fZ SkyZVS(a2v IN)
 
   // Position in screen space.
   float4 vPos = IN.Position;
-  OUT.Position = mul(vpMatrix, vPos);
+  OUT.Position = mul(CV_ViewProjMatr, vPos);
   OUT.Position.z = OUT.Position.w;
 
   return OUT;

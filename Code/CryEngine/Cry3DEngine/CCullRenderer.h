@@ -19,7 +19,7 @@ namespace NAsyncCull
 namespace Debug
 {
 
-inline SAuxVertex* Generate2DBox(SAuxVertex* pVertices, float fX, float fY, float fHeigth, float fWidth, const ColorB& rColor, float fScreenHeigth, float fScreenWidth)
+inline SAuxVertex* Generate2DBox(SAuxVertex* pVertices, float fX, float fY, float fHeigth, float fWidth, const ColorB& rColor)
 {
 	float fPosition[4][2] =
 	{
@@ -29,34 +29,25 @@ inline SAuxVertex* Generate2DBox(SAuxVertex* pVertices, float fX, float fY, floa
 		{ fX + fWidth, fY           }
 	};
 
-	// compute normalized position from absolute points
-	Vec3 vPosition[4] =
-	{
-		Vec3(fPosition[0][0] / fScreenWidth, fPosition[0][1] / fScreenHeigth, 0.0f),
-		Vec3(fPosition[1][0] / fScreenWidth, fPosition[1][1] / fScreenHeigth, 0.0f),
-		Vec3(fPosition[2][0] / fScreenWidth, fPosition[2][1] / fScreenHeigth, 0.0f),
-		Vec3(fPosition[3][0] / fScreenWidth, fPosition[3][1] / fScreenHeigth, 0.0f)
-	};
-
 	SAuxVertex v = { { 0, 0, 0}, {{ rColor.pack_argb8888() }}, { 0, 0 } };
 
 	pVertices[0] = v;
-	pVertices[0].xyz = vPosition[0];
+	pVertices[0].xyz = Vec3(fPosition[0][0], fPosition[0][1], 0.0f);
 
 	pVertices[1] = v;
-	pVertices[1].xyz = vPosition[1];
+	pVertices[1].xyz = Vec3(fPosition[1][0], fPosition[1][1], 0.0f);
 
 	pVertices[2] = v;
-	pVertices[2].xyz = vPosition[2];
+	pVertices[2].xyz = Vec3(fPosition[2][0], fPosition[2][1], 0.0f);
 
 	pVertices[3] = v;
-	pVertices[3].xyz = vPosition[0];
+	pVertices[3].xyz = Vec3(fPosition[0][0], fPosition[0][1], 0.0f);
 
 	pVertices[4] = v;
-	pVertices[4].xyz = vPosition[2];
+	pVertices[4].xyz = Vec3(fPosition[2][0], fPosition[2][1], 0.0f);
 
 	pVertices[5] = v;
-	pVertices[5].xyz = vPosition[3];
+	pVertices[5].xyz = Vec3(fPosition[3][0], fPosition[3][1], 0.0f);
 
 	return pVertices + 6;
 }
@@ -1496,6 +1487,8 @@ public:
 	{
 		// project buffer to the screen
 #if defined(CULLING_ENABLE_DEBUG_OVERLAY)
+		IRenderAuxGeom* pAux = pRenderer->GetIRenderAuxGeom();
+
 		nStep %= 32;
 		if (!nStep)
 		{
@@ -1505,20 +1498,17 @@ public:
 		//if(!m_DebugRender)
 		//	return;
 
-		const float FarPlaneInv = 255.f / pRenderer->GetCamera().GetFarPlane();
+		const float FarPlaneInv = 255.f / GetISystem()->GetViewCamera().GetFarPlane();
 
 		SAuxGeomRenderFlags oFlags(e_Def2DPublicRenderflags);
 		oFlags.SetDepthTestFlag(e_DepthTestOff);
 		oFlags.SetDepthWriteFlag(e_DepthWriteOff);
 		oFlags.SetCullMode(e_CullModeNone);
 		oFlags.SetAlphaBlendMode(e_AlphaNone);
-		pRenderer->GetIRenderAuxGeom()->SetRenderFlags(oFlags);
+		SAuxGeomRenderFlags prevFlags = pAux->SetRenderFlags(oFlags);
 
-		int nScreenHeight = gEnv->pRenderer->GetHeight();
-		int nScreenWidth = gEnv->pRenderer->GetWidth();
-
-		float fScreenHeight = (float)nScreenHeight;
-		float fScreenWidth = (float)nScreenWidth;
+		const float fScreenWidth  = float(pAux->GetCamera().GetViewSurfaceX());
+		const float fScreenHeight = float(pAux->GetCamera().GetViewSurfaceZ());
 
 		float fTopOffSet = 35.0f;
 		float fSideOffSet = 35.0f;
@@ -1526,7 +1516,7 @@ public:
 		std::vector<SAuxVertex> vertices;
 		vertices.resize(SIZEX*SIZEY * 6);
 		
-		 SAuxVertex* __restrict pVertices = vertices.data();
+		SAuxVertex* __restrict pVertices = vertices.data();
 
 		// draw z-buffer after reprojection (unknown parts are red)
 		fTopOffSet += 200.0f;
@@ -1550,15 +1540,17 @@ public:
 				ColorB Color2(ValueColor2, ValueColor2 * 16, ValueColor2 * 256, 222);
 				ColorB Color3(ValueColor3, ValueColor3 * 16, ValueColor3 * 256, 222);
 
-				pVertices = NAsyncCull::Debug::Generate2DBox(pVertices, fX0, fY, 3.0f, 3.0f, Color0, fScreenHeight, fScreenWidth);
-				pVertices = NAsyncCull::Debug::Generate2DBox(pVertices, fX1, fY, 3.0f, 3.0f, Color1, fScreenHeight, fScreenWidth);
-				pVertices = NAsyncCull::Debug::Generate2DBox(pVertices, fX2, fY, 3.0f, 3.0f, Color2, fScreenHeight, fScreenWidth);
-				pVertices = NAsyncCull::Debug::Generate2DBox(pVertices, fX3, fY, 3.0f, 3.0f, Color3, fScreenHeight, fScreenWidth);
+				pVertices = NAsyncCull::Debug::Generate2DBox(pVertices, fX0, fY, 3.0f, 3.0f, Color0);
+				pVertices = NAsyncCull::Debug::Generate2DBox(pVertices, fX1, fY, 3.0f, 3.0f, Color1);
+				pVertices = NAsyncCull::Debug::Generate2DBox(pVertices, fX2, fY, 3.0f, 3.0f, Color2);
+				pVertices = NAsyncCull::Debug::Generate2DBox(pVertices, fX3, fY, 3.0f, 3.0f, Color3);
 
 				CRY_ASSERT(pVertices <= vertices.data() + vertices.size());
 			}
 		}
-		pRenderer->GetIRenderAuxGeom()->DrawBuffer(vertices.data(), vertices.size(), false);
+
+		pAux->DrawBuffer(vertices.data(), vertices.size(), false);
+		pAux->SetRenderFlags(prevFlags);
 #endif
 	}
 

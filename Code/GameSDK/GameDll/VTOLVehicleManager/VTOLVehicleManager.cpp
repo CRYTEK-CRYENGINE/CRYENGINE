@@ -526,7 +526,7 @@ void CVTOLVehicleManager::RespawnVTOL(IVehicle* pVehicle, SVTOLInfo& info)
 	CHUDEventDispatcher::CallEvent(hudEvent);
 }
 
-void CVTOLVehicleManager::OnEntityEvent( IEntity *pEntity, SEntityEvent &event )
+void CVTOLVehicleManager::OnEntityEvent( IEntity *pEntity, const SEntityEvent& event )
 {
 	if(event.event == ENTITY_EVENT_DONE)
 	{

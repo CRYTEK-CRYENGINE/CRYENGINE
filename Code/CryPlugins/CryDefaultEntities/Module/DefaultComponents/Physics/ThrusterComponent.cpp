@@ -46,7 +46,7 @@ void CThrusterComponent::Initialize()
 	m_bConstantThrustActive = m_bEnableConstantThrustByDefault;
 }
 
-void CThrusterComponent::ProcessEvent(SEntityEvent& event)
+void CThrusterComponent::ProcessEvent(const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED)
 	{

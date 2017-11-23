@@ -62,7 +62,7 @@ void CMannequinObject::OnShutDown()
 	}
 }
 
-void CMannequinObject::ProcessEvent(SEntityEvent& event)
+void CMannequinObject::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{

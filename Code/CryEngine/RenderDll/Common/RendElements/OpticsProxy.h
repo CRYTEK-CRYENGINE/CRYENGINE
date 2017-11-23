@@ -48,6 +48,8 @@ public:
 	DynArray<FuncVariableGroup> GetEditorParamGroups();
 #endif
 
+	void                DeleteThis() override;
+
 public:
 
 	bool                         m_bEnable;

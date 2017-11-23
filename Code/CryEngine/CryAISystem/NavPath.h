@@ -185,8 +185,11 @@ public:
 	/// These obstacles should already have been expanded if necessary to allow for pass
 	/// radius. Returns false if there was no way to adjust the path (in which case the path
 	/// may be partially adjusted)
-	bool AdjustPathAroundObstacles(const CPathObstacles& obstacles, IAISystem::tNavCapMask navCapMask);
-	bool AdjustPathAroundObstacles(const Vec3& currentpos, const AgentMovementAbility& movementAbility) override;
+	bool AdjustPathAroundObstacles(const CPathObstacles& obstacles, IAISystem::tNavCapMask navCapMask, const INavMeshQueryFilter* pFilter);
+	bool AdjustPathAroundObstacles(const Vec3& currentpos, const AgentMovementAbility& movementAbility, const INavMeshQueryFilter* pFilter) override;
+
+	/// Returns true if the path points can pass the specified filter starting from 'fromPointIndex'
+	virtual bool CanPassFilter(size_t fromPointIndex, const INavMeshQueryFilter* pFilter) override;
 
 	/// Advances path state until it represents agentPos. If allowPathToFinish = false then
 	/// it won't allow the path to finish
@@ -211,10 +214,10 @@ private:
 
 	/// Makes the path avoid a single obstacle - return false if this is impossible.
 	/// It only works on m_pathPoints.
-	bool  AdjustPathAroundObstacle(const CPathObstacle& obstacle, IAISystem::tNavCapMask navCapMask);
-	bool  AdjustPathAroundObstacleShape2D(const SPathObstacleShape2D& obstacle, IAISystem::tNavCapMask navCapMask);
-	bool  CheckPath(const TPathPoints& pathList, float radius) const;
-	void  MovePathEndsOutOfObstacles(const CPathObstacles& obstacles);
+	bool  AdjustPathAroundObstacle(const CPathObstacle& obstacle, IAISystem::tNavCapMask navCapMask, const INavMeshQueryFilter* pFilter);
+	bool  AdjustPathAroundObstacleShape2D(const SPathObstacleShape2D& obstacle, IAISystem::tNavCapMask navCapMask, const INavMeshQueryFilter* pFilter);
+	bool  CheckPath(const TPathPoints& pathList, float radius, const INavMeshQueryFilter* pFilter) const;
+	void  MovePathEndsOutOfObstacles(const CPathObstacles& obstacles, const INavMeshQueryFilter* pFilter);
 
 	float GetPathDeviationDistance(Vec3& deviationOut, float criticalDeviation, bool twoD);
 

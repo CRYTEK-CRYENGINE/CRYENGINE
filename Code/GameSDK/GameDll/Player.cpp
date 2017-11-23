@@ -1328,7 +1328,7 @@ void CPlayer::ResetAnimationState()
 	}
 }
 
-void CPlayer::ProcessEvent(SEntityEvent& event)
+void CPlayer::ProcessEvent(const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_XFORM)
 	{
@@ -1532,6 +1532,23 @@ void CPlayer::ProcessEvent(SEntityEvent& event)
 			}
 		}
 	}
+}
+
+uint64 CPlayer::GetEventMask() const
+{
+	return CActor::GetEventMask()
+		| BIT64(ENTITY_EVENT_XFORM)
+		| BIT64(ENTITY_EVENT_TIMER)
+		| BIT64(ENTITY_EVENT_PREPHYSICSUPDATE)
+		| BIT64(ENTITY_EVENT_PRE_SERIALIZE)
+		| BIT64(ENTITY_EVENT_START_GAME)
+		| BIT64(ENTITY_EVENT_RESET)
+		| BIT64(ENTITY_EVENT_DONE)
+		| BIT64(ENTITY_EVENT_ATTACH_THIS)
+		| BIT64(ENTITY_EVENT_DETACH_THIS)
+		| BIT64(ENTITY_EVENT_ENABLE_PHYSICS)
+		| BIT64(ENTITY_EVENT_SET_AUTHORITY);
+
 }
 
 void CPlayer::SetChannelId(uint16 id)

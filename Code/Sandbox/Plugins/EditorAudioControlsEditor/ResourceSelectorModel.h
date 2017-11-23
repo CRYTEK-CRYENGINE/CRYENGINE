@@ -6,15 +6,15 @@
 
 namespace ACE
 {
-class CAudioLibrary;
-class CAudioAssetsManager;
+class CSystemLibrary;
+class CSystemAssetsManager;
 
-class CResourceControlModel final : public CSystemControlsModel
+class CResourceLibraryModel final : public CAudioLibraryModel
 {
 public:
 
-	CResourceControlModel(CAudioAssetsManager* pAssetsManager)
-		: CSystemControlsModel(pAssetsManager)
+	CResourceLibraryModel(CSystemAssetsManager* const pAssetsManager)
+		: CAudioLibraryModel(pAssetsManager)
 	{}
 
 private:
@@ -27,12 +27,12 @@ private:
 	// ~CAudioAssetsExplorerModel
 };
 
-class CResourceLibraryModel final : public CAudioLibraryModel
+class CResourceControlsModel final : public CSystemControlsModel
 {
 public:
 
-	CResourceLibraryModel(CAudioAssetsManager* pAssetsManager, CAudioLibrary* pLibrary)
-		:CAudioLibraryModel(pAssetsManager, pLibrary)
+	CResourceControlsModel(CSystemAssetsManager* const pAssetsManager, CSystemLibrary* const pLibrary)
+		:CSystemControlsModel(pAssetsManager, pLibrary)
 	{}
 
 private:

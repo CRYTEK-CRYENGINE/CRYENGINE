@@ -6,15 +6,15 @@
 
 #include "DebugDrawContext.h"
 
-//#pragma optimize("", off)
-//#pragma inline_depth(0)
-
 CCollisionAvoidanceSystem::CCollisionAvoidanceSystem()
+	: m_bUpdating(false)
 {
 }
 
 void CCollisionAvoidanceSystem::RegisterAgent(ICollisionAvoidanceAgent* agent)
 {
+	CRY_ASSERT(m_bUpdating == false);
+	
 	auto actorIt = std::find(m_registeredAgents.begin(), m_registeredAgents.end(), agent);
 	if (actorIt == m_registeredAgents.end())
 	{
@@ -24,22 +24,26 @@ void CCollisionAvoidanceSystem::RegisterAgent(ICollisionAvoidanceAgent* agent)
 
 void CCollisionAvoidanceSystem::UnregisterAgent(ICollisionAvoidanceAgent* agent)
 {
+	CRY_ASSERT(m_bUpdating == false);
+	
 	m_registeredAgents.erase(std::remove(m_registeredAgents.begin(), m_registeredAgents.end(), agent), m_registeredAgents.end());
 }
 
-CCollisionAvoidanceSystem::AgentID CCollisionAvoidanceSystem::CreateAgent(NavigationAgentTypeID navigationTypeID, const char* name)
+CCollisionAvoidanceSystem::AgentID CCollisionAvoidanceSystem::CreateAgent(NavigationAgentTypeID navigationTypeID, const INavMeshQueryFilter* pQueryFilter, const char* szName)
 {
-	uint32 id = m_agents.size();
-	m_agents.resize(id + 1);
+	size_t id = m_agents.size();
+	size_t newSize = id + 1;
+	m_agents.resize(newSize);
 
-	m_agentAvoidanceVelocities.resize(m_agents.size());
+	m_agentAvoidanceVelocities.resize(newSize);
 	m_agentAvoidanceVelocities[id].zero();
 
-	m_agentNavigationTypesIDs.resize(m_agents.size());
-	m_agentNavigationTypesIDs[id] = navigationTypeID;
+	m_agentsNavigationProperties.resize(newSize);
+	m_agentsNavigationProperties[id].agentTypeId = navigationTypeID;
+	m_agentsNavigationProperties[id].pQueryFilter = pQueryFilter;
 
-	m_agentNames.resize(m_agents.size());
-	m_agentNames[id] = name;
+	m_agentNames.resize(newSize);
+	m_agentNames[id] = szName;
 
 	return id;
 }
@@ -85,7 +89,7 @@ void CCollisionAvoidanceSystem::Reset(bool bUnload)
 		stl::free_container(m_agentAvoidanceVelocities);
 		stl::free_container(m_obstacles);
 
-		stl::free_container(m_agentNavigationTypesIDs);
+		stl::free_container(m_agentsNavigationProperties);
 		stl::free_container(m_agentNames);
 
 		stl::free_container(m_constraintLines);
@@ -99,7 +103,7 @@ void CCollisionAvoidanceSystem::Reset(bool bUnload)
 		m_agentAvoidanceVelocities.clear();
 		m_obstacles.clear();
 
-		m_agentNavigationTypesIDs.clear();
+		m_agentsNavigationProperties.clear();
 		m_agentNames.clear();
 	}
 }
@@ -362,7 +366,7 @@ bool CCollisionAvoidanceSystem::FindFirstWalkableVelocity(AgentID agentID, SCand
 		const Vec3 from = agent.currentLocation;
 		const Vec3 to = agent.currentLocation + Vec3(candidate.velocity.x * 0.125f, candidate.velocity.y * 0.125f, 0.0f);
 
-		output = ClampSpeedWithNavigationMesh(m_agentNavigationTypesIDs[agentID], agent.currentLocation, agent.currentVelocity, candidate.velocity);
+		output = ClampSpeedWithNavigationMesh(m_agentsNavigationProperties[agentID], agent.currentLocation, agent.currentVelocity, candidate.velocity);
 		if (output.GetLength2() < 0.1)
 			continue;
 		return true;
@@ -386,7 +390,7 @@ void CCollisionAvoidanceSystem::PopulateState()
 					CCollisionAvoidanceSystem::SAgentParams colAgent;
 					agent->InitializeCollisionAgent(colAgent);
 
-					CCollisionAvoidanceSystem::AgentID agentID = CreateAgent(agent->GetNavigationTypeId(), agent->GetName());
+					CCollisionAvoidanceSystem::AgentID agentID = CreateAgent(agent->GetNavigationTypeId(), agent->GetNavigationQueryFilter(), agent->GetName());
 					SetAgent(agentID, colAgent);
 
 					m_avoidingAgents.push_back(agent);
@@ -420,6 +424,8 @@ void CCollisionAvoidanceSystem::ApplyResults(float updateTime)
 
 void CCollisionAvoidanceSystem::Update(float updateTime)
 {
+	m_bUpdating = true;
+	
 	PopulateState();
 
 	const bool debugDraw = gAIEnv.CVars.DebugDraw > 0;
@@ -565,6 +571,8 @@ void CCollisionAvoidanceSystem::Update(float updateTime)
 	}
 
 	ApplyResults(updateTime);
+
+	m_bUpdating = false;
 }
 
 size_t CCollisionAvoidanceSystem::ComputeNearbyAgents(const SAgentParams& agent, size_t agentIndex, float range,
@@ -789,7 +797,7 @@ void CCollisionAvoidanceSystem::ComputeObstacleConstraintLine(const SAgentParams
 	}
 }
 
-Vec2 CCollisionAvoidanceSystem::ClampSpeedWithNavigationMesh(const NavigationAgentTypeID agentTypeID, const Vec3 agentPosition,
+Vec2 CCollisionAvoidanceSystem::ClampSpeedWithNavigationMesh(const SNavigationProperties& agentNavProperties, const Vec3 agentPosition,
                                                             const Vec2& currentVelocity, const Vec2& velocityToClamp) const
 {
 	Vec2 outputVelocity = velocityToClamp;
@@ -802,7 +810,7 @@ Vec2 CCollisionAvoidanceSystem::ClampSpeedWithNavigationMesh(const NavigationAge
 		const Vec3 from = agentPosition;
 		const Vec3 to = agentPosition + Vec3(velocityToClamp.x, velocityToClamp.y, 0.0f);
 
-		if (NavigationMeshID meshID = gAIEnv.pNavigationSystem->GetEnclosingMeshID(agentTypeID, from))
+		if (NavigationMeshID meshID = gAIEnv.pNavigationSystem->GetEnclosingMeshID(agentNavProperties.agentTypeId, from))
 		{
 			const NavigationMesh& mesh = gAIEnv.pNavigationSystem->GetMesh(meshID);
 			const MNM::CNavMesh& navMesh = mesh.navMesh;
@@ -813,13 +821,15 @@ Vec2 CCollisionAvoidanceSystem::ClampSpeedWithNavigationMesh(const NavigationAge
 			const MNM::real_t horizontalRange(5.0f);
 			const MNM::real_t verticalRange(1.0f);
 
-			MNM::TriangleID triStart = navMesh.GetTriangleAt(startLoc, verticalRange, verticalRange);
+			const INavMeshQueryFilter* pFilter = agentNavProperties.pQueryFilter;
 
-			MNM::TriangleID triEnd = navMesh.GetTriangleAt(endLoc, verticalRange, verticalRange);
+			MNM::TriangleID triStart = navMesh.GetTriangleAt(startLoc, verticalRange, verticalRange, pFilter);
+
+			MNM::TriangleID triEnd = navMesh.GetTriangleAt(endLoc, verticalRange, verticalRange, pFilter);
 			if (!triEnd)
 			{
 				MNM::vector3_t closestEndLocation;
-				triEnd = navMesh.GetClosestTriangle(endLoc, verticalRange, horizontalRange, nullptr, &closestEndLocation);
+				triEnd = navMesh.GetClosestTriangle(endLoc, verticalRange, horizontalRange, pFilter, nullptr, &closestEndLocation);
 				navMesh.PushPointInsideTriangle(triEnd, closestEndLocation, MNM::real_t(.05f));
 				endLoc = closestEndLocation;
 			}
@@ -827,7 +837,7 @@ Vec2 CCollisionAvoidanceSystem::ClampSpeedWithNavigationMesh(const NavigationAge
 			if (triStart && triEnd)
 			{
 				MNM::CNavMesh::RayCastRequest<512> raycastRequest;
-				MNM::CNavMesh::ERayCastResult result = navMesh.RayCast(startLoc, triStart, endLoc, triEnd, raycastRequest);
+				MNM::CNavMesh::ERayCastResult result = navMesh.RayCast(startLoc, triStart, endLoc, triEnd, raycastRequest, pFilter);
 				if (result == MNM::CNavMesh::eRayCastResult_Hit)
 				{
 					const float velocityMagnitude = min(TimeStep, raycastRequest.hit.distance.as_float());

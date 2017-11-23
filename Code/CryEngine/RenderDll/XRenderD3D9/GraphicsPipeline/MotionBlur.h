@@ -9,7 +9,6 @@
 class CMotionBlurStage : public CGraphicsPipelineStage
 {
 public:
-	void Init();
 	void Execute();
 
 private:

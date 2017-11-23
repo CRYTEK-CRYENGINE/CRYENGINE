@@ -694,7 +694,7 @@ void CMatchMakingHandler::NewSessionParameter( ELOBBYIDS paramID, ScriptAnyValue
 			MMLog( "MMLua: Unsupported type in session data", true );
 		}
 
-		CryLog( "MMLua: Create Session Parameter, id %d, value %d", m_sessionParams[ m_nSessionParams ].m_id, m_sessionParams[ m_nSessionParams ].m_int32 );
+		CryLog( "MMLua: Create Session Parameter, id %s, value %d", m_sessionParams[ m_nSessionParams ].m_id.c_str(), m_sessionParams[ m_nSessionParams ].m_int32 );
 		m_nSessionParams++;
 	}
 	else

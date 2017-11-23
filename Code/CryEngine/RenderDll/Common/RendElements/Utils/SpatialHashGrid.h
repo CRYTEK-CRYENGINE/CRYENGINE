@@ -213,8 +213,8 @@ void CSpatialHashGrid<T, GridSize, BucketSize >::DebugDraw()
 	pRenderer->SetRenderFlags(newFlags);
 
 	// Draw black backing
-	const float invWidth = 1.0f / (float)gEnv->pRenderer->GetWidth();
-	const float invHeight = 1.0f / (float)gEnv->pRenderer->GetHeight();
+	const float invWidth  = 1.0f / float(pRenderer->GetCamera().GetViewSurfaceX());
+	const float invHeight = 1.0f / float(pRenderer->GetCamera().GetViewSurfaceZ());
 
 	const float minX = (322.5f - m_fGridSize * 15.0f) * invWidth;
 	const float maxX = (322.5f) * invWidth;

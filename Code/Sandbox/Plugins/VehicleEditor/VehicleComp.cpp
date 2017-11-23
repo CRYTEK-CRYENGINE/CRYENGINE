@@ -223,7 +223,7 @@ void CVehicleComponent::UpdateObjectFromVar()
 	UpdateObjectNameFromVar();
 	UpdateObjectBoundsFromVar();
 
-	SetModified(false);
+	SetModified(false, false);
 }
 
 //////////////////////////////////////////////////////////////////////////

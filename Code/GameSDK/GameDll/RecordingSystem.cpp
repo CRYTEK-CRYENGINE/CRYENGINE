@@ -4055,7 +4055,7 @@ void CRecordingSystem::UpdateBulletPosition()
 			m_playInfo.m_view.currView = SPlaybackInfo::eVM_BulletTime;
 			SetTimeScale(g_pGameCVars->kc_bulletTravelTimeScale);
 
-			const CCamera& camera = gEnv->pRenderer->GetCamera();
+			const CCamera& camera = GetISystem()->GetViewCamera();
 			Vec3 relative = camera.GetPosition() - m_bulletTarget;
 			float focusDist = relative.len();
 
@@ -4136,13 +4136,13 @@ void CRecordingSystem::UpdateBulletPosition()
 							//m_kvoltSoundLoop.Stop();
 						}
 					}
-					const CCamera& camera = gEnv->pRenderer->GetCamera();
+					const CCamera& camera = GetISystem()->GetViewCamera();
 					Vec3 relative = camera.GetPosition() - m_newBulletPosition;
 					focusDist = relative.len();
 				}
 				else
 				{
-					const CCamera& camera = gEnv->pRenderer->GetCamera();
+					const CCamera& camera = GetISystem()->GetViewCamera();
 					Vec3 relative = camera.GetPosition() - m_bulletTarget;
 					focusDist = relative.len();
 				}
@@ -6331,7 +6331,7 @@ void CRecordingSystem::OnReused(IEntity *pEntity, SEntitySpawnParams &params)
 	CRY_ASSERT_MESSAGE(false, "CRecordingSystem::OnReused needs implementing");
 }
 
-void CRecordingSystem::OnEntityEvent( IEntity *pEntity,SEntityEvent &event )
+void CRecordingSystem::OnEntityEvent( IEntity *pEntity, const SEntityEvent& event )
 {
 	const EntityId entityId = pEntity->GetId();
 

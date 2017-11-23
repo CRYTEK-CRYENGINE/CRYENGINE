@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -78,6 +78,7 @@ public:
 	virtual void          OnUnloadLevel() override                                                                                                                                                {}
 	virtual void          OnLanguageChanged() override                                                                                                                                            {}
 	virtual IProfileData* GetProfileData() const override                                                                                                                                         { return nullptr; }
+	virtual void          Log(ELogType const type, char const* const szFormat, ...) override                                                                                                      {}
 
 private:
 

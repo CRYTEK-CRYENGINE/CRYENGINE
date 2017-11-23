@@ -25,7 +25,6 @@ public:
 
 	void create(const char* registeredTypeName) const override
 	{
-		CRY_ASSERT(!m_ptr || m_ptr->Unique());
 		if (registeredTypeName && registeredTypeName[0] != '\0')
 			m_ptr.reset(Serialization::ClassFactory<T>::the().create(registeredTypeName));
 		else

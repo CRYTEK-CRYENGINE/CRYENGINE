@@ -117,6 +117,7 @@ public:
 	virtual void           GetScissorRect(int& x0, int& y0, int& width, int& height) const;
 	virtual void           Advance(float deltaTime);
 	virtual void           Render(bool stereo = false);
+	virtual void           SetClearFlags(uint32 clearFlags, ColorF clearColor = Clr_Transparent);
 	virtual void           SetCompositingDepth(float depth);
 	virtual void           StereoEnforceFixedProjectionDepth(bool enforce);
 	virtual void           StereoSetCustomMaxParallax(float maxParallax = -1.0f);
@@ -176,6 +177,8 @@ public:
 #if defined(ENABLE_DYNTEXSRC_PROFILING)
 	virtual void LinkDynTextureSource(const struct IDynTextureSource* pDynTexSrc);
 #endif
+
+	IScaleformPlayback* GetPlayback();
 
 	// IFlashPlayer_RenderProxy interface
 	virtual void RenderCallback(EFrameType ft, bool releaseOnExit = true);
@@ -375,6 +378,8 @@ private:
 private:
 	volatile int m_refCount;
 	volatile int m_releaseGuardCount;
+	uint32 m_clearFlags;
+	ColorF m_clearColor;
 	float m_compDepth;
 	float m_stereoCustomMaxParallax;
 	bool  m_allowEgdeAA          : 1;

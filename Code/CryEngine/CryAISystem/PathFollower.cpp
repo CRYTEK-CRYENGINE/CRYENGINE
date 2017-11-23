@@ -893,7 +893,7 @@ void CPathFollower::SetAllowCuttingCorners(const bool allowCuttingCorners)
 //===================================================================
 // IsRemainingPathAffectedByNavMeshChange
 //===================================================================
-bool CPathFollower::IsRemainingPathAffectedByNavMeshChange(const NavigationMeshID affectedMeshID, const MNM::TileID affectedTileID) const
+bool CPathFollower::IsRemainingPathAffectedByNavMeshChange(const NavigationMeshID affectedMeshID, const MNM::TileID affectedTileID, bool bAnnotationChange, bool bDataChange) const
 {
 	CRY_ASSERT(false);  // not implemented
 	return false;

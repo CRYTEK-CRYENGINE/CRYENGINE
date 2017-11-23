@@ -2,6 +2,9 @@
 
 namespace CryEngine.Animations
 {
+	/// <summary>
+	/// Contains data of an animation tag.
+	/// </summary>
 	public sealed class AnimationTag
 	{
 		/// <summary>

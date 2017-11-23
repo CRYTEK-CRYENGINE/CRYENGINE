@@ -74,12 +74,12 @@ private:
 	IParamModContext& GetContext(Serialization::IArchive& ar) const;
 
 private:
-	string        m_attributeName;
-	EDomain       m_domain;
-	EDomainField  m_fieldSource;
-	EDomainOwner  m_sourceOwner;
-	EDomainGlobal m_sourceGlobal;
-	bool          m_spawnOnly;
+	CAttributeReference m_attribute;
+	EDomain             m_domain;
+	EDomainField        m_fieldSource;
+	EDomainOwner        m_sourceOwner;
+	EDomainGlobal       m_sourceGlobal;
+	bool                m_spawnOnly;
 };
 
 }

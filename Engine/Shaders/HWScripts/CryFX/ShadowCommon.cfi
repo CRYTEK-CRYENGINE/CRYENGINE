@@ -14,12 +14,6 @@
 #define FORWARD_SHADOWS_CASCADE0_SINGLE_TAP 0x10
 #define FORWARD_SHADOWS_CLOUD_SHADOWS       0x20
 
-//ShadowGen parameters
-//PSMWARP_MATRIX //instance parameter
-float4x4 warpPsmMatrix    : PB_TempMatr1[0];
-float4 LPos               : PI_OSCameraPos < vsregister = c6; >;
-float4 vAdaption	: PB_TempData[13];
-
 //--------------------------------------------------------------------------------------------------
 //Shadow pass
 
@@ -48,7 +42,6 @@ float4 vGSMOffsets23        : PB_TempData[7];		// (lod[2].offsetx,lod[2].offsety
 #define MAX_SHADOW_SAMPLES_NUM 16
 #define HALF_MAX_SHADOW_SAMPLES_NUM 8
 
-float4 irreg_kernel_cube[MAX_SHADOW_SAMPLES_NUM]	: PB_IrregKernel;
 float4 regular_kernel[5]		: PB_RegularKernel;
 
 float4 irreg_kernel_2d[HALF_MAX_SHADOW_SAMPLES_NUM]	: PB_IrregKernel;

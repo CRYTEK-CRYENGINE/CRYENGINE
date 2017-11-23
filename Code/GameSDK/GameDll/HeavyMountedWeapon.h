@@ -80,7 +80,7 @@ public:
 	virtual bool UpdateAimAnims(SParams_WeaponFPAiming &aimAnimParams);
 	virtual void UpdateIKMounted(IActor* pActor, const Vec3& vGunXAxis);
 
-	virtual void ProcessEvent(SEntityEvent& event);
+	virtual void ProcessEvent(const SEntityEvent& event);
 
 	virtual void Select(bool select);
 

@@ -3424,7 +3424,7 @@ void CSmartObjectManager::OnReused(IEntity* pEntity, SEntitySpawnParams& params)
 
 // Implementation of IEntitySystemSink methods
 ///////////////////////////////////////////////
-void CSmartObjectManager::OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+void CSmartObjectManager::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 

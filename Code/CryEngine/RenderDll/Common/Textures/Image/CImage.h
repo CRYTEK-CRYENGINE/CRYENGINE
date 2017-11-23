@@ -182,7 +182,7 @@ public:
 public:
 	static _smart_ptr<CImageFile> mfLoad_file(const string& filename, const uint32 nFlags);
 	static _smart_ptr<CImageFile> mfStream_File(const string& filename, const uint32 nFlags, IImageFileStreamCallback* pCallback);
-	static bool                   mfInvokeRC(const string& fileToLoad, const string& filename, char* extOut, size_t extOutCapacity);
+	static bool                   mfInvokeRC(const string& fileToLoad, const string& filename, char* extOut, size_t extOutCapacity, bool immediate);
 };
 
 #endif

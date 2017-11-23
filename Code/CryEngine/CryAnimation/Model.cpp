@@ -407,6 +407,63 @@ bool                   CDefaultSkeleton::SetupPhysicalProxies(const DynArray<Phy
 		m_bHasPhysics2 = true;
 	}
 
+	IStatObj *pSkelCGF = gEnv->p3DEngine->LoadStatObj(string(filename) + ".cgf", nullptr, nullptr, false);
+	if (!pSkelCGF->IsDefaultObject())
+	{
+		std::map<uint32,int> mapJoints;
+		for(uint32 i = 0; i < numJoints; i++)
+		{
+			mapJoints.insert(std::pair<uint32,int>(CCrc32::ComputeLowercase(m_arrModelJoints[i].m_strJointName), i));
+			CryBonePhysics& phys = m_arrModelJoints[i].m_PhysInfo;
+			if (phys.pPhysGeom)
+			{
+				gEnv->pPhysicalWorld->GetGeomManager()->UnregisterGeometry(phys.pPhysGeom);
+				phys.pPhysGeom = nullptr;
+			}
+		}
+		m_bHasPhysics2 = true;
+		for(int i = 0; i < pSkelCGF->GetSubObjectCount(); i++)
+		{
+			IStatObj::SSubObject& slot = *pSkelCGF->GetSubObject(i);
+			auto idx = mapJoints.find(CCrc32::ComputeLowercase(slot.name));
+			if (idx != mapJoints.end() && !slot.name.compareNoCase(m_arrModelJoints[idx->second].m_strJointName) && slot.pStatObj && slot.pStatObj->GetPhysGeom())
+			{
+				CryBonePhysics& phys = m_arrModelJoints[idx->second].m_PhysInfo;
+				(phys.pPhysGeom = slot.pStatObj->GetPhysGeom())->nRefCount++;
+				Vec3i lim[2];
+				Ang3 frame0;
+				sscanf_s(slot.properties.c_str(), "%d %d %d %d %d %d %f %f %f %f %f %f %f %f %f",
+					&lim[0].x, &lim[0].y, &lim[0].z, &lim[1].x, &lim[1].y, &lim[1].z, 
+					&phys.spring_tension[0], &phys.spring_tension[1], &phys.spring_tension[2], 
+					&phys.damping[0], &phys.damping[1], &phys.damping[2],
+					&frame0.x, &frame0.y, &frame0.z);
+				*(Vec3*)phys.min = DEG2RAD(Vec3(lim[0]));
+				*(Vec3*)phys.max = DEG2RAD(Vec3(lim[1]));
+				phys.flags = joint_no_gravity | joint_isolated_accelerations;
+				for(int j = 0; j < 3; j++)
+				{
+					phys.flags |= (angle0_locked << j) * isneg(phys.max[j] - phys.min[j] - 0.01f);
+					float unlim = 1.0f + isneg(gf_PI*1.999f - phys.max[j] + phys.min[j]);
+					phys.max[j] *= unlim; phys.min[j] *= unlim;
+				}
+				*(Matrix33*)phys.framemtx = Matrix33(DEG2RAD(frame0));
+				m_bHasPhysics2 = true;
+			}
+		}
+		pSkelCGF->Release();
+
+		// transform framemtx from child frame to phys parent frame
+		for(uint32 i = 0; i < numJoints; i++)
+			if (m_arrModelJoints[i].m_PhysInfo.pPhysGeom)
+			{
+				int idxParent = m_arrModelJoints[i].m_idxParent;
+				while (idxParent >= 0 && !m_arrModelJoints[idxParent].m_PhysInfo.pPhysGeom)
+					idxParent = m_arrModelJoints[idxParent].m_idxParent;
+				if (idxParent >= 0)
+					*(Matrix33*)m_arrModelJoints[i].m_PhysInfo.framemtx = Matrix33(!GetDefaultAbsJointByID(idxParent).q * GetDefaultAbsJointByID(i).q) * *(Matrix33*)m_arrModelJoints[i].m_PhysInfo.framemtx;
+			}
+	}
+
 	return true;
 }
 
@@ -449,6 +506,8 @@ bool CDefaultSkeleton::ParsePhysInfoProperties_ROPE(CryBonePhysics& pi, const Dy
 				pi.min[2] = DEG2RAD(-props[i].fval);
 			if (!strcmp(props[i].name, "StiffnessControlBone"))
 				pi.framemtx[0][1] = props[i].fval + (props[i].fval > 0.0f);
+			if (!strcmp(props[i].name, "SleepSpeed"))
+				pi.damping[0] = props[i].fval + 1.0f;
 			else if (!strcmp(props[i].name, "HingeY"))
 				(pi.flags &= ~8) |= (props[i].bval ? 8 : 0);
 			else if (!strcmp(props[i].name, "HingeZ"))
@@ -534,6 +593,7 @@ DynArray<SJointProperty> CDefaultSkeleton::GetPhysInfoProperties_ROPE(const CryB
 		res.push_back(SJointProperty("SimpleBlending", !(pi.flags & 4)));
 		res.push_back(SJointProperty("Mass", RAD2DEG(fabs_tpl(pi.min[1]))));
 		res.push_back(SJointProperty("Thickness", RAD2DEG(fabs_tpl(pi.min[2]))));
+		res.push_back(SJointProperty("SleepSpeed", pi.damping[0] - 1.0f));
 		res.push_back(SJointProperty("HingeY", (pi.flags & 8) != 0));
 		res.push_back(SJointProperty("HingeZ", (pi.flags & 16) != 0));
 		res.push_back(SJointProperty("StiffnessControlBone", (float)FtoI(pi.framemtx[0][1] - 1.0f) * (pi.framemtx[0][1] >= 2.0f && pi.framemtx[0][1] < 100.0f)));

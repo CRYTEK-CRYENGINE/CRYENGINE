@@ -40,9 +40,9 @@ public:
 
 	virtual IParticleFeature* CreateParticleFeature(EGpuFeatureType) override;
 
-	void RenderThreadUpdate();
-	void RenderThreadPreUpdate();
-	void RenderThreadPostUpdate();
+	void RenderThreadUpdate(CRenderView* pRenderView);
+	void RenderThreadPreUpdate(CRenderView* pRenderView);
+	void RenderThreadPostUpdate(CRenderView* pRenderView);
 
 	// gets initialized the first time it is called and will allocate buffers
 	// (so make sure its only called from the render thread)

@@ -522,9 +522,6 @@ namespace CornerSmoothing
 
 			pAux->SetRenderFlags(flags2D);
 
-			float screenWidth = float(gEnv->pRenderer->GetWidth());
-			float screenHeight = float(gEnv->pRenderer->GetHeight());
-
 			int numSamples = 50;
 
 			AABB b;

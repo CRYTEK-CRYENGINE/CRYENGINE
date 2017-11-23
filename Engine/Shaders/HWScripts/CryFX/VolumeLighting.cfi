@@ -42,9 +42,6 @@ float4 FrustumBL;
 // xyz: size of thread groups, w: number of entities
 float4 DispatchSize;
 
-float4 vfCameraFrontVector : PB_CameraFront;
-
-
 struct SVolumeLightCullInfo
 {
 	uint      volumeType;
@@ -852,7 +849,7 @@ void AccumulateDensityFogVolume(inout float density, inout float3 densityColor, 
 			}
 
 			const float3 cameraLookDirInWS = eyeDirInWS.xyz * invOfScaledCamDirLength;
-			float toLinearDepth = dot( cameraLookDirInWS, -vfCameraFrontVector.xyz );
+			float toLinearDepth = dot( cameraLookDirInWS, -CV_CameraFrontVector.xyz );
 			tS *= toLinearDepth;
 			tE *= toLinearDepth;
 
@@ -954,7 +951,7 @@ void InjectFogDensityCS(uint3 DispatchThreadID : SV_DispatchThreadID
 	// Barycentric interpolation for reconstructing position
 	float2 vPixelUV = (pixelCoord.xy + 0.5f) * ScreenSize.zw;
 	float3 vCamVec = ((1 - vPixelUV.x - vPixelUV.y) * FrustumTL.xyz + (vPixelUV.x * FrustumTR.xyz + (vPixelUV.y * FrustumBL.xyz)));
-	float n = dot(-vfCameraFrontVector.xyz, vCamVec);
+	float n = dot(-CV_CameraFrontVector.xyz, vCamVec);
 	float3 normalizedCamVec = vCamVec / n;
 
 	float depthIndex = pixelCoord.z;
@@ -1921,7 +1918,7 @@ void InjectVolumetricInscatteringCS(uint3 DispatchThreadID : SV_DispatchThreadID
 	float2 vPixelUV = (pixelCoord.xy + 0.5f) * ScreenSize.zw;
 	float3 vCamVec = ((1 - vPixelUV.x - vPixelUV.y) * FrustumTL.xyz + (vPixelUV.x * FrustumTR.xyz + (vPixelUV.y * FrustumBL.xyz)));
 
-	float n = dot(-vfCameraFrontVector.xyz, vCamVec);
+	float n = dot(-CV_CameraFrontVector.xyz, vCamVec);
 	float3 normalizedCamVec = vCamVec / n;
 	float3 normalizedEyeRay = normalize(normalizedCamVec);
 
@@ -2042,7 +2039,7 @@ void RaymarchVolumetricFogCS(uint3 DispatchThreadID : SV_DispatchThreadID)
 		// Barycentric interpolation for reconstructing position
 		float3 vCamVec = ((1 - vPixelUV.x - vPixelUV.y) * FrustumTL.xyz + (vPixelUV.x * FrustumTR.xyz + (vPixelUV.y * FrustumBL.xyz)));
 
-		float n = dot(-vfCameraFrontVector.xyz, normalize(vCamVec));
+		float n = dot(-CV_CameraFrontVector.xyz, normalize(vCamVec));
 		float3 normalizedFactor = 1 / n;
 
 		const uint maxStepNum = ScreenInfo.w;
@@ -2190,7 +2187,7 @@ void ReprojectVolumetricFogCS(uint3 DispatchThreadID : SV_DispatchThreadID, uint
 	float2 vPixelUV = (pixelCoord.xy + 0.5f) * ScreenSize.zw;
 	float3 vCamVec = ((1 - vPixelUV.x - vPixelUV.y) * FrustumTL.xyz + (vPixelUV.x * FrustumTR.xyz + (vPixelUV.y * FrustumBL.xyz)));
 
-	float n = dot(-vfCameraFrontVector.xyz, vCamVec);
+	float n = dot(-CV_CameraFrontVector.xyz, vCamVec);
 	float3 normalizedCamVec = vCamVec / n;
 
 	float depthIndex = pixelCoord.z;

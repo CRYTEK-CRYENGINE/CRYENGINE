@@ -68,7 +68,6 @@ public:
 
 	virtual ~CREClientPoly() {};
 
-	virtual void              mfPrepare(bool bCheckOverflow) final;
 	virtual CRenderElement*     mfCopyConstruct(void) final;
 
 	virtual bool              GetGeometryInfo(SGeometryInfo& geomInfo, bool bSupportTessellation = false) final;

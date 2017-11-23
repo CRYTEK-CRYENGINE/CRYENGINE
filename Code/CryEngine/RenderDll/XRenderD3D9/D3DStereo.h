@@ -82,8 +82,8 @@ public:
 	void              Update();
 	void              ProcessScene(int sceneFlags, const SRenderingPassInfo& passInfo);
 	void              ReleaseBuffers();
-	void              OnResolutionChanged();
-	void              CalculateBackbufferResolution(int nativeWidth, int nativeHeight, int* pRenderWidth, int *pRenderHeight);
+	void              OnResolutionChanged(int newWidth, int newHeight);
+	void              CalculateResolution(int requestedWidth, int requestedHeight, int* pRenderWidth, int *pRenderHeight);
 
 	void              SubmitFrameToHMD();
 	void              DisplayStereo();
@@ -99,7 +99,7 @@ public:
 	void              BeginRenderingToVrQuadLayer(RenderLayer::EQuadLayers id);
 	void              EndRenderingToVrQuadLayer(RenderLayer::EQuadLayers id);
 
-	void              TakeScreenshot(const char path[]);
+	bool              TakeScreenshot(const char path[]);
 
 	float             GetNearGeoShift()    { return m_zeroParallaxPlaneDist; }
 	float             GetNearGeoScale()    { return m_nearGeoScale; }
@@ -150,8 +150,8 @@ private:
 	CTexture*     m_pVrQuadLayerTex[RenderLayer::eQuadLayers_Total];
 	CTexture*     m_pSideTexs[2];
 
-	CCamera       m_previousCamera[2];
-	bool          m_bPreviousCameraValid;
+	std::array<CCamera, 2> m_previousCameras;
+	bool                   m_bPreviousCameraValid;
 
 	void*         m_nvStereoHandle;
 	float         m_nvStereoStrength;
@@ -183,7 +183,7 @@ private:
 private:
 	void          SelectDefaultDevice();
 
-	void          CreateIntermediateBuffers();
+	void          CreateIntermediateBuffers(int nWidth, int nHeight);
 
 	bool          EnableStereo();
 	void          DisableStereo();

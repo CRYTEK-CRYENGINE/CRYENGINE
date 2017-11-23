@@ -173,7 +173,8 @@ public:
 	virtual void                 PostUpdate(float frameTime)                                                   {};
 	virtual void                 PostRemoteSpawn()                                                             {};
 	virtual void                 HandleEvent(const SGameObjectEvent&)                                          {};
-	virtual void                 ProcessEvent(SEntityEvent&);
+	virtual void                 ProcessEvent(const SEntityEvent&);
+	virtual uint64               GetEventMask() const;
 	virtual void                 SetChannelId(uint16 id)                                                       {};
 	//~IGameObjectExtension
 

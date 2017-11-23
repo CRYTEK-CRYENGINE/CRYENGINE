@@ -2,7 +2,6 @@
 #include "ProjectorLightComponent.h"
 
 #include <CrySystem/IProjectManager.h>
-#include <CryGame/IGameFramework.h>
 #include <ILevelSystem.h>
 #include <Cry3DEngine/IRenderNode.h>
 
@@ -33,7 +32,7 @@ void CProjectorLightComponent::Initialize()
 		return;
 	}
 
-	CDLight light;
+	SRenderLight light;
 
 	light.m_nLightStyle = m_animations.m_style;
 	light.SetAnimSpeed(m_animations.m_speed);
@@ -174,7 +173,7 @@ void CProjectorLightComponent::Initialize()
 	m_pEntity->SetSlotFlags(GetEntitySlotId(), slotFlags);
 }
 
-void CProjectorLightComponent::ProcessEvent(SEntityEvent& event)
+void CProjectorLightComponent::ProcessEvent(const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED)
 	{
