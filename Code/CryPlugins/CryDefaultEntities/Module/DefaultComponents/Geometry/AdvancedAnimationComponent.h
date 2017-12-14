@@ -148,6 +148,16 @@ public:
 		m_pActionController->Queue(*m_pActiveAction);
 	}
 
+	virtual void QueueAction(TAction<SAnimationContext>& pAction)
+	{
+		if (m_pAnimationContext == nullptr)
+		{
+			return;
+		}
+
+		m_pActionController->Queue(pAction);
+	}
+
 	// TODO: Expose resource selector for tags
 	virtual void SetTag(const Schematyc::CSharedString& tagName, bool bSet)
 	{
