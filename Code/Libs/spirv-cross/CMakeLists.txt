@@ -9,6 +9,8 @@ add_sources("NoUberFile"
 		"../../SDKs/spirv-cross/GLSL.std.450.h"
 		"../../SDKs/spirv-cross/spirv_common.hpp"
 		"../../SDKs/spirv-cross/spirv.hpp"
+		"../../SDKs/spirv-cross/spirv_cfg.hpp"
+		"../../SDKs/spirv-cross/spirv_cfg.cpp"
 		"../../SDKs/spirv-cross/spirv_cross.hpp"
 		"../../SDKs/spirv-cross/spirv_cross.cpp"
 )
